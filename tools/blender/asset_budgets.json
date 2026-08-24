@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "defaultSceneProfile": "high",
+  "sceneProfiles": {
+    "low": {
+      "visibleTriangles": { "targetMin": 80000, "targetMax": 350000, "hardMax": 600000 },
+      "drawCalls": { "preferredMax": 180, "hardMax": 240 }
+    },
+    "medium": {
+      "visibleTriangles": { "targetMin": 150000, "targetMax": 600000, "hardMax": 900000 },
+      "drawCalls": { "preferredMax": 200, "hardMax": 280 }
+    },
+    "high": {
+      "visibleTriangles": { "targetMin": 250000, "targetMax": 900000, "hardMax": 1500000 },
+      "drawCalls": { "preferredMax": 220, "hardMax": 300 }
+    }
+  },
+  "texturePolicy": {
+    "tinyPropMax": 256,
+    "normalPropMax": 512,
+    "heroAssetMax": 1024,
+    "rareSharedAtlasMax": 2048
+  },
+  "assetCatalog": "assets/specs/asset-catalog.json"
+}

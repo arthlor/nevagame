@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neva.local/schemas/asset-catalog.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "downloadBudgetBytes", "assets"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "downloadBudgetBytes": { "type": "integer", "minimum": 1048576 },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/asset" }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "file", "family", "generator", "seed", "dimensions", "palette",
+        "budget", "pivot", "collision", "instancing", "lod", "rootNode",
+        "requiredNodes", "readDistanceMeters", "parameters"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "file": { "type": "string", "pattern": "^[a-z][a-z0-9_]*\\.glb$" },
+        "family": {
+          "enum": ["vegetation", "rock", "architecture", "prop", "boat", "crop", "fish", "cloud", "character"]
+        },
+        "generator": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "depth", "height"],
+          "properties": {
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "depth": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "palette": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["trianglesMin", "trianglesTarget", "trianglesMax", "materialsMax"],
+          "properties": {
+            "trianglesMin": { "type": "integer", "minimum": 1 },
+            "trianglesTarget": { "type": "integer", "minimum": 1 },
+            "trianglesMax": { "type": "integer", "minimum": 1 },
+            "materialsMax": { "type": "integer", "minimum": 1, "maximum": 8 }
+          }
+        },
+        "pivot": { "enum": ["ground_center", "center", "buoyancy"] },
+        "collision": { "enum": ["none", "box", "compound"] },
+        "instancing": { "type": "boolean" },
+        "lod": { "enum": ["none", "small", "medium", "hero"] },
+        "rootNode": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "requiredNodes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
+        },
+        "readDistanceMeters": { "type": "number", "minimum": 8, "maximum": 100 },
+        "parameters": { "type": "object" }
+      }
+    }
+  }
+}

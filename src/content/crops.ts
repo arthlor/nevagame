@@ -1,0 +1,127 @@
+// src/content/crops.ts
+
+import { CropDefinition } from "./types";
+
+export const CROPS: Record<string, CropDefinition> = {
+  "crop.wheat": {
+    id: "crop.wheat",
+    name: "Wheat",
+    seedItemId: "seed.wheat",
+    harvestItemId: "produce.wheat",
+    footprint: { width: 1.0, depth: 1.0 },
+    baseGrowthMinutes: 60,
+    preferredClimates: ["temperate"],
+    baseYield: { min: 3, max: 5 },
+    waterNeed: 15,
+    fertilityCost: 8,
+    regrows: false,
+    minimumFarmingXp: 0,
+    tags: ["grain", "fast", "chum-core"]
+  },
+  "crop.barley": {
+    id: "crop.barley",
+    name: "Barley",
+    seedItemId: "seed.barley",
+    harvestItemId: "produce.barley",
+    footprint: { width: 1.0, depth: 1.0 },
+    baseGrowthMinutes: 90,
+    preferredClimates: ["temperate"],
+    baseYield: { min: 3, max: 6 },
+    waterNeed: 18,
+    fertilityCost: 10,
+    regrows: false,
+    minimumFarmingXp: 500,
+    tags: ["grain", "feed"]
+  },
+  "crop.corn": {
+    id: "crop.corn",
+    name: "Sweet Corn",
+    seedItemId: "seed.corn",
+    harvestItemId: "produce.corn",
+    footprint: { width: 1.2, depth: 1.2 },
+    baseGrowthMinutes: 150,
+    preferredClimates: ["warm"],
+    baseYield: { min: 2, max: 5 },
+    waterNeed: 25,
+    fertilityCost: 15,
+    regrows: false,
+    minimumFarmingXp: 1000,
+    tags: ["tall", "warm-staple"]
+  },
+  "crop.tomato": {
+    id: "crop.tomato",
+    name: "Tomato",
+    seedItemId: "seed.tomato",
+    harvestItemId: "produce.tomato",
+    footprint: { width: 1.0, depth: 1.0 },
+    baseGrowthMinutes: 120,
+    preferredClimates: ["temperate", "warm"],
+    baseYield: { min: 3, max: 5 },
+    waterNeed: 22,
+    fertilityCost: 12,
+    regrows: false,
+    minimumFarmingXp: 500,
+    tags: ["vegetable", "market-favorite"]
+  },
+  "crop.potato": {
+    id: "crop.potato",
+    name: "Potato",
+    seedItemId: "seed.potato",
+    harvestItemId: "produce.potato",
+    footprint: { width: 1.0, depth: 1.0 },
+    baseGrowthMinutes: 180,
+    preferredClimates: ["cool"],
+    baseYield: { min: 3, max: 6 },
+    waterNeed: 14,
+    fertilityCost: 10,
+    regrows: false,
+    minimumFarmingXp: 0,
+    tags: ["tuber", "hardy", "staple"]
+  },
+  "crop.carrot": {
+    id: "crop.carrot",
+    name: "Carrot",
+    seedItemId: "seed.carrot",
+    harvestItemId: "produce.carrot",
+    footprint: { width: 0.8, depth: 0.8 },
+    baseGrowthMinutes: 90,
+    preferredClimates: ["cool", "temperate"],
+    baseYield: { min: 2, max: 5 },
+    waterNeed: 16,
+    fertilityCost: 8,
+    regrows: false,
+    minimumFarmingXp: 200,
+    tags: ["root", "compact"]
+  },
+  "crop.flax": {
+    id: "crop.flax",
+    name: "Flax",
+    seedItemId: "seed.flax",
+    harvestItemId: "produce.flax",
+    footprint: { width: 1.0, depth: 1.0 },
+    baseGrowthMinutes: 240,
+    preferredClimates: ["temperate"],
+    baseYield: { min: 2, max: 4 },
+    waterNeed: 20,
+    fertilityCost: 14,
+    regrows: false,
+    minimumFarmingXp: 3000,
+    tags: ["fiber", "industrial"]
+  },
+  "crop.apple_tree": {
+    id: "crop.apple_tree",
+    name: "Apple Tree",
+    seedItemId: "seed.apple_sapling",
+    harvestItemId: "produce.apple",
+    footprint: { width: 2.5, depth: 2.5 },
+    baseGrowthMinutes: 720, // 12 hours initial maturity
+    preferredClimates: ["temperate"],
+    baseYield: { min: 4, max: 8 },
+    waterNeed: 10,
+    fertilityCost: 5,
+    regrows: true,
+    regrowMinutes: 360, // 6 hours regrow cycle
+    minimumFarmingXp: 7500,
+    tags: ["tree", "regrowing", "orchard"]
+  }
+};

@@ -1,0 +1,1849 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-21T13:14:49.450Z",
+  "specHash": "fff3261fdec4cd072f9ea6ff0f15a7b1b87f83a9fbfb1cc6880d272c10329ed5",
+  "paletteHash": "ff4bce1eb504afa77b526d648197fe8e029e833deaa005007ef0970acb57fe09",
+  "blenderVersion": "Blender 5.2.0 LTS",
+  "durationMs": 5188,
+  "aggregateBytes": 1493672,
+  "summary": {
+    "assetCount": 35,
+    "onTarget": 9,
+    "belowTarget": 26,
+    "triangles": 34024,
+    "productionMinimumTriangles": 17930,
+    "qualityTargetTriangles": 112200,
+    "hardMaximumTriangles": 194600,
+    "fileSizeBytes": 1493672
+  },
+  "assets": [
+    {
+      "id": "tree_oak_a",
+      "file": "tree_oak_a.glb",
+      "family": "vegetation",
+      "generator": "oak_tree",
+      "seed": 10,
+      "dimensions": [
+        3.7494776248931885,
+        4.390704154968262,
+        6.130820035934448
+      ],
+      "bounds": {
+        "min": [
+          -1.4123528003692627,
+          -2.0426788330078125,
+          -0.008852243423461914
+        ],
+        "max": [
+          2.337124824523926,
+          2.348025321960449,
+          6.121967792510986
+        ]
+      },
+      "requiredNodes": [
+        "tree_oak_a_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 56,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 1500,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "684 triangles are below quality target 1500"
+      ],
+      "nodes": 13,
+      "meshes": 12,
+      "triangles": 684,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 41948,
+      "fileHash": "e4fcabe7a618cb4da17fb1c3cda8e4612bbbdef946f68b05c002d4fdde07de6a",
+      "semanticHash": "6d39517e0dc8b432ef7b534ba4424084e34d1a8f4f15c1f608ff89e3401c4609",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "tree_oak_b",
+      "file": "tree_oak_b.glb",
+      "family": "vegetation",
+      "generator": "oak_tree",
+      "seed": 25,
+      "dimensions": [
+        4.478090047836304,
+        5.645951509475708,
+        5.978944301605225
+      ],
+      "bounds": {
+        "min": [
+          -2.2653934955596924,
+          -2.93264102935791,
+          -0.00672149658203125
+        ],
+        "max": [
+          2.2126965522766113,
+          2.713310480117798,
+          5.972222805023193
+        ]
+      },
+      "requiredNodes": [
+        "tree_oak_b_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 25,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 1500,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "764 triangles are below quality target 1500"
+      ],
+      "nodes": 14,
+      "meshes": 13,
+      "triangles": 764,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 45964,
+      "fileHash": "ce64bcfce313fa68ea12620e4908a876c5dd1d1cf13939aa99e2de967a14293f",
+      "semanticHash": "fa13ec3e0fc9f38594e361f4c0e886d53d2704b33a41b28648cf99c3bbfba4ba",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "tree_pine_a",
+      "file": "tree_pine_a.glb",
+      "family": "vegetation",
+      "generator": "pine_tree",
+      "seed": 41,
+      "dimensions": [
+        3.9246602058410645,
+        3.9709694385528564,
+        6.144455909729004
+      ],
+      "bounds": {
+        "min": [
+          -1.9400466680526733,
+          -1.991125226020813,
+          0
+        ],
+        "max": [
+          1.9846135377883911,
+          1.9798442125320435,
+          6.144455909729004
+        ]
+      },
+      "requiredNodes": [
+        "tree_pine_a_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 19,
+      "budget": {
+        "trianglesMin": 280,
+        "trianglesTarget": 1500,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "404 triangles are below quality target 1500"
+      ],
+      "nodes": 18,
+      "meshes": 17,
+      "triangles": 404,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 36480,
+      "fileHash": "3e8e2e23c09c3e4271031e8215b3fefb10e61a936521c081c7eba5c59f692506",
+      "semanticHash": "51b512c00419613aa91efa3dad9fd6482a3513c89936b1b8eea5eed2e19da432",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "tree_apple_a",
+      "file": "tree_apple_a.glb",
+      "family": "vegetation",
+      "generator": "apple_tree",
+      "seed": 73,
+      "dimensions": [
+        3.7104681730270386,
+        3.3363165855407715,
+        4.214263439178467
+      ],
+      "bounds": {
+        "min": [
+          -1.763054370880127,
+          -1.9414269924163818,
+          0
+        ],
+        "max": [
+          1.9474138021469116,
+          1.3948895931243896,
+          4.214263439178467
+        ]
+      },
+      "requiredNodes": [
+        "tree_apple_a_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 20,
+      "budget": {
+        "trianglesMin": 320,
+        "trianglesTarget": 1500,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "828 triangles are below quality target 1500"
+      ],
+      "nodes": 24,
+      "meshes": 12,
+      "triangles": 828,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 41048,
+      "fileHash": "64802e2130a5ba713ee88446f32041cf7a434908c6c2a8bd30830fc8ec160afa",
+      "semanticHash": "13a9bfceca84f3b1b3b2e550472600f60641b84f14cce0a1c202d7f82f2c15a7",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "foliage_bush_a",
+      "file": "foliage_bush_a.glb",
+      "family": "vegetation",
+      "generator": "bush",
+      "seed": 91,
+      "dimensions": [
+        1.6275060176849365,
+        1.7146605253219604,
+        1.0449101030826569
+      ],
+      "bounds": {
+        "min": [
+          -0.9411048889160156,
+          -1.021647572517395,
+          -0.03594043850898743
+        ],
+        "max": [
+          0.6864011287689209,
+          0.6930129528045654,
+          1.0089696645736694
+        ]
+      },
+      "requiredNodes": [
+        "foliage_bush_a_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 12,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 400,
+        "trianglesMax": 1000,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 13,
+      "meshes": 6,
+      "triangles": 540,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 26964,
+      "fileHash": "ea3ef88075c0501b619d39a5375b9d63078fc5c7c6036e5476a85b50f770f2fc",
+      "semanticHash": "d9abe850cdd31a614958d405e535ef874d8b2c870903cb3d41de1a116173365d",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "foliage_reeds_a",
+      "file": "foliage_reeds_a.glb",
+      "family": "vegetation",
+      "generator": "reeds",
+      "seed": 101,
+      "dimensions": [
+        0.8402458429336548,
+        0.6344539225101471,
+        1.5380455255508423
+      ],
+      "bounds": {
+        "min": [
+          -0.45948532223701477,
+          -0.3700787127017975,
+          -0.001039743423461914
+        ],
+        "max": [
+          0.38076052069664,
+          0.2643752098083496,
+          1.5370057821273804
+        ]
+      },
+      "requiredNodes": [
+        "foliage_reeds_a_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 15,
+      "budget": {
+        "trianglesMin": 90,
+        "trianglesTarget": 400,
+        "trianglesMax": 1000,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "396 triangles are below quality target 400"
+      ],
+      "nodes": 23,
+      "meshes": 12,
+      "triangles": 396,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 22140,
+      "fileHash": "5fb0276d49b6cc12afb16b67d745c14e1b92600688bf8ba191dd8c36db5ddc93",
+      "semanticHash": "23072e99cf11bf03238a27368f1dda61c341bd1426c1277be46b7ac4710c36cb",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "rock_boulder_a",
+      "file": "rock_boulder_a.glb",
+      "family": "rock",
+      "generator": "faceted_rock",
+      "seed": 3,
+      "dimensions": [
+        3.6144747734069824,
+        2.594415545463562,
+        2.4441120624542236
+      ],
+      "bounds": {
+        "min": [
+          -1.7148140668869019,
+          -1.2970713376998901,
+          0
+        ],
+        "max": [
+          1.8996607065200806,
+          1.2973442077636719,
+          2.4441120624542236
+        ]
+      },
+      "requiredNodes": [
+        "rock_boulder_a_root",
+        "COL_rock_boulder_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 6,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "320 triangles are below quality target 900"
+      ],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 320,
+      "materials": 1,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 18624,
+      "fileHash": "0afa72c09ac57a4937de3cd25dd6c9392055edaa8363aed76ccf7df7068daeab",
+      "semanticHash": "2e2afd10e16b5329e33fb95daf599c081da4cd2e7e4d4af4fc9033bb95c4a01d",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "rock_coastal_a",
+      "file": "rock_coastal_a.glb",
+      "family": "rock",
+      "generator": "faceted_rock",
+      "seed": 7,
+      "dimensions": [
+        4.661434650421143,
+        3.3798223733901978,
+        2.94864559173584
+      ],
+      "bounds": {
+        "min": [
+          -2.3146004676818848,
+          -1.688471794128418,
+          0
+        ],
+        "max": [
+          2.346834182739258,
+          1.6913505792617798,
+          2.94864559173584
+        ]
+      },
+      "requiredNodes": [
+        "rock_coastal_a_root",
+        "COL_rock_coastal_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 6,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "320 triangles are below quality target 900"
+      ],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 320,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 18524,
+      "fileHash": "e1cf71914487062608190f97f6745fd28934362674d09769f5530f3907ff91db",
+      "semanticHash": "303c1f072919f5ffc628536351ea47c375c3fca5012050958de6023c2d656f33",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "rock_field_a",
+      "file": "rock_field_a.glb",
+      "family": "rock",
+      "generator": "faceted_rock",
+      "seed": 12,
+      "dimensions": [
+        2.0829060077667236,
+        1.896003007888794,
+        1.3545901775360107
+      ],
+      "bounds": {
+        "min": [
+          -1.025787591934204,
+          -0.9495628476142883,
+          0
+        ],
+        "max": [
+          1.0571184158325195,
+          0.9464401602745056,
+          1.3545901775360107
+        ]
+      },
+      "requiredNodes": [
+        "rock_field_a_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 6,
+      "budget": {
+        "trianglesMin": 100,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "320 triangles are below quality target 900"
+      ],
+      "nodes": 2,
+      "meshes": 1,
+      "triangles": 320,
+      "materials": 1,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 18504,
+      "fileHash": "06efbd5e9e54d91a56d7af697f3b65c4725551e3547eab56851e0383fbec2d1f",
+      "semanticHash": "d6c977f6c05f6db75e7aab7d916a63bfae2dd7dc1f296ce03183dfa7e08f4d10",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "house_farmhouse_a",
+      "file": "house_farmhouse_a.glb",
+      "family": "architecture",
+      "generator": "farmhouse",
+      "seed": 201,
+      "dimensions": [
+        7.25,
+        6.919348478317261,
+        6.582875728607178
+      ],
+      "bounds": {
+        "min": [
+          -3.625,
+          -4.079348564147949,
+          0
+        ],
+        "max": [
+          3.625,
+          2.8399999141693115,
+          6.582875728607178
+        ]
+      },
+      "requiredNodes": [
+        "house_farmhouse_a_root",
+        "COL_house_farmhouse_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 22,
+      "budget": {
+        "trianglesMin": 1500,
+        "trianglesTarget": 12000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "warnings": [
+        "1556 triangles are below quality target 12000"
+      ],
+      "nodes": 39,
+      "meshes": 22,
+      "triangles": 1556,
+      "materials": 5,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 47568,
+      "fileHash": "d102868fb94d7c7214df19a55e5592f6b790a41e08f247be530a94df949b7c45",
+      "semanticHash": "05ca174c129de6531ac90c95a402a3a771d72f7a0f1c84a8a6be919142a8b61c",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "building_lighthouse_a",
+      "file": "building_lighthouse_a.glb",
+      "family": "architecture",
+      "generator": "lighthouse",
+      "seed": 211,
+      "dimensions": [
+        4.874118328094482,
+        4.874118328094482,
+        13.554999351501465
+      ],
+      "bounds": {
+        "min": [
+          -2.437059164047241,
+          -2.437059164047241,
+          0
+        ],
+        "max": [
+          2.437059164047241,
+          2.437059164047241,
+          13.554999351501465
+        ]
+      },
+      "requiredNodes": [
+        "building_lighthouse_a_root",
+        "COL_building_lighthouse_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 60,
+      "durationMs": 27,
+      "budget": {
+        "trianglesMin": 1200,
+        "trianglesTarget": 12000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "warnings": [
+        "1240 triangles are below quality target 12000"
+      ],
+      "nodes": 40,
+      "meshes": 16,
+      "triangles": 1240,
+      "materials": 5,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_materials_emissive_strength",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 40744,
+      "fileHash": "c90e0d4ebdec8d6d534b5e46c6a425b249c677488dc888e98ef29ae6354685d6",
+      "semanticHash": "4910bb0b96c9e960d47a7a07708ad1533864d0ec3b271febf8b2eac7e8ea6ff6",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "building_windmill_a",
+      "file": "building_windmill_a.glb",
+      "family": "architecture",
+      "generator": "windmill",
+      "seed": 223,
+      "dimensions": [
+        7.199999809265137,
+        6.240000009536743,
+        9.527999877929688
+      ],
+      "bounds": {
+        "min": [
+          -3.5999999046325684,
+          -3.940000057220459,
+          0
+        ],
+        "max": [
+          3.5999999046325684,
+          2.299999952316284,
+          9.527999877929688
+        ]
+      },
+      "requiredNodes": [
+        "building_windmill_a_root",
+        "windmill_rotor",
+        "COL_building_windmill_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 60,
+      "durationMs": 17,
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 6000,
+        "trianglesMax": 10000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "1064 triangles are below quality target 6000"
+      ],
+      "nodes": 24,
+      "meshes": 19,
+      "triangles": 1064,
+      "materials": 4,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 48744,
+      "fileHash": "07b72880d5cf066dbfb8b18dba3e5c5f4015832341259daa4dff0a3cae925d65",
+      "semanticHash": "912f7ebe9c8d40030831e80668e7381bae61094b2f1cf3ceaec5cbfda9b1b69d",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "bridge_stone_a",
+      "file": "bridge_stone_a.glb",
+      "family": "architecture",
+      "generator": "stone_bridge",
+      "seed": 229,
+      "dimensions": [
+        14.5,
+        4.119999885559082,
+        4.150213241577148
+      ],
+      "bounds": {
+        "min": [
+          -7.25,
+          -2.059999942779541,
+          0
+        ],
+        "max": [
+          7.25,
+          2.059999942779541,
+          4.150213241577148
+        ]
+      },
+      "requiredNodes": [
+        "bridge_stone_a_root",
+        "COL_bridge_stone_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 60,
+      "durationMs": 36,
+      "budget": {
+        "trianglesMin": 1200,
+        "trianglesTarget": 9000,
+        "trianglesMax": 16000,
+        "materialsMax": 6
+      },
+      "warnings": [
+        "3652 triangles are below quality target 9000"
+      ],
+      "nodes": 85,
+      "meshes": 31,
+      "triangles": 3652,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 83612,
+      "fileHash": "19d3bee8a53c43808a7f042ac409ebc6360f34b75096bcd040eb337823124896",
+      "semanticHash": "b1b06f4086e7e94327dfc60e9fe1713bd6fe0f99dbd91824275d7349594d9353",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "dock_straight_a",
+      "file": "dock_straight_a.glb",
+      "family": "architecture",
+      "generator": "working_dock",
+      "seed": 233,
+      "dimensions": [
+        7.974999904632568,
+        3.692193865776062,
+        4.440000057220459
+      ],
+      "bounds": {
+        "min": [
+          -3.987499952316284,
+          -1.8361937999725342,
+          0
+        ],
+        "max": [
+          3.987499952316284,
+          1.8560000658035278,
+          4.440000057220459
+        ]
+      },
+      "requiredNodes": [
+        "dock_straight_a_root",
+        "COL_dock_straight_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 16,
+      "budget": {
+        "trianglesMin": 800,
+        "trianglesTarget": 9000,
+        "trianglesMax": 16000,
+        "materialsMax": 6
+      },
+      "warnings": [
+        "1632 triangles are below quality target 9000"
+      ],
+      "nodes": 44,
+      "meshes": 13,
+      "triangles": 1632,
+      "materials": 4,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 33776,
+      "fileHash": "969d92770b202604e7280b85c45f072ab5a758b670829c188af703b74c4a0cf5",
+      "semanticHash": "2b5ed447ea97d435dec08e32efa1c45576c40fd184f02cd5dc49c0089b96f91c",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "building_fish_market_a",
+      "file": "building_fish_market_a.glb",
+      "family": "architecture",
+      "generator": "fish_market",
+      "seed": 239,
+      "dimensions": [
+        9.663000106811523,
+        7.773749113082886,
+        6.782055854797363
+      ],
+      "bounds": {
+        "min": [
+          -4.025000095367432,
+          -4.633749008178711,
+          0
+        ],
+        "max": [
+          5.638000011444092,
+          3.140000104904175,
+          6.782055854797363
+        ]
+      },
+      "requiredNodes": [
+        "building_fish_market_a_root",
+        "COL_building_fish_market_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 17,
+      "budget": {
+        "trianglesMin": 1500,
+        "trianglesTarget": 12000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "warnings": [
+        "1576 triangles are below quality target 12000"
+      ],
+      "nodes": 40,
+      "meshes": 19,
+      "triangles": 1576,
+      "materials": 5,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 49868,
+      "fileHash": "c2cd90a9d4d48af928714de33c341a7e0e570b61f6067f766a67279b8b0f446e",
+      "semanticHash": "78e8904d2544c26401a2e8818ba46cd198527548beeecc1003586159c96686e4",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "prop_water_well_a",
+      "file": "prop_water_well_a.glb",
+      "family": "prop",
+      "generator": "water_well",
+      "seed": 301,
+      "dimensions": [
+        1.9279999732971191,
+        2.1500000953674316,
+        3.5750000178813934
+      ],
+      "bounds": {
+        "min": [
+          -0.9529999494552612,
+          -1.0750000476837158,
+          0.02000001072883606
+        ],
+        "max": [
+          0.9750000238418579,
+          1.0750000476837158,
+          3.5950000286102295
+        ]
+      },
+      "requiredNodes": [
+        "prop_water_well_a_root",
+        "COL_prop_water_well_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 12,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 3000,
+        "trianglesMax": 6000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "752 triangles are below quality target 3000"
+      ],
+      "nodes": 18,
+      "meshes": 16,
+      "triangles": 752,
+      "materials": 4,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 38456,
+      "fileHash": "ea418ce9e4bdf27d7d6300ae807cf64b257ec3b4dabd7819265a84105a6848df",
+      "semanticHash": "063c860dd4831b4540a868e4d30512f9d86894723276a90183b604859a821925",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "prop_pumpkin_patch_a",
+      "file": "prop_pumpkin_patch_a.glb",
+      "family": "prop",
+      "generator": "pumpkin_patch",
+      "seed": 307,
+      "dimensions": [
+        3,
+        2,
+        0.6015610694885254
+      ],
+      "bounds": {
+        "min": [
+          -1.5,
+          -1,
+          0
+        ],
+        "max": [
+          1.5,
+          1,
+          0.6015610694885254
+        ]
+      },
+      "requiredNodes": [
+        "prop_pumpkin_patch_a_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 19,
+      "budget": {
+        "trianglesMin": 220,
+        "trianglesTarget": 3000,
+        "trianglesMax": 6000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "860 triangles are below quality target 3000"
+      ],
+      "nodes": 25,
+      "meshes": 18,
+      "triangles": 860,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 46652,
+      "fileHash": "aa05d6b4d47aa06fe77a68544ea9ac846a7131ff4d6ce492b6d272364c3c1950",
+      "semanticHash": "e755797dc263c51992ca466ab7f50b26a009ac1e7cd1810f05f14383c37faaea",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "prop_lobster_trap_a",
+      "file": "prop_lobster_trap_a.glb",
+      "family": "prop",
+      "generator": "lobster_trap",
+      "seed": 311,
+      "dimensions": [
+        1.0800000429153442,
+        0.7350000143051147,
+        0.75
+      ],
+      "bounds": {
+        "min": [
+          -0.5400000214576721,
+          -0.3675000071525574,
+          -0.014999985694885254
+        ],
+        "max": [
+          0.5400000214576721,
+          0.3675000071525574,
+          0.7350000143051147
+        ]
+      },
+      "requiredNodes": [
+        "prop_lobster_trap_a_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 8,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "808 triangles are below quality target 900"
+      ],
+      "nodes": 13,
+      "meshes": 3,
+      "triangles": 808,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 12984,
+      "fileHash": "f976be18f8338edc908f0abeb1422bb7ea6c5e539858eae643135dfca51faded",
+      "semanticHash": "c56dd9533a4eb823e3d5686d89c30ec60bfd7969a9fe2e4eded636d6043a1276",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "prop_crate_wood_a",
+      "file": "prop_crate_wood_a.glb",
+      "family": "prop",
+      "generator": "wood_crate",
+      "seed": 313,
+      "dimensions": [
+        0.8621999621391296,
+        0.8621999621391296,
+        0.8199999928474426
+      ],
+      "bounds": {
+        "min": [
+          -0.4310999810695648,
+          -0.4310999810695648,
+          0
+        ],
+        "max": [
+          0.4310999810695648,
+          0.4310999810695648,
+          0.8199999928474426
+        ]
+      },
+      "requiredNodes": [
+        "prop_crate_wood_a_root",
+        "COL_prop_crate_wood_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 7,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 23,
+      "meshes": 4,
+      "triangles": 924,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 14200,
+      "fileHash": "501828e3c535110aa26acb94fc3ed747fe9b20d91c35919eb70a5a847dfd5d6b",
+      "semanticHash": "5bc8031593ac4d50ceb1d1b960a593bf797826e416d5c1ec270f890c05722c48",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "prop_barrel_wood_a",
+      "file": "prop_barrel_wood_a.glb",
+      "family": "prop",
+      "generator": "wood_barrel",
+      "seed": 317,
+      "dimensions": [
+        0.8924000263214111,
+        0.8924000263214111,
+        0.9650000333786011
+      ],
+      "bounds": {
+        "min": [
+          -0.44620001316070557,
+          -0.44620001316070557,
+          0
+        ],
+        "max": [
+          0.44620001316070557,
+          0.44620001316070557,
+          0.9650000333786011
+        ]
+      },
+      "requiredNodes": [
+        "prop_barrel_wood_a_root",
+        "COL_prop_barrel_wood_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 11,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 19,
+      "meshes": 14,
+      "triangles": 904,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 33676,
+      "fileHash": "fa31d3b187f78f8fb3cdcaf77f07cdd93d6ebca8480b83617709d3e50598dc29",
+      "semanticHash": "fec7aebfa562076b55f120da6c78a0d0b38a95566a7566c2412702c028915de4",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "prop_fence_wood_a",
+      "file": "prop_fence_wood_a.glb",
+      "family": "prop",
+      "generator": "wood_fence",
+      "seed": 331,
+      "dimensions": [
+        2.240000009536743,
+        0.2199999988079071,
+        1.3119151592254639
+      ],
+      "bounds": {
+        "min": [
+          -1.1200000047683716,
+          -0.10999999940395355,
+          -0.0019150972366333008
+        ],
+        "max": [
+          1.1200000047683716,
+          0.10999999940395355,
+          1.3100000619888306
+        ]
+      },
+      "requiredNodes": [
+        "prop_fence_wood_a_root",
+        "COL_prop_fence_wood_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 5,
+      "budget": {
+        "trianglesMin": 100,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "244 triangles are below quality target 900"
+      ],
+      "nodes": 10,
+      "meshes": 6,
+      "triangles": 244,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 17576,
+      "fileHash": "30e0d33daf5bb3fc9c8b61f5bd11fae787b4e73f7f82e63394a4cd521e863eaf",
+      "semanticHash": "5288551b9f49ed885a3c2a667ef464acad1c48ce61cb9ba2ebd651bf7889bd5e",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "prop_hay_bale_a",
+      "file": "prop_hay_bale_a.glb",
+      "family": "prop",
+      "generator": "hay_bale",
+      "seed": 337,
+      "dimensions": [
+        1.159999966621399,
+        1.2000000476837158,
+        1.159999966621399
+      ],
+      "bounds": {
+        "min": [
+          -0.5799999833106995,
+          -0.6000000238418579,
+          0
+        ],
+        "max": [
+          0.5799999833106995,
+          0.6000000238418579,
+          1.159999966621399
+        ]
+      },
+      "requiredNodes": [
+        "prop_hay_bale_a_root",
+        "COL_prop_hay_bale_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 4,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "284 triangles are below quality target 900"
+      ],
+      "nodes": 5,
+      "meshes": 2,
+      "triangles": 284,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 9420,
+      "fileHash": "080c82333ca52ebc5808b06a8a173b6ac6c2826708b6dcf284b7bc4b83e84436",
+      "semanticHash": "26e968cf6098bdff5c1e6fac7e01f65e43a9bf8ccecc4d8b766c640a4a807403",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "prop_lamp_post_a",
+      "file": "prop_lamp_post_a.glb",
+      "family": "prop",
+      "generator": "lamp_post",
+      "seed": 347,
+      "dimensions": [
+        0.9866060614585876,
+        0.5799999833106995,
+        3.440000057220459
+      ],
+      "bounds": {
+        "min": [
+          -0.2266060709953308,
+          -0.28999999165534973,
+          0
+        ],
+        "max": [
+          0.7599999904632568,
+          0.28999999165534973,
+          3.440000057220459
+        ]
+      },
+      "requiredNodes": [
+        "prop_lamp_post_a_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 30,
+      "durationMs": 5,
+      "budget": {
+        "trianglesMin": 220,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "276 triangles are below quality target 900"
+      ],
+      "nodes": 7,
+      "meshes": 6,
+      "triangles": 276,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_materials_emissive_strength",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 21120,
+      "fileHash": "437b3880a211ea243428770a5b94ddad3eeea6ad285cbeb6d88b1016b97adbf3",
+      "semanticHash": "840393d6a439e8a6348fdf3cfd0d978a86f5228fbf0b8e836bb6ba5b543ed549",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "boat_rowboat_a",
+      "file": "boat_rowboat_a.glb",
+      "family": "boat",
+      "generator": "rowboat",
+      "seed": 401,
+      "dimensions": [
+        1.8329592943191528,
+        4.1039228439331055,
+        1.1582794189453125
+      ],
+      "bounds": {
+        "min": [
+          -0.9164796471595764,
+          -2.0519614219665527,
+          -0.5591015219688416
+        ],
+        "max": [
+          0.9164796471595764,
+          2.0519614219665527,
+          0.599177896976471
+        ]
+      },
+      "requiredNodes": [
+        "boat_rowboat_root",
+        "boat_rowboat_storage_01",
+        "COL_boat_rowboat_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 31,
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 4000,
+        "trianglesMax": 6000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "2344 triangles are below quality target 4000"
+      ],
+      "nodes": 62,
+      "meshes": 55,
+      "triangles": 2344,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 118256,
+      "fileHash": "830f667a5d5c1761a19ebc314a81b77192ba99383d4ba6b857c548bc122ba556",
+      "semanticHash": "6d696b3234fbbf83e468d4eac0a89479e509c24a873078489302757e69784ecd",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "boat_skiff_a",
+      "file": "boat_skiff_a.glb",
+      "family": "boat",
+      "generator": "fishing_skiff",
+      "seed": 409,
+      "dimensions": [
+        2.8512420654296875,
+        6.6039228439331055,
+        7.3591049909591675
+      ],
+      "bounds": {
+        "min": [
+          -1.4256210327148438,
+          -3.3019614219665527,
+          -0.5591048002243042
+        ],
+        "max": [
+          1.4256210327148438,
+          3.3019614219665527,
+          6.800000190734863
+        ]
+      },
+      "requiredNodes": [
+        "boat_skiff_root",
+        "boat_skiff_cargo_01",
+        "boat_skiff_cargo_02",
+        "boat_skiff_hook_left",
+        "boat_skiff_hook_right",
+        "COL_boat_skiff_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 60,
+      "durationMs": 65,
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 11000,
+        "trianglesMax": 16000,
+        "materialsMax": 5
+      },
+      "warnings": [
+        "4556 triangles are below quality target 11000"
+      ],
+      "nodes": 118,
+      "meshes": 104,
+      "triangles": 4556,
+      "materials": 4,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 208544,
+      "fileHash": "b21ff6b024ff39ea3f1694c3f9504ba7a2089e2b65cfe4ce2d55fb08ad02b033",
+      "semanticHash": "8014808c39463ae4114f14034e4928261773976a200565323e4195d8292b61b0",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "crop_wheat_seeded",
+      "file": "crop_wheat_seeded.glb",
+      "family": "crop",
+      "generator": "wheat_crop",
+      "seed": 501,
+      "dimensions": [
+        0.7418240904808044,
+        0.772583544254303,
+        0.1549629420042038
+      ],
+      "bounds": {
+        "min": [
+          -0.3709120452404022,
+          -0.3862917721271515,
+          0
+        ],
+        "max": [
+          0.3709120452404022,
+          0.3862917721271515,
+          0.1549629420042038
+        ]
+      },
+      "requiredNodes": [
+        "crop_wheat_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 6,
+      "budget": {
+        "trianglesMin": 30,
+        "trianglesTarget": 100,
+        "trianglesMax": 700,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 7,
+      "meshes": 6,
+      "triangles": 216,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 18136,
+      "fileHash": "e16e3a32dba95b1f693fcac2f145189e77736cc238f92a1f055431176a36169f",
+      "semanticHash": "dd0a0dfb1a3447a6ed6e522dc7e08ac5e64bd7b40dfea4730934833786217c6a",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "crop_wheat_sprout",
+      "file": "crop_wheat_sprout.glb",
+      "family": "crop",
+      "generator": "wheat_crop",
+      "seed": 503,
+      "dimensions": [
+        0.7418240904808044,
+        0.772583544254303,
+        0.35486486554145813
+      ],
+      "bounds": {
+        "min": [
+          -0.3709120452404022,
+          -0.3862917721271515,
+          0
+        ],
+        "max": [
+          0.3709120452404022,
+          0.3862917721271515,
+          0.35486486554145813
+        ]
+      },
+      "requiredNodes": [
+        "crop_wheat_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 5,
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 200,
+        "trianglesMax": 700,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "196 triangles are below quality target 200"
+      ],
+      "nodes": 7,
+      "meshes": 6,
+      "triangles": 196,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 12436,
+      "fileHash": "93e711a401f5023733b4f8fd82dbe6b07842ddbc1b25d7fb130f5abe166c3674",
+      "semanticHash": "11402f04c61aecb91189b54ebb86f2877fca11b4d02243727fde9b7c26556a46",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "crop_wheat_growing",
+      "file": "crop_wheat_growing.glb",
+      "family": "crop",
+      "generator": "wheat_crop",
+      "seed": 509,
+      "dimensions": [
+        0.7418240904808044,
+        0.772583544254303,
+        0.9100569486618042
+      ],
+      "bounds": {
+        "min": [
+          -0.3709120452404022,
+          -0.3862917721271515,
+          0
+        ],
+        "max": [
+          0.3709120452404022,
+          0.3862917721271515,
+          0.9100569486618042
+        ]
+      },
+      "requiredNodes": [
+        "crop_wheat_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 11,
+      "budget": {
+        "trianglesMin": 90,
+        "trianglesTarget": 300,
+        "trianglesMax": 700,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 20,
+      "meshes": 19,
+      "triangles": 440,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 29156,
+      "fileHash": "85e0634c5c7316baab4b66a6ec39883f848ec280d985f661c53fde1ac7bfb0a3",
+      "semanticHash": "4013b66568ef9bf034c3c62c684c2a4c32fade9a2a8fc1459c942c073b5e8c59",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "crop_wheat_mature",
+      "file": "crop_wheat_mature.glb",
+      "family": "crop",
+      "generator": "wheat_crop",
+      "seed": 521,
+      "dimensions": [
+        0.7418240904808044,
+        0.772583544254303,
+        1.3161810636520386
+      ],
+      "bounds": {
+        "min": [
+          -0.3709120452404022,
+          -0.3862917721271515,
+          0
+        ],
+        "max": [
+          0.3709120452404022,
+          0.3862917721271515,
+          1.3161810636520386
+        ]
+      },
+      "requiredNodes": [
+        "crop_wheat_mature_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 15,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 350,
+        "trianglesMax": 700,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 28,
+      "meshes": 27,
+      "triangles": 584,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 37824,
+      "fileHash": "89cc66c4a1a08cb7f4e1b3fafa830903fa6d882fb5a7b0ca577bc0704f4ba2cf",
+      "semanticHash": "9c507dacccb0015295ae2eecd01e4743cad3ad92547a9a57e93846144219e248",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "crop_wheat_overripe",
+      "file": "crop_wheat_overripe.glb",
+      "family": "crop",
+      "generator": "wheat_crop",
+      "seed": 523,
+      "dimensions": [
+        1.045622706413269,
+        1.0593327283859253,
+        1.2180984020233154
+      ],
+      "bounds": {
+        "min": [
+          -0.45837950706481934,
+          -0.6083126664161682,
+          0
+        ],
+        "max": [
+          0.5872431993484497,
+          0.4510200619697571,
+          1.2180984020233154
+        ]
+      },
+      "requiredNodes": [
+        "crop_wheat_overripe_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 12,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 350,
+        "trianglesMax": 700,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 28,
+      "meshes": 27,
+      "triangles": 584,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 48992,
+      "fileHash": "ca8bfa767ae1a138d759488ed03588f3487fae4e4e06335b6a8d119f1606624c",
+      "semanticHash": "4ee2e564ad623d91fc776b09941e45bf234967f2dd8a66e4016ac0f448dd0a06",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "crop_wheat_withered",
+      "file": "crop_wheat_withered.glb",
+      "family": "crop",
+      "generator": "wheat_crop",
+      "seed": 541,
+      "dimensions": [
+        1.0422123074531555,
+        1.0039401650428772,
+        0.8545405268669128
+      ],
+      "bounds": {
+        "min": [
+          -0.538313090801239,
+          -0.5231087803840637,
+          0
+        ],
+        "max": [
+          0.5038992166519165,
+          0.4808313846588135,
+          0.8545405268669128
+        ]
+      },
+      "requiredNodes": [
+        "crop_wheat_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 12,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 300,
+        "trianglesMax": 700,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 22,
+      "meshes": 21,
+      "triangles": 476,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 39776,
+      "fileHash": "303c03a07350146f31533b07a961e882e60766059274e59d9b6fe099bcfd9f87",
+      "semanticHash": "be696a86b7b587da684d03965dd22dd982e2d7e09d727f23a17f11d76de8d0cf",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "fish_trout_a",
+      "file": "fish_trout_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 601,
+      "dimensions": [
+        0.7091000080108643,
+        1.9635488390922546,
+        0.964482456445694
+      ],
+      "bounds": {
+        "min": [
+          -0.35455000400543213,
+          -0.8243400454521179,
+          -0.321742445230484
+        ],
+        "max": [
+          0.35455000400543213,
+          1.1392087936401367,
+          0.64274001121521
+        ]
+      },
+      "requiredNodes": [
+        "fish_trout_a_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 15,
+      "durationMs": 10,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 1200,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "400 triangles are below quality target 1200"
+      ],
+      "nodes": 9,
+      "meshes": 6,
+      "triangles": 400,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 29520,
+      "fileHash": "626645784d14aa4c1d324a23ac0ebfc4c4cdbbf54c798b2cf56c8f6e54f5f052",
+      "semanticHash": "ca7d904ca478d65d3d7a3106c55becc67134afcfcc6cd9ef7184fd5e035a2dc4",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "fish_tuna_a",
+      "file": "fish_tuna_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 607,
+      "dimensions": [
+        1.1599249839782715,
+        2.678102970123291,
+        1.6691213250160217
+      ],
+      "bounds": {
+        "min": [
+          -0.5799624919891357,
+          -1.1240999698638916,
+          -0.6230012774467468
+        ],
+        "max": [
+          0.5799624919891357,
+          1.5540030002593994,
+          1.046120047569275
+        ]
+      },
+      "requiredNodes": [
+        "fish_tuna_a_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 6,
+      "budget": {
+        "trianglesMin": 400,
+        "trianglesTarget": 1200,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "432 triangles are below quality target 1200"
+      ],
+      "nodes": 13,
+      "meshes": 7,
+      "triangles": 432,
+      "materials": 3,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 30000,
+      "fileHash": "d7d94836b456f193fa3a91f41ae8ef897edece39d68caea796815dcf7f832da8",
+      "semanticHash": "77cf9043e3886775579b8c40828ae27b27f677baf620e424d16d1db31cdcd947",
+      "qualityStatus": "below_target"
+    },
+    {
+      "id": "cloud_lowpoly_a",
+      "file": "cloud_lowpoly_a.glb",
+      "family": "cloud",
+      "generator": "faceted_cloud",
+      "seed": 701,
+      "dimensions": [
+        8.687869548797607,
+        2.7603408098220825,
+        2.2664372324943542
+      ],
+      "bounds": {
+        "min": [
+          -4.215696811676025,
+          -1.465326189994812,
+          -0.6361903548240662
+        ],
+        "max": [
+          4.472172737121582,
+          1.2950146198272705,
+          1.630246877670288
+        ]
+      },
+      "requiredNodes": [
+        "cloud_lowpoly_a_root"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 100,
+      "durationMs": 7,
+      "budget": {
+        "trianglesMin": 140,
+        "trianglesTarget": 300,
+        "trianglesMax": 900,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 8,
+      "meshes": 7,
+      "triangles": 560,
+      "materials": 2,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 31712,
+      "fileHash": "d516b0d3d37c9b2c1a864f1af5d816b61d1c4a6d4980e15863894a16fe546b4f",
+      "semanticHash": "b718249f2645e9a2c8190a744cff4cac8b2bf10eeb71279f6f062ed079160a90",
+      "qualityStatus": "on_target"
+    },
+    {
+      "id": "char_player_a",
+      "file": "char_player_a.glb",
+      "family": "character",
+      "generator": "coastal_worker",
+      "seed": 801,
+      "dimensions": [
+        1.0661613941192627,
+        0.8223463296890259,
+        2.256499856710434
+      ],
+      "bounds": {
+        "min": [
+          -0.5333375930786133,
+          -0.3799999952316284,
+          -0.01449999213218689
+        ],
+        "max": [
+          0.5328238010406494,
+          0.44234633445739746,
+          2.241999864578247
+        ]
+      },
+      "requiredNodes": [
+        "char_player_a_root",
+        "char_player_hand_left",
+        "char_player_hand_right",
+        "char_player_tool_socket"
+      ],
+      "collision": "none",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 34,
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 12000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "warnings": [
+        "2888 triangles are below quality target 12000"
+      ],
+      "nodes": 30,
+      "meshes": 27,
+      "triangles": 2888,
+      "materials": 4,
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 120728,
+      "fileHash": "6997b11b54d94a6bf3a05f124cb9d60e288ef465350a85442d3da24e10a264bc",
+      "semanticHash": "301aed3a8f2eedbca8fffe99bd84e65b9840ea2aeddccb2a8004140c18289b58",
+      "qualityStatus": "below_target"
+    }
+  ]
+}

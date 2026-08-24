@@ -1,0 +1,330 @@
+{
+  "$schema": "./asset-catalog.schema.json",
+  "version": 1,
+  "downloadBudgetBytes": 20971520,
+  "assets": [
+    {
+      "id": "tree_oak_a", "file": "tree_oak_a.glb", "family": "vegetation", "generator": "oak_tree", "seed": 10,
+      "dimensions": { "width": 4.8, "depth": 4.3, "height": 6.2 },
+      "palette": ["wood_warm_01", "foliage_sage_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "tree_oak_a_root", "requiredNodes": ["tree_oak_a_root"], "readDistanceMeters": 30,
+      "parameters": { "height": 5.8, "spread": 2.2, "canopyClusters": 15, "lean": 0.12, "branchCount": 6, "rootCount": 6 }
+    },
+    {
+      "id": "tree_oak_b", "file": "tree_oak_b.glb", "family": "vegetation", "generator": "oak_tree", "seed": 25,
+      "dimensions": { "width": 5.2, "depth": 4.6, "height": 5.8 },
+      "palette": ["wood_warm_01", "foliage_olive_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "tree_oak_b_root", "requiredNodes": ["tree_oak_b_root"], "readDistanceMeters": 30,
+      "parameters": { "height": 5.4, "spread": 2.5, "canopyClusters": 14, "lean": -0.09, "branchCount": 7, "rootCount": 7 }
+    },
+    {
+      "id": "tree_pine_a", "file": "tree_pine_a.glb", "family": "vegetation", "generator": "pine_tree", "seed": 41,
+      "dimensions": { "width": 4.2, "depth": 4.2, "height": 7.2 },
+      "palette": ["wood_dark_01", "foliage_pine_01", "foliage_olive_01"],
+      "budget": { "trianglesMin": 280, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "tree_pine_a_root", "requiredNodes": ["tree_pine_a_root"], "readDistanceMeters": 30,
+      "parameters": { "height": 6.8, "spread": 2.0, "tiers": 8, "lean": 0.06, "branchesPerTier": 5, "rootCount": 5 }
+    },
+    {
+      "id": "tree_apple_a", "file": "tree_apple_a.glb", "family": "vegetation", "generator": "apple_tree", "seed": 73,
+      "dimensions": { "width": 4.0, "depth": 3.8, "height": 4.6 },
+      "palette": ["wood_warm_01", "foliage_leaf_01", "accent_red_01"],
+      "budget": { "trianglesMin": 320, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "tree_apple_a_root", "requiredNodes": ["tree_apple_a_root"], "readDistanceMeters": 30,
+      "parameters": { "height": 4.2, "spread": 1.9, "canopyClusters": 10, "fruitCount": 16, "branchCount": 5, "rootCount": 5 }
+    },
+    {
+      "id": "foliage_bush_a", "file": "foliage_bush_a.glb", "family": "vegetation", "generator": "bush", "seed": 91,
+      "dimensions": { "width": 1.8, "depth": 1.5, "height": 1.2 },
+      "palette": ["foliage_sage_01", "foliage_shadow_01", "foam_warm_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 400, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_bush_a_root", "requiredNodes": ["foliage_bush_a_root"], "readDistanceMeters": 15,
+      "parameters": { "clusters": 5, "flowerCount": 7, "leafTips": 6 }
+    },
+    {
+      "id": "foliage_reeds_a", "file": "foliage_reeds_a.glb", "family": "vegetation", "generator": "reeds", "seed": 101,
+      "dimensions": { "width": 1.0, "depth": 0.8, "height": 1.7 },
+      "palette": ["foliage_olive_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 90, "trianglesTarget": 400, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_reeds_a_root", "requiredNodes": ["foliage_reeds_a_root"], "readDistanceMeters": 15,
+      "parameters": { "stalks": 11, "height": 1.55, "bladeCount": 6 }
+    },
+
+    {
+      "id": "rock_boulder_a", "file": "rock_boulder_a.glb", "family": "rock", "generator": "faceted_rock", "seed": 3,
+      "dimensions": { "width": 3.6, "depth": 2.8, "height": 2.4 },
+      "palette": ["stone_golden_01", "stone_warm_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
+      "rootNode": "rock_boulder_a_root", "requiredNodes": ["rock_boulder_a_root", "COL_rock_boulder_a"], "readDistanceMeters": 30,
+      "parameters": { "scale": [1.8, 1.4, 1.2], "profile": "inland", "clusterCount": 3, "fractureCount": 4 }
+    },
+    {
+      "id": "rock_coastal_a", "file": "rock_coastal_a.glb", "family": "rock", "generator": "faceted_rock", "seed": 7,
+      "dimensions": { "width": 4.4, "depth": 3.2, "height": 2.8 },
+      "palette": ["rock_coastal_dark_01", "stone_cool_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
+      "rootNode": "rock_coastal_a_root", "requiredNodes": ["rock_coastal_a_root", "COL_rock_coastal_a"], "readDistanceMeters": 30,
+      "parameters": { "scale": [2.2, 1.6, 1.4], "profile": "coastal", "clusterCount": 3, "fractureCount": 4 }
+    },
+    {
+      "id": "rock_field_a", "file": "rock_field_a.glb", "family": "rock", "generator": "faceted_rock", "seed": 12,
+      "dimensions": { "width": 2.0, "depth": 1.8, "height": 1.4 },
+      "palette": ["stone_warm_01", "stone_golden_01"],
+      "budget": { "trianglesMin": 100, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "rock_field_a_root", "requiredNodes": ["rock_field_a_root"], "readDistanceMeters": 15,
+      "parameters": { "scale": [1.0, 0.9, 0.7], "profile": "field", "clusterCount": 3, "fractureCount": 3 }
+    },
+
+    {
+      "id": "house_farmhouse_a", "file": "house_farmhouse_a.glb", "family": "architecture", "generator": "farmhouse", "seed": 201,
+      "dimensions": { "width": 7.4, "depth": 6.0, "height": 6.1 },
+      "palette": ["stone_warm_01", "plaster_cream_01", "wood_honey_01", "wood_dark_01", "roof_terracotta_01"],
+      "budget": { "trianglesMin": 1500, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "house_farmhouse_a_root", "requiredNodes": ["house_farmhouse_a_root", "COL_house_farmhouse_a"], "readDistanceMeters": 30,
+      "parameters": { "width": 6.6, "depth": 4.8, "wallHeight": 3.1, "roofPitchDeg": 34, "foundationCourses": 3, "foundationBlocks": 12, "roofRows": 6, "roofColumns": 7, "porchPlanks": 12, "chimneyCourses": 5 }
+    },
+    {
+      "id": "building_lighthouse_a", "file": "building_lighthouse_a.glb", "family": "architecture", "generator": "lighthouse", "seed": 211,
+      "dimensions": { "width": 5.2, "depth": 5.2, "height": 13.5 },
+      "palette": ["stone_warm_01", "plaster_cream_01", "roof_deep_red_01", "metal_brass_01", "emissive_lantern_01"],
+      "budget": { "trianglesMin": 1200, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "building_lighthouse_a_root", "requiredNodes": ["building_lighthouse_a_root", "COL_building_lighthouse_a"], "readDistanceMeters": 60,
+      "parameters": { "height": 12.8, "baseRadius": 2.45, "sides": 12, "masonryCourses": 18, "blocksPerCourse": 12 }
+    },
+    {
+      "id": "building_windmill_a", "file": "building_windmill_a.glb", "family": "architecture", "generator": "windmill", "seed": 223,
+      "dimensions": { "width": 8.0, "depth": 4.8, "height": 10.0 },
+      "palette": ["stone_golden_01", "wood_honey_01", "roof_turf_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 1000, "trianglesTarget": 6000, "trianglesMax": 10000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "building_windmill_a_root", "requiredNodes": ["building_windmill_a_root", "windmill_rotor", "COL_building_windmill_a"], "readDistanceMeters": 60,
+      "parameters": { "height": 7.6, "baseRadius": 2.3, "sides": 10, "masonryCourses": 9, "blocksPerCourse": 10, "sailBattens": 6 }
+    },
+    {
+      "id": "bridge_stone_a", "file": "bridge_stone_a.glb", "family": "architecture", "generator": "stone_bridge", "seed": 229,
+      "dimensions": { "width": 14.8, "depth": 4.2, "height": 4.2 },
+      "palette": ["stone_golden_01", "stone_warm_01", "wood_weathered_01"],
+      "budget": { "trianglesMin": 1200, "trianglesTarget": 9000, "trianglesMax": 16000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "bridge_stone_a_root", "requiredNodes": ["bridge_stone_a_root", "COL_bridge_stone_a"], "readDistanceMeters": 60,
+      "parameters": { "length": 14.2, "width": 3.8, "archCount": 2, "deckSegments": 13, "cobbleLanes": 4, "abutmentCourses": 4, "voussoirBlocks": 11, "voussoirStartDeg": 30, "voussoirEndDeg": 150 }
+    },
+    {
+      "id": "dock_straight_a", "file": "dock_straight_a.glb", "family": "architecture", "generator": "working_dock", "seed": 233,
+      "dimensions": { "width": 8.2, "depth": 4.0, "height": 5.5 },
+      "palette": ["wood_honey_01", "wood_weathered_01", "accent_red_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 800, "trianglesTarget": 9000, "trianglesMax": 16000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "dock_straight_a_root", "requiredNodes": ["dock_straight_a_root", "COL_dock_straight_a"], "readDistanceMeters": 30,
+      "parameters": { "length": 8.0, "width": 3.6, "planks": 18, "canopy": true, "surfaceBoards": 64, "underBeams": 12, "counterSlats": 16 }
+    },
+    {
+      "id": "building_fish_market_a", "file": "building_fish_market_a.glb", "family": "architecture", "generator": "fish_market", "seed": 239,
+      "dimensions": { "width": 8.8, "depth": 6.4, "height": 6.0 },
+      "palette": ["stone_warm_01", "wood_weathered_01", "roof_deep_red_01", "accent_teal_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 1500, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "building_fish_market_a_root", "requiredNodes": ["building_fish_market_a_root", "COL_building_fish_market_a"], "readDistanceMeters": 30,
+      "parameters": { "width": 7.4, "depth": 5.4, "wallHeight": 3.2, "roofPitchDeg": 32, "foundationCourses": 3, "foundationBlocks": 13, "roofRows": 6, "roofColumns": 8, "counterSlats": 14 }
+    },
+
+    {
+      "id": "prop_water_well_a", "file": "prop_water_well_a.glb", "family": "prop", "generator": "water_well", "seed": 301,
+      "dimensions": { "width": 2.2, "depth": 1.9, "height": 2.8 },
+      "palette": ["stone_warm_01", "wood_dark_01", "roof_terracotta_01", "metal_dark_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 3000, "trianglesMax": 6000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "small",
+      "rootNode": "prop_water_well_a_root", "requiredNodes": ["prop_water_well_a_root", "COL_prop_water_well_a"], "readDistanceMeters": 15,
+      "parameters": { "radius": 0.85, "height": 2.5, "masonryCourses": 4, "blocksPerCourse": 12, "roofRows": 4, "roofColumns": 5 }
+    },
+    {
+      "id": "prop_pumpkin_patch_a", "file": "prop_pumpkin_patch_a.glb", "family": "prop", "generator": "pumpkin_patch", "seed": 307,
+      "dimensions": { "width": 3.2, "depth": 2.2, "height": 0.7 },
+      "palette": ["soil_warm_01", "accent_ochre_01", "foliage_olive_01"],
+      "budget": { "trianglesMin": 220, "trianglesTarget": 3000, "trianglesMax": 6000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "small",
+      "rootNode": "prop_pumpkin_patch_a_root", "requiredNodes": ["prop_pumpkin_patch_a_root"], "readDistanceMeters": 15,
+      "parameters": { "pumpkins": 7, "vineSegments": 9, "lobes": 4, "blossomCount": 6 }
+    },
+    {
+      "id": "prop_lobster_trap_a", "file": "prop_lobster_trap_a.glb", "family": "prop", "generator": "lobster_trap", "seed": 311,
+      "dimensions": { "width": 1.1, "depth": 0.8, "height": 0.7 },
+      "palette": ["wood_weathered_01", "metal_dark_01", "accent_teal_01"],
+      "budget": { "trianglesMin": 180, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "prop_lobster_trap_a_root", "requiredNodes": ["prop_lobster_trap_a_root"], "readDistanceMeters": 15,
+      "parameters": { "ribs": 7, "length": 1.0, "netColumns": 4, "netRows": 3 }
+    },
+    {
+      "id": "prop_crate_wood_a", "file": "prop_crate_wood_a.glb", "family": "prop", "generator": "wood_crate", "seed": 313,
+      "dimensions": { "width": 0.9, "depth": 0.9, "height": 0.9 },
+      "palette": ["wood_warm_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 180, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
+      "rootNode": "prop_crate_wood_a_root", "requiredNodes": ["prop_crate_wood_a_root", "COL_prop_crate_wood_a"], "readDistanceMeters": 15,
+      "parameters": { "size": 0.82, "slats": 5 }
+    },
+    {
+      "id": "prop_barrel_wood_a", "file": "prop_barrel_wood_a.glb", "family": "prop", "generator": "wood_barrel", "seed": 317,
+      "dimensions": { "width": 0.9, "depth": 0.9, "height": 1.0 },
+      "palette": ["wood_dark_01", "metal_dark_01"],
+      "budget": { "trianglesMin": 180, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
+      "rootNode": "prop_barrel_wood_a_root", "requiredNodes": ["prop_barrel_wood_a_root", "COL_prop_barrel_wood_a"], "readDistanceMeters": 15,
+      "parameters": { "height": 0.95, "radius": 0.42, "staves": 12 }
+    },
+    {
+      "id": "prop_fence_wood_a", "file": "prop_fence_wood_a.glb", "family": "prop", "generator": "wood_fence", "seed": 331,
+      "dimensions": { "width": 2.1, "depth": 0.3, "height": 1.2 },
+      "palette": ["wood_weathered_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 100, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
+      "rootNode": "prop_fence_wood_a_root", "requiredNodes": ["prop_fence_wood_a_root", "COL_prop_fence_wood_a"], "readDistanceMeters": 15,
+      "parameters": { "length": 2.0, "posts": 3, "rails": 2, "railSegments": 7 }
+    },
+    {
+      "id": "prop_hay_bale_a", "file": "prop_hay_bale_a.glb", "family": "prop", "generator": "hay_bale", "seed": 337,
+      "dimensions": { "width": 1.25, "depth": 1.2, "height": 1.16 },
+      "palette": ["grass_yellow_01", "wood_warm_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
+      "rootNode": "prop_hay_bale_a_root", "requiredNodes": ["prop_hay_bale_a_root", "COL_prop_hay_bale_a"], "readDistanceMeters": 15,
+      "parameters": { "length": 1.2, "radius": 0.58, "bands": 2, "fiberBands": 12 }
+    },
+    {
+      "id": "prop_lamp_post_a", "file": "prop_lamp_post_a.glb", "family": "prop", "generator": "lamp_post", "seed": 347,
+      "dimensions": { "width": 0.8, "depth": 0.8, "height": 3.7 },
+      "palette": ["wood_dark_01", "metal_brass_01", "emissive_lantern_01"],
+      "budget": { "trianglesMin": 220, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "prop_lamp_post_a_root", "requiredNodes": ["prop_lamp_post_a_root"], "readDistanceMeters": 30,
+      "parameters": { "height": 3.4, "armLength": 0.55 }
+    },
+
+    {
+      "id": "boat_rowboat_a", "file": "boat_rowboat_a.glb", "family": "boat", "generator": "rowboat", "seed": 401,
+      "dimensions": { "width": 1.8, "depth": 4.2, "height": 1.1 },
+      "palette": ["wood_honey_01", "wood_warm_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 1000, "trianglesTarget": 4000, "trianglesMax": 6000, "materialsMax": 4 },
+      "pivot": "buoyancy", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "boat_rowboat_root", "requiredNodes": ["boat_rowboat_root", "boat_rowboat_storage_01", "COL_boat_rowboat_a"], "readDistanceMeters": 30,
+      "parameters": { "length": 4.0, "beam": 1.7, "ribCount": 7, "innerPlanks": 7, "gunwaleSegments": 8 }
+    },
+    {
+      "id": "boat_skiff_a", "file": "boat_skiff_a.glb", "family": "boat", "generator": "fishing_skiff", "seed": 409,
+      "dimensions": { "width": 2.7, "depth": 6.8, "height": 7.4 },
+      "palette": ["wood_honey_01", "wood_dark_01", "accent_red_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 2500, "trianglesTarget": 11000, "trianglesMax": 16000, "materialsMax": 5 },
+      "pivot": "buoyancy", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "boat_skiff_root", "requiredNodes": ["boat_skiff_root", "boat_skiff_cargo_01", "boat_skiff_cargo_02", "boat_skiff_hook_left", "boat_skiff_hook_right", "COL_boat_skiff_a"], "readDistanceMeters": 60,
+      "parameters": { "length": 6.5, "beam": 2.45, "ribCount": 9, "mastHeight": 6.8, "outerStrakes": 4, "hullSegments": 9, "deckBoards": 26, "sailRows": 8 }
+    },
+
+    {
+      "id": "crop_wheat_seeded", "file": "crop_wheat_seeded.glb", "family": "crop", "generator": "wheat_crop", "seed": 501,
+      "dimensions": { "width": 0.8, "depth": 0.8, "height": 0.15 },
+      "palette": ["soil_warm_01", "wood_warm_01"],
+      "budget": { "trianglesMin": 30, "trianglesTarget": 100, "trianglesMax": 700, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_wheat_seeded_root", "requiredNodes": ["crop_wheat_seeded_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "seeded", "stalks": 0 }
+    },
+    {
+      "id": "crop_wheat_sprout", "file": "crop_wheat_sprout.glb", "family": "crop", "generator": "wheat_crop", "seed": 503,
+      "dimensions": { "width": 0.8, "depth": 0.8, "height": 0.35 },
+      "palette": ["soil_warm_01", "foliage_highlight_01"],
+      "budget": { "trianglesMin": 40, "trianglesTarget": 200, "trianglesMax": 700, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_wheat_sprout_root", "requiredNodes": ["crop_wheat_sprout_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "sprout", "stalks": 5 }
+    },
+    {
+      "id": "crop_wheat_growing", "file": "crop_wheat_growing.glb", "family": "crop", "generator": "wheat_crop", "seed": 509,
+      "dimensions": { "width": 0.9, "depth": 0.9, "height": 0.75 },
+      "palette": ["soil_warm_01", "foliage_sage_01", "grass_yellow_01"],
+      "budget": { "trianglesMin": 90, "trianglesTarget": 300, "trianglesMax": 700, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_wheat_growing_root", "requiredNodes": ["crop_wheat_growing_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "growing", "stalks": 9 }
+    },
+    {
+      "id": "crop_wheat_mature", "file": "crop_wheat_mature.glb", "family": "crop", "generator": "wheat_crop", "seed": 521,
+      "dimensions": { "width": 1.0, "depth": 1.0, "height": 1.15 },
+      "palette": ["soil_warm_01", "grass_yellow_01", "foliage_olive_01"],
+      "budget": { "trianglesMin": 180, "trianglesTarget": 350, "trianglesMax": 700, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_wheat_mature_root", "requiredNodes": ["crop_wheat_mature_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "mature", "stalks": 13 }
+    },
+    {
+      "id": "crop_wheat_overripe", "file": "crop_wheat_overripe.glb", "family": "crop", "generator": "wheat_crop", "seed": 523,
+      "dimensions": { "width": 1.0, "depth": 1.0, "height": 1.05 },
+      "palette": ["soil_warm_01", "accent_ochre_01", "wood_warm_01"],
+      "budget": { "trianglesMin": 180, "trianglesTarget": 350, "trianglesMax": 700, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_wheat_overripe_root", "requiredNodes": ["crop_wheat_overripe_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "overripe", "stalks": 13 }
+    },
+    {
+      "id": "crop_wheat_withered", "file": "crop_wheat_withered.glb", "family": "crop", "generator": "wheat_crop", "seed": 541,
+      "dimensions": { "width": 1.0, "depth": 1.0, "height": 0.7 },
+      "palette": ["soil_warm_01", "wood_dark_01", "wood_weathered_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 300, "trianglesMax": 700, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_wheat_withered_root", "requiredNodes": ["crop_wheat_withered_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "withered", "stalks": 10 }
+    },
+
+    {
+      "id": "fish_trout_a", "file": "fish_trout_a.glb", "family": "fish", "generator": "stylized_fish", "seed": 601,
+      "dimensions": { "width": 0.55, "depth": 1.8, "height": 1.0 },
+      "palette": ["fish_trout_back_01", "fish_belly_01", "fish_trout_spot_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 1200, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "medium",
+      "rootNode": "fish_trout_a_root", "requiredNodes": ["fish_trout_a_root"], "readDistanceMeters": 15,
+      "parameters": { "species": "trout", "length": 1.65, "girth": 0.28, "finScale": 0.85 }
+    },
+    {
+      "id": "fish_tuna_a", "file": "fish_tuna_a.glb", "family": "fish", "generator": "stylized_fish", "seed": 607,
+      "dimensions": { "width": 1.2, "depth": 2.5, "height": 1.7 },
+      "palette": ["fish_tuna_back_01", "fish_belly_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 400, "trianglesTarget": 1200, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "medium",
+      "rootNode": "fish_tuna_a_root", "requiredNodes": ["fish_tuna_a_root"], "readDistanceMeters": 30,
+      "parameters": { "species": "tuna", "length": 2.25, "girth": 0.43, "finScale": 1.15 }
+    },
+
+    {
+      "id": "cloud_lowpoly_a", "file": "cloud_lowpoly_a.glb", "family": "cloud", "generator": "faceted_cloud", "seed": 701,
+      "dimensions": { "width": 7.0, "depth": 2.4, "height": 2.5 },
+      "palette": ["foam_warm_01", "horizon_warm_01"],
+      "budget": { "trianglesMin": 140, "trianglesTarget": 300, "trianglesMax": 900, "materialsMax": 2 },
+      "pivot": "center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "cloud_lowpoly_a_root", "requiredNodes": ["cloud_lowpoly_a_root"], "readDistanceMeters": 100,
+      "parameters": { "clusters": 7, "width": 6.5 }
+    },
+
+    {
+      "id": "char_player_a", "file": "char_player_a.glb", "family": "character", "generator": "coastal_worker", "seed": 801,
+      "dimensions": { "width": 1.05, "depth": 0.65, "height": 2.15 },
+      "palette": ["plaster_warm_01", "accent_teal_01", "wood_dark_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 2500, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "hero",
+      "rootNode": "char_player_a_root", "requiredNodes": ["char_player_a_root", "char_player_hand_left", "char_player_hand_right", "char_player_tool_socket"], "readDistanceMeters": 30,
+      "parameters": { "height": 2.05, "headRatio": 6.2, "handScale": 1.15 }
+    }
+  ]
+}
