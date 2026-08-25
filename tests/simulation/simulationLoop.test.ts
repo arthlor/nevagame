@@ -2,19 +2,28 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
+import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
+import { WorldLayout } from "../../src/world/WorldLayout";
 
 describe("Simulation Vertical Slice Loop", () => {
   let sim: Simulation;
 
   beforeEach(() => {
     sim = new Simulation();
+    sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
+    sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
   });
 
   it("completes full loop: plant -> grow -> harvest -> mill -> chum -> fish -> sell", () => {
     const playerInv = sim.state.inventories[sim.state.player.inventoryId];
 
     // 1. Plant Wheat
-    const plantRes = sim.plantCrop("farm.starter_garden", "crop.wheat", 0, 0);
+    const plantRes = sim.plantCrop(
+      "farm.starter_garden",
+      "crop.wheat",
+      STARTER_FARM_LAYOUT.origin.x,
+      STARTER_FARM_LAYOUT.origin.z
+    );
     expect(plantRes.success).toBe(true);
     const placedCropId = Object.keys(sim.state.crops)[0];
     expect(placedCropId).toBeDefined();
@@ -31,6 +40,8 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(wheatCount).toBeGreaterThanOrEqual(3);
 
     // 4. Mill Wheat into Ground Grain (Station: Hand Mill)
+    sim.state.player.x = starterStructureAnchor("struct.starter_mill")!.x;
+    sim.state.player.z = starterStructureAnchor("struct.starter_mill")!.z;
     const millRes = sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill");
     expect(millRes.success).toBe(true);
     const millJobId = Object.keys(sim.state.processingJobs)[0];
@@ -43,6 +54,8 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(InventoryManager.getItemCount(playerInv, "item.ground_grain")).toBe(2);
 
     // 5. Mix Chum Bucket (Station: Workbench)
+    sim.state.player.x = starterStructureAnchor("struct.workbench")!.x;
+    sim.state.player.z = starterStructureAnchor("struct.workbench")!.z;
     const chumRes = sim.startProcessingJob("recipe.craft_chum", "struct.workbench");
     expect(chumRes.success).toBe(true);
     const chumJobId = Object.keys(sim.state.processingJobs)[0];
@@ -54,9 +67,10 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(InventoryManager.getItemCount(playerInv, "item.chum_bucket")).toBe(1);
 
     // 6. Spawn and Chum a Fish School
-    const schoolId = sim.spawnFishSchool("lake", -30, 45, ["fish.trout"]);
-    sim.state.player.x = -30;
-    sim.state.player.z = 45;
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = sim.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    sim.state.player.x = lake.x;
+    sim.state.player.z = lake.z;
     const chumSchoolRes = sim.chumFishSchool(schoolId);
     expect(chumSchoolRes.success).toBe(true);
     expect(sim.state.world.activeSchools[schoolId].feedingFrenzyUntilMinute).toBeDefined();
@@ -92,8 +106,8 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(cargo.freshness).toBe(100);
 
     // 9. Sell Fish at Harbor Market
-    sim.state.player.x = 21;
-    sim.state.player.z = 33.5;
+    sim.state.player.x = 68;
+    sim.state.player.z = 64;
     const initialMoney = sim.state.player.money;
     const sellRes = sim.sellFishCargoAtMarket("market.harbor", cargo.id);
     expect(sellRes.success).toBe(true);

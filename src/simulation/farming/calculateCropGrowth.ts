@@ -1,6 +1,6 @@
 // src/simulation/farming/calculateCropGrowth.ts
 
-import { ClimateId, CropQualityInputs, CropStage, FishQuality, WeatherTag } from "../core/types";
+import { ClimateId, CropQuality, CropQualityInputs, CropStage, WeatherTag } from "../core/types";
 import { CropDefinition } from "../../content/types";
 import { Rng } from "../core/Rng";
 
@@ -60,7 +60,11 @@ export function calculateEffectiveGrowthDelta(
   return elapsedMinutes * totalMod;
 }
 
-export function determineCropStage(effectiveGrowthMinutes: number, baseGrowthMinutes: number): CropStage {
+export function determineCropStage(
+  effectiveGrowthMinutes: number,
+  baseGrowthMinutes: number,
+  regrows: boolean = false
+): CropStage {
   if (baseGrowthMinutes <= 0) return "mature";
   const progressRatio = effectiveGrowthMinutes / baseGrowthMinutes;
 
@@ -68,14 +72,14 @@ export function determineCropStage(effectiveGrowthMinutes: number, baseGrowthMin
   if (progressRatio < 0.35) return "sprout";
   if (progressRatio < 1.0) return "growing";
   if (progressRatio < 1.3) return "mature";
-  if (progressRatio <= 1.6) return "overripe";
+  if (regrows || progressRatio <= 1.6) return "overripe";
   return "withered";
 }
 
 export function calculateCropQuality(
   inputs: CropQualityInputs,
   rng: Rng
-): { quality: FishQuality; score: number } {
+): { quality: CropQuality; score: number } {
   // Score formula:
   // Climate match: 30%
   // Average moisture: 25%
@@ -91,13 +95,14 @@ export function calculateCropQuality(
     typeof inputs.rngRoll === "number" && Number.isFinite(inputs.rngRoll)
       ? Math.min(1, Math.max(0, inputs.rngRoll))
       : rng.nextFloat();
-  const rngScore = roll * 10;
+  const rareChanceMultiplier = Math.min(1, Math.max(0, inputs.rareChanceMultiplier ?? 1));
+  const rngScore = roll * 10 * rareChanceMultiplier;
 
   const totalScore = climateScore + moistureScore + fertilityScore + proficiencyScore + rngScore;
 
-  let quality: FishQuality = "common";
+  let quality: CropQuality = "common";
   if (totalScore >= 88) {
-    quality = "trophy"; // Prize
+    quality = "prize";
   } else if (totalScore >= 70) {
     quality = "exceptional";
   } else if (totalScore >= 45) {

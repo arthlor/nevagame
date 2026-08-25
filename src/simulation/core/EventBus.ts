@@ -4,9 +4,11 @@ import {
   BoatId,
   ContractId,
   CropId,
+  CropQuality,
   CropStage,
   FarmId,
   FishCargoId,
+  FishCatchQuality,
   FishQuality,
   FishSchoolId,
   FishSpeciesId,
@@ -21,18 +23,31 @@ import {
 
 export interface DomainEvents {
   CropPlanted: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; minute: GameMinute };
-  CropWatered: { placedCropId: PlacedCropId; newMoisture: number; minute: GameMinute };
+  CropWatered: { placedCropId: PlacedCropId; farmId: FarmId; newMoisture: number; minute: GameMinute };
   CropStageChanged: { placedCropId: PlacedCropId; cropId: CropId; stage: CropStage; minute: GameMinute };
-  CropHarvested: { placedCropId: PlacedCropId; cropId: CropId; quantity: number; quality: string; minute: GameMinute };
+  CropHarvested: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; quantity: number; quality: CropQuality; minute: GameMinute };
+  SeedPurchased: { marketId: MarketId; itemId: ItemId; quantity: number; cost: number; minute: GameMinute };
   RecipeStarted: { jobId: string; recipeId: RecipeId; minute: GameMinute };
-  RecipeCompleted: { jobId: string; recipeId: RecipeId; minute: GameMinute };
+  RecipeCompleted: { jobId: string; recipeId: RecipeId; stationId: string; minute: GameMinute };
   FishSchoolSpawned: { schoolId: FishSchoolId; x: number; z: number; species: FishSpeciesId[]; minute: GameMinute };
-  FishSchoolChummed: { schoolId: FishSchoolId; frenzyMinutes: number; minute: GameMinute };
-  FishHooked: { speciesId: FishSpeciesId; weightKg: number; minute: GameMinute };
-  FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; weightKg: number; quality: FishQuality; minute: GameMinute };
+  FishSchoolChummed: { schoolId: FishSchoolId; habitatId: string; frenzyMinutes: number; minute: GameMinute };
+  FishHooked: { speciesId: FishSpeciesId; habitatId: string; weightKg: number; minute: GameMinute };
+  FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; boatId?: BoatId; weightKg: number; quality: FishQuality; minute: GameMinute };
   FishEscaped: { speciesId: FishSpeciesId; reason: "escaped" | "snapped"; minute: GameMinute };
-  BasicFishingStarted: { habitatId: string; minute: GameMinute };
-  BasicFishingResolved: { habitatId: string; catchItemId?: ItemId; reason?: "missed" | "inventory-full"; minute: GameMinute };
+  BasicFishingStarted: { habitatId: string; castPower: number; minute: GameMinute };
+  BasicFishingBiteAlert: { habitatId: string; speciesId: FishSpeciesId; minute: GameMinute };
+  BasicFishingMinigameStarted: { habitatId: string; speciesId: FishSpeciesId; hasTreasure: boolean; minute: GameMinute };
+  BasicFishingTreasureCaught: { lootItemIds: ItemId[]; minute: GameMinute };
+  BasicFishingResolved: {
+    habitatId: string;
+    catchItemId?: ItemId;
+    quality?: FishCatchQuality;
+    isPerfect?: boolean;
+    hasTreasure?: boolean;
+    treasureLootItemIds?: ItemId[];
+    reason?: "missed" | "escaped" | "inventory-full" | "cancelled";
+    minute: GameMinute;
+  };
   CargoLoaded: { cargoId: FishCargoId; boatId: BoatId; slotIndex: number; minute: GameMinute };
   CargoUnloaded: { cargoId: FishCargoId; minute: GameMinute };
   BoatBoarded: { boatId: BoatId; minute: GameMinute };
@@ -44,8 +59,14 @@ export interface DomainEvents {
   WeatherChanged: { weather: WeatherTag; minute: GameMinute };
   ProficiencyLeveledUp: { skill: SkillId; newRank: string; totalXp: number; minute: GameMinute };
   ContractCompleted: { contractId: ContractId; rewardMoney: number; minute: GameMinute };
+  NpcTalked: { npcId: string; minute: GameMinute };
+  QuestStarted: { questId: string; actId: string; minute: GameMinute };
+  QuestProgressed: { questId: string; stepId: string; current: number; total: number; minute: GameMinute };
+  QuestCompleted: { questId: string; actId: string; rewardMoney?: number; minute: GameMinute };
+  ActCompleted: { actId: string; minute: GameMinute };
   Notification: { title: string; message: string; type: "info" | "success" | "warning" | "error" };
 }
+
 
 type EventCallback<T> = (payload: T) => void;
 

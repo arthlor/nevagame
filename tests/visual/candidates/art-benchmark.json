@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "viewport": [
+    1440,
+    900
+  ],
+  "gpu": {
+    "vendor": "Google Inc. (Google)",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "budget": {
+    "visibleTriangles": {
+      "targetMin": 250000,
+      "targetMax": 900000,
+      "hardMax": 1500000
+    },
+    "drawCalls": {
+      "preferredMax": 220,
+      "hardMax": 300
+    }
+  },
+  "benchmarkNote": "FPS is an observed Playwright browser sample; use the recorded renderer identity to distinguish hardware evidence from software-renderer diagnostics.",
+  "scenes": [
+    {
+      "scene": "farm",
+      "name": "clear-morning-0800",
+      "view": "farm",
+      "drawCalls": 370,
+      "triangles": 667862,
+      "meshes": 398,
+      "shadowCasters": 232,
+      "batches": 38,
+      "instances": 19,
+      "fps": 12,
+      "reachesHighQualityTriangleTarget": true
+    },
+    {
+      "scene": "bridge",
+      "name": "clear-noon-1200",
+      "view": "bridge",
+      "drawCalls": 149,
+      "triangles": 618424,
+      "meshes": 404,
+      "shadowCasters": 232,
+      "batches": 38,
+      "instances": 25,
+      "fps": 60,
+      "reachesHighQualityTriangleTarget": true
+    },
+    {
+      "scene": "harbor",
+      "name": "clear-harbor-1200",
+      "view": "harbor",
+      "drawCalls": 507,
+      "triangles": 574324,
+      "meshes": 404,
+      "shadowCasters": 232,
+      "batches": 38,
+      "instances": 25,
+      "fps": 60,
+      "reachesHighQualityTriangleTarget": true
+    },
+    {
+      "scene": "coast",
+      "name": "clear-coast-1200",
+      "view": "coast",
+      "drawCalls": 400,
+      "triangles": 620126,
+      "meshes": 404,
+      "shadowCasters": 232,
+      "batches": 38,
+      "instances": 25,
+      "fps": 60,
+      "reachesHighQualityTriangleTarget": true
+    }
+  ]
+}

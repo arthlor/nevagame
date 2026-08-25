@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "approvedAt": "2026-08-24",
+  "approvedBy": "human-art-director",
+  "viewport": [1440, 900],
+  "scenes": {
+    "farm": "farm.png",
+    "bridge": "bridge.png",
+    "harbor": "harbor.png",
+    "coast": "coast.png"
+  },
+  "sha256": {
+    "farm": "a6085a0f43bf4b20f3b09f3a5ff6052ccb9167d3a3d530ed1afaac09ebb42044",
+    "bridge": "e6b7c83864e58abf240ba5ae9a6a89adaeba9dfe327b3438985e9fcdcc8963cb",
+    "harbor": "d17ba4fc2b50ee95303a4e4591d70b7fb9717e07873b2b9cd304ef29c8b03dfd",
+    "coast": "113104d4397a952cfdd4524d87de4ad51241859613ca501c15172c89ba6031b5"
+  }
+}

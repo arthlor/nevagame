@@ -1,6 +1,6 @@
 # Farm & Fishing Browser Game — Game Foundations & Technical Architecture (Compact)
 
-> **Role:** Primary technical source of truth. Read before all other project specs. If guidance conflicts, follow §41.
+> **Role:** Primary technical source of truth. Read it for architecture, simulation ownership, renderer contracts, persistence, cross-system work, and release/gold-slice gates. Routine existing-asset work follows the scoped route in root `AGENTS.md` and `BLENDER.md` without loading this file by default. If guidance conflicts, follow §41.
 > **Audience:** LLM coding agents, technical leads, gameplay programmers, technical artists.
 
 # 0. Project Definition
@@ -75,8 +75,9 @@ CONTENT DEFINITIONS → SIMULATION → APPLICATION SERVICES → PRESENTATION ADA
 Recommended repository ownership:
 ```text
 src/
-  app/            bootstrap, GameApp, lifecycle, GameModeController
-  simulation/     core + farming/fishing/boats/weather/economy/inventory/crafting/progression/contracts/world
+  app/            bootstrap, GameApp, lifecycle, ModeController, presentation action controllers
+  simulation/     core + domains + navigation + farming/fishing/boats/weather/economy/inventory/crafting/progression/contracts/world
+  physics/        PhysicsWorld, catalog collision projection, static collision proxies
   content/        registry + crops/fish/items/recipes/boats/markets/regions/progression
   render/         app/loaders/sync/objects/water/weather/materials/fx
   input/          GameAction/InputRouter/KeyboardInput/PointerInput
@@ -88,7 +89,7 @@ tests/ unit/ simulation/ integration/ fixtures/ e2e/
 
 # 6. Canonical State, IDs, RNG & Time
 
-Representative state:
+Representative state (`CURRENT_SCHEMA_VERSION = 11`, `world.layoutRevision = 3`):
 ```ts
 interface GameState {
   schemaVersion: number;
@@ -100,17 +101,25 @@ interface GameState {
   crops: Record<PlacedCropId, PlacedCropState>;
   inventories: Record<InventoryId, InventoryState>;
   processingJobs: Record<ProcessingJobId, ProcessingJobState>;
+  basicFishing: BasicFishingState | null;
+  sportFishing: FishingEncounterState | null;
   boats: Record<BoatId, BoatState>;
-  fishSchools: Record<FishSchoolId, FishSchoolState>;
+  fishCargo: Record<FishCargoId, FishCargoState>;
   weather: WeatherState;
   markets: Record<MarketId, MarketState>;
-  progression: ProgressionState;
   contracts: ContractState[];
   journal: JournalState;
+  quests: QuestState; // nextQuestId chain; unlockedFeatureIds
   metadata: GameMetadata;
 }
 ```
-All state MUST be JSON-serializable.
+All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. Schema v10 inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`) and lifts y=0 stations onto terrain. Schema v11 converts illegal `fish.trout` item stacks to cargo. New-game station `y` is `terrainHeight(x, z)`.
+
+`WorldState` owns the current world seed, `activeSchools`, authored
+`structures`, and the last school-spawn minute. Do not add fish schools or
+structures as parallel top-level `GameState` fields.
+
+`PlayerState` includes serializable traversal state (`sprintStamina`, recovery delay, exhaustion, grounded state) when the current schema requires it. Traversal is simulation-owned and fixed-step; Work Capacity is a separate economy resource and must not be reused as movement stamina.
 
 Use stable typed/string IDs (`CropId`, `FishSpeciesId`, `FarmId`, `BoatId`, `MarketId`, `InventoryId`). Persistent content IDs use stable machine names such as `crop.wheat`, `fish.blue_marlin`, `boat.rowboat`, `market.harbor`. Never use display names; never rename persistent IDs without migration.
 
@@ -135,16 +144,7 @@ Ticking: rendering via RAF; movement/physics fixed timestep; economics event/coa
 
 # 7. Offline Progression & Persistence
 
-On load: `offlineMs = nowUtcMs - savedAtUtcMs`; cap at **72 real hours**. Deterministically advance in order:
-1. calendar
-2. crop growth
-3. crop moisture
-4. processing jobs
-5. spoilage/freshness
-6. contracts
-7. market ticks
-8. weather
-9. return summary
+On load: `offlineMs = nowUtcMs - lastSavedUtcMs`; cap at **72 real hours**. Advance in **weather-bounded segments** so a long absence does not apply one stale weather snapshot to every crop and cargo item. Inside each segment: crop growth, crop moisture, and cargo freshness. After all segments: processing jobs, then contracts, then market ticks. Never auto-harvest, auto-sell, or auto-fish.
 
 IndexedDB save envelope:
 ```ts
@@ -155,11 +155,13 @@ interface SaveEnvelope {
   state: GameState;
 }
 ```
-Maintain primary autosave, backup autosave, manual save. Save periodically and on purchase, sale, dock, harvest, unlock, contract completion, visibility loss—not every frame.
+Two keys only: `primary_save` and `backup_save`. Quick-save / autosave writes primary (copying the previous primary to backup first). There is **no third manual slot**. Load **migrates then validates**. An IndexedDB write/open failure returns `false`; never promote a RAM copy onto IndexedDB later. If both slots are corrupt, show the `new-game-confirm` overlay and **block autosave until the player confirms**. If IndexedDB is unavailable, continue without saving and keep writes blocked.
+
+Save periodically and on purchase, sale, dock, harvest, unlock, contract completion, visibility loss—not every frame.
 
 Every persistent schema change requires deterministic migrations (`migrateV1ToV2`, etc.). Preserve old fixtures; keep IDs stable; failed migration MUST NOT destroy backup. Before persistent changes agents state: `Save-impact: yes/no`, `Migration required: yes/no`.
 
-Recovery: corruption tries `primary → backup → safe new-game prompt`; never silently wipe.
+Recovery: `primary → backup → new-game-confirm overlay`; never silently wipe.
 
 # 8. Content Registry
 
@@ -184,38 +186,42 @@ type GameAction =
   | "move-forward" | "move-backward" | "move-left" | "move-right"
   | "interact" | "use-primary" | "use-secondary"
   | "open-inventory" | "open-map" | "open-journal" | "pause"
-  | "fish-reel" | "fish-slack" | "fish-brace";
+  | "fish-reel" | "fish-slack" | "fish-brace" | "fish-left" | "fish-right";
 ```
-Modal rules: inventory may pause movement; fishing blocks inventory; modal disables boat steering; pause suspends simulation except explicit UI.
+Fishing minigames are driven by held-state `fishing` (`isReeling`, `isSlacking`, `isBracing`, `rodDirectionAngle`) plus `fish-left` / `fish-right`, not only discrete reel/slack/brace actions.
 
-Explicit modes:
+Modal rules: inventory may pause movement; **basic-fishing and sport-fishing block inventory**; modal disables boat steering. Pause is an overlay (`GameOverlay` includes `"pause"`), not a `GameplayMode`. It suspends simulation while open and MUST NOT be persisted as a serializable sim mode.
+
+Explicit gameplay modes (`GameplayMode`; excludes overlay-only `"menu"` / `"paused"`):
 ```ts
-type GameMode = "on-foot" | "farm-placement" | "basic-fishing" | "sport-fishing" | "boat-driving" | "menu" | "paused";
+type GameplayMode = "on-foot" | "farm-placement" | "basic-fishing" | "sport-fishing" | "boat-driving";
 ```
 Never infer mode from mesh/UI state.
 
-Cameras react to `GameMode`, never decide gameplay:
+Cameras react to `GameplayMode`, never decide gameplay:
 - on-foot: 3/4 third-person, damping, moderate zoom, readable farm placement;
 - boat: wider chase, visible horizon/forward waves/schools;
 - sport fishing: tighter, visible line/fish direction, unobstructed HUD.
 
-# 10. MVP World Scope
+`ModeController` owns gameplay mode plus the modal/overlay stack. `InputRouter` maps physical input to semantic movement, camera and action intents; camera orbit/zoom is presentation input and never becomes simulation state. `FarmingActionController` may time an authored presentation clip, but only its commit callback may call a simulation command; interruption before commit must leave gameplay state unchanged.
 
-Compact intentional world:
+# 10. World Scope
+
+Large intentional authored region:
 ```text
-Village: public garden, produce market, processing, contracts
-Player Farm Zone: private land
-River: basic/freshwater fishing
-Lake: freshwater sport fishing
-Harbor: fish market, dock, boat vendor, fuel/ice
-Coast: coastal fishing
-Offshore: higher-value sport fishing
+Northwest farm district: starter land, farmhouse, working yard
+Northeast uplands: private homestead, orchard, windmill plateau
+Central village: public garden, produce market, processing, contracts
+River corridor: freshwater fishing, bridge, riverbank route
+Southwest headland: cliffs, lighthouse, coastal walk
+Southeast harbor: fish market, dock, boat vendor, fuel/ice
+Coast and offshore: coastal and higher-value sport fishing
 ```
-Do not build a huge open world. Travel must remain strategic, not boring.
+The world is allowed to be large enough for multi-district travel and long-term expansion, but it remains deliberately authored rather than unbounded or runtime-procedural. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data, large/streaming chunk boundaries where the runtime needs them, and preserve strategic travel rather than tedious traversal.
 
 # 11. Physics & Water
 
-Use Rapier only where collision response matters: player/world, boat/world, dock, shoreline, simple vehicle/rigid gameplay props. Avoid full physics for crops, fish AI, fishing line, waves, UI, decorative props unless required. Fishing line is simulation math.
+Use Rapier only where collision response matters: player/world, boat/world, dock, shoreline, simple vehicle/rigid gameplay props. Avoid full physics for crops, fish AI, fishing line, waves, UI, decorative props unless required. Fishing line is simulation math. `PhysicsWorld` implements the `PhysicsAdapter`; it returns a validated pose frame, and `Simulation`/the navigation domain is the only layer allowed to commit that frame into `GameState`. Physics may sample presentation `WaterSurface` for boat bob; **canonical `boat.y` stays at the waterline** so save/load never depends on wall-clock wave height. Camera sweeps and interaction line-of-sight queries are presentation/application services, not gameplay authority.
 
 MVP water: attractive, animated, readable shore, weather-controlled roughness, mid-tier acceptable, clear boat silhouettes. Simulation owns `sea roughness`, `wind`, `risk`; renderer owns waves/normals/foam/reflection approximation. Do not begin with expensive ocean simulation.
 
@@ -230,25 +236,30 @@ Canonical visual-system ownership:
 - Pixel-level screenshot regression compares the game to its own approved benchmark states; style-reference review compares visual language to supplied references and intentionally ignores layout/camera differences unless composition is the task.
 
 Runtime asset contract: **GLB/glTF 2.0 only**; never runtime `.blend/.fbx/.obj`.
-- Static prefabs: catalog entry → registered deterministic Blender Python family generator, optionally composed from shared `common/authored.py` construction helpers → raw GLB → Khronos validation → glTF Transform dedupe/prune/weld + Meshopt → revalidation → atomic publish.
+- Static prefabs: catalog entry, with its optional closed `referenceAuthoring` evidence-to-generator brief when image/study guided → registered deterministic Blender Python family generator, optionally composed from shared `common/authored.py` construction helpers → raw GLB → Khronos validation → glTF Transform dedupe/prune/weld + Meshopt → revalidation → atomic publish. A reconstruction study may inform the brief; it does not authorize a direct runtime TypeScript factory or second exporter.
 - Dynamic systems: Three.js TS buffer/procedural builders (water, crop stages, seasonal tint, dynamic fish, debug proxies).
 - Conventions: `1 unit = 1 meter`, Y-up, consistent forward, applied transforms, stable names/pivots, material reuse.
 
 Machine ownership is explicit:
 - `assets/specs/asset-catalog.schema.json` validates the single generated-asset catalog.
-- `assets/specs/asset-catalog.json` owns asset IDs/files/families, generator names, seeds, dimensions, palette tokens, triangle floors/targets/maxima, material caps, pivots, collision, instancing, LOD, required nodes, read distance and generator parameters.
+- `assets/specs/asset-catalog.json` owns asset IDs/files/families, generator names, seeds, dimensions, palette tokens, triangle floors/targets/maxima, material caps, pivots, collision primitives, instancing, LOD, required nodes, read distance, generator parameters, optional reference-authoring source/hierarchy/review contracts, and character rig/socket/animation contracts.
 - `art/palettes/neva.palette.json` owns semantic palette tokens used by Blender and runtime material APIs.
 - `tools/blender/asset_budgets.json` owns scene profiles, texture ceilings and the catalog pointer; it does not duplicate per-asset budgets.
-- `tools/blender/cli.mjs` is the public automation entrypoint. `bootstrap.py`, `generators/registry.py`, family generator modules and `common/*` are internal implementation layers. In particular, `common/authored.py` centralizes reusable deterministic mid-scale forms such as masonry courses, shingles, planks, lattice/rope, arch rings and fasteners; it must remain subordinate to the catalog entry and owning registered family generator.
+- `tools/blender/cli.mjs` is the public automation entrypoint. Its `brief` command validates and renders any reference-authoring contract without running Blender; this is authoring readiness, not visual approval. `bootstrap.py`, `generators/registry.py`, family generator modules and `common/*` are internal implementation layers. In particular, `common/authored.py` centralizes reusable deterministic mid-scale forms such as masonry courses, shingles, planks, lattice/rope, arch rings and fasteners; it must remain subordinate to the catalog entry and owning registered family generator.
+- `vite.config.ts` derives the browser's virtual runtime-catalog projection directly from the same JSON at build time and includes only loader/placement fields. Generator parameters, budgets, source URIs, and reference-authoring evidence must not ship in the client bundle. Never check in a second runtime catalog as an authority.
+- `tools/art/codegen.mjs` derives `src/render/assets/AssetCatalog.generated.ts` (typed `ASSET_IDS`, family names, and family maps). `dev`, `build`, `typecheck`, and `test` refresh it; CI/review should also run `npm run art:codegen:check`. The generated adapter is never hand-edited.
+- `tools/vite/runtimeAssetCatalogPlugin.ts` hot-refreshes codegen and serves the runtime-only virtual catalog; `tools/vite/artYardPlugin.ts` serves the dev-only `/__neva_art_yard` and staged `/__neva_art_stage/run-ID` review paths. The yard reuses `AssetLoader`, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig`, and is not part of the production build.
+- `generated/.cache/art/` stores validated optimized GLBs by per-asset input/toolchain hash. It is disposable acceleration state, not a publish directory or authority. Release/shared-generator `art:determinism` bypasses it and regenerates both passes from the generator; routine asset work keeps the cache enabled and does not double-generate.
 
-Runtime ownership is also one-way: `src/render/assets/AssetCatalog.ts` consumes the JSON catalog, `AssetLoader.ts` loads Meshopt GLBs through the canonical cache/clone path, and static compatible prefab instances may be consolidated with `THREE.BatchedMesh`. Simulation remains authoritative; catalog metadata and scene nodes never become gameplay truth.
+Runtime ownership is also one-way: generated IDs/families and the Vite runtime projection consume the canonical JSON, `src/render/assets/AssetCatalog.ts` adapts the typed/runtime projections, `AssetLoader.ts` loads Meshopt GLBs through the canonical cache/clone path, and static compatible prefab instances may be consolidated with `THREE.BatchedMesh`. Simulation remains authoritative; catalog metadata, collision proxies, animation clips, and scene nodes never become gameplay truth.
 
 Example stable nodes: `boat_skiff_root`, `boat_skiff_cargo_01`, `boat_skiff_hook_left`, `house_farmhouse_a_root`, `crop_wheat_mature_root`, `fish_trout_a_root`.
 
 Publication/report boundary:
 - `generated/reports/asset-manifest.json` plus `public/assets/models/asset-manifest.json` describe the last atomically published set.
 - `generated/reports/asset_budget_report.json` describes the latest `generate` attempt, including a rejected strict candidate; it is a quality report, not proof of publication.
-- Determinism and preview commands must not replace the canonical quality report or publish assets.
+- `generated/.cache/art/` and the dev art yard may expose cache/input hashes and hit/miss status for review, but neither replaces the generated/public manifests or human approval.
+- Release determinism and benchmark commands must not replace the canonical quality report or publish assets. Static Blender preview generation is not part of the pipeline; the development Art Yard is the sole asset-review surface.
 
 MVP guardrails:
 ```text
@@ -283,7 +294,7 @@ Never soft-lock:
 - zero fuel → **Emergency Tow** (money + time);
 - lost boat → **Recall Boat** when not carrying valuable physical cargo;
 - full inventory at harvest → keep on plant, temporary ground crate, or block with clear message; never destroy harvest;
-- corrupt save → primary → backup → safe prompt.
+- corrupt save → primary → backup → `new-game-confirm` overlay (autosave blocked until confirm). Unavailable IndexedDB → continue without saving; writes stay blocked.
 
 Debug panel: FPS, frame time, draw calls, triangles, coordinates, region, mode, game time, weather, market tick, active schools, save state, world seed.
 
@@ -299,7 +310,7 @@ Testing layers:
 - **Unit:** pure growth/yield/quality/pricing/freshness/demand/capacity/rank rules.
 - **Simulation:** fixed seed/state; same 300-minute advancement → same crops/schools/market.
 - **Integration:** harvest→inventory; grain→recipe→chum; catch→cargo; cargo→market→money.
-- **E2E:** boot/move/plant/harvest/fish/boat/sell/save/reload/resize. WebGL changes require screenshots.
+- **E2E:** boot/move/plant/harvest/fish/boat/sell/save/reload/resize. Release/gold-slice WebGL gates retain screenshot evidence; routine selected-asset work is integrated for human review in the actual game without agent screenshot capture.
 
 Architecture gate before large gameplay implementation:
 - [ ] project boots

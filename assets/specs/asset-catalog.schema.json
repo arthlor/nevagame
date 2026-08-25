@@ -60,6 +60,12 @@
         },
         "pivot": { "enum": ["ground_center", "center", "buoyancy"] },
         "collision": { "enum": ["none", "box", "compound"] },
+        "collisionPrimitives": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/collisionPrimitive" }
+        },
         "instancing": { "type": "boolean" },
         "lod": { "enum": ["none", "small", "medium", "hero"] },
         "rootNode": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
@@ -69,8 +75,264 @@
           "uniqueItems": true,
           "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
         },
+        "rigNode": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "socketNodes": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
+        },
+        "animationClips": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/animationClip" }
+        },
         "readDistanceMeters": { "type": "number", "minimum": 8, "maximum": 100 },
-        "parameters": { "type": "object" }
+        "parameters": { "type": "object" },
+        "lodLevels": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/lodLevel" }
+        },
+        "referenceAuthoring": { "$ref": "#/$defs/referenceAuthoring" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "collision": { "const": "none" } } },
+          "then": { "properties": { "collisionPrimitives": false } },
+          "else": { "required": ["collisionPrimitives"] }
+        },
+        {
+          "if": { "properties": { "collision": { "const": "box" } } },
+          "then": { "properties": { "collisionPrimitives": { "type": "array", "maxItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "collision": { "const": "compound" } } },
+          "then": { "properties": { "collisionPrimitives": { "type": "array", "minItems": 2 } } }
+        },
+        {
+          "if": { "properties": { "family": { "const": "character" } } },
+          "then": {
+            "properties": {
+              "rigNode": true,
+              "socketNodes": true,
+              "animationClips": true
+            },
+            "required": ["rigNode", "socketNodes", "animationClips"]
+          },
+          "else": {
+            "properties": {
+              "rigNode": false,
+              "socketNodes": false,
+              "animationClips": false
+            }
+          }
+        }
+      ]
+    },
+    "animationClip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "durationSeconds", "loop"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "durationSeconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+        "commitMarkerSeconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+        "loop": { "type": "boolean" },
+        "referenceSpeedMetersPerSecond": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/animationEvent" }
+        }
+      }
+    },
+    "animationEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "timeSeconds"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "timeSeconds": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "collisionPrimitive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "center", "halfExtents"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "center": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "number" }
+        },
+        "halfExtents": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "number", "exclusiveMinimum": 0 }
+        },
+        "yawDegrees": { "type": "number", "minimum": -180, "maximum": 180 }
+      }
+    },
+    "lodLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "distanceMeters", "triangleRatioMin", "triangleRatioMax"],
+      "properties": {
+        "node": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "distanceMeters": { "type": "number", "minimum": 0, "maximum": 100 },
+        "triangleRatioMin": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "triangleRatioMax": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+      }
+    },
+    "referenceAuthoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status", "subject", "sources", "components", "silhouette",
+        "negativeSpace", "hiddenSurfaces", "criticalFeatures",
+        "parameterBindings", "failureModes", "reviewViews"
+      ],
+      "properties": {
+        "status": { "enum": ["draft", "ready"] },
+        "subject": { "type": "string", "minLength": 12, "maxLength": 180 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/referenceSource" }
+        },
+        "components": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/referenceComponent" }
+        },
+        "silhouette": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 12, "maxLength": 240 }
+        },
+        "negativeSpace": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 12, "maxLength": 240 }
+        },
+        "hiddenSurfaces": { "$ref": "#/$defs/hiddenSurfaces" },
+        "criticalFeatures": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/criticalFeature" }
+        },
+        "parameterBindings": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/parameterBinding" }
+        },
+        "failureModes": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 12, "maxLength": 240 }
+        },
+        "reviewViews": {
+          "type": "array",
+          "minItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "front", "rear", "side", "three_quarter", "gameplay_8m",
+              "gameplay_15m", "gameplay_read_distance", "close_material"
+            ]
+          }
+        }
+      }
+    },
+    "referenceSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "uri", "use"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "kind": { "enum": ["canonical", "visual_reference", "structural_study", "method_study"] },
+        "uri": { "type": "string", "minLength": 12, "maxLength": 500, "pattern": "^(repo://|https://)" },
+        "use": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["form_language", "silhouette", "proportion", "structure", "materials", "detail_density", "workflow"]
+          }
+        },
+        "notes": { "type": "string", "minLength": 8, "maxLength": 300 }
+      }
+    },
+    "referenceComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parent", "importance", "role", "shape", "count", "cues"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "parent": { "type": "string", "pattern": "^(root|[a-z][a-z0-9_]*)$" },
+        "importance": { "enum": ["primary", "secondary", "tertiary"] },
+        "role": { "type": "string", "minLength": 8, "maxLength": 160 },
+        "shape": { "type": "string", "minLength": 8, "maxLength": 180 },
+        "count": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "cues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 8, "maxLength": 220 }
+        }
+      }
+    },
+    "hiddenSurfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "confidence", "requirements"],
+      "properties": {
+        "strategy": { "enum": ["structural_continuity", "mirror_with_variation", "reference_confirmed"] },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "requirements": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 12, "maxLength": 240 }
+        }
+      }
+    },
+    "criticalFeature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "componentIds", "requirement", "priority"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "componentIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "requirement": { "type": "string", "minLength": 12, "maxLength": 260 },
+        "priority": { "enum": ["must", "should"] }
+      }
+    },
+    "parameterBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter", "componentIds", "purpose"],
+      "properties": {
+        "parameter": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$" },
+        "componentIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "purpose": { "type": "string", "minLength": 12, "maxLength": 220 }
       }
     }
   }

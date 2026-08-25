@@ -60,7 +60,7 @@ export const CROPS: Record<string, CropDefinition> = {
     waterNeed: 22,
     fertilityCost: 12,
     regrows: false,
-    minimumFarmingXp: 500,
+    minimumFarmingXp: 0,
     tags: ["vegetable", "market-favorite"]
   },
   "crop.potato": {

@@ -1,6 +1,7 @@
 // src/ui/EscapeMenuModal.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { GameState } from "../simulation/core/types";
+import { audioSettings, AudioSettings } from "../audio/AudioSettings";
 
 export interface EscapeMenuModalProps {
   state: GameState;
@@ -10,6 +11,7 @@ export interface EscapeMenuModalProps {
   onOpenInventory: () => void;
   onOpenJournal: () => void;
   onOpenExpedition: () => void;
+  expeditionUnlocked?: boolean;
 }
 
 export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
@@ -19,7 +21,8 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   onQuickSave,
   onOpenInventory,
   onOpenJournal,
-  onOpenExpedition
+  onOpenExpedition,
+  expeditionUnlocked = false
 }) => {
   const clock = state.clock;
   const player = state.player;
@@ -41,7 +44,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
     <div className="modal-overlay interactive" onClick={onClose}>
       <div
         className="neva-panel modal-content"
-        style={{ width: "560px" }}
+        style={{ width: "min(580px, 94vw)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -60,46 +63,39 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
 
         <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {/* Status summary banner */}
-          <div
-            style={{
-              background: "#FFF",
-              padding: "10px 14px",
-              borderRadius: "6px",
-              border: "2px solid #C4B5A2",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "13px"
-            }}
-          >
+          <div className="pause-status-card">
             <div>
-              <div style={{ fontWeight: 700, color: "var(--color-wood-dark)" }}>
+              <div className="pause-region-title">
                 📍 {currentRegion}
               </div>
-              <div style={{ color: "var(--color-text-muted)", fontSize: "11px" }}>
+              <div className="pause-date-sub">
                 Day {dayInSeason} of {seasonName}, Year {clock.year} ({hh}:{mm})
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 700, color: "var(--color-wood-dark)" }}>
+              <div className="pause-gold-val">
                 💰 {player.money} G
               </div>
-              <div style={{ color: "var(--color-energy-green)", fontSize: "11px", fontWeight: 600 }}>
+              <div className="pause-work-val">
                 ⚡ {Math.round(player.workCapacity.current)} / {player.workCapacity.maximum} Work
               </div>
             </div>
           </div>
 
+          <AudioControls />
+
           {/* Quick Menu Actions */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             <button
-              className="neva-button neva-button-teal"
+              type="button"
+              className="neva-button neva-button-primary"
               style={{ padding: "10px 14px", fontSize: "14px", fontWeight: 700 }}
               onClick={onClose}
             >
               ▶ Resume Game <kbd style={{ opacity: 0.8, fontSize: "11px" }}>[ESC]</kbd>
             </button>
             <button
+              type="button"
               className="neva-button"
               style={{ padding: "10px 14px", fontSize: "14px" }}
               onClick={() => {
@@ -111,27 +107,19 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
           </div>
 
           {/* Unstuck / Reset Character to Safe Place */}
-          <div
-            style={{
-              background: "#FDF4EB",
-              border: "2px dashed var(--color-terracotta)",
-              borderRadius: "6px",
-              padding: "12px 14px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px"
-            }}
-          >
+          <div className="pause-unstuck-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, color: "var(--color-terracotta)", fontSize: "13px" }}>
+              <span style={{ fontWeight: 700, color: "var(--color-accent-terracotta)", fontSize: "13px" }}>
                 🧭 Stuck or Glitched?
               </span>
               <button
+                type="button"
                 className="neva-button"
                 style={{
-                  background: "var(--color-terracotta)",
-                  borderColor: "#88281A",
-                  padding: "6px 12px",
+                  background: "var(--color-accent-terracotta)",
+                  borderColor: "rgba(200, 106, 88, 0.6)",
+                  color: "#FFF",
+                  padding: "5px 12px",
                   fontSize: "12px",
                   fontWeight: 700
                 }}
@@ -140,7 +128,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                 🔄 Reset to Safe Place
               </button>
             </div>
-            <p style={{ fontSize: "11px", color: "var(--color-text-dark)", lineHeight: 1.4, margin: 0 }}>
+            <p style={{ fontSize: "11.5px", color: "var(--color-text-secondary)", lineHeight: 1.4, margin: 0 }}>
               Teleports your character back to the Starter Garden in the Village and safely returns any active boat to the harbor dock.
             </p>
           </div>
@@ -154,60 +142,113 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
             }}
           >
             <button
+              type="button"
               className="neva-button neva-button-secondary"
-              style={{ flex: 1, padding: "6px 8px", fontSize: "12px" }}
+              style={{ flex: 1, padding: "7px 8px", fontSize: "12px" }}
               onClick={onOpenInventory}
             >
               🎒 Inventory <kbd>[I]</kbd>
             </button>
             <button
+              type="button"
               className="neva-button neva-button-secondary"
-              style={{ flex: 1, padding: "6px 8px", fontSize: "12px" }}
+              style={{ flex: 1, padding: "7px 8px", fontSize: "12px" }}
               onClick={onOpenJournal}
             >
               📖 Journal <kbd>[J]</kbd>
             </button>
-            <button
-              className="neva-button neva-button-secondary"
-              style={{ flex: 1, padding: "6px 8px", fontSize: "12px" }}
-              onClick={onOpenExpedition}
-            >
-              🗺️ Expedition
-            </button>
+            {expeditionUnlocked && (
+              <button
+                type="button"
+                className="neva-button neva-button-secondary"
+                style={{ flex: 1, padding: "7px 8px", fontSize: "12px" }}
+                onClick={onOpenExpedition}
+              >
+                🗺️ Expedition
+              </button>
+            )}
           </div>
 
           {/* Controls Reference */}
-          <div
-            style={{
-              background: "#FFF",
-              padding: "10px 14px",
-              borderRadius: "6px",
-              border: "2px solid #C4B5A2",
-              fontSize: "11px"
-            }}
-          >
-            <h5 style={{ fontWeight: 700, color: "var(--color-wood-dark)", marginBottom: "6px" }}>
+          <div className="pause-controls-card">
+            <h5 style={{ fontWeight: 700, color: "var(--color-accent-ochre)", marginBottom: "8px", fontSize: "12px" }}>
               🎮 Controls Quick Reference
             </h5>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", color: "#444" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", color: "var(--color-text-secondary)" }}>
               <div><strong>[W / A / S / D]</strong> Move / Steer Boat</div>
               <div><strong>[Shift]</strong> Sprint (On foot)</div>
-              <div><strong>[E]</strong> Interact / Plant / Harvest</div>
+              <div><strong>[E]</strong> Interact / Harvest</div>
+              <div><strong>[1 – 5]</strong> Tool Quickbar (Hoe, Seed, Water, Bait, Rod)</div>
               <div><strong>[I]</strong> Open Inventory / Seeds</div>
+              <div><strong>[M]</strong> Multi-Lens World Map</div>
+              <div><strong>[L]</strong> Logistics Ledger</div>
               <div><strong>[J]</strong> Captain & Farm Journal</div>
+              <div><strong>[Alt]</strong> Soil Moisture & Crop GIS</div>
               <div><strong>[Esc]</strong> Menu & Safe Reset</div>
-              <div><strong>[W / S / Space]</strong> Reel / Slack / Brace Fish</div>
-              <div><strong>[A / D]</strong> Steer Fishing Rod</div>
             </div>
           </div>
         </div>
 
         <div className="modal-footer" style={{ justifyContent: "center" }}>
-          <button className="neva-button" style={{ minWidth: "120px" }} onClick={onClose}>
+          <button type="button" className="neva-button" style={{ minWidth: "120px" }} onClick={onClose}>
             Back to Game
           </button>
         </div>
       </div>
     </div>
+  );
+};
+
+type AudioLevelKey = "master" | "sfx" | "ambience";
+type AudioMuteKey = "masterMuted" | "sfxMuted" | "ambienceMuted";
+
+const AUDIO_ROWS: Array<{ label: string; level: AudioLevelKey; muted: AudioMuteKey }> = [
+  { label: "Master", level: "master", muted: "masterMuted" },
+  { label: "Effects", level: "sfx", muted: "sfxMuted" },
+  { label: "Ambience", level: "ambience", muted: "ambienceMuted" }
+];
+
+const AudioControls: React.FC = () => {
+  const [settings, setSettings] = useState<AudioSettings>({ ...audioSettings.get() });
+
+  useEffect(() => audioSettings.subscribe((next) => setSettings({ ...next })), []);
+
+  return (
+    <section className="audio-settings" aria-labelledby="audio-settings-title">
+      <h5 id="audio-settings-title" style={{ fontSize: "12px", color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: "6px" }}>Audio</h5>
+      {AUDIO_ROWS.map((row) => {
+        const percent = Math.round(settings[row.level] * 100);
+        const muted = settings[row.muted];
+        return (
+          <div className="audio-settings-row" key={row.level}>
+            <label htmlFor={`audio-${row.level}`}>
+              <span>{row.label}</span>
+              <span className="audio-level-text">{muted ? "Muted" : `${percent}%`}</span>
+            </label>
+            <input
+              id={`audio-${row.level}`}
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={percent}
+              aria-valuetext={muted ? "Muted" : `${percent} percent`}
+              onChange={(event) => {
+                const level = Number(event.currentTarget.value) / 100;
+                setSettings({ ...audioSettings.set({ [row.level]: level, [row.muted]: false }) });
+              }}
+            />
+            <button
+              type="button"
+              className="neva-button neva-button-secondary audio-mute-button"
+              aria-pressed={muted}
+              onClick={() => setSettings({ ...audioSettings.set({ [row.muted]: !muted }) })}
+            >
+              {muted ? "Unmute" : "Mute"}
+            </button>
+          </div>
+        );
+      })}
+    </section>
   );
 };

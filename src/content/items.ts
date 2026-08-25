@@ -290,14 +290,5 @@ export const ITEMS: Record<string, ItemDefinition> = {
     stackLimit: 50,
     baseValue: 35,
     tags: ["fish", "freshwater", "small-catch"]
-  },
-  "fish.trout": {
-    id: "fish.trout",
-    name: "Rainbow Trout",
-    category: "produce",
-    description: "Freshwater trout caught from lakes and streams.",
-    stackLimit: 50,
-    baseValue: 22,
-    tags: ["fish", "freshwater", "small-catch"]
   }
 };

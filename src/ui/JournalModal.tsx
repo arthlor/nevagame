@@ -14,36 +14,75 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose }) =>
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <div className="neva-panel modal-content" style={{ width: "700px" }} onClick={(e) => e.stopPropagation()}>
+      <div className="neva-panel modal-content" style={{ width: "min(720px, 94vw)" }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>📖 Captain & Farm Journal</span>
-          <button className="neva-button neva-button-secondary" style={{ padding: "2px 8px" }} onClick={onClose}>
+          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>📖</span> Captain & Farm Journal
+          </span>
+          <button type="button" className="neva-button neva-button-secondary" style={{ padding: "2px 8px" }} onClick={onClose}>
             ✕
           </button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Story and quest record */}
+          <div className="journal-card-section">
+            <h4 className="journal-section-title">🧭 Story & Quests</h4>
+            {state.quests.activeQuestId ? (() => {
+              const active = ContentRegistry.quests.get(state.quests.activeQuestId);
+              const objective = active?.objectives[state.quests.activeStepIndex];
+              const progress = objective ? state.quests.stepProgress[objective.id] ?? 0 : 0;
+              return active ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px" }}>
+                  <strong>{active.questTitle}</strong>
+                  {objective && (
+                    <span style={{ color: "var(--color-text-secondary)" }}>
+                      {objective.description} · {Math.min(progress, objective.targetQuantity)} / {objective.targetQuantity}
+                    </span>
+                  )}
+                </div>
+              ) : null;
+            })() : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                <strong>Open Horizons</strong>
+                <span style={{ color: "var(--color-text-secondary)" }}>The introductory story is complete.</span>
+              </div>
+            )}
+            {state.quests.completedQuestIds.length > 0 && (
+              <div style={{ marginTop: "10px", color: "var(--color-text-secondary)", fontSize: "11px", lineHeight: 1.5 }}>
+                Completed: {state.quests.completedQuestIds
+                  .map((questId) => ContentRegistry.quests.get(questId)?.questTitle ?? questId)
+                  .join(" · ")}
+              </div>
+            )}
+            {state.quests.unlockedFeatureIds.length > 0 && (
+              <div style={{ marginTop: "8px", color: "var(--color-accent-ochre)", fontSize: "11px" }}>
+                Unlocked: {state.quests.unlockedFeatureIds.map((featureId) => featureId.replace(/^feature\.|^boat\./, "").replaceAll("_", " ")).join(" · ")}
+              </div>
+            )}
+          </div>
+
           {/* Proficiencies Summary */}
-          <div style={{ marginBottom: "16px", background: "#FFF", padding: "12px", borderRadius: "6px", border: "2px solid #C4B5A2" }}>
-            <h4 style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-wood-dark)", marginBottom: "8px" }}>
+          <div className="journal-card-section">
+            <h4 className="journal-section-title">
               🏆 Skill Proficiencies
             </h4>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", fontSize: "12px" }}>
+            <div className="journal-skills-grid">
               {Object.entries(proficiencies).map(([skill, xp]) => (
-                <div key={skill} style={{ background: "var(--color-panel-inner)", padding: "8px", borderRadius: "4px", textAlign: "center" }}>
-                  <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{skill}</div>
-                  <div style={{ color: "var(--color-accent-teal)", fontWeight: 600 }}>{xp} XP</div>
+                <div key={skill} className="journal-skill-pill">
+                  <div className="skill-name">{skill}</div>
+                  <div className="skill-xp">{xp} XP</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Fish Discoveries Table */}
-          <div style={{ background: "#FFF", padding: "12px", borderRadius: "6px", border: "2px solid #C4B5A2" }}>
-            <h4 style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-wood-dark)", marginBottom: "8px" }}>
+          <div className="journal-card-section">
+            <h4 className="journal-section-title">
               🐟 Discovered Fish Species
             </h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+            <div className="journal-fish-list">
               {Array.from(ContentRegistry.fishSpecies.values()).map((species) => {
                 const record = journal.fishRecords[species.id];
                 const discovered = !!record;
@@ -51,30 +90,27 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose }) =>
                 return (
                   <div
                     key={species.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "6px 10px",
-                      background: discovered ? "var(--color-panel-inner)" : "#F0F0F0",
-                      borderRadius: "4px",
-                      opacity: discovered ? 1.0 : 0.6
-                    }}
+                    className={`journal-fish-row ${discovered ? "is-discovered" : "is-undiscovered"}`}
                   >
-                    <div>
-                      <span style={{ fontWeight: 700 }}>{discovered ? species.name : "??? (Undiscovered)"}</span>
+                    <div className="fish-row-left">
+                      <strong className="fish-name">
+                        {discovered ? species.name : "??? (Undiscovered)"}
+                      </strong>
                       {discovered && (
-                        <span style={{ color: "#777", marginLeft: "8px" }}>
+                        <span className="fish-habitats">
                           [{species.habitats.join(", ")}]
                         </span>
                       )}
                     </div>
-                    {discovered ? (
-                      <div>
-                        Caught: <b>{record.catchCount}</b> | Record: <b>{record.largestWeightKg} kg</b>
-                      </div>
-                    ) : (
-                      <div style={{ color: "#999" }}>Not yet recorded</div>
-                    )}
+                    <div className="fish-row-right">
+                      {discovered ? (
+                        <span>
+                          Caught: <b>{record.catchCount}</b> <span className="dot-sep">·</span> Record: <b style={{ color: "var(--color-accent-gold)" }}>{record.largestWeightKg?.toFixed(1)} kg</b>
+                        </span>
+                      ) : (
+                        <span className="undiscovered-text">Not yet recorded</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -83,7 +119,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose }) =>
         </div>
 
         <div className="modal-footer">
-          <button className="neva-button" onClick={onClose}>
+          <button type="button" className="neva-button" onClick={onClose}>
             Close Journal
           </button>
         </div>

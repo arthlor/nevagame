@@ -1,9 +1,23 @@
 // src/simulation/core/createInitialState.ts
 
 import { CURRENT_SCHEMA_VERSION } from "../../persistence/SaveSchema";
-import { GameState } from "./types";
+import { createFullPlayerTraversalState } from "../navigation/PlayerTraversal";
+import type { GameState, StationType, StructureId } from "./types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { starterStructureAnchor } from "../../world/FarmLayout";
+import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION, WORLD_SPAWN } from "../../world/WorldAnchors";
+import { WorldLayout } from "../../world/WorldLayout";
+
+function structureOnTerrain(
+  id: StructureId,
+  type: StationType,
+  x: number,
+  z: number
+): { id: StructureId; type: StationType; x: number; y: number; z: number } {
+  return { id, type, x, y: WorldLayout.terrainHeight(x, z), z };
+}
+
 
 export function createInitialGameState(worldSeed: number = 42891): GameState {
   ContentRegistry.initializeAndValidate();
@@ -12,6 +26,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
   // Give starter supplies
   InventoryManager.addItemsAtomically(playerInventory, [
     { itemId: "seed.wheat", quantity: 10 },
+    { itemId: "seed.tomato", quantity: 6 },
     { itemId: "seed.potato", quantity: 6 },
     { itemId: "item.bait_worms", quantity: 10 },
     { itemId: "item.compost_starter", quantity: 2 },
@@ -45,9 +60,9 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     "boat.player_rowboat": {
       id: "boat.player_rowboat",
       boatTypeId: "boat.rowboat",
-      x: 35,
-      y: 0,
-      z: 55,
+      x: HARBOR_DOCK.boatPosition.x,
+      y: HARBOR_DOCK.boatPosition.y,
+      z: HARBOR_DOCK.boatPosition.z,
       headingRadians: 0,
       speed: 0,
       fuel: 0,
@@ -56,22 +71,25 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       supplyInventoryId: "inv.rowboat_supply",
       upgrades: [],
       isDocked: true,
-      dockedMarketId: "market.harbor"
+      dockedMarketId: HARBOR_DOCK.marketId
     }
   };
 
   const rowboatInventory = InventoryManager.createInventory("inv.rowboat_supply", 4);
+  const millAnchor = starterStructureAnchor("struct.starter_mill")!;
+  const compostAnchor = starterStructureAnchor("struct.starter_compost")!;
+  const workbenchAnchor = starterStructureAnchor("struct.workbench")!;
 
   const initialFarms: GameState["farms"] = {
     "farm.starter_garden": {
       id: "farm.starter_garden",
-      regionId: "region.village",
+      regionId: "region.farm",
       widthMeters: 8,
       depthMeters: 8,
       climateId: "temperate",
       soil: { fertility: 85, moistureRetention: 0.7 },
       placedCropIds: [],
-      placedStructureIds: ["struct.starter_mill", "struct.starter_compost"],
+      placedStructureIds: ["struct.starter_mill", "struct.workbench", "struct.starter_compost"],
       leaseCost: 0,
       leaseDueMinute: 0,
       accessType: "public"
@@ -84,7 +102,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       climateId: "temperate",
       soil: { fertility: 90, moistureRetention: 0.8 },
       placedCropIds: [],
-      placedStructureIds: ["struct.workbench"],
+      placedStructureIds: [],
       leaseCost: 50,
       leaseDueMinute: 1440 * 7,
       accessType: "private"
@@ -104,20 +122,21 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       isPaused: false
     },
     player: {
-      x: 0,
-      y: 0.5,
-      z: 0,
+      x: WORLD_SPAWN.playerPosition.x,
+      y: WorldLayout.terrainHeight(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z) + 0.5,
+      z: WORLD_SPAWN.playerPosition.z,
       rotationY: 0,
-      currentRegionId: "region.village",
+      currentRegionId: WORLD_SPAWN.regionId,
       inventoryId: "inv.player",
       equippedRodId: "rod.willow",
       carriedFishCargoId: null,
       activeBoatId: null,
       money: 100,
+      traversal: createFullPlayerTraversalState(),
       workCapacity: {
         current: 1000,
         maximum: 1000,
-        lastRegenMinute: 8 * 60
+        regeneratedAtMinute: 8 * 60
       },
       proficiencies: {
         farming: 0,
@@ -127,14 +146,22 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       }
     },
     world: {
+      layoutRevision: WORLD_LAYOUT_REVISION,
       currentSeed: worldSeed,
       activeSchools: {},
       structures: {
-        "struct.starter_mill": { id: "struct.starter_mill", type: "hand-mill", x: 2, y: 0, z: -3 },
-        "struct.starter_compost": { id: "struct.starter_compost", type: "compost-bin", x: 4, y: 0, z: -3 },
-        "struct.workbench": { id: "struct.workbench", type: "workbench", x: -2, y: 0, z: -3 }
+        [millAnchor.id]: structureOnTerrain(millAnchor.id, millAnchor.type, millAnchor.x, millAnchor.z),
+        [compostAnchor.id]: structureOnTerrain(compostAnchor.id, compostAnchor.type, compostAnchor.x, compostAnchor.z),
+        [workbenchAnchor.id]: structureOnTerrain(workbenchAnchor.id, workbenchAnchor.type, workbenchAnchor.x, workbenchAnchor.z),
+        [HARBOR_FISH_TABLE.structureId]: structureOnTerrain(
+          HARBOR_FISH_TABLE.structureId,
+          HARBOR_FISH_TABLE.type,
+          HARBOR_FISH_TABLE.position.x,
+          HARBOR_FISH_TABLE.position.z
+        )
       },
-      lastSchoolSpawnMinute: 0
+      lastSchoolSpawnMinute: 0,
+      storySchoolSpawned: false
     },
     farms: initialFarms,
     crops: {},
@@ -178,6 +205,16 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       fishRecords: {},
       cropRecords: {},
       unlockedKnowledge: ["knowledge.wheat_milling", "knowledge.worm_composting"]
+    },
+    quests: {
+      activeActId: "act1_homestead",
+      activeQuestId: "quest.act1_welcome",
+      activeStepIndex: 0,
+      stepProgress: {},
+      completedQuestIds: [],
+      unlockedDialogueIds: [],
+      unlockedFeatureIds: [],
+      hintsShown: {}
     },
     metadata: {
       createdAtUtcMs: Date.now(),

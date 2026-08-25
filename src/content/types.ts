@@ -64,6 +64,8 @@ export interface FishBehaviorProfile {
   escapeSlackSeconds: number; // time fish can be at slack tension before escaping
 }
 
+export type MinigameFishBehavior = "mixed" | "smooth" | "sinker" | "floater" | "dart";
+
 export interface FishSpeciesDefinition {
   id: FishSpeciesId;
   name: string;
@@ -79,6 +81,8 @@ export interface FishSpeciesDefinition {
   cargoClass: CargoClass;
   baseDecayRatePerMinute: number; // Freshness loss per minute
   isSportFish: boolean;
+  minigameBehavior?: MinigameFishBehavior;
+  minigameDifficulty?: number; // 15-95
   tags: string[];
 }
 
@@ -163,3 +167,7 @@ export interface ContractTemplateDefinition {
   rewardSkill: SkillId;
   requiredXp?: number;
 }
+
+export type { NpcDefinition } from "./npcs";
+export type { QuestDefinition, QuestObjectiveDefinition, QuestRewardDefinition } from "../simulation/core/QuestTypes";
+

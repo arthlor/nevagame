@@ -1,4 +1,4 @@
-import palette from "../../../art/palettes/neva.palette.json";
+import palette from "../../../art/palettes/neva.palette.json" with { type: "json" };
 
 export type PaletteToken = keyof typeof palette.tokens;
 export type PaletteFamily = (typeof palette.tokens)[PaletteToken]["family"];

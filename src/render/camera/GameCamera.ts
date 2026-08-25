@@ -1,72 +1,428 @@
-// src/render/camera/GameCamera.ts
-
 import * as THREE from "three";
-import { GameMode } from "../../simulation/core/types";
+import type { CameraInputIntent } from "../../input/InputRouter";
+import type { GameMode } from "../../simulation/core/types";
 import { WorldLayout } from "../../world/WorldLayout";
 
+export interface CameraCollisionResolver {
+  resolveCameraPosition(
+    focus: { x: number; y: number; z: number },
+    desired: { x: number; y: number; z: number },
+    radius?: number
+  ): { position: { x: number; y: number; z: number }; obstructed: boolean };
+}
+
+export interface CameraProfile {
+  distance: number;
+  minDistance: number;
+  maxDistance: number;
+  pitchRadians: number;
+  minPitchRadians: number;
+  maxPitchRadians: number;
+  focusHeight: number;
+  lookAhead: number;
+  fovDegrees: number;
+}
+
+const degrees = THREE.MathUtils.degToRad;
+const REFERENCE_ASPECT_RATIO = 16 / 9;
+
+export const CAMERA_TUNING = Object.freeze({
+  horizontalOrbitRadiansPerPixel: 0.0045,
+  verticalOrbitRadiansPerPixel: 0.0038,
+  zoomMetersPerWheelPixel: 0.009,
+  rotationResponse: 18,
+  distanceResponse: 10,
+  profileResponse: 9,
+  horizontalFollowResponse: 14,
+  verticalFollowResponse: 9,
+  obstructionRecoveryResponse: 5.5,
+  collisionRadiusMeters: 0.32,
+  terrainClearanceMeters: 0.48,
+  teleportSnapDistanceMeters: 8,
+  maximumNarrowAspectFovIncreaseDegrees: 9
+});
+
+const ON_FOOT_PROFILE: CameraProfile = {
+  distance: 11.8,
+  minDistance: 7.2,
+  maxDistance: 16.5,
+  pitchRadians: degrees(29),
+  minPitchRadians: degrees(16),
+  maxPitchRadians: degrees(58),
+  focusHeight: 1.1,
+  lookAhead: 2.2,
+  fovDegrees: 48
+};
+
+export const INTERIOR_CAMERA_PROFILE: CameraProfile = {
+  distance: 6.8,
+  minDistance: 3.8,
+  maxDistance: 9.8,
+  pitchRadians: degrees(24),
+  minPitchRadians: degrees(14),
+  maxPitchRadians: degrees(45),
+  focusHeight: 0.95,
+  lookAhead: 1.4,
+  fovDegrees: 52
+};
+
+export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
+  "on-foot": ON_FOOT_PROFILE,
+  "farm-placement": {
+    ...ON_FOOT_PROFILE,
+    distance: 14,
+    minDistance: 9.5,
+    maxDistance: 19,
+    pitchRadians: degrees(43),
+    focusHeight: 0.7,
+    lookAhead: 1,
+    fovDegrees: 44
+  },
+  "boat-driving": {
+    ...ON_FOOT_PROFILE,
+    distance: 17.5,
+    minDistance: 11.5,
+    maxDistance: 24,
+    pitchRadians: degrees(32),
+    focusHeight: 1.35,
+    lookAhead: 5.8,
+    fovDegrees: 52
+  },
+  "basic-fishing": {
+    ...ON_FOOT_PROFILE,
+    distance: 10.5,
+    minDistance: 8,
+    maxDistance: 14,
+    pitchRadians: degrees(31),
+    focusHeight: 1.25,
+    lookAhead: 4.8,
+    fovDegrees: 46
+  },
+  "sport-fishing": {
+    ...ON_FOOT_PROFILE,
+    distance: 9.5,
+    minDistance: 8,
+    maxDistance: 13,
+    pitchRadians: degrees(34),
+    focusHeight: 1.45,
+    lookAhead: 7,
+    fovDegrees: 43
+  },
+  menu: ON_FOOT_PROFILE,
+  paused: ON_FOOT_PROFILE
+};
+
 export class GameCamera {
-  public camera: THREE.PerspectiveCamera;
-  private currentLookAt: THREE.Vector3 = new THREE.Vector3();
+  public readonly camera: THREE.PerspectiveCamera;
+  private readonly rawAnchor = new THREE.Vector3();
+  private readonly currentAnchor = new THREE.Vector3();
+  private readonly currentLookAt = new THREE.Vector3();
+  private readonly desiredCameraPosition = new THREE.Vector3();
+  private readonly collisionPosition = new THREE.Vector3();
+  private currentMode: GameMode = "on-foot";
+  private currentProfile: CameraProfile = ON_FOOT_PROFILE;
+  private desiredYaw = Math.PI;
+  private currentYaw = Math.PI;
+  private desiredPitch = ON_FOOT_PROFILE.pitchRadians;
+  private currentPitch = ON_FOOT_PROFILE.pitchRadians;
+  private currentDistance = ON_FOOT_PROFILE.distance;
+  private currentFocusHeight = ON_FOOT_PROFILE.focusHeight;
+  private currentLookAhead = ON_FOOT_PROFILE.lookAhead;
+  private zoomOffset = 0;
+  private obstructionFraction = 1;
+  private obstructionActive = false;
+  private anchorInitialized = false;
+  private reducedMotion = typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
   constructor(aspectRatio: number = 16 / 9) {
-    this.camera = new THREE.PerspectiveCamera(47, aspectRatio, 0.1, 500);
-    this.camera.position.set(4.8, 6.8, -12);
+    this.camera = new THREE.PerspectiveCamera(ON_FOOT_PROFILE.fovDegrees, aspectRatio, 0.12, 900);
+    this.camera.position.set(0, 7, -11.8);
+    this.currentLookAt.set(0, 1.1, 2.2);
+  }
+
+  public setReducedMotion(enabled: boolean): void {
+    this.reducedMotion = enabled;
+  }
+
+  /**
+   * Applies a deterministic, collision-independent framing used only by the
+   * development art-direction captures. Gameplay always follows update().
+   */
+  public setFixedView(
+    position: Readonly<{ x: number; y: number; z: number }>,
+    target: Readonly<{ x: number; y: number; z: number }>,
+    fovDegrees: number = ON_FOOT_PROFILE.fovDegrees
+  ): void {
+    this.camera.position.set(position.x, position.y, position.z);
+    this.currentLookAt.set(target.x, target.y, target.z);
+    this.camera.fov = fovDegrees;
+    this.camera.updateProjectionMatrix();
+    this.camera.lookAt(this.currentLookAt);
+  }
+
+  /**
+   * Applies presentation input before fixed-step movement so WASD uses the
+   * exact view basis the player sees in the same render frame.
+   */
+  public applyInput(mode: GameMode, input: Readonly<CameraInputIntent>): void {
+    const isInterior = WorldLayout.isInterior(this.currentAnchor.x, this.currentAnchor.z);
+    const profile = this.activateMode(mode, isInterior);
+    const hasOrbitDelta = Math.abs(input.orbitDeltaX) > 0 || Math.abs(input.orbitDeltaY) > 0;
+
+    if (hasOrbitDelta) {
+      this.desiredYaw = wrapAngle(
+        this.desiredYaw - input.orbitDeltaX * CAMERA_TUNING.horizontalOrbitRadiansPerPixel
+      );
+      this.desiredPitch = clamp(
+        this.desiredPitch + input.orbitDeltaY * CAMERA_TUNING.verticalOrbitRadiansPerPixel,
+        profile.minPitchRadians,
+        profile.maxPitchRadians
+      );
+
+      // Drag-orbit should track the hand without a delayed tail. Damping is
+      // reserved for authored profile transitions, target follow and zoom.
+      this.currentYaw = this.desiredYaw;
+      this.currentPitch = this.desiredPitch;
+    }
+
+    if (Math.abs(input.zoomDelta) > 0) {
+      this.zoomOffset = clamp(
+        this.zoomOffset + input.zoomDelta * CAMERA_TUNING.zoomMetersPerWheelPixel,
+        profile.minDistance - profile.distance,
+        profile.maxDistance - profile.distance
+      );
+    }
   }
 
   public update(
     targetPos: THREE.Vector3,
-    targetHeadingRadians: number,
     mode: GameMode,
-    deltaSeconds: number
+    deltaSeconds: number,
+    input?: CameraInputIntent,
+    collisionResolver?: CameraCollisionResolver
   ): void {
-    let offset: THREE.Vector3;
-    let lookOffset: THREE.Vector3;
-    const lerpFactor = 1 - Math.exp(-5.5 * deltaSeconds);
+    const dt = Math.min(0.1, Math.max(0, deltaSeconds));
+    if (input) this.applyInput(mode, input);
+    const isInterior = WorldLayout.isInterior(targetPos.x, targetPos.z);
+    const profile = this.activateMode(mode, isInterior);
+    const targetDistance = clamp(
+      profile.distance + this.zoomOffset,
+      profile.minDistance,
+      profile.maxDistance
+    );
 
-    switch (mode) {
-      case "boat-driving":
-        // Follow behind boat along its heading
-        offset = new THREE.Vector3(
-          -Math.sin(targetHeadingRadians) * 16,
-          10,
-          -Math.cos(targetHeadingRadians) * 16
-        );
-        lookOffset = new THREE.Vector3(
-          Math.sin(targetHeadingRadians) * 6,
-          1.5,
-          Math.cos(targetHeadingRadians) * 6
-        );
-        break;
-
-      case "sport-fishing":
-        // Closer tactical view overlooking fishing line
-        offset = new THREE.Vector3(0, 5.4, 9.5);
-        lookOffset = new THREE.Vector3(0, 1.0, -10.0);
-        break;
-
-      case "on-foot":
-      default:
-        // Close third-person RPG framing: keeps the character grounded and clear
-        // in the lower-middle third of the frame while looking forward along paths.
-        offset = new THREE.Vector3(4.8, 6.8, -12.0);
-        lookOffset = new THREE.Vector3(0.0, 1.0, 2.2);
-        break;
+    if (this.reducedMotion) {
+      this.currentYaw = this.desiredYaw;
+      this.currentPitch = this.desiredPitch;
+      this.currentDistance = targetDistance;
+      this.currentFocusHeight = profile.focusHeight;
+      this.currentLookAhead = profile.lookAhead;
+    } else {
+      this.currentYaw = dampAngle(this.currentYaw, this.desiredYaw, CAMERA_TUNING.rotationResponse, dt);
+      this.currentPitch = damp(this.currentPitch, this.desiredPitch, CAMERA_TUNING.rotationResponse, dt);
+      this.currentDistance = damp(this.currentDistance, targetDistance, CAMERA_TUNING.distanceResponse, dt);
+      this.currentFocusHeight = damp(this.currentFocusHeight, profile.focusHeight, CAMERA_TUNING.profileResponse, dt);
+      this.currentLookAhead = damp(this.currentLookAhead, profile.lookAhead, CAMERA_TUNING.profileResponse, dt);
     }
 
-    const desiredCamPos = targetPos.clone().add(offset);
-    desiredCamPos.y = Math.max(
-      desiredCamPos.y,
-      WorldLayout.terrainHeight(desiredCamPos.x, desiredCamPos.z) + 2.2
-    );
-    this.camera.position.lerp(desiredCamPos, lerpFactor);
+    this.rawAnchor.set(targetPos.x, targetPos.y + this.currentFocusHeight, targetPos.z);
+    const teleported = this.anchorInitialized &&
+      this.currentAnchor.distanceToSquared(this.rawAnchor) >
+        CAMERA_TUNING.teleportSnapDistanceMeters ** 2;
+    if (!this.anchorInitialized || this.reducedMotion || teleported) {
+      this.currentAnchor.copy(this.rawAnchor);
+      this.anchorInitialized = true;
+      if (teleported) this.obstructionFraction = 1;
+    } else {
+      const horizontalFollow = 1 - Math.exp(-CAMERA_TUNING.horizontalFollowResponse * dt);
+      const verticalFollow = 1 - Math.exp(-CAMERA_TUNING.verticalFollowResponse * dt);
+      this.currentAnchor.x = THREE.MathUtils.lerp(this.currentAnchor.x, this.rawAnchor.x, horizontalFollow);
+      this.currentAnchor.z = THREE.MathUtils.lerp(this.currentAnchor.z, this.rawAnchor.z, horizontalFollow);
+      this.currentAnchor.y = THREE.MathUtils.lerp(this.currentAnchor.y, this.rawAnchor.y, verticalFollow);
+    }
 
-    const desiredLookAt = targetPos.clone().add(lookOffset);
-    this.currentLookAt.lerp(desiredLookAt, lerpFactor);
+    const lookDirectionX = -Math.sin(this.currentYaw);
+    const lookDirectionZ = -Math.cos(this.currentYaw);
+    this.currentLookAt.set(
+      this.currentAnchor.x + lookDirectionX * this.currentLookAhead,
+      this.currentAnchor.y,
+      this.currentAnchor.z + lookDirectionZ * this.currentLookAhead
+    );
+    const horizontalDistance = Math.cos(this.currentPitch) * this.currentDistance;
+    this.desiredCameraPosition.set(
+      this.currentLookAt.x + Math.sin(this.currentYaw) * horizontalDistance,
+      this.currentLookAt.y + Math.sin(this.currentPitch) * this.currentDistance,
+      this.currentLookAt.z + Math.cos(this.currentYaw) * horizontalDistance
+    );
+    const groundClearance = WorldLayout.isInterior(this.desiredCameraPosition.x, this.desiredCameraPosition.z)
+      ? 0.17
+      : WorldLayout.terrainHeight(this.desiredCameraPosition.x, this.desiredCameraPosition.z);
+    this.desiredCameraPosition.y = Math.max(
+      this.desiredCameraPosition.y,
+      groundClearance + CAMERA_TUNING.terrainClearanceMeters
+    );
+
+    let safeFraction = 1;
+    let collisionHit = false;
+    if (collisionResolver) {
+      const collision = collisionResolver.resolveCameraPosition(
+        this.currentAnchor,
+        this.desiredCameraPosition,
+        CAMERA_TUNING.collisionRadiusMeters
+      );
+      this.collisionPosition.set(
+        collision.position.x,
+        collision.position.y,
+        collision.position.z
+      );
+      collisionHit = collision.obstructed;
+      if (collisionHit) {
+        const desiredBoomLength = this.currentAnchor.distanceTo(this.desiredCameraPosition);
+        safeFraction = desiredBoomLength <= 0.0001
+          ? 1
+          : clamp(this.currentAnchor.distanceTo(this.collisionPosition) / desiredBoomLength, 0, 1);
+      }
+    }
+
+    if (collisionHit) {
+      // Pull inward immediately; delaying this transition would put the near
+      // plane inside the obstacle. Outward recovery remains deliberately soft.
+      this.obstructionFraction = Math.min(this.obstructionFraction, safeFraction);
+    } else if (this.reducedMotion) {
+      this.obstructionFraction = 1;
+    } else {
+      this.obstructionFraction = damp(
+        this.obstructionFraction,
+        1,
+        CAMERA_TUNING.obstructionRecoveryResponse,
+        dt
+      );
+      if (this.obstructionFraction > 0.9995) this.obstructionFraction = 1;
+    }
+
+    this.obstructionActive = collisionHit || this.obstructionFraction < 0.9995;
+    this.camera.position.copy(this.currentAnchor).lerp(
+      this.desiredCameraPosition,
+      this.obstructionFraction
+    );
+
+    const targetFov = responsiveVerticalFov(profile.fovDegrees, this.camera.aspect);
+    this.camera.fov = this.reducedMotion
+      ? targetFov
+      : damp(this.camera.fov, targetFov, CAMERA_TUNING.profileResponse, dt);
+    this.camera.updateProjectionMatrix();
     this.camera.lookAt(this.currentLookAt);
+  }
+
+  /** Converts on-foot WASD intent into a horizontal world vector based on the current view. */
+  public cameraRelativeMovement(
+    local: Readonly<{ x: number; z: number }>,
+    out: { x: number; z: number }
+  ): { x: number; z: number } {
+    const forwardX = -Math.sin(this.currentYaw);
+    const forwardZ = -Math.cos(this.currentYaw);
+    const rightX = -forwardZ;
+    const rightZ = forwardX;
+    out.x = rightX * local.x + forwardX * -local.z;
+    out.z = rightZ * local.x + forwardZ * -local.z;
+    const length = Math.hypot(out.x, out.z);
+    if (length > 1) {
+      out.x /= length;
+      out.z /= length;
+    }
+    return out;
   }
 
   public handleResize(width: number, height: number): void {
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
+
+  public framingState(): Readonly<{
+    yawRadians: number;
+    pitchRadians: number;
+    distance: number;
+    resolvedDistance: number;
+    obstructionFraction: number;
+    obstructed: boolean;
+    fovDegrees: number;
+  }> {
+    return {
+      yawRadians: this.currentYaw,
+      pitchRadians: this.currentPitch,
+      distance: this.currentDistance,
+      resolvedDistance: this.camera.position.distanceTo(this.currentAnchor),
+      obstructionFraction: this.obstructionFraction,
+      obstructed: this.obstructionActive,
+      fovDegrees: this.camera.fov
+    };
+  }
+
+  private activateMode(mode: GameMode, isInterior = false): CameraProfile {
+    const activeMode = mode === "menu" || mode === "paused" ? this.currentMode : mode;
+    let nextProfile = CAMERA_PROFILES[activeMode] ?? ON_FOOT_PROFILE;
+    if (activeMode === "on-foot" && isInterior) {
+      nextProfile = INTERIOR_CAMERA_PROFILE;
+    }
+    if (activeMode === this.currentMode && nextProfile === this.currentProfile) return nextProfile;
+
+    const previousProfile = this.currentProfile;
+    const zoomRatio = normalizedZoomOffset(previousProfile, this.zoomOffset);
+    this.desiredPitch = clamp(
+      this.desiredPitch + nextProfile.pitchRadians - previousProfile.pitchRadians,
+      nextProfile.minPitchRadians,
+      nextProfile.maxPitchRadians
+    );
+    this.zoomOffset = zoomOffsetFromRatio(nextProfile, zoomRatio);
+    this.currentMode = activeMode;
+    this.currentProfile = nextProfile;
+    return nextProfile;
+  }
+}
+
+function damp(current: number, target: number, response: number, dt: number): number {
+  return THREE.MathUtils.lerp(current, target, 1 - Math.exp(-response * dt));
+}
+
+function dampAngle(current: number, target: number, response: number, dt: number): number {
+  const difference = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  return wrapAngle(current + difference * (1 - Math.exp(-response * dt)));
+}
+
+function wrapAngle(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+function normalizedZoomOffset(profile: CameraProfile, offset: number): number {
+  if (offset >= 0) {
+    return offset / Math.max(0.0001, profile.maxDistance - profile.distance);
+  }
+  return offset / Math.max(0.0001, profile.distance - profile.minDistance);
+}
+
+function zoomOffsetFromRatio(profile: CameraProfile, ratio: number): number {
+  const clampedRatio = clamp(ratio, -1, 1);
+  return clampedRatio >= 0
+    ? clampedRatio * (profile.maxDistance - profile.distance)
+    : clampedRatio * (profile.distance - profile.minDistance);
+}
+
+function responsiveVerticalFov(baseDegrees: number, aspectRatio: number): number {
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0 || aspectRatio >= REFERENCE_ASPECT_RATIO) {
+    return baseDegrees;
+  }
+  const baseRadians = degrees(baseDegrees);
+  const maintainedHorizontalFov = 2 * Math.atan(
+    Math.tan(baseRadians / 2) * REFERENCE_ASPECT_RATIO / aspectRatio
+  );
+  return clamp(
+    THREE.MathUtils.radToDeg(maintainedHorizontalFov),
+    baseDegrees,
+    baseDegrees + CAMERA_TUNING.maximumNarrowAspectFovIncreaseDegrees
+  );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

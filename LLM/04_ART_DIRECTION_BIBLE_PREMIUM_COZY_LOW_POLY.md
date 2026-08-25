@@ -307,7 +307,7 @@ Animation is slightly exaggerated, clear, soft, and grounded; neither hyperreal 
 
 # 14. Camera-Aware Modeling, LOD & Budgets
 
-Validate assets at **8m, 15m, 30m**. If important detail disappears at 15m, enlarge the form rather than add detail.
+Validate assets at **8m, 15m, 30m**, plus each catalog-declared `readDistanceMeters`. The 8/15/30 m views are baseline review distances, not a replacement for an asset's declared gameplay read distance. If important detail disappears at 15m, enlarge the form rather than add detail.
 
 LOD: small props usually none; trees LOD0/LOD1/optional LOD2 impostor/low mesh; hero buildings LOD0/LOD1 where useful; crops prefer instancing + distance simplification. LOD must preserve silhouette, color blocks, major facets before tertiary details.
 
@@ -354,7 +354,7 @@ UI should inherit palette warmth/material cues without literally becoming wooden
 Do not improvise art task-by-task. Work through controlled visual systems: Art Bible + Palette + Geometry Grammar + Material Library + Procedural Generators + Prefabs + World Schemas + Visual Regression.
 
 Zone workflow:
-`read bible → identify gameplay purpose → zone brief → catalog asset list → hero/support/filler → palette tokens/materials → silhouettes → registered family generators + shared authored construction grammar → staged generate/validate/optimize → runtime assemble/batch → catalog preview + fixed gameplay candidates → checklist → revise → strict gate → human approval`.
+`read owning sections → identify gameplay purpose → catalog assets → palette/materials → referenceAuthoring brief when evidence-guided → registered generators/helpers → selected generate/validate/optimize/publish → Art Yard entry → runtime assemble/batch → human review in the game`. Fixed screenshots, strict generation and benchmark evidence are release/gold-slice gates, not everyday asset steps.
 
 `tools/blender/common/authored.py` is the implemented shared vocabulary for deliberate mid-scale forms such as masonry courses, shingles, planks, lattice/rope, arches and fasteners. It exists to make handcrafted geometry language consistent across architecture, props and boats while preserving seeded reproducibility. It does not replace silhouette design, family-specific composition, catalog ownership or gameplay-camera review.
 
@@ -362,15 +362,25 @@ The machine workflow is not optional: catalog/schema/palette validation precedes
 
 Zone brief fields: zone, gameplay purpose, emotion, hero landmark, primary/secondary/accent colors, architecture, ground, vegetation, water, hero/support/filler assets, ambient animation, clusters, navigation cues, prohibited elements, performance constraints.
 
-Asset brief fields: ID/name/category/gameplay purpose/silhouette/dimensions/primary+secondary shapes/asymmetry/materials/palette/texture/triangle+material targets/LOD/pivot/collision/animation/variants/interactions/gameplay-distance readability/avoid list.
+Asset brief fields: ID/name/category/gameplay purpose/silhouette/dimensions/primary+secondary shapes/asymmetry/materials/palette/texture/triangle+material targets/LOD/pivot/collision/animation/variants/interactions/gameplay-distance readability/avoid list. When references guide the asset, the catalog's closed `referenceAuthoring` object additionally records source roles, component hierarchy, negative space, hidden-surface strategy/confidence, critical features, bindings to generator parameters, failure modes, and required multi-angle/gameplay-distance views. Run `npm run art:brief -- --asset ID` once when that selected brief changes; `ready` describes brief completeness, never visual approval.
 
-LLM asset prompts MUST reference this bible + Art Pipeline and reiterate that supplied images are **graphics only**, not layout/camera/tabletop/DOF/staging.
+The reference-authoring layer may borrow feature-inventory and multi-view iteration methods from reconstruction tools, but static Neva production still ends in the registered Blender-generator/GLB pipeline. A cleaned or generated source derivative is supporting evidence, not silent replacement for the original. Inferred rear/side structure remains confidence-labeled until the actual GLB is reviewed.
+
+New-family, shared-generator, renderer, and release/gold-slice prompts MUST reference this bible + Art Pipeline and reiterate that supplied images are **graphics only**, not layout/camera/tabletop/DOF/staging. Routine existing-asset prompts use only the selected entry, owning generator, `BLENDER.md`, and directly relevant sections.
 
 # 19. Visual Acceptance System
 
-Review new zones from: hero shot, actual gameplay camera, opposite direction, close material view, weather/night if applicable. Never approve one flattering angle.
+Review new zones from: hero shot, actual gameplay camera, opposite direction, close material view, weather/night if applicable. Reference-authored assets additionally require front, rear, side, three-quarter, 8 m, 15 m, and declared-read-distance views. Never approve one flattering angle.
 
-Score 1–10: silhouette, facet/geometry, palette, material, lighting, water/foliage, atmosphere, gameplay readability, consistency, distinctiveness, repetition, performance. Approval: **overall ≥8/10, no category <7, graphics-reference match ≥8/10**. Zone-layout review uses the game's zone brief, not uploaded layouts.
+The dev-only `/__neva_art_yard` is the sole asset-review surface: it reuses the
+canonical `VisualRenderConfig`, `PaletteMaterials`, `LightingRig` and runtime
+loader, while exposing orbit, distance/LOD, wireframe, collision and lighting
+diagnostics. A successful publish is available there through
+`?asset=<catalog-id>`. The controls help the human inspect contract or
+readability problems; they are not agent style approval. The actual integrated
+game remains the final visual judge.
+
+For human release/gold-slice acceptance, score 1–10: silhouette, facet/geometry, palette, material, lighting, water/foliage, atmosphere, gameplay readability, consistency, distinctiveness, repetition, performance. Approval: **overall ≥8/10, no category <7, graphics-reference match ≥8/10**. Zone-layout review uses the game's zone brief, not uploaded layouts. Routine agents do not perform or report this visual score.
 
 ## 19.1 Regression QA — Game vs Approved Game Benchmark
 Use identical scene/state/seed/camera/resolution/time/weather/render configuration. Screenshot diff, SSIM, LPIPS, histogram/luminance, palette-distribution and silhouette/edge metrics may detect unintended changes. A metric failure is a review signal, not permission to optimize visuals toward a number. Approved intentional art changes replace the benchmark only after human/Art Director approval.
@@ -392,7 +402,8 @@ Do not use SSIM/LPIPS thresholds between compositionally different reference ima
 
 ## Asset Gate
 - catalog/schema/palette validation passes; generator, seed and required nodes are declared;
-- every generator/helper parameter consumed by the asset exists in its catalog entry, and all assets impacted by shared authored-construction changes generate successfully before visual approval;
+- supplied/reference evidence is represented by a valid non-shallow `referenceAuthoring` brief whose hierarchy, critical features, parameter bindings, hidden-surface confidence, failure modes, and review views survive implementation;
+- every generator/helper parameter consumed by the asset exists in its catalog entry, and all assets impacted by shared authored-construction changes generate successfully before human visual approval;
 - recognizable at gameplay distance; real-world scale + stylized proportion;
 - strong silhouette + intentional facets + appropriate facet scale;
 - deliberate smoothing/bevels; no unnecessary micro-detail;

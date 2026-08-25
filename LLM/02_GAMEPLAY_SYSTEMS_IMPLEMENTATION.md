@@ -82,7 +82,7 @@ All crop tuning belongs in definitions or centralized config.
 
 # 2. Crop Placement, Growth, Quality & Harvest
 
-Placement MUST validate: inside permitted farm; no overlap; valid surface; enough footprint; seed available; crop unlocked; no structure-clearance conflict. Simulation footprints—not mesh bounds—are authoritative.
+Placement MUST validate: inside permitted farm; no overlap; valid surface; enough footprint; seed available; crop unlocked; no structure-clearance conflict. Simulation footprints—not mesh bounds—are authoritative. Crop rotation is derived deterministically from world seed, farm/crop identity, and quantized placement position; overlap uses oriented crop footprints, not a circular render approximation. Structure anchors and clearance remain simulation/world data.
 
 Growth:
 ```text
@@ -92,8 +92,9 @@ effectiveGrowthDelta = elapsedGameMinutes
 climate:    preferred 1.20 | neutral 1.00 | poor 0.80
 moisture:   healthy   1.00 | dry     0.85 | very dry 0.60
 fertility:  excellent 1.10 | normal  1.00 | poor     0.80
-weather:    light rain 1.05 | normal 1.00 | drought  0.85
+weather:    light-rain 1.05 | heavy-rain 1.05 | other 1.00
 total clamp: 0.50x–1.50x
+(No drought weather type is live.)
 ```
 
 Default normalized stages:
@@ -116,6 +117,8 @@ farming proficiency 15%
 seeded RNG           10%
 ```
 UI and harvest MUST use the same calculation.
+
+`CropQuality` ends at `prize`; `FishQuality` ends at `trophy`. They are separate typed contracts even though their lower tiers share names. The v4 save migration converts legacy crop `trophy` journal values to `prize`; fish journal values remain `trophy`. Work Capacity depletion reduces the seeded rare-quality contribution through a deterministic rare-chance multiplier; it never changes the authoritative quality owner or makes core farming unavailable.
 
 Harvest:
 ```text
@@ -148,11 +151,11 @@ interface SoilState {
   moistureRetention: number;
 }
 ```
-Harvest reduces fertility; Basic Fertilizer restores it. Desired circularity: `fish scraps → fertilizer → better crops → grain → chum → fishing`.
+Harvest reduces fertility (floor **10**). `farm.apply-fertilizer` restores **+20** fertility, clamps **10–100**, and consumes `item.basic_fertilizer`. Desired circularity: `fish scraps → fertilizer → better crops → grain → chum → fishing`.
 
 Worm Compost MVP: **180 game-minute maturation**, **20–30 bait worms**, one harvest. Initial recipe: `Plant Matter + Compost Starter → Worm Compost`. Never provide infinite starter bait from a permanent object.
 
-Apple Tree: `sapling → mature → fruit ready → harvest → regrowth timer → fruit ready`; tree persists. Tree chopping is later unless explicitly included.
+Apple Tree / orchards: on a **successful harvest**, a `regrows` crop persists and resets onto its regrow timer (`sapling → mature → fruit ready → harvest → regrowth timer → fruit ready`). Intended: **regrow crops never wither-delete** (wither-delete of orchard trees is a parallel fix; do not document wither-delete as live orchard behavior). Tree chopping is later unless explicitly included.
 
 # 4. Farming Progression
 
@@ -163,17 +166,7 @@ Shared ranks/XP:
 ```
 XP sources: planting, successful harvest, crop care, farm contracts, advanced farm processing. Prevent repeat-plant/uproot and cheap reversible XP exploits.
 
-Capability examples:
-| XP | Farming unlock |
-|---:|---|
-| 0 | starter crops |
-| 1,000 | quality preview |
-| 3,000 | efficient worm compost |
-| 7,500 | seed bundles |
-| 15,000 | irrigation |
-| 30,000 | orchard specialization |
-| 60,000 | premium seed selection |
-| 100,000 | master crop strains |
+LIVE crop gates are `crop.minimumFarmingXp` (and a few `recipe.minimumSkill` values). Rank unlock tables (`farmingUnlocks`, `fishingUnlocks`, `tradingUnlocks`, `processingUnlocks`) exist in content data but are **unused** — see Deferred.
 
 # 5. Inventory & Processing
 
@@ -183,7 +176,7 @@ interface InventorySlot { itemId?: ItemId; quantity?: number; }
 ```
 Rules: finite slots, defined stack limits, atomic transactions, no silent item loss. Any transaction validates inputs/output capacity first, then mutates once; failure leaves state unchanged.
 
-MVP stations: `Hand Mill`, `Workbench`, `Fish Cleaning Table`.
+MVP stations: `Hand Mill`, `Workbench`, harbor **Fish Cleaning Table** at `HARBOR_FISH_TABLE` (`struct.harbor_fish_table`, `stationType: "fish-table"`). New-game station `y` is terrain height.
 ```ts
 interface ProcessingJobState {
   id: ProcessingJobId;
@@ -204,23 +197,41 @@ interface RecipeDefinition {
   tags: string[];
 }
 ```
-Minimum recipes:
+LIVE recipes (8):
 ```text
-Wheat → Ground Grain
-Barley → Ground Grain
-Ground Grain + Bait Worms → Chum Bucket
-Basic Materials → Fishing Lure
-Fish Scraps → Basic Fertilizer
+Wheat → Ground Grain                 (hand-mill)
+Barley → Ground Grain                (hand-mill)
+Ground Grain + Bait Worms → Chum     (workbench)
+Flax + Fish Scraps → Feather Lure    (workbench; minimumSkill processing 500)
+Fish Scraps → Basic Fertilizer       (fish-table)
+Plant Matter + Compost Starter → Worms (compost-bin)
+Perch → Fish Scraps                  (fish-table)
+Mackerel → Fish Scraps               (fish-table)
 ```
-Every recipe should support the core loop.
+`recipe.fish_to_fertilizer`, `recipe.perch_to_scraps`, and `recipe.mackerel_to_scraps` require `stationType: "fish-table"`. Every recipe should support the core loop.
 
 # 6. Basic Fishing
 
-Purpose: relaxed early activity, Fishing XP, common fish/ingredients/low-risk income. Requires rod + bait worms + valid water.
+Purpose: engaging early and accessible fishing loop, Fishing XP, common fish/ingredients, low-risk income, and bait utility. Requires rod + valid water (Bait Worms optional for faster bite and higher rarity).
 
-State: `Idle → Casting → Waiting → Bite → Success|Miss → Retrieve → Idle`. No sport-fishing minigame here.
+### 6.1 State Machine & 5 Phases
+`Idle → Charging-Cast → Waiting-Bite → Bite-Reaction → Minigame → Caught|Escaped → Idle`
 
-Outcome inputs: habitat, season, time, weather, rod quality, fishing proficiency, seeded RNG. Small/basic fish may be normal items; sport fish use physical cargo.
+1. **Charging-Cast**: Holding action key charges casting power meter ($0.0 \rightarrow 1.0 \rightarrow 0.0$). Releasing casts bobber ($3\text{m} - 12\text{m}$). Deeper casts lower bite wait times, reduce trash odds, and boost high quality tiers.
+2. **Waiting-Bite**: Bobber floats in 3D water. Wait time influenced by bait (`item.bait_worms` cuts wait by ~40%), cast depth, weather, and time of day.
+3. **Bite-Reaction**: Visual alert ("!") and sound cue. Player has a reaction window ($1.2\text{s} - 1.5\text{s}$) to hook the fish ("HIT!").
+4. **Green Catch-Bar Minigame**:
+   - **Physics**: Normalized vertical track ($0.0 - 1.0$). Holding action key applies upward thrust ($+2.8\,\text{u/s}^2$); releasing applies downward gravity ($-1.9\,\text{u/s}^2$). Elastic bounce on bottom floor.
+   - **Bar Height**: $\text{Height} = 0.20 + \text{RodBonus} (0.02 - 0.08) + (\text{ProficiencyRank} \times 0.015)$.
+   - **Fish AI (5 Archetypes)**: `mixed` (balanced), `smooth` (gentle sine), `sinker` (bottom bias), `floater` (top bias), `dart` (erratic lunges). Difficulty ($15-95$) scales speed and jitter.
+   - **Progress Gauge**: $+0.26/\text{s}$ when fish inside bar, $-0.14/\text{s}$ when outside. Reaching $100\%$ lands the fish; dropping to $0\%$ causes an escape.
+   - **Sunken Treasure**: $18\%$ chance for treasure chest icon. Holding green bar over chest fills progress ($+0.45/\text{s}$) to unlock bonus loot (seeds, ores, coins, bait).
+   - **Perfect Catch**: If fish never leaves the bar, grants "PERFECT!", $+100\%$ bonus Fishing XP, and $+1$ tier fish quality upgrade (Normal $\rightarrow$ Silver $\rightarrow$ Gold $\rightarrow$ Iridium).
+5. **Catch Summary**: Displays caught fish, quality stars, weight, Perfect bonus, and treasure loot; atomically commits items to inventory.
+
+Missed bite window = **miss** (session cleared; reason `"missed"`). `willCatch` defaults **false** until the rod's hook roll.
+
+Basic-fishing **blocks inventory**. Sport-fishing MUST block inventory the same way.
 
 # 7. Fish Species & Schools
 
@@ -241,7 +252,7 @@ interface FishSpeciesDefinition {
   tags: string[];
 }
 ```
-Sport fishing requires active chummed school, compatible rod, valid lure, no conflicting mode, and non-expired school. Cargo space is not required to hook; lack of space becomes a landing decision.
+Sport fishing requires an active chummed school, a compatible rod, no conflicting mode, and a non-expired school. A lure is **not** required to hook (see Deferred). Cargo space is not required to hook; landing auto-stows into a free cargo/carry slot or emits `FishEscaped` — there is no keep/release decision UI (player-carry can be inspected from the HUD).
 
 ```ts
 interface FishSchoolState {
@@ -278,7 +289,7 @@ interface FishingEncounterState {
   result: "active" | "landed" | "escaped" | "line-snapped";
 }
 ```
-Default controls: hold LMB reel; release stop pressure; A/D rod direction; Space brace; S slack. Keyboard-only path required; no mandatory precision gestures.
+Default controls: held-state `fishing` — hold LMB/W reel; S/RMB slack; Space brace; A/D (`fish-left` / `fish-right`) rod direction. Discrete `fish-reel` / `fish-slack` / `fish-brace` actions exist, but the encounter is driven by held state. Keyboard-only path required; no mandatory precision gestures.
 
 Tension:
 ```text
@@ -295,7 +306,7 @@ stamina <= landingThreshold
 AND distanceMeters <= landingDistance
 AND lineTension within valid range
 ```
-Do not implement combat-style HP defeat.
+On land: auto-stow into a free hold/hook/player-carry slot, or `FishEscaped` if no space. Do not implement combat-style HP defeat.
 
 ```ts
 interface FishBehaviorProfile {
@@ -362,6 +373,9 @@ interface FishCargoState {
 Freshness starts at **100**:
 ```text
 freshnessLoss = elapsedMinutes × speciesBaseDecay × ambientTemperatureModifier × storageModifier
+```
+LIVE ice: a slot `hasIce` flag **or** `item.crushed_ice` in the backpack / boat supply inventory forces storage modifier **0.4** anywhere that ice resolves. The authored location table below is the design target, not the live ice path (see Deferred):
+```text
 carried openly 1.00 | boat hold 0.80 | ice box 0.40 | cold storage 0.15
 ```
 Freshness price:
@@ -406,15 +420,30 @@ interface BoatState {
 ```
 Rowboat: first vehicle, lake sport/nearshore, tiny cargo/low speed/poor rough sea; fuel may be omitted.
 
-Fishing Skiff: first serious boat; **4 internal medium slots + 2 external large hooks + supply chest + fuel tank + better rough-water tolerance**. It MUST materially extend expedition length/profitability.
+Fishing Skiff: defined content (4 internal medium slots + 2 external large hooks + supply chest + fuel tank + better rough-water tolerance) but **unpurchasable in LIVE** — see Deferred. A fresh save does not create a skiff.
 
-Zero fuel → Emergency Tow: harbor return + money cost + game-time advance + small reputation/contract consequence where relevant. Never strand the save.
+Emergency Tow / hook-class gameplay is **not live** — see Deferred.
+
+## 11A. On-Foot Traversal
+
+On-foot traversal owns a small serializable state separate from Work Capacity:
+
+```ts
+interface PlayerTraversalState {
+  sprintStamina: number;
+  sprintRecoveryDelaySeconds: number;
+  sprintExhausted: boolean;
+  isGrounded: boolean;
+}
+```
+
+Movement input requests sprint; fixed-step traversal rules own stamina drain, recovery delay, exhaustion, and grounded state. Rapier resolves the physical pose through `PhysicsAdapter`, then the simulation commits the validated frame. The renderer may display movement/action feedback but may not mutate traversal or invent a second stamina resource. Any traversal-state schema change requires a deterministic save migration and fixture coverage.
 
 # 12. Weather & Sea Risk
 
 ```ts
 interface WeatherSnapshot {
-  type: "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm";
+  type: "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm"; // no drought
   windDirectionDeg: number;
   windSpeed: number;
   precipitation: number;
@@ -460,10 +489,10 @@ Market tick: **every 60 game minutes**. Supply trends toward baseline; consumpti
 Demand clamp: **0.65x–1.60x** (UI may show 65–160%).
 
 ```text
-producePrice = basePrice × qualityModifier × demandModifier × seasonalModifier
+producePrice = basePrice × demandModifier × seasonalModifier
 fishPrice = speciesBasePrice × weightModifier × qualityModifier × freshnessModifier × demandModifier × seasonalModifier
 ```
-Example Blue Marlin: `140 × 1.35 × 1.10 × 0.95 × 1.25 × 1.05 ≈ 259`. UI must explain components.
+LIVE: produce **quality does not affect sale price** (quality is computed and journaled only). Fish quality **does** affect price. Example Blue Marlin: `140 × 1.35 × 1.10 × 0.95 × 1.25 × 1.05 ≈ 259`. UI must explain components.
 
 Selling raises local supply; repeated dumping gradually lowers premium. Never crash price dramatically from one ordinary sale.
 
@@ -480,27 +509,7 @@ Available: 100% proficiency XP, normal rare chance/efficiency. Empty: **40% XP**
 
 MVP proficiencies: Farming, Fishing, Processing, Trading. Later: Husbandry, Boatbuilding. Shared ranks: Novice → Apprentice → Skilled → Expert → Master → Artisan → Famed → Legendary.
 
-Fishing capability unlocks:
-| XP | Unlock |
-|---:|---|
-| 0 | basic fishing |
-| 1,000 | lake sport fishing |
-| 3,000 | improved line |
-| 7,500 | coastal fish |
-| 15,000 | fishing skiff eligibility |
-| 30,000 | fish finder |
-| 60,000 | offshore heavy fish |
-| 100,000 | legendary fish |
-
-Trading:
-| XP | Unlock |
-|---:|---|
-| 0 | village market |
-| 2,000 | harbor wholesale |
-| 7,500 | price history |
-| 15,000 | premium contracts |
-| 30,000 | short forecast |
-| 60,000 | export buyers |
+Fishing / trading rank-unlock tables are content data and **unused as live gates** — see Deferred. LIVE fishing/trading capability is XP for rank display plus explicit quest feature unlocks (e.g. rowboat boarding) and per-definition `minimumSkill` / `minimumFarmingXp`.
 
 # 15. Contracts, Journal & Legendary Fish
 
@@ -549,9 +558,9 @@ First-hour beats: first harvest → self-produced bait → market sale → schoo
 
 # 17. HUD & UX
 
-Persistent normal HUD: day/time/weather + money + context prompt. Boat adds fuel/cargo/weather warning. Fishing adds tension/stamina/distance/behavior. No permanent dashboard.
+Persistent normal HUD: day/time/weather + money + context prompt. Work Capacity is shown as **Labor** and is **not a hard block** (empty Labor = 40% XP / reduced rare chance; core play continues). Boat adds fuel/cargo/weather warning. Fishing adds tension/stamina/distance/behavior. No permanent dashboard.
 
-Farm UI: crop, growth, preferred/current climate, moisture, soil, expected yield range, footprint; do not reveal exact future quality before relevant proficiency unlock.
+Farm UI: crop, growth, preferred/current climate, moisture, soil, expected yield range, footprint. Village produce stall **currently sells wheat / tomato / potato seed only** (LIVE).
 
 Market UI: current price, demand %, recent trend, owned quantity, quality/freshness modifiers; show explanatory sale breakdown.
 
@@ -579,12 +588,15 @@ Weather: wind, rain, thunder
 
 **Market:** sale removes asset once, adds money once, uses simulation price state.
 
-**Save:** loaded state validates; persistent IDs resolve.
+**Traversal:** sprint stamina/recovery/exhaustion/grounded state is serializable and fixed-step; it is distinct from Work Capacity and must not be owned by the renderer or input layer.
+
+**Save:** loaded state validates; persistent IDs resolve; current schema v11 migrations preserve legacy Work Capacity/crop journals, authored starter structures, docked boat positions, quest feature unlocks, the Act 5 starter-school flag, the harbor fish-table structure, and traversal state without discarding the save. Schema v10 inserts the harbor fish-table and lifts y=0 stations; schema v11 converts illegal `fish.trout` item stacks to cargo.
 
 # 19. Vertical-Slice Acceptance Gate
 
 A new save MUST support:
 - [ ] move through starter world
+- [ ] sprint/traversal state drains and recovers without affecting Work Capacity
 - [ ] obtain wheat seed
 - [ ] plant + water wheat
 - [ ] save/quit and return after offline growth
@@ -592,7 +604,7 @@ A new save MUST support:
 - [ ] place Worm Compost and harvest bait worms
 - [ ] grind grain + craft chum
 - [ ] basic fish
-- [ ] acquire rowboat
+- [ ] commission rowboat with the harbor permit and Ground Grain, then board it
 - [ ] sail to sport-fishing area
 - [ ] visually discover school
 - [ ] chum school
@@ -647,3 +659,16 @@ Every feature requires:
 - [ ] failure handling
 - [ ] no invariant broken
 - [ ] user-facing E2E path updated
+
+# 22. Deferred (not live)
+
+The preceding sections are the **LIVE** implementation authority. The items below are authored design or content tables that exist in files but are **not implemented as gameplay gates / systems**. Do not treat them as live. Do not implement them opportunistically without an explicit task.
+
+- **Produce quality vs price.** Crop quality is computed at harvest and written to the journal. It does **not** currently multiply village/harbor produce sale price (`calculateCommodityUnitPrice` is `base × demand × seasonal` only).
+- **Rank unlock tables.** `PROFICIENCY_RANKS` `farmingUnlocks` / `fishingUnlocks` / `tradingUnlocks` / `processingUnlocks` are unused. LIVE gates are `crop.minimumFarmingXp` and a few `recipe.minimumSkill` values, plus explicit quest `unlockedFeatureIds`.
+- **Full seed shop / buy-rod / buy-boat.** Village stall sells **wheat, tomato, potato** seed only. The other five seeds are not stocked. There is no buy-rod or buy-boat command; the rowboat is commissioned through Act 4 (30 G + Ground Grain) rather than a boat vendor purchase.
+- **Sport keep/release UI.** Landing auto-stows into a free cargo/carry slot or emits `FishEscaped`. No keep/release decision. Player-carry can be inspected from the HUD cargo pill.
+- **Drought weather.** The weather enum has **no** `drought`. Growth weather buffs are `light-rain` and `heavy-rain` at **1.05**; other types are 1.00.
+- **Authored ice location table.** LIVE ice is a slot `hasIce` flag or `item.crushed_ice` in backpack / boat supply, which forces storage modifier **0.4** wherever that ice resolves. The carried/hold/ice-box/cold-storage table is the design target, not a live per-location ice lookup.
+- **Sport lure to hook.** A lure is **not** required to hook a chummed school.
+- **Skiff purchase, hook-class, Emergency Tow.** `boat.skiff` is defined but unpurchasable; a fresh save does not spawn it. External-hook class as a distinct live verb and zero-fuel Emergency Tow are not live.

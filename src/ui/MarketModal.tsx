@@ -1,15 +1,17 @@
 // src/ui/MarketModal.tsx
-import React from "react";
+import React, { useState } from "react";
 import { FishCargoState, GameState, MarketId } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { calculateFishPrice } from "../simulation/economy/calculateFishValue";
 import { calculateCommodityUnitPrice } from "../simulation/economy/calculateCommodityValue";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
+import { IconCoin, IconFish, IconSprout, IconWarning } from "./components/HudIcons";
 
 interface MarketModalProps {
   state: GameState;
   marketId: MarketId | null;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDiscardFishCargo: (cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
@@ -21,6 +23,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   state,
   marketId,
   onSellItem,
+  onBuySeed,
   onSellFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
@@ -32,6 +35,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const marketDef = activeMarketId ? ContentRegistry.markets.get(activeMarketId) : undefined;
   const playerInv = state.inventories[state.player.inventoryId];
 
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
   const fishCargoList: FishCargoState[] = Object.values(state.fishCargo).filter((cargo) => {
     if (cargo.location.type === "player") return state.player.carriedFishCargoId === cargo.id;
     if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
@@ -40,205 +45,307 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   });
   const activeContracts = state.contracts.filter((contract) => contract.status === "active");
 
+  // Selected commodity or first available
+  const commoditiesList = currentMarket ? Object.values(currentMarket.commodities) : [];
+  const activeCommodity = selectedItemId
+    ? commoditiesList.find((c) => c.itemId === selectedItemId)
+    : commoditiesList[0];
+
+  const selectedItemDef = activeCommodity ? ContentRegistry.items.get(activeCommodity.itemId) : null;
+  const selectedFishDef = activeCommodity ? ContentRegistry.fishSpecies.get(activeCommodity.itemId) : null;
+  const activeName = selectedItemDef?.name ?? selectedFishDef?.name ?? activeCommodity?.itemId ?? "Commodity";
+
+  const activePrice = activeCommodity ? calculateCommodityUnitPrice(activeCommodity) : null;
+
+  // Regional arbitrage price comparison (e.g. comparing current market with distant markets)
+  const isVillage = activeMarketId === "market.village";
+  const distantPortName = isVillage ? "Seabreak Harbor" : "Village Trade Hall";
+  const distantPortDistance = isVillage ? "2.4 km" : "2.4 km";
+  const distantPriceEst = activePrice ? Math.round(activePrice.unitPrice * (isVillage ? 1.28 : 0.88)) : 0;
+  const transportCostEst = 12;
+  const netMarginDelta = distantPriceEst - (activePrice?.unitPrice ?? 0) - transportCostEst;
+
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <div className="neva-panel modal-content" style={{ width: "750px" }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <span>🏪 Maritime & Village Commerce</span>
-          <button className="neva-button neva-button-secondary" style={{ padding: "2px 8px" }} onClick={onClose}>
+      <div className="market-arbitrage-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Market and Regional Commerce">
+        {/* Header */}
+        <header className="market-modal-header">
+          <div className="market-header-title-group">
+            <span className="market-header-icon">🏪</span>
+            <div>
+              <h2 className="market-modal-title">{marketDef?.name ?? "Market Trading Post"}</h2>
+              <span className="market-modal-desc">{marketDef?.description}</span>
+            </div>
+          </div>
+          <button type="button" className="market-close-btn" onClick={onClose} aria-label="Close market">
             ✕
           </button>
-        </div>
+        </header>
 
-        <div className="modal-body">
-          <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "4px" }}>
-            {marketDef?.name ?? "Market"}
-          </h3>
-          <p style={{ fontSize: "12px", color: "#666", marginBottom: "12px" }}>
-            {marketDef?.description}
-          </p>
-
-          {/* Commodities Table */}
-          <div style={{ marginBottom: "20px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px" }}>Current Market Rates</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", background: "#FFF", borderRadius: "4px", overflow: "hidden" }}>
-              <thead>
-                <tr style={{ background: "var(--color-wood-warm)", color: "#FFF", textAlign: "left" }}>
-                  <th style={{ padding: "6px 10px" }}>Commodity</th>
-                  <th style={{ padding: "6px 10px" }}>Base Price</th>
-                  <th style={{ padding: "6px 10px" }}>Demand %</th>
-                  <th style={{ padding: "6px 10px" }}>Unit Value</th>
-                  <th style={{ padding: "6px 10px" }}>Your Stock</th>
-                  <th style={{ padding: "6px 10px", textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentMarket &&
-                  Object.values(currentMarket.commodities).map((commodity) => {
-                    const itemDef = ContentRegistry.items.get(commodity.itemId);
-                    const fishDef = ContentRegistry.fishSpecies.get(commodity.itemId);
-                    const name = itemDef ? itemDef.name : fishDef ? fishDef.name : commodity.itemId;
-
-                    const price = calculateCommodityUnitPrice(commodity);
-                    const demandPercent = price.demandPercent;
-                    const unitPrice = price.unitPrice;
-                    const ownedCount = itemDef ? InventoryManager.getItemCount(playerInv, commodity.itemId) : 0;
-
+        {/* 2-Column Main Trading Surface */}
+        <div className="market-modal-grid">
+          {/* Left Column: Commodities & Inventory Selling */}
+          <section className="market-left-panel">
+            {activeMarketId === "market.village" && (
+              <div className="market-seeds-section">
+                <h3 className="section-title"><IconSprout size={15} /> Starter Crop Seeds</h3>
+                <div className="seed-stall-list">
+                  {["crop.wheat", "crop.tomato", "crop.potato"].map((cropId) => {
+                    const crop = ContentRegistry.crops.get(cropId)!;
+                    const seed = ContentRegistry.items.get(crop.seedItemId)!;
+                    const owned = InventoryManager.getItemCount(playerInv, seed.id);
                     return (
-                      <tr key={commodity.itemId} style={{ borderBottom: "1px solid #EEE" }}>
-                        <td style={{ padding: "6px 10px", fontWeight: 600 }}>{name}</td>
-                        <td style={{ padding: "6px 10px" }}>{commodity.basePrice} G</td>
-                        <td style={{ padding: "6px 10px", color: demandPercent > 100 ? "green" : demandPercent < 100 ? "red" : "#555" }}>
-                          {demandPercent}%
-                        </td>
-                        <td style={{ padding: "6px 10px", fontWeight: 700 }}>{unitPrice} G</td>
-                        <td style={{ padding: "6px 10px" }}>{ownedCount}</td>
-                        <td style={{ padding: "6px 10px", textAlign: "right" }}>
-                          {ownedCount > 0 && (
-                            <button
-                              className="neva-button"
-                              style={{ padding: "2px 8px", fontSize: "11px" }}
-                              onClick={() => activeMarketId && onSellItem(activeMarketId, commodity.itemId, 1)}
-                            >
-                              Sell 1 ({unitPrice}G)
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                      <div className="seed-stall-card" key={cropId}>
+                        <div className="seed-card-meta">
+                          <strong>{crop.name}</strong>
+                          <span>{owned} owned in backpack</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="neva-button seed-buy-btn"
+                          disabled={state.player.money < seed.baseValue}
+                          onClick={() => onBuySeed(activeMarketId, seed.id, 1)}
+                        >
+                          Buy 1 · {seed.baseValue} G
+                        </button>
+                      </div>
                     );
                   })}
-              </tbody>
-            </table>
-          </div>
+                </div>
+              </div>
+            )}
 
-          {activeContracts.length > 0 && (
-            <section style={{ marginBottom: "20px" }} aria-label="Active contracts">
-              <h3 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px" }}>Active Deliveries</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {activeContracts.map((contract) => {
-                  const itemDef = ContentRegistry.items.get(contract.targetItemIdOrSpecies);
-                  const fishDef = ContentRegistry.fishSpecies.get(contract.targetItemIdOrSpecies);
-                  const targetName = itemDef?.name ?? fishDef?.name ?? contract.targetItemIdOrSpecies;
-                  const remaining = contract.quantityRequired - contract.quantityFulfilled;
-                  const ownedCount = itemDef
-                    ? InventoryManager.getItemCount(playerInv, contract.targetItemIdOrSpecies)
-                    : 0;
-                  const eligibleCargo = fishCargoList.filter((cargo) => {
-                    if (cargo.speciesId !== contract.targetItemIdOrSpecies) return false;
-                    if (contract.minFreshness !== undefined && cargo.freshness < contract.minFreshness) return false;
-                    if (contract.minWeightKg !== undefined && cargo.weightKg < contract.minWeightKg) return false;
-                    const qualityOrder = ["common", "fine", "exceptional", "trophy"];
-                    return !contract.minQuality || qualityOrder.indexOf(cargo.quality) >= qualityOrder.indexOf(contract.minQuality);
-                  });
+            {/* Commodities Table */}
+            <div className="market-commodities-section">
+              <h3 className="section-title">Local Commodity Exchange</h3>
+              <div className="commodities-list">
+                {commoditiesList.map((commodity) => {
+                  const itemDef = ContentRegistry.items.get(commodity.itemId);
+                  const fishDef = ContentRegistry.fishSpecies.get(commodity.itemId);
+                  const name = itemDef ? itemDef.name : fishDef ? fishDef.name : commodity.itemId;
+                  const price = calculateCommodityUnitPrice(commodity);
+                  const isSelected = activeCommodity?.itemId === commodity.itemId;
+                  const count = itemDef ? InventoryManager.getItemCount(playerInv, commodity.itemId) : 0;
 
                   return (
                     <div
-                      key={contract.id}
-                      style={{ background: "#FFF", border: "2px solid #C4B5A2", borderRadius: "6px", padding: "10px 14px" }}
+                      key={commodity.itemId}
+                      className={`commodity-row ${isSelected ? "is-selected" : ""}`}
+                      onClick={() => setSelectedItemId(commodity.itemId)}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
-                        <div>
-                          <div style={{ fontWeight: 700 }}>{targetName}</div>
-                          <div style={{ color: "#555", fontSize: "11px" }}>
-                            {contract.quantityFulfilled}/{contract.quantityRequired} delivered · {remaining} remaining · reward {contract.rewardMoney} G
-                          </div>
-                        </div>
-                        {itemDef && ownedCount > 0 && (
+                      <div className="comm-left">
+                        <strong className="comm-name">{name}</strong>
+                        <span className="comm-owned">Stock: {count}</span>
+                      </div>
+                      <div className="comm-right">
+                        <span className={`comm-demand ${price.demandPercent > 100 ? "up" : "down"}`}>
+                          {price.demandPercent > 100 ? "▲" : "▼"} {price.demandPercent}%
+                        </span>
+                        <strong className="comm-price">{price.unitPrice} G</strong>
+                        {count > 0 && (
                           <button
-                            className="neva-button neva-button-teal"
-                            style={{ padding: "2px 8px", fontSize: "11px" }}
-                            onClick={() => onDeliverContractItems(contract.id, contract.targetItemIdOrSpecies, 1)}
+                            type="button"
+                            className="neva-button comm-sell-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              activeMarketId && onSellItem(activeMarketId, commodity.itemId, 1);
+                            }}
                           >
-                            Deliver 1
+                            Sell 1
                           </button>
                         )}
                       </div>
-                      {eligibleCargo.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
-                          {eligibleCargo.map((cargo) => (
-                            <button
-                              key={cargo.id}
-                              className="neva-button neva-button-teal"
-                              style={{ padding: "2px 8px", fontSize: "11px" }}
-                              onClick={() => onDeliverFishCargo(contract.id, cargo.id)}
-                            >
-                              Deliver {cargo.weightKg} kg fish
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
-            </section>
-          )}
+            </div>
 
-          {/* Physical Fish Cargo Section (Visible when selling at Harbor) */}
-          {activeMarketId === "market.harbor" && (
-            <div>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px" }}>🎣 Landed Fish Cargo</h3>
-              {fishCargoList.length === 0 ? (
-                <div style={{ padding: "16px", background: "#FFF", borderRadius: "4px", fontSize: "12px", color: "#888", textAlign: "center" }}>
-                  No sport fish currently in boat hold or carried in hands. Land a sport fish on your next expedition!
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {fishCargoList.map((cargo) => {
-                    const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-                    if (!speciesDef) return null;
-                    const commodity = currentMarket?.commodities[cargo.speciesId];
-                    const demandIndex = commodity ? commodity.demandIndex : 1.0;
-                    const seasonalMod = commodity ? commodity.seasonalModifier : 1.0;
+            {/* Landed Sport Fish Section (Harbor) */}
+            {activeMarketId === "market.harbor" && (
+              <div className="market-fish-cargo-section">
+                <h3 className="section-title"><IconFish size={15} /> Landed Sport Fish Cargo</h3>
+                {fishCargoList.length === 0 ? (
+                  <div className="no-cargo-card">
+                    <span>No sport fish in boat hold or carried in hands. Land a sport fish offshore!</span>
+                  </div>
+                ) : (
+                  <div className="fish-cargo-trade-list">
+                    {fishCargoList.map((cargo) => {
+                      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
+                      if (!speciesDef) return null;
+                      const commodity = currentMarket?.commodities[cargo.speciesId];
+                      const demandIndex = commodity ? commodity.demandIndex : 1.0;
+                      const seasonalMod = commodity ? commodity.seasonalModifier : 1.0;
 
-                    const breakdown = calculateFishPrice(
-                      speciesDef,
-                      cargo.weightKg,
-                      cargo.quality,
-                      cargo.freshness,
-                      demandIndex,
-                      seasonalMod
-                    );
+                      const breakdown = calculateFishPrice(
+                        speciesDef,
+                        cargo.weightKg,
+                        cargo.quality,
+                        cargo.freshness,
+                        demandIndex,
+                        seasonalMod
+                      );
 
-                    return (
-                      <div
-                        key={cargo.id}
-                        style={{
-                          background: "#FFF",
-                          border: "2px solid #C4B5A2",
-                          borderRadius: "6px",
-                          padding: "10px 14px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center"
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: "14px" }}>
-                            {speciesDef.name} ({cargo.weightKg} kg - {cargo.quality.toUpperCase()})
+                      return (
+                        <div key={cargo.id} className="fish-cargo-card">
+                          <div className="cargo-card-meta">
+                            <strong>{speciesDef.name} ({cargo.weightKg.toFixed(1)} kg)</strong>
+                            <span>{cargo.quality.toUpperCase()} · {Math.round(cargo.freshness)}% Fresh</span>
                           </div>
-                          <div style={{ fontSize: "11px", color: "#555" }}>
-                            Freshness: <b>{Math.round(cargo.freshness)}%</b> | Demand: <b>{breakdown.demandPercent}%</b>
+                          <div className="cargo-card-actions">
+                            <strong className="cargo-value">{breakdown.finalPrice} G</strong>
+                            {cargo.freshness <= 0 || breakdown.finalPrice <= 0 ? (
+                              <button
+                                type="button"
+                                className="neva-button plaque-release-btn"
+                                onClick={() => onDiscardFishCargo(cargo.id)}
+                              >
+                                Scraps
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="neva-button plaque-keep-btn"
+                                onClick={() => activeMarketId && onSellFishCargo(activeMarketId, cargo.id)}
+                              >
+                                Sell Fish
+                              </button>
+                            )}
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-wood-dark)" }}>
-                            {breakdown.finalPrice} G
-                          </span>
-                          {cargo.freshness <= 0 || breakdown.finalPrice <= 0 ? (
+          {/* Right Column: Regional Arbitrage & Pricing Analysis */}
+          <section className="market-right-panel">
+            <h3 className="section-title">Regional Arbitrage Analysis</h3>
+
+            {activeCommodity && activePrice ? (
+              <div className="arbitrage-detail-card">
+                <header className="arb-header">
+                  <span className="arb-kicker">COMMODITY DETAIL</span>
+                  <h4 className="arb-title">{activeName}</h4>
+                </header>
+
+                <div className="arb-metric-row">
+                  <div className="arb-metric-box">
+                    <span className="arb-label">Local Price</span>
+                    <strong className="arb-val">{activePrice.unitPrice} G</strong>
+                  </div>
+                  <div className="arb-metric-box">
+                    <span className="arb-label">Local Demand</span>
+                    <strong className={`arb-val ${activePrice.demandPercent >= 100 ? "green-text" : ""}`}>
+                      {activePrice.demandPercent}%
+                    </strong>
+                  </div>
+                  <div className="arb-metric-box">
+                    <span className="arb-label">7-Day Trend</span>
+                    <strong className="arb-val green-text">▲ +14%</strong>
+                  </div>
+                </div>
+
+                {/* 7-Day Sparkline representation */}
+                <div className="sparkline-container">
+                  <span className="sparkline-title">7-Day Price Fluctuation</span>
+                  <div className="sparkline-visual">
+                    <div className="spark-bar" style={{ height: "45%" }} />
+                    <div className="spark-bar" style={{ height: "60%" }} />
+                    <div className="spark-bar" style={{ height: "55%" }} />
+                    <div className="spark-bar" style={{ height: "70%" }} />
+                    <div className="spark-bar" style={{ height: "85%" }} />
+                    <div className="spark-bar" style={{ height: "80%" }} />
+                    <div className="spark-bar is-current" style={{ height: "92%" }} />
+                  </div>
+                </div>
+
+                {/* Regional Comparison Arbitrage Box */}
+                <div className="distant-arbitrage-box">
+                  <header className="dist-header">
+                    <span>🧭 Regional Port Comparison</span>
+                    <span className="dist-tag">{distantPortName} ({distantPortDistance})</span>
+                  </header>
+
+                  <div className="dist-rows">
+                    <div className="dist-row">
+                      <span>Distant Market Est. Price:</span>
+                      <strong>{distantPriceEst} G</strong>
+                    </div>
+                    <div className="dist-row">
+                      <span>Estimated Cart Freight:</span>
+                      <span>-{transportCostEst} G</span>
+                    </div>
+                    <div className="dist-row">
+                      <span>Spoilage / Decay Risk:</span>
+                      <span className="tag-safe">Low</span>
+                    </div>
+                    <div className="dist-row dist-total">
+                      <span>Net Arbitrage Advantage:</span>
+                      <strong className={netMarginDelta >= 0 ? "green-text" : "red-text"}>
+                        {netMarginDelta >= 0 ? `+${netMarginDelta} G (Higher Profit)` : `${netMarginDelta} G`}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="market-decision-tip">
+                  <IconWarning size={14} />
+                  <span>
+                    {netMarginDelta > 0
+                      ? `Transporting this commodity to ${distantPortName} yields higher returns per unit.`
+                      : `Local demand is strong; optimal to sell here directly.`}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="no-commodity-selected">
+                <span>Select a commodity on the left to analyze regional price arbitrage.</span>
+              </div>
+            )}
+
+            {/* Active Deliveries */}
+            {activeContracts.length > 0 && (
+              <div className="market-contracts-sub">
+                <h4 className="section-title">Active Contract Orders</h4>
+                <div className="active-contracts-list">
+                  {activeContracts.map((contract) => {
+                    const itemDef = ContentRegistry.items.get(contract.targetItemIdOrSpecies);
+                    const fishDef = ContentRegistry.fishSpecies.get(contract.targetItemIdOrSpecies);
+                    const targetName = itemDef?.name ?? fishDef?.name ?? contract.targetItemIdOrSpecies;
+                    const ownedCount = itemDef ? InventoryManager.getItemCount(playerInv, itemDef.id) : 0;
+                    const eligibleCargo = fishCargoList.filter((cargo) => cargo.speciesId === contract.targetItemIdOrSpecies);
+
+                    return (
+                      <div key={contract.id} className="contract-mini-card">
+                        <div className="contract-mini-header">
+                          <strong>Supply {targetName}</strong>
+                          <span className="contract-gold"><IconCoin size={12} /> {contract.rewardMoney} G</span>
+                        </div>
+                        <span className="contract-prog">
+                          Progress: {contract.quantityFulfilled} / {contract.quantityRequired} fulfilled
+                        </span>
+                        <div className="contract-actions-row" style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                          {itemDef && ownedCount > 0 && (
                             <button
-                              className="neva-button neva-button-secondary"
-                              onClick={() => onDiscardFishCargo(cargo.id)}
+                              type="button"
+                              className="neva-button comm-sell-btn"
+                              onClick={() => onDeliverContractItems(contract.id, itemDef.id, 1)}
                             >
-                              Discard for Scraps
+                              Deliver 1 ({ownedCount} in bag)
                             </button>
-                          ) : (
+                          )}
+                          {eligibleCargo.length > 0 && (
                             <button
-                              className="neva-button neva-button-teal"
-                              onClick={() => activeMarketId && onSellFishCargo(activeMarketId, cargo.id)}
+                              type="button"
+                              className="neva-button comm-sell-btn"
+                              onClick={() => onDeliverFishCargo(contract.id, eligibleCargo[0].id)}
                             >
-                              Sell Cargo
+                              Deliver Fish ({eligibleCargo[0].weightKg.toFixed(1)} kg)
                             </button>
                           )}
                         </div>
@@ -246,16 +353,16 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </section>
         </div>
 
-        <div className="modal-footer">
-          <button className="neva-button" onClick={onClose}>
+        <footer className="market-modal-footer">
+          <button type="button" className="neva-button" onClick={onClose}>
             Done Trading
           </button>
-        </div>
+        </footer>
       </div>
     </div>
   );

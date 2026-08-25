@@ -3,8 +3,9 @@
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
+import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -64,22 +65,33 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     !isFiniteNumber(state.player.z) ||
     !isFiniteNumber(state.player.rotationY) ||
     typeof state.player.currentRegionId !== "string" ||
+    (schemaVersion >= 6 && (
+      !isRecord(state.player.traversal) ||
+      !isFiniteInRange(state.player.traversal.sprintStamina, 0, PLAYER_TRAVERSAL_TUNING.maximumSprintStamina) ||
+      !isFiniteNumber(state.player.traversal.sprintRecoveryDelaySeconds, 0) ||
+      typeof state.player.traversal.sprintExhausted !== "boolean" ||
+      typeof state.player.traversal.isGrounded !== "boolean"
+    )) ||
     !isRecord(state.player.workCapacity) ||
     !isFiniteNumber(state.player.workCapacity.current, 0) ||
     !isFiniteNumber(state.player.workCapacity.maximum, 0) ||
     state.player.workCapacity.current > state.player.workCapacity.maximum ||
-    !isSafeInteger(state.player.workCapacity.lastRegenMinute, 0) ||
+    !(schemaVersion >= 4
+      ? isSafeInteger((state.player.workCapacity as unknown as Record<string, unknown>).regeneratedAtMinute, 0)
+      : isSafeInteger((state.player.workCapacity as unknown as Record<string, unknown>).lastRegenMinute, 0)) ||
     !isRecord(state.player.proficiencies) ||
     !SKILL_IDS.every((skill) => isSafeInteger(state.player!.proficiencies[skill], 0))
   ) return false;
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
+    (schemaVersion >= 7 && state.world.layoutRevision !== 3) ||
     !isSafeInteger(state.world.currentSeed, 0) ||
     state.world.currentSeed !== state.worldSeed ||
     !isRecord(state.world.activeSchools) ||
     !isRecord(state.world.structures) ||
     (state.world.lastSchoolSpawnMinute !== undefined && !isSafeInteger(state.world.lastSchoolSpawnMinute, 0))
+    || (schemaVersion >= 9 && typeof state.world.storySchoolSpawned !== "boolean")
   ) return false;
   if (!isRecord(state.processingJobs) || !isRecord(state.boats) || !isRecord(state.fishCargo)) return false;
   if (schemaVersion >= 2 && state.basicFishing !== null && !isRecord(state.basicFishing)) return false;
@@ -121,7 +133,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     state.basicFishing &&
     (typeof state.basicFishing.habitatId !== "string" ||
       !isOneOf(state.basicFishing.habitatId, FISHING_HABITATS) ||
-      !["casting", "waiting", "bite"].includes(state.basicFishing.phase) ||
+      !["charging-cast", "waiting-bite", "bite-reaction", "minigame", "caught", "escaped", "casting", "waiting", "bite"].includes(state.basicFishing.phase) ||
       !isFiniteNumber(state.basicFishing.remainingSeconds, 0) ||
       (state.basicFishing.catchItemId !== undefined && !ContentRegistry.items.has(state.basicFishing.catchItemId)) ||
       typeof state.basicFishing.willCatch !== "boolean")
@@ -258,6 +270,35 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         !isFiniteNumber(commodity.recentSalesVolume, 0)
       ) return false;
     }
+  }
+
+  if (!isRecord(state.journal.cropRecords)) return false;
+  for (const [cropId, record] of Object.entries(state.journal.cropRecords)) {
+    if (!ContentRegistry.crops.has(cropId) || !isRecord(record) || !isSafeInteger(record.harvestedCount, 0)) return false;
+    if (record.bestQuality !== undefined) {
+      const allowed = schemaVersion >= 4
+        ? ["common", "fine", "exceptional", "prize"]
+        : ["common", "fine", "exceptional", "trophy"];
+      if (!isOneOf(record.bestQuality, allowed)) return false;
+    }
+  }
+
+  if (schemaVersion >= 8) {
+    const quests = state.quests as Record<string, unknown> | undefined;
+    if (
+      !isRecord(quests) ||
+      typeof quests.activeActId !== "string" ||
+      (quests.activeQuestId !== null && typeof quests.activeQuestId !== "string") ||
+      !isSafeInteger(quests.activeStepIndex, 0) ||
+      !isRecord(quests.stepProgress) ||
+      !Array.isArray(quests.completedQuestIds) ||
+      !Array.isArray(quests.unlockedDialogueIds) ||
+      !isRecord(quests.hintsShown)
+    ) return false;
+    if (schemaVersion >= 9 && (
+      !Array.isArray(quests.unlockedFeatureIds) ||
+      !quests.unlockedFeatureIds.every((featureId) => typeof featureId === "string")
+    )) return false;
   }
 
   return true;

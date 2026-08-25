@@ -1,4 +1,4 @@
-// src/simulation/core/types.ts
+import type { QuestState } from "./QuestTypes";
 
 export type CropId = string;
 export type FishSpeciesId = string;
@@ -27,6 +27,8 @@ export type FishBehaviorProfileId = string;
 export type ContractTemplateId = string;
 export type ContractId = string;
 export type BoatUpgradeId = string;
+export type NpcId = string;
+
 
 export type GameMinute = number; // integer simulation minutes
 
@@ -46,6 +48,7 @@ export type ItemCategory =
 
 export type CropStage = "seeded" | "sprout" | "growing" | "mature" | "overripe" | "withered";
 
+export type CropQuality = "common" | "fine" | "exceptional" | "prize";
 export type FishQuality = "common" | "fine" | "exceptional" | "trophy";
 export type CargoClass = "small" | "medium" | "large" | "gargantuan";
 
@@ -69,7 +72,14 @@ export type GameAction =
   | "open-inventory"
   | "open-map"
   | "open-journal"
+  | "open-ledger"
   | "open-planning"
+  | "toggle-farm-gis"
+  | "select-tool-1"
+  | "select-tool-2"
+  | "select-tool-3"
+  | "select-tool-4"
+  | "select-tool-5"
   | "pause"
   | "fish-reel"
   | "fish-slack"
@@ -98,14 +108,23 @@ export interface PlayerState {
   carriedFishCargoId?: FishCargoId | null;
   activeBoatId?: BoatId | null;
   money: number;
+  traversal: PlayerTraversalState;
   workCapacity: WorkCapacityState;
   proficiencies: Record<SkillId, number>; // XP
+}
+
+/** Canonical traversal state. Work Capacity remains an unrelated economy resource. */
+export interface PlayerTraversalState {
+  sprintStamina: number;
+  sprintRecoveryDelaySeconds: number;
+  sprintExhausted: boolean;
+  isGrounded: boolean;
 }
 
 export interface WorkCapacityState {
   current: number;
   maximum: number;
-  lastRegenMinute: GameMinute;
+  regeneratedAtMinute: GameMinute;
 }
 
 export interface SoilState {
@@ -133,6 +152,7 @@ export interface CropQualityInputs {
   soilFertility: number;
   farmingProficiency: number;
   rngRoll: number;
+  rareChanceMultiplier?: number;
 }
 
 export interface PlacedCropState {
@@ -253,12 +273,60 @@ export interface FishingEncounterState {
   result: "active" | "landed" | "escaped" | "line-snapped";
 }
 
+export type BasicFishingPhase =
+  | "charging-cast"
+  | "waiting-bite"
+  | "bite-reaction"
+  | "minigame"
+  | "caught"
+  | "escaped"
+  | "casting"
+  | "waiting"
+  | "bite";
+
+export type FishCatchQuality = "normal" | "silver" | "gold" | "iridium";
+
 export interface BasicFishingState {
   habitatId: string;
-  phase: "casting" | "waiting" | "bite";
+  phase: BasicFishingPhase;
   remainingSeconds: number;
   catchItemId?: ItemId;
   willCatch: boolean;
+
+  // Cast mechanics
+  castPower?: number; // 0.0 .. 1.0
+  castDistanceMeters?: number; // 3 .. 12
+  isChargingCast?: boolean;
+  castChargeDirection?: 1 | -1;
+
+  // Bite reaction
+  biteReactionWindowSeconds?: number;
+  hasBait?: boolean;
+
+  // Stardew Minigame variables (0.0 to 1.0 normalized)
+  fishY?: number; // 0.0 (bottom) to 1.0 (top)
+  fishVy?: number;
+  fishTargetY?: number;
+  fishTargetTimer?: number;
+
+  barY?: number; // bottom of green bar (0.0 to 1.0 - barHeight)
+  barVy?: number;
+  barHeight?: number; // 0.15 .. 0.40
+
+  catchProgress?: number; // 0.0 .. 1.0 (starts at 0.30)
+  isPerfect?: boolean;
+
+  // Treasure Chest mechanics
+  hasTreasure?: boolean;
+  treasureY?: number;
+  treasureProgress?: number; // 0.0 .. 1.0
+  treasureCaught?: boolean;
+  treasureLootItemIds?: ItemId[];
+
+  // Output quality & input state
+  quality?: FishCatchQuality;
+  isHolding?: boolean;
+  result?: "landed" | "escaped";
 }
 
 export type CarryLocationType = "player" | "boat-hold" | "boat-hook" | "cold-storage" | "crate";
@@ -338,15 +406,17 @@ export interface JournalRecord {
 
 export interface JournalState {
   fishRecords: Record<FishSpeciesId, JournalRecord>;
-  cropRecords: Record<CropId, { harvestedCount: number; bestQuality?: string }>;
+  cropRecords: Record<CropId, { harvestedCount: number; bestQuality?: CropQuality }>;
   unlockedKnowledge: string[];
 }
 
 export interface WorldState {
+  layoutRevision: number;
   currentSeed: number;
   activeSchools: Record<FishSchoolId, FishSchoolState>;
   structures: Record<StructureId, { id: StructureId; type: StationType; x: number; y: number; z: number }>;
   lastSchoolSpawnMinute?: GameMinute;
+  storySchoolSpawned: boolean;
 }
 
 export interface GameMetadata {
@@ -375,5 +445,8 @@ export interface GameState {
   markets: Record<MarketId, MarketState>;
   contracts: ContractState[];
   journal: JournalState;
+  quests: QuestState;
   metadata: GameMetadata;
 }
+
+export * from "./QuestTypes";

@@ -1,0 +1,368 @@
+/* src/ui/fishing/BasicFishingMinigame.css */
+
+.basic-fishing-container {
+  position: absolute;
+  right: 48px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  user-select: none;
+  pointer-events: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-48%); }
+  to { opacity: 1; transform: translateY(-50%); }
+}
+
+/* Cast Power Meter */
+.cast-power-card {
+  background: rgba(18, 26, 36, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgba(212, 168, 83, 0.4);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px rgba(212, 168, 83, 0.15);
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.cast-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #f3d484;
+}
+
+.cast-power-bar-track {
+  width: 100%;
+  height: 24px;
+  background: rgba(8, 14, 20, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  position: relative;
+}
+
+.cast-power-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #facc15 65%, #f87171 100%);
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+  will-change: width;
+}
+
+.cast-power-percentage {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.cast-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* Bite Alert Badge */
+.bite-alert-banner {
+  background: rgba(220, 38, 38, 0.92);
+  border: 2px solid #fecaca;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  padding: 16px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: pulseBounce 0.4s infinite alternate ease-in-out;
+  cursor: pointer;
+}
+
+@keyframes pulseBounce {
+  from { transform: scale(1.0); }
+  to { transform: scale(1.08); }
+}
+
+.bite-exclamation {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.bite-text {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+/* Minigame Track Layout */
+.minigame-card {
+  background: rgba(15, 23, 33, 0.95);
+  border: 2px solid rgba(212, 168, 83, 0.5);
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 24px rgba(212, 168, 83, 0.15);
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  contain: layout style;
+}
+
+.minigame-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.minigame-species-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.5px;
+}
+
+.perfect-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.18);
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  padding: 2px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  animation: pulseBadge 1s infinite alternate;
+}
+
+@keyframes pulseBadge {
+  from { opacity: 0.8; }
+  to { opacity: 1; text-shadow: 0 0 6px rgba(250, 204, 21, 0.6); }
+}
+
+.minigame-board {
+  display: flex;
+  gap: 12px;
+  height: 280px;
+  align-items: center;
+}
+
+/* Vertical Water Track */
+.water-track {
+  width: 44px;
+  height: 100%;
+  background: linear-gradient(180deg, #1e3a5f 0%, #0f2338 100%);
+  border-radius: 12px;
+  border: 2px solid rgba(56, 189, 248, 0.35);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+/* Green Catch Bar */
+.green-catch-bar {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.9) 0%, rgba(34, 197, 94, 0.95) 100%);
+  border: 1.5px solid #bbf7d0;
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  will-change: bottom, height;
+}
+
+.green-bar-handle {
+  width: 16px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  margin: 4px auto 0;
+}
+
+/* Fish Icon */
+.fish-avatar {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  z-index: 5;
+  will-change: bottom;
+}
+
+/* Treasure Chest */
+.treasure-chest-icon {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.8));
+  z-index: 4;
+  will-change: bottom;
+}
+
+.treasure-progress-ring {
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.treasure-progress-fill {
+  height: 100%;
+  background: #facc15;
+  will-change: width;
+}
+
+/* Catch Progress Gauge (Right Side) */
+.catch-progress-track {
+  width: 14px;
+  height: 100%;
+  background: rgba(8, 14, 20, 0.8);
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+  contain: layout paint;
+}
+
+.catch-progress-fill {
+  width: 100%;
+  background: linear-gradient(0deg, #ef4444 0%, #facc15 50%, #22c55e 100%);
+  border-radius: 6px;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  will-change: height;
+}
+
+.minigame-footer-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.3px;
+}
+
+/* Caught Modal Overlay */
+.catch-summary-card {
+  background: rgba(15, 23, 33, 0.95);
+  backdrop-filter: blur(16px);
+  border: 2px solid #facc15;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(250, 204, 21, 0.3);
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 260px;
+  animation: zoomPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes zoomPop {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1.0); opacity: 1; }
+}
+
+.catch-summary-header {
+  font-size: 18px;
+  font-weight: 800;
+  color: #facc15;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.catch-item-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.catch-item-emoji {
+  font-size: 42px;
+}
+
+.catch-item-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.catch-quality-badge {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 1px;
+}
+
+.quality-normal { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+.quality-silver { background: rgba(192, 192, 192, 0.25); color: #e2e8f0; border: 1px solid #cbd5e1; }
+.quality-gold { background: rgba(250, 204, 21, 0.25); color: #fde047; border: 1px solid #facc15; }
+.quality-iridium { background: rgba(168, 85, 247, 0.25); color: #c084fc; border: 1px solid #a855f7; }
+
+.treasure-summary-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.15);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.dismiss-button {
+  margin-top: 4px;
+  padding: 8px 18px;
+  background: linear-gradient(180deg, #d4a853 0%, #b88a38 100%);
+  border: none;
+  border-radius: 10px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(212, 168, 83, 0.3);
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.dismiss-button:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}

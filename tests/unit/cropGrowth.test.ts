@@ -34,6 +34,10 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(determineCropStage(65, 60)).toBe("mature");
     expect(determineCropStage(85, 60)).toBe("overripe");
     expect(determineCropStage(105, 60)).toBe("withered");
+    expect(determineCropStage(105, 60, false)).toBe("withered");
+    const apple = CROPS["crop.apple_tree"];
+    expect(determineCropStage(apple.baseGrowthMinutes * 1.7, apple.baseGrowthMinutes, true)).toBe("overripe");
+    expect(determineCropStage(apple.baseGrowthMinutes * 1.7, apple.baseGrowthMinutes, apple.regrows)).toBe("overripe");
   });
 
   it("computes quality deterministically with RNG", () => {
@@ -50,7 +54,7 @@ describe("Crop Growth & Quality Calculations", () => {
     );
 
     expect(res1).toEqual(res2);
-    expect(["common", "fine", "exceptional", "trophy"]).toContain(res1.quality);
+    expect(["common", "fine", "exceptional", "prize"]).toContain(res1.quality);
   });
 
   it("uses provided rngRoll and does not call rng.nextFloat()", () => {

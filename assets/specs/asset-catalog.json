@@ -9,8 +9,150 @@
       "palette": ["wood_warm_01", "foliage_sage_01", "foliage_shadow_01"],
       "budget": { "trianglesMin": 300, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
-      "rootNode": "tree_oak_a_root", "requiredNodes": ["tree_oak_a_root"], "readDistanceMeters": 30,
-      "parameters": { "height": 5.8, "spread": 2.2, "canopyClusters": 15, "lean": 0.12, "branchCount": 6, "rootCount": 6 }
+      "rootNode": "tree_oak_a_root", "requiredNodes": ["tree_oak_a_root", "tree_oak_a_LOD0", "tree_oak_a_LOD1"], "readDistanceMeters": 30,
+      "parameters": { "height": 5.8, "spread": 2.2, "canopyClusters": 15, "lean": 0.12, "branchCount": 6, "rootCount": 6 },
+      "lodLevels": [
+        { "node": "tree_oak_a_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "tree_oak_a_LOD1", "distanceMeters": 24, "triangleRatioMin": 0.06, "triangleRatioMax": 0.48 }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Mature coastal farm oak with a grounded bifurcated trunk and layered faceted crown",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": ["form_language", "materials", "detail_density"],
+            "notes": "Defines Neva's warm tactile faceting, palette discipline, and gameplay-camera readability."
+          },
+          {
+            "id": "oak_structure_trial",
+            "kind": "structural_study",
+            "uri": "repo://generated/evaluations/img2threejs-tree-2026-08-24/comparison-front.png",
+            "use": ["silhouette", "proportion", "structure"],
+            "notes": "A local candidate study used only for hierarchy, branch windows, and crown-mass comparison."
+          },
+          {
+            "id": "img2threejs_method",
+            "kind": "method_study",
+            "uri": "https://github.com/img2threejs/img2threejs",
+            "use": ["workflow"],
+            "notes": "Borrow the feature-inventory and multi-view iteration method, not its direct Three.js shipping path."
+          }
+        ],
+        "components": [
+          {
+            "id": "trunk",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the main gesture and species identity from ground to crown",
+            "shape": "Two to three connected low-sided tapered sections with a visible upper fork",
+            "count": "1 connected structure",
+            "cues": ["Broader below the first fork", "Gentle seeded lean without an S-curve"]
+          },
+          {
+            "id": "root_flares",
+            "parent": "trunk",
+            "importance": "secondary",
+            "role": "Grounds the tree and breaks the pole-like base silhouette",
+            "shape": "Short tapered wedges radiating irregularly into the soil plane",
+            "count": "5-7",
+            "cues": ["Readable at 8 m", "Uneven lengths with no starburst symmetry"]
+          },
+          {
+            "id": "primary_branches",
+            "parent": "trunk",
+            "importance": "primary",
+            "role": "Connects the trunk gesture to distinct crown masses",
+            "shape": "Tapered angular limbs with one controlled secondary split each",
+            "count": "4-7",
+            "cues": ["At least two branches remain visible from the front", "Branches terminate inside foliage masses"]
+          },
+          {
+            "id": "canopy_major",
+            "parent": "primary_branches",
+            "importance": "primary",
+            "role": "Defines the broad crown silhouette and asymmetric weight distribution",
+            "shape": "Four overlapping faceted lobes with different widths and elevations",
+            "count": "4 major lobes",
+            "cues": ["Crown is wider than it is tall", "One side carries visibly more weight"]
+          },
+          {
+            "id": "canopy_minor",
+            "parent": "canopy_major",
+            "importance": "secondary",
+            "role": "Breaks the major lobes into readable planar clusters without noise",
+            "shape": "Smaller compressed faceted clusters nested around major lobe edges",
+            "count": "remainder of canopyClusters",
+            "cues": ["Cluster sizes vary in a bounded range", "Lower and rear clusters use the shadow foliage token"]
+          }
+        ],
+        "silhouette": [
+          "The lower trunk reads as one grounded mass before separating into an obvious upper fork.",
+          "Four unequal crown lobes create a broad asymmetrical umbrella rather than a round ball.",
+          "The crown edge alternates large planar steps with two or three deliberate branch-led protrusions.",
+          "Root flares widen the base without competing with the trunk as the primary vertical gesture."
+        ],
+        "negativeSpace": [
+          "Preserve one daylight window between the two dominant upper trunk branches from the front view.",
+          "Keep two smaller gaps between major crown lobes visible from front and three-quarter views.",
+          "Leave the lower crown high enough that the trunk and primary branches remain readable at 15 m."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear branches must continue the same load-bearing hierarchy instead of mirroring the front exactly.",
+            "Rear canopy masses must close the volume while preserving side-view gaps and a non-spherical outline."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "grounded_base",
+            "componentIds": ["trunk", "root_flares"],
+            "requirement": "The base reads as planted and weight-bearing from gameplay distance, never as a cone placed on the ground.",
+            "priority": "must"
+          },
+          {
+            "id": "visible_branching",
+            "componentIds": ["trunk", "primary_branches"],
+            "requirement": "At least two tapered primary branches and the upper fork remain visible in front and three-quarter views.",
+            "priority": "must"
+          },
+          {
+            "id": "layered_crown",
+            "componentIds": ["canopy_major", "canopy_minor"],
+            "requirement": "Major lobes own the silhouette while minor clusters add facet rhythm without turning into uniform pebble noise.",
+            "priority": "must"
+          },
+          {
+            "id": "branch_windows",
+            "componentIds": ["primary_branches", "canopy_major"],
+            "requirement": "Deliberate gaps expose branch structure and prevent the crown from becoming a single opaque blob.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          { "parameter": "height", "componentIds": ["trunk", "canopy_major"], "purpose": "Controls the full vertical hierarchy and the elevation of the readable crown." },
+          { "parameter": "spread", "componentIds": ["primary_branches", "canopy_major", "canopy_minor"], "purpose": "Controls the crown width, branch reach, and spacing between major lobes." },
+          { "parameter": "canopyClusters", "componentIds": ["canopy_major", "canopy_minor"], "purpose": "Allocates four primary lobes first and uses the remainder for bounded secondary breakup." },
+          { "parameter": "lean", "componentIds": ["trunk", "canopy_major"], "purpose": "Applies one coherent seeded gesture to trunk joints and crown center." },
+          { "parameter": "branchCount", "componentIds": ["primary_branches"], "purpose": "Controls the number of load-bearing limbs without changing the required visible fork." },
+          { "parameter": "rootCount", "componentIds": ["root_flares"], "purpose": "Controls irregular grounding wedges while preserving a non-symmetric base." }
+        ],
+        "failureModes": [
+          "A single straight cone or cylinder carries the entire trunk without a visible connected fork.",
+          "Canopy clusters merge into a spherical lollipop or an evenly spaced golden-angle shell.",
+          "Branches float outside the trunk, end before foliage, or disappear completely behind the crown.",
+          "Random detail is added without improving silhouette, hierarchy, grounding, or negative space.",
+          "A flattering front render passes while rear, side, or gameplay-distance views collapse."
+        ],
+        "reviewViews": [
+          "front", "rear", "side", "three_quarter", "gameplay_8m",
+          "gameplay_15m", "gameplay_read_distance", "close_material"
+        ]
+      }
     },
     {
       "id": "tree_oak_b", "file": "tree_oak_b.glb", "family": "vegetation", "generator": "oak_tree", "seed": 25,
@@ -18,8 +160,25 @@
       "palette": ["wood_warm_01", "foliage_olive_01", "foliage_shadow_01"],
       "budget": { "trianglesMin": 300, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
-      "rootNode": "tree_oak_b_root", "requiredNodes": ["tree_oak_b_root"], "readDistanceMeters": 30,
-      "parameters": { "height": 5.4, "spread": 2.5, "canopyClusters": 14, "lean": -0.09, "branchCount": 7, "rootCount": 7 }
+      "rootNode": "tree_oak_b_root", "requiredNodes": ["tree_oak_b_root", "tree_oak_b_LOD0", "tree_oak_b_LOD1"], "readDistanceMeters": 30,
+      "parameters": { "height": 5.4, "spread": 2.5, "canopyClusters": 14, "lean": -0.09, "branchCount": 7, "rootCount": 7 },
+      "lodLevels": [
+        { "node": "tree_oak_b_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "tree_oak_b_LOD1", "distanceMeters": 24, "triangleRatioMin": 0.06, "triangleRatioMax": 0.48 }
+      ]
+    },
+    {
+      "id": "tree_oak_c", "file": "tree_oak_c.glb", "family": "vegetation", "generator": "oak_tree", "seed": 37,
+      "dimensions": { "width": 4.5, "depth": 4.0, "height": 7.0 },
+      "palette": ["wood_dark_01", "foliage_leaf_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "tree_oak_c_root", "requiredNodes": ["tree_oak_c_root", "tree_oak_c_LOD0", "tree_oak_c_LOD1"], "readDistanceMeters": 30,
+      "parameters": { "height": 6.6, "spread": 1.9, "canopyClusters": 14, "lean": -0.18, "branchCount": 5, "rootCount": 6 },
+      "lodLevels": [
+        { "node": "tree_oak_c_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "tree_oak_c_LOD1", "distanceMeters": 25, "triangleRatioMin": 0.06, "triangleRatioMax": 0.48 }
+      ]
     },
     {
       "id": "tree_pine_a", "file": "tree_pine_a.glb", "family": "vegetation", "generator": "pine_tree", "seed": 41,
@@ -27,8 +186,25 @@
       "palette": ["wood_dark_01", "foliage_pine_01", "foliage_olive_01"],
       "budget": { "trianglesMin": 280, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
-      "rootNode": "tree_pine_a_root", "requiredNodes": ["tree_pine_a_root"], "readDistanceMeters": 30,
-      "parameters": { "height": 6.8, "spread": 2.0, "tiers": 8, "lean": 0.06, "branchesPerTier": 5, "rootCount": 5 }
+      "rootNode": "tree_pine_a_root", "requiredNodes": ["tree_pine_a_root", "tree_pine_a_LOD0", "tree_pine_a_LOD1"], "readDistanceMeters": 30,
+      "parameters": { "height": 6.8, "spread": 2.0, "tiers": 8, "lean": 0.06, "branchesPerTier": 5, "rootCount": 5 },
+      "lodLevels": [
+        { "node": "tree_pine_a_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "tree_pine_a_LOD1", "distanceMeters": 27, "triangleRatioMin": 0.04, "triangleRatioMax": 0.30 }
+      ]
+    },
+    {
+      "id": "tree_pine_b", "file": "tree_pine_b.glb", "family": "vegetation", "generator": "pine_tree", "seed": 59,
+      "dimensions": { "width": 5.4, "depth": 5.0, "height": 6.6 },
+      "palette": ["wood_dark_01", "foliage_pine_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 280, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "tree_pine_b_root", "requiredNodes": ["tree_pine_b_root", "tree_pine_b_LOD0", "tree_pine_b_LOD1"], "readDistanceMeters": 30,
+      "parameters": { "height": 6.1, "spread": 2.5, "tiers": 7, "lean": -0.14, "branchesPerTier": 4, "rootCount": 6 },
+      "lodLevels": [
+        { "node": "tree_pine_b_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "tree_pine_b_LOD1", "distanceMeters": 26, "triangleRatioMin": 0.04, "triangleRatioMax": 0.30 }
+      ]
     },
     {
       "id": "tree_apple_a", "file": "tree_apple_a.glb", "family": "vegetation", "generator": "apple_tree", "seed": 73,
@@ -36,8 +212,12 @@
       "palette": ["wood_warm_01", "foliage_leaf_01", "accent_red_01"],
       "budget": { "trianglesMin": 320, "trianglesTarget": 1500, "trianglesMax": 3000, "materialsMax": 4 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
-      "rootNode": "tree_apple_a_root", "requiredNodes": ["tree_apple_a_root"], "readDistanceMeters": 30,
-      "parameters": { "height": 4.2, "spread": 1.9, "canopyClusters": 10, "fruitCount": 16, "branchCount": 5, "rootCount": 5 }
+      "rootNode": "tree_apple_a_root", "requiredNodes": ["tree_apple_a_root", "tree_apple_a_LOD0", "tree_apple_a_LOD1"], "readDistanceMeters": 30,
+      "parameters": { "height": 4.2, "spread": 1.9, "canopyClusters": 10, "fruitCount": 16, "branchCount": 5, "rootCount": 5 },
+      "lodLevels": [
+        { "node": "tree_apple_a_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "tree_apple_a_LOD1", "distanceMeters": 22, "triangleRatioMin": 0.06, "triangleRatioMax": 0.45 }
+      ]
     },
     {
       "id": "foliage_bush_a", "file": "foliage_bush_a.glb", "family": "vegetation", "generator": "bush", "seed": 91,
@@ -57,6 +237,339 @@
       "rootNode": "foliage_reeds_a_root", "requiredNodes": ["foliage_reeds_a_root"], "readDistanceMeters": 15,
       "parameters": { "stalks": 11, "height": 1.55, "bladeCount": 6 }
     },
+    {
+      "id": "foliage_kelp_a", "file": "foliage_kelp_a.glb", "family": "vegetation", "generator": "kelp_clump", "seed": 107,
+      "dimensions": { "width": 1.5, "depth": 1.2, "height": 1.5 },
+      "palette": ["foliage_olive_01", "foliage_leaf_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 320, "trianglesMax": 1400, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_kelp_a_root", "requiredNodes": ["foliage_kelp_a_root"], "readDistanceMeters": 15,
+      "parameters": { "fronds": 7, "height": 1.38, "spread": 0.58, "stalkRadius": 0.035, "bladeWidth": 0.24 }
+    },
+    {
+      "id": "foliage_grass_a", "file": "foliage_grass_a.glb", "family": "vegetation", "generator": "grass_clump", "seed": 111,
+      "dimensions": { "width": 0.9, "depth": 0.8, "height": 0.7 },
+      "palette": ["foliage_sage_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 50, "trianglesTarget": 360, "trianglesMax": 500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_grass_a_root", "requiredNodes": ["foliage_grass_a_root"], "readDistanceMeters": 15,
+      "parameters": { "bladeCount": 18, "height": 0.66, "spread": 0.42, "bladeWidth": 0.075 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Seeded faceted meadow grass clump with a grounded base and a readable wind-swept gesture",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability." }
+        ],
+        "components": [
+          { "id": "base_cluster", "parent": "root", "importance": "primary", "role": "Anchors the clump to terrain without a floating central knot", "shape": "Low radial gathering of overlapping blade bases", "count": "1 clustered base", "cues": ["Base stays broad and visually grounded", "No circular pedestal silhouette"] },
+          { "id": "primary_blades", "parent": "base_cluster", "importance": "primary", "role": "Creates the main height rhythm and directional grass gesture", "shape": "Tapered low-poly blades with varied lean and bounded height", "count": "60-75 percent of blades", "cues": ["Three height tiers remain readable", "Lean favors one direction without uniformity"] },
+          { "id": "accent_blades", "parent": "base_cluster", "importance": "secondary", "role": "Breaks the outer silhouette with sparse contrasting facets", "shape": "Shorter and taller edge blades placed asymmetrically", "count": "remaining blades", "cues": ["Outer tips do not form a circle", "Palette variation follows blade groups"] }
+        ],
+        "silhouette": [
+          "The clump reads as a low asymmetric fan rather than a radial starburst.",
+          "Three unequal height peaks create a clear rhythm at gameplay distance.",
+          "Outer blades taper into sparse tips with no hard rectangular edge."
+        ],
+        "negativeSpace": [
+          "Preserve narrow gaps between the three dominant blade groups.",
+          "Keep the center porous enough for individual blade planes to read in close view."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear blades continue the directional lean while varying height and spacing.",
+            "Side views retain a grounded base and do not collapse into one flat plane."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "grounded_base", "componentIds": ["base_cluster", "primary_blades"], "requirement": "Blade roots overlap the ground plane as one planted clump with no floating tips.", "priority": "must" },
+          { "id": "height_rhythm", "componentIds": ["primary_blades", "accent_blades"], "requirement": "At least three unequal height groups remain legible from the gameplay camera.", "priority": "must" },
+          { "id": "authored_asymmetry", "componentIds": ["primary_blades", "accent_blades"], "requirement": "Seeded variation produces a coherent lean and irregular outline without noisy rotation.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "bladeCount", "componentIds": ["primary_blades", "accent_blades"], "purpose": "Controls density while preserving the required gaps and height hierarchy." },
+          { "parameter": "height", "componentIds": ["primary_blades", "accent_blades"], "purpose": "Controls the dominant vertical read and separation between blade tiers." },
+          { "parameter": "spread", "componentIds": ["base_cluster", "primary_blades"], "purpose": "Controls ground footprint and the amount of readable negative space." }
+        ],
+        "failureModes": [
+          "Blades form an even radial starburst or a circular brush silhouette.",
+          "The base floats above terrain or collapses into a visible central pedestal.",
+          "Random blade angles create noisy micro-detail without a coherent wind gesture."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "foliage_grass_b", "file": "foliage_grass_b.glb", "family": "vegetation", "generator": "grass_clump", "seed": 113,
+      "dimensions": { "width": 1.0, "depth": 0.9, "height": 0.52 },
+      "palette": ["grass_yellow_01", "foliage_olive_01"],
+      "budget": { "trianglesMin": 50, "trianglesTarget": 440, "trianglesMax": 520, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_grass_b_root", "requiredNodes": ["foliage_grass_b_root"], "readDistanceMeters": 15,
+      "parameters": { "bladeCount": 22, "height": 0.48, "spread": 0.46, "bladeWidth": 0.068 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Seeded faceted meadow grass clump with a grounded base and a readable wind-swept gesture",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability." }
+        ],
+        "components": [
+          { "id": "base_cluster", "parent": "root", "importance": "primary", "role": "Anchors the clump to terrain without a floating central knot", "shape": "Low radial gathering of overlapping blade bases", "count": "1 clustered base", "cues": ["Base stays broad and visually grounded", "No circular pedestal silhouette"] },
+          { "id": "primary_blades", "parent": "base_cluster", "importance": "primary", "role": "Creates the main height rhythm and directional grass gesture", "shape": "Tapered low-poly blades with varied lean and bounded height", "count": "60-75 percent of blades", "cues": ["Three height tiers remain readable", "Lean favors one direction without uniformity"] },
+          { "id": "accent_blades", "parent": "base_cluster", "importance": "secondary", "role": "Breaks the outer silhouette with sparse contrasting facets", "shape": "Shorter and taller edge blades placed asymmetrically", "count": "remaining blades", "cues": ["Outer tips do not form a circle", "Palette variation follows blade groups"] }
+        ],
+        "silhouette": [
+          "The clump reads as a low asymmetric fan rather than a radial starburst.",
+          "Three unequal height peaks create a clear rhythm at gameplay distance.",
+          "Outer blades taper into sparse tips with no hard rectangular edge."
+        ],
+        "negativeSpace": [
+          "Preserve narrow gaps between the three dominant blade groups.",
+          "Keep the center porous enough for individual blade planes to read in close view."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear blades continue the directional lean while varying height and spacing.",
+            "Side views retain a grounded base and do not collapse into one flat plane."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "grounded_base", "componentIds": ["base_cluster", "primary_blades"], "requirement": "Blade roots overlap the ground plane as one planted clump with no floating tips.", "priority": "must" },
+          { "id": "height_rhythm", "componentIds": ["primary_blades", "accent_blades"], "requirement": "At least three unequal height groups remain legible from the gameplay camera.", "priority": "must" },
+          { "id": "authored_asymmetry", "componentIds": ["primary_blades", "accent_blades"], "requirement": "Seeded variation produces a coherent lean and irregular outline without noisy rotation.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "bladeCount", "componentIds": ["primary_blades", "accent_blades"], "purpose": "Controls density while preserving the required gaps and height hierarchy." },
+          { "parameter": "height", "componentIds": ["primary_blades", "accent_blades"], "purpose": "Controls the dominant vertical read and separation between blade tiers." },
+          { "parameter": "spread", "componentIds": ["base_cluster", "primary_blades"], "purpose": "Controls ground footprint and the amount of readable negative space." }
+        ],
+        "failureModes": [
+          "Blades form an even radial starburst or a circular brush silhouette.",
+          "The base floats above terrain or collapses into a visible central pedestal.",
+          "Random blade angles create noisy micro-detail without a coherent wind gesture."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "foliage_grass_c", "file": "foliage_grass_c.glb", "family": "vegetation", "generator": "grass_clump", "seed": 127,
+      "dimensions": { "width": 0.8, "depth": 0.7, "height": 0.9 },
+      "palette": ["foliage_highlight_01", "foliage_shadow_01"],
+      "budget": { "trianglesMin": 45, "trianglesTarget": 320, "trianglesMax": 460, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_grass_c_root", "requiredNodes": ["foliage_grass_c_root"], "readDistanceMeters": 15,
+      "parameters": { "bladeCount": 16, "height": 0.84, "spread": 0.36, "bladeWidth": 0.064 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Seeded faceted meadow grass clump with a grounded base and a readable wind-swept gesture",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability." }
+        ],
+        "components": [
+          { "id": "base_cluster", "parent": "root", "importance": "primary", "role": "Anchors the clump to terrain without a floating central knot", "shape": "Low radial gathering of overlapping blade bases", "count": "1 clustered base", "cues": ["Base stays broad and visually grounded", "No circular pedestal silhouette"] },
+          { "id": "primary_blades", "parent": "base_cluster", "importance": "primary", "role": "Creates the main height rhythm and directional grass gesture", "shape": "Tapered low-poly blades with varied lean and bounded height", "count": "60-75 percent of blades", "cues": ["Three height tiers remain readable", "Lean favors one direction without uniformity"] },
+          { "id": "accent_blades", "parent": "base_cluster", "importance": "secondary", "role": "Breaks the outer silhouette with sparse contrasting facets", "shape": "Shorter and taller edge blades placed asymmetrically", "count": "remaining blades", "cues": ["Outer tips do not form a circle", "Palette variation follows blade groups"] }
+        ],
+        "silhouette": [
+          "The clump reads as a low asymmetric fan rather than a radial starburst.",
+          "Three unequal height peaks create a clear rhythm at gameplay distance.",
+          "Outer blades taper into sparse tips with no hard rectangular edge."
+        ],
+        "negativeSpace": [
+          "Preserve narrow gaps between the three dominant blade groups.",
+          "Keep the center porous enough for individual blade planes to read in close view."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear blades continue the directional lean while varying height and spacing.",
+            "Side views retain a grounded base and do not collapse into one flat plane."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "grounded_base", "componentIds": ["base_cluster", "primary_blades"], "requirement": "Blade roots overlap the ground plane as one planted clump with no floating tips.", "priority": "must" },
+          { "id": "height_rhythm", "componentIds": ["primary_blades", "accent_blades"], "requirement": "At least three unequal height groups remain legible from the gameplay camera.", "priority": "must" },
+          { "id": "authored_asymmetry", "componentIds": ["primary_blades", "accent_blades"], "requirement": "Seeded variation produces a coherent lean and irregular outline without noisy rotation.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "bladeCount", "componentIds": ["primary_blades", "accent_blades"], "purpose": "Controls density while preserving the required gaps and height hierarchy." },
+          { "parameter": "height", "componentIds": ["primary_blades", "accent_blades"], "purpose": "Controls the dominant vertical read and separation between blade tiers." },
+          { "parameter": "spread", "componentIds": ["base_cluster", "primary_blades"], "purpose": "Controls ground footprint and the amount of readable negative space." }
+        ],
+        "failureModes": [
+          "Blades form an even radial starburst or a circular brush silhouette.",
+          "The base floats above terrain or collapses into a visible central pedestal.",
+          "Random blade angles create noisy micro-detail without a coherent wind gesture."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "foliage_wildflower_a", "file": "foliage_wildflower_a.glb", "family": "vegetation", "generator": "wildflower_clump", "seed": 131,
+      "dimensions": { "width": 0.8, "depth": 0.7, "height": 0.62 },
+      "palette": ["foliage_sage_01", "foam_warm_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 924, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_wildflower_a_root", "requiredNodes": ["foliage_wildflower_a_root"], "readDistanceMeters": 15,
+      "parameters": { "stemCount": 6, "height": 0.58, "spread": 0.34, "petals": 5 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Small coastal wildflower clump with layered stems, sparse blossoms, and meadow-scale readability",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines Neva's restrained accent colors, broad facets, authored asymmetry, and gameplay-camera readability." }
+        ],
+        "components": [
+          { "id": "stem_cluster", "parent": "root", "importance": "primary", "role": "Provides a grounded branching scaffold for the flower heads", "shape": "Several slender faceted stems rising in unequal arcs", "count": "stemCount stems", "cues": ["Stems begin as one loose ground cluster", "Heights vary in a clear stepped rhythm"] },
+          { "id": "blossom_heads", "parent": "stem_cluster", "importance": "primary", "role": "Carries the restrained color accent visible over meadow grass", "shape": "Simple low-sided petal fans around compact centers", "count": "one per dominant stem", "cues": ["Blossoms face varied directions", "Accent color remains a small area"] },
+          { "id": "ground_leaves", "parent": "stem_cluster", "importance": "secondary", "role": "Connects stems to the terrain and broadens the base silhouette", "shape": "Short tapered leaf planes angled close to the ground", "count": "4-8 leaves", "cues": ["Leaves overlap soil at their roots", "No symmetric rosette"] }
+        ],
+        "silhouette": [
+          "Unequal blossom heights make a loose triangular rhythm rather than a bouquet dome.",
+          "One or two flower heads lead while the remaining heads support the silhouette.",
+          "Low ground leaves widen the base without creating a circular rosette."
+        ],
+        "negativeSpace": [
+          "Keep daylight gaps between dominant stems visible from front and side views.",
+          "Separate adjacent blossom heads so their petal fans do not merge into one color blob."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear stems fill the volume with different heights and headings rather than duplicating the front.",
+            "Every side view retains at least two separated blossom heads and a grounded leaf base."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "blossom_separation", "componentIds": ["stem_cluster", "blossom_heads"], "requirement": "Flower heads stay individually readable and do not merge into a single saturated cluster.", "priority": "must" },
+          { "id": "restrained_accent", "componentIds": ["blossom_heads"], "requirement": "Accent petals remain subordinate to grass and foliage colors at gameplay distance.", "priority": "must" },
+          { "id": "planted_stems", "componentIds": ["stem_cluster", "ground_leaves"], "requirement": "All stems visually emerge from a low planted base with no floating geometry.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "stemCount", "componentIds": ["stem_cluster", "blossom_heads"], "purpose": "Controls blossom density while preserving separation and an unequal height hierarchy." },
+          { "parameter": "height", "componentIds": ["stem_cluster"], "purpose": "Controls the dominant vertical read relative to surrounding grass cover." },
+          { "parameter": "spread", "componentIds": ["stem_cluster", "ground_leaves"], "purpose": "Controls the ground footprint and negative space between stems." }
+        ],
+        "failureModes": [
+          "Blossoms merge into a bright spherical bouquet that dominates the terrain.",
+          "Stems are evenly spaced or equal height, creating a procedural picket-fence rhythm.",
+          "The plant floats, lacks a leaf base, or collapses into one flat billboard from the side."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "foliage_wildflower_b", "file": "foliage_wildflower_b.glb", "family": "vegetation", "generator": "wildflower_clump", "seed": 137,
+      "dimensions": { "width": 0.9, "depth": 0.8, "height": 0.72 },
+      "palette": ["foliage_olive_01", "accent_ochre_01", "wood_honey_01"],
+      "budget": { "trianglesMin": 140, "trianglesTarget": 924, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_wildflower_b_root", "requiredNodes": ["foliage_wildflower_b_root"], "readDistanceMeters": 15,
+      "parameters": { "stemCount": 6, "height": 0.68, "spread": 0.38, "petals": 5 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Small coastal wildflower clump with layered stems, sparse blossoms, and meadow-scale readability",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines Neva's restrained accent colors, broad facets, authored asymmetry, and gameplay-camera readability." }
+        ],
+        "components": [
+          { "id": "stem_cluster", "parent": "root", "importance": "primary", "role": "Provides a grounded branching scaffold for the flower heads", "shape": "Several slender faceted stems rising in unequal arcs", "count": "stemCount stems", "cues": ["Stems begin as one loose ground cluster", "Heights vary in a clear stepped rhythm"] },
+          { "id": "blossom_heads", "parent": "stem_cluster", "importance": "primary", "role": "Carries the restrained color accent visible over meadow grass", "shape": "Simple low-sided petal fans around compact centers", "count": "one per dominant stem", "cues": ["Blossoms face varied directions", "Accent color remains a small area"] },
+          { "id": "ground_leaves", "parent": "stem_cluster", "importance": "secondary", "role": "Connects stems to the terrain and broadens the base silhouette", "shape": "Short tapered leaf planes angled close to the ground", "count": "4-8 leaves", "cues": ["Leaves overlap soil at their roots", "No symmetric rosette"] }
+        ],
+        "silhouette": [
+          "Unequal blossom heights make a loose triangular rhythm rather than a bouquet dome.",
+          "One or two flower heads lead while the remaining heads support the silhouette.",
+          "Low ground leaves widen the base without creating a circular rosette."
+        ],
+        "negativeSpace": [
+          "Keep daylight gaps between dominant stems visible from front and side views.",
+          "Separate adjacent blossom heads so their petal fans do not merge into one color blob."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear stems fill the volume with different heights and headings rather than duplicating the front.",
+            "Every side view retains at least two separated blossom heads and a grounded leaf base."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "blossom_separation", "componentIds": ["stem_cluster", "blossom_heads"], "requirement": "Flower heads stay individually readable and do not merge into a single saturated cluster.", "priority": "must" },
+          { "id": "restrained_accent", "componentIds": ["blossom_heads"], "requirement": "Accent petals remain subordinate to grass and foliage colors at gameplay distance.", "priority": "must" },
+          { "id": "planted_stems", "componentIds": ["stem_cluster", "ground_leaves"], "requirement": "All stems visually emerge from a low planted base with no floating geometry.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "stemCount", "componentIds": ["stem_cluster", "blossom_heads"], "purpose": "Controls blossom density while preserving separation and an unequal height hierarchy." },
+          { "parameter": "height", "componentIds": ["stem_cluster"], "purpose": "Controls the dominant vertical read relative to surrounding grass cover." },
+          { "parameter": "spread", "componentIds": ["stem_cluster", "ground_leaves"], "purpose": "Controls the ground footprint and negative space between stems." }
+        ],
+        "failureModes": [
+          "Blossoms merge into a bright spherical bouquet that dominates the terrain.",
+          "Stems are evenly spaced or equal height, creating a procedural picket-fence rhythm.",
+          "The plant floats, lacks a leaf base, or collapses into one flat billboard from the side."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "foliage_wildflower_c", "file": "foliage_wildflower_c.glb", "family": "vegetation", "generator": "wildflower_clump", "seed": 139,
+      "dimensions": { "width": 0.75, "depth": 0.7, "height": 0.54 },
+      "palette": ["foliage_sage_01", "accent_red_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 100, "trianglesTarget": 880, "trianglesMax": 950, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "foliage_wildflower_c_root", "requiredNodes": ["foliage_wildflower_c_root"], "readDistanceMeters": 15,
+      "parameters": { "stemCount": 5, "height": 0.50, "spread": 0.32, "petals": 6 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Small coastal wildflower clump with layered stems, sparse blossoms, and meadow-scale readability",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines Neva's restrained accent colors, broad facets, authored asymmetry, and gameplay-camera readability." }
+        ],
+        "components": [
+          { "id": "stem_cluster", "parent": "root", "importance": "primary", "role": "Provides a grounded branching scaffold for the flower heads", "shape": "Several slender faceted stems rising in unequal arcs", "count": "stemCount stems", "cues": ["Stems begin as one loose ground cluster", "Heights vary in a clear stepped rhythm"] },
+          { "id": "blossom_heads", "parent": "stem_cluster", "importance": "primary", "role": "Carries the restrained color accent visible over meadow grass", "shape": "Simple low-sided petal fans around compact centers", "count": "one per dominant stem", "cues": ["Blossoms face varied directions", "Accent color remains a small area"] },
+          { "id": "ground_leaves", "parent": "stem_cluster", "importance": "secondary", "role": "Connects stems to the terrain and broadens the base silhouette", "shape": "Short tapered leaf planes angled close to the ground", "count": "4-8 leaves", "cues": ["Leaves overlap soil at their roots", "No symmetric rosette"] }
+        ],
+        "silhouette": [
+          "Unequal blossom heights make a loose triangular rhythm rather than a bouquet dome.",
+          "One or two flower heads lead while the remaining heads support the silhouette.",
+          "Low ground leaves widen the base without creating a circular rosette."
+        ],
+        "negativeSpace": [
+          "Keep daylight gaps between dominant stems visible from front and side views.",
+          "Separate adjacent blossom heads so their petal fans do not merge into one color blob."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear stems fill the volume with different heights and headings rather than duplicating the front.",
+            "Every side view retains at least two separated blossom heads and a grounded leaf base."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "blossom_separation", "componentIds": ["stem_cluster", "blossom_heads"], "requirement": "Flower heads stay individually readable and do not merge into a single saturated cluster.", "priority": "must" },
+          { "id": "restrained_accent", "componentIds": ["blossom_heads"], "requirement": "Accent petals remain subordinate to grass and foliage colors at gameplay distance.", "priority": "must" },
+          { "id": "planted_stems", "componentIds": ["stem_cluster", "ground_leaves"], "requirement": "All stems visually emerge from a low planted base with no floating geometry.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "stemCount", "componentIds": ["stem_cluster", "blossom_heads"], "purpose": "Controls blossom density while preserving separation and an unequal height hierarchy." },
+          { "parameter": "height", "componentIds": ["stem_cluster"], "purpose": "Controls the dominant vertical read relative to surrounding grass cover." },
+          { "parameter": "spread", "componentIds": ["stem_cluster", "ground_leaves"], "purpose": "Controls the ground footprint and negative space between stems." }
+        ],
+        "failureModes": [
+          "Blossoms merge into a bright spherical bouquet that dominates the terrain.",
+          "Stems are evenly spaced or equal height, creating a procedural picket-fence rhythm.",
+          "The plant floats, lacks a leaf base, or collapses into one flat billboard from the side."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
 
     {
       "id": "rock_boulder_a", "file": "rock_boulder_a.glb", "family": "rock", "generator": "faceted_rock", "seed": 3,
@@ -65,16 +578,64 @@
       "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
       "rootNode": "rock_boulder_a_root", "requiredNodes": ["rock_boulder_a_root", "COL_rock_boulder_a"], "readDistanceMeters": 30,
-      "parameters": { "scale": [1.8, 1.4, 1.2], "profile": "inland", "clusterCount": 3, "fractureCount": 4 }
+      "parameters": { "scale": [1.8, 1.4, 1.2], "profile": "inland", "silhouette": "cluster", "tilt": 0.08, "clusterCount": 3, "fractureCount": 4 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.78, 0], "halfExtents": [1.485, 0.78, 1.155] }]
     },
     {
       "id": "rock_coastal_a", "file": "rock_coastal_a.glb", "family": "rock", "generator": "faceted_rock", "seed": 7,
-      "dimensions": { "width": 4.4, "depth": 3.2, "height": 2.8 },
-      "palette": ["rock_coastal_dark_01", "stone_cool_01"],
+      "dimensions": { "width": 4.8, "depth": 3.2, "height": 3.2 },
+      "palette": ["rock_coastal_dark_01"],
       "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
-      "rootNode": "rock_coastal_a_root", "requiredNodes": ["rock_coastal_a_root", "COL_rock_coastal_a"], "readDistanceMeters": 30,
-      "parameters": { "scale": [2.2, 1.6, 1.4], "profile": "coastal", "clusterCount": 3, "fractureCount": 4 }
+      "rootNode": "rock_coastal_a_root", "requiredNodes": ["rock_coastal_a_root", "rock_coastal_a_LOD0", "rock_coastal_a_LOD1", "COL_rock_coastal_a"], "readDistanceMeters": 30,
+      "parameters": { "scale": [2.2, 1.45, 1.55], "profile": "coastal", "silhouette": "spine", "tilt": 0.12, "clusterCount": 1, "fractureCount": 4 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 1.0075, 0], "halfExtents": [1.815, 1.0075, 1.19625] }],
+      "lodLevels": [
+        { "node": "rock_coastal_a_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "rock_coastal_a_LOD1", "distanceMeters": 22, "triangleRatioMin": 0.04, "triangleRatioMax": 0.45 }
+      ]
+    },
+    {
+      "id": "rock_coastal_b", "file": "rock_coastal_b.glb", "family": "rock", "generator": "faceted_rock", "seed": 19,
+      "dimensions": { "width": 5.8, "depth": 3.8, "height": 2.4 },
+      "palette": ["rock_coastal_dark_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
+      "rootNode": "rock_coastal_b_root", "requiredNodes": ["rock_coastal_b_root", "rock_coastal_b_LOD0", "rock_coastal_b_LOD1", "COL_rock_coastal_b"], "readDistanceMeters": 30,
+      "parameters": { "scale": [2.5, 1.7, 1.1], "profile": "coastal", "silhouette": "shelf", "tilt": -0.05, "clusterCount": 2, "fractureCount": 6 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.715, 0], "halfExtents": [2.0625, 0.715, 1.4025] }],
+      "lodLevels": [
+        { "node": "rock_coastal_b_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "rock_coastal_b_LOD1", "distanceMeters": 22, "triangleRatioMin": 0.04, "triangleRatioMax": 0.45 }
+      ]
+    },
+    {
+      "id": "rock_coastal_c", "file": "rock_coastal_c.glb", "family": "rock", "generator": "faceted_rock", "seed": 29,
+      "dimensions": { "width": 4.6, "depth": 3.6, "height": 4.2 },
+      "palette": ["rock_coastal_dark_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
+      "rootNode": "rock_coastal_c_root", "requiredNodes": ["rock_coastal_c_root", "rock_coastal_c_LOD0", "rock_coastal_c_LOD1", "COL_rock_coastal_c"], "readDistanceMeters": 30,
+      "parameters": { "scale": [1.9, 1.5, 1.8], "profile": "coastal", "silhouette": "stack", "tilt": 0.07, "clusterCount": 3, "fractureCount": 5 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 1.17, 0], "halfExtents": [1.5675, 1.17, 1.2375] }],
+      "lodLevels": [
+        { "node": "rock_coastal_c_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "rock_coastal_c_LOD1", "distanceMeters": 23, "triangleRatioMin": 0.04, "triangleRatioMax": 0.45 }
+      ]
+    },
+    {
+      "id": "rock_coastal_d", "file": "rock_coastal_d.glb", "family": "rock", "generator": "faceted_rock", "seed": 43,
+      "dimensions": { "width": 5.0, "depth": 3.9, "height": 3.2 },
+      "palette": ["rock_coastal_dark_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "medium",
+      "rootNode": "rock_coastal_d_root", "requiredNodes": ["rock_coastal_d_root", "rock_coastal_d_LOD0", "rock_coastal_d_LOD1", "COL_rock_coastal_d"], "readDistanceMeters": 30,
+      "parameters": { "scale": [2.2, 1.65, 1.4], "profile": "coastal", "silhouette": "cleft", "tilt": -0.10, "clusterCount": 3, "fractureCount": 4 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.91, 0], "halfExtents": [1.815, 0.91, 1.36125] }],
+      "lodLevels": [
+        { "node": "rock_coastal_d_LOD0", "distanceMeters": 0, "triangleRatioMin": 1.0, "triangleRatioMax": 1.0 },
+        { "node": "rock_coastal_d_LOD1", "distanceMeters": 23, "triangleRatioMin": 0.04, "triangleRatioMax": 0.45 }
+      ]
     },
     {
       "id": "rock_field_a", "file": "rock_field_a.glb", "family": "rock", "generator": "faceted_rock", "seed": 12,
@@ -83,72 +644,271 @@
       "budget": { "trianglesMin": 100, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "rock_field_a_root", "requiredNodes": ["rock_field_a_root"], "readDistanceMeters": 15,
-      "parameters": { "scale": [1.0, 0.9, 0.7], "profile": "field", "clusterCount": 3, "fractureCount": 3 }
+      "parameters": { "scale": [1.0, 0.9, 0.7], "profile": "field", "silhouette": "shelf", "tilt": 0.04, "clusterCount": 3, "fractureCount": 3 }
+    },
+    {
+      "id": "rock_pebble_cluster_a", "file": "rock_pebble_cluster_a.glb", "family": "rock", "generator": "pebble_cluster", "seed": 149,
+      "dimensions": { "width": 1.0, "depth": 0.8, "height": 0.22 },
+      "palette": ["stone_golden_01", "stone_warm_01"],
+      "budget": { "trianglesMin": 30, "trianglesTarget": 140, "trianglesMax": 400, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "rock_pebble_cluster_a_root", "requiredNodes": ["rock_pebble_cluster_a_root"], "readDistanceMeters": 15,
+      "parameters": { "count": 7, "spread": 0.46, "size": 0.16 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Ground-hugging faceted pebble cluster with varied stone sizes and an eroded coastal scatter rhythm",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density." }
+        ],
+        "components": [
+          { "id": "primary_pebble", "parent": "root", "importance": "primary", "role": "Establishes the cluster scale and dominant directional gesture", "shape": "Low irregular faceted stone with a compressed crown", "count": "1 stone", "cues": ["Largest stone sits off center", "Broad face remains readable from above"] },
+          { "id": "support_pebbles", "parent": "root", "importance": "primary", "role": "Builds a loose eroded grouping around the dominant stone", "shape": "Varied flattened polyhedra with different axes and tilts", "count": "majority of count", "cues": ["At least three distinct sizes", "No repeated orientation sequence"] },
+          { "id": "edge_chips", "parent": "support_pebbles", "importance": "secondary", "role": "Tapers the scatter into the surrounding soil or shore", "shape": "Small low wedges placed along two uneven outer arcs", "count": "1-3 stones", "cues": ["Edges fade asymmetrically", "Chips never form a ring"] }
+        ],
+        "silhouette": [
+          "The cluster forms an irregular low wedge rather than a circular pile.",
+          "One dominant stone and two supporting peaks control the top-down read.",
+          "Small edge chips taper the group into terrain along unequal sides."
+        ],
+        "negativeSpace": [
+          "Preserve visible ground gaps between the largest three stones.",
+          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
+            "Rear stones vary their axes while supporting the same off-center dominant mass."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "size_hierarchy", "componentIds": ["primary_pebble", "support_pebbles"], "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.", "priority": "must" },
+          { "id": "ground_contact", "componentIds": ["primary_pebble", "support_pebbles", "edge_chips"], "requirement": "Every stone sits low enough to read as embedded in the terrain surface.", "priority": "must" },
+          { "id": "eroded_scatter", "componentIds": ["support_pebbles", "edge_chips"], "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "count", "componentIds": ["primary_pebble", "support_pebbles", "edge_chips"], "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers." },
+          { "parameter": "spread", "componentIds": ["support_pebbles", "edge_chips"], "purpose": "Controls cluster footprint and the amount of visible ground between stones." },
+          { "parameter": "size", "componentIds": ["primary_pebble", "support_pebbles"], "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy." }
+        ],
+        "failureModes": [
+          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
+          "All stones share one size and orientation, producing a stamped procedural look.",
+          "Stones float above terrain or expose deep undersides from the gameplay camera."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "rock_pebble_cluster_b", "file": "rock_pebble_cluster_b.glb", "family": "rock", "generator": "pebble_cluster", "seed": 151,
+      "dimensions": { "width": 0.85, "depth": 0.7, "height": 0.18 },
+      "palette": ["stone_cool_01", "stone_warm_01"],
+      "budget": { "trianglesMin": 25, "trianglesTarget": 120, "trianglesMax": 360, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "rock_pebble_cluster_b_root", "requiredNodes": ["rock_pebble_cluster_b_root"], "readDistanceMeters": 15,
+      "parameters": { "count": 6, "spread": 0.39, "size": 0.14 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Ground-hugging faceted pebble cluster with varied stone sizes and an eroded coastal scatter rhythm",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density." }
+        ],
+        "components": [
+          { "id": "primary_pebble", "parent": "root", "importance": "primary", "role": "Establishes the cluster scale and dominant directional gesture", "shape": "Low irregular faceted stone with a compressed crown", "count": "1 stone", "cues": ["Largest stone sits off center", "Broad face remains readable from above"] },
+          { "id": "support_pebbles", "parent": "root", "importance": "primary", "role": "Builds a loose eroded grouping around the dominant stone", "shape": "Varied flattened polyhedra with different axes and tilts", "count": "majority of count", "cues": ["At least three distinct sizes", "No repeated orientation sequence"] },
+          { "id": "edge_chips", "parent": "support_pebbles", "importance": "secondary", "role": "Tapers the scatter into the surrounding soil or shore", "shape": "Small low wedges placed along two uneven outer arcs", "count": "1-3 stones", "cues": ["Edges fade asymmetrically", "Chips never form a ring"] }
+        ],
+        "silhouette": [
+          "The cluster forms an irregular low wedge rather than a circular pile.",
+          "One dominant stone and two supporting peaks control the top-down read.",
+          "Small edge chips taper the group into terrain along unequal sides."
+        ],
+        "negativeSpace": [
+          "Preserve visible ground gaps between the largest three stones.",
+          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
+            "Rear stones vary their axes while supporting the same off-center dominant mass."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "size_hierarchy", "componentIds": ["primary_pebble", "support_pebbles"], "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.", "priority": "must" },
+          { "id": "ground_contact", "componentIds": ["primary_pebble", "support_pebbles", "edge_chips"], "requirement": "Every stone sits low enough to read as embedded in the terrain surface.", "priority": "must" },
+          { "id": "eroded_scatter", "componentIds": ["support_pebbles", "edge_chips"], "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "count", "componentIds": ["primary_pebble", "support_pebbles", "edge_chips"], "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers." },
+          { "parameter": "spread", "componentIds": ["support_pebbles", "edge_chips"], "purpose": "Controls cluster footprint and the amount of visible ground between stones." },
+          { "parameter": "size", "componentIds": ["primary_pebble", "support_pebbles"], "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy." }
+        ],
+        "failureModes": [
+          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
+          "All stones share one size and orientation, producing a stamped procedural look.",
+          "Stones float above terrain or expose deep undersides from the gameplay camera."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "rock_pebble_cluster_c", "file": "rock_pebble_cluster_c.glb", "family": "rock", "generator": "pebble_cluster", "seed": 157,
+      "dimensions": { "width": 1.2, "depth": 0.9, "height": 0.26 },
+      "palette": ["rock_coastal_dark_01", "stone_cool_01"],
+      "budget": { "trianglesMin": 35, "trianglesTarget": 180, "trianglesMax": 450, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "rock_pebble_cluster_c_root", "requiredNodes": ["rock_pebble_cluster_c_root"], "readDistanceMeters": 15,
+      "parameters": { "count": 9, "spread": 0.54, "size": 0.17 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Ground-hugging faceted pebble cluster with varied stone sizes and an eroded coastal scatter rhythm",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density." }
+        ],
+        "components": [
+          { "id": "primary_pebble", "parent": "root", "importance": "primary", "role": "Establishes the cluster scale and dominant directional gesture", "shape": "Low irregular faceted stone with a compressed crown", "count": "1 stone", "cues": ["Largest stone sits off center", "Broad face remains readable from above"] },
+          { "id": "support_pebbles", "parent": "root", "importance": "primary", "role": "Builds a loose eroded grouping around the dominant stone", "shape": "Varied flattened polyhedra with different axes and tilts", "count": "majority of count", "cues": ["At least three distinct sizes", "No repeated orientation sequence"] },
+          { "id": "edge_chips", "parent": "support_pebbles", "importance": "secondary", "role": "Tapers the scatter into the surrounding soil or shore", "shape": "Small low wedges placed along two uneven outer arcs", "count": "1-3 stones", "cues": ["Edges fade asymmetrically", "Chips never form a ring"] }
+        ],
+        "silhouette": [
+          "The cluster forms an irregular low wedge rather than a circular pile.",
+          "One dominant stone and two supporting peaks control the top-down read.",
+          "Small edge chips taper the group into terrain along unequal sides."
+        ],
+        "negativeSpace": [
+          "Preserve visible ground gaps between the largest three stones.",
+          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
+            "Rear stones vary their axes while supporting the same off-center dominant mass."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "size_hierarchy", "componentIds": ["primary_pebble", "support_pebbles"], "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.", "priority": "must" },
+          { "id": "ground_contact", "componentIds": ["primary_pebble", "support_pebbles", "edge_chips"], "requirement": "Every stone sits low enough to read as embedded in the terrain surface.", "priority": "must" },
+          { "id": "eroded_scatter", "componentIds": ["support_pebbles", "edge_chips"], "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "count", "componentIds": ["primary_pebble", "support_pebbles", "edge_chips"], "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers." },
+          { "parameter": "spread", "componentIds": ["support_pebbles", "edge_chips"], "purpose": "Controls cluster footprint and the amount of visible ground between stones." },
+          { "parameter": "size", "componentIds": ["primary_pebble", "support_pebbles"], "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy." }
+        ],
+        "failureModes": [
+          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
+          "All stones share one size and orientation, producing a stamped procedural look.",
+          "Stones float above terrain or expose deep undersides from the gameplay camera."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
     },
 
     {
       "id": "house_farmhouse_a", "file": "house_farmhouse_a.glb", "family": "architecture", "generator": "farmhouse", "seed": 201,
-      "dimensions": { "width": 7.4, "depth": 6.0, "height": 6.1 },
-      "palette": ["stone_warm_01", "plaster_cream_01", "wood_honey_01", "wood_dark_01", "roof_terracotta_01"],
-      "budget": { "trianglesMin": 1500, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
-      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "dimensions": { "width": 7.4, "depth": 6.2, "height": 6.2 },
+      "palette": ["stone_warm_01", "plaster_cream_01", "wood_honey_01", "wood_dark_01", "roof_terracotta_01", "emissive_window_01", "emissive_lantern_01"],
+      "budget": { "trianglesMin": 600, "trianglesTarget": 3500, "trianglesMax": 12000, "materialsMax": 7 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "hero",
       "rootNode": "house_farmhouse_a_root", "requiredNodes": ["house_farmhouse_a_root", "COL_house_farmhouse_a"], "readDistanceMeters": 30,
-      "parameters": { "width": 6.6, "depth": 4.8, "wallHeight": 3.1, "roofPitchDeg": 34, "foundationCourses": 3, "foundationBlocks": 12, "roofRows": 6, "roofColumns": 7, "porchPlanks": 12, "chimneyCourses": 5 }
+      "parameters": { "width": 6.6, "depth": 4.8, "wallHeight": 3.1, "roofPitchDeg": 34 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 2.1, 0], "halfExtents": [3.3, 2.1, 2.4] }]
     },
     {
       "id": "building_lighthouse_a", "file": "building_lighthouse_a.glb", "family": "architecture", "generator": "lighthouse", "seed": 211,
-      "dimensions": { "width": 5.2, "depth": 5.2, "height": 13.5 },
-      "palette": ["stone_warm_01", "plaster_cream_01", "roof_deep_red_01", "metal_brass_01", "emissive_lantern_01"],
-      "budget": { "trianglesMin": 1200, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
+      "dimensions": { "width": 6.2, "depth": 5.4, "height": 13.5 },
+      "palette": ["stone_warm_01", "plaster_cream_01", "roof_deep_red_01", "metal_brass_01", "emissive_lantern_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 600, "trianglesTarget": 3500, "trianglesMax": 12000, "materialsMax": 6 },
       "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
-      "rootNode": "building_lighthouse_a_root", "requiredNodes": ["building_lighthouse_a_root", "COL_building_lighthouse_a"], "readDistanceMeters": 60,
-      "parameters": { "height": 12.8, "baseRadius": 2.45, "sides": 12, "masonryCourses": 18, "blocksPerCourse": 12 }
+      "rootNode": "building_lighthouse_a_root", "requiredNodes": ["building_lighthouse_a_root", "lighthouse_lantern_beacon", "COL_building_lighthouse_a"], "readDistanceMeters": 60,
+      "parameters": { "height": 12.8, "baseRadius": 2.45, "sides": 12 },
+      "collisionPrimitives": [
+        { "id": "main", "center": [0, 5.376, 0], "halfExtents": [2.25, 5.376, 1.15] },
+        { "id": "cross_60", "center": [0, 5.376, 0], "halfExtents": [2.25, 5.376, 1.15], "yawDegrees": 60 },
+        { "id": "cross_120", "center": [0, 5.376, 0], "halfExtents": [2.25, 5.376, 1.15], "yawDegrees": 120 }
+      ]
     },
     {
       "id": "building_windmill_a", "file": "building_windmill_a.glb", "family": "architecture", "generator": "windmill", "seed": 223,
       "dimensions": { "width": 8.0, "depth": 4.8, "height": 10.0 },
-      "palette": ["stone_golden_01", "wood_honey_01", "roof_turf_01", "canvas_cream_01"],
-      "budget": { "trianglesMin": 1000, "trianglesTarget": 6000, "trianglesMax": 10000, "materialsMax": 4 },
+      "palette": ["stone_golden_01", "wood_honey_01", "roof_turf_01", "canvas_cream_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 3000, "trianglesMax": 10000, "materialsMax": 5 },
       "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
       "rootNode": "building_windmill_a_root", "requiredNodes": ["building_windmill_a_root", "windmill_rotor", "COL_building_windmill_a"], "readDistanceMeters": 60,
-      "parameters": { "height": 7.6, "baseRadius": 2.3, "sides": 10, "masonryCourses": 9, "blocksPerCourse": 10, "sailBattens": 6 }
+      "parameters": { "height": 7.8, "baseRadius": 2.3, "sides": 10 },
+      "collisionPrimitives": [
+        { "id": "main", "center": [0, 3.192, 0], "halfExtents": [2.1, 3.192, 1.05] },
+        { "id": "cross_60", "center": [0, 3.192, 0], "halfExtents": [2.1, 3.192, 1.05], "yawDegrees": 60 },
+        { "id": "cross_120", "center": [0, 3.192, 0], "halfExtents": [2.1, 3.192, 1.05], "yawDegrees": 120 }
+      ]
     },
     {
       "id": "bridge_stone_a", "file": "bridge_stone_a.glb", "family": "architecture", "generator": "stone_bridge", "seed": 229,
       "dimensions": { "width": 14.8, "depth": 4.2, "height": 4.2 },
-      "palette": ["stone_golden_01", "stone_warm_01", "wood_weathered_01"],
-      "budget": { "trianglesMin": 1200, "trianglesTarget": 9000, "trianglesMax": 16000, "materialsMax": 6 },
+      "palette": ["stone_golden_01", "stone_warm_01", "wood_weathered_01", "wood_dark_01", "emissive_lantern_01"],
+      "budget": { "trianglesMin": 600, "trianglesTarget": 3500, "trianglesMax": 12000, "materialsMax": 6 },
       "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
       "rootNode": "bridge_stone_a_root", "requiredNodes": ["bridge_stone_a_root", "COL_bridge_stone_a"], "readDistanceMeters": 60,
-      "parameters": { "length": 14.2, "width": 3.8, "archCount": 2, "deckSegments": 13, "cobbleLanes": 4, "abutmentCourses": 4, "voussoirBlocks": 11, "voussoirStartDeg": 30, "voussoirEndDeg": 150 }
+      "parameters": { "length": 14.2, "width": 3.8, "archCount": 2 },
+      "collisionPrimitives": [
+        { "id": "deck_01", "center": [-6.4545, 2.4280, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_02", "center": [-5.1636, 2.6303, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_03", "center": [-3.8727, 2.7877, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_04", "center": [-2.5818, 2.9001, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_05", "center": [-1.2909, 2.9675, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "main", "center": [0, 2.9900, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_07", "center": [1.2909, 2.9675, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_08", "center": [2.5818, 2.9001, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_09", "center": [3.8727, 2.7877, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_10", "center": [5.1636, 2.6303, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "deck_11", "center": [6.4545, 2.4280, 0], "halfExtents": [0.6455, 0.28, 1.9] },
+        { "id": "rail_left_west", "center": [-3.55, 3.48, -1.92], "halfExtents": [3.55, 0.70, 0.10] },
+        { "id": "rail_left_east", "center": [3.55, 3.48, -1.92], "halfExtents": [3.55, 0.70, 0.10] },
+        { "id": "rail_right_west", "center": [-3.55, 3.48, 1.92], "halfExtents": [3.55, 0.70, 0.10] },
+        { "id": "rail_right_east", "center": [3.55, 3.48, 1.92], "halfExtents": [3.55, 0.70, 0.10] }
+      ]
     },
     {
       "id": "dock_straight_a", "file": "dock_straight_a.glb", "family": "architecture", "generator": "working_dock", "seed": 233,
       "dimensions": { "width": 8.2, "depth": 4.0, "height": 5.5 },
-      "palette": ["wood_honey_01", "wood_weathered_01", "accent_red_01", "canvas_cream_01"],
-      "budget": { "trianglesMin": 800, "trianglesTarget": 9000, "trianglesMax": 16000, "materialsMax": 6 },
+      "palette": ["wood_honey_01", "wood_weathered_01", "accent_red_01", "canvas_cream_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 3000, "trianglesMax": 12000, "materialsMax": 6 },
       "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
       "rootNode": "dock_straight_a_root", "requiredNodes": ["dock_straight_a_root", "COL_dock_straight_a"], "readDistanceMeters": 30,
-      "parameters": { "length": 8.0, "width": 3.6, "planks": 18, "canopy": true, "surfaceBoards": 64, "underBeams": 12, "counterSlats": 16 }
+      "parameters": { "length": 8.0, "width": 3.6, "canopy": true },
+      "collisionPrimitives": [
+        { "id": "deck", "center": [0, 1.42, 0], "halfExtents": [4, 0.16, 1.8] },
+        { "id": "piles_west", "center": [-3.68, 0.75, 0], "halfExtents": [0.24, 0.75, 1.86] },
+        { "id": "piles_mid_west", "center": [-1.2, 0.75, 0], "halfExtents": [0.24, 0.75, 1.86] },
+        { "id": "piles_mid_east", "center": [1.28, 0.75, 0], "halfExtents": [0.24, 0.75, 1.86] },
+        { "id": "piles_east", "center": [3.68, 0.75, 0], "halfExtents": [0.24, 0.75, 1.86] }
+      ]
     },
     {
       "id": "building_fish_market_a", "file": "building_fish_market_a.glb", "family": "architecture", "generator": "fish_market", "seed": 239,
       "dimensions": { "width": 8.8, "depth": 6.4, "height": 6.0 },
-      "palette": ["stone_warm_01", "wood_weathered_01", "roof_deep_red_01", "accent_teal_01", "canvas_cream_01"],
-      "budget": { "trianglesMin": 1500, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
-      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "palette": ["stone_warm_01", "wood_weathered_01", "roof_deep_red_01", "accent_teal_01", "canvas_cream_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 600, "trianglesTarget": 3500, "trianglesMax": 12000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "hero",
       "rootNode": "building_fish_market_a_root", "requiredNodes": ["building_fish_market_a_root", "COL_building_fish_market_a"], "readDistanceMeters": 30,
-      "parameters": { "width": 7.4, "depth": 5.4, "wallHeight": 3.2, "roofPitchDeg": 32, "foundationCourses": 3, "foundationBlocks": 13, "roofRows": 6, "roofColumns": 8, "counterSlats": 14 }
+      "parameters": { "width": 7.4, "depth": 5.4, "wallHeight": 3.2, "roofPitchDeg": 32 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 2.2, 0], "halfExtents": [3.7, 2.2, 2.7] }]
     },
 
     {
       "id": "prop_water_well_a", "file": "prop_water_well_a.glb", "family": "prop", "generator": "water_well", "seed": 301,
       "dimensions": { "width": 2.2, "depth": 1.9, "height": 2.8 },
       "palette": ["stone_warm_01", "wood_dark_01", "roof_terracotta_01", "metal_dark_01"],
-      "budget": { "trianglesMin": 300, "trianglesTarget": 3000, "trianglesMax": 6000, "materialsMax": 4 },
+      "budget": { "trianglesMin": 200, "trianglesTarget": 1500, "trianglesMax": 6000, "materialsMax": 4 },
       "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "small",
       "rootNode": "prop_water_well_a_root", "requiredNodes": ["prop_water_well_a_root", "COL_prop_water_well_a"], "readDistanceMeters": 15,
-      "parameters": { "radius": 0.85, "height": 2.5, "masonryCourses": 4, "blocksPerCourse": 12, "roofRows": 4, "roofColumns": 5 }
+      "parameters": { "radius": 0.95 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0, 1.4], "halfExtents": [1.1, 0.95, 1.4] }]
     },
     {
       "id": "prop_pumpkin_patch_a", "file": "prop_pumpkin_patch_a.glb", "family": "prop", "generator": "pumpkin_patch", "seed": 307,
@@ -169,13 +929,23 @@
       "parameters": { "ribs": 7, "length": 1.0, "netColumns": 4, "netRows": 3 }
     },
     {
+      "id": "prop_fishing_net_rack_a", "file": "prop_fishing_net_rack_a.glb", "family": "prop", "generator": "fishing_net_rack", "seed": 319,
+      "dimensions": { "width": 2.7, "depth": 0.9, "height": 2.2 },
+      "palette": ["wood_weathered_01", "wood_wet_01", "metal_dark_01", "accent_teal_01"],
+      "budget": { "trianglesMin": 220, "trianglesTarget": 1000, "trianglesMax": 2800, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "medium",
+      "rootNode": "prop_fishing_net_rack_a_root", "requiredNodes": ["prop_fishing_net_rack_a_root"], "readDistanceMeters": 30,
+      "parameters": { "width": 2.45, "depth": 0.82, "height": 2.1, "netColumns": 7, "netRows": 5, "buoys": 4 }
+    },
+    {
       "id": "prop_crate_wood_a", "file": "prop_crate_wood_a.glb", "family": "prop", "generator": "wood_crate", "seed": 313,
       "dimensions": { "width": 0.9, "depth": 0.9, "height": 0.9 },
       "palette": ["wood_warm_01", "wood_dark_01"],
       "budget": { "trianglesMin": 180, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
       "rootNode": "prop_crate_wood_a_root", "requiredNodes": ["prop_crate_wood_a_root", "COL_prop_crate_wood_a"], "readDistanceMeters": 15,
-      "parameters": { "size": 0.82, "slats": 5 }
+      "parameters": { "size": 0.82, "slats": 5 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.41, 0], "halfExtents": [0.41, 0.41, 0.41] }]
     },
     {
       "id": "prop_barrel_wood_a", "file": "prop_barrel_wood_a.glb", "family": "prop", "generator": "wood_barrel", "seed": 317,
@@ -184,7 +954,8 @@
       "budget": { "trianglesMin": 180, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
       "rootNode": "prop_barrel_wood_a_root", "requiredNodes": ["prop_barrel_wood_a_root", "COL_prop_barrel_wood_a"], "readDistanceMeters": 15,
-      "parameters": { "height": 0.95, "radius": 0.42, "staves": 12 }
+      "parameters": { "height": 0.95, "radius": 0.42, "staves": 12 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.475, 0], "halfExtents": [0.42, 0.475, 0.42] }]
     },
     {
       "id": "prop_fence_wood_a", "file": "prop_fence_wood_a.glb", "family": "prop", "generator": "wood_fence", "seed": 331,
@@ -193,25 +964,569 @@
       "budget": { "trianglesMin": 100, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
       "rootNode": "prop_fence_wood_a_root", "requiredNodes": ["prop_fence_wood_a_root", "COL_prop_fence_wood_a"], "readDistanceMeters": 15,
-      "parameters": { "length": 2.0, "posts": 3, "rails": 2, "railSegments": 7 }
+      "parameters": { "length": 2.0, "posts": 3, "rails": 2, "railSegments": 7 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.6, 0], "halfExtents": [1.0, 0.6, 0.12] }]
     },
     {
       "id": "prop_hay_bale_a", "file": "prop_hay_bale_a.glb", "family": "prop", "generator": "hay_bale", "seed": 337,
       "dimensions": { "width": 1.25, "depth": 1.2, "height": 1.16 },
-      "palette": ["grass_yellow_01", "wood_warm_01"],
+      "palette": ["accent_ochre_01", "wood_warm_01"],
       "budget": { "trianglesMin": 120, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
       "rootNode": "prop_hay_bale_a_root", "requiredNodes": ["prop_hay_bale_a_root", "COL_prop_hay_bale_a"], "readDistanceMeters": 15,
-      "parameters": { "length": 1.2, "radius": 0.58, "bands": 2, "fiberBands": 12 }
+      "parameters": { "length": 1.2, "radius": 0.58, "bands": 2, "fiberBands": 12 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.58, 0], "halfExtents": [0.6, 0.58, 0.58] }]
     },
     {
       "id": "prop_lamp_post_a", "file": "prop_lamp_post_a.glb", "family": "prop", "generator": "lamp_post", "seed": 347,
       "dimensions": { "width": 0.8, "depth": 0.8, "height": 3.7 },
       "palette": ["wood_dark_01", "metal_brass_01", "emissive_lantern_01"],
       "budget": { "trianglesMin": 220, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 3 },
-      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
       "rootNode": "prop_lamp_post_a_root", "requiredNodes": ["prop_lamp_post_a_root"], "readDistanceMeters": 30,
+      "collisionPrimitives": [{ "id": "post", "center": [0, 0, 1.7], "halfExtents": [0.25, 0.25, 1.7] }],
       "parameters": { "height": 3.4, "armLength": 0.55 }
+    },
+    {
+      "id": "prop_worm_compost_a", "file": "prop_worm_compost_a.glb", "family": "prop", "generator": "worm_compost_bin", "seed": 353,
+      "dimensions": { "width": 1.4, "depth": 1.2, "height": 1.1 },
+      "palette": ["wood_warm_01", "wood_dark_01", "soil_warm_01", "metal_dark_01"],
+      "budget": { "trianglesMin": 200, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
+      "rootNode": "prop_worm_compost_a_root", "requiredNodes": ["prop_worm_compost_a_root", "COL_prop_worm_compost_a"], "readDistanceMeters": 15,
+      "parameters": { "width": 1.25, "depth": 1.05, "height": 0.78, "slatCount": 4, "lidAngleDeg": 28, "soilFillRatio": 0.65 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.45, 0], "halfExtents": [0.625, 0.45, 0.525] }],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Sturdy low-poly slatted timber worm compost bin with propped-open angled lid and rich bedding",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": ["form_language", "materials", "detail_density"],
+            "notes": "Defines warm timber faceting, metal strap accents, and grounded farm aesthetic."
+          },
+          {
+            "id": "worm_compost_concept",
+            "kind": "structural_study",
+            "uri": "repo://art/references/prop_worm_compost_a_ref.png",
+            "use": ["silhouette", "proportion", "structure"],
+            "notes": "Hero isometric concept study defining slat spacing, propped lid angle, and soil volume."
+          },
+          {
+            "id": "img2threejs_method",
+            "kind": "method_study",
+            "uri": "https://github.com/img2threejs/img2threejs",
+            "use": ["workflow"],
+            "notes": "Multi-angle structural decomposition and critical-feature verification method."
+          }
+        ],
+        "components": [
+          {
+            "id": "corner_posts",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounded vertical structural columns providing frame strength",
+            "shape": "Four upright low-poly timber posts with chamfered caps",
+            "count": "4 posts",
+            "cues": ["Chamfered pyramidal top caps", "Extends slightly past the topmost slat"]
+          },
+          {
+            "id": "side_slats",
+            "parent": "corner_posts",
+            "importance": "primary",
+            "role": "Horizontal wall enclosure allowing aeration for worm culture",
+            "shape": "Evenly spaced wooden planks around four sides with narrow ventilation gaps",
+            "count": "4 walls x slatCount",
+            "cues": ["Narrow horizontal daylight gaps between boards", "Planar faceted timber bevels"]
+          },
+          {
+            "id": "hinged_lid",
+            "parent": "corner_posts",
+            "importance": "primary",
+            "role": "Protective weather cover tilted open to reveal working compost layer",
+            "shape": "Angled plank panel braced by transverse wooden battens",
+            "count": "1 assembly",
+            "cues": ["Tilted upwards by lidAngleDeg", "Overhangs side frame by 5-10 cm"]
+          },
+          {
+            "id": "lid_prop_arm",
+            "parent": "hinged_lid",
+            "importance": "secondary",
+            "role": "Diagonal timber support prop holding the lid open",
+            "shape": "Slender angled wooden rod notched into the upper side frame",
+            "count": "1 prop arm",
+            "cues": ["Visible under open lid on right side", "Locks lid at comfortable inspection angle"]
+          },
+          {
+            "id": "compost_bedding",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Active vermicompost substrate containing rich soil and worms",
+            "shape": "Faceted undulating dark soil bed inside the lower interior volume",
+            "count": "1 contoured mass",
+            "cues": ["Warm rich earth tone contrasting with timber", "Low-poly faceted surface facets"]
+          },
+          {
+            "id": "iron_hinges",
+            "parent": "corner_posts",
+            "importance": "tertiary",
+            "role": "Heavy dark iron strap hinges and corner brackets",
+            "shape": "Flat rectangular metal plates with low-poly rivet fasteners",
+            "count": "2 hinge plates + 8 corner brackets",
+            "cues": ["Dark metal contrast against warm wood", "Fastener accents on corner joins"]
+          }
+        ],
+        "silhouette": [
+          "Boxy timber bin silhouette broken by an expressive angled lid resting on a diagonal prop arm.",
+          "Prominent corner posts extend past the horizontal slat line to create a stable, grounded silhouette.",
+          "Clear horizontal daylight gaps between side slats prevent the bin from reading as a solid block."
+        ],
+        "negativeSpace": [
+          "Large wedge of daylight between the tilted lid and upper bin rim reveals the interior soil bed.",
+          "Horizontal ventilation gaps between consecutive wooden slats let background light through."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Rear slats and rear corner posts follow the identical horizontal spacing rhythm as front slats.",
+            "Underside of the lid features matching transverse battens and dark metal strap hinge mounts."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "propped_lid_angle",
+            "componentIds": ["hinged_lid", "lid_prop_arm"],
+            "requirement": "The lid remains visibly propped open at an angle to display the active compost interior.",
+            "priority": "must"
+          },
+          {
+            "id": "aeration_slats",
+            "componentIds": ["side_slats", "corner_posts"],
+            "requirement": "Timber planks feature distinct physical gaps rather than a flat textured box texture.",
+            "priority": "must"
+          },
+          {
+            "id": "visible_soil_bedding",
+            "componentIds": ["compost_bedding"],
+            "requirement": "Rich dark faceted vermicompost soil is clearly visible and readable from standard gameplay view.",
+            "priority": "must"
+          },
+          {
+            "id": "metal_hardware_accents",
+            "componentIds": ["iron_hinges"],
+            "requirement": "Dark metal strap hinges and corner brackets provide structural credibility and material richness.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "slatCount",
+            "componentIds": ["side_slats", "corner_posts"],
+            "purpose": "Controls the number of horizontal wooden slat tiers and vertical ventilation spacing."
+          },
+          {
+            "parameter": "lidAngleDeg",
+            "componentIds": ["hinged_lid", "lid_prop_arm"],
+            "purpose": "Controls the tilt angle of the open cover and the length of the support prop arm."
+          },
+          {
+            "parameter": "soilFillRatio",
+            "componentIds": ["compost_bedding"],
+            "purpose": "Controls the depth and elevation of the interior faceted compost substrate layer."
+          }
+        ],
+        "failureModes": [
+          "A solid closed rectangular box without an open lid or visible interior compost bedding.",
+          "Thin paper-like slats without physical thickness or visible daylight aeration gaps.",
+          "Lid floating in mid-air above the bin without a visible hinge attachment or support prop."
+        ],
+        "reviewViews": [
+          "front", "rear", "side", "three_quarter", "gameplay_8m",
+          "gameplay_15m", "gameplay_read_distance", "close_material"
+        ]
+      }
+    },
+    {
+      "id": "prop_wagon_cart_a", "file": "prop_wagon_cart_a.glb", "family": "prop", "generator": "wagon_cart", "seed": 367,
+      "dimensions": { "width": 1.7, "depth": 3.2, "height": 1.4 },
+      "palette": ["wood_honey_01", "wood_dark_01", "burlap_grain_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 400, "trianglesTarget": 2500, "trianglesMax": 6000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "medium",
+      "rootNode": "prop_wagon_cart_a_root", "requiredNodes": ["prop_wagon_cart_a_root", "COL_prop_wagon_cart_a"], "readDistanceMeters": 30,
+      "parameters": { "length": 2.6, "width": 1.4, "height": 1.2 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0, 0.65], "halfExtents": [0.85, 1.6, 0.65] }]
+    },
+    {
+      "id": "prop_produce_crate_a", "file": "prop_produce_crate_a.glb", "family": "prop", "generator": "produce_crate", "seed": 373,
+      "dimensions": { "width": 0.9, "depth": 0.9, "height": 0.8 },
+      "palette": ["wood_warm_01", "wood_dark_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 200, "trianglesTarget": 1200, "trianglesMax": 3000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "box", "instancing": true, "lod": "small",
+      "rootNode": "prop_produce_crate_a_root", "requiredNodes": ["prop_produce_crate_a_root", "COL_prop_produce_crate_a"], "readDistanceMeters": 15,
+      "parameters": { "size": 0.86, "content": "pumpkins" },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0, 0.4], "halfExtents": [0.43, 0.43, 0.4] }]
+    },
+    {
+      "id": "prop_farm_workbench_a", "file": "prop_farm_workbench_a.glb", "family": "prop", "generator": "farm_workbench", "seed": 374,
+      "dimensions": { "width": 2.1, "depth": 0.95, "height": 1.6 },
+      "palette": ["wood_honey_01", "wood_dark_01", "metal_dark_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 800, "trianglesMax": 3200, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "small",
+      "rootNode": "prop_farm_workbench_a_root", "requiredNodes": ["prop_farm_workbench_a_root", "COL_prop_farm_workbench_a"], "readDistanceMeters": 15,
+      "parameters": { "width": 2.0, "depth": 0.88, "topHeight": 0.92 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0, 0.8], "halfExtents": [1.05, 0.48, 0.8] }]
+    },
+    {
+      "id": "prop_produce_stall_a", "file": "prop_produce_stall_a.glb", "family": "prop", "generator": "produce_stall", "seed": 375,
+      "dimensions": { "width": 3.3, "depth": 2.0, "height": 3.0 },
+      "palette": ["wood_honey_01", "wood_dark_01", "canvas_cream_01", "accent_red_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 700, "trianglesTarget": 1000, "trianglesMax": 4500, "materialsMax": 5 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "medium",
+      "rootNode": "prop_produce_stall_a_root", "requiredNodes": ["prop_produce_stall_a_root", "COL_prop_produce_stall_a"], "readDistanceMeters": 30,
+      "parameters": { "width": 3.1, "depth": 1.8, "roofHeight": 2.65 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0, 1.45], "halfExtents": [1.65, 1.0, 1.45] }]
+    },
+    {
+      "id": "tool_seed_pouch_a", "file": "tool_seed_pouch_a.glb", "family": "prop", "generator": "seed_pouch", "seed": 376,
+      "dimensions": { "width": 0.42, "depth": 0.24, "height": 0.55 },
+      "palette": ["burlap_grain_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 80, "trianglesTarget": 100, "trianglesMax": 700, "materialsMax": 2 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "none",
+      "rootNode": "tool_seed_pouch_a_root", "requiredNodes": ["tool_seed_pouch_a_root"], "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
+      "id": "tool_watering_can_a", "file": "tool_watering_can_a.glb", "family": "prop", "generator": "watering_can", "seed": 377,
+      "dimensions": { "width": 0.55, "depth": 0.30, "height": 0.42 },
+      "palette": ["metal_dark_01", "wood_dark_01", "accent_teal_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 150, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "none",
+      "rootNode": "tool_watering_can_a_root", "requiredNodes": ["tool_watering_can_a_root"], "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
+      "id": "tool_sickle_a", "file": "tool_sickle_a.glb", "family": "prop", "generator": "sickle", "seed": 378,
+      "dimensions": { "width": 0.72, "depth": 0.12, "height": 0.72 },
+      "palette": ["wood_honey_01", "metal_dark_01"],
+      "budget": { "trianglesMin": 40, "trianglesTarget": 50, "trianglesMax": 450, "materialsMax": 2 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "none",
+      "rootNode": "tool_sickle_a_root", "requiredNodes": ["tool_sickle_a_root"], "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
+      "id": "prop_crop_bundle_a", "file": "prop_crop_bundle_a.glb", "family": "prop", "generator": "crop_bundle", "seed": 380,
+      "dimensions": { "width": 0.55, "depth": 0.55, "height": 0.85 },
+      "palette": ["grass_yellow_01", "burlap_grain_01", "foliage_olive_01"],
+      "budget": { "trianglesMin": 150, "trianglesTarget": 180, "trianglesMax": 1200, "materialsMax": 3 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "none",
+      "rootNode": "prop_crop_bundle_a_root", "requiredNodes": ["prop_crop_bundle_a_root"], "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
+      "id": "prop_harvest_basket_a", "file": "prop_harvest_basket_a.glb", "family": "prop", "generator": "harvest_basket", "seed": 381,
+      "dimensions": { "width": 0.8, "depth": 0.8, "height": 0.95 },
+      "palette": ["wood_honey_01", "wood_dark_01", "accent_red_01"],
+      "budget": { "trianglesMin": 220, "trianglesTarget": 250, "trianglesMax": 1800, "materialsMax": 3 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "none",
+      "rootNode": "prop_harvest_basket_a_root", "requiredNodes": ["prop_harvest_basket_a_root"], "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
+      "id": "tool_workstation_scoop_a", "file": "tool_workstation_scoop_a.glb", "family": "prop", "generator": "workstation_scoop", "seed": 382,
+      "dimensions": { "width": 0.34, "depth": 0.16, "height": 0.86 },
+      "palette": ["wood_honey_01", "metal_dark_01"],
+      "budget": { "trianglesMin": 24, "trianglesTarget": 30, "trianglesMax": 350, "materialsMax": 2 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "none",
+      "rootNode": "tool_workstation_scoop_a_root", "requiredNodes": ["tool_workstation_scoop_a_root"], "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
+      "id": "tool_fishing_rod_a", "file": "tool_fishing_rod_a.glb", "family": "prop", "generator": "fishing_rod", "seed": 385,
+      "dimensions": { "width": 0.28, "depth": 0.38, "height": 2.35 },
+      "palette": ["wood_honey_01", "wood_dark_01", "metal_brass_01", "roof_terracotta_01", "foam_warm_01"],
+      "budget": { "trianglesMin": 200, "trianglesTarget": 650, "trianglesMax": 1400, "materialsMax": 5 },
+      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "rootNode": "tool_fishing_rod_a_root", "requiredNodes": ["tool_fishing_rod_a_root"], "readDistanceMeters": 8,
+      "parameters": { "length": 2.25, "guideCount": 5, "bendFactor": 0.08, "reelSpoolRadius": 0.055 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Handcrafted coastal fishing rod with contoured timber grip, classic brass fly reel, graduated line guides, and dynamic casting arc",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": ["form_language", "silhouette", "materials", "detail_density"],
+            "notes": "Defines warm tactile low-poly faceting, functional coastal styling, and gameplay readability."
+          }
+        ],
+        "components": [
+          {
+            "id": "grip_handle",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Contoured warm cork/wood grip providing comfortable hand contact and ergonomic silhouette",
+            "shape": "Tapered faceted cylinder with chamfered butt cap and foregrip",
+            "count": "1 connected handle assembly",
+            "cues": ["Readable wood grain token", "Winding bands frame the reel seat"]
+          },
+          {
+            "id": "reel_assembly",
+            "parent": "grip_handle",
+            "importance": "primary",
+            "role": "Machined centerpin reel with crank handle and coiled line drum",
+            "shape": "Ported brass cage frame with central spool, side crank arm, and turning knob",
+            "count": "1 reel unit",
+            "cues": ["Brass metalness", "Visible wound line coil"]
+          },
+          {
+            "id": "tapered_blank",
+            "parent": "grip_handle",
+            "importance": "primary",
+            "role": "Multi-stage flexible rod shaft carrying the casting arc gesture",
+            "shape": "Faceted tapered sections linked by metallic ferrule rings",
+            "count": "3 connected sections",
+            "cues": ["Loaded forward curve", "Progressive diameter reduction"]
+          },
+          {
+            "id": "line_guides",
+            "parent": "tapered_blank",
+            "importance": "secondary",
+            "role": "Graduated ring eyes directing the line along the blank",
+            "shape": "Low-poly circular eye rings with mounting feet and thread whippings",
+            "count": "5 guides",
+            "cues": ["Stripper guide is largest near reel", "Tip-top loop caps the rod end"]
+          },
+          {
+            "id": "line_and_bobber",
+            "parent": "line_guides",
+            "importance": "secondary",
+            "role": "Tensioned fishing line and signature coastal teardrop float",
+            "shape": "Faceted segmented line running through guides and dropping to a two-tone red and cream bobber",
+            "count": "1 rigged line assembly",
+            "cues": ["Terracotta top and foam white bottom on bobber", "Central wooden spindle pin"]
+          }
+        ],
+        "silhouette": [
+          "Graceful forward flexed arc prevents the rod from looking like a stiff rigid pole.",
+          "Distinct reel offset and handle contour create an instantly identifiable fishing tool outline.",
+          "Graduated guide rings and hanging bobber add delicate character-scale detail without micro-noise."
+        ],
+        "negativeSpace": [
+          "Clear daylight window between the reel frame and the blank.",
+          "Spaced openings through each line guide eye along the shaft arc.",
+          "Visible clearance between the hanging bobber line and the rod blank."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Reel mount and foot securely lock into the reel seat hoods without disconnected floating parts.",
+            "Guides are symmetrically aligned along the forward casting spine of the blank."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "casting_arc",
+            "componentIds": ["tapered_blank"],
+            "requirement": "The blank displays a smooth, seeded progressive flex rather than a straight segmented cylinder.",
+            "priority": "must"
+          },
+          {
+            "id": "readable_reel",
+            "componentIds": ["reel_assembly"],
+            "requirement": "The reel possesses a clearly distinct frame, line spool, and side crank handle knob.",
+            "priority": "must"
+          },
+          {
+            "id": "coastal_bobber",
+            "componentIds": ["line_and_bobber"],
+            "requirement": "The rigged line features a classic two-tone terracotta/cream bobber float with central spindle.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          { "parameter": "length", "componentIds": ["tapered_blank"], "purpose": "Controls overall rod height and section proportions." },
+          { "parameter": "guideCount", "componentIds": ["line_guides"], "purpose": "Controls the spacing and graduated scaling of guide eyes." },
+          { "parameter": "bendFactor", "componentIds": ["tapered_blank"], "purpose": "Controls the graceful loaded curvature of the blank." },
+          { "parameter": "reelSpoolRadius", "componentIds": ["reel_assembly"], "purpose": "Controls reel proportions relative to the handle." }
+        ],
+        "failureModes": [
+          "The rod appears as a rigid, unbent pole with no flex or personality.",
+          "The reel is a plain cylinder without bracket, crank arm, or spool separation.",
+          "Guide rings are identical in size rather than graduated from stripper to tip.",
+          "Floating parts or disconnected line paths."
+        ],
+        "reviewViews": [
+          "front", "rear", "side", "three_quarter", "gameplay_8m",
+          "gameplay_15m", "gameplay_read_distance", "close_material"
+        ]
+      }
+    },
+    {
+      "id": "prop_driftwood_a", "file": "prop_driftwood_a.glb", "family": "prop", "generator": "driftwood_cluster", "seed": 379,
+      "dimensions": { "width": 2.2, "depth": 1.8, "height": 0.45 },
+      "palette": ["wood_weathered_01", "wood_honey_01"],
+      "budget": { "trianglesMin": 60, "trianglesTarget": 132, "trianglesMax": 500, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "prop_driftwood_a_root", "requiredNodes": ["prop_driftwood_a_root"], "readDistanceMeters": 15,
+      "parameters": { "logCount": 3, "length": 1.9, "radius": 0.09, "angle": 0.22 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Weathered coastal driftwood cluster with crossed branches, bleached facets, and a low tide-line silhouette",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines warm tactile faceting, coastal material restraint, grounded contact, and gameplay-camera readability." }
+        ],
+        "components": [
+          { "id": "main_log", "parent": "root", "importance": "primary", "role": "Establishes the cluster length and tide-driven directional gesture", "shape": "Tapered low-sided branch with a gentle angular bend", "count": "1 log", "cues": ["Longest piece leads the silhouette", "One end is thicker and more grounded"] },
+          { "id": "cross_logs", "parent": "main_log", "importance": "primary", "role": "Creates depth and a readable caught-together structure", "shape": "Shorter tapered branches crossing at unequal angles", "count": "logCount minus one", "cues": ["Crossings visibly contact the main log", "Angles avoid a regular fan"] },
+          { "id": "broken_ends", "parent": "cross_logs", "importance": "secondary", "role": "Communicates weathering and breaks the cylindrical silhouette", "shape": "Uneven faceted end cuts and short branch stubs", "count": "2-5 ends", "cues": ["Ends vary in width and angle", "Bleached token stays on limited faces"] }
+        ],
+        "silhouette": [
+          "One long diagonal leads the cluster while shorter pieces create an unequal crossing rhythm.",
+          "The pile remains low and elongated rather than forming a campfire-like radial star.",
+          "Broken ends and branch stubs create two or three deliberate outline interruptions."
+        ],
+        "negativeSpace": [
+          "Keep triangular ground gaps visible between crossing logs.",
+          "Leave one end of the main log unobstructed so its taper remains readable."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Lower log faces stay close to the terrain while preserving visible contact at crossings.",
+            "Rear and side views confirm the logs intersect plausibly instead of floating through one another."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "leading_log", "componentIds": ["main_log"], "requirement": "The longest weathered log controls the cluster direction and has a clearly tapered profile.", "priority": "must" },
+          { "id": "credible_crossings", "componentIds": ["main_log", "cross_logs"], "requirement": "Shorter pieces visibly rest against the main log with no floating or deep interpenetration.", "priority": "must" },
+          { "id": "weathered_ends", "componentIds": ["main_log", "cross_logs", "broken_ends"], "requirement": "Faceted broken ends and restrained bleaching communicate shore weathering without texture noise.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "logCount", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the number of pieces while preserving one dominant log and credible crossings." },
+          { "parameter": "length", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the elongated tide-line silhouette and support-log proportions." },
+          { "parameter": "angle", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the leading gesture while seeded offsets prevent a regular radial fan." }
+        ],
+        "failureModes": [
+          "Logs form a symmetric campfire star or evenly spaced fan.",
+          "Pieces float, pass deeply through each other, or lack readable points of contact.",
+          "Uniform cylinders and noisy bleaching erase the faceted weathered-wood hierarchy."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "prop_driftwood_b", "file": "prop_driftwood_b.glb", "family": "prop", "generator": "driftwood_cluster", "seed": 383,
+      "dimensions": { "width": 1.8, "depth": 1.6, "height": 0.45 },
+      "palette": ["wood_weathered_01", "wood_honey_01"],
+      "budget": { "trianglesMin": 50, "trianglesTarget": 88, "trianglesMax": 460, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "prop_driftwood_b_root", "requiredNodes": ["prop_driftwood_b_root"], "readDistanceMeters": 15,
+      "parameters": { "logCount": 2, "length": 1.65, "radius": 0.10, "angle": -0.48 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Weathered coastal driftwood cluster with crossed branches, bleached facets, and a low tide-line silhouette",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines warm tactile faceting, coastal material restraint, grounded contact, and gameplay-camera readability." }
+        ],
+        "components": [
+          { "id": "main_log", "parent": "root", "importance": "primary", "role": "Establishes the cluster length and tide-driven directional gesture", "shape": "Tapered low-sided branch with a gentle angular bend", "count": "1 log", "cues": ["Longest piece leads the silhouette", "One end is thicker and more grounded"] },
+          { "id": "cross_logs", "parent": "main_log", "importance": "primary", "role": "Creates depth and a readable caught-together structure", "shape": "Shorter tapered branches crossing at unequal angles", "count": "logCount minus one", "cues": ["Crossings visibly contact the main log", "Angles avoid a regular fan"] },
+          { "id": "broken_ends", "parent": "cross_logs", "importance": "secondary", "role": "Communicates weathering and breaks the cylindrical silhouette", "shape": "Uneven faceted end cuts and short branch stubs", "count": "2-5 ends", "cues": ["Ends vary in width and angle", "Bleached token stays on limited faces"] }
+        ],
+        "silhouette": [
+          "One long diagonal leads the cluster while shorter pieces create an unequal crossing rhythm.",
+          "The pile remains low and elongated rather than forming a campfire-like radial star.",
+          "Broken ends and branch stubs create two or three deliberate outline interruptions."
+        ],
+        "negativeSpace": [
+          "Keep triangular ground gaps visible between crossing logs.",
+          "Leave one end of the main log unobstructed so its taper remains readable."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Lower log faces stay close to the terrain while preserving visible contact at crossings.",
+            "Rear and side views confirm the logs intersect plausibly instead of floating through one another."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "leading_log", "componentIds": ["main_log"], "requirement": "The longest weathered log controls the cluster direction and has a clearly tapered profile.", "priority": "must" },
+          { "id": "credible_crossings", "componentIds": ["main_log", "cross_logs"], "requirement": "Shorter pieces visibly rest against the main log with no floating or deep interpenetration.", "priority": "must" },
+          { "id": "weathered_ends", "componentIds": ["main_log", "cross_logs", "broken_ends"], "requirement": "Faceted broken ends and restrained bleaching communicate shore weathering without texture noise.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "logCount", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the number of pieces while preserving one dominant log and credible crossings." },
+          { "parameter": "length", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the elongated tide-line silhouette and support-log proportions." },
+          { "parameter": "angle", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the leading gesture while seeded offsets prevent a regular radial fan." }
+        ],
+        "failureModes": [
+          "Logs form a symmetric campfire star or evenly spaced fan.",
+          "Pieces float, pass deeply through each other, or lack readable points of contact.",
+          "Uniform cylinders and noisy bleaching erase the faceted weathered-wood hierarchy."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
+    },
+    {
+      "id": "prop_driftwood_c", "file": "prop_driftwood_c.glb", "family": "prop", "generator": "driftwood_cluster", "seed": 389,
+      "dimensions": { "width": 2.5, "depth": 2.0, "height": 0.50 },
+      "palette": ["wood_dark_01", "wood_weathered_01"],
+      "budget": { "trianglesMin": 70, "trianglesTarget": 132, "trianglesMax": 560, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "prop_driftwood_c_root", "requiredNodes": ["prop_driftwood_c_root"], "readDistanceMeters": 15,
+      "parameters": { "logCount": 3, "length": 2.2, "radius": 0.105, "angle": 0.78 },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Weathered coastal driftwood cluster with crossed branches, bleached facets, and a low tide-line silhouette",
+        "sources": [
+          { "id": "neva_art_bible", "kind": "canonical", "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md", "use": ["form_language", "silhouette", "materials", "detail_density"], "notes": "Defines warm tactile faceting, coastal material restraint, grounded contact, and gameplay-camera readability." }
+        ],
+        "components": [
+          { "id": "main_log", "parent": "root", "importance": "primary", "role": "Establishes the cluster length and tide-driven directional gesture", "shape": "Tapered low-sided branch with a gentle angular bend", "count": "1 log", "cues": ["Longest piece leads the silhouette", "One end is thicker and more grounded"] },
+          { "id": "cross_logs", "parent": "main_log", "importance": "primary", "role": "Creates depth and a readable caught-together structure", "shape": "Shorter tapered branches crossing at unequal angles", "count": "logCount minus one", "cues": ["Crossings visibly contact the main log", "Angles avoid a regular fan"] },
+          { "id": "broken_ends", "parent": "cross_logs", "importance": "secondary", "role": "Communicates weathering and breaks the cylindrical silhouette", "shape": "Uneven faceted end cuts and short branch stubs", "count": "2-5 ends", "cues": ["Ends vary in width and angle", "Bleached token stays on limited faces"] }
+        ],
+        "silhouette": [
+          "One long diagonal leads the cluster while shorter pieces create an unequal crossing rhythm.",
+          "The pile remains low and elongated rather than forming a campfire-like radial star.",
+          "Broken ends and branch stubs create two or three deliberate outline interruptions."
+        ],
+        "negativeSpace": [
+          "Keep triangular ground gaps visible between crossing logs.",
+          "Leave one end of the main log unobstructed so its taper remains readable."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Lower log faces stay close to the terrain while preserving visible contact at crossings.",
+            "Rear and side views confirm the logs intersect plausibly instead of floating through one another."
+          ]
+        },
+        "criticalFeatures": [
+          { "id": "leading_log", "componentIds": ["main_log"], "requirement": "The longest weathered log controls the cluster direction and has a clearly tapered profile.", "priority": "must" },
+          { "id": "credible_crossings", "componentIds": ["main_log", "cross_logs"], "requirement": "Shorter pieces visibly rest against the main log with no floating or deep interpenetration.", "priority": "must" },
+          { "id": "weathered_ends", "componentIds": ["main_log", "cross_logs", "broken_ends"], "requirement": "Faceted broken ends and restrained bleaching communicate shore weathering without texture noise.", "priority": "must" }
+        ],
+        "parameterBindings": [
+          { "parameter": "logCount", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the number of pieces while preserving one dominant log and credible crossings." },
+          { "parameter": "length", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the elongated tide-line silhouette and support-log proportions." },
+          { "parameter": "angle", "componentIds": ["main_log", "cross_logs"], "purpose": "Controls the leading gesture while seeded offsets prevent a regular radial fan." }
+        ],
+        "failureModes": [
+          "Logs form a symmetric campfire star or evenly spaced fan.",
+          "Pieces float, pass deeply through each other, or lack readable points of contact.",
+          "Uniform cylinders and noisy bleaching erase the faceted weathered-wood hierarchy."
+        ],
+        "reviewViews": ["front", "rear", "side", "three_quarter", "gameplay_8m", "gameplay_15m", "gameplay_read_distance", "close_material"]
+      }
     },
 
     {
@@ -220,91 +1535,222 @@
       "palette": ["wood_honey_01", "wood_warm_01", "wood_dark_01"],
       "budget": { "trianglesMin": 1000, "trianglesTarget": 4000, "trianglesMax": 6000, "materialsMax": 4 },
       "pivot": "buoyancy", "collision": "compound", "instancing": false, "lod": "hero",
-      "rootNode": "boat_rowboat_root", "requiredNodes": ["boat_rowboat_root", "boat_rowboat_storage_01", "COL_boat_rowboat_a"], "readDistanceMeters": 30,
-      "parameters": { "length": 4.0, "beam": 1.7, "ribCount": 7, "innerPlanks": 7, "gunwaleSegments": 8 }
+      "rootNode": "boat_rowboat_root",
+      "requiredNodes": [
+        "boat_rowboat_root",
+        "boat_rowboat_storage_01",
+        "boat_rowboat_rower_seat",
+        "boat_rowboat_oar_left_root",
+        "boat_rowboat_oar_right_root",
+        "boat_rowboat_oarlock_left",
+        "boat_rowboat_oarlock_right",
+        "boat_rowboat_oar_left_grip",
+        "boat_rowboat_oar_right_grip",
+        "COL_boat_rowboat_a"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": { "length": 4.0, "beam": 1.7, "ribCount": 7, "innerPlanks": 7, "gunwaleSegments": 8 },
+      "collisionPrimitives": [
+        { "id": "hull_mid", "center": [0, 0.38, 0], "halfExtents": [0.78, 0.38, 1.5] },
+        { "id": "hull_bow", "center": [0, 0.43, 1.55], "halfExtents": [0.54, 0.34, 0.55] },
+        { "id": "hull_stern", "center": [0, 0.4, -1.55], "halfExtents": [0.62, 0.34, 0.52] }
+      ]
     },
     {
       "id": "boat_skiff_a", "file": "boat_skiff_a.glb", "family": "boat", "generator": "fishing_skiff", "seed": 409,
       "dimensions": { "width": 2.7, "depth": 6.8, "height": 7.4 },
       "palette": ["wood_honey_01", "wood_dark_01", "accent_red_01", "canvas_cream_01"],
-      "budget": { "trianglesMin": 2500, "trianglesTarget": 11000, "trianglesMax": 16000, "materialsMax": 5 },
+      "budget": { "trianglesMin": 3000, "trianglesTarget": 6000, "trianglesMax": 16000, "materialsMax": 5 },
       "pivot": "buoyancy", "collision": "compound", "instancing": false, "lod": "hero",
       "rootNode": "boat_skiff_root", "requiredNodes": ["boat_skiff_root", "boat_skiff_cargo_01", "boat_skiff_cargo_02", "boat_skiff_hook_left", "boat_skiff_hook_right", "COL_boat_skiff_a"], "readDistanceMeters": 60,
-      "parameters": { "length": 6.5, "beam": 2.45, "ribCount": 9, "mastHeight": 6.8, "outerStrakes": 4, "hullSegments": 9, "deckBoards": 26, "sailRows": 8 }
+      "parameters": { "length": 6.5, "beam": 2.45, "ribCount": 9, "mastHeight": 6.8, "outerStrakes": 3, "hullSegments": 15, "deckBoards": 26, "sailRows": 8 },
+      "collisionPrimitives": [
+        { "id": "hull_mid", "center": [0, 0.56, 0], "halfExtents": [1.1, 0.56, 2.35] },
+        { "id": "hull_bow", "center": [0, 0.64, 2.45], "halfExtents": [0.74, 0.5, 0.85] },
+        { "id": "hull_stern", "center": [0, 0.58, -2.45], "halfExtents": [0.94, 0.48, 0.8] }
+      ]
     },
 
     {
       "id": "crop_wheat_seeded", "file": "crop_wheat_seeded.glb", "family": "crop", "generator": "wheat_crop", "seed": 501,
       "dimensions": { "width": 0.8, "depth": 0.8, "height": 0.15 },
-      "palette": ["soil_warm_01", "wood_warm_01"],
-      "budget": { "trianglesMin": 30, "trianglesTarget": 100, "trianglesMax": 700, "materialsMax": 2 },
+      "palette": ["wood_warm_01"],
+      "budget": { "trianglesMin": 30, "trianglesTarget": 100, "trianglesMax": 700, "materialsMax": 1 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "crop_wheat_seeded_root", "requiredNodes": ["crop_wheat_seeded_root"], "readDistanceMeters": 15,
       "parameters": { "stage": "seeded", "stalks": 0 }
     },
     {
       "id": "crop_wheat_sprout", "file": "crop_wheat_sprout.glb", "family": "crop", "generator": "wheat_crop", "seed": 503,
-      "dimensions": { "width": 0.8, "depth": 0.8, "height": 0.35 },
-      "palette": ["soil_warm_01", "foliage_highlight_01"],
-      "budget": { "trianglesMin": 40, "trianglesTarget": 200, "trianglesMax": 700, "materialsMax": 2 },
+      "dimensions": { "width": 0.8, "depth": 0.8, "height": 0.4 },
+      "palette": ["foliage_highlight_01"],
+      "budget": { "trianglesMin": 180, "trianglesTarget": 250, "trianglesMax": 500, "materialsMax": 1 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "crop_wheat_sprout_root", "requiredNodes": ["crop_wheat_sprout_root"], "readDistanceMeters": 15,
-      "parameters": { "stage": "sprout", "stalks": 5 }
+      "parameters": { "stage": "sprout", "stalks": 9 }
     },
     {
       "id": "crop_wheat_growing", "file": "crop_wheat_growing.glb", "family": "crop", "generator": "wheat_crop", "seed": 509,
-      "dimensions": { "width": 0.9, "depth": 0.9, "height": 0.75 },
-      "palette": ["soil_warm_01", "foliage_sage_01", "grass_yellow_01"],
-      "budget": { "trianglesMin": 90, "trianglesTarget": 300, "trianglesMax": 700, "materialsMax": 3 },
+      "dimensions": { "width": 1.0, "depth": 1.0, "height": 1.0 },
+      "palette": ["foliage_sage_01", "grass_yellow_01"],
+      "budget": { "trianglesMin": 450, "trianglesTarget": 550, "trianglesMax": 1000, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "crop_wheat_growing_root", "requiredNodes": ["crop_wheat_growing_root"], "readDistanceMeters": 15,
-      "parameters": { "stage": "growing", "stalks": 9 }
+      "parameters": { "stage": "growing", "stalks": 13 }
     },
     {
       "id": "crop_wheat_mature", "file": "crop_wheat_mature.glb", "family": "crop", "generator": "wheat_crop", "seed": 521,
-      "dimensions": { "width": 1.0, "depth": 1.0, "height": 1.15 },
-      "palette": ["soil_warm_01", "grass_yellow_01", "foliage_olive_01"],
-      "budget": { "trianglesMin": 180, "trianglesTarget": 350, "trianglesMax": 700, "materialsMax": 3 },
+      "dimensions": { "width": 1.2, "depth": 1.2, "height": 1.4 },
+      "palette": ["grass_yellow_01", "accent_ochre_01", "foliage_olive_01"],
+      "budget": { "trianglesMin": 800, "trianglesTarget": 940, "trianglesMax": 1400, "materialsMax": 3 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "crop_wheat_mature_root", "requiredNodes": ["crop_wheat_mature_root"], "readDistanceMeters": 15,
-      "parameters": { "stage": "mature", "stalks": 13 }
+      "parameters": { "stage": "mature", "stalks": 15 }
     },
     {
       "id": "crop_wheat_overripe", "file": "crop_wheat_overripe.glb", "family": "crop", "generator": "wheat_crop", "seed": 523,
-      "dimensions": { "width": 1.0, "depth": 1.0, "height": 1.05 },
-      "palette": ["soil_warm_01", "accent_ochre_01", "wood_warm_01"],
-      "budget": { "trianglesMin": 180, "trianglesTarget": 350, "trianglesMax": 700, "materialsMax": 3 },
+      "dimensions": { "width": 1.6, "depth": 1.6, "height": 1.1 },
+      "palette": ["accent_ochre_01", "wood_warm_01", "wood_weathered_01"],
+      "budget": { "trianglesMin": 750, "trianglesTarget": 970, "trianglesMax": 1400, "materialsMax": 3 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "crop_wheat_overripe_root", "requiredNodes": ["crop_wheat_overripe_root"], "readDistanceMeters": 15,
       "parameters": { "stage": "overripe", "stalks": 13 }
     },
     {
       "id": "crop_wheat_withered", "file": "crop_wheat_withered.glb", "family": "crop", "generator": "wheat_crop", "seed": 541,
-      "dimensions": { "width": 1.0, "depth": 1.0, "height": 0.7 },
-      "palette": ["soil_warm_01", "wood_dark_01", "wood_weathered_01"],
-      "budget": { "trianglesMin": 120, "trianglesTarget": 300, "trianglesMax": 700, "materialsMax": 3 },
+      "dimensions": { "width": 1.5, "depth": 1.5, "height": 0.7 },
+      "palette": ["wood_dark_01", "wood_weathered_01"],
+      "budget": { "trianglesMin": 550, "trianglesTarget": 730, "trianglesMax": 1100, "materialsMax": 2 },
       "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
       "rootNode": "crop_wheat_withered_root", "requiredNodes": ["crop_wheat_withered_root"], "readDistanceMeters": 15,
-      "parameters": { "stage": "withered", "stalks": 10 }
+      "parameters": { "stage": "withered", "stalks": 11 }
+    },
+    {
+      "id": "crop_tomato_seeded", "file": "crop_tomato_seeded.glb", "family": "crop", "generator": "tomato_crop", "seed": 547,
+      "dimensions": { "width": 0.45, "depth": 0.45, "height": 0.12 },
+      "palette": ["accent_ochre_01"],
+      "budget": { "trianglesMin": 80, "trianglesTarget": 100, "trianglesMax": 500, "materialsMax": 1 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_tomato_seeded_root", "requiredNodes": ["crop_tomato_seeded_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "seeded", "plants": 0 }
+    },
+    {
+      "id": "crop_tomato_sprout", "file": "crop_tomato_sprout.glb", "family": "crop", "generator": "tomato_crop", "seed": 557,
+      "dimensions": { "width": 0.55, "depth": 0.55, "height": 0.35 },
+      "palette": ["foliage_highlight_01", "foliage_sage_01"],
+      "budget": { "trianglesMin": 100, "trianglesTarget": 120, "trianglesMax": 600, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_tomato_sprout_root", "requiredNodes": ["crop_tomato_sprout_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "sprout", "plants": 0 }
+    },
+    {
+      "id": "crop_tomato_growing", "file": "crop_tomato_growing.glb", "family": "crop", "generator": "tomato_crop", "seed": 563,
+      "dimensions": { "width": 1.0, "depth": 1.0, "height": 0.9 },
+      "palette": ["foliage_sage_01", "foliage_olive_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 350, "trianglesMax": 1100, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_tomato_growing_root", "requiredNodes": ["crop_tomato_growing_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "growing", "plants": 5 }
+    },
+    {
+      "id": "crop_tomato_mature", "file": "crop_tomato_mature.glb", "family": "crop", "generator": "tomato_crop", "seed": 569,
+      "dimensions": { "width": 1.25, "depth": 1.25, "height": 1.25 },
+      "palette": ["foliage_sage_01", "foliage_olive_01", "accent_red_01", "roof_deep_red_01"],
+      "budget": { "trianglesMin": 550, "trianglesTarget": 650, "trianglesMax": 1800, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_tomato_mature_root", "requiredNodes": ["crop_tomato_mature_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "mature", "plants": 5 }
+    },
+    {
+      "id": "crop_tomato_overripe", "file": "crop_tomato_overripe.glb", "family": "crop", "generator": "tomato_crop", "seed": 571,
+      "dimensions": { "width": 1.5, "depth": 1.5, "height": 1.05 },
+      "palette": ["foliage_olive_01", "wood_warm_01", "accent_red_01", "roof_deep_red_01"],
+      "budget": { "trianglesMin": 450, "trianglesTarget": 520, "trianglesMax": 1600, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_tomato_overripe_root", "requiredNodes": ["crop_tomato_overripe_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "overripe", "plants": 4 }
+    },
+    {
+      "id": "crop_tomato_withered", "file": "crop_tomato_withered.glb", "family": "crop", "generator": "tomato_crop", "seed": 577,
+      "dimensions": { "width": 1.45, "depth": 1.45, "height": 0.72 },
+      "palette": ["wood_weathered_01", "wood_dark_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 170, "trianglesTarget": 200, "trianglesMax": 900, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_tomato_withered_root", "requiredNodes": ["crop_tomato_withered_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "withered", "plants": 4 }
+    },
+    {
+      "id": "crop_potato_seeded", "file": "crop_potato_seeded.glb", "family": "crop", "generator": "potato_crop", "seed": 587,
+      "dimensions": { "width": 0.45, "depth": 0.45, "height": 0.14 },
+      "palette": ["wood_warm_01", "foliage_highlight_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 140, "trianglesMax": 600, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_potato_seeded_root", "requiredNodes": ["crop_potato_seeded_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "seeded" }
+    },
+    {
+      "id": "crop_potato_sprout", "file": "crop_potato_sprout.glb", "family": "crop", "generator": "potato_crop", "seed": 593,
+      "dimensions": { "width": 0.45, "depth": 0.45, "height": 0.32 },
+      "palette": ["foliage_highlight_01", "foliage_sage_01"],
+      "budget": { "trianglesMin": 120, "trianglesTarget": 140, "trianglesMax": 650, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_potato_sprout_root", "requiredNodes": ["crop_potato_sprout_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "sprout" }
+    },
+    {
+      "id": "crop_potato_growing", "file": "crop_potato_growing.glb", "family": "crop", "generator": "potato_crop", "seed": 599,
+      "dimensions": { "width": 1.0, "depth": 1.0, "height": 0.68 },
+      "palette": ["foliage_sage_01", "foliage_olive_01", "canvas_cream_01"],
+      "budget": { "trianglesMin": 240, "trianglesTarget": 280, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_potato_growing_root", "requiredNodes": ["crop_potato_growing_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "growing" }
+    },
+    {
+      "id": "crop_potato_mature", "file": "crop_potato_mature.glb", "family": "crop", "generator": "potato_crop", "seed": 601,
+      "dimensions": { "width": 1.2, "depth": 1.2, "height": 0.9 },
+      "palette": ["foliage_sage_01", "foliage_olive_01", "canvas_cream_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 600, "trianglesTarget": 680, "trianglesMax": 1800, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_potato_mature_root", "requiredNodes": ["crop_potato_mature_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "mature" }
+    },
+    {
+      "id": "crop_potato_overripe", "file": "crop_potato_overripe.glb", "family": "crop", "generator": "potato_crop", "seed": 607,
+      "dimensions": { "width": 1.4, "depth": 1.4, "height": 0.72 },
+      "palette": ["grass_yellow_01", "foliage_olive_01", "wood_warm_01"],
+      "budget": { "trianglesMin": 230, "trianglesTarget": 260, "trianglesMax": 1000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_potato_overripe_root", "requiredNodes": ["crop_potato_overripe_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "overripe" }
+    },
+    {
+      "id": "crop_potato_withered", "file": "crop_potato_withered.glb", "family": "crop", "generator": "potato_crop", "seed": 613,
+      "dimensions": { "width": 1.45, "depth": 1.45, "height": 0.52 },
+      "palette": ["wood_weathered_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 190, "trianglesTarget": 220, "trianglesMax": 900, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "crop_potato_withered_root", "requiredNodes": ["crop_potato_withered_root"], "readDistanceMeters": 15,
+      "parameters": { "stage": "withered" }
     },
 
     {
       "id": "fish_trout_a", "file": "fish_trout_a.glb", "family": "fish", "generator": "stylized_fish", "seed": 601,
-      "dimensions": { "width": 0.55, "depth": 1.8, "height": 1.0 },
+      "dimensions": { "width": 0.35, "depth": 0.90, "height": 0.50 },
       "palette": ["fish_trout_back_01", "fish_belly_01", "fish_trout_spot_01"],
-      "budget": { "trianglesMin": 300, "trianglesTarget": 1200, "trianglesMax": 2500, "materialsMax": 3 },
+      "budget": { "trianglesMin": 500, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 3 },
       "pivot": "center", "collision": "none", "instancing": false, "lod": "medium",
       "rootNode": "fish_trout_a_root", "requiredNodes": ["fish_trout_a_root"], "readDistanceMeters": 15,
-      "parameters": { "species": "trout", "length": 1.65, "girth": 0.28, "finScale": 0.85 }
+      "parameters": { "species": "trout", "length": 0.75, "girth": 0.13, "finScale": 0.85, "bodyDepth": 0.92, "bodySegments": 16, "radialSegments": 14, "tailPeduncle": 0.18 }
     },
     {
       "id": "fish_tuna_a", "file": "fish_tuna_a.glb", "family": "fish", "generator": "stylized_fish", "seed": 607,
-      "dimensions": { "width": 1.2, "depth": 2.5, "height": 1.7 },
+      "dimensions": { "width": 1.0, "depth": 1.95, "height": 1.4 },
       "palette": ["fish_tuna_back_01", "fish_belly_01", "accent_ochre_01"],
-      "budget": { "trianglesMin": 400, "trianglesTarget": 1200, "trianglesMax": 2500, "materialsMax": 3 },
+      "budget": { "trianglesMin": 500, "trianglesTarget": 900, "trianglesMax": 2500, "materialsMax": 3 },
       "pivot": "center", "collision": "none", "instancing": false, "lod": "medium",
       "rootNode": "fish_tuna_a_root", "requiredNodes": ["fish_tuna_a_root"], "readDistanceMeters": 30,
-      "parameters": { "species": "tuna", "length": 2.25, "girth": 0.43, "finScale": 1.15 }
+      "parameters": { "species": "tuna", "length": 1.55, "girth": 0.32, "finScale": 1.10, "bodyDepth": 1.42, "bodySegments": 16, "radialSegments": 14, "tailPeduncle": 0.16 }
     },
 
     {
@@ -320,11 +1766,312 @@
     {
       "id": "char_player_a", "file": "char_player_a.glb", "family": "character", "generator": "coastal_worker", "seed": 801,
       "dimensions": { "width": 1.05, "depth": 0.65, "height": 2.15 },
-      "palette": ["plaster_warm_01", "accent_teal_01", "wood_dark_01", "canvas_cream_01"],
+      "palette": ["plaster_warm_01", "canvas_cream_01", "wood_dark_01", "wood_honey_01", "foliage_sage_01"],
+
       "budget": { "trianglesMin": 2500, "trianglesTarget": 12000, "trianglesMax": 18000, "materialsMax": 6 },
       "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "hero",
-      "rootNode": "char_player_a_root", "requiredNodes": ["char_player_a_root", "char_player_hand_left", "char_player_hand_right", "char_player_tool_socket"], "readDistanceMeters": 30,
-      "parameters": { "height": 2.05, "headRatio": 6.2, "handScale": 1.15 }
+      "rootNode": "char_player_a_root",
+      "requiredNodes": [
+        "char_player_a_root",
+        "char_player_rig",
+        "char_player_hand_left",
+        "char_player_hand_right",
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "rigNode": "char_player_rig",
+      "socketNodes": [
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "animationClips": [
+        { "name": "idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "walk_start", "durationSeconds": 0.32, "loop": false },
+        { "name": "walk", "durationSeconds": 0.8, "loop": true, "referenceSpeedMetersPerSecond": 3.2, "events": [{ "name": "footstep_left", "timeSeconds": 0.12 }, { "name": "footstep_right", "timeSeconds": 0.52 }] },
+        { "name": "run_start", "durationSeconds": 0.28, "loop": false },
+        { "name": "run", "durationSeconds": 0.56, "loop": true, "referenceSpeedMetersPerSecond": 5.6, "events": [{ "name": "footstep_left", "timeSeconds": 0.08 }, { "name": "footstep_right", "timeSeconds": 0.36 }] },
+        { "name": "stop", "durationSeconds": 0.36, "loop": false },
+        { "name": "turn_left", "durationSeconds": 0.4, "loop": false },
+        { "name": "turn_right", "durationSeconds": 0.4, "loop": false },
+        { "name": "plant", "durationSeconds": 0.72, "commitMarkerSeconds": 0.32, "loop": false },
+        { "name": "water", "durationSeconds": 0.84, "commitMarkerSeconds": 0.4, "loop": false },
+        { "name": "harvest", "durationSeconds": 0.8, "commitMarkerSeconds": 0.36, "loop": false },
+        { "name": "pickup", "durationSeconds": 0.64, "commitMarkerSeconds": 0.32, "loop": false },
+        { "name": "carry_idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "carry_walk", "durationSeconds": 0.88, "loop": true, "referenceSpeedMetersPerSecond": 3.2, "events": [{ "name": "footstep_left", "timeSeconds": 0.16 }, { "name": "footstep_right", "timeSeconds": 0.6 }] },
+        { "name": "carry_run", "durationSeconds": 0.64, "loop": true, "referenceSpeedMetersPerSecond": 5.6, "events": [{ "name": "footstep_left", "timeSeconds": 0.08 }, { "name": "footstep_right", "timeSeconds": 0.4 }] },
+        { "name": "place", "durationSeconds": 0.72, "commitMarkerSeconds": 0.52, "loop": false },
+        { "name": "workstation", "durationSeconds": 0.92, "commitMarkerSeconds": 0.52, "loop": false },
+        { "name": "cast", "durationSeconds": 0.92, "loop": false },
+        { "name": "fishing_idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "reel", "durationSeconds": 0.72, "loop": true },
+        { "name": "slack", "durationSeconds": 0.8, "loop": true },
+        { "name": "brace", "durationSeconds": 0.8, "loop": true },
+        { "name": "board", "durationSeconds": 0.88, "loop": false },
+        { "name": "dock", "durationSeconds": 0.92, "loop": false },
+        { "name": "rowboat_idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "row", "durationSeconds": 0.96, "loop": true, "events": [{ "name": "paddle_enter", "timeSeconds": 0.18 }] }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": { "height": 1.98, "headRatio": 4.8, "handScale": 1.05 }
+    },
+    {
+      "id": "char_npc_elspeth_a", "file": "char_npc_elspeth_a.glb", "family": "character", "generator": "npc_character", "seed": 831,
+      "dimensions": { "width": 1.05, "depth": 0.65, "height": 1.95 },
+      "palette": ["plaster_warm_01", "roof_terracotta_01", "wood_dark_01", "canvas_cream_01", "foliage_sage_01"],
+      "budget": { "trianglesMin": 2500, "trianglesTarget": 8000, "trianglesMax": 16000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "hero",
+      "rootNode": "char_npc_elspeth_a_root",
+      "requiredNodes": [
+        "char_npc_elspeth_a_root",
+        "char_player_rig",
+        "char_player_hand_left",
+        "char_player_hand_right",
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "rigNode": "char_player_rig",
+      "socketNodes": [
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "animationClips": [
+        { "name": "idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "talk_gesture", "durationSeconds": 1.6, "loop": true },
+        { "name": "walk", "durationSeconds": 0.8, "loop": true, "referenceSpeedMetersPerSecond": 3.2, "events": [{ "name": "footstep_left", "timeSeconds": 0.12 }, { "name": "footstep_right", "timeSeconds": 0.52 }] },
+        { "name": "turn_left", "durationSeconds": 0.4, "loop": false },
+        { "name": "turn_right", "durationSeconds": 0.4, "loop": false }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": { "role": "gardener", "height": 1.88, "headRatio": 4.6, "handScale": 0.98 }
+    },
+    {
+      "id": "char_npc_barnaby_a", "file": "char_npc_barnaby_a.glb", "family": "character", "generator": "npc_character", "seed": 832,
+      "dimensions": { "width": 1.10, "depth": 0.65, "height": 2.05 },
+      "palette": ["plaster_warm_01", "wood_honey_01", "wood_dark_01", "canvas_cream_01", "metal_dark_01"],
+      "budget": { "trianglesMin": 2500, "trianglesTarget": 8000, "trianglesMax": 16000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "hero",
+      "rootNode": "char_npc_barnaby_a_root",
+      "requiredNodes": [
+        "char_npc_barnaby_a_root",
+        "char_player_rig",
+        "char_player_hand_left",
+        "char_player_hand_right",
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "rigNode": "char_player_rig",
+      "socketNodes": [
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "animationClips": [
+        { "name": "idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "talk_gesture", "durationSeconds": 1.6, "loop": true },
+        { "name": "walk", "durationSeconds": 0.8, "loop": true, "referenceSpeedMetersPerSecond": 3.2, "events": [{ "name": "footstep_left", "timeSeconds": 0.12 }, { "name": "footstep_right", "timeSeconds": 0.52 }] },
+        { "name": "turn_left", "durationSeconds": 0.4, "loop": false },
+        { "name": "turn_right", "durationSeconds": 0.4, "loop": false }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": { "role": "handyman", "height": 1.98, "headRatio": 4.8, "handScale": 1.08 }
+    },
+    {
+      "id": "char_npc_silas_a", "file": "char_npc_silas_a.glb", "family": "character", "generator": "npc_character", "seed": 833,
+      "dimensions": { "width": 1.12, "depth": 0.70, "height": 2.05 },
+      "palette": ["plaster_warm_01", "accent_ochre_01", "water_deep_01", "metal_brass_01", "foam_warm_01"],
+      "budget": { "trianglesMin": 2500, "trianglesTarget": 8500, "trianglesMax": 16000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "hero",
+      "rootNode": "char_npc_silas_a_root",
+      "requiredNodes": [
+        "char_npc_silas_a_root",
+        "char_player_rig",
+        "char_player_hand_left",
+        "char_player_hand_right",
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "rigNode": "char_player_rig",
+      "socketNodes": [
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "animationClips": [
+        { "name": "idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "talk_gesture", "durationSeconds": 1.6, "loop": true },
+        { "name": "walk", "durationSeconds": 0.8, "loop": true, "referenceSpeedMetersPerSecond": 3.2, "events": [{ "name": "footstep_left", "timeSeconds": 0.12 }, { "name": "footstep_right", "timeSeconds": 0.52 }] },
+        { "name": "turn_left", "durationSeconds": 0.4, "loop": false },
+        { "name": "turn_right", "durationSeconds": 0.4, "loop": false }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": { "role": "dockmaster", "height": 1.95, "headRatio": 4.7, "handScale": 1.12 }
+    },
+    {
+      "id": "char_npc_maeve_a", "file": "char_npc_maeve_a.glb", "family": "character", "generator": "npc_character", "seed": 834,
+      "dimensions": { "width": 1.05, "depth": 0.65, "height": 2.02 },
+      "palette": ["plaster_warm_01", "accent_teal_01", "wood_dark_01", "canvas_cream_01", "metal_brass_01"],
+      "budget": { "trianglesMin": 2500, "trianglesTarget": 8000, "trianglesMax": 16000, "materialsMax": 6 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "hero",
+      "rootNode": "char_npc_maeve_a_root",
+      "requiredNodes": [
+        "char_npc_maeve_a_root",
+        "char_player_rig",
+        "char_player_hand_left",
+        "char_player_hand_right",
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "rigNode": "char_player_rig",
+      "socketNodes": [
+        "char_player_hand_socket_left",
+        "char_player_hand_socket_right",
+        "char_player_tool_socket",
+        "char_player_carry_socket",
+        "char_player_hip_socket"
+      ],
+      "animationClips": [
+        { "name": "idle", "durationSeconds": 1.6, "loop": true },
+        { "name": "talk_gesture", "durationSeconds": 1.6, "loop": true },
+        { "name": "walk", "durationSeconds": 0.8, "loop": true, "referenceSpeedMetersPerSecond": 3.2, "events": [{ "name": "footstep_left", "timeSeconds": 0.12 }, { "name": "footstep_right", "timeSeconds": 0.52 }] },
+        { "name": "turn_left", "durationSeconds": 0.4, "loop": false },
+        { "name": "turn_right", "durationSeconds": 0.4, "loop": false }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": { "role": "merchant", "height": 1.94, "headRatio": 4.8, "handScale": 1.00 }
+    },
+
+
+    {
+      "id": "fauna_cow_a", "file": "fauna_cow_a.glb", "family": "prop", "generator": "fauna_cow", "seed": 823,
+      "dimensions": { "width": 1.2, "depth": 2.4, "height": 1.9 },
+      "palette": ["animal_hide_white_01", "animal_hide_black_01", "accent_red_01", "stone_golden_01", "metal_brass_01"],
+      "budget": { "trianglesMin": 400, "trianglesTarget": 2500, "trianglesMax": 6000, "materialsMax": 5 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "medium",
+      "rootNode": "fauna_cow_a_root", "requiredNodes": ["fauna_cow_a_root", "COL_fauna_cow_a"], "readDistanceMeters": 30,
+      "parameters": { "scale": 1.0 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0, 0.95], "halfExtents": [0.6, 1.2, 0.95] }]
+    },
+    {
+      "id": "fauna_chicken_a", "file": "fauna_chicken_a.glb", "family": "prop", "generator": "fauna_chicken", "seed": 827,
+      "dimensions": { "width": 0.4, "depth": 0.5, "height": 0.55 },
+      "palette": ["canvas_cream_01", "wood_dark_01", "accent_red_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 150, "trianglesTarget": 600, "trianglesMax": 1500, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": true, "lod": "small",
+      "rootNode": "fauna_chicken_a_root", "requiredNodes": ["fauna_chicken_a_root"], "readDistanceMeters": 15,
+      "parameters": { "scale": 0.65 }
+    },
+    {
+      "id": "interior_farmhouse_shell", "file": "interior_farmhouse_shell.glb", "family": "architecture", "generator": "interior_farmhouse_shell", "seed": 301,
+      "dimensions": { "width": 9.4, "depth": 7.4, "height": 3.8 },
+      "palette": ["stone_warm_01", "plaster_cream_01", "wood_honey_01", "wood_dark_01", "emissive_window_01"],
+      "budget": { "trianglesMin": 1000, "trianglesTarget": 6000, "trianglesMax": 12000, "materialsMax": 5 },
+      "pivot": "ground_center", "collision": "compound", "instancing": false, "lod": "hero",
+      "rootNode": "interior_farmhouse_shell_root", "requiredNodes": ["interior_farmhouse_shell_root", "COL_interior_farmhouse_shell"], "readDistanceMeters": 30,
+      "parameters": { "width": 8.8, "depth": 6.8, "wallHeight": 3.5, "floorPlanks": 20, "ceilingBeams": 5 },
+      "collisionPrimitives": [
+        { "id": "main", "center": [0, 0.08, 0], "halfExtents": [4.4, 0.08, 3.4] },
+        { "id": "wall_back_left", "center": [-2.8, 1.75, 3.4], "halfExtents": [1.6, 1.75, 0.15] },
+        { "id": "wall_back_right", "center": [2.8, 1.75, 3.4], "halfExtents": [1.6, 1.75, 0.15] },
+        { "id": "wall_left", "center": [-4.4, 1.75, 0], "halfExtents": [0.15, 1.75, 3.4] },
+        { "id": "wall_right", "center": [4.4, 1.75, 0], "halfExtents": [0.15, 1.75, 3.4] },
+        { "id": "wall_front_left", "center": [-2.5, 1.75, -3.4], "halfExtents": [1.9, 1.75, 0.15] },
+        { "id": "wall_front_right", "center": [2.5, 1.75, -3.4], "halfExtents": [1.9, 1.75, 0.15] }
+      ]
+    },
+    {
+      "id": "prop_bed_cozy_a", "file": "prop_bed_cozy_a.glb", "family": "prop", "generator": "cozy_bed", "seed": 311,
+      "dimensions": { "width": 1.6, "depth": 2.2, "height": 1.25 },
+      "palette": ["wood_honey_01", "canvas_cream_01", "roof_terracotta_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 400, "trianglesTarget": 2500, "trianglesMax": 5000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "medium",
+      "rootNode": "prop_bed_cozy_a_root", "requiredNodes": ["prop_bed_cozy_a_root", "COL_prop_bed_cozy_a"], "readDistanceMeters": 20,
+      "parameters": { "scale": 1.0 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.45, 0], "halfExtents": [0.8, 0.45, 1.1] }]
+    },
+    {
+      "id": "prop_fireplace_hearth_a", "file": "prop_fireplace_hearth_a.glb", "family": "prop", "generator": "fireplace_hearth", "seed": 321,
+      "dimensions": { "width": 2.4, "depth": 1.2, "height": 2.6 },
+      "palette": ["stone_warm_01", "stone_golden_01", "wood_dark_01", "metal_dark_01", "emissive_lantern_01"],
+      "budget": { "trianglesMin": 800, "trianglesTarget": 4500, "trianglesMax": 9000, "materialsMax": 5 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "hero",
+      "rootNode": "prop_fireplace_hearth_a_root", "requiredNodes": ["prop_fireplace_hearth_a_root", "hearth_fire_glow", "COL_prop_fireplace_hearth_a"], "readDistanceMeters": 25,
+      "parameters": { "width": 2.2, "depth": 1.0, "height": 2.5 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 1.25, 0], "halfExtents": [1.15, 1.25, 0.55] }]
+    },
+    {
+      "id": "prop_table_dining_a", "file": "prop_table_dining_a.glb", "family": "prop", "generator": "dining_table", "seed": 331,
+      "dimensions": { "width": 1.9, "depth": 1.1, "height": 0.95 },
+      "palette": ["wood_honey_01", "wood_dark_01", "plaster_cream_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 1800, "trianglesMax": 4000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "medium",
+      "rootNode": "prop_table_dining_a_root", "requiredNodes": ["prop_table_dining_a_root", "COL_prop_table_dining_a"], "readDistanceMeters": 20,
+      "parameters": { "width": 1.8, "depth": 1.0 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.44, 0], "halfExtents": [0.9, 0.44, 0.5] }]
+    },
+    {
+      "id": "prop_chair_rustic_a", "file": "prop_chair_rustic_a.glb", "family": "prop", "generator": "rustic_chair", "seed": 341,
+      "dimensions": { "width": 0.6, "depth": 0.55, "height": 1.05 },
+      "palette": ["wood_honey_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 200, "trianglesTarget": 1200, "trianglesMax": 3000, "materialsMax": 2 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "small",
+      "rootNode": "prop_chair_rustic_a_root", "requiredNodes": ["prop_chair_rustic_a_root", "COL_prop_chair_rustic_a"], "readDistanceMeters": 15,
+      "parameters": { "scale": 1.0 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.5, 0], "halfExtents": [0.28, 0.5, 0.26] }]
+    },
+    {
+      "id": "prop_rug_woven_a", "file": "prop_rug_woven_a.glb", "family": "prop", "generator": "woven_rug", "seed": 351,
+      "dimensions": { "width": 2.7, "depth": 1.9, "height": 0.05 },
+      "palette": ["accent_ochre_01", "accent_red_01", "canvas_cream_01", "accent_teal_01"],
+      "budget": { "trianglesMin": 150, "trianglesTarget": 800, "trianglesMax": 2000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "none", "instancing": false, "lod": "small",
+      "rootNode": "prop_rug_woven_a_root", "requiredNodes": ["prop_rug_woven_a_root"], "readDistanceMeters": 15,
+      "parameters": { "width": 2.6, "depth": 1.8 }
+    },
+    {
+      "id": "prop_cupboard_shelves_a", "file": "prop_cupboard_shelves_a.glb", "family": "prop", "generator": "cupboard_shelves", "seed": 361,
+      "dimensions": { "width": 1.7, "depth": 0.7, "height": 2.3 },
+      "palette": ["wood_honey_01", "wood_dark_01", "canvas_cream_01", "stone_warm_01"],
+      "budget": { "trianglesMin": 600, "trianglesTarget": 3500, "trianglesMax": 7000, "materialsMax": 4 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "medium",
+      "rootNode": "prop_cupboard_shelves_a_root", "requiredNodes": ["prop_cupboard_shelves_a_root", "COL_prop_cupboard_shelves_a"], "readDistanceMeters": 20,
+      "parameters": { "width": 1.6, "depth": 0.6, "height": 2.2 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 1.1, 0], "halfExtents": [0.82, 1.1, 0.32] }]
+    },
+    {
+      "id": "prop_armchair_cozy_a", "file": "prop_armchair_cozy_a.glb", "family": "prop", "generator": "cozy_armchair", "seed": 371,
+      "dimensions": { "width": 1.0, "depth": 0.95, "height": 0.95 },
+      "palette": ["burlap_grain_01", "wood_dark_01", "accent_red_01"],
+      "budget": { "trianglesMin": 300, "trianglesTarget": 1800, "trianglesMax": 4000, "materialsMax": 3 },
+      "pivot": "ground_center", "collision": "box", "instancing": false, "lod": "small",
+      "rootNode": "prop_armchair_cozy_a_root", "requiredNodes": ["prop_armchair_cozy_a_root", "COL_prop_armchair_cozy_a"], "readDistanceMeters": 15,
+      "parameters": { "scale": 1.0 },
+      "collisionPrimitives": [{ "id": "main", "center": [0, 0.46, 0], "halfExtents": [0.48, 0.46, 0.46] }]
     }
   ]
 }

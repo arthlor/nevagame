@@ -5,3 +5,7 @@ test-results/
 .DS_Store
 __pycache__/
 *.py[cod]
+output/playwright/
+.playwright-cli/
+.playwright-mcp/
+assets/audio/licenses/

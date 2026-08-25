@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import math
 from collections.abc import Iterable
 
 import bpy
@@ -29,6 +30,7 @@ def _finish_mesh(
     obj.data.name = f"{name}_mesh"
     obj.data.materials.append(get_or_create_material(token))
     obj.parent = parent
+    bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
@@ -49,7 +51,7 @@ def _finish_mesh(
 
 
 def apply_vertex_values(obj: bpy.types.Object) -> None:
-    """Bake semantic base color plus bounded COLOR_0 planar modulation."""
+    """Bake linear semantic color plus broad, bounded COLOR_0 modulation."""
     mesh = obj.data
     if not mesh.polygons or not mesh.loops:
         return
@@ -62,14 +64,22 @@ def apply_vertex_values(obj: bpy.types.Object) -> None:
     z_min = min(z_values, default=0.0)
     z_max = max(z_values, default=1.0)
     z_span = max(0.001, z_max - z_min)
+    key_direction = Vector((0.46, -0.34, 0.82)).normalized()
     for polygon in mesh.polygons:
-        normal_light = max(-0.08, min(0.08, polygon.normal.z * 0.08))
+        normal = polygon.normal.normalized()
+        top_light = max(-0.06, min(0.06, normal.z * 0.06))
+        key_light = max(-0.025, min(0.025, normal.dot(key_direction) * 0.025))
         material = mesh.materials[polygon.material_index] if mesh.materials else None
         base_color = material.diffuse_color if material is not None else (1.0, 1.0, 1.0, 1.0)
         for loop_index in polygon.loop_indices:
             vertex = mesh.vertices[mesh.loops[loop_index].vertex_index]
-            height_light = ((vertex.co.z - z_min) / z_span - 0.5) * 0.06
-            value = max(0.78, min(1.0, 0.9 + normal_light + height_light))
+            normalized_height = (vertex.co.z - z_min) / z_span
+            height_light = (normalized_height - 0.5) * 0.05
+            contact_darkening = (1.0 - normalized_height) ** 2 * 0.025
+            value = max(
+                0.74,
+                min(1.0, 0.92 + top_light + key_light + height_light - contact_darkening),
+            )
             attribute.data[loop_index].color = (
                 base_color[0] * value,
                 base_color[1] * value,
@@ -123,6 +133,38 @@ def add_beam(name, start, end, radius, token, parent, *, vertices=6, flat=True):
     return _finish_mesh(obj, name, token, parent, flat=flat)
 
 
+def add_tapered_beam(
+    name,
+    start,
+    end,
+    radius_start,
+    radius_end,
+    token,
+    parent,
+    *,
+    vertices=6,
+    flat=True,
+):
+    """Create one connected low-sided tapered section between authored joints."""
+    start_vec = Vector(start)
+    end_vec = Vector(end)
+    direction = end_vec - start_vec
+    if direction.length <= 1e-6:
+        raise ValueError(f"{name}: tapered beam endpoints must be distinct")
+    midpoint = (start_vec + end_vec) * 0.5
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=radius_start,
+        radius2=radius_end,
+        depth=direction.length,
+        location=midpoint,
+    )
+    obj = bpy.context.active_object
+    obj.rotation_mode = "QUATERNION"
+    obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
+    return _finish_mesh(obj, name, token, parent, flat=flat)
+
+
 def add_tri_prism(name, center, size, token, parent, *, rotation=(0.0, 0.0, 0.0)):
     width, depth, height = size
     x, y, z = width / 2, depth / 2, height / 2
@@ -157,11 +199,37 @@ def add_marker(name, location, parent, *, marker_type="interaction"):
     return marker
 
 
-def add_collision_box(name, location, dimensions, parent):
+def add_collision_box(name, location, dimensions, parent, *, rotation=(0.0, 0.0, 0.0)):
     marker = add_marker(name, location, parent, marker_type="collision")
+    marker.rotation_euler = rotation
     marker["shape"] = "box"
     marker["dimensions"] = list(dimensions)
     return marker
+
+
+def add_collision_primitives(spec: dict, parent) -> list[bpy.types.Object]:
+    """Emit catalog-authored box markers, converting runtime Y-up coordinates to Blender Z-up."""
+    primitives = spec.get("collisionPrimitives")
+    if spec.get("collision") == "none":
+        if primitives:
+            raise ValueError(f"{spec['id']}: nonblocking assets cannot define collision primitives")
+        return []
+    if not primitives:
+        raise ValueError(f"{spec['id']}: blocking assets require collisionPrimitives")
+
+    markers = []
+    for index, primitive in enumerate(primitives):
+        center_x, center_y, center_z = primitive["center"]
+        half_x, half_y, half_z = primitive["halfExtents"]
+        name = f"COL_{spec['id']}" if index == 0 else f"COL_{spec['id']}_{primitive['id']}"
+        markers.append(add_collision_box(
+            name,
+            (center_x, -center_z, center_y),
+            (half_x * 2, half_z * 2, half_y * 2),
+            parent,
+            rotation=(0.0, 0.0, math.radians(primitive.get("yawDegrees", 0.0))),
+        ))
+    return markers
 
 
 def join_meshes(objects: Iterable[bpy.types.Object], name: str):

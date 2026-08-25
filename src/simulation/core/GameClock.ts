@@ -51,6 +51,15 @@ export class GameClock {
     this.state.minutesPerRealSecond = minutesPerRealSecond;
   }
 
+  /** Deterministic development capture setup; gameplay advances time through tick(). */
+  public setDebugMinute(currentMinute: number): boolean {
+    if (!Number.isSafeInteger(currentMinute) || currentMinute < 0) return false;
+    this.state.currentMinute = currentMinute;
+    this.accumulatorSeconds = 0;
+    this.recalculateCalendar();
+    return true;
+  }
+
   /**
    * Advances simulation time with real delta seconds.
    * Returns the integer number of game minutes advanced.

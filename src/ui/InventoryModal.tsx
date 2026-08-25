@@ -20,13 +20,16 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
   const selectedCrop = selectedSlot?.itemId
     ? Array.from(ContentRegistry.crops.values()).find((crop) => crop.seedItemId === selectedSlot.itemId)
     : undefined;
+  const isStarterCrop = selectedCrop
+    ? ["crop.wheat", "crop.tomato", "crop.potato"].includes(selectedCrop.id)
+    : false;
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <div className="neva-panel modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="neva-panel modal-content" style={{ width: "min(700px, 94vw)" }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span>🎒 Backpack Inventory</span>
-          <button className="neva-button neva-button-secondary" style={{ padding: "2px 8px" }} onClick={onClose}>
+          <button type="button" className="neva-button neva-button-secondary" style={{ padding: "2px 8px" }} onClick={onClose}>
             ✕
           </button>
         </div>
@@ -35,61 +38,62 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
           {/* Inventory Grid */}
           <div style={{ flex: 1 }}>
             <div className="inventory-grid">
-              {playerInv.slots.map((slot, idx) => {
-                const itemDef = slot.itemId ? ContentRegistry.items.get(slot.itemId) : null;
-                const isSelected = selectedSlotIndex === idx;
+              {playerInv ? (
+                playerInv.slots.map((slot, idx) => {
+                  const itemDef = slot.itemId ? ContentRegistry.items.get(slot.itemId) : null;
+                  const isSelected = selectedSlotIndex === idx;
 
-                return (
-                  <div
-                    key={idx}
-                    className={`inventory-slot ${isSelected ? "selected" : ""}`}
-                    onClick={() => setSelectedSlotIndex(idx)}
-                  >
-                    {itemDef ? (
-                      <>
-                        <div className="slot-item-name">{itemDef.name}</div>
-                        <div className="slot-quantity">{slot.quantity}</div>
-                      </>
-                    ) : (
-                      <div style={{ color: "#AAA", fontSize: "11px" }}>Empty</div>
-                    )}
-                  </div>
-                );
-              })}
+                  return (
+                    <div
+                      key={idx}
+                      className={`inventory-slot ${isSelected ? "selected" : ""} ${!itemDef ? "is-empty" : ""}`}
+                      onClick={() => setSelectedSlotIndex(idx)}
+                    >
+                      {itemDef ? (
+                        <>
+                          <div className="slot-item-name">{itemDef.name}</div>
+                          <div className="slot-quantity">{slot.quantity}×</div>
+                        </>
+                      ) : (
+                        <div className="slot-empty-label">Empty</div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ color: "var(--color-text-muted)" }}>Inventory not found</div>
+              )}
             </div>
           </div>
 
           {/* Item Details Panel */}
-          <div
-            style={{
-              width: "220px",
-              background: "#FFF",
-              border: "2px solid #C4B5A2",
-              borderRadius: "6px",
-              padding: "12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px"
-            }}
-          >
+          <div className="inventory-details-card">
             {selectedItemDef && selectedSlot ? (
               <>
-                <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--color-wood-dark)" }}>
+                <div className="details-title">
                   {selectedItemDef.name}
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--color-accent-teal)", textTransform: "uppercase" }}>
+                <div className="details-category">
                   Category: {selectedItemDef.category}
                 </div>
-                <div style={{ fontSize: "12px", color: "#555", flex: 1 }}>
+                <div className="details-description">
                   {selectedItemDef.description}
                 </div>
-                <div style={{ borderTop: "1px solid #EEE", paddingTop: "6px", fontSize: "12px" }}>
-                  <div>Quantity: <b>{selectedSlot.quantity}</b></div>
-                  <div>Base Value: <b>{selectedItemDef.baseValue} G</b></div>
+                <div className="details-stats">
+                  <div className="details-stat-row">
+                    <span>Quantity:</span>
+                    <strong>{selectedSlot.quantity}</strong>
+                  </div>
+                  <div className="details-stat-row">
+                    <span>Base Value:</span>
+                    <strong style={{ color: "var(--color-accent-gold)" }}>{selectedItemDef.baseValue} G</strong>
+                  </div>
                 </div>
-                {selectedCrop && (
+                {selectedCrop && isStarterCrop && (
                   <button
-                    className="neva-button neva-button-teal"
+                    type="button"
+                    className="neva-button neva-button-primary"
+                    style={{ marginTop: "auto" }}
                     onClick={() => {
                       onSelectPlantCrop(selectedCrop.id);
                       onClose();
@@ -98,9 +102,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                     Plant {selectedCrop.name}
                   </button>
                 )}
+                {selectedCrop && !isStarterCrop && (
+                  <div className="inventory-unavailable-note">Not stocked for the starter farm yet.</div>
+                )}
               </>
             ) : (
-              <div style={{ color: "#888", fontSize: "13px", textAlign: "center", marginTop: "40px" }}>
+              <div className="details-placeholder">
                 Select an item from your backpack to inspect details.
               </div>
             )}
@@ -108,7 +115,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
         </div>
 
         <div className="modal-footer">
-          <button className="neva-button" onClick={onClose}>
+          <button type="button" className="neva-button" onClick={onClose}>
             Close
           </button>
         </div>

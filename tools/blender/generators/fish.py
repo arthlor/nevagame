@@ -1,11 +1,109 @@
-"""Species-readable faceted fish generators."""
+"""Species-readable authored fish generators."""
 
 from __future__ import annotations
 
 import math
 
-from common.geometry import add_beam, add_ico, add_ring, add_tri_prism
+import bmesh
+import bpy
+
+from common.geometry import add_ico, add_ring, add_tri_prism, apply_vertex_values
 from common.materials import get_or_create_material
+
+
+def _smoothstep(edge0: float, edge1: float, value: float) -> float:
+    amount = max(0.0, min(1.0, (value - edge0) / max(1e-6, edge1 - edge0)))
+    return amount * amount * (3.0 - 2.0 * amount)
+
+
+def _longitudinal_profile(species: str, position: float, tail_peduncle: float) -> float:
+    """Return a deliberate nose-to-tail radius, with position in [-1, 1]."""
+    if species == "trout":
+        nose = 0.12 + 0.82 * _smoothstep(-1.0, -0.48, position)
+        shoulder = 0.94 + 0.06 * _smoothstep(-0.48, -0.05, position)
+        rear = 1.0 - (1.0 - tail_peduncle) * _smoothstep(0.04, 1.0, position)
+        return min(nose, shoulder, rear)
+    nose = 0.18 + 0.86 * _smoothstep(-1.0, -0.55, position)
+    shoulder = 1.04 + 0.08 * (1.0 - abs(position + 0.20))
+    rear = 1.0 - (1.0 - tail_peduncle) * _smoothstep(0.18, 1.0, position)
+    return min(nose, shoulder, rear)
+
+
+def _add_profiled_body(species: str, params: dict, dorsal: str, belly: str, root):
+    length = params["length"]
+    girth = params["girth"]
+    body_depth = params["bodyDepth"]
+    body_segments = params["bodySegments"]
+    radial_segments = params["radialSegments"]
+    tail_peduncle = params["tailPeduncle"]
+    vertices = []
+    rings = []
+    for longitudinal_index in range(body_segments + 1):
+        progress = longitudinal_index / body_segments
+        position = progress * 2.0 - 1.0
+        radius = _longitudinal_profile(species, position, tail_peduncle)
+        y = position * length * 0.5
+        center_z = math.sin(progress * math.pi) * girth * (
+            0.055 if species == "trout" else 0.025
+        )
+        ring = []
+        for radial_index in range(radial_segments):
+            angle = radial_index * math.tau / radial_segments
+            side_factor = 0.96 + 0.04 * math.cos(angle * 2.0)
+            x = math.cos(angle) * girth * radius * side_factor
+            z = center_z + math.sin(angle) * girth * body_depth * radius
+            ring.append(len(vertices))
+            vertices.append((x, y, z))
+        rings.append(tuple(ring))
+
+    nose_index = len(vertices)
+    vertices.append((0.0, -length * 0.515, -girth * 0.02))
+    tail_index = len(vertices)
+    vertices.append((0.0, length * 0.515, 0.0))
+    faces = []
+    material_indices = []
+    for longitudinal_index in range(body_segments):
+        current, following = rings[longitudinal_index], rings[longitudinal_index + 1]
+        for radial_index in range(radial_segments):
+            following_radial = (radial_index + 1) % radial_segments
+            faces.append(
+                (
+                    current[radial_index],
+                    following[radial_index],
+                    following[following_radial],
+                    current[following_radial],
+                )
+            )
+            midpoint_angle = (radial_index + 0.5) * math.tau / radial_segments
+            material_indices.append(1 if math.sin(midpoint_angle) < -0.08 else 0)
+    for radial_index in range(radial_segments):
+        following_radial = (radial_index + 1) % radial_segments
+        faces.append((nose_index, rings[0][following_radial], rings[0][radial_index]))
+        material_indices.append(
+            1 if math.sin((radial_index + 0.5) * math.tau / radial_segments) < -0.08 else 0
+        )
+        faces.append((tail_index, rings[-1][radial_index], rings[-1][following_radial]))
+        material_indices.append(0)
+
+    mesh = bpy.data.meshes.new(f"{species}_body_mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.materials.append(get_or_create_material(dorsal))
+    mesh.materials.append(get_or_create_material(belly))
+    mesh.validate(clean_customdata=False)
+    mesh.update(calc_edges=True)
+    editable = bmesh.new()
+    editable.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(editable, faces=editable.faces)
+    editable.to_mesh(mesh)
+    editable.free()
+    for polygon, material_index in zip(mesh.polygons, material_indices, strict=True):
+        polygon.material_index = material_index
+        polygon.use_smooth = False
+    body = bpy.data.objects.new(f"{species}_body", mesh)
+    bpy.context.collection.objects.link(body)
+    body.parent = root
+    apply_vertex_values(body)
+    return body
 
 
 def stylized_fish(spec: dict, root) -> None:
@@ -13,83 +111,168 @@ def stylized_fish(spec: dict, root) -> None:
     species = params["species"]
     dorsal, belly, accent = spec["palette"]
     length, girth = params["length"], params["girth"]
-    height = girth * (1.45 if species == "tuna" else 1.15)
-    body = add_ico(
-        f"{species}_body", (0, 0, 0),
-        (girth, length * 0.5, height), dorsal, root,
-        subdivisions=3, rotation=(0.04, 0.0, 0.0),
-    )
-    body.data.materials.append(get_or_create_material(belly))
-    body.data.materials.append(get_or_create_material(accent))
-    for polygon in body.data.polygons:
-        if polygon.center.z < -height * 0.06:
-            polygon.material_index = 1
-        elif species == "trout" and polygon.index % 13 == 0:
-            polygon.material_index = 2
+    body_depth = params["bodyDepth"]
+    height = girth * body_depth
+    _add_profiled_body(species, params, dorsal, belly, root)
 
-    head_scale = 0.54 if species == "trout" else 0.62
-    head = add_ico(
-        f"{species}_head", (0, -length * 0.36, height * 0.03),
-        (girth * head_scale, length * 0.20, height * 0.68), dorsal, root,
-        subdivisions=3, rotation=(0.02, 0, 0),
-    )
-    head.data.materials.append(get_or_create_material(belly))
-    for polygon in head.data.polygons:
-        if polygon.center.z < -height * 0.08:
-            polygon.material_index = 1
+    jaw_length = 0.11 if species == "trout" else 0.14
     add_ico(
-        f"{species}_jaw", (0, -length * 0.50, -height * 0.20),
-        (girth * 0.36, length * 0.10, height * 0.20), belly, root,
-        subdivisions=2, rotation=(math.radians(-4), 0, 0),
-    )
-    add_ico(
-        f"{species}_tail_stock", (0, length * 0.39, 0),
-        (girth * 0.46, length * 0.18, height * 0.42), dorsal, root,
+        f"{species}_jaw",
+        (0, -length * 0.47, -height * 0.24),
+        (
+            girth * (0.32 if species == "trout" else 0.40),
+            length * jaw_length,
+            height * 0.16,
+        ),
+        belly,
+        root,
         subdivisions=2,
+        rotation=(math.radians(-4 if species == "trout" else -1), 0, 0),
     )
 
+    # Fish travel along Y. Vertical fins live in the Y/Z plane and use only a
+    # thin X extrusion, preserving their side-view silhouette.
+    vertical_fin_rotation = (0, 0, math.pi / 2)
+    inverted_vertical_fin_rotation = (math.pi, 0, math.pi / 2)
     tail_y = length * 0.54
-    add_tri_prism(f"{species}_tail_upper", (0, tail_y, height * 0.25), (girth * 0.16, length * 0.30, height * 1.25), accent, root, rotation=(0, 0, math.radians(8)))
-    add_tri_prism(f"{species}_tail_lower", (0, tail_y, -height * 0.25), (girth * 0.16, length * 0.30, height * 1.25), accent, root, rotation=(math.pi, 0, math.radians(-8)))
-    add_tri_prism(f"{species}_dorsal_fin", (0, -length * 0.05, height * 0.92), (girth * 0.18, length * 0.42, height * params["finScale"]), dorsal, root, rotation=(math.pi / 2, 0, 0))
-    for side, x in (("left", -girth * 0.95), ("right", girth * 0.95)):
-        add_tri_prism(f"{species}_pectoral_{side}", (x, -length * 0.10, -height * 0.05), (girth * 0.12, length * 0.46, height * 0.55), accent, root, rotation=(0, math.pi / 2, 0))
-        add_ico(f"{species}_eye_{side}", (x * 0.78, -length * 0.38, height * 0.32), (0.045, 0.035, 0.045), dorsal, root, subdivisions=1)
+    tail_height = height * (0.82 if species == "trout" else 1.15)
+    tail_length = length * (0.23 if species == "trout" else 0.28)
+    add_tri_prism(
+        f"{species}_tail_upper",
+        (0, tail_y, tail_height * 0.25),
+        (tail_length, girth * 0.14, tail_height),
+        accent,
+        root,
+        rotation=vertical_fin_rotation,
+    )
+    add_tri_prism(
+        f"{species}_tail_lower",
+        (0, tail_y, -tail_height * 0.25),
+        (tail_length, girth * 0.14, tail_height),
+        accent,
+        root,
+        rotation=inverted_vertical_fin_rotation,
+    )
+
+    dorsal_y = -length * (0.02 if species == "trout" else 0.13)
+    dorsal_height = height * (0.56 if species == "trout" else 0.86) * params["finScale"]
+    add_tri_prism(
+        f"{species}_dorsal_fin",
+        (0, dorsal_y, height * 0.88),
+        (length * (0.28 if species == "trout" else 0.22), girth * 0.12, dorsal_height),
+        dorsal,
+        root,
+        rotation=vertical_fin_rotation,
+    )
+
+    pectoral_y = -length * (0.17 if species == "trout" else 0.22)
+    pectoral_reach = girth * (0.62 if species == "trout" else 1.05)
+    for side, x in (("left", -girth * 0.88), ("right", girth * 0.88)):
+        add_tri_prism(
+            f"{species}_pectoral_{side}",
+            (x, pectoral_y, -height * 0.10),
+            (pectoral_reach, height * 0.09, length * (0.22 if species == "trout" else 0.31)),
+            accent,
+            root,
+            rotation=(-math.pi / 2, 0, 0),
+        )
+        eye_y = -length * (0.37 if species == "trout" else 0.39)
+        eye_z = height * (0.36 if species == "trout" else 0.32)
+        eye_x = x * (0.76 if species == "trout" else 0.83)
+        eye_r = girth * (0.16 if species == "trout" else 0.12)
+        eye_d = eye_r * 0.75
+        add_ico(
+            f"{species}_eye_{side}",
+            (eye_x, eye_y, eye_z),
+            (eye_r, eye_d, eye_r),
+            dorsal,
+            root,
+            subdivisions=1,
+        )
         add_ring(
-            f"{species}_eye_rim_{side}", (x * 0.80, -length * 0.38, height * 0.32),
-            0.058, 0.012, accent, root, major_segments=8, minor_segments=4,
+            f"{species}_eye_rim_{side}",
+            (eye_x * 1.02, eye_y, eye_z),
+            eye_r * 1.3,
+            eye_r * 0.25,
+            accent,
+            root,
+            major_segments=8,
+            minor_segments=4,
             rotation=(0, math.pi / 2, 0),
         )
         add_ico(
-            f"{species}_gill_plate_{side}", (x * 0.62, -length * 0.28, height * 0.02),
-            (girth * 0.12, length * 0.10, height * 0.48), accent, root,
+            f"{species}_gill_plate_{side}",
+            (x * 0.64, -length * 0.29, height * 0.015),
+            (
+                girth * 0.10,
+                length * 0.085,
+                height * (0.40 if species == "trout" else 0.48),
+            ),
+            accent,
+            root,
             subdivisions=2,
         )
         add_tri_prism(
-            f"{species}_pelvic_{side}", (x * 0.55, length * 0.05, -height * 0.65),
-            (girth * 0.10, length * 0.22, height * 0.34), accent, root,
-            rotation=(0, math.pi / 2, 0),
+            f"{species}_pelvic_{side}",
+            (x * 0.50, length * 0.05, -height * 0.72),
+            (girth * 0.38, height * 0.07, length * 0.16),
+            accent,
+            root,
+            rotation=(-math.pi / 2, 0, 0),
         )
     add_tri_prism(
-        f"{species}_anal_fin", (0, length * 0.22, -height * 0.70),
-        (girth * 0.16, length * 0.28, height * 0.38), accent, root,
-        rotation=(-math.pi / 2, 0, 0),
+        f"{species}_anal_fin",
+        (0, length * 0.24, -height * 0.82),
+        (length * 0.20, girth * 0.11, height * (0.30 if species == "trout" else 0.42)),
+        accent,
+        root,
+        rotation=inverted_vertical_fin_rotation,
     )
+
     if species == "trout":
         add_tri_prism(
-            "trout_adipose_fin", (0, length * 0.26, height * 0.68),
-            (girth * 0.12, length * 0.14, height * 0.22), accent, root,
-            rotation=(math.pi / 2, 0, 0),
+            "trout_adipose_fin",
+            (0, length * 0.28, height * 0.76),
+            (length * 0.12, girth * 0.09, height * 0.20),
+            accent,
+            root,
+            rotation=vertical_fin_rotation,
         )
-        for index in range(6):
+        spot_r = girth * 0.16
+        spot_d = girth * 0.10
+        for index in range(7):
             angle = index * 2.39996
             add_ico(
                 f"trout_spot_{index:02d}",
-                (math.cos(angle) * girth * 0.78, -length * 0.12 + index * length * 0.055, height * (0.08 + 0.10 * (index % 2))),
-                (0.045, 0.030, 0.045), accent, root, subdivisions=1,
+                (
+                    math.cos(angle) * girth * 0.84,
+                    -length * 0.15 + index * length * 0.052,
+                    height * (0.10 + 0.11 * (index % 2)),
+                ),
+                (spot_r, spot_d, spot_r),
+                accent,
+                root,
+                subdivisions=1,
             )
-    if species == "tuna":
-        for index in range(4):
-            y = length * (0.18 + index * 0.07)
-            add_tri_prism(f"tuna_finlet_{index:02d}", (0, y, height * 0.77), (girth * 0.10, length * 0.10, height * 0.24), accent, root, rotation=(math.pi / 2, 0, 0))
-            add_tri_prism(f"tuna_finlet_lower_{index:02d}", (0, y, -height * 0.77), (girth * 0.10, length * 0.10, height * 0.24), accent, root, rotation=(-math.pi / 2, 0, 0))
+    else:
+        # Tuna's narrow caudal peduncle, paired finlets, and long sickle fins
+        # must remain readable even when the body is a small cargo silhouette.
+        for index in range(5):
+            y = length * (0.16 + index * 0.065)
+            finlet_size = (length * 0.07, girth * 0.07, height * 0.18)
+            add_tri_prism(
+                f"tuna_finlet_{index:02d}",
+                (0, y, height * 0.84),
+                finlet_size,
+                accent,
+                root,
+                rotation=vertical_fin_rotation,
+            )
+            add_tri_prism(
+                f"tuna_finlet_lower_{index:02d}",
+                (0, y, -height * 0.84),
+                finlet_size,
+                accent,
+                root,
+                rotation=inverted_vertical_fin_rotation,
+            )

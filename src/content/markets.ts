@@ -1,6 +1,8 @@
 // src/content/markets.ts
 
 import { MarketDefinition } from "./types";
+import { VILLAGE_MARKET } from "../world/WorldAnchors";
+import { WorldLayout } from "../world/WorldLayout";
 
 export const MARKETS: Record<string, MarketDefinition> = {
   "market.village": {
@@ -8,7 +10,11 @@ export const MARKETS: Record<string, MarketDefinition> = {
     name: "Village Produce Market",
     regionId: "region.village",
     description: "The bustling center of agriculture and daily staples. Trades in grain, root vegetables, orchard fruits, and basic crafting materials.",
-    interactionPosition: { x: 0, z: -3, radiusMeters: 6 },
+    interactionPosition: {
+      x: VILLAGE_MARKET.position.x,
+      z: VILLAGE_MARKET.position.z,
+      radiusMeters: VILLAGE_MARKET.radiusMeters
+    },
     commodities: [
       { itemId: "produce.wheat", basePrice: 8, targetSupply: 50, consumptionRatePerHour: 4, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "produce.barley", basePrice: 10, targetSupply: 40, consumptionRatePerHour: 3, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
@@ -27,7 +33,11 @@ export const MARKETS: Record<string, MarketDefinition> = {
     name: "Harbor Fish Market & Wholesaler",
     regionId: "region.harbor",
     description: "Where coastal vessels dock to unload their fresh catch. Premium prices paid for high-freshness pelagic and deep-sea game fish.",
-    interactionPosition: { x: 21, z: 33.5, radiusMeters: 7 },
+    interactionPosition: {
+      x: WorldLayout.landmark("fish-market").x,
+      z: WorldLayout.landmark("fish-market").z,
+      radiusMeters: 7
+    },
     commodities: [
       { itemId: "fish.carp", basePrice: 35, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { spring: 1.1 } },
       { itemId: "fish.trout", basePrice: 50, targetSupply: 15, consumptionRatePerHour: 1.2, seasonalFactors: { winter: 1.2 } },

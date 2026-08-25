@@ -17,14 +17,27 @@ with PALETTE_PATH.open("r", encoding="utf-8") as palette_file:
 MATERIAL_SPECS: dict[str, dict] = _PALETTE_DOCUMENT["tokens"]
 
 
-def _rgba(hex_value: str) -> tuple[float, float, float, float]:
+def srgb_channel_to_linear(value: float) -> float:
+    """Convert a canonical sRGB palette channel to scene-linear RGB."""
+    if value <= 0.04045:
+        return value / 12.92
+    return ((value + 0.055) / 1.055) ** 2.4
+
+
+def hex_to_linear_rgba(hex_value: str) -> tuple[float, float, float, float]:
+    """Decode a six-digit sRGB token for Blender/glTF's linear color path."""
     value = hex_value.removeprefix("#")
     if len(value) != 6:
         raise ValueError(f"Expected a six-digit color, received {hex_value!r}")
-    return (
+    srgb = (
         int(value[0:2], 16) / 255,
         int(value[2:4], 16) / 255,
         int(value[4:6], 16) / 255,
+    )
+    return (
+        srgb_channel_to_linear(srgb[0]),
+        srgb_channel_to_linear(srgb[1]),
+        srgb_channel_to_linear(srgb[2]),
         1.0,
     )
 
@@ -40,18 +53,23 @@ def get_or_create_material(token: str) -> bpy.types.Material:
         return existing
 
     spec = MATERIAL_SPECS[token]
-    color = _rgba(spec["hex"])
+    color = hex_to_linear_rgba(spec["hex"])
     material = bpy.data.materials.new(name=token)
-    material.use_nodes = True
     material.diffuse_color = color
+    # Every generated primitive is closed geometry. Keeping back-face culling
+    # enabled avoids exporting every shared palette material as double-sided.
+    material.use_backface_culling = True
 
-    nodes = material.node_tree.nodes
+    node_tree = material.node_tree
+    if node_tree is None:
+        raise RuntimeError(f"Blender did not create a node tree for palette material {token}")
+    nodes = node_tree.nodes
     nodes.clear()
     output = nodes.new(type="ShaderNodeOutputMaterial")
     principled = nodes.new(type="ShaderNodeBsdfPrincipled")
     vertex_color = nodes.new(type="ShaderNodeVertexColor")
     vertex_color.layer_name = "Color"
-    material.node_tree.links.new(vertex_color.outputs["Color"], principled.inputs["Base Color"])
+    node_tree.links.new(vertex_color.outputs["Color"], principled.inputs["Base Color"])
     principled.inputs["Roughness"].default_value = spec["roughness"]
     principled.inputs["Metallic"].default_value = spec["metalness"]
 
@@ -60,9 +78,9 @@ def get_or_create_material(token: str) -> bpy.types.Material:
         emission_color = principled.inputs.get("Emission Color") or principled.inputs.get("Emission")
         emission_strength = principled.inputs.get("Emission Strength")
         if emission_color is not None:
-            material.node_tree.links.new(vertex_color.outputs["Color"], emission_color)
+            node_tree.links.new(vertex_color.outputs["Color"], emission_color)
         if emission_strength is not None:
             emission_strength.default_value = strength
 
-    material.node_tree.links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+    node_tree.links.new(principled.outputs["BSDF"], output.inputs["Surface"])
     return material

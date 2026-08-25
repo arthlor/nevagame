@@ -250,6 +250,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "small",
     baseDecayRatePerMinute: 0.12,
     isSportFish: false,
+    minigameBehavior: "smooth",
+    minigameDifficulty: 18,
     tags: ["freshwater", "basic", "bottom-feeder"]
   },
   "fish.trout": {
@@ -267,6 +269,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "small",
     baseDecayRatePerMinute: 0.15,
     isSportFish: true,
+    minigameBehavior: "dart",
+    minigameDifficulty: 52,
     tags: ["freshwater", "sport", "active"]
   },
   "fish.perch": {
@@ -284,6 +288,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "small",
     baseDecayRatePerMinute: 0.18,
     isSportFish: false, // Catchable via basic fishing
+    minigameBehavior: "mixed",
+    minigameDifficulty: 30,
     tags: ["freshwater", "basic"]
   },
   "fish.catfish": {
@@ -301,6 +307,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "medium",
     baseDecayRatePerMinute: 0.10,
     isSportFish: true,
+    minigameBehavior: "sinker",
+    minigameDifficulty: 58,
     tags: ["freshwater", "sport", "heavy"]
   },
   "fish.pike": {
@@ -318,6 +326,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "medium",
     baseDecayRatePerMinute: 0.14,
     isSportFish: true,
+    minigameBehavior: "dart",
+    minigameDifficulty: 65,
     tags: ["freshwater", "sport", "predator"]
   },
   "fish.arowana": {
@@ -335,6 +345,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "medium",
     baseDecayRatePerMinute: 0.16,
     isSportFish: true,
+    minigameBehavior: "mixed",
+    minigameDifficulty: 70,
     tags: ["freshwater", "sport", "rare", "prized"]
   },
 
@@ -354,6 +366,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "small",
     baseDecayRatePerMinute: 0.20,
     isSportFish: false,
+    minigameBehavior: "floater",
+    minigameDifficulty: 38,
     tags: ["saltwater", "basic", "coastal"]
   },
   "fish.tuna": {
@@ -371,6 +385,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "medium",
     baseDecayRatePerMinute: 0.12,
     isSportFish: true,
+    minigameBehavior: "smooth",
+    minigameDifficulty: 68,
     tags: ["saltwater", "sport", "pelagic"]
   },
   "fish.sturgeon": {
@@ -388,6 +404,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "large",
     baseDecayRatePerMinute: 0.08,
     isSportFish: true,
+    minigameBehavior: "sinker",
+    minigameDifficulty: 75,
     tags: ["saltwater", "sport", "ancient", "heavy"]
   },
   "fish.sailfish": {
@@ -405,6 +423,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "large",
     baseDecayRatePerMinute: 0.15,
     isSportFish: true,
+    minigameBehavior: "floater",
+    minigameDifficulty: 80,
     tags: ["saltwater", "sport", "fast", "trophy"]
   },
   "fish.swordfish": {
@@ -422,6 +442,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "large",
     baseDecayRatePerMinute: 0.11,
     isSportFish: true,
+    minigameBehavior: "sinker",
+    minigameDifficulty: 85,
     tags: ["saltwater", "sport", "deep-sea", "trophy"]
   },
   "fish.blue_marlin": {
@@ -439,6 +461,8 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     cargoClass: "gargantuan",
     baseDecayRatePerMinute: 0.10,
     isSportFish: true,
+    minigameBehavior: "dart",
+    minigameDifficulty: 90,
     tags: ["saltwater", "sport", "apex", "legendary"]
   }
 };

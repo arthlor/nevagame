@@ -1,6 +1,6 @@
 # LLM Agent Art Pipeline & Rendering Instructions (Compact)
 
-> **Role:** Mandatory implementation guide for rendering/art-generation agents. `04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` owns **what the game looks like**; this file owns **how agents produce it reliably**. References are graphics-only, never diorama/layout requirements.
+> **Role:** Mandatory implementation guide for new/shared generators, renderer/material work, and release/gold-slice art gates. Routine existing-asset tasks follow the lean route in `BLENDER.md` and read only directly relevant sections here when needed. `04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` owns **what the game looks like**; this file owns **how agents produce it reliably**.
 
 # 0. Architecture Boundary
 
@@ -19,11 +19,12 @@ Use two production paths:
 2. **Dynamic/procedural runtime systems:** Three.js TS builders + shared `PaletteMaterials` for faceted water, crop growth visuals, seasonal tint, dynamic fish, debug proxies.
 
 Preferred flow:
-`LLM agent → one catalog entry → registered Blender family generator (+ shared authored construction helpers where reusable) → staged GLB → validation/optimization → atomic publish → catalog-backed Three.js loader`.
+`LLM agent → one catalog entry (+ referenceAuthoring brief when evidence-guided) → registered Blender family generator (+ shared authored construction helpers where reusable) → staged GLB → validation/optimization → atomic publish → catalog-backed Three.js loader`.
 
 Project boundaries:
 ```text
 assets/specs/asset-catalog.{json,schema.json}  generated-asset contract
+  optional referenceAuthoring                  evidence-to-generator contract, not a second spec
 art/palettes/neva.palette.json                 semantic palette contract
 tools/blender/cli.mjs                          public art CLI
 tools/blender/bootstrap.py                     headless Blender orchestration
@@ -31,11 +32,16 @@ tools/blender/generators/*.py                  registered family generators
 tools/blender/common/authored.py               reusable authored construction grammar
 tools/blender/common/{geometry,materials,pipeline}.py
                                                 primitives/material/export validation
+tools/art/codegen.mjs                              typed ID/family-map generation
 generated/.staging/                            run-local candidates and backups
 generated/glb/                                 last published optimized GLBs
+generated/.cache/art/                          disposable validated per-asset cache
 generated/reports/                             manifest, human report, quality report
 public/assets/models/                          runtime-published GLBs + manifest
 src/render/assets + loaders                     catalog consumer and GLB loader
+tools/vite/runtimeAssetCatalogPlugin.ts         virtual runtime-only catalog projection/HMR
+tools/vite/artYardPlugin.ts                     dev-only WebGL yard routes
+src/art-yard/ + tools/art-yard/viewer.html      interactive asset review surface
 tests/visual/candidates/                        unapproved gameplay-camera captures
 ```
 Game consumes optimized assets; art tools produce them. Do not couple Blender generation to gameplay logic.
@@ -164,22 +170,50 @@ Every generated asset MUST be one entry in `assets/specs/asset-catalog.json`, va
 ```
 The schema is closed (`additionalProperties: false`): extend the schema deliberately before adding a new contract field. Unknown palette tokens, duplicate/unsafe IDs or filenames, missing roots, or invalid min ≤ target ≤ max ordering fail before Blender starts.
 
+## 8.1 Reference-Guided Authoring Contract
+
+Use the optional catalog `referenceAuthoring` object when an asset is derived from supplied images, generated concept studies, turnarounds, or a reconstruction study. This is Neva's adaptation of the useful img2threejs discipline, not adoption of its shipping architecture. It must capture:
+
+- each source and whether it informs form language, silhouette, proportion, structure, materials, detail density, or workflow;
+- a non-shallow parent/child component inventory with importance, shape, count, and readable cues;
+- silhouette and negative-space requirements;
+- a hidden-surface inference strategy plus explicit confidence and continuity requirements;
+- critical features linked to component IDs;
+- bindings from the brief to existing catalog generator parameters;
+- concrete failure modes;
+- front, rear, side, three-quarter, 8 m, 15 m, and declared-read-distance review views.
+
+Run `npm run art:brief -- --asset ID` when the selected brief changes. The command validates local `repo://` evidence, HTTPS sources, hierarchy/cycles, feature links, parameter bindings and review coverage, then prints a deterministic brief/hash. Do not read or print unrelated asset briefs. `draft` means usable for exploration but not strict acceptance; `ready` means the authoring contract is complete, not that the asset is visually approved.
+
+Reference admission is visual judgment, not a brittle background-color heuristic. Preserve the original evidence. If segmentation, transparency, or a clean isolated concept makes the subject easier to read, record the normalized derivative as another study and do not let it silently replace the original. A generated rear/side study is an inference: record hidden-surface confidence so the human can inspect continuity through Art Yard/game controls.
+
+Translate accepted hierarchy and parameters into the existing registered Blender family generator and shared helpers. Do not ship direct TypeScript reconstruction factories, source-image-dependent runtime geometry, a second palette/material/lighting system, a separate per-asset spec tree, or a direct exporter. Runtime-dynamic systems continue to follow the explicit Three.js path in section 1; static reference-authored assets remain staged, validated, optimized GLBs.
+
+Reference-authoring data is build-time only. The Vite virtual catalog module projects loader/placement, collision, LOD, rig/socket, and animation-contract fields directly from the canonical JSON without creating a checked-in second catalog; source URIs, authoring prose, generator parameters and budgets must be absent from the production browser bundle.
+
+`npm run art:codegen` derives `src/render/assets/AssetCatalog.generated.ts` from the canonical catalog. It owns typed `ASSET_IDS`, family names, and family maps only; it is generated and must never be hand-edited. `npm run art:codegen:check` fails when the adapter is stale. The Vite runtime plugin may refresh codegen during development, while production consumes only the runtime projection.
+
 Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/blender/asset_budgets.json`. Every exported GLB MUST report triangle count, material groups, mesh/node count, file size, target status, bounds, and required-node coverage to `generated/reports/asset_budget_report.json`. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` additionally rejects every below-target asset and is required for production/gold-slice acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
 
 Implemented command contract:
 ```bash
+npm run art:codegen
+npm run art:codegen:check
+npm run art:brief -- --asset tree_oak_a
 npm run art:generate -- --asset tree_oak_a
 npm run art:generate -- --family architecture --no-publish
 npm run art:generate -- --all
 npm run art:generate:strict -- --all
 npm run art:validate -- --all
 npm run art:determinism -- --asset tree_oak_a
-npm run art:preview -- --all
 npm run art:benchmark
+npm run art:benchmark:extended
 ```
-No selector and `--all` both select the full catalog; repeated `--asset`/`--family` selectors form a union. `--no-publish` keeps both published directories unchanged. `--strict` belongs only to `generate`.
+Every catalog command requires `--asset`, `--family`, or explicit release `--all`; a bare command fails. Repeated `--asset`/`--family` selectors form a union. `--no-publish` keeps both published directories unchanged. `--strict` belongs only to `generate`.
 
-`generate` uses a unique `generated/.staging/run-*` directory, validates Blender scene contracts, validates raw GLBs, applies dedupe/prune/weld/Meshopt, validates optimized GLBs, then promotes selected GLBs plus manifests in one rollback-capable transaction. Partial runs merge their selected results into the published manifest and preserve other assets; only a full-catalog publish may remove files owned by the previous manifest that no longer exist in the catalog. `generated/reports/asset_budget_report.json` records the latest generation attempt and may describe a strict candidate that was rejected before publish. Published truth is `generated/reports/asset-manifest.json` plus `public/assets/models/asset-manifest.json`. Determinism and preview runs do not publish or replace the canonical quality report.
+`generate` uses a unique `generated/.staging/run-*` directory, computes a per-asset input/toolchain hash, revalidates a matching optimized GLB from `generated/.cache/art/` when available, and invokes Blender only for cache misses. Cache artifacts are acceleration state: they are validated before reuse, never published, and report `inputHash`/`cacheHit`. A catalog/spec/palette/generator/helper/dependency/Blender-version change invalidates the affected asset. Shared-generator/release `art:determinism` bypasses the cache; routine asset work does not double-generate. Only the three newest successful staging runs are retained.
+
+After cache selection or generation, the CLI validates Blender scene contracts, validates raw GLBs, applies dedupe/join/prune/weld/Meshopt, validates optimized GLBs, then promotes selected GLBs plus manifests in one rollback-capable transaction. Partial runs merge their selected results into the published manifest and preserve other assets; only a full-catalog publish may remove files owned by the previous manifest that no longer exist in the catalog. Published truth is `generated/reports/asset-manifest.json` plus `public/assets/models/asset-manifest.json`. Determinism and benchmarks do not publish or replace that truth.
 
 # 9. World Generation & Composition
 
@@ -197,7 +231,7 @@ Rapier is for gameplay-relevant physics: player capsule, NPC collision if presen
 
 # 11. Optimization & LOD
 
-The implemented post-export baseline is glTF Transform `dedup → prune → weld → meshopt`, followed by Khronos revalidation and generated/public hash parity. KTX2/BasisU, explicit LOD assets, chunk streaming and distance culling remain permitted extensions when a current asset/scene requires them; do not document them as already shipping unless the code path exists.
+The implemented post-export baseline is glTF Transform `dedup → prune → weld → meshopt`, followed by Khronos revalidation and generated/public hash parity. Catalog entries may now declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Blender consolidates only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching must skip LOD descendants so it cannot flatten the switch hierarchy. KTX2/BasisU, chunk streaming, and broader distance culling remain permitted extensions when a current asset/scene requires them; do not document them as already shipping unless the code path exists.
 
 Do not optimize away art direction: hero silhouette/faceting can matter more than a few hundred triangles.
 
@@ -229,7 +263,9 @@ tests/visual/candidates/
   harbor-candidate.png
   coast-candidate.png
 ```
-`npm run art:benchmark` captures the four 1440×900 candidate images through Playwright. `npm run art:preview` renders the published catalog review yard at `generated/previews/asset-review-yard.png`. Both are review candidates, never automatic baseline approval.
+Release/gold-slice `npm run art:benchmark` captures four fixed 1440×900 comparison images through Playwright, rejects browser errors and preferred budget overruns, and records measurements in `tests/visual/candidates/art-benchmark.json`. The current human-approved references are registered in `tests/visual/reference/approved-baselines.json`; new captures are comparison evidence, not a request to select replacement candidates unless a human explicitly reopens that gate. `art:benchmark:extended` remains an explicit release diagnostic. Agents do not capture or inspect these images during routine asset work and do not visually analyze release images unless the human requests it.
+
+The development-only Art Yard is served at `/__neva_art_yard` by Vite and is the sole asset-review surface. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. It is not included in the production build. The human performs visual approval in the actual integrated game.
 
 ## 13.1 Regression QA — Game vs Approved Game
 Same scene/state/camera/resolution/config only. Where available compare screenshot diff, SSIM, LPIPS, histogram/luminance, palette distribution and silhouette/edge metrics. These detect unintended change; they do not define artistic quality. Intentional accepted changes update benchmarks only after review.
@@ -241,19 +277,20 @@ A game screenshot passes style QA when it plausibly belongs beside the reference
 
 # 14. Agent Roles & Working Rules
 
-Recommended hierarchy: **Art Director Agent** → Asset/Shader/World agents → Three.js → Visual QA Agent → fix/approve. Optional specialized gameplay/character/optimization/animation/VFX/audio/build agents. Art Director rules remain authoritative.
+Routine asset work uses one agent and no parallel visual-review agents. The human is the art director. Specialized agents are reserved for explicitly requested new/shared systems or release investigations.
 
 Every relevant agent MUST:
-1. read this file + `04` before rendering/art changes;
-2. preserve visual vocabulary;
-3. prefer reusable systems over hacks;
-4. use deterministic seeds for generated art/world content;
-5. reuse palette/material tokens;
-6. avoid duplicate asset families;
-7. assess performance;
-8. run tests;
-9. capture benchmark screenshots after significant visual change;
-10. compare against approved reference scenes.
+1. follow the task-class read route in `BLENDER.md`;
+2. run the catalog reference brief first when supplied/reference evidence is part of the task;
+3. preserve visual vocabulary;
+4. prefer reusable systems over hacks;
+5. use deterministic seeds for generated art/world content;
+6. reuse palette/material tokens;
+7. avoid duplicate asset families;
+8. assess performance;
+9. run the task-class mechanical gates;
+10. leave routine visual judgment to the human in the game;
+11. use release benchmarks only at release/gold-slice gates.
 
 “More realistic” is not an improvement unless explicitly requested. Default = more coherent, readable, stylized, intentional.
 
@@ -278,10 +315,12 @@ Before full-world production, validate in order:
 3. **Harbor:** docks, boats, ropes, crates, ocean water, coastal architecture.
 4. **Coast/lighthouse:** cliffs, rocks, foam, atmospheric perspective, sunset.
 
-Do not mass-produce assets until these meet the art target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. Then reuse the approved generators/palettes/materials/rendering rules. P14 is final coverage/polish, not the first real art pass.
+Do not mass-produce assets until these meet the art target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. The current four slices in `tests/visual/reference/approved-baselines.json` are human-approved, so world expansion reuses those generators/palettes/materials/rendering rules without another candidate-selection pass. P14 is final coverage/polish, not the first real art pass.
 
 # 18. Definition of Done — Asset
 
+- [ ] any supplied/reference evidence is represented by a valid `referenceAuthoring` contract and deterministic brief hash
+- [ ] component hierarchy, negative space, critical features, hidden-surface confidence, and generator bindings are implemented rather than merely described
 - [ ] approved silhouette language + palette/material family
 - [ ] gameplay-distance polygon density
 - [ ] deliberate shading/bevel/vertex color
@@ -289,8 +328,10 @@ Do not mass-produce assets until these meet the art target. In the Roadmap this 
 - [ ] collision defined where needed
 - [ ] instancing eligibility defined
 - [ ] LOD policy defined where needed
+- [ ] generated typed adapter is fresh (`npm run art:codegen:check`)
+- [ ] per-asset input hash/cache status is recorded; cache artifacts are not published
 - [ ] GLB export + asset validation + runtime load succeed
-- [ ] visually checked in actual game camera
+- [ ] published to the Art Yard and integrated into the actual game for human review
 - [ ] no realism/style drift
 
 # 19. Definition of Done — Environment/POI
@@ -304,7 +345,8 @@ Do not mass-produce assets until these meet the art target. In the Roadmap this 
 - [ ] performance budget met
 - [ ] generated asset budget report has no hard violations
 - [ ] strict asset-quality gate passes for production/gold-slice assets
-- [ ] screenshot benchmark captured
+- [ ] screenshot benchmark captured only for release/gold-slice acceptance
+- [ ] integrated game is ready for human review
 - [ ] visual regression passes or approved
 - [ ] no prohibited drift
 

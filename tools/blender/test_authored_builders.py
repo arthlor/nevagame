@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import bpy
+from mathutils import Vector
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -24,6 +25,8 @@ from common.authored import (
     add_rope_line,
     add_shingle_rows,
 )
+from common.geometry import add_box, apply_vertex_values
+from common.materials import get_or_create_material, hex_to_linear_rgba
 from common.pipeline import clean_scene, create_root
 
 
@@ -42,11 +45,16 @@ def build_signature():
     add_arch_ring("test_arch", 0, 0, 1.5, *TOKENS, root, blocks=9, block_depth=0.2, block_size=0.3, start_deg=28, end_deg=152)
     add_root_flare("test_root", (0, 0, 0), 1, 0.5, TOKENS[1], root, count=5, seed=15)
     add_fasteners("test_fastener", ((-0.2, 0, 0.5), (0.2, 0, 0.5)), 0.03, TOKENS[1], root)
+    multi_material = add_box("test_multi_material", (0, 0, 0.5), (0.5, 0.5, 0.5), TOKENS[0], root)
+    multi_material.data.materials.append(get_or_create_material(TOKENS[1]))
+    multi_material.data.polygons[0].material_index = 1
+    apply_vertex_values(multi_material)
 
     meshes = sorted((obj for obj in bpy.context.scene.objects if obj.type == "MESH"), key=lambda obj: obj.name)
     prefixes = {
         "test_masonry", "test_tower", "test_shingle", "test_plank", "test_lattice",
         "test_rope", "test_arch", "test_root", "test_fastener",
+        "test_multi_material",
     }
     for prefix in prefixes:
         if not any(obj.name.startswith(prefix) for obj in meshes):
@@ -63,16 +71,33 @@ def build_signature():
         values = (*obj.location, *obj.rotation_euler, *obj.dimensions)
         if not all(math.isfinite(value) for value in values):
             raise AssertionError(f"{obj.name} contains a non-finite transform")
+        color = obj.data.color_attributes.get("Color")
+        if color is None or color.domain != "CORNER" or len(color.data) != len(obj.data.loops):
+            raise AssertionError(f"{obj.name} has incomplete semantic COLOR_0 data")
+        for polygon in obj.data.polygons:
+            material = obj.data.materials[polygon.material_index]
+            if not material.use_backface_culling:
+                raise AssertionError(f"{obj.name} material {material.name} should be back-face culled")
+            expected = Vector(material.diffuse_color[:3])
+            for loop_index in polygon.loop_indices:
+                actual = Vector(color.data[loop_index].color[:3])
+                value = actual.dot(expected) / expected.length_squared
+                residual = (actual - expected * value).length
+                if not 0.70 <= value <= 1.04 or residual > 0.025:
+                    raise AssertionError(f"{obj.name} COLOR_0 does not follow material {material.name}")
         signature.append((obj.name, len(obj.data.vertices), len(obj.data.loop_triangles), tuple(round(value, 6) for value in values)))
     return signature
 
 
 def main() -> None:
+    midpoint = hex_to_linear_rgba("#808080")[0]
+    if not math.isclose(midpoint, 0.215861, rel_tol=0, abs_tol=0.00001):
+        raise AssertionError(f"sRGB palette conversion is not scene-linear: {midpoint}")
     first = build_signature()
     second = build_signature()
     if first != second:
         raise AssertionError("Authored builders are not deterministic")
-    print(f"[NEVA ART] Authored builder tests passed for 9 builders and {len(first)} meshes")
+    print(f"[NEVA ART] Authored builder tests passed for 9 builders, COLOR_0, and {len(first)} meshes")
 
 
 if __name__ == "__main__":

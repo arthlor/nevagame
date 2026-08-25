@@ -1,6 +1,6 @@
 # Neva Project Rules for Every Codex Session
 
-> **Mandatory:** These rules apply to every prompt and task opened anywhere in this Neva workspace. Before planning, answering implementation questions, changing code or art, or claiming a result, read the relevant authoritative repository files **to the end**. Repository-relative paths are authoritative; never rely on an old memory or a developer-specific absolute path when the source exists.
+> **Mandatory:** These rules apply to every prompt and task opened anywhere in this Neva workspace. Before planning, answering implementation questions, changing code or art, or claiming a result, read the task-owning authoritative repository files **to the end**. Repository-relative paths are authoritative; never rely on an old memory or a developer-specific absolute path when the source exists. “Relevant” is deliberately scoped: do not load every canonical document for a routine asset edit.
 
 ## Canonical authorities
 
@@ -10,7 +10,7 @@
 4. `LLM/LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md` — 3D/procedural/rendering production authority: Blender-to-GLB workflow, generator/spec rules, `VisualRenderConfig`, optimization and visual regression/style-match implementation.
 5. `LLM/ARCHEAGE_FARMING_SYSTEM.md` — farming inspiration/adaptation only; subordinate to the preceding authorities.
 6. `LLM/03_PRODUCTION_ROADMAP_LLM_AGENT_PLAYBOOK.md` — execution, milestones, validation, and completion-report authority.
-7. `LLM/BLENDER.md` — operational authority for catalog-driven Blender production, validation, publishing, reports, previews, and runtime handoff.
+7. `LLM/BLENDER.md` — operational authority for catalog-driven Blender production, validation, publishing, reports, Art Yard handoff, and runtime integration.
 
 Machine-readable authorities for the fields they own:
 
@@ -19,7 +19,14 @@ Machine-readable authorities for the fields they own:
 - `tools/blender/asset_budgets.json`
 - `tools/blender/README.md` (code wins if this README drifts)
 
-`LLM/GAME_IMPROVEMENT_RECOMMENDATIONS.md` is advisory unless explicitly promoted. If a canonical path is missing, duplicated, renamed, or conflicts with another source, stop and report it. Do not create parallel `*_UPDATED`, `*_FINAL`, `*_COMPACT`, or similar authority documents.
+If a canonical path is missing, duplicated, renamed, or conflicts with another source, stop and report it. Do not create parallel `*_UPDATED`, `*_FINAL`, `*_COMPACT`, or similar authority documents. Do not list deleted files as authorities.
+
+### Token-conscious source routing
+
+- Routine existing-asset work reads this file, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, its owning generator, and the runtime integration point only. Read the directly relevant Art Bible section when appearance is being changed. Do not read the full catalog or `01`/`02`/`03`/`04`/Art Pipeline by default.
+- New generator families, shared construction helpers, renderer/material changes, or gameplay-contract changes read their owning canonical document(s) in full in addition to the routine set.
+- Release/gold-slice work reads the full canonical art/architecture set because it activates strict, determinism, benchmark, and cross-scene gates.
+- `referenceAuthoring` remains required for image/study-guided assets. Read and validate only the selected asset brief; rerun `art:brief` only when that brief changes.
 
 ## Rule hierarchy
 
@@ -45,14 +52,14 @@ Resolve conflicts in this order: the human's latest explicit instruction; `01`; 
 
 ## Required task discipline
 
-1. Read the owning subsystem and all relevant canonical sources to the end. For Blender/art tasks, follow `LLM/BLENDER.md`'s mandatory read order.
+1. Read the owning subsystem and the scoped sources routed above to the end. For Blender/art tasks, follow `LLM/BLENDER.md`'s task-class read order.
 2. Identify scope, state/formula owner, save impact (`yes`/`no`), migration need, affected callers, tests, visual/performance impact, and the smallest complete change before editing.
 3. Implement without placeholders, fake integrations, hidden fallbacks, or unrelated cleanup.
-4. Validate proportionately: typecheck, lint, focused unit/simulation/integration tests, build, relevant E2E, and save/load checks when applicable. Visual work also needs the prescribed generation/validation/determinism/benchmark gates and actual gameplay-camera review. Keep regression QA (approved game vs same game state) separate from style QA (graphics language vs reference images).
+4. Validate proportionately. Routine asset work uses selected generation/publication plus typecheck only when runtime TypeScript changes. Shared-generator and release work use the heavier gates defined in `LLM/BLENDER.md`. Static previews, screenshots, benchmarks, broad suites, and agent-led visual scoring are not daily asset gates. The human reviews integrated visuals in the actual game.
 5. Never describe code as tested, browser-verified, visually approved, published, or production-ready unless that specific gate actually passed. State exact evidence and limitations.
 
 ## Phase and completion discipline
 
 Follow the Roadmap sequence: `P0 → P0.5 → P0.75 → P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11 → P12 → P13 → P14 → P15 → P16`. Do not skip required gates or use P14 as the first real art pass.
 
-Completion reports state: what/files changed, gameplay behavior, save compatibility, tests added/updated, every validation actually run, visual verification, performance notes, known limitations, and the next recommended task.
+Routine asset completion reports state only the asset IDs, runtime integration point, mechanical generation status, save impact, and `Awaiting human game review`. Expanded reports are reserved for shared-generator, release, migration, or other high-risk work.

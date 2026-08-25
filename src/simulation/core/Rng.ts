@@ -34,6 +34,14 @@ export class SeededRng implements Rng {
     return this.state;
   }
 
+  /** Commits a state produced by a deterministic draft RNG transaction. */
+  public setState(state: number): void {
+    if (!Number.isSafeInteger(state) || state < 0) {
+      throw new Error("RNG state must be a non-negative safe integer");
+    }
+    this.state = state;
+  }
+
   /**
    * Mulberry32 algorithm - fast, uniform 32-bit generator.
    */

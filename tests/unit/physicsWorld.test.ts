@@ -1,24 +1,125 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter";
 import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
-import { createInitialGameState } from "../../src/simulation/core/createInitialState";
+import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import { Simulation } from "../../src/simulation/Simulation";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
+import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
+
+const landmarkCollision = (
+  assetId: Parameters<typeof projectAssetCollision>[0],
+  landmarkId: Parameters<typeof WorldLayout.landmark>[0]
+) => {
+  const layout = WorldLayout.landmark(landmarkId);
+  const root = new THREE.Object3D();
+  root.position.set(
+    layout.x,
+    WorldLayout.terrainHeight(layout.x, layout.z) + layout.yOffset,
+    layout.z
+  );
+  root.rotation.y = layout.rotationY;
+  root.scale.setScalar(layout.scale);
+  return projectAssetCollision(assetId, root, landmarkId);
+};
+
+function placePlayer(sim: Simulation, x = 0, z = 0): void {
+  Object.assign(sim.state.player, {
+    x,
+    y: WorldLayout.terrainHeight(x, z) + 0.5,
+    z
+  });
+}
+
+function findDryShoreApproach(normalX: number, normalZ: number): { x: number; z: number } {
+  const tangentX = normalZ;
+  const tangentZ = -normalX;
+  for (let z = -22; z <= 34; z += 0.25) {
+    for (let x = -42; x <= 42; x += 0.25) {
+      if (
+        !WorldLayout.isWater(x, z) &&
+        WorldLayout.isWater(x + normalX * 0.5, z + normalZ * 0.5) &&
+        !WorldLayout.isWater(x + tangentX * 0.5, z + tangentZ * 0.5)
+      ) {
+        return { x, z };
+      }
+    }
+  }
+  throw new Error(`No shoreline approach found for ${normalX},${normalZ}`);
+}
 
 describe("PhysicsWorld", () => {
   it("moves a grounded player while preserving the shoreline boundary", async () => {
     const physics = await PhysicsWorld.create();
-    const state = createInitialGameState();
-    state.player.y = WorldLayout.terrainHeight(state.player.x, state.player.z) + 0.5;
+    const sim = new Simulation();
+    const state = sim.state;
+    placePlayer(sim);
+    const startZ = state.player.z;
     for (let index = 0; index < 30; index++) {
       const frame = physics.step(state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
-      Object.assign(state.player, frame.player);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
     }
-    expect(state.player.z).toBeGreaterThan(0.2);
+    expect(state.player.z).toBeGreaterThan(startZ + 0.2);
     expect(state.player.y).toBeGreaterThanOrEqual(WorldLayout.terrainHeight(state.player.x, state.player.z) + 0.49);
+  });
+
+  it("jumps from grounded Rapier contact, rejects an air jump, and lands cleanly", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    placePlayer(sim);
+    const startY = sim.state.player.y;
+    let frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false, jumpRequested: true },
+      "on-foot",
+      1 / 60,
+      0
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    expect(sim.state.player.traversal.isGrounded).toBe(false);
+
+    frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false },
+      "on-foot",
+      1 / 60,
+      1 / 60
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    expect(sim.state.player.y).toBeGreaterThan(startY);
+
+    let apex = sim.state.player.y;
+    for (let index = 2; index <= 150; index++) {
+      frame = physics.step(
+        sim.state,
+        {
+          x: 0,
+          z: 0,
+          sprint: false,
+          jumpRequested: index === 5
+        },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+      apex = Math.max(apex, sim.state.player.y);
+    }
+
+    expect(apex - startY).toBeGreaterThan(1);
+    expect(apex - startY).toBeLessThan(2);
+    expect(sim.state.player.traversal.isGrounded).toBe(true);
+    expect(sim.state.player.y).toBeCloseTo(
+      WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.5,
+      2
+    );
   });
 
   it("keeps authoritative player position attached to the actively driven boat", async () => {
     const physics = await PhysicsWorld.create();
-    const state = createInitialGameState();
+    const sim = new Simulation();
+    const state = sim.state;
     const boat = state.boats["boat.player_rowboat"];
     const canonicalWaterline = boat.y;
     boat.isDocked = false;
@@ -27,13 +128,443 @@ describe("PhysicsWorld", () => {
     const initialZ = boat.z;
     for (let index = 0; index < 45; index++) {
       const frame = physics.step(state, { x: 0, z: -1, sprint: false }, "boat-driving", 1 / 60, index / 60);
-      Object.assign(state.player, frame.player);
-      Object.assign(boat, frame.boats[boat.id]);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
     }
     expect(boat.z).toBeGreaterThan(initialZ);
     expect(boat.y).toBe(canonicalWaterline);
     expect(state.player.y).toBe(canonicalWaterline + 0.5);
     expect(state.player.x).toBeCloseTo(boat.x, 5);
     expect(state.player.z).toBeCloseTo(boat.z, 5);
+  });
+
+  it("blocks the player with startup-projected static collision", async () => {
+    const ground = WorldLayout.terrainHeight(0, 0);
+    const physics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "test-wall",
+        center: { x: 0, y: ground + 1, z: 2 },
+        halfExtents: { x: 2, y: 1, z: 0.4 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const sim = new Simulation();
+    placePlayer(sim);
+    let finalMotion = null as ReturnType<PhysicsWorld["step"]>["playerMotion"] | null;
+    for (let index = 0; index < 120; index++) {
+      const frame = physics.step(sim.state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+      finalMotion = frame.playerMotion;
+    }
+    expect(sim.state.player.z).toBeGreaterThan(0.2);
+    expect(sim.state.player.z).toBeLessThan(1.35);
+    expect(finalMotion?.isCollisionBlocked).toBe(true);
+    expect(finalMotion?.speedMetersPerSecond).toBeLessThan(0.05);
+  });
+
+  it("sweeps the camera against static world geometry while ignoring player bodies", async () => {
+    const ground = WorldLayout.terrainHeight(0, 0);
+    const physics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "camera-wall",
+        center: { x: 0, y: ground + 2, z: 2.5 },
+        halfExtents: { x: 2, y: 2, z: 0.25 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const result = physics.resolveCameraPosition(
+      { x: 0, y: ground + 2, z: 0 },
+      { x: 0, y: ground + 2, z: 5 },
+      0.3
+    );
+    expect(result.obstructed).toBe(true);
+    expect(result.position.z).toBeGreaterThan(1.5);
+    expect(result.position.z).toBeLessThan(2.2);
+  });
+
+  it("accelerates, normalizes diagonal intent, and decelerates without skating", async () => {
+    const straightPhysics = await PhysicsWorld.create();
+    const diagonalPhysics = await PhysicsWorld.create();
+    const straight = new Simulation();
+    const diagonal = new Simulation();
+    placePlayer(straight);
+    placePlayer(diagonal);
+    const straightStart = { x: straight.state.player.x, z: straight.state.player.z };
+    const diagonalStart = { x: diagonal.state.player.x, z: diagonal.state.player.z };
+    let firstStepDistance = 0;
+    let cruisingStepDistance = 0;
+    for (let index = 0; index < 60; index++) {
+      const before = { x: straight.state.player.x, z: straight.state.player.z };
+      straight.commitPhysicsFrame(straightPhysics.step(
+        straight.state,
+        { x: 0, z: 1, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      ).frame);
+      diagonal.commitPhysicsFrame(diagonalPhysics.step(
+        diagonal.state,
+        { x: 1, z: 1, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      ).frame);
+      const distance = Math.hypot(straight.state.player.x - before.x, straight.state.player.z - before.z);
+      if (index === 0) firstStepDistance = distance;
+      if (index === 45) cruisingStepDistance = distance;
+    }
+    const straightDistance = Math.hypot(
+      straight.state.player.x - straightStart.x,
+      straight.state.player.z - straightStart.z
+    );
+    const diagonalDistance = Math.hypot(
+      diagonal.state.player.x - diagonalStart.x,
+      diagonal.state.player.z - diagonalStart.z
+    );
+    expect(cruisingStepDistance).toBeGreaterThan(firstStepDistance * 4);
+    expect(Math.abs(diagonalDistance - straightDistance) / straightDistance).toBeLessThan(0.04);
+
+    let lastMovingDistance = 0;
+    for (let index = 0; index < 20; index++) {
+      const before = { x: straight.state.player.x, z: straight.state.player.z };
+      straight.commitPhysicsFrame(straightPhysics.step(
+        straight.state,
+        { x: 0, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        2 + index / 60
+      ).frame);
+      lastMovingDistance = Math.hypot(
+        straight.state.player.x - before.x,
+        straight.state.player.z - before.z
+      );
+    }
+    expect(lastMovingDistance).toBeLessThan(0.002);
+  });
+
+  it("steers velocity as a vector through 90 and 180 degree reversals without exceeding gait speed", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    placePlayer(sim);
+    let result = physics.step(
+      sim.state,
+      { x: 0, z: 1, sprint: false },
+      "on-foot",
+      1 / 60,
+      0
+    );
+    for (let index = 0; index < 50; index++) {
+      result = physics.step(
+        sim.state,
+        { x: 0, z: 1, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      sim.commitPhysicsFrame(result.frame);
+    }
+    expect(result.playerMotion.speedMetersPerSecond).toBeCloseTo(
+      PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond,
+      1
+    );
+
+    for (let index = 0; index < 30; index++) {
+      result = physics.step(
+        sim.state,
+        { x: 1, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        1 + index / 60
+      );
+      sim.commitPhysicsFrame(result.frame);
+      expect(result.playerMotion.speedMetersPerSecond).toBeLessThanOrEqual(
+        PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond + 0.001
+      );
+    }
+    expect(result.playerMotion.velocity.x).toBeGreaterThan(
+      PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 0.78
+    );
+
+    for (let index = 0; index < 40; index++) {
+      result = physics.step(
+        sim.state,
+        { x: -1, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        2 + index / 60
+      );
+      sim.commitPhysicsFrame(result.frame);
+      expect(result.playerMotion.speedMetersPerSecond).toBeLessThanOrEqual(
+        PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond + 0.001
+      );
+    }
+    expect(result.playerMotion.velocity.x).toBeLessThan(
+      -PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 0.78
+    );
+  });
+
+  it("keeps players out of the river and blocks catalog-projected farmhouse walls", async () => {
+    const farmhouseCollision = landmarkCollision(ASSET_IDS.HOUSE_FARMHOUSE_A, "farmhouse");
+    const physics = await PhysicsWorld.create(farmhouseCollision);
+    const sim = new Simulation();
+    const farmhouse = WorldLayout.landmark("farmhouse");
+    const approachStartX = farmhouse.x - 5.6;
+    placePlayer(sim, approachStartX, farmhouse.z);
+    for (let index = 0; index < 120; index++) {
+      sim.commitPhysicsFrame(physics.step(
+        sim.state,
+        { x: 1, z: 0, sprint: true },
+        "on-foot",
+        1 / 60,
+        index / 60
+      ).frame);
+    }
+    expect(sim.state.player.x).toBeGreaterThan(approachStartX + 0.8);
+    expect(sim.state.player.x).toBeLessThan(farmhouse.x - 3.6);
+
+    for (const normal of [
+      { x: -1, z: 0 },
+      { x: 1, z: 0 },
+      { x: 0, z: -1 },
+      { x: 0, z: 1 }
+    ]) {
+      const shorePhysics = await PhysicsWorld.create();
+      const shoreSim = new Simulation();
+      const start = findDryShoreApproach(normal.x, normal.z);
+      placePlayer(shoreSim, start.x, start.z);
+      const tangent = { x: normal.z, z: -normal.x };
+      for (let index = 0; index < 120; index++) {
+        shoreSim.commitPhysicsFrame(shorePhysics.step(
+          shoreSim.state,
+          { x: normal.x + tangent.x * 0.45, z: normal.z + tangent.z * 0.45, sprint: true },
+          "on-foot",
+          1 / 60,
+          index / 60
+        ).frame);
+      }
+      expect(
+        WorldLayout.isWater(shoreSim.state.player.x, shoreSim.state.player.z),
+        JSON.stringify({ normal, start, final: shoreSim.state.player })
+      ).toBe(false);
+      expect(shoreSim.state.player.y).toBeGreaterThanOrEqual(
+        WorldLayout.terrainHeight(shoreSim.state.player.x, shoreSim.state.player.z) + 0.49
+      );
+    }
+  });
+
+  it("projects authored bridge steps and dock pilings instead of render triangles", () => {
+    const bridge = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
+    const dock = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    expect(bridge).toHaveLength(15);
+    expect(dock).toHaveLength(5);
+    expect(bridge.every((proxy) => proxy.kind === "box")).toBe(true);
+    expect(dock.filter((proxy) => proxy.id.includes("piles_"))).toHaveLength(4);
+    const bridgePeak = bridge.find((proxy) => proxy.id.endsWith(":main"));
+    const bridgeEdge = bridge.find((proxy) => proxy.id.endsWith(":deck_01"));
+    const bridgeRails = bridge.filter((proxy) => proxy.id.includes(":rail_"));
+    const dockLayout = WorldLayout.landmark("dock");
+    expect(bridgePeak!.center.y).toBeGreaterThan(bridgeEdge!.center.y);
+    expect(bridgeRails).toHaveLength(4);
+    expect(Math.min(...bridgeRails.map((proxy) => Math.abs(proxy.center.z + 7))))
+      .toBeGreaterThan(1.8);
+    expect(Math.min(...dock.map((proxy) => proxy.center.y - proxy.halfExtents.y)))
+      .toBeCloseTo(
+        WorldLayout.terrainHeight(dockLayout.x, dockLayout.z) + dockLayout.yOffset,
+        4
+      );
+  });
+
+  it("walks continuously from one bank across the crowned bridge deck", async () => {
+    const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
+    const physics = await PhysicsWorld.create(bridgeCollision);
+    const sim = new Simulation();
+    placePlayer(sim, -24, -7);
+    const startY = sim.state.player.y;
+    let highestY = startY;
+
+    for (let index = 0; index < 360; index++) {
+      const result = physics.step(
+        sim.state,
+        { x: 1, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      highestY = Math.max(highestY, sim.state.player.y);
+    }
+
+    expect(sim.state.player.x).toBeGreaterThan(-9);
+    expect(highestY).toBeGreaterThan(startY + 0.35);
+    expect(WorldLayout.isWater(sim.state.player.x, sim.state.player.z)).toBe(false);
+    expect(sim.state.player.traversal.isGrounded).toBe(true);
+  });
+
+  it("steers with speed, reverses correctly, and sweeps the compound hull against docks", async () => {
+    const barrierZ = HARBOR_DOCK.boatPosition.z + 7;
+    const forwardPhysics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "dock-wall",
+        center: { x: HARBOR_DOCK.boatPosition.x, y: 0.7, z: barrierZ },
+        halfExtents: { x: 5, y: 1.2, z: 0.25 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const forward = new Simulation();
+    const forwardBoat = forward.state.boats["boat.player_rowboat"];
+    forwardBoat.isDocked = false;
+    forwardBoat.dockedMarketId = null;
+    forward.state.player.activeBoatId = forwardBoat.id;
+    for (let index = 0; index < 150; index++) {
+      forward.commitPhysicsFrame(forwardPhysics.step(
+        forward.state,
+        { x: index < 60 ? 0.7 : 0, z: -1, sprint: false },
+        "boat-driving",
+        1 / 60,
+        index / 60
+      ).frame);
+    }
+    expect(forwardBoat.headingRadians).toBeGreaterThan(0.05);
+    expect(forwardBoat.z).toBeLessThan(barrierZ - 2);
+    expect(forwardBoat.y).toBe(0);
+
+    const reversePhysics = await PhysicsWorld.create();
+    const reverse = new Simulation();
+    const reverseBoat = reverse.state.boats["boat.player_rowboat"];
+    reverseBoat.isDocked = false;
+    reverseBoat.dockedMarketId = null;
+    reverse.state.player.activeBoatId = reverseBoat.id;
+    for (let index = 0; index < 90; index++) {
+      reverse.commitPhysicsFrame(reversePhysics.step(
+        reverse.state,
+        { x: 1, z: 1, sprint: false },
+        "boat-driving",
+        1 / 60,
+        index / 60
+      ).frame);
+    }
+    expect(reverseBoat.speed).toBeLessThan(0);
+    expect(reverseBoat.headingRadians).toBeLessThan(0);
+    expect(reverseBoat.y).toBe(0);
+  });
+
+  it("zeros upward vertical velocity when jumping into an overhead ceiling without stickiness", async () => {
+    const origin = { x: -65, z: -55 };
+    const ground = WorldLayout.terrainHeight(origin.x, origin.z);
+    // Ceiling obstacle 1.6m above ground (player height is ~1.7m total capsule)
+    const physics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "low-ceiling",
+        center: { x: origin.x, y: ground + 2.0, z: origin.z },
+        halfExtents: { x: 3, y: 0.2, z: 3 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const sim = new Simulation();
+    sim.state.player.x = origin.x;
+    sim.state.player.z = origin.z;
+    sim.state.player.y = ground + 0.5;
+
+    // Trigger jump
+    let frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false, jumpRequested: true },
+      "on-foot",
+      1 / 60,
+      0
+    );
+    sim.commitPhysicsFrame(frame.frame);
+
+    // Run next 10 frames - player should hit ceiling and immediately begin falling, not floating
+    let maxHeadHeight = ground;
+    for (let index = 1; index <= 20; index++) {
+      frame = physics.step(
+        sim.state,
+        { x: 0, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      sim.commitPhysicsFrame(frame.frame);
+      maxHeadHeight = Math.max(maxHeadHeight, sim.state.player.y);
+    }
+    // Player should be stopped below ceiling (ceiling at ground + 1.8 bottom)
+    expect(maxHeadHeight).toBeLessThan(ground + 1.6);
+    // After 20 frames (0.33s), player should already have fallen back down or landed
+    expect(sim.state.player.y).toBeLessThanOrEqual(ground + 0.8);
+  });
+
+  it("resolves interior floor level height without floating in the air", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    // Place player at farmhouse interior entrance
+    const interiorX = 240.0;
+    const interiorZ = -242.2;
+    const interiorY = 0.22;
+    sim.state.player.x = interiorX;
+    sim.state.player.y = interiorY;
+    sim.state.player.z = interiorZ;
+
+    const frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false },
+      "on-foot",
+      1 / 60,
+      0
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    // The player's Y should be near interior floor level (~0.17 - 0.22), NOT natural outdoor terrain (~1.5m)
+    expect(sim.state.player.y).toBeLessThan(0.7);
+    expect(sim.state.player.y).toBeGreaterThanOrEqual(0.16);
+  });
+
+  it("keeps player attached to active boat during non-driving modes like sport-fishing and menus", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    const boat = sim.state.boats["boat.player_rowboat"];
+    boat.isDocked = false;
+    boat.dockedMarketId = null;
+    boat.speed = 2.5; // residual boat speed
+    sim.state.player.activeBoatId = boat.id;
+
+    // Step physics under sport-fishing mode
+    for (let index = 0; index < 30; index++) {
+      const frame = physics.step(
+        sim.state,
+        { x: 0, z: 0, sprint: false },
+        "sport-fishing",
+        1 / 60,
+        index / 60
+      );
+      const commit = sim.commitPhysicsFrame(frame.frame);
+      expect(commit.success).toBe(true);
+      expect(sim.state.player.x).toBeCloseTo(boat.x, 4);
+      expect(sim.state.player.z).toBeCloseTo(boat.z, 4);
+    }
+  });
+
+  it("cleans up despawned boat bodies and disposes without memory leaks", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    const boat = sim.state.boats["boat.player_rowboat"];
+    boat.isDocked = false;
+    boat.dockedMarketId = null;
+
+    physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 0);
+    // Remove boat from state
+    delete sim.state.boats["boat.player_rowboat"];
+
+    // Next physics step should clean up the boat body without error
+    expect(() => {
+      physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 1 / 60);
+    }).not.toThrow();
+
+    // Dispose
+    expect(() => {
+      physics.dispose();
+    }).not.toThrow();
   });
 });

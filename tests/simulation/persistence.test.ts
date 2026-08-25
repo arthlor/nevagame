@@ -1,29 +1,198 @@
 // tests/simulation/persistence.test.ts
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { Simulation } from "../../src/simulation/Simulation";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
+import { migrateSaveData } from "../../src/persistence/SaveMigrations";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
+import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
+import { HARBOR_DOCK, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
+import { WorldLayout } from "../../src/world/WorldLayout";
+import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 
 describe("Persistence & Offline Progression", () => {
-  it("saves and loads game state reliably", async () => {
-    const repo = new IndexedDbSaveRepository();
-    const state = createInitialGameState(12345);
-    state.player.money = 550;
+  it("does not report a durable save when IndexedDB is unavailable", async () => {
+    const previous = (globalThis as { indexedDB?: IDBFactory }).indexedDB;
+    delete (globalThis as { indexedDB?: IDBFactory }).indexedDB;
+    try {
+      const repo = new IndexedDbSaveRepository();
+      const state = createInitialGameState(12345);
+      state.player.money = 550;
+      expect(await repo.saveGame(state)).toBe(false);
+      expect(await repo.loadGame()).toBeNull();
+      expect(await repo.loadGameResult()).toEqual({ status: "unavailable" });
+    } finally {
+      if (previous !== undefined) {
+        (globalThis as { indexedDB: IDBFactory }).indexedDB = previous;
+      }
+    }
+  });
 
-    const saveSuccess = await repo.saveGame(state);
-    expect(saveSuccess).toBe(true);
+  describe("IndexedDB durable save slots", () => {
+    let restoreIndexedDB: () => void;
 
-    const loaded = await repo.loadGame();
-    expect(loaded).not.toBeNull();
-    expect(loaded?.state.player.money).toBe(550);
-    expect(loaded?.state.worldSeed).toBe(12345);
+    beforeEach(() => {
+      restoreIndexedDB = installMemoryIndexedDB();
+    });
+
+    afterEach(async () => {
+      await new IndexedDbSaveRepository().clearSaves();
+      restoreIndexedDB();
+    });
+
+    it("saves and loads game state reliably", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const state = createInitialGameState(12345);
+      state.player.money = 550;
+
+      const saveSuccess = await repo.saveGame(state);
+      expect(saveSuccess).toBe(true);
+
+      const loaded = await repo.loadGame();
+      expect(loaded).not.toBeNull();
+      expect(loaded?.state.player.money).toBe(550);
+      expect(loaded?.state.worldSeed).toBe(12345);
+    });
+
+
+    it("clears overlay pause on save so restore is playable", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const sim = new Simulation();
+      sim.clock.setPaused(true);
+      sim.tick(1);
+      expect(sim.clock.isPaused()).toBe(true);
+      expect(await repo.saveGame(sim.state)).toBe(true);
+      expect(sim.clock.isPaused()).toBe(true);
+
+      const loaded = await repo.loadGame();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.state.clock.isPaused).toBe(false);
+      const restored = new Simulation(loaded!.state);
+      expect(restored.clock.isPaused()).toBe(false);
+      const start = restored.state.clock.currentMinute;
+      restored.tick(8);
+      expect(restored.state.clock.currentMinute).toBe(start + 8);
+    });
+
+    it("migrates then validates so a v5 save loads at CURRENT_SCHEMA_VERSION", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const legacy = structuredClone(createInitialGameState());
+      legacy.schemaVersion = 5;
+      legacy.player.money = 731;
+      delete (legacy.player as Partial<typeof legacy.player>).traversal;
+      const raw = { schemaVersion: 5, savedAtUtcMs: 1, state: legacy };
+      expect(validateSaveEnvelope(raw as never)).toBe(true);
+
+      const dbOpen = indexedDB.open("neva_save_db", 1);
+      await new Promise<void>((resolve, reject) => {
+        dbOpen.onerror = () => reject(new Error("open failed"));
+        dbOpen.onsuccess = () => resolve();
+        dbOpen.onupgradeneeded = () => {
+          const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+          if (!db.objectStoreNames.contains("game_saves")) db.createObjectStore("game_saves");
+        };
+      });
+      const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("game_saves", "readwrite");
+        tx.objectStore("game_saves").put(raw, "primary_save");
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(new Error("put failed"));
+      });
+
+      const loaded = await repo.loadGame();
+      expect(loaded).not.toBeNull();
+      expect(loaded?.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+      expect(loaded?.state.player.money).toBe(731);
+      expect(loaded?.state.player.traversal).toBeDefined();
+      expect(validateSaveEnvelope(loaded)).toBe(true);
+    });
+
+    it("rejects a save that cannot reach CURRENT_SCHEMA_VERSION after migrations", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const dbOpen = indexedDB.open("neva_save_db", 1);
+      await new Promise<void>((resolve) => {
+        dbOpen.onsuccess = () => resolve();
+        dbOpen.onupgradeneeded = () => {
+          const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+          if (!db.objectStoreNames.contains("game_saves")) db.createObjectStore("game_saves");
+        };
+      });
+      const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("game_saves", "readwrite");
+        tx.objectStore("game_saves").put(
+          { schemaVersion: 0, savedAtUtcMs: 1, state: createInitialGameState() },
+          "primary_save"
+        );
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(new Error("put failed"));
+      });
+
+      expect(await repo.loadGame()).toBeNull();
+      expect(await repo.loadGameResult()).toEqual({ status: "corrupt" });
+    });
+
+    it("uses a valid backup when primary fails migrate+validate", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const good = {
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 2,
+        state: createInitialGameState()
+      };
+      good.state.player.money = 880;
+      const dbOpen = indexedDB.open("neva_save_db", 1);
+      await new Promise<void>((resolve) => {
+        dbOpen.onsuccess = () => resolve();
+        dbOpen.onupgradeneeded = () => {
+          const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+          if (!db.objectStoreNames.contains("game_saves")) db.createObjectStore("game_saves");
+        };
+      });
+      const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("game_saves", "readwrite");
+        tx.objectStore("game_saves").put({ schemaVersion: 0, savedAtUtcMs: 1, state: {} }, "primary_save");
+        tx.objectStore("game_saves").put(good, "backup_save");
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(new Error("put failed"));
+      });
+
+      const loaded = await repo.loadGame();
+      expect(loaded?.state.player.money).toBe(880);
+    });
+
+    it("does not promote session RAM into IndexedDB when storage returns", async () => {
+      const restore = restoreIndexedDB;
+      restore();
+      delete (globalThis as { indexedDB?: IDBFactory }).indexedDB;
+      const ramRepo = new IndexedDbSaveRepository();
+      const ramState = createInitialGameState();
+      ramState.player.money = 1;
+      expect(await ramRepo.saveGame(ramState)).toBe(false);
+
+      restoreIndexedDB = installMemoryIndexedDB();
+      const durableRepo = new IndexedDbSaveRepository();
+      const durableState = createInitialGameState();
+      durableState.player.money = 999;
+      expect(await durableRepo.saveGame(durableState)).toBe(true);
+      const loaded = await ramRepo.loadGame();
+      expect(loaded?.state.player.money).toBe(999);
+    });
   });
 
   it("advances offline progression deterministically", () => {
     const sim = new Simulation();
-    sim.plantCrop("farm.starter_garden", "crop.wheat", 0, 0);
+    sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
+    sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    sim.plantCrop(
+      "farm.starter_garden",
+      "crop.wheat",
+      STARTER_FARM_LAYOUT.origin.x,
+      STARTER_FARM_LAYOUT.origin.z
+    );
 
     const now = Date.now();
     sim.state.metadata.lastSavedUtcMs = now - 52 * 1000; // 52 real seconds = 52 game minutes (52 * 1.2 = 62.4 effective minutes)
@@ -75,6 +244,11 @@ describe("Persistence & Offline Progression", () => {
     poisonedCapacity.state.player.workCapacity.current = Number.POSITIVE_INFINITY;
     expect(validateSaveEnvelope(poisonedCapacity)).toBe(false);
 
+    const poisonedTraversal = validEnvelope();
+    poisonedTraversal.state.player.traversal.sprintStamina =
+      PLAYER_TRAVERSAL_TUNING.maximumSprintStamina + 1;
+    expect(validateSaveEnvelope(poisonedTraversal)).toBe(false);
+
     const poisonedXp = validEnvelope();
     poisonedXp.state.player.proficiencies.fishing = Number.NaN;
     expect(validateSaveEnvelope(poisonedXp)).toBe(false);
@@ -92,5 +266,184 @@ describe("Persistence & Offline Progression", () => {
       speciesWeights: [{ speciesId: "fish.trout", weight: 1 }]
     };
     expect(validateSaveEnvelope(poisonedSchool)).toBe(false);
+  });
+
+  it("migrates v5 saves to full traversal stamina without changing other player truth", () => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 5;
+    legacy.player.money = 731;
+    delete (legacy.player as Partial<typeof legacy.player>).traversal;
+    const migrated = migrateSaveData({
+      schemaVersion: 5,
+      savedAtUtcMs: 1,
+      state: legacy
+    } as never);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.player.money).toBe(731);
+    expect(migrated.state.player.traversal).toMatchObject({
+      sprintStamina: PLAYER_TRAVERSAL_TUNING.maximumSprintStamina,
+      sprintRecoveryDelaySeconds: 0,
+      sprintExhausted: false,
+      isGrounded: true
+    });
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("maps a complete pre-release v6 world into layout revision 3 without discarding simulation truth", () => {
+    const legacy = structuredClone(createInitialGameState(91827));
+    legacy.schemaVersion = 6;
+    delete (legacy.world as Partial<typeof legacy.world>).layoutRevision;
+
+    legacy.player.x = 10;
+    legacy.player.y = 0.5;
+    legacy.player.z = 60;
+    legacy.player.currentRegionId = "region.coast";
+    legacy.player.activeBoatId = "boat.active_skiff";
+    legacy.player.money = 847;
+    legacy.player.proficiencies.fishing = 731;
+
+    legacy.crops["crop.v6_wheat"] = {
+      id: "crop.v6_wheat",
+      cropId: "crop.wheat",
+      farmId: "farm.starter_garden",
+      x: 1.25,
+      z: -1.75,
+      rotationRadians: 0.42,
+      plantedAtMinute: 410,
+      lastUpdatedMinute: 470,
+      effectiveGrowthMinutes: 44,
+      moisture: 63,
+      health: 92,
+      stage: "growing",
+      averageMoistureAccum: 3010,
+      moistureSampleCount: 48
+    };
+    legacy.farms["farm.starter_garden"].placedCropIds.push("crop.v6_wheat");
+    legacy.world.structures["struct.starter_mill"].x = 2;
+    legacy.world.structures["struct.starter_mill"].z = -3;
+    legacy.world.structures["struct.v6_custom"] = {
+      id: "struct.v6_custom",
+      type: "workbench",
+      x: 2.5,
+      y: 0,
+      z: 1.5
+    };
+    legacy.farms["farm.starter_garden"].placedStructureIds.push("struct.v6_custom");
+
+    const boatTemplate = legacy.boats["boat.player_rowboat"];
+    legacy.boats["boat.active_skiff"] = {
+      ...structuredClone(boatTemplate),
+      id: "boat.active_skiff",
+      x: 10,
+      z: 60,
+      headingRadians: 1.17,
+      speed: 2.4,
+      fuel: 37,
+      durability: 72,
+      isDocked: false,
+      dockedMarketId: null,
+      fishCargoSlotIds: ["cargo.v6_trout", null]
+    };
+    legacy.boats["boat.player_rowboat"].x = 35;
+    legacy.boats["boat.player_rowboat"].z = 45;
+    legacy.fishCargo["cargo.v6_trout"] = {
+      id: "cargo.v6_trout",
+      speciesId: "fish.trout",
+      weightKg: 4.6,
+      quality: "exceptional",
+      caughtAtMinute: 462,
+      freshness: 88,
+      cargoClass: "small",
+      location: { type: "boat-hold", containerId: "boat.active_skiff", slotIndex: 0 }
+    };
+
+    legacy.world.activeSchools["school.v6_coast"] = {
+      id: "school.v6_coast",
+      habitatId: "coast",
+      x: 10,
+      z: 65,
+      radius: 9,
+      spawnedAtMinute: 450,
+      expiresAtMinute: 660,
+      feedingFrenzyUntilMinute: 510,
+      remainingCatchPotential: 2,
+      speciesWeights: [{ speciesId: "fish.trout", weight: 1 }]
+    };
+    legacy.sportFishing = {
+      fish: { instanceId: "fish.v6_active", speciesId: "fish.trout", weightKg: 4.6, quality: "fine" },
+      rodId: "rod.willow",
+      stamina: 72,
+      maxStamina: 100,
+      distanceMeters: 11,
+      lineTension: 48,
+      lineIntegrity: 91,
+      fishDirection: 0.7,
+      behavior: "run-left",
+      behaviorUntilSeconds: 2.1,
+      elapsedSeconds: 4.2,
+      rodDirectionAngle: -0.4,
+      isReeling: true,
+      isSlacking: false,
+      isBracing: false,
+      slackTimerSeconds: 0,
+      snapTimerSeconds: 0,
+      result: "active"
+    };
+
+    const preserved = {
+      crop: structuredClone(legacy.crops["crop.v6_wheat"]),
+      cargo: structuredClone(legacy.fishCargo["cargo.v6_trout"]),
+      fishing: structuredClone(legacy.sportFishing),
+      inventory: structuredClone(legacy.inventories[legacy.player.inventoryId]),
+      markets: structuredClone(legacy.markets),
+      rngState: legacy.metadata.rngState
+    };
+    const migrated = migrateSaveData({ schemaVersion: 6, savedAtUtcMs: 2, state: legacy });
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+
+    expect(migrated.state.crops["crop.v6_wheat"]).toEqual(preserved.crop);
+    expect(migrated.state.world.structures["struct.starter_mill"]).toMatchObject({
+      x: starterStructureAnchor("struct.starter_mill")!.x,
+      z: starterStructureAnchor("struct.starter_mill")!.z
+    });
+    expect(migrated.state.world.structures["struct.v6_custom"]).toMatchObject({ x: -62.5, z: -53.5 });
+    expect(migrated.state.boats["boat.player_rowboat"]).toMatchObject({
+      x: HARBOR_DOCK.boatPosition.x,
+      z: HARBOR_DOCK.boatPosition.z,
+      isDocked: true,
+      speed: 0
+    });
+    const activeBoat = migrated.state.boats["boat.active_skiff"];
+    expect(WorldLayout.isSailable(activeBoat.x, activeBoat.z)).toBe(true);
+    expect(activeBoat).toMatchObject({
+      headingRadians: 1.17,
+      speed: 2.4,
+      fuel: 37,
+      durability: 72,
+      fishCargoSlotIds: ["cargo.v6_trout", null]
+    });
+    expect(migrated.state.player).toMatchObject({
+      x: activeBoat.x,
+      z: activeBoat.z,
+      activeBoatId: "boat.active_skiff",
+      money: 847
+    });
+    expect(migrated.state.world.activeSchools["school.v6_coast"]).toMatchObject({
+      id: "school.v6_coast",
+      habitatId: "coast",
+      spawnedAtMinute: 450,
+      expiresAtMinute: 660,
+      feedingFrenzyUntilMinute: 510,
+      remainingCatchPotential: 2
+    });
+    expect(migrated.state.sportFishing).toEqual(preserved.fishing);
+    expect(migrated.state.fishCargo["cargo.v6_trout"]).toEqual(preserved.cargo);
+    expect(migrated.state.inventories[migrated.state.player.inventoryId]).toEqual(preserved.inventory);
+    expect(migrated.state.markets).toEqual(preserved.markets);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 });

@@ -1,222 +1,408 @@
-// src/input/InputRouter.ts
+import type { GameAction, GameMode } from "../simulation/core/types";
 
-import { GameAction, GameMode } from "../simulation/core/types";
+export interface FishingInputState {
+  isReeling: boolean;
+  isSlacking: boolean;
+  isBracing: boolean;
+  rodDirectionAngle: number;
+}
 
 export interface InputState {
   moveVector: { x: number; z: number };
-  isPrimaryDown: boolean;
-  isSecondaryDown: boolean;
-  isSpaceDown: boolean;
-  isShiftDown: boolean;
-  keysDown: Set<string>;
+  sprint: boolean;
+  fishing: FishingInputState;
+  pointerNdc: { x: number; y: number };
+}
+
+export interface CameraInputIntent {
+  orbitDeltaX: number;
+  orbitDeltaY: number;
+  zoomDelta: number;
+  isOrbiting: boolean;
 }
 
 export type ActionCallback = (action: GameAction) => void;
+export type InterruptionCallback = () => void;
+
+export class HeldInputState {
+  private readonly held = new Set<string>();
+
+  public get values(): ReadonlySet<string> {
+    return this.held;
+  }
+
+  public press(binding: string): void {
+    this.held.add(binding);
+  }
+
+  public release(binding: string): void {
+    this.held.delete(binding);
+  }
+
+  public clear(): void {
+    this.held.clear();
+  }
+}
 
 const GAME_KEY_CODES = new Set([
-  "KeyW",
-  "KeyA",
-  "KeyS",
-  "KeyD",
-  "KeyE",
-  "KeyI",
-  "KeyJ",
-  "KeyM",
-  "Space",
-  "Escape",
-  "ArrowUp",
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
-  "ShiftLeft",
-  "ShiftRight"
+  "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyM", "Space",
+  "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "KeyP",
+  "Digit1", "Digit2", "Digit3", "Digit4", "Digit5"
 ]);
+const MOVEMENT_MODES = new Set<GameMode>(["on-foot", "farm-placement", "boat-driving"]);
+const EMPTY_KEYS: ReadonlySet<string> = new Set();
+const ORBIT_DRAG_THRESHOLD_PX = 4;
+const MAX_ACCUMULATED_POINTER_DELTA = 600;
+
+function hasAny(keys: ReadonlySet<string>, ...codes: string[]): boolean {
+  return codes.some((code) => keys.has(code));
+}
+
+/** Maps physical bindings to semantic, mode-safe continuous intents. */
+export function deriveSemanticInput(
+  keys: ReadonlySet<string>,
+  mode: GameMode,
+  pointerNdc: Readonly<{ x: number; y: number }> = { x: 0, y: 0 }
+): InputState {
+  let x = 0;
+  let z = 0;
+  if (MOVEMENT_MODES.has(mode)) {
+    if (hasAny(keys, "KeyW", "ArrowUp")) z -= 1;
+    if (hasAny(keys, "KeyS", "ArrowDown")) z += 1;
+    if (hasAny(keys, "KeyA", "ArrowLeft")) x -= 1;
+    if (hasAny(keys, "KeyD", "ArrowRight")) x += 1;
+  }
+  const length = Math.hypot(x, z);
+  if (length > 0) {
+    x /= length;
+    z /= length;
+  }
+
+  let rodDirectionAngle = 0;
+  if (mode === "sport-fishing") {
+    if (hasAny(keys, "KeyA", "ArrowLeft")) rodDirectionAngle -= 0.6;
+    if (hasAny(keys, "KeyD", "ArrowRight")) rodDirectionAngle += 0.6;
+  }
+
+  return {
+    moveVector: { x, z },
+    sprint: (mode === "on-foot" || mode === "farm-placement") && hasAny(keys, "ShiftLeft", "ShiftRight"),
+    fishing: {
+      isReeling:
+        (mode === "sport-fishing" && hasAny(keys, "Mouse0", "KeyW")) ||
+        (mode === "basic-fishing" && hasAny(keys, "Mouse0", "Space", "KeyE", "KeyC", "KeyW")),
+      isSlacking: mode === "sport-fishing" && hasAny(keys, "Mouse2", "KeyS"),
+      isBracing: mode === "sport-fishing" && keys.has("Space"),
+      rodDirectionAngle
+    },
+    pointerNdc: { x: pointerNdc.x, y: pointerNdc.y }
+  };
+}
 
 export class InputRouter {
-  private keysDown: Set<string> = new Set();
+  private readonly heldInput = new HeldInputState();
   private actionListeners: ActionCallback[] = [];
+  private interruptionListeners: InterruptionCallback[] = [];
   private currentMode: GameMode = "on-foot";
+  private worldInputSuspended = false;
+  private readonly pointerNdc = { x: 0, y: 0 };
+  private orbitPointer: {
+    id: number;
+    target: HTMLElement;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    dragged: boolean;
+  } | null = null;
+  private orbitDeltaX = 0;
+  private orbitDeltaY = 0;
+  private zoomDelta = 0;
+  private jumpQueued = false;
 
   constructor() {
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("pointerdown", this.onPointerDown);
+    window.addEventListener("pointermove", this.onPointerMove);
     window.addEventListener("pointerup", this.onPointerUp);
-    window.addEventListener("pointercancel", this.onPointerUp);
+    window.addEventListener("pointercancel", this.onPointerCancel);
+    window.addEventListener("lostpointercapture", this.onLostPointerCapture);
+    window.addEventListener("wheel", this.onWheel, { passive: false });
     window.addEventListener("contextmenu", this.onContextMenu);
     window.addEventListener("blur", this.onBlur);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   public setMode(mode: GameMode): void {
+    if (mode === this.currentMode) return;
     this.currentMode = mode;
+    this.interrupt();
+  }
+
+  public setWorldInputSuspended(suspended: boolean): void {
+    if (suspended === this.worldInputSuspended) return;
+    this.worldInputSuspended = suspended;
+    if (suspended) this.interrupt();
   }
 
   public onAction(callback: ActionCallback): () => void {
     this.actionListeners.push(callback);
     return () => {
-      this.actionListeners = this.actionListeners.filter((cb) => cb !== callback);
+      this.actionListeners = this.actionListeners.filter((entry) => entry !== callback);
+    };
+  }
+
+  /** Presentation actions may be cancelled before their authored commit marker. */
+  public onInterruption(callback: InterruptionCallback): () => void {
+    this.interruptionListeners.push(callback);
+    return () => {
+      this.interruptionListeners = this.interruptionListeners.filter((entry) => entry !== callback);
     };
   }
 
   public getInputState(): InputState {
-    let x = 0;
-    let z = 0;
+    if (this.worldInputSuspended) return deriveSemanticInput(EMPTY_KEYS, this.currentMode, this.pointerNdc);
+    return deriveSemanticInput(this.heldInput.values, this.currentMode, this.pointerNdc);
+  }
 
-    if (this.currentMode === "on-foot" || this.currentMode === "boat-driving") {
-      if (this.keysDown.has("KeyW") || this.keysDown.has("ArrowUp")) z -= 1;
-      if (this.keysDown.has("KeyS") || this.keysDown.has("ArrowDown")) z += 1;
-      if (this.keysDown.has("KeyA") || this.keysDown.has("ArrowLeft")) x -= 1;
-      if (this.keysDown.has("KeyD") || this.keysDown.has("ArrowRight")) x += 1;
-    }
-
-    const len = Math.sqrt(x * x + z * z);
-    if (len > 0) {
-      x /= len;
-      z /= len;
-    }
-
-    return {
-      moveVector: { x, z },
-      isPrimaryDown: this.keysDown.has("Mouse0") || this.keysDown.has("KeyW"),
-      isSecondaryDown: this.keysDown.has("Mouse2") || this.keysDown.has("KeyS"),
-      isSpaceDown: this.keysDown.has("Space"),
-      isShiftDown: this.keysDown.has("ShiftLeft") || this.keysDown.has("ShiftRight"),
-      keysDown: this.keysDown
+  /** Camera deltas are consumed once per render frame and never become simulation state. */
+  public consumeCameraInput(): CameraInputIntent {
+    const hasPendingOrbit = Math.abs(this.orbitDeltaX) > 0 || Math.abs(this.orbitDeltaY) > 0;
+    const intent = {
+      orbitDeltaX: this.orbitDeltaX,
+      orbitDeltaY: this.orbitDeltaY,
+      zoomDelta: this.zoomDelta,
+      isOrbiting: (this.orbitPointer?.dragged ?? false) || hasPendingOrbit
     };
+    this.orbitDeltaX = 0;
+    this.orbitDeltaY = 0;
+    this.zoomDelta = 0;
+    return intent;
+  }
+
+  /** Buffers a press so a short tap between fixed physics steps is not lost. */
+  public consumeJumpRequest(): boolean {
+    if (
+      this.worldInputSuspended ||
+      (this.currentMode !== "on-foot" && this.currentMode !== "farm-placement")
+    ) {
+      this.jumpQueued = false;
+      return false;
+    }
+    const queued = this.jumpQueued;
+    this.jumpQueued = false;
+    return queued;
+  }
+
+  public interrupt(): void {
+    this.clearTransientState();
+    for (const listener of this.interruptionListeners) listener();
   }
 
   private isTypingTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     const tag = target.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-    return target.isContentEditable;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
   }
 
-  private isCanvasTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    return target.tagName === "CANVAS" || target.id === "game-canvas";
+  private isCanvasTarget(target: EventTarget | null): target is HTMLElement {
+    return target instanceof HTMLElement && (target.tagName === "CANVAS" || target.id === "game-canvas");
   }
 
-  private onKeyDown = (e: KeyboardEvent): void => {
-    if (!this.isTypingTarget(e.target) && GAME_KEY_CODES.has(e.code)) {
-      e.preventDefault();
-    }
+  private onKeyDown = (event: KeyboardEvent): void => {
+    const isTyping = this.isTypingTarget(event.target);
+    if (isTyping && event.code !== "Escape") return;
+    if (!isTyping && GAME_KEY_CODES.has(event.code)) event.preventDefault();
+    if (event.repeat) return;
 
-    if (e.repeat) return;
-    this.keysDown.add(e.code);
-
-    // Semantic action dispatches
-    switch (e.code) {
+    if (!this.worldInputSuspended || event.code === "Escape") this.heldInput.press(event.code);
+    switch (event.code) {
       case "KeyE":
-        if (this.currentMode !== "sport-fishing") {
-          this.dispatch("interact");
-        }
+        if (!this.worldInputSuspended && this.currentMode !== "sport-fishing") this.dispatch("interact");
         break;
-      case "KeyI":
-        this.dispatch("open-inventory");
+      case "KeyI": this.dispatch("open-inventory"); break;
+      case "KeyJ": this.dispatch("open-journal"); break;
+      case "KeyL": this.dispatch("open-ledger"); break;
+      case "KeyM": this.dispatch("open-map"); break;
+      case "KeyP": this.dispatch("open-planning"); break;
+      case "Digit1": if (!this.worldInputSuspended) this.dispatch("select-tool-1"); break;
+      case "Digit2": if (!this.worldInputSuspended) this.dispatch("select-tool-2"); break;
+      case "Digit3": if (!this.worldInputSuspended) this.dispatch("select-tool-3"); break;
+      case "Digit4": if (!this.worldInputSuspended) this.dispatch("select-tool-4"); break;
+      case "Digit5": if (!this.worldInputSuspended) this.dispatch("select-tool-5"); break;
+      case "AltLeft":
+      case "AltRight":
+        if (!this.worldInputSuspended) this.dispatch("toggle-farm-gis");
         break;
-      case "KeyJ":
-        this.dispatch("open-journal");
-        break;
-      case "KeyM":
-        this.dispatch("open-map");
-        break;
-      case "Escape":
-        this.dispatch("pause");
-        break;
+      case "Escape": this.dispatch("pause"); break;
       case "Space":
-        if (this.currentMode === "sport-fishing") {
+        if (!this.worldInputSuspended && this.currentMode === "sport-fishing") {
           this.dispatch("fish-brace");
+        } else if (
+          !this.worldInputSuspended &&
+          (this.currentMode === "on-foot" || this.currentMode === "farm-placement")
+        ) {
+          this.jumpQueued = true;
         }
         break;
       case "KeyW":
-        if (this.currentMode === "sport-fishing") {
-          this.dispatch("fish-reel");
-        }
+        if (!this.worldInputSuspended && this.currentMode === "sport-fishing") this.dispatch("fish-reel");
         break;
       case "KeyS":
-        if (this.currentMode === "sport-fishing") {
-          this.dispatch("fish-slack");
-        }
+        if (!this.worldInputSuspended && this.currentMode === "sport-fishing") this.dispatch("fish-slack");
         break;
       case "KeyA":
       case "ArrowLeft":
-        if (this.currentMode === "sport-fishing") {
-          this.dispatch("fish-left");
-        }
+        if (!this.worldInputSuspended && this.currentMode === "sport-fishing") this.dispatch("fish-left");
         break;
       case "KeyD":
       case "ArrowRight":
-        if (this.currentMode === "sport-fishing") {
-          this.dispatch("fish-right");
-        }
+        if (!this.worldInputSuspended && this.currentMode === "sport-fishing") this.dispatch("fish-right");
         break;
     }
   };
 
-  private onKeyUp = (e: KeyboardEvent): void => {
-    this.keysDown.delete(e.code);
+  private onKeyUp = (event: KeyboardEvent): void => {
+    this.heldInput.release(event.code);
   };
 
-  private onPointerDown = (e: PointerEvent): void => {
-    if (!this.isCanvasTarget(e.target)) return;
-    if (e.button === 0) {
-      this.keysDown.add("Mouse0");
-      if (this.currentMode === "sport-fishing") {
-        this.dispatch("fish-reel");
-      }
-    } else if (e.button === 2) {
-      this.keysDown.add("Mouse2");
-      if (this.currentMode === "sport-fishing") {
-        this.dispatch("fish-slack");
-      }
-    }
-  };
-
-  private onPointerUp = (e: PointerEvent): void => {
-    if (e.type === "pointercancel") {
-      this.keysDown.delete("Mouse0");
-      this.keysDown.delete("Mouse2");
+  private onPointerDown = (event: PointerEvent): void => {
+    if (this.worldInputSuspended || !this.isCanvasTarget(event.target)) return;
+    this.updatePointerNdc(event, event.target);
+    if (event.button === 0) {
+      this.heldInput.press("Mouse0");
+      this.dispatch(this.currentMode === "sport-fishing" ? "fish-reel" : "use-primary");
       return;
     }
-    if (e.button === 0) {
-      this.keysDown.delete("Mouse0");
-    } else if (e.button === 2) {
-      this.keysDown.delete("Mouse2");
+    if (event.button !== 2) return;
+
+    this.heldInput.press("Mouse2");
+    if (this.currentMode === "sport-fishing") {
+      this.dispatch("fish-slack");
+      return;
     }
+    this.orbitPointer = {
+      id: event.pointerId,
+      target: event.target,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      dragged: false
+    };
+    event.target.setPointerCapture?.(event.pointerId);
   };
 
-  private onContextMenu = (e: Event): void => {
-    e.preventDefault();
+  private onPointerMove = (event: PointerEvent): void => {
+    const pointerTarget = this.orbitPointer?.id === event.pointerId
+      ? this.orbitPointer.target
+      : this.isCanvasTarget(event.target) ? event.target : null;
+    if (pointerTarget) this.updatePointerNdc(event, pointerTarget);
+    const orbit = this.orbitPointer;
+    if (!orbit || orbit.id !== event.pointerId || this.worldInputSuspended) return;
+
+    const deltaX = event.clientX - orbit.lastX;
+    const deltaY = event.clientY - orbit.lastY;
+    orbit.lastX = event.clientX;
+    orbit.lastY = event.clientY;
+    if (!orbit.dragged) {
+      orbit.dragged = Math.hypot(event.clientX - orbit.startX, event.clientY - orbit.startY) >= ORBIT_DRAG_THRESHOLD_PX;
+    }
+    if (!orbit.dragged) return;
+    this.orbitDeltaX = clamp(this.orbitDeltaX + deltaX, -MAX_ACCUMULATED_POINTER_DELTA, MAX_ACCUMULATED_POINTER_DELTA);
+    this.orbitDeltaY = clamp(this.orbitDeltaY + deltaY, -MAX_ACCUMULATED_POINTER_DELTA, MAX_ACCUMULATED_POINTER_DELTA);
   };
 
-  private onBlur = (): void => {
-    this.keysDown.clear();
+  private onPointerUp = (event: PointerEvent): void => {
+    if (event.button === 0) this.heldInput.release("Mouse0");
+    if (event.button !== 2) return;
+    this.heldInput.release("Mouse2");
+    const orbit = this.orbitPointer;
+    if (!orbit || orbit.id !== event.pointerId) return;
+    if (!orbit.dragged && !this.worldInputSuspended) this.dispatch("use-secondary");
+    this.releaseOrbitPointer();
   };
 
+  private onPointerCancel = (event: PointerEvent): void => {
+    this.heldInput.release("Mouse0");
+    this.heldInput.release("Mouse2");
+    if (this.orbitPointer?.id === event.pointerId) this.releaseOrbitPointer();
+  };
+
+  private onLostPointerCapture = (event: PointerEvent): void => {
+    if (this.orbitPointer?.id !== event.pointerId) return;
+    this.heldInput.release("Mouse2");
+    this.orbitPointer = null;
+  };
+
+  private onWheel = (event: WheelEvent): void => {
+    if (this.worldInputSuspended || !this.isCanvasTarget(event.target)) return;
+    event.preventDefault();
+    const scale = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? 18
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? window.innerHeight : 1;
+    this.zoomDelta = clamp(this.zoomDelta + event.deltaY * scale, -1200, 1200);
+  };
+
+  private updatePointerNdc(event: PointerEvent, target: HTMLElement): void {
+    const bounds = target.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    this.pointerNdc.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+    this.pointerNdc.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+  }
+
+  private onContextMenu = (event: Event): void => {
+    if (this.isCanvasTarget(event.target)) event.preventDefault();
+  };
+
+  private onBlur = (): void => this.interrupt();
   private onVisibilityChange = (): void => {
-    if (document.hidden) {
-      this.keysDown.clear();
-    }
+    if (document.hidden) this.interrupt();
   };
+
+  private releaseOrbitPointer(): void {
+    const orbit = this.orbitPointer;
+    this.orbitPointer = null;
+    if (!orbit) return;
+    try {
+      if (orbit.target.hasPointerCapture?.(orbit.id)) orbit.target.releasePointerCapture?.(orbit.id);
+    } catch {
+      // The browser may already have released capture during blur or element removal.
+    }
+  }
+
+  private clearTransientState(): void {
+    this.heldInput.clear();
+    this.orbitDeltaX = 0;
+    this.orbitDeltaY = 0;
+    this.zoomDelta = 0;
+    this.jumpQueued = false;
+    this.releaseOrbitPointer();
+  }
 
   private dispatch(action: GameAction): void {
-    for (const listener of this.actionListeners) {
-      listener(action);
-    }
+    for (const listener of this.actionListeners) listener(action);
   }
 
   public dispose(): void {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("pointerdown", this.onPointerDown);
+    window.removeEventListener("pointermove", this.onPointerMove);
     window.removeEventListener("pointerup", this.onPointerUp);
-    window.removeEventListener("pointercancel", this.onPointerUp);
+    window.removeEventListener("pointercancel", this.onPointerCancel);
+    window.removeEventListener("lostpointercapture", this.onLostPointerCapture);
+    window.removeEventListener("wheel", this.onWheel);
     window.removeEventListener("contextmenu", this.onContextMenu);
     window.removeEventListener("blur", this.onBlur);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
-    this.keysDown.clear();
+    this.clearTransientState();
     this.actionListeners = [];
+    this.interruptionListeners = [];
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

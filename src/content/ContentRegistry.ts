@@ -10,7 +10,9 @@ import {
   MarketDefinition,
   ProficiencyRankDefinition,
   RecipeDefinition,
-  RodDefinition
+  RodDefinition,
+  NpcDefinition,
+  QuestDefinition
 } from "./types";
 import { CROPS } from "./crops";
 import { ITEMS } from "./items";
@@ -21,6 +23,8 @@ import { RODS } from "./rods";
 import { MARKETS } from "./markets";
 import { PROFICIENCY_RANKS } from "./progression";
 import { CONTRACT_TEMPLATES } from "./contracts";
+import { NPCS } from "./npcs";
+import { QUESTS } from "./quests";
 
 export class ContentRegistry {
   public static readonly crops: ReadonlyMap<string, CropDefinition> = new Map(Object.entries(CROPS));
@@ -35,6 +39,8 @@ export class ContentRegistry {
   public static readonly contractTemplates: ReadonlyMap<string, ContractTemplateDefinition> = new Map(
     CONTRACT_TEMPLATES.map((t) => [t.id, t])
   );
+  public static readonly npcs: ReadonlyMap<string, NpcDefinition> = new Map(NPCS.map((n) => [n.id, n]));
+  public static readonly quests: ReadonlyMap<string, QuestDefinition> = new Map(QUESTS.map((q) => [q.id, q]));
 
   private static isInitialized = false;
 
@@ -100,6 +106,38 @@ export class ContentRegistry {
         }
         if (commodity.basePrice <= 0) {
           throw new Error(`Market '${marketId}' commodity '${commodity.itemId}' has invalid basePrice: ${commodity.basePrice}`);
+        }
+      }
+    }
+
+    // 5. Validate NPCs
+    for (const [npcId, npc] of this.npcs.entries()) {
+      if (!npc.name || !npc.anchor) {
+        throw new Error(`NPC '${npcId}' is missing a valid name or anchor definition.`);
+      }
+    }
+
+    // 6. Validate Quests
+    for (const [questId, quest] of this.quests.entries()) {
+      if (!this.npcs.has(quest.speakerId)) {
+        throw new Error(`Quest '${questId}' references unknown speakerId '${quest.speakerId}'`);
+      }
+      if (!quest.objectives || quest.objectives.length === 0) {
+        throw new Error(`Quest '${questId}' must have at least one objective.`);
+      }
+      if (quest.nextQuestId && !this.quests.has(quest.nextQuestId)) {
+        throw new Error(`Quest '${questId}' references unknown nextQuestId '${quest.nextQuestId}'`);
+      }
+      for (const objective of quest.objectives) {
+        if (!Number.isSafeInteger(objective.targetQuantity) || objective.targetQuantity <= 0) {
+          throw new Error(`Quest '${questId}' objective '${objective.id}' has an invalid target quantity`);
+        }
+      }
+      if (quest.rewards.items) {
+        for (const item of quest.rewards.items) {
+          if (!this.items.has(item.itemId)) {
+            throw new Error(`Quest '${questId}' reward references missing itemId '${item.itemId}'`);
+          }
         }
       }
     }

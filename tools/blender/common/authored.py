@@ -6,7 +6,7 @@ import math
 
 from mathutils import Vector
 
-from .geometry import add_beam, add_box, add_tri_prism, seeded_rng
+from .geometry import add_beam, add_box, add_cone, add_tri_prism, seeded_rng
 
 
 def add_masonry_courses(
@@ -237,3 +237,71 @@ def add_fasteners(prefix, positions, radius, token, parent, *, depth=0.04):
         start = (position[0], position[1] - depth * 0.5, position[2])
         end = (position[0], position[1] + depth * 0.5, position[2])
         add_beam(f"{prefix}_{index:03d}", start, end, radius, token, parent, vertices=6)
+
+
+def add_catenary_rope(prefix, start, end, sag, radius, token, parent, *, segments=6, vertices=6):
+    """Build a natural hanging catenary/parabolic rope curve under gravity."""
+    points = []
+    sx, sy, sz = start
+    ex, ey, ez = end
+    for index in range(segments + 1):
+        t = index / segments
+        px = sx + (ex - sx) * t
+        py = sy + (ey - sy) * t
+        pz = sz + (ez - sz) * t - sag * 4.0 * t * (1.0 - t)
+        points.append((px, py, pz))
+    add_rope_line(prefix, points, radius, token, parent, vertices=vertices)
+
+
+def add_burlap_sack(prefix, center, dimensions, token, tie_token, parent, *, rotation=(0, 0, 0)):
+    """Build a settled, bulged burlap cargo sack resting with realistic weight."""
+    cx, cy, cz = center
+    width, depth, height = dimensions
+    # Lower bulging base
+    add_box(
+        f"{prefix}_base", (cx, cy, cz + height * 0.38),
+        (width, depth, height * 0.76), token, parent,
+        rotation=rotation, bevel=0.035,
+    )
+    # Pinched neck
+    neck_z = cz + height * 0.78
+    add_box(
+        f"{prefix}_neck", (cx, cy, neck_z),
+        (width * 0.48, depth * 0.48, height * 0.12), token, parent,
+        rotation=rotation, bevel=0.0,
+    )
+    # Twine tie
+    add_box(
+        f"{prefix}_tie", (cx, cy, neck_z),
+        (width * 0.54, depth * 0.54, height * 0.05), tie_token, parent,
+        rotation=rotation, bevel=0.0,
+    )
+    # Ruffled gathered top
+    add_cone(
+        f"{prefix}_top", (cx, cy, cz + height * 0.90),
+        width * 0.28, 0.05, height * 0.20, token, parent,
+        vertices=6, rotation=rotation,
+    )
+
+
+def add_mooring_cleat(prefix, center, length, token, parent, *, yaw=0.0):
+    """Build a functional low-poly iron T-cleat for mooring line tie-offs."""
+    cx, cy, cz = center
+    # Base mount
+    add_box(
+        f"{prefix}_base", (cx, cy, cz + 0.02),
+        (length * 0.35, length * 0.22, 0.04), token, parent,
+        rotation=(0, 0, yaw), bevel=0.008,
+    )
+    # Central riser
+    add_box(
+        f"{prefix}_stem", (cx, cy, cz + 0.065),
+        (length * 0.24, length * 0.14, 0.07), token, parent,
+        rotation=(0, 0, yaw), bevel=0.008,
+    )
+    # Horn bar
+    add_box(
+        f"{prefix}_horn", (cx, cy, cz + 0.11),
+        (length, length * 0.12, 0.05), token, parent,
+        rotation=(0, 0, yaw), bevel=0.012,
+    )
