@@ -18,9 +18,10 @@ import { SeededRng } from "../../src/simulation/core/Rng";
 import {
   STARTER_FARM_LAYOUT,
   farmLocalToWorld,
+  isPlantableFarmSurface,
   starterFarmsteadAnchor,
-  starterMarketAnchor,
-  starterStructureAnchor
+  starterStructureAnchor,
+  worldToFarmLocal
 } from "../../src/world/FarmLayout";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
@@ -141,10 +142,11 @@ describe("NEVA farming correctness foundation", () => {
       rotationY: well.rotationY,
       scale: well.scale
     });
-    expect(starterMarketAnchor("market.village")).toMatchObject({
-      x: VILLAGE_MARKET.position.x,
-      z: VILLAGE_MARKET.position.z
-    });
+    expect(VILLAGE_MARKET.position).toMatchObject({ x: 54, z: -52 });
+    expect(STARTER_FARM_LAYOUT.marketAnchors).toEqual([]);
+    const mill = starterStructureAnchor("struct.starter_mill")!;
+    expect(mill).toMatchObject({ x: 46, z: -58 });
+    expect(isPlantableFarmSurface("farm.player_homestead", worldToFarmLocal("farm.player_homestead", mill))).toBe(false);
   });
 
   it("keeps all canonical crop stage boundaries exact", () => {
@@ -450,6 +452,29 @@ describe("farming action commit controller", () => {
     controller.update(FARMING_ACTION_TIMINGS.dock.durationMs + 10);
     expect(attempts).toBe(1);
     expect(phases).toEqual(["started:anticipation", "invalidated:commit", "completed:recovery"]);
+  });
+
+  it("does not re-enter the timeline when a commit changes gameplay mode", () => {
+    const controller = new FarmingActionController();
+    const phases: string[] = [];
+    let interruptionResult: boolean | null = null;
+    let commits = 0;
+
+    controller.start("board", { x: 0, y: 0, z: 0, entityId: "boat.test" }, 0, {
+      commit: () => {
+        commits += 1;
+        interruptionResult = controller.cancelBeforeCommit(FARMING_ACTION_TIMINGS.board.durationMs + 1);
+        return { success: true };
+      },
+      phaseChanged: (snapshot) => phases.push(snapshot.phase)
+    });
+
+    controller.update(FARMING_ACTION_TIMINGS.board.durationMs + 1);
+
+    expect(interruptionResult).toBe(false);
+    expect(commits).toBe(1);
+    expect(controller.isActive).toBe(false);
+    expect(phases).toEqual(["started", "committed", "completed"]);
   });
 
   it("keeps application commit timing aligned with the authored character catalog", () => {

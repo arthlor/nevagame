@@ -15,6 +15,12 @@ import { PaletteMaterials } from "../materials/PaletteMaterials";
 
 const PRELOAD_ASSET_IDS: readonly AssetId[] = ASSET_CATALOG.map((asset) => asset.id);
 
+export interface AssetPreloadProgress {
+  assetId: AssetId;
+  completed: number;
+  total: number;
+}
+
 export function configureRuntimeLod(root: THREE.Group, spec: RuntimeAssetSpec): THREE.LOD | null {
   if (!spec.lodLevels?.length) return null;
 
@@ -152,8 +158,16 @@ export class AssetLoader {
     return this.cloneModel(result);
   }
 
-  public static async preloadAll(): Promise<void> {
-    await Promise.all(PRELOAD_ASSET_IDS.map((assetId) => this.loadModel(assetId)));
+  public static async preloadAll(
+    onProgress?: (progress: AssetPreloadProgress) => void
+  ): Promise<void> {
+    const total = PRELOAD_ASSET_IDS.length;
+    let completed = 0;
+    await Promise.all(PRELOAD_ASSET_IDS.map(async (assetId) => {
+      await this.loadModel(assetId);
+      completed += 1;
+      onProgress?.({ assetId, completed, total });
+    }));
   }
 
   /** Declared `COL_*` proxy names remain available to physics without rendering them. */

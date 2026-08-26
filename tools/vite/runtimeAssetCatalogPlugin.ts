@@ -51,29 +51,33 @@ export function runtimeAssetCatalogPlugin(rootDirectory: string): Plugin {
     name: "neva-runtime-asset-catalog",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        const match = request.url?.match(
+        const stageMatch = request.url?.match(
           /^\/__neva_art_stage\/(run-[A-Za-z0-9_-]+)\/([a-z][a-z0-9_]*\.glb)(?:\?.*)?$/
         );
-        if (!match) {
+        const publicMatch = request.url?.match(
+          /^\/assets\/models\/([a-z][a-z0-9_]*\.glb)(?:\?.*)?$/
+        );
+        if (!stageMatch && !publicMatch) {
           next();
           return;
         }
-        const stage = match[1]!;
-        const filename = match[2]!;
         const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8")) as {
           assets?: Array<{ file?: string }>;
         };
         const allowed = new Set(
           catalog.assets?.flatMap((asset) => typeof asset.file === "string" ? [asset.file] : [])
         );
+        const filename = (stageMatch?.[2] ?? publicMatch?.[1])!;
         if (!allowed.has(filename)) {
           response.statusCode = 404;
           response.end("Unknown catalog asset");
           return;
         }
-        const staged = path.resolve(rootDirectory, "generated/.staging", stage, "optimized", filename);
+        const staged = stageMatch
+          ? path.resolve(rootDirectory, "generated/.staging", stageMatch[1]!, "optimized", filename)
+          : null;
         const published = path.resolve(rootDirectory, "public/assets/models", filename);
-        const source = fs.existsSync(staged) ? staged : published;
+        const source = staged && fs.existsSync(staged) ? staged : published;
         if (!fs.existsSync(source)) {
           response.statusCode = 404;
           response.end("Asset is not available in the selected stage or public fallback");

@@ -185,7 +185,11 @@ export class FarmingActionController {
   }
 
   public cancelBeforeCommit(nowMs: number): boolean {
-    if (!this.activeAction) return false;
+    // A commit callback may change gameplay mode, which asks InputRouter to
+    // interrupt active presentation actions. The commit marker is already
+    // authoritative at that point; do not re-enter update() from the callback
+    // and complete the same action underneath its outer update call.
+    if (!this.activeAction || this.activeAction.commitAttempted) return false;
     this.update(nowMs, this.paused);
     const active = this.activeAction;
     if (!active || active.commitAttempted) return false;

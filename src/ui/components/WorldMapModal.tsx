@@ -4,7 +4,7 @@ import { GameState, MarketId } from "../../simulation/core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { calculateCommodityUnitPrice } from "../../simulation/economy/calculateCommodityValue";
 import {
-  WORLD_LAYOUT_V3,
+  WORLD_LAYOUT_V5,
   WORLD_REGIONAL_PATHS,
   WORLD_ROUTES,
   WorldLayout,
@@ -35,22 +35,29 @@ const MAP_NODES: MapNode[] = [
     id: "node_home_farm",
     name: "Starter Homestead & Yard",
     category: "farm",
-    worldPosition: WORLD_LAYOUT_V3.anchors.playerSpawn,
+    worldPosition: WORLD_LAYOUT_V5.anchors.playerSpawn,
     farmId: "farm.starter_garden"
   },
   {
     id: "node_uplands",
-    name: "Northeast Plateau & Windmill",
+    name: "Private Homestead Garden",
     category: "farm",
-    worldPosition: WORLD_LAYOUT_V3.anchors.privateHomestead,
+    worldPosition: WORLD_LAYOUT_V5.anchors.privateHomestead,
     farmId: "farm.player_homestead"
   },
   {
     id: "node_village",
-    name: "Central Village & Market Hall",
+    name: "Neva Village & Mill",
     category: "village",
-    worldPosition: WORLD_LAYOUT_V3.anchors.villageMarket,
+    worldPosition: WORLD_LAYOUT_V5.anchors.villageMarket,
     marketId: "market.village"
+  },
+  {
+    id: "node_crossing",
+    name: "River Crossing",
+    category: "fishing",
+    worldPosition: WORLD_LAYOUT_V5.anchors.riverCrossing,
+    fishingHabitat: "river"
   },
   {
     id: "node_river",
@@ -63,7 +70,7 @@ const MAP_NODES: MapNode[] = [
     id: "node_harbor",
     name: "Seabreak Harbor & Fish Market",
     category: "harbor",
-    worldPosition: WORLD_LAYOUT_V3.anchors.fishMarket,
+    worldPosition: WORLD_LAYOUT_V5.anchors.fishMarket,
     marketId: "market.harbor",
     fishingHabitat: "coast"
   },
@@ -71,14 +78,14 @@ const MAP_NODES: MapNode[] = [
     id: "node_lighthouse",
     name: "Southwest Cliffs & Lighthouse",
     category: "lighthouse",
-    worldPosition: WORLD_LAYOUT_V3.anchors.lighthouse,
+    worldPosition: WORLD_LAYOUT_V5.anchors.lighthouse,
     fishingHabitat: "coast"
   },
   {
     id: "node_offshore",
     name: "Deep Sea Offshore Grounds",
     category: "fishing",
-    worldPosition: { x: WORLD_LAYOUT_V3.riverMouth.x, z: 170 },
+    worldPosition: { x: WORLD_LAYOUT_V5.riverMouth.x, z: 170 },
     fishingHabitat: "offshore"
   }
 ];

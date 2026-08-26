@@ -22,6 +22,7 @@ from common.authored import (
     add_cylindrical_masonry,
     add_fasteners,
     add_lattice,
+    add_masonry_courses,
     add_plank_field,
     add_rope_line,
     add_shingle_rows,
@@ -565,16 +566,32 @@ def wood_fence(spec: dict, root) -> None:
     wood, dark = spec["palette"]
     length = spec["parameters"]["length"]
     posts = spec["parameters"]["posts"]
+    has_gate = spec["parameters"]["hasGate"]
+    bay = length / max(1, posts - 1)
     for index in range(posts):
-        x = -length * 0.5 + index * length / max(1, posts - 1)
+        x = -length * 0.5 + index * bay
         lean = math.radians((-2, 1, -1)[index % 3])
         add_box(f"fence_post_{index:02d}", (x, 0, 0.58), (0.18, 0.20, 1.16), dark, root, rotation=(0, lean, 0), bevel=0.025)
         add_tri_prism(f"fence_post_cap_{index:02d}", (x, 0, 1.20), (0.24, 0.22, 0.22), dark, root)
     for index in range(spec["parameters"]["rails"]):
         z = 0.38 + index * 0.42
-        add_box(f"fence_rail_{index:02d}", (0, 0, z), (length, 0.12, 0.15), wood, root, rotation=(0, math.radians(1.5 * (index - 0.5)), 0), bevel=0.02)
+        remaining = length - bay
+        if has_gate and remaining > 0.35:
+            add_box(
+                f"fence_rail_{index:02d}",
+                (bay * 0.5, 0, z),
+                (remaining, 0.12, 0.15),
+                wood,
+                root,
+                rotation=(0, math.radians(1.5 * (index - 0.5)), 0),
+                bevel=0.02,
+            )
+        elif not has_gate:
+            add_box(f"fence_rail_{index:02d}", (0, 0, z), (length, 0.12, 0.15), wood, root, rotation=(0, math.radians(1.5 * (index - 0.5)), 0), bevel=0.02)
         segments = spec["parameters"]["railSegments"]
         for segment in range(segments):
+            if has_gate and (segment + 0.5) / segments < bay / length:
+                continue
             x = -length * 0.5 + length * (segment + 0.5) / segments
             add_box(
                 f"fence_rail_face_{index:02d}_{segment:02d}",
@@ -582,12 +599,57 @@ def wood_fence(spec: dict, root) -> None:
                 (length / segments * 0.90, 0.055, 0.19), wood if segment % 3 else dark, root,
                 rotation=(0, math.radians((segment % 3) - 1), 0), bevel=0.012,
             )
+    if has_gate:
+        gate_x = -length * 0.5 + bay * 0.5
+        add_box("fence_gate_leaf", (gate_x, 0.02, 0.62), (bay * 0.82, 0.08, 1.02), wood, root, rotation=(0, 0, math.radians(8)), bevel=0.018)
+        add_box("fence_gate_brace", (gate_x, 0.0, 0.62), (bay * 0.72, 0.05, 0.10), dark, root, rotation=(0, math.radians(-28), math.radians(8)), bevel=0.01)
+        add_fasteners(
+            "fence_gate_hinge",
+            ((-length * 0.5 + 0.08, -0.12, 0.38), (-length * 0.5 + 0.08, -0.12, 0.80)),
+            0.02,
+            dark,
+            root,
+            depth=0.06,
+        )
     fasteners = []
     for index in range(posts):
-        x = -length * 0.5 + index * length / max(1, posts - 1)
+        x = -length * 0.5 + index * bay
         for rail in range(spec["parameters"]["rails"]):
             fasteners.append((x, -0.13, 0.38 + rail * 0.42))
     add_fasteners("fence_fastener", fasteners, 0.018, dark, root, depth=0.055)
+    add_collision_primitives(spec, root)
+
+
+def clay_oven(spec: dict, root) -> None:
+    """Chunky clay-and-stone bake oven with a thick plinth, arched mouth, and flue pot."""
+    stone, clay, wood = spec["palette"][:3]
+    width = spec["parameters"]["width"]
+    depth = spec["parameters"]["depth"]
+    height = spec["parameters"]["height"]
+    seed = spec["seed"]
+    plinth_h = height * 0.28
+    add_box("clay_oven_plinth", (0, 0, plinth_h * 0.5), (width, depth, plinth_h), stone, root, bevel=0.04)
+    add_masonry_courses(
+        "clay_oven_plinth_masonry",
+        (0, 0, plinth_h * 0.5),
+        width + 0.12,
+        depth + 0.12,
+        plinth_h,
+        (stone,),
+        root,
+        courses=2,
+        blocks_per_long_side=3,
+        seed=seed + 11,
+        block_depth=0.10,
+        bevel=0.012,
+    )
+    dome_z = plinth_h + height * 0.34
+    add_box("clay_oven_body", (0, 0.04, dome_z), (width * 0.78, depth * 0.72, height * 0.52), clay, root, bevel=0.06)
+    add_ico("clay_oven_dome", (0, 0.02, plinth_h + height * 0.62), (width * 0.34, depth * 0.30, height * 0.22), clay, root, subdivisions=1)
+    add_box("clay_oven_mouth_frame", (0, -depth * 0.38, plinth_h + height * 0.22), (width * 0.42, 0.12, height * 0.36), wood, root, bevel=0.016)
+    add_box("clay_oven_mouth", (0, -depth * 0.42, plinth_h + height * 0.22), (width * 0.30, 0.06, height * 0.24), wood, root, bevel=0.01)
+    add_box("clay_oven_flue", (0.0, depth * 0.12, plinth_h + height * 0.78), (0.18, 0.18, height * 0.18), stone, root, bevel=0.012)
+    add_fasteners("clay_oven_pegs", ((-width * 0.16, -depth * 0.40, plinth_h + 0.18), (width * 0.16, -depth * 0.40, plinth_h + 0.18)), 0.016, wood, root, depth=0.05)
     add_collision_primitives(spec, root)
 
 

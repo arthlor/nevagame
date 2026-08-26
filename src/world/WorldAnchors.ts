@@ -2,22 +2,24 @@
  * Pure gameplay-space anchors shared by simulation, physics and presentation.
  * Keep this module free of Three.js so simulation can consume it directly.
  */
-import { starterMarketAnchor } from "./FarmLayout";
 
-export const WORLD_LAYOUT_REVISION = 3 as const;
+export const WORLD_LAYOUT_REVISION = 6 as const;
 
 export const WORLD_SPAWN = {
   playerPosition: { x: -65, z: -60.5 },
   regionId: "region.farm"
 } as const;
 
-const STARTER_PRODUCE_STALL = starterMarketAnchor("market.village")!;
+/** East-bank apron after the stone bridge; no longer a fake village plaza. */
+export const RIVER_CROSSING = { x: 0, z: -5 } as const;
 
+/** Northeast village plaza — produce market and arterial road hub. */
 export const VILLAGE_MARKET = {
   marketId: "market.village",
-  position: { x: STARTER_PRODUCE_STALL.x, z: STARTER_PRODUCE_STALL.z },
-  radiusMeters: STARTER_PRODUCE_STALL.radiusMeters,
-  rotationY: STARTER_PRODUCE_STALL.rotationY
+  position: { x: 54, z: -52 },
+  radiusMeters: 6,
+  // Stall working face opens southwest toward the mill pad, not the packed court.
+  rotationY: Math.atan2(18, 24)
 } as const;
 
 /** Inland side of the harbor apron; the fish table and dock sit in front of it. */
@@ -55,7 +57,8 @@ export const HARBOR_FISH_TABLE = {
   structureId: "struct.harbor_fish_table",
   type: "fish-table" as const,
   position: { x: 71, z: 60.8 },
-  rotationY: Math.PI - 0.2,
+  // The reused workbench's cleaning face opens toward the dry dock approach.
+  rotationY: Math.PI + 1.0,
   clearanceRadius: 1.3,
   frontApproachDistanceMeters: 1.05
 } as const;

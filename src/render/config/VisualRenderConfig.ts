@@ -7,6 +7,7 @@ export interface VisualRenderConfig {
   outputColorSpace: THREE.ColorSpace;
   toneMapping: THREE.ToneMapping;
   exposure: number;
+  nightExposure: number;
   qualityTier: QualityTier;
   sun: {
     maxElevationDeg: number;
@@ -57,6 +58,7 @@ export interface VisualRenderConfig {
       practicalLightBudget: number;
       lodDistanceScale: number;
       groundCoverDrawDistanceMeters: number;
+      groundCoverDensityScale: number;
     }
   >;
   contact: {
@@ -75,10 +77,20 @@ export interface VisualRenderConfig {
     textureSize: number;
     largeSampleScaleMeters: number;
     smallSampleScaleMeters: number;
+    polygonCellScaleMeters: number;
     smallLayerRotationRadians: number;
     colorVariationStrength: number;
     paletteVariationStrength: number;
+    polygonVariationStrength: number;
+    polygonJaggedStrength: number;
     roughnessVariation: number;
+    normals: {
+      continuityStartNormalY: number;
+      fullyFacetedNormalY: number;
+      cliffWeightStart: number;
+      cliffWeightFull: number;
+      facetedColorBlend: number;
+    };
     wetness: {
       riseSeconds: number;
       fallSeconds: number;
@@ -90,6 +102,13 @@ export interface VisualRenderConfig {
       min: number;
       max: number;
     };
+  };
+  roadSurface: {
+    polygonCellScaleMeters: number;
+    polygonVariationStrength: number;
+    polygonJaggedStrength: number;
+    roughness: number;
+    roughnessVariation: number;
   };
   practicalLights: {
     colorHex: string;
@@ -166,6 +185,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   outputColorSpace: THREE.SRGBColorSpace,
   toneMapping: THREE.ACESFilmicToneMapping,
   exposure: 1.04,
+  nightExposure: 1.24,
   qualityTier: "high",
   sun: {
     maxElevationDeg: 54,
@@ -176,9 +196,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   moon: {
     colorHex: PALETTE_HEX.sky_pale_01,
-    intensity: 0.6,
-    cloudAttenuationFloor: 0.52,
-    stormAttenuation: 0.32,
+    intensity: 0.92,
+    cloudAttenuationFloor: 0.68,
+    stormAttenuation: 0.45,
     discSize: 24
   },
   skyFill: {
@@ -186,10 +206,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     groundColorHex: PALETTE_HEX.foliage_sage_01,
     nightSkyColorHex: PALETTE_HEX.water_deep_01,
     nightGroundColorHex: PALETTE_HEX.foliage_shadow_01,
-    nightSkyColorStrength: 0.55,
-    nightGroundColorStrength: 0.82,
+    nightSkyColorStrength: 0.82,
+    nightGroundColorStrength: 1.08,
     intensity: 1.45,
-    nightIntensity: 0.52
+    nightIntensity: 0.88
   },
   shadows: {
     type: THREE.PCFSoftShadowMap,
@@ -213,8 +233,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       ambientOcclusion: "off",
       postProcessPixelRatioCap: 1,
       practicalLightBudget: 1,
-      lodDistanceScale: 0.4,
-      groundCoverDrawDistanceMeters: 55
+      lodDistanceScale: 0.7,
+      groundCoverDrawDistanceMeters: 55,
+      groundCoverDensityScale: 0.24
     },
     medium: {
       shadowMapSize: 1536,
@@ -224,8 +245,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       ambientOcclusion: "contact",
       postProcessPixelRatioCap: 1.25,
       practicalLightBudget: 3,
-      lodDistanceScale: 0.52,
-      groundCoverDrawDistanceMeters: 78
+      lodDistanceScale: 0.85,
+      groundCoverDrawDistanceMeters: 78,
+      groundCoverDensityScale: 0.48
     },
     high: {
       shadowMapSize: 2048,
@@ -235,8 +257,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       ambientOcclusion: "contact",
       postProcessPixelRatioCap: 1.5,
       practicalLightBudget: 4,
-      lodDistanceScale: 0.62,
-      groundCoverDrawDistanceMeters: 105
+      lodDistanceScale: 0.95,
+      groundCoverDrawDistanceMeters: 96,
+      groundCoverDensityScale: 0.6
     }
   },
   contact: {
@@ -255,10 +278,20 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     textureSize: 128,
     largeSampleScaleMeters: 46,
     smallSampleScaleMeters: 13,
+    polygonCellScaleMeters: 5.2,
     smallLayerRotationRadians: 0.61,
     colorVariationStrength: 0.06,
-    paletteVariationStrength: 0.28,
+    paletteVariationStrength: 0.42,
+    polygonVariationStrength: 0.72,
+    polygonJaggedStrength: 0.62,
     roughnessVariation: 0.025,
+    normals: {
+      continuityStartNormalY: 0.88,
+      fullyFacetedNormalY: 0.66,
+      cliffWeightStart: 0.08,
+      cliffWeightFull: 0.5,
+      facetedColorBlend: 0.7
+    },
     wetness: {
       riseSeconds: 3,
       fallSeconds: 8,
@@ -270,6 +303,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       min: 0.775,
       max: 0.945
     }
+  },
+  roadSurface: {
+    polygonCellScaleMeters: 2.8,
+    polygonVariationStrength: 0.78,
+    polygonJaggedStrength: 0.62,
+    roughness: 0.94,
+    roughnessVariation: 0.04
   },
   practicalLights: {
     colorHex: PALETTE_HEX.emissive_lantern_01,
@@ -337,3 +377,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     reducedMotionSecondaryScale: 0
   }
 };
+
+export function groundCoverActiveCount(highCount: number, tier: QualityTier): number {
+  return Math.max(
+    0,
+    Math.min(
+      highCount,
+      Math.floor(highCount * CANONICAL_RENDER_CONFIG.quality[tier].groundCoverDensityScale)
+    )
+  );
+}

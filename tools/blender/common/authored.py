@@ -284,6 +284,145 @@ def add_burlap_sack(prefix, center, dimensions, token, tie_token, parent, *, rot
     )
 
 
+def add_timber_corner_frame(
+    prefix,
+    width,
+    depth,
+    wall_base,
+    wall_height,
+    token,
+    parent,
+    *,
+    post_w=0.28,
+):
+    """Readable corner posts, sills, and plates around a plaster or timber wall mass."""
+    wall_cz = wall_base + wall_height * 0.5
+    for x_idx, px in enumerate((-width * 0.5 + post_w * 0.4, width * 0.5 - post_w * 0.4)):
+        for y_idx, py in enumerate((-depth * 0.5 + post_w * 0.4, depth * 0.5 - post_w * 0.4)):
+            add_box(
+                f"{prefix}_corner_{x_idx}_{y_idx}",
+                (px, py, wall_cz),
+                (post_w, post_w, wall_height + 0.06),
+                token,
+                parent,
+                bevel=0.025,
+            )
+    for y_sign, name in ((-1, "front"), (1, "back")):
+        add_box(
+            f"{prefix}_plate_{name}",
+            (0, y_sign * (depth * 0.5 - 0.08), wall_base + wall_height - 0.08),
+            (width + 0.14, 0.18, 0.18),
+            token,
+            parent,
+            bevel=0.02,
+        )
+        add_box(
+            f"{prefix}_sill_{name}",
+            (0, y_sign * (depth * 0.5 - 0.04), wall_base + wall_height * 0.42),
+            (width - 0.10, 0.10, 0.12),
+            token,
+            parent,
+            bevel=0.015,
+        )
+
+
+def add_mullioned_window(
+    prefix,
+    location,
+    width,
+    height,
+    frame_token,
+    glass_token,
+    mullion_token,
+    parent,
+    *,
+    shutter_token=None,
+):
+    """Proud frame, glowing pane, cross mullions, and optional shutters facing -Y."""
+    cx, cy, cz = location
+    add_box(
+        f"{prefix}_frame",
+        (cx, cy, cz),
+        (width + 0.14, 0.14, height + 0.14),
+        frame_token,
+        parent,
+        bevel=0.02,
+    )
+    add_box(
+        f"{prefix}_glass",
+        (cx, cy - 0.02, cz),
+        (width, 0.04, height),
+        glass_token,
+        parent,
+        bevel=0.01,
+    )
+    add_box(
+        f"{prefix}_mullion_v",
+        (cx, cy - 0.05, cz),
+        (0.06, 0.05, height),
+        mullion_token,
+        parent,
+        bevel=0.008,
+    )
+    add_box(
+        f"{prefix}_mullion_h",
+        (cx, cy - 0.05, cz),
+        (width, 0.05, 0.06),
+        mullion_token,
+        parent,
+        bevel=0.008,
+    )
+    if shutter_token:
+        shutter_w = width * 0.48
+        add_box(
+            f"{prefix}_shutter_l",
+            (cx - width * 0.5 - shutter_w * 0.45, cy - 0.01, cz),
+            (shutter_w, 0.06, height),
+            shutter_token,
+            parent,
+            bevel=0.012,
+        )
+        add_box(
+            f"{prefix}_shutter_r",
+            (cx + width * 0.5 + shutter_w * 0.45, cy - 0.01, cz),
+            (shutter_w, 0.06, height),
+            shutter_token,
+            parent,
+            bevel=0.012,
+        )
+
+
+def add_banded_tapered_tower(
+    prefix,
+    base_z,
+    height,
+    radius_bottom,
+    radius_top,
+    tokens,
+    parent,
+    *,
+    bands,
+    sides,
+):
+    """Stack alternating palette bands as a tapered low-poly tower shaft."""
+    band_h = height / bands
+    for index in range(bands):
+        t0 = index / bands
+        t1 = (index + 1) / bands
+        r0 = radius_bottom + (radius_top - radius_bottom) * t0
+        r1 = radius_bottom + (radius_top - radius_bottom) * t1
+        add_cone(
+            f"{prefix}_{index:02d}",
+            (0, 0, base_z + band_h * (index + 0.5)),
+            r0,
+            r1,
+            band_h + 0.02,
+            tokens[index % len(tokens)],
+            parent,
+            vertices=sides,
+        )
+
+
 def add_mooring_cleat(prefix, center, length, token, parent, *, yaw=0.0):
     """Build a functional low-poly iron T-cleat for mooring line tie-offs."""
     cx, cy, cz = center

@@ -12,6 +12,8 @@ const BACKUP_KEY = "backup_save";
 export interface SaveSummary {
   dayCount: number;
   season: string;
+  year: number;
+  regionId: string;
   money: number;
   savedAtUtcMs: number;
 }
@@ -21,6 +23,11 @@ export type LoadGameResult =
   | { status: "empty" }
   | { status: "corrupt" }
   | { status: "unavailable" };
+
+export interface SaveInspection {
+  result: LoadGameResult;
+  summary: SaveSummary | null;
+}
 
 export class IndexedDbSaveRepository {
   private db: IDBDatabase | null = null;
@@ -105,27 +112,23 @@ export class IndexedDbSaveRepository {
     return result.status === "loaded" ? result.envelope : null;
   }
 
-  public async loadGameResult(): Promise<LoadGameResult> {
+  /**
+   * Reads and validates only the save slots so the title screen can choose a
+   * truthful Continue/New Game action. It does not construct a Simulation or
+   * touch the renderer, physics, or gameplay clock.
+   */
+  public async inspectGame(): Promise<SaveInspection> {
     return this.enqueue(async () => {
-      const db = await this.getDb();
-      if (!db) {
-        return { status: "unavailable" };
-      }
-
-      const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY);
-      const primary = this.migrateAndValidate(primaryRaw);
-      if (primary) return { status: "loaded", envelope: primary };
-
-      const backupRaw = await this.readRawFromDb(db, BACKUP_KEY);
-      const backup = this.migrateAndValidate(backupRaw);
-      if (backup) {
-        console.warn("Primary save missing or corrupted. Restored from backup.");
-        return { status: "loaded", envelope: backup };
-      }
-
-      if (primaryRaw == null && backupRaw == null) return { status: "empty" };
-      return { status: "corrupt" };
+      const result = await this.readGameResult();
+      return {
+        result,
+        summary: result.status === "loaded" ? this.summarize(result.envelope) : null
+      };
     });
+  }
+
+  public async loadGameResult(): Promise<LoadGameResult> {
+    return this.enqueue(() => this.readGameResult());
   }
 
   public async clearSaves(): Promise<void> {
@@ -201,6 +204,38 @@ export class IndexedDbSaveRepository {
 
   private async readAndMigrate(db: IDBDatabase, key: string): Promise<SaveEnvelope | null> {
     return this.migrateAndValidate(await this.readRawFromDb(db, key));
+  }
+
+  private async readGameResult(): Promise<LoadGameResult> {
+    const db = await this.getDb();
+    if (!db) {
+      return { status: "unavailable" };
+    }
+
+    const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY);
+    const primary = this.migrateAndValidate(primaryRaw);
+    if (primary) return { status: "loaded", envelope: primary };
+
+    const backupRaw = await this.readRawFromDb(db, BACKUP_KEY);
+    const backup = this.migrateAndValidate(backupRaw);
+    if (backup) {
+      console.warn("Primary save missing or corrupted. Restored from backup.");
+      return { status: "loaded", envelope: backup };
+    }
+
+    if (primaryRaw == null && backupRaw == null) return { status: "empty" };
+    return { status: "corrupt" };
+  }
+
+  private summarize(envelope: SaveEnvelope): SaveSummary {
+    return {
+      dayCount: envelope.state.clock.dayCount,
+      season: envelope.state.clock.season,
+      year: envelope.state.clock.year,
+      regionId: envelope.state.player.currentRegionId,
+      money: envelope.state.player.money,
+      savedAtUtcMs: envelope.savedAtUtcMs
+    };
   }
 
   private async writeRawToDb(db: IDBDatabase, key: string, data: SaveEnvelope): Promise<boolean> {

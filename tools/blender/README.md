@@ -7,6 +7,8 @@ lists.
 
 ## Everyday workflow
 
+Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Obey root `AGENTS.md`, `LLM/BLENDER.md`, this file, the selected catalog entry, owning generator, isolated sheet if present, and the relevant Art Bible section. “Generate assets” means catalog ID → registered family generator (not polyfork for isolated-sheet or unique-silhouette assets) → measure sheet identity into `parameters` when a sheet exists → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → Art Yard → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt.
+
 Every catalog command requires `--asset`, `--family`, or explicit release
 `--all`. A bare command fails instead of silently selecting all assets.
 

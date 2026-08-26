@@ -16,14 +16,17 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from common.authored import (
     add_arch_ring,
+    add_banded_tapered_tower,
     add_cylindrical_masonry,
     add_fasteners,
     add_lattice,
     add_masonry_courses,
+    add_mullioned_window,
     add_plank_field,
     add_root_flare,
     add_rope_line,
     add_shingle_rows,
+    add_timber_corner_frame,
 )
 from common.geometry import add_box, apply_vertex_values
 from common.materials import get_or_create_material, hex_to_linear_rgba
@@ -45,6 +48,9 @@ def build_signature():
     add_arch_ring("test_arch", 0, 0, 1.5, *TOKENS, root, blocks=9, block_depth=0.2, block_size=0.3, start_deg=28, end_deg=152)
     add_root_flare("test_root", (0, 0, 0), 1, 0.5, TOKENS[1], root, count=5, seed=15)
     add_fasteners("test_fastener", ((-0.2, 0, 0.5), (0.2, 0, 0.5)), 0.03, TOKENS[1], root)
+    add_timber_corner_frame("test_timber", 1.6, 1.2, 0.2, 1.4, TOKENS[1], root, post_w=0.12)
+    add_mullioned_window("test_window", (0, -0.7, 1.0), 0.5, 0.6, TOKENS[1], TOKENS[0], TOKENS[1], root)
+    add_banded_tapered_tower("test_bands", 0.0, 1.8, 0.6, 0.35, TOKENS, root, bands=4, sides=8)
     multi_material = add_box("test_multi_material", (0, 0, 0.5), (0.5, 0.5, 0.5), TOKENS[0], root)
     multi_material.data.materials.append(get_or_create_material(TOKENS[1]))
     multi_material.data.polygons[0].material_index = 1
@@ -54,6 +60,7 @@ def build_signature():
     prefixes = {
         "test_masonry", "test_tower", "test_shingle", "test_plank", "test_lattice",
         "test_rope", "test_arch", "test_root", "test_fastener",
+        "test_timber", "test_window", "test_bands",
         "test_multi_material",
     }
     for prefix in prefixes:

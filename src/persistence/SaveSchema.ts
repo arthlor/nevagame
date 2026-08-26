@@ -5,8 +5,9 @@ import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { cargoClassFits } from "../simulation/domains/domainRules";
+import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
 
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -88,7 +89,13 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 7 && state.world.layoutRevision !== 3) ||
+    (schemaVersion >= 14
+      ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion === 13
+        ? state.world.layoutRevision !== 5
+        : schemaVersion === 12
+          ? state.world.layoutRevision !== 4
+          : schemaVersion >= 7 && state.world.layoutRevision !== 3) ||
     !isSafeInteger(state.world.currentSeed, 0) ||
     state.world.currentSeed !== state.worldSeed ||
     !isRecord(state.world.activeSchools) ||
@@ -193,7 +200,8 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isRecord(structure) ||
       structure.id !== structureId ||
       !["hand-mill", "workbench", "fish-table", "compost-bin"].includes(structure.type as string) ||
-      ![structure.x, structure.y, structure.z].every((value) => isFiniteNumber(value))
+      ![structure.x, structure.y, structure.z].every((value) => isFiniteNumber(value)) ||
+      (structure.rotationY !== undefined && !isFiniteNumber(structure.rotationY))
     ) return false;
   }
 

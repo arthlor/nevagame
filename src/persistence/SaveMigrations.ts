@@ -13,6 +13,8 @@ const V1_STARTER_FARM = { x: 0, z: 0 } as const;
 const V1_HOMESTEAD = { x: -8, z: -10 } as const;
 const CURRENT_STARTER_FARM = { x: -65, z: -55 } as const;
 const CURRENT_HOMESTEAD = { x: 60, z: -60 } as const;
+/** Layout revision 5 mill pad, west of the packed plaza. Frozen for the v13 hop. */
+const LAYOUT_5_MILL = { x: 46, z: -58 } as const;
 
 function finite(value: unknown, fallback: number = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -284,7 +286,9 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       },
       world: {
         ...world,
-        layoutRevision: WORLD_LAYOUT_REVISION,
+        // Historical schema 7 introduced layout revision 3. Keep versioned
+        // migrations immutable; schema 12 performs the explicit v3 -> v4 step.
+        layoutRevision: 3,
         structures: migratedStructures,
         activeSchools: migratedSchools
       },
@@ -455,6 +459,120 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       fishCargo,
       boats,
       player
+    };
+  },
+  12: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const boats = (previous.boats ?? {}) as Record<string, Record<string, unknown>>;
+    const activeBoatId = typeof player.activeBoatId === "string" ? player.activeBoatId : null;
+    const hasActiveBoat = activeBoatId !== null && boats[activeBoatId] !== undefined;
+    const playerX = finite(player.x);
+    const playerZ = finite(player.z);
+    const world = (previous.world ?? {}) as Record<string, unknown>;
+    const structures = (world.structures ?? {}) as Record<string, Record<string, unknown>>;
+    const migratedStructures = Object.fromEntries(
+      Object.entries(structures).map(([id, structure]) => {
+        const x = finite(structure.x);
+        const z = finite(structure.z);
+        return [id, { ...structure, x, y: WorldLayout.terrainHeight(x, z), z }];
+      })
+    );
+
+    return {
+      ...previous,
+      schemaVersion: 12,
+      player: {
+        ...player,
+        ...(!hasActiveBoat ? { y: WorldLayout.terrainHeight(playerX, playerZ) + 0.5 } : {})
+      },
+      world: {
+        ...world,
+        layoutRevision: 4,
+        structures: migratedStructures
+      }
+    };
+  },
+  13: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const boats = (previous.boats ?? {}) as Record<string, Record<string, unknown>>;
+    const activeBoatId = typeof player.activeBoatId === "string" ? player.activeBoatId : null;
+    const hasActiveBoat = activeBoatId !== null && boats[activeBoatId] !== undefined;
+    const playerX = finite(player.x);
+    const playerZ = finite(player.z);
+    const world = (previous.world ?? {}) as Record<string, unknown>;
+    const structures = (world.structures ?? {}) as Record<string, Record<string, unknown>>;
+    const mill = { id: "struct.starter_mill", ...LAYOUT_5_MILL };
+    const migratedStructures = Object.fromEntries(
+      Object.entries(structures).map(([id, structure]) => {
+        if (id === mill.id) {
+          return [id, {
+            ...structure,
+            x: mill.x,
+            y: WorldLayout.terrainHeight(mill.x, mill.z),
+            z: mill.z
+          }];
+        }
+        const x = finite(structure.x);
+        const z = finite(structure.z);
+        return [id, { ...structure, x, y: WorldLayout.terrainHeight(x, z), z }];
+      })
+    );
+
+    return {
+      ...previous,
+      schemaVersion: 13,
+      player: {
+        ...player,
+        ...(!hasActiveBoat ? { y: WorldLayout.terrainHeight(playerX, playerZ) + 0.5 } : {})
+      },
+      world: {
+        ...world,
+        layoutRevision: 5,
+        structures: migratedStructures
+      }
+    };
+  },
+  14: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const boats = (previous.boats ?? {}) as Record<string, Record<string, unknown>>;
+    const activeBoatId = typeof player.activeBoatId === "string" ? player.activeBoatId : null;
+    const hasActiveBoat = activeBoatId !== null && boats[activeBoatId] !== undefined;
+    const playerX = finite(player.x);
+    const playerZ = finite(player.z);
+    const world = (previous.world ?? {}) as Record<string, unknown>;
+    const structures = (world.structures ?? {}) as Record<string, Record<string, unknown>>;
+    const mill = starterStructureAnchor("struct.starter_mill");
+    const migratedStructures = Object.fromEntries(
+      Object.entries(structures).map(([id, structure]) => {
+        if (id === mill?.id) {
+          return [id, {
+            ...structure,
+            x: mill.x,
+            y: WorldLayout.terrainHeight(mill.x, mill.z),
+            z: mill.z
+          }];
+        }
+        const x = finite(structure.x);
+        const z = finite(structure.z);
+        return [id, { ...structure, x, y: WorldLayout.terrainHeight(x, z), z }];
+      })
+    );
+
+    return {
+      ...previous,
+      schemaVersion: 14,
+      player: {
+        ...player,
+        ...(!hasActiveBoat ? { y: WorldLayout.terrainHeight(playerX, playerZ) + 0.5 } : {})
+      },
+      world: {
+        ...world,
+        layoutRevision: WORLD_LAYOUT_REVISION,
+        structures: migratedStructures
+      }
     };
   }
 };

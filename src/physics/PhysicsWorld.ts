@@ -52,11 +52,29 @@ const PLAYER_GROUND_SNAP_METERS = 0.38;
 const PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND = 0.55;
 const PLAYER_HARD_LANDING_SPEED_METERS_PER_SECOND = 8.5;
 const PLAYER_LANDING_RESPONSE_MAX_SPEED_METERS_PER_SECOND = 15;
-let terrainHeightfieldCache: Float32Array | null = null;
+let terrainBaseHeightfieldCache: Float32Array | null = null;
+let roadColliderGeometryCache: { vertices: Float32Array; indices: Uint32Array } | null = null;
 
-function sharedTerrainHeightfield(): Float32Array {
-  terrainHeightfieldCache ??= WorldLayout.terrainHeightfield();
-  return terrainHeightfieldCache;
+function sharedTerrainBaseHeightfield(): Float32Array {
+  terrainBaseHeightfieldCache ??= WorldLayout.terrainBaseHeightfield();
+  return terrainBaseHeightfieldCache;
+}
+
+function sharedRoadColliderGeometry(): { vertices: Float32Array; indices: Uint32Array } {
+  if (roadColliderGeometryCache) return roadColliderGeometryCache;
+  const geometry = WorldLayout.buildPathGeometry();
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  if (!index) {
+    geometry.dispose();
+    throw new Error("[PhysicsWorld] Canonical road geometry must be indexed for Rapier trimesh collision");
+  }
+  roadColliderGeometryCache = {
+    vertices: Float32Array.from(position.array),
+    indices: Uint32Array.from(index.array)
+  };
+  geometry.dispose();
+  return roadColliderGeometryCache;
 }
 
 function normalizeAngle(radians: number): number {
@@ -209,10 +227,14 @@ export class PhysicsWorld implements PhysicsAdapter {
     const terrain = rapier.ColliderDesc.heightfield(
       TERRAIN_RESOLUTION,
       TERRAIN_RESOLUTION,
-      sharedTerrainHeightfield(),
+      sharedTerrainBaseHeightfield(),
       new rapier.Vector3(TERRAIN_SIZE_METERS, 1, TERRAIN_SIZE_METERS)
     ).setFriction(0.86);
     this.terrainCollider = this.world.createCollider(terrain);
+    const road = sharedRoadColliderGeometry();
+    this.world.createCollider(
+      rapier.ColliderDesc.trimesh(road.vertices, road.indices).setFriction(0.9)
+    );
     for (const proxy of staticCollision) {
       const centerX = Number.isFinite(proxy.center.x) ? proxy.center.x : 0;
       const centerY = Number.isFinite(proxy.center.y) ? proxy.center.y : 0;

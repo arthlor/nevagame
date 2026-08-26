@@ -89,7 +89,7 @@ tests/ unit/ simulation/ integration/ fixtures/ e2e/
 
 # 6. Canonical State, IDs, RNG & Time
 
-Representative state (`CURRENT_SCHEMA_VERSION = 11`, `world.layoutRevision = 3`):
+Representative state (`CURRENT_SCHEMA_VERSION = 14`, `world.layoutRevision = 6`):
 ```ts
 interface GameState {
   schemaVersion: number;
@@ -113,7 +113,7 @@ interface GameState {
   metadata: GameMetadata;
 }
 ```
-All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. Schema v10 inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`) and lifts y=0 stations onto terrain. Schema v11 converts illegal `fish.trout` item stacks to cargo. New-game station `y` is `terrainHeight(x, z)`.
+All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. Schema v10 inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`) and lifts y=0 stations onto terrain. Schema v11 converts illegal `fish.trout` item stacks to cargo. Schema v12 advances layout revision 3 → 4 for physical worked-road relief: it preserves X/Z, rotations, crops, inventory, cargo, markets, progression, quests, and boat truth; re-grounds an on-foot player and placed structures through the final canonical terrain height; and leaves an active boat plus its player waterline unchanged. Schema v13 advances layout revision 4 → 5 for the northeast village hub: it moves `struct.starter_mill` off the homestead plantable onto the mill pad, relocates `market.village` and the arterial road hub to the northeast plaza, keeps the former stall site as a river-crossing gateway, preserves crops, Work Capacity, boats, quests, and the fish-table, and re-grounds on-foot player plus structures through final terrain height. Schema v14 advances layout revision 5 → 6: it moves `struct.starter_mill` off the packed plaza onto a southwest mill pad, keeps `market.village` at `(54, -52)`, enlarges the village courtyard, preserves other structure/player/boat/crop/quest truth, and re-grounds on-foot player plus structures through final terrain height. New-game station `y` is `terrainHeight(x, z)`.
 
 `WorldState` owns the current world seed, `activeSchools`, authored
 `structures`, and the last school-spawn minute. Do not add fish schools or
@@ -209,15 +209,14 @@ Cameras react to `GameplayMode`, never decide gameplay:
 
 Large intentional authored region:
 ```text
-Northwest farm district: starter land, farmhouse, working yard
-Northeast uplands: private homestead, orchard, windmill plateau
-Central village: public garden, produce market, processing, contracts
-River corridor: freshwater fishing, bridge, riverbank route
+Northwest farm district: starter land, farmhouse, working yard, Act 1 garden
+Northeast village hub: plaza/market, mill pad southwest of the courtyard, inn, cottages, barn, contracts, private homestead garden, orchard fringe
+River corridor: freshwater fishing, bridge, east-bank river-crossing gateway (not a village)
 Southwest headland: cliffs, lighthouse, coastal walk
 Southeast harbor: fish market, dock, boat vendor, fuel/ice
 Coast and offshore: coastal and higher-value sport fishing
 ```
-The world is allowed to be large enough for multi-district travel and long-term expansion, but it remains deliberately authored rather than unbounded or runtime-procedural. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data, large/streaming chunk boundaries where the runtime needs them, and preserve strategic travel rather than tedious traversal.
+The loop is farm → village hub → harbor. Spawn and the northwest farmhouse stay on the starter farm. World `(0, -5)` is the river-crossing apron after the bridge, not a fake village. `market.village` and the arterial road hub sit on the northeast plaza near `(54, -52)`. The mill pad sits southwest of that courtyard so the packed plaza stays an open market square. The world is allowed to be large enough for multi-district travel and long-term expansion, but it remains deliberately authored rather than unbounded or runtime-procedural. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data, large/streaming chunk boundaries where the runtime needs them, and preserve strategic travel rather than tedious traversal.
 
 # 11. Physics & Water
 
@@ -235,8 +234,16 @@ Canonical visual-system ownership:
 - The approved renderer/material baseline is established by the gold-standard art slice in `03` + `04` + Art Pipeline and then treated as a regression-controlled contract.
 - Pixel-level screenshot regression compares the game to its own approved benchmark states; style-reference review compares visual language to supplied references and intentionally ignores layout/camera differences unless composition is the task.
 
+Canonical ground-presentation ownership:
+- Authored world-layout data owns terrain height/normal queries, route centerlines and profiles, farm/structure clearances, water/shore relationships, and other semantics that affect traversal or interaction. Rendering may derive surface weights, road/shore influence, wetness, disturbance, and vegetation-density signals from those owners; the derived representation is presentation data, not a second world or gameplay authority.
+- The current layout exposes `terrainBaseHeight()` for the graded landform and final `terrainHeight()` for the save/placement/anchor/normal authority. Final height adds the deterministic, nonnegative road cross-section sampled from route identity, distance along route, and lateral distance. Rapier uses `terrainBaseHeightfield()` for the coarse landform plus an exact static road trimesh built from the same indexed geometry rendered by Three.js; catalog bridge collision remains the bridge-deck authority.
+- Terrain color/material blending, road geometry, shoreline dressing, and ground-cover placement MUST consume the same route/shore/clearance semantics. Do not hand-tune independent masks in several render modules until roads, terrain, cover, map projection, and collision disagree.
+- Any road cut, crown, rut, bench, bank, or other deformation that materially changes the walkable surface MUST be represented by the canonical height/normal contract consumed by rendering, Rapier, placement validity, and affected anchors. Cosmetic shader displacement is allowed only when it remains below a gameplay-camera-visible render/collision mismatch and cannot affect traversal or placement; otherwise it is a topology/layout change, not a rendering-only effect.
+- A derived ground field may be analytic, mesh attributes, a compact chunk/control texture, or another measured representation. Choose the simplest form that preserves deterministic regeneration, inspectability, filtered transitions, and browser budgets. Channel packing, texture resolution, noise frequencies, and shader thresholds are implementation/config details, not save schema or permanent art doctrine.
+- Rendering-only changes to normals, material fields, road surface presentation, cover density, or precipitation wetness have `Save-impact: no` and `Migration required: no` only while canonical topology, route/structure anchors, collision, placement validity, and serialized world data remain unchanged. A topology/layout revision that changes gameplay reachability or persistent coordinates follows the normal save/layout migration protocol.
+
 Runtime asset contract: **GLB/glTF 2.0 only**; never runtime `.blend/.fbx/.obj`.
-- Static prefabs: catalog entry, with its optional closed `referenceAuthoring` evidence-to-generator brief when image/study guided → registered deterministic Blender Python family generator, optionally composed from shared `common/authored.py` construction helpers → raw GLB → Khronos validation → glTF Transform dedupe/prune/weld + Meshopt → revalidation → atomic publish. A reconstruction study may inform the brief; it does not authorize a direct runtime TypeScript factory or second exporter.
+- Static prefabs: catalog entry, with its optional closed `referenceAuthoring` evidence-to-generator brief when image/study guided → the brief binds identity-defining layout into catalog `parameters` → registered deterministic Blender Python family generator consumes those keys (optionally composed from shared `common/authored.py` construction helpers) → raw GLB → Khronos validation → glTF Transform dedupe/prune/weld + Meshopt → revalidation → atomic publish. A reconstruction study may inform the brief; it does not authorize a direct runtime TypeScript factory or second exporter.
 - Dynamic systems: Three.js TS buffer/procedural builders (water, crop stages, seasonal tint, dynamic fish, debug proxies).
 - Conventions: `1 unit = 1 meter`, Y-up, consistent forward, applied transforms, stable names/pivots, material reuse.
 

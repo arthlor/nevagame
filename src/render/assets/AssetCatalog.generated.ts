@@ -168,6 +168,11 @@ export const ASSET_IDS = {
   ITEM_COIN_POUCH_A: "item_coin_pouch_a",
   ITEM_COMPASS_A: "item_compass_a",
   PROP_TREASURE_CHEST_A: "prop_treasure_chest_a",
+  HOUSE_COTTAGE_A: "house_cottage_a",
+  HOUSE_COTTAGE_B: "house_cottage_b",
+  BUILDING_INN_A: "building_inn_a",
+  BUILDING_VILLAGE_MARKET_HALL_A: "building_village_market_hall_a",
+  BUILDING_BARN_A: "building_barn_a",
 } as const;
 
 export type AssetId = (typeof ASSET_IDS)[keyof typeof ASSET_IDS];
@@ -188,6 +193,11 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.BUILDING_MARKET_STALL_A,
     ASSET_IDS.BRIDGE_LOG_PLANK_A,
     ASSET_IDS.BUILDING_OUTHOUSE_A,
+    ASSET_IDS.HOUSE_COTTAGE_A,
+    ASSET_IDS.HOUSE_COTTAGE_B,
+    ASSET_IDS.BUILDING_INN_A,
+    ASSET_IDS.BUILDING_VILLAGE_MARKET_HALL_A,
+    ASSET_IDS.BUILDING_BARN_A,
   ],
   "boat": [
     ASSET_IDS.BOAT_ROWBOAT_A,

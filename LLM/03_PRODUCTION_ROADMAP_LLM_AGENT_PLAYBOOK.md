@@ -141,6 +141,9 @@ the integrated game.
 - one canonical `VisualRenderConfig` owner for color space, tone mapping, exposure, primary sun/fill, shadow quality tiers, AO/contact, atmosphere/fog, and restrained post-processing;
 - one canonical `PaletteTokens` + `PaletteMaterials` owner; production code must consume tokens/material factories instead of arbitrary runtime colors/materials;
 - calibrated warm sun + cool fill, grounded shadows/AO, atmosphere, and color pipeline;
+- canonical ground-surface foundation: class-aware terrain normals, semantic grass/meadow/soil/path/shore/cliff blending, bounded macro/meso variation, and weather wetness through `VisualRenderConfig`;
+- one authored route/profile owner shared by terrain grading/surface influence, road presentation, map projection, cover exclusion, and relevant collision queries; roads have route-kind width, worn core/ruts, soft shoulders, terrain integration, and shaped junctions;
+- deterministic semantic ground-cover density with clustered short/medium/tall hierarchy, authored clearances, variant/palette grouping, instancing, draw-distance culling, and quality-tier counts;
 - approved stylized water prototype with faceting, 2–3 low-frequency wave layers, shallow→deep palette, Fresnel-like response, and graphic foam;
 - approved vegetation/rock shading prototypes;
 - catalog-backed GLB loader with Meshopt decoding, source-scene cache/clones, and compatible static-prefab `THREE.BatchedMesh` consolidation; KTX2 only when a concrete texture path is implemented;
@@ -151,25 +154,29 @@ the integrated game.
 
 **Rules:** no per-zone exposure/tone-map hacks; no toon/ink outlines; no DOF/tilt-shift dependency; normal texture targets follow `04` (mostly 128–1024, 2048 rare); renderer remains browser-budgeted.
 
-**Gate:** a simple test scene containing terrain/grass, one rock family, one tree family, warm wood, warm stone/plaster, water edge/foam, and representative shadows looks coherent from the gameplay camera and meets the `04` visual score threshold. `npm run art:codegen:check` passes, the art yard loads the same catalog through the canonical runtime loader, and wireframe/collision/LOD/lighting diagnostics are usable without creating a second render baseline. Lock the baseline config after approval and regression-test future changes.
+**Ground-foundation implementation order:** (1) landform/normals and triangle-grid suppression; (2) semantic slope/height/route/shore fields plus macro/meso material variation; (3) terrain-integrated roads and junctions; (4) clustered instanced cover consuming those route/shore fields; (5) shoreline/cliff dressing, contact continuity, and restrained surface detail/weather. Shoreline semantics exist before cover placement even when shoreline dressing is refined afterward. Do not hide a weak earlier layer by adding more props or foliage.
+
+**Ground acceptance:** at a fixed world seed, surface fields and cover placement regenerate identically; traversable terrain does not expose a regular triangle grid; authored landform breaks remain readable; roads have no visible slab seam or z-fighting and transition through worn cores/shoulders into surrounding ground; road and shoreline exclusions suppress inappropriate cover; short grass does not create broad dynamic-shadow load; quality tiers reduce count/distance without changing route, shore, collision, or placement truth; any materially walkable deformation agrees across render height, Rapier, placement, and anchors. Exact widths, frequencies, slopes, depths, counts, and control-field resolution remain centrally owned starting values to tune under the gameplay camera, not permanent Art Bible constants.
+
+**Gate:** a simple test scene containing terrain/grass, one route with a junction/shoulder, one bank or slope transition, one shoreline, clustered short/tall cover, one rock family, one tree family, warm wood, warm stone/plaster, water edge/foam, and representative shadows looks coherent from the gameplay camera and meets the `04` visual score threshold. Regular terrain topology is not the dominant pattern; road/terrain/cover/shore transitions agree; the same scene remains readable in at least one wet-weather state and across quality tiers without changing gameplay truth. `npm run art:codegen:check` passes, the art yard loads the same catalog through the canonical runtime loader, and wireframe/collision/LOD/lighting diagnostics are usable without creating a second render baseline. Lock the baseline config after approval and regression-test future changes.
 
 # 6.75. P0.75 — Gold-Standard Art Slice
 
 **Purpose:** prove that the complete asset-production loop can reach the target aesthetic before mass production.
 
 Build and approve, in this order unless a human explicitly changes it:
-1. **Bridge + river:** terrain, stone, timber, vegetation, faceted water, foam, lighting, atmosphere.
+1. **Bridge + river:** landform-dominant terrain, integrated route approaches, grass/soil/slope/shore transitions, clustered vegetation/reeds, stone, timber, faceted water, foam, lighting, atmosphere.
 2. **Starter farm:** farmhouse, field/crop, fence, path, tree, rocks, working props.
 3. **Harbor:** dock, rowboat, fish-market/warehouse language, rope/nets/crates, ocean water.
 4. **Coast/lighthouse:** cliffs, dark rocks, graphic foam, atmospheric perspective, sunset variant.
 
-The first accepted slice must demonstrate final-or-near-final geometry language, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones while this gate fails.** `tests/visual/reference/approved-baselines.json` records human approval for farm/bridge/harbor/coast on 2026-08-24 (expansion baseline registry). That does not mean P0.75 is fully passed: the mechanical world exists, but art:generate:strict is the gold-slice/release gate (not the daily asset gate) and remains open while the latest report has 19 below_target assets and strict: false. Do not reopen a candidate-selection loop merely because the authored world grows; re-review proportionately when the renderer/material contract or those reference scenes materially change.
+The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones while this gate fails.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/blender/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` records human approval for farm/bridge/harbor/coast on 2026-08-24 (expansion baseline registry). That does not mean P0.75 is fully passed: the mechanical world exists, but art:generate:strict is the gold-slice/release gate (not the daily asset gate) and remains open while the latest report has 19 below_target assets and strict: false. Do not reopen a candidate-selection loop merely because the authored world grows; re-review proportionately when the renderer/material/terrain-normal/route-surface contract or those reference scenes materially change.
 
 **Gate (still open until all of this is true of the current tree):** `04` Visual Acceptance at actual gameplay camera with overall ≥8/10, no category <7, and graphics-reference match ≥8/10; every reference-guided gold asset has a `ready` catalog brief and passes its front/rear/side/three-quarter plus 8 m/15 m/read-distance review set; performance remains within the current browser budget; GLB export/optimization/runtime load succeeds; `npm run art:generate:strict` passes the catalog/schema/palette/min-target-max contracts; `npm run art:validate` confirms the last published generated/public set; representative semantic determinism passes; `npm run art:benchmark` captures deterministic 1440×900 bridge/farm/harbor/coast evidence. Human approval is required before initial candidates become references; the current four baselines satisfy that human-approval registry step only.
 
 # 7. P1 — Walkable World
 
-**Build:** player controller, on-foot camera, collision, interaction system, and a large authored multi-district world with northwest starter farm, northeast homestead/orchard/windmill uplands, central village, river corridor, southwest lighthouse cliffs, southeast harbor, coast, offshore boundary, arterial roads, scenic trails, and contextual prompts. World geometry may remain selectively content-light while districts are filled, but it MUST use the approved P0.5/P0.75 renderer/material foundation rather than a visually unrelated throwaway style.
+**Build:** player controller, on-foot camera, collision, interaction system, and a large authored multi-district world with northwest starter farm, northeast village hub (plaza/market, mill, inn, cottages, barn, homestead garden, orchard fringe), river corridor with an east-bank crossing gateway at the former stall site, southwest lighthouse cliffs, southeast harbor, coast, offshore boundary, arterial roads, scenic trails, and contextual prompts. World geometry may remain selectively content-light while districts are filled, but it MUST use the approved P0.5/P0.75 renderer/material foundation rather than a visually unrelated throwaway style.
 
 **Avoid:** NPC schedules, complex animation, empty or purely decorative scale, unbounded runtime-procedural terrain, and decorative overbuild. Authored-world production may use the 2026-08-24 baseline registry, but P0.75 strict remains open (19 below_target); do not treat mass art production as fully gated-complete.
 
@@ -177,9 +184,9 @@ The first accepted slice must demonstrate final-or-near-final geometry language,
 
 # 8. P2 — Persistence & Time
 
-**Build:** IndexedDB repo, save envelope (`CURRENT_SCHEMA_VERSION = 11`, `layoutRevision` 3), **primary + backup keys only** (no third manual slot), migrate-then-validate, autosave, calendar, weather-bounded offline delta/summary, and traversal-state persistence. Schema v10 inserts the harbor fish-table and lifts y=0 stations. Schema v11 converts illegal `fish.trout` item stacks to cargo. Before the first live release, topology revisions may deliberately invalidate development saves when a human explicitly authorizes it; after release, preserve compatible legacy Work Capacity, crop journal, starter-structure, docked-boat, quest, fish-table, and traversal state through explicit migrations.
+**Build:** IndexedDB repo, save envelope (`CURRENT_SCHEMA_VERSION = 14`, `layoutRevision` 6), **primary + backup keys only** (no third manual slot), migrate-then-validate, autosave, calendar, weather-bounded offline delta/summary, and traversal-state persistence. Schema v10 inserts the harbor fish-table and lifts y=0 stations. Schema v11 converts illegal `fish.trout` item stacks to cargo. Schema v12 migrates physical worked-road terrain without changing saved X/Z or unrelated state: on-foot players and structures re-ground through final canonical height while active boat/player waterline truth remains unchanged. Schema v13 advances layout 4 → 5 for the northeast village hub: it moves the starter mill off the homestead plantable, relocates the village market and road hub to the northeast plaza, keeps `(0, -5)` as the river-crossing gateway, preserves other structure/player/boat/crop/quest truth, and re-grounds land state. Schema v14 advances layout 5 → 6: it moves the starter mill off the packed plaza onto a southwest mill pad, keeps the village market at the northeast hub, enlarges the courtyard, preserves unrelated state, and re-grounds land state. Before the first live release, topology revisions may deliberately invalidate development saves when a human explicitly authorizes it; after release, preserve compatible legacy Work Capacity, crop journal, starter-structure, docked-boat, quest, fish-table, and traversal state through explicit migrations.
 
-Permanent fixtures: `save_v1_empty.json`, `save_v1_progressed.json`, `save_corrupt.json`; future versions add, never replace, fixtures.
+Permanent fixtures add, never replace, historical saves. The physical-road migration is covered by `tests/fixtures/save_v11_layout3.json`; the subsequent mill relocation onto the plaza mill pad is covered by `tests/fixtures/save_v12_layout4.json`; moving the mill off the packed courtyard is covered by `tests/fixtures/save_v13_layout5.json`. Retain all three alongside future version fixtures.
 
 **Gate:** reload preserves player position, money, time, dummy inventory, world seed; offline delta deterministic under fixed time.
 
@@ -258,7 +265,7 @@ Only after P12. Expand to 8 crops/12 fish; add Apple Tree, Flax, Fishing Skiff, 
 
 P14 assumes P0.5/P0.75 already locked the visual language. Do **not** use P14 to replace placeholder rendering with the first real art pass; use it to finish coverage, variation, animation, audio, UX, and quality across the mature vertical slice.
 
-- Environment: complete cohesive ground/vegetation/harbor/farm/weathered architecture/water coverage using approved family generators, shared authored construction grammar and materials.
+- Environment: complete cohesive landform/material/route/shore/clustered-cover agreement plus harbor/farm/weathered architecture/water coverage using approved world-layout semantics, family generators, shared authored construction grammar and materials.
 - Crops: readable stages/harvest + instancing + final stage/season variations.
 - Fish: silhouettes/animation/size readability + species material polish.
 - Boats: cargo points/wake/steering feedback + final working-boat detail.
@@ -335,7 +342,7 @@ Changes to state shape, persistent IDs, saved enums, inventory/farm/cargo/market
 
 # 26. Performance-Sensitive Protocol
 
-For repeated meshes, large textures, shaders/post-processing/water/weather particles/new loaded regions, report:
+For repeated meshes, ground-cover density/visibility, terrain control textures or generated fields, large textures, shaders/post-processing/water/weather particles/new loaded regions, report:
 ```text
 draw-call impact
 triangle impact
@@ -399,6 +406,8 @@ Expanded report:
 Never claim success without actual validation results.
 
 # 31. Reusable Agent Prompts
+
+**Asset generation:** `@LLM @tools check these for guidance, generate assets of <subject>` is a folder dump, not equal authority. Obey root `AGENTS.md`, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, owning family generator, isolated sheet if present, and the relevant Art Bible section. Do not start `threejs-game-director` for this prompt. Do not run polyfork import/register or `generate_all.py`. Resolve catalog ID → registered family generator (not polyfork for isolated-sheet or unique-silhouette assets) → measure sheet identity into `parameters` → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → Art Yard. Completion report is the `BLENDER.md` handoff (Art Yard link, no screenshot field): `Awaiting human game review`. Leave `02` and ArcheAge unread for this prompt class.
 
 **Coding agent:** use scoped task-class reading; preserve no-combat, simulation authority, deterministic RNG, versioned persistence, finite inventory, physical fish cargo, farming/fishing interdependence, DOM text UI, GLB runtime assets, and capability progression. Routine assets follow the lean gate and await human game review; broader coding work runs its proportional validation gate.
 

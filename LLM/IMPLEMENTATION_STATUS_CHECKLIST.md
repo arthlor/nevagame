@@ -1,6 +1,6 @@
 # Neva Implementation Status Checklist
 
-> Evidence snapshot: 2026-08-25 (Europe/Istanbul)
+> Evidence snapshot: 2026-08-26 (Europe/Istanbul)
 >
 > This file is a status snapshot and working checklist, not a new design or technical authority. The authority order remains `LLM/AGENTS.md`. Update this file in place when evidence changes; do not treat checked source presence as proof that a roadmap gate passed.
 
@@ -27,6 +27,16 @@ Evidence labels used below:
 - **Red** — a required current gate is known to fail.
 - **Not reached** — sequencing or prerequisite gates prevent a completion claim.
 - **Recorded human evidence** — the repository records a human decision; this audit does not recreate or reinterpret it.
+
+## Guidance update — 2026-08-26
+
+The canonical ground guidance now distinguishes selectively smoothed traversable grass/soil/path surfaces from strongly faceted cliffs, cuts, exposed banks, rocks, and hero landforms. It also requires terrain materials, authored routes/road presentation, shoreline dressing, and ground-cover density to derive from the same world-layout semantics.
+
+The guidance is now implemented in the working tree. `WORLD_LAYOUT_V5` is the current single layout authority; layout 4 is the physical-road step, and layout 5 is the northeast village hub (mill pad, plaza/market, arterial terminus) with `(0, -5)` remaining a river-crossing gateway. `terrainBaseHeight()` owns the graded landform, while final `terrainHeight()` adds deterministic nonnegative road crown/rut/shoulder/feather relief and remains the placement/anchor/normal/save-grounding authority. Three.js renders indexed road geometry at that exact final height; Rapier combines `terrainBaseHeightfield()` with a static trimesh from the same road geometry, while catalog bridge collision continues to own the bridge deck. Terrain uses smooth indexed normals/colors on continuous ground and blends toward face normals/colors for steep or cliff-heavy samples; `TerrainSurfaceMaterial` is non-flat with the r174-v3 cache contract. After the first integrated human review rejected opaque olive road bands and evenly scattered dark grass, the unchanged shared road mesh now alpha-feathers its vertex-colored shoulder into the canonical terrain and uses softer rut contrast. Existing grass GLBs now form stronger deterministic density pockets with variant-specific broad, lower silhouettes, retained semantic exclusions, no grass shadow-map casting or receiving, and centralized low/medium/high density scales of 0.24/0.48/0.60.
+
+The original physical-road change has save impact **yes** and migration **yes**. The subsequent 2026-08-26 human-review correction changes only road blending, rut color contrast, and ground-cover presentation: save impact **no**, migration **no**. `CURRENT_SCHEMA_VERSION` remains 13 and layout revision remains 5 because the northeast village hub follows the schema-12/layout-4 physical-road step. The repository `save_v11_layout3.json` fixture verifies unchanged X/Z, rotations, cargo, progression, and unrelated persisted state, final-height re-grounding for on-foot players and structures, and unchanged active-boat/player waterline state; `save_v12_layout4.json` covers the subsequent mill/plaza migration. The catalog and byte-identical generated/public manifests contain 172 assets, including `house_cottage_a`, `house_cottage_b`, `building_inn_a`, `building_village_market_hall_a`, and `building_barn_a`; their stored publication provenance does not yet match the concurrently changed catalog/palette/toolchain identity, so publication validation remains pending rather than being silently refreshed by this terrain task. First integrated visual review: **Rejected**. Corrective pass: **Awaiting human game review**.
+
+Catalog `repo://` isolated studio sheets under `tools/blender/references/isolated/` are present on disk and git-tracked. Numbered crop PNGs listed in `tools/blender/references/README.md` (`01_hero_farmhouse.png` and siblings) were never checked in; treat that as graphics-extract debt, not a second reference authority.
 
 ## Current implementation update — 2026-08-25
 
@@ -70,8 +80,10 @@ The asset and quest audit has now been implemented in the working tree. This sec
 
 ### Current verification boundary
 
-- Passing evidence for the harbor interaction pass: focused world-layout, asset-placement, interaction-resolver, gameplay, and mackerel-processing checks pass (**57 tests**); direct `tsc --noEmit` and `npm run lint` also pass. The full rerun reached **295/296 tests**: the only failure is the existing art-pipeline `unguidedOak` reference-authoring expectation, unrelated to harbor/gameplay changes.
-- `npm run typecheck` passes with catalog codegen reporting the expected 92 assets. `npm run build` and `npm run lint` also pass; the build retains the existing large Rapier chunk warning.
+- The human-review correction for road blending and grass presentation passes **62/62** focused terrain, road-geometry, road-environment, physics, and terrain-material tests. Typecheck, lint, codegen parity, and the production build pass. The Playwright CLI wrapper could not resolve its `playwright-cli` binary, so no new browser or screenshot claim is attached to this corrective pass.
+- The 2026-08-26 terrain/road focused suites are green, including **74/74** current world-layout/road/physics/persistence tests and **11/11** road/material tests. The latest full Vitest run passes **349/350** tests; its sole failure is the existing art-pipeline publication-provenance check described below, not terrain, road, physics, grass, or persistence behavior.
+- `npm run art:codegen:check`, `npm run typecheck`, `npm run lint`, and the production build pass on the current **172-asset** adapter. Lint reports one pre-existing `console` warning in the gameplay-systems skill template. `tests/unit/artPipeline.test.ts` passes **14/15** checks: generated/public copies are byte-identical and complete, but their stored catalog/palette/toolchain identity is stale after concurrent art changes. This terrain pass did not republish those unrelated assets.
+- Focused Chromium traversal and budget verification passes **3/3**. The definitive 0.60-density high-tier scene is **88 draw calls and 852,419 visible triangles**, below the preferred **≤220 / ≤900k** limits.
 - Chromium local review matrix now boots farm, crop stages, farmhouse interior, village market, bridge, harbor/rowboat/skiff, coast, trout, and tuna views with a canvas, coverage diagnostics, zero console errors/warnings, and no repeated `toNonIndexed()` warnings. Representative views remain below the 220 draw-call / 900k triangle high-tier targets. Screenshots are mechanical evidence only; human integrated gameplay-camera approval, full cross-browser coverage, and complete quest-flow E2E proof remain outstanding.
 - The runtime loader preserves authored full-resolution visibility when the current published GLB is missing an optional catalog LOD node; strict art validation remains responsible for rejecting that catalog/artifact mismatch before publication.
 - Static/type/test evidence does not replace integrated gameplay-camera review, complete cross-browser gates, or human visual approval.
@@ -90,7 +102,7 @@ The asset and quest audit has now been implemented in the working tree. This sec
 
 ### Checks run for this audit
 
-The table below is the historical pre-change gate snapshot. The current implementation evidence is recorded in section 1 above; the broader repository gates still need a fresh rerun after this patch.
+The table below is retained only as the historical pre-change gate snapshot. Use the current implementation evidence in section 1 above for this terrain/road pass; do not reinterpret the older counts as current results.
 
 | Check | Result | What it proves |
 |---|---|---|
@@ -109,12 +121,12 @@ The table below is the historical pre-change gate snapshot. The current implemen
 Historical (stale) Vitest failure clusters — do not treat as current:
 
 - `tests/simulation/gameplayFixes.test.ts` — 7 failures around habitat/catch expectations, fish-school coordinates, and the old safe-spawn position.
-- `tests/simulation/persistence.test.ts` — 1 stale layout-revision expectation; runtime schema is 11 and layout revision is 3.
+- `tests/simulation/persistence.test.ts` — the historical layout-revision expectation has been superseded by the passing schema-12/layout-4 fixture migration coverage.
 - `tests/simulation/ownership.test.ts` — 2 crop-placement/ownership failures around the moved starter layout.
 - `tests/simulation/simulationLoop.test.ts` — 1 fish-school/habitat failure, so the full deterministic vertical loop is not green.
 - `tests/unit/physicsEdgeCases.test.ts` — 2 collision/tunneling failures.
 - `tests/unit/physicsWorld.test.ts` — 4 static collision, camera sweep, bridge traversal, and boat collision failures.
-- `tests/unit/worldLayout.test.ts` — 1 terrain/landmark-height timeout.
+- `tests/unit/worldLayout.test.ts` — the historical terrain/landmark-height timeout is superseded by the focused passing terrain/road/selective-normal run.
 
 Observed Chromium failures included insufficient movement after camera rotation, jump not returning to grounded within the assertion window, gait/presentation drift, harvest remaining in idle, farmhouse collision timeout, harbor/boat interaction instability, crop placement timeout, and deterministic sport-fishing setup failure. The isolated three-test gameplay smoke also failed to locate clock/debug elements even though its DOM snapshot and screenshot contained them; treat those three as a test-harness/served-build synchronization problem until diagnosed, not as proof that the visible HUD failed to render.
 
@@ -124,11 +136,11 @@ Mechanical systems through P11 exist in src. P0.75 strict visual gate is still o
 
 | Phase | Status | Current repository evidence | Missing or failing gate evidence |
 |---|---|---|---|
-| P0 — Repository & Architecture | **Partial** | Deterministic simulation structure, content registry, input/mode separation, Three.js presentation, debug HUD, current typecheck, lint, build, and full Vitest suite are green. Schema 11 / layout 3. | Full P0 milestone still wants a passing gameplay/control browser loop. Do not treat the old 212-case fail snapshot as current. |
-| P0.5 — Visual Rendering Foundation | **Partial** | `VisualRenderConfig`, palette materials/tokens, lighting, water, asset loader, generated catalog adapter, batching/instancing support, Art Yard, and diagnostics exist. Codegen and relevant unit tests passed in the full run. | No fresh Art Yard browser smoke was completed in this audit. Current representative gameplay capture is above the 900k triangle target. The broad dirty renderer/material tree is not re-certified as a locked baseline by this audit. |
+| P0 — Repository & Architecture | **Partial** | Deterministic simulation structure, content registry, input/mode separation, Three.js presentation, debug HUD, schema 13 / layout 5 with explicit v11/layout-3 and v12/layout-4 migration fixtures, 172-asset catalog/manifest parity after village-building publication, terrain-focused tests, lint, and focused Chromium traversal are green. | The complete P0/P12 gameplay loop also remains broader than this focused traversal gate. |
+| P0.5 — Visual Rendering Foundation | **Partial** | `VisualRenderConfig`, palette materials/tokens, lighting, water, asset loader, generated catalog adapter, batching/instancing support, Art Yard, and diagnostics exist. The shared physical-road surface, base-heightfield + exact road trimesh, selective normals/colors, r174-v3 terrain material, and monotonic clustered ground cover are implemented with focused tests. Chromium measures 88 draw calls / 852,419 triangles at the definitive 0.60-density high-tier view. | Human gameplay-camera review remains pending; do not infer visual approval from automated geometry or budget evidence. |
 | P0.75 — Gold-Standard Art Slice | **Partial** | `approved-baselines.json` records human approval for farm/bridge/harbor/coast on 2026-08-24. Generated/public manifests contain 92 assets. Mechanical world exists. | Latest report: 19 `below_target`, `strict: false`. `art:generate:strict` is not the daily gate and is still open. Do not claim P0.75 fully passed. |
-| P1 — Walkable World | **Partial** | Large authored multi-district world, movement, mouse camera, input modes (pause is overlay, not GameplayMode), interactions, collision adapters, and contextual prompts exist. | Browser/Playwright walkable-world gate is not proven. Do not use stale physics-test failures as the only current evidence. |
-| P2 — Persistence & Time | **Partial** | IndexedDB repository, schema 11 / layout 3, migrate-then-validate, **primary + backup keys only** (quick-save writes primary, no third manual slot). IDB fail returns false (no RAM promotion). Corrupt both slots → new-game-confirm overlay; autosave blocked until confirm. Unavailable IDB → continue without saving, writes blocked. Weather-bounded offline (growth+moisture+freshness inside segments; jobs/contracts/markets after; 72h cap; no auto-harvest/sell/fish). Quest `nextQuestId` chain. | No `tests/fixtures/` directory. Full save/reload browser proof not run. Overlay pause is not a serializable sim mode. |
+| P1 — Walkable World | **Partial** | Large authored multi-district world with the northeast village as the market/mill/road hub, movement, mouse camera, input modes (pause is overlay, not GameplayMode), interactions, collision adapters, and contextual prompts exist. | Browser/Playwright walkable-world gate is not proven. Do not use stale physics-test failures as the only current evidence. |
+| P2 — Persistence & Time | **Partial** | IndexedDB repository, schema 13 / layout 5, migrate-then-validate, **primary + backup keys only** (quick-save writes primary, no third manual slot). The schema-11/layout-3 fixture verifies physical-road re-grounding, active-boat preservation, and unrelated-state preservation; the schema-12/layout-4 fixture verifies the subsequent mill/plaza village-hub move. IDB fail returns false (no RAM promotion). Weather-bounded offline progression and quest `nextQuestId` remain intact. | Full save/reload browser proof not run. Overlay pause is not a serializable sim mode. |
 | P3 — Farming Vertical Slice | **Partial** | Placement/actions, moisture/fertility/growth/harvest (`farm.apply-fertilizer` +20, clamp 10–100), journals, starter plots, and crop rendering exist. | New-save plant-save-advance-load-harvest is not proven in browser. Orchard persist+regrow on successful harvest is LIVE; wither-delete of regrow crops is a parallel fix. |
 | P4 — Inventory & Processing | **Partial** | Finite inventories, atomic operations, processing jobs, compost, **8 recipes**. Harbor fish-table at `HARBOR_FISH_TABLE`; `fish_to_fertilizer` / `perch_to_scraps` / `mackerel_to_scraps` require `stationType` fish-table. | Full-inventory plus cancel/reload and the complete three-recipe browser loop were not proven together. |
 | P5 — Basic Fishing | **Partial** | Deterministic five-phase minigame exists. Missed bite = miss; `willCatch` default false. Held-state `fishing` input. Basic-fishing blocks inventory. | Sport-fishing should also block inventory (parallel code fix). P12 loop not proven. |
@@ -246,9 +258,10 @@ Recorded human evidence: `tests/visual/reference/approved-baselines.json` record
 
 ## 6. Documentation/code drift to resolve
 
-- [x] Update `02` section 18 save text to the code-owned schema 11 and layout revision 3, including quest feature unlocks, the Act 5 starter-school flag, the harbor fish-table structure, and the v11 trout-stack → cargo migration.
-- [ ] Add real legacy save fixtures or revise the roadmap wording; no `tests/fixtures/` directory currently exists.
-- [ ] Reconcile layout-revision-3 world anchors with simulation, ownership, physics, and E2E expectations. Do not blindly update tests until each changed coordinate is confirmed intentional.
+- [x] Implement the revised shared ground contract: class-aware/selective normals and colors, physical canonical road relief, exact shared render/Rapier road geometry, and clustered monotonic ground cover. Human gameplay-camera proof remains pending.
+- [x] Update canonical save guidance through schema 13 / layout 5 while retaining v10 fish-table, v11 trout-stack, v12 physical-road, and v13 northeast village-hub migration history.
+- [x] Add `tests/fixtures/save_v11_layout3.json` and focused migration coverage for player, structures, active boats, and unrelated persisted state.
+- [x] Preserve the physical-road upgrade as the schema-12/layout-4 migration, then reconcile the concurrent schema-13/layout-5 authority without dropping either fixture or migration.
 - [x] Reconcile the canonical rowboat step: fresh saves retain the physical boat, while Act 4 commission now consumes 30 G + Ground Grain and unlocks boarding; browser proof remains open.
 - [x] Reconcile the authored quest line with explicit event targets, location predicates, canonical waypoints, atomic rewards, cargo event ordering, and the deterministic Act 5 starter school.
 - [x] Reconcile the created-asset placement audit: wagon/cow are authored into the world and sport-fish GLBs are presentation-bound; conditional crops and the fresh-save-absent skiff are explicitly classified, with no audited asset left Art Yard-only.
@@ -260,7 +273,7 @@ Recorded human evidence: `tests/visual/reference/approved-baselines.json` record
 
 These are the shortest blocking steps implied by the canonical phase order; they are not authorization to change gameplay direction.
 
-1. [ ] Decide which layout-revision-3 positions are intended, then align world anchors, collision shapes, debug starts, and affected tests to the same owner.
+1. [x] Advance the physical-road world through layout revision 4, reconcile the subsequent layout-5 northeast village hub, align shared height/collision owners, and cover both historical layouts through migration.
 2. [ ] Fix the real physics/traversal failures: corner collision, sprint tunneling, static collision, camera sweep, bridge traversal, boat collision, regrounding, and Chromium movement distance.
 3. [ ] Restore deterministic basic/sport fishing setup against the current habitats and world coordinates.
 4. [ ] Diagnose Playwright's isolated locator mismatch using a fresh non-reused dev server, then rerun only the affected Chromium smoke/control tests.

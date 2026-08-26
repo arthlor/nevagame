@@ -416,7 +416,14 @@ export interface WorldState {
   layoutRevision: number;
   currentSeed: number;
   activeSchools: Record<FishSchoolId, FishSchoolState>;
-  structures: Record<StructureId, { id: StructureId; type: StationType; x: number; y: number; z: number }>;
+  structures: Record<StructureId, {
+    id: StructureId;
+    type: StationType;
+    x: number;
+    y: number;
+    z: number;
+    rotationY?: number;
+  }>;
   lastSchoolSpawnMinute?: GameMinute;
   storySchoolSpawned: boolean;
 }

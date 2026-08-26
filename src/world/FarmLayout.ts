@@ -76,11 +76,11 @@ const STARTER_STRUCTURE_ANCHORS = [
   {
     id: "struct.starter_mill",
     type: "hand-mill",
-    // The starter hand-mill is the working windmill on the northeast plateau.
-    // It intentionally creates an early farm-to-uplands processing journey.
-    x: 119,
-    z: -3,
-    rotationY: 0.34,
+    // Working windmill on the mill pad southwest of the northeast village plaza.
+    // World (36, -76); door faces the plaza at (54, -52) from outside the courtyard.
+    x: 101,
+    z: -21,
+    rotationY: Math.atan2(-18, -24),
     clearanceRadius: 2.65,
     frontApproachDistanceMeters: 1.75
   },
@@ -89,7 +89,8 @@ const STARTER_STRUCTURE_ANCHORS = [
     type: "workbench",
     x: -10,
     z: -1.8,
-    rotationY: Math.PI * 0.48,
+    // The vise/drawer face opens toward the farm work trail (south).
+    rotationY: 0,
     clearanceRadius: 1.3,
     frontApproachDistanceMeters: 1.05
   },
@@ -98,24 +99,14 @@ const STARTER_STRUCTURE_ANCHORS = [
     type: "compost-bin",
     x: -10.8,
     z: -6.2,
-    rotationY: Math.PI * 0.42,
+    // The open slatted working face opens onto the northeast work-trail apron.
+    rotationY: Math.PI + 0.7,
     clearanceRadius: 1.15,
     frontApproachDistanceMeters: 1.0
   }
 ] as const satisfies readonly FarmStructureAnchor[];
 
-const STARTER_MARKET_ANCHORS = [
-  {
-    id: "market.village",
-    // Market anchors live in farm-local space; this resolves to the central
-    // village gateway at world (0, -5), not the starter farmyard.
-    x: 65,
-    z: 50,
-    rotationY: Math.PI - 0.12,
-    radiusMeters: 3,
-    clearanceRadius: 2.15
-  }
-] as const satisfies readonly FarmMarketAnchor[];
+const STARTER_MARKET_ANCHORS: readonly FarmMarketAnchor[] = [];
 
 const STARTER_FARMSTEAD_ANCHORS = [
   {
@@ -156,8 +147,10 @@ const STARTER_PATHS = [
     id: "farm-entry",
     kind: "lane",
     widthMeters: 2.4,
-    // The yard gateway is shared with farm-home and the regional arterial.
-    points: [{ x: 0, z: -14 }, { x: 0, z: -7 }, { x: 4.2, z: -7.2 }, { x: 7.4, z: -8.4 }]
+    // The field junction and yard gateway are both shared. The old southward
+    // lead-in ended in open meadow because the arterial already began at the
+    // yard gateway, so it read as a road to nowhere.
+    points: [{ x: 0, z: -7 }, { x: 4.2, z: -7.2 }, { x: 7.4, z: -8.4 }]
   },
   {
     id: "farm-work-zone",
@@ -193,8 +186,9 @@ export const STARTER_FARM_LAYOUT: FarmLayoutDefinition = {
 export const PLAYER_HOMESTEAD_LAYOUT: FarmLayoutDefinition = {
   farmId: "farm.player_homestead",
   origin: { x: 60, z: -60 },
-  farmBounds: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 },
-  plantableAreas: [{ minX: -8, maxX: 8, minZ: -8, maxZ: 8 }],
+  // Keep the garden east of the mill pad and south of the village plaza.
+  farmBounds: { minX: -1, maxX: 8, minZ: -8, maxZ: 2 },
+  plantableAreas: [{ minX: 0, maxX: 7, minZ: -6, maxZ: 1 }],
   structureAnchors: [],
   marketAnchors: [],
   farmsteadAnchors: [],

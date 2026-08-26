@@ -38,6 +38,16 @@ Conflict priority remains: human instruction → `01` → `02` → Art Bible →
 
 # 1. Daily Asset Workflow
 
+Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, and the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for generate-asset prompts even if `@LLM` attached them.
+
+**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator (not polyfork for unique silhouettes or isolated sheets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB.
+
+Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. Catalog IDs win if that README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
+
+Sculpt in passes without screenshot/SSIM gates: blockout (primary masses and negative space vs the isolated sheet) → structure (masonry, timber, shingles, openings) → sparse tertiary readable at 8 m → palette + vertex value on the existing `COLOR_0` path. Human revision remains `asset ID + observed miss + desired change`.
+
+Codex skill route for this prompt: prefer `.agents/skills/<name>/SKILL.md` over `~/.codex/skills`. After the Neva catalog, isolated sheet, and owning generator, Codex may load `.agents/skills/threejs-aaa-graphics-builder/references/checklists/procedural-model-quality.md` (and `model-recipes.md` when appearance is being designed) as critique vocabulary, then implement in the registered Blender family generator and `authored.py` — never a Three.js factory. `threejs-image-generator` may create or clean an isolated study only when the human asks for new reference art. `threejs-3d-generator` (Tripo) is a reconstruction study only when the human explicitly authorizes a provider call; never publish the downloaded GLB. `threejs-qa-release` stays a release/gold-slice tool.
+
 The everyday route is:
 
 ```text
@@ -153,7 +163,10 @@ Same catalog seed + parameters + generator code must reproduce the same semantic
 - Run `art:brief` only when that selected brief changes.
 - Read or emit only the selected asset's brief; do not load unrelated briefs.
 - The required views describe what the human can inspect through Art Yard/game controls. They do not require static renders or agent screenshot capture.
-- `ready` means the brief is structurally complete, not visually approved.
+- `ready` means the brief is structurally complete, not visually approved. Missing `repo://` files fail closed.
+- Isolated studio sheets under `tools/blender/references/isolated/` may inform that one asset’s silhouette, proportions, component counts, and construction language. Diorama stills remain graphics-only.
+- Pass order for sheet-guided work: blockout → structure → sparse tertiary → palette. Agents do not add daily screenshot or SSIM gates.
+- Human revision remains `asset ID + observed miss + desired change`.
 
 ---
 

@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const e2ePort = Number(process.env.NEVA_E2E_PORT ?? 3000);
+const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 30000,
@@ -10,14 +13,14 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: e2eBaseUrl,
     trace: "on-first-retry",
     screenshot: "only-on-failure"
   },
   webServer: {
-    command: "npm run dev",
-    port: 3000,
-    reuseExistingServer: !process.env.CI
+    command: `npm run dev -- --host 127.0.0.1 --port ${e2ePort}`,
+    port: e2ePort,
+    reuseExistingServer: process.env.NEVA_E2E_REUSE_SERVER === "1" && !process.env.CI
   },
   projects: [
     {

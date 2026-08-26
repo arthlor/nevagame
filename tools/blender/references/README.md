@@ -1,9 +1,13 @@
 # Neva 3D Asset Reference Catalog
 
-This directory contains the visual reference assets extracted directly from the
-master scene artwork (`art-reference.png`) as well as studio model turnaround
-reference sheets for use with the Blender procedural generators and 3D modeling
-pipelines in `tools/blender/`.
+Two evidence classes live here. Do not treat them as the same target.
+
+1. **Isolated studio sheets** (`isolated/*.jpg`) are style-match evidence for the mapped catalog ID: silhouette, proportions, facet scale, construction language, and palette blocks. Measure identity into catalog `parameters`. Do not pixel-copy them.
+2. **Numbered crop/diorama PNGs** in the table below are graphics-only extracts from `art/references/art-reference.png`. They do not define world layout, camera, staging, or pixels to copy. Several of those filenames were never checked into git; fail closed rather than inventing replacements.
+
+Catalog IDs win if this README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`). Missing isolated files named by catalog `repo://` URIs fail closed.
+
+This directory supports the Blender procedural generators in `tools/blender/`. Generation still goes through the catalog CLI (`npm run art:generate -- --asset <id>`), not polyfork import or a one-off GLB.
 
 ---
 

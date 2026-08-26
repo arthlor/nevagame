@@ -170,21 +170,72 @@ const PARAMETER_CONTRACTS = Object.freeze({
     clusterCount: integer(1, 3),
     fractureCount: integer(1, 8),
   },
-  farmhouse: { width: number(3, 14), depth: number(3, 12), wallHeight: number(2, 7), roofPitchDeg: number(20, 55) },
-  lighthouse: { height: number(6, 24), baseRadius: number(1, 5), sides: integer(8, 16) },
+  farmhouse: {
+    width: number(3, 14),
+    depth: number(3, 12),
+    wallHeight: number(2, 7),
+    roofPitchDeg: number(20, 55),
+    masonryCourses: integer(2, 10),
+    masonryBlocks: integer(3, 12),
+    shingleRows: integer(3, 12),
+    shingleColumns: integer(4, 14),
+    crossGableWidth: number(1.5, 6),
+    porchDepth: number(0.8, 3),
+    porchPlanks: integer(4, 16),
+    chimneyOffsetX: number(0.5, 6),
+    chimneyHeight: number(3, 12),
+  },
+  village_building: {
+    width: number(1.4, 16),
+    depth: number(1.4, 14),
+    wallHeight: number(1.6, 7),
+    roofPitchDeg: number(20, 55),
+    variant: choice("cottage-a", "cottage-b", "inn", "market-hall", "barn", "shed", "outhouse")
+  },
+  lighthouse: {
+    height: number(6, 24),
+    baseRadius: number(1, 5),
+    sides: integer(8, 16),
+    masonryCourses: integer(2, 12),
+    masonryBlocks: integer(6, 24),
+    bandCount: integer(4, 12),
+    cottageWidth: number(1.5, 5),
+  },
   windmill: { height: number(4, 16), baseRadius: number(1, 5), sides: integer(8, 16) },
-  stone_bridge: { length: number(5, 30), width: number(2, 8), archCount: integer(1, 4) },
-  working_dock: { length: number(3, 20), width: number(2, 10), canopy: boolean() },
-  fish_market: { width: number(3, 16), depth: number(3, 12), wallHeight: number(2, 7), roofPitchDeg: number(20, 55) },
+  stone_bridge: {
+    length: number(5, 30),
+    width: number(2, 8),
+    archCount: integer(1, 4),
+    masonryCourses: integer(2, 8),
+    railPosts: integer(5, 16),
+  },
+  working_dock: {
+    length: number(3, 20),
+    width: number(2, 10),
+    canopy: boolean(),
+    deckPlanks: integer(4, 20),
+    pileRows: integer(2, 8),
+  },
+  fish_market: {
+    width: number(3, 16),
+    depth: number(3, 12),
+    wallHeight: number(2, 7),
+    roofPitchDeg: number(20, 55),
+    masonryCourses: integer(2, 10),
+    masonryBlocks: integer(3, 14),
+    shingleRows: integer(3, 12),
+    shingleColumns: integer(4, 14),
+  },
   water_well: { radius: number(0.4, 2), postHeight: number(0.8, 2.4) },
   pumpkin_patch: { pumpkins: integer(3, 12), vineSegments: integer(3, 20), lobes: integer(3, 7), blossomCount: integer(2, 12) },
   lobster_trap: { ribs: integer(4, 14), length: number(0.5, 3), netColumns: integer(2, 8), netRows: integer(2, 8) },
   fishing_net_rack: { width: number(1.2, 5), depth: number(0.4, 2), height: number(1, 4), netColumns: integer(3, 12), netRows: integer(2, 10), buoys: integer(2, 8) },
   wood_crate: { size: number(0.3, 2), slats: integer(3, 9) },
   wood_barrel: { height: number(0.4, 2), radius: number(0.2, 1), staves: integer(8, 20) },
-  wood_fence: { length: number(1, 8), posts: integer(2, 8), rails: integer(1, 4), railSegments: integer(3, 12) },
+  wood_fence: { length: number(1, 8), posts: integer(2, 8), rails: integer(1, 4), railSegments: integer(3, 12), hasGate: boolean() },
   hay_bale: { length: number(0.5, 3), radius: number(0.2, 1.5), bands: integer(1, 4), fiberBands: integer(6, 20) },
   lamp_post: { height: number(1.5, 8), armLength: number(0.2, 2) },
+  clay_oven: { width: number(0.6, 2.4), depth: number(0.6, 2.4), height: number(0.6, 2.2) },
   worm_compost_bin: { width: number(0.5, 3), depth: number(0.5, 3), height: number(0.4, 2), slatCount: integer(2, 8), lidAngleDeg: number(0, 75), soilFillRatio: number(0.1, 0.95) },
   rowboat: { length: number(2, 8), beam: number(1, 4), ribCount: integer(5, 16), innerPlanks: integer(5, 16), gunwaleSegments: integer(5, 16) },
   fishing_skiff: { length: number(4, 16), beam: number(1.5, 6), ribCount: integer(6, 20), mastHeight: number(3, 14), outerStrakes: integer(2, 7), hullSegments: integer(7, 18), deckBoards: integer(12, 50), sailRows: integer(4, 14) },
@@ -238,6 +289,10 @@ const PARAMETER_CONTRACTS = Object.freeze({
   polyfork_crop: {},
   polyfork_cloud: {},
 });
+
+const PRIMARY_BINDING_GENERATORS = Object.freeze(
+  new Set(["farmhouse", "lighthouse", "stone_bridge", "working_dock", "fish_market"]),
+);
 
 function validateGeneratorParameters(asset) {
   const contract = PARAMETER_CONTRACTS[asset.generator];
@@ -464,6 +519,21 @@ function validateReferenceAuthoring(asset) {
   const missingViews = REQUIRED_REFERENCE_VIEWS.filter((view) => !brief.reviewViews.includes(view));
   if (missingViews.length) {
     throw new Error(`${asset.id}: reference brief is missing required review views: ${missingViews.join(", ")}`);
+  }
+
+  const isolatedSources = brief.sources.filter((source) => source.uri.includes("tools/blender/references/isolated/"));
+  if (isolatedSources.length && String(asset.generator).startsWith("polyfork")) {
+    throw new Error(`${asset.id}: polyfork generators are forbidden for isolated-sheet assets`);
+  }
+
+  if (PRIMARY_BINDING_GENERATORS.has(asset.generator)) {
+    const boundComponents = new Set(brief.parameterBindings.flatMap((binding) => binding.componentIds));
+    const missingPrimary = brief.components
+      .filter((component) => component.importance === "primary" && !boundComponents.has(component.id))
+      .map((component) => component.id);
+    if (missingPrimary.length) {
+      throw new Error(`${asset.id}: primary components missing parameterBindings: ${missingPrimary.join(", ")}`);
+    }
   }
   return true;
 }
@@ -930,7 +1000,10 @@ async function validateGlb(filename, spec, phase) {
   const meshTriangles = (json.meshes ?? []).map((mesh) => {
     let count = 0;
     for (const primitive of mesh.primitives ?? []) {
-      const accessor = json.accessors?.[primitive.indices];
+      // glTF permits both indexed and non-indexed triangle primitives. Use
+      // POSITION for the latter instead of silently reporting zero triangles.
+      const triangleAccessorIndex = primitive.indices ?? primitive.attributes?.POSITION;
+      const accessor = json.accessors?.[triangleAccessorIndex];
       if (primitive.mode === undefined || primitive.mode === 4) {
         trianglePrimitives += 1;
         if (typeof primitive.attributes?.POSITION !== "number") {
@@ -1057,6 +1130,7 @@ async function validateGlb(filename, spec, phase) {
     bytes: bytes.length,
     fileHash: sha256(bytes),
     semanticHash: await semanticHash(bytes),
+    vertexColorSpace: "linear-srgb",
     qualityStatus: triangles >= spec.budget.trianglesTarget ? "on_target" : "below_target",
     animationClips: animationMetrics,
   };
@@ -1428,6 +1502,76 @@ async function validatePublished(assets, catalog, specHash) {
   console.log(`[NEVA ART] Validated ${reportAssets.length} published assets (spec ${specHash.slice(0, 12)})`);
 }
 
+async function syncPublishedManifest(catalog, specHash) {
+  const paletteHash = sha256(fs.readFileSync(PALETTE_PATH));
+  const previous = fs.existsSync(MANIFEST_PATH) ? readJson(MANIFEST_PATH) : { assets: [] };
+  const previousById = new Map((previous.assets ?? []).map((asset) => [asset.id, asset]));
+  const assets = [];
+  for (const spec of catalog.assets) {
+    const generatedPath = path.join(GENERATED_DIR, spec.file);
+    const publicPath = path.join(PUBLIC_DIR, spec.file);
+    if (!fs.existsSync(generatedPath) || !fs.existsSync(publicPath)) {
+      throw new Error(`${spec.id}: cannot sync a missing published artifact`);
+    }
+    const generatedBytes = fs.readFileSync(generatedPath);
+    const publicBytes = fs.readFileSync(publicPath);
+    if (sha256(generatedBytes) !== sha256(publicBytes)) {
+      throw new Error(`${spec.id}: generated/public copies differ during manifest sync`);
+    }
+    const result = await validateGlb(generatedPath, spec, "published-sync");
+    const previousAsset = previousById.get(spec.id);
+    if (!previousAsset) throw new Error(`${spec.id}: existing manifest entry is missing`);
+    assets.push({
+      ...previousAsset,
+      ...result,
+      id: spec.id,
+      file: spec.file,
+      family: spec.family,
+      generator: spec.generator,
+      seed: spec.seed,
+      budget: spec.budget,
+      collision: spec.collision,
+      lod: spec.lod,
+      requiredNodes: spec.requiredNodes,
+      readDistanceMeters: spec.readDistanceMeters,
+      ...(spec.referenceAuthoring
+        ? { referenceAuthoring: referenceAuthoringSummary(spec) }
+        : {}),
+      cacheHit: false,
+    });
+  }
+
+  const manifest = {
+    ...previous,
+    version: 2,
+    generatedAt: new Date().toISOString(),
+    specHash,
+    paletteHash,
+    toolchainHash: computeToolchainHash(),
+    vertexColorSpace: "linear-srgb",
+    durationMs: 0,
+    aggregateBytes: assets.reduce((sum, asset) => sum + asset.bytes, 0),
+    summary: summarizeAssets(assets),
+    assets,
+  };
+  const stage = path.join(STAGING_ROOT, `sync-${process.pid}`);
+  fs.mkdirSync(stage, { recursive: true });
+  const stagedManifest = path.join(stage, "asset-manifest.json");
+  const stagedQualityReport = path.join(stage, "asset_budget_report.json");
+  fs.writeFileSync(stagedManifest, `${JSON.stringify(manifest, null, 2)}\n`);
+  fs.writeFileSync(stagedQualityReport, `${JSON.stringify({ ...manifest, sync: true }, null, 2)}\n`);
+  promoteFilesAtomically(
+    [
+      { source: stagedManifest, destination: MANIFEST_PATH },
+      { source: stagedManifest, destination: PUBLIC_MANIFEST_PATH },
+      { source: stagedQualityReport, destination: QUALITY_REPORT_PATH },
+    ],
+    [],
+    path.join(stage, "backup"),
+  );
+  console.log(`[NEVA ART] Revalidated and synced ${assets.length} published manifest entries`);
+}
+
 export function validatePublishedManifest(
   manifest,
   catalog,
@@ -1488,7 +1632,7 @@ export function validatePublishedManifest(
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.command === "help") {
-    console.log("Usage:\n  node tools/blender/cli.mjs [brief|generate|validate|determinism|list] (--asset ID | --family NAME | --all) [--no-publish] [--strict]\n  node tools/blender/cli.mjs test-builders");
+    console.log("Usage:\n  node tools/blender/cli.mjs [brief|generate|validate|sync|determinism|list] (--asset ID | --family NAME | --all) [--no-publish] [--strict]\n  node tools/blender/cli.mjs test-builders");
     return;
   }
   if (args.strict && args.command !== "generate") {
@@ -1498,6 +1642,13 @@ async function main() {
   if (args.command === "test-builders") {
     if (args.assets.length || args.families.length || args.all) throw new Error("test-builders does not accept asset selection");
     runBuilderTests(resolveBlender().blender);
+    return;
+  }
+  if (args.command === "sync") {
+    if (!args.all || args.assets.length || args.families.length || args.publish === false) {
+      throw new Error("sync requires --all and writes only revalidated published manifest metadata");
+    }
+    await syncPublishedManifest(catalog, specHash);
     return;
   }
   const selected = selectAssets(catalog, args);
@@ -1588,6 +1739,7 @@ export {
   safeFilename,
   selectAssets,
   validateCatalog,
+  validateGlb,
   validateGeneratorParameters,
   validateAnimationContract,
   validateLodContract,

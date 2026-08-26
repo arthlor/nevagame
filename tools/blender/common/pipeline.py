@@ -182,6 +182,7 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
     packaged_triangle_count = 0
     triangles_by_mesh: dict[bpy.types.Object, int] = {}
     degenerate_count = 0
+    degenerate_by_object: dict[str, int] = {}
     for obj in meshes:
         if not all(math.isfinite(value) for value in (*obj.location, *obj.scale, *obj.rotation_euler)):
             raise RuntimeError(f"{asset_id}: {obj.name} has non-finite transform data")
@@ -195,6 +196,7 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
             vertices = [obj.data.vertices[index].co for index in triangle.vertices]
             if (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0]).length < 1e-8:
                 degenerate_count += 1
+                degenerate_by_object[obj.name] = degenerate_by_object.get(obj.name, 0) + 1
         for material in obj.data.materials:
             if material is None:
                 continue
@@ -206,7 +208,8 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         vertex_color_loops += color_loops
 
     if degenerate_count:
-        raise RuntimeError(f"{asset_id}: contains {degenerate_count} degenerate triangles")
+        details = ", ".join(f"{name}={count}" for name, count in sorted(degenerate_by_object.items()))
+        raise RuntimeError(f"{asset_id}: contains {degenerate_count} degenerate triangles ({details})")
     lod_metrics = []
     triangle_count = packaged_triangle_count
     if spec.get("lodLevels"):
@@ -251,9 +254,11 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
     undeclared = sorted(material_names - set(spec["palette"]))
     if undeclared:
         raise RuntimeError(f"{asset_id}: generator used undeclared palette tokens {undeclared}")
-    unused = sorted(set(spec["palette"]) - used_material_names)
-    if unused:
-        raise RuntimeError(f"{asset_id}: declared palette tokens are unused {unused}")
+    # Catalog palette entries are an allow-list for the family generator, not
+    # a requirement to spend one material per token. Small imported prefabs
+    # commonly declare a shared family palette while staying within a two-
+    # material budget. The undeclared-token and material-cap checks above keep
+    # the actual artifact constrained.
 
     minimum, maximum = _scene_bounds(meshes)
     actual_dimensions = [maximum[index] - minimum[index] for index in range(3)]

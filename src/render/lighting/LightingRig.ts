@@ -30,9 +30,9 @@ export interface LightingFrame {
 }
 
 const SKY_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.skyColorHex);
-const SKY_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.22);
+const SKY_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.36);
 const HORIZON_DAY = new THREE.Color(PALETTE_HEX.horizon_warm_01);
-const HORIZON_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.34);
+const HORIZON_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.52);
 const GROUND_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.groundColorHex);
 const SKY_FILL_NIGHT = new THREE.Color(
   CANONICAL_RENDER_CONFIG.skyFill.nightSkyColorHex
@@ -201,7 +201,7 @@ export function deriveLightingFrame(
     lightning,
     lightningDirection,
     lightningColor,
-    exposure: config.exposure
+    exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, daylight)
   };
 }
 

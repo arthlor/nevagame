@@ -1509,9 +1509,9 @@
       "generator": "grass_clump",
       "seed": 111,
       "dimensions": {
-        "width": 0.9,
-        "depth": 0.8,
-        "height": 0.7
+        "width": 0.85,
+        "depth": 0.78,
+        "height": 0.46
       },
       "palette": [
         "foliage_sage_01",
@@ -1519,7 +1519,7 @@
       ],
       "budget": {
         "trianglesMin": 50,
-        "trianglesTarget": 360,
+        "trianglesTarget": 120,
         "trianglesMax": 500,
         "materialsMax": 2
       },
@@ -1533,10 +1533,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "bladeCount": 18,
-        "height": 0.66,
-        "spread": 0.42,
-        "bladeWidth": 0.075
+        "bladeCount": 6,
+        "height": 0.42,
+        "spread": 0.52,
+        "bladeWidth": 0.2
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -1689,9 +1689,9 @@
       "generator": "grass_clump",
       "seed": 113,
       "dimensions": {
-        "width": 1,
-        "depth": 0.9,
-        "height": 0.52
+        "width": 0.55,
+        "depth": 0.5,
+        "height": 0.38
       },
       "palette": [
         "grass_yellow_01",
@@ -1699,7 +1699,7 @@
       ],
       "budget": {
         "trianglesMin": 50,
-        "trianglesTarget": 440,
+        "trianglesTarget": 140,
         "trianglesMax": 520,
         "materialsMax": 2
       },
@@ -1713,10 +1713,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "bladeCount": 22,
-        "height": 0.48,
-        "spread": 0.46,
-        "bladeWidth": 0.068
+        "bladeCount": 7,
+        "height": 0.36,
+        "spread": 0.58,
+        "bladeWidth": 0.22
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -1869,9 +1869,9 @@
       "generator": "grass_clump",
       "seed": 127,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.7,
-        "height": 0.9
+        "width": 0.7,
+        "depth": 0.64,
+        "height": 0.5
       },
       "palette": [
         "foliage_highlight_01",
@@ -1879,7 +1879,7 @@
       ],
       "budget": {
         "trianglesMin": 45,
-        "trianglesTarget": 320,
+        "trianglesTarget": 100,
         "trianglesMax": 460,
         "materialsMax": 2
       },
@@ -1893,10 +1893,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "bladeCount": 16,
-        "height": 0.84,
-        "spread": 0.36,
-        "bladeWidth": 0.064
+        "bladeCount": 5,
+        "height": 0.48,
+        "spread": 0.48,
+        "bladeWidth": 0.18
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -3561,7 +3561,16 @@
         "width": 6.6,
         "depth": 4.8,
         "wallHeight": 3.1,
-        "roofPitchDeg": 34
+        "roofPitchDeg": 34,
+        "masonryCourses": 4,
+        "masonryBlocks": 5,
+        "shingleRows": 7,
+        "shingleColumns": 8,
+        "crossGableWidth": 3.2,
+        "porchDepth": 1.7,
+        "porchPlanks": 8,
+        "chimneyOffsetX": 3.168,
+        "chimneyHeight": 6.7
       },
       "collisionPrimitives": [
         {
@@ -3587,7 +3596,7 @@
         },
         {
           "node": "house_farmhouse_a_LOD1",
-          "distanceMeters": 24,
+          "distanceMeters": 72,
           "triangleRatioMin": 0.08,
           "triangleRatioMax": 0.52
         }
@@ -3748,12 +3757,92 @@
             "purpose": "Sets the long wall span that masonry courses and timber plates follow."
           },
           {
+            "parameter": "depth",
+            "componentIds": [
+              "foundation",
+              "timber_frame",
+              "porch"
+            ],
+            "purpose": "Sizes the house depth and porch stance."
+          },
+          {
             "parameter": "wallHeight",
             "componentIds": [
               "timber_frame",
               "openings"
             ],
             "purpose": "Keeps door and window proportions readable under the porch."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sets the main terracotta gable slope."
+          },
+          {
+            "parameter": "masonryCourses",
+            "componentIds": [
+              "foundation",
+              "chimney"
+            ],
+            "purpose": "Keeps staggered stone courses on the plinth and chimney."
+          },
+          {
+            "parameter": "masonryBlocks",
+            "componentIds": [
+              "foundation"
+            ],
+            "purpose": "Sets how many masonry blocks read along the long foundation faces."
+          },
+          {
+            "parameter": "shingleRows",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Keeps overlapping terracotta rows instead of a single roof slab."
+          },
+          {
+            "parameter": "shingleColumns",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sets shingle count across the gable span."
+          },
+          {
+            "parameter": "crossGableWidth",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sizes the front cross-gable over the porch."
+          },
+          {
+            "parameter": "porchDepth",
+            "componentIds": [
+              "porch"
+            ],
+            "purpose": "Sets the welcoming front deck volume."
+          },
+          {
+            "parameter": "porchPlanks",
+            "componentIds": [
+              "porch"
+            ],
+            "purpose": "Keeps the porch deck as individual planks."
+          },
+          {
+            "parameter": "chimneyOffsetX",
+            "componentIds": [
+              "chimney"
+            ],
+            "purpose": "Places the right-hand masonry chimney on the silhouette."
+          },
+          {
+            "parameter": "chimneyHeight",
+            "componentIds": [
+              "chimney"
+            ],
+            "purpose": "Keeps the chimney taller than the main roof ridge."
           }
         ],
         "failureModes": [
@@ -3813,7 +3902,11 @@
       "parameters": {
         "height": 12.8,
         "baseRadius": 2.45,
-        "sides": 12
+        "sides": 12,
+        "masonryCourses": 6,
+        "masonryBlocks": 14,
+        "bandCount": 7,
+        "cottageWidth": 2.8
       },
       "collisionPrimitives": [
         {
@@ -4021,6 +4114,44 @@
               "keeper_cottage"
             ],
             "purpose": "Sizes the masonry drum and cottage attachment."
+          },
+          {
+            "parameter": "sides",
+            "componentIds": [
+              "tower_base",
+              "banded_shaft",
+              "gallery"
+            ],
+            "purpose": "Keeps the faceted tower and gallery rhythm."
+          },
+          {
+            "parameter": "masonryCourses",
+            "componentIds": [
+              "tower_base",
+              "keeper_cottage"
+            ],
+            "purpose": "Wraps the drum and cottage in staggered stone courses."
+          },
+          {
+            "parameter": "masonryBlocks",
+            "componentIds": [
+              "tower_base"
+            ],
+            "purpose": "Sets cylindrical masonry block count around the drum."
+          },
+          {
+            "parameter": "bandCount",
+            "componentIds": [
+              "banded_shaft"
+            ],
+            "purpose": "Keeps the cream and deep-red band identity."
+          },
+          {
+            "parameter": "cottageWidth",
+            "componentIds": [
+              "keeper_cottage"
+            ],
+            "purpose": "Sizes the attached keeper cottage."
           }
         ],
         "failureModes": [
@@ -4133,7 +4264,7 @@
         },
         {
           "node": "building_windmill_a_LOD1",
-          "distanceMeters": 40,
+          "distanceMeters": 72,
           "triangleRatioMin": 0.08,
           "triangleRatioMax": 0.52
         }
@@ -4333,7 +4464,9 @@
       "parameters": {
         "length": 14.2,
         "width": 3.8,
-        "archCount": 2
+        "archCount": 2,
+        "masonryCourses": 3,
+        "railPosts": 7
       },
       "collisionPrimitives": [
         {
@@ -4703,6 +4836,20 @@
               "arches"
             ],
             "purpose": "Keeps the double-arch silhouette."
+          },
+          {
+            "parameter": "masonryCourses",
+            "componentIds": [
+              "piers"
+            ],
+            "purpose": "Wraps the central pier in staggered stone courses."
+          },
+          {
+            "parameter": "railPosts",
+            "componentIds": [
+              "rails"
+            ],
+            "purpose": "Sets timber post count along the crowned deck."
           }
         ],
         "failureModes": [
@@ -4758,7 +4905,9 @@
       "parameters": {
         "length": 8,
         "width": 3.6,
-        "canopy": true
+        "canopy": true,
+        "deckPlanks": 10,
+        "pileRows": 4
       },
       "collisionPrimitives": [
         {
@@ -4964,6 +5113,27 @@
               "canopy"
             ],
             "purpose": "Sizes the walkable deck and stall."
+          },
+          {
+            "parameter": "canopy",
+            "componentIds": [
+              "canopy"
+            ],
+            "purpose": "Toggles the striped market stall on the pier."
+          },
+          {
+            "parameter": "deckPlanks",
+            "componentIds": [
+              "deck"
+            ],
+            "purpose": "Keeps the walkable surface as individual planks."
+          },
+          {
+            "parameter": "pileRows",
+            "componentIds": [
+              "pilings"
+            ],
+            "purpose": "Sets paired piling bays along the dock length."
           }
         ],
         "failureModes": [
@@ -5023,7 +5193,11 @@
         "width": 7.4,
         "depth": 5.4,
         "wallHeight": 3.2,
-        "roofPitchDeg": 32
+        "roofPitchDeg": 32,
+        "masonryCourses": 5,
+        "masonryBlocks": 8,
+        "shingleRows": 5,
+        "shingleColumns": 6
       },
       "collisionPrimitives": [
         {
@@ -5198,12 +5372,55 @@
             "purpose": "Sets stall and hall span."
           },
           {
+            "parameter": "depth",
+            "componentIds": [
+              "foundation",
+              "warehouse"
+            ],
+            "purpose": "Sizes the warehouse body and masonry wrap."
+          },
+          {
             "parameter": "wallHeight",
             "componentIds": [
               "warehouse",
               "market_roof"
             ],
             "purpose": "Keeps loading doors and awning under the shingle line."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "market_roof"
+            ],
+            "purpose": "Sets the deep-red gable slope."
+          },
+          {
+            "parameter": "masonryCourses",
+            "componentIds": [
+              "foundation"
+            ],
+            "purpose": "Keeps staggered stone courses on the plinth."
+          },
+          {
+            "parameter": "masonryBlocks",
+            "componentIds": [
+              "foundation"
+            ],
+            "purpose": "Sets masonry block count along the long plinth faces."
+          },
+          {
+            "parameter": "shingleRows",
+            "componentIds": [
+              "market_roof"
+            ],
+            "purpose": "Keeps overlapping roof rows instead of a slab."
+          },
+          {
+            "parameter": "shingleColumns",
+            "componentIds": [
+              "market_roof"
+            ],
+            "purpose": "Sets shingle count across the hall span."
           }
         ],
         "failureModes": [
@@ -5833,7 +6050,8 @@
         "length": 2,
         "posts": 3,
         "rails": 2,
-        "railSegments": 7
+        "railSegments": 7,
+        "hasGate": false
       },
       "collisionPrimitives": [
         {
@@ -11222,50 +11440,236 @@
       "id": "prop_tool_shed_a",
       "file": "prop_tool_shed_a.glb",
       "family": "architecture",
-      "generator": "polyfork_architecture",
-      "seed": 116,
+      "generator": "village_building",
+      "seed": 451,
       "dimensions": {
-        "width": 2,
-        "depth": 2,
-        "height": 2.65
+        "width": 3.1,
+        "depth": 2.8,
+        "height": 3.4
       },
       "palette": [
-        "wood_warm_01",
+        "stone_warm_01",
+        "wood_weathered_01",
         "wood_dark_01",
-        "plaster_warm_01",
         "roof_terracotta_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 1200,
+        "trianglesTarget": 2800,
+        "trianglesMax": 6000,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "box",
       "instancing": false,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "prop_tool_shed_a_root",
       "requiredNodes": [
-        "prop_tool_shed_a_root"
+        "prop_tool_shed_a_root",
+        "COL_prop_tool_shed_a"
       ],
-      "readDistanceMeters": 30,
-      "parameters": {},
+      "readDistanceMeters": 20,
+      "parameters": {
+        "width": 2.4,
+        "depth": 2.2,
+        "wallHeight": 2.05,
+        "roofPitchDeg": 32,
+        "variant": "shed"
+      },
       "collisionPrimitives": [
         {
           "id": "main",
           "center": [
             0,
-            1.32,
+            1.45,
             0
           ],
           "halfExtents": [
-            1,
-            1.32,
-            1
+            1.5,
+            1.45,
+            1.35
           ]
         }
-      ]
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Small plank tool shed with thick gable and a single shuttered window",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "openings",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Marks a usable shed door and window",
+            "shape": "Plank door and one shuttered window",
+            "count": "1 door",
+            "cues": [
+              "Door is inset",
+              "One window only"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A small gabled shed sits in the barn yard, not a toy cube.",
+          "Plank walls and a stone plinth match farm-prop language.",
+          "The roof keeps thickness at gameplay distance."
+        ],
+        "negativeSpace": [
+          "The door recess stays darker than the plank wall.",
+          "A gap remains under the eaves."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "plank_walls",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Front wall reads as authored planks.",
+            "priority": "must"
+          },
+          {
+            "id": "stone_plinth",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "A stone plinth grounds the shed.",
+            "priority": "must"
+          },
+          {
+            "id": "thick_gable",
+            "componentIds": [
+              "roof"
+            ],
+            "requirement": "The gable has thickness, not a paper triangle.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets shed span."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets shed depth."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Sets door and wall height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets the small gable pitch."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Selects the shed door and window layout."
+          }
+        ],
+        "failureModes": [
+          "A polyfork cube or missing planks fail the farm-prop sheet.",
+          "An oversized cottage silhouette crowds the mill door.",
+          "Floating walls without a plinth look ungrounded."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "prop_beehive_a",
@@ -11658,35 +12062,200 @@
       "id": "prop_farm_gate_a",
       "file": "prop_farm_gate_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
-      "seed": 116,
+      "generator": "wood_fence",
+      "seed": 463,
       "dimensions": {
         "width": 2,
-        "depth": 0.28,
-        "height": 1.2
+        "depth": 0.32,
+        "height": 1.25
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
+        "trianglesMin": 100,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
         "materialsMax": 2
       },
       "pivot": "ground_center",
       "collision": "none",
       "instancing": true,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "prop_farm_gate_a_root",
       "requiredNodes": [
         "prop_farm_gate_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {
+        "length": 1.8,
+        "posts": 2,
+        "rails": 2,
+        "railSegments": 4,
+        "hasGate": true
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Farm gate with square posts, rails, and a braced timber leaf",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farm_props_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "use": [
+              "silhouette",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks square posts, rail thickness, well masonry, and grounded farm-prop scale."
+          }
+        ],
+        "components": [
+          {
+            "id": "posts",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Anchors the gate in the homestead fence line",
+            "shape": "Square posts with pyramidal caps",
+            "count": "2 posts",
+            "cues": [
+              "Posts are square, not round",
+              "Caps read at 15 m"
+            ]
+          },
+          {
+            "id": "leaf",
+            "parent": "posts",
+            "importance": "primary",
+            "role": "Reads as a working gate, not another fence bay",
+            "shape": "Timber leaf with a diagonal brace",
+            "count": "1 leaf",
+            "cues": [
+              "Leaf is slightly ajar",
+              "Brace is a separate board"
+            ]
+          },
+          {
+            "id": "hinges",
+            "parent": "leaf",
+            "importance": "secondary",
+            "role": "Shows the gate is hung, not a floating panel",
+            "shape": "Fasteners on the hinge post",
+            "count": "2 hinges",
+            "cues": [
+              "Pegs sit on the post face"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Two square posts frame a braced timber gate leaf.",
+          "The leaf sits slightly open so it is not a fence section.",
+          "Post caps break the top line like the farm-prop fence."
+        ],
+        "negativeSpace": [
+          "A gap remains under the leaf above the dirt.",
+          "Daylight shows through beside the diagonal brace."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "square_posts",
+            "componentIds": [
+              "posts"
+            ],
+            "requirement": "Posts stay square with caps, matching wood_fence.",
+            "priority": "must"
+          },
+          {
+            "id": "braced_leaf",
+            "componentIds": [
+              "leaf"
+            ],
+            "requirement": "A diagonal brace distinguishes the gate from rails.",
+            "priority": "must"
+          },
+          {
+            "id": "hinge_pegs",
+            "componentIds": [
+              "hinges"
+            ],
+            "requirement": "Hinge fasteners sit on the post.",
+            "priority": "should"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "length",
+            "componentIds": [
+              "posts",
+              "leaf"
+            ],
+            "purpose": "Sets gate span between posts."
+          },
+          {
+            "parameter": "hasGate",
+            "componentIds": [
+              "leaf",
+              "hinges"
+            ],
+            "purpose": "Switches the first bay to a braced leaf."
+          },
+          {
+            "parameter": "posts",
+            "componentIds": [
+              "posts"
+            ],
+            "purpose": "Keeps two hinge posts."
+          },
+          {
+            "parameter": "rails",
+            "componentIds": [
+              "leaf"
+            ],
+            "purpose": "Keeps rail count for any remaining bay."
+          },
+          {
+            "parameter": "railSegments",
+            "componentIds": [
+              "leaf"
+            ],
+            "purpose": "Sets remaining rail board count."
+          }
+        ],
+        "failureModes": [
+          "A polyfork slab with no posts fails the farm-prop fence language.",
+          "A closed fence bay without a leaf is not a gate.",
+          "Round toy posts or missing caps break the isolated fence read."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "prop_fence_section_a",
@@ -12868,50 +13437,207 @@
       "id": "building_market_stall_a",
       "file": "building_market_stall_a.glb",
       "family": "architecture",
-      "generator": "polyfork_architecture",
-      "seed": 123,
+      "generator": "produce_stall",
+      "seed": 461,
       "dimensions": {
-        "width": 1.96,
-        "depth": 1.13,
-        "height": 2.02
+        "width": 2.5,
+        "depth": 1.7,
+        "height": 2.5
       },
       "palette": [
-        "wood_warm_01",
+        "wood_honey_01",
         "wood_dark_01",
-        "plaster_warm_01",
-        "roof_terracotta_01"
+        "canvas_cream_01",
+        "accent_red_01",
+        "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 800,
+        "trianglesTarget": 2200,
+        "trianglesMax": 4000,
+        "materialsMax": 5
       },
       "pivot": "ground_center",
       "collision": "box",
       "instancing": false,
-      "lod": "none",
+      "lod": "medium",
       "rootNode": "building_market_stall_a_root",
       "requiredNodes": [
-        "building_market_stall_a_root"
+        "building_market_stall_a_root",
+        "COL_building_market_stall_a"
       ],
-      "readDistanceMeters": 30,
-      "parameters": {},
+      "readDistanceMeters": 20,
+      "parameters": {
+        "width": 2.2,
+        "depth": 1.4,
+        "roofHeight": 2.15
+      },
       "collisionPrimitives": [
         {
           "id": "main",
           "center": [
             0,
-            1.01,
+            1.15,
             0
           ],
           "halfExtents": [
-            0.98,
-            1.01,
-            0.56
+            1.2,
+            1.15,
+            0.85
           ]
         }
-      ]
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Small village plaza stall with thick posts and hanging canvas",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "dock_market_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/dock_market_isolated_1787316936665.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks thick stall posts, hanging canvas, and a filled working counter."
+          }
+        ],
+        "components": [
+          {
+            "id": "frame",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the stall as a working booth",
+            "shape": "Thick posts, planked back wall, and base planks",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay fence-thick",
+              "Back wall reads as planks"
+            ]
+          },
+          {
+            "id": "canopy",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Reads as hanging canvas",
+            "shape": "Draped cream panels with hanging flaps",
+            "count": "1 canopy",
+            "cues": [
+              "Panels sag",
+              "Flaps hang off the front eave"
+            ]
+          },
+          {
+            "id": "counter",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Holds the day's produce",
+            "shape": "Thick planked counter with crates and produce",
+            "count": "1 counter",
+            "cues": [
+              "Counter is not empty",
+              "Produce uses catalog red and ochre"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A compact gabled stall sits at the market-hall front.",
+          "Hanging canvas and a filled counter dominate the open face.",
+          "Thick posts keep it from reading as a toy awning."
+        ],
+        "negativeSpace": [
+          "The open front stays clear under the canopy.",
+          "Daylight remains between canopy flaps."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "canvas_hang",
+            "componentIds": [
+              "canopy"
+            ],
+            "requirement": "Canopy sags as canvas with hanging flaps.",
+            "priority": "must"
+          },
+          {
+            "id": "filled_counter",
+            "componentIds": [
+              "counter"
+            ],
+            "requirement": "Counter holds crates plus produce from 15 m.",
+            "priority": "must"
+          },
+          {
+            "id": "thick_posts",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Posts stay chunky like dock timber.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "frame",
+              "counter",
+              "canopy"
+            ],
+            "purpose": "Sets stall span, counter, and canopy width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "frame",
+              "counter"
+            ],
+            "purpose": "Sets booth depth and counter reach."
+          },
+          {
+            "parameter": "roofHeight",
+            "componentIds": [
+              "frame",
+              "canopy"
+            ],
+            "purpose": "Sets post height and canopy hang."
+          }
+        ],
+        "failureModes": [
+          "An empty counter or paper canopy fails the working-stall read.",
+          "Pencil posts collapse it into the old polyfork toy.",
+          "Matching the landmark produce stall scale crowds the plaza."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "bridge_log_plank_a",
@@ -12966,35 +13692,204 @@
       "id": "prop_clay_oven_a",
       "file": "prop_clay_oven_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
-      "seed": 116,
+      "generator": "clay_oven",
+      "seed": 467,
       "dimensions": {
-        "width": 1.59,
-        "depth": 1.55,
-        "height": 1.52
+        "width": 1.45,
+        "depth": 1.4,
+        "height": 1.45
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "stone_warm_01",
+        "accent_ochre_01",
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 200,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "prop_clay_oven_a_root",
       "requiredNodes": [
-        "prop_clay_oven_a_root"
+        "prop_clay_oven_a_root",
+        "COL_prop_clay_oven_a"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {
+        "width": 1.35,
+        "depth": 1.28,
+        "height": 1.35
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            0.7,
+            0
+          ],
+          "halfExtents": [
+            0.72,
+            0.7,
+            0.68
+          ]
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chunky clay-and-stone bake oven with arched mouth and flue",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farm_props_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "use": [
+              "silhouette",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks square posts, rail thickness, well masonry, and grounded farm-prop scale."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the oven on the plaza",
+            "shape": "Low masonry plinth",
+            "count": "1 plinth",
+            "cues": [
+              "Stone blocks read",
+              "Oven does not float"
+            ]
+          },
+          {
+            "id": "dome",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Reads as a clay bake chamber",
+            "shape": "Faceted clay body with a rounded cap",
+            "count": "1 dome",
+            "cues": [
+              "Clay is ochre, not plaster",
+              "Cap is faceted, not a sphere"
+            ]
+          },
+          {
+            "id": "mouth",
+            "parent": "dome",
+            "importance": "secondary",
+            "role": "Shows the working oven opening",
+            "shape": "Timber-framed mouth and flue pot",
+            "count": "1 mouth",
+            "cues": [
+              "Mouth is an arch-like recess",
+              "Flue sits on the crown"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A squat clay dome sits on a stone plinth beside the hall.",
+          "The mouth and flue break the oval outline.",
+          "Scale matches farm props, not a toy blob."
+        ],
+        "negativeSpace": [
+          "The mouth is a dark recess in the clay body.",
+          "A small gap remains under the flue pot."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "stone_plinth",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "A masonry plinth grounds the oven.",
+            "priority": "must"
+          },
+          {
+            "id": "clay_dome",
+            "componentIds": [
+              "dome"
+            ],
+            "requirement": "The chamber reads as faceted clay, not a polyfork blob.",
+            "priority": "must"
+          },
+          {
+            "id": "working_mouth",
+            "componentIds": [
+              "mouth"
+            ],
+            "requirement": "A timber mouth and flue read from 8 m.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "dome"
+            ],
+            "purpose": "Sets oven span."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "dome",
+              "mouth"
+            ],
+            "purpose": "Sets oven depth and mouth projection."
+          },
+          {
+            "parameter": "height",
+            "componentIds": [
+              "dome",
+              "mouth"
+            ],
+            "purpose": "Sets dome and flue height."
+          }
+        ],
+        "failureModes": [
+          "A smooth blob or missing mouth fails the bake-oven read.",
+          "Photoreal brick textures break the palette-token contract.",
+          "Toy scale smaller than a crate disappears on the plaza."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "prop_fire_pit_a",
@@ -13170,50 +14065,235 @@
       "id": "building_outhouse_a",
       "file": "building_outhouse_a.glb",
       "family": "architecture",
-      "generator": "polyfork_architecture",
-      "seed": 119,
+      "generator": "village_building",
+      "seed": 457,
       "dimensions": {
-        "width": 2,
+        "width": 2.2,
         "depth": 2,
-        "height": 2.2
+        "height": 3
       },
       "palette": [
-        "wood_warm_01",
+        "stone_warm_01",
+        "wood_weathered_01",
         "wood_dark_01",
-        "plaster_warm_01",
         "roof_terracotta_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 800,
+        "trianglesTarget": 1800,
+        "trianglesMax": 4000,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "box",
       "instancing": false,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "building_outhouse_a_root",
       "requiredNodes": [
-        "building_outhouse_a_root"
+        "building_outhouse_a_root",
+        "COL_building_outhouse_a"
       ],
-      "readDistanceMeters": 30,
-      "parameters": {},
+      "readDistanceMeters": 15,
+      "parameters": {
+        "width": 1.7,
+        "depth": 1.6,
+        "wallHeight": 2,
+        "roofPitchDeg": 40,
+        "variant": "outhouse"
+      },
       "collisionPrimitives": [
         {
           "id": "main",
           "center": [
             0,
-            1.1,
+            1.3,
             0
           ],
           "halfExtents": [
-            1,
-            1.1,
+            1.05,
+            1.3,
             1
           ]
         }
-      ]
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Small timber outhouse with stone plinth and a high rear window",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "openings",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Keeps the outhouse readable without a cartoon gag",
+            "shape": "Inset door and a small high rear window",
+            "count": "1 door",
+            "cues": [
+              "No crescent-moon cutout",
+              "Door is thick timber"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A tiny gabled outhouse sits behind the west cottages.",
+          "Stone plinth and timber door keep it in the farm language.",
+          "The roof is thick enough to read at 15 m."
+        ],
+        "negativeSpace": [
+          "The door inset stays darker than the wall.",
+          "The high rear window is a small recess, not a face."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "timber_door",
+            "componentIds": [
+              "openings"
+            ],
+            "requirement": "The door is a thick timber panel, not a sticker.",
+            "priority": "must"
+          },
+          {
+            "id": "stone_plinth",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "A stone plinth grounds the tiny footprint.",
+            "priority": "must"
+          },
+          {
+            "id": "no_cartoon_cutout",
+            "componentIds": [
+              "openings"
+            ],
+            "requirement": "No chibi crescent-moon gag on the door.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets the tiny span."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets the tiny depth."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Sets door height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets the steep small gable."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "openings"
+            ],
+            "purpose": "Selects the outhouse door and window."
+          }
+        ],
+        "failureModes": [
+          "A crescent-moon gag or chibi proportions break Art Bible identity.",
+          "A polyfork cube fails the farm-prop language.",
+          "Missing plinth leaves the outhouse floating on the dirt pad."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "prop_path_stone_round_a",
@@ -13893,6 +14973,1265 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {}
+    },
+    {
+      "id": "house_cottage_a",
+      "file": "house_cottage_a.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 421,
+      "dimensions": {
+        "width": 6.2,
+        "depth": 5.4,
+        "height": 5.6
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "roof_terracotta_01"
+      ],
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 4500,
+        "trianglesMax": 10000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "house_cottage_a_root",
+      "requiredNodes": [
+        "house_cottage_a_root",
+        "house_cottage_a_LOD0",
+        "house_cottage_a_LOD1",
+        "COL_house_cottage_a"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 5,
+        "depth": 4.2,
+        "wallHeight": 2.55,
+        "roofPitchDeg": 32,
+        "variant": "cottage-a"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.1,
+            0
+          ],
+          "halfExtents": [
+            2.6,
+            2.1,
+            2.3
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "house_cottage_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "house_cottage_a_LOD1",
+          "distanceMeters": 72,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Northeast village cottage with stone plinth, timber frame, and terracotta gable",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "openings",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Reads as a lived-in dwelling from the plaza",
+            "shape": "Door, shuttered windows, and a stone chimney",
+            "count": "1 door cluster",
+            "cues": [
+              "Shutters are boards, not stickers",
+              "Chimney breaks the ridge"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A compact gabled cottage sits on a stone plinth, not a toy box.",
+          "Timber posts and a chimney break the plaster wall silhouette.",
+          "The roof holds two thick overlapping slopes with a ridge beam."
+        ],
+        "negativeSpace": [
+          "Windows keep dark recesses between shutter boards.",
+          "The door stays inset from the wall plane."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "water_table",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "A stone water table lip grounds the walls above the dirt pad.",
+            "priority": "must"
+          },
+          {
+            "id": "timber_posts",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Corner posts and plates stay visible at gameplay distance.",
+            "priority": "must"
+          },
+          {
+            "id": "shuttered_windows",
+            "componentIds": [
+              "openings"
+            ],
+            "requirement": "Windows have timber shutters, not flat glowing cards.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets cottage span, wall posts, and roof width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets cottage depth and gable overhang."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Sets wall, door, and window height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets gable pitch without turning the roof into a spike."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Selects cottage-a window and chimney layout."
+          }
+        ],
+        "failureModes": [
+          "A smooth primitive box with a paper roof fails the farmhouse language.",
+          "Missing shutters or a missing water table reads as an unfinished placeholder.",
+          "Chibi squat proportions or candy plaster break the coastal village identity."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "house_cottage_b",
+      "file": "house_cottage_b.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 427,
+      "dimensions": {
+        "width": 5.8,
+        "depth": 6.2,
+        "height": 5.8
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_warm_01",
+        "wood_honey_01",
+        "roof_warm_orange_01"
+      ],
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 4500,
+        "trianglesMax": 10000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "house_cottage_b_root",
+      "requiredNodes": [
+        "house_cottage_b_root",
+        "house_cottage_b_LOD0",
+        "house_cottage_b_LOD1",
+        "COL_house_cottage_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 4.6,
+        "depth": 5,
+        "wallHeight": 2.5,
+        "roofPitchDeg": 36,
+        "variant": "cottage-b"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.15,
+            0
+          ],
+          "halfExtents": [
+            2.45,
+            2.15,
+            2.65
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "house_cottage_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "house_cottage_b_LOD1",
+          "distanceMeters": 72,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Northeast village cottage variant with offset gable and warm orange roof",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "openings",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Distinguishes this cottage from cottage-a at plaza distance",
+            "shape": "Asymmetric windows, door, and chimney",
+            "count": "1 door cluster",
+            "cues": [
+              "Window layout is not mirrored cottage-a",
+              "Chimney still reads"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The second cottage uses a slightly taller gable and offset windows.",
+          "A stone plinth and timber posts keep it in the farmhouse family.",
+          "Warm orange roof planes stay thick and overlapping."
+        ],
+        "negativeSpace": [
+          "Rear windows keep a gap from the chimney mass.",
+          "The door recess stays readable from the courtyard."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "water_table",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "A stone water table lip grounds the walls.",
+            "priority": "must"
+          },
+          {
+            "id": "asymmetric_windows",
+            "componentIds": [
+              "openings"
+            ],
+            "requirement": "Window layout is not a copy of cottage-a.",
+            "priority": "must"
+          },
+          {
+            "id": "timber_posts",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Corner posts stay beam-thick at 15 m.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets cottage span and roof width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Sets cottage depth and gable overhang."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Sets wall and opening height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets the steeper cottage-b gable."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "frame",
+              "openings"
+            ],
+            "purpose": "Selects cottage-b window layout."
+          }
+        ],
+        "failureModes": [
+          "Identical silhouette to cottage-a wastes the variant.",
+          "A primitive box or missing timber frame fails the village language.",
+          "Photoreal textures or toy roundness break Art Bible identity."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "building_inn_a",
+      "file": "building_inn_a.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 433,
+      "dimensions": {
+        "width": 9,
+        "depth": 8.2,
+        "height": 7.4
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "wood_dark_01",
+        "roof_deep_red_01",
+        "canvas_cream_01"
+      ],
+      "budget": {
+        "trianglesMin": 5000,
+        "trianglesTarget": 8000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "building_inn_a_root",
+      "requiredNodes": [
+        "building_inn_a_root",
+        "building_inn_a_LOD0",
+        "building_inn_a_LOD1",
+        "COL_building_inn_a"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 7.6,
+        "depth": 5.8,
+        "wallHeight": 3.2,
+        "roofPitchDeg": 33,
+        "variant": "inn"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.7,
+            0
+          ],
+          "halfExtents": [
+            3.9,
+            2.7,
+            3.6
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "building_inn_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_inn_a_LOD1",
+          "distanceMeters": 80,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Village inn with thick porch, hanging sign, and stone chimney",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "porch",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Marks the inn as the plaza's public doorway",
+            "shape": "Planked deck, posts, pitched porch roof, and hanging sign",
+            "count": "1 porch",
+            "cues": [
+              "Deck has board thickness",
+              "Sign hangs off the front beam"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A wider gabled inn dominates the north plaza with a forward porch.",
+          "Porch posts and a hanging sign break the front elevation.",
+          "A chimney and thick roof planes keep it in the farmhouse family."
+        ],
+        "negativeSpace": [
+          "Daylight remains between porch posts and the hanging sign.",
+          "The porch deck sits proud of the dirt pad, not flush like a slab."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "porch_thickness",
+            "componentIds": [
+              "porch"
+            ],
+            "requirement": "Porch deck, posts, and roof have thickness, never a flat slab.",
+            "priority": "must"
+          },
+          {
+            "id": "hanging_sign",
+            "componentIds": [
+              "porch"
+            ],
+            "requirement": "A hanging sign reads from the plaza approach.",
+            "priority": "must"
+          },
+          {
+            "id": "water_table",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "Stone water table grounds the inn walls.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "porch",
+              "roof"
+            ],
+            "purpose": "Sets inn span, porch width, and roof."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "porch"
+            ],
+            "purpose": "Sets inn depth and porch projection."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "porch"
+            ],
+            "purpose": "Sets wall and porch post height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets main gable pitch."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "porch"
+            ],
+            "purpose": "Enables inn porch, sign, and chimney layout."
+          }
+        ],
+        "failureModes": [
+          "A flat porch slab or missing sign fails the inn read from the road.",
+          "Box walls without timber posts collapse into placeholder architecture.",
+          "Chibi squat massing or extra ornament clutter is not the fix."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "building_village_market_hall_a",
+      "file": "building_village_market_hall_a.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 439,
+      "dimensions": {
+        "width": 10,
+        "depth": 8.4,
+        "height": 7
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "wood_dark_01",
+        "roof_terracotta_01",
+        "canvas_cream_01"
+      ],
+      "budget": {
+        "trianglesMin": 5000,
+        "trianglesTarget": 8000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "building_village_market_hall_a_root",
+      "requiredNodes": [
+        "building_village_market_hall_a_root",
+        "building_village_market_hall_a_LOD0",
+        "building_village_market_hall_a_LOD1",
+        "COL_building_village_market_hall_a"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 8.4,
+        "depth": 6,
+        "wallHeight": 3.15,
+        "roofPitchDeg": 30,
+        "variant": "market-hall"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.6,
+            0
+          ],
+          "halfExtents": [
+            4.3,
+            2.6,
+            3.6
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "building_village_market_hall_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_village_market_hall_a_LOD1",
+          "distanceMeters": 80,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Village market hall with arcade posts, plank counter, and canvas awning",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "arcade",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Opens the hall toward the produce stall",
+            "shape": "Thick arcade posts, planked counter, framed canvas awning",
+            "count": "1 arcade",
+            "cues": [
+              "Posts are beam-thick",
+              "Awning has a timber frame"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A long gabled hall sits east of the plaza with a forward arcade.",
+          "Three posts and a canvas awning mark the working market face.",
+          "Thick roof planes keep it a hero building, not a warehouse box."
+        ],
+        "negativeSpace": [
+          "Walk space remains under the awning in front of the counter.",
+          "Gaps stay between arcade posts so the hall mouth reads."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "arcade_posts",
+            "componentIds": [
+              "arcade"
+            ],
+            "requirement": "Arcade posts stay chunky and reach the awning frame.",
+            "priority": "must"
+          },
+          {
+            "id": "awning_frame",
+            "componentIds": [
+              "arcade"
+            ],
+            "requirement": "Canvas sits on a visible timber frame, never a paper sheet.",
+            "priority": "must"
+          },
+          {
+            "id": "plank_counter",
+            "componentIds": [
+              "arcade"
+            ],
+            "requirement": "A planked counter reads from 15 m.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "arcade",
+              "roof"
+            ],
+            "purpose": "Sets hall span, arcade, and awning width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "arcade"
+            ],
+            "purpose": "Sets hall depth and arcade projection."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "arcade"
+            ],
+            "purpose": "Sets wall and post height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets hall gable pitch."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "arcade"
+            ],
+            "purpose": "Enables market-hall arcade and awning."
+          }
+        ],
+        "failureModes": [
+          "A paper awning or pencil posts fail the working-market read.",
+          "An empty hall mouth with no counter looks like a garage opening.",
+          "Copying the farmhouse porch instead of an arcade breaks the hall role."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "building_barn_a",
+      "file": "building_barn_a.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 443,
+      "dimensions": {
+        "width": 9.6,
+        "depth": 6.4,
+        "height": 6.2
+      },
+      "palette": [
+        "stone_warm_01",
+        "wood_weathered_01",
+        "wood_dark_01",
+        "roof_turf_01"
+      ],
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 5000,
+        "trianglesMax": 10000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "building_barn_a_root",
+      "requiredNodes": [
+        "building_barn_a_root",
+        "building_barn_a_LOD0",
+        "building_barn_a_LOD1",
+        "COL_building_barn_a"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 7.2,
+        "depth": 5,
+        "wallHeight": 2.9,
+        "roofPitchDeg": 28,
+        "variant": "barn"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.4,
+            0
+          ],
+          "halfExtents": [
+            4.4,
+            2.4,
+            2.8
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "building_barn_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_barn_a_LOD1",
+          "distanceMeters": 72,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Village barn with weathered battens, open lean-to, and loft door",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the building with readable stone mass",
+            "shape": "Masonry courses with a water-table lip",
+            "count": "1 plinth",
+            "cues": [
+              "Stone reads as stacked blocks",
+              "Lip sits above the ground plane"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries walls as timber-framed coastal construction",
+            "shape": "Corner posts, sills, and plates over plaster or timber walls",
+            "count": "1 frame",
+            "cues": [
+              "Posts stay beam-thick",
+              "Plates read at eave height"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the silhouette overlapping roof planes",
+            "shape": "Thick gable with fascia and ridge beam",
+            "count": "1 roof",
+            "cues": [
+              "Planes have thickness",
+              "Ridge is a separate timber"
+            ]
+          },
+          {
+            "id": "yard",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Reads as a working grain barn, not a plaster house",
+            "shape": "Vertical battens, post-and-beam lean-to, loft door",
+            "count": "1 yard face",
+            "cues": [
+              "Walls are timber, not cream plaster",
+              "Lean-to sits on posts"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A wide timber barn with a lower lean-to sits in the mill grain yard.",
+          "Vertical battens and a loft door break the long wall.",
+          "A turf roof stays thick and low-pitched."
+        ],
+        "negativeSpace": [
+          "The lean-to keeps daylight under its roof between posts.",
+          "The loft door sits above the main wagon opening."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Walls, roof planes, and posts continue around the mass, not a front-only facade.",
+            "Foundations meet the ground with a water table or plinth, never a floating box."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "battens",
+            "componentIds": [
+              "yard"
+            ],
+            "requirement": "Vertical battens read as timber walls, not plaster.",
+            "priority": "must"
+          },
+          {
+            "id": "lean_to",
+            "componentIds": [
+              "yard"
+            ],
+            "requirement": "The lean-to sits on posts with a separate roof plane.",
+            "priority": "must"
+          },
+          {
+            "id": "loft_door",
+            "componentIds": [
+              "yard"
+            ],
+            "requirement": "A loft door breaks the upper gable wall.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "yard",
+              "roof"
+            ],
+            "purpose": "Sets barn span and lean-to offset."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "yard"
+            ],
+            "purpose": "Sets barn depth and loft-wall length."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "yard"
+            ],
+            "purpose": "Sets wall, loft door, and lean-to height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Keeps the barn roof lower than cottage gables."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "yard"
+            ],
+            "purpose": "Enables barn battens, lean-to, and loft door."
+          }
+        ],
+        "failureModes": [
+          "Cream plaster walls make the barn look like a wide cottage.",
+          "A boxed lean-to without posts fails the open yard read.",
+          "Primitive-only massing or toy scale collapses the mill courtyard."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     }
   ]
 }

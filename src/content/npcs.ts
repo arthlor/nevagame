@@ -1,7 +1,7 @@
 // src/content/npcs.ts
 
 import type { NpcId } from "../simulation/core/QuestTypes";
-import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog";
+import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog.generated";
 import { HARBOR_MAEVE_ANCHOR, HARBOR_SILAS_ANCHOR } from "../world/WorldAnchors";
 
 export interface NpcDefinition {

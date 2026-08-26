@@ -1,10 +1,11 @@
 import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
+import { GROUND_POLYGON_CELL_GLSL } from "./GroundPolygonCells";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { PALETTE_HEX } from "./PaletteTokens";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v2";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v5";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -163,12 +164,16 @@ vTerrainWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
 uniform sampler2D terrainDetailTexture;
 uniform float terrainLargeSampleScale;
 uniform float terrainSmallSampleScale;
+uniform float terrainPolygonCellScale;
 uniform float terrainSmallLayerRotation;
 uniform float terrainColorVariationStrength;
 uniform float terrainPaletteVariationStrength;
+uniform float terrainPolygonVariationStrength;
+uniform float terrainPolygonJaggedStrength;
 uniform vec3 terrainPaletteOliveColor;
 uniform vec3 terrainPaletteSageColor;
 uniform vec3 terrainPaletteGrassColor;
+uniform vec3 terrainPaletteHighlightColor;
 uniform float terrainRoughnessVariation;
 uniform float terrainWetness;
 uniform vec3 terrainWetColor;
@@ -178,7 +183,8 @@ uniform float terrainWetRoughness;
 uniform float terrainRoughnessMin;
 uniform float terrainRoughnessMax;
 varying float vTerrainGreenMask;
-varying vec3 vTerrainWorldPosition;`,
+varying vec3 vTerrainWorldPosition;
+${GROUND_POLYGON_CELL_GLSL}`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -207,16 +213,34 @@ float terrainPaletteUpper = smoothstep(0.5, 0.92, terrainPaletteSignal);
 vec3 terrainPaletteColor = mix(terrainPaletteOliveColor, terrainPaletteSageColor, terrainPaletteLower);
 terrainPaletteColor = mix(terrainPaletteColor, terrainPaletteGrassColor, terrainPaletteUpper);
 float terrainMask = clamp(vTerrainGreenMask, 0.0, 1.0);
-diffuseColor.rgb *= mix(vec3(1.0), vec3(terrainDetail), terrainMask);
+float terrainPolygonSignal = nevaGroundPolygonCellSignal(
+  vTerrainWorldPosition.xz,
+  terrainPolygonCellScale
+);
+float mosaicMask = step(
+  0.5,
+  terrainMask + (terrainPolygonSignal - 0.5) * terrainPolygonJaggedStrength
+);
+diffuseColor.rgb *= mix(vec3(1.0), vec3(terrainDetail), mosaicMask);
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   terrainPaletteColor,
-  terrainMask * terrainPaletteVariationStrength
+  mosaicMask * terrainPaletteVariationStrength
+);
+vec3 terrainPolygonColor = terrainPaletteOliveColor;
+terrainPolygonColor = mix(terrainPolygonColor, terrainPaletteSageColor, step(0.25, terrainPolygonSignal));
+terrainPolygonColor = mix(terrainPolygonColor, terrainPaletteGrassColor, step(0.5, terrainPolygonSignal));
+terrainPolygonColor = mix(terrainPolygonColor, terrainPaletteHighlightColor, step(0.75, terrainPolygonSignal));
+terrainPolygonColor *= mix(0.92, 1.08, fract(terrainPolygonSignal * 6.17 + 0.13));
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  terrainPolygonColor,
+  mosaicMask * terrainPolygonVariationStrength
 );
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   terrainWetColor,
-  terrainMask * clamp(terrainWetness, 0.0, 1.0) * terrainWetColorMix
+  mosaicMask * clamp(terrainWetness, 0.0, 1.0) * terrainWetColorMix
 );`,
     "fragment"
   );
@@ -231,7 +255,7 @@ float terrainSurfaceRoughness = clamp(
   terrainRoughnessMin,
   terrainRoughnessMax
 );
-roughnessFactor = mix(roughnessFactor, terrainSurfaceRoughness, terrainMask);`,
+roughnessFactor = mix(roughnessFactor, terrainSurfaceRoughness, mosaicMask);`,
     "fragment"
   );
 
@@ -257,12 +281,16 @@ export class TerrainSurfaceMaterial {
       terrainDetailTexture: { value: this.detailTexture },
       terrainLargeSampleScale: { value: config.largeSampleScaleMeters },
       terrainSmallSampleScale: { value: config.smallSampleScaleMeters },
+      terrainPolygonCellScale: { value: config.polygonCellScaleMeters },
       terrainSmallLayerRotation: { value: config.smallLayerRotationRadians },
       terrainColorVariationStrength: { value: config.colorVariationStrength },
       terrainPaletteVariationStrength: { value: config.paletteVariationStrength },
+      terrainPolygonVariationStrength: { value: config.polygonVariationStrength },
+      terrainPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       terrainPaletteOliveColor: { value: new THREE.Color(PALETTE_HEX.foliage_olive_01) },
       terrainPaletteSageColor: { value: new THREE.Color(PALETTE_HEX.foliage_sage_01) },
       terrainPaletteGrassColor: { value: new THREE.Color(PALETTE_HEX.grass_yellow_01) },
+      terrainPaletteHighlightColor: { value: new THREE.Color(PALETTE_HEX.foliage_highlight_01) },
       terrainRoughnessVariation: { value: config.roughnessVariation },
       terrainWetness: { value: this.wetnessValue },
       terrainWetColor: { value: new THREE.Color(PALETTE_HEX.foliage_shadow_01) },
@@ -276,7 +304,7 @@ export class TerrainSurfaceMaterial {
     const canonicalBase = PaletteMaterials.standard("foliage_sage_01", {
       vertexColors: true,
       vertexColorMode: "replace",
-      flatShading: true,
+      flatShading: false,
       roughness: config.roughness.dry
     });
     this.material = canonicalBase.clone();

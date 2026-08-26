@@ -208,7 +208,7 @@ const AUDIO_ROWS: Array<{ label: string; level: AudioLevelKey; muted: AudioMuteK
   { label: "Ambience", level: "ambience", muted: "ambienceMuted" }
 ];
 
-const AudioControls: React.FC = () => {
+export const AudioControls: React.FC = () => {
   const [settings, setSettings] = useState<AudioSettings>({ ...audioSettings.get() });
 
   useEffect(() => audioSettings.subscribe((next) => setSettings({ ...next })), []);

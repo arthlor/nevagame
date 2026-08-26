@@ -12,6 +12,14 @@ import { HARBOR_FISH_TABLE } from "./WorldAnchors";
 export const PROCESSING_STATION_INTERACTION_RADIUS = 1.5;
 export const PROCESSING_STATION_FRONT_ALIGNMENT_MIN = 0.5;
 
+/**
+ * The Blender generators author station working faces on local negative depth.
+ * The Y-up GLB conversion maps that depth to runtime positive Z, so the
+ * placed asset needs one half-turn to make its authored face runtime -Z.
+ * This is presentation/layout metadata only; it never enters WorldState.
+ */
+export const PROCESSING_STATION_ASSET_YAW_CORRECTION = Math.PI;
+
 export const PROCESSING_STATION_IDS = [
   "struct.starter_mill",
   "struct.workbench",
@@ -77,6 +85,20 @@ export function getProcessingStationApproach(stationId: string): ProcessingStati
   return APPROACH_BY_STATION_ID.get(stationId);
 }
 
+/** Returns the runtime yaw that aligns the published GLB working face with the authored approach. */
+export function getProcessingStationRuntimeRotationY(stationId: ProcessingStationId): number {
+  const approach = getProcessingStationApproach(stationId);
+  if (!approach) throw new Error(`Missing processing station approach for ${stationId}`);
+  return approach.rotationY + PROCESSING_STATION_ASSET_YAW_CORRECTION;
+}
+
+function authoredFrontDirection(rotationY: number): ProcessingStationPoint {
+  return {
+    x: -Math.sin(rotationY),
+    z: -Math.cos(rotationY)
+  };
+}
+
 /** Returns the world-space point in front of the station's authored local -Z face. */
 export function getProcessingStationFrontPosition(
   stationId: string,
@@ -85,13 +107,10 @@ export function getProcessingStationFrontPosition(
   const approach = getProcessingStationApproach(stationId);
   if (!approach) return null;
 
-  // Three.js/glTF yaw maps the authored local -Z working face to this world
-  // direction. Keep the sign here aligned with the runtime model transform.
-  const frontX = -Math.sin(approach.rotationY);
-  const frontZ = -Math.cos(approach.rotationY);
+  const frontDirection = authoredFrontDirection(approach.rotationY);
   return {
-    x: station.x + frontX * approach.frontApproachDistanceMeters,
-    z: station.z + frontZ * approach.frontApproachDistanceMeters
+    x: station.x + frontDirection.x * approach.frontApproachDistanceMeters,
+    z: station.z + frontDirection.z * approach.frontApproachDistanceMeters
   };
 }
 
@@ -126,10 +145,9 @@ export function assessProcessingStationApproach(
   const centerToPlayerX = player.x - station.x;
   const centerToPlayerZ = player.z - station.z;
   const centerDistance = Math.hypot(centerToPlayerX, centerToPlayerZ);
-  const frontDirectionX = -Math.sin(approach.rotationY);
-  const frontDirectionZ = -Math.cos(approach.rotationY);
+  const frontDirection = authoredFrontDirection(approach.rotationY);
   const frontAlignment = centerDistance > 0.0001
-    ? (centerToPlayerX * frontDirectionX + centerToPlayerZ * frontDirectionZ) / centerDistance
+    ? (centerToPlayerX * frontDirection.x + centerToPlayerZ * frontDirection.z) / centerDistance
     : -1;
 
   if (frontAlignment < PROCESSING_STATION_FRONT_ALIGNMENT_MIN) {

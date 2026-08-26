@@ -63,7 +63,7 @@ describe("LightingRig", () => {
     expect(frame.sunVisibility).toBeGreaterThan(0.9);
   });
 
-  it("orders night, dawn, and day illumination without changing calibrated exposure", () => {
+  it("orders night, dawn, and day illumination with a controlled night readability lift", () => {
     const state = createInitialGameState(42);
     state.clock.currentMinute = 0;
     const night = deriveLightingFrame(state, 0);
@@ -77,10 +77,13 @@ describe("LightingRig", () => {
     expect(dawn.sunIntensity).toBeGreaterThan(night.sunIntensity);
     expect(dusk.sunIntensity).toBeCloseTo(dawn.sunIntensity, 5);
     expect(night.moonIntensity).toBeGreaterThan(day.moonIntensity);
-    expect(new Set([night.exposure, dawn.exposure, day.exposure, dusk.exposure]).size).toBe(1);
+    expect(night.exposure).toBeGreaterThan(day.exposure);
+    expect(dawn.exposure).toBeGreaterThan(day.exposure);
+    expect(dusk.exposure).toBeGreaterThan(day.exposure);
+    expect(day.exposure).toBeCloseTo(1.04, 5);
   });
 
-  it("keeps rainy pre-dawn gameplay readable without brightening the approved sky", () => {
+  it("keeps rainy pre-dawn gameplay readable with the shared brighter night profile", () => {
     const state = createInitialGameState(42);
     state.clock.currentMinute = 4 * 60 + 47;
     state.weather.type = "light-rain";
@@ -88,7 +91,7 @@ describe("LightingRig", () => {
     state.weather.visibility = 0.72;
 
     const frame = deriveLightingFrame(state, 0);
-    const approvedNightSky = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.22);
+    const calibratedNightSky = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.36);
 
     expect(frame.daylight).toBe(0);
     expect(frame.moonIntensity).toBeGreaterThan(0.35);
@@ -96,7 +99,8 @@ describe("LightingRig", () => {
     expect(frame.skyFillColor.getHSL({ h: 0, s: 0, l: 0 }).l).toBeGreaterThan(
       frame.skyTopColor.getHSL({ h: 0, s: 0, l: 0 }).l
     );
-    expect(frame.skyTopColor.getHex()).toBe(approvedNightSky.getHex());
+    expect(frame.skyTopColor.getHex()).toBe(calibratedNightSky.getHex());
+    expect(frame.exposure).toBeGreaterThan(1.04);
   });
 
   it("attenuates one shared weather frame and activates practicals only at night or in storms", () => {

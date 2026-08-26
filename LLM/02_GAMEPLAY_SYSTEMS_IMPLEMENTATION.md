@@ -590,7 +590,7 @@ Weather: wind, rain, thunder
 
 **Traversal:** sprint stamina/recovery/exhaustion/grounded state is serializable and fixed-step; it is distinct from Work Capacity and must not be owned by the renderer or input layer.
 
-**Save:** loaded state validates; persistent IDs resolve; current schema v11 migrations preserve legacy Work Capacity/crop journals, authored starter structures, docked boat positions, quest feature unlocks, the Act 5 starter-school flag, the harbor fish-table structure, and traversal state without discarding the save. Schema v10 inserts the harbor fish-table and lifts y=0 stations; schema v11 converts illegal `fish.trout` item stacks to cargo.
+**Save:** loaded state validates; persistent IDs resolve; current schema v13 / layout revision 5 migrations preserve legacy Work Capacity/crop journals, authored starter structures, docked boat positions, quest feature unlocks, the Act 5 starter-school flag, the harbor fish-table structure, and traversal state without discarding the save. Schema v10 inserts the harbor fish-table and lifts y=0 stations; schema v11 converts illegal `fish.trout` item stacks to cargo; schema v12 re-grounds on-foot players and structures at unchanged X/Z on the final physical-road terrain while preserving active boat/player waterline state; schema v13 relocates the starter mill to its current authored anchor and re-grounds land truth without changing active-boat state.
 
 # 19. Vertical-Slice Acceptance Gate
 

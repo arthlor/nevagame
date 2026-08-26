@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  WORLD_LAYOUT_V3,
+  WORLD_LAYOUT_V5,
   WORLD_REGIONAL_PATHS,
   WORLD_ROUTES
 } from "../../src/world/WorldLayout";
@@ -12,7 +12,7 @@ import {
 
 describe("WorldMapProjection", () => {
   it("projects canonical route points and player positions through one transform", () => {
-    const playerPosition = WORLD_LAYOUT_V3.anchors.playerSpawn;
+    const playerPosition = WORLD_LAYOUT_V5.anchors.playerSpawn;
     const playerMapPosition = worldPointToMapSvg(playerPosition);
     expect(playerMapPosition).toEqual({
       x: WORLD_MAP_PROJECTION.originX + playerPosition.x * WORLD_MAP_PROJECTION.scaleX,
@@ -27,8 +27,8 @@ describe("WorldMapProjection", () => {
     expect(projectedPath.endsWith(`L ${projectedEnd.x.toFixed(2)},${projectedEnd.y.toFixed(2)}`)).toBe(true);
     expect(WORLD_REGIONAL_PATHS[0][0]).toEqual(arterial.points[0]);
     expect(WORLD_REGIONAL_PATHS[0].some((point) =>
-      Math.abs(point.x - WORLD_LAYOUT_V3.anchors.bridge.x) < 0.0001 &&
-      Math.abs(point.z - WORLD_LAYOUT_V3.anchors.bridge.z) < 0.0001
+      Math.abs(point.x - WORLD_LAYOUT_V5.anchors.bridge.x) < 0.0001 &&
+      Math.abs(point.z - WORLD_LAYOUT_V5.anchors.bridge.z) < 0.0001
     )).toBe(true);
     expect(projectedPath).not.toContain("480,120 Q 420,300");
   });

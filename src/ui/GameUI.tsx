@@ -26,8 +26,21 @@ import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import type { AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import type { ActiveModal } from "../app/ModeController";
 import type { FarmingActionSnapshot } from "../app/FarmingActionController";
+import type { StartupState } from "../app/StartupState";
 import type { CropInspectionDto } from "../simulation/core/contracts";
 import { IconSprout } from "./components/HudIcons";
+import { StartScreen } from "./StartScreen";
+
+const READY_STARTUP_STATE: StartupState = {
+  status: "ready",
+  phase: "complete",
+  loadedAssets: 0,
+  totalAssets: 0,
+  message: "",
+  errorMessage: null,
+  saveStatus: "empty",
+  saveSummary: null
+};
 
 export interface GameUIProps {
   state: GameState;
@@ -95,6 +108,12 @@ export interface GameUIProps {
   onToggleWeather: () => void;
   onSpawnSchool: () => void;
   assetCoverage: AssetCoverageSummary;
+  startup?: StartupState;
+  onStart?: () => void;
+  onStartNewGame?: () => void;
+  onStartWithoutSaving?: () => void;
+  onRetry?: () => void;
+  bootReady?: boolean;
   screenFade?: boolean;
 }
 
@@ -152,11 +171,34 @@ export const GameUI: React.FC<GameUIProps> = ({
   onToggleWeather,
   onSpawnSchool,
   assetCoverage,
+  startup = READY_STARTUP_STATE,
+  onStart = () => {},
+  onStartNewGame = () => {},
+  onStartWithoutSaving = onStart,
+  onRetry = () => {},
+  bootReady = false,
   screenFade = false
 }) => {
-  const plannerUnlocked = state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
   const showDiagnostics =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+
+  // Debug sessions need the diagnostic surface while the real runtime boots;
+  // the boot-ready attribute is the synchronization point for browser checks.
+  if (startup.status !== "ready" && !showDiagnostics) {
+    return (
+      <div id="ui-container" style={{ width: "100%", height: "100%", position: "relative" }}>
+        <StartScreen
+          startup={startup}
+          onStart={onStart}
+          onStartNewGame={onStartNewGame}
+          onStartWithoutSaving={onStartWithoutSaving}
+          onRetry={onRetry}
+        />
+      </div>
+    );
+  }
+
+  const plannerUnlocked = state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
 
   return (
     <div id="ui-container" style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -349,6 +391,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onToggleWeather={onToggleWeather}
           onSpawnSchool={onSpawnSchool}
           assetCoverage={assetCoverage}
+          bootReady={bootReady}
         />
       )}
     </div>

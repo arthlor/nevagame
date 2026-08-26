@@ -28,6 +28,20 @@ If a canonical path is missing, duplicated, renamed, or conflicts with another s
 - Release/gold-slice work reads the full canonical art/architecture set because it activates strict, determinism, benchmark, and cross-scene gates.
 - `referenceAuthoring` remains required for image/study-guided assets. Read and validate only the selected asset brief; rerun `art:brief` only when that brief changes.
 
+## Generate-asset prompt contract
+
+Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Attachment is not equal authority. First files to **obey**: this file, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for this prompt class.
+
+“Generate assets” always means: resolve or add catalog ID(s) → registered family generator (not polyfork for isolated-sheet or unique-silhouette assets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB.
+
+Isolated studio sheets under `tools/blender/references/isolated/` are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in the references README are graphics-only extracts from `art-reference.png`; catalog IDs win if that README drifts.
+
+## Codex and threejs-game-skills
+
+Prefer the repo copy `.agents/skills/<name>/SKILL.md` over `~/.codex/skills`. Neva authorities still win. Do not fork imported `SKILL.md` files; wrap them in this routing. Do not copy the pack’s Vite scaffold, combat examples, daily screenshot scorecards, or test hooks into Neva.
+
+After the catalog, isolated sheet, and owning generator, Codex may load `.agents/skills/threejs-aaa-graphics-builder/references/checklists/procedural-model-quality.md` (and `model-recipes.md` when appearance is being designed) as critique vocabulary, then implement in the Blender family generator and `authored.py`. `threejs-image-generator` and `threejs-3d-generator` need an explicit human request; never publish a downloaded GLB. `threejs-qa-release` is release/gold-slice only.
+
 ## Rule hierarchy
 
 Resolve conflicts in this order: the human's latest explicit instruction; `01`; `02`; `04`; Art Pipeline; `BLENDER.md`; machine-readable owner for its declared fields; ArcheAge adaptation; Roadmap; current code; agent assumption. Report an existing code/spec conflict rather than treating code as precedent.

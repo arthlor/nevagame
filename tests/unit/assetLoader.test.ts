@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
-import { configureRuntimeLod } from "../../src/render/loaders/AssetLoader";
+import { ASSET_BY_ID, ASSET_CATALOG, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import { AssetLoader, configureRuntimeLod } from "../../src/render/loaders/AssetLoader";
 
 describe("generated asset LOD runtime", () => {
   it("reparents catalog-named levels into a Three.js distance switch", () => {
@@ -48,5 +48,29 @@ describe("generated asset LOD runtime", () => {
     lod0.name = spec.lodLevels[0].node;
     assetRoot.add(lod0);
     expect(() => configureRuntimeLod(root, spec)).toThrow("missing generated LOD node");
+  });
+
+  it("preloads every catalog asset and reports catalog-derived progress", async () => {
+    const loadedIds: string[] = [];
+    const progress: Array<{ assetId: string; completed: number; total: number }> = [];
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockImplementation(async (assetId) => {
+      loadedIds.push(assetId);
+      return new THREE.Group();
+    });
+
+    try {
+      await AssetLoader.preloadAll((entry) => progress.push(entry));
+    } finally {
+      loadModel.mockRestore();
+    }
+
+    expect(loadedIds).toHaveLength(ASSET_CATALOG.length);
+    expect(new Set(loadedIds)).toEqual(new Set(ASSET_CATALOG.map((asset) => asset.id)));
+    expect(progress).toHaveLength(ASSET_CATALOG.length);
+    expect(progress.map((entry) => entry.completed)).toEqual(
+      Array.from({ length: ASSET_CATALOG.length }, (_, index) => index + 1)
+    );
+    expect(progress.every((entry) => entry.total === ASSET_CATALOG.length)).toBe(true);
+    expect(progress.at(-1)?.completed).toBe(ASSET_CATALOG.length);
   });
 });

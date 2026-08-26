@@ -99,9 +99,15 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.vertexShader).toContain("attribute float terrainGreenMask;");
     expect(shader.vertexShader).toContain("vTerrainWorldPosition");
     expect(shader.fragmentShader).toContain("texture2D(terrainDetailTexture, terrainLargeUv)");
+    expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");
+    expect(shader.fragmentShader).toContain("nevaGroundCellJitter");
+    expect(shader.fragmentShader).toContain("terrainPolygonJaggedStrength");
+    expect(shader.fragmentShader).toContain("mosaicMask");
+    expect(shader.fragmentShader).toContain("terrainPaletteHighlightColor");
     expect(shader.fragmentShader).toContain("terrainPaletteColor");
     expect(shader.fragmentShader).toContain("roughnessFactor = mix(roughnessFactor");
-    expect(terrain.material.customProgramCacheKey()).toBe("neva-terrain-surface-r174-v2");
+    expect(terrain.material.flatShading).toBe(false);
+    expect(terrain.material.customProgramCacheKey()).toBe("neva-terrain-surface-r174-v5");
   });
 
   it("fails loudly when a required standard-shader chunk drifts", () => {

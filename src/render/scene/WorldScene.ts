@@ -8,6 +8,7 @@ import { AssetLoader } from "../loaders/AssetLoader";
 import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import { RoadSurfaceMaterial } from "../materials/RoadSurfaceMaterial";
 import { TerrainSurfaceMaterial } from "../materials/TerrainSurfaceMaterial";
 import {
   ASSET_BY_ID,
@@ -35,12 +36,14 @@ import {
   starterStructureAnchor
 } from "../../world/FarmLayout";
 import { HARBOR_FISH_TABLE } from "../../world/WorldAnchors";
+import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
 import {
   FARMHOUSE_INTERIOR_ORIGIN,
   FARMHOUSE_INTERIOR_PROPS
 } from "../../world/FarmhouseInterior";
 import {
   createWorldEnvironmentLayout,
+  generateFarmPathPaverSamples,
   type EnvironmentAssetPlacement,
   type WorldEnvironmentLayout
 } from "../../world/WorldEnvironmentLayout";
@@ -273,6 +276,7 @@ export class WorldScene {
   private readonly boatWakes: BoatWakePool;
   private readonly farmVfx: FarmVfxPool;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
+  private readonly roadSurfaceMaterial = new RoadSurfaceMaterial();
 
   private playerMesh: THREE.Group | null = null;
   private boatMeshes: Map<string, THREE.Group> = new Map();
@@ -412,8 +416,6 @@ export class WorldScene {
     this.scene.add(this.cropInstances.group);
     this.environmentGroup.add(this.groundCover.group);
     this.environmentGroup.add(this.staticPrefabGroup);
-    this.buildWorldTerrain();
-    this.buildPlacementPreview();
     this.interactionFeedback.name = "resolved_interaction_feedback";
     this.interactionFeedback.rotation.x = -Math.PI / 2;
     this.interactionFeedback.renderOrder = 3;
@@ -426,8 +428,16 @@ export class WorldScene {
     this.scene.add(this.questWaypointRing);
     this.buildPlayerContactShadow();
 
+  }
+
+  private async initializeWorldGeometry(): Promise<void> {
+    this.buildWorldTerrain();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    this.buildPlacementPreview();
     this.buildStarterFarmDetails();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     this.buildRouteDetails();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     this.buildFishingPresentation();
   }
 
@@ -439,8 +449,11 @@ export class WorldScene {
     }
     if (!this.readyPromise) {
       this.readyWorldSeed = worldSeed;
-      const layout = createWorldEnvironmentLayout(worldSeed);
-      this.readyPromise = this.populateEnvironment(layout);
+      this.readyPromise = (async () => {
+        await this.initializeWorldGeometry();
+        const layout = createWorldEnvironmentLayout(worldSeed);
+        await this.populateEnvironment(layout);
+      })();
     }
     return this.readyPromise;
   }
@@ -563,9 +576,7 @@ export class WorldScene {
     this.scene.add(this.playerContactShadow);
   }
 
-  /**
-   * Generates continuous faceted low-poly terrain mesh with village, farmstead, riverbed, and coast.
-   */
+  /** Builds the selectively smoothed terrain and its shared physical-road surface. */
   private buildWorldTerrain(): void {
     const layoutGeometry = WorldLayout.buildTerrainGeometry();
     const layoutTerrain = new THREE.Mesh(
@@ -578,21 +589,16 @@ export class WorldScene {
     this.environmentGroup.add(layoutTerrain);
 
     // High-resolution path ribbon overlay — paints the actual road colors at
-    // 13-strip transverse resolution, far smoother than the ~2.3m terrain faces.
+    // 17-strip transverse resolution, far smoother than the ~2.3m terrain faces.
     const pathGeometry = WorldLayout.buildPathGeometry();
-    const pathMaterial = PaletteMaterials.standard("path_dust_01", {
-      vertexColors: true,
-      vertexColorMode: "replace",
-      flatShading: true,
-      roughness: 0.95
-    });
-    // Depth-bias the ribbon slightly toward the camera to avoid z-fighting
-    pathMaterial.polygonOffset = true;
-    pathMaterial.polygonOffsetFactor = -1.5;
-    pathMaterial.polygonOffsetUnits = -1.5;
-    const pathMesh = new THREE.Mesh(pathGeometry, pathMaterial);
+    // The shared render/physics ribbon remains on the exact canonical surface.
+    // Vertex alpha dissolves its shoulder into the terrain instead of painting
+    // a second fixed-green strip over the terrain material. Its custom material
+    // adds color/roughness cells only and cannot displace the physical surface.
+    const pathMesh = new THREE.Mesh(pathGeometry, this.roadSurfaceMaterial.material);
     pathMesh.name = "world_path_overlay";
     pathMesh.receiveShadow = true;
+    pathMesh.renderOrder = 1;
     this.environmentGroup.add(pathMesh);
   }
 
@@ -854,7 +860,6 @@ export class WorldScene {
     const warmCobble = new THREE.Color(PALETTE_HEX.stone_warm_01);
     const goldenCobble = new THREE.Color(PALETTE_HEX.stone_golden_01);
     const coolStone = new THREE.Color(PALETTE_HEX.stone_cool_01);
-    const mossStone = new THREE.Color(PALETTE_HEX.stone_moss_01);
     const darkRock = new THREE.Color(PALETTE_HEX.rock_coastal_dark_01);
     const up = new THREE.Vector3(0, 1, 0);
 
@@ -902,18 +907,16 @@ export class WorldScene {
     // introducing a second, drifting path.
     for (const [routeIndex, compiledRoute] of WorldLayout.compiledRouteNetwork().entries()) {
       if (compiledRoute.route.id === "farm-home") continue;
-      const spacing = compiledRoute.route.kind === "trail" ? 13 : 17;
+      const spacing = compiledRoute.route.kind === "trail" ? 9 : 11;
       const lateral = compiledRoute.halfWidth + compiledRoute.shoulderWidthMeters + 0.34;
       for (let sampleIndex = 7; sampleIndex < compiledRoute.samples.length - 7; sampleIndex += spacing) {
         const sample = compiledRoute.samples[sampleIndex];
         const side = Math.sin(sample.distanceAlongRoute * 0.23 + routeIndex * 2.17) >= 0 ? 1 : -1;
         const x = sample.point.x + sample.normal.x * side * lateral;
         const z = sample.point.z + sample.normal.z * side * lateral;
-        const baseColor = compiledRoute.route.id === "riverbank-trail" || compiledRoute.route.id === "orchard-path"
-          ? (sampleIndex % 3 === 0 ? mossStone : warmCobble)
-          : compiledRoute.route.id === "cliffside-coastal-walk" || compiledRoute.route.id === "village-harbor"
-            ? (sampleIndex % 2 === 0 ? coolStone : darkRock)
-            : (sampleIndex % 2 === 0 ? warmCobble : goldenCobble);
+        const baseColor = compiledRoute.route.id === "cliffside-coastal-walk" || compiledRoute.route.id === "village-harbor"
+          ? (sampleIndex % 2 === 0 ? coolStone : darkRock)
+          : (sampleIndex % 2 === 0 ? warmCobble : goldenCobble);
         appendStone(
           x,
           z,
@@ -927,12 +930,14 @@ export class WorldScene {
       }
     }
 
-    // A few broader apron-edge stones make the three intentional junctions
+    // A few broader apron-edge stones make the intentional junctions
     // read as places where traffic has worn the meadow back, not as circular
     // decals stamped on top of it.
     for (const [junctionIndex, junction] of WorldLayout.routeJunctions().entries()) {
-      const stoneCount = junction.surface === "village-market" ? 12 : 5;
-      const edgeRadius = junction.radiusMeters + junction.blendLengthMeters * 0.78;
+      const stoneCount = junction.surface === "village-market"
+        ? 8
+        : junction.surface === "landmark-gateway" ? 4 : 5;
+      const edgeRadius = junction.radiusMeters + junction.blendLengthMeters * 0.86;
       for (let index = 0; index < stoneCount; index++) {
         const angle = index * 2.399963 + junctionIndex * 0.83;
         const radius = edgeRadius + Math.sin(index * 1.71 + junctionIndex) * 0.22;
@@ -947,6 +952,32 @@ export class WorldScene {
           index + junctionIndex * 41
         );
       }
+    }
+
+    const warmPaver = new THREE.Color(PALETTE_HEX.stone_warm_01);
+    const goldenPaver = new THREE.Color(PALETTE_HEX.stone_golden_01);
+    for (const [paverIndex, paver] of generateFarmPathPaverSamples().entries()) {
+      const groundHeight = WorldLayout.terrainHeight(paver.x, paver.z);
+      const normal = WorldLayout.terrainNormal(paver.x, paver.z);
+      const slab = new THREE.CylinderGeometry(paver.radius, paver.radius * 0.94, paver.height, paver.sides);
+      slab.scale(1, 1, paver.depth / Math.max(0.08, paver.radius));
+      const alignQuat = new THREE.Quaternion().setFromUnitVectors(up, normal);
+      const yawQuat = new THREE.Quaternion().setFromAxisAngle(normal, paver.rotationY);
+      slab.applyQuaternion(yawQuat.multiply(alignQuat));
+      slab.translate(paver.x, groundHeight + paver.height * 0.42, paver.z);
+      const nonIndexed = slab.index ? slab.toNonIndexed() : slab;
+      if (nonIndexed !== slab) slab.dispose();
+      const count = nonIndexed.getAttribute("position").count;
+      const vColors = new Float32Array(count * 3);
+      const color = paver.token === "stone_warm_01" ? warmPaver : goldenPaver;
+      for (let vertex = 0; vertex < count; vertex++) {
+        const facetVariation = 0.94 + (Math.sin(paverIndex * 1.31 + vertex * 1.17) * 0.5 + 0.5) * 0.09;
+        vColors[vertex * 3] = color.r * facetVariation;
+        vColors[vertex * 3 + 1] = color.g * facetVariation;
+        vColors[vertex * 3 + 2] = color.b * facetVariation;
+      }
+      nonIndexed.setAttribute("color", new THREE.BufferAttribute(vColors, 3));
+      stoneGeometries.push(nonIndexed);
     }
 
     const mergedStones = mergeGeometries(stoneGeometries, false);
@@ -1157,7 +1188,7 @@ export class WorldScene {
       WorldLayout.terrainHeight(workbenchAnchor.x, workbenchAnchor.z),
       workbenchAnchor.z
     );
-    workbench.rotation.y = workbenchAnchor.rotationY;
+    workbench.rotation.y = getProcessingStationRuntimeRotationY("struct.workbench");
     this.environmentGroup.add(workbench);
 
     const compostAnchor = starterStructureAnchor("struct.starter_compost")!;
@@ -1167,7 +1198,7 @@ export class WorldScene {
       WorldLayout.terrainHeight(compostAnchor.x, compostAnchor.z),
       compostAnchor.z
     );
-    compost.rotation.y = compostAnchor.rotationY;
+    compost.rotation.y = getProcessingStationRuntimeRotationY("struct.starter_compost");
     this.environmentGroup.add(compost);
 
     const fishTable = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishTable);
@@ -1176,7 +1207,7 @@ export class WorldScene {
       WorldLayout.terrainHeight(HARBOR_FISH_TABLE.position.x, HARBOR_FISH_TABLE.position.z),
       HARBOR_FISH_TABLE.position.z
     );
-    fishTable.rotation.y = HARBOR_FISH_TABLE.rotationY;
+    fishTable.rotation.y = getProcessingStationRuntimeRotationY(HARBOR_FISH_TABLE.structureId);
     this.environmentGroup.add(fishTable);
 
     const produceStall = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.produceStall);

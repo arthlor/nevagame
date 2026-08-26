@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { WORLD_BOUNDS, WORLD_LAYOUT_V3, WorldLayout } from "../../world/WorldLayout";
+import { WORLD_BOUNDS, WORLD_LAYOUT_V5, WorldLayout } from "../../world/WorldLayout";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 
@@ -31,7 +31,7 @@ function deterministicUnit(index: number, salt: number): number {
 /** Deterministic broken coastal wash; river banks deliberately stay foam-free. */
 export function buildShoreFoamPatches(): ShoreFoamPatch[] {
   const patches: ShoreFoamPatch[] = [];
-  const mouth = WORLD_LAYOUT_V3.riverMouth;
+  const mouth = WORLD_LAYOUT_V5.riverMouth;
   const openingHalfWidth = WorldLayout.riverHalfWidth(mouth.z) + 6.5;
   let index = 0;
   for (

@@ -4,13 +4,20 @@ import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepo
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { Simulation } from "../../src/simulation/Simulation";
-import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
+import {
+  CURRENT_SCHEMA_VERSION,
+  validateSaveEnvelope,
+  type SaveEnvelope
+} from "../../src/persistence/SaveSchema";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
 import { HARBOR_DOCK, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import saveV11Layout3 from "../fixtures/save_v11_layout3.json";
+import saveV12Layout4 from "../fixtures/save_v12_layout4.json";
+import saveV13Layout5 from "../fixtures/save_v13_layout5.json";
 
 function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
   const factory = globalThis.indexedDB as unknown as {
@@ -83,6 +90,10 @@ describe("Persistence & Offline Progression", () => {
       expect(state.metadata.lastSavedUtcMs).toBe(lastSavedUtcMs);
       expect(await repo.loadGame()).toBeNull();
       expect(await repo.loadGameResult()).toEqual({ status: "unavailable" });
+      expect(await repo.inspectGame()).toEqual({
+        result: { status: "unavailable" },
+        summary: null
+      });
     } finally {
       if (previous !== undefined) {
         (globalThis as { indexedDB: IDBFactory }).indexedDB = previous;
@@ -109,6 +120,17 @@ describe("Persistence & Offline Progression", () => {
 
       const saveSuccess = await repo.saveGame(state);
       expect(saveSuccess).toBe(true);
+
+      const inspection = await repo.inspectGame();
+      expect(inspection.result.status).toBe("loaded");
+      expect(inspection.summary).toMatchObject({
+        dayCount: state.clock.dayCount,
+        season: state.clock.season,
+        year: state.clock.year,
+        regionId: state.player.currentRegionId,
+        money: 550,
+        savedAtUtcMs: state.metadata.lastSavedUtcMs
+      });
 
       const loaded = await repo.loadGame();
       expect(loaded).not.toBeNull();
@@ -526,6 +548,137 @@ describe("Persistence & Offline Progression", () => {
       isGrounded: true
     });
     expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates the v11 layout fixture by re-grounding land truth and preserving unrelated state", () => {
+    const legacy = structuredClone(saveV11Layout3) as unknown as SaveEnvelope;
+    const preserved = {
+      playerX: legacy.state.player.x,
+      playerZ: legacy.state.player.z,
+      playerRotationY: legacy.state.player.rotationY,
+      proficiencies: structuredClone(legacy.state.player.proficiencies),
+      crops: structuredClone(legacy.state.crops),
+      inventories: structuredClone(legacy.state.inventories),
+      fishCargo: structuredClone(legacy.state.fishCargo),
+      markets: structuredClone(legacy.state.markets),
+      quests: structuredClone(legacy.state.quests),
+      boats: structuredClone(legacy.state.boats),
+      rngState: legacy.state.metadata.rngState
+    };
+    const migrated = migrateSaveData(legacy);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toMatchObject({
+      x: preserved.playerX,
+      z: preserved.playerZ,
+      rotationY: preserved.playerRotationY
+    });
+    expect(migrated.state.player.proficiencies).toEqual(preserved.proficiencies);
+    expect(migrated.state.player.y).toBeCloseTo(
+      WorldLayout.terrainHeight(preserved.playerX, preserved.playerZ) + 0.5,
+      6
+    );
+    const structure = migrated.state.world.structures["struct.fixture_workbench"];
+    expect(structure).toMatchObject({ x: -48, z: -60, rotationY: 0.75 });
+    expect(structure.y).toBeCloseTo(WorldLayout.terrainHeight(-48, -60), 6);
+    expect(migrated.state.crops).toEqual(preserved.crops);
+    expect(migrated.state.inventories).toEqual(preserved.inventories);
+    expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
+    expect(migrated.state.markets).toEqual(preserved.markets);
+    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+  });
+
+  it("migrates the v12 layout fixture by moving the mill and preserving unrelated state", () => {
+    const legacy = structuredClone(saveV12Layout4) as unknown as SaveEnvelope;
+    const preserved = {
+      playerX: legacy.state.player.x,
+      playerZ: legacy.state.player.z,
+      playerRotationY: legacy.state.player.rotationY,
+      millRotationY: legacy.state.world.structures["struct.starter_mill"].rotationY,
+      workbench: structuredClone(legacy.state.world.structures["struct.fixture_workbench"]),
+      crops: structuredClone(legacy.state.crops),
+      rngState: legacy.state.metadata.rngState
+    };
+    const mill = starterStructureAnchor("struct.starter_mill")!;
+    const migrated = migrateSaveData(legacy);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toMatchObject({
+      x: preserved.playerX,
+      z: preserved.playerZ,
+      rotationY: preserved.playerRotationY
+    });
+    expect(migrated.state.world.structures["struct.starter_mill"]).toMatchObject({
+      x: mill.x,
+      z: mill.z,
+      rotationY: preserved.millRotationY
+    });
+    expect(migrated.state.world.structures["struct.starter_mill"].y).toBeCloseTo(
+      WorldLayout.terrainHeight(mill.x, mill.z),
+      6
+    );
+    expect(migrated.state.world.structures["struct.fixture_workbench"]).toMatchObject({
+      x: preserved.workbench.x,
+      z: preserved.workbench.z,
+      rotationY: preserved.workbench.rotationY
+    });
+    expect(migrated.state.crops).toEqual(preserved.crops);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+  });
+
+  it("migrates the v13 layout fixture by moving the mill off the packed plaza", () => {
+    const legacy = structuredClone(saveV13Layout5) as unknown as SaveEnvelope;
+    const preserved = {
+      playerX: legacy.state.player.x,
+      playerZ: legacy.state.player.z,
+      playerRotationY: legacy.state.player.rotationY,
+      millRotationY: legacy.state.world.structures["struct.starter_mill"].rotationY,
+      workbench: structuredClone(legacy.state.world.structures["struct.fixture_workbench"]),
+      crops: structuredClone(legacy.state.crops),
+      rngState: legacy.state.metadata.rngState
+    };
+    const mill = starterStructureAnchor("struct.starter_mill")!;
+    const migrated = migrateSaveData(legacy);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toMatchObject({
+      x: preserved.playerX,
+      z: preserved.playerZ,
+      rotationY: preserved.playerRotationY
+    });
+    expect(migrated.state.world.structures["struct.starter_mill"]).toMatchObject({
+      x: mill.x,
+      z: mill.z,
+      rotationY: preserved.millRotationY
+    });
+    expect(migrated.state.world.structures["struct.starter_mill"].y).toBeCloseTo(
+      WorldLayout.terrainHeight(mill.x, mill.z),
+      6
+    );
+    expect(migrated.state.world.structures["struct.fixture_workbench"]).toMatchObject({
+      x: preserved.workbench.x,
+      z: preserved.workbench.z,
+      rotationY: preserved.workbench.rotationY
+    });
+    expect(migrated.state.crops).toEqual(preserved.crops);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+  });
+
+  it("leaves active-boat waterline and player height unchanged in the v12 layout migration", () => {
+    const legacy = structuredClone(saveV11Layout3) as unknown as SaveEnvelope;
+    legacy.state.player.activeBoatId = "boat.fixture";
+    legacy.state.player.y = 0.5;
+    const boatBefore = structuredClone(legacy.state.boats["boat.fixture"]);
+    const migrated = migrateSaveData(legacy);
+
+    expect(migrated.state.player.y).toBe(0.5);
+    expect(migrated.state.boats["boat.fixture"]).toEqual(boatBefore);
   });
 
 

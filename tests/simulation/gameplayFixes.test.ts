@@ -862,6 +862,7 @@ describe("Gameplay simulation fixes", () => {
   it("migrates a v9 save by inserting the starter fish-table and lifting y=0 stations", () => {
     const legacy = structuredClone(createInitialGameState());
     legacy.schemaVersion = 9;
+    legacy.world.layoutRevision = 3;
     delete legacy.world.structures[HARBOR_FISH_TABLE.structureId];
     legacy.world.structures["struct.workbench"].y = 0;
     const envelope = { schemaVersion: 9, savedAtUtcMs: 1, state: legacy };
@@ -880,7 +881,7 @@ describe("Gameplay simulation fixes", () => {
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 
-  it("resetPlayerToSafeSpawn teleports character to the revision 3 farm spawn, docks active boat, and clears fishing", () => {
+  it("resetPlayerToSafeSpawn teleports character to the revision 4 farm spawn, docks active boat, and clears fishing", () => {
     // 1. Teleport from remote on-foot position
     sim.state.player.x = 999;
     sim.state.player.y = -50;

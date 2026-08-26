@@ -3,13 +3,16 @@
 
 > **Role:** Visual source of truth for 3D art, environment design, technical art, lighting, materials, animation, UI-world relationship, and visual QA.
 > **Graphics reference lock:** `coastal_lighthouse_cliff_1787253807104.jpg`, `cozy_farmstead_plot_1787253754847.jpg`, `maritime_dock_props_1787253788406.jpg`, and `rustic_timber_bridge_1787253770645.jpg` define **rendering/asset graphics only**. They do **not** define world layout, level composition, camera angle, diorama/tabletop presentation, depth of field, tilt-shift, staging, prop placement, or scene borders. Gameplay/world architecture remains authoritative.
+>
+> **Two evidence classes:** (1) diorama/gold stills (`art/references/art-reference.png` and the four bible lock images) remain graphics-only and do not define world layout, camera, or staging; (2) isolated studio sheets under `tools/blender/references/isolated/` may inform **that one asset’s** silhouette, proportions, component counts, and construction language. Neither class is a pixel-copy target. Style-match the construction language; do not copy diorama pixels.
 
 # 0. Global Visual Grammar
 
 Target: a **continuous playable premium stylized low-poly coastal world** with:
 ```text
 chunky authored geometry
-visible controlled faceting + broad planar faces
+visible controlled faceting + broad planar forms
+selectively smoothed traversable ground whose macro landforms remain stylized
 large readable shape breaks
 selective small bevels/chamfers
 texture-light low-frequency surfaces
@@ -51,7 +54,8 @@ Use trapezoids, wedges, softened boxes, faceted cylinders, irregular low-sided f
 
 Facet scale:
 ```text
-hero rocks/terrain: large visible planes
+traversable terrain: broad landforms/color regions; never a regular triangle grid
+cliffs/cuts/hero landforms: large visible planes
 buildings: broad surfaces + shaped edges
 wood props: low-segment forms + readable chamfers
 foliage: angular clustered masses
@@ -63,10 +67,15 @@ Faceting must look intentional, not accidentally triangulated.
 Selective bevel/chamfer: typically **2–5 cm world-space equivalent** on doors, beams, crates, furniture, hull edges, major stones, dock posts, roof trim. Do not bevel every tiny object.
 
 Shading:
-- flat/strongly faceted: terrain, rocks, many props, foliage, clouds, stylized water;
+- smooth/selectively smoothed: walkable grass/soil/path surfaces where exposed mesh topology would dominate; retain authored macro breaks through geometry, material fields, and bounded normal transitions;
+- flat/strongly faceted: cliffs, terrain cuts, exposed banks, rocks, hero landforms, many props, foliage, clouds, stylized water;
 - minimal/selective smoothing: walls/boards, hull curves, rounded tools/barrels/ropes where silhouette benefits;
 - hard-edged: planks, roofs, doors, stone blocks, crates, docks, fences, beams, stairs.
 Never smooth away plane language.
+
+Normal continuity may cross triangulation edges that do not represent an authored feature. It must stop or transition deliberately at authored ridges, terraces, banks, cuts, cliffs, rock shelves, and other intentional landform breaks. The rule is feature-aware continuity, not globally smooth terrain.
+
+For ground, the visual unit is the **hill, mound, bank, terrace, shelf, cut, or route corridor**—not each triangle. A terrain mesh fails when regular topology reads as a checkerboard/folded-cardboard pattern from the gameplay camera, even if every triangle is technically flat shaded. Selective smoothing is not permission for featureless subdivision-smooth hills; macro geometry and material transitions must still carry the low-poly identity.
 
 Controlled asymmetry: slight roof offsets, unequal planks, beam variation, crooked fence, uneven stones, subtle lean. Functional, not random.
 
@@ -194,6 +203,68 @@ Allowed variation is semantic and system-driven: time of day, season, weather, i
 
 **Outlines are prohibited in normal world rendering:** no inverted-hull outlines, toon/ink contours, Sobel edge outlines, or black polygon-edge rendering. Shape separation comes from geometry, value/color blocks, lighting, AO/contact, and silhouette. Debug selection/highlight outlines are allowed only as temporary/contextual UI feedback.
 
+# 7.2 Ground Surface, Roads, Cover & Contact
+
+Treat the landscape as one coordinated five-layer system:
+
+```text
+authored landform geometry
+→ semantic surface/material fields
+→ route/farm/shore/disturbance influence
+→ clustered ground cover
+→ lighting, AO/contact and weather response
+```
+
+The layers must agree spatially. A road cannot suppress grass at one width while its dirt surface, terrain grading, map projection, and collision use unrelated widths. A shoreline cannot darken the terrain without also guiding appropriate reeds/stones/foam. Presentation signals are deterministically derived from the authored world-layout owners defined in `01`; they never become gameplay truth.
+
+## 7.2.1 Terrain Form & Three Scales of Variation
+
+Use authored meso landforms rather than indiscriminate height noise: shallow depressions, shelves, humps, banks, route cuts, terrace changes, and flattened working ground. The regular terrain grid must not be legible as the dominant pattern.
+
+Ground richness uses three restrained scales:
+- **macro:** district/landform-scale warm, cool, dry, fertile, valley, and coastal shifts;
+- **meso:** the primary visible breakup—broad grass, worn ground, moisture, soil exposure, and roughness patches;
+- **fine:** very subtle shared tonal/roughness breakup only; never photographic grain or micro-normal noise.
+
+Exact meter bands belong in `VisualRenderConfig`/the owning implementation brief and must be tuned at the gameplay camera. Use only as many frequencies as remain visibly purposeful. Terrain identity should read as `macro landform + broad palette regions + meso material patches + physical cover`, not `one green + random polygon noise`.
+
+## 7.2.2 Semantic Surface Blending
+
+One canonical ground-surface system resolves approved palette families such as grass/sage/olive, warm/damp soil, path dust, sand, wet shore, riverbed, and coastal stone. Blend from authored semantics plus terrain normal/slope, height where meaningful, route/farm/shore influence, bounded world-space variation, and system-owned weather. Do not create unrelated per-zone ground materials.
+
+The terrain material/shader is a specialization that consumes the canonical palette, renderer conditions, geometry, and derived surface fields. It must not own a second terrain vocabulary, route network, shoreline model, or gameplay state.
+
+Slope transitions expose earth/stone progressively on terrain that visually reads as a bank, cut, shelf, or cliff. Use broad filtered transitions with bounded deterministic irregularity; never visible contour bands or a universal angle table blindly applied to every district. Traversable slopes can remain grass-dominant while steep/exposed formations retain strong faceting and rock/soil identity.
+
+A compact control texture is allowed, but not mandated. Analytic fields, mesh attributes, or chunk data are equally valid when they preserve a single source, filtering, inspectability, determinism, and performance. Channel meanings/resolution are implementation contracts, not Art Bible constants.
+
+## 7.2.3 Roads as Worked Ground
+
+Roads are authored route corridors, not clean orange ribbons or visibly floating planes. Different route kinds use human-scale widths and a readable cross-section:
+
+```text
+grass → irregular shoulder/grass intrusion → compacted edge → worn core/ruts
+```
+
+They conform to and subtly grade the land, with crown/depression, wear, soft shoulders, occasional contextual stones, and controlled irregularity. Steep routes may form a small cut or bench instead of wrapping over every terrain fluctuation. A separate surface mesh is acceptable only when it shares the canonical route/profile owner, follows the terrain, feathers into it, avoids z-fighting/visible slab thickness, and cannot drift from terrain/cover/collision semantics. Any deformation that materially changes the walkable surface follows `01`'s canonical height/collision contract; cosmetic-only displacement must remain visually and physically negligible. Do not require a shader-only road solution when the existing shared route system satisfies the visual contract.
+
+## 7.2.4 Clustered Ground Cover
+
+Ground cover is distributed by deterministic semantic density, not uniform scatter. Density responds to meadow/soil/shore/slope/route/farm/building/landmark clearances and preserves authored breathing room. Use a hierarchy:
+- short chunky grass as the common low silhouette;
+- medium clumps as patch structure;
+- tall meadow/reeds only in selected wet edges, depressions, borders, and unused shoulders.
+
+Cluster palette variation by patch/area (sage, olive, yellow-green, shadow green, dry straw-green), not independent random color per blade. Repeated cover uses instancing/batching, distance/quality-tier culling, bounded variants, and little or no dynamic shadow casting. Large clumps and world anchors still need soft contact grounding; do not add a dark blob under every blade.
+
+Increase perceived coverage before raw instance count: use broader cheap clumps, clustered patch rhythm, coordinated palette/value regions, distance-aware density, and preserved open ground. Never pursue another game's vegetation count literally; the scene budgets and gameplay-camera result own the decision.
+
+## 7.2.5 Shore & Weather Continuity
+
+Land-to-water transitions read as `dry ground → darker vegetation → wet soil/stone → reeds/pebbles where appropriate → shallow water → deeper water`. Foam is contextual around obstacles, supports, fast water, wakes, and exposed coast—not a uniform calm-river outline.
+
+Precipitation wetness is a shared render response: palette-preserving darkening plus bounded roughness/specular change, smoothed over time and controlled centrally. It must not make the world glossy/plastic, recolor protected non-ground surfaces accidentally, or mutate soil moisture/gameplay state.
+
 # 8. Water, Waves, Shoreline & Foam
 
 Water is a hero system: **faceted, layered, blue-green, clean, moderately reflective, low-frequency, animated, browser-efficient**.
@@ -221,7 +292,7 @@ Shoreline: shallow-water band + wet-ground value shift + simple foam + contextua
 
 Trees: trunk + few branch cues + several irregular low-sided faceted crown clusters. Avoid spherical blobs/high-density leaf cards. Important species: **3 minimum silhouette variants, 5 preferred**; vary height/lean/spread/crown count/width/trunk thickness/warm-cool greens. Conifers use layered angular wedge/cone masses.
 
-Grass: terrain color + sparse instanced chunky clumps + selected taller meadow/reed patches. Broad blades/angular cards; no hair grass. Use yellow-green highlights + olive/sage shadows.
+Grass: terrain color + clustered instanced chunky short cover + selected medium/taller meadow/reed patches. Broad blades/angular cards; no hair grass. Use yellow-green highlights + olive/sage shadows, with patch-level palette grouping and semantic suppression around roads/buildings/farms/steep exposed ground.
 
 Flowers: sparse clustered white/soft yellow + occasional warm red/orange; never uniform rainbow scatter.
 
@@ -249,7 +320,7 @@ Starter farm: small/personal/imperfect/peaceful/productive/expandable; one hero 
 
 Village: curved paths, courtyards, clusters, terminus landmarks, changing widths/elevations; no perfect grid.
 
-Paths: used-looking soft dirt curves with wider intersections/edge grass/occasional stones; cobble uses large stylized stones, not thousands of tiny ones.
+Paths: used-looking soft dirt curves with route-appropriate width, shaped intersections, compacted/worn cores, soft shoulders, edge-grass intrusion, subtle terrain grading, and occasional stones; cobble uses large stylized stones, not thousands of tiny ones.
 
 Density rhythm: quiet farm low-medium; village medium; harbor medium-high; offshore very low.
 
@@ -403,7 +474,7 @@ Do not use SSIM/LPIPS thresholds between compositionally different reference ima
 ## Asset Gate
 - catalog/schema/palette validation passes; generator, seed and required nodes are declared;
 - supplied/reference evidence is represented by a valid non-shallow `referenceAuthoring` brief whose hierarchy, critical features, parameter bindings, hidden-surface confidence, failure modes, and review views survive implementation;
-- every generator/helper parameter consumed by the asset exists in its catalog entry, and all assets impacted by shared authored-construction changes generate successfully before human visual approval;
+- every generator/helper parameter consumed by the asset exists in its catalog entry with no silent `params.get(..., default)` for primary structure, and all assets impacted by shared authored-construction changes generate successfully before human visual approval;
 - recognizable at gameplay distance; real-world scale + stylized proportion;
 - strong silhouette + intentional facets + appropriate facet scale;
 - deliberate smoothing/bevels; no unnecessary micro-detail;
@@ -416,10 +487,10 @@ Do not use SSIM/LPIPS thresholds between compositionally different reference ima
 - graphics plausibly belong beside references without copying layout/presentation.
 
 ## Scene Gate
-Hero landmark; readable route; authored clusters + breathing room; large/medium/small rhythm; foreground/midground/background; varied repetition; farming/fishing identity; polished water/shore; grounded lighting; atmospheric depth; controlled palette/accents; no gameplay-blocking clutter; distinctive screenshot even without UI.
+Hero landmark; readable route; authored clusters + breathing room; large/medium/small rhythm; foreground/midground/background; varied repetition; farming/fishing identity; terrain topology subordinate to landforms; roads/cover/shore semantics aligned; polished water/shore; grounded lighting; atmospheric depth; controlled palette/accents; no gameplay-blocking clutter; distinctive screenshot even without UI.
 
 ## Automatic Rejection
-Reject raw asset-store look, primitive/un-authored forms, excessive smoothness, accidental tiny triangulation, photo textures, plastic gloss, scale inconsistency, too many materials, noisy textures, one bright green everywhere, identical trees, missing farm/maritime identity, generic blue-glass water, realistic particle-mist foam, toon/ink/black edge outlines, dependence on DOF/tilt-shift, copied reference layout, per-scene exposure/tone-map hacks, or performance-budget failure.
+Reject raw asset-store look, primitive/un-authored forms, featureless smooth terrain, regular terrain triangles dominating the image, accidental tiny triangulation, hard road/grass ribbons, binary green/water seams, evenly random ground cover, photo textures, plastic gloss, scale inconsistency, too many materials, noisy textures, one bright green everywhere, identical trees, missing farm/maritime identity, generic blue-glass water, realistic particle-mist foam, toon/ink/black edge outlines, dependence on DOF/tilt-shift, copied reference layout, per-scene exposure/tone-map hacks, or performance-budget failure.
 
 **Anti-AI-slop:** never fix weak composition by adding more barrels/crates/flowers/signs/lights/fences/particles/ornaments. Improve silhouette, spacing, proportion, material, lighting, landmark.
 
@@ -432,7 +503,7 @@ Screenshot test: beside ten low-poly cozy games, ours should be identifiable. If
 # 21. Production Order & Art Vertical-Slice Gate
 
 Order:
-1. **Visual language:** grass/soil/water/rock/tree/grass tuft/wood/plaster/stone.
+1. **Visual language:** selectively smoothed traversable ground + faceted cliffs/cuts, semantic grass/soil/path/shore blending, clustered cover, water, rock/tree/grass tuft/wood/plaster/stone.
 2. **Starter farm:** farmhouse/field/fence/crate/basket/watering can/compost/well-barrel/path.
 3. **Harbor:** dock/rowboat/fish market/warehouse/nets/rack/buoys/rope/crates.
 4. **Fishing:** rod/chum/skiff/fish/school splash/gulls/hooks.
@@ -456,9 +527,9 @@ Dynamic shadow casters remain strictly limited. The upper values are ceilings, n
 Optimize in order: invisible geometry → material duplication → excessive texture resolution → distant LOD → tiny details. Do not immediately weaken hero silhouette.
 
 Quality modes:
-- High: full shadows/foliage, better water, higher LOD distance.
-- Medium: reduced shadows/grass, standard water.
-- Low: few shadows, simplified water, lower foliage density, shorter LOD.
+- High: full approved cover density/shadows, better water, higher LOD distance.
+- Medium: reduced cover draw distance/density and shadows, standard water; retain semantic patches/route/shore transitions.
+- Low: few shadows, simplified water, lower cover density/shorter LOD; retain landform silhouette, surface ownership, road shoulders, and shoreline continuity.
 Core silhouette/palette remain unchanged.
 
 Lighting fails if bases float, facets disappear, roof/wall merge, wood crushes black, plaster/foam clips, materials share one highlight response, shadows are unintentionally razor-hard, AO dirties edges, water over-glosses, or warm/cool separation disappears.

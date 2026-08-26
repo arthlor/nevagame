@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CANONICAL_RENDER_CONFIG } from "../render/config/VisualRenderConfig";
 import { PALETTE_HEX, type PaletteToken } from "../render/materials/PaletteTokens";
 import {
   STARTER_FARM_LAYOUT,
@@ -8,8 +9,13 @@ import {
   type FarmPathKind
 } from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_MARKET, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
-import { buildOrganicRoadGeometry } from "./RoadGeometry";
+import { HARBOR_DOCK, HARBOR_MARKET, RIVER_CROSSING, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
+import {
+  buildOrganicRoadGeometry,
+  sampleRoadCrossSection,
+  type RoadCrossSectionSample
+} from "./RoadGeometry";
+import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
 
 export interface WorldBounds {
   minX: number;
@@ -95,7 +101,7 @@ export interface WorldRouteJunction {
   radiusMeters: number;
   /** Soft apron extension used by terrain, surface weights, and road geometry. */
   blendLengthMeters: number;
-  surface: "field" | "farm-yard" | "village-market";
+  surface: "field" | "farm-yard" | "village-market" | "landmark-gateway";
   routeIds: readonly string[];
 }
 
@@ -110,12 +116,13 @@ export interface WorldRouteProfile {
 }
 
 export interface WorldLayoutDescriptor {
-  revision: 3;
+  revision: 6;
   anchors: {
     starterFarm: WorldPoint;
     playerSpawn: WorldPoint;
     privateHomestead: WorldPoint;
     villageMarket: WorldPoint;
+    riverCrossing: WorldPoint;
     bridge: WorldPoint;
     lighthouse: WorldPoint;
     fishMarket: WorldPoint;
@@ -229,6 +236,8 @@ const BRIDGE_EAST_APPROACH_END = Object.freeze({
   x: BRIDGE_EAST_DECK_EDGE.x + BRIDGE_WORLD_PROFILE.approachLength,
   z: BRIDGE_CENTER.z
 });
+const LIGHTHOUSE_GATEWAY = Object.freeze({ x: -92, z: 74 });
+const STARTER_MILL_WORLD = starterStructureAnchor("struct.starter_mill")!;
 
 const starterFarmEntryPath = STARTER_FARM_LAYOUT.paths.find((path) => path.id === "farm-entry");
 const STARTER_FARM_YARD_GATE = farmLocalToWorld(
@@ -236,6 +245,11 @@ const STARTER_FARM_YARD_GATE = farmLocalToWorld(
   starterFarmEntryPath?.points.at(-1) ?? { x: 7.4, z: -8.4 }
 );
 
+/**
+ * Regional routes are reserved for a gameplay destination, a named landmark,
+ * or a deliberate connection between those places. Unanchored scenic spurs
+ * belong in authored ground composition, not in the walkable road network.
+ */
 export const WORLD_ROUTES: readonly WorldRoute[] = [
   {
     id: "farm-village",
@@ -252,6 +266,11 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       BRIDGE_CENTER,
       BRIDGE_EAST_DECK_EDGE,
       BRIDGE_EAST_APPROACH_END,
+      RIVER_CROSSING,
+      { x: 14, z: -16 },
+      { x: 26, z: -26 },
+      { x: 38, z: -36 },
+      { x: 46, z: -44 },
       VILLAGE_MARKET.position
     ],
     linearSegmentIndices: [4, 5, 6, 7]
@@ -262,9 +281,8 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     kind: "lane",
     widthMeters: 3.1,
     points: [
-      { x: 0, z: -5 },
-      { x: 18, z: -16 },
-      { x: 37, z: -34 },
+      VILLAGE_MARKET.position,
+      { x: 57, z: -56 },
       { x: 60, z: -60 }
     ]
   },
@@ -274,10 +292,11 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     kind: "arterial",
     widthMeters: 4.2,
     points: [
-      { x: 0, z: -5 },
-      { x: 19, z: 11 },
-      { x: 38, z: 31 },
-      { x: 55, z: 49 },
+      VILLAGE_MARKET.position,
+      { x: 56, z: -28 },
+      { x: 58, z: -4 },
+      { x: 60, z: 20 },
+      { x: 62, z: 44 },
       HARBOR_MARKET.position
     ]
   },
@@ -287,27 +306,14 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     kind: "lane",
     widthMeters: 3.2,
     points: [
-      { x: 0, z: -5 },
+      VILLAGE_MARKET.position,
+      { x: 38, z: -36 },
+      { x: 18, z: -20 },
+      RIVER_CROSSING,
       { x: -20, z: 14 },
       { x: -43, z: 34 },
       { x: -68, z: 54 },
-      { x: -92, z: 74 }
-    ]
-  },
-  {
-    id: "riverbank-trail",
-    scope: "regional",
-    kind: "trail",
-    widthMeters: 2.4,
-    points: [
-      { x: -20, z: -138 },
-      { x: -17, z: -104 },
-      { x: -14, z: -70 },
-      { x: -10, z: -38 },
-      { x: -5, z: -12 },
-      { x: 5, z: 22 },
-      { x: 16, z: 50 },
-      { x: 26, z: 73 }
+      LIGHTHOUSE_GATEWAY
     ]
   },
   {
@@ -323,20 +329,6 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 22, z: 62 },
       { x: 47, z: 58 },
       HARBOR_MARKET.position
-    ]
-  },
-  {
-    id: "orchard-path",
-    scope: "regional",
-    kind: "trail",
-    widthMeters: 2.2,
-    points: [
-      { x: 60, z: -60 },
-      { x: 70, z: -52 },
-      { x: 73, z: -39 },
-      { x: 63, z: -31 },
-      { x: 51, z: -39 },
-      { x: 54, z: -58 }
     ]
   }
 ] as const;
@@ -379,22 +371,47 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   {
     id: "village-market",
     center: VILLAGE_MARKET.position,
-    radiusMeters: 4.2,
-    blendLengthMeters: 2.0,
+    radiusMeters: 9.2,
+    blendLengthMeters: 2.8,
     surface: "village-market",
     routeIds: ["farm-village", "village-homestead", "village-harbor", "village-lighthouse"]
+  },
+  {
+    id: "river-crossing",
+    center: RIVER_CROSSING,
+    radiusMeters: 3.2,
+    blendLengthMeters: 1.4,
+    surface: "landmark-gateway",
+    routeIds: ["farm-village", "village-lighthouse"]
+  },
+  {
+    id: "lighthouse-gateway",
+    center: LIGHTHOUSE_GATEWAY,
+    radiusMeters: 2.65,
+    blendLengthMeters: 1.35,
+    surface: "landmark-gateway",
+    routeIds: ["village-lighthouse", "cliffside-coastal-walk"]
+  },
+  {
+    id: "harbor-market-gateway",
+    center: HARBOR_MARKET.position,
+    radiusMeters: 3.25,
+    blendLengthMeters: 1.45,
+    surface: "landmark-gateway",
+    routeIds: ["village-harbor", "cliffside-coastal-walk"]
   }
 ];
 
-export const WORLD_LAYOUT_V3: WorldLayoutDescriptor = {
-  revision: 3,
+export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
+  revision: 6,
   anchors: {
     starterFarm: STARTER_FARM_LAYOUT.origin,
     playerSpawn: WORLD_SPAWN.playerPosition,
     privateHomestead: { x: 60, z: -60 },
     villageMarket: VILLAGE_MARKET.position,
+    riverCrossing: RIVER_CROSSING,
     bridge: BRIDGE_CENTER,
-    lighthouse: { x: -92, z: 74 },
+    lighthouse: LIGHTHOUSE_GATEWAY,
     fishMarket: HARBOR_MARKET.position,
     harborDock: HARBOR_DOCK.boatPosition
   },
@@ -824,7 +841,7 @@ export class WorldLayout {
 
   /** Low-frequency authored influence shared by the river mouth's visual systems. */
   public static estuaryInfluence(x: number, z: number): number {
-    const mouth = WORLD_LAYOUT_V3.riverMouth;
+    const mouth = WORLD_LAYOUT_V5.riverMouth;
     const longitudinal = z < mouth.z
       ? 1 - smoothstep(16, 30, mouth.z - z)
       : 1 - smoothstep(25, 39, z - mouth.z);
@@ -855,8 +872,8 @@ export class WorldLayout {
 
   public static isBridgeDeck(x: number, z: number): boolean {
     return (
-      Math.abs(x - BRIDGE_CENTER.x) <= BRIDGE_HALF_SPAN &&
-      Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.5
+      Math.abs(x - BRIDGE_CENTER.x) <= BRIDGE_HALF_SPAN + 0.000001 &&
+      Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 0.000001
     );
   }
 
@@ -978,7 +995,7 @@ export class WorldLayout {
     if (coastDistance > 0) {
       const nearshoreShelf = coastProfile.rockShelf * (1 - smoothstep(0.2, 8, coastDistance)) * 0.28;
       const coastalShelf = -0.48 + nearshoreShelf - Math.min(16, coastDistance * 0.11);
-      const mouth = WORLD_LAYOUT_V3.riverMouth;
+      const mouth = WORLD_LAYOUT_V5.riverMouth;
       const channelCrossSection = 1 - smoothstep(
         this.riverHalfWidth(z) - 0.8,
         this.riverHalfWidth(z) + 3.8,
@@ -1027,9 +1044,10 @@ export class WorldLayout {
 
     height = this.applyPlateau(height, x, z, 1.2, -65, -55, 17, 13.5, 9);
     height = this.applyPlateau(height, x, z, 1.16, -57, -53.5, 7.5, 7.0, 6.5);
-    height = this.applyPlateau(height, x, z, 2.05, 0, -5, 7.5, 6.4, 7.5);
-    height = this.applyPlateau(height, x, z, 6.25, 60, -60, 11, 10, 8.5);
-    height = this.applyPlateau(height, x, z, 6.6, 54, -58, 7.2, 7.2, 6.5);
+    height = this.applyPlateau(height, x, z, 2.05, RIVER_CROSSING.x, RIVER_CROSSING.z, 5.5, 5.0, 6.5);
+    height = this.applyPlateau(height, x, z, 6.4, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z, 18, 16, 11);
+    height = this.applyPlateau(height, x, z, 6.3, 60, -60, 9, 8, 8);
+    height = this.applyPlateau(height, x, z, 6.5, STARTER_MILL_WORLD.x, STARTER_MILL_WORLD.z, 7.2, 7.2, 6.5);
     height = this.applyPlateau(height, x, z, 1.05, 68, 64, 7.5, 5.5, 5.5);
     height = this.applyPlateau(height, x, z, 13.6, -92, 74, 7.4, 5.8, 8.5);
     height = this.applyPlateau(height, x, z, 0.0, FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z, 4.5, 3.8, 2.0);
@@ -1073,8 +1091,8 @@ export class WorldLayout {
     return height;
   }
 
-  /** Final shared terrain height consumed by rendering and Rapier. */
-  public static terrainHeight(x: number, z: number): number {
+  /** Graded landform without the exact worked-road relief collider. */
+  public static terrainBaseHeight(x: number, z: number): number {
     const naturalHeight = this.naturalTerrainHeight(x, z);
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
@@ -1105,10 +1123,47 @@ export class WorldLayout {
       gradingRadius,
       route.distance
     );
-    const desiredDelta = corridorAverage - profile.rutDepthMeters * 0.25 - naturalHeight;
+    const desiredDelta = corridorAverage - naturalHeight;
     const cappedDelta = THREE.MathUtils.clamp(desiredDelta, -0.45, 0.45);
     const junctionBlend = routeJunctionInfluence(x, z) * 0.18;
     return naturalHeight + cappedDelta * Math.max(lateralBlend, junctionBlend) * profile.gradingStrength;
+  }
+
+  public static roadSurfaceSample(x: number, z: number): RoadCrossSectionSample {
+    const route = this.nearestRouteDistance(x, z);
+    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
+    const sample = sampleRoadCrossSection({
+      routeId: route.route.id,
+      routeKind: route.route.kind,
+      profile,
+      halfWidthMeters: route.halfWidth,
+      lateralDistanceMeters: route.distance,
+      distanceAlongRouteMeters: route.distanceAlongRoute
+    });
+    if (
+      route.distance >= route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters * 0.78
+      || this.waterSignedDistance(x, z) > -0.2
+      || this.isInterior(x, z)
+      || this.isBridgeDeck(x, z)
+    ) {
+      return { ...sample, surfaceOffsetMeters: 0 };
+    }
+    const bridgeGatewayDistance = Math.abs(x - BRIDGE_CENTER.x) - BRIDGE_HALF_SPAN;
+    const bridgeGatewayBlend =
+      bridgeGatewayDistance >= 0
+      && bridgeGatewayDistance < BRIDGE_WORLD_PROFILE.gatewayDepthMeters
+      && Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + profile.terrainFeatherMeters
+        ? smoothstep(0, BRIDGE_WORLD_PROFILE.gatewayDepthMeters, bridgeGatewayDistance)
+        : 1;
+    return {
+      ...sample,
+      surfaceOffsetMeters: sample.surfaceOffsetMeters * bridgeGatewayBlend
+    };
+  }
+
+  /** Final canonical terrain height, including physical worked-road relief. */
+  public static terrainHeight(x: number, z: number): number {
+    return this.terrainBaseHeight(x, z) + this.roadSurfaceSample(x, z).surfaceOffsetMeters;
   }
 
   public static terrainNormal(x: number, z: number, sampleDistance: number = 0.45): THREE.Vector3 {
@@ -1238,10 +1293,10 @@ export class WorldLayout {
     const route = this.nearestRouteDistance(x, z);
     const dryRoute = waterDistance < -0.2 ? 1 : 0;
 
-    // Village marketplace plaza opening at [0, -5]
+    // Village marketplace plaza on the northeast hub
     // Moderate terrain tint — provides a warm buffer zone so the overlay ribbon edges blend in
     const distToVillageMarket = Math.hypot(x - VILLAGE_MARKET.position.x, z - VILLAGE_MARKET.position.z);
-    const villagePlaza = (1 - smoothstep(3.0, 9.0, distToVillageMarket)) * dryRoute * 0.48;
+    const villagePlaza = (1 - smoothstep(7.0, 16.0, distToVillageMarket)) * dryRoute * 0.48;
 
     // Terrain-level path warmth uses the same compiled centerline and width as
     // the visible ribbon. A second, unrelated width wobble makes the road edge
@@ -1319,7 +1374,7 @@ export class WorldLayout {
   }
 
   public static landmark(id: LandmarkId): LandmarkLayout {
-    const mill = starterStructureAnchor("struct.starter_mill")!;
+    const mill = STARTER_MILL_WORLD;
     const farmhouse = starterFarmsteadAnchor("farmhouse")!;
     const well = starterFarmsteadAnchor("well")!;
     const layouts: Record<LandmarkId, Omit<LandmarkLayout, "id">> = {
@@ -1334,7 +1389,13 @@ export class WorldLayout {
         scale: HARBOR_MARKET.scale
       },
       lighthouse: { x: -92, z: 74, yOffset: 0, rotationY: 0.08, scale: 0.58 },
-      windmill: { x: mill.x, z: mill.z, yOffset: 0, rotationY: mill.rotationY, scale: 0.62 },
+      windmill: {
+        x: mill.x,
+        z: mill.z,
+        yOffset: 0,
+        rotationY: getProcessingStationRuntimeRotationY("struct.starter_mill"),
+        scale: 0.62
+      },
       "produce-stall": {
         x: VILLAGE_MARKET.position.x,
         z: VILLAGE_MARKET.position.z,
@@ -1347,35 +1408,30 @@ export class WorldLayout {
     return { id, ...layouts[id] };
   }
 
-  public static terrainHeightfield(): Float32Array {
+  private static buildTerrainHeightfield(heightAt: (x: number, z: number) => number): Float32Array {
     const samples = new Float32Array((TERRAIN_RESOLUTION + 1) * (TERRAIN_RESOLUTION + 1));
-    // The visible bridge deck is intentionally narrower than the coarse
-    // heightfield cells. Feather its support only across the bridge span so a
-    // Rapier triangle cannot turn the deck edge into a one-cell cliff before
-    // the catalog-backed bridge collision takes over.
-    const bridgeSupportStart = BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 0.22;
-    const bridgeSupportEnd = bridgeSupportStart + BRIDGE_WORLD_PROFILE.lateralBlendWidth * 0.42;
     for (let row = 0; row <= TERRAIN_RESOLUTION; row++) {
       for (let column = 0; column <= TERRAIN_RESOLUTION; column++) {
         // Rapier lays heightfield rows along X and columns along Z. Keeping
         // this order aligned with terrainHeight prevents transposed slopes.
         const x = (row / TERRAIN_RESOLUTION - 0.5) * TERRAIN_SIZE_METERS;
         const z = (column / TERRAIN_RESOLUTION - 0.5) * TERRAIN_SIZE_METERS;
-        // The bridge GLB owns the visible crowned deck and its catalog
-        // collision owns the walkable surface. Carry its entry height through
-        // the coarse terrain cells so Rapier cannot expose the riverbed seam
-        // before the first deck collision box.
-        const baseHeight = this.terrainHeight(x, z);
-        const withinBridgeSpan = x >= BRIDGE_WEST_DECK_EDGE.x && x <= BRIDGE_EAST_DECK_EDGE.x;
-        const lateralSupport = withinBridgeSpan
-          ? 1 - smoothstep(bridgeSupportStart, bridgeSupportEnd, Math.abs(z - BRIDGE_CENTER.z))
-          : 0;
-        samples[row * (TERRAIN_RESOLUTION + 1) + column] = this.isBridgeDeck(x, z)
-          ? BRIDGE_WORLD_PROFILE.entrySurfaceY
-          : THREE.MathUtils.lerp(baseHeight, BRIDGE_WORLD_PROFILE.entrySurfaceY, lateralSupport);
+        // Do not synthesize a bridge deck into the terrain collider. The
+        // catalog bridge collision is the sole physical deck authority.
+        samples[row * (TERRAIN_RESOLUTION + 1) + column] = heightAt(x, z);
       }
     }
     return samples;
+  }
+
+  /** Canonical sampled heightfield used by diagnostics and layout tests. */
+  public static terrainHeightfield(): Float32Array {
+    return this.buildTerrainHeightfield((x, z) => this.terrainHeight(x, z));
+  }
+
+  /** Coarse Rapier landform; the exact road surface is a separate shared trimesh. */
+  public static terrainBaseHeightfield(): Float32Array {
+    return this.buildTerrainHeightfield((x, z) => this.terrainBaseHeight(x, z));
   }
 
   private static tokenColor(token: PaletteToken): THREE.Color {
@@ -1414,11 +1470,11 @@ export class WorldLayout {
       indexedPositions.setY(index, this.terrainHeight(x, z));
     }
     indexedPositions.needsUpdate = true;
-    const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
-    if (geometry !== indexed) indexed.dispose();
-    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const colors = new Float32Array(positions.count * 3);
-    const terrainGreenMask = new Uint8Array(positions.count);
+    indexed.computeVertexNormals();
+    const indexedNormals = indexed.getAttribute("normal") as THREE.BufferAttribute;
+    const indexedColors = new Float32Array(indexedPositions.count * 3);
+    const indexedTerrainGreenMask = new Uint8Array(indexedPositions.count);
+    const indexedFaceting = new Float32Array(indexedPositions.count);
     const palette: Record<keyof TerrainSurfaceWeights, THREE.Color> = {
       grass: this.tokenColor("foliage_sage_01"),
       meadow: this.tokenColor("grass_yellow_01"),
@@ -1432,22 +1488,14 @@ export class WorldLayout {
       cliff: this.tokenColor("stone_cool_01")
     };
 
-    const a = new THREE.Vector3();
-    const b = new THREE.Vector3();
-    const c = new THREE.Vector3();
-    const center = new THREE.Vector3();
-    const faceNormal = new THREE.Vector3();
-    const edgeA = new THREE.Vector3();
-    const edgeB = new THREE.Vector3();
-    for (let index = 0; index < positions.count; index += 3) {
-      a.fromBufferAttribute(positions, index);
-      b.fromBufferAttribute(positions, index + 1);
-      c.fromBufferAttribute(positions, index + 2);
-      center.copy(a).add(b).add(c).multiplyScalar(1 / 3);
-      edgeA.copy(b).sub(a);
-      edgeB.copy(c).sub(a);
-      faceNormal.crossVectors(edgeA, edgeB).normalize();
-      const weights = this.terrainSurfaceWeights(center.x, center.z, Math.abs(faceNormal.y));
+    const normalPolicy = CANONICAL_RENDER_CONFIG.terrainSurface.normals;
+    for (let index = 0; index < indexedPositions.count; index++) {
+      const x = indexedPositions.getX(index);
+      const z = indexedPositions.getZ(index);
+      const normalX = indexedNormals.getX(index);
+      const normalY = Math.abs(indexedNormals.getY(index));
+      const normalZ = indexedNormals.getZ(index);
+      const weights = this.terrainSurfaceWeights(x, z, normalY);
       const protectedSurfaceWeight =
         weights.drySoil
         + weights.dampSoil
@@ -1467,25 +1515,89 @@ export class WorldLayout {
         color.b += palette[key].b * weight;
       }
       const broadVariation =
-        Math.sin(center.x * 0.027 + center.z * 0.019) * 0.024
-        + Math.sin(center.x * 0.011 - center.z * 0.034 + 1.2) * 0.018;
-      const aspectVariation = faceNormal.x * 0.026 - faceNormal.z * 0.018;
-      const topPlaneWarmth = smoothstep(0.82, 0.99, Math.abs(faceNormal.y)) * 0.014;
+        Math.sin(x * 0.027 + z * 0.019) * 0.024
+        + Math.sin(x * 0.011 - z * 0.034 + 1.2) * 0.018;
+      const aspectVariation = normalX * 0.026 - normalZ * 0.018;
+      const topPlaneWarmth = smoothstep(0.82, 0.99, normalY) * 0.014;
       const facetVariation = THREE.MathUtils.clamp(
         0.975 + broadVariation + aspectVariation + topPlaneWarmth,
         0.91,
         1.07
       );
       color.multiplyScalar(facetVariation);
-      for (let vertex = 0; vertex < 3; vertex++) {
-        colors.set([color.r, color.g, color.b], (index + vertex) * 3);
-        terrainGreenMask[index + vertex] = greenMask;
-      }
+      indexedColors.set([color.r, color.g, color.b], index * 3);
+      indexedTerrainGreenMask[index] = greenMask;
+      const slopeFaceting = 1 - smoothstep(
+        normalPolicy.fullyFacetedNormalY,
+        normalPolicy.continuityStartNormalY,
+        normalY
+      );
+      const semanticFaceting = smoothstep(
+        normalPolicy.cliffWeightStart,
+        normalPolicy.cliffWeightFull,
+        weights.cliff
+      );
+      indexedFaceting[index] = Math.max(slopeFaceting, semanticFaceting);
     }
 
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute("terrainGreenMask", new THREE.Uint8BufferAttribute(terrainGreenMask, 1, true));
-    geometry.computeVertexNormals();
+    indexed.setAttribute("color", new THREE.BufferAttribute(indexedColors, 3));
+    indexed.setAttribute(
+      "terrainGreenMask",
+      new THREE.Uint8BufferAttribute(indexedTerrainGreenMask, 1, true)
+    );
+    indexed.setAttribute("terrainFaceting", new THREE.BufferAttribute(indexedFaceting, 1));
+
+    const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
+    if (geometry !== indexed) indexed.dispose();
+    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+    const normals = geometry.getAttribute("normal") as THREE.BufferAttribute;
+    const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
+    const faceting = geometry.getAttribute("terrainFaceting") as THREE.BufferAttribute;
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const edgeA = new THREE.Vector3();
+    const edgeB = new THREE.Vector3();
+    const faceNormal = new THREE.Vector3();
+    const blendedNormal = new THREE.Vector3();
+    const faceColor = new THREE.Color();
+    const vertexColor = new THREE.Color();
+    for (let index = 0; index < positions.count; index += 3) {
+      a.fromBufferAttribute(positions, index);
+      b.fromBufferAttribute(positions, index + 1);
+      c.fromBufferAttribute(positions, index + 2);
+      edgeA.copy(b).sub(a);
+      edgeB.copy(c).sub(a);
+      faceNormal.crossVectors(edgeA, edgeB).normalize();
+      faceColor.setRGB(
+        (colors.getX(index) + colors.getX(index + 1) + colors.getX(index + 2)) / 3,
+        (colors.getY(index) + colors.getY(index + 1) + colors.getY(index + 2)) / 3,
+        (colors.getZ(index) + colors.getZ(index + 1) + colors.getZ(index + 2)) / 3
+      );
+      const faceValue = THREE.MathUtils.clamp(
+        0.985 + faceNormal.x * 0.026 - faceNormal.z * 0.018,
+        0.94,
+        1.06
+      );
+      faceColor.multiplyScalar(faceValue);
+      for (let vertex = 0; vertex < 3; vertex++) {
+        const vertexIndex = index + vertex;
+        const facetingWeight = clamp01(faceting.getX(vertexIndex));
+        blendedNormal
+          .set(normals.getX(vertexIndex), normals.getY(vertexIndex), normals.getZ(vertexIndex))
+          .lerp(faceNormal, facetingWeight)
+          .normalize();
+        normals.setXYZ(vertexIndex, blendedNormal.x, blendedNormal.y, blendedNormal.z);
+        vertexColor
+          .setRGB(colors.getX(vertexIndex), colors.getY(vertexIndex), colors.getZ(vertexIndex))
+          .lerp(faceColor, facetingWeight * normalPolicy.facetedColorBlend);
+        colors.setXYZ(vertexIndex, vertexColor.r, vertexColor.g, vertexColor.b);
+      }
+    }
+    normals.needsUpdate = true;
+    colors.needsUpdate = true;
+    geometry.deleteAttribute("terrainFaceting");
+    geometry.userData.terrainNormalPolicy = { ...normalPolicy };
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     return geometry;

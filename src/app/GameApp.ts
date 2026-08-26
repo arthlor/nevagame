@@ -7,16 +7,17 @@ import { Simulation } from "../simulation/Simulation";
 import { WorldScene, type BoatPresentationInput } from "../render/scene/WorldScene";
 import { GameCamera } from "../render/camera/GameCamera";
 import { InputRouter } from "../input/InputRouter";
-import { IndexedDbSaveRepository } from "../persistence/IndexedDbSaveRepository";
+import { IndexedDbSaveRepository, type LoadGameResult } from "../persistence/IndexedDbSaveRepository";
 import { GameAction, MarketId, ProcessingJobState, FishCargoState } from "../simulation/core/types";
 import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { GameUI } from "../ui/GameUI";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
+import { ASSET_CATALOG } from "../render/assets/AssetCatalog";
 import { AssetLoader } from "../render/loaders/AssetLoader";
 import { applyOfflineProgression } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
-import { getAssetCoverageSummary } from "../render/assets/AssetCoverage";
+import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { WorldLayout } from "../world/WorldLayout";
 import {
@@ -61,6 +62,7 @@ import {
   type PresentedPlayerFrame
 } from "../render/presentation/PlayerPresentationBuffer";
 import { assessProcessingStationApproach } from "../world/ProcessingStationApproach";
+import { createStartupState, type StartupState } from "./StartupState";
 
 interface FishingHoldInput {
   isReeling: boolean;
@@ -86,6 +88,8 @@ type DebugStartScenario =
   | "boat-driving"
   | "sport-fishing";
 
+type StartupIntent = "continue" | "new-game" | "without-saving";
+
 const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "farm",
   "farm-art",
@@ -97,6 +101,19 @@ const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "boat-driving",
   "sport-fishing"
 ]);
+
+const EMPTY_ASSET_COVERAGE_SUMMARY: AssetCoverageSummary = {
+  total: 0,
+  byDisposition: {
+    "static-world": 0,
+    "dynamic-world": 0,
+    "conditional-world": 0,
+    "progression-world": 0,
+    "reserve": 0
+  },
+  freshSaveVisible: 0,
+  records: []
+};
 
 const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
   bridge: {
@@ -130,9 +147,9 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
     fovDegrees: 47
   },
   village: {
-    playerPose: { x: 0, y: 2.2, z: -5, rotationY: 0 },
-    cameraPosition: { x: 19, y: 11, z: 12 },
-    cameraTarget: { x: 0, y: 1.8, z: -5 },
+    playerPose: { x: VILLAGE_MARKET.position.x, y: 6.8, z: VILLAGE_MARKET.position.z + 7, rotationY: Math.PI },
+    cameraPosition: { x: VILLAGE_MARKET.position.x + 20, y: 16.5, z: VILLAGE_MARKET.position.z + 24 },
+    cameraTarget: { x: VILLAGE_MARKET.position.x, y: 3.6, z: VILLAGE_MARKET.position.z },
     fovDegrees: 48
   },
   "farmhouse-interior": {
@@ -230,11 +247,16 @@ export class GameApp {
   private benchmarkLightingFocus: THREE.Vector3 | null = null;
   private benchmarkPresentationTimeSeconds: number | null = null;
   private persistenceDisabled: boolean = false;
+  private bootReady: boolean = false;
+  private startupState: StartupState = createStartupState(ASSET_CATALOG.length);
+  private startupPromise: Promise<void> | null = null;
+  private savePreflightPromise: Promise<LoadGameResult> | null = null;
+  private startupIntent: StartupIntent = "continue";
   private durableWritesEnabled: boolean = false;
   private saveRecoveryReason: "corrupt" | "unavailable" | null = null;
   private readonly movementIntent = { x: 0, z: 0 };
   private readonly playerPresentation = new PlayerPresentationBuffer();
-  private readonly assetCoverage = getAssetCoverageSummary();
+  private assetCoverage: AssetCoverageSummary = EMPTY_ASSET_COVERAGE_SUMMARY;
   private lastPresentedPlayer: PresentedPlayerFrame | null = null;
   private lastBoatMotion: Readonly<Record<string, BoatMotionSample>> = {};
   private lockedInteractionTarget: ResolvedInteractionTarget | null = null;
@@ -280,6 +302,8 @@ export class GameApp {
     document.addEventListener("visibilitychange", this.onVisibilityChange);
 
     this.setupInputHandlers();
+    this.syncOverlayState();
+    this.renderUI();
   }
 
   private get mode(): GameplayMode {
@@ -301,8 +325,13 @@ export class GameApp {
   }
 
   private syncOverlayState(): void {
-    this.sim.clock.setPaused(this.benchmarkView || this.modeController.pausesSimulation);
-    this.inputRouter.setWorldInputSuspended(this.modeController.blocksWorldInput || this.benchmarkView);
+    const startupBlocksInput = this.startupState.status !== "ready";
+    this.sim.clock.setPaused(
+      startupBlocksInput || this.benchmarkView || this.modeController.pausesSimulation
+    );
+    this.inputRouter.setWorldInputSuspended(
+      startupBlocksInput || this.modeController.blocksWorldInput || this.benchmarkView
+    );
     if (this.modeController.blocksWorldInput) this.cancelDoorTransition();
     if (this.activeModal !== "market") this.activeMarketId = null;
   }
@@ -325,32 +354,148 @@ export class GameApp {
     const debugStart = debugStartParameter && DEBUG_START_SCENARIOS.has(debugStartParameter as DebugStartScenario)
       ? debugStartParameter as DebugStartScenario
       : null;
+    const shouldAutoStart = import.meta.env.DEV && (
+      query.has("debug") || Boolean(benchmarkPreset) || Boolean(debugStart)
+    );
+
     this.persistenceDisabled = Boolean(benchmarkPreset || debugStart);
-    // 1. Try loading existing save. Never keep a silent writable new game
-    // over a failed/unreadable slot — that would let autosave wipe it.
-    if (!this.persistenceDisabled) {
-      const loaded = await this.saveRepo.loadGameResult();
-      if (loaded.status === "loaded") {
-        applyOfflineProgression(loaded.envelope.state, Date.now());
-        this.sim = new Simulation(loaded.envelope.state);
-        this.attachSimulationFeedback();
-        this.durableWritesEnabled = true;
-        this.requestAutosave();
+    this.startupState = createStartupState(ASSET_CATALOG.length);
+    this.bootReady = false;
+    this.startupIntent = "continue";
+    this.startupPromise = null;
+    this.savePreflightPromise = null;
+    this.durableWritesEnabled = false;
+    this.saveRecoveryReason = null;
+    this.isRunning = true;
+    this.lastTimeMs = performance.now();
+    this.lastAutosaveMs = this.lastTimeMs;
+    if (this.persistenceDisabled) {
+      // Development-only sessions intentionally bypass persistence and the
+      // title screen is bypassed as well, so no save inspection is needed.
+      this.startupState = {
+        ...this.startupState,
+        saveStatus: "empty"
+      };
+    } else {
+      // This is a save-slot inspection only. It does not instantiate the
+      // loaded Simulation, request GLBs, create physics, or advance time.
+      this.savePreflightPromise = this.preflightSave();
+    }
+    this.onResize();
+    this.syncOverlayState();
+    this.renderUI();
+    requestAnimationFrame(this.loop);
 
-        this.modeController.restoreFromState(loaded.envelope.state);
-        this.inputRouter.setMode(this.mode);
-        this.sim.clock.setPaused(false);
-        this.syncOverlayState();
+    if (shouldAutoStart) this.beginLoading();
+  }
 
-        console.info("[GameApp] Loaded existing game save from IndexedDB.");
-      } else if (loaded.status === "empty") {
-        this.durableWritesEnabled = true;
-      } else {
-        this.durableWritesEnabled = false;
-        this.saveRecoveryReason = loaded.status;
-        this.modeController.open("new-game-confirm");
-        this.syncOverlayState();
+  public beginLoading(userInitiated = false, intent: StartupIntent = "continue"): void {
+    if (this.startupPromise || this.startupState.status !== "title") return;
+
+    this.startupIntent = intent;
+    this.bootReady = false;
+    this.startupState = {
+      ...this.startupState,
+      status: "loading",
+      phase: "save",
+      loadedAssets: 0,
+      message: "Reading your harbor log",
+      errorMessage: null
+    };
+    this.syncOverlayState();
+    this.renderUI();
+    // Browsers reject an autoplay audio-context resume unless this came from
+    // the title button (or another real user gesture). Debug URLs auto-boot
+    // without a gesture, so leave audio dormant until the first input.
+    if (userInitiated) void gameAudio.unlock();
+
+    this.startupPromise = this.prepareRuntime().catch((error: unknown) => {
+      this.handleStartupFailure(error);
+    });
+  }
+
+  private async preflightSave(): Promise<LoadGameResult> {
+    try {
+      const inspection = await this.saveRepo.inspectGame();
+      if (this.isRunning) {
+        this.updateStartupState({
+          saveStatus: inspection.result.status === "loaded" ? "available" : inspection.result.status,
+          saveSummary: inspection.summary
+        });
       }
+      return inspection.result;
+    } catch (error) {
+      console.error("[GameApp] Save preflight failed:", error);
+      if (this.isRunning) {
+        this.updateStartupState({
+          saveStatus: "unavailable",
+          saveSummary: null
+        });
+      }
+      return { status: "unavailable" };
+    }
+  }
+
+  private async resolveSavePreflight(): Promise<LoadGameResult> {
+    if (!this.savePreflightPromise) {
+      this.savePreflightPromise = this.preflightSave();
+    }
+    return this.savePreflightPromise;
+  }
+
+  private async prepareRuntime(): Promise<void> {
+    const query = new URLSearchParams(window.location.search);
+    const benchmarkPreset = import.meta.env.DEV ? query.get("artView") : null;
+    const debugStartParameter = import.meta.env.DEV ? query.get("debugStart") : null;
+    const debugStart = debugStartParameter && DEBUG_START_SCENARIOS.has(debugStartParameter as DebugStartScenario)
+      ? debugStartParameter as DebugStartScenario
+      : null;
+
+    const saveResult = this.persistenceDisabled
+      ? { status: "empty" } as const
+      : await this.resolveSavePreflight();
+    const shouldStartNewGame = this.startupIntent === "new-game";
+    const shouldPlayWithoutSaving = this.startupIntent === "without-saving";
+    const shouldCreateInitialSave = !this.persistenceDisabled &&
+      (shouldStartNewGame || saveResult.status === "empty");
+
+    // A Continue action consumes the already-inspected, migrated, validated
+    // envelope. New Game never constructs from it and never writes over it
+    // until the new world has finished loading and is ready to play.
+    if (!this.persistenceDisabled && !shouldStartNewGame && !shouldPlayWithoutSaving && saveResult.status === "loaded") {
+      applyOfflineProgression(saveResult.envelope.state, Date.now());
+      this.sim = new Simulation(saveResult.envelope.state);
+      this.attachSimulationFeedback();
+      this.durableWritesEnabled = true;
+      this.requestAutosave();
+
+      this.modeController.restoreFromState(saveResult.envelope.state);
+      this.inputRouter.setMode(this.mode);
+      this.sim.clock.setPaused(false);
+      this.syncOverlayState();
+
+      console.info("[GameApp] Loaded existing game save from IndexedDB.");
+    } else if (this.persistenceDisabled || shouldPlayWithoutSaving) {
+      this.durableWritesEnabled = false;
+      this.saveRecoveryReason = null;
+    } else if (shouldStartNewGame) {
+      this.durableWritesEnabled = saveResult.status !== "unavailable";
+      this.saveRecoveryReason = null;
+      this.modeController.restoreFromState(this.sim.state);
+      this.inputRouter.setMode(this.mode);
+      this.syncOverlayState();
+    } else if (saveResult.status === "empty") {
+      this.durableWritesEnabled = true;
+    } else {
+      // Keep the existing recovery path as a last-resort guard if storage
+      // changes between preflight and startup or a caller bypasses the title.
+      if (saveResult.status !== "corrupt" && saveResult.status !== "unavailable") {
+        throw new Error(`Unexpected save preflight status: ${saveResult.status}`);
+      }
+      this.durableWritesEnabled = false;
+      this.saveRecoveryReason = saveResult.status;
+      this.modeController.open("new-game-confirm");
+      this.syncOverlayState();
     }
 
     if (debugStart) this.applyDebugStartScenario(debugStart);
@@ -409,18 +554,72 @@ export class GameApp {
       this.syncOverlayState();
     }
 
-    // 2. Preload 3D assets
-    await Promise.all([AssetLoader.preloadAll(), this.worldScene.ready(this.sim.state.worldSeed)]);
+    this.updateStartupState({
+      phase: "assets",
+      loadedAssets: 0,
+      message: "Unpacking the shoreline"
+    });
+    await AssetLoader.preloadAll((progress) => {
+      this.updateStartupState({
+        phase: "assets",
+        loadedAssets: progress.completed,
+        totalAssets: progress.total,
+        message: `Unpacking the shoreline · ${progress.completed} of ${progress.total}`
+      });
+    });
+
+    this.updateStartupState({ phase: "world", message: "Waking the harbor" });
+    await this.worldScene.ready(this.sim.state.worldSeed);
+
+    this.updateStartupState({ phase: "physics", message: "Setting the paths" });
     this.physicsWorld = await PhysicsWorld.create(this.worldScene.staticCollisionProxies());
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
+    this.assetCoverage = getAssetCoverageSummary(this.sim.state.worldSeed);
+    // Resolve the initial target before exposing boot-ready state. This keeps
+    // contextual prompts usable on the first interactive frame after the
+    // deferred world/physics boot completes.
+    this.evaluateInteractionTarget();
 
-    // 3. Start render loop
-    this.isRunning = true;
-    this.lastTimeMs = performance.now();
-    this.lastAutosaveMs = this.lastTimeMs;
-    this.onResize();
-    requestAnimationFrame(this.loop);
+    this.updateStartupState({
+      status: "revealing",
+      phase: "complete",
+      loadedAssets: this.startupState.totalAssets,
+      message: "Almost ready"
+    });
+    await new Promise<void>((resolve) => setTimeout(resolve, 520));
+    if (!this.isRunning) return;
+
+    this.bootReady = true;
+    this.updateStartupState({ status: "ready" });
+    if (shouldCreateInitialSave && this.durableWritesEnabled) {
+      this.requestAutosave();
+    }
   }
+
+  private updateStartupState(update: Partial<StartupState>): void {
+    this.startupState = { ...this.startupState, ...update };
+    this.syncOverlayState();
+    this.renderUI();
+  }
+
+  private handleStartupFailure(error: unknown): void {
+    if (!this.isRunning) return;
+    console.error("[GameApp] Deferred startup failed:", error);
+    this.bootReady = false;
+    this.startupState = {
+      ...this.startupState,
+      status: "error",
+      message: "We couldn’t prepare the world. Try again.",
+      errorMessage: "We couldn’t prepare the world. Try again."
+    };
+    this.syncOverlayState();
+    this.renderUI();
+  }
+
+  private retryStartup = (): void => {
+    if (this.startupState.status !== "error") return;
+    window.location.reload();
+  };
 
   private applyDebugStartScenario(scenario: DebugStartScenario): void {
     const poseFor = (x: number, z: number, rotationY: number = 0) => ({
@@ -486,6 +685,7 @@ export class GameApp {
 
   private setupInputHandlers(): void {
     this.inputRouter.onAction((action: GameAction) => {
+      if (this.startupState.status !== "ready") return;
       if (this.modeController.blocksHudOverlaysAndTools && action !== "pause") return;
       switch (action) {
         case "interact":
@@ -668,6 +868,16 @@ export class GameApp {
       this.fps = Math.round(this.frameCount / this.fpsTimer);
       this.frameCount = 0;
       this.fpsTimer = 0;
+    }
+
+    // Keep the title/loading layer responsive while save data, GLBs, world
+    // population, and physics finish. Only the static scene is rendered until
+    // the authoritative runtime is ready; no simulation time advances.
+    if (!this.bootReady) {
+      this.worldScene.render(this.gameCamera.camera);
+      this.renderUI();
+      requestAnimationFrame(this.loop);
+      return;
     }
 
     // Apply mouse orbit before fixed-step movement so simultaneous WASD uses
@@ -2235,6 +2445,12 @@ export class GameApp {
           this.sim.spawnFishSchool(point.habitatId, point.x, point.z, [point.speciesId]);
         },
         assetCoverage: this.assetCoverage,
+        startup: this.startupState,
+        onStart: () => this.beginLoading(true, "continue"),
+        onStartNewGame: () => this.beginLoading(true, "new-game"),
+        onStartWithoutSaving: () => this.beginLoading(true, "without-saving"),
+        onRetry: this.retryStartup,
+        bootReady: this.bootReady,
         screenFade: this.doorTransitionFade
       })
     );

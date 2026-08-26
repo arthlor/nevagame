@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { starterFarmsteadAnchor } from "../../src/world/FarmLayout";
 
+const e2eBaseUrl = process.env.NEVA_E2E_BASE_URL ?? "http://127.0.0.1:3000";
+
 interface PlayerPosition {
   x: number;
   y: number;
@@ -44,6 +46,7 @@ async function loadScenario(
   const diagnostics = page.getByTestId("diagnostics");
   await expect(diagnostics).toBeVisible({ timeout: 20_000 });
   await expect(diagnostics).toHaveAttribute("data-mode", /.+/);
+  await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 60_000 });
   return diagnostics;
 }
 
@@ -85,7 +88,7 @@ async function findValidPlacementPoint(page: Page, diagnostics: Locator) {
 test.describe("Neva control, physics, camera, and interaction foundation", () => {
   test.beforeEach(({ page }) => {
     test.setTimeout(120_000);
-    page.on("pageerror", (error) => console.error(`[browser pageerror] ${error.message}`));
+    page.on("pageerror", (error) => console.error(`[browser pageerror] ${error.stack ?? error.message}`));
     page.on("console", (message) => {
       if (message.type() === "error") console.error(`[browser console] ${message.text()}`);
     });
@@ -267,7 +270,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     const shouldRecord = process.env.NEVA_MOTION_RECORD === "1";
     if (shouldRecord) fs.mkdirSync(outputDirectory, { recursive: true });
     const context = await browser.newContext({
-      baseURL: "http://localhost:3000",
+      baseURL: e2eBaseUrl,
       viewport: { width: 1280, height: 720 },
       recordVideo: shouldRecord
         ? { dir: outputDirectory, size: { width: 1280, height: 720 } }

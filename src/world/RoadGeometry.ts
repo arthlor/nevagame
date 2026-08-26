@@ -28,9 +28,28 @@ export interface OrganicRoadGeometryOptions {
   isBridgeDeck: (x: number, z: number) => boolean;
 }
 
+export interface RoadCrossSectionInput {
+  routeId: string;
+  routeKind: WorldRouteKind;
+  profile: Readonly<WorldRouteProfile>;
+  halfWidthMeters: number;
+  lateralDistanceMeters: number;
+  distanceAlongRouteMeters: number;
+}
+
+export interface RoadCrossSectionSample {
+  normalizedCoreDistance: number;
+  crownMeters: number;
+  wheelWearMeters: number;
+  wheelBand: number;
+  shoulderAmount: number;
+  edgeGrassAmount: number;
+  surfaceOffsetMeters: number;
+}
+
 const TRANSVERSE_OFFSETS = [
-  -1, -0.96, -0.84, -0.66, -0.44, -0.22, 0,
-  0.22, 0.44, 0.66, 0.84, 0.96, 1
+  -1, -0.97, -0.9, -0.78, -0.62, -0.42, -0.21, -0.14, 0,
+  0.14, 0.21, 0.42, 0.62, 0.78, 0.9, 0.97, 1
 ] as const;
 
 function paletteColor(token: keyof typeof PALETTE_HEX): THREE.Color {
@@ -44,6 +63,67 @@ function clamp01(value: number): number {
 function smoothstep(edge0: number, edge1: number, value: number): number {
   const amount = clamp01((value - edge0) / Math.max(0.0001, edge1 - edge0));
   return amount * amount * (3 - 2 * amount);
+}
+
+function stableRoutePhase(routeId: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < routeId.length; index++) {
+    hash ^= routeId.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return ((hash >>> 0) / 0xffffffff) * Math.PI * 2;
+}
+
+/**
+ * Canonical worked-road relief. The result is deterministic from authored
+ * route identity and distance, is symmetric across the centerline, and never
+ * drops below the graded terrain base used by the coarse Rapier heightfield.
+ */
+export function sampleRoadCrossSection(input: RoadCrossSectionInput): RoadCrossSectionSample {
+  const lateralDistance = Math.abs(input.lateralDistanceMeters);
+  const packedHalfWidth = Math.max(0.0001, input.halfWidthMeters);
+  const shoulderHalfWidth = packedHalfWidth + input.profile.shoulderWidthMeters;
+  const featherHalfWidth = shoulderHalfWidth + input.profile.terrainFeatherMeters * 0.78;
+  const normalizedCoreDistance = clamp01(lateralDistance / packedHalfWidth);
+  const shoulderAmount = smoothstep(
+    packedHalfWidth * 0.72,
+    shoulderHalfWidth,
+    lateralDistance
+  );
+  const edgeGrassAmount = smoothstep(
+    shoulderHalfWidth * 0.72,
+    featherHalfWidth,
+    lateralDistance
+  ) * 0.9;
+  const phase = stableRoutePhase(input.routeId);
+  const wheelBandCenter = 0.34
+    + Math.sin(input.distanceAlongRouteMeters * 0.075 + phase) * 0.018;
+  const wheelBandShape = input.routeKind === "trail"
+    ? Math.exp(-Math.pow(normalizedCoreDistance / 0.34, 2)) * 0.4
+    : Math.exp(-Math.pow((normalizedCoreDistance - wheelBandCenter) / 0.105, 2));
+  const crownMeters = Math.pow(1 - normalizedCoreDistance, 1.42) * input.profile.crownMeters;
+  const wheelWearMeters = wheelBandShape
+    * input.profile.rutDepthMeters
+    * (input.routeKind === "trail" ? 0.22 : 0.72);
+  const shoulderDropMeters = smoothstep(
+    packedHalfWidth * 0.84,
+    shoulderHalfWidth,
+    lateralDistance
+  ) * input.profile.shoulderDropMeters;
+  const feather = 1 - smoothstep(
+    shoulderHalfWidth * 0.72,
+    featherHalfWidth,
+    lateralDistance
+  );
+  return {
+    normalizedCoreDistance,
+    crownMeters,
+    wheelWearMeters,
+    wheelBand: input.routeKind === "trail" ? 0.07 : wheelBandShape * 0.2,
+    shoulderAmount,
+    edgeGrassAmount,
+    surfaceOffsetMeters: Math.max(0, crownMeters - wheelWearMeters - shoulderDropMeters) * feather
+  };
 }
 
 function normalize2D(x: number, z: number): WorldPoint {
@@ -63,14 +143,11 @@ function blendColors(
   base: THREE.Color,
   warm: THREE.Color,
   dry: THREE.Color,
-  grass: THREE.Color,
-  shoulderAmount: number,
-  grassAmount: number
+  shoulderAmount: number
 ): THREE.Color {
   return base.clone()
-    .lerp(warm, shoulderAmount * 0.72)
-    .lerp(dry, shoulderAmount * 0.2)
-    .lerp(grass, grassAmount);
+    .lerp(warm, shoulderAmount * 0.58)
+    .lerp(dry, shoulderAmount * 0.12);
 }
 
 function outwardDirections(
@@ -100,21 +177,44 @@ function outwardDirections(
   return [tangent, { x: -tangent.x, z: -tangent.z }];
 }
 
-function junctionReach(
-  angle: number,
-  directions: readonly WorldPoint[],
-  radius: number,
-  blendLength: number
-): number {
-  const radial = { x: Math.cos(angle), z: Math.sin(angle) };
-  const alignment = directions.reduce(
-    (strongest, direction) => Math.max(strongest, Math.max(0, dot2D(direction, radial))),
-    0
-  );
-  const branchTaper = alignment > 0.12
-    ? 0.22 + Math.pow(alignment, 1.65) * 0.78
-    : 0.12;
-  return radius + blendLength * branchTaper;
+interface JunctionBranch {
+  direction: WorldPoint;
+  halfWidth: number;
+  shoulderWidthMeters: number;
+  kind: WorldRouteKind;
+}
+
+function junctionBranches(
+  routes: readonly CompiledWorldRoute[],
+  junction: WorldRouteJunction
+): JunctionBranch[] {
+  const branches: JunctionBranch[] = [];
+  for (const route of routes) {
+    if (!junction.routeIds.includes(route.route.id)) continue;
+    for (const direction of outwardDirections(route, junction.center)) {
+      const existing = branches.find((branch) => dot2D(branch.direction, direction) > 0.96);
+      if (existing) {
+        existing.direction = normalize2D(
+          existing.direction.x + direction.x,
+          existing.direction.z + direction.z
+        );
+        if (route.halfWidth > existing.halfWidth) existing.kind = route.route.kind;
+        existing.halfWidth = Math.max(existing.halfWidth, route.halfWidth);
+        existing.shoulderWidthMeters = Math.max(
+          existing.shoulderWidthMeters,
+          route.shoulderWidthMeters
+        );
+        continue;
+      }
+      branches.push({
+        direction,
+        halfWidth: route.halfWidth,
+        shoulderWidthMeters: route.shoulderWidthMeters,
+        kind: route.route.kind
+      });
+    }
+  }
+  return branches;
 }
 
 function routeJoin(
@@ -126,7 +226,11 @@ function routeJoin(
   const next = route.samples[Math.min(route.samples.length - 1, sampleIndex + 1)]?.tangent ?? sample.tangent;
   const previousNormal = { x: -previous.z, z: previous.x };
   const nextNormal = { x: -next.z, z: next.x };
-  const miter = normalize2D(previousNormal.x + nextNormal.x, previousNormal.z + nextNormal.z);
+  const bisectorX = previousNormal.x + nextNormal.x;
+  const bisectorZ = previousNormal.z + nextNormal.z;
+  const miter = Math.hypot(bisectorX, bisectorZ) > 0.0001
+    ? normalize2D(bisectorX, bisectorZ)
+    : nextNormal;
   const denominator = Math.abs(dot2D(miter, nextNormal));
   return {
     normal: miter,
@@ -156,21 +260,31 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   const rut = paletteColor("soil_damp_01").lerp(road, 0.46);
   const warmShoulder = paletteColor("soil_warm_01");
   const dryShoulder = paletteColor("soil_dry_01");
-  const meadow = paletteColor("foliage_sage_01");
   const warmStone = paletteColor("stone_warm_01");
   const goldenStone = paletteColor("stone_golden_01");
   const heightAt = (x: number, z: number): number => options.heightAt(renderedCoordinate(x), renderedCoordinate(z));
   const isBridgeDeck = (x: number, z: number): boolean => options.isBridgeDeck(renderedCoordinate(x), renderedCoordinate(z));
 
-  const appendVertex = (point: WorldPoint & { y: number }, color: THREE.Color): number => {
+  const appendVertex = (
+    point: WorldPoint & { y: number },
+    color: THREE.Color,
+    opacity: number = 1
+  ): number => {
     const vertexIndex = positions.length / 3;
     positions.push(point.x, point.y, point.z);
-    colors.push(color.r, color.g, color.b);
+    colors.push(color.r, color.g, color.b, clamp01(opacity));
     return vertexIndex;
   };
 
   const appendTriangle = (a: number, b: number, c: number): void => {
-    indices.push(a, b, c);
+    const ax = positions[a * 3];
+    const az = positions[a * 3 + 2];
+    const abx = positions[b * 3] - ax;
+    const abz = positions[b * 3 + 2] - az;
+    const acx = positions[c * 3] - ax;
+    const acz = positions[c * 3 + 2] - az;
+    if (abz * acx - abx * acz < 0) indices.push(a, c, b);
+    else indices.push(a, b, c);
   };
 
   const appendQuad = (
@@ -204,57 +318,59 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
     const route = compiledRoute.route;
     const profile = options.profiles[route.kind];
     const ringVertices: number[][] = [];
-    const outerHalfWidth = compiledRoute.halfWidth + compiledRoute.shoulderWidthMeters;
+    const packedHalfWidth = compiledRoute.halfWidth;
+    const shoulderHalfWidth = packedHalfWidth + compiledRoute.shoulderWidthMeters;
+    // The feather is part of the visible corridor, but not part of the packed
+    // travel surface. Keeping it in the same ribbon lets the warm dirt dissolve
+    // into the meadow without a second, drifting edge mesh.
+    const featherHalfWidth = shoulderHalfWidth + compiledRoute.terrainFeatherMeters * 0.78;
 
     for (const [sampleIndex, sample] of compiledRoute.samples.entries()) {
       const join = routeJoin(compiledRoute, sampleIndex);
       boundedJoinMaximum = Math.max(boundedJoinMaximum, join.miterScale);
       const ring: number[] = [];
-      const absoluteDistanceSignal = sample.distanceAlongRoute * 0.22 + routeIndex * 1.7;
+      const routeFacetSignal = Math.sin(
+        sample.distanceAlongRoute * 0.16
+        + Math.sin(sample.distanceAlongRoute * 0.041 + stableRoutePhase(route.id)) * 0.75
+        + stableRoutePhase(route.id)
+      );
 
       for (const offset of TRANSVERSE_OFFSETS) {
-        const lateralDistance = Math.abs(offset) * outerHalfWidth;
-        const hardOffset = clamp01(lateralDistance / Math.max(0.0001, compiledRoute.halfWidth));
-        const shoulderAmount = smoothstep(
-          compiledRoute.halfWidth * 0.78,
-          outerHalfWidth,
-          lateralDistance
-        );
-        const edgeGrass = smoothstep(
-          compiledRoute.halfWidth + compiledRoute.shoulderWidthMeters * 0.45,
-          outerHalfWidth,
-          lateralDistance
-        ) * 0.56;
-        const crown = Math.pow(1 - hardOffset, 1.42) * profile.crownMeters;
-        const wheelWear = route.kind === "trail"
-          ? Math.exp(-Math.pow(hardOffset / 0.32, 2)) * profile.rutDepthMeters * 0.34
-          : Math.exp(-Math.pow((hardOffset - 0.34) / 0.095, 2)) * profile.rutDepthMeters;
-        const shoulderDrop = smoothstep(
-          compiledRoute.halfWidth * 0.8,
-          outerHalfWidth,
-          lateralDistance
-        ) * profile.shoulderDropMeters;
-        const x = sample.point.x + join.normal.x * outerHalfWidth * offset * join.miterScale;
-        const z = sample.point.z + join.normal.z * outerHalfWidth * offset * join.miterScale;
-        const rawHeight = isBridgeDeck(x, z)
+        const lateralDistance = Math.abs(offset) * featherHalfWidth;
+        const crossSection = sampleRoadCrossSection({
+          routeId: route.id,
+          routeKind: route.kind,
+          profile,
+          halfWidthMeters: packedHalfWidth,
+          lateralDistanceMeters: lateralDistance,
+          distanceAlongRouteMeters: sample.distanceAlongRoute
+        });
+        const x = sample.point.x + join.normal.x * featherHalfWidth * offset * join.miterScale;
+        const z = sample.point.z + join.normal.z * featherHalfWidth * offset * join.miterScale;
+        const y = isBridgeDeck(x, z)
           ? options.bridge.entrySurfaceY
           : heightAt(x, z);
-        // Keep the worn bands visually recessed without letting the terrain
-        // poke through them. The shared terrain remains the collision truth;
-        // this small lift is only the render separation for the overlay.
-        const y = rawHeight + 0.046 + crown - wheelWear - shoulderDrop;
-        const baseColor = blendColors(road, warmShoulder, dryShoulder, meadow, shoulderAmount, edgeGrass);
+        const baseColor = blendColors(
+          road,
+          warmShoulder,
+          dryShoulder,
+          crossSection.shoulderAmount
+        );
         const wearColor = colorWithVariation(
           rut,
-          absoluteDistanceSignal + hardOffset * 4.6,
-          0.045
+          routeFacetSignal + crossSection.normalizedCoreDistance * 1.2,
+          0.04
         );
-        const wheelBand = route.kind === "trail" ? 0.16 : Math.exp(-Math.pow((hardOffset - 0.34) / 0.11, 2)) * 0.68;
-        const lowFrequencyFacet = Math.sin(sample.distanceAlongRoute * 0.31 + offset * 2.8 + routeIndex * 2.4) * 0.5 + 0.5;
+        // Keep both wheel tracks visible at gameplay distance while avoiding
+        // the old high-frequency, transverse striping across every road.
+        const lowFrequencyFacet = 0.5 + routeFacetSignal * 0.5 + Math.sin(
+          sample.distanceAlongRoute * 0.11 + offset * 0.42 + stableRoutePhase(route.id)
+        ) * 0.035;
         const vertexColor = baseColor
-          .lerp(wearColor, wheelBand)
-          .multiplyScalar(0.965 + lowFrequencyFacet * 0.07);
-        ring.push(appendVertex({ x, y, z }, vertexColor));
+          .lerp(wearColor, clamp01(crossSection.wheelBand))
+          .multiplyScalar(0.975 + clamp01(lowFrequencyFacet) * 0.05);
+        const surfaceOpacity = 1 - smoothstep(0.08, 0.9, crossSection.edgeGrassAmount);
+        ring.push(appendVertex({ x, y, z }, vertexColor, surfaceOpacity));
       }
       ringVertices.push(ring);
     }
@@ -297,20 +413,24 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
         z: sample.tangent.z * outwardSign
       };
       const normal = sample.normal;
-      const capRadius = outerHalfWidth;
+      const capRadius = shoulderHalfWidth;
       const center = {
         x: sample.point.x + tangent.x * capRadius * 0.48,
         z: sample.point.z + tangent.z * capRadius * 0.48,
-        y: heightAt(sample.point.x + tangent.x * capRadius * 0.48, sample.point.z + tangent.z * capRadius * 0.48) + 0.029
+        y: heightAt(sample.point.x + tangent.x * capRadius * 0.48, sample.point.z + tangent.z * capRadius * 0.48)
       };
-      const centerIndex = appendVertex(center, road);
+      const centerIndex = appendVertex(center, colorWithVariation(road, sample.distanceAlongRoute + routeIndex * 1.7, 0.035));
       const arc: number[] = [];
       const arcSegments = 8;
       for (let step = 0; step <= arcSegments; step++) {
         const angle = -Math.PI * 0.5 + (step / arcSegments) * Math.PI;
         const x = sample.point.x + tangent.x * Math.cos(angle) * capRadius + normal.x * Math.sin(angle) * capRadius;
         const z = sample.point.z + tangent.z * Math.cos(angle) * capRadius + normal.z * Math.sin(angle) * capRadius;
-        arc.push(appendVertex({ x, y: heightAt(x, z) + 0.029, z }, road));
+        arc.push(appendVertex(
+          { x, y: heightAt(x, z), z },
+          colorWithVariation(road, sample.distanceAlongRoute + step * 0.37 + routeIndex, 0.035),
+          0.08
+        ));
       }
       for (let step = 0; step < arcSegments; step++) {
         appendTriangle(centerIndex, arc[step], arc[step + 1]);
@@ -322,54 +442,92 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
     appendRoundedCap(compiledRoute.samples.length - 1, 1);
   }
 
+  const junctionCoreSegmentCount = 20;
+  let junctionArmCount = 0;
   for (const junction of options.junctions) {
-    const branchDirections = options.routes
-      .filter((route) => junction.routeIds.includes(route.route.id))
-      .flatMap((route) => outwardDirections(route, junction.center));
-    const ringSegments = 32;
-    const centerHeight = heightAt(junction.center.x, junction.center.z) + 0.034;
+    const branches = junctionBranches(options.routes, junction);
+    const coreRadius = Math.max(0.72, junction.radiusMeters * 0.74);
+    const centerHeight = heightAt(junction.center.x, junction.center.z);
     const centerColor = junction.surface === "village-market"
       ? road.clone().lerp(warmShoulder, 0.4)
-      : road.clone().lerp(warmShoulder, junction.surface === "farm-yard" ? 0.3 : 0.22);
+      : junction.surface === "landmark-gateway"
+        ? road.clone().lerp(warmShoulder, 0.34)
+        : road.clone().lerp(warmShoulder, junction.surface === "farm-yard" ? 0.3 : 0.22);
     const centerIndex = appendVertex({ ...junction.center, y: centerHeight }, centerColor);
-    const innerRing: number[] = [];
-    const outerRing: number[] = [];
+    const coreRing: number[] = [];
 
-    for (let segment = 0; segment < ringSegments; segment++) {
-      const angle = (segment / ringSegments) * Math.PI * 2;
+    // A compact faceted center gives the junction a shaped apron without the
+    // old circular decal. Its broad radius is deliberately smaller than the
+    // authored blend envelope so branch arms, not a disk, determine its outline.
+    for (let segment = 0; segment < junctionCoreSegmentCount; segment++) {
+      const angle = (segment / junctionCoreSegmentCount) * Math.PI * 2;
       const radial = { x: Math.cos(angle), z: Math.sin(angle) };
-      const innerVariation = 0.96 + Math.sin(angle * 2.0 + junction.radiusMeters) * 0.025;
-      const outerRadius = junctionReach(
-        angle,
-        branchDirections,
-        junction.radiusMeters,
-        junction.blendLengthMeters
-      );
-      const innerRadius = Math.max(0.65, junction.radiusMeters * innerVariation * 0.48);
-      const inner = {
-        x: junction.center.x + radial.x * innerRadius,
-        z: junction.center.z + radial.z * innerRadius
+      const radiusVariation = 0.94 + Math.sin(angle * 2.0 + junction.radiusMeters * 0.7) * 0.035;
+      const point = {
+        x: junction.center.x + radial.x * coreRadius * radiusVariation,
+        z: junction.center.z + radial.z * coreRadius * radiusVariation
       };
-      const outer = {
-        x: junction.center.x + radial.x * outerRadius,
-        z: junction.center.z + radial.z * outerRadius
-      };
-      const innerColor = colorWithVariation(centerColor, segment * 0.43 + junction.radiusMeters, 0.045);
-      const outerColor = colorWithVariation(
-        centerColor.clone().lerp(meadow, 0.04),
-        segment * 0.29 + junction.blendLengthMeters,
-        0.08
-      );
-      innerRing.push(appendVertex({ ...inner, y: heightAt(inner.x, inner.z) + 0.034 }, innerColor));
-      outerRing.push(appendVertex({ ...outer, y: heightAt(outer.x, outer.z) + 0.032 }, outerColor));
+      coreRing.push(appendVertex(
+        { ...point, y: heightAt(point.x, point.z) },
+        colorWithVariation(centerColor, segment * 0.61 + junction.radiusMeters, 0.038)
+      ));
     }
 
-    for (let segment = 0; segment < ringSegments; segment++) {
-      const next = (segment + 1) % ringSegments;
-      appendTriangle(centerIndex, innerRing[next], innerRing[segment]);
-      appendTriangle(innerRing[segment], innerRing[next], outerRing[segment]);
-      appendTriangle(innerRing[next], outerRing[next], outerRing[segment]);
-      junctionTriangleCount += 3;
+    for (let segment = 0; segment < junctionCoreSegmentCount; segment++) {
+      const next = (segment + 1) % junctionCoreSegmentCount;
+      appendTriangle(centerIndex, coreRing[next], coreRing[segment]);
+      junctionTriangleCount++;
+    }
+
+    for (const [branchIndex, branch] of branches.entries()) {
+      const branchNormal = { x: -branch.direction.z, z: branch.direction.x };
+      const startDistance = coreRadius * 0.8;
+      const endDistance = junction.radiusMeters + junction.blendLengthMeters * 1.08;
+      const startHalfWidth = Math.max(
+        branch.halfWidth + branch.shoulderWidthMeters * 0.48,
+        coreRadius * 0.42
+      );
+      const endHalfWidth = branch.halfWidth + branch.shoulderWidthMeters * 0.9;
+      const startCenter = {
+        x: junction.center.x + branch.direction.x * startDistance,
+        z: junction.center.z + branch.direction.z * startDistance
+      };
+      const endCenter = {
+        x: junction.center.x + branch.direction.x * endDistance,
+        z: junction.center.z + branch.direction.z * endDistance
+      };
+      const startLeft = {
+        x: startCenter.x + branchNormal.x * startHalfWidth,
+        z: startCenter.z + branchNormal.z * startHalfWidth
+      };
+      const startRight = {
+        x: startCenter.x - branchNormal.x * startHalfWidth,
+        z: startCenter.z - branchNormal.z * startHalfWidth
+      };
+      const endLeft = {
+        x: endCenter.x + branchNormal.x * endHalfWidth,
+        z: endCenter.z + branchNormal.z * endHalfWidth
+      };
+      const endRight = {
+        x: endCenter.x - branchNormal.x * endHalfWidth,
+        z: endCenter.z - branchNormal.z * endHalfWidth
+      };
+      const branchColor = colorWithVariation(
+        centerColor.clone().lerp(road, 0.16),
+        branchIndex * 1.31 + junction.radiusMeters,
+        0.035
+      );
+      const branchEdgeColor = branchColor.clone().lerp(dryShoulder, 0.2);
+      const startY = (point: WorldPoint): number => heightAt(point.x, point.z);
+      const endY = (point: WorldPoint): number => heightAt(point.x, point.z);
+      const startLeftIndex = appendVertex({ ...startLeft, y: startY(startLeft) }, branchColor);
+      const startRightIndex = appendVertex({ ...startRight, y: startY(startRight) }, branchColor);
+      const endLeftIndex = appendVertex({ ...endLeft, y: endY(endLeft) }, branchEdgeColor, 0.06);
+      const endRightIndex = appendVertex({ ...endRight, y: endY(endRight) }, branchEdgeColor, 0.06);
+      appendTriangle(startLeftIndex, startRightIndex, endRightIndex);
+      appendTriangle(startLeftIndex, endRightIndex, endLeftIndex);
+      junctionTriangleCount += 2;
+      junctionArmCount++;
     }
   }
 
@@ -377,7 +535,7 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   const slabCount = Math.max(2, Math.floor(options.bridge.gatewaySlabCount));
   const totalGap = options.bridge.gatewaySlabGapMeters * (slabCount - 1);
   const slabWidth = (options.bridge.deckWidth - totalGap) / slabCount;
-  const gatewayHeight = options.bridge.entrySurfaceY + 0.034;
+  const gatewayHeight = options.bridge.entrySurfaceY;
   const gatewayVertexStart = positions.length / 3;
 
   for (const [sideIndex, side] of [-1, 1].entries()) {
@@ -394,19 +552,23 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
       const farZStart = nearZStart + Math.sin(slabIndex * 1.4 + sideIndex) * 0.035;
       const farZEnd = nearZEnd + Math.cos(slabIndex * 1.1 + sideIndex) * 0.028;
       const slabColor = (slabIndex + sideIndex) % 2 === 0 ? warmStone : goldenStone;
-      appendQuad([
-        { x: nearX, y: heightAt(nearX, nearZStart) + 0.034, z: nearZStart },
-        { x: nearX, y: heightAt(nearX, nearZEnd) + 0.034, z: nearZEnd },
-        { x: farX, y: heightAt(farX, farZEnd) + 0.034, z: farZEnd },
-        { x: farX, y: heightAt(farX, farZStart) + 0.034, z: farZStart }
-      ], colorWithVariation(slabColor, slabIndex * 1.17 + sideIndex, 0.06));
+      const nearStart = { x: nearX, y: heightAt(nearX, nearZStart), z: nearZStart };
+      const nearEnd = { x: nearX, y: heightAt(nearX, nearZEnd), z: nearZEnd };
+      const farStart = { x: farX, y: heightAt(farX, farZStart), z: farZStart };
+      const farEnd = { x: farX, y: heightAt(farX, farZEnd), z: farZEnd };
+      // Reverse the west-bank winding so both entries present their stone
+      // faces upward to the standard front-face material.
+      appendQuad(side < 0
+        ? [nearStart, farStart, farEnd, nearEnd]
+        : [nearStart, nearEnd, farEnd, farStart],
+      colorWithVariation(slabColor, slabIndex * 1.17 + sideIndex, 0.06));
       gatewayTriangleCount += 2;
     }
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
@@ -429,6 +591,8 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   geometry.userData.bridgeGatewayHeight = gatewayHeight;
   geometry.userData.maximumMiterScale = boundedJoinMaximum;
   geometry.userData.roundedCapCount = roundedCapCount;
+  geometry.userData.junctionCoreSegmentCount = junctionCoreSegmentCount;
+  geometry.userData.junctionArmCount = junctionArmCount;
   geometry.userData.junctionSurfaceKinds = options.junctions.map((junction) => junction.surface);
   return geometry;
 }

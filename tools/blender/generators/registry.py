@@ -1,6 +1,6 @@
 """Single generator registry resolved by asset specs."""
 
-from .architecture import farmhouse, fish_market, lighthouse, stone_bridge, windmill, working_dock
+from .architecture import farmhouse, fish_market, lighthouse, stone_bridge, village_building, windmill, working_dock
 from .boats import fishing_skiff, rowboat
 from .characters import coastal_worker, fauna_chicken, fauna_cow, npc_character
 
@@ -9,7 +9,7 @@ from .crops import potato_crop, tomato_crop, wheat_crop
 from .fish import stylized_fish
 from .interiors import cozy_armchair, cozy_bed, cupboard_shelves, dining_table, fireplace_hearth, interior_farmhouse_shell, rustic_chair, woven_rug
 from .polyfork import polyfork_architecture, polyfork_cloud, polyfork_crop, polyfork_prop, polyfork_rock, polyfork_vegetation
-from .props import crop_bundle, driftwood_cluster, farm_workbench, fishing_net_rack, fishing_rod, harvest_basket, hay_bale, lamp_post, lobster_trap, produce_crate, produce_stall, pumpkin_patch, seed_pouch, sickle, wagon_cart, water_well, watering_can, wood_barrel, wood_crate, wood_fence, workstation_scoop, worm_compost_bin
+from .props import clay_oven, crop_bundle, driftwood_cluster, farm_workbench, fishing_net_rack, fishing_rod, harvest_basket, hay_bale, lamp_post, lobster_trap, produce_crate, produce_stall, pumpkin_patch, seed_pouch, sickle, wagon_cart, water_well, watering_can, wood_barrel, wood_crate, wood_fence, workstation_scoop, worm_compost_bin
 from .rocks import faceted_rock, pebble_cluster
 from .vegetation import apple_tree, bush, grass_clump, kelp_clump, oak_tree, pine_tree, reeds, wildflower_clump
 
@@ -26,6 +26,7 @@ GENERATORS = {
     "faceted_rock": faceted_rock,
     "pebble_cluster": pebble_cluster,
     "farmhouse": farmhouse,
+    "village_building": village_building,
     "fish_market": fish_market,
     "lighthouse": lighthouse,
     "windmill": windmill,
@@ -46,6 +47,7 @@ GENERATORS = {
     "wood_crate": wood_crate,
     "wood_barrel": wood_barrel,
     "wood_fence": wood_fence,
+    "clay_oven": clay_oven,
     "hay_bale": hay_bale,
     "lamp_post": lamp_post,
     "worm_compost_bin": worm_compost_bin,

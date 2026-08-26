@@ -8,7 +8,7 @@ import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerT
 import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import {
   BRIDGE_WORLD_PROFILE,
-  WORLD_LAYOUT_V3,
+  WORLD_LAYOUT_V5,
   WORLD_REGIONAL_PATHS,
   WorldLayout
 } from "../../src/world/WorldLayout";
@@ -211,8 +211,10 @@ describe("PhysicsWorld", () => {
     const diagonalPhysics = await PhysicsWorld.create();
     const straight = new Simulation();
     const diagonal = new Simulation();
-    placePlayer(straight);
-    placePlayer(diagonal);
+    // Keep the intent-normalization probe off the now-physical road crown;
+    // road traversal/collision is covered by the dedicated route tests below.
+    placePlayer(straight, -120, -100);
+    placePlayer(diagonal, -120, -100);
     const straightStart = { x: straight.state.player.x, z: straight.state.player.z };
     const diagonalStart = { x: diagonal.state.player.x, z: diagonal.state.player.z };
     let firstStepDistance = 0;
@@ -479,7 +481,7 @@ describe("PhysicsWorld", () => {
         WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.49
       );
       if (
-        sim.state.player.x > WORLD_LAYOUT_V3.anchors.bridge.x
+        sim.state.player.x > WORLD_LAYOUT_V5.anchors.bridge.x
         + BRIDGE_WORLD_PROFILE.spanLength * 0.5
         + 1.5
       ) {
@@ -491,7 +493,7 @@ describe("PhysicsWorld", () => {
     expect(reachedBridgeDeck).toBe(true);
     expect(reachedVillageApproach).toBe(true);
     expect(sim.state.player.x).toBeGreaterThan(
-      WORLD_LAYOUT_V3.anchors.bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
+      WORLD_LAYOUT_V5.anchors.bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
     );
     expect(sim.state.player.traversal.isGrounded).toBe(true);
   });

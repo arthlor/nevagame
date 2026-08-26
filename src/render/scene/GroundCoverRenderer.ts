@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import { ASSET_BY_ID, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
-import type { QualityTier } from "../config/VisualRenderConfig";
 import {
-  GROUND_COVER_DENSITY,
+  groundCoverActiveCount,
+  type QualityTier
+} from "../config/VisualRenderConfig";
+import {
   type GroundCoverCategory,
   type GroundCoverPlacement
 } from "../../world/WorldEnvironmentLayout";
@@ -23,25 +25,34 @@ interface InstancedSourceMesh {
 
 interface InstancedAssetRecord {
   category: GroundCoverCategory;
-  variantIndex: number;
   highCount: number;
   activeCount: number;
   instances: GroundCoverInstance[];
   meshes: InstancedSourceMesh[];
 }
 
-const VARIANT_COUNT = 3;
 const CAMERA_FOCUS_LEAD_METERS = 28;
 const VISIBILITY_REFRESH_DISTANCE_METERS = 0.75;
 
-function variantIndex(assetId: string): number {
-  if (assetId.endsWith("_a")) return 0;
-  if (assetId.endsWith("_b")) return 1;
-  return 2;
+function stablePlacementOrder(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }
 
-function countForVariant(total: number, index: number): number {
-  return Math.floor(total / VARIANT_COUNT) + (index < total % VARIANT_COUNT ? 1 : 0);
+function groundCoverMaterial(
+  source: THREE.Material,
+  category: GroundCoverCategory
+): THREE.Material {
+  if (category !== "grass" || !(source instanceof THREE.MeshStandardMaterial)) return source;
+  const material = source.clone();
+  const lift = material.name.includes("shadow") ? 1.16 : 1.08;
+  material.color.multiplyScalar(lift);
+  material.roughness = Math.max(0.8, material.roughness);
+  return material;
 }
 
 export class GroundCoverRenderer {
@@ -69,6 +80,10 @@ export class GroundCoverRenderer {
     }
 
     for (const [assetId, assetPlacements] of byAsset) {
+      const orderedPlacements = [...assetPlacements].sort((left, right) =>
+        stablePlacementOrder(left.id) - stablePlacementOrder(right.id)
+        || left.id.localeCompare(right.id)
+      );
       const typedAssetId = assetId as AssetId;
       const spec = ASSET_BY_ID.get(typedAssetId);
       if (!spec || !spec.instancing || spec.collision !== "none") {
@@ -91,7 +106,7 @@ export class GroundCoverRenderer {
       });
       if (sourceMeshes.length === 0) throw new Error(`[GroundCoverRenderer] ${assetId} has no visible meshes`);
 
-      const instances = assetPlacements.map((placement) => {
+      const instances = orderedPlacements.map((placement) => {
         const position = new THREE.Vector3(
           placement.x,
           WorldLayout.terrainHeight(placement.x, placement.z) + 0.012,
@@ -107,22 +122,28 @@ export class GroundCoverRenderer {
       });
 
       const meshes = sourceMeshes.map((sourceMesh, meshIndex) => {
-        const mesh = new THREE.InstancedMesh(sourceMesh.geometry, sourceMesh.material, assetPlacements.length);
+        const mesh = new THREE.InstancedMesh(
+          sourceMesh.geometry,
+          groundCoverMaterial(sourceMesh.material, orderedPlacements[0].category),
+          orderedPlacements.length
+        );
         mesh.name = `${assetId}_instances_${meshIndex}`;
         mesh.count = 0;
         // The rendered instance prefix is rebuilt around the camera focus, so
         // the static full-world bounds would be both stale and unnecessarily broad.
         mesh.frustumCulled = false;
         mesh.castShadow = false;
-        mesh.receiveShadow = true;
+        // Tiny grass clumps turning nearly black under the directional shadow
+        // map reads as hair/noise at the gameplay camera. They still receive
+        // the shared key/fill lighting; larger cover may still receive shadows.
+        mesh.receiveShadow = orderedPlacements[0].category !== "grass";
         this.group.add(mesh);
         return { mesh, relative: sourceMesh.relative };
       });
       this.records.push({
-        category: assetPlacements[0].category,
-        variantIndex: variantIndex(assetId),
-        highCount: assetPlacements.length,
-        activeCount: assetPlacements.length,
+        category: orderedPlacements[0].category,
+        highCount: orderedPlacements.length,
+        activeCount: orderedPlacements.length,
         instances,
         meshes
       });
@@ -133,10 +154,7 @@ export class GroundCoverRenderer {
   public setQuality(tier: QualityTier): void {
     this.tier = tier;
     for (const record of this.records) {
-      record.activeCount = Math.min(
-        record.highCount,
-        countForVariant(GROUND_COVER_DENSITY[tier][record.category], record.variantIndex)
-      );
+      record.activeCount = groundCoverActiveCount(record.highCount, tier);
     }
     this.visibilityDirty = true;
   }

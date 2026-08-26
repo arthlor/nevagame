@@ -217,7 +217,7 @@ export const HUD: React.FC<HUDProps> = ({
   return (
     <>
       {/* =========================================================================
-          1. TOP-LEFT: ATMOSPHERE, CALENDAR & QUEST TRACKER CONTAINER (Reference Top-Left)
+          1. TOP-LEFT: ATMOSPHERE & CALENDAR (Reference Top-Left)
           ========================================================================= */}
       <div className="hud-top-left-container interactive">
         <header
@@ -249,7 +249,7 @@ export const HUD: React.FC<HUDProps> = ({
 
               <div className="hud-time-group">
                 <span className="hud-time-icon">{getWeatherIcon(weather.type, hour)}</span>
-                <span className="hud-time-text">{hh}:{mm}</span>
+                <span className="hud-time-text" data-testid="game-clock">{hh}:{mm}</span>
               </div>
             </div>
 
@@ -290,11 +290,6 @@ export const HUD: React.FC<HUDProps> = ({
           )}
         </header>
 
-        {/* Quest Tracker underneath Top-Left Header */}
-        {(activeQuest || state.quests.unlockedFeatureIds.includes("feature.expedition_planner")) && (
-          <QuestTrackerHUD activeQuest={activeQuest ?? null} />
-        )}
-
         {/* 3-Day Forecast Popover anchored beside Top-Left Column */}
         {showForecast && (
           <FarmForecastPopover
@@ -316,9 +311,10 @@ export const HUD: React.FC<HUDProps> = ({
       )}
 
       {/* =========================================================================
-          3. TOP-RIGHT: STATUS BADGES & WOODEN NAVIGATION ROW (Reference Top-Right)
+          3. TOP-RIGHT: STATUS, NAVIGATION & QUEST TRACKER (Reference Top-Right)
           ========================================================================= */}
-      <nav className="hud-top-right interactive" aria-label="Player wealth and quick navigation">
+      <div className="hud-top-right-cluster interactive">
+        <nav className="hud-top-right" aria-label="Player wealth and quick navigation">
         {/* Top Badges Row */}
         <div className="hud-vitals-plaques">
           {/* Purse Plaque */}
@@ -470,7 +466,13 @@ export const HUD: React.FC<HUDProps> = ({
             </button>
           )}
         </div>
-      </nav>
+        </nav>
+
+        {/* Quest Tracker beneath the top-right navigation row */}
+        {(activeQuest || state.quests.unlockedFeatureIds.includes("feature.expedition_planner")) && (
+          <QuestTrackerHUD activeQuest={activeQuest ?? null} />
+        )}
+      </div>
 
       {/* =========================================================================
           4. BOAT DRIVING HUD (Offshore Navigation)

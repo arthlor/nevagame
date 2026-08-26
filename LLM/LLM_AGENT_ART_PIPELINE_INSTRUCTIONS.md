@@ -53,7 +53,8 @@ All output MUST follow `04` Global Visual Grammar. Pipeline-specific rules:
 - silhouette → primary mass → secondary structure → sparse tertiary detail;
 - strong readable planes, controlled asymmetry, slightly exaggerated proportions;
 - bevels small relative to object, usually **1 segment**, occasionally 2 on hero assets; deliberate/weighted normals where useful;
-- flat/faceted: terrain, cliffs, rocks, mountains, clouds, canopy/bushes, stylized water, selected decoration;
+- smooth/selectively smoothed: traversable grass/soil/path terrain where regular mesh topology would otherwise dominate; macro landforms and semantic material regions retain the stylized read;
+- flat/faceted: cliffs, terrain cuts, exposed banks, hero landforms, rocks, mountains, clouds, canopy/bushes, stylized water, selected decoration;
 - selective smooth: characters, rounded tools/barrels/ropes/boats/wheels/curves;
 - hard edges: planks, roofs, doors, blocks, crates, docks, fences, beams, stairs.
 Never rely on default smoothing.
@@ -82,7 +83,7 @@ foliage_sage_01 / foliage_olive_01 / foliage_shadow_01 / soil_warm_01
 roof_terracotta_01 / roof_turf_01 / metal_dark_01 / metal_brass_01
 canvas_cream_01 / rope_hemp_01 / foam_warm_01 / emissive_lantern_01
 ```
-Variation comes mainly from geometry, vertex colors, palette/hue shifts, roughness, lighting/AO, controlled masks—not unrelated materials.
+Variation comes mainly from geometry, vertex colors, palette/hue shifts, roughness, lighting/AO, controlled semantic fields/masks—not unrelated materials. Terrain, road, shore, farm, and cover consumers must derive from the same authored world-layout semantics rather than maintaining visually similar but independent masks.
 
 Vertex colors are first-class. Use for top-vs-side value, warmth, age/dirt, gradients, AO-like darkening, deterministic palette variation. Example rock: top lighter/warmer; side medium; downward/crevice darker; sun-facing slightly warmer. Inputs may include normals, height, AO, curvature, seeded randomness, palette index. **Never uncontrolled random RGB.**
 
@@ -122,23 +123,42 @@ REEDS CATTAILS
 ```
 Families support seed, height/width, canopy clusters, trunk bend/branches, palette, scale, asymmetry. Example tree grammar: 5–8 sided tapered slightly crooked trunk, 2–4 primary branches, 3–7 intersecting faceted canopy clusters, 2–4 coordinated foliage tones. No smooth spheres.
 
+## 6.1 Terrain, Route & Ground-Cover Implementation Contract
+
+Implement the Art Bible's five ground layers through one coordinated presentation contract:
+
+1. Authoritative world-layout/route/shore/farm data owns semantics that affect traversal, collision, placement or map projection.
+2. A single deterministic derivation exposes filtered surface weights/influences for grass/meadow/soil/path/shoulder/beach/riverbed/wet shore/cliff (names may evolve with the canonical palette and world model).
+3. Terrain geometry/materials, road presentation, shoreline dressing, and cover placement consume those shared signals.
+4. Weather/time/quality mode modulates presentation through `VisualRenderConfig`; it never mutates gameplay moisture or creates local renderer baselines.
+
+Representation is deliberately not prescribed. Analytic queries, vertex attributes, compact per-chunk control textures, or cached buffers are allowed. Select by measured update cost, texture/fill-rate cost, transition quality, diagnostics, and maintainability. If using a control texture, document channel semantics, world bounds, filtering, generation seed/input hash, invalidation, and memory in the owning implementation—not in a parallel art spec.
+
+Terrain normals are class-aware. Normal continuity may cross non-feature triangulation edges in broad traversable grass/soil/path regions when flat triangles read as topology. It stops or transitions deliberately at authored ridges, terraces, cliffs, cuts, exposed banks, rock shelves, and hero landforms. Never globally smooth every surface or globally flat-shade the terrain as a shortcut.
+
+Road implementation requirements:
+- one authored route/profile owner for geometry, terrain grading, surface influence, map projection, cover exclusion, and relevant collision/interaction queries;
+- any deformation that materially changes the walkable surface is incorporated into the canonical height/normal query used by rendering, Rapier, placement, and affected anchors; cosmetic shader displacement stays below visible render/collision mismatch and never changes traversal;
+- route-kind widths, crown/depression/ruts, shoulders, feather, junctions, caps, bridge transitions, and steep-route cuts are explicit/profiled rather than scattered magic numbers;
+- a terrain-conforming road mesh is permitted when it is visibly integrated and robust against z-fighting; shader/control-field-only roads are also permitted; neither approach may create a second route network;
+- road center, shoulder, and surrounding cover are reviewed together from gameplay cameras.
+
+Ground-cover implementation requirements:
+- deterministic world-seed derivation with stable placement IDs where identity is exposed;
+- semantic density plus authored exclusions/clearances, clustered patch signals, variant families, and patch-level palette grouping;
+- high-count uniform geometry uses `InstancedMesh`/the established batching path, with quality-tier counts and draw-distance culling;
+- short cover generally receives light but does not cast dynamic shadows; reserve real shadows/contact for readable clumps and anchors;
+- changing quality tier may reduce count/distance, not change route readability, shoreline continuity, collision, or gameplay truth.
+
+Terrain/ground shader work must use a stable program cache key, fail clearly when patched Three.js chunks drift, keep uniforms/config centrally owned, dispose generated textures/materials, and receive focused tests for deterministic field/texture generation, bounds, mask protection, wetness transitions, and program-key stability. Do not copy a reference's realism, texture frequency, or exact numeric thresholds into code without gameplay-camera validation.
+
 # 7. Procedural Generator Library
 
-The implemented generator registry currently resolves these catalog generators through family modules:
-```text
-vegetation.py: oak_tree, pine_tree, apple_tree, bush, reeds
-rocks.py: faceted_rock
-architecture.py: farmhouse, fish_market, lighthouse, windmill, stone_bridge, working_dock
-props.py: water_well, pumpkin_patch, lobster_trap, wood_crate, wood_barrel, wood_fence, hay_bale, lamp_post
-boats.py: rowboat, fishing_skiff
-crops.py: wheat_crop
-fish.py: stylized_fish
-clouds.py: faceted_cloud
-characters.py: coastal_worker
-```
-`tools/blender/generators/registry.py` is the only generator-name dispatch table. Extend an appropriate family module and register one stable name; do not create an alternate entrypoint or filename list. Same catalog seed + parameters + generator code MUST reproduce the same semantic output.
+`tools/blender/generators/registry.py` is the only generator-name dispatch table. Family composition lives in the owning family module (`architecture.py`, `vegetation.py`, `boats.py`, and so on). Extend an appropriate family module and register one stable name; do not create an alternate entrypoint or filename list. Same catalog seed + parameters + generator code MUST reproduce the same semantic output.
 
-`tools/blender/common/authored.py` is below that registry boundary. It provides reusable deliberate construction systems currently consumed by architecture, prop and boat generators: staggered box/cylindrical masonry, shingle rows, plank fields, lattices, segmented rope lines, arch rings, root flares and fasteners. Reuse or extend it when several assets need the same visual construction language. Do not register its helpers, call them directly from the CLI, let them own palette/budget/file metadata, or treat “authored” as permission for unseeded one-off geometry. Any helper control exposed to an asset remains an explicit catalog `parameters` key and must reproduce from the same catalog seed.
+**Polyfork last-resort:** `polyfork_*` is not a visual family. It is a primitive filler for catalog IDs that do not yet have a real generator. It is forbidden for any asset with an isolated studio sheet or a unique silhouette. Village cottages, inn, hall, barn, shed, and outhouse stay on `village_building` with variant-specific secondary volumes. Plaza produce stalls stay on `produce_stall`. The clay bake oven is `clay_oven` in `props.py`. Fence sections and the homestead gate stay on `wood_fence` (`hasGate` for the gate leaf).
+
+`tools/blender/common/authored.py` is below that registry boundary. It provides reusable deliberate construction systems currently consumed by architecture, prop and boat generators: staggered box/cylindrical masonry, shingle rows, plank fields, lattices, segmented rope lines, arch rings, root flares, fasteners, timber-frame bays, mullioned openings, and banded tapered towers. Reuse or extend it when several assets need the same visual construction language. Do not register its helpers, call them directly from the CLI, let them own palette/budget/file metadata, or treat “authored” as permission for unseeded one-off geometry. Any helper control exposed to an asset remains an explicit catalog `parameters` key and must reproduce from the same catalog seed.
 
 # 8. Machine-Readable Asset Specs
 
@@ -179,11 +199,13 @@ Use the optional catalog `referenceAuthoring` object when an asset is derived fr
 - silhouette and negative-space requirements;
 - a hidden-surface inference strategy plus explicit confidence and continuity requirements;
 - critical features linked to component IDs;
-- bindings from the brief to existing catalog generator parameters;
+- bindings from the brief to existing catalog generator parameters; `parameterBindings` must cover every **primary** component for gold-slice family generators (`farmhouse`, `lighthouse`, `stone_bridge`, `working_dock`, `fish_market`);
 - concrete failure modes;
 - front, rear, side, three-quarter, 8 m, 15 m, and declared-read-distance review views.
 
-Run `npm run art:brief -- --asset ID` when the selected brief changes. The command validates local `repo://` evidence, HTTPS sources, hierarchy/cycles, feature links, parameter bindings and review coverage, then prints a deterministic brief/hash. Do not read or print unrelated asset briefs. `draft` means usable for exploration but not strict acceptance; `ready` means the authoring contract is complete, not that the asset is visually approved.
+Run `npm run art:brief -- --asset ID` when the selected brief changes. The command validates local `repo://` evidence, HTTPS sources, hierarchy/cycles, feature links, parameter bindings and review coverage, then prints a deterministic brief/hash. Missing `repo://` files fail closed; `ready` does not excuse absent evidence. Do not read or print unrelated asset briefs. `draft` means usable for exploration but not strict acceptance; `ready` means the authoring contract is complete, not that the asset is visually approved.
+
+Blender family generators consume catalog `parameters` only. They must not parse `referenceAuthoring` JSON. The brief binds identity-defining layout into those parameter keys; the registered generator reads the keys.
 
 Reference admission is visual judgment, not a brittle background-color heuristic. Preserve the original evidence. If segmentation, transparency, or a clean isolated concept makes the subject easier to read, record the normalized derivative as another study and do not let it silently replace the original. A generated rear/side study is an inference: record hidden-surface confidence so the human can inspect continuity through Art Yard/game controls.
 
@@ -220,6 +242,8 @@ After cache selection or generation, the CLI validates Blender scene contracts, 
 Runtime LLMs MUST NOT invent world art. Development agents create deterministic validated world data; runtime loads authored/pregenerated content.
 
 Procedural generation is allowed only when deterministic/seeded, constrained by biome grammar, built from approved prefabs, visually validated, and overrideable by authored data.
+
+World-layout semantics may generate deterministic presentation fields for surface blending and cover density. These are derived art data, not permission for runtime-random terrain or a second gameplay world. Important routes, shorelines, farms, structures, clearances, and landmark composition remain authored/overrideable.
 
 Important areas require visual anchors, readable routes, foreground/midground/background, prop clusters, negative space, height variation, sightline control, landmarks, compositional asymmetry. Avoid even scatter, identical rotations/spacing, world-axis alignment everywhere. Modular settlements must still feel authored.
 
@@ -296,9 +320,9 @@ Every relevant agent MUST:
 
 # 15. Prohibited Visual Drift
 
-Unless explicitly approved, reject: photogrammetry/photo bark-rock-grass; noisy terrain/hyper-detailed PBR/micro normals; spherical foliage/realistic branching/ocean; excessive gloss; generic asset-store realism; perfectly straight forests/uniform spacing/rotations; thin architecture; high-frequency clutter; uncontrolled material proliferation/colors; per-scene exposure/tone-map/color hacks; toon/ink/black world outlines; high-poly invisible detail; runtime LLM world composition; diorama-only world design.
+Unless explicitly approved, reject: photogrammetry/photo bark-rock-grass; noisy terrain/hyper-detailed PBR/micro normals; regular flat-shaded terrain topology dominating traversable ground; featureless globally smoothed terrain; hard floating road ribbons; independent road/terrain/cover masks; uniform ground-cover scatter; spherical foliage/realistic branching/ocean; excessive gloss; generic asset-store realism; perfectly straight forests/uniform spacing/rotations; thin architecture; high-frequency clutter; uncontrolled material proliferation/colors; per-scene exposure/tone-map/color hacks; toon/ink/black world outlines; high-poly invisible detail; runtime LLM world composition; diorama-only world design.
 
-Required across final game: readable planes/silhouettes/chunky geometry/selective bevels/cohesive warm palette/handcrafted irregularity/low-frequency detail/asymmetry/stylized architecture/faceted terrain-rocks/simplified vegetation/warm sun+cool fill/AO grounding/soft shadows/atmosphere/emissives/polygonal water/coherent roughness/consistent proportions/gameplay-camera readability.
+Required across final game: readable planes/silhouettes/chunky geometry/selective bevels/cohesive warm palette/handcrafted irregularity/low-frequency detail/asymmetry/stylized architecture/selectively smoothed traversable ground with faceted cliffs/cuts/rocks/clustered simplified vegetation/warm sun+cool fill/AO grounding/soft shadows/atmosphere/emissives/polygonal water/coherent roughness/consistent proportions/gameplay-camera readability.
 
 # 16. Rendering Pipeline Target
 
@@ -310,7 +334,7 @@ Post-processing remains subtle; never substitute bloom/vignette/chromatic aberra
 # 17. Gold-Standard Reference Slices
 
 Before full-world production, validate in order:
-1. **Bridge + river:** terrain, stone, wood, vegetation, water, lighting, atmosphere.
+1. **Bridge + river:** landform-dominant terrain, integrated road approaches, semantic grass/soil/slope/shore blending, clustered cover/reeds, stone, wood, water, lighting, atmosphere.
 2. **Farm:** building kit, crops, fences, paths, trees, clusters.
 3. **Harbor:** docks, boats, ropes, crates, ocean water, coastal architecture.
 4. **Coast/lighthouse:** cliffs, rocks, foam, atmospheric perspective, sunset.
@@ -340,6 +364,7 @@ Do not mass-produce assets until these meet the art target. In the Roadmap this 
 - [ ] readable paths/traversal
 - [ ] foreground/midground/background separation
 - [ ] authored prop placement + clustered vegetation + broken repetition
+- [ ] terrain normals/material regions, roads, shoreline and ground-cover density agree with the same authored world-layout semantics
 - [ ] global lighting/AO grounding
 - [ ] approved water where applicable
 - [ ] performance budget met

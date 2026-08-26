@@ -54,6 +54,7 @@ interface DebugOverlayProps {
   onToggleWeather: () => void;
   onSpawnSchool: () => void;
   assetCoverage: AssetCoverageSummary;
+  bootReady: boolean;
 }
 
 export const DebugOverlay: React.FC<DebugOverlayProps> = ({
@@ -69,7 +70,8 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
   onGrantMoney,
   onToggleWeather,
   onSpawnSchool,
-  assetCoverage
+  assetCoverage,
+  bootReady
 }) => {
   const p = state.player;
   const activeSchoolsCount = Object.keys(state.world.activeSchools).length;
@@ -81,6 +83,7 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
     <div
       className="debug-overlay interactive"
       data-testid="diagnostics"
+      data-boot-ready={String(bootReady)}
       data-mode={mode}
       data-player-x={p.x.toFixed(4)}
       data-player-y={p.y.toFixed(4)}
