@@ -23,10 +23,45 @@ export type LoadGameResult =
   | { status: "unavailable" };
 
 export class IndexedDbSaveRepository {
+  private db: IDBDatabase | null = null;
+  private openPromise: Promise<IDBDatabase | null> | null = null;
+  private operationQueue: Promise<unknown> = Promise.resolve();
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.operationQueue.then(operation, operation);
+    this.operationQueue = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
+
+  private forgetDb(db: IDBDatabase): void {
+    if (this.db === db) this.db = null;
+  }
+
   private async getDb(): Promise<IDBDatabase | null> {
+    if (this.db) return this.db;
+    if (this.openPromise) return this.openPromise;
     if (typeof indexedDB === "undefined") {
       return null;
     }
+
+    this.openPromise = this.openDb();
+    try {
+      const db = await this.openPromise;
+      if (db) {
+        this.db = db;
+        db.onclose = () => this.forgetDb(db);
+        db.onerror = () => this.forgetDb(db);
+      }
+      return db;
+    } finally {
+      this.openPromise = null;
+    }
+  }
+
+  private openDb(): Promise<IDBDatabase | null> {
     return new Promise((resolve) => {
       try {
         const request = indexedDB.open(DB_NAME, 1);
@@ -51,33 +86,18 @@ export class IndexedDbSaveRepository {
 
   public async saveGame(state: GameState): Promise<boolean> {
     const savedAtUtcMs = Date.now();
-
-    const db = await this.getDb();
-    if (!db) {
-      // Never treat RAM as a durable save, and never promote it into IndexedDB later.
-      return false;
-    }
-
-    state.metadata.lastSavedUtcMs = savedAtUtcMs;
+    // Freeze gameplay truth before any await so nested player/inventory/fishing
+    // mutations during IDB cannot tear the envelope.
+    const snapshot = structuredClone(state);
+    snapshot.clock.isPaused = false;
+    snapshot.metadata.lastSavedUtcMs = savedAtUtcMs;
     const envelope: SaveEnvelope = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       savedAtUtcMs,
-      // Overlay pause is UI-only; never persist it or a paused save would freeze on load.
-      state: {
-        ...state,
-        clock: { ...state.clock, isPaused: false }
-      }
+      state: snapshot
     };
 
-    const existing = await this.readAndMigrate(db, PRIMARY_KEY);
-    if (existing) {
-      const backedUp = await this.writeRawToDb(db, BACKUP_KEY, existing);
-      if (!backedUp) {
-        console.error("[IndexedDbSaveRepository] Failed to write backup save");
-      }
-    }
-
-    return this.writeRawToDb(db, PRIMARY_KEY, envelope);
+    return this.enqueue(() => this.persistEnvelope(state, envelope, savedAtUtcMs));
   }
 
   public async loadGame(): Promise<SaveEnvelope | null> {
@@ -86,45 +106,76 @@ export class IndexedDbSaveRepository {
   }
 
   public async loadGameResult(): Promise<LoadGameResult> {
-    const db = await this.getDb();
-    if (!db) {
-      return { status: "unavailable" };
-    }
+    return this.enqueue(async () => {
+      const db = await this.getDb();
+      if (!db) {
+        return { status: "unavailable" };
+      }
 
-    const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY);
-    const primary = this.migrateAndValidate(primaryRaw);
-    if (primary) return { status: "loaded", envelope: primary };
+      const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY);
+      const primary = this.migrateAndValidate(primaryRaw);
+      if (primary) return { status: "loaded", envelope: primary };
 
-    const backupRaw = await this.readRawFromDb(db, BACKUP_KEY);
-    const backup = this.migrateAndValidate(backupRaw);
-    if (backup) {
-      console.warn("Primary save missing or corrupted. Restored from backup.");
-      return { status: "loaded", envelope: backup };
-    }
+      const backupRaw = await this.readRawFromDb(db, BACKUP_KEY);
+      const backup = this.migrateAndValidate(backupRaw);
+      if (backup) {
+        console.warn("Primary save missing or corrupted. Restored from backup.");
+        return { status: "loaded", envelope: backup };
+      }
 
-    if (primaryRaw == null && backupRaw == null) return { status: "empty" };
-    return { status: "corrupt" };
+      if (primaryRaw == null && backupRaw == null) return { status: "empty" };
+      return { status: "corrupt" };
+    });
   }
 
   public async clearSaves(): Promise<void> {
+    return this.enqueue(async () => {
+      const db = await this.getDb();
+      if (!db) {
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        try {
+          const tx = db.transaction(STORE_NAME, "readwrite");
+          tx.objectStore(STORE_NAME).clear();
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => {
+            console.error("[IndexedDbSaveRepository] Failed to clear saves", tx.error);
+            resolve();
+          };
+        } catch (error) {
+          console.error("[IndexedDbSaveRepository] Failed to clear saves", error);
+          resolve();
+        }
+      });
+    });
+  }
+
+  private async persistEnvelope(
+    liveState: GameState,
+    envelope: SaveEnvelope,
+    savedAtUtcMs: number
+  ): Promise<boolean> {
     const db = await this.getDb();
     if (!db) {
-      return;
+      // Never treat RAM as a durable save, and never promote it into IndexedDB later.
+      // A later saveGame retries open — failed opens are not cached.
+      return false;
     }
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        tx.objectStore(STORE_NAME).clear();
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => {
-          console.error("[IndexedDbSaveRepository] Failed to clear saves", tx.error);
-          resolve();
-        };
-      } catch (error) {
-        console.error("[IndexedDbSaveRepository] Failed to clear saves", error);
-        resolve();
+
+    const existing = await this.readAndMigrate(db, PRIMARY_KEY);
+    if (existing) {
+      const backedUp = await this.writeRawToDb(db, BACKUP_KEY, existing);
+      if (!backedUp) {
+        console.error("[IndexedDbSaveRepository] Failed to write backup save");
+        return false;
       }
-    });
+    }
+
+    const written = await this.writeRawToDb(db, PRIMARY_KEY, envelope);
+    if (!written) return false;
+    liveState.metadata.lastSavedUtcMs = savedAtUtcMs;
+    return true;
   }
 
   private migrateAndValidate(raw: unknown): SaveEnvelope | null {

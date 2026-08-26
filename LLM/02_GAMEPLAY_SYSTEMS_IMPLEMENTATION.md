@@ -420,7 +420,7 @@ interface BoatState {
 ```
 Rowboat: first vehicle, lake sport/nearshore, tiny cargo/low speed/poor rough sea; fuel may be omitted.
 
-Fishing Skiff: defined content (4 internal medium slots + 2 external large hooks + supply chest + fuel tank + better rough-water tolerance) but **unpurchasable in LIVE** — see Deferred. A fresh save does not create a skiff.
+Fishing Skiff: LIVE acquisition at the authored harbor skiff mooring requires **15,000 Fishing XP and 850 G**. The atomic purchase creates the persisted `boat.player_skiff`, its eight-slot supply inventory, four internal medium cargo slots, two external large hooks, fuel tank, and better rough-water tolerance. A fresh save does not create a skiff; it remains a progression-world asset until purchased.
 
 Emergency Tow / hook-class gameplay is **not live** — see Deferred.
 
@@ -666,9 +666,9 @@ The preceding sections are the **LIVE** implementation authority. The items belo
 
 - **Produce quality vs price.** Crop quality is computed at harvest and written to the journal. It does **not** currently multiply village/harbor produce sale price (`calculateCommodityUnitPrice` is `base × demand × seasonal` only).
 - **Rank unlock tables.** `PROFICIENCY_RANKS` `farmingUnlocks` / `fishingUnlocks` / `tradingUnlocks` / `processingUnlocks` are unused. LIVE gates are `crop.minimumFarmingXp` and a few `recipe.minimumSkill` values, plus explicit quest `unlockedFeatureIds`.
-- **Full seed shop / buy-rod / buy-boat.** Village stall sells **wheat, tomato, potato** seed only. The other five seeds are not stocked. There is no buy-rod or buy-boat command; the rowboat is commissioned through Act 4 (30 G + Ground Grain) rather than a boat vendor purchase.
+- **Full seed shop / buy-rod.** Village stall sells **wheat, tomato, potato** seed only. The other five seeds are not stocked. There is no buy-rod command; the rowboat is commissioned through Act 4 (30 G + Ground Grain), while the fishing skiff is purchased at its harbor mooring after the live XP and money requirement.
 - **Sport keep/release UI.** Landing auto-stows into a free cargo/carry slot or emits `FishEscaped`. No keep/release decision. Player-carry can be inspected from the HUD cargo pill.
 - **Drought weather.** The weather enum has **no** `drought`. Growth weather buffs are `light-rain` and `heavy-rain` at **1.05**; other types are 1.00.
 - **Authored ice location table.** LIVE ice is a slot `hasIce` flag or `item.crushed_ice` in backpack / boat supply, which forces storage modifier **0.4** wherever that ice resolves. The carried/hold/ice-box/cold-storage table is the design target, not a live per-location ice lookup.
 - **Sport lure to hook.** A lure is **not** required to hook a chummed school.
-- **Skiff purchase, hook-class, Emergency Tow.** `boat.skiff` is defined but unpurchasable; a fresh save does not spawn it. External-hook class as a distinct live verb and zero-fuel Emergency Tow are not live.
+- **External hook verb and Emergency Tow.** The skiff purchase and persisted second vessel are live. External-hook class as a distinct live verb and zero-fuel Emergency Tow are not live.

@@ -71,6 +71,26 @@ export interface VisualRenderConfig {
     furrowSegments: number;
     clodCount: number;
   };
+  terrainSurface: {
+    textureSize: number;
+    largeSampleScaleMeters: number;
+    smallSampleScaleMeters: number;
+    smallLayerRotationRadians: number;
+    colorVariationStrength: number;
+    paletteVariationStrength: number;
+    roughnessVariation: number;
+    wetness: {
+      riseSeconds: number;
+      fallSeconds: number;
+      colorMix: number;
+    };
+    roughness: {
+      dry: number;
+      wet: number;
+      min: number;
+      max: number;
+    };
+  };
   practicalLights: {
     colorHex: string;
     localIntensity: number;
@@ -118,8 +138,23 @@ export interface VisualRenderConfig {
   };
   motion: {
     locomotionBlendSeconds: number;
+    actionBlendSeconds: number;
+    recoveryBlendSeconds: number;
+    locomotionPlaybackMinimum: number;
+    locomotionPlaybackMaximum: number;
+    groundingMaxFootOffsetMeters: number;
+    groundingMaxTiltRadians: number;
+    groundingResponse: number;
+    cameraLookAheadSeconds: number;
+    cameraLookAheadMaxMeters: number;
+    cameraLookAheadResponse: number;
+    cameraLandingImpulseMeters: number;
+    cameraLandingResponse: number;
+    cameraBoatAccelerationMeters: number;
+    cameraBoatYawMeters: number;
     ambientScale: number;
     reducedMotionScale: number;
+    reducedMotionSecondaryScale: number;
   };
 }
 
@@ -216,6 +251,26 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     furrowSegments: 14,
     clodCount: 24
   },
+  terrainSurface: {
+    textureSize: 128,
+    largeSampleScaleMeters: 46,
+    smallSampleScaleMeters: 13,
+    smallLayerRotationRadians: 0.61,
+    colorVariationStrength: 0.06,
+    paletteVariationStrength: 0.28,
+    roughnessVariation: 0.025,
+    wetness: {
+      riseSeconds: 3,
+      fallSeconds: 8,
+      colorMix: 0.06
+    },
+    roughness: {
+      dry: 0.92,
+      wet: 0.8,
+      min: 0.775,
+      max: 0.945
+    }
+  },
   practicalLights: {
     colorHex: PALETTE_HEX.emissive_lantern_01,
     localIntensity: 18,
@@ -263,7 +318,22 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   motion: {
     locomotionBlendSeconds: 0.16,
+    actionBlendSeconds: 0.1,
+    recoveryBlendSeconds: 0.18,
+    locomotionPlaybackMinimum: 0.45,
+    locomotionPlaybackMaximum: 1.85,
+    groundingMaxFootOffsetMeters: 0.16,
+    groundingMaxTiltRadians: THREE.MathUtils.degToRad(14),
+    groundingResponse: 18,
+    cameraLookAheadSeconds: 0.18,
+    cameraLookAheadMaxMeters: 0.82,
+    cameraLookAheadResponse: 8,
+    cameraLandingImpulseMeters: 0.22,
+    cameraLandingResponse: 12,
+    cameraBoatAccelerationMeters: 0.08,
+    cameraBoatYawMeters: 0.12,
     ambientScale: 1,
-    reducedMotionScale: 0.35
+    reducedMotionScale: 0.35,
+    reducedMotionSecondaryScale: 0
   }
 };

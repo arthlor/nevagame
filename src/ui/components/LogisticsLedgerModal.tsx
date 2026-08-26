@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { GameState, FishCargoState } from "../../simulation/core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { calculateFishPrice } from "../../simulation/economy/calculateFishValue";
 import { IconCoin, IconFish, IconSprout, IconBoat } from "./HudIcons";
 
 interface LogisticsLedgerModalProps {
@@ -16,6 +17,27 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
   const { player } = state;
 
   const totalGold = player.money;
+  const allCargo = Object.values(state.fishCargo);
+  const totalCargoWeightKg = allCargo.reduce((sum, cargo) => sum + cargo.weightKg, 0);
+  const harborMarket = state.markets["market.harbor"];
+  const estimatedCargoValue = allCargo.reduce((sum, cargo) => {
+    const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
+    const commodity = harborMarket?.commodities[cargo.speciesId];
+    if (!species || !commodity) return sum;
+    return sum + calculateFishPrice(
+      species,
+      cargo.weightKg,
+      cargo.quality,
+      cargo.freshness,
+      commodity.demandIndex,
+      commodity.seasonalModifier
+    ).finalPrice;
+  }, 0);
+  const ownedBoats = Object.values(state.boats);
+  const estimatedBoatValue = ownedBoats.reduce(
+    (sum, boat) => sum + (ContentRegistry.boats.get(boat.boatTypeId)?.costMoney ?? 0),
+    0
+  );
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDef = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
 
@@ -25,10 +47,13 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
     : [];
 
   const boatWeightKg = boatCargoSlots.reduce((acc, c) => acc + (c ? c.weightKg : 0), 0);
-  const boatCapacityKg = boatDef ? boatDef.fishCargoSlots.length * 75 : 300;
-
-  // Farm crops count
+  // These are current holdings only. Sales history and warehouse capacity are
+  // not persisted in the simulation, so the ledger does not invent them.
   const plantedCount = Object.keys(state.crops).length;
+  const totalFarmPlots = Object.values(state.farms).reduce(
+    (sum, farm) => sum + farm.placedCropIds.length,
+    0
+  );
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
@@ -71,7 +96,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
         <div className="ledger-body">
           {activeTab === "pnl" ? (
             <div className="ledger-pnl-view">
-              {/* Financial KPI Cards */}
+              {/* Current, save-derived financial position */}
               <div className="ledger-kpi-grid">
                 <div className="kpi-card">
                   <span className="kpi-label">Current Liquid Capital</span>
@@ -82,63 +107,55 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
                 </div>
                 <div className="kpi-card">
                   <span className="kpi-label">Estimated Net Asset Value</span>
-                  <strong className="kpi-value">{(totalGold + 12400).toLocaleString()} G</strong>
+                  <strong className="kpi-value">{(totalGold + estimatedBoatValue + estimatedCargoValue).toLocaleString()} G</strong>
                 </div>
                 <div className="kpi-card">
-                  <span className="kpi-label">Weekly Operating Margin</span>
-                  <strong className="kpi-value green-text">+38.4%</strong>
+                  <span className="kpi-label">Estimated Cargo Value</span>
+                  <strong className="kpi-value green-text">{estimatedCargoValue.toLocaleString()} G</strong>
                 </div>
               </div>
 
-              {/* Revenue Breakdown by Activity */}
+              {/* Current holdings, not fabricated historical revenue */}
               <section className="ledger-section">
-                <h3>Revenue by Economic Sector</h3>
+                <h3>Current Holdings</h3>
                 <div className="revenue-bars-list">
                   <div className="rev-bar-row">
                     <div className="rev-bar-meta">
                       <span><IconFish size={15} /> Fishing & Sport Catches</span>
-                      <strong>42% (3,530 G)</strong>
+                      <strong>{allCargo.length} fish · {totalCargoWeightKg.toFixed(1)} kg</strong>
                     </div>
-                    <div className="rev-track"><div className="rev-fill fill-fish" style={{ width: "42%" }} /></div>
+                    <div className="rev-track"><div className="rev-fill fill-fish" style={{ width: `${allCargo.length > 0 ? 100 : 0}%` }} /></div>
                   </div>
 
                   <div className="rev-bar-row">
                     <div className="rev-bar-meta">
                       <span><IconSprout size={15} /> Farming & Harvests</span>
-                      <strong>31% (2,610 G)</strong>
+                      <strong>{plantedCount} planted crops</strong>
                     </div>
-                    <div className="rev-track"><div className="rev-fill fill-farm" style={{ width: "31%" }} /></div>
+                    <div className="rev-track"><div className="rev-fill fill-farm" style={{ width: `${plantedCount > 0 ? 100 : 0}%` }} /></div>
                   </div>
 
                   <div className="rev-bar-row">
                     <div className="rev-bar-meta">
-                      <span>⚙️ Workshop & Chum Processing</span>
-                      <strong>19% (1,600 G)</strong>
+                      <span><IconBoat size={15} /> Owned vessels</span>
+                      <strong>{ownedBoats.length}</strong>
                     </div>
-                    <div className="rev-track"><div className="rev-fill fill-proc" style={{ width: "19%" }} /></div>
-                  </div>
-
-                  <div className="rev-bar-row">
-                    <div className="rev-bar-meta">
-                      <span>🏪 Regional Market Arbitrage</span>
-                      <strong>8% (670 G)</strong>
-                    </div>
-                    <div className="rev-track"><div className="rev-fill fill-trade" style={{ width: "8%" }} /></div>
+                    <div className="rev-track"><div className="rev-fill fill-proc" style={{ width: `${ownedBoats.length > 0 ? 100 : 0}%` }} /></div>
                   </div>
                 </div>
               </section>
 
-              {/* Top Performer & Sink Summary */}
+              {/* Explicitly state what this save does not record. */}
               <div className="ledger-two-col">
                 <div className="summary-box">
-                  <h4>Top Performing Good</h4>
-                  <p><strong>Smoked Bluefin Tuna</strong> (+44% Net Margin)</p>
-                  <small>High demand in Seabreak Harbor tavern districts.</small>
+                  <h4>Revenue history</h4>
+                  <p><strong>Not recorded in this save</strong></p>
+                  <small>Current money is the authoritative balance.</small>
                 </div>
                 <div className="summary-box">
-                  <h4>Primary Operating Sink</h4>
-                  <p><strong>Agricultural Seeds & Fertilizer</strong> (1,150 G / wk)</p>
-                  <small>Can be offset by self-composting fish scraps into fertilizer.</small>
+                  <h4>Operating costs</h4>
+                  <p><strong>Not recorded in this save</strong></p>
+                  <small>Purchases are reflected immediately in the balance.</small>
                 </div>
               </div>
             </div>
@@ -153,14 +170,14 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
                     <strong>Starter Homestead Storage</strong>
                   </div>
                   <div className="asset-capacity-row">
-                    <span>Active Crops:</span>
-                    <strong>{plantedCount} Growing</strong>
+                    <span>Planted crops:</span>
+                    <strong>{plantedCount}</strong>
                   </div>
                   <div className="asset-capacity-row">
-                    <span>Barn & Silo Capacity:</span>
-                    <strong>210 / 800 kg</strong>
+                    <span>Farm plots in use:</span>
+                    <strong>{totalFarmPlots}</strong>
                   </div>
-                  <div className="rev-track"><div className="rev-fill fill-farm" style={{ width: "26%" }} /></div>
+                  <div className="rev-track"><div className="rev-fill fill-farm" style={{ width: `${plantedCount > 0 ? 100 : 0}%` }} /></div>
                 </div>
 
                 {/* Vessel Cargo Hold */}
@@ -174,27 +191,27 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
                     <strong>{boatCargoSlots.filter(Boolean).length}/{boatCargoSlots.length} Slots Used</strong>
                   </div>
                   <div className="asset-capacity-row">
-                    <span>Hold Weight:</span>
-                    <strong>{boatWeightKg.toFixed(1)} / {boatCapacityKg} kg</strong>
+                    <span>Hold weight:</span>
+                    <strong>{boatWeightKg.toFixed(1)} kg</strong>
                   </div>
-                  <div className="rev-track"><div className="rev-fill fill-fish" style={{ width: `${Math.min(100, (boatWeightKg / boatCapacityKg) * 100)}%` }} /></div>
+                  <div className="rev-track"><div className="rev-fill fill-fish" style={{ width: `${boatCargoSlots.length > 0 ? (boatCargoSlots.filter(Boolean).length / boatCargoSlots.length) * 100 : 0}%` }} /></div>
                 </div>
 
-                {/* Harbor Warehouse */}
+                {/* Owned vessels */}
                 <div className="asset-card">
                   <div className="asset-header">
-                    <span>⚓</span>
-                    <strong>Seabreak Cold Storage</strong>
+                    <IconBoat size={18} />
+                    <strong>Owned vessels</strong>
                   </div>
                   <div className="asset-capacity-row">
-                    <span>Status:</span>
-                    <strong className="green-text">Active (Ice Preserved)</strong>
+                    <span>Registered boats:</span>
+                    <strong>{ownedBoats.length}</strong>
                   </div>
                   <div className="asset-capacity-row">
-                    <span>Cold Hold Weight:</span>
-                    <strong>120 / 500 kg</strong>
+                    <span>Estimated hull value:</span>
+                    <strong>{estimatedBoatValue.toLocaleString()} G</strong>
                   </div>
-                  <div className="rev-track"><div className="rev-fill fill-trade" style={{ width: "24%" }} /></div>
+                  <div className="rev-track"><div className="rev-fill fill-trade" style={{ width: `${ownedBoats.length > 0 ? 100 : 0}%` }} /></div>
                 </div>
               </div>
 

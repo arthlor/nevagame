@@ -15,6 +15,7 @@ import { PaletteMaterials } from "../render/materials/PaletteMaterials";
 import { PALETTE_HEX } from "../render/materials/PaletteTokens";
 import type { GameState, WeatherState, WeatherTag } from "../simulation/core/types";
 import { resolveArtYardAssetId, syncArtYardAssetUrl } from "./urlState";
+import { socketAttachFor } from "../render/assets/ToolSocketAttach";
 
 interface YardAssetMetrics {
   id: string;
@@ -212,6 +213,7 @@ let currentClipDuration = 0;
 let isAnimationPlaying = true;
 let isScrubbing = false;
 let attachedSocketProp: THREE.Object3D | null = null;
+let socketPropSerial = 0;
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -573,6 +575,7 @@ function updateGroundBed(kind: string): void {
 }
 
 function clearModel(): void {
+  socketPropSerial += 1;
   restoreDiagnosticSnapshots();
   restoreCollisionSnapshots();
   disposeCollisionOverlay();
@@ -808,36 +811,58 @@ function playAnimationClip(name: string): void {
   }
 }
 
+function findCharacterSocket(model: THREE.Object3D, suffixes: readonly string[]): THREE.Object3D | null {
+  for (const suffix of suffixes) {
+    let found: THREE.Object3D | undefined;
+    model.traverse((obj) => {
+      if (found) return;
+      if (obj.name === suffix || obj.name.endsWith(`_${suffix}`)) {
+        found = obj;
+      }
+    });
+    if (found) return found;
+  }
+  return null;
+}
+
 async function attachSocketProp(assetId: string): Promise<void> {
+  const requestSerial = ++socketPropSerial;
+  const modelAtStart = currentModel;
+  const assetSerialAtStart = loadSerial;
   if (attachedSocketProp) {
     attachedSocketProp.removeFromParent();
     attachedSocketProp = null;
   }
-  if (!currentModel || assetId === "none") return;
+  if (!modelAtStart || assetId === "none") return;
 
   try {
     const propModel = await AssetLoader.loadModel(assetId as AssetId);
-    let targetSocketName = "char_player_tool_socket";
-    if (assetId === "tool_seed_pouch_a") {
-      targetSocketName = "char_player_hip_socket";
-    } else if (assetId.startsWith("prop_crop_bundle") || assetId.startsWith("prop_harvest_basket")) {
-      targetSocketName = "char_player_carry_socket";
+    if (
+      requestSerial !== socketPropSerial ||
+      assetSerialAtStart !== loadSerial ||
+      currentModel !== modelAtStart
+    ) {
+      // The character or selected prop changed while the asset was loading.
+      // AssetLoader returns a clone backed by its shared cache, so removing the
+      // unattached clone is sufficient and must not dispose shared resources.
+      propModel.removeFromParent();
+      return;
     }
-
-    let socket = currentModel.getObjectByName(targetSocketName);
-    if (!socket) socket = currentModel.getObjectByName("char_player_hand_socket_right");
-    if (!socket) socket = currentModel;
+    const socketKind =
+      assetId === "tool_seed_pouch_a"
+        ? (["hip_socket"] as const)
+        : assetId.startsWith("prop_crop_bundle") || assetId.startsWith("prop_harvest_basket")
+          ? (["carry_socket"] as const)
+          : (["tool_socket", "hand_socket_right"] as const);
+    let socket = findCharacterSocket(modelAtStart, socketKind);
+    if (!socket) socket = findCharacterSocket(modelAtStart, ["hand_socket_right", "hand_socket_left"]);
+    if (!socket) socket = modelAtStart;
 
     propModel.name = `socket_${assetId}`;
-    propModel.scale.setScalar(0.85);
-
-    if (assetId === "tool_fishing_rod_a") {
-      propModel.rotation.set(Math.PI, 0, 0);
-      propModel.position.set(0, -0.04, -0.02);
-    } else {
-      propModel.rotation.set(0, 0, 0);
-      propModel.position.set(0, 0, 0);
-    }
+    const pose = socketAttachFor(assetId);
+    propModel.scale.setScalar(pose.scale);
+    propModel.rotation.set(...pose.rotation);
+    propModel.position.set(...pose.position);
 
     socket.add(propModel);
     attachedSocketProp = propModel;

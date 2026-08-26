@@ -13,11 +13,18 @@ import { SeededRng } from "../../src/simulation/core/Rng";
 describe("Crop Growth & Quality Calculations", () => {
   const wheat = CROPS["crop.wheat"];
 
-  it("applies preferred climate bonus", () => {
+  it("applies preferred 1.20 and poor 0.80 unless an explicit neutral set exists", () => {
     const deltaPreferred = calculateEffectiveGrowthDelta(60, wheat, "temperate", 80, 80, "clear");
-    const deltaPoor = calculateEffectiveGrowthDelta(60, wheat, "arid", 80, 80, "clear");
+    const deltaPoorWarm = calculateEffectiveGrowthDelta(60, wheat, "warm", 80, 80, "clear");
+    const deltaPoorArid = calculateEffectiveGrowthDelta(60, wheat, "arid", 80, 80, "clear");
 
-    expect(deltaPreferred).toBeGreaterThan(deltaPoor);
+    expect(deltaPreferred).toBeGreaterThan(deltaPoorWarm);
+    expect(deltaPoorWarm).toBe(deltaPoorArid);
+    expect(deltaPreferred / deltaPoorWarm).toBeCloseTo(1.2 / 0.8);
+
+    const withNeutral = { ...wheat, neutralClimates: ["cool" as const] };
+    const deltaNeutral = calculateEffectiveGrowthDelta(60, withNeutral, "cool", 80, 80, "clear");
+    expect(deltaPreferred / deltaNeutral).toBeCloseTo(1.2);
   });
 
   it("slows growth when dry", () => {

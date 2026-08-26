@@ -83,11 +83,13 @@ export class CargoDomain {
     const scraps = scrapsForCargoClass(cargo.cargoClass);
     const inventory = state.inventories[state.player.inventoryId];
     const stack = [{ itemId: "item.fish_scraps", quantity: scraps }];
-    const granted = InventoryManager.canAddItems(inventory, stack) ? scraps : 0;
-    if (granted > 0) InventoryManager.addItemsAtomically(inventory, stack);
+    if (!InventoryManager.canAddItems(inventory, stack)) {
+      return { success: false, reason: "No inventory space for scraps" };
+    }
+    InventoryManager.addItemsAtomically(inventory, stack);
     this.clearPointers(cargo);
     delete state.fishCargo[cargoId];
-    return { success: true, scraps: granted, reason: granted === 0 ? "No inventory space for scraps" : undefined };
+    return { success: true, scraps };
   }
 
   public tick(minutes: number): void {

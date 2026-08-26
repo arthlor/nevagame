@@ -183,7 +183,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               <div><strong>[M]</strong> Multi-Lens World Map</div>
               <div><strong>[L]</strong> Logistics Ledger</div>
               <div><strong>[J]</strong> Captain & Farm Journal</div>
-              <div><strong>[Alt]</strong> Soil Moisture & Crop GIS</div>
+              <div><strong>Hold [Alt]</strong> Soil Moisture & Crop GIS</div>
               <div><strong>[Esc]</strong> Menu & Safe Reset</div>
             </div>
           </div>

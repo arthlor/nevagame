@@ -243,26 +243,6 @@ export const ITEMS: Record<string, ItemDefinition> = {
     tags: ["ice", "preservation"]
   },
 
-  // Basic Small Fish (Stackable Item form)
-  "item.fish_perch": {
-    id: "item.fish_perch",
-    name: "River Perch",
-    category: "produce",
-    description: "Small spiny river fish caught with basic rod.",
-    stackLimit: 50,
-    baseValue: 15,
-    tags: ["fish", "freshwater", "small-catch"]
-  },
-  "item.fish_mackerel": {
-    id: "item.fish_mackerel",
-    name: "Coastal Mackerel",
-    category: "produce",
-    description: "Silvery schooling fish caught in nearshore waters.",
-    stackLimit: 50,
-    baseValue: 18,
-    tags: ["fish", "saltwater", "small-catch"]
-  },
-
   // Harbor-tradable basic catch IDs matching ContentRegistry.fishSpecies
   "fish.perch": {
     id: "fish.perch",

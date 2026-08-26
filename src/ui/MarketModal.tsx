@@ -57,13 +57,14 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
   const activePrice = activeCommodity ? calculateCommodityUnitPrice(activeCommodity) : null;
 
-  // Regional arbitrage price comparison (e.g. comparing current market with distant markets)
-  const isVillage = activeMarketId === "market.village";
-  const distantPortName = isVillage ? "Seabreak Harbor" : "Village Trade Hall";
-  const distantPortDistance = isVillage ? "2.4 km" : "2.4 km";
-  const distantPriceEst = activePrice ? Math.round(activePrice.unitPrice * (isVillage ? 1.28 : 0.88)) : 0;
-  const transportCostEst = 12;
-  const netMarginDelta = distantPriceEst - (activePrice?.unitPrice ?? 0) - transportCostEst;
+  const comparisonMarket = activeCommodity
+    ? Object.values(state.markets).find((market) => market.id !== activeMarketId && Boolean(market.commodities[activeCommodity.itemId]))
+    : undefined;
+  const comparisonCommodity = activeCommodity && comparisonMarket
+    ? comparisonMarket.commodities[activeCommodity.itemId]
+    : undefined;
+  const comparisonPrice = comparisonCommodity ? calculateCommodityUnitPrice(comparisonCommodity) : null;
+  const priceDelta = activePrice && comparisonPrice ? comparisonPrice.unitPrice - activePrice.unitPrice : null;
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
@@ -222,9 +223,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             )}
           </section>
 
-          {/* Right Column: Regional Arbitrage & Pricing Analysis */}
+          {/* Right Column: Regional Pricing Context */}
           <section className="market-right-panel">
-            <h3 className="section-title">Regional Arbitrage Analysis</h3>
+            <h3 className="section-title">Regional Pricing Context</h3>
 
             {activeCommodity && activePrice ? (
               <div className="arbitrage-detail-card">
@@ -245,60 +246,43 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     </strong>
                   </div>
                   <div className="arb-metric-box">
-                    <span className="arb-label">7-Day Trend</span>
-                    <strong className="arb-val green-text">▲ +14%</strong>
+                    <span className="arb-label">Seasonal Factor</span>
+                    <strong className="arb-val">{activePrice.seasonalModifier.toFixed(2)}×</strong>
                   </div>
                 </div>
 
-                {/* 7-Day Sparkline representation */}
-                <div className="sparkline-container">
-                  <span className="sparkline-title">7-Day Price Fluctuation</span>
-                  <div className="sparkline-visual">
-                    <div className="spark-bar" style={{ height: "45%" }} />
-                    <div className="spark-bar" style={{ height: "60%" }} />
-                    <div className="spark-bar" style={{ height: "55%" }} />
-                    <div className="spark-bar" style={{ height: "70%" }} />
-                    <div className="spark-bar" style={{ height: "85%" }} />
-                    <div className="spark-bar" style={{ height: "80%" }} />
-                    <div className="spark-bar is-current" style={{ height: "92%" }} />
-                  </div>
-                </div>
-
-                {/* Regional Comparison Arbitrage Box */}
                 <div className="distant-arbitrage-box">
                   <header className="dist-header">
-                    <span>🧭 Regional Port Comparison</span>
-                    <span className="dist-tag">{distantPortName} ({distantPortDistance})</span>
+                    <span>🧭 Other Market Comparison</span>
+                    {comparisonMarket && <span className="dist-tag">{comparisonMarket.name}</span>}
                   </header>
 
-                  <div className="dist-rows">
-                    <div className="dist-row">
-                      <span>Distant Market Est. Price:</span>
-                      <strong>{distantPriceEst} G</strong>
+                  {comparisonPrice && priceDelta !== null ? (
+                    <div className="dist-rows">
+                      <div className="dist-row">
+                        <span>Other market unit price:</span>
+                        <strong>{comparisonPrice.unitPrice} G</strong>
+                      </div>
+                      <div className="dist-row dist-total">
+                        <span>Price difference before transport:</span>
+                        <strong className={priceDelta >= 0 ? "green-text" : "red-text"}>
+                          {priceDelta >= 0 ? `+${priceDelta}` : priceDelta} G
+                        </strong>
+                      </div>
                     </div>
-                    <div className="dist-row">
-                      <span>Estimated Cart Freight:</span>
-                      <span>-{transportCostEst} G</span>
+                  ) : (
+                    <div className="no-commodity-selected">
+                      <span>No other market currently trades this commodity.</span>
                     </div>
-                    <div className="dist-row">
-                      <span>Spoilage / Decay Risk:</span>
-                      <span className="tag-safe">Low</span>
-                    </div>
-                    <div className="dist-row dist-total">
-                      <span>Net Arbitrage Advantage:</span>
-                      <strong className={netMarginDelta >= 0 ? "green-text" : "red-text"}>
-                        {netMarginDelta >= 0 ? `+${netMarginDelta} G (Higher Profit)` : `${netMarginDelta} G`}
-                      </strong>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="market-decision-tip">
                   <IconWarning size={14} />
                   <span>
-                    {netMarginDelta > 0
-                      ? `Transporting this commodity to ${distantPortName} yields higher returns per unit.`
-                      : `Local demand is strong; optimal to sell here directly.`}
+                    {comparisonPrice && priceDelta !== null
+                      ? "This compares current unit prices only; transport cost and route time are not simulated."
+                      : "This save has no cross-market price comparison for the selected commodity."}
                   </span>
                 </div>
               </div>

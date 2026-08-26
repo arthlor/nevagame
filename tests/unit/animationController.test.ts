@@ -14,6 +14,12 @@ function motion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample
     accelerationMetersPerSecondSquared: 0,
     turnRateRadiansPerSecond: 0,
     isGrounded: true,
+    groundNormal: { x: 0, y: 1, z: 0 },
+    slopeRadians: 0,
+    airbornePhase: "grounded",
+    contactEvent: "none",
+    landingImpactStrength: 0,
+    contactSurface: "grass",
     isCollisionBlocked: false,
     requestedGait: "idle",
     ...overrides
@@ -124,6 +130,66 @@ describe("AnimationController", () => {
     expect(controller.currentClip()).toBe("idle");
   });
 
+  it("matches authored gait phase to resolved gameplay travel speed", () => {
+    const walking = new AnimationController(makeClippedCharacter());
+    const walkContext = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({
+        velocity: { x: 0, y: 0, z: 5 },
+        speedMetersPerSecond: 5,
+        requestedGait: "walk"
+      })
+    };
+    for (let index = 0; index < 36; index += 1) walking.update(1 / 60, walkContext);
+    expect(walking.playbackState()).toMatchObject({ clip: "walk" });
+    expect(walking.playbackState().playbackScale).toBeCloseTo(5 / 3.2, 3);
+
+    const running = new AnimationController(makeClippedCharacter());
+    const runContext = {
+      ...walkContext,
+      motion: motion({
+        velocity: { x: 0, y: 0, z: 8.2 },
+        speedMetersPerSecond: 8.2,
+        requestedGait: "run"
+      })
+    };
+    for (let index = 0; index < 36; index += 1) running.update(1 / 60, runContext);
+    expect(running.playbackState()).toMatchObject({ clip: "run" });
+    expect(running.playbackState().playbackScale).toBeCloseTo(8.2 / 5.6, 3);
+  });
+
+  it("maps airborne and landing evidence to essential clips under reduced motion", () => {
+    const controller = new AnimationController(makeClippedCharacter());
+    controller.update(1 / 60, {
+      mode: "on-foot",
+      carrying: false,
+      motion: motion({
+        isGrounded: false,
+        airbornePhase: "rising",
+        velocity: { x: 0, y: 4, z: 0 }
+      })
+    }, true);
+    expect(controller.currentClip()).toBe("jump_start");
+
+    controller.update(1 / 60, {
+      mode: "on-foot",
+      carrying: false,
+      motion: motion({
+        contactEvent: "land-hard",
+        landingImpactStrength: 0.9
+      })
+    }, true);
+    expect(controller.currentClip()).toBe("land_hard");
+    const frame = controller.update(1 / 60, {
+      mode: "on-foot",
+      carrying: false,
+      motion: motion()
+    }, true);
+    expect(frame.bobY).toBe(0);
+    expect(frame.leanX).toBe(0);
+  });
+
   it("emits authored foot contacts only for resolved, grounded displacement", () => {
     const controller = new AnimationController(makeClippedCharacter());
     const walkingMotion = motion({
@@ -183,7 +249,7 @@ describe("AnimationController", () => {
     expect(controller.playbackState().activeAction).toBeNull();
   });
 
-  it("holds rowboat oars at rest, rows from input rather than coasting speed, and excludes skiffs", () => {
+  it("holds rowboat oars at rest, rows from input rather than coasting speed, and gives skiffs a drive pose", () => {
     const controller = new AnimationController(makeClippedCharacter());
     const coastingMotion = motion({ speedMetersPerSecond: 2.2, requestedGait: "vehicle" });
 
@@ -210,6 +276,6 @@ describe("AnimationController", () => {
       motion: coastingMotion,
       boatInput: { boatTypeId: "boat.skiff", throttle: 1, steering: 0 }
     });
-    expect(controller.currentClip()).toBe("idle");
+    expect(controller.currentClip()).toBe("skiff_drive");
   });
 });

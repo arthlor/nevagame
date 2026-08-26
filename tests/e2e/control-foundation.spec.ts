@@ -341,9 +341,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
 
   test("E and LMB share the harbor target, and boat input returns cleanly to on-foot mode", async ({ page, browserName }) => {
     test.skip(browserName !== "chromium", "Deep boat flow is covered once; control smoke runs in every engine");
-    const prompt = page.locator(".interaction-prompt");
+    const prompt = page.locator(".interaction-wood-banner");
     let diagnostics = await loadScenario(page, "harbor");
-    await expect(prompt).toContainText("Board Rowboat");
+    await expect(prompt).toContainText("Board Wooden Rowboat");
 
     await page.keyboard.press("KeyI");
     await expect(page.locator(".modal-content")).toBeVisible();
@@ -352,19 +352,21 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
     await expect(diagnostics).toHaveAttribute("data-active-boat", "none");
     await page.getByRole("button", { name: "Close" }).click();
-    await expect(prompt).toContainText("Board Rowboat");
+    await expect(prompt).toContainText("Board Wooden Rowboat");
 
     await page.keyboard.press("KeyE");
     await expect(diagnostics).toHaveAttribute("data-mode", "boat-driving");
+    await page.waitForTimeout(350);
     await page.keyboard.press("KeyE");
     await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
     await expect(diagnostics).toHaveAttribute("data-active-boat", "none");
 
     diagnostics = await loadScenario(page, "harbor");
-    await expect(prompt).toContainText("Board Rowboat");
+    await expect(prompt).toContainText("Board Wooden Rowboat");
     const clickPoint = await canvasPoint(page, 0.52, 0.46);
     await page.mouse.click(clickPoint.x, clickPoint.y);
     await expect(diagnostics).toHaveAttribute("data-mode", "boat-driving");
+    await page.waitForTimeout(350);
     await page.keyboard.press("KeyE");
     await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
 

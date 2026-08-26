@@ -9,6 +9,7 @@ export class FishingEncounter {
   private state: FishingEncounterState;
   private rod: RodDefinition;
   private rng: Rng;
+  private pendingLand = false;
 
   constructor(fish: FishInstance, rodId: string, rng: Rng, startDistanceMeters: number = 30) {
     this.rng = rng;
@@ -58,7 +59,22 @@ export class FishingEncounter {
     encounter.state = state;
     encounter.rod = rod;
     encounter.rng = rng;
+    encounter.pendingLand = false;
+    const landingThreshold = state.maxStamina * 0.15;
+    if (
+      state.result === "active" &&
+      state.stamina <= landingThreshold &&
+      state.distanceMeters <= 3.0 &&
+      state.lineTension < rod.maxSafeTension
+    ) {
+      encounter.pendingLand = true;
+    }
     return encounter;
+  }
+
+  public deferLanding(): void {
+    this.pendingLand = true;
+    this.state.result = "active";
   }
 
   public getState(): Readonly<FishingEncounterState> {
@@ -79,6 +95,10 @@ export class FishingEncounter {
   }
 
   public tick(deltaSeconds: number): "active" | "landed" | "escaped" | "line-snapped" {
+    if (this.pendingLand) {
+      this.state.result = "landed";
+      return "landed";
+    }
     if (this.state.result !== "active" || deltaSeconds <= 0) {
       return this.state.result;
     }

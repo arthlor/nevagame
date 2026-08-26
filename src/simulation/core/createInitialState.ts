@@ -5,9 +5,20 @@ import { createFullPlayerTraversalState } from "../navigation/PlayerTraversal";
 import type { GameState, StationType, StructureId } from "./types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { starterStructureAnchor } from "../../world/FarmLayout";
+import { PLAYER_HOMESTEAD_LAYOUT, STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../world/FarmLayout";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION, WORLD_SPAWN } from "../../world/WorldAnchors";
 import { WorldLayout } from "../../world/WorldLayout";
+
+function farmSizeFromLayout(layout: {
+  plantableAreas: readonly { minX: number; maxX: number; minZ: number; maxZ: number }[];
+  farmBounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+}): { widthMeters: number; depthMeters: number } {
+  const area = layout.plantableAreas[0] ?? layout.farmBounds;
+  return {
+    widthMeters: area.maxX - area.minX,
+    depthMeters: area.maxZ - area.minZ
+  };
+}
 
 function structureOnTerrain(
   id: StructureId,
@@ -84,8 +95,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     "farm.starter_garden": {
       id: "farm.starter_garden",
       regionId: "region.farm",
-      widthMeters: 8,
-      depthMeters: 8,
+      ...farmSizeFromLayout(STARTER_FARM_LAYOUT),
       climateId: "temperate",
       soil: { fertility: 85, moistureRetention: 0.7 },
       placedCropIds: [],
@@ -97,8 +107,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     "farm.player_homestead": {
       id: "farm.player_homestead",
       regionId: "region.farm",
-      widthMeters: 16,
-      depthMeters: 16,
+      ...farmSizeFromLayout(PLAYER_HOMESTEAD_LAYOUT),
       climateId: "temperate",
       soil: { fertility: 90, moistureRetention: 0.8 },
       placedCropIds: [],

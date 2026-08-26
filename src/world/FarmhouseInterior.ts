@@ -142,6 +142,76 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
     z: FARMHOUSE_INTERIOR_ORIGIN.z + 0.8,
     rotationY: 0,
     scale: 1.15
+  },
+  // 8. Alcove Bookcase on the western wall
+  {
+    id: "interior_bookcase",
+    assetId: ASSET_IDS.PROP_BOOKCASE_WOOD_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.8,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z + 0.2,
+    rotationY: Math.PI / 2,
+    scale: 1.0
+  },
+  // 9. Sideboard credenza near the kitchen dining zone
+  {
+    id: "interior_sideboard",
+    assetId: ASSET_IDS.PROP_SIDEBOARD_WOOD_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.8,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
+    rotationY: -Math.PI / 2,
+    scale: 1.0
+  },
+  // 10. Side table next to the reading armchair
+  {
+    id: "interior_side_table",
+    assetId: ASSET_IDS.PROP_SIDE_TABLE_WOOD_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.4,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.4,
+    rotationY: 0.2,
+    scale: 1.0
+  },
+  // 11. Floor houseplant in the sunny corner nook
+  {
+    id: "interior_floor_plant",
+    assetId: ASSET_IDS.PROP_FLOOR_PLANT_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.6,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z + 2.8,
+    rotationY: 0,
+    scale: 1.0
+  },
+  // 12. Fresh bread loaf on dining table
+  {
+    id: "interior_bread_loaf",
+    assetId: ASSET_IDS.ITEM_BREAD_LOAF_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.78,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
+    rotationY: 0.4,
+    scale: 1.0
+  },
+  // 13. Fresh baked pie on dining table
+  {
+    id: "interior_pie",
+    assetId: ASSET_IDS.ITEM_PIE_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 1.6,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.78,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
+    rotationY: -0.2,
+    scale: 1.0
+  },
+  // 14. Orchard apple on sideboard
+  {
+    id: "interior_apple",
+    assetId: ASSET_IDS.ITEM_APPLE_A,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.8,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.86,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
+    rotationY: 0,
+    scale: 1.0
   }
 ]);
 

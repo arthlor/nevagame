@@ -12,6 +12,64 @@ import { HARBOR_DOCK, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 
+function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
+  const factory = globalThis.indexedDB as unknown as {
+    open: (name: string, version?: number) => IDBOpenDBRequest;
+  };
+  const originalOpen = factory.open.bind(factory);
+  factory.open = ((name: string, version?: number) => {
+    const request = originalOpen(name, version) as IDBOpenDBRequest & { onsuccess: (() => void) | null };
+    let onsuccess: (() => void) | null = null;
+    Object.defineProperty(request, "onsuccess", {
+      configurable: true,
+      get: () => onsuccess,
+      set: (fn: (() => void) | null) => {
+        onsuccess = () => {
+          const db = request.result as IDBDatabase;
+          const originalTransaction = db.transaction.bind(db);
+          db.transaction = ((storeName: string, mode?: IDBTransactionMode) => {
+            const tx = originalTransaction(storeName, mode);
+            const originalObjectStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((objectStoreName: string) => {
+              const store = originalObjectStore(objectStoreName);
+              const originalPut = store.put.bind(store);
+              store.put = ((value: unknown, key?: IDBValidKey) => {
+                if (key !== undefined && shouldFail(key)) {
+                  throw new Error("forced IndexedDB put failure");
+                }
+                return originalPut(value, key);
+              }) as typeof store.put;
+              return store;
+            }) as typeof tx.objectStore;
+            return tx;
+          }) as typeof db.transaction;
+          fn?.();
+        };
+      }
+    });
+    return request;
+  }) as typeof factory.open;
+}
+
+async function putRawSave(key: string, value: unknown): Promise<void> {
+  const dbOpen = indexedDB.open("neva_save_db", 1);
+  await new Promise<void>((resolve, reject) => {
+    dbOpen.onerror = () => reject(new Error("open failed"));
+    dbOpen.onsuccess = () => resolve();
+    dbOpen.onupgradeneeded = () => {
+      const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+      if (!db.objectStoreNames.contains("game_saves")) db.createObjectStore("game_saves");
+    };
+  });
+  const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction("game_saves", "readwrite");
+    tx.objectStore("game_saves").put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(new Error("put failed"));
+  });
+}
+
 describe("Persistence & Offline Progression", () => {
   it("does not report a durable save when IndexedDB is unavailable", async () => {
     const previous = (globalThis as { indexedDB?: IDBFactory }).indexedDB;
@@ -20,7 +78,9 @@ describe("Persistence & Offline Progression", () => {
       const repo = new IndexedDbSaveRepository();
       const state = createInitialGameState(12345);
       state.player.money = 550;
+      const lastSavedUtcMs = state.metadata.lastSavedUtcMs;
       expect(await repo.saveGame(state)).toBe(false);
+      expect(state.metadata.lastSavedUtcMs).toBe(lastSavedUtcMs);
       expect(await repo.loadGame()).toBeNull();
       expect(await repo.loadGameResult()).toEqual({ status: "unavailable" });
     } finally {
@@ -164,6 +224,142 @@ describe("Persistence & Offline Progression", () => {
       expect(loaded?.state.player.money).toBe(880);
     });
 
+    it("deep-snapshots nested state before any await so later mutations cannot tear the save", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const state = createInitialGameState(12345);
+      state.clock.isPaused = true;
+      state.player.money = 140;
+      const originalX = state.player.x;
+      const inventory = state.inventories[state.player.inventoryId];
+      inventory.slots[0] = { itemId: "seed.wheat", quantity: 10 };
+      state.metadata.lastSavedUtcMs = 1;
+      const lastSavedBefore = state.metadata.lastSavedUtcMs;
+
+      const pending = repo.saveGame(state);
+      expect(state.metadata.lastSavedUtcMs).toBe(lastSavedBefore);
+      expect(state.clock.isPaused).toBe(true);
+
+      state.player.money = 999;
+      state.player.x = originalX + 40;
+      inventory.slots[0].quantity = 1;
+      state.basicFishing = {
+        habitatId: "river",
+        phase: "minigame",
+        remainingSeconds: 1.5,
+        willCatch: true
+      };
+
+      expect(await pending).toBe(true);
+      expect(state.clock.isPaused).toBe(true);
+      expect(state.player.money).toBe(999);
+      expect(state.metadata.lastSavedUtcMs).toBeGreaterThan(lastSavedBefore);
+
+      const loaded = await repo.loadGame();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.state.clock.isPaused).toBe(false);
+      expect(loaded!.state.player.money).toBe(140);
+      expect(loaded!.state.player.x).toBe(originalX);
+      expect(loaded!.state.inventories[loaded!.state.player.inventoryId].slots[0]).toEqual({
+        itemId: "seed.wheat",
+        quantity: 10
+      });
+      expect(loaded!.state.basicFishing).toBeNull();
+      expect(loaded!.state.metadata.lastSavedUtcMs).toBe(state.metadata.lastSavedUtcMs);
+      expect(loaded!.savedAtUtcMs).toBe(state.metadata.lastSavedUtcMs);
+    });
+
+    it("retries IndexedDB open on a later saveGame after an unavailable attempt", async () => {
+      const restore = restoreIndexedDB;
+      restore();
+      delete (globalThis as { indexedDB?: IDBFactory }).indexedDB;
+      const repo = new IndexedDbSaveRepository();
+      const state = createInitialGameState();
+      state.player.money = 321;
+      state.metadata.lastSavedUtcMs = 1;
+      const lastSavedBefore = state.metadata.lastSavedUtcMs;
+      expect(await repo.saveGame(state)).toBe(false);
+      expect(await repo.loadGameResult()).toEqual({ status: "unavailable" });
+      expect(state.metadata.lastSavedUtcMs).toBe(lastSavedBefore);
+
+      restoreIndexedDB = installMemoryIndexedDB();
+      expect(await repo.saveGame(state)).toBe(true);
+      const loaded = await repo.loadGame();
+      expect(loaded?.state.player.money).toBe(321);
+      expect(state.metadata.lastSavedUtcMs).toBe(loaded!.savedAtUtcMs);
+    });
+
+    it("serializes overlapping writes so the later snapshot wins and previous primary becomes backup", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const state = createInitialGameState();
+      state.player.money = 111;
+      const first = repo.saveGame(state);
+      state.player.money = 222;
+      const second = repo.saveGame(state);
+      expect(await first).toBe(true);
+      expect(await second).toBe(true);
+
+      const loaded = await repo.loadGame();
+      expect(loaded?.state.player.money).toBe(222);
+
+      const dbOpen = indexedDB.open("neva_save_db", 1);
+      await new Promise<void>((resolve, reject) => {
+        dbOpen.onerror = () => reject(new Error("open failed"));
+        dbOpen.onsuccess = () => resolve();
+      });
+      const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("game_saves", "readwrite");
+        tx.objectStore("game_saves").put({ schemaVersion: 0, savedAtUtcMs: 1, state: {} }, "primary_save");
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(new Error("put failed"));
+      });
+      const restored = await repo.loadGame();
+      expect(restored?.state.player.money).toBe(111);
+    });
+
+    it("does not overwrite primary when backup put fails", async () => {
+      const failPuts = { backup: false };
+      patchIndexedDbPuts((key) => failPuts.backup && key === "backup_save");
+      const repo = new IndexedDbSaveRepository();
+      const first = createInitialGameState();
+      first.player.money = 400;
+      expect(await repo.saveGame(first)).toBe(true);
+
+      failPuts.backup = true;
+      const second = createInitialGameState();
+      second.player.money = 800;
+      const lastSavedBefore = second.metadata.lastSavedUtcMs;
+      expect(await repo.saveGame(second)).toBe(false);
+      expect(second.metadata.lastSavedUtcMs).toBe(lastSavedBefore);
+
+      const loaded = await repo.loadGame();
+      expect(loaded?.state.player.money).toBe(400);
+    });
+
+
+    it("falls through to backup when v11 trout overflow fails migration", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const good = {
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 2,
+        state: createInitialGameState()
+      };
+      good.state.player.money = 640;
+      const overflow = structuredClone(createInitialGameState());
+      overflow.schemaVersion = 10;
+      overflow.player.money = 12;
+      const holdSlots = overflow.boats["boat.player_rowboat"].fishCargoSlotIds.length;
+      overflow.inventories[overflow.player.inventoryId].slots[0] = {
+        itemId: "fish.trout",
+        quantity: 1 + holdSlots + 1
+      };
+      await putRawSave("primary_save", { schemaVersion: 10, savedAtUtcMs: 1, state: overflow });
+      await putRawSave("backup_save", good);
+
+      const loaded = await repo.loadGame();
+      expect(loaded?.state.player.money).toBe(640);
+    });
+
     it("does not promote session RAM into IndexedDB when storage returns", async () => {
       const restore = restoreIndexedDB;
       restore();
@@ -268,6 +464,48 @@ describe("Persistence & Offline Progression", () => {
     expect(validateSaveEnvelope(poisonedSchool)).toBe(false);
   });
 
+  it("rejects cargo pointers that disagree with the player or duplicate boat slots", () => {
+    const playerPointerToBoatCargo = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: createInitialGameState()
+    };
+    const rowboat = playerPointerToBoatCargo.state.boats["boat.player_rowboat"];
+    rowboat.fishCargoSlotIds[0] = "cargo.pointer_mismatch";
+    playerPointerToBoatCargo.state.fishCargo["cargo.pointer_mismatch"] = {
+      id: "cargo.pointer_mismatch",
+      speciesId: "fish.trout",
+      weightKg: 4.6,
+      quality: "common",
+      caughtAtMinute: 0,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "boat-hold", containerId: rowboat.id, slotIndex: 0 }
+    };
+    playerPointerToBoatCargo.state.player.carriedFishCargoId = "cargo.pointer_mismatch";
+    expect(validateSaveEnvelope(playerPointerToBoatCargo)).toBe(false);
+
+    const duplicateBoatSlot = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: createInitialGameState()
+    };
+    const duplicateRowboat = duplicateBoatSlot.state.boats["boat.player_rowboat"];
+    duplicateRowboat.fishCargoSlotIds[0] = "cargo.duplicate";
+    duplicateRowboat.fishCargoSlotIds[1] = "cargo.duplicate";
+    duplicateBoatSlot.state.fishCargo["cargo.duplicate"] = {
+      id: "cargo.duplicate",
+      speciesId: "fish.trout",
+      weightKg: 4.6,
+      quality: "common",
+      caughtAtMinute: 0,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "boat-hold", containerId: duplicateRowboat.id, slotIndex: 0 }
+    };
+    expect(validateSaveEnvelope(duplicateBoatSlot)).toBe(false);
+  });
+
   it("migrates v5 saves to full traversal stamina without changing other player truth", () => {
     const legacy = structuredClone(createInitialGameState());
     legacy.schemaVersion = 5;
@@ -288,6 +526,37 @@ describe("Persistence & Offline Progression", () => {
       isGrounded: true
     });
     expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+
+  it("migrates a v10 trout stack that fits in 1 carry plus boat holds into cargo", () => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 10;
+    const inventory = legacy.inventories[legacy.player.inventoryId];
+    const holdSlots = legacy.boats["boat.player_rowboat"].fishCargoSlotIds.length;
+    const capacity = 1 + holdSlots;
+    inventory.slots[0] = { itemId: "fish.trout", quantity: capacity };
+    const migrated = migrateSaveData({ schemaVersion: 10, savedAtUtcMs: 1, state: legacy });
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+    expect(migrated.state.inventories[migrated.state.player.inventoryId].slots[0].itemId).toBeUndefined();
+    const troutCargo = Object.values(migrated.state.fishCargo).filter((cargo) => cargo.speciesId === "fish.trout");
+    expect(troutCargo).toHaveLength(capacity);
+    expect(migrated.state.player.carriedFishCargoId).toBeTruthy();
+  });
+
+  it("fails schema 11 trout migration when quantity exceeds 1 carry plus boat holds", () => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 10;
+    const inventory = legacy.inventories[legacy.player.inventoryId];
+    const holdSlots = legacy.boats["boat.player_rowboat"].fishCargoSlotIds.length;
+    const overflow = 1 + holdSlots + 1;
+    inventory.slots[0] = { itemId: "fish.trout", quantity: overflow };
+    const slotBefore = { ...inventory.slots[0] };
+    expect(() => migrateSaveData({ schemaVersion: 10, savedAtUtcMs: 1, state: legacy } as never)).toThrow(
+      /fish\.trout quantity .* exceeds player carry and boat hold capacity/
+    );
+    expect(inventory.slots[0]).toEqual(slotBefore);
   });
 
   it("maps a complete pre-release v6 world into layout revision 3 without discarding simulation truth", () => {

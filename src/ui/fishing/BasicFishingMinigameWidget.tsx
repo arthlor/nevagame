@@ -40,7 +40,21 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   const speciesName = species?.name || "Fish";
 
   const propsRef = useRef({ phase, onHookBite, onSetInput, onReleaseCast, onDismissModal });
+  const inputHeldRef = useRef(false);
+  const castChargingRef = useRef(false);
   propsRef.current = { phase, onHookBite, onSetInput, onReleaseCast, onDismissModal };
+
+  const releaseHeldInput = () => {
+    const current = propsRef.current;
+    if (inputHeldRef.current) {
+      inputHeldRef.current = false;
+      current.onSetInput?.(false);
+    }
+    if (castChargingRef.current) {
+      castChargingRef.current = false;
+      current.onReleaseCast?.();
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,7 +64,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
         if (currentPhase === "bite-reaction") {
           hook?.();
         } else if (currentPhase === "minigame") {
+          inputHeldRef.current = true;
           setInp?.(true);
+        } else if (currentPhase === "charging-cast") {
+          castChargingRef.current = true;
         } else if (currentPhase === "caught" || currentPhase === "escaped") {
           dismiss?.();
         }
@@ -62,41 +79,84 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
         e.preventDefault();
         const { phase: currentPhase, onReleaseCast: release, onSetInput: setInp } = propsRef.current;
         if (currentPhase === "charging-cast") {
-          release?.();
+          if (castChargingRef.current) {
+            castChargingRef.current = false;
+            release?.();
+          }
         } else if (currentPhase === "minigame") {
-          setInp?.(false);
+          if (inputHeldRef.current) {
+            inputHeldRef.current = false;
+            setInp?.(false);
+          }
         }
       }
     };
 
+    const handleWindowBlur = () => releaseHeldInput();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") releaseHeldInput();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      releaseHeldInput();
     };
   }, []);
 
-  // Mouse handlers for minigame area
-  const handleMouseDown = () => {
+  useEffect(() => {
+    if (phase !== "minigame" && inputHeldRef.current) {
+      inputHeldRef.current = false;
+      onSetInput?.(false);
+    }
+    if (phase !== "charging-cast" && castChargingRef.current) {
+      castChargingRef.current = false;
+      onReleaseCast?.();
+    }
+  }, [phase, onReleaseCast, onSetInput]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (phase === "minigame" || phase === "charging-cast") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
     if (phase === "bite-reaction") {
       onHookBite?.();
     } else if (phase === "minigame") {
+      inputHeldRef.current = true;
       onSetInput?.(true);
+    } else if (phase === "charging-cast") {
+      castChargingRef.current = true;
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     if (phase === "charging-cast") {
-      onReleaseCast?.();
+      if (castChargingRef.current) {
+        castChargingRef.current = false;
+        onReleaseCast?.();
+      }
     } else if (phase === "minigame") {
-      onSetInput?.(false);
+      if (inputHeldRef.current) {
+        inputHeldRef.current = false;
+        onSetInput?.(false);
+      }
     }
   };
 
   if (phase === "charging-cast") {
     return (
-      <div className="basic-fishing-container" onMouseUp={handleMouseUp}>
+      <div className="basic-fishing-container" onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
         <div className="cast-power-card">
           <div className="cast-title">🎣 Cast Power</div>
           <div className="cast-power-bar-track">
@@ -115,7 +175,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "bite-reaction") {
     return (
       <div className="basic-fishing-container">
-        <div className="bite-alert-banner" onClick={onHookBite}>
+        <div className="bite-alert-banner" onPointerDown={handlePointerDown}>
           <div className="bite-exclamation">!</div>
           <div className="bite-text">Bite! Hook It!</div>
           <div className="cast-hint" style={{ color: "#fef08a" }}>Press [Space] or Click!</div>
@@ -128,10 +188,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     return (
       <div
         className="basic-fishing-container"
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onLostPointerCapture={handlePointerUp}
       >
         <div className="minigame-card">
           <div className="minigame-header">

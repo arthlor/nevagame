@@ -8,17 +8,27 @@ import { AssetLoader } from "../loaders/AssetLoader";
 import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import { TerrainSurfaceMaterial } from "../materials/TerrainSurfaceMaterial";
 import {
   ASSET_BY_ID,
   ASSET_IDS,
   boatAssetId,
   type AssetId
 } from "../assets/AssetCatalog";
+import { socketAttachFor } from "../assets/ToolSocketAttach";
+import {
+  STATIC_FARM_PROP_ASSETS,
+  STATIC_LANDMARK_ASSETS
+} from "../assets/RuntimeAssetOwners";
 import type { StaticCollisionProxy } from "../../physics/StaticCollision";
 import { projectAssetCollision } from "../../physics/CollisionCatalogAdapter";
-import type { GameState } from "../../simulation/core/types";
+import type { BasicFishingPhase, GameState } from "../../simulation/core/types";
+import type { BoatMotionSample } from "../../simulation/core/PhysicsAdapter";
 import type { CropPlacementResult } from "../../simulation/core/contracts";
-import { WATER_SURFACE, WORLD_PATHS, WORLD_ROUTES, WorldLayout } from "../../world/WorldLayout";
+import {
+  WATER_SURFACE,
+  WorldLayout
+} from "../../world/WorldLayout";
 import {
   STARTER_FARM_LAYOUT,
   farmLocalToWorld,
@@ -41,7 +51,10 @@ import {
   type CharacterAnimationEvent,
   type PlayerAnimation
 } from "../animation/AnimationController";
-import type { PresentedPlayerFrame } from "../presentation/PlayerPresentationBuffer";
+import {
+  stationaryPlayerMotion,
+  type PresentedPlayerFrame
+} from "../presentation/PlayerPresentationBuffer";
 import { LightingRig } from "../lighting/LightingRig";
 import { RendererPipeline } from "../pipeline/RendererPipeline";
 import { ShoreFoam } from "../water/ShoreFoam";
@@ -51,15 +64,26 @@ import { CropInstanceRenderer } from "./CropInstanceRenderer";
 import { GroundCoverRenderer } from "./GroundCoverRenderer";
 import { buildStarterFarmGround } from "./StarterFarmGround";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { fishSchoolAsset } from "./FishSchoolAssets";
+import { fishSchoolAsset, fishSpeciesAsset } from "./FishSchoolAssets";
 
 
 
 import { FarmVfxPool, type FarmVfxKind, type FarmVfxPoint } from "../effects/FarmVfxPool";
 import type { WaterConditions } from "../water/WaterSurface";
+import {
+  createWeatherMotionSignal,
+  sampleWeatherMotionSignal,
+  type WeatherMotionSignal
+} from "../motion/WeatherMotionSignal";
+import {
+  createSportFishingPresentationSample,
+  sampleSportFishingPresentation,
+  type SportFishingPresentationSample
+} from "../fishing/FishingPresentation";
 
 export interface BoatPresentationInput extends BoatAnimationInput {
   boatId: string;
+  motion?: BoatMotionSample;
 }
 
 interface NpcPresentation {
@@ -68,8 +92,41 @@ interface NpcPresentation {
   anchor: { x: number; z: number; rotationY: number };
   model: THREE.Group;
   mixer: THREE.AnimationMixer;
+  actions: Map<NpcAnimationClip, THREE.AnimationAction>;
+  activeClip: NpcAnimationClip | null;
   headBone?: THREE.Object3D;
   initialRotationY: number;
+  detailReduced: boolean;
+}
+
+type NpcAnimationClip = "idle" | "talk_gesture" | "turn_left" | "turn_right";
+
+const CHARACTER_DETAIL_DISTANCE_METERS = 14;
+const CHARACTER_DETAIL_NODE_PATTERNS = [
+  /finger/,
+  /lace/,
+  /sole/,
+  /buckle/,
+  /button/,
+  /pocket/,
+  /strap/,
+  /cuff/,
+  /ribbon/,
+  /chain/,
+  /watch/,
+  /holster/,
+  /trowel/,
+  /hand/,
+  /neck/,
+  /chin/,
+  /pack_(flap|pouch|roll)/,
+  /vest_lapel/,
+  /hair_(lock|fringe|side)/,
+  /(?:brow|eye|ear|mouth|nose)(?:_|$)/
+] as const;
+
+function isCharacterDetailNode(name: string): boolean {
+  return CHARACTER_DETAIL_NODE_PATTERNS.some((pattern) => pattern.test(name));
 }
 
 type FarmingPresentationActionName =
@@ -77,8 +134,14 @@ type FarmingPresentationActionName =
   | "water"
   | "harvest"
   | "processing-start"
-  | "processing-collect";
-type FarmingPresentationPhase = "started" | "committed" | "completed" | "cancelled";
+  | "processing-collect"
+  | "pickup"
+  | "place"
+  | "workstation"
+  | "cast"
+  | "board"
+  | "dock";
+type FarmingPresentationPhase = "started" | "committed" | "invalidated" | "completed" | "cancelled";
 
 interface StaticLodBatchInstance {
   batch: THREE.BatchedMesh;
@@ -119,6 +182,52 @@ interface RowboatPresentationRig {
   held: boolean;
 }
 
+interface BoatBuoyancyPresentationState {
+  waveHeight: number;
+  pitch: number;
+  roll: number;
+  lastSampleTimeSeconds: number;
+  initialized: boolean;
+}
+
+interface FaunaMotionNode {
+  object: THREE.Object3D;
+  basePosition: THREE.Vector3;
+  baseRotation: THREE.Euler;
+}
+
+type FaunaAnimationClip = "idle" | "graze" | "peck" | "look";
+
+interface FaunaPresentation {
+  id: string;
+  kind: "cow" | "chicken";
+  phase: number;
+  body: FaunaMotionNode;
+  head?: FaunaMotionNode;
+  tail?: FaunaMotionNode;
+  wings: readonly FaunaMotionNode[];
+  mixer: THREE.AnimationMixer | null;
+  actions: Map<FaunaAnimationClip, THREE.AnimationAction>;
+  activeClip: FaunaAnimationClip | null;
+}
+
+type FishAnimationClip = "swim" | "turn" | "burst" | "struggle";
+
+interface FishPresentationMember {
+  root: THREE.Group;
+  phase: number;
+  mixer: THREE.AnimationMixer | null;
+  actions: Map<FishAnimationClip, THREE.AnimationAction>;
+  activeClip: FishAnimationClip | null;
+  tailPivot?: THREE.Object3D;
+}
+
+function boatBuoyancyFootprint(boatTypeId: string): { halfLength: number; halfBeam: number } {
+  return boatTypeId === "boat.skiff"
+    ? { halfLength: 2.45, halfBeam: 0.9 }
+    : { halfLength: 1.55, halfBeam: 0.62 };
+}
+
 const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "seed", assetId: ASSET_IDS.TOOL_SEED_POUCH_A, socket: "char_player_hip_socket", scale: 0.72 },
   { key: "water", assetId: ASSET_IDS.TOOL_WATERING_CAN_A, socket: "char_player_tool_socket", scale: 0.72 },
@@ -126,14 +235,7 @@ const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "bundle", assetId: ASSET_IDS.PROP_CROP_BUNDLE_A, socket: "char_player_carry_socket", scale: 0.76 },
   { key: "basket", assetId: ASSET_IDS.PROP_HARVEST_BASKET_A, socket: "char_player_carry_socket", scale: 0.68 },
   { key: "scoop", assetId: ASSET_IDS.TOOL_WORKSTATION_SCOOP_A, socket: "char_player_tool_socket", scale: 0.78 },
-  {
-    key: "rod",
-    assetId: ASSET_IDS.TOOL_FISHING_ROD_A,
-    socket: "char_player_tool_socket",
-    scale: 0.85,
-    position: [0, -0.04, -0.02],
-    rotation: [Math.PI, 0, 0]
-  }
+  { key: "rod", assetId: ASSET_IDS.TOOL_FISHING_ROD_A, socket: "char_player_tool_socket", scale: 0.85 }
 ] as const;
 
 function createCelestialDiscTexture(size = 64): THREE.DataTexture {
@@ -170,6 +272,7 @@ export class WorldScene {
   private readonly shoreFoam: ShoreFoam;
   private readonly boatWakes: BoatWakePool;
   private readonly farmVfx: FarmVfxPool;
+  private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
 
   private playerMesh: THREE.Group | null = null;
   private boatMeshes: Map<string, THREE.Group> = new Map();
@@ -199,9 +302,12 @@ export class WorldScene {
   private playerContactShadow: THREE.Mesh | null = null;
   private windmillRotor: THREE.Group | null = null;
   private cloudMeshes: Array<{ object: THREE.Group; origin: THREE.Vector3 }> = [];
+  private readonly faunaPresentations: FaunaPresentation[] = [];
   private syncInFlight: boolean = false;
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
+  private readonly boatDriverSeats = new Map<string, THREE.Object3D>();
+  private readonly boatBuoyancyState = new Map<string, BoatBuoyancyPresentationState>();
   private latestBoatPresentationInput: BoatPresentationInput | null = null;
   private terrainMesh: THREE.Mesh | null = null;
   private readonly raycaster = new THREE.Raycaster();
@@ -233,10 +339,26 @@ export class WorldScene {
   private staticCollisionProxyList: StaticCollisionProxy[] = [];
   private readonly staticLodBatchInstances: StaticLodBatchInstance[] = [];
   private fishingBobberGroup: THREE.Group = new THREE.Group();
+  private fishingBobberBody: THREE.Group = new THREE.Group();
   private fishingLineMesh: THREE.Line | null = null;
   private fishingBobberRipple: THREE.Mesh | null = null;
+  private lastBasicFishingPhase: BasicFishingPhase | null = null;
+  private basicCastReleaseAtSeconds = Number.NEGATIVE_INFINITY;
+  private basicHookSetAtSeconds = Number.NEGATIVE_INFINITY;
+  private readonly sportFishingPresentation: SportFishingPresentationSample =
+    createSportFishingPresentationSample();
+  private hookedFishModel: THREE.Group | null = null;
+  private hookedFishAssetId: AssetId | null = null;
+  private hookedFishPresentation: FishPresentationMember | null = null;
+  private lastHookedFishUpdateSeconds = 0;
   private readonly tempRodTipVec = new THREE.Vector3();
+  private readonly tempBoatSeatVec = new THREE.Vector3();
   private readonly npcPresentations = new Map<string, NpcPresentation>();
+  private activeDialogueNpcId: string | null = null;
+  private readonly weatherMotion: WeatherMotionSignal = createWeatherMotionSignal();
+  private lastAmbientMotionTimeSeconds = 0;
+  private playerDetailReduced = false;
+  private readonly tempCharacterWorldPosition = new THREE.Vector3();
   private isFarmGisMode: boolean = false;
 
   public setFarmGisMode(active: boolean): void {
@@ -448,12 +570,7 @@ export class WorldScene {
     const layoutGeometry = WorldLayout.buildTerrainGeometry();
     const layoutTerrain = new THREE.Mesh(
       layoutGeometry,
-      PaletteMaterials.standard("grass_yellow_01", {
-        vertexColors: true,
-        vertexColorMode: "replace",
-        flatShading: true,
-        roughness: 0.92
-      })
+      this.terrainSurfaceMaterial.material
     );
     layoutTerrain.receiveShadow = true;
     layoutTerrain.name = "world_terrain";
@@ -480,58 +597,167 @@ export class WorldScene {
   }
 
   private buildPlacementPreview(): void {
-    const fill = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+    // 1. Outer perimeter boundary ring (solid rasterized width for crisp anti-aliased edge)
+    const outerRingGeometry = new THREE.RingGeometry(0.46, 0.50, 48).rotateX(-Math.PI / 2);
+    const outerRing = new THREE.Mesh(
+      outerRingGeometry,
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.accent_teal_01,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.88,
         depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3
+      })
+    );
+    outerRing.name = "crop_placement_outer_ring";
+
+    // 2. Soft translucent inner clearance footprint fill
+    const fillGeometry = new THREE.CircleGeometry(0.46, 48).rotateX(-Math.PI / 2);
+    const fill = new THREE.Mesh(
+      fillGeometry,
+      new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.accent_teal_01,
+        transparent: true,
+        opacity: 0.18,
+        depthWrite: false,
+        side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -2
       })
     );
     fill.name = "crop_placement_fill";
 
-    const outlineGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.5, 0, -0.5),
-      new THREE.Vector3(0.5, 0, -0.5),
-      new THREE.Vector3(0.5, 0, -0.5),
-      new THREE.Vector3(0.5, 0, 0.5),
-      new THREE.Vector3(0.5, 0, 0.5),
-      new THREE.Vector3(-0.5, 0, 0.5),
-      new THREE.Vector3(-0.5, 0, 0.5),
-      new THREE.Vector3(-0.5, 0, -0.5)
+    // 3. Inner concentric accent ring
+    const innerRingGeometry = new THREE.RingGeometry(0.21, 0.23, 36).rotateX(-Math.PI / 2);
+    const innerRing = new THREE.Mesh(
+      innerRingGeometry,
+      new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.foam_warm_01,
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3
+      })
+    );
+    innerRing.name = "crop_placement_inner_ring";
+
+    // 4. Subtle cardinal notch ticks on the perimeter ring
+    const tickGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-0.51, 0.006, 0),
+      new THREE.Vector3(-0.43, 0.006, 0),
+      new THREE.Vector3(0.43, 0.006, 0),
+      new THREE.Vector3(0.51, 0.006, 0),
+      new THREE.Vector3(0, 0.006, -0.51),
+      new THREE.Vector3(0, 0.006, -0.43),
+      new THREE.Vector3(0, 0.006, 0.43),
+      new THREE.Vector3(0, 0.006, 0.51)
     ]);
-    const outline = new THREE.LineSegments(
-      outlineGeometry,
-      new THREE.LineBasicMaterial({ color: PALETTE_HEX.accent_teal_01, transparent: true, opacity: 0.95 })
+    const ticks = new THREE.LineSegments(
+      tickGeometry,
+      new THREE.LineBasicMaterial({
+        color: PALETTE_HEX.foam_warm_01,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false
+      })
     );
-    outline.name = "crop_placement_outline";
-    outline.position.y = 0.012;
+    ticks.name = "crop_placement_ticks";
 
-    const check = new THREE.Line(
+    // 5. Valid state: Center seed pip / planting reticle
+    const seedMarker = new THREE.Group();
+    seedMarker.name = "crop_placement_seed_marker";
+
+    const seedPip = new THREE.Mesh(
+      new THREE.CircleGeometry(0.035, 16).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.foam_warm_01,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -4
+      })
+    );
+    seedPip.name = "crop_placement_seed_pip";
+
+    const seedCenterRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.065, 0.085, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.accent_teal_01,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -4
+      })
+    );
+    seedCenterRing.name = "crop_placement_seed_ring";
+
+    const seedCrosslets = new THREE.LineSegments(
       new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.24, 0.02, 0),
-        new THREE.Vector3(-0.06, 0.02, 0.18),
-        new THREE.Vector3(0.28, 0.02, -0.2)
+        new THREE.Vector3(-0.11, 0.008, 0),
+        new THREE.Vector3(-0.085, 0.008, 0),
+        new THREE.Vector3(0.085, 0.008, 0),
+        new THREE.Vector3(0.11, 0.008, 0),
+        new THREE.Vector3(0, 0.008, -0.11),
+        new THREE.Vector3(0, 0.008, -0.085),
+        new THREE.Vector3(0, 0.008, 0.085),
+        new THREE.Vector3(0, 0.008, 0.11)
       ]),
-      new THREE.LineBasicMaterial({ color: PALETTE_HEX.foam_warm_01 })
+      new THREE.LineBasicMaterial({
+        color: PALETTE_HEX.foam_warm_01,
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false
+      })
     );
-    check.name = "crop_placement_check";
+    seedCrosslets.name = "crop_placement_seed_crosslets";
 
-    const cross = new THREE.LineSegments(
+    seedMarker.add(seedPip, seedCenterRing, seedCrosslets);
+
+    // 6. Invalid state: Distinct prohibited marker
+    const invalidMarker = new THREE.Group();
+    invalidMarker.name = "crop_placement_invalid_marker";
+
+    const invalidRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.065, 0.085, 24).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.roof_terracotta_01,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -4
+      })
+    );
+    invalidRing.name = "crop_placement_invalid_ring";
+
+    const invalidCross = new THREE.LineSegments(
       new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.24, 0.02, -0.24),
-        new THREE.Vector3(0.24, 0.02, 0.24),
-        new THREE.Vector3(0.24, 0.02, -0.24),
-        new THREE.Vector3(-0.24, 0.02, 0.24)
+        new THREE.Vector3(-0.13, 0.008, -0.13),
+        new THREE.Vector3(0.13, 0.008, 0.13),
+        new THREE.Vector3(0.13, 0.008, -0.13),
+        new THREE.Vector3(-0.13, 0.008, 0.13)
       ]),
-      new THREE.LineBasicMaterial({ color: PALETTE_HEX.foam_warm_01 })
+      new THREE.LineBasicMaterial({
+        color: PALETTE_HEX.foam_warm_01,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false
+      })
     );
-    cross.name = "crop_placement_cross";
+    invalidCross.name = "crop_placement_invalid_cross";
 
-    this.placementPreview.add(fill, outline, check, cross);
+    invalidMarker.add(invalidRing, invalidCross);
+
+    this.placementPreview.add(outerRing, fill, innerRing, ticks, seedMarker, invalidMarker);
     this.placementPreview.visible = false;
     this.placementPreview.renderOrder = 4;
     this.scene.add(this.placementPreview);
@@ -548,21 +774,36 @@ export class WorldScene {
       WorldLayout.terrainHeight(result.worldX, result.worldZ) + 0.045,
       result.worldZ
     );
-    this.placementPreview.rotation.y = result.rotationRadians;
+    this.placementPreview.rotation.y = 0;
     this.placementPreview.scale.set(
       Math.max(0.05, result.footprint.width),
       1,
       Math.max(0.05, result.footprint.depth)
     );
-    const color = result.valid ? PALETTE_HEX.accent_teal_01 : PALETTE_HEX.roof_terracotta_01;
-    const fill = this.placementPreview.getObjectByName("crop_placement_fill") as THREE.Mesh;
-    const outline = this.placementPreview.getObjectByName("crop_placement_outline") as THREE.LineSegments;
-    (fill.material as THREE.MeshBasicMaterial).color.set(color);
-    (outline.material as THREE.LineBasicMaterial).color.set(color);
-    const check = this.placementPreview.getObjectByName("crop_placement_check");
-    const cross = this.placementPreview.getObjectByName("crop_placement_cross");
-    if (check) check.visible = result.valid;
-    if (cross) cross.visible = !result.valid;
+
+    const primaryColor = result.valid ? PALETTE_HEX.accent_teal_01 : PALETTE_HEX.roof_terracotta_01;
+    const accentColor = result.valid ? PALETTE_HEX.foam_warm_01 : PALETTE_HEX.accent_red_01;
+
+    const outerRing = this.placementPreview.getObjectByName("crop_placement_outer_ring") as THREE.Mesh | undefined;
+    const fill = this.placementPreview.getObjectByName("crop_placement_fill") as THREE.Mesh | undefined;
+    const innerRing = this.placementPreview.getObjectByName("crop_placement_inner_ring") as THREE.Mesh | undefined;
+    const ticks = this.placementPreview.getObjectByName("crop_placement_ticks") as THREE.LineSegments | undefined;
+    const seedMarker = this.placementPreview.getObjectByName("crop_placement_seed_marker");
+    const invalidMarker = this.placementPreview.getObjectByName("crop_placement_invalid_marker");
+    const seedCenterRing = this.placementPreview.getObjectByName("crop_placement_seed_ring") as THREE.Mesh | undefined;
+
+    if (outerRing) (outerRing.material as THREE.MeshBasicMaterial).color.set(primaryColor);
+    if (fill) (fill.material as THREE.MeshBasicMaterial).color.set(primaryColor);
+    if (innerRing) {
+      (innerRing.material as THREE.MeshBasicMaterial).color.set(
+        result.valid ? PALETTE_HEX.foam_warm_01 : PALETTE_HEX.roof_terracotta_01
+      );
+    }
+    if (ticks) (ticks.material as THREE.LineBasicMaterial).color.set(accentColor);
+    if (seedCenterRing) (seedCenterRing.material as THREE.MeshBasicMaterial).color.set(primaryColor);
+
+    if (seedMarker) seedMarker.visible = result.valid;
+    if (invalidMarker) invalidMarker.visible = !result.valid;
   }
 
   public setInteractionTargetFeedback(position: { x: number; y: number; z: number } | null): void {
@@ -617,110 +858,94 @@ export class WorldScene {
     const darkRock = new THREE.Color(PALETTE_HEX.rock_coastal_dark_01);
     const up = new THREE.Vector3(0, 1, 0);
 
-    // 1. Village Marketplace Plaza Embedded Cobblestones around [0, -5]
-    const plazaCenter = { x: 0, z: -5 };
-    const cobbleRings = [
-      { radius: 1.8, count: 8, baseSize: 0.42 },
-      { radius: 2.9, count: 12, baseSize: 0.45 },
-      { radius: 4.1, count: 14, baseSize: 0.38 }
-    ];
+    const appendStone = (
+      x: number,
+      z: number,
+      width: number,
+      depth: number,
+      height: number,
+      color: THREE.Color,
+      rotation: number,
+      seed: number
+    ): void => {
+      if (
+        WorldLayout.isWater(x, z)
+        || WorldLayout.isBridgeDeck(x, z)
+        || WorldLayout.pathInfluence(x, z) > 0.2
+        || WorldLayout.roadsideInfluence(x, z) < 0.08
+      ) return;
+      const groundHeight = WorldLayout.terrainHeight(x, z);
+      const normal = WorldLayout.terrainNormal(x, z);
+      const stone = new THREE.DodecahedronGeometry(0.5, 0);
+      stone.scale(width, height, depth);
+      const alignQuat = new THREE.Quaternion().setFromUnitVectors(up, normal);
+      const yawQuat = new THREE.Quaternion().setFromAxisAngle(normal, rotation);
+      stone.applyQuaternion(yawQuat.multiply(alignQuat));
+      stone.translate(x, groundHeight + height * 0.45, z);
 
-    for (const ring of cobbleRings) {
-      for (let i = 0; i < ring.count; i++) {
-        const angle = (i / ring.count) * Math.PI * 2 + (ring.radius * 1.3);
-        const jitterR = ring.radius + Math.sin(i * 3.1 + ring.radius) * 0.22;
-        const x = plazaCenter.x + Math.cos(angle) * jitterR;
-        const z = plazaCenter.z + Math.sin(angle) * jitterR;
-        const groundHeight = this.sampleTerrainHeight(x, z) ?? 2.05;
-        const normal = WorldLayout.terrainNormal(x, z);
+      const nonIndexed = stone.index ? stone.toNonIndexed() : stone;
+      if (nonIndexed !== stone) stone.dispose();
+      const count = nonIndexed.getAttribute("position").count;
+      const vColors = new Float32Array(count * 3);
+      for (let vertex = 0; vertex < count; vertex++) {
+        const facetVariation = 0.93 + (Math.sin(seed * 0.71 + vertex * 1.61) * 0.5 + 0.5) * 0.1;
+        vColors[vertex * 3] = color.r * facetVariation;
+        vColors[vertex * 3 + 1] = color.g * facetVariation;
+        vColors[vertex * 3 + 2] = color.b * facetVariation;
+      }
+      nonIndexed.setAttribute("color", new THREE.BufferAttribute(vColors, 3));
+      stoneGeometries.push(nonIndexed);
+    };
 
-        const width = ring.baseSize * (0.85 + ((i * 3) % 4) * 0.08);
-        const depth = ring.baseSize * (0.82 + ((i * 5) % 4) * 0.09);
-        const height = 0.045;
-
-        const stone = new THREE.DodecahedronGeometry(0.5, 0);
-        stone.scale(width, height, depth);
-
-        const alignQuat = new THREE.Quaternion().setFromUnitVectors(up, normal);
-        const yawQuat = new THREE.Quaternion().setFromAxisAngle(normal, angle + i * 0.7);
-        stone.applyQuaternion(yawQuat.multiply(alignQuat));
-        stone.translate(x, groundHeight + height * 0.4, z);
-
-        const baseColor = (i + Math.floor(ring.radius)) % 2 === 0 ? warmCobble : goldenCobble;
-        const nonIndexed = stone.toNonIndexed();
-        stone.dispose();
-        const count = nonIndexed.getAttribute("position").count;
-        const vColors = new Float32Array(count * 3);
-        for (let v = 0; v < count; v += 3) {
-          const facetVariation = 0.94 + (Math.sin(v * 2.1 + i) * 0.5 + 0.5) * 0.12;
-          for (let k = 0; k < 3; k++) {
-            vColors[(v + k) * 3] = baseColor.r * facetVariation;
-            vColors[(v + k) * 3 + 1] = baseColor.g * facetVariation;
-            vColors[(v + k) * 3 + 2] = baseColor.b * facetVariation;
-          }
-        }
-        nonIndexed.setAttribute("color", new THREE.BufferAttribute(vColors, 3));
-        stoneGeometries.push(nonIndexed);
+    // Roadside stones follow the compiled centerline and sit beyond the packed
+    // core. Their low-frequency side changes keep the edge authored without
+    // introducing a second, drifting path.
+    for (const [routeIndex, compiledRoute] of WorldLayout.compiledRouteNetwork().entries()) {
+      if (compiledRoute.route.id === "farm-home") continue;
+      const spacing = compiledRoute.route.kind === "trail" ? 13 : 17;
+      const lateral = compiledRoute.halfWidth + compiledRoute.shoulderWidthMeters + 0.34;
+      for (let sampleIndex = 7; sampleIndex < compiledRoute.samples.length - 7; sampleIndex += spacing) {
+        const sample = compiledRoute.samples[sampleIndex];
+        const side = Math.sin(sample.distanceAlongRoute * 0.23 + routeIndex * 2.17) >= 0 ? 1 : -1;
+        const x = sample.point.x + sample.normal.x * side * lateral;
+        const z = sample.point.z + sample.normal.z * side * lateral;
+        const baseColor = compiledRoute.route.id === "riverbank-trail" || compiledRoute.route.id === "orchard-path"
+          ? (sampleIndex % 3 === 0 ? mossStone : warmCobble)
+          : compiledRoute.route.id === "cliffside-coastal-walk" || compiledRoute.route.id === "village-harbor"
+            ? (sampleIndex % 2 === 0 ? coolStone : darkRock)
+            : (sampleIndex % 2 === 0 ? warmCobble : goldenCobble);
+        appendStone(
+          x,
+          z,
+          0.3 + (sampleIndex % 3) * 0.045,
+          0.25 + (sampleIndex % 4) * 0.035,
+          0.055 + (sampleIndex % 3) * 0.012,
+          baseColor,
+          Math.atan2(sample.tangent.x, sample.tangent.z) + side * 0.24,
+          sampleIndex + routeIndex * 37
+        );
       }
     }
 
-    // 2. Embedded stepping stones along scenic trails and bridge approaches
-    for (const [pathIndex, route] of WORLD_PATHS.entries()) {
-      const routeDefinition = WORLD_ROUTES[pathIndex];
-      const spacing = routeDefinition.kind === "trail" ? 5 : 8;
-
-      for (let index = 2; index < route.length - 2; index++) {
-        const isAnchor = (index + pathIndex * 3) % spacing === 0;
-        if (!isAnchor) continue;
-
-        const previous = route[index - 1];
-        const next = route[index + 1];
-        const routeAngle = Math.atan2(next.x - previous.x, next.z - previous.z);
-        const side = (index + pathIndex) % 2 === 0 ? -1 : 1;
-        const lateral = side * (routeDefinition.widthMeters * 0.38 + 0.28 + Math.sin(index * 1.91 + pathIndex) * 0.15);
-        const x = route[index].x + Math.cos(routeAngle) * lateral;
-        const z = route[index].z - Math.sin(routeAngle) * lateral;
-
-        if (WorldLayout.isWater(x, z) || Math.hypot(x - plazaCenter.x, z - plazaCenter.z) < 5.0) {
-          continue;
-        }
-
-        const baseColor =
-          routeDefinition.id === "riverbank-trail" || routeDefinition.id === "orchard-path"
-            ? (index % 3 === 0 ? mossStone : warmCobble)
-            : routeDefinition.id === "cliffside-coastal-walk" || routeDefinition.id === "village-harbor"
-              ? (index % 2 === 0 ? coolStone : darkRock)
-              : (index % 2 === 0 ? warmCobble : goldenCobble);
-
-        const groundHeight = this.sampleTerrainHeight(x, z) ?? 0.2;
-        const normal = WorldLayout.terrainNormal(x, z);
-
-        const width = 0.36 + ((index * 7) % 5) * 0.05;
-        const height = 0.06 + ((index * 3) % 4) * 0.02;
-        const depth = 0.28 + ((index * 11) % 4) * 0.05;
-
-        const stone = new THREE.DodecahedronGeometry(0.5, 0);
-        stone.scale(width, height, depth);
-
-        const alignQuat = new THREE.Quaternion().setFromUnitVectors(up, normal);
-        const yawQuat = new THREE.Quaternion().setFromAxisAngle(normal, routeAngle + Math.sin(index * 1.31) * 0.35);
-        stone.applyQuaternion(yawQuat.multiply(alignQuat));
-        stone.translate(x, groundHeight + height * 0.45, z);
-
-        const nonIndexed = stone.toNonIndexed();
-        stone.dispose();
-        const count = nonIndexed.getAttribute("position").count;
-        const vColors = new Float32Array(count * 3);
-        for (let v = 0; v < count; v += 3) {
-          const facetVariation = 0.93 + (Math.sin(v * 1.7 + index) * 0.5 + 0.5) * 0.12;
-          for (let k = 0; k < 3; k++) {
-            vColors[(v + k) * 3] = baseColor.r * facetVariation;
-            vColors[(v + k) * 3 + 1] = baseColor.g * facetVariation;
-            vColors[(v + k) * 3 + 2] = baseColor.b * facetVariation;
-          }
-        }
-        nonIndexed.setAttribute("color", new THREE.BufferAttribute(vColors, 3));
-        stoneGeometries.push(nonIndexed);
+    // A few broader apron-edge stones make the three intentional junctions
+    // read as places where traffic has worn the meadow back, not as circular
+    // decals stamped on top of it.
+    for (const [junctionIndex, junction] of WorldLayout.routeJunctions().entries()) {
+      const stoneCount = junction.surface === "village-market" ? 12 : 5;
+      const edgeRadius = junction.radiusMeters + junction.blendLengthMeters * 0.78;
+      for (let index = 0; index < stoneCount; index++) {
+        const angle = index * 2.399963 + junctionIndex * 0.83;
+        const radius = edgeRadius + Math.sin(index * 1.71 + junctionIndex) * 0.22;
+        appendStone(
+          junction.center.x + Math.cos(angle) * radius,
+          junction.center.z + Math.sin(angle) * radius,
+          0.32 + (index % 3) * 0.055,
+          0.28 + (index % 2) * 0.06,
+          0.06 + (index % 3) * 0.012,
+          index % 2 === 0 ? warmCobble : goldenCobble,
+          angle + 0.4,
+          index + junctionIndex * 41
+        );
       }
     }
 
@@ -818,14 +1043,19 @@ export class WorldScene {
   ): void {
     root.updateMatrixWorld(true);
     const source = root.getObjectByName(sourceNodeName);
-    if (!source) throw new Error(`[WorldScene] Missing practical-light source node ${sourceNodeName}`);
     const light = new THREE.PointLight(
       CANONICAL_RENDER_CONFIG.practicalLights.colorHex,
       0,
       distance,
       2
     );
-    light.position.copy(source.getWorldPosition(new THREE.Vector3()));
+    if (source) {
+      light.position.copy(source.getWorldPosition(new THREE.Vector3()));
+    } else {
+      const box = new THREE.Box3().setFromObject(root);
+      const center = box.getCenter(new THREE.Vector3());
+      light.position.set(center.x, box.max.y * 0.85 + box.min.y * 0.15, center.z);
+    }
     light.castShadow = false;
     this.scene.add(light);
     this.practicalLights.push({ light, maxIntensity, priority, qualityEnabled: true });
@@ -874,7 +1104,7 @@ export class WorldScene {
   ): Promise<void> {
     const preexistingEnvironmentChildren = new Set(this.environmentGroup.children);
     // 1. Farmhouse at starter homestead
-    const farmhouse = await AssetLoader.loadModel(ASSET_IDS.HOUSE_FARMHOUSE_A);
+    const farmhouse = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.farmhouse);
     this.placeLandmark(farmhouse, "farmhouse");
     this.environmentGroup.add(farmhouse);
     this.registerPracticalLight(
@@ -884,27 +1114,27 @@ export class WorldScene {
       CANONICAL_RENDER_CONFIG.practicalLights.localDistance
     );
 
-    const well = await AssetLoader.loadModel(ASSET_IDS.PROP_WATER_WELL_A);
+    const well = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.well);
     this.placeLandmark(well, "well");
     this.environmentGroup.add(well);
 
     // 2. Stone Bridge crossing river
-    const bridge = await AssetLoader.loadModel(ASSET_IDS.BRIDGE_STONE_A);
+    const bridge = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.bridge);
     this.placeLandmark(bridge, "bridge");
     this.environmentGroup.add(bridge);
 
     // 3. Harbor Dock extending into water
-    const dock = await AssetLoader.loadModel(ASSET_IDS.DOCK_STRAIGHT_A);
+    const dock = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.dock);
     this.placeLandmark(dock, "dock");
     this.environmentGroup.add(dock);
 
-    const fishMarket = await AssetLoader.loadModel(ASSET_IDS.BUILDING_FISH_MARKET_A);
+    const fishMarket = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishMarket);
     this.placeLandmark(fishMarket, "fish-market");
     this.environmentGroup.add(fishMarket);
 
     // Distant working landmarks establish the same farm-to-coast depth hierarchy
     // as the reference without copying its exact diorama layout.
-    const lighthouse = await AssetLoader.loadModel(ASSET_IDS.BUILDING_LIGHTHOUSE_A);
+    const lighthouse = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.lighthouse);
     this.placeLandmark(lighthouse, "lighthouse");
     this.environmentGroup.add(lighthouse);
     this.registerPracticalLight(
@@ -915,13 +1145,13 @@ export class WorldScene {
       0
     );
 
-    const windmill = await AssetLoader.loadModel(ASSET_IDS.BUILDING_WINDMILL_A);
+    const windmill = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.windmill);
     this.placeLandmark(windmill, "windmill");
     this.environmentGroup.add(windmill);
     this.configureWindmillRotor(windmill);
 
     const workbenchAnchor = starterStructureAnchor("struct.workbench")!;
-    const workbench = await AssetLoader.loadModel(ASSET_IDS.PROP_FARM_WORKBENCH_A);
+    const workbench = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.workbench);
     workbench.position.set(
       workbenchAnchor.x,
       WorldLayout.terrainHeight(workbenchAnchor.x, workbenchAnchor.z),
@@ -931,7 +1161,7 @@ export class WorldScene {
     this.environmentGroup.add(workbench);
 
     const compostAnchor = starterStructureAnchor("struct.starter_compost")!;
-    const compost = await AssetLoader.loadModel(ASSET_IDS.PROP_WORM_COMPOST_A);
+    const compost = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.compost);
     compost.position.set(
       compostAnchor.x,
       WorldLayout.terrainHeight(compostAnchor.x, compostAnchor.z),
@@ -940,7 +1170,7 @@ export class WorldScene {
     compost.rotation.y = compostAnchor.rotationY;
     this.environmentGroup.add(compost);
 
-    const fishTable = await AssetLoader.loadModel(ASSET_IDS.PROP_FARM_WORKBENCH_A);
+    const fishTable = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishTable);
     fishTable.position.set(
       HARBOR_FISH_TABLE.position.x,
       WorldLayout.terrainHeight(HARBOR_FISH_TABLE.position.x, HARBOR_FISH_TABLE.position.z),
@@ -949,16 +1179,11 @@ export class WorldScene {
     fishTable.rotation.y = HARBOR_FISH_TABLE.rotationY;
     this.environmentGroup.add(fishTable);
 
-    const produceStall = await AssetLoader.loadModel(ASSET_IDS.PROP_PRODUCE_STALL_A);
+    const produceStall = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.produceStall);
     this.placeLandmark(produceStall, "produce-stall");
     this.environmentGroup.add(produceStall);
 
-    const farmPropAssets = {
-      "hay-bale": ASSET_IDS.PROP_HAY_BALE_A,
-      "produce-crate": ASSET_IDS.PROP_PRODUCE_CRATE_A,
-      "harvest-basket": ASSET_IDS.PROP_HARVEST_BASKET_A,
-      "lamp-post": ASSET_IDS.PROP_LAMP_POST_A
-    } as const;
+    const farmPropAssets = STATIC_FARM_PROP_ASSETS;
     for (const anchor of STARTER_FARM_LAYOUT.propAnchors) {
       const object = await AssetLoader.loadModel(farmPropAssets[anchor.type]);
       const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, anchor);
@@ -977,7 +1202,7 @@ export class WorldScene {
     }
 
     // 4. Farmhouse Cozy Interior
-    const interiorShell = await AssetLoader.loadModel(ASSET_IDS.INTERIOR_FARMHOUSE_SHELL);
+    const interiorShell = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.interiorShell);
     interiorShell.position.set(
       FARMHOUSE_INTERIOR_ORIGIN.x,
       FARMHOUSE_INTERIOR_ORIGIN.y,
@@ -1029,6 +1254,14 @@ export class WorldScene {
       object.scale.set(placement.scale[0], placement.scale[1], placement.scale[2]);
       object.userData.environmentPlacementId = placement.id;
       object.userData.environmentPlacementOrigin = placement.origin;
+      if (assetId === ASSET_IDS.FAUNA_COW_A || assetId === ASSET_IDS.FAUNA_CHICKEN_A) {
+        object.userData.dynamicPresentation = true;
+        this.registerFaunaPresentation(
+          placement.id,
+          assetId === ASSET_IDS.FAUNA_COW_A ? "cow" : "chicken",
+          object
+        );
+      }
       this.environmentGroup.add(object);
       if (placement.grounding) {
         groundingPatches.push({
@@ -1069,7 +1302,7 @@ export class WorldScene {
 
     // 7. Fences framing the 8 x 8 planting area with authored entrances.
     for (const anchor of STARTER_FARM_LAYOUT.fenceAnchors) {
-      const fence = await AssetLoader.loadModel(ASSET_IDS.PROP_FENCE_WOOD_A);
+      const fence = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fence);
       const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, anchor);
       const height = this.sampleTerrainHeight(world.x, world.z) ?? 0.8;
       fence.position.set(world.x, height, world.z);
@@ -1106,7 +1339,11 @@ export class WorldScene {
         model.position.set(npc.anchor.x, y, npc.anchor.z);
         model.rotation.y = npc.anchor.rotationY;
         model.userData.dynamicPresentation = true;
-        this.setShadowPolicy(model, true);
+        // NPCs use the authored contact disc below for grounding. Keeping the
+        // full articulated rig out of the sun-shadow pass prevents each body
+        // facet from becoming a separate shadow draw while preserving the
+        // readable feet-to-ground cue in gameplay cameras.
+        this.setShadowPolicy(model, false);
 
         // Ground contact shadow disc
         if (this.lightingRig.contactShadowsEnabled()) {
@@ -1127,11 +1364,21 @@ export class WorldScene {
         }
 
         const mixer = new THREE.AnimationMixer(model);
-        if (model.animations && model.animations.length > 0) {
-          const idleClip = model.animations.find((a) => a.name === "idle") ?? model.animations[0];
-          const action = mixer.clipAction(idleClip);
-          action.play();
-          action.time = (((Math.abs(npc.anchor.x) * 13 + Math.abs(npc.anchor.z) * 17) % 100) / 100) * idleClip.duration;
+        const actions = new Map<NpcAnimationClip, THREE.AnimationAction>();
+        for (const clipName of ["idle", "talk_gesture", "turn_left", "turn_right"] as const) {
+          const clip = model.animations?.find((candidate) => candidate.name === clipName);
+          if (!clip) continue;
+          const action = mixer.clipAction(clip);
+          const repeats = clipName === "idle" || clipName === "talk_gesture";
+          action.setLoop(repeats ? THREE.LoopRepeat : THREE.LoopOnce, repeats ? Infinity : 1);
+          action.clampWhenFinished = !repeats;
+          actions.set(clipName, action);
+        }
+        const idleAction = actions.get("idle");
+        if (idleAction) {
+          idleAction.play();
+          idleAction.time = (((Math.abs(npc.anchor.x) * 13 + Math.abs(npc.anchor.z) * 17) % 100) / 100)
+            * idleAction.getClip().duration;
         }
 
         const headBone = model.getObjectByName("rig_head") ?? undefined;
@@ -1142,13 +1389,32 @@ export class WorldScene {
           anchor: npc.anchor,
           model,
           mixer,
+          actions,
+          activeClip: idleAction ? "idle" : null,
           headBone,
-          initialRotationY: npc.anchor.rotationY
+          initialRotationY: npc.anchor.rotationY,
+          detailReduced: false
         });
       } catch (err) {
         console.warn(`[WorldScene] Failed to load NPC ${npc.id} (${npc.assetId}):`, err);
       }
     }
+  }
+
+  public setDialogueNpc(npcId: string | null): void {
+    this.activeDialogueNpcId = npcId;
+  }
+
+  private setNpcAnimation(npc: NpcPresentation, clipName: NpcAnimationClip): void {
+    if (npc.activeClip === clipName) return;
+    const next = npc.actions.get(clipName) ?? npc.actions.get("idle");
+    if (!next) return;
+    const resolvedClip = next === npc.actions.get("idle") ? "idle" : clipName;
+    const previous = npc.activeClip ? npc.actions.get(npc.activeClip) : undefined;
+    const blendSeconds = resolvedClip.startsWith("turn_") ? 0.08 : 0.14;
+    previous?.fadeOut(blendSeconds);
+    next.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).fadeIn(blendSeconds).play();
+    npc.activeClip = resolvedClip;
   }
 
 
@@ -1257,9 +1523,9 @@ export class WorldScene {
       if (!assetId) continue;
       const spec = ASSET_BY_ID.get(assetId);
       if (!spec || spec.collision === "none") continue;
-      if (AssetLoader.collisionNodeNames(root).length === 0) {
-        throw new Error(`[WorldScene] ${assetId} declares ${spec.collision} collision without a COL_* marker`);
-      }
+      // Catalog primitives are the canonical collision geometry. COL_* nodes
+      // remain an asset-validation signal, but runtime physics must not depend
+      // on a presentation node that is discarded after loading.
       proxies.push(...projectAssetCollision(assetId, root, `${assetId}:${index}`));
     }
     return proxies;
@@ -1287,7 +1553,13 @@ export class WorldScene {
     // unbatched fallback levels and silently restore hundreds of draw calls.
     const flattenedLods: THREE.LOD[] = [];
     this.staticPrefabGroup.traverse((object) => {
-      if (object instanceof THREE.LOD) flattenedLods.push(object);
+      if (!(object instanceof THREE.LOD)) return;
+      let ancestor: THREE.Object3D | null = object.parent;
+      while (ancestor) {
+        if (ancestor.userData.dynamicPresentation) return;
+        ancestor = ancestor.parent;
+      }
+      flattenedLods.push(object);
     });
     for (const lod of flattenedLods) lod.removeFromParent();
     this.staticPrefabGroup.traverseVisible((object) => {
@@ -1341,6 +1613,28 @@ export class WorldScene {
         ancestor = ancestor.parent;
       }
       if (shouldSkip(object)) return;
+      const material = object.material as THREE.MeshStandardMaterial;
+      const hasTexture = material instanceof THREE.MeshStandardMaterial && [
+        material.map,
+        material.alphaMap,
+        material.aoMap,
+        material.bumpMap,
+        material.displacementMap,
+        material.emissiveMap,
+        material.envMap,
+        material.lightMap,
+        material.metalnessMap,
+        material.normalMap,
+        material.roughnessMap
+      ].some(Boolean);
+      // Published Neva materials are palette-only. Some GLBs still carry an
+      // unused TEXCOORD_0 accessor, which needlessly splits otherwise
+      // compatible static/boat batches from their non-UV counterparts.
+      if (!hasTexture && object.geometry.getAttribute("uv")) {
+        const geometry = object.geometry.clone();
+        geometry.deleteAttribute("uv");
+        object.geometry = geometry;
+      }
       const attributes = (Object.entries(object.geometry.attributes) as Array<
         [string, THREE.BufferAttribute]
       >)
@@ -1428,6 +1722,31 @@ export class WorldScene {
     }
   }
 
+  private setCharacterDetailVisibility(root: THREE.Group, reduced: boolean): void {
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || !isCharacterDetailNode(object.name)) return;
+      object.visible = !reduced;
+    });
+  }
+
+  private updateCharacterDetailLod(camera: THREE.Camera): void {
+    if (this.playerMesh) {
+      this.playerMesh.getWorldPosition(this.tempCharacterWorldPosition);
+      const reduced = camera.position.distanceTo(this.tempCharacterWorldPosition) > CHARACTER_DETAIL_DISTANCE_METERS;
+      if (reduced !== this.playerDetailReduced) {
+        this.setCharacterDetailVisibility(this.playerMesh, reduced);
+        this.playerDetailReduced = reduced;
+      }
+    }
+    for (const npc of this.npcPresentations.values()) {
+      npc.model.getWorldPosition(this.tempCharacterWorldPosition);
+      const reduced = camera.position.distanceTo(this.tempCharacterWorldPosition) > CHARACTER_DETAIL_DISTANCE_METERS;
+      if (reduced === npc.detailReduced) continue;
+      this.setCharacterDetailVisibility(npc.model, reduced);
+      npc.detailReduced = reduced;
+    }
+  }
+
   private batchPlayerRigidMeshes(root: THREE.Group): void {
     const animatedNames = new Set<string>();
     const clips = (root.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
@@ -1443,7 +1762,6 @@ export class WorldScene {
       return false;
     });
   }
-
 
   /**
    * Raycast downward from (x, 50, z) against the terrain mesh.
@@ -1491,6 +1809,7 @@ export class WorldScene {
     this.water.updateLighting(frame);
     this.shoreFoam.updateLighting(frame);
     this.boatWakes.updateLighting(frame);
+    this.terrainSurfaceMaterial.updateWeather(state.weather.precipitation, timeSeconds);
     this.updateAmbientMotion(state, timeSeconds);
   }
 
@@ -1498,7 +1817,7 @@ export class WorldScene {
     return {
       seaRoughness: state.weather.seaRoughness,
       windDirectionDeg: state.weather.windDirectionDeg,
-      windSpeed: state.weather.windSpeed
+      windSpeed: this.weatherMotion.effectiveWindSpeed
     };
   }
 
@@ -1514,7 +1833,7 @@ export class WorldScene {
     phase: FarmingPresentationPhase,
     timeSeconds: number
   ): void {
-    if (phase === "cancelled") {
+    if (phase === "cancelled" || phase === "invalidated") {
       this.cosmeticCropCarryUntilSeconds = 0;
       this.hideFarmingProps();
       return;
@@ -1527,10 +1846,12 @@ export class WorldScene {
           ? "water"
           : action === "harvest"
             ? "sickle"
-            : action === "processing-start"
+            : action === "processing-start" || action === "workstation"
               ? "scoop"
-              : "basket";
-      this.showFarmingProp(key);
+              : action === "processing-collect" || action === "pickup"
+                ? "basket"
+                : null;
+      if (key) this.showFarmingProp(key);
       return;
     }
     if (phase === "committed" && action === "harvest") {
@@ -1575,17 +1896,11 @@ export class WorldScene {
       if (!socket) throw new Error(`[WorldScene] Missing farming prop socket ${attachment.socket}`);
       object.name = `cosmetic_${attachment.key}`;
       object.visible = false;
-      if (attachment.position) {
-        object.position.set(...attachment.position);
-      } else {
-        object.position.set(0, 0, 0);
-      }
-      if (attachment.rotation) {
-        object.rotation.set(...attachment.rotation);
-      } else {
-        object.rotation.set(0, 0, 0);
-      }
-      object.scale.setScalar(attachment.scale);
+      const pose = socketAttachFor(attachment.assetId);
+      object.position.set(...pose.position);
+      object.rotation.set(...pose.rotation);
+      object.scale.setScalar(pose.scale);
+      object.userData.socketBaseQuaternion = object.quaternion.clone();
       object.userData.dynamicPresentation = true;
       this.setShadowPolicy(object, false);
       socket.add(object);
@@ -1598,6 +1913,7 @@ export class WorldScene {
     if (this.rowboatPresentationRigs.has(boatId)) return;
     const rowerSeat = boatRoot.getObjectByName("boat_rowboat_rower_seat");
     if (!rowerSeat) throw new Error("[WorldScene] Rowboat is missing boat_rowboat_rower_seat");
+    this.boatDriverSeats.set(boatId, rowerSeat);
     const oars = (["left", "right"] as const).map((side): RowboatOarAttachment => {
       const root = boatRoot.getObjectByName(`boat_rowboat_oar_${side}_root`);
       if (!root?.parent) {
@@ -1615,6 +1931,13 @@ export class WorldScene {
       };
     });
     this.rowboatPresentationRigs.set(boatId, { boatRoot, rowerSeat, oars, held: false });
+  }
+
+  private configureSkiffPresentation(boatId: string, boatRoot: THREE.Group): void {
+    if (this.boatDriverSeats.has(boatId)) return;
+    const driverSeat = boatRoot.getObjectByName("boat_skiff_driver_seat");
+    if (!driverSeat) throw new Error("[WorldScene] Skiff is missing boat_skiff_driver_seat");
+    this.boatDriverSeats.set(boatId, driverSeat);
   }
 
   private setRowboatOarsHeld(rig: RowboatPresentationRig, held: boolean): void {
@@ -1708,21 +2031,219 @@ export class WorldScene {
   }
 
   private updateAmbientMotion(state: Readonly<GameState>, timeSeconds: number): void {
+    sampleWeatherMotionSignal(state.weather, timeSeconds, this.weatherMotion);
+    const delta = this.lastAmbientMotionTimeSeconds > 0
+      ? THREE.MathUtils.clamp(timeSeconds - this.lastAmbientMotionTimeSeconds, 0, 0.1)
+      : 1 / 60;
+    this.lastAmbientMotionTimeSeconds = timeSeconds;
     const motionScale = this.prefersReducedMotion
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
       : CANONICAL_RENDER_CONFIG.motion.ambientScale;
     if (this.windmillRotor) {
-      const rotorSpeed = (0.18 + state.weather.windSpeed * 0.035) * motionScale;
+      const rotorSpeed = (0.18 + this.weatherMotion.effectiveWindSpeed * 0.035) * motionScale;
       this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
     }
-    const windRadians = THREE.MathUtils.degToRad(state.weather.windDirectionDeg);
-    const travel = ((timeSeconds * (0.12 + state.weather.windSpeed * 0.018)) % 150) - 75;
     for (const cloud of this.cloudMeshes) {
       cloud.object.position.set(
-        cloud.origin.x + Math.sin(windRadians) * travel * motionScale,
+        cloud.origin.x + this.weatherMotion.directionX * this.weatherMotion.cloudTravelMeters * motionScale,
         cloud.origin.y + Math.sin(timeSeconds * 0.08 + cloud.origin.x) * 0.32 * motionScale,
-        cloud.origin.z + Math.cos(windRadians) * travel * motionScale
+        cloud.origin.z + this.weatherMotion.directionZ * this.weatherMotion.cloudTravelMeters * motionScale
       );
+    }
+    this.updateFaunaMotion(timeSeconds, delta, motionScale);
+  }
+
+  private registerFaunaPresentation(
+    id: string,
+    kind: FaunaPresentation["kind"],
+    root: THREE.Group
+  ): void {
+    const prefix = kind === "cow" ? "fauna_cow_a" : "fauna_chicken_a";
+    const node = (name: string): FaunaMotionNode | undefined => {
+      const object = root.getObjectByName(name);
+      return object
+        ? {
+            object,
+            basePosition: object.position.clone(),
+            baseRotation: object.rotation.clone()
+          }
+        : undefined;
+    };
+    const body = node(`${prefix}_motion_root`) ?? {
+      object: root,
+      basePosition: root.position.clone(),
+      baseRotation: root.rotation.clone()
+    };
+    const wings = kind === "chicken"
+      ? [node(`${prefix}_wing_left_pivot`), node(`${prefix}_wing_right_pivot`)].filter(
+          (entry): entry is FaunaMotionNode => Boolean(entry)
+        )
+      : [];
+    const clips = (root.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
+    const mixer = clips.length > 0 ? new THREE.AnimationMixer(root) : null;
+    const actions = new Map<FaunaAnimationClip, THREE.AnimationAction>();
+    if (mixer) {
+      for (const clipName of ["idle", "graze", "peck", "look"] as const) {
+        const clip = clips.find((candidate) => candidate.name === clipName);
+        if (!clip) continue;
+        const action = mixer.clipAction(clip);
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        actions.set(clipName, action);
+      }
+    }
+    const idleAction = actions.get("idle");
+    if (idleAction) {
+      idleAction.play();
+      idleAction.time = stablePresentationPhase(id) * idleAction.getClip().duration;
+    }
+    this.faunaPresentations.push({
+      id,
+      kind,
+      phase: stablePresentationPhase(id),
+      body,
+      head: node(`${prefix}_head_pivot`),
+      tail: node(`${prefix}_tail_pivot`),
+      wings,
+      mixer,
+      actions,
+      activeClip: idleAction ? "idle" : null
+    });
+  }
+
+  private setFaunaAnimation(fauna: FaunaPresentation, clipName: FaunaAnimationClip): void {
+    if (fauna.activeClip === clipName) return;
+    const next = fauna.actions.get(clipName) ?? fauna.actions.get("idle");
+    if (!next) return;
+    const resolvedClip = next === fauna.actions.get("idle") ? "idle" : clipName;
+    const previous = fauna.activeClip ? fauna.actions.get(fauna.activeClip) : undefined;
+    previous?.fadeOut(0.18);
+    next.reset().fadeIn(0.18).play();
+    fauna.activeClip = resolvedClip;
+  }
+
+  private updateFaunaMotion(timeSeconds: number, delta: number, motionScale: number): void {
+    const windLean = this.weatherMotion.directionX
+      * this.weatherMotion.normalizedStrength
+      * (0.025 + this.weatherMotion.gust * 0.004)
+      * motionScale;
+    for (const fauna of this.faunaPresentations) {
+      const localTime = timeSeconds + fauna.phase * 9.7;
+      const cycle = localTime % (fauna.kind === "cow" ? 13 : 7.5);
+      const breathing = Math.sin(localTime * (fauna.kind === "cow" ? 1.25 : 2.1));
+      const activity = fauna.kind === "cow"
+        ? smoothPresentationWindow(cycle, 3.2, 8.4, 0.9)
+        : smoothPresentationWindow(cycle, 1.1, 4.3, 0.32);
+      const lookActivity = fauna.kind === "cow"
+        ? smoothPresentationWindow(cycle, 10.1, 12.2, 0.35)
+        : smoothPresentationWindow(cycle, 5.2, 7, 0.25);
+      const desiredClip: FaunaAnimationClip = this.prefersReducedMotion
+        ? "idle"
+        : activity > 0.05
+          ? fauna.kind === "cow" ? "graze" : "peck"
+          : lookActivity > 0.05 ? "look" : "idle";
+      this.setFaunaAnimation(fauna, desiredClip);
+      if (fauna.mixer) {
+        fauna.mixer.timeScale = this.prefersReducedMotion
+          ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+          : 1;
+      }
+      fauna.mixer?.update(delta);
+
+      if (!fauna.mixer) {
+        fauna.body.object.position.y = fauna.body.basePosition.y
+          + breathing * (fauna.kind === "cow" ? 0.012 : 0.009) * motionScale;
+        fauna.body.object.rotation.x = fauna.body.baseRotation.x;
+        fauna.body.object.rotation.y = fauna.body.baseRotation.y
+          + Math.sin(localTime * 0.31) * (fauna.kind === "cow" ? 0.035 : 0.08) * motionScale;
+        fauna.body.object.rotation.z = fauna.body.baseRotation.z + windLean;
+      }
+
+      if (fauna.head && !fauna.mixer) {
+        const peck = fauna.kind === "chicken"
+          ? Math.max(0, Math.sin((cycle - 1.1) * Math.PI * 3.2)) * activity
+          : activity;
+        fauna.head.object.rotation.x = fauna.head.baseRotation.x
+          + (fauna.kind === "cow" ? 0.72 * activity : 0.86 * peck) * motionScale;
+        fauna.head.object.rotation.y = fauna.head.baseRotation.y
+          + Math.sin(localTime * 0.67 + fauna.phase) * 0.18 * (1 - activity * 0.65) * motionScale;
+        fauna.head.object.rotation.z = fauna.head.baseRotation.z - windLean * 0.45;
+      }
+      if (fauna.tail) {
+        fauna.tail.object.rotation.y = fauna.tail.baseRotation.y
+          + Math.sin(localTime * 1.7 + fauna.phase) * 0.22 * motionScale;
+      }
+      for (const [index, wing] of fauna.wings.entries()) {
+        const wingSign = index === 0 ? -1 : 1;
+        wing.object.rotation.y = wing.baseRotation.y
+          + wingSign * Math.sin(localTime * 2.4 + fauna.phase) * 0.08 * motionScale;
+        wing.object.rotation.z = wing.baseRotation.z + wingSign * windLean * 1.8;
+      }
+    }
+  }
+
+  private createFishPresentationMember(
+    root: THREE.Group,
+    assetId: AssetId,
+    phase: number
+  ): FishPresentationMember {
+    const clips = (root.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
+    const mixer = clips.length > 0 ? new THREE.AnimationMixer(root) : null;
+    const actions = new Map<FishAnimationClip, THREE.AnimationAction>();
+    const clipSpecs = ASSET_BY_ID.get(assetId)?.animationClips ?? [];
+    if (mixer) {
+      for (const clipName of ["swim", "turn", "burst", "struggle"] as const) {
+        const clip = clips.find((candidate) => candidate.name === clipName);
+        if (!clip) continue;
+        const action = mixer.clipAction(clip);
+        const loops = clipSpecs.find((spec) => spec.name === clipName)?.loop ?? clipName !== "turn";
+        action.setLoop(loops ? THREE.LoopRepeat : THREE.LoopOnce, loops ? Infinity : 1);
+        action.clampWhenFinished = !loops;
+        actions.set(clipName, action);
+      }
+    }
+    const swim = actions.get("swim");
+    if (swim) {
+      swim.play();
+      swim.time = phase * swim.getClip().duration;
+    }
+    return {
+      root,
+      phase,
+      mixer,
+      actions,
+      activeClip: swim ? "swim" : null,
+      tailPivot: root.getObjectByName(`${assetId}_tail_pivot`) ?? undefined
+    };
+  }
+
+  private setFishAnimation(member: FishPresentationMember, clipName: FishAnimationClip): void {
+    if (member.activeClip === clipName) return;
+    const next = member.actions.get(clipName) ?? member.actions.get("swim");
+    if (!next) return;
+    const resolvedClip = next === member.actions.get("swim") ? "swim" : clipName;
+    const previous = member.activeClip ? member.actions.get(member.activeClip) : undefined;
+    previous?.fadeOut(0.1);
+    next.reset().fadeIn(0.1).play();
+    member.activeClip = resolvedClip;
+  }
+
+  private updateFishAnimation(
+    member: FishPresentationMember,
+    clipName: FishAnimationClip,
+    delta: number,
+    timeSeconds: number
+  ): void {
+    this.setFishAnimation(member, clipName);
+    if (member.mixer) {
+      member.mixer.timeScale = this.prefersReducedMotion
+        ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+        : 1;
+    }
+    member.mixer?.update(delta);
+    if (!member.mixer && member.tailPivot) {
+      member.tailPivot.rotation.y = Math.sin(timeSeconds * 8.5 + member.phase * Math.PI * 2)
+        * 0.28
+        * (this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1);
     }
   }
 
@@ -1736,19 +2257,14 @@ export class WorldScene {
     boatPresentationInput: BoatPresentationInput | null = this.latestBoatPresentationInput
   ): void {
     const state = sim.getState();
+    sampleWeatherMotionSignal(state.weather, timeSeconds, this.weatherMotion);
     if (presentedPlayer) this.latestPresentedPlayer = presentedPlayer;
     this.latestBoatPresentationInput = boatPresentationInput;
     const playerPose = presentedPlayer ?? {
       ...state.player,
-      motion: {
-        velocity: { x: 0, y: 0, z: 0 },
-        speedMetersPerSecond: 0,
-        accelerationMetersPerSecondSquared: 0,
-        turnRateRadiansPerSecond: 0,
-        isGrounded: state.player.traversal.isGrounded,
-        isCollisionBlocked: false,
-        requestedGait: "idle" as const
-      }
+      motion: stationaryPlayerMotion(state.player),
+      discontinuityReason: "none" as const,
+      discontinuitySequence: 0
     };
 
     const delta = this.lastPresentationTime > 0
@@ -1803,6 +2319,7 @@ export class WorldScene {
         {
           mode: presentationMode,
           motion: playerPose.motion,
+          facingRadians: playerPose.rotationY,
           carrying: Boolean(state.player.carriedFishCargoId) || timeSeconds < this.cosmeticCropCarryUntilSeconds,
           fishingInput: state.sportFishing
             ? {
@@ -1818,6 +2335,10 @@ export class WorldScene {
         bobY: 0,
         leanX: 0,
         leanZ: 0,
+        groundPitch: 0,
+        groundRoll: 0,
+        leftFootOffsetY: 0,
+        rightFootOffsetY: 0,
         clip: "idle" as const,
         events: []
       };
@@ -1826,12 +2347,14 @@ export class WorldScene {
       const boatPresentation = activeBoat
         ? this.sampleBoatPresentation(activeBoat, state, timeSeconds)
         : null;
-      const rowboatRig = activeBoat?.boatTypeId === "boat.rowboat"
-        ? this.rowboatPresentationRigs.get(activeBoat.id)
-        : undefined;
-      if (rowboatRig) {
-        const seatPosition = rowboatRig.rowerSeat.getWorldPosition(new THREE.Vector3());
-        this.playerMesh.position.set(seatPosition.x, seatPosition.y + motion.bobY, seatPosition.z);
+      const driverSeat = activeBoat ? this.boatDriverSeats.get(activeBoat.id) : undefined;
+      if (driverSeat) {
+        driverSeat.getWorldPosition(this.tempBoatSeatVec);
+        this.playerMesh.position.set(
+          this.tempBoatSeatVec.x,
+          this.tempBoatSeatVec.y + motion.bobY,
+          this.tempBoatSeatVec.z
+        );
       } else {
         this.playerMesh.position.set(
           playerPose.x,
@@ -1840,9 +2363,9 @@ export class WorldScene {
         );
       }
       this.playerMesh.rotation.set(
-        motion.leanX + (boatPresentation?.pitch ?? 0),
+        motion.leanX + motion.groundPitch + (boatPresentation?.pitch ?? 0),
         playerPose.rotationY,
-        motion.leanZ + (boatPresentation?.roll ?? 0),
+        motion.leanZ + motion.groundRoll + (boatPresentation?.roll ?? 0),
         "YXZ"
       );
       this.playerMesh.updateMatrixWorld(true);
@@ -1863,7 +2386,7 @@ export class WorldScene {
       }
     }
 
-    this.cropInstances.sync(state, timeSeconds);
+    this.cropInstances.sync(state, timeSeconds, this.weatherMotion);
 
     // Despawn school VFX whose school is gone
     for (const [schoolId, sGroup] of this.schoolEffects.entries()) {
@@ -1875,37 +2398,73 @@ export class WorldScene {
     for (const [schoolId, school] of Object.entries(state.world.activeSchools)) {
       const sGroup = this.schoolEffects.get(schoolId);
       if (!sGroup) continue;
+      const dx = playerPose.x - school.x;
+      const dz = playerPose.z - school.z;
+      const nearEnoughForFullRate = dx * dx + dz * dz < 58 * 58;
+      const lastMotionUpdate = (sGroup.userData.lastMotionUpdateSeconds as number | undefined) ?? 0;
+      const updateInterval = nearEnoughForFullRate ? 0 : 0.24;
+      if (!sGroup.visible || timeSeconds - lastMotionUpdate < updateInterval) continue;
+      const schoolDelta = THREE.MathUtils.clamp(timeSeconds - lastMotionUpdate, 0, 0.25);
+      sGroup.userData.lastMotionUpdateSeconds = timeSeconds;
       sGroup.position.set(school.x, 0.05, school.z);
       sGroup.rotation.y = timeSeconds * 0.8;
-      const pulseScale = 1.0 + Math.sin(timeSeconds * 3.0) * 0.15;
-      sGroup.scale.set(pulseScale, 1.0, pulseScale);
-      const fishModels = sGroup.userData.fishModels as THREE.Object3D[] | undefined;
-      fishModels?.forEach((fish, index) => {
-        const orbit = timeSeconds * (0.42 + index * 0.04) + index * (Math.PI * 2 / fishModels.length);
+      const frenzy = (school.feedingFrenzyUntilMinute ?? -1) > state.clock.currentMinute;
+      const pulseScale = 1 + Math.sin(timeSeconds * (frenzy ? 5.8 : 3)) * (frenzy ? 0.22 : 0.12);
+      sGroup.scale.set(pulseScale, 1, pulseScale);
+      const fishMembers = sGroup.userData.fishMembers as FishPresentationMember[] | undefined;
+      fishMembers?.forEach((member, index) => {
+        const fish = member.root;
+        const orbit = timeSeconds * (0.42 + index * 0.04) + index * (Math.PI * 2 / fishMembers.length);
         const radius = 1.2 + index * 0.42;
-        fish.position.set(Math.cos(orbit) * radius, -0.12 + Math.sin(timeSeconds * 1.8 + index) * 0.08, Math.sin(orbit) * radius);
+        const turnWindow = (timeSeconds + member.phase * 5.3) % 7.5 < 0.42;
+        this.updateFishAnimation(
+          member,
+          frenzy ? "burst" : turnWindow ? "turn" : "swim",
+          schoolDelta,
+          timeSeconds
+        );
+        fish.position.set(
+          Math.cos(orbit) * radius,
+          -0.12 + Math.sin(timeSeconds * (frenzy ? 3.2 : 1.8) + index) * (frenzy ? 0.14 : 0.08),
+          Math.sin(orbit) * radius
+        );
         fish.rotation.y = -orbit + Math.PI * 0.5;
+        fish.rotation.z = Math.sin(timeSeconds * 2.2 + member.phase * Math.PI * 2) * 0.055;
       });
     }
 
-    // Update living NPC idle animations and proximity gaze tracking
-
+    // NPC positions remain content anchored. Dialogue only adds a presentation
+    // turn and authored gesture; closing it restores the catalog heading.
     for (const npc of this.npcPresentations.values()) {
       npc.mixer.update(delta);
+      const dx = playerPose.x - npc.anchor.x;
+      const dz = playerPose.z - npc.anchor.z;
+      const distSq = dx * dx + dz * dz;
+      const isDialogueTarget = npc.id === this.activeDialogueNpcId;
+      const playerHeading = Math.atan2(dx, dz);
+      const desiredHeading = isDialogueTarget ? playerHeading : npc.initialRotationY;
+      const turnDifference = wrapPresentationAngle(desiredHeading - npc.model.rotation.y);
+      npc.model.rotation.y = dampPresentationAngle(
+        npc.model.rotation.y,
+        desiredHeading,
+        isDialogueTarget ? 9.5 : 5.5,
+        delta
+      );
+      const isTurning = Math.abs(turnDifference) > 0.1;
+      this.setNpcAnimation(
+        npc,
+        isTurning
+          ? turnDifference < 0 ? "turn_left" : "turn_right"
+          : isDialogueTarget ? "talk_gesture" : "idle"
+      );
       if (npc.headBone) {
-        const dx = playerPose.x - npc.anchor.x;
-        const dz = playerPose.z - npc.anchor.z;
-        const distSq = dx * dx + dz * dz;
-        if (distSq < 20.0) {
+        if (isDialogueTarget || distSq < 20.0) {
           // Player within 4.5 meters; turn head toward player
-          const targetAngle = Math.atan2(dx, dz);
-          let angleDiff = targetAngle - npc.initialRotationY;
-          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          const angleDiff = wrapPresentationAngle(playerHeading - npc.model.rotation.y);
           const clampedTurn = Math.max(-0.75, Math.min(0.75, angleDiff));
-          npc.headBone.rotation.y = THREE.MathUtils.lerp(npc.headBone.rotation.y, clampedTurn, 0.08);
+          npc.headBone.rotation.y = THREE.MathUtils.damp(npc.headBone.rotation.y, clampedTurn, 10, delta);
         } else {
-          npc.headBone.rotation.y = THREE.MathUtils.lerp(npc.headBone.rotation.y, 0, 0.05);
+          npc.headBone.rotation.y = THREE.MathUtils.damp(npc.headBone.rotation.y, 0, 7, delta);
         }
       }
     }
@@ -1917,29 +2476,35 @@ export class WorldScene {
   private buildFishingPresentation(): void {
     this.fishingBobberGroup = new THREE.Group();
     this.fishingBobberGroup.name = "fishing_bobber_rig";
+    this.fishingBobberBody = new THREE.Group();
+    this.fishingBobberBody.name = "fishing_bobber_body";
+    this.fishingBobberGroup.add(this.fishingBobberBody);
 
     // Top half of bobber (faceted red)
     const topGeo = new THREE.CylinderGeometry(0.01, 0.08, 0.10, 6);
     topGeo.translate(0, 0.05, 0);
     const topMat = PaletteMaterials.standard("accent_red_01", { roughness: 0.5, flatShading: true });
     const topMesh = new THREE.Mesh(topGeo, topMat);
+    topMesh.name = "fishing_bobber_top";
     topMesh.castShadow = true;
-    this.fishingBobberGroup.add(topMesh);
+    this.fishingBobberBody.add(topMesh);
 
     // Bottom half of bobber (faceted white/foam)
     const botGeo = new THREE.CylinderGeometry(0.08, 0.02, 0.09, 6);
     botGeo.translate(0, -0.045, 0);
     const botMat = PaletteMaterials.standard("foam_warm_01", { roughness: 0.6, flatShading: true });
     const botMesh = new THREE.Mesh(botGeo, botMat);
+    botMesh.name = "fishing_bobber_bottom";
     botMesh.castShadow = true;
-    this.fishingBobberGroup.add(botMesh);
+    this.fishingBobberBody.add(botMesh);
 
     // Antenna tip
     const tipGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.06, 4);
     tipGeo.translate(0, 0.12, 0);
     const tipMat = PaletteMaterials.standard("metal_dark_01", { roughness: 0.4, flatShading: true });
     const tipMesh = new THREE.Mesh(tipGeo, tipMat);
-    this.fishingBobberGroup.add(tipMesh);
+    tipMesh.name = "fishing_bobber_tip";
+    this.fishingBobberBody.add(tipMesh);
 
     // Water Ripple Ring
     const ringGeo = new THREE.RingGeometry(0.14, 0.32, 12);
@@ -1978,90 +2543,183 @@ export class WorldScene {
     playerPose: { x: number; y: number; z: number; rotationY: number },
     timeSeconds: number
   ): void {
-    const isBasicFishing = Boolean(state.basicFishing);
-    const isSportFishing = Boolean(state.sportFishing);
+    const basic = state.basicFishing;
+    const sport = state.sportFishing;
+    const rodProp = this.farmingProps.get("rod");
+    const rodBaseQuaternion = rodProp?.userData.socketBaseQuaternion as THREE.Quaternion | undefined;
+    if (rodProp && rodBaseQuaternion) rodProp.quaternion.copy(rodBaseQuaternion);
 
-    if (!isBasicFishing && !isSportFishing) {
-      if (this.fishingBobberGroup) this.fishingBobberGroup.visible = false;
+    if (!basic && !sport) {
+      this.fishingBobberGroup.visible = false;
       if (this.fishingLineMesh) this.fishingLineMesh.visible = false;
+      if (this.hookedFishModel) this.hookedFishModel.visible = false;
+      this.lastBasicFishingPhase = null;
       return;
     }
 
-    const dist = isBasicFishing
-      ? (state.basicFishing?.castDistanceMeters ?? 6.5)
-      : 12.0;
-
     const angle = playerPose.rotationY;
-    const bobberX = playerPose.x + Math.sin(angle) * dist;
-    const bobberZ = playerPose.z + Math.cos(angle) * dist;
+    const forwardX = Math.sin(angle);
+    const forwardZ = Math.cos(angle);
+    const rightX = Math.cos(angle);
+    const rightZ = -Math.sin(angle);
+    let endpointX = playerPose.x;
+    let endpointZ = playerPose.z;
+    let endpointY = playerPose.y;
+    let lineSag = 0.2;
+    let lineCurve = 0;
+    let surfaceStrength = 0.22;
+    let lineVisible = true;
 
-    const waterSample = this.water.sample(bobberX, bobberZ, timeSeconds);
-    let bobberY = waterSample.height;
-
-
-    const phase = state.basicFishing?.phase;
-
-    // Bobbing animation based on phase
-    if (phase === "bite-reaction" || (phase as string) === "bite") {
-      // Rapid dip and splash on bite
-      bobberY += -0.12 + Math.sin(timeSeconds * 25) * 0.05;
-      if (this.fishingBobberRipple) {
-        const pulse = 1.0 + Math.sin(timeSeconds * 20) * 0.4;
-        this.fishingBobberRipple.scale.set(pulse, 1, pulse);
-        (this.fishingBobberRipple.material as THREE.MeshStandardMaterial).opacity = 0.85;
+    if (basic) {
+      if (this.lastBasicFishingPhase === "charging-cast" && basic.phase !== "charging-cast") {
+        this.basicCastReleaseAtSeconds = timeSeconds;
       }
-    } else if (phase === "charging-cast") {
-      bobberY = playerPose.y + 0.8;
-      if (this.fishingBobberRipple) {
-        this.fishingBobberRipple.scale.set(0.1, 1, 0.1);
+      if (this.lastBasicFishingPhase === "bite-reaction" && basic.phase === "minigame") {
+        this.basicHookSetAtSeconds = timeSeconds;
       }
-    } else {
-      // Gentle floating bob on waves
-      bobberY += Math.sin(timeSeconds * 3.5) * 0.025;
-      if (this.fishingBobberRipple) {
-        const pulse = 0.9 + Math.sin(timeSeconds * 3) * 0.2;
-        this.fishingBobberRipple.scale.set(pulse, 1, pulse);
-        (this.fishingBobberRipple.material as THREE.MeshStandardMaterial).opacity = 0.5;
+      this.lastBasicFishingPhase = basic.phase;
+      const castDistance = basic.castDistanceMeters ?? 6.5;
+      const targetX = playerPose.x + forwardX * castDistance;
+      const targetZ = playerPose.z + forwardZ * castDistance;
+      const targetWaterY = this.water.sample(targetX, targetZ, timeSeconds).height;
+      const sinceRelease = timeSeconds - this.basicCastReleaseAtSeconds;
+      const flightProgress = Number.isFinite(sinceRelease)
+        ? THREE.MathUtils.smoothstep(sinceRelease, 0, 0.44)
+        : 1;
+      endpointX = THREE.MathUtils.lerp(playerPose.x + forwardX * 1.15, targetX, flightProgress);
+      endpointZ = THREE.MathUtils.lerp(playerPose.z + forwardZ * 1.15, targetZ, flightProgress);
+      endpointY = THREE.MathUtils.lerp(playerPose.y + 0.85, targetWaterY, flightProgress)
+        + Math.sin(flightProgress * Math.PI) * castDistance * 0.055;
+      lineVisible = basic.phase !== "charging-cast";
+      this.fishingBobberBody.visible = true;
+      if (basic.phase === "charging-cast") {
+        endpointY = playerPose.y + 0.8;
+        surfaceStrength = 0;
+      } else if (basic.phase === "bite-reaction" || (basic.phase as string) === "bite") {
+        endpointY = targetWaterY - 0.12 + Math.sin(timeSeconds * 25) * 0.05;
+        surfaceStrength = 0.9;
+        lineSag = 0.08;
+      } else if (basic.phase === "minigame") {
+        const fishPull = ((basic.fishY ?? 0.5) - 0.5) * 0.12;
+        endpointX += rightX * fishPull;
+        endpointZ += rightZ * fishPull;
+        const hookImpulse = 1 - THREE.MathUtils.smoothstep(
+          timeSeconds - this.basicHookSetAtSeconds,
+          0,
+          0.24
+        );
+        endpointY = targetWaterY - hookImpulse * 0.14 + Math.sin(timeSeconds * 8) * 0.018;
+        lineSag = THREE.MathUtils.lerp(0.12, 0.055, basic.catchProgress ?? 0.3);
+        surfaceStrength = 0.42 + hookImpulse * 0.45;
+        if (rodProp) rodProp.rotateX(-(0.08 + (basic.isHolding ? 0.08 : 0)));
+      } else if (flightProgress >= 1) {
+        endpointY = targetWaterY + Math.sin(timeSeconds * 3.5) * 0.025;
+      }
+      if (this.hookedFishModel) this.hookedFishModel.visible = false;
+    } else if (sport) {
+      this.lastBasicFishingPhase = null;
+      const secondaryScale = this.prefersReducedMotion
+        ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+        : 1;
+      const presentation = sampleSportFishingPresentation(
+        sport,
+        playerPose.x,
+        playerPose.z,
+        angle,
+        secondaryScale,
+        this.sportFishingPresentation
+      );
+      endpointX = presentation.endpointX;
+      endpointZ = presentation.endpointZ;
+      endpointY = this.water.sample(endpointX, endpointZ, timeSeconds).height - presentation.depthMeters;
+      lineSag = presentation.lineSagMeters;
+      lineCurve = presentation.rodTwistRadians * Math.min(4, sport.distanceMeters * 0.18);
+      surfaceStrength = presentation.surfaceStrength;
+      this.fishingBobberBody.visible = false;
+      if (rodProp) {
+        rodProp.rotateX(-presentation.rodBendRadians);
+        rodProp.rotateZ(presentation.rodTwistRadians);
+      }
+      if (this.hookedFishPresentation) {
+        const fishClip: FishAnimationClip = sport.behavior === "burst"
+          ? "burst"
+          : sport.behavior === "run-left" || sport.behavior === "run-right"
+            ? "turn"
+            : sport.behavior === "rest"
+              ? "swim"
+              : "struggle";
+        this.updateFishAnimation(
+          this.hookedFishPresentation,
+          fishClip,
+          THREE.MathUtils.clamp(timeSeconds - this.lastHookedFishUpdateSeconds, 0, 0.1),
+          timeSeconds
+        );
+        this.lastHookedFishUpdateSeconds = timeSeconds;
+      }
+      if (this.hookedFishModel) {
+        this.hookedFishModel.visible = true;
+        this.hookedFishModel.position.set(endpointX, endpointY, endpointZ);
+        this.hookedFishModel.rotation.set(
+          presentation.fishPitchRadians,
+          presentation.fishYawRadians,
+          presentation.fishRollRadians,
+          "YXZ"
+        );
       }
     }
 
-    this.fishingBobberGroup.position.set(bobberX, bobberY, bobberZ);
-    this.fishingBobberGroup.visible = phase !== "charging-cast";
-
-    // Update Fishing Line from Rod Tip to Bobber
-    if (this.fishingLineMesh) {
-      let rodTipX = playerPose.x + Math.sin(angle) * 1.6 + Math.cos(angle) * 0.3;
-      let rodTipY = playerPose.y + 0.95;
-      let rodTipZ = playerPose.z + Math.cos(angle) * 1.6 - Math.sin(angle) * 0.3;
-
-      const rodProp = this.farmingProps.get("rod");
-      if (rodProp && this.playerMesh) {
-        this.playerMesh.updateMatrixWorld(true);
-        const tipObj = rodProp.getObjectByName("rod_guide_tiptop") ?? rodProp.getObjectByName("rod_tiptop_sleeve");
-        if (tipObj) {
-          tipObj.getWorldPosition(this.tempRodTipVec);
-          rodTipX = this.tempRodTipVec.x;
-          rodTipY = this.tempRodTipVec.y;
-          rodTipZ = this.tempRodTipVec.z;
-        }
-      }
-
-      const positions = this.fishingLineMesh.geometry.attributes.position;
-      const pointCount = 10;
-      for (let i = 0; i <= pointCount; i++) {
-        const t = i / pointCount;
-        const x = THREE.MathUtils.lerp(rodTipX, bobberX, t);
-        const z = THREE.MathUtils.lerp(rodTipZ, bobberZ, t);
-        let y = THREE.MathUtils.lerp(rodTipY, bobberY + 0.12, t);
-
-        const sag = Math.sin(t * Math.PI) * (phase === "minigame" ? 0.08 : 0.22);
-        y -= sag;
-
-        positions.setXYZ(i, x, y, z);
-      }
-      positions.needsUpdate = true;
-      this.fishingLineMesh.visible = phase !== "charging-cast";
+    const waterHeight = this.water.sample(endpointX, endpointZ, timeSeconds).height;
+    this.fishingBobberGroup.position.set(endpointX, basic ? endpointY : waterHeight + 0.012, endpointZ);
+    this.fishingBobberGroup.visible = lineVisible;
+    if (this.fishingBobberRipple) {
+      const secondaryScale = this.prefersReducedMotion
+        ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+        : 1;
+      const pulse = 0.7 + surfaceStrength * 0.65
+        + Math.sin(timeSeconds * (3 + surfaceStrength * 8)) * 0.12 * secondaryScale;
+      this.fishingBobberRipple.scale.set(pulse, 1, pulse);
+      (this.fishingBobberRipple.material as THREE.MeshStandardMaterial).opacity =
+        THREE.MathUtils.lerp(0.28, 0.88, surfaceStrength);
+      this.fishingBobberRipple.visible = surfaceStrength > 0.01;
     }
+
+    if (!this.fishingLineMesh) return;
+    let rodTipX = playerPose.x + forwardX * 1.6 + rightX * 0.3;
+    let rodTipY = playerPose.y + 0.95;
+    let rodTipZ = playerPose.z + forwardZ * 1.6 + rightZ * 0.3;
+    if (rodProp && this.playerMesh) {
+      this.playerMesh.updateMatrixWorld(true);
+      const tipObj = rodProp.getObjectByName("rod_guide_tiptop")
+        ?? rodProp.getObjectByName("rod_tiptop_sleeve");
+      if (tipObj) {
+        tipObj.getWorldPosition(this.tempRodTipVec);
+        rodTipX = this.tempRodTipVec.x;
+        rodTipY = this.tempRodTipVec.y;
+        rodTipZ = this.tempRodTipVec.z;
+      }
+    }
+
+    const positions = this.fishingLineMesh.geometry.attributes.position;
+    const pointCount = positions.count - 1;
+    const lineEndY = basic ? endpointY + 0.12 : endpointY;
+    const dangerVibration = sport
+      ? THREE.MathUtils.clamp((sport.lineTension - 78) / 22, 0, 1)
+        * 0.025
+        * (this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1)
+      : 0;
+    for (let index = 0; index <= pointCount; index += 1) {
+      const t = index / pointCount;
+      const curve = Math.sin(t * Math.PI);
+      const vibration = sport
+        ? Math.sin(sport.elapsedSeconds * 34 + t * 15) * dangerVibration * curve
+        : 0;
+      const x = THREE.MathUtils.lerp(rodTipX, endpointX, t) + rightX * (lineCurve * curve + vibration);
+      const z = THREE.MathUtils.lerp(rodTipZ, endpointZ, t) + rightZ * (lineCurve * curve + vibration);
+      const y = THREE.MathUtils.lerp(rodTipY, lineEndY, t) - curve * lineSag;
+      positions.setXYZ(index, x, y, z);
+    }
+    positions.needsUpdate = true;
+    this.fishingLineMesh.visible = lineVisible;
   }
 
   private sampleBoatPresentation(
@@ -2069,16 +2727,65 @@ export class WorldScene {
     _state: Readonly<GameState>,
     timeSeconds: number
   ): { waveHeight: number; pitch: number; roll: number } {
+    let presentation = this.boatBuoyancyState.get(boat.id);
+    if (!presentation) {
+      presentation = {
+        waveHeight: 0,
+        pitch: 0,
+        roll: 0,
+        lastSampleTimeSeconds: timeSeconds,
+        initialized: false
+      };
+      this.boatBuoyancyState.set(boat.id, presentation);
+    } else if (Math.abs(presentation.lastSampleTimeSeconds - timeSeconds) <= 0.000001) {
+      return presentation;
+    }
 
-    const water = this.water.sample(boat.x, boat.z, timeSeconds);
-    const localNormal = water.normal
-      .clone()
-      .applyAxisAngle(new THREE.Vector3(0, 1, 0), -boat.headingRadians);
-    return {
-      waveHeight: water.height,
-      pitch: Math.atan2(localNormal.z, localNormal.y),
-      roll: -Math.atan2(localNormal.x, localNormal.y)
-    };
+    const footprint = boatBuoyancyFootprint(boat.boatTypeId);
+    const sinHeading = Math.sin(boat.headingRadians);
+    const cosHeading = Math.cos(boat.headingRadians);
+    const sampleHeight = (localX: number, localZ: number): number => this.water.sample(
+      boat.x + localX * cosHeading + localZ * sinHeading,
+      boat.z - localX * sinHeading + localZ * cosHeading,
+      timeSeconds
+    ).height;
+    const bowHeight = sampleHeight(0, footprint.halfLength);
+    const sternHeight = sampleHeight(0, -footprint.halfLength);
+    const portHeight = sampleHeight(-footprint.halfBeam, 0);
+    const starboardHeight = sampleHeight(footprint.halfBeam, 0);
+    const targetWaveHeight = (bowHeight + sternHeight + portHeight + starboardHeight) * 0.25;
+    const tiltScale = this.prefersReducedMotion
+      ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+      : 1;
+    const maximumTilt = boat.boatTypeId === "boat.skiff"
+      ? THREE.MathUtils.degToRad(10)
+      : THREE.MathUtils.degToRad(12);
+    const targetPitch = THREE.MathUtils.clamp(
+      Math.atan2(sternHeight - bowHeight, footprint.halfLength * 2) * tiltScale,
+      -maximumTilt,
+      maximumTilt
+    );
+    const targetRoll = THREE.MathUtils.clamp(
+      Math.atan2(starboardHeight - portHeight, footprint.halfBeam * 2) * tiltScale,
+      -maximumTilt,
+      maximumTilt
+    );
+    const dt = THREE.MathUtils.clamp(
+      timeSeconds - presentation.lastSampleTimeSeconds,
+      0,
+      0.1
+    );
+    const smoothing = presentation.initialized ? 1 - Math.exp(-8 * dt) : 1;
+    presentation.waveHeight = THREE.MathUtils.lerp(
+      presentation.waveHeight,
+      targetWaveHeight,
+      smoothing
+    );
+    presentation.pitch = THREE.MathUtils.lerp(presentation.pitch, targetPitch, smoothing);
+    presentation.roll = THREE.MathUtils.lerp(presentation.roll, targetRoll, smoothing);
+    presentation.lastSampleTimeSeconds = timeSeconds;
+    presentation.initialized = true;
+    return presentation;
   }
 
   private updateBoatWake(
@@ -2147,12 +2854,44 @@ export class WorldScene {
           this.boatMeshes.set(boatId, bMesh);
           if (boatState.boatTypeId === "boat.rowboat") {
             this.configureRowboatPresentation(boatId, bMesh);
+          } else if (boatState.boatTypeId === "boat.skiff") {
+            this.configureSkiffPresentation(boatId, bMesh);
           }
         }
       }
     }
 
     await this.cropInstances.ensureAssets(state);
+
+    const sportFishAssetId = state.sportFishing
+      ? fishSpeciesAsset(state.sportFishing.fish.speciesId)
+      : null;
+    if (this.hookedFishAssetId !== sportFishAssetId) {
+      this.hookedFishModel?.removeFromParent();
+      this.hookedFishModel = null;
+      this.hookedFishAssetId = null;
+      this.hookedFishPresentation = null;
+      this.lastHookedFishUpdateSeconds = 0;
+    }
+    if (sportFishAssetId && !this.hookedFishModel) {
+      const hookedFish = await AssetLoader.loadModel(sportFishAssetId);
+      const currentSpeciesId = sim.getState().sportFishing?.fish.speciesId;
+      if (fishSpeciesAsset(currentSpeciesId ?? "") === sportFishAssetId && !this.hookedFishModel) {
+        hookedFish.name = "hooked_fish_presentation";
+        hookedFish.userData.dynamicPresentation = true;
+        hookedFish.scale.setScalar(0.82);
+        this.setShadowPolicy(hookedFish, false);
+        this.scene.add(hookedFish);
+        this.hookedFishModel = hookedFish;
+        this.hookedFishAssetId = sportFishAssetId;
+        this.hookedFishPresentation = this.createFishPresentationMember(
+          hookedFish,
+          sportFishAssetId,
+          stablePresentationPhase(`hooked:${currentSpeciesId}`)
+        );
+        this.lastHookedFishUpdateSeconds = timeSeconds;
+      }
+    }
 
     for (const [schoolId, school] of Object.entries(state.world.activeSchools)) {
       if (this.schoolEffects.has(schoolId)) continue;
@@ -2164,16 +2903,20 @@ export class WorldScene {
       sGroup.add(ringMesh);
       const fishAssetId = fishSchoolAsset(school);
       if (fishAssetId) {
-        const fishModels: THREE.Object3D[] = [];
+        const fishMembers: FishPresentationMember[] = [];
         for (let index = 0; index < 3; index++) {
           const fish = await AssetLoader.loadModel(fishAssetId);
           fish.scale.setScalar(0.55);
           fish.userData.dynamicPresentation = true;
           this.setShadowPolicy(fish, false);
           sGroup.add(fish);
-          fishModels.push(fish);
+          fishMembers.push(this.createFishPresentationMember(
+            fish,
+            fishAssetId,
+            stablePresentationPhase(`${schoolId}:${index}`)
+          ));
         }
-        sGroup.userData.fishModels = fishModels;
+        sGroup.userData.fishMembers = fishMembers;
       }
       this.scene.add(sGroup);
       this.schoolEffects.set(schoolId, sGroup);
@@ -2205,6 +2948,7 @@ export class WorldScene {
   }
 
   public render(camera: THREE.Camera): void {
+    this.updateCharacterDetailLod(camera);
     this.updateStaticLodBatches(camera);
     this.groundCover.update(camera);
     this.rendererPipeline.render(camera);
@@ -2245,4 +2989,33 @@ export class WorldScene {
     this.buildPlayerContactShadow();
     this.handleResize(window.innerWidth, window.innerHeight);
   }
+}
+
+function wrapPresentationAngle(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+function dampPresentationAngle(current: number, target: number, response: number, delta: number): number {
+  const difference = wrapPresentationAngle(target - current);
+  return wrapPresentationAngle(current + difference * (1 - Math.exp(-response * delta)));
+}
+
+function stablePresentationPhase(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0) / 0x1_0000_0000;
+}
+
+function smoothPresentationWindow(
+  value: number,
+  start: number,
+  end: number,
+  edge: number
+): number {
+  const enter = THREE.MathUtils.smoothstep(value, start, start + edge);
+  const exit = 1 - THREE.MathUtils.smoothstep(value, end - edge, end);
+  return Math.min(enter, exit);
 }

@@ -1,6 +1,7 @@
 // src/ui/DebugOverlay.tsx
 import React from "react";
 import { GameMode, GameState } from "../simulation/core/types";
+import type { AssetCoverageSummary } from "../render/assets/AssetCoverage";
 
 export interface RenderStats {
   calls: number;
@@ -52,6 +53,7 @@ interface DebugOverlayProps {
   onGrantMoney: (amount: number) => void;
   onToggleWeather: () => void;
   onSpawnSchool: () => void;
+  assetCoverage: AssetCoverageSummary;
 }
 
 export const DebugOverlay: React.FC<DebugOverlayProps> = ({
@@ -66,7 +68,8 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
   onAdvanceHours,
   onGrantMoney,
   onToggleWeather,
-  onSpawnSchool
+  onSpawnSchool,
+  assetCoverage
 }) => {
   const p = state.player;
   const activeSchoolsCount = Object.keys(state.world.activeSchools).length;
@@ -129,6 +132,17 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
       </div>
       <div>Camera: ({camera.x.toFixed(1)}, {camera.y.toFixed(1)}, {camera.z.toFixed(1)}) | FOV: {camera.fovDegrees.toFixed(1)}° | Boom: {camera.resolvedDistance.toFixed(1)}m{camera.obstructed ? " blocked" : ""}</div>
       <div>Crops: {activeCropsCount} | Schools: {activeSchoolsCount} | Weather: {state.weather.type}</div>
+      <div
+        data-testid="asset-coverage"
+        data-total-assets={assetCoverage.total}
+        data-fresh-save-visible={assetCoverage.freshSaveVisible}
+        data-static-world={assetCoverage.byDisposition["static-world"]}
+        data-dynamic-world={assetCoverage.byDisposition["dynamic-world"]}
+        data-conditional-world={assetCoverage.byDisposition["conditional-world"]}
+        data-progression-world={assetCoverage.byDisposition["progression-world"]}
+      >
+        Assets: {assetCoverage.total} | Fresh: {assetCoverage.freshSaveVisible} | Static: {assetCoverage.byDisposition["static-world"]} | Dynamic: {assetCoverage.byDisposition["dynamic-world"]} | Conditional: {assetCoverage.byDisposition["conditional-world"]} | Progression: {assetCoverage.byDisposition["progression-world"]}
+      </div>
       <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
         <button
           style={{ background: "#222", color: "#00FF88", border: "1px solid #00FF88", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}

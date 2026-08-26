@@ -106,6 +106,39 @@ describe("Neva art catalog", () => {
     expect(() => validateAnimationContract(character)).toThrow("missing required animation clips");
   });
 
+  it("permits catalog-authored node animation on fish and fauna with explicit optional fallbacks", () => {
+    const catalog = JSON.parse(
+      fs.readFileSync(path.join(ROOT, "assets/specs/asset-catalog.json"), "utf8")
+    ) as { assets: CatalogAsset[] };
+    const fish = structuredClone(
+      catalog.assets.find((asset) => asset.id === "fish_trout_a")
+    ) as CatalogAsset | undefined;
+    const fauna = structuredClone(
+      catalog.assets.find((asset) => asset.id === "fauna_cow_a")
+    ) as CatalogAsset | undefined;
+    if (!fish?.animationClips || !fauna?.animationClips) {
+      throw new Error("representative fish and fauna require animation contracts");
+    }
+
+    expect(fish.rigNode).toBeUndefined();
+    expect(validateAnimationContract(fish)).toBe(true);
+    expect(validateAnimationContract(fauna)).toBe(true);
+
+    fish.animationClips.push({
+      name: "ambient_glide",
+      durationSeconds: 1.2,
+      loop: true,
+      optional: true,
+      fallbackClip: "swim"
+    });
+    expect(validateAnimationContract(fish)).toBe(true);
+
+    fish.animationClips.at(-1)!.fallbackClip = "missing";
+    expect(() => validateAnimationContract(fish)).toThrow(
+      "requires a distinct required fallback clip"
+    );
+  });
+
   it("requires generated LODs to use named, ordered, progressively lighter levels", () => {
     const { catalog } = validateCatalog();
     const oak = structuredClone(
@@ -246,11 +279,11 @@ describe("Neva art catalog", () => {
     const { catalog } = validateCatalog();
     const oak = structuredClone(catalog.assets.find((asset) => asset.id === "tree_oak_a"));
     if (!oak?.referenceAuthoring) throw new Error("tree_oak_a requires the reference-authoring pilot");
-    const unguidedOak = structuredClone(catalog.assets.find((asset) => asset.id === "tree_oak_b"));
-    if (!unguidedOak) throw new Error("tree_oak_b is required by the catalog fixture");
+    const unguided = structuredClone(catalog.assets.find((asset) => !asset.referenceAuthoring) ?? oak);
+    delete unguided.referenceAuthoring;
 
     expect(validateReferenceAuthoring(oak)).toBe(true);
-    expect(validateReferenceAuthoring(unguidedOak)).toBeNull();
+    expect(validateReferenceAuthoring(unguided)).toBeNull();
     expect(referenceBriefHash(oak)).toMatch(/^[a-f0-9]{64}$/);
     expect(referenceAuthoringSummary(oak)).toMatchObject({
       status: "ready",
@@ -336,5 +369,37 @@ describe("Neva art catalog", () => {
       )
     ).toThrow("does not match");
     expect(palette.tokens).toBeDefined();
+  });
+
+  it("keeps selected publication validation focused while preserving full-manifest identity", () => {
+    const { catalog, specHash } = validateCatalog();
+    const paletteHash = crypto
+      .createHash("sha256")
+      .update(fs.readFileSync(path.join(ROOT, "art/palettes/neva.palette.json")))
+      .digest("hex");
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
+    );
+    const fish = catalog.assets.find((asset) => asset.id === "fish_trout_a");
+    if (!fish) throw new Error("fish_trout_a is required by the catalog fixture");
+    const legacy = structuredClone(manifest);
+    const legacyOak = legacy.assets.find((asset: { id: string }) => asset.id === "tree_oak_a");
+    delete legacyOak.vertexColorSpace;
+
+    expect(validatePublishedManifest(
+      legacy,
+      catalog,
+      specHash,
+      paletteHash,
+      "selected",
+      [fish]
+    )).toBe(legacy);
+    expect(() => validatePublishedManifest(
+      legacy,
+      catalog,
+      specHash,
+      paletteHash,
+      "full"
+    )).toThrow("tree_oak_a");
   });
 });

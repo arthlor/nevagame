@@ -23,6 +23,7 @@ import {
 import { DialogueModal } from "./DialogueModal";
 import { ContextualHintCard } from "./ContextualHintCard";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
+import type { AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import type { ActiveModal } from "../app/ModeController";
 import type { FarmingActionSnapshot } from "../app/FarmingActionController";
 import type { CropInspectionDto } from "../simulation/core/contracts";
@@ -40,6 +41,7 @@ export interface GameUIProps {
   promptText: string | null;
   toastMessage?: string | null;
   inspectedCrop: CropInspectionDto | null;
+  onDismissCropInspection?: () => void;
   farmingAction: FarmingActionSnapshot | null;
   activeModal: ActiveModal;
   onSetActiveModal: (modal: ActiveModal) => void;
@@ -92,6 +94,7 @@ export interface GameUIProps {
   onGrantMoney: (amount: number) => void;
   onToggleWeather: () => void;
   onSpawnSchool: () => void;
+  assetCoverage: AssetCoverageSummary;
   screenFade?: boolean;
 }
 
@@ -107,14 +110,15 @@ export const GameUI: React.FC<GameUIProps> = ({
   promptText,
   toastMessage,
   inspectedCrop,
+  onDismissCropInspection,
   farmingAction,
   activeModal,
   onSetActiveModal,
   onOpenMarket,
   marketId,
   activeQuest,
-  activeDialogueNpcId,
   onTalkNpc,
+  activeDialogueNpcId,
   activeHint,
   onDismissHint,
   onSelectPlantCrop,
@@ -147,6 +151,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onGrantMoney,
   onToggleWeather,
   onSpawnSchool,
+  assetCoverage,
   screenFade = false
 }) => {
   const plannerUnlocked = state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
@@ -174,10 +179,16 @@ export const GameUI: React.FC<GameUIProps> = ({
         onQuickSave={onQuickSave}
         onCastFishing={onCastFishing}
         onOpenMenu={() => onSetActiveModal("pause")}
+        isPlacementActive={mode === "farm-placement"}
       />
 
       {/* 2. Contextual Overlays */}
-      {inspectedCrop && <CropInspection inspection={inspectedCrop} />}
+      {inspectedCrop && (
+        <CropInspection
+          inspection={inspectedCrop}
+          onClose={onDismissCropInspection}
+        />
+      )}
       {farmingAction && <FarmingActionStatus action={farmingAction} />}
 
       {/* Diegetic Farm Soil GIS Legend (when Alt is held) */}
@@ -215,8 +226,8 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {/* 4. Sport Fishing Minigame HUD */}
-      {mode === "sport-fishing" && fishingEncounter && (
+      {/* 4. Sport Fishing Minigame HUD — hidden under pause so it cannot steal input */}
+      {mode === "sport-fishing" && fishingEncounter && !activeModal && (
         <FishingHUD encounter={fishingEncounter} onSetInput={onSetFishingInput} />
       )}
 
@@ -337,6 +348,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onGrantMoney={onGrantMoney}
           onToggleWeather={onToggleWeather}
           onSpawnSchool={onSpawnSchool}
+          assetCoverage={assetCoverage}
         />
       )}
     </div>
@@ -346,7 +358,10 @@ export const GameUI: React.FC<GameUIProps> = ({
 const titleCase = (value: string): string =>
   value.replace(/(^|[-_])\w/g, (match) => match.replace(/[-_]/, "").toUpperCase());
 
-const CropInspection: React.FC<{ inspection: CropInspectionDto }> = ({ inspection }) => {
+const CropInspection: React.FC<{
+  inspection: CropInspectionDto;
+  onClose?: () => void;
+}> = ({ inspection, onClose }) => {
   const remaining =
     inspection.approximateMinutesRemaining == null
       ? inspection.stage === "withered"
@@ -367,13 +382,31 @@ const CropInspection: React.FC<{ inspection: CropInspectionDto }> = ({ inspectio
       role="region"
       aria-label={`${inspection.name} crop inspection`}
       tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && onClose) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       <header className="crop-inspection-title">
         <div className="crop-title-group">
           <IconSprout size={18} className="crop-title-icon" />
           <strong>{inspection.name}</strong>
         </div>
-        <span className={`crop-stage-chip stage-${inspection.stage}`}>{titleCase(inspection.stage)}</span>
+        <div className="crop-header-right">
+          <span className={`crop-stage-chip stage-${inspection.stage}`}>{titleCase(inspection.stage)}</span>
+          {onClose && (
+            <button
+              type="button"
+              className="crop-inspection-close-btn"
+              onClick={onClose}
+              aria-label="Close crop inspection"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </header>
 
       <dl className="crop-inspection-grid">
@@ -417,7 +450,13 @@ const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: string; ic
   water: { title: "Watering Soil…", icon: "💧" },
   harvest: { title: "Harvesting Crop…", icon: "🌾" },
   "processing-start": { title: "Starting Processing…", icon: "⚙️" },
-  "processing-collect": { title: "Collecting Yield…", icon: "📦" }
+  "processing-collect": { title: "Collecting Yield…", icon: "📦" },
+  pickup: { title: "Picking Up…", icon: "📦" },
+  place: { title: "Placing…", icon: "📦" },
+  workstation: { title: "Working…", icon: "⚙️" },
+  cast: { title: "Casting…", icon: "🎣" },
+  board: { title: "Boarding…", icon: "⛵" },
+  dock: { title: "Docking…", icon: "⚓" }
 };
 
 const FarmingActionStatus: React.FC<{ action: FarmingActionSnapshot }> = ({ action }) => {

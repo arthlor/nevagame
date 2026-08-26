@@ -4,7 +4,9 @@ import { boatAssetId } from "../render/assets/AssetCatalog";
 import { WaterSurface } from "../render/water/WaterSurface";
 import type { GameMode, GameState } from "../simulation/core/types";
 import type {
+  BoatMotionSample,
   PhysicsAdapter,
+  PhysicsContactSurface,
   PhysicsIntent,
   PhysicsStepResult,
   PlayerMotionSample,
@@ -22,6 +24,7 @@ import {
   TERRAIN_SIZE_METERS,
   WorldLayout
 } from "../world/WorldLayout";
+import { harborMooringForBoatType } from "../world/WorldAnchors";
 
 interface BoatPhysicsBody {
   body: RAPIER.RigidBody;
@@ -32,6 +35,11 @@ interface BoatPhysicsBody {
   speed: number;
 }
 
+interface ResolvedBoatStep {
+  pose: ResolvedPhysicsFrame["boats"][string];
+  motion: BoatMotionSample;
+}
+
 const CHARACTER_CONTROLLER_OFFSET_METERS = 0.035;
 const PLAYER_CAPSULE_HALF_HEIGHT_METERS = 0.58;
 const PLAYER_CAPSULE_RADIUS_METERS = 0.34;
@@ -40,6 +48,16 @@ const PLAYER_COLLIDER_CENTER_FROM_POSE_METERS =
   PLAYER_CAPSULE_HALF_HEIGHT_METERS +
   PLAYER_CAPSULE_RADIUS_METERS -
   PLAYER_POSE_GROUND_OFFSET_METERS;
+const PLAYER_GROUND_SNAP_METERS = 0.38;
+const PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND = 0.55;
+const PLAYER_HARD_LANDING_SPEED_METERS_PER_SECOND = 8.5;
+const PLAYER_LANDING_RESPONSE_MAX_SPEED_METERS_PER_SECOND = 15;
+let terrainHeightfieldCache: Float32Array | null = null;
+
+function sharedTerrainHeightfield(): Float32Array {
+  terrainHeightfieldCache ??= WorldLayout.terrainHeightfield();
+  return terrainHeightfieldCache;
+}
 
 function normalizeAngle(radians: number): number {
   return Math.atan2(Math.sin(radians), Math.cos(radians));
@@ -65,6 +83,31 @@ function steerVelocityToward(
 function dampAngle(current: number, target: number, response: number, dt: number): number {
   const difference = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return normalizeAngle(current + difference * (1 - Math.exp(-response * dt)));
+}
+
+function moveToward(current: number, target: number, maximumDelta: number): number {
+  if (Math.abs(target - current) <= maximumDelta) return target;
+  return current + Math.sign(target - current) * maximumDelta;
+}
+
+function groundEvidenceAt(
+  x: number,
+  z: number
+): {
+  normal: { x: number; y: number; z: number };
+  surface: PhysicsContactSurface;
+} {
+  if (WorldLayout.isInterior(x, z)) {
+    return { normal: { x: 0, y: 1, z: 0 }, surface: "interior-floor" };
+  }
+  if (WorldLayout.isBridgeDeck(x, z)) {
+    return { normal: { x: 0, y: 1, z: 0 }, surface: "bridge-deck" };
+  }
+  const normal = WorldLayout.terrainNormal(x, z);
+  return {
+    normal: { x: normal.x, y: normal.y, z: normal.z },
+    surface: WorldLayout.terrainSurface(x, z)
+  };
 }
 
 function resolveWalkableSlide(
@@ -131,11 +174,14 @@ export class PhysicsWorld implements PhysicsAdapter {
   private readonly controller: RAPIER.KinematicCharacterController;
   private readonly boatBodies = new Map<string, BoatPhysicsBody>();
   private readonly cameraSweepBallCache = new Map<number, RAPIER.Ball>();
+  private readonly terrainCollider: RAPIER.Collider;
   private playerVelocityX = 0;
   private playerVelocityZ = 0;
   private playerVerticalVelocity = 0;
   private playerRotationY = 0;
   private playerGrounded = true;
+  private playerGroundNormal = { x: 0, y: 1, z: 0 };
+  private playerContactSurface: PhysicsContactSurface = "unknown";
   private jumpBufferRemainingSeconds = 0;
   private coyoteTimeRemainingSeconds: number = PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds;
 
@@ -158,15 +204,15 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.controller.setMaxSlopeClimbAngle((38 * Math.PI) / 180);
     this.controller.setMinSlopeSlideAngle((46 * Math.PI) / 180);
     this.controller.enableAutostep(0.42, 0.24, true);
-    this.controller.enableSnapToGround(0.28);
+    this.controller.enableSnapToGround(PLAYER_GROUND_SNAP_METERS);
 
     const terrain = rapier.ColliderDesc.heightfield(
       TERRAIN_RESOLUTION,
       TERRAIN_RESOLUTION,
-      WorldLayout.terrainHeightfield(),
+      sharedTerrainHeightfield(),
       new rapier.Vector3(TERRAIN_SIZE_METERS, 1, TERRAIN_SIZE_METERS)
     ).setFriction(0.86);
-    this.world.createCollider(terrain);
+    this.terrainCollider = this.world.createCollider(terrain);
     for (const proxy of staticCollision) {
       const centerX = Number.isFinite(proxy.center.x) ? proxy.center.x : 0;
       const centerY = Number.isFinite(proxy.center.y) ? proxy.center.y : 0;
@@ -343,7 +389,15 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.coyoteTimeRemainingSeconds = this.playerGrounded
         ? PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds
         : 0;
+      if (this.playerGrounded) {
+        const groundEvidence = groundEvidenceAt(player.x, player.z);
+        this.playerGroundNormal = groundEvidence.normal;
+        this.playerContactSurface = groundEvidence.surface;
+      }
     }
+
+    const wasGrounded = this.playerGrounded;
+    let jumpStarted = false;
 
     const rawInputX = Number.isFinite(input.x) ? input.x : 0;
     const rawInputZ = Number.isFinite(input.z) ? input.z : 0;
@@ -400,6 +454,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     if (this.jumpBufferRemainingSeconds > 0 && this.coyoteTimeRemainingSeconds > 0) {
       this.playerVerticalVelocity = PLAYER_TRAVERSAL_TUNING.jumpSpeedMetersPerSecond;
       this.playerGrounded = false;
+      jumpStarted = true;
       this.jumpBufferRemainingSeconds = 0;
       this.coyoteTimeRemainingSeconds = 0;
     } else {
@@ -408,6 +463,7 @@ export class PhysicsWorld implements PhysicsAdapter {
         this.playerVerticalVelocity - PLAYER_TRAVERSAL_TUNING.gravityMetersPerSecondSquared * safeDt
       );
     }
+    const verticalVelocityBeforeCollision = this.playerVerticalVelocity;
     this.controller.computeColliderMovement(this.playerCollider, {
       x: moveX,
       y: this.playerVerticalVelocity * safeDt,
@@ -431,11 +487,25 @@ export class PhysicsWorld implements PhysicsAdapter {
       movement.z *= scale;
     }
     let hitBlockingSurface = false;
+    let collisionGroundNormal: { x: number; y: number; z: number } | null = null;
     for (let index = 0; index < this.controller.numComputedCollisions(); index++) {
       const collision = this.controller.computedCollision(index);
-      if (collision && Math.abs(collision.normal1.y) < 0.65) {
+      if (!collision) continue;
+      if (Math.abs(collision.normal1.y) < 0.65) {
         hitBlockingSurface = true;
-        break;
+      }
+      if (
+        collision.normal1.y > 0.55 &&
+        (!collisionGroundNormal || collision.normal1.y > collisionGroundNormal.y)
+      ) {
+        const length = Math.hypot(collision.normal1.x, collision.normal1.y, collision.normal1.z);
+        if (length > 0.0001) {
+          collisionGroundNormal = {
+            x: collision.normal1.x / length,
+            y: collision.normal1.y / length,
+            z: collision.normal1.z / length
+          };
+        }
       }
     }
 
@@ -445,6 +515,8 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
 
     this.playerGrounded = this.controller.computedGrounded();
+    const landed = !wasGrounded && this.playerGrounded && verticalVelocityBeforeCollision < -0.5;
+    const landingSpeed = landed ? Math.max(0, -verticalVelocityBeforeCollision) : 0;
     if (this.playerGrounded && this.playerVerticalVelocity < 0) {
       this.playerVerticalVelocity = -0.25;
     }
@@ -455,8 +527,8 @@ export class PhysicsWorld implements PhysicsAdapter {
 
     // Rapier owns collision resolution. Feeding its actual displacement back
     // into the transient velocity prevents pressure and footsteps at walls.
-    const resolvedVelocityX = movement.x / safeDt;
-    const resolvedVelocityZ = movement.z / safeDt;
+    let resolvedVelocityX = movement.x / safeDt;
+    let resolvedVelocityZ = movement.z / safeDt;
     if (walkabilityLimited || hitBlockingSurface) {
       this.playerVelocityX = resolvedVelocityX;
       this.playerVelocityZ = resolvedVelocityZ;
@@ -475,13 +547,62 @@ export class PhysicsWorld implements PhysicsAdapter {
     const resolved = this.playerBody.translation();
     const resolvedSpeed = Math.hypot(resolvedVelocityX, resolvedVelocityZ);
     const resolvedMoveDistance = Math.hypot(movement.x, movement.z);
+    // The catalog bridge collision is a crowned series of walkable deck boxes.
+    // A capsule can touch the rising corner of the next box while still
+    // advancing across the deck; preserve a true blocked result for stalls,
+    // but do not surface that expected step contact as route obstruction.
+    const advancingAcrossBridgeStep =
+      WorldLayout.isBridgeDeck(current.x, current.z) &&
+      WorldLayout.isBridgeDeck(resolved.x, resolved.z) &&
+      resolvedMoveDistance >= requestedMoveDistance * 0.75;
     const collisionBlocked = requestedMoveDistance > 0.0001 &&
-      resolvedMoveDistance + 0.0001 < requestedMoveDistance * 0.25;
+      (walkabilityLimited || hitBlockingSurface) &&
+      resolvedMoveDistance + 0.0001 < requestedMoveDistance * 0.9 &&
+      !advancingAcrossBridgeStep;
+    if (collisionBlocked && resolvedMoveDistance < requestedMoveDistance * 0.1) {
+      // Rapier can return a few millimetres of contact-skin correction while
+      // the player is pressing squarely into a wall. It is not travel and
+      // must not advance gait phase or emit footsteps.
+      this.playerVelocityX = 0;
+      this.playerVelocityZ = 0;
+      resolvedVelocityX = 0;
+      resolvedVelocityZ = 0;
+    }
 
     const isResolvedInterior = WorldLayout.isInterior(resolved.x, resolved.z);
     const groundY = isResolvedInterior
       ? FARMHOUSE_INTERIOR_BOUNDS.floorY - PLAYER_POSE_GROUND_OFFSET_METERS
       : WorldLayout.terrainHeight(resolved.x, resolved.z);
+
+    if (this.playerGrounded) {
+      const evidence = groundEvidenceAt(resolved.x, resolved.z);
+      this.playerGroundNormal = collisionGroundNormal ?? evidence.normal;
+      this.playerContactSurface = evidence.surface;
+    }
+    const resolvedVerticalVelocity = movement.y / safeDt;
+    const airbornePhase = this.playerGrounded
+      ? "grounded"
+      : resolvedVerticalVelocity > PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND
+        ? "rising"
+        : resolvedVerticalVelocity < -PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND
+          ? "falling"
+          : "apex";
+    const contactEvent = jumpStarted
+      ? "takeoff"
+      : landed
+        ? landingSpeed >= PLAYER_HARD_LANDING_SPEED_METERS_PER_SECOND
+          ? "land-hard"
+          : "land-soft"
+        : "none";
+    const landingImpactStrength = landed
+      ? clamp01(
+          (landingSpeed - 2.5) /
+          (PLAYER_LANDING_RESPONSE_MAX_SPEED_METERS_PER_SECOND - 2.5)
+        )
+      : 0;
+    const slopeRadians = this.playerGrounded
+      ? Math.acos(clamp(this.playerGroundNormal.y, -1, 1))
+      : 0;
 
     const playerPose = {
       x: resolved.x,
@@ -502,7 +623,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       motion: {
         velocity: {
           x: resolvedVelocityX,
-          y: movement.y / safeDt,
+          y: resolvedVerticalVelocity,
           z: resolvedVelocityZ
         },
         speedMetersPerSecond: resolvedSpeed,
@@ -515,6 +636,12 @@ export class PhysicsWorld implements PhysicsAdapter {
           Math.cos(this.playerRotationY - previousRotationY)
         ) / safeDt,
         isGrounded: this.playerGrounded,
+        groundNormal: { ...this.playerGroundNormal },
+        slopeRadians,
+        airbornePhase,
+        contactEvent,
+        landingImpactStrength,
+        contactSurface: this.playerContactSurface,
         isCollisionBlocked: collisionBlocked,
         requestedGait: inputLength <= 0.001
           ? "idle"
@@ -532,10 +659,10 @@ export class PhysicsWorld implements PhysicsAdapter {
     mode: GameMode,
     dt: number,
     timeSeconds: number
-  ): ResolvedPhysicsFrame["boats"][string] {
+  ): ResolvedBoatStep {
     const safeDt = Number.isFinite(dt) && dt > 0 ? Math.min(0.2, dt) : 1 / 60;
-    const rawInputX = Number.isFinite(input.x) ? input.x : 0;
-    const rawInputZ = Number.isFinite(input.z) ? input.z : 0;
+    const rawInputX = clamp(Number.isFinite(input.x) ? input.x : 0, -1, 1);
+    const rawInputZ = clamp(Number.isFinite(input.z) ? input.z : 0, -1, 1);
     const boat = state.boats[id];
     const definition = ContentRegistry.boats.get(boat.boatTypeId);
     const waterConditions = {
@@ -559,22 +686,65 @@ export class PhysicsWorld implements PhysicsAdapter {
       physics.speed = boat.speed;
     }
 
+    const previousHeadingRadians = physics.headingRadians;
+    const previousSpeed = physics.speed;
+    let throttle = 0;
+    let steering = 0;
+    let controlEffort = 0;
+    let roughnessResponse = 0;
+
     const active = mode === "boat-driving" && state.player.activeBoatId === id && definition;
     if (active && definition) {
-      const throttle = clamp(-rawInputZ, -1, 1);
+      throttle = clamp(-rawInputZ, -1, 1);
+      steering = rawInputX;
       const roughnessPenalty = clamp01(
         (state.weather.seaRoughness - definition.safeSeaRoughness) / Math.max(0.1, 1 - definition.safeSeaRoughness)
       );
       const control = 1 - roughnessPenalty * 0.38;
-      const targetSpeed = throttle * definition.maxSpeed * control;
-      const accelerationRate = throttle === 0 ? definition.acceleration * 1.35 : definition.acceleration;
-      physics.speed += (targetSpeed - physics.speed) * (1 - Math.exp(-accelerationRate * safeDt));
+      const mooring = harborMooringForBoatType(boat.boatTypeId);
+      const mooringDistance = Math.hypot(
+        boat.x - mooring.boatPosition.x,
+        boat.z - mooring.boatPosition.z
+      );
+      const dockingAssist = clamp01(
+        (mooring.dockRadius + 3 - mooringDistance) / 3
+      ) * clamp01((2.2 - Math.abs(physics.speed)) / 2.2);
+      const reverseLimit = definition.maxSpeed * 0.42;
+      const requestedLimit = throttle >= 0 ? definition.maxSpeed : reverseLimit;
+      let targetSpeed = throttle * requestedLimit * control;
+      if (dockingAssist > 0) {
+        const assistedLimit = 1.65;
+        targetSpeed = clamp(
+          targetSpeed,
+          -Math.max(0.8, assistedLimit * (1 - dockingAssist * 0.45)),
+          Math.max(1.05, assistedLimit * (1 - dockingAssist * 0.2))
+        );
+      }
+      const isActiveBraking =
+        Math.abs(throttle) > 0.01 &&
+        Math.abs(physics.speed) > 0.05 &&
+        Math.sign(throttle) !== Math.sign(physics.speed);
+      const accelerationRate = throttle === 0
+        ? definition.acceleration * (0.22 + dockingAssist * 0.58)
+        : definition.acceleration * (isActiveBraking ? 2.2 : 1);
+      physics.speed = moveToward(
+        physics.speed,
+        targetSpeed,
+        accelerationRate * safeDt
+      );
       if (Math.abs(physics.speed) < 0.015 && throttle === 0) physics.speed = 0;
       const steeringAuthority = 0.3 + 0.7 * clamp01(Math.abs(physics.speed) / definition.maxSpeed);
       const reverseSign = physics.speed < -0.01 || (throttle < 0 && physics.speed <= 0.05) ? -1 : 1;
       physics.headingRadians +=
         rawInputX * definition.turningRate * steeringAuthority * control * reverseSign * safeDt;
       physics.headingRadians = normalizeAngle(physics.headingRadians);
+      roughnessResponse = roughnessPenalty * clamp01(
+        0.25 + Math.abs(physics.speed) / definition.maxSpeed
+      );
+      controlEffort = clamp01(Math.max(
+        Math.abs(throttle),
+        Math.abs(steering) * steeringAuthority
+      ));
     } else {
       physics.speed += (boat.speed - physics.speed) * (1 - Math.exp(-8 * safeDt));
       physics.headingRadians = dampAngle(physics.headingRadians, boat.headingRadians, 10, safeDt);
@@ -582,8 +752,10 @@ export class PhysicsWorld implements PhysicsAdapter {
 
     const deltaX = Math.sin(physics.headingRadians) * physics.speed * safeDt;
     const deltaZ = Math.cos(physics.headingRadians) * physics.speed * safeDt;
+    const requestedTravelDistance = Math.hypot(deltaX, deltaZ);
     let nextX = boat.x + deltaX;
     let nextZ = boat.z + deltaZ;
+    let collisionBlocked = false;
     const rotation = {
       x: 0,
       y: Math.sin(physics.headingRadians / 2),
@@ -609,6 +781,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     if (isDesiredSailable && hitTime === null) {
       // Unobstructed sailable trajectory
     } else if (Math.hypot(deltaX, deltaZ) > 0.00001) {
+      collisionBlocked = true;
       const travel = hitTime !== null ? Math.max(0, hitTime - 0.025) : 0;
       const contactX = boat.x + deltaX * travel;
       const contactZ = boat.z + deltaZ * travel;
@@ -668,7 +841,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       }
       nextX = contactX + bestSlide.x;
       nextZ = contactZ + bestSlide.z;
-      physics.speed *= bestSlide.distanceSquared > 0.00001 ? 0.72 : 0.28;
+      physics.speed *= bestSlide.distanceSquared > 0.00001 ? 0.72 : 0.16;
     } else {
       nextX = boat.x;
       nextZ = boat.z;
@@ -676,22 +849,52 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
 
     if (!WorldLayout.isSailable(nextX, nextZ)) {
+      collisionBlocked = true;
       nextX = boat.x;
       nextZ = boat.z;
-      physics.speed *= 0.28;
+      physics.speed *= 0.16;
     }
 
     const nextWater = WaterSurface.sample(nextX, nextZ, timeSeconds, waterConditions);
     physics.body.setTranslation({ x: nextX, y: nextWater.height, z: nextZ }, true);
     physics.body.setRotation(rotation, true);
+    const resolvedDeltaX = nextX - boat.x;
+    const resolvedDeltaZ = nextZ - boat.z;
+    const resolvedTravelDistance = Math.hypot(resolvedDeltaX, resolvedDeltaZ);
+    const blockedFraction = requestedTravelDistance > 0.00001
+      ? clamp01(1 - resolvedTravelDistance / requestedTravelDistance)
+      : 0;
+    const referenceSpeed = Math.max(0.1, definition?.maxSpeed ?? Math.abs(previousSpeed));
+    const contactStrength = collisionBlocked
+      ? clamp01(blockedFraction * (0.35 + Math.abs(previousSpeed) / referenceSpeed))
+      : 0;
     return {
-      x: nextX,
-      // Wave height is transient physics/presentation state. Persist the
-      // canonical waterline so save/load never depends on wall-clock time.
-      y: boat.y,
-      z: nextZ,
-      headingRadians: physics.headingRadians,
-      speed: physics.speed
+      pose: {
+        x: nextX,
+        // Wave height is transient physics/presentation state. Persist the
+        // canonical waterline so save/load never depends on wall-clock time.
+        y: boat.y,
+        z: nextZ,
+        headingRadians: physics.headingRadians,
+        speed: physics.speed
+      },
+      motion: {
+        velocity: {
+          x: resolvedDeltaX / safeDt,
+          y: 0,
+          z: resolvedDeltaZ / safeDt
+        },
+        accelerationMetersPerSecondSquared: (physics.speed - previousSpeed) / safeDt,
+        yawRateRadiansPerSecond: normalizeAngle(
+          physics.headingRadians - previousHeadingRadians
+        ) / safeDt,
+        throttle,
+        steering,
+        controlEffort,
+        roughnessResponse,
+        isCollisionBlocked: collisionBlocked,
+        contactStrength
+      }
     };
   }
 
@@ -735,9 +938,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       undefined,
       (collider) => {
         if (collider === this.playerCollider) return false;
-        for (const boat of this.boatBodies.values()) {
-          if (boat.colliders.includes(collider)) return false;
-        }
+        if (this.isBoatCollider(collider)) return false;
         return true;
       }
     );
@@ -755,6 +956,52 @@ export class PhysicsWorld implements PhysicsAdapter {
     };
   }
 
+  private isBoatCollider(collider: RAPIER.Collider): boolean {
+    for (const boat of this.boatBodies.values()) {
+      if (boat.colliders.includes(collider)) return true;
+    }
+    return false;
+  }
+
+  private colliderHalfExtentPadding(collider: RAPIER.Collider, minPadding: number): number {
+    const shape = collider.shape as {
+      type: number;
+      halfExtents?: { x: number; y: number; z: number };
+      radius?: number;
+    };
+    if (shape.halfExtents) {
+      return Math.max(minPadding, shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z);
+    }
+    if (typeof shape.radius === "number") {
+      return Math.max(minPadding, shape.radius);
+    }
+    return minPadding;
+  }
+
+  /**
+   * Candidate stations (mill/workbench/compost/fish-table/stall) occlude their
+   * own interaction point when endpointPadding is smaller than their half-extents.
+   * Ignore colliders that contain `to` or whose surface is within padding of it.
+   * Terrain and boats are never treated as the candidate. Crops with collision
+   * none have no collider at `to` and keep using the default padding.
+   */
+  private colliderBelongsToEndpoint(
+    collider: RAPIER.Collider,
+    to: { x: number; y: number; z: number },
+    padding: number
+  ): boolean {
+    if (collider === this.playerCollider || collider === this.terrainCollider) return false;
+    if (this.isBoatCollider(collider)) return false;
+    if (collider.containsPoint(to)) return true;
+    const projection = collider.projectPoint(to, true);
+    if (!projection) return false;
+    return Math.hypot(
+      projection.point.x - to.x,
+      projection.point.y - to.y,
+      projection.point.z - to.z
+    ) <= padding;
+  }
+
   public hasLineOfSight(
     from: { x: number; y: number; z: number },
     to: { x: number; y: number; z: number },
@@ -767,18 +1014,47 @@ export class PhysicsWorld implements PhysicsAdapter {
     direction.y /= distance;
     direction.z /= distance;
     this.world.updateSceneQueries();
+
+    let padding = endpointPadding;
+    this.world.intersectionsWithPoint(
+      to,
+      (collider) => {
+        if (this.colliderBelongsToEndpoint(collider, to, endpointPadding)) {
+          padding = Math.max(padding, this.colliderHalfExtentPadding(collider, endpointPadding));
+        }
+        return true;
+      },
+      undefined,
+      undefined,
+      this.playerCollider
+    );
+    const nearest = this.world.projectPoint(
+      to,
+      true,
+      undefined,
+      undefined,
+      this.playerCollider
+    );
+    if (
+      nearest &&
+      this.colliderBelongsToEndpoint(nearest.collider, to, endpointPadding)
+    ) {
+      padding = Math.max(padding, this.colliderHalfExtentPadding(nearest.collider, endpointPadding));
+    }
+
+    if (distance <= padding) return true;
+
     const hit = this.world.castRay(
       new this.rapier.Ray(from, direction),
-      distance - endpointPadding,
+      distance - padding,
       true,
       undefined,
       undefined,
       this.playerCollider,
       undefined,
       (collider) => {
-        for (const boat of this.boatBodies.values()) {
-          if (boat.colliders.includes(collider)) return false;
-        }
+        if (this.isBoatCollider(collider)) return false;
+        if (this.colliderBelongsToEndpoint(collider, to, endpointPadding)) return false;
         return true;
       }
     );
@@ -804,8 +1080,11 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
 
     const boats: ResolvedPhysicsFrame["boats"] = {};
+    const boatMotion: Record<string, BoatMotionSample> = {};
     for (const id of Object.keys(state.boats)) {
-      boats[id] = this.resolveBoat(state, id, input, mode, dt, timeSeconds);
+      const resolvedBoat = this.resolveBoat(state, id, input, mode, dt, timeSeconds);
+      boats[id] = resolvedBoat.pose;
+      boatMotion[id] = resolvedBoat.motion;
     }
 
     let player = {
@@ -821,6 +1100,12 @@ export class PhysicsWorld implements PhysicsAdapter {
       accelerationMetersPerSecondSquared: 0,
       turnRateRadiansPerSecond: 0,
       isGrounded: state.player.traversal.isGrounded,
+      groundNormal: { x: 0, y: 1, z: 0 },
+      slopeRadians: 0,
+      airbornePhase: state.player.traversal.isGrounded ? "grounded" : "falling",
+      contactEvent: "none",
+      landingImpactStrength: 0,
+      contactSurface: "unknown",
       isCollisionBlocked: false,
       requestedGait: "idle"
     };
@@ -838,17 +1123,28 @@ export class PhysicsWorld implements PhysicsAdapter {
           isGrounded: true
         }
       };
+      const activeBoatMotion = boatMotion[state.player.activeBoatId];
       playerMotion = {
-        velocity: {
-          x: Math.sin(activeBoat.headingRadians) * activeBoat.speed,
-          y: 0,
-          z: Math.cos(activeBoat.headingRadians) * activeBoat.speed
-        },
+        velocity: activeBoatMotion
+          ? { ...activeBoatMotion.velocity }
+          : {
+              x: Math.sin(activeBoat.headingRadians) * activeBoat.speed,
+              y: 0,
+              z: Math.cos(activeBoat.headingRadians) * activeBoat.speed
+            },
         speedMetersPerSecond: Math.abs(activeBoat.speed),
-        accelerationMetersPerSecondSquared: 0,
-        turnRateRadiansPerSecond: 0,
+        accelerationMetersPerSecondSquared: Math.abs(
+          activeBoatMotion?.accelerationMetersPerSecondSquared ?? 0
+        ),
+        turnRateRadiansPerSecond: activeBoatMotion?.yawRateRadiansPerSecond ?? 0,
         isGrounded: true,
-        isCollisionBlocked: false,
+        groundNormal: { x: 0, y: 1, z: 0 },
+        slopeRadians: 0,
+        airbornePhase: "grounded",
+        contactEvent: "none",
+        landingImpactStrength: 0,
+        contactSurface: "boat-deck",
+        isCollisionBlocked: activeBoatMotion?.isCollisionBlocked ?? false,
         requestedGait: mode === "boat-driving" ? "vehicle" : "idle"
       };
     } else if (mode === "on-foot" || mode === "farm-placement") {
@@ -858,7 +1154,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
 
     this.world.step();
-    return { frame: { player, boats }, playerMotion };
+    return { frame: { player, boats }, playerMotion, boatMotion };
   }
 }
 

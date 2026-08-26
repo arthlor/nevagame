@@ -6,18 +6,69 @@ import math
 
 import bpy
 
-from common.geometry import add_beam, add_box, add_collision_primitives, add_cone, add_cylinder, add_ico, add_marker, add_ring, add_tri_prism
-from common.authored import add_fasteners, add_rope_line
+from collections import defaultdict
+
+from common.geometry import add_beam, add_box, add_collision_primitives, add_cone, add_cylinder, add_ico, add_marker, add_ring, add_tapered_beam, add_tri_prism, join_meshes
+from common.authored import add_fasteners, add_lattice, add_rope_line
+from common.lod import consolidate_lod_level, create_lod_roots
 
 
 FRAME_RATE = 25.0
 
 
-def _create_character_rig(root, height: float) -> bpy.types.Object:
+def _fauna_motion_node(name: str, parent, location=(0.0, 0.0, 0.0)):
+    node = bpy.data.objects.new(name, None)
+    bpy.context.collection.objects.link(node)
+    node.parent = parent
+    node.location = location
+    return node
+
+
+def _reparent_preserving_world(obj, parent) -> None:
+    bpy.context.view_layer.update()
+    world = obj.matrix_world.copy()
+    obj.parent = parent
+    obj.matrix_parent_inverse.identity()
+    obj.matrix_basis = parent.matrix_world.inverted() @ world
+
+
+def _author_fauna_action(spec: dict, clip_name: str, node, keyframes) -> None:
+    clip = next((entry for entry in spec.get("animationClips", []) if entry["name"] == clip_name), None)
+    if clip is None:
+        return
+    bpy.context.scene.render.fps = int(FRAME_RATE)
+    bpy.context.scene.render.fps_base = 1.0
+    action = bpy.data.actions.new(name=clip_name)
+    action["neva_loop"] = clip.get("loop", False)
+    node.animation_data_create()
+    node.animation_data.action = action
+    base_location = node.location.copy()
+    base_rotation = node.rotation_euler.copy()
+    node.rotation_mode = "XYZ"
+    for seconds, rotation, location in keyframes:
+        node.rotation_euler = tuple(base_rotation[index] + rotation[index] for index in range(3))
+        node.location = tuple(base_location[index] + location[index] for index in range(3))
+        node.keyframe_insert(data_path="rotation_euler", frame=seconds * FRAME_RATE)
+        node.keyframe_insert(data_path="location", frame=seconds * FRAME_RATE)
+    action.use_fake_user = True
+    node.animation_data.action = None
+    track = node.animation_data.nla_tracks.new()
+    track.name = clip_name
+    track.strips.new(clip_name, int(action.frame_range[0]), action)
+    node.location = base_location
+    node.rotation_euler = base_rotation
+
+
+def _character_prefix(spec: dict) -> str:
+    return "char_player" if spec["id"] == "char_player_a" else spec["id"]
+
+
+def _create_character_rig(root, height: float, spec: dict) -> bpy.types.Object:
     bpy.ops.object.armature_add(enter_editmode=True, location=(0.0, 0.0, 0.0))
     rig = bpy.context.object
-    rig.name = "char_player_rig"
-    rig.data.name = "char_player_rig_data"
+    rig_name = spec.get("rigNode") or f"{_character_prefix(spec)}_rig"
+    rig.name = rig_name
+    rig.data.name = f"{rig_name}_data"
     edit_bones = rig.data.edit_bones
     root_bone = edit_bones[0]
     root_bone.name = "rig_root"
@@ -113,21 +164,57 @@ def _rig_bone_for_mesh(name: str) -> str:
     return "rig_spine"
 
 
-def _bind_character_meshes(root, rig: bpy.types.Object) -> None:
+def _bind_character_meshes(root, rig: bpy.types.Object, spec: dict | None = None, lod_index: int = 0) -> None:
     meshes = [obj for obj in bpy.context.scene.objects if obj.type == "MESH" and obj.parent is root]
+    prefix = _character_prefix(spec) if spec else "char_player"
+    hand_markers = {}
     for mesh in meshes:
         bone_name = _rig_bone_for_mesh(mesh.name)
-        world_matrix = mesh.matrix_world.copy()
-        # glTF skinned-mesh nodes must remain scene roots. The Armature modifier
-        # owns deformation; parenting them under the rig would make parent
-        # transforms ambiguous and is rejected by the Khronos validator.
-        mesh.parent = None
-        mesh.matrix_world = world_matrix
-        group = mesh.vertex_groups.new(name=bone_name)
-        group.add(range(len(mesh.data.vertices)), 1.0, "REPLACE")
-        modifier = mesh.modifiers.new(name="NEVA_CharacterRig", type="ARMATURE")
-        modifier.object = rig
+        if mesh.name == f"{prefix}_hand_left":
+            hand_markers["left"] = tuple(mesh.location)
+        elif mesh.name == f"{prefix}_hand_right":
+            hand_markers["right"] = tuple(mesh.location)
+        if bone_name not in mesh.vertex_groups:
+            group = mesh.vertex_groups.new(name=bone_name)
+            group.add(range(len(mesh.data.vertices)), 1.0, "REPLACE")
         mesh["neva_rig_bone"] = bone_name
+
+    groups = defaultdict(list)
+    for mesh in meshes:
+        material_key = tuple(material.name for material in mesh.data.materials if material is not None)
+        groups[material_key].append(mesh)
+
+    asset_id = spec["id"] if spec else "char_player_a"
+    lod_prefix = f"{asset_id}_LOD{lod_index}" if spec and spec.get("lodLevels") else asset_id
+    for group_index, objects in enumerate(groups.values()):
+        joined_name = f"{lod_prefix}_material_{group_index:02d}"
+        if len(objects) == 1:
+            joined = objects[0]
+            joined.name = joined_name
+            joined.data.name = f"{joined_name}_mesh"
+        else:
+            joined = join_meshes(objects, joined_name)
+        if joined is None:
+            continue
+        # glTF skinned-mesh nodes must remain scene roots unless they sit under
+        # identity LOD empties that configureRuntimeLod consumes by node name.
+        if spec and spec.get("lodLevels"):
+            joined.parent = root
+            joined["neva_lod_index"] = lod_index
+        else:
+            world_matrix = joined.matrix_world.copy()
+            joined.parent = None
+            joined.matrix_world = world_matrix
+        if not any(modifier.type == "ARMATURE" for modifier in joined.modifiers):
+            modifier = joined.modifiers.new(name="NEVA_CharacterRig", type="ARMATURE")
+            modifier.object = rig
+
+    if spec and lod_index == 0:
+        height = spec["parameters"].get("height", 1.98)
+        for side, fallback in (("left", (-0.32, -0.02, height * 0.30)), ("right", (0.32, -0.02, height * 0.30))):
+            marker_name = f"{prefix}_hand_{side}"
+            if bpy.data.objects.get(marker_name) is None:
+                add_marker(marker_name, hand_markers.get(side, fallback), root, marker_type="socket")
 
 
 def _add_bone_socket(name, position, rig, bone_name):
@@ -170,6 +257,25 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
         "rig_forearm_left": (-48, 0, 4),
         "rig_upper_arm_right": (-55, 0, 7),
         "rig_forearm_right": (-48, 0, -4),
+    }
+    # Carry Idle previously reused arms_forward (upper -55 / forearm -48), which
+    # parked both hands at upper chest/chin. Waist-to-belly carry uses a smaller
+    # shoulder raise and a deeper elbow fold so the palms meet in front of the navel.
+    arms_carry = {
+        "rig_upper_arm_left": (-24, 0, -14),
+        "rig_forearm_left": (-82, 0, 12),
+        "rig_hand_left": (10, 0, 10),
+        "rig_upper_arm_right": (-24, 0, 14),
+        "rig_forearm_right": (-82, 0, -12),
+        "rig_hand_right": (10, 0, -10),
+    }
+    # Mitten hands have no finger bones. A small hand-bone cup is the grip
+    # when a tool is in tool_socket; idle without a tool stays open.
+    hand_grip_right = {"rig_hand_right": (22, 6, 14)}
+    arms_tool_hold = {
+        "rig_upper_arm_right": (-28, 0, 10),
+        "rig_forearm_right": (-26, 0, -6),
+        **hand_grip_right,
     }
     seated_lower = {
         "rig_thigh_left": (74, 0, -3),
@@ -234,6 +340,26 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
             (0.2, {"rig_pelvis": (0, 12, 5), "rig_spine": (0, 20, 8), "rig_head": (0, -16, -5), "rig_thigh_left": (-8, 0, 0), "rig_thigh_right": (13, 0, 0)}, {"rig_root": (0, 0, -0.012)}),
             (0.4, {}, {}),
         ],
+        "jump_start": [
+            (0.0, {"rig_spine": (-4, 0, 0), "rig_thigh_left": (12, 0, 0), "rig_thigh_right": (12, 0, 0), "rig_shin_left": (-18, 0, 0), "rig_shin_right": (-18, 0, 0)}, {"rig_root": (0, 0, -0.035)}),
+            (0.10, {"rig_spine": (8, 0, 0), "rig_upper_arm_left": (22, 0, -4), "rig_upper_arm_right": (22, 0, 4), "rig_thigh_left": (-12, 0, 0), "rig_thigh_right": (-8, 0, 0)}, {"rig_root": (0, 0, 0.018)}),
+            (0.28, {"rig_spine": (5, 0, 0), "rig_upper_arm_left": (28, 0, -5), "rig_upper_arm_right": (28, 0, 5), "rig_thigh_left": (-22, 0, 0), "rig_thigh_right": (-14, 0, 0), "rig_shin_left": (18, 0, 0), "rig_shin_right": (12, 0, 0)}, {"rig_root": (0, 0, 0.025)}),
+        ],
+        "fall": [
+            (0.0, {"rig_spine": (-2, 0, 0), "rig_upper_arm_left": (-8, 0, -18), "rig_upper_arm_right": (-8, 0, 18), "rig_forearm_left": (-18, 0, 8), "rig_forearm_right": (-18, 0, -8), "rig_thigh_left": (-14, 0, 0), "rig_thigh_right": (-8, 0, 0), "rig_shin_left": (20, 0, 0), "rig_shin_right": (14, 0, 0)}, {}),
+            (0.30, {"rig_spine": (-4, 0, 0), "rig_head": (4, 0, 0), "rig_upper_arm_left": (-12, 0, -20), "rig_upper_arm_right": (-12, 0, 20), "rig_thigh_left": (-10, 0, 0), "rig_thigh_right": (-14, 0, 0), "rig_shin_left": (16, 0, 0), "rig_shin_right": (20, 0, 0)}, {"rig_root": (0, 0, -0.008)}),
+            (0.60, {"rig_spine": (-2, 0, 0), "rig_upper_arm_left": (-8, 0, -18), "rig_upper_arm_right": (-8, 0, 18), "rig_forearm_left": (-18, 0, 8), "rig_forearm_right": (-18, 0, -8), "rig_thigh_left": (-14, 0, 0), "rig_thigh_right": (-8, 0, 0), "rig_shin_left": (20, 0, 0), "rig_shin_right": (14, 0, 0)}, {}),
+        ],
+        "land_soft": [
+            (0.0, {"rig_spine": (-10, 0, 0), "rig_upper_arm_left": (10, 0, -6), "rig_upper_arm_right": (10, 0, 6), "rig_thigh_left": (18, 0, 0), "rig_thigh_right": (18, 0, 0), "rig_shin_left": (-28, 0, 0), "rig_shin_right": (-28, 0, 0)}, {"rig_root": (0, 0, -0.055)}),
+            (0.12, {"rig_spine": (-6, 0, 0), "rig_thigh_left": (12, 0, 0), "rig_thigh_right": (12, 0, 0), "rig_shin_left": (-18, 0, 0), "rig_shin_right": (-18, 0, 0)}, {"rig_root": (0, 0, -0.025)}),
+            (0.32, {}, {}),
+        ],
+        "land_hard": [
+            (0.0, {"rig_spine": (-24, 0, 0), "rig_head": (12, 0, 0), "rig_upper_arm_left": (-32, 0, -12), "rig_upper_arm_right": (-32, 0, 12), "rig_forearm_left": (-24, 0, 6), "rig_forearm_right": (-24, 0, -6), "rig_thigh_left": (34, 0, 0), "rig_thigh_right": (34, 0, 0), "rig_shin_left": (-48, 0, 0), "rig_shin_right": (-48, 0, 0)}, {"rig_root": (0, 0, -0.11)}),
+            (0.16, {"rig_spine": (-14, 0, 0), "rig_head": (8, 0, 0), "rig_upper_arm_left": (-18, 0, -8), "rig_upper_arm_right": (-18, 0, 8), "rig_thigh_left": (22, 0, 0), "rig_thigh_right": (22, 0, 0), "rig_shin_left": (-32, 0, 0), "rig_shin_right": (-32, 0, 0)}, {"rig_root": (0, 0, -0.065)}),
+            (0.48, {}, {}),
+        ],
         "talk_gesture": [
             (0.0, {}, {}),
             (0.35, {"rig_spine": (-4, 0, 2), "rig_head": (3, 0, 4), "rig_upper_arm_right": (-38, 0, 18), "rig_forearm_right": (-52, 0, -12), "rig_hand_right": (8, 0, 10)}, {"rig_root": (0, 0, 0.005)}),
@@ -249,18 +375,18 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
             (0.72, {}, {}),
         ],
         "water": [
-            (0.0, {}, {}),
-            (0.20, {"rig_spine": (-16, 0, 0), "rig_upper_arm_right": (-45, 0, 14), "rig_forearm_right": (-40, 0, -8), "rig_hand_right": (14, 0, 0)}, {}),
-            (0.40, {"rig_spine": (-24, 0, 0), "rig_upper_arm_right": (-62, 0, 18), "rig_forearm_right": (-52, 0, -12), "rig_hand_right": (24, 0, 0), "rig_upper_arm_left": (-20, 0, -10)}, {"rig_root": (0, 0, -0.02)}),
-            (0.60, {"rig_spine": (-18, 0, 0), "rig_upper_arm_right": (-48, 0, 14), "rig_forearm_right": (-38, 0, -8)}, {}),
-            (0.84, {}, {}),
+            (0.0, {**arms_tool_hold}, {}),
+            (0.20, {"rig_spine": (-16, 0, 0), "rig_upper_arm_right": (-45, 0, 14), "rig_forearm_right": (-40, 0, -8), **hand_grip_right}, {}),
+            (0.40, {"rig_spine": (-24, 0, 0), "rig_upper_arm_right": (-62, 0, 18), "rig_forearm_right": (-52, 0, -12), **hand_grip_right, "rig_upper_arm_left": (-20, 0, -10)}, {"rig_root": (0, 0, -0.02)}),
+            (0.60, {"rig_spine": (-18, 0, 0), "rig_upper_arm_right": (-48, 0, 14), "rig_forearm_right": (-38, 0, -8), **hand_grip_right}, {}),
+            (0.84, {**arms_tool_hold}, {}),
         ],
         "harvest": [
-            (0.0, {}, {}),
-            (0.18, {"rig_spine": (-22, 0, 0), "rig_upper_arm_right": (-40, 0, 10), "rig_forearm_right": (-30, 0, 0)}, {}),
-            (0.36, {"rig_spine": (-42, 0, 0), "rig_head": (20, 0, 0), "rig_upper_arm_right": (-78, 0, 24), "rig_forearm_right": (-65, 0, -18), "rig_hand_right": (18, 0, 0), "rig_upper_arm_left": (-48, 0, -12), "rig_forearm_left": (-36, 0, 8), "rig_thigh_right": (14, 0, 0), "rig_thigh_left": (18, 0, 0)}, {"rig_root": (0, 0, -0.06)}),
-            (0.54, {"rig_spine": (-26, 0, 0), "rig_upper_arm_right": (-42, 0, 12), "rig_forearm_right": (-32, 0, 0)}, {}),
-            (0.80, {}, {}),
+            (0.0, {**arms_tool_hold}, {}),
+            (0.18, {"rig_spine": (-22, 0, 0), "rig_upper_arm_right": (-40, 0, 10), "rig_forearm_right": (-30, 0, 0), **hand_grip_right}, {}),
+            (0.36, {"rig_spine": (-42, 0, 0), "rig_head": (20, 0, 0), "rig_upper_arm_right": (-78, 0, 24), "rig_forearm_right": (-65, 0, -18), **hand_grip_right, "rig_upper_arm_left": (-48, 0, -12), "rig_forearm_left": (-36, 0, 8), "rig_thigh_right": (14, 0, 0), "rig_thigh_left": (18, 0, 0)}, {"rig_root": (0, 0, -0.06)}),
+            (0.54, {"rig_spine": (-26, 0, 0), "rig_upper_arm_right": (-42, 0, 12), "rig_forearm_right": (-32, 0, 0), **hand_grip_right}, {}),
+            (0.80, {**arms_tool_hold}, {}),
         ],
         "pickup": [
             (0.0, {}, {}),
@@ -268,23 +394,23 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
             (0.64, {}, {}),
         ],
         "carry_idle": [
-            (0.0, {"rig_spine": (-3, 0, 0), **arms_forward}, {}),
-            (0.8, {"rig_spine": (-1, 0, 0), **arms_forward}, {"rig_root": (0, 0, 0.006)}),
-            (1.6, {"rig_spine": (-3, 0, 0), **arms_forward}, {}),
+            (0.0, {"rig_spine": (-6, 0, 0), **arms_carry}, {}),
+            (0.8, {"rig_spine": (-4, 0, 0), **arms_carry}, {"rig_root": (0, 0, 0.006)}),
+            (1.6, {"rig_spine": (-6, 0, 0), **arms_carry}, {}),
         ],
         "carry_walk": [
-            (0.0, {"rig_spine": (-3, 0, 0), **arms_forward, "rig_thigh_left": (28, 0, 0), "rig_thigh_right": (-28, 0, 0), "rig_shin_right": (18, 0, 0)}, {}),
-            (0.22, {"rig_spine": (-2, 0, 0), **arms_forward}, {"rig_root": (0, 0, 0.02)}),
-            (0.44, {"rig_spine": (-3, 0, 0), **arms_forward, "rig_thigh_left": (-28, 0, 0), "rig_thigh_right": (28, 0, 0), "rig_shin_left": (18, 0, 0)}, {}),
-            (0.66, {"rig_spine": (-2, 0, 0), **arms_forward}, {"rig_root": (0, 0, 0.02)}),
-            (0.88, {"rig_spine": (-3, 0, 0), **arms_forward, "rig_thigh_left": (28, 0, 0), "rig_thigh_right": (-28, 0, 0), "rig_shin_right": (18, 0, 0)}, {}),
+            (0.0, {"rig_spine": (-6, 0, 0), **arms_carry, "rig_thigh_left": (28, 0, 0), "rig_thigh_right": (-28, 0, 0), "rig_shin_right": (18, 0, 0)}, {}),
+            (0.22, {"rig_spine": (-5, 0, 0), **arms_carry}, {"rig_root": (0, 0, 0.02)}),
+            (0.44, {"rig_spine": (-6, 0, 0), **arms_carry, "rig_thigh_left": (-28, 0, 0), "rig_thigh_right": (28, 0, 0), "rig_shin_left": (18, 0, 0)}, {}),
+            (0.66, {"rig_spine": (-5, 0, 0), **arms_carry}, {"rig_root": (0, 0, 0.02)}),
+            (0.88, {"rig_spine": (-6, 0, 0), **arms_carry, "rig_thigh_left": (28, 0, 0), "rig_thigh_right": (-28, 0, 0), "rig_shin_right": (18, 0, 0)}, {}),
         ],
         "carry_run": [
-            (0.0, {"rig_spine": (4, 0, 0), **arms_forward, "rig_thigh_left": (42, 0, 0), "rig_thigh_right": (-38, 0, 0), "rig_shin_right": (28, 0, 0)}, {}),
-            (0.16, {"rig_spine": (3, 0, 0), **arms_forward}, {"rig_root": (0, 0, 0.03)}),
-            (0.32, {"rig_spine": (4, 0, 0), **arms_forward, "rig_thigh_left": (-38, 0, 0), "rig_thigh_right": (42, 0, 0), "rig_shin_left": (28, 0, 0)}, {}),
-            (0.48, {"rig_spine": (3, 0, 0), **arms_forward}, {"rig_root": (0, 0, 0.03)}),
-            (0.64, {"rig_spine": (4, 0, 0), **arms_forward, "rig_thigh_left": (42, 0, 0), "rig_thigh_right": (-38, 0, 0), "rig_shin_right": (28, 0, 0)}, {}),
+            (0.0, {"rig_spine": (2, 0, 0), **arms_carry, "rig_thigh_left": (42, 0, 0), "rig_thigh_right": (-38, 0, 0), "rig_shin_right": (28, 0, 0)}, {}),
+            (0.16, {"rig_spine": (1, 0, 0), **arms_carry}, {"rig_root": (0, 0, 0.03)}),
+            (0.32, {"rig_spine": (2, 0, 0), **arms_carry, "rig_thigh_left": (-38, 0, 0), "rig_thigh_right": (42, 0, 0), "rig_shin_left": (28, 0, 0)}, {}),
+            (0.48, {"rig_spine": (1, 0, 0), **arms_carry}, {"rig_root": (0, 0, 0.03)}),
+            (0.64, {"rig_spine": (2, 0, 0), **arms_carry, "rig_thigh_left": (42, 0, 0), "rig_thigh_right": (-38, 0, 0), "rig_shin_right": (28, 0, 0)}, {}),
         ],
         "place": [
             (0.0, {"rig_spine": (-4, 0, 0), **arms_forward}, {}),
@@ -292,38 +418,38 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
             (0.72, {}, {}),
         ],
         "workstation": [
-            (0.0, {}, {}),
-            (0.24, {"rig_spine": (-14, 0, 0), "rig_upper_arm_right": (-45, 0, 18), "rig_forearm_right": (-45, 0, -10), "rig_upper_arm_left": (-35, 0, -12), "rig_forearm_left": (-38, 0, 8)}, {}),
-            (0.52, {"rig_spine": (-18, 0, 0), "rig_upper_arm_right": (-60, 0, 12), "rig_forearm_right": (-62, 0, -16), "rig_upper_arm_left": (-40, 0, -15), "rig_forearm_left": (-44, 0, 10)}, {"rig_root": (0, 0, -0.015)}),
-            (0.72, {"rig_spine": (-12, 0, 0), "rig_upper_arm_right": (-40, 0, 20), "rig_forearm_right": (-35, 0, -8)}, {}),
-            (0.92, {}, {}),
+            (0.0, {**arms_tool_hold}, {}),
+            (0.24, {"rig_spine": (-14, 0, 0), "rig_upper_arm_right": (-45, 0, 18), "rig_forearm_right": (-45, 0, -10), **hand_grip_right, "rig_upper_arm_left": (-35, 0, -12), "rig_forearm_left": (-38, 0, 8)}, {}),
+            (0.52, {"rig_spine": (-18, 0, 0), "rig_upper_arm_right": (-60, 0, 12), "rig_forearm_right": (-62, 0, -16), **hand_grip_right, "rig_upper_arm_left": (-40, 0, -15), "rig_forearm_left": (-44, 0, 10)}, {"rig_root": (0, 0, -0.015)}),
+            (0.72, {"rig_spine": (-12, 0, 0), "rig_upper_arm_right": (-40, 0, 20), "rig_forearm_right": (-35, 0, -8), **hand_grip_right}, {}),
+            (0.92, {**arms_tool_hold}, {}),
         ],
         "cast": [
-            (0.0, {}, {}),
-            (0.28, {"rig_spine": (12, 0, 0), "rig_upper_arm_right": (42, 0, 12), "rig_forearm_right": (-18, 0, 0), "rig_hand_right": (-22, 0, 0)}, {}),
-            (0.58, {"rig_spine": (-24, 0, 0), "rig_upper_arm_right": (-78, 0, 8), "rig_forearm_right": (-52, 0, 0), "rig_hand_right": (28, 0, 0), "rig_upper_arm_left": (-24, 0, -8)}, {"rig_root": (0, 0, -0.02)}),
-            (0.92, {"rig_spine": (-8, 0, 0), "rig_upper_arm_right": (-45, 0, 12), "rig_forearm_right": (-35, 0, 0)}, {}),
+            (0.0, {**arms_tool_hold}, {}),
+            (0.28, {"rig_spine": (12, 0, 0), "rig_upper_arm_right": (42, 0, 12), "rig_forearm_right": (-18, 0, 0), **hand_grip_right}, {}),
+            (0.58, {"rig_spine": (-24, 0, 0), "rig_upper_arm_right": (-78, 0, 8), "rig_forearm_right": (-52, 0, 0), **hand_grip_right, "rig_upper_arm_left": (-24, 0, -8)}, {"rig_root": (0, 0, -0.02)}),
+            (0.92, {"rig_spine": (-8, 0, 0), "rig_upper_arm_right": (-45, 0, 12), "rig_forearm_right": (-35, 0, 0), **hand_grip_right}, {}),
         ],
         "fishing_idle": [
-            (0.0, {"rig_spine": (-6, 0, 0), "rig_upper_arm_right": (-45, 0, 12), "rig_forearm_right": (-40, 0, -4), "rig_upper_arm_left": (-32, 0, -10), "rig_forearm_left": (-38, 0, 6)}, {}),
-            (0.8, {"rig_spine": (-4, 0, 0), "rig_upper_arm_right": (-42, 0, 14), "rig_forearm_right": (-38, 0, -2), "rig_upper_arm_left": (-30, 0, -8), "rig_forearm_left": (-36, 0, 8)}, {"rig_root": (0, 0, 0.005)}),
-            (1.6, {"rig_spine": (-6, 0, 0), "rig_upper_arm_right": (-45, 0, 12), "rig_forearm_right": (-40, 0, -4), "rig_upper_arm_left": (-32, 0, -10), "rig_forearm_left": (-38, 0, 6)}, {}),
+            (0.0, {"rig_spine": (-6, 0, 0), "rig_upper_arm_right": (-45, 0, 12), "rig_forearm_right": (-40, 0, -4), **hand_grip_right, "rig_upper_arm_left": (-32, 0, -10), "rig_forearm_left": (-38, 0, 6)}, {}),
+            (0.8, {"rig_spine": (-4, 0, 0), "rig_upper_arm_right": (-42, 0, 14), "rig_forearm_right": (-38, 0, -2), **hand_grip_right, "rig_upper_arm_left": (-30, 0, -8), "rig_forearm_left": (-36, 0, 8)}, {"rig_root": (0, 0, 0.005)}),
+            (1.6, {"rig_spine": (-6, 0, 0), "rig_upper_arm_right": (-45, 0, 12), "rig_forearm_right": (-40, 0, -4), **hand_grip_right, "rig_upper_arm_left": (-32, 0, -10), "rig_forearm_left": (-38, 0, 6)}, {}),
         ],
         "reel": [
-            (0.0, {"rig_spine": (-8, 0, 0), "rig_upper_arm_right": (-48, 0, 12), "rig_forearm_right": (-45, 0, -4), "rig_upper_arm_left": (-36, 0, -12), "rig_forearm_left": (-45, 0, 10)}, {}),
-            (0.24, {"rig_spine": (-10, 0, 0), "rig_upper_arm_left": (-42, 0, -18), "rig_forearm_left": (-60, 0, 14)}, {}),
-            (0.48, {"rig_spine": (-8, 0, 0), "rig_upper_arm_left": (-30, 0, -8), "rig_forearm_left": (-35, 0, 4)}, {}),
-            (0.72, {"rig_spine": (-8, 0, 0), "rig_upper_arm_right": (-48, 0, 12), "rig_forearm_right": (-45, 0, -4), "rig_upper_arm_left": (-36, 0, -12), "rig_forearm_left": (-45, 0, 10)}, {}),
+            (0.0, {"rig_spine": (-8, 0, 0), "rig_upper_arm_right": (-48, 0, 12), "rig_forearm_right": (-45, 0, -4), **hand_grip_right, "rig_upper_arm_left": (-36, 0, -12), "rig_forearm_left": (-45, 0, 10)}, {}),
+            (0.24, {"rig_spine": (-10, 0, 0), **hand_grip_right, "rig_upper_arm_left": (-42, 0, -18), "rig_forearm_left": (-60, 0, 14)}, {}),
+            (0.48, {"rig_spine": (-8, 0, 0), **hand_grip_right, "rig_upper_arm_left": (-30, 0, -8), "rig_forearm_left": (-35, 0, 4)}, {}),
+            (0.72, {"rig_spine": (-8, 0, 0), "rig_upper_arm_right": (-48, 0, 12), "rig_forearm_right": (-45, 0, -4), **hand_grip_right, "rig_upper_arm_left": (-36, 0, -12), "rig_forearm_left": (-45, 0, 10)}, {}),
         ],
         "slack": [
-            (0.0, {"rig_spine": (4, 0, 0), "rig_upper_arm_right": (-25, 0, 12), "rig_forearm_right": (-20, 0, 0), "rig_upper_arm_left": (-18, 0, -8)}, {}),
-            (0.4, {"rig_spine": (6, 0, 0), "rig_upper_arm_right": (-18, 0, 14), "rig_forearm_right": (-15, 0, 0)}, {"rig_root": (0, 0, 0.005)}),
-            (0.8, {"rig_spine": (4, 0, 0), "rig_upper_arm_right": (-25, 0, 12), "rig_forearm_right": (-20, 0, 0), "rig_upper_arm_left": (-18, 0, -8)}, {}),
+            (0.0, {"rig_spine": (4, 0, 0), "rig_upper_arm_right": (-25, 0, 12), "rig_forearm_right": (-20, 0, 0), **hand_grip_right, "rig_upper_arm_left": (-18, 0, -8)}, {}),
+            (0.4, {"rig_spine": (6, 0, 0), "rig_upper_arm_right": (-18, 0, 14), "rig_forearm_right": (-15, 0, 0), **hand_grip_right}, {"rig_root": (0, 0, 0.005)}),
+            (0.8, {"rig_spine": (4, 0, 0), "rig_upper_arm_right": (-25, 0, 12), "rig_forearm_right": (-20, 0, 0), **hand_grip_right, "rig_upper_arm_left": (-18, 0, -8)}, {}),
         ],
         "brace": [
-            (0.0, {"rig_spine": (-18, 0, 0), "rig_head": (8, 0, 0), "rig_upper_arm_right": (-62, 0, 16), "rig_forearm_right": (-58, 0, -8), "rig_hand_right": (12, 0, 0), "rig_upper_arm_left": (-50, 0, -16), "rig_forearm_left": (-55, 0, 10), "rig_thigh_left": (8, 0, 0), "rig_thigh_right": (-6, 0, 0)}, {"rig_root": (0, 0, -0.02)}),
-            (0.4, {"rig_spine": (-22, 0, 0), "rig_head": (10, 0, 0), "rig_upper_arm_right": (-68, 0, 18), "rig_forearm_right": (-62, 0, -10), "rig_upper_arm_left": (-55, 0, -18), "rig_forearm_left": (-58, 0, 12)}, {"rig_root": (0, 0, -0.025)}),
-            (0.8, {"rig_spine": (-18, 0, 0), "rig_head": (8, 0, 0), "rig_upper_arm_right": (-62, 0, 16), "rig_forearm_right": (-58, 0, -8), "rig_hand_right": (12, 0, 0), "rig_upper_arm_left": (-50, 0, -16), "rig_forearm_left": (-55, 0, 10), "rig_thigh_left": (8, 0, 0), "rig_thigh_right": (-6, 0, 0)}, {"rig_root": (0, 0, -0.02)}),
+            (0.0, {"rig_spine": (-18, 0, 0), "rig_head": (8, 0, 0), "rig_upper_arm_right": (-62, 0, 16), "rig_forearm_right": (-58, 0, -8), **hand_grip_right, "rig_upper_arm_left": (-50, 0, -16), "rig_forearm_left": (-55, 0, 10), "rig_thigh_left": (8, 0, 0), "rig_thigh_right": (-6, 0, 0)}, {"rig_root": (0, 0, -0.02)}),
+            (0.4, {"rig_spine": (-22, 0, 0), "rig_head": (10, 0, 0), "rig_upper_arm_right": (-68, 0, 18), "rig_forearm_right": (-62, 0, -10), **hand_grip_right, "rig_upper_arm_left": (-55, 0, -18), "rig_forearm_left": (-58, 0, 12)}, {"rig_root": (0, 0, -0.025)}),
+            (0.8, {"rig_spine": (-18, 0, 0), "rig_head": (8, 0, 0), "rig_upper_arm_right": (-62, 0, 16), "rig_forearm_right": (-58, 0, -8), **hand_grip_right, "rig_upper_arm_left": (-50, 0, -16), "rig_forearm_left": (-55, 0, 10), "rig_thigh_left": (8, 0, 0), "rig_thigh_right": (-6, 0, 0)}, {"rig_root": (0, 0, -0.02)}),
         ],
         "board": [
             (0.0, {}, {}),
@@ -348,6 +474,16 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
             (0.48, {**seated_lower, "rig_spine": (16, 0, 0), "rig_upper_arm_left": (-18, 0, -12), "rig_forearm_left": (-80, 0, 12), "rig_upper_arm_right": (-18, 0, 12), "rig_forearm_right": (-80, 0, -12)}, {"rig_root": (0, 0, 0.02)}),
             (0.72, {**seated_lower, "rig_spine": (6, 0, 0), "rig_upper_arm_left": (-40, 0, -14), "rig_forearm_left": (-65, 0, 10), "rig_upper_arm_right": (-40, 0, 14), "rig_forearm_right": (-65, 0, -10)}, {}),
             (0.96, {**seated_lower, "rig_spine": (-18, 0, 0), "rig_upper_arm_left": (-70, 0, -18), "rig_forearm_left": (-45, 0, 6), "rig_upper_arm_right": (-70, 0, 18), "rig_forearm_right": (-45, 0, -6)}, {}),
+        ],
+        "skiff_idle": [
+            (0.0, {**seated_lower, "rig_spine": (-2, 0, 0), "rig_upper_arm_left": (-18, 0, -8), "rig_forearm_left": (-38, 0, 6), "rig_upper_arm_right": (-34, 0, 14), "rig_forearm_right": (-52, 0, -10), **hand_grip_right}, {}),
+            (0.8, {**seated_lower, "rig_spine": (0, 0, 1), "rig_head": (-2, 0, -2), "rig_upper_arm_left": (-16, 0, -8), "rig_forearm_left": (-36, 0, 6), "rig_upper_arm_right": (-32, 0, 14), "rig_forearm_right": (-50, 0, -10), **hand_grip_right}, {"rig_root": (0, 0, 0.006)}),
+            (1.6, {**seated_lower, "rig_spine": (-2, 0, 0), "rig_upper_arm_left": (-18, 0, -8), "rig_forearm_left": (-38, 0, 6), "rig_upper_arm_right": (-34, 0, 14), "rig_forearm_right": (-52, 0, -10), **hand_grip_right}, {}),
+        ],
+        "skiff_drive": [
+            (0.0, {**seated_lower, "rig_spine": (-6, 0, -2), "rig_head": (2, 0, 2), "rig_upper_arm_left": (-24, 0, -12), "rig_forearm_left": (-44, 0, 8), "rig_upper_arm_right": (-42, 0, 16), "rig_forearm_right": (-58, 0, -12), **hand_grip_right}, {"rig_root": (0, 0, -0.01)}),
+            (0.4, {**seated_lower, "rig_spine": (-8, 0, 2), "rig_head": (3, 0, -2), "rig_upper_arm_left": (-28, 0, -14), "rig_forearm_left": (-48, 0, 10), "rig_upper_arm_right": (-46, 0, 18), "rig_forearm_right": (-62, 0, -14), **hand_grip_right}, {"rig_root": (0, 0, -0.016)}),
+            (0.8, {**seated_lower, "rig_spine": (-6, 0, -2), "rig_head": (2, 0, 2), "rig_upper_arm_left": (-24, 0, -12), "rig_forearm_left": (-44, 0, 8), "rig_upper_arm_right": (-42, 0, 16), "rig_forearm_right": (-58, 0, -12), **hand_grip_right}, {"rig_root": (0, 0, -0.01)}),
         ],
     }
 
@@ -381,14 +517,52 @@ def _author_character_actions(spec: dict, rig: bpy.types.Object) -> None:
 
 
 def _rig_character(spec: dict, root, height: float) -> None:
-    rig = _create_character_rig(root, height)
-    _bind_character_meshes(root, rig)
-    _add_bone_socket("char_player_hand_socket_left", (-0.32, -0.03, height * 0.31), rig, "rig_hand_left")
-    _add_bone_socket("char_player_hand_socket_right", (0.32, -0.03, height * 0.31), rig, "rig_hand_right")
-    _add_bone_socket("char_player_tool_socket", (0.38, -0.07, height * 0.31), rig, "rig_hand_right")
-    _add_bone_socket("char_player_carry_socket", (0.0, -0.38, height * 0.46), rig, "rig_hand_right")
-    _add_bone_socket("char_player_hip_socket", (0.28, 0.02, height * 0.40), rig, "rig_pelvis")
+    rig = _create_character_rig(root, height, spec)
+    prefix = _character_prefix(spec)
+    sockets = spec.get("socketNodes") or [
+        f"{prefix}_hand_socket_left",
+        f"{prefix}_hand_socket_right",
+        f"{prefix}_tool_socket",
+        f"{prefix}_carry_socket",
+        f"{prefix}_hip_socket",
+    ]
+    _bind_character_meshes(root, rig, spec, spec.get("_lodIndex", 0))
+    _add_character_sockets(spec, rig, height, sockets)
     _author_character_actions(spec, rig)
+
+
+
+def _add_character_sockets(spec: dict, rig, height: float, sockets: list[str]) -> None:
+    """Bone-parent gameplay sockets shared by player LOD and every NPC on this rig.
+
+    Axis convention (Blender Z-up authoring, glTF/Three.js Y-up at runtime):
+      Sockets keep WORLD IDENTITY rotation at rest (arms hanging).
+        glTF +X = right (outward of the right palm)
+        glTF +Y = up
+        glTF +Z = forward
+      Tools are authored with the GRIP at the origin and the handle along
+      Blender +Z (= glTF +Y). Shaft tools that should follow the hanging
+      fingers use a 180 deg X rotation at attach time; see
+      src/render/assets/ToolSocketAttach.ts.
+
+    Palms: tool_socket and both hand_sockets parent to rig_hand_* — never to
+    a forearm or wrist bone. Origin is the palm, slightly into the finger pad,
+    matching _build_stylized_limbs_and_boots hand icos at x=±0.30, y=-0.02,
+    z=height*0.30 (fingers at y=-0.075). A handle-at-origin tool therefore
+    sits in the mitten, not beside the wrist.
+
+    Carry stays on rig_spine at the lower backpack so bundle stalks hang
+    behind the thighs, not through them or up through the hat.
+    """
+    # Palm / finger-pad, not the wrist (hand-bone head is at height*0.33).
+    palm_x = 0.30
+    palm_y = -0.05
+    palm_z = height * 0.288
+    _add_bone_socket(sockets[0], (-palm_x, palm_y, palm_z), rig, "rig_hand_left")
+    _add_bone_socket(sockets[1], (palm_x, palm_y, palm_z), rig, "rig_hand_right")
+    _add_bone_socket(sockets[2], (palm_x, palm_y, palm_z), rig, "rig_hand_right")
+    _add_bone_socket(sockets[3], (0.0, 0.36, height * 0.54), rig, "rig_spine")
+    _add_bone_socket(sockets[4], (0.28, 0.02, height * 0.40), rig, "rig_pelvis")
 
 
 def _build_stylized_head_and_face(
@@ -399,7 +573,8 @@ def _build_stylized_head_and_face(
     eye_token: str,
     brow_token: str,
     hair_token: str,
-    role: str = "player"
+    role: str = "player",
+    subdivisions: int = 3,
 ) -> None:
     """Builds sculpted low-poly faceted skull, expressive inset eyes, planar nose bridge, and brow planes."""
     head_w = head_height * 0.46
@@ -413,7 +588,7 @@ def _build_stylized_head_and_face(
         (head_w, head_d, head_h),
         skin_token,
         root,
-        subdivisions=3,
+        subdivisions=subdivisions,
     )
     # Tapered Jaw / Chin base for storybook appeal
     add_box(
@@ -492,13 +667,15 @@ def _build_stylized_limbs_and_boots(
     shirt_token: str,
     boot_token: str,
     cuff_token: str,
-    bare_forearms: bool = False
+    bare_forearms: bool = False,
+    spec: dict | None = None,
 ) -> None:
     """Builds clean tapered faceted arms, rolled cuffs, 4-finger hands, and grounded boots."""
     # 1. Legs and Grounded Boots
     for side, x in (("left", -0.14), ("right", 0.14)):
-        add_ico(f"character_thigh_{side}", (x, 0, height * 0.27), (0.13, 0.13, 0.26), trouser_token, root, subdivisions=3)
-        add_ico(f"character_shin_{side}", (x, -0.01, height * 0.12), (0.11, 0.115, 0.22), trouser_token, root, subdivisions=3)
+        limb_div = 3 if spec is None or spec.get("_lodIndex", 0) == 0 else 1
+        add_ico(f"character_thigh_{side}", (x, 0, height * 0.27), (0.13, 0.13, 0.26), trouser_token, root, subdivisions=limb_div)
+        add_ico(f"character_shin_{side}", (x, -0.01, height * 0.12), (0.11, 0.115, 0.22), trouser_token, root, subdivisions=limb_div)
         add_ring(f"character_trouser_cuff_{side}", (x, -0.01, height * 0.18), 0.115, 0.024, cuff_token, root, major_segments=8, minor_segments=4)
 
         # Sturdy low-poly boot with distinct sole and upper
@@ -513,40 +690,63 @@ def _build_stylized_limbs_and_boots(
         arm_angle = math.radians(3 * sign)
         forearm_mat = skin_token if bare_forearms else shirt_token
 
-        add_ico(f"character_upper_arm_{side}", (x, 0, height * 0.57), (0.105, 0.11, 0.23), shirt_token, root, subdivisions=3, rotation=(0, arm_angle, 0))
-        add_ico(f"character_forearm_{side}", (x, -0.01, height * 0.43), (0.090, 0.095, 0.20), forearm_mat, root, subdivisions=3, rotation=(0, arm_angle, 0))
+        add_ico(f"character_upper_arm_{side}", (x, 0, height * 0.57), (0.105, 0.11, 0.23), shirt_token, root, subdivisions=limb_div, rotation=(0, arm_angle, 0))
+        add_ico(f"character_forearm_{side}", (x, -0.01, height * 0.43), (0.090, 0.095, 0.20), forearm_mat, root, subdivisions=limb_div, rotation=(0, arm_angle, 0))
         add_ring(f"character_sleeve_cuff_{side}", (x, -0.01, height * 0.37), 0.095, 0.022, cuff_token, root, major_segments=8, minor_segments=4)
 
         # Hand palm
+        hand_prefix = _character_prefix(spec) if spec else "char_player"
         add_ico(
-            f"char_player_hand_{side}",
+            f"{hand_prefix}_hand_{side}",
             (x, -0.02, height * 0.30),
             (0.085 * hand_scale, 0.075 * hand_scale, 0.095 * hand_scale),
             skin_token,
             root,
-            subdivisions=3,
+            subdivisions=limb_div,
         )
-        # Thumb & 3 fingers
-        add_ico(
-            f"character_finger_{side}_thumb",
-            (x - sign * 0.045, -0.04, height * 0.305),
-            (0.022 * hand_scale, 0.038 * hand_scale, 0.038 * hand_scale),
-            skin_token,
-            root,
-            subdivisions=2,
-        )
-        for finger in range(3):
+        if spec is None or spec.get("_lodIndex", 0) == 0:
             add_ico(
-                f"character_finger_{side}_{finger}",
-                (x + (finger - 1) * 0.026, -0.075, height * 0.275),
-                (0.018 * hand_scale, 0.038 * hand_scale, 0.040 * hand_scale),
+                f"character_finger_{side}_thumb",
+                (x - sign * 0.045, -0.04, height * 0.305),
+                (0.022 * hand_scale, 0.038 * hand_scale, 0.038 * hand_scale),
                 skin_token,
                 root,
                 subdivisions=2,
             )
+            for finger in range(3):
+                add_ico(
+                    f"character_finger_{side}_{finger}",
+                    (x + (finger - 1) * 0.026, -0.075, height * 0.275),
+                    (0.018 * hand_scale, 0.038 * hand_scale, 0.040 * hand_scale),
+                    skin_token,
+                    root,
+                    subdivisions=2,
+                )
 
 
 def coastal_worker(spec: dict, root) -> None:
+    height = spec["parameters"].get("height", 1.98)
+    if spec.get("lodLevels") and spec.get("_lodIndex") is None:
+        rig = _create_character_rig(root, height, spec)
+        for lod_index, lod_root in create_lod_roots(spec, root):
+            lod_spec = {**spec, "parameters": dict(spec["parameters"]), "_lodIndex": lod_index}
+            _build_coastal_worker(lod_spec, lod_root)
+            _bind_character_meshes(lod_root, rig, lod_spec, lod_index)
+        prefix = _character_prefix(spec)
+        sockets = spec.get("socketNodes") or [
+            f"{prefix}_hand_socket_left",
+            f"{prefix}_hand_socket_right",
+            f"{prefix}_tool_socket",
+            f"{prefix}_carry_socket",
+            f"{prefix}_hip_socket",
+        ]
+        _add_character_sockets(spec, rig, height, sockets)
+        _author_character_actions(spec, rig)
+        return
+    _build_coastal_worker(spec, root)
+
+
+def _build_coastal_worker(spec: dict, root) -> None:
     palette = spec["palette"]
     skin = palette[0]
     shirt = palette[1]
@@ -564,12 +764,15 @@ def coastal_worker(spec: dict, root) -> None:
     head_center_z = height * 0.82
     hand_scale = params.get("handScale", 1.05)
 
+    detail = spec.get("_lodIndex", 0) == 0
+    ico_div = 3 if detail else 1
+
     # 1. Torso & Pelvis
-    add_ico("character_torso", (0, 0, height * 0.58), (0.28, 0.20, 0.38), shirt, root, subdivisions=3)
-    add_ico("character_pelvis", (0, 0.01, height * 0.38), (0.26, 0.19, 0.18), dark, root, subdivisions=3)
+    add_ico("character_torso", (0, 0, height * 0.58), (0.28, 0.20, 0.38), shirt, root, subdivisions=ico_div)
+    add_ico("character_pelvis", (0, 0.01, height * 0.38), (0.26, 0.19, 0.18), dark, root, subdivisions=ico_div)
 
     # 2. Conforming Leather Explorer Vest
-    add_ico("character_vest_body", (0, -0.02, height * 0.58), (0.295, 0.205, 0.34), canvas, root, subdivisions=3)
+    add_ico("character_vest_body", (0, -0.02, height * 0.58), (0.295, 0.205, 0.34), canvas, root, subdivisions=ico_div)
     # V-Neck & Lapels
     for side, x in (("left", -0.15), ("right", 0.15)):
         sign = -1.0 if side == "left" else 1.0
@@ -582,56 +785,138 @@ def coastal_worker(spec: dict, root) -> None:
             rotation=(0, sign * math.radians(10), 0),
         )
         add_box(f"character_vest_pocket_{side}", (x, -0.21, height * 0.51), (0.11, 0.03, 0.09), canvas, root, bevel=0.012)
+        if spec.get("_lodIndex", 0) == 0:
+            add_box(f"character_vest_pocket_upper_{side}", (x, -0.21, height * 0.58), (0.10, 0.03, 0.08), canvas, root, bevel=0.012)
 
     add_box("character_belt", (0, -0.01, height * 0.41), (0.50, 0.30, 0.08), dark, root, bevel=0.015)
     add_box("character_belt_buckle", (0, -0.16, height * 0.41), (0.10, 0.025, 0.09), canvas, root, bevel=0.008)
-    add_fasteners(
-        "character_vest_button",
-        tuple((0, -0.21, height * (0.50 + index * 0.045)) for index in range(4)),
-        0.012,
-        dark,
-        root,
-        depth=0.025,
-    )
+    if detail:
+        add_fasteners(
+            "character_vest_button",
+            tuple((0, -0.21, height * (0.50 + index * 0.045)) for index in range(4)),
+            0.012,
+            dark,
+            root,
+            depth=0.025,
+        )
 
     # 3. Limbs and Boots
-    _build_stylized_limbs_and_boots(root, height, hand_scale, skin, dark, shirt, dark, canvas)
+    _build_stylized_limbs_and_boots(root, height, hand_scale, skin, dark, shirt, dark, canvas, spec=spec)
 
     # 4. Stylized Head & Facial Features
     neck_z = head_center_z - head_half_height * 0.90
     add_cylinder("character_neck", (0, 0, neck_z), 0.085, 0.12, skin, root, vertices=8, bevel=0.012)
-    _build_stylized_head_and_face(root, head_center_z, head_height, skin, dark, dark, dark, role="player")
+    _build_stylized_head_and_face(root, head_center_z, head_height, skin, dark, dark, dark, role="player", subdivisions=ico_div)
 
     # 5. Sculpted Hair (Swept Explorer Cut conforming to skull)
     hair_z = head_center_z + head_half_height * 0.20
-    add_ico("character_hair_cap", (0, 0.02, hair_z), (head_half_width * 1.04, head_half_depth * 1.04, head_half_height * 0.78), dark, root, subdivisions=3)
-    add_ico("character_hair_fringe", (0.05, -head_half_depth * 0.78, head_center_z + head_half_height * 0.35), (0.12, 0.06, 0.08), dark, root, subdivisions=2)
-    add_ico("character_hair_side_left", (-head_half_width * 0.92, 0.0, head_center_z), (0.06, 0.08, 0.12), dark, root, subdivisions=2)
-    add_ico("character_hair_side_right", (head_half_width * 0.92, 0.0, head_center_z), (0.06, 0.08, 0.12), dark, root, subdivisions=2)
+    add_ico("character_hair_cap", (0, 0.02, hair_z), (head_half_width * 1.04, head_half_depth * 1.04, head_half_height * 0.78), dark, root, subdivisions=ico_div)
+    if detail:
+        add_ico("character_hair_fringe", (0.05, -head_half_depth * 0.78, head_center_z + head_half_height * 0.35), (0.12, 0.06, 0.08), dark, root, subdivisions=2)
+        add_ico("character_hair_side_left", (-head_half_width * 0.92, 0.0, head_center_z), (0.06, 0.08, 0.12), dark, root, subdivisions=2)
+        add_ico("character_hair_side_right", (head_half_width * 0.92, 0.0, head_center_z), (0.06, 0.08, 0.12), dark, root, subdivisions=2)
 
     # 6. Snug Straw Expedition Hat (Correct crown recess seated on hair)
     hat_seat_z = head_center_z + head_half_height * 0.32
     add_cylinder("character_hat_crown", (0, 0.01, hat_seat_z + 0.09), 0.20, 0.14, canvas, root, vertices=10, bevel=0.020, rotation=(math.radians(3), 0, 0))
     add_cylinder("character_hat_brim", (0, -0.01, hat_seat_z + 0.02), 0.34, 0.035, canvas, root, vertices=12, bevel=0.010, rotation=(math.radians(3), 0, 0))
-    add_ring("character_hat_band", (0, 0.01, hat_seat_z + 0.035), 0.205, 0.020, band_color, root, major_segments=10, minor_segments=4, rotation=(math.radians(3), 0, 0))
+    if detail:
+        add_ring("character_hat_band", (0, 0.01, hat_seat_z + 0.035), 0.205, 0.020, band_color, root, major_segments=10, minor_segments=4, rotation=(math.radians(3), 0, 0))
 
 
     # 7. Framed Expedition Backpack (Snug fit to back)
     add_box("character_backpack", (0, 0.21, height * 0.57), (0.44, 0.24, 0.52), canvas, root, bevel=0.05)
     add_cylinder("character_pack_roll", (0, 0.24, height * 0.73), 0.12, 0.40, canvas, root, vertices=8, rotation=(0, math.pi / 2, 0), bevel=0.018)
-    add_ring("character_pack_roll_left", (-0.19, 0.24, height * 0.73), 0.125, 0.018, dark, root, major_segments=8, minor_segments=4, rotation=(0, math.pi / 2, 0))
-    add_ring("character_pack_roll_right", (0.19, 0.24, height * 0.73), 0.125, 0.018, dark, root, major_segments=8, minor_segments=4, rotation=(0, math.pi / 2, 0))
-    for side, x in (("left", -0.19), ("right", 0.19)):
-        add_rope_line(
-            f"character_pack_strap_{side}",
-            [(x, 0.22, height * 0.73), (x * 1.18, -0.15, height * 0.62), (x * 1.05, -0.13, height * 0.46)],
-            0.025, dark, root, vertices=6,
-        )
-        add_ico(f"character_pack_pouch_{side}", (x * 1.22, 0.26, height * 0.48), (0.10, 0.08, 0.13), canvas, root, subdivisions=2)
+    if detail:
+        add_ring("character_pack_roll_left", (-0.19, 0.24, height * 0.73), 0.125, 0.018, dark, root, major_segments=8, minor_segments=4, rotation=(0, math.pi / 2, 0))
+        add_ring("character_pack_roll_right", (0.19, 0.24, height * 0.73), 0.125, 0.018, dark, root, major_segments=8, minor_segments=4, rotation=(0, math.pi / 2, 0))
+        for side, x in (("left", -0.19), ("right", 0.19)):
+            add_rope_line(
+                f"character_pack_strap_{side}",
+                [(x, 0.22, height * 0.73), (x * 1.18, -0.15, height * 0.62), (x * 1.05, -0.13, height * 0.46)],
+                0.025, dark, root, vertices=6,
+            )
+            add_ico(f"character_pack_pouch_{side}", (x * 1.22, 0.26, height * 0.48), (0.10, 0.08, 0.13), canvas, root, subdivisions=2)
     add_box("character_pack_flap", (0, 0.34, height * 0.57), (0.36, 0.05, 0.24), dark, root, bevel=0.020)
     add_box("character_pack_buckle", (0, 0.37, height * 0.54), (0.08, 0.02, 0.08), canvas, root, bevel=0.008)
+    if spec.get("_lodIndex", 0) == 0:
+        add_box("character_pack_lower_pocket", (0, 0.34, height * 0.46), (0.22, 0.06, 0.14), canvas, root, bevel=0.016)
+        add_cylinder("character_pack_canteen", (0.28, 0.18, height * 0.50), 0.07, 0.16, dark, root, vertices=8, bevel=0.012)
+        add_box("character_pack_strap_buckle_left", (-0.19, -0.14, height * 0.54), (0.05, 0.03, 0.04), canvas, root, bevel=0.006)
+        add_box("character_pack_strap_buckle_right", (0.19, -0.14, height * 0.54), (0.05, 0.03, 0.04), canvas, root, bevel=0.006)
+        add_lattice(
+            "character_pack_frame",
+            (0, 0.33, height * 0.57),
+            0.38,
+            0.42,
+            dark,
+            root,
+            columns=3,
+            rows=3,
+            depth=0.018,
+        )
+        add_box("character_pack_bedroll_ties", (0, 0.24, height * 0.73), (0.42, 0.04, 0.04), dark, root, bevel=0.008)
+        for side, x in (("left", -0.14), ("right", 0.14)):
+            add_box(f"character_boot_heel_{side}", (x, 0.08, 0.03), (0.18, 0.12, 0.06), dark, root, bevel=0.010)
+            add_box(f"character_boot_tongue_{side}", (x, -0.18, 0.12), (0.10, 0.04, 0.10), dark, root, bevel=0.008)
+            for lace in range(3):
+                add_box(
+                    f"character_boot_lace_{side}_{lace}",
+                    (x, -0.20, 0.16 + lace * 0.05),
+                    (0.08, 0.02, 0.02), canvas, root, bevel=0.0,
+                )
+        for index in range(10):
+            angle = index * math.tau / 10.0
+            add_box(
+                f"character_hat_brim_rib_{index:02d}",
+                (math.cos(angle) * 0.27, math.sin(angle) * 0.27 - 0.01, hat_seat_z + 0.018),
+                (0.045, 0.11, 0.016),
+                canvas, root, bevel=0.004, rotation=(math.radians(3), 0, angle),
+            )
+        add_ring(
+            "character_hat_under_brim",
+            (0, -0.01, hat_seat_z + 0.008),
+            0.30, 0.016, canvas, root,
+            major_segments=12, minor_segments=4, rotation=(math.radians(3), 0, 0),
+        )
+        add_ico(
+            "character_hat_crown_facet",
+            (0, 0.02, hat_seat_z + 0.14),
+            (0.16, 0.16, 0.08), canvas, root, subdivisions=3,
+            rotation=(math.radians(3), 0, 0),
+        )
+        add_ico(
+            "character_pack_bedroll_end",
+            (0.22, 0.24, height * 0.73),
+            (0.08, 0.08, 0.08), canvas, root, subdivisions=3,
+        )
+        add_ico(
+            "character_hair_back",
+            (0, 0.12, head_center_z + 0.02),
+            (0.10, 0.08, 0.10), dark, root, subdivisions=3,
+        )
+        add_ico(
+            "character_pack_body_facet",
+            (0, 0.28, height * 0.57),
+            (0.18, 0.08, 0.18), canvas, root, subdivisions=3,
+        )
+        # Readable vest quilting planes matching the turnaround pockets.
+        for course in range(4):
+            z = height * (0.48 + course * 0.045)
+            for index in range(8):
+                angle = index * math.tau / 8.0
+                add_box(
+                    f"character_vest_quilt_{course}_{index}",
+                    (math.cos(angle) * 0.27, math.sin(angle) * 0.18 - 0.02, z),
+                    (0.09, 0.04, 0.04),
+                    canvas,
+                    root,
+                    bevel=0.006,
+                    rotation=(0, 0, angle),
+                )
 
-    _rig_character(spec, root, height)
+    if not spec.get("lodLevels"):
+        _rig_character(spec, root, height)
 
 
 def npc_character(spec: dict, root) -> None:
@@ -660,7 +945,7 @@ def npc_character(spec: dict, root) -> None:
 
     # 2. Base Limbs & Boots
     bare_arms = role in ("handyman", "merchant")
-    _build_stylized_limbs_and_boots(root, height, hand_scale, skin, dark, garment_primary, dark, garment_secondary, bare_forearms=bare_arms)
+    _build_stylized_limbs_and_boots(root, height, hand_scale, skin, dark, garment_primary, dark, garment_secondary, bare_forearms=bare_arms, spec=spec)
 
     # 3. Base Stylized Head & Facial Features
     neck_z = head_center_z - head_half_height * 0.90
@@ -772,69 +1057,213 @@ def npc_character(spec: dict, root) -> None:
 
 
 def fauna_cow(spec: dict, root) -> None:
-    """Build a chunky low-poly dairy cow with black-and-white patches and bell collar."""
+    """Build a chunky faceted dairy cow matching the isolated farm-animals sheet."""
     params = spec["parameters"]
     white, black, pink, horn_token, bell_token = spec["palette"]
     scale = params.get("scale", 1.0)
+    s = scale
+    horn_scale = params.get("hornScale", 1.0)
 
-    # Body Torso
-    add_box("cow_body_main", (0, 0, 1.15 * scale), (0.92 * scale, 1.85 * scale, 0.98 * scale), white, root, bevel=0.08 * scale)
-    # Dark coat patches
-    add_box("cow_patch_left", (-0.46 * scale, 0.2 * scale, 1.25 * scale), (0.06 * scale, 0.72 * scale, 0.58 * scale), black, root, bevel=0.0)
-    add_box("cow_patch_right", (0.46 * scale, -0.3 * scale, 1.15 * scale), (0.06 * scale, 0.82 * scale, 0.52 * scale), black, root, bevel=0.0)
-    add_box("cow_patch_top", (0, 0.1 * scale, 1.64 * scale), (0.62 * scale, 0.65 * scale, 0.06 * scale), black, root, bevel=0.0)
+    add_ico("cow_body_main", (0, 0.05 * s, 1.18 * s), (0.52 * s, 0.92 * s, 0.50 * s), white, root, subdivisions=2)
+    add_ico("cow_chest", (0, -0.55 * s, 1.16 * s), (0.48 * s, 0.42 * s, 0.48 * s), white, root, subdivisions=2)
+    add_ico("cow_haunch", (0, 0.62 * s, 1.20 * s), (0.50 * s, 0.40 * s, 0.50 * s), white, root, subdivisions=2)
+    add_box("cow_belly", (0, 0.08 * s, 0.92 * s), (0.72 * s, 1.28 * s, 0.42 * s), white, root, bevel=0.06 * s)
 
-    # 4 Sturdy Legs & Hooves
+    add_ico("cow_patch_left", (-0.42 * s, 0.18 * s, 1.28 * s), (0.16 * s, 0.38 * s, 0.28 * s), black, root, subdivisions=2)
+    add_ico("cow_patch_right", (0.44 * s, -0.22 * s, 1.18 * s), (0.16 * s, 0.42 * s, 0.26 * s), black, root, subdivisions=2)
+    add_ico("cow_patch_shoulder", (-0.18 * s, -0.48 * s, 1.38 * s), (0.28 * s, 0.24 * s, 0.18 * s), black, root, subdivisions=2)
+    add_ico("cow_patch_eye", (-0.18 * s, -1.22 * s, 1.58 * s), (0.14 * s, 0.12 * s, 0.12 * s), black, root, subdivisions=1)
+    add_ico("cow_patch_rump", (0.22 * s, 0.70 * s, 1.36 * s), (0.24 * s, 0.22 * s, 0.18 * s), black, root, subdivisions=2)
+    add_ico("cow_patch_flank", (0.46 * s, 0.28 * s, 1.08 * s), (0.12 * s, 0.28 * s, 0.22 * s), black, root, subdivisions=2)
+    add_ico("cow_patch_belly", (-0.10 * s, 0.12 * s, 0.98 * s), (0.22 * s, 0.30 * s, 0.14 * s), black, root, subdivisions=2)
+    add_ico("cow_patch_neck", (0.16 * s, -0.78 * s, 1.42 * s), (0.16 * s, 0.18 * s, 0.14 * s), black, root, subdivisions=2)
+    add_ico("cow_shoulder_left", (-0.38 * s, -0.42 * s, 1.22 * s), (0.20 * s, 0.18 * s, 0.18 * s), white, root, subdivisions=2)
+    add_ico("cow_shoulder_right", (0.38 * s, -0.38 * s, 1.20 * s), (0.20 * s, 0.18 * s, 0.18 * s), white, root, subdivisions=2)
+    add_ico("cow_dewlap", (0, -0.72 * s, 1.02 * s), (0.16 * s, 0.18 * s, 0.14 * s), white, root, subdivisions=2)
+    add_box("cow_forehead", (0, -1.22 * s, 1.68 * s), (0.36 * s, 0.28 * s, 0.16 * s), white, root, bevel=0.03 * s)
+    add_ico("cow_hip_left", (-0.40 * s, 0.58 * s, 1.10 * s), (0.18 * s, 0.18 * s, 0.16 * s), white, root, subdivisions=2)
+    add_ico("cow_hip_right", (0.40 * s, 0.54 * s, 1.12 * s), (0.18 * s, 0.18 * s, 0.16 * s), white, root, subdivisions=2)
+    add_ico("cow_patch_hip", (-0.28 * s, 0.68 * s, 1.32 * s), (0.16 * s, 0.16 * s, 0.14 * s), black, root, subdivisions=2)
+    add_ico("cow_muzzle_bridge", (0, -1.42 * s, 1.46 * s), (0.16 * s, 0.12 * s, 0.10 * s), white, root, subdivisions=2)
+
     leg_coords = (
-        ("front_left", -0.32, -0.62),
-        ("front_right", 0.32, -0.62),
-        ("rear_left", -0.32, 0.65),
-        ("rear_right", 0.32, 0.65),
+        ("front_left", -0.30, -0.58),
+        ("front_right", 0.30, -0.58),
+        ("rear_left", -0.32, 0.62),
+        ("rear_right", 0.32, 0.62),
     )
     for leg_name, lx, ly in leg_coords:
-        add_box(f"cow_leg_{leg_name}", (lx * scale, ly * scale, 0.42 * scale), (0.24 * scale, 0.26 * scale, 0.84 * scale), white, root, bevel=0.02 * scale)
-        add_box(f"cow_hoof_{leg_name}", (lx * scale, ly * scale, 0.06 * scale), (0.26 * scale, 0.28 * scale, 0.12 * scale), black, root, bevel=0.0)
+        add_box(f"cow_leg_upper_{leg_name}", (lx * s, ly * s, 0.72 * s), (0.26 * s, 0.28 * s, 0.48 * s), white, root, bevel=0.03 * s)
+        add_box(f"cow_leg_lower_{leg_name}", (lx * s, ly * s + 0.04 * s, 0.32 * s), (0.22 * s, 0.24 * s, 0.40 * s), white, root, bevel=0.02 * s)
+        add_box(f"cow_hoof_{leg_name}", (lx * s, ly * s + 0.05 * s, 0.07 * s), (0.26 * s, 0.30 * s, 0.12 * s), horn_token, root, bevel=0.01 * s)
 
-    # Neck and Head
-    add_box("cow_neck", (0, -0.92 * scale, 1.32 * scale), (0.54 * scale, 0.58 * scale, 0.62 * scale), white, root, rotation=(math.radians(24), 0, 0), bevel=0.04 * scale)
-    add_box("cow_head", (0, -1.28 * scale, 1.48 * scale), (0.58 * scale, 0.62 * scale, 0.58 * scale), black, root, rotation=(math.radians(12), 0, 0), bevel=0.04 * scale)
-    add_box("cow_snout", (0, -1.58 * scale, 1.34 * scale), (0.44 * scale, 0.34 * scale, 0.32 * scale), pink, root, bevel=0.03 * scale)
+    add_box("cow_neck", (0, -0.88 * s, 1.34 * s), (0.48 * s, 0.52 * s, 0.52 * s), white, root, rotation=(math.radians(22), 0, 0), bevel=0.05 * s)
+    add_box("cow_head", (0, -1.28 * s, 1.50 * s), (0.50 * s, 0.50 * s, 0.46 * s), white, root, rotation=(math.radians(10), 0, 0), bevel=0.04 * s)
+    add_box("cow_snout", (0, -1.58 * s, 1.32 * s), (0.40 * s, 0.32 * s, 0.28 * s), pink, root, bevel=0.03 * s)
+    add_box("cow_jaw", (0, -1.46 * s, 1.18 * s), (0.34 * s, 0.22 * s, 0.14 * s), pink, root, bevel=0.02 * s)
 
-    # Horns & Ears
     for side, sign in (("left", -1), ("right", 1)):
-        add_cone(f"cow_horn_{side}", (sign * 0.32 * scale, -1.22 * scale, 1.82 * scale), 0.06 * scale, 0.015 * scale, 0.28 * scale, horn_token, root, vertices=6, rotation=(math.radians(-25), 0, sign * math.radians(45)))
-        add_tri_prism(f"cow_ear_{side}", (sign * 0.36 * scale, -1.18 * scale, 1.55 * scale), (0.22 * scale, 0.08 * scale, 0.14 * scale), white, root, rotation=(0, sign * math.radians(20), sign * math.radians(80)))
+        add_cone(
+            f"cow_horn_{side}", (sign * 0.28 * s, -1.18 * s, 1.84 * s),
+            0.055 * s, 0.016 * s, 0.26 * s * horn_scale, horn_token, root, vertices=6,
+            rotation=(math.radians(-18), 0, sign * math.radians(38)),
+        )
+        add_tri_prism(
+            f"cow_ear_{side}", (sign * 0.38 * s, -1.16 * s, 1.56 * s),
+            (0.24 * s, 0.08 * s, 0.16 * s), white, root,
+            rotation=(0, sign * math.radians(18), sign * math.radians(78)),
+        )
 
-    # Tail
-    add_beam("cow_tail", (0, 0.94 * scale, 1.42 * scale), (0, 1.05 * scale, 0.65 * scale), 0.045 * scale, white, root, vertices=5)
-    add_ico("cow_tail_brush", (0, 1.05 * scale, 0.58 * scale), (0.08 * scale, 0.08 * scale, 0.14 * scale), black, root, subdivisions=2)
+    add_tapered_beam("cow_tail", (0, 0.92 * s, 1.38 * s), (0, 1.12 * s, 0.62 * s), 0.05 * s, 0.03 * s, white, root, vertices=5)
+    add_ico("cow_tail_brush", (0, 1.14 * s, 0.54 * s), (0.09 * s, 0.09 * s, 0.16 * s), black, root, subdivisions=2)
 
-    # Bell Collar
-    add_box("cow_collar", (0, -0.88 * scale, 1.25 * scale), (0.60 * scale, 0.10 * scale, 0.64 * scale), black, root, rotation=(math.radians(24), 0, 0), bevel=0.0)
-    add_cone("cow_bell", (0, -0.98 * scale, 0.95 * scale), 0.09 * scale, 0.05 * scale, 0.14 * scale, bell_token, root, vertices=6)
+    add_ico("cow_udder", (0, 0.42 * s, 0.72 * s), (0.22 * s, 0.20 * s, 0.16 * s), pink, root, subdivisions=2)
+    for teat, tx in enumerate((-0.08, -0.03, 0.03, 0.08)):
+        add_cone(
+            f"cow_teat_{teat}", (tx * s, (0.36 + (teat % 2) * 0.10) * s, 0.58 * s),
+            0.025 * s, 0.012 * s, 0.08 * s, pink, root, vertices=5,
+        )
+
+    add_box("cow_collar", (0, -0.82 * s, 1.18 * s), (0.56 * s, 0.10 * s, 0.58 * s), black, root, rotation=(math.radians(22), 0, 0), bevel=0.0)
+    add_cone("cow_bell", (0, -0.94 * s, 0.92 * s), 0.09 * s, 0.05 * s, 0.14 * s, bell_token, root, vertices=6)
+
+    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
+    head_pivot = _fauna_motion_node(
+        f"{spec['id']}_head_pivot", motion_root, (0.0, -0.86 * s, 1.34 * s)
+    )
+    tail_pivot = _fauna_motion_node(
+        f"{spec['id']}_tail_pivot", motion_root, (0.0, 0.88 * s, 1.36 * s)
+    )
+    head_prefixes = (
+        "cow_head", "cow_forehead", "cow_snout", "cow_jaw", "cow_muzzle",
+        "cow_horn", "cow_ear", "cow_patch_eye",
+    )
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not root:
+            continue
+        if obj.name.startswith(head_prefixes):
+            _reparent_preserving_world(obj, head_pivot)
+        elif obj.name.startswith(("cow_tail",)):
+            _reparent_preserving_world(obj, tail_pivot)
+        else:
+            _reparent_preserving_world(obj, motion_root)
+    consolidate_lod_level(motion_root, f"{spec['id']}_body")
+    consolidate_lod_level(head_pivot, f"{spec['id']}_head")
+    consolidate_lod_level(tail_pivot, f"{spec['id']}_tail")
+    _author_fauna_action(spec, "idle", motion_root, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.8, (math.radians(1.0), 0.0, 0.0), (0.0, 0.0, 0.012 * s)),
+        (1.6, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "graze", head_pivot, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.6, (math.radians(38), 0.0, 0.0), (0.0, -0.05 * s, -0.08 * s)),
+        (1.2, (math.radians(43), 0.0, math.radians(-4)), (0.0, -0.07 * s, -0.1 * s)),
+        (1.8, (math.radians(38), 0.0, math.radians(4)), (0.0, -0.05 * s, -0.08 * s)),
+        (2.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "look", head_pivot, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.45, (math.radians(-4), 0.0, math.radians(-16)), (0.0, 0.0, 0.0)),
+        (0.9, (math.radians(-2), 0.0, math.radians(13)), (0.0, 0.0, 0.0)),
+        (1.35, (math.radians(-4), 0.0, math.radians(-10)), (0.0, 0.0, 0.0)),
+        (1.8, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
     add_collision_primitives(spec, root)
 
 
 def fauna_chicken(spec: dict, root) -> None:
-    """Build a low-poly farm hen/rooster."""
+    """Build a faceted farm hen matching the isolated farm-animals sheet."""
     params = spec["parameters"]
     feather, dark, comb_token, beak_token = spec["palette"]
     scale = params.get("scale", 0.65)
+    s = scale
+    comb_scale = params.get("combScale", 1.0)
 
-    # Body & Breast
-    add_ico("chicken_body", (0, 0, 0.36 * scale), (0.34 * scale, 0.44 * scale, 0.36 * scale), feather, root, subdivisions=2)
-    # Tail Feathers
-    add_tri_prism("chicken_tail", (0, 0.28 * scale, 0.48 * scale), (0.16 * scale, 0.24 * scale, 0.34 * scale), dark, root, rotation=(math.radians(35), 0, 0))
-    # Head & Neck
-    add_cone("chicken_neck", (0, -0.22 * scale, 0.52 * scale), 0.12 * scale, 0.09 * scale, 0.32 * scale, feather, root, vertices=6)
-    add_ico("chicken_head", (0, -0.24 * scale, 0.68 * scale), (0.11 * scale, 0.13 * scale, 0.12 * scale), feather, root, subdivisions=2)
-    # Beak
-    add_cone("chicken_beak", (0, -0.35 * scale, 0.66 * scale), 0.045 * scale, 0.005 * scale, 0.11 * scale, beak_token, root, vertices=4, rotation=(math.pi / 2, 0, 0))
-    # Comb & Wattle
-    add_box("chicken_comb", (0, -0.22 * scale, 0.78 * scale), (0.025 * scale, 0.14 * scale, 0.09 * scale), comb_token, root, bevel=0.0)
-    add_box("chicken_wattle", (0, -0.28 * scale, 0.58 * scale), (0.02 * scale, 0.06 * scale, 0.07 * scale), comb_token, root, bevel=0.0)
-    # Legs
+    add_ico("chicken_body", (0, 0.02 * s, 0.38 * s), (0.32 * s, 0.40 * s, 0.30 * s), feather, root, subdivisions=2)
+    add_ico("chicken_breast", (0, -0.12 * s, 0.34 * s), (0.24 * s, 0.22 * s, 0.22 * s), feather, root, subdivisions=2)
+    for wing, sign in (("left", -1), ("right", 1)):
+        add_ico(
+            f"chicken_wing_{wing}", (sign * 0.22 * s, 0.02 * s, 0.36 * s),
+            (0.10 * s, 0.18 * s, 0.14 * s), feather, root, subdivisions=2,
+            rotation=(0, sign * 0.35, 0),
+        )
+    for index, pitch in enumerate((28, 42, 55)):
+        add_tri_prism(
+            f"chicken_tail_{index}",
+            (0, (0.26 + index * 0.04) * s, (0.46 + index * 0.06) * s),
+            ((0.12 - index * 0.02) * s, 0.10 * s, 0.22 * s),
+            dark if index else feather, root,
+            rotation=(math.radians(pitch), 0, (index - 1) * 0.12),
+        )
+    add_cone("chicken_neck", (0, -0.20 * s, 0.54 * s), 0.11 * s, 0.08 * s, 0.28 * s, feather, root, vertices=6)
+    add_ico("chicken_head", (0, -0.26 * s, 0.72 * s), (0.11 * s, 0.13 * s, 0.11 * s), feather, root, subdivisions=2)
+    add_cone("chicken_beak", (0, -0.38 * s, 0.70 * s), 0.04 * s, 0.006 * s, 0.10 * s, beak_token, root, vertices=4, rotation=(math.pi / 2, 0, 0))
+    add_ico("chicken_eye_left", (-0.08 * s, -0.30 * s, 0.74 * s), (0.018 * s, 0.018 * s, 0.018 * s), dark, root, subdivisions=1)
+    add_ico("chicken_eye_right", (0.08 * s, -0.30 * s, 0.74 * s), (0.018 * s, 0.018 * s, 0.018 * s), dark, root, subdivisions=1)
+    for comb in range(3):
+        add_box(
+            f"chicken_comb_{comb}",
+            (0, (-0.24 + comb * 0.04) * s, (0.82 + (1 if comb == 1 else 0) * 0.03) * s),
+            (0.03 * s, 0.06 * s, 0.08 * s * comb_scale), comb_token, root, bevel=0.0,
+        )
+    add_box("chicken_wattle", (0, -0.32 * s, 0.62 * s), (0.025 * s, 0.06 * s, 0.08 * s), comb_token, root, bevel=0.0)
     for side, sign in (("left", -1), ("right", 1)):
-        add_cylinder(f"chicken_leg_{side}", (sign * 0.10 * scale, 0, 0.16 * scale), 0.018 * scale, 0.32 * scale, beak_token, root, vertices=5)
-        add_box(f"chicken_foot_{side}", (sign * 0.10 * scale, -0.04 * scale, 0.02 * scale), (0.08 * scale, 0.10 * scale, 0.02 * scale), beak_token, root, bevel=0.0)
+        add_cylinder(f"chicken_leg_{side}", (sign * 0.09 * s, 0.02 * s, 0.16 * s), 0.016 * s, 0.30 * s, beak_token, root, vertices=5)
+        add_box(f"chicken_foot_{side}", (sign * 0.09 * s, -0.03 * s, 0.02 * s), (0.07 * s, 0.10 * s, 0.02 * s), beak_token, root, bevel=0.0)
+        for toe, dy in enumerate((-0.06, 0.0, 0.05)):
+            add_box(
+                f"chicken_toe_{side}_{toe}",
+                (sign * 0.09 * s, dy * s, 0.015 * s),
+                (0.025 * s, 0.08 * s, 0.016 * s), beak_token, root, bevel=0.0,
+            )
+    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
+    head_pivot = _fauna_motion_node(
+        f"{spec['id']}_head_pivot", motion_root, (0.0, -0.18 * s, 0.54 * s)
+    )
+    wing_left_pivot = _fauna_motion_node(
+        f"{spec['id']}_wing_left_pivot", motion_root, (-0.15 * s, 0.02 * s, 0.38 * s)
+    )
+    wing_right_pivot = _fauna_motion_node(
+        f"{spec['id']}_wing_right_pivot", motion_root, (0.15 * s, 0.02 * s, 0.38 * s)
+    )
+    head_prefixes = (
+        "chicken_neck", "chicken_head", "chicken_beak", "chicken_eye",
+        "chicken_comb", "chicken_wattle",
+    )
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not root:
+            continue
+        if obj.name.startswith(head_prefixes):
+            _reparent_preserving_world(obj, head_pivot)
+        elif obj.name == "chicken_wing_left":
+            _reparent_preserving_world(obj, wing_left_pivot)
+        elif obj.name == "chicken_wing_right":
+            _reparent_preserving_world(obj, wing_right_pivot)
+        else:
+            _reparent_preserving_world(obj, motion_root)
+    consolidate_lod_level(motion_root, f"{spec['id']}_body")
+    consolidate_lod_level(head_pivot, f"{spec['id']}_head")
+    consolidate_lod_level(wing_left_pivot, f"{spec['id']}_wing_left")
+    consolidate_lod_level(wing_right_pivot, f"{spec['id']}_wing_right")
+    _author_fauna_action(spec, "idle", motion_root, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.6, (math.radians(1.5), 0.0, 0.0), (0.0, 0.0, 0.008 * s)),
+        (1.2, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "peck", head_pivot, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.16, (math.radians(48), 0.0, 0.0), (0.0, -0.025 * s, -0.06 * s)),
+        (0.32, (math.radians(12), 0.0, 0.0), (0.0, 0.0, -0.01 * s)),
+        (0.48, (math.radians(52), 0.0, 0.0), (0.0, -0.03 * s, -0.065 * s)),
+        (0.64, (math.radians(8), 0.0, 0.0), (0.0, 0.0, -0.008 * s)),
+        (0.8, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "look", head_pivot, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.35, (math.radians(-7), 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
+        (0.7, (math.radians(-4), 0.0, math.radians(19)), (0.0, 0.0, 0.0)),
+        (1.05, (math.radians(-7), 0.0, math.radians(-14)), (0.0, 0.0, 0.0)),
+        (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
     add_collision_primitives(spec, root)

@@ -12,6 +12,7 @@ export interface InputState {
   sprint: boolean;
   fishing: FishingInputState;
   pointerNdc: { x: number; y: number };
+  farmGisHeld: boolean;
 }
 
 export interface CameraInputIntent {
@@ -95,7 +96,8 @@ export function deriveSemanticInput(
       isBracing: mode === "sport-fishing" && keys.has("Space"),
       rodDirectionAngle
     },
-    pointerNdc: { x: pointerNdc.x, y: pointerNdc.y }
+    pointerNdc: { x: pointerNdc.x, y: pointerNdc.y },
+    farmGisHeld: hasAny(keys, "AltLeft", "AltRight")
   };
 }
 
@@ -119,6 +121,7 @@ export class InputRouter {
   private orbitDeltaY = 0;
   private zoomDelta = 0;
   private jumpQueued = false;
+  private jumpBlocked = false;
 
   constructor() {
     window.addEventListener("keydown", this.onKeyDown);
@@ -184,6 +187,7 @@ export class InputRouter {
   /** Buffers a press so a short tap between fixed physics steps is not lost. */
   public consumeJumpRequest(): boolean {
     if (
+      this.jumpBlocked ||
       this.worldInputSuspended ||
       (this.currentMode !== "on-foot" && this.currentMode !== "farm-placement")
     ) {
@@ -193,6 +197,12 @@ export class InputRouter {
     const queued = this.jumpQueued;
     this.jumpQueued = false;
     return queued;
+  }
+
+  /** Drop and ignore jump while a presentation action owns Space. */
+  public setJumpBlocked(blocked: boolean): void {
+    this.jumpBlocked = blocked;
+    if (blocked) this.jumpQueued = false;
   }
 
   public interrupt(): void {
@@ -231,15 +241,12 @@ export class InputRouter {
       case "Digit3": if (!this.worldInputSuspended) this.dispatch("select-tool-3"); break;
       case "Digit4": if (!this.worldInputSuspended) this.dispatch("select-tool-4"); break;
       case "Digit5": if (!this.worldInputSuspended) this.dispatch("select-tool-5"); break;
-      case "AltLeft":
-      case "AltRight":
-        if (!this.worldInputSuspended) this.dispatch("toggle-farm-gis");
-        break;
       case "Escape": this.dispatch("pause"); break;
       case "Space":
         if (!this.worldInputSuspended && this.currentMode === "sport-fishing") {
           this.dispatch("fish-brace");
         } else if (
+          !this.jumpBlocked &&
           !this.worldInputSuspended &&
           (this.currentMode === "on-foot" || this.currentMode === "farm-placement")
         ) {

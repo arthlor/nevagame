@@ -124,8 +124,7 @@
           "else": {
             "properties": {
               "rigNode": false,
-              "socketNodes": false,
-              "animationClips": false
+              "socketNodes": false
             }
           }
         }
@@ -141,11 +140,23 @@
         "commitMarkerSeconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
         "loop": { "type": "boolean" },
         "referenceSpeedMetersPerSecond": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+        "optional": { "type": "boolean" },
+        "fallbackClip": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
         "events": {
           "type": "array",
           "items": { "$ref": "#/$defs/animationEvent" }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "optional": { "const": true } }, "required": ["optional"] },
+          "then": {
+            "properties": { "fallbackClip": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+            "required": ["fallbackClip"]
+          },
+          "else": { "properties": { "fallbackClip": false } }
+        }
+      ]
     },
     "animationEvent": {
       "type": "object",

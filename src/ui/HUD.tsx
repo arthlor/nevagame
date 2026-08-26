@@ -6,6 +6,18 @@ import { ContentRegistry } from "../content/ContentRegistry";
 import {
   IconCoin,
   IconEnergy,
+  IconBackpack,
+  IconJournal,
+  IconLedger,
+  IconExpedition,
+  IconCompass,
+  IconMenu,
+  IconHoe,
+  IconWateringCan,
+  IconPickaxe,
+  IconBait,
+  IconBasket,
+  IconSprout,
   IconMoon,
   IconDawn,
   IconDusk,
@@ -16,10 +28,18 @@ import {
   IconWeatherStorm,
   IconWeatherFog,
   IconWind,
+  IconThermometer,
+  IconWave,
   IconFish,
   IconBoat,
   IconWarning
 } from "./components/HudIcons";
+import {
+  CornerLeafSprout,
+  CornerRopeKnot,
+  OrnateDivider,
+  KeycapBadge
+} from "./components/HudDecorations";
 import { FarmForecastPopover } from "./components/FarmForecastPopover";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import { QuestTrackerHUD } from "./QuestTrackerHUD";
@@ -40,6 +60,7 @@ export interface HUDProps {
   onQuickSave: () => void;
   onCastFishing: () => void;
   onOpenMenu?: () => void;
+  isPlacementActive?: boolean;
 }
 
 function formatWeatherLabel(type: string): string {
@@ -65,35 +86,48 @@ function formatWeatherLabel(type: string): string {
 function getWeatherIcon(type: string, hour: number) {
   switch (type.toLowerCase()) {
     case "clear":
-      return hour >= 5 && hour < 8 ? <IconDawn size={16} /> : hour >= 8 && hour < 18 ? <IconWeatherClear size={16} /> : hour >= 18 && hour < 21 ? <IconDusk size={16} /> : <IconMoon size={16} />;
+      return hour >= 5 && hour < 8 ? (
+        <IconDawn size={18} />
+      ) : hour >= 8 && hour < 18 ? (
+        <IconWeatherClear size={18} />
+      ) : hour >= 18 && hour < 21 ? (
+        <IconDusk size={18} />
+      ) : (
+        <IconMoon size={18} />
+      );
     case "overcast":
-      return <IconWeatherOvercast size={16} />;
+      return <IconWeatherOvercast size={18} />;
     case "light-rain":
     case "light_rain":
-      return <IconWeatherLightRain size={16} />;
+      return <IconWeatherLightRain size={18} />;
     case "rain":
-      return <IconWeatherRain size={16} />;
+      return <IconWeatherRain size={18} />;
     case "storm":
-      return <IconWeatherStorm size={16} />;
+      return <IconWeatherStorm size={18} />;
     case "fog":
-      return <IconWeatherFog size={16} />;
+      return <IconWeatherFog size={18} />;
     default:
-      return <IconWeatherClear size={16} />;
+      return <IconWeatherClear size={18} />;
   }
 }
 
-function getSeasonIcon(season: string) {
-  switch (season.toLowerCase()) {
-    case "spring":
-      return "🌱";
-    case "summer":
-      return "☀️";
-    case "autumn":
-      return "🍂";
-    case "winter":
-      return "❄️";
+function getWeatherConditionIcon(type: string, size = 15) {
+  switch (type.toLowerCase()) {
+    case "clear":
+      return <IconWeatherClear size={size} className="hud-weather-icon" />;
+    case "overcast":
+      return <IconWeatherOvercast size={size} className="hud-weather-icon" />;
+    case "light-rain":
+    case "light_rain":
+      return <IconWeatherLightRain size={size} className="hud-weather-icon" />;
+    case "rain":
+      return <IconWeatherRain size={size} className="hud-weather-icon" />;
+    case "storm":
+      return <IconWeatherStorm size={size} className="hud-weather-icon" />;
+    case "fog":
+      return <IconWeatherFog size={size} className="hud-weather-icon" />;
     default:
-      return "🌱";
+      return <IconWeatherClear size={size} className="hud-weather-icon" />;
   }
 }
 
@@ -104,12 +138,14 @@ export const HUD: React.FC<HUDProps> = ({
   activeToolSlot = 1,
   onSelectToolSlot,
   onOpenInventory,
+  onOpenMarket,
   onOpenJournal,
   onOpenMap,
   onOpenLedger,
   onOpenExpedition,
   activeQuest,
-  onOpenMenu
+  onOpenMenu,
+  isPlacementActive = false
 }) => {
   const [showForecast, setShowForecast] = useState(false);
   const { clock, player, weather } = state;
@@ -146,6 +182,13 @@ export const HUD: React.FC<HUDProps> = ({
   const workPercent = Math.max(0, Math.min(100, (workCurrent / workMax) * 100));
   const showWorkAlert = workCurrent < 20;
 
+  // Backpack capacity (slots used / total slots)
+  const playerInv = state.inventories[player.inventoryId];
+  const filledSlots = playerInv
+    ? playerInv.slots.filter((s) => s.itemId !== null && (s.quantity ?? 0) > 0).length
+    : 0;
+  const totalSlots = playerInv ? playerInv.slots.length : 16;
+
   // Active Boat & Physical Cargo
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDef = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
@@ -157,54 +200,110 @@ export const HUD: React.FC<HUDProps> = ({
   const carriedFish = player.carriedFishCargoId ? state.fishCargo[player.carriedFishCargoId] : null;
   const carriedDef = carriedFish ? ContentRegistry.fishSpecies.get(carriedFish.speciesId) : null;
 
+  // Parse prompt text for keycaps (e.g. "[E] Interact" or "[E / Click] Plant Wheat")
+  const parsedPrompt = useMemo(() => {
+    if (!promptText) return null;
+    if (toastMessage && promptText.trim() === toastMessage.trim()) return null;
+    const match = promptText.match(/^\[(.*?)\]\s*(.*)$/);
+    if (match) {
+      return { key: match[1], label: match[2] };
+    }
+    if (promptText.startsWith("Equipped:") || promptText.startsWith("Saved") || promptText.startsWith("✨")) {
+      return null;
+    }
+    return { key: "E", label: promptText };
+  }, [promptText, toastMessage]);
+
   return (
     <>
-      {/* 1. Top-Left: Low-Chrome Weather & Time Header */}
-      <header className="hud-badge hud-top-left interactive" aria-label="Game clock and weather">
-        <div className="hud-calendar-row" onClick={() => setShowForecast((prev) => !prev)} style={{ cursor: "pointer" }} title="Click for 3-Day Farm Forecast">
-          <span className={`season-tag season-${clock.season.toLowerCase()}`}>
-            <span className="season-icon" aria-hidden="true">{getSeasonIcon(clock.season)}</span>
-            <span className="hud-date-text">{seasonName} {dayInSeason}</span>
-          </span>
-          <span className="hud-dot" aria-hidden="true">·</span>
-          <div className="hud-time-badge">
-            <span className="hud-time-icon" aria-hidden="true">{getWeatherIcon(weather.type, hour)}</span>
-            <span className="hud-time-text">{hh}:{mm}</span>
-          </div>
-        </div>
+      {/* =========================================================================
+          1. TOP-LEFT: ATMOSPHERE, CALENDAR & QUEST TRACKER CONTAINER (Reference Top-Left)
+          ========================================================================= */}
+      <div className="hud-top-left-container interactive">
+        <header
+          className="hud-diegetic-panel hud-top-left"
+          aria-label="Game clock, calendar, and weather"
+        >
+          <CornerLeafSprout className="panel-corner-tl" size={28} />
+          <CornerRopeKnot className="panel-corner-br" size={28} />
 
-        <div className="hud-weather-row" onClick={() => setShowForecast((prev) => !prev)} style={{ cursor: "pointer" }} title="Click for 3-Day Farm Forecast">
-          <span className="hud-weather-text">{formatWeatherLabel(weather.type)}</span>
-          <span className="hud-dot" aria-hidden="true">·</span>
-          <span className="hud-temp-text">{Math.round(weather.temperatureC)}°C</span>
-          <span className="hud-dot" aria-hidden="true">·</span>
-          <span className="hud-wind-text">
-            <IconWind size={12} className="hud-inline-icon" />
-            {Math.round(weather.windSpeed)} m/s
-          </span>
-        </div>
+          <div
+            className="hud-weather-card-inner"
+            onClick={() => setShowForecast((prev) => !prev)}
+            title="Click to open 3-Day Farm Forecast"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setShowForecast((prev) => !prev);
+              }
+            }}
+          >
+            {/* Top Row: Season & Time */}
+            <div className="hud-header-row hud-calendar-row">
+              <div className="hud-season-group">
+                <IconSprout size={18} className="hud-sprout-icon" />
+                <span className="hud-season-text">{seasonName} {dayInSeason}</span>
+              </div>
 
-        {severeAlert && (
-          <div className={`hud-weather-alert alert-${severeAlert.tone}`} role="status">
-            <IconWarning size={12} className="hud-alert-icon" />
-            <span>{severeAlert.text}</span>
+              <div className="hud-time-group">
+                <span className="hud-time-icon">{getWeatherIcon(weather.type, hour)}</span>
+                <span className="hud-time-text">{hh}:{mm}</span>
+              </div>
+            </div>
+
+            <OrnateDivider />
+
+            {/* Bottom Row: Weather, Temperature & Wind */}
+            <div className="hud-header-row hud-weather-row">
+              <div className="hud-weather-condition">
+                {getWeatherConditionIcon(weather.type, 15)}
+                <span className="hud-weather-name">{formatWeatherLabel(weather.type)}</span>
+              </div>
+
+              <div className="hud-weather-metrics">
+                <span className="hud-metric-item" title="Temperature">
+                  <IconThermometer size={14} className="hud-metric-icon" />
+                  <span>{Math.round(weather.temperatureC)}°C</span>
+                </span>
+
+                <span className="hud-metric-item" title="Wind speed">
+                  <IconWind size={14} className="hud-metric-icon" />
+                  <span>{Math.round(weather.windSpeed)} m/s</span>
+                </span>
+
+                {weather.seaRoughness > 0.4 && (
+                  <span className="hud-metric-item" title="Sea Swell">
+                    <IconWave size={14} className="hud-metric-icon" />
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
+
+          {severeAlert && (
+            <div className={`hud-weather-alert alert-${severeAlert.tone}`} role="status">
+              <IconWarning size={14} className="hud-alert-icon" />
+              <span>{severeAlert.text}</span>
+            </div>
+          )}
+        </header>
+
+        {/* Quest Tracker underneath Top-Left Header */}
+        {(activeQuest || state.quests.unlockedFeatureIds.includes("feature.expedition_planner")) && (
+          <QuestTrackerHUD activeQuest={activeQuest ?? null} />
         )}
 
-        {/* 3-Day Forecast Dropdown */}
+        {/* 3-Day Forecast Popover anchored beside Top-Left Column */}
         {showForecast && (
           <FarmForecastPopover
             weather={weather}
             clock={clock}
-            farmingProficiency={player.proficiencies.farming ?? 0}
             onClose={() => setShowForecast(false)}
           />
         )}
-      </header>
-
-      {(activeQuest || state.quests.unlockedFeatureIds.includes("feature.expedition_planner")) && (
-        <QuestTrackerHUD activeQuest={activeQuest ?? null} />
-      )}
+      </div>
 
       {/* 2. Top-Center: Discreet Event Toasts */}
       {toastMessage && (
@@ -216,97 +315,179 @@ export const HUD: React.FC<HUDProps> = ({
         </aside>
       )}
 
-      {/* 3. Top-Right: Gold Currency & Compact Navigation Pill Bar */}
+      {/* =========================================================================
+          3. TOP-RIGHT: STATUS BADGES & WOODEN NAVIGATION ROW (Reference Top-Right)
+          ========================================================================= */}
       <nav className="hud-top-right interactive" aria-label="Player wealth and quick navigation">
-        <div className="hud-vitals-group">
-          {/* Gold Badge */}
-          <div className="hud-badge hud-gold-badge" title="Liquid Gold balance">
-            <IconCoin size={16} className="gold-icon" />
-            <span className="hud-gold-amount">{player.money.toLocaleString()} G</span>
+        {/* Top Badges Row */}
+        <div className="hud-vitals-plaques">
+          {/* Purse Plaque */}
+          <div
+            className="hud-plaque hud-plaque-purse"
+            title="Purse Balance"
+            onClick={onOpenMarket}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenMarket();
+              }
+            }}
+          >
+            <CornerLeafSprout className="plaque-corner-tl" size={16} />
+            <CornerRopeKnot className="plaque-corner-br" size={16} />
+            <div className="hud-plaque-content">
+              <IconCoin size={22} className="hud-plaque-icon" />
+              <strong className="hud-gold-text">{player.money.toLocaleString()} G</strong>
+            </div>
           </div>
+
+          {/* Work Capacity Plaque */}
+          <div
+            className={`hud-plaque hud-plaque-work ${showWorkAlert ? "is-depleted" : ""}`}
+            title={`Work Capacity: ${workCurrent} / ${workMax}`}
+          >
+            <CornerLeafSprout className="plaque-corner-tl" size={16} />
+            <CornerRopeKnot className="plaque-corner-br" size={16} />
+            <div className="hud-plaque-content">
+              <div className="hud-work-top-row">
+                <IconEnergy size={18} className="hud-work-icon" />
+                <span className="hud-work-label">Work {workCurrent}/{workMax}</span>
+              </div>
+              <div className="hud-work-progress-track">
+                <div
+                  className="hud-work-progress-fill"
+                  style={{ width: `${workPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Backpack Plaque */}
+          <div
+            className="hud-plaque hud-plaque-pack"
+            title="Backpack Inventory (I)"
+            onClick={onOpenInventory}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenInventory();
+              }
+            }}
+          >
+            <CornerLeafSprout className="plaque-corner-tl" size={16} />
+            <CornerRopeKnot className="plaque-corner-br" size={16} />
+            <div className="hud-plaque-content">
+              <IconBackpack size={20} className="hud-pack-icon" />
+              <strong className="hud-pack-count">{filledSlots}/{totalSlots}</strong>
+            </div>
+          </div>
+
+          {/* Carried Physical Cargo Plaque (if carrying fish) */}
+          {carriedFish && carriedDef && (
+            <div
+              className="hud-plaque hud-plaque-cargo"
+              title={`Carrying ${carriedDef.name} (${Math.round(carriedFish.freshness)}% fresh)`}
+            >
+              <CornerLeafSprout className="plaque-corner-tl" size={16} />
+              <CornerRopeKnot className="plaque-corner-br" size={16} />
+              <div className="hud-plaque-content">
+                <IconFish size={18} className="hud-cargo-icon" />
+                <div className="hud-cargo-copy">
+                  <span className="hud-cargo-title">{carriedFish.weightKg.toFixed(1)}kg {carriedDef.name}</span>
+                  <div className="hud-cargo-bar">
+                    <div
+                      className="hud-cargo-fill"
+                      style={{ width: `${Math.round(carriedFish.freshness)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Minimalist Hotkey Navigation Bar */}
-        <div className="hud-quick-actions">
+        {/* Navigation Action Buttons Row */}
+        <div className="hud-navigation-bar" role="toolbar" aria-label="Field navigation tabs">
           <button
             type="button"
-            className="hud-action-btn"
-            onClick={onOpenMap}
-            title="Regional Map (M)"
-            aria-label="Regional Map"
-          >
-            <span>Map</span>
-            <kbd>M</kbd>
-          </button>
-
-          <button
-            type="button"
-            className="hud-action-btn"
-            onClick={onOpenLedger}
-            title="Logistics & P&L Ledger (L)"
-            aria-label="Merchant Ledger"
-          >
-            <span>Ledger</span>
-            <kbd>L</kbd>
-          </button>
-
-          <button
-            type="button"
-            className="hud-action-btn"
+            className="hud-wood-btn"
             onClick={onOpenJournal}
-            title="Captain's Logbook & Quests (J)"
             aria-label="Captain's Journal"
           >
-            <span>Journal</span>
-            <kbd>J</kbd>
+            <IconJournal size={15} className="btn-icon" />
+            <span className="btn-text">Journal</span>
+            <KeycapBadge keyName="J" />
           </button>
 
           <button
             type="button"
-            className="hud-action-btn"
-            onClick={onOpenInventory}
-            title="Backpack Inventory (I)"
-            aria-label="Backpack Inventory"
+            className="hud-wood-btn"
+            onClick={onOpenMap}
+            aria-label="World Map"
           >
-            <span>Pack</span>
-            <kbd>I</kbd>
+            <IconCompass size={15} className="btn-icon" />
+            <span className="btn-text">Map</span>
+            <KeycapBadge keyName="M" />
+          </button>
+
+          <button
+            type="button"
+            className="hud-wood-btn"
+            onClick={onOpenLedger}
+            aria-label="Merchant Ledger"
+          >
+            <IconLedger size={15} className="btn-icon" />
+            <span className="btn-text">Ledger</span>
+            <KeycapBadge keyName="L" />
           </button>
 
           {state.quests.unlockedFeatureIds.includes("feature.expedition_planner") && (
             <button
               type="button"
-              className="hud-action-btn"
+              className="hud-wood-btn"
               onClick={onOpenExpedition}
-              title="Expedition Planner (P)"
               aria-label="Expedition Planner"
             >
-              <span>Plan</span>
-              <kbd>P</kbd>
+              <IconExpedition size={15} className="btn-icon" />
+              <span className="btn-text">Board</span>
+              <KeycapBadge keyName="P" />
             </button>
           )}
 
           {onOpenMenu && (
             <button
               type="button"
-              className="hud-action-btn hud-action-btn-menu"
+              className="hud-wood-btn hud-wood-btn-menu"
               onClick={onOpenMenu}
-              title="Pause Menu (ESC)"
-              aria-label="Pause Menu"
+              aria-label="Game Menu"
             >
-              <kbd>ESC</kbd>
+              <IconMenu size={16} className="btn-icon" />
+              <KeycapBadge keyName="ESC" />
             </button>
           )}
         </div>
       </nav>
 
-      {/* 4. Active Boat Driving HUD */}
+      {/* =========================================================================
+          4. BOAT DRIVING HUD (Offshore Navigation)
+          ========================================================================= */}
       {activeBoat && boatDef && (
-        <section className="hud-boat-panel interactive" aria-label="Boat driving status">
+        <section className="hud-diegetic-panel hud-boat-panel interactive" aria-label="Boat driving status">
+          <CornerLeafSprout className="panel-corner-tl" size={24} />
+          <CornerRopeKnot className="panel-corner-br" size={24} />
+
           <header className="boat-panel-header">
-            <IconBoat size={16} className="boat-header-icon" />
+            <IconBoat size={18} className="boat-header-icon" />
             <div className="boat-header-meta">
               <strong>{boatDef.name}</strong>
-              <span>{Math.round(activeBoat.speed * 1.944)} kn · {weather.seaRoughness < 0.35 ? "Calm Waters" : weather.seaRoughness < 0.7 ? "Moderate Swell" : "Rough Sea"}</span>
+              <span>
+                {Math.round(activeBoat.speed * 1.944)} kn ·{" "}
+                {weather.seaRoughness < 0.35 ? "Calm Waters" : weather.seaRoughness < 0.7 ? "Moderate Swell" : "Rough Sea"}
+              </span>
             </div>
           </header>
 
@@ -368,12 +549,14 @@ export const HUD: React.FC<HUDProps> = ({
         </section>
       )}
 
-      {/* 5. Bottom-Left: Tool Quickbar & Contextual Work Capacity */}
-      <aside className="hud-bottom-left interactive" aria-label="Tool Quickbar and Labor Vitals">
-        {/* Sprint Stamina — stacks above the quickbar */}
+      {/* =========================================================================
+          5. BOTTOM-LEFT: WOODEN QUICKBAR & SPRINT STAMINA (Reference Bottom-Left)
+          ========================================================================= */}
+      <aside className="hud-bottom-left interactive" aria-label="Tool Quickbar">
+        {/* Sprint Stamina floating above quickbar */}
         {showSprintStamina && (
           <div
-            className={`sprint-stamina${player.traversal.sprintExhausted ? " sprint-stamina-winded" : ""}`}
+            className={`sprint-stamina-wood${player.traversal.sprintExhausted ? " sprint-stamina-winded" : ""}`}
             data-testid="sprint-stamina"
             role="progressbar"
             aria-label="Sprint stamina"
@@ -395,138 +578,135 @@ export const HUD: React.FC<HUDProps> = ({
           </div>
         )}
 
-        <div className="hud-quickbar-dock" role="toolbar" aria-label="Tool Belt">
+        {/* Quickbar Dock with Wood Frame & Corner Ornaments */}
+        <div className="hud-quickbar-wood-dock" role="toolbar" aria-label="Tool Belt">
+          <CornerLeafSprout className="quickbar-corner-tl" size={26} />
+          <CornerRopeKnot className="quickbar-corner-br" size={26} />
+
+          {/* Slot 1: Tool / Hoe / Axe */}
           <button
             type="button"
-            className={`quickbar-slot ${activeToolSlot === 1 ? "is-active" : ""}`}
+            className={`quickbar-wood-slot ${activeToolSlot === 1 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(1)}
-            title="Primary Tool / Hoe (1)"
+            title="Primary Tool (1)"
           >
-            <kbd className="slot-num">1</kbd>
-            <span className="slot-label">Tool</span>
+            <span className="slot-num-badge">1</span>
+            <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
+
+          {/* Slot 2: Watering Can */}
           <button
             type="button"
-            className={`quickbar-slot ${activeToolSlot === 2 ? "is-active" : ""}`}
+            className={`quickbar-wood-slot ${activeToolSlot === 2 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(2)}
-            title="Seeds & Planting (2)"
+            title="Watering Can (2)"
           >
-            <kbd className="slot-num">2</kbd>
-            <span className="slot-label">Seed</span>
+            <span className="slot-num-badge">2</span>
+            <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
+
+          {/* Slot 3: Mattock / Pickaxe */}
           <button
             type="button"
-            className={`quickbar-slot ${activeToolSlot === 3 ? "is-active" : ""}`}
+            className={`quickbar-wood-slot ${activeToolSlot === 3 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(3)}
-            title="Watering Can (3)"
+            title="Mattock / Pick (3)"
           >
-            <kbd className="slot-num">3</kbd>
-            <span className="slot-label">Water</span>
+            <span className="slot-num-badge">3</span>
+            <IconPickaxe size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
+
+          {/* Slot 4: Fishing Bait / Net */}
           <button
             type="button"
-            className={`quickbar-slot ${activeToolSlot === 4 ? "is-active" : ""}`}
+            className={`quickbar-wood-slot ${activeToolSlot === 4 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(4)}
             title="Fishing Bait (4)"
           >
-            <kbd className="slot-num">4</kbd>
-            <span className="slot-label">Bait</span>
+            <span className="slot-num-badge">4</span>
+            <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
+
+          {/* Slot 5: Harvest Basket / Foraging (Reference Slot 5) */}
           <button
             type="button"
-            className={`quickbar-slot ${activeToolSlot === 5 ? "is-active" : ""}`}
+            className={`quickbar-wood-slot ${activeToolSlot === 5 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(5)}
-            title="Fishing Rod (5)"
+            title="Harvest Basket / Rod (5)"
           >
-            <kbd className="slot-num">5</kbd>
-            <span className="slot-label">Rod</span>
+            <span className="slot-num-badge">5</span>
+            <IconBasket size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
-        </div>
-
-        {/* Contextual Work Capacity Bar */}
-        <div
-          className={`hud-work-pill ${showWorkAlert ? "is-depleted" : ""}`}
-          title={`Work Capacity: ${workCurrent} / ${workMax} (Labor resource)`}
-        >
-          <div className="work-pill-meta">
-            <IconEnergy size={12} className="work-icon" />
-            <span className="work-text">Labor {workCurrent}/{workMax}</span>
-          </div>
-          <div className="work-bar-track">
-            <div className="work-bar-fill" style={{ width: `${workPercent}%` }} />
-          </div>
         </div>
       </aside>
 
-      {/* 6. Bottom-Right: Contextual Carry Weight / Physical Cargo Pill */}
-      {carriedFish && carriedDef && (
-        <aside className="hud-bottom-right interactive" aria-label="Carried physical cargo">
-          <div className="cargo-carried-pill">
-            <div className="cargo-carried-icon">
-              <IconFish size={18} />
+      {/* =========================================================================
+          6. BOTTOM-CENTER: INTERACTION BANNER & HOTKEY RIBBON (Reference Bottom-Center)
+          ========================================================================= */}
+      {!isPlacementActive && (
+        <footer className="hud-bottom-center" aria-label="Contextual interactions">
+          {/* Fishing Minigame Cues */}
+          {state.basicFishing && (
+            <div className={`interaction-wood-banner fishing-phase-banner phase-${state.basicFishing.phase}`} role="status">
+              <CornerLeafSprout className="banner-corner-tl" size={22} />
+              <CornerRopeKnot className="banner-corner-br" size={22} />
+              {state.basicFishing.phase === "charging-cast" ? (
+                <span className="banner-text">🎣 Charging cast power… Release to throw</span>
+              ) : state.basicFishing.phase === "bite-reaction" || (state.basicFishing.phase as string) === "bite" ? (
+                <div className="banner-content-row">
+                  <KeycapBadge keyName="Space" />
+                  <span className="banner-text is-bite-alert">Hook the fish!</span>
+                </div>
+              ) : state.basicFishing.phase === "minigame" ? (
+                <span className="banner-text">🐟 Reeling: Hold [Space] to keep bar on fish!</span>
+              ) : state.basicFishing.phase === "caught" ? (
+                <div className="banner-content-row">
+                  <KeycapBadge keyName="Space" />
+                  <span className="banner-text">Collect Catch</span>
+                </div>
+              ) : state.basicFishing.phase === "escaped" ? (
+                <span className="banner-text">💨 The fish got away…</span>
+              ) : (
+                <span className="banner-text">🌊 Bobber in water… Waiting for a bite</span>
+              )}
             </div>
-            <div className="cargo-carried-meta">
-              <span className="cargo-carried-kicker">CARRYING CARGO</span>
-              <strong className="cargo-carried-title">{carriedDef.name}</strong>
-              <div className="cargo-carried-sub">
-                <span>{carriedFish.weightKg.toFixed(1)} kg</span>
-                <span className="dot-sep">·</span>
-                <span className="fresh-val">{Math.round(carriedFish.freshness)}% Fresh</span>
+          )}
+
+          {/* Diegetic Interaction Banner (e.g. [E] Interact / Talk to Elspeth) */}
+          {!state.basicFishing && parsedPrompt && (
+            <div className="interaction-wood-banner" role="status">
+              <CornerLeafSprout className="banner-corner-tl" size={22} />
+              <CornerRopeKnot className="banner-corner-br" size={22} />
+              <div className="banner-content-row">
+                <KeycapBadge keyName={parsedPrompt.key} />
+                <span className="banner-text">{parsedPrompt.label}</span>
               </div>
             </div>
-          </div>
-        </aside>
-      )}
+          )}
 
-
-
-      {/* 8. Bottom-Center: Contextual Action Prompt */}
-      <footer className="hud-bottom-center" aria-label="Contextual interactions">
-        {state.basicFishing && (
-          <div className={`interaction-prompt fishing-phase-prompt phase-${state.basicFishing.phase}`} role="status">
-            {state.basicFishing.phase === "charging-cast" ? (
-              <span className="fishing-prompt-text">🎣 Charging cast power… Release to throw</span>
-            ) : state.basicFishing.phase === "bite-reaction" || (state.basicFishing.phase as string) === "bite" ? (
-              <span className="fishing-prompt-text is-bite-alert">✨ ! BITE ! Hook the fish [Space] / [Click]!</span>
-            ) : state.basicFishing.phase === "minigame" ? (
-              <span className="fishing-prompt-text">🐟 Reeling: Hold [Space / LMB] to keep bar on fish!</span>
-            ) : state.basicFishing.phase === "caught" ? (
-              <span className="fishing-prompt-text">🎉 Catch Landed! Press [Space] to collect.</span>
-            ) : state.basicFishing.phase === "escaped" ? (
-              <span className="fishing-prompt-text">💨 The fish got away…</span>
+          {/* Subtle Hotkey Ribbon */}
+          <div className="hud-hotkey-ribbon-wood interactive">
+            {activeBoat ? (
+              <>
+                <span className="control-note"><KeycapBadge keyName="W/S" /> Throttle</span>
+                <span className="control-note"><KeycapBadge keyName="A/D" /> Steer</span>
+                <span className="control-note"><KeycapBadge keyName="E" /> Dock</span>
+                <span className="control-note"><KeycapBadge keyName="M" /> Map</span>
+                <span className="control-note"><KeycapBadge keyName="L" /> Ledger</span>
+              </>
             ) : (
-              <span className="fishing-prompt-text">🌊 Bobber in water… Waiting for a bite</span>
+              <>
+                <span className="control-note"><KeycapBadge keyName="WASD" /> Move</span>
+                <span className="control-note"><KeycapBadge keyName="Shift" /> Sprint</span>
+                <span className="control-note"><KeycapBadge keyName="E" /> Interact</span>
+                <span className="control-note"><KeycapBadge keyName="Alt" /> Soil GIS</span>
+                <span className="control-note"><KeycapBadge keyName="M" /> Map</span>
+                <span className="control-note"><KeycapBadge keyName="L" /> Ledger</span>
+              </>
             )}
           </div>
-        )}
-
-        {promptText && (
-          <div className="interaction-prompt">
-            <span className="prompt-text-content">{promptText}</span>
-          </div>
-        )}
-
-        <div className="hud-hotkey-hints interactive">
-          {activeBoat ? (
-            <>
-              <span className="hotkey-chip"><kbd>W</kbd><kbd>S</kbd> Throttle</span>
-              <span className="hotkey-chip"><kbd>A</kbd><kbd>D</kbd> Steer</span>
-              <span className="hotkey-chip"><kbd>E</kbd> Dock</span>
-              <span className="hotkey-chip"><kbd>M</kbd> Map</span>
-              <span className="hotkey-chip"><kbd>L</kbd> Ledger</span>
-            </>
-          ) : (
-            <>
-              <span className="hotkey-chip"><kbd>WASD</kbd> Move</span>
-              <span className="hotkey-chip"><kbd>Shift</kbd> Sprint</span>
-              <span className="hotkey-chip"><kbd>E</kbd> Interact</span>
-              <span className="hotkey-chip"><kbd>Alt</kbd> Soil GIS</span>
-              <span className="hotkey-chip"><kbd>M</kbd> Map</span>
-              <span className="hotkey-chip"><kbd>L</kbd> Ledger</span>
-            </>
-          )}
-        </div>
-      </footer>
+        </footer>
+      )}
     </>
   );
 };

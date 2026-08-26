@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import type { CameraInputIntent } from "../../input/InputRouter";
+import type {
+  BoatMotionSample,
+  PlayerMotionSample
+} from "../../simulation/core/PhysicsAdapter";
 import type { GameMode } from "../../simulation/core/types";
 import { WorldLayout } from "../../world/WorldLayout";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 
 export interface CameraCollisionResolver {
   resolveCameraPosition(
@@ -9,6 +14,13 @@ export interface CameraCollisionResolver {
     desired: { x: number; y: number; z: number },
     radius?: number
   ): { position: { x: number; y: number; z: number }; obstructed: boolean };
+}
+
+export interface CameraMotionInput {
+  player: PlayerMotionSample;
+  boat?: BoatMotionSample;
+  discontinuityReason?: "none" | "teleport" | "load" | "recovery" | "boarding" | "docking";
+  discontinuitySequence?: number;
 }
 
 export interface CameraProfile {
@@ -119,6 +131,8 @@ export class GameCamera {
   private readonly currentLookAt = new THREE.Vector3();
   private readonly desiredCameraPosition = new THREE.Vector3();
   private readonly collisionPosition = new THREE.Vector3();
+  private readonly motionLookAhead = new THREE.Vector3();
+  private readonly vehicleMotionOffset = new THREE.Vector3();
   private currentMode: GameMode = "on-foot";
   private currentProfile: CameraProfile = ON_FOOT_PROFILE;
   private desiredYaw = Math.PI;
@@ -132,6 +146,10 @@ export class GameCamera {
   private obstructionFraction = 1;
   private obstructionActive = false;
   private anchorInitialized = false;
+  private landingOffsetY = 0;
+  private vehicleMotionPhase = 0;
+  private lastContactEvent: PlayerMotionSample["contactEvent"] = "none";
+  private lastDiscontinuitySequence = -1;
   private reducedMotion = typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
@@ -200,7 +218,8 @@ export class GameCamera {
     mode: GameMode,
     deltaSeconds: number,
     input?: CameraInputIntent,
-    collisionResolver?: CameraCollisionResolver
+    collisionResolver?: CameraCollisionResolver,
+    motionInput?: CameraMotionInput
   ): void {
     const dt = Math.min(0.1, Math.max(0, deltaSeconds));
     if (input) this.applyInput(mode, input);
@@ -226,14 +245,24 @@ export class GameCamera {
       this.currentLookAhead = damp(this.currentLookAhead, profile.lookAhead, CAMERA_TUNING.profileResponse, dt);
     }
 
-    this.rawAnchor.set(targetPos.x, targetPos.y + this.currentFocusHeight, targetPos.z);
+    const explicitDiscontinuity = this.updateMotionResponse(
+      motionInput,
+      mode,
+      dt
+    );
+
+    this.rawAnchor.set(
+      targetPos.x + this.vehicleMotionOffset.x,
+      targetPos.y + this.currentFocusHeight + this.landingOffsetY + this.vehicleMotionOffset.y,
+      targetPos.z + this.vehicleMotionOffset.z
+    );
     const teleported = this.anchorInitialized &&
       this.currentAnchor.distanceToSquared(this.rawAnchor) >
         CAMERA_TUNING.teleportSnapDistanceMeters ** 2;
-    if (!this.anchorInitialized || this.reducedMotion || teleported) {
+    if (!this.anchorInitialized || this.reducedMotion || teleported || explicitDiscontinuity) {
       this.currentAnchor.copy(this.rawAnchor);
       this.anchorInitialized = true;
-      if (teleported) this.obstructionFraction = 1;
+      if (teleported || explicitDiscontinuity) this.obstructionFraction = 1;
     } else {
       const horizontalFollow = 1 - Math.exp(-CAMERA_TUNING.horizontalFollowResponse * dt);
       const verticalFollow = 1 - Math.exp(-CAMERA_TUNING.verticalFollowResponse * dt);
@@ -245,9 +274,9 @@ export class GameCamera {
     const lookDirectionX = -Math.sin(this.currentYaw);
     const lookDirectionZ = -Math.cos(this.currentYaw);
     this.currentLookAt.set(
-      this.currentAnchor.x + lookDirectionX * this.currentLookAhead,
+      this.currentAnchor.x + lookDirectionX * this.currentLookAhead + this.motionLookAhead.x,
       this.currentAnchor.y,
-      this.currentAnchor.z + lookDirectionZ * this.currentLookAhead
+      this.currentAnchor.z + lookDirectionZ * this.currentLookAhead + this.motionLookAhead.z
     );
     const horizontalDistance = Math.cos(this.currentPitch) * this.currentDistance;
     this.desiredCameraPosition.set(
@@ -357,6 +386,121 @@ export class GameCamera {
       obstructed: this.obstructionActive,
       fovDegrees: this.camera.fov
     };
+  }
+
+  private updateMotionResponse(
+    motionInput: CameraMotionInput | undefined,
+    mode: GameMode,
+    dt: number
+  ): boolean {
+    const sequence = motionInput?.discontinuitySequence;
+    const hasNewDiscontinuity = sequence !== undefined && sequence !== this.lastDiscontinuitySequence;
+    const explicitDiscontinuity = Boolean(
+      hasNewDiscontinuity &&
+      motionInput?.discontinuityReason &&
+      motionInput.discontinuityReason !== "none"
+    );
+    if (sequence !== undefined) this.lastDiscontinuitySequence = sequence;
+
+    if (this.reducedMotion || !motionInput) {
+      this.motionLookAhead.set(0, 0, 0);
+      this.vehicleMotionOffset.set(0, 0, 0);
+      this.landingOffsetY = 0;
+      this.lastContactEvent = motionInput?.player.contactEvent ?? "none";
+      return explicitDiscontinuity;
+    }
+
+    const velocity = motionInput.player.velocity;
+    let desiredLookAheadX = velocity.x * CANONICAL_RENDER_CONFIG.motion.cameraLookAheadSeconds;
+    let desiredLookAheadZ = velocity.z * CANONICAL_RENDER_CONFIG.motion.cameraLookAheadSeconds;
+    const desiredLength = Math.hypot(desiredLookAheadX, desiredLookAheadZ);
+    const maximumLookAhead = CANONICAL_RENDER_CONFIG.motion.cameraLookAheadMaxMeters;
+    if (desiredLength > maximumLookAhead && desiredLength > 0.0001) {
+      const scale = maximumLookAhead / desiredLength;
+      desiredLookAheadX *= scale;
+      desiredLookAheadZ *= scale;
+    }
+    const lookAheadSmoothing = 1 - Math.exp(
+      -CANONICAL_RENDER_CONFIG.motion.cameraLookAheadResponse * dt
+    );
+    this.motionLookAhead.x = THREE.MathUtils.lerp(
+      this.motionLookAhead.x,
+      desiredLookAheadX,
+      lookAheadSmoothing
+    );
+    this.motionLookAhead.z = THREE.MathUtils.lerp(
+      this.motionLookAhead.z,
+      desiredLookAheadZ,
+      lookAheadSmoothing
+    );
+
+    if (
+      motionInput.player.contactEvent !== this.lastContactEvent &&
+      motionInput.player.contactEvent === "land-hard"
+    ) {
+      this.landingOffsetY = -CANONICAL_RENDER_CONFIG.motion.cameraLandingImpulseMeters *
+        motionInput.player.landingImpactStrength;
+    }
+    this.lastContactEvent = motionInput.player.contactEvent;
+    this.landingOffsetY = damp(
+      this.landingOffsetY,
+      0,
+      CANONICAL_RENDER_CONFIG.motion.cameraLandingResponse,
+      dt
+    );
+
+    const boat = mode === "boat-driving" || mode === "basic-fishing" || mode === "sport-fishing"
+      ? motionInput.boat
+      : undefined;
+    let desiredVehicleX = 0;
+    let desiredVehicleY = 0;
+    let desiredVehicleZ = 0;
+    if (boat) {
+      this.vehicleMotionPhase += dt * (2.1 + boat.roughnessResponse * 2.4);
+      const rightX = Math.cos(this.currentYaw);
+      const rightZ = -Math.sin(this.currentYaw);
+      const lateral = THREE.MathUtils.clamp(
+        boat.yawRateRadiansPerSecond,
+        -2,
+        2
+      ) * CANONICAL_RENDER_CONFIG.motion.cameraBoatYawMeters;
+      desiredVehicleX += rightX * lateral;
+      desiredVehicleZ += rightZ * lateral;
+      const horizontalSpeed = Math.hypot(boat.velocity.x, boat.velocity.z);
+      if (horizontalSpeed > 0.05) {
+        const accelerationOffset = THREE.MathUtils.clamp(
+          boat.accelerationMetersPerSecondSquared / 12,
+          -1,
+          1
+        ) * CANONICAL_RENDER_CONFIG.motion.cameraBoatAccelerationMeters;
+        desiredVehicleX -= boat.velocity.x / horizontalSpeed * accelerationOffset;
+        desiredVehicleZ -= boat.velocity.z / horizontalSpeed * accelerationOffset;
+      }
+      desiredVehicleY = Math.sin(this.vehicleMotionPhase) * boat.roughnessResponse * 0.045;
+    }
+    const vehicleSmoothing = 1 - Math.exp(-8 * dt);
+    this.vehicleMotionOffset.x = THREE.MathUtils.lerp(
+      this.vehicleMotionOffset.x,
+      desiredVehicleX,
+      vehicleSmoothing
+    );
+    this.vehicleMotionOffset.y = THREE.MathUtils.lerp(
+      this.vehicleMotionOffset.y,
+      desiredVehicleY,
+      vehicleSmoothing
+    );
+    this.vehicleMotionOffset.z = THREE.MathUtils.lerp(
+      this.vehicleMotionOffset.z,
+      desiredVehicleZ,
+      vehicleSmoothing
+    );
+
+    if (explicitDiscontinuity) {
+      this.motionLookAhead.set(0, 0, 0);
+      this.vehicleMotionOffset.set(0, 0, 0);
+      this.landingOffsetY = 0;
+    }
+    return explicitDiscontinuity;
   }
 
   private activateMode(mode: GameMode, isInterior = false): CameraProfile {

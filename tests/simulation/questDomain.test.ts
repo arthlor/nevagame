@@ -247,7 +247,29 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(sim.state.world.storySchoolSpawned).toBe(true);
     expect(schools).toHaveLength(1);
     expect(schools[0]).toMatchObject({ habitatId: "lake", speciesWeights: [{ speciesId: "fish.trout" }] });
+    sim.state.player.x = 76;
+    sim.state.player.z = 64;
     expect(sim.canBoardBoat("boat.player_rowboat")).toBe(true);
+  });
+
+  it("passes the explicit NPC target through a quest claim command", () => {
+    const sim = new Simulation();
+    const speaker = ContentRegistry.npcs.get("npc.elspeth")!;
+    sim.state.player.x = speaker.anchor.x;
+    sim.state.player.z = speaker.anchor.z;
+    sim.state.quests.activeQuestId = "quest.act1_welcome";
+    sim.state.quests.activeStepIndex = 0;
+    sim.state.quests.stepProgress = { "step.act1_welcome_talk": 1 };
+
+    const result = sim.execute({
+      type: "quest.claim-reward",
+      questId: "quest.act1_welcome",
+      npcId: "npc.elspeth"
+    });
+
+    expect(result).toMatchObject({ success: true, rewardMoney: undefined });
+    expect(sim.state.quests.completedQuestIds).toContain("quest.act1_welcome");
+    expect(sim.state.quests.activeQuestId).toBe("quest.act1_sow_wheat");
   });
 
 
@@ -318,6 +340,23 @@ describe("QuestDomain & Storyline Progression", () => {
       cargoId: "cargo.test",
       boatId: "boat.player_rowboat",
       slotIndex: 0,
+      minute: sim.state.clock.currentMinute
+    });
+    expect(sim.state.quests.activeStepIndex).toBe(5);
+    expect(sim.state.quests.stepProgress).toEqual({});
+  });
+
+  it("counts player-carry shore landings as land and stow so Act 5 cannot softlock", () => {
+    const sim = new Simulation();
+    sim.state.quests.activeQuestId = "quest.act5_maiden_voyage";
+    sim.state.quests.activeStepIndex = 3;
+    sim.state.quests.stepProgress = {};
+
+    sim.events.emit("FishLanded", {
+      cargoId: "cargo.carry",
+      speciesId: "fish.trout",
+      weightKg: 2.5,
+      quality: "common",
       minute: sim.state.clock.currentMinute
     });
     expect(sim.state.quests.activeStepIndex).toBe(5);

@@ -126,8 +126,8 @@ function buildCultivatedBed({
   const indexed = new THREE.BufferGeometry();
   indexed.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   indexed.setIndex(indices);
-  const geometry = indexed.toNonIndexed();
-  indexed.dispose();
+  const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
+  if (geometry !== indexed) indexed.dispose();
 
   const palette = [
     new THREE.Color(PALETTE_HEX.soil_dry_01),

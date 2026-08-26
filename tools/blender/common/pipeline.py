@@ -96,42 +96,48 @@ def _validate_animation_contract(
     if not clips:
         return []
     asset_id = spec["id"]
-    armatures = [obj for obj in objects if obj.type == "ARMATURE" and obj.name == spec["rigNode"]]
-    if len(armatures) != 1:
-        raise RuntimeError(f"{asset_id}: expected one armature named {spec['rigNode']}")
-    armature = armatures[0]
-    for mesh in meshes:
-        modifiers = [modifier for modifier in mesh.modifiers if modifier.type == "ARMATURE"]
-        if len(modifiers) != 1 or modifiers[0].object is not armature:
-            raise RuntimeError(f"{asset_id}: {mesh.name} is not bound to {spec['rigNode']}")
-        if not mesh.vertex_groups:
-            raise RuntimeError(f"{asset_id}: {mesh.name} has no skin weights")
-    nodes = {obj.name: obj for obj in objects}
-    for socket_name in spec["socketNodes"]:
-        socket = nodes.get(socket_name)
-        if socket is None or socket.type != "EMPTY" or socket.get("neva_marker") != "socket":
-            raise RuntimeError(f"{asset_id}: invalid socket node {socket_name}")
-        if socket.parent is not armature or socket.parent_type != "BONE" or not socket.parent_bone:
-            raise RuntimeError(f"{asset_id}: socket {socket_name} is not bone-parented")
+    if spec["family"] == "character":
+        armatures = [obj for obj in objects if obj.type == "ARMATURE" and obj.name == spec["rigNode"]]
+        if len(armatures) != 1:
+            raise RuntimeError(f"{asset_id}: expected one armature named {spec['rigNode']}")
+        armature = armatures[0]
+        for mesh in meshes:
+            modifiers = [modifier for modifier in mesh.modifiers if modifier.type == "ARMATURE"]
+            if len(modifiers) != 1 or modifiers[0].object is not armature:
+                raise RuntimeError(f"{asset_id}: {mesh.name} is not bound to {spec['rigNode']}")
+            if not mesh.vertex_groups:
+                raise RuntimeError(f"{asset_id}: {mesh.name} has no skin weights")
+        nodes = {obj.name: obj for obj in objects}
+        for socket_name in spec["socketNodes"]:
+            socket = nodes.get(socket_name)
+            if socket is None or socket.type != "EMPTY" or socket.get("neva_marker") != "socket":
+                raise RuntimeError(f"{asset_id}: invalid socket node {socket_name}")
+            if socket.parent is not armature or socket.parent_type != "BONE" or not socket.parent_bone:
+                raise RuntimeError(f"{asset_id}: socket {socket_name} is not bone-parented")
 
     fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
     metrics = []
+    clips_by_name = {clip["name"]: clip for clip in clips}
     for clip in clips:
         action = bpy.data.actions.get(clip["name"])
-        if action is None:
-            raise RuntimeError(f"{asset_id}: missing authored action {clip['name']}")
+        source_clip = clip
+        if action is None and clip.get("optional", False):
+            source_clip = clips_by_name.get(clip.get("fallbackClip"))
+            action = bpy.data.actions.get(clip.get("fallbackClip", ""))
+        if action is None or source_clip is None:
+            raise RuntimeError(f"{asset_id}: missing required authored action {clip['name']}")
         duration = (action.frame_range[1] - action.frame_range[0]) / fps
-        if abs(duration - clip["durationSeconds"]) > (1 / 60 + 0.002):
+        if abs(duration - source_clip["durationSeconds"]) > (1 / 60 + 0.002):
             raise RuntimeError(
                 f"{asset_id}: {clip['name']} duration {duration:.3f} does not match "
-                f"{clip['durationSeconds']:.3f}"
+                f"{source_clip['durationSeconds']:.3f}"
             )
-        marker = clip.get("commitMarkerSeconds")
+        marker = source_clip.get("commitMarkerSeconds")
         if marker is not None and abs(action.get("neva_commit_marker_seconds", -1) - marker) > 0.001:
             raise RuntimeError(f"{asset_id}: {clip['name']} commit marker metadata is missing or stale")
-        if bool(action.get("neva_loop", False)) != clip["loop"]:
+        if bool(action.get("neva_loop", False)) != source_clip["loop"]:
             raise RuntimeError(f"{asset_id}: {clip['name']} loop metadata is missing or stale")
-        reference_speed = clip.get("referenceSpeedMetersPerSecond")
+        reference_speed = source_clip.get("referenceSpeedMetersPerSecond")
         if reference_speed is not None and abs(
             action.get("neva_reference_speed_meters_per_second", -1) - reference_speed
         ) > 0.001:
@@ -142,6 +148,8 @@ def _validate_animation_contract(
             "commitMarkerSeconds": marker,
             "loop": clip["loop"],
             "referenceSpeedMetersPerSecond": reference_speed,
+            "optional": clip.get("optional", False),
+            "fallbackClip": clip.get("fallbackClip"),
             "events": clip.get("events", []),
         })
     return metrics
@@ -269,6 +277,11 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         export_apply=True,
         export_yup=True,
         export_attributes=True,
+        export_animation_mode=(
+            "NLA_TRACKS"
+            if spec.get("animationClips") and spec["family"] != "character"
+            else "ACTIONS"
+        ),
         export_cameras=False,
         export_lights=False,
     )

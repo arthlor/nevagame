@@ -6,7 +6,12 @@ import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { Simulation } from "../../src/simulation/Simulation";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
-import { WorldLayout } from "../../src/world/WorldLayout";
+import {
+  BRIDGE_WORLD_PROFILE,
+  WORLD_LAYOUT_V3,
+  WORLD_REGIONAL_PATHS,
+  WorldLayout
+} from "../../src/world/WorldLayout";
 
 const landmarkCollision = (
   assetId: Parameters<typeof projectAssetCollision>[0],
@@ -78,6 +83,8 @@ describe("PhysicsWorld", () => {
     );
     expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
     expect(sim.state.player.traversal.isGrounded).toBe(false);
+    expect(frame.playerMotion.contactEvent).toBe("takeoff");
+    expect(frame.playerMotion.airbornePhase).toBe("rising");
 
     frame = physics.step(
       sim.state,
@@ -90,6 +97,8 @@ describe("PhysicsWorld", () => {
     expect(sim.state.player.y).toBeGreaterThan(startY);
 
     let apex = sim.state.player.y;
+    let landingContact: "land-soft" | "land-hard" | null = null;
+    let landingImpact = 0;
     for (let index = 2; index <= 150; index++) {
       frame = physics.step(
         sim.state,
@@ -105,11 +114,19 @@ describe("PhysicsWorld", () => {
       );
       expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
       apex = Math.max(apex, sim.state.player.y);
+      if (frame.playerMotion.contactEvent === "land-soft" || frame.playerMotion.contactEvent === "land-hard") {
+        landingContact = frame.playerMotion.contactEvent;
+        landingImpact = frame.playerMotion.landingImpactStrength;
+      }
     }
 
     expect(apex - startY).toBeGreaterThan(1);
     expect(apex - startY).toBeLessThan(2);
     expect(sim.state.player.traversal.isGrounded).toBe(true);
+    expect(landingContact).not.toBeNull();
+    expect(landingImpact).toBeGreaterThanOrEqual(0);
+    expect(frame.playerMotion.groundNormal.y).toBeGreaterThan(0.7);
+    expect(frame.playerMotion.airbornePhase).toBe("grounded");
     expect(sim.state.player.y).toBeCloseTo(
       WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.5,
       2
@@ -126,15 +143,21 @@ describe("PhysicsWorld", () => {
     boat.dockedMarketId = null;
     state.player.activeBoatId = boat.id;
     const initialZ = boat.z;
+    let lastMotion = null as ReturnType<PhysicsWorld["step"]>["boatMotion"][string] | null;
     for (let index = 0; index < 45; index++) {
       const frame = physics.step(state, { x: 0, z: -1, sprint: false }, "boat-driving", 1 / 60, index / 60);
       expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+      lastMotion = frame.boatMotion[boat.id];
     }
     expect(boat.z).toBeGreaterThan(initialZ);
     expect(boat.y).toBe(canonicalWaterline);
     expect(state.player.y).toBe(canonicalWaterline + 0.5);
     expect(state.player.x).toBeCloseTo(boat.x, 5);
     expect(state.player.z).toBeCloseTo(boat.z, 5);
+    expect(lastMotion).toMatchObject({ throttle: 1 });
+    expect(lastMotion?.controlEffort).toBeGreaterThan(0);
+    expect(Number.isFinite(lastMotion?.accelerationMetersPerSecondSquared ?? NaN)).toBe(true);
+    expect(Number.isFinite(lastMotion?.yawRateRadiansPerSecond ?? NaN)).toBe(true);
   });
 
   it("blocks the player with startup-projected static collision", async () => {
@@ -401,6 +424,78 @@ describe("PhysicsWorld", () => {
     expect(sim.state.player.traversal.isGrounded).toBe(true);
   });
 
+  it("follows the farm gateway route across the bridge into the village approach", async () => {
+    const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
+    const physics = await PhysicsWorld.create(bridgeCollision);
+    const sim = new Simulation();
+    const route = WORLD_REGIONAL_PATHS[0];
+    const start = route[0];
+    placePlayer(sim, start.x, start.z);
+    sim.state.player.traversal.isGrounded = true;
+    for (let settleIndex = 0; settleIndex < 5; settleIndex++) {
+      const settle = physics.step(
+        sim.state,
+        { x: 0, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        settleIndex / 60
+      );
+      expect(sim.commitPhysicsFrame(settle.frame).success).toBe(true);
+    }
+    let reachedVillageApproach = false;
+    let reachedBridgeDeck = false;
+
+    for (let index = 0; index < 1500; index++) {
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (let pathIndex = 0; pathIndex < route.length; pathIndex++) {
+        const distance = Math.hypot(
+          sim.state.player.x - route[pathIndex].x,
+          sim.state.player.z - route[pathIndex].z
+        );
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = pathIndex;
+        }
+      }
+      const target = route[Math.min(route.length - 1, nearestIndex + 2)];
+      const directionX = target.x - sim.state.player.x;
+      const directionZ = target.z - sim.state.player.z;
+      const directionLength = Math.hypot(directionX, directionZ);
+      const result = physics.step(
+        sim.state,
+        directionLength > 0.2
+          ? { x: directionX / directionLength, z: directionZ / directionLength, sprint: false }
+          : { x: 0, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      expect(WorldLayout.isWater(sim.state.player.x, sim.state.player.z)).toBe(false);
+      expect(result.playerMotion.isCollisionBlocked).toBe(false);
+      reachedBridgeDeck ||= WorldLayout.isBridgeDeck(sim.state.player.x, sim.state.player.z);
+      expect(sim.state.player.y).toBeGreaterThanOrEqual(
+        WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.49
+      );
+      if (
+        sim.state.player.x > WORLD_LAYOUT_V3.anchors.bridge.x
+        + BRIDGE_WORLD_PROFILE.spanLength * 0.5
+        + 1.5
+      ) {
+        reachedVillageApproach = true;
+        break;
+      }
+    }
+
+    expect(reachedBridgeDeck).toBe(true);
+    expect(reachedVillageApproach).toBe(true);
+    expect(sim.state.player.x).toBeGreaterThan(
+      WORLD_LAYOUT_V3.anchors.bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
+    );
+    expect(sim.state.player.traversal.isGrounded).toBe(true);
+  });
+
   it("steers with speed, reverses correctly, and sweeps the compound hull against docks", async () => {
     const barrierZ = HARBOR_DOCK.boatPosition.z + 7;
     const forwardPhysics = await PhysicsWorld.create([
@@ -408,7 +503,7 @@ describe("PhysicsWorld", () => {
         kind: "box",
         id: "dock-wall",
         center: { x: HARBOR_DOCK.boatPosition.x, y: 0.7, z: barrierZ },
-        halfExtents: { x: 5, y: 1.2, z: 0.25 },
+        halfExtents: { x: 20, y: 1.2, z: 0.25 },
         rotation: { x: 0, y: 0, z: 0, w: 1 }
       }
     ]);
@@ -417,18 +512,26 @@ describe("PhysicsWorld", () => {
     forwardBoat.isDocked = false;
     forwardBoat.dockedMarketId = null;
     forward.state.player.activeBoatId = forwardBoat.id;
-    for (let index = 0; index < 150; index++) {
-      forward.commitPhysicsFrame(forwardPhysics.step(
+    let collisionBlocked = false;
+    let strongestContact = 0;
+    for (let index = 0; index < 240; index++) {
+      const result = forwardPhysics.step(
         forward.state,
         { x: index < 60 ? 0.7 : 0, z: -1, sprint: false },
         "boat-driving",
         1 / 60,
         index / 60
-      ).frame);
+      );
+      forward.commitPhysicsFrame(result.frame);
+      const motion = result.boatMotion[forwardBoat.id];
+      collisionBlocked ||= motion.isCollisionBlocked;
+      strongestContact = Math.max(strongestContact, motion.contactStrength);
     }
     expect(forwardBoat.headingRadians).toBeGreaterThan(0.05);
     expect(forwardBoat.z).toBeLessThan(barrierZ - 2);
     expect(forwardBoat.y).toBe(0);
+    expect(collisionBlocked).toBe(true);
+    expect(strongestContact).toBeGreaterThan(0);
 
     const reversePhysics = await PhysicsWorld.create();
     const reverse = new Simulation();
@@ -566,5 +669,70 @@ describe("PhysicsWorld", () => {
     expect(() => {
       physics.dispose();
     }).not.toThrow();
+  });
+
+  it("does not let a station collider occlude its own interaction point", async () => {
+    const origin = { x: -65, z: -55 };
+    const ground = WorldLayout.terrainHeight(origin.x, origin.z);
+    const stationCenter = { x: origin.x, y: ground + 1.15, z: origin.z + 3.2 };
+    const physics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "struct.starter_mill",
+        center: stationCenter,
+        halfExtents: { x: 1.15, y: 1.2, z: 1.1 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const from = { x: origin.x, y: ground + 1.3, z: origin.z };
+    const to = { x: stationCenter.x, y: stationCenter.y + 0.45, z: stationCenter.z };
+    expect(physics.hasLineOfSight(from, to)).toBe(true);
+    physics.dispose();
+  });
+
+  it("still blocks line of sight when a wall sits between the player and a crop with no collider", async () => {
+    const origin = { x: -65, z: -55 };
+    const ground = WorldLayout.terrainHeight(origin.x, origin.z);
+    const physics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "farmhouse-wall",
+        center: { x: origin.x, y: ground + 1.5, z: origin.z + 1.6 },
+        halfExtents: { x: 2, y: 1.5, z: 0.25 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const from = { x: origin.x, y: ground + 1.3, z: origin.z };
+    const crop = { x: origin.x, y: ground + 0.95, z: origin.z + 3.4 };
+    expect(physics.hasLineOfSight(from, crop)).toBe(false);
+    const clear = { x: origin.x + 4, y: ground + 1.1, z: origin.z };
+    expect(physics.hasLineOfSight(from, clear)).toBe(true);
+    physics.dispose();
+  });
+
+  it("keeps an obstructing wall between the player and a large station", async () => {
+    const origin = { x: -65, z: -55 };
+    const ground = WorldLayout.terrainHeight(origin.x, origin.z);
+    const stationCenter = { x: origin.x, y: ground + 1.15, z: origin.z + 4.2 };
+    const physics = await PhysicsWorld.create([
+      {
+        kind: "box",
+        id: "struct.workbench",
+        center: stationCenter,
+        halfExtents: { x: 1.05, y: 1.1, z: 0.9 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      },
+      {
+        kind: "box",
+        id: "privacy-wall",
+        center: { x: origin.x, y: ground + 1.4, z: origin.z + 1.5 },
+        halfExtents: { x: 1.8, y: 1.4, z: 0.2 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    ]);
+    const from = { x: origin.x, y: ground + 1.3, z: origin.z };
+    const to = { x: stationCenter.x, y: stationCenter.y + 0.45, z: stationCenter.z };
+    expect(physics.hasLineOfSight(from, to)).toBe(false);
+    physics.dispose();
   });
 });

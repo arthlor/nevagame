@@ -156,9 +156,9 @@ const tuple3 = (min, max) => ({ kind: "tuple3", min, max });
 const boolean = () => ({ kind: "boolean" });
 
 const PARAMETER_CONTRACTS = Object.freeze({
-  oak_tree: { height: number(3, 10), spread: number(1, 5), canopyClusters: integer(6, 18), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10) },
+  oak_tree: { height: number(3, 10), spread: number(1, 5), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10) },
   pine_tree: { height: number(4, 12), spread: number(1, 4), tiers: integer(5, 12), lean: number(-0.4, 0.4), branchesPerTier: integer(3, 8), rootCount: integer(3, 8) },
-  apple_tree: { height: number(2.5, 7), spread: number(1, 4), canopyClusters: integer(6, 16), fruitCount: integer(6, 30), branchCount: integer(3, 8), rootCount: integer(3, 8) },
+  apple_tree: { height: number(2.5, 7), spread: number(1, 4), canopyClusters: integer(6, 20), fruitCount: integer(6, 30), branchCount: integer(3, 8), rootCount: integer(3, 8) },
   bush: { clusters: integer(3, 10), flowerCount: integer(0, 20), leafTips: integer(0, 16) },
   reeds: { stalks: integer(5, 30), height: number(0.5, 3), bladeCount: integer(2, 16) },
   kelp_clump: { fronds: integer(3, 16), height: number(0.4, 3), spread: number(0.1, 2), stalkRadius: number(0.01, 0.12), bladeWidth: number(0.05, 0.8) },
@@ -176,7 +176,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
   stone_bridge: { length: number(5, 30), width: number(2, 8), archCount: integer(1, 4) },
   working_dock: { length: number(3, 20), width: number(2, 10), canopy: boolean() },
   fish_market: { width: number(3, 16), depth: number(3, 12), wallHeight: number(2, 7), roofPitchDeg: number(20, 55) },
-  water_well: { radius: number(0.4, 2) },
+  water_well: { radius: number(0.4, 2), postHeight: number(0.8, 2.4) },
   pumpkin_patch: { pumpkins: integer(3, 12), vineSegments: integer(3, 20), lobes: integer(3, 7), blossomCount: integer(2, 12) },
   lobster_trap: { ribs: integer(4, 14), length: number(0.5, 3), netColumns: integer(2, 8), netRows: integer(2, 8) },
   fishing_net_rack: { width: number(1.2, 5), depth: number(0.4, 2), height: number(1, 4), netColumns: integer(3, 12), netRows: integer(2, 10), buoys: integer(2, 8) },
@@ -221,8 +221,8 @@ const PARAMETER_CONTRACTS = Object.freeze({
   fishing_rod: { length: number(1, 4), guideCount: integer(3, 8), bendFactor: number(0, 0.4), reelSpoolRadius: number(0.02, 0.15) },
   wagon_cart: { length: number(1.5, 5), width: number(1, 3), height: number(0.8, 3) },
   produce_crate: { size: number(0.4, 2), content: choice("pumpkins", "apples") },
-  fauna_cow: { scale: number(0.5, 2) },
-  fauna_chicken: { scale: number(0.3, 1.5) },
+  fauna_cow: { scale: number(0.5, 2), hornScale: number(0.5, 2) },
+  fauna_chicken: { scale: number(0.3, 1.5), combScale: number(0.5, 2) },
   interior_farmhouse_shell: { width: number(3, 14), depth: number(3, 12), wallHeight: number(2, 7), floorPlanks: integer(6, 30), ceilingBeams: integer(2, 10) },
   cozy_bed: { scale: number(0.5, 2) },
   fireplace_hearth: { width: number(1, 5), depth: number(0.5, 3), height: number(1.5, 5) },
@@ -231,6 +231,12 @@ const PARAMETER_CONTRACTS = Object.freeze({
   woven_rug: { width: number(1, 6), depth: number(1, 5) },
   cupboard_shelves: { width: number(0.8, 4), depth: number(0.3, 2), height: number(1, 4) },
   cozy_armchair: { scale: number(0.5, 2) },
+  polyfork_prop: {},
+  polyfork_vegetation: {},
+  polyfork_rock: {},
+  polyfork_architecture: {},
+  polyfork_crop: {},
+  polyfork_cloud: {},
 });
 
 function validateGeneratorParameters(asset) {
@@ -294,6 +300,10 @@ const REQUIRED_CHARACTER_CLIPS = [
   "run_start",
   "run",
   "stop",
+  "jump_start",
+  "fall",
+  "land_soft",
+  "land_hard",
   "turn_left",
   "turn_right",
   "plant",
@@ -314,6 +324,8 @@ const REQUIRED_CHARACTER_CLIPS = [
   "dock",
   "rowboat_idle",
   "row",
+  "skiff_idle",
+  "skiff_drive",
 ];
 
 const REQUIRED_NPC_CLIPS = [
@@ -325,13 +337,15 @@ const REQUIRED_NPC_CLIPS = [
 ];
 
 function validateAnimationContract(asset) {
-  if (asset.family !== "character") return true;
-  if (!asset.requiredNodes.includes(asset.rigNode)) {
-    throw new Error(`${asset.id}: requiredNodes must include rigNode ${asset.rigNode}`);
-  }
-  for (const socket of asset.socketNodes) {
-    if (!asset.requiredNodes.includes(socket)) {
-      throw new Error(`${asset.id}: requiredNodes must include socket ${socket}`);
+  if (!asset.animationClips?.length) return true;
+  if (asset.family === "character") {
+    if (!asset.requiredNodes.includes(asset.rigNode)) {
+      throw new Error(`${asset.id}: requiredNodes must include rigNode ${asset.rigNode}`);
+    }
+    for (const socket of asset.socketNodes) {
+      if (!asset.requiredNodes.includes(socket)) {
+        throw new Error(`${asset.id}: requiredNodes must include socket ${socket}`);
+      }
     }
   }
   const clips = new Map();
@@ -363,9 +377,18 @@ function validateAnimationContract(asset) {
     }
     clips.set(clip.name, clip);
   }
-  const requiredClips = asset.generator === "npc_character" ? REQUIRED_NPC_CLIPS : REQUIRED_CHARACTER_CLIPS;
-  const missing = requiredClips.filter((name) => !clips.has(name));
-  if (missing.length) throw new Error(`${asset.id}: missing required animation clips: ${missing.join(", ")}`);
+  for (const clip of clips.values()) {
+    if (!clip.optional) continue;
+    const fallback = clips.get(clip.fallbackClip);
+    if (!fallback || fallback === clip || fallback.optional) {
+      throw new Error(`${asset.id}: optional clip ${clip.name} requires a distinct required fallback clip`);
+    }
+  }
+  if (asset.family === "character") {
+    const requiredClips = asset.generator === "npc_character" ? REQUIRED_NPC_CLIPS : REQUIRED_CHARACTER_CLIPS;
+    const missing = requiredClips.filter((name) => !clips.has(name) || clips.get(name).optional);
+    if (missing.length) throw new Error(`${asset.id}: missing required animation clips: ${missing.join(", ")}`);
+  }
   return true;
 }
 
@@ -724,40 +747,85 @@ function parseGlb(bytes) {
   return { json, binary: Buffer.concat(binary) };
 }
 
-function semanticHash(bytes) {
+async function semanticHash(bytes) {
   const { json, binary } = parseGlb(bytes);
+  await MeshoptDecoder.ready;
   const semantic = structuredClone(json);
   if (semantic.asset) delete semantic.asset.generator;
   const componentCounts = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 };
   const componentSizes = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
   const accessorData = [];
   const view = new DataView(binary.buffer, binary.byteOffset, binary.byteLength);
-  const readComponent = (offset, type) => {
-    if (type === 5120) return view.getInt8(offset);
-    if (type === 5121) return view.getUint8(offset);
-    if (type === 5122) return view.getInt16(offset, true);
-    if (type === 5123) return view.getUint16(offset, true);
-    if (type === 5125) return view.getUint32(offset, true);
-    return Math.round(view.getFloat32(offset, true) * 100000) / 100000;
+  const readComponent = (dataView, offset, type) => {
+    if (type === 5120) return dataView.getInt8(offset);
+    if (type === 5121) return dataView.getUint8(offset);
+    if (type === 5122) return dataView.getInt16(offset, true);
+    if (type === 5123) return dataView.getUint16(offset, true);
+    if (type === 5125) return dataView.getUint32(offset, true);
+    return Math.round(dataView.getFloat32(offset, true) * 100000) / 100000;
   };
   for (const accessor of json.accessors ?? []) {
     const bufferView = json.bufferViews?.[accessor.bufferView];
-    if (!bufferView || bufferView.extensions?.EXT_meshopt_compression || accessor.sparse) {
+    const meshopt = bufferView?.extensions?.EXT_meshopt_compression;
+    if (!bufferView || accessor.sparse) {
       accessorData.push(null);
       continue;
     }
     const components = componentCounts[accessor.type];
     const componentSize = componentSizes[accessor.componentType];
-    const stride = bufferView.byteStride ?? components * componentSize;
-    const start = (bufferView.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
+    if (!components || !componentSize) {
+      accessorData.push(null);
+      continue;
+    }
+    let accessorView = view;
+    let stride = bufferView.byteStride ?? components * componentSize;
+    let sourceStart = bufferView.byteOffset ?? 0;
+    if (meshopt) {
+      const compressedStart = meshopt.byteOffset ?? 0;
+      const compressedEnd = compressedStart + meshopt.byteLength;
+      const decoded = new Uint8Array(meshopt.count * meshopt.byteStride);
+      MeshoptDecoder.decodeGltfBuffer(
+        decoded,
+        meshopt.count,
+        meshopt.byteStride,
+        binary.subarray(compressedStart, compressedEnd),
+        meshopt.mode,
+        meshopt.filter,
+      );
+      accessorView = new DataView(decoded.buffer, decoded.byteOffset, decoded.byteLength);
+      stride = meshopt.byteStride;
+      sourceStart = 0;
+    }
+    const start = sourceStart + (accessor.byteOffset ?? 0);
     const values = [];
     for (let element = 0; element < accessor.count; element++) {
       for (let component = 0; component < components; component++) {
-        values.push(readComponent(start + element * stride + component * componentSize, accessor.componentType));
+        values.push(readComponent(accessorView, start + element * stride + component * componentSize, accessor.componentType));
       }
     }
     accessorData.push(values);
   }
+  // Buffer offsets, compression headers, and URI metadata describe packaging,
+  // not authored geometry. Keep accessor/scene structure, but remove those
+  // storage details so raw and Meshopt-compressed artifacts hash semantically.
+  delete semantic.buffers;
+  semantic.bufferViews = (semantic.bufferViews ?? []).map((bufferView) => {
+    const copy = { ...bufferView };
+    delete copy.byteOffset;
+    delete copy.byteLength;
+    delete copy.byteStride;
+    delete copy.extensions;
+    return copy;
+  });
+  semantic.accessors = (semantic.accessors ?? []).map((accessor) => {
+    const copy = { ...accessor };
+    delete copy.bufferView;
+    delete copy.byteOffset;
+    delete copy.sparse;
+    return copy;
+  });
+  delete semantic.extensionsUsed;
+  delete semantic.extensionsRequired;
   return sha256(Buffer.from(JSON.stringify({ semantic, accessorData })));
 }
 
@@ -768,7 +836,19 @@ async function validateGlb(filename, spec, phase) {
     externalResourceFunction: async () => new Uint8Array(),
   });
   const errors = report.issues.messages.filter((issue) => issue.severity === 0);
-  const warnings = report.issues.messages.filter((issue) => issue.severity === 1);
+  const warnings = report.issues.messages.filter((issue) => {
+    if (issue.severity !== 1) return false;
+    // Identity LOD empties parent skinned groups so runtime can switch levels.
+    // Parent transforms are unused; Khronos still warns NODE_SKINNED_MESH_NON_ROOT.
+    if (
+      issue.code === "NODE_SKINNED_MESH_NON_ROOT" &&
+      spec.lodLevels?.length &&
+      spec.animationClips
+    ) {
+      return false;
+    }
+    return true;
+  });
   if (errors.length || warnings.length) {
     const details = [...errors, ...warnings].map((issue) => `${issue.code}: ${issue.message}`).join("\n");
     throw new Error(`${spec.id}: Khronos ${phase} validation failed\n${details}`);
@@ -780,37 +860,46 @@ async function validateGlb(filename, spec, phase) {
   if (missing.length) throw new Error(`${spec.id}: optimized GLB lost required nodes: ${missing.join(", ")}`);
   const animationMetrics = [];
   if (spec.animationClips) {
-    const rigMatches = nodes.filter((node) => node.name === spec.rigNode);
-    if (rigMatches.length !== 1) {
-      throw new Error(`${spec.id}: ${phase} GLB must contain exactly one rig node ${spec.rigNode}`);
-    }
-    for (const socket of spec.socketNodes) {
-      if (nodes.filter((node) => node.name === socket).length !== 1) {
-        throw new Error(`${spec.id}: ${phase} GLB must contain exactly one socket node ${socket}`);
+    if (spec.family === "character") {
+      const rigMatches = nodes.filter((node) => node.name === spec.rigNode);
+      if (rigMatches.length !== 1) {
+        throw new Error(`${spec.id}: ${phase} GLB must contain exactly one rig node ${spec.rigNode}`);
       }
-    }
-    if (!(json.skins?.length > 0)) throw new Error(`${spec.id}: ${phase} GLB contains no skin`);
-    const skinnedMeshNodes = nodes.filter(
-      (node) => typeof node.mesh === "number" && typeof node.skin === "number",
-    );
-    if (!skinnedMeshNodes.length) {
-      throw new Error(`${spec.id}: ${phase} GLB contains no skinned mesh nodes`);
-    }
-    for (const node of skinnedMeshNodes) {
-      const mesh = json.meshes?.[node.mesh];
-      for (const primitive of mesh?.primitives ?? []) {
-        if (
-          typeof primitive.attributes?.JOINTS_0 !== "number" ||
-          typeof primitive.attributes?.WEIGHTS_0 !== "number"
-        ) {
-          throw new Error(`${spec.id}: ${phase} skinned primitive is missing JOINTS_0/WEIGHTS_0`);
+      for (const socket of spec.socketNodes) {
+        if (nodes.filter((node) => node.name === socket).length !== 1) {
+          throw new Error(`${spec.id}: ${phase} GLB must contain exactly one socket node ${socket}`);
+        }
+      }
+      if (!(json.skins?.length > 0)) throw new Error(`${spec.id}: ${phase} GLB contains no skin`);
+      const skinnedMeshNodes = nodes.filter(
+        (node) => typeof node.mesh === "number" && typeof node.skin === "number",
+      );
+      if (!skinnedMeshNodes.length) {
+        throw new Error(`${spec.id}: ${phase} GLB contains no skinned mesh nodes`);
+      }
+      for (const node of skinnedMeshNodes) {
+        const mesh = json.meshes?.[node.mesh];
+        for (const primitive of mesh?.primitives ?? []) {
+          if (
+            typeof primitive.attributes?.JOINTS_0 !== "number" ||
+            typeof primitive.attributes?.WEIGHTS_0 !== "number"
+          ) {
+            throw new Error(`${spec.id}: ${phase} skinned primitive is missing JOINTS_0/WEIGHTS_0`);
+          }
         }
       }
     }
     const animationsByName = new Map((json.animations ?? []).map((animation) => [animation.name, animation]));
     for (const clip of spec.animationClips) {
-      const animation = animationsByName.get(clip.name);
-      if (!animation) throw new Error(`${spec.id}: ${phase} GLB is missing animation ${clip.name}`);
+      let animation = animationsByName.get(clip.name);
+      let sourceClip = clip;
+      if (!animation && clip.optional) {
+        sourceClip = spec.animationClips.find((candidate) => candidate.name === clip.fallbackClip);
+        animation = animationsByName.get(clip.fallbackClip);
+      }
+      if (!animation || !sourceClip) {
+        throw new Error(`${spec.id}: ${phase} GLB is missing required animation ${clip.name}`);
+      }
       let durationSeconds = 0;
       for (const sampler of animation.samplers ?? []) {
         const accessor = json.accessors?.[sampler.input];
@@ -818,9 +907,9 @@ async function validateGlb(filename, spec, phase) {
         const end = accessor?.max?.[0] ?? 0;
         durationSeconds = Math.max(durationSeconds, end - start);
       }
-      if (Math.abs(durationSeconds - clip.durationSeconds) > 1 / 60 + 0.002) {
+      if (Math.abs(durationSeconds - sourceClip.durationSeconds) > 1 / 60 + 0.002) {
         throw new Error(
-          `${spec.id}: ${phase} animation ${clip.name} duration ${durationSeconds.toFixed(3)} does not match ${clip.durationSeconds.toFixed(3)}`,
+          `${spec.id}: ${phase} animation ${clip.name} duration ${durationSeconds.toFixed(3)} does not match ${sourceClip.durationSeconds.toFixed(3)}`,
         );
       }
       animationMetrics.push({
@@ -829,6 +918,8 @@ async function validateGlb(filename, spec, phase) {
         commitMarkerSeconds: clip.commitMarkerSeconds ?? null,
         loop: clip.loop,
         referenceSpeedMetersPerSecond: clip.referenceSpeedMetersPerSecond ?? null,
+        optional: clip.optional ?? false,
+        fallbackClip: clip.fallbackClip ?? null,
         events: clip.events ?? [],
       });
     }
@@ -965,7 +1056,7 @@ async function validateGlb(filename, spec, phase) {
     extensions: json.extensionsUsed ?? [],
     bytes: bytes.length,
     fileHash: sha256(bytes),
-    semanticHash: semanticHash(bytes),
+    semanticHash: await semanticHash(bytes),
     qualityStatus: triangles >= spec.budget.trianglesTarget ? "on_target" : "below_target",
     animationClips: animationMetrics,
   };
@@ -1078,9 +1169,9 @@ function summarizeAssets(results) {
     productionMinimumTriangles: results.reduce((sum, asset) => sum + asset.budget.trianglesMin, 0),
     qualityTargetTriangles: results.reduce((sum, asset) => sum + asset.budget.trianglesTarget, 0),
     hardMaximumTriangles: results.reduce((sum, asset) => sum + asset.budget.trianglesMax, 0),
-    fileSizeBytes: results.reduce((sum, asset) => sum + asset.bytes, 0),
-    trianglePrimitives: results.reduce((sum, asset) => sum + asset.trianglePrimitives, 0),
-    nodes: results.reduce((sum, asset) => sum + asset.nodes, 0),
+    fileSizeBytes: results.reduce((sum, asset) => sum + (asset.bytes ?? 0), 0),
+    trianglePrimitives: results.reduce((sum, asset) => sum + (asset.trianglePrimitives ?? 0), 0),
+    nodes: results.reduce((sum, asset) => sum + (asset.nodes ?? 0), 0),
     cacheHits: results.filter((asset) => asset.cacheHit === true).length,
     cacheMisses: results.filter((asset) => asset.cacheHit !== true).length,
     artContractPassed: results.every((asset) => asset.artContractStatus === "passed"),
@@ -1241,12 +1332,26 @@ function publishStage(report, optimizedDir, selected, catalog, strict) {
   const stale = allSelected
     ? previous.assets.filter((entry) => !catalog.assets.some((asset) => asset.file === entry.file))
     : [];
-  const merged = allSelected
+  const mergedEntries = allSelected
     ? report.assets
     : [
         ...previous.assets.filter((entry) => !selectedFiles.has(entry.file)),
         ...report.assets,
       ].sort((a, b) => a.id.localeCompare(b.id));
+  const catalogById = new Map(catalog.assets.map((asset) => [asset.id, asset]));
+  const merged = mergedEntries.map((entry) => {
+    const spec = catalogById.get(entry.id);
+    if (!spec) throw new Error(`Cannot publish unknown manifest asset ${entry.id}`);
+    return {
+      ...entry,
+      family: entry.family ?? spec.family,
+      generator: entry.generator ?? spec.generator,
+      budget: entry.budget ?? spec.budget,
+      ...(entry.referenceAuthoring || !spec.referenceAuthoring
+        ? {}
+        : { referenceAuthoring: referenceAuthoringSummary(spec) }),
+    };
+  });
   const manifest = {
     ...report,
     aggregateBytes: merged.reduce((sum, asset) => sum + asset.bytes, 0),
@@ -1291,8 +1396,8 @@ async function validatePublished(assets, catalog, specHash) {
   const paletteHash = sha256(fs.readFileSync(PALETTE_PATH));
   const generatedManifest = readJson(MANIFEST_PATH);
   const publicManifest = readJson(PUBLIC_MANIFEST_PATH);
-  validatePublishedManifest(generatedManifest, catalog, specHash, paletteHash, "generated");
-  validatePublishedManifest(publicManifest, catalog, specHash, paletteHash, "public");
+  validatePublishedManifest(generatedManifest, catalog, specHash, paletteHash, "generated", assets);
+  validatePublishedManifest(publicManifest, catalog, specHash, paletteHash, "public", assets);
   if (JSON.stringify(generatedManifest) !== JSON.stringify(publicManifest)) {
     throw new Error("Generated and public asset manifests differ");
   }
@@ -1323,7 +1428,14 @@ async function validatePublished(assets, catalog, specHash) {
   console.log(`[NEVA ART] Validated ${reportAssets.length} published assets (spec ${specHash.slice(0, 12)})`);
 }
 
-export function validatePublishedManifest(manifest, catalog, specHash, paletteHash, label = "published") {
+export function validatePublishedManifest(
+  manifest,
+  catalog,
+  specHash,
+  paletteHash,
+  label = "published",
+  selectedAssets = catalog.assets,
+) {
   if (
     !manifest ||
     typeof manifest !== "object" ||
@@ -1344,16 +1456,22 @@ export function validatePublishedManifest(manifest, catalog, specHash, paletteHa
     throw new Error(`${label} manifest is missing current art-pipeline provenance`);
   }
   const entries = new Map(manifest.assets.map((asset) => [asset.id, asset]));
+  const selectedIds = new Set(selectedAssets.map((asset) => asset.id));
   for (const spec of catalog.assets) {
     const asset = entries.get(spec.id);
     if (
       !asset ||
       asset.file !== spec.file ||
-      typeof asset.fileHash !== "string" ||
+      typeof asset.fileHash !== "string"
+    ) {
+      throw new Error(`${label} manifest is missing ${spec.id}`);
+    }
+    if (!selectedIds.has(spec.id)) continue;
+    if (
       asset.artContractStatus !== "passed" ||
       asset.vertexColorSpace !== "linear-srgb"
     ) {
-      throw new Error(`${label} manifest is missing ${spec.id}`);
+      throw new Error(`${label} manifest is missing current validation metadata for ${spec.id}`);
     }
     if (
       spec.lodLevels &&

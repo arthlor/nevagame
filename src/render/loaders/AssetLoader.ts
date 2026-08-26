@@ -58,6 +58,7 @@ export class AssetLoader {
     cloned.userData.collisionNodes = source.userData.collisionNodes;
     cloned.userData.assetId = source.userData.assetId;
     cloned.userData.runtimeLodLevels = source.userData.runtimeLodLevels;
+    cloned.userData.runtimeLodFallback = source.userData.runtimeLodFallback;
     return cloned;
   }
 
@@ -119,7 +120,21 @@ export class AssetLoader {
             root.userData.assetId = assetId;
             const spec = ASSET_BY_ID.get(assetId);
             if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
-            configureRuntimeLod(root, spec);
+            const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];
+            if (missingLodNodes.length > 0) {
+              // Keep a published asset visible when its optional LOD contract has
+              // not made it into the artifact yet. Strict art validation still
+              // rejects the mismatch; runtime should not turn a landmark or
+              // character into a blank world while the full authored mesh is
+              // perfectly usable.
+              root.userData.runtimeLodLevels = null;
+              root.userData.runtimeLodFallback = {
+                expectedNodes: spec.lodLevels?.map((level) => level.node) ?? [],
+                missingNodes: missingLodNodes.map((level) => level.node),
+              };
+            } else {
+              configureRuntimeLod(root, spec);
+            }
             this.modelCache.set(assetId, root);
             this.loadingPromises.delete(assetId);
             resolve(this.cloneModel(root));

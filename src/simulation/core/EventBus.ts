@@ -53,6 +53,7 @@ export interface DomainEvents {
   BoatBoarded: { boatId: BoatId; minute: GameMinute };
   BoatDisembarked: { boatId: BoatId; minute: GameMinute };
   BoatDocked: { boatId: BoatId; minute: GameMinute };
+  BoatPurchased: { boatId: BoatId; boatTypeId: string; cost: number; minute: GameMinute };
   ItemSold: { marketId: MarketId; itemId: ItemId; quantity: number; revenue: number; minute: GameMinute };
   FishSold: { marketId: MarketId; cargoId: FishCargoId; speciesId: FishSpeciesId; revenue: number; minute: GameMinute };
   MarketTicked: { marketId: MarketId; minute: GameMinute };

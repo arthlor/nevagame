@@ -1,6 +1,7 @@
 // src/ui/QuestTrackerHUD.tsx
 import React, { useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
+import { CornerLeafSprout, CornerRopeKnot } from "./components/HudDecorations";
 
 export interface QuestTrackerHUDProps {
   activeQuest: ActiveQuestDto | null;
@@ -12,7 +13,9 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
 
   if (!activeQuest) {
     return (
-      <aside className="quest-tracker-hud completed" aria-label="Story Progression">
+      <aside className="quest-tracker-hud-wood completed" aria-label="Story Progression">
+        <CornerLeafSprout className="quest-corner-tl" size={20} />
+        <CornerRopeKnot className="quest-corner-br" size={20} />
         <div className="quest-tracker-header">
           <span className="quest-act-badge">Epilogue</span>
           <span className="quest-open-horizons-title">Open Horizons</span>
@@ -31,9 +34,12 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
 
   return (
     <aside
-      className={`quest-tracker-hud ${collapsed ? "collapsed" : ""}`}
+      className={`quest-tracker-hud-wood ${collapsed ? "collapsed" : ""}`}
       aria-label="Active Quest Objective"
     >
+      <CornerLeafSprout className="quest-corner-tl" size={20} />
+      <CornerRopeKnot className="quest-corner-br" size={20} />
+
       <header className="quest-tracker-header" onClick={() => setCollapsed(!collapsed)}>
         <div className="quest-header-left">
           <span className="quest-act-badge">{activeQuest.actTitle}</span>

@@ -2,8 +2,17 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
-import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
+import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
+
+function movePlayerToProcessingFront(simulation: Simulation, stationId: string): void {
+  const station = simulation.state.world.structures[stationId];
+  const front = station ? getProcessingStationFrontPosition(stationId, station) : null;
+  if (!front) throw new Error(`Missing processing front for ${stationId}`);
+  simulation.state.player.x = front.x;
+  simulation.state.player.z = front.z;
+}
 
 describe("Simulation Vertical Slice Loop", () => {
   let sim: Simulation;
@@ -40,8 +49,7 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(wheatCount).toBeGreaterThanOrEqual(3);
 
     // 4. Mill Wheat into Ground Grain (Station: Hand Mill)
-    sim.state.player.x = starterStructureAnchor("struct.starter_mill")!.x;
-    sim.state.player.z = starterStructureAnchor("struct.starter_mill")!.z;
+    movePlayerToProcessingFront(sim, "struct.starter_mill");
     const millRes = sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill");
     expect(millRes.success).toBe(true);
     const millJobId = Object.keys(sim.state.processingJobs)[0];
@@ -54,8 +62,7 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(InventoryManager.getItemCount(playerInv, "item.ground_grain")).toBe(2);
 
     // 5. Mix Chum Bucket (Station: Workbench)
-    sim.state.player.x = starterStructureAnchor("struct.workbench")!.x;
-    sim.state.player.z = starterStructureAnchor("struct.workbench")!.z;
+    movePlayerToProcessingFront(sim, "struct.workbench");
     const chumRes = sim.startProcessingJob("recipe.craft_chum", "struct.workbench");
     expect(chumRes.success).toBe(true);
     const chumJobId = Object.keys(sim.state.processingJobs)[0];

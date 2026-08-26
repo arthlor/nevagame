@@ -21,15 +21,14 @@ export function calculateEffectiveGrowthDelta(
 ): number {
   if (elapsedMinutes <= 0) return 0;
 
-  // 1. Climate modifier
-  let climateMod = 1.0;
+  // LIVE 02: preferred 1.20 | poor 0.80. Neutral 1.00 only when a crop
+  // declares an explicit neutralClimates set (none currently do).
+  const declaredNeutral = (crop as CropDefinition & { neutralClimates?: ClimateId[] }).neutralClimates;
+  let climateMod = 0.8;
   if (crop.preferredClimates.includes(farmClimate)) {
     climateMod = 1.2;
-  } else if (
-    (farmClimate === "arid" && crop.preferredClimates.includes("cool")) ||
-    (farmClimate === "subarctic" && crop.preferredClimates.includes("warm"))
-  ) {
-    climateMod = 0.8;
+  } else if (declaredNeutral?.includes(farmClimate)) {
+    climateMod = 1.0;
   }
 
   // 2. Moisture modifier
@@ -157,4 +156,31 @@ export function applyCropMoistureOverMinutes(
   }
   crop.moisture = Math.min(100, Math.max(0, initialMoisture + perMinute * steps));
   crop.moistureSampleCount += steps;
+}
+
+export function advancePlacedCropGrowth(
+  crop: {
+    effectiveGrowthMinutes: number;
+    moisture: number;
+    averageMoistureAccum: number;
+    moistureSampleCount: number;
+    stage: CropStage;
+  },
+  cropDef: CropDefinition,
+  farmClimate: ClimateId,
+  soilFertility: number,
+  weatherType: WeatherTag,
+  elapsedMinutes: number
+): CropStage {
+  crop.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
+    elapsedMinutes,
+    cropDef,
+    farmClimate,
+    crop.moisture,
+    soilFertility,
+    weatherType
+  );
+  applyCropMoistureOverMinutes(crop, elapsedMinutes, cropDef.waterNeed, weatherType);
+  crop.stage = determineCropStage(crop.effectiveGrowthMinutes, cropDef.baseGrowthMinutes, cropDef.regrows);
+  return crop.stage;
 }

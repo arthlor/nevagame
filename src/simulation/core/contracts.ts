@@ -59,6 +59,7 @@ export type InteractionAction =
   | "fertilize"
   | "board"
   | "dock"
+  | "purchase-boat"
   | "chum"
   | "hook"
   | "start-processing"
@@ -146,6 +147,7 @@ export type GameCommand =
   | { type: "player.reset-safe" }
   | { type: "boat.board"; boatId: BoatId }
   | { type: "boat.dock" }
+  | { type: "boat.purchase-skiff" }
   | { type: "crop.plant"; request: CropPlacementRequest }
   | { type: "crop.plant-near"; farmId: FarmId; cropId: string }
   | { type: "crop.water"; placedCropId: PlacedCropId }
@@ -172,7 +174,7 @@ export type GameCommand =
   | { type: "contract.deliver-items"; contractId: string; itemId: ItemId; quantity: number }
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }
   | { type: "quest.talk-npc"; npcId: string }
-  | { type: "quest.claim-reward"; questId: string }
+  | { type: "quest.claim-reward"; questId: string; npcId: string }
   | { type: "quest.record-hint"; hintId: string };
 
 export type GameQuery =
@@ -194,4 +196,3 @@ export type GameQueryResult =
   | { success: boolean; x?: number; z?: number; reason?: string }
   | import("./QuestTypes").ActiveQuestDto
   | import("./QuestTypes").NpcId;
-

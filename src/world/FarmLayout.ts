@@ -20,6 +20,8 @@ export interface FarmStructureAnchor extends FarmPoint {
   type: "hand-mill" | "workbench" | "compost-bin";
   rotationY: number;
   clearanceRadius: number;
+  /** World-space distance from the structure center to its authored local -Z working face. */
+  frontApproachDistanceMeters: number;
 }
 
 export interface FarmMarketAnchor extends FarmPoint {
@@ -48,8 +50,11 @@ export interface FarmPropAnchor extends FarmPoint {
   scale: number;
 }
 
+export type FarmPathKind = "lane" | "trail";
+
 export interface FarmPathDefinition {
   id: string;
+  kind: FarmPathKind;
   widthMeters: number;
   points: readonly FarmPoint[];
 }
@@ -76,7 +81,8 @@ const STARTER_STRUCTURE_ANCHORS = [
     x: 119,
     z: -3,
     rotationY: 0.34,
-    clearanceRadius: 2.65
+    clearanceRadius: 2.65,
+    frontApproachDistanceMeters: 1.75
   },
   {
     id: "struct.workbench",
@@ -84,7 +90,8 @@ const STARTER_STRUCTURE_ANCHORS = [
     x: -10,
     z: -1.8,
     rotationY: Math.PI * 0.48,
-    clearanceRadius: 1.3
+    clearanceRadius: 1.3,
+    frontApproachDistanceMeters: 1.05
   },
   {
     id: "struct.starter_compost",
@@ -92,7 +99,8 @@ const STARTER_STRUCTURE_ANCHORS = [
     x: -10.8,
     z: -6.2,
     rotationY: Math.PI * 0.42,
-    clearanceRadius: 1.15
+    clearanceRadius: 1.15,
+    frontApproachDistanceMeters: 1.0
   }
 ] as const satisfies readonly FarmStructureAnchor[];
 
@@ -146,18 +154,26 @@ const STARTER_PROP_ANCHORS = [
 const STARTER_PATHS = [
   {
     id: "farm-entry",
+    kind: "lane",
     widthMeters: 2.4,
-    points: [{ x: 0, z: -14 }, { x: 0, z: -7 }, { x: 6.8, z: -7.6 }, { x: 9.2, z: -9.5 }]
+    // The yard gateway is shared with farm-home and the regional arterial.
+    points: [{ x: 0, z: -14 }, { x: 0, z: -7 }, { x: 4.2, z: -7.2 }, { x: 7.4, z: -8.4 }]
   },
   {
     id: "farm-work-zone",
+    kind: "trail",
     widthMeters: 1.8,
-    points: [{ x: -0.3, z: -7 }, { x: -7.8, z: -7 }, { x: -10.4, z: -4.8 }, { x: -10, z: -1.8 }]
+    // Shares the field junction with farm-entry instead of leaving a small
+    // walkable/rendered gap at the fork.
+    points: [{ x: 0, z: -7 }, { x: -7.8, z: -7 }, { x: -10.4, z: -4.8 }, { x: -10, z: -1.8 }]
   },
   {
     id: "farm-home",
+    kind: "lane",
     widthMeters: 2.2,
-    points: [{ x: 6.8, z: -7.6 }, { x: 8.0, z: -5.0 }, { x: 8.0, z: -3.0 }, { x: 8.0, z: 1.5 }]
+    // Local z -2.8 resolves to FARMHOUSE_OUTSIDE_DOOR.z. Never route the
+    // visible path through the farmhouse body at local z 1.5.
+    points: [{ x: 7.4, z: -8.4 }, { x: 8.0, z: -5.0 }, { x: 8.0, z: -3.0 }, { x: 8.0, z: -2.8 }]
   }
 ] as const satisfies readonly FarmPathDefinition[];
 

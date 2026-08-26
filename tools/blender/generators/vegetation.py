@@ -51,12 +51,12 @@ def _oak_tree(spec: dict, root) -> None:
     fork = (gesture * 0.58, 0.05, height * 0.57)
     upper_joint = (gesture * 0.94, 0.02, height * 0.74)
     side_fork = (gesture * 0.48 - spread * 0.34, 0.10, height * 0.70)
-    add_tapered_beam("oak_trunk_lower", base, lower_joint, 0.50, 0.38, wood, root, vertices=8)
-    add_tapered_beam("oak_trunk_mid", lower_joint, fork, 0.39, 0.29, wood, root, vertices=8)
+    add_tapered_beam("oak_trunk_lower", base, lower_joint, 0.58, 0.42, wood, root, vertices=8)
+    add_tapered_beam("oak_trunk_mid", lower_joint, fork, 0.44, 0.32, wood, root, vertices=8)
     add_tapered_beam("oak_trunk_upper", fork, upper_joint, 0.30, 0.18, wood, root, vertices=8)
     add_tapered_beam("oak_trunk_fork", fork, side_fork, 0.23, 0.11, wood, root, vertices=7)
     add_root_flare(
-        "oak_root", (0, 0, 0), 0.92, 0.52, wood, root,
+        "oak_root", (0, 0, 0), 1.08, 0.62, wood, root,
         count=params["rootCount"], seed=spec["seed"] + 1,
     )
     crown_center = (gesture * 0.82, 0.0, height * 0.78)
@@ -133,6 +133,22 @@ def _oak_tree(spec: dict, root) -> None:
             shadow if index % 4 == 0 else leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.22, 0.22), rng.uniform(-0.22, 0.22), angle * 0.22),
         )
+    if lod_index == 0:
+        for index, lobe in enumerate(major_centers):
+            for chip in range(3):
+                angle = index * 1.7 + chip * 2.1
+                radial = spread * (0.18 + 0.06 * chip)
+                add_ico(
+                    f"oak_canopy_chip_{index:02d}_{chip}",
+                    (
+                        lobe[0] + math.cos(angle) * radial,
+                        lobe[1] + math.sin(angle) * radial * 0.78,
+                        lobe[2] + height * (0.04 * (chip - 1)),
+                    ),
+                    (spread * 0.18, spread * 0.16, height * 0.055),
+                    shadow if chip == 0 else leaves, root, subdivisions=2,
+                    rotation=(0.12 * chip, -0.08 * index, angle),
+                )
 
 
 def oak_tree(spec: dict, root) -> None:
@@ -152,7 +168,7 @@ def _pine_tree(spec: dict, root) -> None:
     lean = params["lean"]
     lod_index = spec.get("_lodIndex", 0)
     wood, pine, highlight = spec["palette"]
-    add_cone("pine_trunk", (lean, 0, height * 0.43), 0.35, 0.16, height * 0.86, wood, root, vertices=8)
+    add_cone("pine_trunk", (lean, 0, height * 0.43), 0.38, 0.16, height * 0.86, wood, root, vertices=8)
     add_root_flare("pine_root", (0, 0, 0), 0.72, 0.42, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
     tiers = params["tiers"]
     for index in range(tiers):
@@ -201,9 +217,10 @@ def _apple_tree(spec: dict, root) -> None:
     height = params["height"]
     spread = params["spread"]
     lod_index = spec.get("_lodIndex", 0)
-    wood, leaves, fruit = spec["palette"]
-    add_cone("apple_trunk", (0, 0, height * 0.34), 0.38, 0.22, height * 0.68, wood, root, vertices=8)
-    add_root_flare("apple_root", (0, 0, 0), 0.74, 0.42, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
+    wood, leaves, fruit = spec["palette"][:3]
+    blossom = spec["palette"][3] if len(spec["palette"]) > 3 else leaves
+    add_cone("apple_trunk", (0, 0, height * 0.34), 0.42, 0.20, height * 0.68, wood, root, vertices=8)
+    add_root_flare("apple_root", (0, 0, 0), 0.82, 0.48, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
     for index in range(params["branchCount"]):
         angle = index * math.tau / params["branchCount"] + 0.4
         end = (math.cos(angle) * spread * 0.55, math.sin(angle) * spread * 0.55, height * (0.68 + 0.06 * (index % 2)))
@@ -250,6 +267,22 @@ def _apple_tree(spec: dict, root) -> None:
                 f"apple_fallen_{fallen:02d}",
                 (math.cos(f_angle) * f_rad, math.sin(f_angle) * f_rad, 0.07),
                 (0.14, 0.14, 0.12), fruit, root, subdivisions=1,
+            )
+        for bloom in range(max(4, params["fruitCount"] // 3)):
+            angle = bloom * 2.39996 + 0.7
+            radius = spread * (0.30 + 0.28 * ((bloom * 3) % 5) / 4)
+            add_ico(
+                f"apple_blossom_{bloom:02d}",
+                (math.cos(angle) * radius, math.sin(angle) * radius * 0.78, height * (0.58 + 0.18 * (bloom % 3) / 2)),
+                (0.07, 0.07, 0.05), blossom, root, subdivisions=1,
+            )
+        for index in range(min(4, params["canopyClusters"])):
+            angle = index * math.tau / 4 + 0.3
+            add_ico(
+                f"apple_canopy_chip_{index:02d}",
+                (math.cos(angle) * spread * 0.62, math.sin(angle) * spread * 0.50, height * 0.72),
+                (spread * 0.22, spread * 0.20, spread * 0.16), leaves, root, subdivisions=2,
+                rotation=(0.1, 0.08, angle),
             )
 
 

@@ -20,9 +20,14 @@ import { rodMeetsMinimum, rollSpeciesWeightKg } from "./domainRules";
 
 const SCHOOL_INTERACTION_RADIUS = 12;
 const SCHOOL_RESPAWN_COOLDOWN_MINUTES = 90;
-const SCHOOL_SPAWN_POINTS = [
-  { habitatId: "lake", x: 18, z: WorldLayout.coastlineZ(18) + 12 },
-  { habitatId: "coast", x: 118, z: WorldLayout.coastlineZ(118) + 58 }
+export const SPORT_FISHING_REVIEW_POINTS = {
+  trout: { habitatId: "lake", x: 18, z: WorldLayout.coastlineZ(18) + 12, speciesId: "fish.trout" },
+  tuna: { habitatId: "coast", x: 118, z: WorldLayout.coastlineZ(118) + 58, speciesId: "fish.tuna" }
+} as const;
+
+export const SCHOOL_SPAWN_POINTS = [
+  SPORT_FISHING_REVIEW_POINTS.trout,
+  SPORT_FISHING_REVIEW_POINTS.tuna
 ] as const;
 const FISHING_HABITATS = new Set(["river", "lake", "coast", "offshore"]);
 
@@ -35,6 +40,7 @@ export interface FishingControlInput {
 
 export class FishingDomain {
   private encounter: FishingEncounter | null = null;
+  private pendingLandSchoolId: FishSchoolId | null = null;
 
   constructor(
     private readonly context: DomainContext,
@@ -45,9 +51,17 @@ export class FishingDomain {
     if (savedEncounter?.result === "active") {
       try {
         this.encounter = FishingEncounter.fromState(savedEncounter, context.rng);
+        this.pendingLandSchoolId = savedEncounter.schoolId ?? null;
         this.encounter.setInput({ isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 });
-      } catch {
-        context.state.sportFishing = null;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("[FishingDomain] Failed to restore sport-fishing encounter:", error);
+        context.events.emit("Notification", {
+          title: "Sport fishing could not be restored",
+          message,
+          type: "error"
+        });
+        // Keep sportFishing so a corrupt restore is visible instead of silently dropped.
       }
     } else {
       context.state.sportFishing = null;
@@ -66,6 +80,7 @@ export class FishingDomain {
 
   public cancelAll(): void {
     this.encounter = null;
+    this.pendingLandSchoolId = null;
     this.context.state.sportFishing = null;
     this.context.state.basicFishing = null;
   }
@@ -78,14 +93,13 @@ export class FishingDomain {
         const encounterState = this.encounter.getState();
         const landing = this.cargo.landCaughtFish(encounterState.fish);
         if (!landing.success) {
-          events.emit("FishEscaped", {
-            speciesId: encounterState.fish.speciesId,
-            reason: "escaped",
-            minute: state.clock.currentMinute
-          });
+          this.encounter.deferLanding();
+          state.sportFishing = this.encounter.getState() as FishingEncounterState;
+        } else {
+          this.commitSchoolCatch();
+          this.encounter = null;
+          state.sportFishing = null;
         }
-        this.encounter = null;
-        state.sportFishing = null;
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();
         events.emit("FishEscaped", {
@@ -93,6 +107,7 @@ export class FishingDomain {
           reason: outcome === "line-snapped" ? "snapped" : "escaped",
           minute: state.clock.currentMinute
         });
+        this.pendingLandSchoolId = null;
         this.encounter = null;
         state.sportFishing = null;
       }
@@ -111,25 +126,13 @@ export class FishingDomain {
       return { success: false, reason: "Your equipped rod cannot fish this water" };
     }
 
-    const eligibleSpecies = Array.from(ContentRegistry.fishSpecies.values()).filter(
-      (fish) =>
-        !fish.isSportFish &&
-        fish.habitats.includes(habitatId) &&
-        fish.seasons.includes(state.clock.season) &&
-        fish.timeWindows.includes(state.clock.timeOfDay) &&
-        fish.weatherPreferences.includes(state.weather.type) &&
-        rodMeetsMinimum(rod.rodClass, fish.minimumRodClass) &&
-        ContentRegistry.items.has(fish.id)
-    );
+    const eligibleSpecies = this.listEligibleBasicSpecies(habitatId, rod.rodClass);
     if (eligibleSpecies.length === 0) return { success: false, reason: "Nothing is biting in these conditions" };
     if (!eligibleSpecies.some((fish) => InventoryManager.canAddItems(inventory, [{ itemId: fish.id, quantity: 1 }]))) {
       return { success: false, reason: "Inventory is full!" };
     }
 
     const hasBait = InventoryManager.hasItems(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
-    if (hasBait) {
-      InventoryManager.removeItemsAtomically(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
-    }
 
     const initial = BasicFishingMinigame.createInitialState(
       habitatId,
@@ -153,20 +156,18 @@ export class FishingDomain {
     const habitatId = state.basicFishing.habitatId;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
 
-    const eligibleSpecies = Array.from(ContentRegistry.fishSpecies.values()).filter(
-      (fish) =>
-        !fish.isSportFish &&
-        fish.habitats.includes(habitatId) &&
-        fish.seasons.includes(state.clock.season) &&
-        fish.timeWindows.includes(state.clock.timeOfDay) &&
-        fish.weatherPreferences.includes(state.weather.type) &&
-        rodMeetsMinimum(rod?.rodClass || "willow", fish.minimumRodClass) &&
-        ContentRegistry.items.has(fish.id)
-    );
+    const eligibleSpecies = this.listEligibleBasicSpecies(habitatId, rod?.rodClass || "willow");
+    if (eligibleSpecies.length === 0) {
+      state.basicFishing = null;
+      return { success: false, reason: "Nothing is biting in these conditions" };
+    }
 
-    const catchItemId = eligibleSpecies.length > 0
-      ? rng.weighted(eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight })))
-      : (state.basicFishing.catchItemId || "fish.perch");
+    let hasBait = state.basicFishing.hasBait ?? false;
+    if (hasBait) {
+      hasBait = this.consumeBaitIfPresent();
+    }
+
+    const catchItemId = rng.weighted(eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight })));
 
     const newState = BasicFishingMinigame.createInitialState(
       habitatId,
@@ -174,9 +175,10 @@ export class FishingDomain {
       power,
       state.player.equippedRodId,
       this.progression.getProficiencyLevel("fishing"),
-      state.basicFishing.hasBait ?? false,
+      hasBait,
       rng
     );
+    newState.willCatch = rod ? rng.chance(rod.hookReliability) : false;
     state.basicFishing = newState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { habitatId, castPower: power, minute: state.clock.currentMinute });
@@ -230,25 +232,13 @@ export class FishingDomain {
       return { success: false, reason: "Your equipped rod cannot fish this water" };
     }
 
-    const eligibleSpecies = Array.from(ContentRegistry.fishSpecies.values()).filter(
-      (fish) =>
-        !fish.isSportFish &&
-        fish.habitats.includes(habitatId) &&
-        fish.seasons.includes(state.clock.season) &&
-        fish.timeWindows.includes(state.clock.timeOfDay) &&
-        fish.weatherPreferences.includes(state.weather.type) &&
-        rodMeetsMinimum(rod.rodClass, fish.minimumRodClass) &&
-        ContentRegistry.items.has(fish.id)
-    );
+    const eligibleSpecies = this.listEligibleBasicSpecies(habitatId, rod.rodClass);
     if (eligibleSpecies.length === 0) return { success: false, reason: "Nothing is biting in these conditions" };
     if (!eligibleSpecies.some((fish) => InventoryManager.canAddItems(inventory, [{ itemId: fish.id, quantity: 1 }]))) {
       return { success: false, reason: "Inventory is full!" };
     }
 
-    const hasBait = InventoryManager.hasItems(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
-    if (hasBait) {
-      InventoryManager.removeItemsAtomically(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
-    }
+    const hasBait = this.consumeBaitIfPresent();
 
     const catchItemId = rng.weighted(
       eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight }))
@@ -352,7 +342,7 @@ export class FishingDomain {
       return { success: false, reason: "Rod class is too light for this species" };
     }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
-    const quality = this.rollQuality();
+    const quality = this.rollQuality(this.progression.getWorkOutcome().rareChanceMultiplier);
     const fish: FishInstance = {
       instanceId: this.context.nextEntityId("fish_inst"),
       speciesId,
@@ -362,8 +352,8 @@ export class FishingDomain {
     };
     this.encounter = new FishingEncounter(fish, state.player.equippedRodId, rng, 30);
     state.sportFishing = this.encounter.getState() as FishingEncounterState;
-    school.remainingCatchPotential -= 1;
-    if (school.remainingCatchPotential <= 0) delete state.world.activeSchools[schoolId];
+    this.pendingLandSchoolId = schoolId;
+    state.sportFishing.schoolId = schoolId;
     this.context.persistRng();
     events.emit("FishHooked", { speciesId, habitatId: school.habitatId, weightKg: fish.weightKg, minute: state.clock.currentMinute });
     return { success: true, encounter: this.encounter.getState() };
@@ -416,11 +406,50 @@ export class FishingDomain {
     if (spawned) state.world.lastSchoolSpawnMinute = currentMinute;
   }
 
-  private rollQuality(): FishQuality {
+  private listEligibleBasicSpecies(habitatId: string, rodClass: "willow" | "river" | "heavy-sport" | "offshore" | "master") {
+    const { state } = this.context;
+    const inHabitat = Array.from(ContentRegistry.fishSpecies.values()).filter(
+      (fish) =>
+        !fish.isSportFish &&
+        fish.habitats.includes(habitatId) &&
+        fish.seasons.includes(state.clock.season) &&
+        rodMeetsMinimum(rodClass, fish.minimumRodClass) &&
+        ContentRegistry.items.has(fish.id)
+    );
+    const inConditions = inHabitat.filter(
+      (fish) =>
+        fish.timeWindows.includes(state.clock.timeOfDay) &&
+        fish.weatherPreferences.includes(state.weather.type)
+    );
+    // Never AND time×weather into a hard-empty common pool for the vertical slice.
+    return inConditions.length > 0 ? inConditions : inHabitat;
+  }
+
+  private consumeBaitIfPresent(): boolean {
+    const inventory = this.context.state.inventories[this.context.state.player.inventoryId];
+    const bait = [{ itemId: "item.bait_worms", quantity: 1 }];
+    if (!InventoryManager.hasItems(inventory, bait)) return false;
+    InventoryManager.removeItemsAtomically(inventory, bait);
+    return true;
+  }
+
+  private commitSchoolCatch(): void {
+    const { state } = this.context;
+    const schoolId = this.pendingLandSchoolId;
+    this.pendingLandSchoolId = null;
+    if (!schoolId) return;
+    const school = state.world.activeSchools[schoolId];
+    if (!school) return;
+    school.remainingCatchPotential -= 1;
+    if (school.remainingCatchPotential <= 0) delete state.world.activeSchools[schoolId];
+  }
+
+  private rollQuality(rareChanceMultiplier: number): FishQuality {
     const roll = this.context.rng.nextFloat();
-    if (roll > 0.92) return "trophy";
-    if (roll > 0.75) return "exceptional";
-    if (roll > 0.45) return "fine";
+    const effectiveRoll = roll * Math.max(0, Math.min(1, rareChanceMultiplier));
+    if (effectiveRoll > 0.92) return "trophy";
+    if (effectiveRoll > 0.75) return "exceptional";
+    if (effectiveRoll > 0.45) return "fine";
     return "common";
   }
 
@@ -459,6 +488,7 @@ export class FishingDomain {
     if (attempt.phase === "bite-reaction" || (attempt.phase as string) === "bite") {
       attempt.remainingSeconds -= realDeltaSeconds;
       if (attempt.remainingSeconds <= 0) {
+        // AFK never auto-lands, even when willCatch rolled true.
         this.resolveMissedBite(attempt);
       }
       return;

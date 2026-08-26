@@ -1,7 +1,7 @@
 // src/content/quests.ts
 
 import type { QuestDefinition } from "../simulation/core/QuestTypes";
-import { HARBOR_DOCK, VILLAGE_MARKET } from "../world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_SILAS_ANCHOR, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
 
@@ -234,8 +234,8 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Fair Trade at the Village",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Fresh catch from the river! The village produce stall is always eager for fresh supplies.",
-      "Visit the Village Produce Stall near the farm edge. Open the market trade menu and sell your river fish or extra produce for silver."
+      "The village produce stall is always eager for extra grain and garden produce.",
+      "Visit the Village Produce Stall near the farm edge. Open the market trade menu and sell extra produce for silver. Harbor is where the catch is traded."
     ],
     completionDialogue: [
       "Look at that purse jingle! Honest coin from your own labor. Now you're ready to see the wider harbor."
@@ -310,7 +310,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Commission your family rowboat with Silas at the pier",
         targetId: "npc.silas",
         targetQuantity: 1,
-        locationAnchor: { x: 75.0, z: 64.0, name: "Southeast Harbor Pier" }
+        locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Southeast Harbor Pier" }
       }
     ],
     rewards: {
@@ -369,16 +369,14 @@ export const QUESTS: QuestDefinition[] = [
         id: "step.act5_land_sport_fish",
         type: "land-sport-fish",
         description: "Successfully land a Sport Fish through tension control",
-        targetQuantity: 1,
-        location: { kind: "boat", id: "boat.player_rowboat" }
+        targetQuantity: 1
       },
       {
         id: "step.act5_stow_cargo",
         type: "stow-cargo",
-        description: "Stow the caught sport fish in your boat cargo hold",
+        description: "Stow the caught sport fish in your boat cargo hold or carry it ashore",
         targetQuantity: 1,
-        locationAnchor: { x: HARBOR_DOCK.boatPosition.x, z: HARBOR_DOCK.boatPosition.z, name: "Rowboat Cargo Hold" },
-        location: { kind: "boat", id: "boat.player_rowboat" }
+        locationAnchor: { x: HARBOR_DOCK.boatPosition.x, z: HARBOR_DOCK.boatPosition.z, name: "Rowboat Cargo Hold" }
       },
       {
         id: "step.act5_dock_rowboat",
@@ -403,7 +401,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Report your first expedition to Silas",
         targetId: "npc.silas",
         targetQuantity: 1,
-        locationAnchor: { x: 75, z: 64, name: "Harbor Pier" }
+        locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Harbor Pier" }
       }
     ],
 

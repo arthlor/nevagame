@@ -11,6 +11,54 @@ from common.geometry import add_ico, add_ring, add_tri_prism, apply_vertex_value
 from common.materials import get_or_create_material
 
 
+FRAME_RATE = 25.0
+
+
+def _motion_node(name: str, parent, location=(0.0, 0.0, 0.0)):
+    node = bpy.data.objects.new(name, None)
+    bpy.context.collection.objects.link(node)
+    node.parent = parent
+    node.location = location
+    return node
+
+
+def _reparent_preserving_world(obj, parent) -> None:
+    bpy.context.view_layer.update()
+    world = obj.matrix_world.copy()
+    obj.parent = parent
+    obj.matrix_parent_inverse.identity()
+    obj.matrix_basis = parent.matrix_world.inverted() @ world
+
+
+def _author_node_action(spec: dict, clip_name: str, node, keyframes) -> None:
+    clip = next((entry for entry in spec.get("animationClips", []) if entry["name"] == clip_name), None)
+    if clip is None:
+        return
+    bpy.context.scene.render.fps = int(FRAME_RATE)
+    bpy.context.scene.render.fps_base = 1.0
+    action = bpy.data.actions.new(name=clip_name)
+    action["neva_loop"] = clip.get("loop", False)
+    if "commitMarkerSeconds" in clip:
+        action["neva_commit_marker_seconds"] = clip["commitMarkerSeconds"]
+    node.animation_data_create()
+    node.animation_data.action = action
+    base_location = node.location.copy()
+    base_rotation = node.rotation_euler.copy()
+    node.rotation_mode = "XYZ"
+    for seconds, rotation, location in keyframes:
+        node.rotation_euler = tuple(base_rotation[index] + rotation[index] for index in range(3))
+        node.location = tuple(base_location[index] + location[index] for index in range(3))
+        node.keyframe_insert(data_path="rotation_euler", frame=seconds * FRAME_RATE)
+        node.keyframe_insert(data_path="location", frame=seconds * FRAME_RATE)
+    action.use_fake_user = True
+    node.animation_data.action = None
+    track = node.animation_data.nla_tracks.new()
+    track.name = clip_name
+    track.strips.new(clip_name, int(action.frame_range[0]), action)
+    node.location = base_location
+    node.rotation_euler = base_rotation
+
+
 def _smoothstep(edge0: float, edge1: float, value: float) -> float:
     amount = max(0.0, min(1.0, (value - edge0) / max(1e-6, edge1 - edge0)))
     return amount * amount * (3.0 - 2.0 * amount)
@@ -276,3 +324,44 @@ def stylized_fish(spec: dict, root) -> None:
                 root,
                 rotation=inverted_vertical_fin_rotation,
             )
+
+    motion_root = _motion_node(f"{spec['id']}_motion_root", root)
+    tail_pivot = _motion_node(
+        f"{spec['id']}_tail_pivot",
+        motion_root,
+        (0.0, length * 0.43, 0.0),
+    )
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not root:
+            continue
+        if obj.name in {f"{species}_tail_upper", f"{species}_tail_lower"}:
+            _reparent_preserving_world(obj, tail_pivot)
+        else:
+            _reparent_preserving_world(obj, motion_root)
+
+    _author_node_action(spec, "swim", tail_pivot, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.2, (0.0, 0.0, math.radians(15)), (0.0, 0.0, 0.0)),
+        (0.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.6, (0.0, 0.0, math.radians(-15)), (0.0, 0.0, 0.0)),
+        (0.8, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_node_action(spec, "turn", motion_root, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.24, (0.0, 0.0, math.radians(24)), (-girth * 0.08, 0.0, 0.0)),
+        (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_node_action(spec, "burst", tail_pivot, [
+        (0.0, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
+        (0.1, (0.0, 0.0, math.radians(22)), (0.0, 0.0, 0.0)),
+        (0.2, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
+        (0.3, (0.0, 0.0, math.radians(22)), (0.0, 0.0, 0.0)),
+        (0.4, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
+    ])
+    _author_node_action(spec, "struggle", motion_root, [
+        (0.0, (0.0, math.radians(-16), math.radians(-7)), (0.0, 0.0, 0.0)),
+        (0.15, (0.0, math.radians(18), math.radians(8)), (0.0, 0.0, girth * 0.08)),
+        (0.3, (0.0, math.radians(-18), math.radians(-8)), (0.0, 0.0, 0.0)),
+        (0.45, (0.0, math.radians(16), math.radians(7)), (0.0, 0.0, girth * 0.05)),
+        (0.6, (0.0, math.radians(-16), math.radians(-7)), (0.0, 0.0, 0.0)),
+    ])

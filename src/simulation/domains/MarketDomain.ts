@@ -120,20 +120,21 @@ export class MarketDomain {
     if (!speciesDef) return { success: false, reason: "Unknown fish species" };
     if (fishCargo.freshness <= 0) return { success: false, reason: "Fish is spoiled and cannot be sold" };
     const commodity = market.commodities[fishCargo.speciesId];
+    if (!commodity) return { success: false, reason: "Market does not trade this fish" };
     const revenue = calculateFishPrice(
       speciesDef,
       fishCargo.weightKg,
       fishCargo.quality,
       fishCargo.freshness,
-      commodity?.demandIndex ?? 1,
-      commodity?.seasonalModifier ?? 1
+      commodity.demandIndex,
+      commodity.seasonalModifier
     ).finalPrice;
     if (revenue <= 0) return { success: false, reason: "Fish has no market value" };
 
     this.cargo.clearPointers(fishCargo);
     delete state.fishCargo[cargoId];
     state.player.money += revenue;
-    if (commodity) recordMarketSale(market, fishCargo.speciesId, 1);
+    recordMarketSale(market, fishCargo.speciesId, 1);
     this.progression.addProficiencyXp("trading", Math.max(10, Math.floor(revenue * 0.15)));
     events.emit("FishSold", {
       marketId,

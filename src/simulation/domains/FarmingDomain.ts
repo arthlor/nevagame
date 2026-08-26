@@ -21,11 +21,10 @@ import type {
 import { SeededRng } from "../core/Rng";
 import type { CropQuality, FarmId, GameState, PlacedCropId } from "../core/types";
 import {
-  applyCropMoistureOverMinutes,
+  advancePlacedCropGrowth,
   calculateCropQuality,
   calculateEffectiveGrowthDelta,
-  calculateHarvestYield,
-  determineCropStage
+  calculateHarvestYield
 } from "../farming/calculateCropGrowth";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
@@ -45,6 +44,8 @@ export const FARMING_ACTION_COST = {
   harvest: 45,
   fertilize: 8
 } as const;
+export const ANNUAL_PLANT_MATTER_ITEM_ID = "item.plant_matter";
+export const ANNUAL_PLANT_MATTER_YIELD = 1;
 
 const PLACEMENT_EPSILON = 0.01;
 const QUALITY_RANK: Record<CropQuality, number> = {
@@ -263,7 +264,7 @@ export class FarmingDomain {
       }
     }
 
-    const worldCandidate: OrientedCropFootprint = { ...candidate, center: request };
+    const worldCandidate: OrientedCropFootprint = { ...candidate, center: world };
     for (const structureId of farm.placedStructureIds) {
       const structure = state.world.structures[structureId];
       if (!structure) continue;
@@ -397,6 +398,7 @@ export class FarmingDomain {
       if (cropDef.regrows) {
         return { success: false, reason: "This crop is not ready" };
       }
+      this.tryGrantAnnualPlantMatter();
       this.removePlacedCrop(placedCropId);
       return { success: true, yield: 0, reason: "Withered crop cleared" };
     }
@@ -429,6 +431,7 @@ export class FarmingDomain {
     }
 
     InventoryManager.addItemsAtomically(playerInventory, [{ itemId: cropDef.harvestItemId, quantity }]);
+    if (!cropDef.regrows) this.tryGrantAnnualPlantMatter();
     farm.soil.fertility = Math.max(FERTILITY_MIN, farm.soil.fertility - cropDef.fertilityCost);
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.harvest);
     state.journal.cropRecords[crop.cropId] ??= { harvestedCount: 0 };
@@ -547,19 +550,17 @@ export class FarmingDomain {
       const cropDef = ContentRegistry.crops.get(crop.cropId);
       const farm = state.farms[crop.farmId];
       if (!cropDef || !farm) continue;
-      crop.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
-        minutes,
+      const previousStage = crop.stage;
+      const nextStage = advancePlacedCropGrowth(
+        crop,
         cropDef,
         farm.climateId,
-        crop.moisture,
         farm.soil.fertility,
-        state.weather.type
+        state.weather.type,
+        minutes
       );
       crop.lastUpdatedMinute = state.clock.currentMinute;
-      applyCropMoistureOverMinutes(crop, minutes, cropDef.waterNeed, state.weather.type);
-      const nextStage = determineCropStage(crop.effectiveGrowthMinutes, cropDef.baseGrowthMinutes, cropDef.regrows);
-      if (nextStage === crop.stage) continue;
-      crop.stage = nextStage;
+      if (nextStage === previousStage) continue;
       events.emit("CropStageChanged", {
         placedCropId: crop.id,
         cropId: crop.cropId,
@@ -581,6 +582,14 @@ export class FarmingDomain {
     const local = worldToFarmLocal(farmId, this.context.state.player);
     const bounds = layout?.farmBounds ?? fallbackFarmRect(farm.widthMeters, farm.depthMeters);
     return isPointInsideRect(local, bounds, CROP_INTERACTION_RADIUS);
+  }
+
+  private tryGrantAnnualPlantMatter(): void {
+    const inventory = this.context.state.inventories[this.context.state.player.inventoryId];
+    const stack = [{ itemId: ANNUAL_PLANT_MATTER_ITEM_ID, quantity: ANNUAL_PLANT_MATTER_YIELD }];
+    if (InventoryManager.canAddItems(inventory, stack)) {
+      InventoryManager.addItemsAtomically(inventory, stack);
+    }
   }
 
   private removePlacedCrop(placedCropId: PlacedCropId): void {

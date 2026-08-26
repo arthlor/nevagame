@@ -11,7 +11,7 @@ interface ExpeditionBoardProps {
 
 export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ state, onClose }) => {
   const playerInv = state.inventories[state.player.inventoryId];
-  const rowboat = state.boats["boat.player_rowboat"];
+  const boats = Object.values(state.boats).sort((a, b) => a.id.localeCompare(b.id));
   const harborMarket = state.markets["market.harbor"];
 
   const chumCount = InventoryManager.getItemCount(playerInv, "item.chum_bucket");
@@ -49,12 +49,20 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ state, onClose
               <h4 style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-wood-dark)", marginBottom: "6px" }}>
                 ⛵ Vessel Readiness
               </h4>
-              {rowboat ? (
-                <div style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <div>Vessel: <b>Wooden Rowboat</b></div>
-                  <div>Condition: <b>{rowboat.durability}%</b></div>
-                  <div>Cargo Capacity: <b>2 Fish Slots</b></div>
-                  <div>Status: <b>{rowboat.isDocked ? "Docked at Harbor" : "At Sea"}</b></div>
+              {boats.length > 0 ? (
+                <div style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {boats.map((boat) => {
+                    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+                    const cargoCount = boat.fishCargoSlotIds.filter(Boolean).length;
+                    return (
+                      <div key={boat.id} style={{ borderBottom: "1px solid #E5DED4", paddingBottom: "6px" }}>
+                        <div>Vessel: <b>{definition?.name ?? boat.boatTypeId}</b></div>
+                        <div>Condition: <b>{boat.durability}%</b></div>
+                        <div>Cargo: <b>{cargoCount}/{boat.fishCargoSlotIds.length} fish slots</b></div>
+                        <div>Status: <b>{boat.isDocked ? `Docked at ${boat.dockedMarketId === "market.harbor" ? "Harbor" : "market"}` : "At Sea"}</b></div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div style={{ fontSize: "12px", color: "#888" }}>No active vessel registered.</div>

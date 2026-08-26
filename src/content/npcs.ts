@@ -2,6 +2,7 @@
 
 import type { NpcId } from "../simulation/core/QuestTypes";
 import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog";
+import { HARBOR_MAEVE_ANCHOR, HARBOR_SILAS_ANCHOR } from "../world/WorldAnchors";
 
 export interface NpcDefinition {
   id: NpcId;
@@ -66,8 +67,8 @@ export const NPCS: NpcDefinition[] = [
     portraitIcon: "⚓",
     assetId: ASSET_IDS.CHAR_NPC_SILAS_A,
     anchor: {
-      x: 75.0,
-      z: 64.0,
+      x: HARBOR_SILAS_ANCHOR.x,
+      z: HARBOR_SILAS_ANCHOR.z,
       rotationY: -Math.PI * 0.5,
       locationName: "Harbor Pier"
     },
@@ -85,8 +86,8 @@ export const NPCS: NpcDefinition[] = [
     portraitIcon: "🐟",
     assetId: ASSET_IDS.CHAR_NPC_MAEVE_A,
     anchor: {
-      x: 66.5,
-      z: 62.5,
+      x: HARBOR_MAEVE_ANCHOR.x,
+      z: HARBOR_MAEVE_ANCHOR.z,
       rotationY: Math.PI * 0.75,
       locationName: "Fish Market Stall"
     },
@@ -97,4 +98,3 @@ export const NPCS: NpcDefinition[] = [
     ]
   }
 ];
-

@@ -18,6 +18,54 @@ function finite(value: unknown, fallback: number = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function countInventoryTroutUnits(inventories: Record<string, Record<string, unknown>>): number {
+  let units = 0;
+  for (const inventory of Object.values(inventories)) {
+    if (!inventory || !Array.isArray(inventory.slots)) continue;
+    for (const slot of inventory.slots) {
+      if (!slot || typeof slot !== "object") continue;
+      const record = slot as Record<string, unknown>;
+      if (record.itemId !== "fish.trout") continue;
+      const quantity = typeof record.quantity === "number" && Number.isSafeInteger(record.quantity)
+        ? Math.max(0, record.quantity)
+        : 0;
+      units += quantity;
+    }
+  }
+  return units;
+}
+
+function countEmptyFishCargoCapacity(
+  player: Record<string, unknown>,
+  boats: Record<string, Record<string, unknown>>
+): number {
+  let empty = player.carriedFishCargoId ? 0 : 1;
+  for (const boatId of migrationBoatIds(player, boats)) {
+    const boat = boats[boatId];
+    const slots = Array.isArray(boat.fishCargoSlotIds) ? boat.fishCargoSlotIds : [];
+    for (const slotId of slots) {
+      if (slotId == null || slotId === "") empty += 1;
+    }
+  }
+  return empty;
+}
+
+/**
+ * Legacy inventory fish may only be moved into the player's current boat or a
+ * boat that is visibly docked. Stable ordering keeps migration deterministic
+ * while preventing a remote boat from becoming an implicit storage fallback.
+ */
+function migrationBoatIds(
+  player: Record<string, unknown>,
+  boats: Record<string, Record<string, unknown>>
+): string[] {
+  const activeBoatId = typeof player.activeBoatId === "string" ? player.activeBoatId : null;
+  const ordered = Object.keys(boats)
+    .filter((boatId) => boatId !== activeBoatId && boats[boatId]?.isDocked === true)
+    .sort();
+  return activeBoatId && boats[activeBoatId] ? [activeBoatId, ...ordered] : ordered;
+}
+
 function distance(x: number, z: number, point: { x: number; z: number }): number {
   return Math.hypot(x - point.x, z - point.z);
 }
@@ -333,7 +381,15 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       : 0;
     let troutIndex = 0;
 
-    const placeTroutCargo = (): void => {
+    const troutUnits = countInventoryTroutUnits(inventories);
+    const cargoCapacity = countEmptyFishCargoCapacity(player, boats);
+    if (troutUnits > cargoCapacity) {
+      throw new Error(
+        `Save migration v11 failed: fish.trout quantity ${troutUnits} exceeds player carry and boat hold capacity ${cargoCapacity}`
+      );
+    }
+
+    const placeTroutCargo = (): boolean => {
       troutIndex += 1;
       let cargoId = `cargo.migrated_trout_${troutIndex}`;
       while (fishCargo[cargoId]) {
@@ -352,9 +408,10 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       if (!player.carriedFishCargoId) {
         player.carriedFishCargoId = cargoId;
         fishCargo[cargoId] = { ...base, location: { type: "player", containerId: "player" } };
-        return;
+        return true;
       }
-      for (const [boatId, boat] of Object.entries(boats)) {
+      for (const boatId of migrationBoatIds(player, boats)) {
+        const boat = boats[boatId];
         const slots = Array.isArray(boat.fishCargoSlotIds) ? boat.fishCargoSlotIds : [];
         const empty = slots.findIndex((slotId) => slotId == null || slotId === "");
         if (empty < 0) continue;
@@ -364,8 +421,9 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
           ...base,
           location: { type: "boat-hold", containerId: boatId, slotIndex: empty }
         };
-        return;
+        return true;
       }
+      return false;
     };
 
     for (const [inventoryId, inventory] of Object.entries(inventories)) {
@@ -377,7 +435,14 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
         const quantity = typeof record.quantity === "number" && Number.isSafeInteger(record.quantity)
           ? Math.max(0, record.quantity)
           : 0;
-        for (let i = 0; i < quantity; i++) placeTroutCargo();
+        for (let i = 0; i < quantity; i++) {
+          if (!placeTroutCargo()) {
+            // Never clear a slot unless every unit was placed.
+            throw new Error(
+              "Save migration v11 failed: fish.trout remaining after player carry and boat holds were full"
+            );
+          }
+        }
         return {};
       });
       inventories[inventoryId] = { ...inventory, slots };

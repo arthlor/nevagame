@@ -2,10 +2,10 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import type { ProcessingJobId, RecipeId } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
-import { distance2d } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
+import { assessProcessingStationApproach } from "../../world/ProcessingStationApproach";
 
-const STATION_INTERACTION_RADIUS = 4;
+export { PROCESSING_STATION_INTERACTION_RADIUS } from "../../world/ProcessingStationApproach";
 
 export class ProcessingDomain {
   constructor(
@@ -19,8 +19,9 @@ export class ProcessingDomain {
     if (!recipe) return { success: false, reason: "Unknown recipe" };
     const station = state.world.structures[stationId];
     if (!station) return { success: false, reason: "Station not found" };
-    if (distance2d(state.player, station) > STATION_INTERACTION_RADIUS) {
-      return { success: false, reason: "Move closer to the station" };
+    const approach = assessProcessingStationApproach(stationId, state.player, station);
+    if (!approach.valid) {
+      return { success: false, reason: this.approachFailureReason(approach.reason) };
     }
     if (station.type !== recipe.stationType) {
       return { success: false, reason: `This recipe requires a ${recipe.stationType}` };
@@ -59,9 +60,9 @@ export class ProcessingDomain {
     const job = state.processingJobs[jobId];
     if (!job || job.status !== "complete") return { success: false, reason: "Job not complete" };
     const station = state.world.structures[job.stationId];
-    if (!station || distance2d(state.player, station) > STATION_INTERACTION_RADIUS) {
-      return { success: false, reason: "Move closer to the station" };
-    }
+    if (!station) return { success: false, reason: "Station not found" };
+    const approach = assessProcessingStationApproach(job.stationId, state.player, station);
+    if (!approach.valid) return { success: false, reason: this.approachFailureReason(approach.reason) };
     const recipe = ContentRegistry.recipes.get(job.recipeId)!;
     const inventory = state.inventories[state.player.inventoryId];
     if (!InventoryManager.canAddItems(inventory, recipe.outputs)) {
@@ -81,6 +82,17 @@ export class ProcessingDomain {
       if (job.status === "active" && state.clock.currentMinute >= job.completesAtMinute) {
         job.status = "complete";
       }
+    }
+  }
+
+  private approachFailureReason(reason: ReturnType<typeof assessProcessingStationApproach>["reason"]): string {
+    switch (reason) {
+      case "too-far":
+        return "Move closer to the station";
+      case "wrong-side":
+        return "Stand in front of the station";
+      default:
+        return "Station is not interactable";
     }
   }
 }

@@ -254,6 +254,8 @@ export type FishBehavior =
 
 export interface FishingEncounterState {
   fish: FishInstance;
+  /** The school that owns this encounter, so a deferred landing survives reload. */
+  schoolId?: FishSchoolId | null;
   rodId: RodId;
   stamina: number;
   maxStamina: number;

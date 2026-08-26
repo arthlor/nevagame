@@ -1,22 +1,37 @@
 import { describe, expect, it } from "vitest";
+import * as THREE from "three";
 import { WaterSurface, waterSpatialProfile } from "../../src/render/water/WaterSurface";
 import {
   BRIDGE_WORLD_PROFILE,
+  FARM_ROUTES,
   SAILABLE_BOUNDS,
   TERRAIN_RESOLUTION,
   WATER_SURFACE,
   WORLD_BOUNDS,
   WORLD_LAYOUT_V3,
   WORLD_PATHS,
+  WORLD_REGIONAL_PATHS,
+  WORLD_ROUTE_JUNCTIONS,
+  WORLD_ROUTE_NETWORK,
   WORLD_ROUTE_PROFILES,
+  WORLD_ROUTES,
   WorldLayout
 } from "../../src/world/WorldLayout";
+import {
+  STARTER_FARM_LAYOUT,
+  isPointInsideRect,
+  starterFarmsteadAnchor,
+  worldToFarmLocal
+} from "../../src/world/FarmLayout";
+import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
 import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, type AssetId } from "../../src/render/assets/AssetCatalog";
 import {
   createWorldEnvironmentLayout,
   generateEnvironmentClusterPlacements,
+  grassPlacementDensityAt,
   GROUND_COVER_DENSITY,
+  hasGroundCoverClearance,
   isPlacementFootprintStable,
   type EnvironmentAssetPlacement
 } from "../../src/world/WorldEnvironmentLayout";
@@ -41,8 +56,14 @@ describe("WorldLayout", () => {
       0
     )).toBe("river");
     expect(WorldLayout.nearbyFishingHabitat(50, 0)).toBe(null);
+    expect(WorldLayout.nearbyFishingHabitat(-14, -7)).toBe("river");
+    expect(WorldLayout.isBridgeDeck(-14, -7)).toBe(true);
     expect(WorldLayout.fishingHabitatAt(0, WorldLayout.coastlineZ(0) + 5)).toBe("lake");
     expect(WorldLayout.fishingHabitatAt(0, WorldLayout.coastlineZ(0) + 40)).toBe("coast");
+    expect(WorldLayout.fishingHabitatAt(18, WorldLayout.coastlineZ(18) + 12)).toBe("lake");
+    expect(WorldLayout.fishingHabitatAt(50, WorldLayout.coastlineZ(50) + 8)).toBe("coast");
+    expect(WorldLayout.nearbyFishingHabitat(50, WorldLayout.coastlineZ(50) - 2)).toBe("coast");
+    expect(WorldLayout.nearbyFishingHabitat(72, WorldLayout.coastlineZ(72) - 2)).not.toBe("lake");
     expect(WORLD_BOUNDS).toEqual({ minX: -180, maxX: 180, minZ: -160, maxZ: 120 });
     expect(SAILABLE_BOUNDS).toEqual({ minX: -260, maxX: 260, minZ: -240, maxZ: 280 });
     expect(WATER_SURFACE).toMatchObject({ width: 750, depth: 750 });
@@ -66,6 +87,13 @@ describe("WorldLayout", () => {
     expect(WorldLayout.terrainNormal(farmhouse.x, farmhouse.z).length()).toBeCloseTo(1, 5);
     const geometry = WorldLayout.buildTerrainGeometry();
     expect(geometry.getAttribute("color").count).toBe(geometry.getAttribute("position").count);
+    const terrainGreenMask = geometry.getAttribute("terrainGreenMask");
+    expect(terrainGreenMask).toBeInstanceOf(THREE.Uint8BufferAttribute);
+    expect(terrainGreenMask.count).toBe(geometry.getAttribute("position").count);
+    expect(terrainGreenMask.normalized).toBe(true);
+    const maskValues = Array.from(terrainGreenMask.array as Uint8Array);
+    expect(maskValues.some((value) => value === 0)).toBe(true);
+    expect(maskValues.some((value) => value > 0)).toBe(true);
     expect(geometry.index).toBeNull();
     geometry.dispose();
   }, 15000);
@@ -162,7 +190,8 @@ describe("WorldLayout", () => {
 
   it("grades typed dirt routes deterministically without displacing terrain more than 0.45 metres", () => {
     expect(WorldLayout.routeDefinitions().map((route) => route.kind)).toEqual([
-      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail"
+      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail",
+      "lane", "trail", "lane"
     ]);
     expect(WORLD_ROUTE_PROFILES.arterial.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.lane.crownMeters);
     expect(WORLD_ROUTE_PROFILES.lane.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.trail.crownMeters);
@@ -193,12 +222,12 @@ describe("WorldLayout", () => {
     expect(liftAt(6)).toBeGreaterThan(liftAt(4));
     expect(liftAt(6)).toBeGreaterThan(liftAt(8));
     expect(liftAt(0)).toBeLessThan(liftAt(6));
-    expect(geometry.userData.routeProfiles).toHaveLength(7);
+    expect(geometry.userData.routeProfiles).toHaveLength(WORLD_ROUTE_NETWORK.length);
     geometry.dispose();
   });
 
   it("owns weighted materials, route topology, and deterministic cover density", () => {
-    expect(WorldLayout.routeDefinitions()).toHaveLength(7);
+    expect(WorldLayout.routeDefinitions()).toHaveLength(WORLD_ROUTE_NETWORK.length);
     const weights = WorldLayout.terrainSurfaceWeights(-65, -55);
     expect(Object.values(weights).reduce((sum, value) => sum + value, 0)).toBeCloseTo(1, 6);
     const first = createWorldEnvironmentLayout(42891).groundCoverPlacements;
@@ -208,6 +237,24 @@ describe("WorldLayout", () => {
     expect(first.filter((placement) => placement.category === "flowers")).toHaveLength(GROUND_COVER_DENSITY.high.flowers);
     expect(first.filter((placement) => placement.category === "pebbles")).toHaveLength(GROUND_COVER_DENSITY.high.pebbles);
     expect(first.filter((placement) => placement.category === "driftwood")).toHaveLength(GROUND_COVER_DENSITY.high.driftwood);
+  });
+
+  it("biases grass density toward meadow surfaces with deterministic broad patches", () => {
+    const meadowSamples: number[] = [];
+    const ordinarySamples: number[] = [];
+    for (let x = WORLD_BOUNDS.minX + 8; x <= WORLD_BOUNDS.maxX - 8; x += 8) {
+      for (let z = WORLD_BOUNDS.minZ + 8; z <= WORLD_BOUNDS.maxZ - 8; z += 8) {
+        if (!WorldLayout.isWalkable(x, z) || WorldLayout.isWater(x, z)) continue;
+        const weights = WorldLayout.terrainSurfaceWeights(x, z);
+        if (weights.meadow > 0.16) meadowSamples.push(grassPlacementDensityAt(x, z));
+        if (weights.meadow < 0.04 && weights.grass > 0.7) ordinarySamples.push(grassPlacementDensityAt(x, z));
+      }
+    }
+    const average = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    expect(meadowSamples.length).toBeGreaterThan(10);
+    expect(ordinarySamples.length).toBeGreaterThan(5);
+    expect(average(meadowSamples)).toBeGreaterThan(average(ordinarySamples) + 0.12);
+    expect(Math.max(...meadowSamples) - Math.min(...meadowSamples)).toBeGreaterThan(0.1);
   });
 
   it("reproduces the complete environment layout for the same world seed", () => {
@@ -236,7 +283,7 @@ describe("WorldLayout", () => {
     const layoutDerived = byOrigin(layout.staticPlacements, "layout-derived");
     const seeded = byOrigin(layout.staticPlacements, "seeded-fill");
 
-    expect(authored).toHaveLength(27);
+    expect(authored).toHaveLength(42);
     expect(layoutDerived).toHaveLength(78);
     expect(seeded).toHaveLength(168);
 
@@ -286,9 +333,9 @@ describe("WorldLayout", () => {
       }
     }
     expect(Object.fromEntries(groundCoverAssetCounts)).toEqual({
-      foliage_grass_a: 600,
-      foliage_grass_b: 600,
-      foliage_grass_c: 600,
+      foliage_grass_a: 2400,
+      foliage_grass_b: 2400,
+      foliage_grass_c: 2400,
       foliage_wildflower_a: 100,
       foliage_wildflower_b: 100,
       foliage_wildflower_c: 100,
@@ -299,6 +346,13 @@ describe("WorldLayout", () => {
       prop_driftwood_b: 10,
       prop_driftwood_c: 10
     });
+
+    const grass = layout.groundCoverPlacements.filter((placement) => placement.category === "grass");
+    expect(grass.every((placement) => placement.scale[1] >= 0.62 && placement.scale[1] <= 0.96)).toBe(true);
+    expect(grass.every((placement) => WorldLayout.terrainNormal(placement.x, placement.z).y > 0.78)).toBe(true);
+    expect(grass.every((placement) => WorldLayout.farmSoilInfluence(placement.x, placement.z) < 0.08)).toBe(true);
+    expect(grass.every((placement) => WorldLayout.shorelineWetness(placement.x, placement.z) < 0.62)).toBe(true);
+    expect(grass.every((placement) => hasGroundCoverClearance(placement.x, placement.z))).toBe(true);
 
     const driftwood = layout.groundCoverPlacements.filter((placement) => placement.category === "driftwood");
     expect(driftwood.every((placement) => placement.id.startsWith("seeded-fill.ground-cover.coast.driftwood"))).toBe(true);
@@ -314,7 +368,7 @@ describe("WorldLayout", () => {
     ).toHaveLength(133);
 
     const coastalRocks = authored.filter((placement) => placement.assetId.startsWith("rock_coastal_"));
-    expect(coastalRocks).toHaveLength(4);
+    expect(coastalRocks).toHaveLength(5);
     for (const placement of coastalRocks) {
       expect(WorldLayout.terrainNormal(placement.x, placement.z).y).toBeGreaterThan(0.8);
       expect(isPlacementFootprintStable(placement, 0.8, 1.1)).toBe(true);
@@ -361,7 +415,7 @@ describe("WorldLayout", () => {
   });
 
   it("keeps all arterial roads and scenic trails continuous and joined at intentional gateways", () => {
-    const routes = WorldLayout.routeDefinitions();
+    const routes = WorldLayout.regionalRouteDefinitions();
     expect(routes.map((route) => route.id)).toEqual([
       "farm-village",
       "village-homestead",
@@ -389,6 +443,125 @@ describe("WorldLayout", () => {
     expect(routes[5].points[0]).toEqual(WORLD_LAYOUT_V3.anchors.lighthouse);
     expect(routes[5].points.at(-1)).toEqual(WORLD_LAYOUT_V3.anchors.fishMarket);
     expect(routes[6].points[0]).toEqual(WORLD_LAYOUT_V3.anchors.privateHomestead);
+  });
+
+  it("compiles the farmstead paths into the canonical network with shared junctions and a door endpoint", () => {
+    expect(WORLD_ROUTE_NETWORK).toEqual([...WORLD_ROUTES, ...FARM_ROUTES]);
+    expect(FARM_ROUTES.map((route) => route.id)).toEqual([
+      "farm-entry",
+      "farm-work-zone",
+      "farm-home"
+    ]);
+    expect(FARM_ROUTES.every((route) => route.scope === "farmstead")).toBe(true);
+    expect(WORLD_ROUTE_NETWORK.filter((route) => route.scope === "regional")).toHaveLength(7);
+
+    const farmEntry = FARM_ROUTES.find((route) => route.id === "farm-entry")!;
+    const farmWorkZone = FARM_ROUTES.find((route) => route.id === "farm-work-zone")!;
+    const farmHome = FARM_ROUTES.find((route) => route.id === "farm-home")!;
+    const farmVillage = WORLD_ROUTES.find((route) => route.id === "farm-village")!;
+    expect(farmEntry.points.at(-1)).toEqual(farmHome.points[0]);
+    expect(farmEntry.points[1]).toEqual(farmWorkZone.points[0]);
+    expect(farmVillage.points[0]).toEqual(farmEntry.points.at(-1));
+    expect(WORLD_ROUTE_JUNCTIONS).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "starter-farm-field",
+        routeIds: ["farm-entry", "farm-work-zone"]
+      }),
+      expect.objectContaining({
+        id: "starter-farm-yard",
+        routeIds: ["farm-village", "farm-entry", "farm-home"]
+      })
+    ]));
+
+    const farmhouseDoor = { x: FARMHOUSE_OUTSIDE_DOOR.x, z: FARMHOUSE_OUTSIDE_DOOR.z };
+    expect(farmHome.points.at(-1)).toEqual(farmhouseDoor);
+    const localDoor = worldToFarmLocal(STARTER_FARM_LAYOUT.farmId, farmHome.points.at(-1)!);
+    expect(localDoor.x).toBeCloseTo(8, 6);
+    expect(localDoor.z).toBeCloseTo(-2.8, 6);
+    expect(farmHome.points.at(-1)).not.toEqual({
+      x: WorldLayout.landmark("farmhouse").x,
+      z: WorldLayout.landmark("farmhouse").z
+    });
+  });
+
+  it("keeps the rerouted arterial outside the farmhouse and fence footprint", () => {
+    const farmhouse = starterFarmsteadAnchor("farmhouse")!;
+    const arterial = WORLD_REGIONAL_PATHS[0];
+    const distanceToSegment = (point: { x: number; z: number }, start: { x: number; z: number }, end: { x: number; z: number }) => {
+      const dx = end.x - start.x;
+      const dz = end.z - start.z;
+      const lengthSquared = dx * dx + dz * dz;
+      const progress = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / Math.max(0.0001, lengthSquared)));
+      return Math.hypot(point.x - (start.x + dx * progress), point.z - (start.z + dz * progress));
+    };
+    let closestFarmhouse = Number.POSITIVE_INFINITY;
+    for (let index = 1; index < arterial.length; index++) {
+      closestFarmhouse = Math.min(
+        closestFarmhouse,
+        distanceToSegment(farmhouse, arterial[index - 1], arterial[index])
+      );
+    }
+    expect(closestFarmhouse).toBeGreaterThan(farmhouse.clearanceRadius);
+
+    const localArterial = arterial.map((point) => worldToFarmLocal(STARTER_FARM_LAYOUT.farmId, point));
+    const fenceFootprint = { minX: -7.2, maxX: 7.2, minZ: -6.2, maxZ: 6.2 };
+    expect(localArterial.every((point) => !isPointInsideRect(point, fenceFootprint, 0.5))).toBe(true);
+  });
+
+  it("keeps the farm-to-village bridge corridor straight and clips its deck exactly", () => {
+    const farmVillageRoute = WORLD_ROUTE_NETWORK.find((route) => route.id === "farm-village")!;
+    expect(farmVillageRoute.linearSegmentIndices).toEqual([4, 5, 6, 7]);
+    const bridge = WORLD_LAYOUT_V3.anchors.bridge;
+    const bridgePath = WORLD_REGIONAL_PATHS[0];
+    const corridorSamples = bridgePath.slice(40, 80);
+    expect(corridorSamples.length).toBeGreaterThan(20);
+    expect(corridorSamples.every((point) => Math.abs(point.z - bridge.z) < 0.0001)).toBe(true);
+
+    const geometry = WorldLayout.buildPathGeometry();
+    expect(geometry.userData.bridgeGatewayBandCount).toBe(6);
+    const positions = geometry.getAttribute("position");
+    const index = geometry.getIndex();
+    expect(index).not.toBeNull();
+    if (index) {
+      for (let triangle = 0; triangle < index.count; triangle += 3) {
+        const vertexIndices = [index.getX(triangle), index.getX(triangle + 1), index.getX(triangle + 2)];
+        const strictlyInsideDeck = vertexIndices.every((vertexIndex) =>
+          Math.abs(positions.getX(vertexIndex) - bridge.x) < BRIDGE_WORLD_PROFILE.spanLength * 0.5 &&
+          Math.abs(positions.getZ(vertexIndex) - bridge.z) < BRIDGE_WORLD_PROFILE.deckWidth * 0.5
+        );
+        expect(strictlyInsideDeck).toBe(false);
+      }
+    }
+    geometry.dispose();
+  });
+
+  it("keeps both bridge approaches flush and free of one-cell height breaks", () => {
+    const bridge = WORLD_LAYOUT_V3.anchors.bridge;
+    const halfSpan = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
+    const westStart = bridge.x - halfSpan - BRIDGE_WORLD_PROFILE.approachLength;
+    const eastEnd = bridge.x + halfSpan + BRIDGE_WORLD_PROFILE.approachLength;
+    expect(WorldLayout.terrainHeight(bridge.x - halfSpan, bridge.z)).toBeCloseTo(BRIDGE_WORLD_PROFILE.entrySurfaceY, 2);
+    expect(WorldLayout.terrainHeight(bridge.x + halfSpan, bridge.z)).toBeCloseTo(BRIDGE_WORLD_PROFILE.entrySurfaceY, 2);
+
+    let maximumDelta = 0;
+    let maximumDeltaX = westStart;
+    const checkContinuity = (x: number) => {
+      const delta = Math.abs(WorldLayout.terrainHeight(x + 0.25, bridge.z) - WorldLayout.terrainHeight(x, bridge.z));
+      if (delta > maximumDelta) {
+        maximumDelta = delta;
+        maximumDeltaX = x;
+      }
+    };
+    for (let x = westStart; x < bridge.x - halfSpan - 0.25; x += 0.25) {
+      checkContinuity(x);
+    }
+    for (let x = bridge.x + halfSpan + 0.25; x < eastEnd; x += 0.25) {
+      checkContinuity(x);
+    }
+    expect(maximumDelta, JSON.stringify({ maximumDelta, maximumDeltaX })).toBeLessThan(0.12);
+    for (let x = bridge.x - halfSpan; x <= bridge.x + halfSpan; x += 0.25) {
+      expect(WorldLayout.isWater(x, bridge.z)).toBe(false);
+    }
   });
 
   it("keeps every interaction anchor valid in its movement domain", () => {

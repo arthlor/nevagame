@@ -23,7 +23,8 @@ import {
   SkillId
 } from "./core/types";
 import { createInitialGameState } from "./core/createInitialState";
-import { advanceScheduledWeather, applyWeatherProfile } from "./weather/updateWeather";
+import { applyWeatherProfile } from "./weather/updateWeather";
+import { forEachWeatherBoundedSegment } from "./farming/weatherBoundedSegments";
 import type { ResolvedPhysicsFrame } from "./core/PhysicsAdapter";
 import type { DomainContext } from "./domains/DomainContext";
 import { deterministicCropRotation, FarmingDomain } from "./domains/FarmingDomain";
@@ -36,6 +37,8 @@ import { MarketDomain } from "./domains/MarketDomain";
 import { ContractDomain } from "./domains/ContractDomain";
 import { QuestDomain } from "./domains/QuestDomain";
 import { InventoryManager } from "./inventory/InventoryManager";
+import { WorldLayout } from "../world/WorldLayout";
+import { HARBOR_DOCK } from "../world/WorldAnchors";
 import type {
   CropInspectionDto,
   CropPlacementResult,
@@ -123,6 +126,8 @@ export class Simulation {
         return this.boardBoat(command.boatId);
       case "boat.dock":
         return this.dockActiveBoat();
+      case "boat.purchase-skiff":
+        return this.purchaseSkiff();
       case "crop.plant":
         return this.farmingDomain.plant(command.request);
       case "crop.plant-near":
@@ -174,7 +179,7 @@ export class Simulation {
       case "quest.talk-npc":
         return this.questDomain.talkToNpc(command.npcId);
       case "quest.claim-reward":
-        return this.questDomain.completeQuest(command.questId);
+        return this.questDomain.completeQuest(command.questId, command.npcId);
       case "quest.record-hint":
         this.questDomain.recordHintShown(command.hintId);
         return { success: true };
@@ -241,28 +246,26 @@ export class Simulation {
       return;
     }
 
-    // 3. Update Crops
-    this.farmingDomain.tick(minutesAdvanced);
+    // 3-5. Crops, moisture, and cargo freshness in the same weather-bounded
+    // segments used by offline catch-up (LLM/01). Clock is already at the end
+    // of this tick; weather is walked from the start minute.
+    const startMinute = this.state.clock.currentMinute - minutesAdvanced;
+    forEachWeatherBoundedSegment(
+      this.state.weather,
+      startMinute,
+      minutesAdvanced,
+      this.rng,
+      (segmentMinutes) => {
+        this.farmingDomain.tick(segmentMinutes);
+        this.cargoDomain.tick(segmentMinutes);
+      }
+    );
 
-    // 4. Update Processing Jobs
+    // After all segments: processing, contracts, markets (LLM/01), then live-only extras.
     this.processingDomain.tick();
-
-    // 5. Update Fish Cargo Freshness
-    this.cargoDomain.tick(minutesAdvanced);
-
-    // 6. Update Fish Schools
-    this.fishingDomain.tickSchools();
-
-    // 7. Update Markets whenever minutes advanced (tickMarket coalesces hours)
-    this.marketDomain.tick();
-
-    // 8. Expire contracts
     this.contractDomain.tick();
-
-    // 9. Update scheduled weather for the next simulation interval
-    this.tickWeather();
-
-    // 10. Regenerate Work Capacity slowly
+    this.marketDomain.tick();
+    this.fishingDomain.tickSchools();
     this.progressionDomain.tickWorkCapacity(minutesAdvanced);
 
     this.persistRng();
@@ -461,6 +464,16 @@ export class Simulation {
     z: number,
     speciesId: FishSpeciesId = "fish.trout"
   ): boolean {
+    if (WorldLayout.fishingHabitatAt(x, z) !== habitatId) return false;
+    // The debug fixture is an authored camera start, so place the player at
+    // the same valid review point before the school events are committed.
+    this.setDebugPlayerPose({
+      x,
+      y: WorldLayout.isWater(x, z) ? 0.5 : WorldLayout.terrainHeight(x, z) + 0.5,
+      z,
+      rotationY: 0
+    });
+    if (speciesId === "fish.tuna") this.state.player.equippedRodId = "rod.heavy_sport";
     const inventory = this.state.inventories[this.state.player.inventoryId];
     if (!InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }])) {
       return false;
@@ -513,6 +526,44 @@ export class Simulation {
 
   public dockActiveBoat(): { success: boolean; reason?: string } {
     return this.navigationDomain.dockActiveBoat();
+  }
+
+  public purchaseSkiff(): { success: boolean; reason?: string; cost?: number } {
+    return this.navigationDomain.purchaseSkiff();
+  }
+
+  /** Development-only, unsaved review fixture for the owned coastal skiff. */
+  public prepareDebugSkiffReview(): boolean {
+    this.state.player.proficiencies.fishing = Math.max(this.state.player.proficiencies.fishing, 15000);
+    this.state.player.money = Math.max(this.state.player.money, 1200);
+    this.setDebugPlayerPose({
+      x: 86,
+      y: WorldLayout.terrainHeight(86, 69) + 0.5,
+      z: 69,
+      rotationY: 0
+    });
+    return this.purchaseSkiff().success;
+  }
+
+  /** Development-only fixture for exercising the authored board/dock flow. */
+  public prepareDebugHarborBoarding(): void {
+    if (!this.state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) {
+      this.state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    }
+    const boat = this.state.boats["boat.player_rowboat"];
+    Object.assign(boat, {
+      ...HARBOR_DOCK.boatPosition,
+      headingRadians: 0,
+      speed: 0,
+      isDocked: true,
+      dockedMarketId: HARBOR_DOCK.marketId
+    });
+    this.setDebugPlayerPose({
+      x: HARBOR_DOCK.playerPosition.x,
+      y: WorldLayout.terrainHeight(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z) + 0.5,
+      z: HARBOR_DOCK.playerPosition.z,
+      rotationY: 0
+    });
   }
 
   public canAccessFishCargo(cargo: FishCargoState, marketId?: MarketId): boolean {
@@ -667,17 +718,6 @@ export class Simulation {
     const a = this.rng.intInclusive(1, 0x7fffffff).toString(36);
     const b = this.rng.intInclusive(0, 0xffff).toString(36);
     return `${prefix}_${a}_${b}`;
-  }
-
-  private tickWeather(): void {
-    if (
-      advanceScheduledWeather(this.state.weather, this.state.clock.currentMinute, this.rng)
-    ) {
-      this.events.emit("WeatherChanged", {
-        weather: this.state.weather.type,
-        minute: this.state.clock.currentMinute
-      });
-    }
   }
 
 }

@@ -67,4 +67,12 @@ describe("semantic input mapping", () => {
       rodDirectionAngle: 0.6
     });
   });
+
+  it("exposes farm GIS as a held Alt intent rather than a toggle", () => {
+    expect(deriveSemanticInput(new Set(["AltLeft"]), "on-foot").farmGisHeld).toBe(true);
+    expect(deriveSemanticInput(new Set(["AltRight"]), "farm-placement").farmGisHeld).toBe(true);
+    expect(deriveSemanticInput(new Set(["KeyW"]), "on-foot").farmGisHeld).toBe(false);
+    expect(deriveSemanticInput(new Set(), "on-foot").farmGisHeld).toBe(false);
+  });
+
 });

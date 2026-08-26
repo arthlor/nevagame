@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import math
 
+from collections import defaultdict
+
+import bpy
+
 from common.geometry import (
     add_beam,
     add_box,
@@ -14,11 +18,18 @@ from common.geometry import (
     add_marker,
     add_ring,
     add_tri_prism,
+    join_meshes,
 )
 from common.authored import (
     add_catenary_rope,
+    add_cylindrical_masonry,
+    add_fasteners,
+    add_masonry_courses,
     add_mooring_cleat,
+    add_plank_field,
+    add_shingle_rows,
 )
+from common.lod import consolidate_lod_level, create_lod_roots
 
 
 def _shingled_gable_roof(
@@ -126,7 +137,61 @@ def _shingled_gable_roof(
     return ridge_z
 
 
+def _is_hero_detail(spec: dict) -> bool:
+    return spec.get("_lodIndex", 0) == 0
+
+
+def _join_direct_meshes(parent, prefix: str, preserve_names=()) -> None:
+    """Join same-material direct children, keeping runtime hook meshes intact."""
+    preserve = set(preserve_names)
+    groups = defaultdict(list)
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not parent:
+            continue
+        if obj.name in preserve:
+            continue
+        material_key = tuple(material.name for material in obj.data.materials if material is not None)
+        groups[material_key].append(obj)
+    for group_index, objects in enumerate(groups.values()):
+        joined_name = f"{prefix}_material_{group_index:02d}"
+        if len(objects) == 1:
+            joined = objects[0]
+            joined.name = joined_name
+            joined.data.name = f"{joined_name}_mesh"
+        else:
+            joined = join_meshes(objects, joined_name)
+        if joined is None:
+            continue
+        joined.parent = parent
+
+
+def _finish_architecture(spec: dict, root, builder, *, preserve_names=()) -> None:
+    """Build LOD0/LOD1 (or a single root), join by material, then attach collision."""
+    preserve = tuple(preserve_names)
+    for lod_index, lod_root in create_lod_roots(spec, root):
+        lod_spec = {**spec, "parameters": dict(spec["parameters"]), "_lodIndex": lod_index}
+        builder(lod_spec, lod_root)
+        prefix = f"{spec['id']}_LOD{lod_index}" if spec.get("lodLevels") else spec["id"]
+        for child in list(lod_root.children):
+            keep = lod_index == 0 and child.name in preserve
+            if keep:
+                continue
+            if child.name in preserve:
+                child.name = f"{prefix}_{child.name}"
+                if child.type == "MESH":
+                    child.data.name = f"{child.name}_mesh"
+        if spec.get("lodLevels"):
+            _join_direct_meshes(lod_root, prefix, preserve if lod_index == 0 else ())
+        else:
+            _join_direct_meshes(lod_root, prefix, preserve)
+    add_collision_primitives(spec, root)
+
+
 def farmhouse(spec: dict, root) -> None:
+    _finish_architecture(spec, root, _build_farmhouse, preserve_names=("farmhouse_lantern_glow",))
+
+
+def _build_farmhouse(spec: dict, root) -> None:
     """Authored premium cozy farmhouse matching art-reference.png and farmhouse_isolated reference.
 
     Features: Grounded stone foundation plinth, cream plaster walls with warm honey timber
@@ -140,8 +205,10 @@ def farmhouse(spec: dict, root) -> None:
     timber = palette[2] if len(palette) > 2 else "wood_honey_01"
     dark = palette[3] if len(palette) > 3 else "wood_dark_01"
     roof = palette[4] if len(palette) > 4 else "roof_terracotta_01"
-    glow = palette[5] if len(palette) > 5 else "emissive_window_01"
-    lantern_glow = palette[6] if len(palette) > 6 else "emissive_lantern_01"
+    lantern_glow = palette[5] if len(palette) > 5 else "emissive_lantern_01"
+    glow = lantern_glow
+    detail = _is_hero_detail(spec)
+    seed = spec["seed"]
 
     width = params.get("width", 6.6)
     depth = params.get("depth", 4.8)
@@ -153,11 +220,27 @@ def farmhouse(spec: dict, root) -> None:
     add_box(
         "farmhouse_foundation_base",
         (0, 0, foundation_h * 0.5),
-        (width + 0.64, depth + 0.64, foundation_h),
+        (width + 0.28, depth + 0.28, foundation_h),
         stone,
         root,
         bevel=0.06,
     )
+    masonry_courses = params.get("masonryCourses", 4) if detail else 0
+    if masonry_courses:
+        add_masonry_courses(
+            "farmhouse_foundation_masonry",
+            (0, 0, foundation_h * 0.5),
+            width + 0.64,
+            depth + 0.64,
+            foundation_h,
+            (stone,),
+            root,
+            courses=masonry_courses,
+            blocks_per_long_side=params.get("masonryBlocks", 5),
+            seed=seed + 11,
+            block_depth=0.22,
+            bevel=0.018,
+        )
     add_box(
         "farmhouse_foundation_water_table",
         (0, 0, foundation_h + 0.04),
@@ -180,7 +263,7 @@ def farmhouse(spec: dict, root) -> None:
     )
 
     # Exposed Heavy Dark Timber Framing (Corner Posts, Sills & Wall Top Plates)
-    post_w = 0.22
+    post_w = 0.28 if detail else 0.22
     for x_idx, px in enumerate((-width * 0.5 + post_w * 0.4, width * 0.5 - post_w * 0.4)):
         for y_idx, py in enumerate((-depth * 0.5 + post_w * 0.4, depth * 0.5 - post_w * 0.4)):
             add_box(
@@ -224,8 +307,20 @@ def farmhouse(spec: dict, root) -> None:
         root,
         overhang_front=0.72,
         overhang_side=0.55,
-        courses=4,
-        course_thickness=0.16,
+        courses=3 if detail else 2,
+        course_thickness=0.18,
+    )
+    add_shingle_rows(
+        "farmhouse_shingles",
+        width,
+        depth,
+        wall_top,
+        pitch_deg,
+        (roof,),
+        root,
+        rows=params.get("shingleRows", 7) if detail else 3,
+        columns=params.get("shingleColumns", 8) if detail else 4,
+        seed=seed + 17,
     )
 
     # 4. Front Cross-Gable / Dormer Roof matching farmhouse_isolated reference
@@ -322,6 +417,21 @@ def farmhouse(spec: dict, root) -> None:
         root,
         bevel=0.05,
     )
+    if masonry_courses:
+        add_masonry_courses(
+            "farmhouse_chimney_masonry",
+            (chim_x, chim_y, chim_h * 0.5),
+            0.96,
+            0.96,
+            chim_h,
+            (stone,),
+            root,
+            courses=max(3, masonry_courses),
+            blocks_per_long_side=3,
+            seed=seed + 23,
+            block_depth=0.16,
+            bevel=0.016,
+        )
     # Chimney crown cap & terracotta flue pot
     add_box(
         "farmhouse_chimney_crown",
@@ -358,13 +468,18 @@ def farmhouse(spec: dict, root) -> None:
         bevel=0.025,
     )
     # Continuous warm timber porch deck surface
-    add_box(
-        "farmhouse_porch_deck_floor",
-        (0, front_y - porch_d * 0.5, porch_deck_z + 0.04),
-        (porch_w - 0.06, porch_d - 0.04, 0.08),
-        timber,
+    add_plank_field(
+        "farmhouse_porch_planks",
+        (0, front_y - porch_d * 0.5, porch_deck_z + 0.05),
+        porch_w - 0.06,
+        porch_d - 0.04,
+        0.08,
+        (timber,),
         root,
-        bevel=0.015,
+        count=params.get("porchPlanks", 8) if detail else 5,
+        axis="x",
+        seed=seed + 29,
+        bevel=0.012,
     )
 
     # Porch timber posts
@@ -374,7 +489,7 @@ def farmhouse(spec: dict, root) -> None:
         add_box(
             f"farmhouse_porch_post_{p_idx}",
             (px, post_y, porch_deck_z + 1.15),
-            (0.20, 0.20, 2.30),
+            (0.26, 0.26, 2.30),
             timber,
             root,
             bevel=0.025,
@@ -491,15 +606,15 @@ def farmhouse(spec: dict, root) -> None:
     add_box(
         "farmhouse_lantern_frame",
         (lamp_x, lamp_y, lamp_z),
-        (0.24, 0.24, 0.34),
+        (0.32, 0.32, 0.42),
         dark,
         root,
-        bevel=0.015,
+        bevel=0.018,
     )
     add_ico(
         "farmhouse_lantern_glow",
         (lamp_x, lamp_y, lamp_z),
-        (0.10, 0.10, 0.16),
+        (0.13, 0.13, 0.20),
         lantern_glow,
         root,
         subdivisions=2,
@@ -592,11 +707,39 @@ def farmhouse(spec: dict, root) -> None:
             bevel=0.012,
         )
 
-    # Collision Box
-    add_collision_primitives(spec, root)
-
+    if detail:
+        add_fasteners(
+            "farmhouse_door_fastener",
+            (
+                (-0.46, front_y - 0.10, wall_base + 1.55),
+                (0.46, front_y - 0.10, wall_base + 1.55),
+                (-0.46, front_y - 0.10, wall_base + 0.72),
+                (0.46, front_y - 0.10, wall_base + 0.72),
+            ),
+            0.018,
+            dark,
+            root,
+            depth=0.07,
+        )
+        add_fasteners(
+            "farmhouse_porch_fastener",
+            (
+                (-post_x, post_y, porch_deck_z + 2.20),
+                (post_x, post_y, porch_deck_z + 2.20),
+                (-post_x, post_y, porch_deck_z + 0.18),
+                (post_x, post_y, porch_deck_z + 0.18),
+            ),
+            0.02,
+            dark,
+            root,
+            depth=0.08,
+        )
 
 def windmill(spec: dict, root) -> None:
+    _finish_architecture(spec, root, _build_windmill, preserve_names=("windmill_rotor", "windmill_hub", "windmill_sail_canvas"))
+
+
+def _build_windmill(spec: dict, root) -> None:
     """Authored village windmill matching art-reference.png.
 
     Features: Tapered golden stone base, belt moulding course, warm timber upper body,
@@ -614,6 +757,8 @@ def windmill(spec: dict, root) -> None:
     height = params.get("height", 7.8)
     radius = params.get("baseRadius", 2.3)
     sides = params.get("sides", 10)
+    detail = _is_hero_detail(spec)
+    seed = spec["seed"]
 
     # 1. Lower Stone Base (Grounded Masonry)
     stone_h = height * 0.38
@@ -621,13 +766,27 @@ def windmill(spec: dict, root) -> None:
     add_cone(
         "windmill_stone_base",
         (0, 0, stone_h * 0.5),
-        radius,
-        stone_top_r,
+        radius * 0.92,
+        stone_top_r * 0.92,
         stone_h,
         stone,
         root,
         vertices=sides,
     )
+    if detail:
+        add_cylindrical_masonry(
+            "windmill_stone_masonry",
+            0.0,
+            stone_h,
+            radius,
+            stone_top_r,
+            (stone,),
+            root,
+            courses=params.get("masonryCourses", 8),
+            blocks_per_course=params.get("masonryBlocks", 14),
+            seed=seed + 13,
+            block_depth=0.20,
+        )
     # Stone belt moulding course
     add_cylinder(
         "windmill_stone_belt",
@@ -726,6 +885,29 @@ def windmill(spec: dict, root) -> None:
         root,
         bevel=0.02,
     )
+    if detail:
+        add_plank_field(
+            "windmill_door_planks",
+            (0, -radius - 0.16, 1.30),
+            1.00,
+            0.08,
+            2.00,
+            (timber, dark),
+            root,
+            count=5,
+            axis="x",
+            bevel=0.008,
+            seed=seed + 17,
+        )
+        add_fasteners(
+            "windmill_door_fastener",
+            ((-0.38, -radius - 0.18, 1.55), (0.38, -radius - 0.18, 1.55),
+             (-0.38, -radius - 0.18, 2.05), (0.38, -radius - 0.18, 2.05)),
+            0.018,
+            dark,
+            root,
+            depth=0.06,
+        )
     # Stone door lintel
     add_box(
         "windmill_door_lintel",
@@ -759,7 +941,8 @@ def windmill(spec: dict, root) -> None:
     # 5. Rotor Hub & 4 Delicate Lattice-and-Canvas Sails
     rotor_z = height * 0.84
     rotor_y = -timber_top_r - 0.35
-    rotor = add_marker("windmill_rotor", (0, 0, 0), root, marker_type="animation_pivot")
+    rotor_name = "windmill_rotor" if spec.get("_lodIndex", 0) == 0 else f"{spec['id']}_LOD{spec.get('_lodIndex')}_rotor"
+    rotor = add_marker(rotor_name, (0, 0, 0), root, marker_type="animation_pivot")
     rotor["pivot"] = [0, rotor_y, rotor_z]
 
     hub_center = (0, rotor_y - 0.06, rotor_z)
@@ -769,7 +952,7 @@ def windmill(spec: dict, root) -> None:
         0.36,
         0.46,
         dark,
-        root,
+        rotor,
         vertices=10,
         rotation=(math.pi / 2, 0, 0),
         bevel=0.025,
@@ -799,9 +982,9 @@ def windmill(spec: dict, root) -> None:
             f"windmill_spar_{s_idx}",
             spar_start,
             spar_end,
-            0.08,
+            0.11 if detail else 0.08,
             dark,
-            root,
+            rotor,
             vertices=6,
         )
 
@@ -813,9 +996,9 @@ def windmill(spec: dict, root) -> None:
         add_box(
             f"windmill_sail_canvas_{s_idx}",
             (sc_x, sc_y, sc_z),
-            (sail_len, 0.035, sail_w),
+            (sail_len, 0.045, sail_w),
             canvas,
-            root,
+            rotor,
             rotation=(0, -angle, 0),
             bevel=0.01,
         )
@@ -835,9 +1018,9 @@ def windmill(spec: dict, root) -> None:
             f"windmill_sail_edge_{s_idx}",
             edge_start,
             edge_end,
-            0.038,
+            0.042,
             dark,
-            root,
+            rotor,
             vertices=4,
         )
 
@@ -847,9 +1030,9 @@ def windmill(spec: dict, root) -> None:
             f"windmill_sail_root_{s_idx}",
             root_start,
             edge_start,
-            0.038,
+            0.042,
             dark,
-            root,
+            rotor,
             vertices=4,
         )
         tip_start = (hub_center[0] + dx * r_max, hub_center[1] - 0.01, hub_center[2] + dz * r_max)
@@ -857,15 +1040,16 @@ def windmill(spec: dict, root) -> None:
             f"windmill_sail_tip_{s_idx}",
             tip_start,
             edge_end,
-            0.038,
+            0.042,
             dark,
-            root,
+            rotor,
             vertices=4,
         )
 
         # 5. Handcrafted timber battens / lattice ribs across canvas
-        for batten_idx in range(4):
-            progress = (batten_idx + 0.5) / 4.0
+        batten_count = 6 if detail else 2
+        for batten_idx in range(batten_count):
+            progress = (batten_idx + 0.5) / batten_count
             r_b = r_min + progress * sail_len
             b_start = (hub_center[0] + dx * r_b, hub_center[1] - 0.015, hub_center[2] + dz * r_b)
             b_end = (
@@ -877,17 +1061,43 @@ def windmill(spec: dict, root) -> None:
                 f"windmill_sail_batten_{s_idx}_{batten_idx}",
                 b_start,
                 b_end,
-                0.030,
+                0.032,
                 dark,
-                root,
+                rotor,
                 vertices=4,
             )
 
-    # Collision Box
-    add_collision_primitives(spec, root)
+    lod_index = spec.get("_lodIndex", 0)
+    hub_name = "windmill_hub" if lod_index == 0 else f"{spec['id']}_LOD{lod_index}_windmill_hub"
+    sail_name = "windmill_sail_canvas" if lod_index == 0 else f"{spec['id']}_LOD{lod_index}_windmill_sail_canvas"
+    dark_parts = []
+    canvas_parts = []
+    for child in list(rotor.children):
+        if child.type != "MESH":
+            continue
+        token = child.data.materials[0].name if child.data.materials else ""
+        if token == canvas:
+            canvas_parts.append(child)
+        else:
+            dark_parts.append(child)
+    dark_parts.sort(key=lambda obj: 0 if obj.name == "windmill_hub" else 1)
+    if dark_parts:
+        joined = dark_parts[0] if len(dark_parts) == 1 else join_meshes(dark_parts, hub_name)
+        joined.name = hub_name
+        joined.data.name = f"{hub_name}_mesh"
+        joined.parent = rotor
+    if canvas_parts:
+        joined = canvas_parts[0] if len(canvas_parts) == 1 else join_meshes(canvas_parts, sail_name)
+        joined.name = sail_name
+        joined.data.name = f"{sail_name}_mesh"
+        joined.parent = rotor
 
 
 def lighthouse(spec: dict, root) -> None:
+    _finish_architecture(spec, root, _build_lighthouse, preserve_names=("lighthouse_lantern_beacon",))
+
+
+def _build_lighthouse(spec: dict, root) -> None:
     """Authored coastal lighthouse & keeper's cottage matching art-reference.png and isolated lighthouse.
 
     Features: Tapered 12-sided cylindrical tower with clean alternating painted red-and-white
@@ -906,19 +1116,35 @@ def lighthouse(spec: dict, root) -> None:
     height = params.get("height", 12.8)
     base_radius = params.get("baseRadius", 2.45)
     sides = params.get("sides", 12)
+    detail = _is_hero_detail(spec)
+    seed = spec["seed"]
 
     # 1. Heavy Coastal Stone Foundation Plinth
     foundation_h = 1.2
     add_cylinder(
         "lighthouse_foundation",
         (0, 0, foundation_h * 0.5),
-        base_radius + 0.18,
+        base_radius + 0.06,
         foundation_h,
         stone,
         root,
         vertices=sides,
         bevel=0.06,
     )
+    if detail:
+        add_cylindrical_masonry(
+            "lighthouse_foundation_masonry",
+            0.0,
+            foundation_h,
+            base_radius + 0.18,
+            base_radius + 0.10,
+            (stone,),
+            root,
+            courses=params.get("masonryCourses", 6),
+            blocks_per_course=params.get("masonryBlocks", 14),
+            seed=seed + 19,
+            block_depth=0.22,
+        )
 
     # 2. Smooth Tapered Banded Tower (Zero Protruding Block Spam!)
     tower_h = height - 2.8
@@ -990,6 +1216,21 @@ def lighthouse(spec: dict, root) -> None:
         root,
         bevel=0.04,
     )
+    if detail:
+        add_masonry_courses(
+            "lighthouse_cottage_masonry",
+            (cottage_x, cottage_y, cottage_z),
+            cottage_w,
+            cottage_d,
+            cottage_h,
+            (stone,),
+            root,
+            courses=5,
+            blocks_per_long_side=6,
+            seed=seed + 31,
+            block_depth=0.14,
+            bevel=0.014,
+        )
     # Cottage gabled roof with distinct tile rows
     _shingled_gable_roof(
         "lighthouse_cottage",
@@ -1002,8 +1243,20 @@ def lighthouse(spec: dict, root) -> None:
         root,
         overhang_front=0.35,
         overhang_side=0.30,
-        courses=3,
+        courses=3 if detail else 2,
         course_thickness=0.14,
+    )
+    add_shingle_rows(
+        "lighthouse_cottage_shingles",
+        cottage_w,
+        cottage_d,
+        foundation_h + cottage_h,
+        32,
+        (red,),
+        root,
+        rows=6 if detail else 2,
+        columns=6 if detail else 3,
+        seed=seed + 37,
     )
     # Cottage stone chimney
     add_box(
@@ -1038,7 +1291,8 @@ def lighthouse(spec: dict, root) -> None:
         bevel=0.03,
     )
     # Stone support corbel brackets
-    for c_idx in range(sides):
+    corbel_count = sides if detail else max(6, sides // 2)
+    for c_idx in range(corbel_count):
         angle = c_idx * math.tau / sides
         add_tri_prism(
             f"lighthouse_corbel_{c_idx:02d}",
@@ -1071,8 +1325,9 @@ def lighthouse(spec: dict, root) -> None:
         major_segments=sides,
         minor_segments=4,
     )
-    for p_idx in range(sides):
-        angle = p_idx * math.tau / sides
+    rail_posts = sides if detail else max(6, sides // 2)
+    for p_idx in range(rail_posts):
+        angle = p_idx * math.tau / rail_posts
         add_cylinder(
             f"lighthouse_rail_post_{p_idx:02d}",
             (math.cos(angle) * (gallery_r - 0.10), math.sin(angle) * (gallery_r - 0.10), gallery_z + rail_h * 0.5),
@@ -1098,8 +1353,9 @@ def lighthouse(spec: dict, root) -> None:
         vertices=sides,
     )
     # Brass structural frame struts
-    for f_idx in range(sides):
-        angle = f_idx * math.tau / sides
+    strut_count = sides if detail else max(6, sides // 2)
+    for f_idx in range(strut_count):
+        angle = f_idx * math.tau / strut_count
         add_cylinder(
             f"lighthouse_lantern_strut_{f_idx:02d}",
             (math.cos(angle) * lantern_r, math.sin(angle) * lantern_r, lantern_cz),
@@ -1142,11 +1398,12 @@ def lighthouse(spec: dict, root) -> None:
         vertices=6,
     )
 
-    # Collision Box
-    add_collision_primitives(spec, root)
-
 
 def stone_bridge(spec: dict, root) -> None:
+    _finish_architecture(spec, root, _build_stone_bridge)
+
+
+def _build_stone_bridge(spec: dict, root) -> None:
     """Authored village double-arched stone bridge matching art-reference.png and stone_bridge_isolated.
 
     Features: Double-arched faceted stone masonry with real open barrel vaults, radial voussoirs
@@ -1164,6 +1421,8 @@ def stone_bridge(spec: dict, root) -> None:
     length = params.get("length", 14.2)
     width = params.get("width", 3.8)
     arch_count = params.get("archCount", 2)
+    detail = _is_hero_detail(spec)
+    seed = spec["seed"]
 
     # 1. Central Pier with Triangular Cutwaters (Standing on Ground Z=0)
     pier_w = 1.65
@@ -1176,6 +1435,21 @@ def stone_bridge(spec: dict, root) -> None:
         root,
         bevel=0.06,
     )
+    if detail:
+        add_masonry_courses(
+            "bridge_pier_masonry",
+            (0, 0, pier_h * 0.5),
+            pier_w,
+            width + 0.10,
+            pier_h,
+            (stone, shadow),
+            root,
+            courses=3,
+            blocks_per_long_side=3,
+            seed=seed + 53,
+            block_depth=0.16,
+            bevel=0.016,
+        )
     # Pier cap
     add_box(
         "bridge_center_pier_cap",
@@ -1228,7 +1502,7 @@ def stone_bridge(spec: dict, root) -> None:
     arch_center_z = 0.46
     for a_idx, acx in enumerate(arch_centers):
         # Open Arch Barrel Vault Inner Lining (upper semicircular curve above water level)
-        for vl_idx in range(9):
+        for vl_idx in range(9 if detail else 5):
             v_angle = math.pi * (vl_idx + 0.5) / 9
             lx = acx + math.cos(v_angle) * (arch_radius - 0.02)
             lz = arch_center_z + math.sin(v_angle) * (arch_radius - 0.02)
@@ -1243,7 +1517,7 @@ def stone_bridge(spec: dict, root) -> None:
                 bevel=0.015,
             )
         # Radial voussoir arch ring segments along the arch curve
-        voussoir_count = 11
+        voussoir_count = 11 if detail else 6
         for v_idx in range(voussoir_count):
             angle = math.pi * (v_idx + 0.5) / voussoir_count
             vx = acx + math.cos(angle) * (arch_radius + 0.14)
@@ -1271,7 +1545,7 @@ def stone_bridge(spec: dict, root) -> None:
             )
 
     # 4. Spandrel Side Walls & Smooth Crowned Roadway Deck
-    deck_segments = 16
+    deck_segments = 16 if detail else 8
     seg_len = length / deck_segments
     for seg in range(deck_segments):
         x = -length * 0.5 + seg_len * (seg + 0.5)
@@ -1397,9 +1671,6 @@ def stone_bridge(spec: dict, root) -> None:
         subdivisions=2,
     )
 
-    # Collision Box
-    add_collision_primitives(spec, root)
-
 
 def working_dock(spec: dict, root) -> None:
     """Authored harbor working dock matching art-reference.png and dock_market_isolated.
@@ -1433,13 +1704,18 @@ def working_dock(spec: dict, root) -> None:
         bevel=0.02,
     )
     # Walkable timber surface planks (unified warm wood tones)
-    add_box(
-        "dock_deck_surface",
-        (0, 0, deck_z + 0.04),
-        (length - 0.04, width - 0.04, deck_thickness),
-        honey,
+    add_plank_field(
+        "dock_deck_planks",
+        (0, 0, deck_z + 0.05),
+        length - 0.04,
+        width - 0.04,
+        deck_thickness,
+        (honey,),
         root,
-        bevel=0.015,
+        count=10,
+        axis="x",
+        seed=spec["seed"] + 59,
+        bevel=0.012,
     )
     # Perimeter curb/coaming beams
     for side_idx, cy in enumerate((-width * 0.5 + 0.07, width * 0.5 - 0.07)):
@@ -1694,6 +1970,10 @@ def working_dock(spec: dict, root) -> None:
 
 
 def fish_market(spec: dict, root) -> None:
+    _finish_architecture(spec, root, _build_fish_market)
+
+
+def _build_fish_market(spec: dict, root) -> None:
     """Authored coastal fish market warehouse matching art-reference.png.
 
     Features: Grounded stone base, weathered timber warehouse body with exposed dark timber framing,
@@ -1713,17 +1993,34 @@ def fish_market(spec: dict, root) -> None:
     depth = params.get("depth", 5.4)
     wall_height = params.get("wallHeight", 3.2)
     pitch_deg = params.get("roofPitchDeg", 32)
+    detail = _is_hero_detail(spec)
+    seed = spec["seed"]
 
     # 1. Grounded Stone Foundation Plinth
     foundation_h = 0.76
     add_box(
         "fish_market_foundation",
         (0, 0, foundation_h * 0.5),
-        (width + 0.60, depth + 0.60, foundation_h),
+        (width + 0.24, depth + 0.24, foundation_h),
         stone,
         root,
         bevel=0.06,
     )
+    if detail:
+        add_masonry_courses(
+            "fish_market_foundation_masonry",
+            (0, 0, foundation_h * 0.5),
+            width + 0.60,
+            depth + 0.60,
+            foundation_h,
+            (stone,),
+            root,
+            courses=params.get("masonryCourses", 5),
+            blocks_per_long_side=params.get("masonryBlocks", 8),
+            seed=seed + 41,
+            block_depth=0.20,
+            bevel=0.018,
+        )
 
     # 2. Weathered Timber Warehouse Body with Exposed Dark Timber Frame
     wall_base = foundation_h + 0.06
@@ -1738,7 +2035,7 @@ def fish_market(spec: dict, root) -> None:
     )
 
     # Heavy corner posts & wall plates
-    post_w = 0.22
+    post_w = 0.28 if detail else 0.22
     for x_idx, px in enumerate((-width * 0.5 + post_w * 0.4, width * 0.5 - post_w * 0.4)):
         for y_idx, py in enumerate((-depth * 0.5 + post_w * 0.4, depth * 0.5 - post_w * 0.4)):
             add_box(
@@ -1763,8 +2060,20 @@ def fish_market(spec: dict, root) -> None:
         root,
         overhang_front=0.72,
         overhang_side=0.55,
-        courses=4,
+        courses=3 if detail else 2,
         course_thickness=0.18,
+    )
+    add_shingle_rows(
+        "fish_market_shingles",
+        width,
+        depth,
+        wall_top,
+        pitch_deg,
+        (roof,),
+        root,
+        rows=params.get("shingleRows", 5) if detail else 3,
+        columns=params.get("shingleColumns", 6) if detail else 4,
+        seed=seed + 43,
     )
 
     # 4. Open Market Trading Facade with Striped Canvas Awning
@@ -1782,13 +2091,18 @@ def fish_market(spec: dict, root) -> None:
         root,
         bevel=0.025,
     )
-    add_box(
-        "fish_market_counter_top",
-        (0, front_y - stall_d * 0.4, counter_z + 0.06),
-        (stall_w + 0.15, 0.78, 0.12),
-        teal,
+    add_plank_field(
+        "fish_market_counter_planks",
+        (0, front_y - stall_d * 0.4, counter_z + 0.08),
+        stall_w + 0.15,
+        0.78,
+        0.10,
+        (teal,),
         root,
-        bevel=0.018,
+        count=10 if detail else 4,
+        axis="x",
+        seed=seed + 47,
+        bevel=0.012,
     )
 
     # Timber awning posts
@@ -1894,6 +2208,3 @@ def fish_market(spec: dict, root) -> None:
         root,
         rotation=(0, math.pi / 2, 0),
     )
-
-    # Collision Box
-    add_collision_primitives(spec, root)

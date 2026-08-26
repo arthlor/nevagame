@@ -112,6 +112,9 @@ describe("NEVA farming correctness foundation", () => {
     expect(STARTER_FARM_LAYOUT.plantableAreas).toEqual([
       { minX: -6, maxX: 6, minZ: -5, maxZ: 5 }
     ]);
+    const initial = createInitialGameState();
+    expect(initial.farms["farm.starter_garden"].widthMeters).toBe(12);
+    expect(initial.farms["farm.starter_garden"].depthMeters).toBe(10);
     expect(STARTER_FARM_LAYOUT.structureAnchors.map((anchor) => anchor.id)).toEqual([
       "struct.starter_mill",
       "struct.workbench",
@@ -225,6 +228,8 @@ describe("NEVA farming correctness foundation", () => {
       z: center.z
     });
     expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", center.x, center.z).reasonCode)
+      .toBe("structure-clearance");
+    expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", 0, 0).reasonCode)
       .toBe("structure-clearance");
 
     sim.state.world.structures["struct.workbench"].x = starterStructureAnchor("struct.workbench")!.x;
@@ -409,6 +414,44 @@ describe("farming action commit controller", () => {
     expect(lateCommits).toBe(1);
   });
 
+  it("freezes action time while paused and resumes at the same authored marker", () => {
+    const controller = new FarmingActionController();
+    let commits = 0;
+    controller.start("board", { x: 2, y: 0, z: 3, entityId: "boat.test" }, 0, {
+      commit: () => { commits += 1; return { success: true }; }
+    });
+    controller.update(300);
+    controller.update(3_000, true);
+    expect(controller.snapshot(3_000)?.progress).toBeCloseTo(300 / FARMING_ACTION_TIMINGS.board.durationMs, 5);
+    expect(commits).toBe(0);
+    controller.update(3_339, false);
+    expect(commits).toBe(0);
+    controller.update(3_340, false);
+    expect(commits).toBe(1);
+  });
+
+  it("enters non-reversible recovery after failed commit-time revalidation", () => {
+    const controller = new FarmingActionController();
+    let attempts = 0;
+    const phases: string[] = [];
+    controller.start("dock", { x: 0, y: 0, z: 0, entityId: "dock.test" }, 0, {
+      commit: () => { attempts += 1; return { success: false, reason: "Dock became occupied" }; },
+      phaseChanged: (snapshot) => phases.push(`${snapshot.phase}:${snapshot.stage}`)
+    });
+    controller.update(FARMING_ACTION_TIMINGS.dock.commitMs);
+    expect(attempts).toBe(1);
+    expect(controller.snapshot(0)).toMatchObject({
+      phase: "invalidated",
+      stage: "recovery",
+      commitSucceeded: false,
+      interruptible: false
+    });
+    expect(controller.cancelBeforeCommit(FARMING_ACTION_TIMINGS.dock.commitMs + 1)).toBe(false);
+    controller.update(FARMING_ACTION_TIMINGS.dock.durationMs + 10);
+    expect(attempts).toBe(1);
+    expect(phases).toEqual(["started:anticipation", "invalidated:commit", "completed:recovery"]);
+  });
+
   it("keeps application commit timing aligned with the authored character catalog", () => {
     const character = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A);
     const clips = new Map(character?.animationClips?.map((clip) => [clip.name, clip]));
@@ -417,7 +460,13 @@ describe("farming action commit controller", () => {
       ["water", "water"],
       ["harvest", "harvest"],
       ["processing-start", "workstation"],
-      ["processing-collect", "pickup"]
+      ["processing-collect", "pickup"],
+      ["pickup", "pickup"],
+      ["place", "place"],
+      ["workstation", "workstation"],
+      ["cast", "cast"],
+      ["board", "board"],
+      ["dock", "dock"]
     ] as const;
     for (const [action, clipName] of mappings) {
       const timing = FARMING_ACTION_TIMINGS[action];

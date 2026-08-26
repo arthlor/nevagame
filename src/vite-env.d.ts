@@ -31,6 +31,8 @@ declare module "virtual:neva-runtime-asset-catalog" {
       commitMarkerSeconds?: number;
       loop: boolean;
       referenceSpeedMetersPerSecond?: number;
+      optional?: boolean;
+      fallbackClip?: string;
       events?: ReadonlyArray<{
         name: string;
         timeSeconds: number;

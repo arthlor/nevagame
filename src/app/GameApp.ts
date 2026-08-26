@@ -9,15 +9,24 @@ import { GameCamera } from "../render/camera/GameCamera";
 import { InputRouter } from "../input/InputRouter";
 import { IndexedDbSaveRepository } from "../persistence/IndexedDbSaveRepository";
 import { GameAction, MarketId, ProcessingJobState, FishCargoState } from "../simulation/core/types";
+import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { GameUI } from "../ui/GameUI";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { AssetLoader } from "../render/loaders/AssetLoader";
 import { applyOfflineProgression } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
+import { getAssetCoverageSummary } from "../render/assets/AssetCoverage";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { WorldLayout } from "../world/WorldLayout";
-import { HARBOR_DOCK, HARBOR_FISH_TABLE, VILLAGE_MARKET, WORLD_SPAWN } from "../world/WorldAnchors";
+import {
+  HARBOR_DOCK,
+  HARBOR_FISH_TABLE,
+  HARBOR_SKIFF_MOORING,
+  VILLAGE_MARKET,
+  WORLD_SPAWN
+} from "../world/WorldAnchors";
+import { SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
 import {
   farmLocalToWorld,
   getFarmLayout,
@@ -48,8 +57,10 @@ import {
 } from "./InteractionTargetResolver";
 import {
   PlayerPresentationBuffer,
+  stationaryPlayerMotion,
   type PresentedPlayerFrame
 } from "../render/presentation/PlayerPresentationBuffer";
+import { assessProcessingStationApproach } from "../world/ProcessingStationApproach";
 
 interface FishingHoldInput {
   isReeling: boolean;
@@ -71,6 +82,7 @@ type DebugStartScenario =
   | "farmhouse-north"
   | "farmhouse-south"
   | "harbor"
+  | "harbor-skiff"
   | "boat-driving"
   | "sport-fishing";
 
@@ -81,6 +93,7 @@ const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "farmhouse-north",
   "farmhouse-south",
   "harbor",
+  "harbor-skiff",
   "boat-driving",
   "sport-fishing"
 ]);
@@ -104,11 +117,41 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
     cameraTarget: { x: -65, y: 1.2, z: -55.2 },
     fovDegrees: 48
   },
+  "farm-art": {
+    playerPose: { x: -65, y: 1.2, z: -60.5, rotationY: 0 },
+    cameraPosition: { x: -43, y: 13.5, z: -79 },
+    cameraTarget: { x: -64, y: 1.2, z: -54.5 },
+    fovDegrees: 47
+  },
+  "crop-stages": {
+    playerPose: { x: -65, y: 1.2, z: -60.5, rotationY: 0 },
+    cameraPosition: { x: -43, y: 13.5, z: -79 },
+    cameraTarget: { x: -64, y: 1.2, z: -54.5 },
+    fovDegrees: 47
+  },
+  village: {
+    playerPose: { x: 0, y: 2.2, z: -5, rotationY: 0 },
+    cameraPosition: { x: 19, y: 11, z: 12 },
+    cameraTarget: { x: 0, y: 1.8, z: -5 },
+    fovDegrees: 48
+  },
+  "farmhouse-interior": {
+    playerPose: { x: 240, y: 0.8, z: -241.8, rotationY: Math.PI },
+    cameraPosition: { x: 245.5, y: 7.5, z: -247.5 },
+    cameraTarget: { x: 240, y: 1.2, z: -240 },
+    fovDegrees: 52
+  },
   harbor: {
-    playerPose: { x: 56, y: 1.2, z: 51, rotationY: 0 },
-    cameraPosition: { x: 101, y: 18.5, z: 100 },
-    cameraTarget: { x: 73, y: 1.8, z: 70 },
+    playerPose: { x: 68, y: 1.2, z: 56, rotationY: 0 },
+    cameraPosition: { x: 96, y: 14.5, z: 88 },
+    cameraTarget: { x: 71, y: 1.4, z: 64 },
     fovDegrees: 49
+  },
+  rowboat: {
+    playerPose: { x: HARBOR_DOCK.boatPosition.x, y: 0.5, z: HARBOR_DOCK.boatPosition.z, rotationY: 0 },
+    cameraPosition: { x: 104, y: 15, z: 99 },
+    cameraTarget: { x: HARBOR_DOCK.boatPosition.x, y: 0.8, z: HARBOR_DOCK.boatPosition.z },
+    fovDegrees: 47
   },
   coast: {
     playerPose: { x: -68, y: 5, z: 54, rotationY: 0 },
@@ -117,10 +160,37 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
     fovDegrees: 50
   },
   "sport-fishing": {
-    playerPose: { x: 76, y: 1.1, z: 64, rotationY: 0 },
-    cameraPosition: { x: 101, y: 13.5, z: 96 },
-    cameraTarget: { x: 81, y: 1.0, z: 72 },
+    playerPose: {
+      x: SPORT_FISHING_REVIEW_POINTS.trout.x,
+      y: 0.5,
+      z: SPORT_FISHING_REVIEW_POINTS.trout.z,
+      rotationY: 0
+    },
+    cameraPosition: { x: 31, y: 13.5, z: 108 },
+    cameraTarget: { x: 18, y: 0.5, z: SPORT_FISHING_REVIEW_POINTS.trout.z },
     fovDegrees: 43
+  },
+  "sport-fishing-tuna": {
+    playerPose: {
+      x: SPORT_FISHING_REVIEW_POINTS.tuna.x,
+      y: 0.5,
+      z: SPORT_FISHING_REVIEW_POINTS.tuna.z,
+      rotationY: 0
+    },
+    cameraPosition: { x: 137, y: 16, z: 153 },
+    cameraTarget: { x: 118, y: 0.5, z: SPORT_FISHING_REVIEW_POINTS.tuna.z },
+    fovDegrees: 43
+  },
+  "harbor-skiff": {
+    playerPose: {
+      x: HARBOR_SKIFF_MOORING.playerPosition.x,
+      y: 1.4,
+      z: HARBOR_SKIFF_MOORING.playerPosition.z,
+      rotationY: 0
+    },
+    cameraPosition: { x: 112, y: 15, z: 102 },
+    cameraTarget: { x: HARBOR_SKIFF_MOORING.boatPosition.x, y: 0.8, z: HARBOR_SKIFF_MOORING.boatPosition.z },
+    fovDegrees: 47
   }
 };
 
@@ -164,7 +234,9 @@ export class GameApp {
   private saveRecoveryReason: "corrupt" | "unavailable" | null = null;
   private readonly movementIntent = { x: 0, z: 0 };
   private readonly playerPresentation = new PlayerPresentationBuffer();
+  private readonly assetCoverage = getAssetCoverageSummary();
   private lastPresentedPlayer: PresentedPlayerFrame | null = null;
+  private lastBoatMotion: Readonly<Record<string, BoatMotionSample>> = {};
   private lockedInteractionTarget: ResolvedInteractionTarget | null = null;
   private footstepVariant = false;
   private readonly audioForward = new THREE.Vector3();
@@ -172,6 +244,7 @@ export class GameApp {
   private readonly resizeObserver: ResizeObserver;
   private doorTransitionFade: boolean = false;
   private isTransitioningDoor: boolean = false;
+  private doorTransitionTimer: ReturnType<typeof setTimeout> | null = null;
   private activeDialogueNpcId: string | null = null;
   private activeHint: { hintId: string; title: string; message: string; icon?: string } | null = null;
   private isFarmGisHeld: boolean = false;
@@ -230,12 +303,16 @@ export class GameApp {
   private syncOverlayState(): void {
     this.sim.clock.setPaused(this.benchmarkView || this.modeController.pausesSimulation);
     this.inputRouter.setWorldInputSuspended(this.modeController.blocksWorldInput || this.benchmarkView);
+    if (this.modeController.blocksWorldInput) this.cancelDoorTransition();
     if (this.activeModal !== "market") this.activeMarketId = null;
   }
 
   private setActiveModal(modal: ActiveModal): void {
     if (modal) this.cancelFarmingAction();
-    if (modal === null) this.activeDialogueNpcId = null;
+    if (modal !== "dialogue") {
+      this.activeDialogueNpcId = null;
+      this.worldScene.setDialogueNpc(null);
+    }
     if (modal === null) this.modeController.closeActive();
     else this.modeController.open(modal);
     this.syncOverlayState();
@@ -295,8 +372,28 @@ export class GameApp {
       if (Number.isFinite(presentationTime) && presentationTime >= 0) {
         this.benchmarkPresentationTimeSeconds = presentationTime;
       }
-      if (benchmarkPreset === "sport-fishing") {
-        if (!this.sim.startDebugSportFishing("lake", 29, 45, "fish.trout")) {
+      if (benchmarkPreset === "farm-art" || benchmarkPreset === "crop-stages") {
+        this.sim.prepareDebugStarterTrioArtReview();
+      }
+      if (benchmarkPreset === "rowboat") {
+        if (!this.sim.setDebugBoatDriving("boat.player_rowboat", {
+          x: HARBOR_DOCK.boatPosition.x,
+          z: HARBOR_DOCK.boatPosition.z,
+          headingRadians: 0
+        })) {
+          throw new Error("Could not prepare deterministic rowboat art view");
+        }
+        this.modeController.restoreFromState(this.sim.state);
+        this.inputRouter.setMode(this.mode);
+      }
+      if (benchmarkPreset === "harbor-skiff" && !this.sim.prepareDebugSkiffReview()) {
+        throw new Error("Could not prepare deterministic harbor-skiff art view");
+      }
+      if (benchmarkPreset === "sport-fishing" || benchmarkPreset === "sport-fishing-tuna") {
+        const reviewPoint = benchmarkPreset === "sport-fishing-tuna"
+          ? SPORT_FISHING_REVIEW_POINTS.tuna
+          : SPORT_FISHING_REVIEW_POINTS.trout;
+        if (!this.sim.startDebugSportFishing(reviewPoint.habitatId, reviewPoint.x, reviewPoint.z, reviewPoint.speciesId)) {
           throw new Error("Could not prepare deterministic sport-fishing art view");
         }
         this.modeController.restoreFromState(this.sim.state);
@@ -315,7 +412,7 @@ export class GameApp {
     // 2. Preload 3D assets
     await Promise.all([AssetLoader.preloadAll(), this.worldScene.ready(this.sim.state.worldSeed)]);
     this.physicsWorld = await PhysicsWorld.create(this.worldScene.staticCollisionProxies());
-    this.playerPresentation.reset(this.sim.state.player);
+    this.playerPresentation.reset(this.sim.state.player, undefined, "load");
 
     // 3. Start render loop
     this.isRunning = true;
@@ -355,10 +452,12 @@ export class GameApp {
         break;
       }
       case "harbor":
-        this.sim.setDebugPlayerPose(poseFor(
-          HARBOR_DOCK.playerPosition.x,
-          HARBOR_DOCK.playerPosition.z
-        ));
+        this.sim.prepareDebugHarborBoarding();
+        break;
+      case "harbor-skiff":
+        if (!this.sim.prepareDebugSkiffReview()) {
+          throw new Error("Could not prepare deterministic harbor-skiff debug start");
+        }
         break;
       case "boat-driving":
         if (!this.sim.setDebugBoatDriving("boat.player_rowboat", {
@@ -370,8 +469,12 @@ export class GameApp {
         }
         break;
       case "sport-fishing":
-        this.sim.setDebugPlayerPose(poseFor(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z));
-        if (!this.sim.startDebugSportFishing("lake", 29, WorldLayout.coastlineZ(29) + 6, "fish.trout")) {
+        if (!this.sim.startDebugSportFishing(
+          SPORT_FISHING_REVIEW_POINTS.trout.habitatId,
+          SPORT_FISHING_REVIEW_POINTS.trout.x,
+          SPORT_FISHING_REVIEW_POINTS.trout.z,
+          SPORT_FISHING_REVIEW_POINTS.trout.speciesId
+        )) {
           throw new Error("Could not prepare deterministic sport-fishing debug start");
         }
         break;
@@ -401,9 +504,14 @@ export class GameApp {
           else if (this.mode === "on-foot") this.inspectPointedCrop();
           break;
         case "pause":
-          if (this.farmingActions.isActive) {
-            this.cancelFarmingAction();
+          if (this.inspectedCrop) {
+            this.inspectedCrop = null;
             return;
+          }
+          if (this.farmingActions.isActive) {
+            // Cancel only before commit. After commit, Escape still opens pause
+            // without rolling the already-applied simulation mutation back.
+            if (this.cancelFarmingAction()) return;
           }
           if (this.mode === "farm-placement") {
             this.exitCropPlacement();
@@ -436,10 +544,6 @@ export class GameApp {
           this.modeController.toggle("expedition");
           this.syncOverlayState();
           break;
-        case "toggle-farm-gis":
-          this.isFarmGisHeld = !this.isFarmGisHeld;
-          this.worldScene.setFarmGisMode(this.isFarmGisHeld);
-          break;
         case "select-tool-1":
           this.selectToolSlot(1);
           break;
@@ -466,7 +570,10 @@ export class GameApp {
           break;
       }
     });
-    this.inputRouter.onInterruption(() => this.cancelFarmingAction());
+    this.inputRouter.onInterruption(() => {
+      this.cancelFarmingAction();
+      this.clearFarmGisHold();
+    });
   }
 
   private attachSimulationFeedback(): void {
@@ -475,6 +582,7 @@ export class GameApp {
       this.sim.events.on("FishLanded", ({ speciesId, weightKg }) => {
         const speciesName = ContentRegistry.fishSpecies.get(speciesId)?.name ?? "fish";
         this.setToast(`Landed ${weightKg.toFixed(1)} kg ${speciesName}`, 3600);
+        this.worldScene.playPlayerAction("pickup");
         const carriedId = this.sim.state.player.carriedFishCargoId;
         if (carriedId && this.sim.state.fishCargo[carriedId]) {
           this.pendingCatchCargo = this.sim.state.fishCargo[carriedId];
@@ -482,6 +590,7 @@ export class GameApp {
       }),
       this.sim.events.on("FishEscaped", ({ reason }) => {
         this.setToast(reason === "snapped" ? "The line snapped" : "The fish slipped free", 3200);
+        this.worldScene.playPlayerAction(reason === "snapped" ? "brace" : "slack");
       }),
       this.sim.events.on("BasicFishingStarted", ({ castPower }) => {
         this.setToast(`Line cast (${Math.round((castPower || 0.75) * 100)}% power)…`, 1800);
@@ -498,10 +607,12 @@ export class GameApp {
           const qualText = quality && quality !== "normal" ? ` (${quality.toUpperCase()})` : "";
           const perfText = isPerfect ? " [PERFECT!]" : "";
           this.setToast(`Caught ${ContentRegistry.items.get(catchItemId)?.name ?? "a fish"}${qualText}${perfText}!`, 3000);
+          this.worldScene.playPlayerAction("pickup");
         } else if (reason === "inventory-full") {
           this.setToast("Your backpack is full; the fish got away", 2800);
         } else if (reason === "escaped") {
           this.setToast("The fish got away!", 2200);
+          this.worldScene.playPlayerAction("slack");
         } else if (reason === "cancelled") {
           // Silent or brief cancel toast
         } else {
@@ -511,9 +622,12 @@ export class GameApp {
       this.sim.events.on("ContractCompleted", ({ rewardMoney }) => {
         this.setToast(`Contract complete: +${rewardMoney} G`, 3600);
       }),
-      this.sim.events.on("BoatBoarded", () => this.setToast("Aboard the rowboat", 1800)),
+      this.sim.events.on("BoatBoarded", ({ boatId }) => {
+        const boat = this.sim.state.boats[boatId];
+        const name = boat ? ContentRegistry.boats.get(boat.boatTypeId)?.name ?? "vessel" : "vessel";
+        this.setToast(`Aboard the ${name.toLowerCase()}`, 1800);
+      }),
       this.sim.events.on("BoatDocked", () => this.setToast("Docked at harbor", 2200)),
-      this.sim.events.on("BasicFishingStarted", () => this.worldScene.playPlayerAction("cast")),
       this.sim.events.on("FishHooked", () => this.worldScene.playPlayerAction("brace")),
       this.sim.events.on("BoatBoarded", () => this.worldScene.playPlayerAction("board")),
       this.sim.events.on("BoatDocked", () => this.worldScene.playPlayerAction("dock")),
@@ -525,6 +639,10 @@ export class GameApp {
       this.sim.events.on("FishHooked", () => this.requestAutosave()),
       this.sim.events.on("BoatBoarded", () => this.requestAutosave()),
       this.sim.events.on("BoatDocked", () => this.requestAutosave()),
+      this.sim.events.on("BoatPurchased", ({ cost }) => {
+        this.setToast(`Coastal skiff commissioned · ${cost} G`, 2600);
+        this.requestAutosave();
+      }),
       this.sim.events.on("BasicFishingStarted", () => this.requestAutosave()),
       this.sim.events.on("BasicFishingResolved", () => this.requestAutosave()),
       this.sim.events.on("ItemSold", () => this.requestAutosave()),
@@ -557,6 +675,8 @@ export class GameApp {
     const cameraInput = this.inputRouter.consumeCameraInput();
     if (!this.benchmarkCameraView) this.gameCamera.applyInput(this.mode, cameraInput);
 
+    this.syncFarmGisHold();
+
     // 0. Fishing hold input every frame (source of truth for sport / basic fishing minigames)
     if (this.mode === "sport-fishing") {
       this.applySportFishingInput();
@@ -572,7 +692,7 @@ export class GameApp {
     }
 
     // 2. Cross authored action commit markers before advancing simulation time.
-    this.farmingActions.update(nowMs);
+    this.farmingActions.update(nowMs, this.sim.clock.isPaused());
     this.farmingActionSnapshot = this.farmingActions.snapshot(nowMs);
 
     // 3. Tick Authoritative Simulation
@@ -589,15 +709,9 @@ export class GameApp {
       deltaSeconds
     ) ?? {
       ...state.player,
-      motion: {
-        velocity: { x: 0, y: 0, z: 0 },
-        speedMetersPerSecond: 0,
-        accelerationMetersPerSecondSquared: 0,
-        turnRateRadiansPerSecond: 0,
-        isGrounded: state.player.traversal.isGrounded,
-        isCollisionBlocked: false,
-        requestedGait: "idle" as const
-      }
+      motion: stationaryPlayerMotion(state.player),
+      discontinuityReason: "none" as const,
+      discontinuitySequence: 0
     };
     const playerPos = new THREE.Vector3(presentedPlayer.x, presentedPlayer.y, presentedPlayer.z);
     this.lastPresentedPlayer = presentedPlayer;
@@ -611,7 +725,8 @@ export class GameApp {
             boatId: activeBoat.id,
             boatTypeId: activeBoat.boatTypeId,
             throttle: -presentationInput.moveVector.z,
-            steering: presentationInput.moveVector.x
+            steering: presentationInput.moveVector.x,
+            motion: this.lastBoatMotion[activeBoat.id]
           }
         : null;
     void this.worldScene.syncWithSimulation(
@@ -648,7 +763,13 @@ export class GameApp {
         this.mode,
         deltaSeconds,
         undefined,
-        this.physicsWorld ?? undefined
+        this.physicsWorld ?? undefined,
+        {
+          player: presentedPlayer.motion,
+          boat: activeBoat ? this.lastBoatMotion[activeBoat.id] : undefined,
+          discontinuityReason: presentedPlayer.discontinuityReason,
+          discontinuitySequence: presentedPlayer.discontinuitySequence
+        }
       );
     }
     this.gameCamera.camera.getWorldDirection(this.audioForward);
@@ -671,6 +792,7 @@ export class GameApp {
       this.mode === "basic-fishing" ||
       this.mode === "sport-fishing" ||
       this.farmingActions.isActive ||
+      this.isTransitioningDoor ||
       this.modeController.blocksWorldInput
     );
   }
@@ -680,6 +802,7 @@ export class GameApp {
     const isMoving = Math.abs(input.moveVector.x) > 0.001 || Math.abs(input.moveVector.z) > 0.001;
     if (isMoving && this.farmingActions.isActive) this.cancelFarmingAction();
     if (this.isMovementFrozen()) {
+      this.inputRouter.consumeJumpRequest();
       this.playerPresentation.pushCanonicalPose(this.sim.state.player);
       return;
     }
@@ -702,12 +825,16 @@ export class GameApp {
       );
       const commit = this.sim.execute({ type: "physics.commit", frame: result.frame });
       if (!commit.success) this.setToast(commit.reason ?? "Movement could not be resolved");
-      else this.playerPresentation.push(result.frame.player, result.playerMotion);
+      else {
+        this.lastBoatMotion = result.boatMotion;
+        this.playerPresentation.push(result.frame.player, result.playerMotion);
+      }
     }
   }
 
   private applySportFishingInput(): void {
     if (this.mode !== "sport-fishing" || !this.sim.activeFishingEncounter) return;
+    if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
 
     const input = this.inputRouter.getInputState();
     const fishing = input.fishing;
@@ -750,6 +877,7 @@ export class GameApp {
   public openDialogueModal(npcId: string): void {
     if (this.mode === "basic-fishing") return;
     this.activeDialogueNpcId = npcId;
+    this.worldScene.setDialogueNpc(npcId);
     this.setActiveModal("dialogue");
     gameAudio.playOneShot("pickup");
   }
@@ -900,8 +1028,8 @@ export class GameApp {
     for (const definition of stationDefinitions) {
       const structure = this.sim.state.world.structures[definition.stationId];
       if (!structure) continue;
-      const distanceMeters = Math.hypot(p.x - structure.x, p.z - structure.z);
-      if (distanceMeters > 2.8) continue;
+      const approach = assessProcessingStationApproach(definition.stationId, p, structure);
+      if (!approach.valid || !approach.frontPosition) continue;
       const interaction = this.stationInteraction(
         definition.stationId,
         definition.idlePrompt,
@@ -911,9 +1039,13 @@ export class GameApp {
         id: `station:${definition.stationId}:${interaction.action}`,
         kind: "station",
         action: interaction.action,
-        distanceMeters,
-        priority: 1,
-        worldPosition: this.structureInteractPosition(structure),
+        distanceMeters: approach.distanceMeters,
+        priority: 0,
+        worldPosition: {
+          x: approach.frontPosition.x,
+          y: WorldLayout.terrainHeight(approach.frontPosition.x, approach.frontPosition.z),
+          z: approach.frontPosition.z
+        },
         modes: ["on-foot"],
         requiresLineOfSight: true,
         prompt: interaction.prompt,
@@ -982,22 +1114,56 @@ export class GameApp {
       });
     }
 
-    if (this.mode === "on-foot" && this.sim.canBoardBoat("boat.player_rowboat")) {
-      const boat = this.sim.state.boats["boat.player_rowboat"];
-      candidates.push({
-        id: "dock:harbor:board",
-        entityId: boat.id,
-        kind: "dock",
-        action: "board",
-        distanceMeters: Math.hypot(p.x - boat.x, p.z - boat.z),
-        priority: 0,
-        worldPosition: { x: boat.x, y: boat.y, z: boat.z },
-        modes: ["on-foot"],
-        // The dock deck sits between its authored shore access point and the
-        // boat. NavigationDomain owns and revalidates that access contract.
-        requiresLineOfSight: false,
-        prompt: "Press [E] to Board Rowboat"
-      });
+    if (this.mode === "on-foot") {
+      for (const boat of Object.values(this.sim.state.boats)) {
+        if (!this.sim.canBoardBoat(boat.id)) continue;
+        candidates.push({
+          id: `dock:${boat.id}:board`,
+          entityId: boat.id,
+          kind: "dock",
+          action: "board",
+          distanceMeters: Math.hypot(p.x - boat.x, p.z - boat.z),
+          priority: 0,
+          worldPosition: { x: boat.x, y: boat.y, z: boat.z },
+          modes: ["on-foot"],
+          // The dock deck sits between its authored shore access point and the
+          // boat. NavigationDomain owns and revalidates that access contract.
+          requiresLineOfSight: false,
+          prompt: `Press [E] to Board ${ContentRegistry.boats.get(boat.boatTypeId)?.name ?? "Vessel"}`
+        });
+      }
+
+      const skiff = this.sim.state.boats["boat.player_skiff"];
+      if (!skiff) {
+        const skiffDistance = Math.hypot(
+          p.x - HARBOR_SKIFF_MOORING.playerPosition.x,
+          p.z - HARBOR_SKIFF_MOORING.playerPosition.z
+        );
+        if (skiffDistance <= HARBOR_SKIFF_MOORING.boardRadius) {
+          const skiffDef = ContentRegistry.boats.get("boat.skiff");
+          const requiredXp = skiffDef?.requiredSkillXp?.xp ?? 15000;
+          const canAfford = this.sim.state.player.money >= (skiffDef?.costMoney ?? 850);
+          const hasSkill = this.sim.state.player.proficiencies.fishing >= requiredXp;
+          candidates.push({
+            id: "dock:harbor-skiff:purchase",
+            entityId: "boat.skiff",
+            kind: "dock",
+            action: "purchase-boat",
+            distanceMeters: skiffDistance,
+            priority: 0,
+            worldPosition: {
+              x: HARBOR_SKIFF_MOORING.boatPosition.x,
+              y: HARBOR_SKIFF_MOORING.boatPosition.y,
+              z: HARBOR_SKIFF_MOORING.boatPosition.z
+            },
+            modes: ["on-foot"],
+            requiresLineOfSight: false,
+            prompt: hasSkill && canAfford
+              ? "Press [E] to Commission Coastal Skiff · 850 G"
+              : `Coastal Skiff · ${this.sim.state.player.proficiencies.fishing.toLocaleString()} / ${requiredXp.toLocaleString()} Fishing XP · 850 G`
+          });
+        }
+      }
     }
     if (this.mode === "boat-driving" && this.sim.canDockActiveBoat()) {
       const activeBoat = p.activeBoatId ? this.sim.state.boats[p.activeBoatId] : undefined;
@@ -1090,7 +1256,9 @@ export class GameApp {
             kind: "station",
             action: "inspect",
             distanceMeters: distToNpc,
-            priority: 0,
+            // Actionable stations/crops/boats win when their interaction space
+            // overlaps an NPC; dialogue remains available just outside it.
+            priority: 1,
             worldPosition: {
               x: npc.anchor.x,
               y: WorldLayout.terrainHeight(npc.anchor.x, npc.anchor.z),
@@ -1118,15 +1286,14 @@ export class GameApp {
   }
 
   private evaluateInteractionTarget(): void {
-    const toast = this.currentToast();
     if (this.activeModal || this.benchmarkView) {
       this.worldScene.setInteractionTargetFeedback(null);
-      this.promptText = toast;
+      this.promptText = null;
       return;
     }
     if (this.mode === "sport-fishing") {
       this.worldScene.setInteractionTargetFeedback(null);
-      this.promptText = toast;
+      this.promptText = null;
       return;
     }
 
@@ -1136,7 +1303,7 @@ export class GameApp {
       const placementPrompt = this.placementResult?.valid
         ? `[E / Click] Plant ${cropName} · Right-click / Esc cancel`
         : `${this.placementResult?.reason ?? "Point at prepared farm soil"} · Right-click / Esc cancel`;
-      this.promptText = toast ?? placementPrompt;
+      this.promptText = placementPrompt;
       return;
     }
 
@@ -1157,9 +1324,21 @@ export class GameApp {
     }
 
     if (this.inspectedCrop) {
-      this.inspectedCrop = this.sim.inspectCrop(this.inspectedCrop.placedCropId);
+      const placed = this.sim.state.crops[this.inspectedCrop.placedCropId];
+      if (!placed) {
+        this.inspectedCrop = null;
+      } else {
+        const world = farmLocalToWorld(placed.farmId, placed);
+        const dx = this.sim.state.player.x - world.x;
+        const dz = this.sim.state.player.z - world.z;
+        if (dx * dx + dz * dz > 36) {
+          this.inspectedCrop = null;
+        } else {
+          this.inspectedCrop = this.sim.inspectCrop(this.inspectedCrop.placedCropId);
+        }
+      }
     }
-    this.promptText = toast ?? (picked ? picked.prompt : null);
+    this.promptText = picked ? picked.prompt : null;
   }
 
   private handleContextInteract(): void {
@@ -1187,8 +1366,18 @@ export class GameApp {
         break;
       case "board":
       case "dock":
-        this.toggleBoatBoard();
+        this.toggleBoatBoard(picked.entityId);
         break;
+      case "purchase-boat": {
+        const result = this.sim.execute({ type: "boat.purchase-skiff" });
+        if (!result.success) {
+          this.setToast(result.reason ?? "Could not purchase the skiff");
+        } else {
+          this.setToast("Coastal skiff commissioned · 850 G", 2600);
+          this.requestAutosave();
+        }
+        break;
+      }
       case "chum":
       case "hook":
         if (picked.entityId) this.interactWithSchool(picked.entityId, picked.action);
@@ -1208,7 +1397,7 @@ export class GameApp {
         this.handleCastFishing();
         break;
       case "trade":
-        this.activeMarketId = "market.village";
+        this.activeMarketId = this.sim.getNearbyMarketId() ?? "market.village";
         this.setActiveModal("market");
         break;
       case "enter":
@@ -1221,6 +1410,38 @@ export class GameApp {
     if (!this.farmingActions.isActive) this.lockedInteractionTarget = null;
   }
 
+  private cancelDoorTransition(): void {
+    if (this.doorTransitionTimer !== null) {
+      clearTimeout(this.doorTransitionTimer);
+      this.doorTransitionTimer = null;
+    }
+    this.doorTransitionFade = false;
+    this.isTransitioningDoor = false;
+  }
+
+  private teleportPlayer(toPose: { x: number; y: number; z: number; rotationY: number }): void {
+    const player = this.sim.state.player;
+    const commit = this.sim.execute({
+      type: "physics.commit",
+      frame: {
+        player: {
+          x: toPose.x,
+          y: toPose.y,
+          z: toPose.z,
+          rotationY: toPose.rotationY,
+          traversal: { ...player.traversal, isGrounded: true }
+        },
+        boats: {}
+      }
+    });
+    if (!commit.success) {
+      this.sim.setDebugPlayerPose(toPose);
+    }
+    this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
+      discontinuity: "teleport"
+    });
+  }
+
   private transitionDoor(
     toPose: { x: number; y: number; z: number; rotationY: number },
     toastMessage: string
@@ -1229,17 +1450,13 @@ export class GameApp {
     this.isTransitioningDoor = true;
     this.doorTransitionFade = true;
 
-    setTimeout(() => {
-      this.sim.setDebugPlayerPose({
-        x: toPose.x,
-        y: toPose.y,
-        z: toPose.z,
-        rotationY: toPose.rotationY
-      });
+    this.doorTransitionTimer = setTimeout(() => {
+      this.teleportPlayer(toPose);
       this.setToast(toastMessage, 2000);
-      setTimeout(() => {
+      this.doorTransitionTimer = setTimeout(() => {
         this.doorTransitionFade = false;
         this.isTransitioningDoor = false;
+        this.doorTransitionTimer = null;
       }, 240);
     }, 240);
   }
@@ -1413,6 +1630,7 @@ export class GameApp {
     const cancelled = this.farmingActions.cancelBeforeCommit(performance.now());
     if (cancelled) {
       this.lockedInteractionTarget = null;
+      this.inputRouter.setJumpBlocked(false);
       this.setToast("Action cancelled", 1400);
     }
     return cancelled;
@@ -1425,6 +1643,7 @@ export class GameApp {
     if (snapshot.phase === "completed" || snapshot.phase === "cancelled") {
       this.frozenPlacementResult = null;
       this.lockedInteractionTarget = null;
+      this.inputRouter.setJumpBlocked(false);
     }
     this.worldScene.setFarmingActionPresentation(
       snapshot.action,
@@ -1445,7 +1664,11 @@ export class GameApp {
           : snapshot.action;
       this.worldScene.playPlayerAction(animation);
     }
-    if (snapshot.phase === "completed" && snapshot.action === "harvest") {
+    if (
+      snapshot.phase === "completed" &&
+      snapshot.action === "harvest" &&
+      snapshot.commitSucceeded === true
+    ) {
       this.worldScene.playPlayerAction("pickup");
     }
   }
@@ -1479,7 +1702,11 @@ export class GameApp {
       }
       return;
     }
-    if (snapshot.phase === "completed" && snapshot.action === "harvest") {
+    if (
+      snapshot.phase === "completed" &&
+      snapshot.action === "harvest" &&
+      snapshot.commitSucceeded === true
+    ) {
       play("pickup");
     }
   }
@@ -1503,7 +1730,11 @@ export class GameApp {
       if (snapshot.action === "processing-collect") this.worldScene.spawnFarmingVfx("pickup", target, timeSeconds);
       return;
     }
-    if (snapshot.phase === "completed" && snapshot.action === "harvest") {
+    if (
+      snapshot.phase === "completed" &&
+      snapshot.action === "harvest" &&
+      snapshot.commitSucceeded === true
+    ) {
       this.worldScene.spawnFarmingVfx("pickup", target, timeSeconds);
     }
   }
@@ -1512,12 +1743,14 @@ export class GameApp {
     action: FarmingPresentationAction,
     x: number,
     z: number,
-    commit: () => InteractionResult
+    commit: () => InteractionResult,
+    targetY: number = WorldLayout.terrainHeight(x, z),
+    entityId?: string
   ): void {
     this.facePlayerToward(x, z);
     const started = this.farmingActions.start(
       action,
-      { x, y: WorldLayout.terrainHeight(x, z), z },
+      { x, y: targetY, z, entityId },
       performance.now(),
       {
         commit: () => {
@@ -1531,18 +1764,16 @@ export class GameApp {
     if (!started) {
       this.lockedInteractionTarget = null;
       this.setToast("Finish the current action first");
+      return;
     }
+    this.inputRouter.setJumpBlocked(true);
+    this.inputRouter.consumeJumpRequest();
   }
 
   private facePlayerToward(x: number, z: number): void {
     const result = this.sim.execute({ type: "player.face-target", x, z });
     if (!result.success) return;
     this.playerPresentation.pushCanonicalPose(this.sim.state.player);
-  }
-
-  private structureInteractPosition(structure: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
-    const y = structure.y > 0 ? structure.y : WorldLayout.terrainHeight(structure.x, structure.z);
-    return { x: structure.x, y, z: structure.z };
   }
 
   private fishTableStationDefinition(): {
@@ -1609,32 +1840,50 @@ export class GameApp {
     });
   }
 
-  private toggleBoatBoard(): void {
-    const boatId = "boat.player_rowboat";
+  private toggleBoatBoard(targetBoatId?: string): void {
     if (this.mode === "on-foot") {
-      const res = this.sim.execute({ type: "boat.board", boatId });
-      if (!res.success) {
-        this.setToast(res.reason ?? "Cannot board boat");
+      const boatId = targetBoatId ?? "boat.player_rowboat";
+      const boat = this.sim.state.boats[boatId];
+      if (!boat || !this.sim.canBoardBoat(boatId)) {
+        this.setToast("Move closer to the docked vessel");
         return;
       }
-      this.setGameplayMode("boat-driving");
-      this.playerPresentation.pushCanonicalPose(this.sim.state.player, { snap: true });
-      this.showContextualHint(
-        "hint.boat_steering",
-        "Rowboat Navigation",
-        "[W/S] Throttle • [A/D] Steer • [E] Dock when near a harbor pier.",
-        "⛵"
-      );
-      this.requestAutosave();
+      this.startFarmingAction("board", boat.x, boat.z, () => {
+        const result = this.sim.execute({ type: "boat.board", boatId });
+        if (result.success) {
+          this.setGameplayMode("boat-driving");
+          this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
+            discontinuity: "boarding"
+          });
+          const boatName = ContentRegistry.boats.get(boat.boatTypeId)?.name ?? "boat";
+          this.showContextualHint(
+            "hint.boat_steering",
+            `${boatName} Navigation`,
+            "[W/S] Throttle • [A/D] Steer • [E] Dock when near a harbor pier.",
+            "⛵"
+          );
+          this.requestAutosave();
+        }
+        return result;
+      }, boat.y, boatId);
     } else {
-      const res = this.sim.execute({ type: "boat.dock" });
-      if (!res.success) {
-        this.setToast(res.reason ?? "Cannot dock here");
+      const boatId = this.sim.state.player.activeBoatId;
+      const boat = boatId ? this.sim.state.boats[boatId] : null;
+      if (!boat || !this.sim.canDockActiveBoat()) {
+        this.setToast("Return to the harbor dock to disembark");
         return;
       }
-      this.setGameplayMode("on-foot");
-      this.playerPresentation.pushCanonicalPose(this.sim.state.player, { snap: true });
-      this.requestAutosave();
+      this.startFarmingAction("dock", boat.x, boat.z, () => {
+        const result = this.sim.execute({ type: "boat.dock" });
+        if (result.success) {
+          this.setGameplayMode("on-foot");
+          this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
+            discontinuity: "docking"
+          });
+          this.requestAutosave();
+        }
+        return result;
+      }, boat.y, boat.id);
     }
   }
 
@@ -1665,9 +1914,11 @@ export class GameApp {
     if (!stationId || !recipeId) return;
     const structure = this.sim.state.world.structures[stationId];
     if (!structure) return;
+    const interactionPosition = target.worldPosition;
+    if (!interactionPosition) return;
     const job = this.findStationJob(stationId);
     if (target.action === "collect-processing" && job?.status === "complete") {
-      this.startFarmingAction("processing-collect", structure.x, structure.z, () => {
+      this.startFarmingAction("processing-collect", interactionPosition.x, interactionPosition.z, () => {
         const result = this.sim.execute({ type: "processing.collect", jobId: job.id });
         if (result.success) this.setToast("Collected");
         return result;
@@ -1678,7 +1929,7 @@ export class GameApp {
       this.setToast("Job in progress...");
       return;
     }
-    this.startFarmingAction("processing-start", structure.x, structure.z, () => {
+    this.startFarmingAction("processing-start", interactionPosition.x, interactionPosition.z, () => {
       const result = this.sim.execute({ type: "processing.start", recipeId, stationId });
       if (result.success) this.setToast("Work started");
       return result;
@@ -1751,6 +2002,17 @@ export class GameApp {
     }
   }
 
+  private releaseBasicFishingCast(power?: number): void {
+    const basicFishing = this.sim.state.basicFishing;
+    if (this.mode !== "basic-fishing" || !basicFishing || basicFishing.phase !== "charging-cast") return;
+    const player = this.sim.state.player;
+    const targetX = player.x + Math.sin(player.rotationY) * 4;
+    const targetZ = player.z + Math.cos(player.rotationY) * 4;
+    this.startFarmingAction("cast", targetX, targetZ, () => {
+      return this.sim.execute({ type: "fishing.release-cast-basic", castPower: power });
+    });
+  }
+
 
   private confirmNewGame(): void {
     const reason = this.saveRecoveryReason;
@@ -1769,7 +2031,9 @@ export class GameApp {
 
   private handleResetPlayerToSafePlace(): void {
     this.sim.execute({ type: "player.reset-safe" });
-    this.playerPresentation.pushCanonicalPose(this.sim.state.player, { snap: true });
+    this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
+      discontinuity: "recovery"
+    });
     this.setGameplayMode("on-foot");
     this.modeController.resume();
     this.syncOverlayState();
@@ -1838,6 +2102,9 @@ export class GameApp {
         promptText: this.promptText,
         toastMessage: this.currentToast(),
         inspectedCrop: this.inspectedCrop,
+        onDismissCropInspection: () => {
+          this.inspectedCrop = null;
+        },
         farmingAction: this.farmingActionSnapshot,
         activeModal: this.activeModal,
         onSetActiveModal: (modal: ActiveModal) => {
@@ -1904,7 +2171,7 @@ export class GameApp {
           this.sim.execute({ type: "fishing.control-basic", isHolding });
         },
         onReleaseBasicFishingCast: (power?: number) => {
-          this.sim.execute({ type: "fishing.release-cast-basic", castPower: power });
+          this.releaseBasicFishingCast(power);
         },
         onDismissBasicFishingModal: () => {
           if (this.sim.state.basicFishing?.phase === "caught" || this.sim.state.basicFishing?.phase === "escaped") {
@@ -1964,11 +2231,41 @@ export class GameApp {
           this.sim.setDebugWeather(current === "clear" ? "light-rain" : "clear");
         },
         onSpawnSchool: () => {
-          this.sim.spawnFishSchool("lake", 0, WorldLayout.coastlineZ(0) + 12, ["fish.trout"]);
+          const point = SPORT_FISHING_REVIEW_POINTS.trout;
+          this.sim.spawnFishSchool(point.habitatId, point.x, point.z, [point.speciesId]);
         },
+        assetCoverage: this.assetCoverage,
         screenFade: this.doorTransitionFade
       })
     );
+  }
+
+  private syncFarmGisHold(): void {
+    const held = this.inputRouter.getInputState().farmGisHeld;
+    if (held === this.isFarmGisHeld) return;
+    this.isFarmGisHeld = held;
+    this.worldScene.setFarmGisMode(held);
+  }
+
+  private clearFarmGisHold(): void {
+    if (!this.isFarmGisHeld) return;
+    this.isFarmGisHeld = false;
+    this.worldScene.setFarmGisMode(false);
+  }
+
+  public dispose(): void {
+    this.isRunning = false;
+    this.cancelDoorTransition();
+    this.clearFarmGisHold();
+    this.inputRouter.setJumpBlocked(false);
+    window.removeEventListener("resize", this.onResize);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.resizeObserver.disconnect();
+    this.inputRouter.dispose();
+    this.physicsWorld?.dispose();
+    this.physicsWorld = null;
+    this.uiRoot?.unmount();
+    this.uiRoot = null;
   }
 
   private onResize = (): void => {

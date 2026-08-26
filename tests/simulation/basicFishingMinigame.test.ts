@@ -257,6 +257,34 @@ describe("Simulation Basic Fishing Loop Integration", () => {
     expect(InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "fish.perch")).toBeGreaterThan(0);
   });
 
+  it("does not consume bait on charge-start; cancel from charging leaves bait unspent", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    const inv = sim.state.inventories[sim.state.player.inventoryId];
+    const baitBefore = InventoryManager.getItemCount(inv, "item.bait_worms");
+    expect(sim.startChargingBasicFishing().success).toBe(true);
+    expect(sim.state.basicFishing?.hasBait).toBe(true);
+    expect(InventoryManager.getItemCount(inv, "item.bait_worms")).toBe(baitBefore);
+    sim.cancelBasicFishing();
+    expect(InventoryManager.getItemCount(inv, "item.bait_worms")).toBe(baitBefore);
+  });
+
+  it("consumes bait on successful release and still misses AFK even when willCatch is true", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    const inv = sim.state.inventories[sim.state.player.inventoryId];
+    const baitBefore = InventoryManager.getItemCount(inv, "item.bait_worms");
+    expect(sim.startChargingBasicFishing().success).toBe(true);
+    expect(sim.releaseCastBasicFishing(0.8).success).toBe(true);
+    expect(InventoryManager.getItemCount(inv, "item.bait_worms")).toBe(baitBefore - 1);
+    expect(typeof sim.state.basicFishing?.willCatch).toBe("boolean");
+    sim.state.basicFishing!.willCatch = true;
+    sim.state.basicFishing!.remainingSeconds = 0.05;
+    sim.tick(3);
+    expect(sim.state.basicFishing).toBeNull();
+    expect(InventoryManager.getItemCount(inv, "fish.perch")).toBe(0);
+  });
+
   it("treasure catch grants at least one registered item without dropping the fish", () => {
     sim.state.player.x = -8;
     sim.state.player.z = 0;

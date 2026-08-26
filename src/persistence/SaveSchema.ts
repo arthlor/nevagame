@@ -4,6 +4,7 @@ import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
+import { cargoClassFits } from "../simulation/domains/domainRules";
 
 export const CURRENT_SCHEMA_VERSION = 11;
 
@@ -33,6 +34,8 @@ function isFiniteInRange(value: unknown, minimum: number, maximum: number): valu
 const SKILL_IDS = ["farming", "fishing", "processing", "trading"] as const;
 const WEATHER_TYPES = ["clear", "cloudy", "light-rain", "heavy-rain", "windy", "fog", "storm"] as const;
 const FISHING_HABITATS = ["river", "lake", "coast", "offshore"] as const;
+const FISH_QUALITIES = ["common", "fine", "exceptional", "trophy"] as const;
+const CARGO_CLASSES = ["small", "medium", "large", "gargantuan"] as const;
 
 function isOneOf(value: unknown, choices: readonly string[]): boolean {
   return typeof value === "string" && choices.includes(value);
@@ -127,7 +130,15 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   }
   if (!ContentRegistry.rods.has(state.player.equippedRodId)) return false;
   if (state.player.activeBoatId !== null && state.player.activeBoatId !== undefined && !state.boats[state.player.activeBoatId]) return false;
-  if (state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined && !state.fishCargo[state.player.carriedFishCargoId]) return false;
+  if (state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined) {
+    const carriedCargo = state.fishCargo[state.player.carriedFishCargoId];
+    if (
+      !carriedCargo ||
+      !isRecord(carriedCargo.location) ||
+      carriedCargo.location.type !== "player" ||
+      carriedCargo.location.containerId !== "player"
+    ) return false;
+  }
   if (state.basicFishing && state.sportFishing) return false;
   if (
     state.basicFishing &&
@@ -155,7 +166,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isFiniteInRange(state.sportFishing.lineTension, 0, 100) ||
       !isFiniteInRange(state.sportFishing.lineIntegrity, 0, 100) ||
       !isFiniteNumber(state.sportFishing.slackTimerSeconds, 0) ||
-      !isFiniteNumber(state.sportFishing.snapTimerSeconds, 0)
+      !isFiniteNumber(state.sportFishing.snapTimerSeconds, 0) ||
+      (state.sportFishing.schoolId !== undefined &&
+        state.sportFishing.schoolId !== null &&
+        (typeof state.sportFishing.schoolId !== "string" || !state.world.activeSchools[state.sportFishing.schoolId]))
     ) return false;
   }
 
@@ -165,6 +179,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isFiniteNumber(farm.widthMeters, 0) || !isFiniteNumber(farm.depthMeters, 0) ||
       !isRecord(farm.soil) || !isFiniteNumber(farm.soil.fertility, 0) || !isFiniteNumber(farm.soil.moistureRetention, 0)
     ) return false;
+    if (new Set(farm.placedCropIds).size !== farm.placedCropIds.length) return false;
   }
 
   for (const [cropId, crop] of Object.entries(state.crops)) {
@@ -215,6 +230,8 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (![boat.x, boat.y, boat.z, boat.headingRadians, boat.speed, boat.fuel, boat.durability].every((value) => isFiniteNumber(value))) return false;
     if (!ContentRegistry.boats.has(boat.boatTypeId) || !state.inventories[boat.supplyInventoryId]) return false;
     if (!Array.isArray(boat.fishCargoSlotIds) || typeof boat.isDocked !== "boolean") return false;
+    const boatDefinition = ContentRegistry.boats.get(boat.boatTypeId);
+    if (!boatDefinition || boat.fishCargoSlotIds.length !== boatDefinition.fishCargoSlots.length) return false;
     if (schemaVersion >= 3) {
       if (boat.dockedMarketId !== null && (typeof boat.dockedMarketId !== "string" || !ContentRegistry.markets.has(boat.dockedMarketId))) return false;
       if (boat.isDocked !== Boolean(boat.dockedMarketId)) return false;
@@ -223,23 +240,29 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   }
 
   for (const [cargoId, cargo] of Object.entries(state.fishCargo)) {
-    if (!isRecord(cargo) || cargo.id !== cargoId || typeof cargo.speciesId !== "string" || !isRecord(cargo.location) || !isFiniteNumber(cargo.weightKg, 0) || !isFiniteNumber(cargo.freshness, 0)) return false;
-    if (!ContentRegistry.fishSpecies.has(cargo.speciesId)) return false;
+    if (!isRecord(cargo) || cargo.id !== cargoId || typeof cargo.speciesId !== "string" || !isRecord(cargo.location) || !isFiniteNumber(cargo.weightKg, 0) || !isFiniteInRange(cargo.freshness, 0, 100) || !isSafeInteger(cargo.caughtAtMinute, 0) || !isOneOf(cargo.quality, FISH_QUALITIES) || !isOneOf(cargo.cargoClass, CARGO_CLASSES)) return false;
+    const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
+    if (!species || cargo.cargoClass !== species.cargoClass || cargo.weightKg < species.weightKg.min || cargo.weightKg > species.weightKg.max) return false;
     if (cargo.location.type === "player") {
-      if (state.player.carriedFishCargoId !== cargoId) return false;
+      if (cargo.location.containerId !== "player" || state.player.carriedFishCargoId !== cargoId) return false;
     } else if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
       const boat = state.boats[cargo.location.containerId];
       const slotIndex = cargo.location.slotIndex;
-      if (!boat || typeof slotIndex !== "number" || !Number.isInteger(slotIndex) || boat.fishCargoSlotIds[slotIndex] !== cargoId) return false;
+      const definition = boat ? ContentRegistry.boats.get(boat.boatTypeId) : undefined;
+      const slot = definition && typeof slotIndex === "number" ? definition.fishCargoSlots[slotIndex] : undefined;
+      if (!boat || !definition || !slot || typeof slotIndex !== "number" || !Number.isSafeInteger(slotIndex) || boat.fishCargoSlotIds[slotIndex] !== cargoId || (cargo.location.type === "boat-hook") !== (slot.type === "external-hook") || !cargoClassFits(cargo.cargoClass, slot.maxCargoClass)) return false;
     } else {
       return false;
     }
   }
 
+  const referencedBoatCargoIds = new Set<string>();
   for (const boat of Object.values(state.boats)) {
     for (let slotIndex = 0; slotIndex < boat.fishCargoSlotIds.length; slotIndex++) {
       const cargoId = boat.fishCargoSlotIds[slotIndex];
-      if (!cargoId) continue;
+      if (cargoId === null) continue;
+      if (typeof cargoId !== "string" || referencedBoatCargoIds.has(cargoId)) return false;
+      referencedBoatCargoIds.add(cargoId);
       const cargo = state.fishCargo[cargoId];
       if (!cargo || cargo.location.containerId !== boat.id || cargo.location.slotIndex !== slotIndex) return false;
     }

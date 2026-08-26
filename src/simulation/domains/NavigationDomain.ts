@@ -1,6 +1,12 @@
 import type { ResolvedPhysicsFrame } from "../core/PhysicsAdapter";
-import type { BoatId, FishCargoState, MarketId } from "../core/types";
-import { HARBOR_DOCK, WORLD_SPAWN } from "../../world/WorldAnchors";
+import { ContentRegistry } from "../../content/ContentRegistry";
+import { InventoryManager } from "../inventory/InventoryManager";
+import type { BoatId, BoatState, FishCargoState, MarketId } from "../core/types";
+import {
+  HARBOR_SKIFF_MOORING,
+  harborMooringForBoatType,
+  WORLD_SPAWN
+} from "../../world/WorldAnchors";
 import { SAILABLE_BOUNDS, WorldLayout } from "../../world/WorldLayout";
 import type { DomainContext } from "./DomainContext";
 import { distance2d } from "./DomainContext";
@@ -126,13 +132,14 @@ export class NavigationDomain {
     if (activeBoatId) {
       const boat = state.boats[activeBoatId];
       if (boat) {
+        const mooring = harborMooringForBoatType(boat.boatTypeId);
         Object.assign(boat, {
           speed: 0,
           isDocked: true,
-          dockedMarketId: HARBOR_DOCK.marketId,
-          x: HARBOR_DOCK.boatPosition.x,
-          y: HARBOR_DOCK.boatPosition.y,
-          z: HARBOR_DOCK.boatPosition.z,
+          dockedMarketId: mooring.marketId,
+          x: mooring.boatPosition.x,
+          y: mooring.boatPosition.y,
+          z: mooring.boatPosition.z,
           headingRadians: 0
         });
       }
@@ -151,18 +158,20 @@ export class NavigationDomain {
   public canBoardBoat(boatId: BoatId): boolean {
     const { state } = this.context;
     const boat = state.boats[boatId];
+    const mooring = boat ? harborMooringForBoatType(boat.boatTypeId) : null;
     return Boolean(
       boat &&
         (boatId !== "boat.player_rowboat" || state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) &&
         !state.player.activeBoatId &&
         boat.isDocked &&
-        boat.dockedMarketId === HARBOR_DOCK.marketId &&
-        distance2d(state.player, HARBOR_DOCK.playerPosition) <= HARBOR_DOCK.boardRadius
+        mooring &&
+        boat.dockedMarketId === mooring.marketId &&
+        distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius
     );
   }
 
   public boardBoat(boatId: BoatId): { success: boolean; reason?: string } {
-    if (!this.canBoardBoat(boatId)) return { success: false, reason: "Move closer to the docked rowboat" };
+    if (!this.canBoardBoat(boatId)) return { success: false, reason: "Move closer to the docked vessel" };
     const { state, events } = this.context;
     const boat = state.boats[boatId]!;
     Object.assign(boat, { isDocked: false, dockedMarketId: null, speed: 0 });
@@ -182,7 +191,8 @@ export class NavigationDomain {
     const { state } = this.context;
     const boatId = state.player.activeBoatId;
     const boat = boatId ? state.boats[boatId] : null;
-    return Boolean(boat && distance2d(boat, HARBOR_DOCK.boatPosition) <= HARBOR_DOCK.dockRadius);
+    const mooring = boat ? harborMooringForBoatType(boat.boatTypeId) : null;
+    return Boolean(boat && mooring && distance2d(boat, mooring.boatPosition) <= mooring.dockRadius);
   }
 
   public dockActiveBoat(): { success: boolean; reason?: string } {
@@ -191,24 +201,77 @@ export class NavigationDomain {
     if (!boatId) return { success: false, reason: "You are not aboard a boat" };
     if (!this.canDockActiveBoat()) return { success: false, reason: "Return to the harbor dock to disembark" };
     const boat = state.boats[boatId]!;
+    const mooring = harborMooringForBoatType(boat.boatTypeId);
     Object.assign(boat, {
-      x: HARBOR_DOCK.boatPosition.x,
-      y: HARBOR_DOCK.boatPosition.y,
-      z: HARBOR_DOCK.boatPosition.z,
+      x: mooring.boatPosition.x,
+      y: mooring.boatPosition.y,
+      z: mooring.boatPosition.z,
       speed: 0,
       isDocked: true,
-      dockedMarketId: HARBOR_DOCK.marketId
+      dockedMarketId: mooring.marketId
     });
     state.player.activeBoatId = null;
     Object.assign(state.player, {
-      x: HARBOR_DOCK.playerPosition.x,
-      y: WorldLayout.terrainHeight(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z) + 0.5,
-      z: HARBOR_DOCK.playerPosition.z,
+      x: mooring.playerPosition.x,
+      y: WorldLayout.terrainHeight(mooring.playerPosition.x, mooring.playerPosition.z) + 0.5,
+      z: mooring.playerPosition.z,
       traversal: { ...state.player.traversal, isGrounded: true }
     });
     events.emit("BoatDocked", { boatId, minute: state.clock.currentMinute });
     events.emit("BoatDisembarked", { boatId, minute: state.clock.currentMinute });
     return { success: true };
+  }
+
+  public purchaseSkiff(): { success: boolean; reason?: string; cost?: number } {
+    const { state, events } = this.context;
+    const boatId = "boat.player_skiff";
+    if (state.boats[boatId]) return { success: false, reason: "You already own the coastal skiff" };
+    const definition = ContentRegistry.boats.get("boat.skiff");
+    if (!definition || !definition.requiredSkillXp) return { success: false, reason: "Coastal skiff contract is unavailable" };
+    if (distance2d(state.player, HARBOR_SKIFF_MOORING.playerPosition) > HARBOR_SKIFF_MOORING.boardRadius) {
+      return { success: false, reason: "Move closer to the skiff mooring" };
+    }
+    const requiredXp = definition.requiredSkillXp.xp;
+    if (state.player.proficiencies[definition.requiredSkillXp.skill] < requiredXp) {
+      return { success: false, reason: `Requires ${requiredXp.toLocaleString()} Fishing XP` };
+    }
+    if (state.player.money < definition.costMoney) {
+      return { success: false, reason: `You need ${definition.costMoney} G for the coastal skiff` };
+    }
+
+    const supplyInventoryId = "inv.skiff_supply";
+    if (state.inventories[supplyInventoryId]) return { success: false, reason: "Skiff supplies are already registered" };
+    const supplyInventory = InventoryManager.createInventory(supplyInventoryId, definition.supplySlotCount);
+    const boat: BoatState = {
+      id: boatId,
+      boatTypeId: definition.id,
+      x: HARBOR_SKIFF_MOORING.boatPosition.x,
+      y: HARBOR_SKIFF_MOORING.boatPosition.y,
+      z: HARBOR_SKIFF_MOORING.boatPosition.z,
+      headingRadians: 0,
+      speed: 0,
+      fuel: definition.fuelCapacity,
+      durability: definition.durabilityMax,
+      fishCargoSlotIds: definition.fishCargoSlots.map(() => null),
+      supplyInventoryId,
+      upgrades: [],
+      isDocked: true,
+      dockedMarketId: HARBOR_SKIFF_MOORING.marketId
+    };
+
+    // All checks are complete before mutating money, inventory or ownership.
+    state.player.money -= definition.costMoney;
+    state.inventories[supplyInventoryId] = supplyInventory;
+    state.boats[boatId] = boat;
+    if (!state.quests.unlockedFeatureIds.includes(boatId)) state.quests.unlockedFeatureIds.push(boatId);
+    if (!state.journal.unlockedKnowledge.includes(boatId)) state.journal.unlockedKnowledge.push(boatId);
+    events.emit("BoatPurchased", {
+      boatId,
+      boatTypeId: definition.id,
+      cost: definition.costMoney,
+      minute: state.clock.currentMinute
+    });
+    return { success: true, cost: definition.costMoney };
   }
 
   public canAccessFishCargo(cargo: FishCargoState, marketId?: MarketId): boolean {

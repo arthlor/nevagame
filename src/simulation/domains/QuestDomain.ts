@@ -44,7 +44,19 @@ export class QuestDomain {
       }),
       events.on("FishSchoolChummed", (e) => this.onObjectiveEvent("chum-school", undefined, 1, { kind: "habitat", id: e.habitatId })),
       events.on("FishHooked", (e) => this.onObjectiveEvent("hook-sport-fish", e.speciesId, 1, { kind: "habitat", id: e.habitatId })),
-      events.on("FishLanded", (e) => e.boatId && this.onObjectiveEvent("land-sport-fish", e.speciesId, 1, { kind: "boat", id: e.boatId })),
+      events.on("FishLanded", (e) => {
+        this.onObjectiveEvent(
+          "land-sport-fish",
+          e.speciesId,
+          1,
+          e.boatId ? { kind: "boat", id: e.boatId } : undefined
+        );
+        // Shore / player-carry landings have no boatId. Treat carry as stowed so
+        // Act 5 cannot softlock waiting for a boat-hold CargoLoaded that never comes.
+        if (!e.boatId) {
+          this.onObjectiveEvent("stow-cargo", undefined, 1);
+        }
+      }),
       events.on("CargoLoaded", (e) => this.onObjectiveEvent("stow-cargo", undefined, 1, { kind: "boat", id: e.boatId })),
       events.on("BoatBoarded", (e) => this.onObjectiveEvent("board-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),
       events.on("BoatDocked", (e) => this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),

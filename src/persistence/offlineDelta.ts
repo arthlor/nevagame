@@ -2,12 +2,12 @@
 
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
-import { applyCropMoistureOverMinutes, calculateEffectiveGrowthDelta, determineCropStage } from "../simulation/farming/calculateCropGrowth";
+import { advancePlacedCropGrowth } from "../simulation/farming/calculateCropGrowth";
+import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBoundedSegments";
 import { calculateFreshnessLoss, resolveCargoHasIce } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
 import { GameClock } from "../simulation/core/GameClock";
-import { advanceScheduledWeather } from "../simulation/weather/updateWeather";
 
 export interface OfflineProgressionSummary {
   elapsedRealMinutes: number;
@@ -47,33 +47,25 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
 
   const rng = new SeededRng(state.worldSeed + state.clock.currentMinute, state.metadata.rngState);
   const clock = new GameClock(state.clock);
+  const startMinute = state.clock.currentMinute;
 
   // Advance in weather-bounded segments so long offline periods do not apply a
   // single stale weather snapshot to every crop and cargo item.
-  let remainingMinutes = gameMinutesToSimulate;
-  let currentMinute = state.clock.currentMinute;
-  while (remainingMinutes > 0) {
-    advanceScheduledWeather(state.weather, currentMinute, rng);
-    const untilWeatherChange = Math.max(1, state.weather.nextWeatherMinute - currentMinute);
-    const segmentMinutes = Math.min(remainingMinutes, untilWeatherChange);
-
+  forEachWeatherBoundedSegment(state.weather, startMinute, gameMinutesToSimulate, rng, (segmentMinutes) => {
     for (const cropState of Object.values(state.crops)) {
       const cropDef = ContentRegistry.crops.get(cropState.cropId);
       const farm = state.farms[cropState.farmId];
       if (!cropDef || !farm) continue;
 
       const previousStage = cropState.stage;
-      cropState.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
-        segmentMinutes,
+      const newStage = advancePlacedCropGrowth(
+        cropState,
         cropDef,
         farm.climateId,
-        cropState.moisture,
         farm.soil.fertility,
-        state.weather.type
+        state.weather.type,
+        segmentMinutes
       );
-      applyCropMoistureOverMinutes(cropState, segmentMinutes, cropDef.waterNeed, state.weather.type);
-      const newStage = determineCropStage(cropState.effectiveGrowthMinutes, cropDef.baseGrowthMinutes);
-      cropState.stage = newStage;
       if (previousStage !== "mature" && previousStage !== "overripe" && (newStage === "mature" || newStage === "overripe")) {
         summary.cropsMaturedCount += 1;
       } else if (previousStage !== "withered" && newStage === "withered") {
@@ -99,13 +91,11 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
       );
       if (freshnessBefore > 0 && cargo.freshness <= 0) summary.cargoSpoiledCount += 1;
     }
+  });
 
-    clock.advanceMinutes(segmentMinutes);
-    state.clock = { ...clock.getState() };
-    currentMinute = state.clock.currentMinute;
-    for (const cropState of Object.values(state.crops)) cropState.lastUpdatedMinute = currentMinute;
-    remainingMinutes -= segmentMinutes;
-  }
+  clock.advanceMinutes(gameMinutesToSimulate);
+  state.clock = { ...clock.getState() };
+  for (const cropState of Object.values(state.crops)) cropState.lastUpdatedMinute = state.clock.currentMinute;
 
   // Step 4: Processing jobs
   for (const job of Object.values(state.processingJobs)) {
@@ -130,8 +120,8 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
     tickMarket(market, state.clock.currentMinute, state.clock.season, rng);
   }
 
-  // Step 8: Resolve a weather change that lands exactly at the final minute.
-  advanceScheduledWeather(state.weather, state.clock.currentMinute, rng);
+  // Step 8: Weather that lands exactly at the final minute is resolved by the
+  // shared weather-bounded helper.
 
   // Step 9: Update metadata
   state.metadata.lastSavedUtcMs = nowUtcMs;

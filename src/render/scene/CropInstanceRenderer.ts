@@ -9,6 +9,7 @@ import { ASSET_IDS, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
 
 const MAX_CROP_INSTANCES = 160;
 const TRANSITION_SECONDS = 0.28;
@@ -41,12 +42,34 @@ export const POTATO_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   withered: ASSET_IDS.CROP_POTATO_WITHERED
 };
 
-/** Families are promoted only after the user approves the Wheat gold-slice language. */
-const CROP_STAGE_ASSETS: Readonly<Partial<Record<string, Readonly<Record<CropStage, AssetId>>>>> = {
+const APPLE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: WHEAT_STAGE_ASSET.seeded,
+  sprout: WHEAT_STAGE_ASSET.sprout,
+  growing: WHEAT_STAGE_ASSET.growing,
+  mature: ASSET_IDS.TREE_APPLE_A,
+  overripe: ASSET_IDS.TREE_APPLE_A,
+  withered: WHEAT_STAGE_ASSET.withered
+};
+
+/**
+ * Every playable crop has a presentation binding. A crop-specific model is
+ * used when the catalog has one; the explicit stage maps below keep authored
+ * crop lifecycles visible until their dedicated families are promoted.
+ */
+export const CROP_STAGE_ASSETS: Readonly<Record<string, Readonly<Record<CropStage, AssetId>>>> = {
   "crop.wheat": WHEAT_STAGE_ASSET,
   "crop.tomato": TOMATO_STAGE_ASSET,
-  "crop.potato": POTATO_STAGE_ASSET
+  "crop.potato": POTATO_STAGE_ASSET,
+  "crop.barley": WHEAT_STAGE_ASSET,
+  "crop.corn": WHEAT_STAGE_ASSET,
+  "crop.carrot": POTATO_STAGE_ASSET,
+  "crop.flax": WHEAT_STAGE_ASSET,
+  "crop.apple_tree": APPLE_TREE_STAGE_ASSET
 };
+
+export function cropStageAsset(cropId: string, stage: CropStage): AssetId | null {
+  return CROP_STAGE_ASSETS[cropId]?.[stage] ?? null;
+}
 
 interface TemplateBatch {
   mesh: THREE.InstancedMesh;
@@ -237,7 +260,11 @@ export class CropInstanceRenderer {
     this.templates.set(assetId, { batches });
   }
 
-  public sync(state: Readonly<GameState>, timeSeconds: number): void {
+  public sync(
+    state: Readonly<GameState>,
+    timeSeconds: number,
+    weatherMotion?: Readonly<WeatherMotionSignal>
+  ): void {
     const entriesByAsset = new Map<AssetId, RenderEntry[]>();
     const activeIds = new Set(Object.keys(state.crops));
     for (const id of [...this.lastStages.keys()]) {
@@ -307,7 +334,9 @@ export class CropInstanceRenderer {
 
     for (const [assetId, template] of this.templates) {
       const entries = entriesByAsset.get(assetId) ?? [];
-      for (const batch of template.batches) this.updateBatch(batch, entries, state, timeSeconds);
+      for (const batch of template.batches) {
+        this.updateBatch(batch, entries, state, timeSeconds, weatherMotion);
+      }
     }
     this.updateMoistureBatch(Object.values(state.crops));
   }
@@ -316,10 +345,12 @@ export class CropInstanceRenderer {
     batch: TemplateBatch,
     entries: readonly RenderEntry[],
     state: Readonly<GameState>,
-    timeSeconds: number
+    timeSeconds: number,
+    weatherMotion?: Readonly<WeatherMotionSignal>
   ): void {
+    this.ensureBatchCapacity(batch, entries.length, `${batch.mesh.name}_dynamic`);
     batch.cropIds.length = 0;
-    const count = Math.min(entries.length, MAX_CROP_INSTANCES);
+    const count = entries.length;
     for (let index = 0; index < count; index++) {
       const entry = entries[index];
       const crop = entry.crop;
@@ -335,12 +366,22 @@ export class CropInstanceRenderer {
         : THREE.MathUtils.lerp(0.82, 1, entry.weight);
       const windResponse = crop.stage === "seeded" ? 0 : crop.stage === "sprout" ? 0.015 : 0.035;
       const phase = hashUnit(`${crop.id}:wind`) * Math.PI * 2;
+      const windStrength = weatherMotion
+        ? 0.5 + weatherMotion.normalizedStrength * 1.05 + weatherMotion.gust * 0.08
+        : Math.min(1.6, 0.55 + state.weather.windSpeed * 0.12);
       const sway = Math.sin(timeSeconds * (1.05 + hashUnit(`${crop.id}:rate`) * 0.45) + phase) *
-        windResponse * Math.min(1.6, 0.55 + state.weather.windSpeed * 0.12);
+        windResponse * windStrength;
+      const windX = weatherMotion?.directionX ?? 0.7;
+      const windZ = weatherMotion?.directionZ ?? 0.7;
       this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
       const cut = entry.cutProgress ?? 0;
       const cutLean = smoothstep(cut) * (0.82 + hashUnit(`${crop.id}:cut`) * 0.24);
-      this.euler.set(sway * 0.55 + cutLean, crop.rotationRadians, sway + cutLean * 0.28, "YXZ");
+      this.euler.set(
+        sway * windZ + cutLean,
+        crop.rotationRadians,
+        sway * windX + cutLean * 0.28,
+        "YXZ"
+      );
       this.quaternion.setFromEuler(this.euler);
       this.scale.set(
         continuousScale * transitionScale,
@@ -371,8 +412,9 @@ export class CropInstanceRenderer {
 
   private updateMoistureBatch(crops: readonly PlacedCropState[]): void {
     const batch = this.moistureBatch;
+    this.ensureBatchCapacity(batch, crops.length, "crop_disturbed_soil_instances_dynamic");
     batch.cropIds.length = 0;
-    const count = Math.min(crops.length, MAX_CROP_INSTANCES);
+    const count = crops.length;
     for (let index = 0; index < count; index++) {
       const crop = crops[index];
       const definition = ContentRegistry.crops.get(crop.cropId);
@@ -394,6 +436,23 @@ export class CropInstanceRenderer {
     batch.mesh.count = count;
     batch.mesh.instanceMatrix.needsUpdate = count > 0;
     if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = count > 0;
+  }
+
+  private ensureBatchCapacity(batch: TemplateBatch, required: number, name: string): void {
+    const currentCapacity = batch.mesh.instanceMatrix.count;
+    if (required <= currentCapacity) return;
+
+    const previous = batch.mesh;
+    const capacity = Math.max(required, currentCapacity * 2, MAX_CROP_INSTANCES);
+    const replacement = new THREE.InstancedMesh(previous.geometry, previous.material, capacity);
+    replacement.name = name;
+    replacement.count = 0;
+    replacement.castShadow = previous.castShadow;
+    replacement.receiveShadow = previous.receiveShadow;
+    replacement.frustumCulled = previous.frustumCulled;
+    this.group.remove(previous);
+    this.group.add(replacement);
+    batch.mesh = replacement;
   }
 
   public pick(camera: THREE.Camera, pointerNdc: { x: number; y: number }): string | null {

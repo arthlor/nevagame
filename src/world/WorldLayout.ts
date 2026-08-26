@@ -2,11 +2,14 @@ import * as THREE from "three";
 import { PALETTE_HEX, type PaletteToken } from "../render/materials/PaletteTokens";
 import {
   STARTER_FARM_LAYOUT,
+  farmLocalToWorld,
   starterFarmsteadAnchor,
-  starterStructureAnchor
+  starterStructureAnchor,
+  type FarmPathKind
 } from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
-import { HARBOR_DOCK, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MARKET, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
+import { buildOrganicRoadGeometry } from "./RoadGeometry";
 
 export interface WorldBounds {
   minX: number;
@@ -74,12 +77,26 @@ export interface CoastProfile {
 export type FishingHabitatId = "river" | "lake" | "coast" | "offshore";
 
 export type WorldRouteKind = "arterial" | "lane" | "trail";
+export type WorldRouteScope = "regional" | "farmstead";
 
 export interface WorldRoute {
   id: string;
+  scope: WorldRouteScope;
   kind: WorldRouteKind;
   widthMeters: number;
   points: readonly WorldPoint[];
+  /** Route segments that must remain linear, such as the bridge approach/deck. */
+  linearSegmentIndices?: readonly number[];
+}
+
+export interface WorldRouteJunction {
+  id: string;
+  center: WorldPoint;
+  radiusMeters: number;
+  /** Soft apron extension used by terrain, surface weights, and road geometry. */
+  blendLengthMeters: number;
+  surface: "field" | "farm-yard" | "village-market";
+  routeIds: readonly string[];
 }
 
 export interface WorldRouteProfile {
@@ -87,6 +104,8 @@ export interface WorldRouteProfile {
   rutDepthMeters: number;
   shoulderDropMeters: number;
   shoulderWidthMeters: number;
+  /** Outer corridor distance over which the graded shoulder feathers into the meadow. */
+  terrainFeatherMeters: number;
   gradingStrength: number;
 }
 
@@ -157,6 +176,7 @@ export const WORLD_ROUTE_PROFILES: Readonly<Record<WorldRouteKind, Readonly<Worl
     rutDepthMeters: 0.038,
     shoulderDropMeters: 0.014,
     shoulderWidthMeters: 1.55,
+    terrainFeatherMeters: 1.25,
     gradingStrength: 0.9
   }),
   lane: Object.freeze({
@@ -164,6 +184,7 @@ export const WORLD_ROUTE_PROFILES: Readonly<Record<WorldRouteKind, Readonly<Worl
     rutDepthMeters: 0.027,
     shoulderDropMeters: 0.011,
     shoulderWidthMeters: 1.25,
+    terrainFeatherMeters: 1.1,
     gradingStrength: 0.78
   }),
   trail: Object.freeze({
@@ -171,26 +192,73 @@ export const WORLD_ROUTE_PROFILES: Readonly<Record<WorldRouteKind, Readonly<Worl
     rutDepthMeters: 0.012,
     shoulderDropMeters: 0.006,
     shoulderWidthMeters: 0.85,
+    terrainFeatherMeters: 0.9,
     gradingStrength: 0.58
   })
 });
 
+const BRIDGE_CENTER = Object.freeze({ x: -14, z: -7 });
+export const BRIDGE_WORLD_PROFILE = Object.freeze({
+  spanLength: 14.2,
+  deckWidth: 3.8,
+  entrySurfaceY: 1.4,
+  approachLength: 8,
+  lateralBlendWidth: 3.6,
+  westBankSurfaceY: 1.68,
+  eastBankSurfaceY: 2.05,
+  gatewayDepthMeters: 1.25,
+  gatewayInsetMeters: 0.12,
+  gatewaySlabCount: 3,
+  gatewaySlabGapMeters: 0.08
+});
+
+const BRIDGE_HALF_SPAN = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
+const BRIDGE_WEST_DECK_EDGE = Object.freeze({
+  x: BRIDGE_CENTER.x - BRIDGE_HALF_SPAN,
+  z: BRIDGE_CENTER.z
+});
+const BRIDGE_EAST_DECK_EDGE = Object.freeze({
+  x: BRIDGE_CENTER.x + BRIDGE_HALF_SPAN,
+  z: BRIDGE_CENTER.z
+});
+const BRIDGE_WEST_APPROACH_START = Object.freeze({
+  x: BRIDGE_WEST_DECK_EDGE.x - BRIDGE_WORLD_PROFILE.approachLength,
+  z: BRIDGE_CENTER.z
+});
+const BRIDGE_EAST_APPROACH_END = Object.freeze({
+  x: BRIDGE_EAST_DECK_EDGE.x + BRIDGE_WORLD_PROFILE.approachLength,
+  z: BRIDGE_CENTER.z
+});
+
+const starterFarmEntryPath = STARTER_FARM_LAYOUT.paths.find((path) => path.id === "farm-entry");
+const STARTER_FARM_YARD_GATE = farmLocalToWorld(
+  STARTER_FARM_LAYOUT.farmId,
+  starterFarmEntryPath?.points.at(-1) ?? { x: 7.4, z: -8.4 }
+);
+
 export const WORLD_ROUTES: readonly WorldRoute[] = [
   {
     id: "farm-village",
+    scope: "regional",
     kind: "arterial",
     widthMeters: 3.8,
     points: [
-      { x: -65, z: -63 },
-      { x: -52, z: -45 },
-      { x: -39, z: -28 },
-      { x: -25, z: -12 },
-      { x: -14, z: -7 },
-      { x: 0, z: -5 }
-    ]
+      STARTER_FARM_YARD_GATE,
+      { x: -49, z: -66 },
+      { x: -41, z: -50 },
+      { x: -32, z: -32 },
+      BRIDGE_WEST_APPROACH_START,
+      BRIDGE_WEST_DECK_EDGE,
+      BRIDGE_CENTER,
+      BRIDGE_EAST_DECK_EDGE,
+      BRIDGE_EAST_APPROACH_END,
+      VILLAGE_MARKET.position
+    ],
+    linearSegmentIndices: [4, 5, 6, 7]
   },
   {
     id: "village-homestead",
+    scope: "regional",
     kind: "lane",
     widthMeters: 3.1,
     points: [
@@ -202,6 +270,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
   },
   {
     id: "village-harbor",
+    scope: "regional",
     kind: "arterial",
     widthMeters: 4.2,
     points: [
@@ -209,11 +278,12 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 19, z: 11 },
       { x: 38, z: 31 },
       { x: 55, z: 49 },
-      { x: 68, z: 64 }
+      HARBOR_MARKET.position
     ]
   },
   {
     id: "village-lighthouse",
+    scope: "regional",
     kind: "lane",
     widthMeters: 3.2,
     points: [
@@ -226,6 +296,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
   },
   {
     id: "riverbank-trail",
+    scope: "regional",
     kind: "trail",
     widthMeters: 2.4,
     points: [
@@ -241,6 +312,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
   },
   {
     id: "cliffside-coastal-walk",
+    scope: "regional",
     kind: "trail",
     widthMeters: 2.6,
     points: [
@@ -250,11 +322,12 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: -10, z: 66 },
       { x: 22, z: 62 },
       { x: 47, z: 58 },
-      { x: 68, z: 64 }
+      HARBOR_MARKET.position
     ]
   },
   {
     id: "orchard-path",
+    scope: "regional",
     kind: "trail",
     widthMeters: 2.2,
     points: [
@@ -268,6 +341,51 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
   }
 ] as const;
 
+const FARM_PATH_KIND_TO_WORLD_KIND: Readonly<Record<FarmPathKind, WorldRouteKind>> = {
+  lane: "lane",
+  trail: "trail"
+};
+
+export const FARM_ROUTES: readonly WorldRoute[] = STARTER_FARM_LAYOUT.paths.map((path) => ({
+  id: path.id,
+  scope: "farmstead",
+  kind: FARM_PATH_KIND_TO_WORLD_KIND[path.kind],
+  widthMeters: path.widthMeters,
+  points: path.points.map((point) => farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, point))
+}));
+
+export const WORLD_ROUTE_NETWORK: readonly WorldRoute[] = [
+  ...WORLD_ROUTES,
+  ...FARM_ROUTES
+];
+
+export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
+  {
+    id: "starter-farm-field",
+    center: farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 0, z: -7 }),
+    radiusMeters: 2.05,
+    blendLengthMeters: 1.2,
+    surface: "field",
+    routeIds: ["farm-entry", "farm-work-zone"]
+  },
+  {
+    id: "starter-farm-yard",
+    center: STARTER_FARM_YARD_GATE,
+    radiusMeters: 3.35,
+    blendLengthMeters: 1.6,
+    surface: "farm-yard",
+    routeIds: ["farm-village", "farm-entry", "farm-home"]
+  },
+  {
+    id: "village-market",
+    center: VILLAGE_MARKET.position,
+    radiusMeters: 4.2,
+    blendLengthMeters: 2.0,
+    surface: "village-market",
+    routeIds: ["farm-village", "village-homestead", "village-harbor", "village-lighthouse"]
+  }
+];
+
 export const WORLD_LAYOUT_V3: WorldLayoutDescriptor = {
   revision: 3,
   anchors: {
@@ -275,24 +393,16 @@ export const WORLD_LAYOUT_V3: WorldLayoutDescriptor = {
     playerSpawn: WORLD_SPAWN.playerPosition,
     privateHomestead: { x: 60, z: -60 },
     villageMarket: VILLAGE_MARKET.position,
-    bridge: { x: -14, z: -7 },
+    bridge: BRIDGE_CENTER,
     lighthouse: { x: -92, z: 74 },
-    fishMarket: { x: 68, z: 64 },
+    fishMarket: HARBOR_MARKET.position,
     harborDock: HARBOR_DOCK.boatPosition
   },
   coast: COAST_SPLINE,
   river: RIVER_SPLINE,
   riverMouth: RIVER_MOUTH,
-  routes: WORLD_ROUTES
+  routes: WORLD_ROUTE_NETWORK
 };
-
-const BRIDGE_CENTER = WORLD_LAYOUT_V3.anchors.bridge;
-export const BRIDGE_WORLD_PROFILE = Object.freeze({
-  spanLength: 14.2,
-  deckWidth: 3.8,
-  entrySurfaceY: 1.4,
-  approachLength: 8
-});
 
 function clamp01(value: number): number {
   return THREE.MathUtils.clamp(value, 0, 1);
@@ -314,6 +424,38 @@ function catmullScalar(p0: number, p1: number, p2: number, p3: number, t: number
   );
 }
 
+function monotoneCatmullScalar(
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  t: number
+): number {
+  const delta = p2 - p1;
+  if (Math.abs(delta) <= 0.000001) return p1;
+  let startSlope = 0.5 * (p2 - p0);
+  let endSlope = 0.5 * (p3 - p1);
+  if (startSlope * delta <= 0) startSlope = 0;
+  if (endSlope * delta <= 0) endSlope = 0;
+  const slopeLimit = Math.abs(delta) * 3;
+  startSlope = THREE.MathUtils.clamp(startSlope, -slopeLimit, slopeLimit);
+  endSlope = THREE.MathUtils.clamp(endSlope, -slopeLimit, slopeLimit);
+  const normalizedStartSlope = startSlope / delta;
+  const normalizedEndSlope = endSlope / delta;
+  const slopeMagnitude = normalizedStartSlope ** 2 + normalizedEndSlope ** 2;
+  if (slopeMagnitude > 9) {
+    const scale = 3 / Math.sqrt(slopeMagnitude);
+    startSlope = normalizedStartSlope * scale * delta;
+    endSlope = normalizedEndSlope * scale * delta;
+  }
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * p1
+    + (t3 - 2 * t2 + t) * startSlope
+    + (-2 * t3 + 3 * t2) * p2
+    + (t3 - t2) * endSlope;
+}
+
 function splineValue(points: readonly WorldPoint[], coordinate: number, axis: "x" | "z"): number {
   // The only z-keyed spline is the authored river, already stored in ascending
   // z order. Re-sorting and allocating a copy for every terrain sample made
@@ -332,9 +474,10 @@ function splineValue(points: readonly WorldPoint[], coordinate: number, axis: "x
   return catmullScalar(p0[valueKey], p1[valueKey], p2[valueKey], p3[valueKey], t);
 }
 
-function sampleRoute(route: WorldRoute, subdivisions: number = 10): WorldPoint[] {
+function sampleRoutePoints(route: WorldRoute, subdivisions: number = 10): WorldPoint[] {
   const sampled: WorldPoint[] = [];
   const points = route.points;
+  const linearSegments = new Set(route.linearSegmentIndices ?? []);
   for (let index = 0; index < points.length - 1; index++) {
     const p0 = points[Math.max(0, index - 1)];
     const p1 = points[index];
@@ -342,9 +485,16 @@ function sampleRoute(route: WorldRoute, subdivisions: number = 10): WorldPoint[]
     const p3 = points[Math.min(points.length - 1, index + 2)];
     for (let step = 0; step < subdivisions; step++) {
       const t = step / subdivisions;
+      if (linearSegments.has(index)) {
+        sampled.push({
+          x: THREE.MathUtils.lerp(p1.x, p2.x, t),
+          z: THREE.MathUtils.lerp(p1.z, p2.z, t)
+        });
+        continue;
+      }
       sampled.push({
-        x: catmullScalar(p0.x, p1.x, p2.x, p3.x, t),
-        z: catmullScalar(p0.z, p1.z, p2.z, p3.z, t)
+        x: monotoneCatmullScalar(p0.x, p1.x, p2.x, p3.x, t),
+        z: monotoneCatmullScalar(p0.z, p1.z, p2.z, p3.z, t)
       });
     }
   }
@@ -352,9 +502,15 @@ function sampleRoute(route: WorldRoute, subdivisions: number = 10): WorldPoint[]
   return sampled;
 }
 
-export const WORLD_PATHS: readonly (readonly WorldPoint[])[] = WORLD_ROUTES.map((route) => sampleRoute(route));
+export interface CompiledWorldRouteSample {
+  point: WorldPoint;
+  tangent: WorldPoint;
+  normal: WorldPoint;
+  distanceAlongRoute: number;
+  segmentIndex: number;
+}
 
-interface SampledRouteSegment {
+export interface CompiledWorldRouteSegment {
   start: WorldPoint;
   end: WorldPoint;
   dx: number;
@@ -362,90 +518,172 @@ interface SampledRouteSegment {
   lengthSquared: number;
   length: number;
   tangent: WorldPoint;
+  cumulativeStart: number;
+  cumulativeEnd: number;
   minX: number;
   maxX: number;
   minZ: number;
   maxZ: number;
 }
 
-interface PrecomputedRoute {
+export interface CompiledWorldRoute {
   route: WorldRoute;
   halfWidth: number;
-  segments: SampledRouteSegment[];
+  shoulderWidthMeters: number;
+  terrainFeatherMeters: number;
+  corridorRadiusMeters: number;
+  samples: readonly CompiledWorldRouteSample[];
+  segments: readonly CompiledWorldRouteSegment[];
+  totalLength: number;
   minX: number;
   maxX: number;
   minZ: number;
   maxZ: number;
 }
 
-function buildPrecomputedRoutes(paths: readonly (readonly WorldPoint[])[]): readonly PrecomputedRoute[] {
-  return WORLD_ROUTES.map((route, routeIndex) => {
-    const path = paths[routeIndex];
+function buildCompiledRoute(route: WorldRoute): CompiledWorldRoute {
+    const path = sampleRoutePoints(route);
     const halfWidth = route.widthMeters * 0.5;
-    const segments: SampledRouteSegment[] = [];
+    const profile = WORLD_ROUTE_PROFILES[route.kind];
+    const samples: CompiledWorldRouteSample[] = [];
+    const segments: CompiledWorldRouteSegment[] = [];
     let minX = Number.POSITIVE_INFINITY;
     let maxX = Number.NEGATIVE_INFINITY;
     let minZ = Number.POSITIVE_INFINITY;
     let maxZ = Number.NEGATIVE_INFINITY;
+    let cumulativeDistance = 0;
 
-    for (let index = 0; index < path.length - 1; index++) {
-      const start = path[index];
-      const end = path[index + 1];
-      const dx = end.x - start.x;
-      const dz = end.z - start.z;
-      const lengthSquared = dx * dx + dz * dz;
-      const length = Math.max(0.0001, Math.sqrt(lengthSquared));
-      const segMinX = Math.min(start.x, end.x);
-      const segMaxX = Math.max(start.x, end.x);
-      const segMinZ = Math.min(start.z, end.z);
-      const segMaxZ = Math.max(start.z, end.z);
-
-      minX = Math.min(minX, segMinX);
-      maxX = Math.max(maxX, segMaxX);
-      minZ = Math.min(minZ, segMinZ);
-      maxZ = Math.max(maxZ, segMaxZ);
-
-      segments.push({
-        start,
-        end,
-        dx,
-        dz,
-        lengthSquared,
-        length,
-        tangent: { x: dx / length, z: dz / length },
-        minX: segMinX,
-        maxX: segMaxX,
-        minZ: segMinZ,
-        maxZ: segMaxZ
+    for (let index = 0; index < path.length; index++) {
+      const previous = path[Math.max(0, index - 1)];
+      const next = path[Math.min(path.length - 1, index + 1)];
+      const tangentX = next.x - previous.x;
+      const tangentZ = next.z - previous.z;
+      const tangentLength = Math.max(0.0001, Math.hypot(tangentX, tangentZ));
+      const tangent = { x: tangentX / tangentLength, z: tangentZ / tangentLength };
+      samples.push({
+        point: path[index],
+        tangent,
+        normal: { x: -tangent.z, z: tangent.x },
+        distanceAlongRoute: cumulativeDistance,
+        segmentIndex: Math.min(index, Math.max(0, path.length - 2))
       });
+      minX = Math.min(minX, path[index].x);
+      maxX = Math.max(maxX, path[index].x);
+      minZ = Math.min(minZ, path[index].z);
+      maxZ = Math.max(maxZ, path[index].z);
+
+      if (index < path.length - 1) {
+        const nextPoint = path[index + 1];
+        const dx = nextPoint.x - path[index].x;
+        const dz = nextPoint.z - path[index].z;
+        const lengthSquared = dx * dx + dz * dz;
+        const length = Math.max(0.0001, Math.sqrt(lengthSquared));
+        const segmentTangent = { x: dx / length, z: dz / length };
+        const cumulativeStart = cumulativeDistance;
+        cumulativeDistance += length;
+        segments.push({
+          start: path[index],
+          end: nextPoint,
+          dx,
+          dz,
+          lengthSquared,
+          length,
+          tangent: segmentTangent,
+          cumulativeStart,
+          cumulativeEnd: cumulativeDistance,
+          minX: Math.min(path[index].x, nextPoint.x),
+          maxX: Math.max(path[index].x, nextPoint.x),
+          minZ: Math.min(path[index].z, nextPoint.z),
+          maxZ: Math.max(path[index].z, nextPoint.z)
+        });
+      }
     }
 
+    // The terrain and cover systems use the same corridor bounds as the mesh.
+    // Including the feather here keeps the spatial index useful at the soft edge.
+    const corridorRadiusMeters = halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters;
     return {
       route,
       halfWidth,
+      shoulderWidthMeters: profile.shoulderWidthMeters,
+      terrainFeatherMeters: profile.terrainFeatherMeters,
+      corridorRadiusMeters,
+      samples,
       segments,
-      minX,
-      maxX,
-      minZ,
-      maxZ
+      totalLength: cumulativeDistance,
+      minX: minX - corridorRadiusMeters,
+      maxX: maxX + corridorRadiusMeters,
+      minZ: minZ - corridorRadiusMeters,
+      maxZ: maxZ + corridorRadiusMeters
     };
-  });
 }
 
-// Presentation/path queries use the dense Catmull samples so curved trails
-// remain exact. Height and surface generation use the authored control
-// segments; those are the same route owner at a fraction of the query cost.
-const PRECISE_PRECOMPUTED_ROUTES: readonly PrecomputedRoute[] = buildPrecomputedRoutes(WORLD_PATHS);
-const FAST_PRECOMPUTED_ROUTES: readonly PrecomputedRoute[] = buildPrecomputedRoutes(
-  WORLD_ROUTES.map((route) => route.points)
+/**
+ * One deterministic route compilation is shared by map projection, terrain,
+ * surface weights, cover placement, road geometry, and roadside details.
+ */
+export const COMPILED_WORLD_ROUTES: readonly CompiledWorldRoute[] = WORLD_ROUTE_NETWORK.map(buildCompiledRoute);
+
+export const WORLD_PATHS: readonly (readonly WorldPoint[])[] = COMPILED_WORLD_ROUTES.map((compiledRoute) =>
+  compiledRoute.samples.map((sample) => sample.point)
 );
+export const WORLD_REGIONAL_PATHS: readonly (readonly WorldPoint[])[] = COMPILED_WORLD_ROUTES
+  .slice(0, WORLD_ROUTES.length)
+  .map((compiledRoute) => compiledRoute.samples.map((sample) => sample.point));
+
+interface RouteSegmentReference {
+  routeIndex: number;
+  segmentIndex: number;
+}
+
+function buildRouteSegmentIndex(
+  routes: readonly CompiledWorldRoute[]
+): ReadonlyMap<string, readonly RouteSegmentReference[]> {
+  const buckets = new Map<string, RouteSegmentReference[]>();
+  for (const [routeIndex, route] of routes.entries()) {
+    for (const [segmentIndex, segment] of route.segments.entries()) {
+      const minCellX = routeIndexCell(segment.minX - route.corridorRadiusMeters - ROUTE_INDEX_PADDING_METERS);
+      const maxCellX = routeIndexCell(segment.maxX + route.corridorRadiusMeters + ROUTE_INDEX_PADDING_METERS);
+      const minCellZ = routeIndexCell(segment.minZ - route.corridorRadiusMeters - ROUTE_INDEX_PADDING_METERS);
+      const maxCellZ = routeIndexCell(segment.maxZ + route.corridorRadiusMeters + ROUTE_INDEX_PADDING_METERS);
+      for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+        for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+          const key = routeIndexKey(cellX, cellZ);
+          const bucket = buckets.get(key) ?? [];
+          bucket.push({ routeIndex, segmentIndex });
+          buckets.set(key, bucket);
+        }
+      }
+    }
+  }
+  return buckets;
+}
+
+const ROUTE_INDEX_CELL_SIZE_METERS = 8;
+const ROUTE_INDEX_PADDING_METERS = 18;
+
+function routeIndexKey(cellX: number, cellZ: number): string {
+  return `${cellX}:${cellZ}`;
+}
+
+function routeIndexCell(value: number): number {
+  return Math.floor(value / ROUTE_INDEX_CELL_SIZE_METERS);
+}
+
+const ROUTE_SEGMENT_INDEX = buildRouteSegmentIndex(COMPILED_WORLD_ROUTES);
 
 interface RouteProjection {
   distance: number;
   halfWidth: number;
+  shoulderWidthMeters: number;
+  terrainFeatherMeters: number;
   route: WorldRoute;
   point: WorldPoint;
   tangent: WorldPoint;
+  normal: WorldPoint;
+  routeIndex: number;
+  segmentIndex: number;
+  distanceAlongRoute: number;
 }
 
 export function pointSegmentProjection(
@@ -505,10 +743,39 @@ function normalizedSurfaceWeights(weights: TerrainSurfaceWeights): TerrainSurfac
   ) as unknown as TerrainSurfaceWeights;
 }
 
+function routeJunctionInfluence(x: number, z: number): number {
+  return WORLD_ROUTE_JUNCTIONS.reduce(
+    (strongest, junction) => Math.max(
+      strongest,
+      radialWeight(
+        x,
+        z,
+        junction.center.x,
+        junction.center.z,
+        junction.radiusMeters,
+        junction.blendLengthMeters
+      )
+    ),
+    0
+  );
+}
+
 /** Canonical authored-region geography shared by simulation, physics, and presentation. */
 export class WorldLayout {
   public static routeDefinitions(): readonly WorldRoute[] {
+    return WORLD_ROUTE_NETWORK;
+  }
+
+  public static compiledRouteNetwork(): readonly CompiledWorldRoute[] {
+    return COMPILED_WORLD_ROUTES;
+  }
+
+  public static regionalRouteDefinitions(): readonly WorldRoute[] {
     return WORLD_ROUTES;
+  }
+
+  public static routeJunctions(): readonly WorldRouteJunction[] {
+    return WORLD_ROUTE_JUNCTIONS;
   }
 
   public static coastlineZ(x: number): number {
@@ -588,7 +855,7 @@ export class WorldLayout {
 
   public static isBridgeDeck(x: number, z: number): boolean {
     return (
-      Math.abs(x - BRIDGE_CENTER.x) <= BRIDGE_WORLD_PROFILE.spanLength * 0.505 &&
+      Math.abs(x - BRIDGE_CENTER.x) <= BRIDGE_HALF_SPAN &&
       Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.5
     );
   }
@@ -601,18 +868,26 @@ export class WorldLayout {
     if (!this.isWater(x, z)) return null;
     const coastDistance = z - this.coastlineZ(x);
     if (coastDistance <= 0) return "river";
-    if (coastDistance <= 24) return "lake";
+    // Lake is the authored estuary lagoon, not a global nearshore carp band.
+    // Open sea and beaches classify as coast; the Act 5 story school at
+    // coastlineZ(18)+12 stays lake via estuary influence.
+    if (coastDistance <= 24 && this.estuaryInfluence(x, z) > 0.08) return "lake";
     if (coastDistance <= 130) return "coast";
     return "offshore";
   }
 
   public static nearbyFishingHabitat(x: number, z: number, reachMeters: number = 4.5): FishingHabitatId | null {
+    if (this.isBridgeDeck(x, z)) return "river";
     const direct = this.fishingHabitatAt(x, z);
     if (direct) return direct;
     const coastDistance = z - this.coastlineZ(x);
     const riverEdgeDistance = this.riverDistance(x, z) - this.riverHalfWidth(z);
-    if (coastDistance <= 0 && riverEdgeDistance <= reachMeters && !this.isBridgeDeck(x, z)) return "river";
-    if (coastDistance > -reachMeters) return "lake";
+    if (coastDistance <= 0 && riverEdgeDistance <= reachMeters) return "river";
+    if (coastDistance > -reachMeters && coastDistance <= 0) {
+      const adjacent = this.fishingHabitatAt(x, this.coastlineZ(x) + Math.min(2, reachMeters));
+      if (adjacent) return adjacent;
+      return this.estuaryInfluence(x, z) > 0.08 ? "lake" : "coast";
+    }
     return null;
   }
 
@@ -761,28 +1036,38 @@ export class WorldLayout {
 
     // The bridge foundation belongs on the riverbed. The approaches rise smoothly
     // to meet its deck at entrySurfaceY (1.4m) and connect flush to the banks.
-    const bridgeHalfLength = BRIDGE_WORLD_PROFILE.spanLength * 0.5; // 7.1m
     const bridgeLateralDistance = Math.abs(z - BRIDGE_CENTER.z);
     const bridgeAcross = 1 - smoothstep(
       BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 0.4,
-      BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 3.6,
+      BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + BRIDGE_WORLD_PROFILE.lateralBlendWidth,
       bridgeLateralDistance
     );
+    const westApproachProgress = clamp01(
+      (x - BRIDGE_WEST_APPROACH_START.x) / BRIDGE_WORLD_PROFILE.approachLength
+    );
+    const eastApproachProgress = clamp01(
+      (x - BRIDGE_EAST_DECK_EDGE.x) / BRIDGE_WORLD_PROFILE.approachLength
+    );
 
-    // East approach (smooth ramp towards village center at [0, -5])
-    if (x >= BRIDGE_CENTER.x + bridgeHalfLength - 0.6 && x <= VILLAGE_MARKET.position.x + 2.0 && bridgeAcross > 0) {
-      const eastProgress = clamp01((x - (BRIDGE_CENTER.x + bridgeHalfLength)) / (VILLAGE_MARKET.position.x - (BRIDGE_CENTER.x + bridgeHalfLength)));
-      const eastRampHeight = THREE.MathUtils.lerp(BRIDGE_WORLD_PROFILE.entrySurfaceY, 2.05, eastProgress);
-      const eastWeight = bridgeAcross * smoothstep(BRIDGE_CENTER.x + bridgeHalfLength - 0.7, BRIDGE_CENTER.x + bridgeHalfLength - 0.1, x);
-      height = THREE.MathUtils.lerp(height, eastRampHeight, eastWeight);
+    // East approach (smooth ramp towards the village market). The bridge profile
+    // owns the approach length so the terrain and route corridor cannot drift.
+    if (x >= BRIDGE_EAST_DECK_EDGE.x && x <= BRIDGE_EAST_APPROACH_END.x && bridgeAcross > 0) {
+      const eastRampHeight = THREE.MathUtils.lerp(
+        BRIDGE_WORLD_PROFILE.entrySurfaceY,
+        BRIDGE_WORLD_PROFILE.eastBankSurfaceY,
+        eastApproachProgress
+      );
+      height = THREE.MathUtils.lerp(height, eastRampHeight, bridgeAcross);
     }
 
-    // West approach (smooth ramp towards starter farm basin)
-    if (x <= BRIDGE_CENTER.x - bridgeHalfLength + 0.6 && x >= BRIDGE_CENTER.x - bridgeHalfLength - 11.0 && bridgeAcross > 0) {
-      const westProgress = clamp01(((BRIDGE_CENTER.x - bridgeHalfLength) - x) / 9.5);
-      const westRampHeight = THREE.MathUtils.lerp(BRIDGE_WORLD_PROFILE.entrySurfaceY, 1.22, westProgress);
-      const westWeight = bridgeAcross * (1 - smoothstep(BRIDGE_CENTER.x - bridgeHalfLength + 0.1, BRIDGE_CENTER.x - bridgeHalfLength + 0.7, x));
-      height = THREE.MathUtils.lerp(height, westRampHeight, westWeight);
+    // West approach (smooth ramp towards the starter farm basin).
+    if (x >= BRIDGE_WEST_APPROACH_START.x && x <= BRIDGE_WEST_DECK_EDGE.x && bridgeAcross > 0) {
+      const westRampHeight = THREE.MathUtils.lerp(
+        BRIDGE_WORLD_PROFILE.westBankSurfaceY,
+        BRIDGE_WORLD_PROFILE.entrySurfaceY,
+        westApproachProgress
+      );
+      height = THREE.MathUtils.lerp(height, westRampHeight, bridgeAcross);
     }
 
     return height;
@@ -791,14 +1076,18 @@ export class WorldLayout {
   /** Final shared terrain height consumed by rendering and Rapier. */
   public static terrainHeight(x: number, z: number): number {
     const naturalHeight = this.naturalTerrainHeight(x, z);
-    const route = this.nearestRouteDistance(x, z, FAST_PRECOMPUTED_ROUTES);
+    const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const gradingRadius = route.halfWidth + profile.shoulderWidthMeters;
+    const gradingRadius = route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters;
+    const bridgeCorridor =
+      x >= BRIDGE_WEST_APPROACH_START.x &&
+      x <= BRIDGE_EAST_APPROACH_END.x &&
+      Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + BRIDGE_WORLD_PROFILE.lateralBlendWidth;
     if (
       route.distance >= gradingRadius
       || this.waterSignedDistance(x, z) > -0.35
       || this.isInterior(x, z)
-      || Math.hypot(x - BRIDGE_CENTER.x, z - BRIDGE_CENTER.z) < 8.5
+      || bridgeCorridor
     ) return naturalHeight;
 
     const longitudinalSample = route.route.kind === "arterial" ? 2.4 : route.route.kind === "lane" ? 1.8 : 1.2;
@@ -811,10 +1100,15 @@ export class WorldLayout {
       route.point.z + route.tangent.z * longitudinalSample
     );
     const corridorAverage = (before + naturalHeight + after) / 3;
-    const lateralBlend = 1 - smoothstep(route.halfWidth * 0.4, gradingRadius, route.distance);
+    const lateralBlend = 1 - smoothstep(
+      route.halfWidth * 0.38,
+      gradingRadius,
+      route.distance
+    );
     const desiredDelta = corridorAverage - profile.rutDepthMeters * 0.25 - naturalHeight;
     const cappedDelta = THREE.MathUtils.clamp(desiredDelta, -0.45, 0.45);
-    return naturalHeight + cappedDelta * lateralBlend * profile.gradingStrength;
+    const junctionBlend = routeJunctionInfluence(x, z) * 0.18;
+    return naturalHeight + cappedDelta * Math.max(lateralBlend, junctionBlend) * profile.gradingStrength;
   }
 
   public static terrainNormal(x: number, z: number, sampleDistance: number = 0.45): THREE.Vector3 {
@@ -825,67 +1119,68 @@ export class WorldLayout {
     return new THREE.Vector3(left - right, sampleDistance * 2, back - front).normalize();
   }
 
-  private static nearestRouteDistance(
-    x: number,
-    z: number,
-    routes: readonly PrecomputedRoute[] = PRECISE_PRECOMPUTED_ROUTES
-  ): RouteProjection {
+  private static nearestRouteDistance(x: number, z: number): RouteProjection {
+    const routes = COMPILED_WORLD_ROUTES;
     let bestDistance = Number.POSITIVE_INFINITY;
     let bestProjection: RouteProjection = {
       distance: Number.POSITIVE_INFINITY,
       halfWidth: routes[0].halfWidth,
+      shoulderWidthMeters: routes[0].shoulderWidthMeters,
+      terrainFeatherMeters: routes[0].terrainFeatherMeters,
       route: routes[0].route,
       point: { ...routes[0].segments[0].start },
-      tangent: { ...routes[0].segments[0].tangent }
+      tangent: { ...routes[0].segments[0].tangent },
+      normal: { x: -routes[0].segments[0].tangent.z, z: routes[0].segments[0].tangent.x },
+      routeIndex: 0,
+      segmentIndex: 0,
+      distanceAlongRoute: routes[0].segments[0].cumulativeStart
     };
 
-    const maxSearchRadius = 14;
-
-    for (let rIndex = 0; rIndex < routes.length; rIndex++) {
-      const pRoute = routes[rIndex];
-      const routePadding = pRoute.halfWidth + maxSearchRadius;
-      if (
-        bestDistance < Number.POSITIVE_INFINITY &&
-        (x < pRoute.minX - routePadding ||
-         x > pRoute.maxX + routePadding ||
-         z < pRoute.minZ - routePadding ||
-         z > pRoute.maxZ + routePadding)
-      ) {
-        continue;
-      }
-
-      const segments = pRoute.segments;
-      for (let sIndex = 0; sIndex < segments.length; sIndex++) {
-        const seg = segments[sIndex];
-        const segPadding = pRoute.halfWidth + maxSearchRadius;
-        if (
-          bestDistance < Number.POSITIVE_INFINITY &&
-          (x < seg.minX - segPadding ||
-           x > seg.maxX + segPadding ||
-           z < seg.minZ - segPadding ||
-           z > seg.maxZ + segPadding)
-        ) {
-          continue;
+    const minCellX = routeIndexCell(x - ROUTE_INDEX_PADDING_METERS);
+    const maxCellX = routeIndexCell(x + ROUTE_INDEX_PADDING_METERS);
+    const minCellZ = routeIndexCell(z - ROUTE_INDEX_PADDING_METERS);
+    const maxCellZ = routeIndexCell(z + ROUTE_INDEX_PADDING_METERS);
+    const candidates = new Set<number>();
+    for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+        for (const reference of ROUTE_SEGMENT_INDEX.get(routeIndexKey(cellX, cellZ)) ?? []) {
+          candidates.add(reference.routeIndex * 10000 + reference.segmentIndex);
         }
+      }
+    }
 
-        const dx = seg.dx;
-        const dz = seg.dz;
-        const lengthSquared = seg.lengthSquared;
-        const progress = clamp01(((x - seg.start.x) * dx + (z - seg.start.z) * dz) / lengthSquared);
-        const projX = seg.start.x + dx * progress;
-        const projZ = seg.start.z + dz * progress;
-        const dist = Math.hypot(x - projX, z - projZ);
+    const references = candidates.size > 0
+      ? [...candidates].map((reference) => {
+        const routeIndex = Math.floor(reference / 10000);
+        return { routeIndex, segmentIndex: reference - routeIndex * 10000 };
+      })
+      : routes.flatMap((route, routeIndex) => route.segments.map((_, segmentIndex) => ({ routeIndex, segmentIndex })));
 
-        if (dist < bestDistance) {
-          bestDistance = dist;
+    for (const { routeIndex, segmentIndex } of references) {
+      const pRoute = routes[routeIndex];
+      const seg = pRoute.segments[segmentIndex];
+      const dx = seg.dx;
+      const dz = seg.dz;
+      const progress = clamp01(((x - seg.start.x) * dx + (z - seg.start.z) * dz) / seg.lengthSquared);
+      const projX = seg.start.x + dx * progress;
+      const projZ = seg.start.z + dz * progress;
+      const dist = Math.hypot(x - projX, z - projZ);
+
+      if (dist < bestDistance) {
+        bestDistance = dist;
           bestProjection = {
             distance: dist,
             halfWidth: pRoute.halfWidth,
+            shoulderWidthMeters: pRoute.shoulderWidthMeters,
+            terrainFeatherMeters: pRoute.terrainFeatherMeters,
             route: pRoute.route,
             point: { x: projX, z: projZ },
-            tangent: seg.tangent
+            tangent: seg.tangent,
+            normal: { x: -seg.tangent.z, z: seg.tangent.x },
+            routeIndex,
+            segmentIndex,
+            distanceAlongRoute: THREE.MathUtils.lerp(seg.cumulativeStart, seg.cumulativeEnd, progress)
           };
-        }
       }
     }
 
@@ -894,13 +1189,35 @@ export class WorldLayout {
 
   public static pathInfluence(x: number, z: number): number {
     const route = this.nearestRouteDistance(x, z);
-    return 1 - smoothstep(route.halfWidth * 0.72, route.halfWidth + 1.35, route.distance);
+    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
+    const routeInfluence = 1 - smoothstep(
+      route.halfWidth * 0.72,
+      route.halfWidth + profile.shoulderWidthMeters * 0.72,
+      route.distance
+    );
+    return Math.max(routeInfluence, routeJunctionInfluence(x, z));
   }
 
   public static pathShoulderInfluence(x: number, z: number): number {
     const route = this.nearestRouteDistance(x, z);
-    const outer = 1 - smoothstep(route.halfWidth + 0.2, route.halfWidth + 2.1, route.distance);
-    return Math.max(0, outer - this.pathInfluence(x, z) * 0.72);
+    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
+    const outer = 1 - smoothstep(
+      route.halfWidth + profile.shoulderWidthMeters * 0.18,
+      route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
+      route.distance
+    );
+    return Math.max(0, outer, routeJunctionInfluence(x, z) * 0.45);
+  }
+
+  /** Full roadside envelope used to keep large cover out of the graded corridor. */
+  public static roadsideInfluence(x: number, z: number): number {
+    const route = this.nearestRouteDistance(x, z);
+    const corridor = 1 - smoothstep(
+      route.halfWidth + route.shoulderWidthMeters * 0.28,
+      route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters,
+      route.distance
+    );
+    return Math.max(corridor, routeJunctionInfluence(x, z) * 0.82);
   }
 
   public static farmSoilInfluence(x: number, z: number): number {
@@ -918,7 +1235,7 @@ export class WorldLayout {
 
   public static terrainSurfaceWeights(x: number, z: number, sampledNormalY?: number): TerrainSurfaceWeights {
     const waterDistance = this.waterSignedDistance(x, z);
-    const route = this.nearestRouteDistance(x, z, FAST_PRECOMPUTED_ROUTES);
+    const route = this.nearestRouteDistance(x, z);
     const dryRoute = waterDistance < -0.2 ? 1 : 0;
 
     // Village marketplace plaza opening at [0, -5]
@@ -926,16 +1243,28 @@ export class WorldLayout {
     const distToVillageMarket = Math.hypot(x - VILLAGE_MARKET.position.x, z - VILLAGE_MARKET.position.z);
     const villagePlaza = (1 - smoothstep(3.0, 9.0, distToVillageMarket)) * dryRoute * 0.48;
 
-    // Terrain-level path warmth — broad enough to create a visible transition zone
-    // around routes so the overlay ribbon edges merge seamlessly into warm terrain
-    const pathWobble = Math.sin(x * 0.11 + z * 0.14) * 0.12 + Math.cos(x * 0.08 - z * 0.17) * 0.08;
-    const effectiveHalfWidth = route.halfWidth * (1 + pathWobble);
-    const pathFalloff = route.route.kind === "trail" ? 2.2 : 3.2;
-    const pathRaw = (1 - smoothstep(effectiveHalfWidth * 0.15, effectiveHalfWidth + pathFalloff, route.distance)) * dryRoute;
-    const path = Math.max(pathRaw * 0.42, villagePlaza);
-
-    const shoulderOuter = 1 - smoothstep(effectiveHalfWidth + 0.8, effectiveHalfWidth + 4.5, route.distance);
-    const shoulder = Math.max(0, shoulderOuter - pathRaw * 0.55, villagePlaza * 0.4) * dryRoute * 0.48;
+    // Terrain-level path warmth uses the same compiled centerline and width as
+    // the visible ribbon. A second, unrelated width wobble makes the road edge
+    // drift away from the actual mesh and creates the broken-looking shoulders.
+    const junction = routeJunctionInfluence(x, z) * dryRoute;
+    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
+    const packedCore = (1 - smoothstep(
+      route.halfWidth * 0.16,
+      route.halfWidth + profile.shoulderWidthMeters * 0.4,
+      route.distance
+    )) * dryRoute;
+    const shoulderOuter = (1 - smoothstep(
+      route.halfWidth + profile.shoulderWidthMeters * 0.16,
+      route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
+      route.distance
+    )) * dryRoute;
+    const path = Math.max(packedCore * 0.5, villagePlaza, junction * 0.5);
+    const shoulder = Math.max(
+      0,
+      shoulderOuter - packedCore * 0.62,
+      villagePlaza * 0.4,
+      junction * 0.3
+    ) * 0.52;
     const farm = this.farmSoilInfluence(x, z);
     const wet = this.shorelineWetness(x, z);
     const estuary = this.estuaryInfluence(x, z);
@@ -996,8 +1325,14 @@ export class WorldLayout {
     const layouts: Record<LandmarkId, Omit<LandmarkLayout, "id">> = {
       farmhouse: { x: farmhouse.x, z: farmhouse.z, yOffset: 0, rotationY: farmhouse.rotationY, scale: farmhouse.scale },
       well: { x: well.x, z: well.z, yOffset: 0, rotationY: well.rotationY, scale: well.scale },
-      bridge: { x: -14, z: -7, yOffset: 0.1, rotationY: 0, scale: 1 },
-      "fish-market": { x: 68, z: 64, yOffset: 0, rotationY: Math.PI - 0.2, scale: 0.84 },
+      bridge: { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: 0.1, rotationY: 0, scale: 1 },
+      "fish-market": {
+        x: HARBOR_MARKET.position.x,
+        z: HARBOR_MARKET.position.z,
+        yOffset: 0,
+        rotationY: HARBOR_MARKET.rotationY,
+        scale: HARBOR_MARKET.scale
+      },
       lighthouse: { x: -92, z: 74, yOffset: 0, rotationY: 0.08, scale: 0.58 },
       windmill: { x: mill.x, z: mill.z, yOffset: 0, rotationY: mill.rotationY, scale: 0.62 },
       "produce-stall": {
@@ -1014,13 +1349,30 @@ export class WorldLayout {
 
   public static terrainHeightfield(): Float32Array {
     const samples = new Float32Array((TERRAIN_RESOLUTION + 1) * (TERRAIN_RESOLUTION + 1));
+    // The visible bridge deck is intentionally narrower than the coarse
+    // heightfield cells. Feather its support only across the bridge span so a
+    // Rapier triangle cannot turn the deck edge into a one-cell cliff before
+    // the catalog-backed bridge collision takes over.
+    const bridgeSupportStart = BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 0.22;
+    const bridgeSupportEnd = bridgeSupportStart + BRIDGE_WORLD_PROFILE.lateralBlendWidth * 0.42;
     for (let row = 0; row <= TERRAIN_RESOLUTION; row++) {
       for (let column = 0; column <= TERRAIN_RESOLUTION; column++) {
         // Rapier lays heightfield rows along X and columns along Z. Keeping
         // this order aligned with terrainHeight prevents transposed slopes.
         const x = (row / TERRAIN_RESOLUTION - 0.5) * TERRAIN_SIZE_METERS;
         const z = (column / TERRAIN_RESOLUTION - 0.5) * TERRAIN_SIZE_METERS;
-        samples[row * (TERRAIN_RESOLUTION + 1) + column] = this.terrainHeight(x, z);
+        // The bridge GLB owns the visible crowned deck and its catalog
+        // collision owns the walkable surface. Carry its entry height through
+        // the coarse terrain cells so Rapier cannot expose the riverbed seam
+        // before the first deck collision box.
+        const baseHeight = this.terrainHeight(x, z);
+        const withinBridgeSpan = x >= BRIDGE_WEST_DECK_EDGE.x && x <= BRIDGE_EAST_DECK_EDGE.x;
+        const lateralSupport = withinBridgeSpan
+          ? 1 - smoothstep(bridgeSupportStart, bridgeSupportEnd, Math.abs(z - BRIDGE_CENTER.z))
+          : 0;
+        samples[row * (TERRAIN_RESOLUTION + 1) + column] = this.isBridgeDeck(x, z)
+          ? BRIDGE_WORLD_PROFILE.entrySurfaceY
+          : THREE.MathUtils.lerp(baseHeight, BRIDGE_WORLD_PROFILE.entrySurfaceY, lateralSupport);
       }
     }
     return samples;
@@ -1031,154 +1383,25 @@ export class WorldLayout {
   }
 
   public static buildPathGeometry(): THREE.BufferGeometry {
-    const positions: number[] = [];
-    const colors: number[] = [];
-    const indices: number[] = [];
-    const transverse = [-1, -0.88, -0.72, -0.52, -0.34, -0.16, 0, 0.16, 0.34, 0.52, 0.72, 0.88, 1] as const;
-    const grass = this.tokenColor("foliage_sage_01");
-    const dryShoulder = this.tokenColor("soil_dry_01");
-    const warmShoulder = this.tokenColor("soil_warm_01");
-    const road = this.tokenColor("path_dust_01");
-    const rut = this.tokenColor("soil_damp_01").lerp(road, 0.46);
-
-    const plazaCenter = VILLAGE_MARKET.position;
-    const plazaRadius = 4.2;
-    const plazaSegments = 16;
-
-    // 1. Authored route ribbons
-    for (const [routeIndex, route] of WORLD_ROUTES.entries()) {
-      const path = WORLD_PATHS[routeIndex];
-      const profile = WORLD_ROUTE_PROFILES[route.kind];
-      const baseVertex = positions.length / 3;
-
-      for (let pointIndex = 0; pointIndex < path.length; pointIndex++) {
-        const previous = path[Math.max(0, pointIndex - 1)];
-        const next = path[Math.min(path.length - 1, pointIndex + 1)];
-        const tangentX = next.x - previous.x;
-        const tangentZ = next.z - previous.z;
-        const length = Math.max(0.0001, Math.hypot(tangentX, tangentZ));
-        const normalX = -tangentZ / length;
-        const normalZ = tangentX / length;
-        const distToPlaza = Math.hypot(path[pointIndex].x - plazaCenter.x, path[pointIndex].z - plazaCenter.z);
-        const plazaWidening = distToPlaza < 7.5 ? (1 - smoothstep(3.8, 7.5, distToPlaza)) * 0.4 : 0;
-        const authoredWidth =
-          0.97
-          + Math.sin(pointIndex * 0.31 + routeIndex * 1.7) * (route.kind === "trail" ? 0.085 : 0.055)
-          + Math.sin(pointIndex * 0.09 + routeIndex) * 0.025
-          + plazaWidening;
-        const junctionProgress = Math.min(pointIndex, path.length - 1 - pointIndex);
-        const junctionWidening = route.kind !== "trail" ? (1 - smoothstep(0, 4, junctionProgress)) * 0.08 : 0;
-        const halfWidth = route.widthMeters * 0.5 * (authoredWidth + junctionWidening);
-
-        for (const offset of transverse) {
-          const edgeWobble = Math.sin(pointIndex * 0.43 + routeIndex * 2.1 + offset * 3.1) * 0.025;
-          const x = path[pointIndex].x + normalX * halfWidth * (offset + edgeWobble);
-          const z = path[pointIndex].z + normalZ * halfWidth * (offset + edgeWobble);
-          const absoluteOffset = Math.abs(offset);
-          const crown = Math.pow(1 - absoluteOffset, 1.45) * profile.crownMeters;
-          const wheelRut = route.kind === "trail"
-            ? 0
-            : Math.exp(-Math.pow((absoluteOffset - 0.34) / 0.09, 2)) * profile.rutDepthMeters;
-          const brokenTrailWear = route.kind === "trail"
-            ? Math.exp(-Math.pow(absoluteOffset / 0.3, 2))
-              * profile.rutDepthMeters
-              * (0.35 + (Math.sin(pointIndex * 0.83 + routeIndex) * 0.5 + 0.5) * 0.65)
-            : 0;
-          const shoulderDrop = smoothstep(0.75, 1, absoluteOffset) * profile.shoulderDropMeters;
-          const baseLift = 0.025;
-          const isVertexInBridgeSpan =
-            Math.abs(x - BRIDGE_CENTER.x) < BRIDGE_WORLD_PROFILE.spanLength * 0.5 &&
-            Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.6;
-          const rawHeight = isVertexInBridgeSpan
-            ? BRIDGE_WORLD_PROFILE.entrySurfaceY
-            : this.terrainHeight(x, z);
-          positions.push(x, rawHeight + baseLift + crown - wheelRut - brokenTrailWear - shoulderDrop, z);
-
-          // Wider edge feathering so ribbon edges blend seamlessly into the warm terrain tint
-          const edgeEncroachment = smoothstep(0.58, 1, absoluteOffset);
-          const shoulderBlend = smoothstep(0.42, 0.78, absoluteOffset);
-          const rutWeight = route.kind !== "trail"
-            ? Math.exp(-Math.pow((absoluteOffset - 0.34) / 0.085, 2))
-            : Math.exp(-Math.pow(absoluteOffset / 0.3, 2))
-              * smoothstep(-0.1, 0.55, Math.sin(pointIndex * 0.83 + routeIndex));
-          // Edge grass blend ramps from ~40% at shoulder edge to ~92% at the outermost strip,
-          // ensuring the ribbon dissolves into the warm terrain-tinted ground
-          const grassBlend = edgeEncroachment * (0.40 + (Math.sin(pointIndex * 0.47 + routeIndex) * 0.5 + 0.5) * 0.52);
-          const base = road.clone()
-            .lerp(warmShoulder, shoulderBlend * 0.65)
-            .lerp(dryShoulder, shoulderBlend * 0.25)
-            .lerp(rut, rutWeight * (route.kind === "trail" ? 0.46 : 0.76))
-            .lerp(grass, grassBlend);
-          const variation = 0.95 + (Math.sin(pointIndex * 1.17 + offset * 7.1 + routeIndex) * 0.5 + 0.5) * 0.08;
-          colors.push(base.r * variation, base.g * variation, base.b * variation);
-        }
-      }
-
-      for (let pointIndex = 0; pointIndex < path.length - 1; pointIndex++) {
-        const segMidX = (path[pointIndex].x + path[pointIndex + 1].x) * 0.5;
-        const segMidZ = (path[pointIndex].z + path[pointIndex + 1].z) * 0.5;
-
-        // Skip bridge deck span over water
-        const isBridgeSegment =
-          Math.abs(segMidX - BRIDGE_CENTER.x) < BRIDGE_WORLD_PROFILE.spanLength * 0.46 &&
-          Math.abs(segMidZ - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.55;
-        if (isBridgeSegment) continue;
-
-        // Skip segments inside the village square plaza
-        const dist1 = Math.hypot(path[pointIndex].x - plazaCenter.x, path[pointIndex].z - plazaCenter.z);
-        const dist2 = Math.hypot(path[pointIndex + 1].x - plazaCenter.x, path[pointIndex + 1].z - plazaCenter.z);
-        if (dist1 < 3.8 && dist2 < 3.8) continue;
-
-        for (let column = 0; column < transverse.length - 1; column++) {
-          const current = baseVertex + pointIndex * transverse.length + column;
-          const next = current + transverse.length;
-          if ((pointIndex + column + routeIndex) % 2 === 0) {
-            indices.push(current, current + 1, next, next, current + 1, next + 1);
-          } else {
-            indices.push(current, current + 1, next + 1, current, next + 1, next);
-          }
-        }
-      }
-    }
-
-    // 2. Village marketplace plaza hub at [0, -5]
-    const plazaCenterIndex = positions.length / 3;
-    const plazaCenterHeight = this.terrainHeight(plazaCenter.x, plazaCenter.z) + 0.025;
-    positions.push(plazaCenter.x, plazaCenterHeight, plazaCenter.z);
-    const plazaCenterColor = road.clone().lerp(warmShoulder, 0.28);
-    colors.push(plazaCenterColor.r, plazaCenterColor.g, plazaCenterColor.b);
-
-    const plazaRingStartIndex = positions.length / 3;
-    for (let seg = 0; seg < plazaSegments; seg++) {
-      const angle = (seg / plazaSegments) * Math.PI * 2;
-      const rx = plazaCenter.x + Math.cos(angle) * plazaRadius;
-      const rz = plazaCenter.z + Math.sin(angle) * plazaRadius;
-      const ry = this.terrainHeight(rx, rz) + 0.022;
-      positions.push(rx, ry, rz);
-      const ringColor = road.clone()
-        .lerp(warmShoulder, 0.48)
-        .lerp(grass, 0.18);
-      const variation = 0.96 + Math.sin(seg * 1.7) * 0.04;
-      colors.push(ringColor.r * variation, ringColor.g * variation, ringColor.b * variation);
-    }
-    for (let seg = 0; seg < plazaSegments; seg++) {
-      const nextSeg = (seg + 1) % plazaSegments;
-      indices.push(plazaCenterIndex, plazaRingStartIndex + seg, plazaRingStartIndex + nextSeg);
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-    geometry.userData.routeProfiles = WORLD_ROUTES.map((route) => ({
-      id: route.id,
-      kind: route.kind,
-      ...WORLD_ROUTE_PROFILES[route.kind]
-    }));
-    return geometry;
+    return buildOrganicRoadGeometry({
+      routes: COMPILED_WORLD_ROUTES,
+      junctions: WORLD_ROUTE_JUNCTIONS,
+      profiles: WORLD_ROUTE_PROFILES,
+      bridge: {
+        center: BRIDGE_CENTER,
+        halfSpan: BRIDGE_HALF_SPAN,
+        deckWidth: BRIDGE_WORLD_PROFILE.deckWidth,
+        entrySurfaceY: BRIDGE_WORLD_PROFILE.entrySurfaceY,
+        westDeckEdge: BRIDGE_WEST_DECK_EDGE,
+        eastDeckEdge: BRIDGE_EAST_DECK_EDGE,
+        gatewayDepthMeters: BRIDGE_WORLD_PROFILE.gatewayDepthMeters,
+        gatewayInsetMeters: BRIDGE_WORLD_PROFILE.gatewayInsetMeters,
+        gatewaySlabCount: BRIDGE_WORLD_PROFILE.gatewaySlabCount,
+        gatewaySlabGapMeters: BRIDGE_WORLD_PROFILE.gatewaySlabGapMeters
+      },
+      heightAt: (x, z) => this.terrainHeight(x, z),
+      isBridgeDeck: (x, z) => this.isBridgeDeck(x, z)
+    });
   }
 
   public static buildTerrainGeometry(): THREE.BufferGeometry {
@@ -1191,10 +1414,11 @@ export class WorldLayout {
       indexedPositions.setY(index, this.terrainHeight(x, z));
     }
     indexedPositions.needsUpdate = true;
-    const geometry = indexed.toNonIndexed();
-    indexed.dispose();
+    const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
+    if (geometry !== indexed) indexed.dispose();
     const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
     const colors = new Float32Array(positions.count * 3);
+    const terrainGreenMask = new Uint8Array(positions.count);
     const palette: Record<keyof TerrainSurfaceWeights, THREE.Color> = {
       grass: this.tokenColor("foliage_sage_01"),
       meadow: this.tokenColor("grass_yellow_01"),
@@ -1224,6 +1448,18 @@ export class WorldLayout {
       edgeB.copy(c).sub(a);
       faceNormal.crossVectors(edgeA, edgeB).normalize();
       const weights = this.terrainSurfaceWeights(center.x, center.z, Math.abs(faceNormal.y));
+      const protectedSurfaceWeight =
+        weights.drySoil
+        + weights.dampSoil
+        + weights.path
+        + weights.shoulder
+        + weights.beach
+        + weights.riverbed
+        + weights.wetShoreline
+        + weights.cliff;
+      const greenMask = protectedSurfaceWeight > 0.0001
+        ? 0
+        : Math.round(clamp01(weights.grass + weights.meadow) * 255);
       const color = new THREE.Color(0, 0, 0);
       for (const [key, weight] of Object.entries(weights) as Array<[keyof TerrainSurfaceWeights, number]>) {
         color.r += palette[key].r * weight;
@@ -1241,10 +1477,14 @@ export class WorldLayout {
         1.07
       );
       color.multiplyScalar(facetVariation);
-      for (let vertex = 0; vertex < 3; vertex++) colors.set([color.r, color.g, color.b], (index + vertex) * 3);
+      for (let vertex = 0; vertex < 3; vertex++) {
+        colors.set([color.r, color.g, color.b], (index + vertex) * 3);
+        terrainGreenMask[index + vertex] = greenMask;
+      }
     }
 
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("terrainGreenMask", new THREE.Uint8BufferAttribute(terrainGreenMask, 1, true));
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();

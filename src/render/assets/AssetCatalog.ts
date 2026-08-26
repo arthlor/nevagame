@@ -30,6 +30,8 @@ export interface RuntimeAnimationClipSpec {
   commitMarkerSeconds?: number;
   loop: boolean;
   referenceSpeedMetersPerSecond?: number;
+  optional?: boolean;
+  fallbackClip?: string;
   events?: readonly RuntimeAnimationEventSpec[];
 }
 

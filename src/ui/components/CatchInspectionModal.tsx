@@ -17,15 +17,10 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
   onRelease
 }) => {
   const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-  const lengthCm = Math.round(cargo.weightKg * 2.2 + 25);
   const breakdown = speciesDef
     ? calculateFishPrice(speciesDef, cargo.weightKg, cargo.quality, cargo.freshness, 1.0, 1.0)
     : null;
-  const estValue = breakdown ? breakdown.finalPrice : Math.round(cargo.weightKg * 8);
-  const estRangeMin = Math.max(1, Math.round(estValue * 0.9));
-  const estRangeMax = Math.max(estRangeMin + 1, Math.round(estValue * 1.15));
-
-  const isTrophy = cargo.quality === "trophy" || cargo.weightKg > 40;
+  const isTrophy = cargo.quality === "trophy";
 
   return (
     <div className="modal-overlay interactive catch-inspection-backdrop" onClick={(e) => e.stopPropagation()}>
@@ -51,8 +46,8 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               <strong className="spec-value">{cargo.weightKg.toFixed(1)} <small>kg</small></strong>
             </div>
             <div className="spec-card">
-              <span className="spec-label">Length</span>
-              <strong className="spec-value">{lengthCm} <small>cm</small></strong>
+              <span className="spec-label">Freshness</span>
+              <strong className="spec-value">{Math.round(cargo.freshness)} <small>%</small></strong>
             </div>
           </div>
 
@@ -62,14 +57,8 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               <span className={`quality-badge quality-${cargo.quality}`}>{cargo.quality.toUpperCase()}</span>
             </div>
             <div className="attr-row">
-              <span className="attr-label">Condition:</span>
-              <span className="condition-badge condition-fresh">
-                {Math.round(cargo.freshness)}% Fresh
-              </span>
-            </div>
-            <div className="attr-row">
-              <span className="attr-label">Estimated Value:</span>
-              <strong className="value-estimate">{estRangeMin}–{estRangeMax} G</strong>
+              <span className="attr-label">Base value:</span>
+              <strong className="value-estimate">{breakdown ? `${breakdown.finalPrice} G` : "Unavailable"}</strong>
             </div>
           </div>
 

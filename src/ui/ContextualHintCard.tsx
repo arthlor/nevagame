@@ -36,13 +36,25 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   if (!visible) return null;
 
   return (
-    <div className="contextual-hint-card" onClick={handleDismiss} role="status">
+    <div
+      className="contextual-hint-card interactive"
+      onClick={handleDismiss}
+      role="status"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+          e.preventDefault();
+          handleDismiss();
+        }
+      }}
+    >
       <div className="hint-card-icon">{icon}</div>
       <div className="hint-card-body">
         <strong className="hint-card-title">{title}</strong>
         <p className="hint-card-message">{message}</p>
       </div>
       <button
+        type="button"
         className="hint-card-close-btn"
         onClick={(e) => {
           e.stopPropagation();

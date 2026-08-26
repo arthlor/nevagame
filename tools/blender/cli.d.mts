@@ -27,6 +27,8 @@ export interface CatalogAsset {
     commitMarkerSeconds?: number;
     loop: boolean;
     referenceSpeedMetersPerSecond?: number;
+    optional?: boolean;
+    fallbackClip?: string;
     events?: Array<{ name: string; timeSeconds: number }>;
   }>;
   referenceAuthoring?: ReferenceAuthoring;
@@ -113,4 +115,5 @@ export function validatePublishedManifest(
   specHash: string,
   paletteHash: string,
   label?: string,
+  selectedAssets?: CatalogAsset[],
 ): Record<string, unknown>;

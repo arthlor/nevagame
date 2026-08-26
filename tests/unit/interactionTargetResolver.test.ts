@@ -50,4 +50,39 @@ describe("InteractionTargetResolver", () => {
     });
     expect(result?.id).toBe("clear-side");
   });
+
+  it("asks line of sight against the candidate world position so physics can ignore self-colliders", () => {
+    const resolver = new InteractionTargetResolver();
+    const mill = target("mill", 0, 2, {
+      kind: "station",
+      requiresLineOfSight: true,
+      worldPosition: { x: 4, y: 1.2, z: 6 }
+    });
+    let queriedTo: { x: number; y: number; z: number } | undefined;
+    const result = resolver.resolve([mill], {
+      ...context,
+      hasLineOfSight: (_from, to) => {
+        queriedTo = to;
+        return true;
+      }
+    });
+    expect(result?.id).toBe("mill");
+    expect(queriedTo).toEqual({ x: 4, y: 1.65, z: 6 });
+  });
+
+  it("keeps an actionable station ahead of dialogue when their approach spaces overlap", () => {
+    const resolver = new InteractionTargetResolver();
+    const station = target("fish-table", 0, 2, {
+      entityId: undefined,
+      kind: "station",
+      action: "start-processing",
+      priority: 0
+    });
+    const npc = target("npc.maeve", 0, 1, {
+      kind: "station",
+      action: "inspect",
+      priority: 1
+    });
+    expect(resolver.resolve([npc, station], context)?.id).toBe("fish-table");
+  });
 });

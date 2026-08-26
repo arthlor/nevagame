@@ -5,6 +5,21 @@ import type {
 
 export interface PresentedPlayerFrame extends ResolvedPlayerPose {
   motion: PlayerMotionSample;
+  discontinuityReason: PresentationDiscontinuityReason;
+  discontinuitySequence: number;
+}
+
+export type PresentationDiscontinuityReason =
+  | "none"
+  | "teleport"
+  | "load"
+  | "recovery"
+  | "boarding"
+  | "docking";
+
+export interface PresentationPushOptions {
+  snap?: boolean;
+  discontinuity?: Exclude<PresentationDiscontinuityReason, "none">;
 }
 
 const TELEPORT_SNAP_DISTANCE_METERS = 1.25;
@@ -18,6 +33,12 @@ export function stationaryPlayerMotion(
     accelerationMetersPerSecondSquared: 0,
     turnRateRadiansPerSecond: 0,
     isGrounded: pose.traversal.isGrounded,
+    groundNormal: { x: 0, y: 1, z: 0 },
+    slopeRadians: 0,
+    airbornePhase: pose.traversal.isGrounded ? "grounded" : "falling",
+    contactEvent: "none",
+    landingImpactStrength: 0,
+    contactSurface: "unknown",
     isCollisionBlocked: false,
     requestedGait: "idle"
   };
@@ -31,36 +52,56 @@ export class PlayerPresentationBuffer {
   private previous: PresentedPlayerFrame | null = null;
   private current: PresentedPlayerFrame | null = null;
   private facingTurn: { from: number; to: number; elapsed: number; duration: number } | null = null;
+  private discontinuitySequence = 0;
 
-  public reset(pose: ResolvedPlayerPose, motion = stationaryPlayerMotion(pose)): void {
-    const frame = copyFrame(pose, motion);
+  public reset(
+    pose: ResolvedPlayerPose,
+    motion = stationaryPlayerMotion(pose),
+    discontinuityReason: PresentationDiscontinuityReason = "none"
+  ): void {
+    if (discontinuityReason !== "none") this.discontinuitySequence += 1;
+    const frame = copyFrame(
+      pose,
+      motion,
+      discontinuityReason,
+      this.discontinuitySequence
+    );
     this.previous = frame;
-    this.current = copyFrame(frame, frame.motion);
+    this.current = copyFrame(
+      frame,
+      frame.motion,
+      discontinuityReason,
+      this.discontinuitySequence
+    );
     this.facingTurn = null;
   }
 
   public push(
     pose: ResolvedPlayerPose,
     motion: PlayerMotionSample,
-    options: { snap?: boolean } = {}
+    options: PresentationPushOptions = {}
   ): void {
     if (!this.current) {
-      this.reset(pose, motion);
+      this.reset(pose, motion, options.discontinuity ?? "none");
       return;
     }
     const distance = Math.hypot(pose.x - this.current.x, pose.y - this.current.y, pose.z - this.current.z);
-    if (options.snap || distance > TELEPORT_SNAP_DISTANCE_METERS) {
-      this.reset(pose, motion);
+    if (options.snap || options.discontinuity || distance > TELEPORT_SNAP_DISTANCE_METERS) {
+      this.reset(
+        pose,
+        motion,
+        options.discontinuity ?? "teleport"
+      );
       return;
     }
     this.previous = this.current;
-    this.current = copyFrame(pose, motion);
+    this.current = copyFrame(pose, motion, "none", this.discontinuitySequence);
     if (motion.speedMetersPerSecond > 0.1) this.facingTurn = null;
   }
 
   public pushCanonicalPose(
     pose: ResolvedPlayerPose,
-    options: { snap?: boolean; fixedDeltaSeconds?: number } = {}
+    options: PresentationPushOptions & { fixedDeltaSeconds?: number } = {}
   ): void {
     const motion = stationaryPlayerMotion(pose);
     if (this.current && !options.snap) {
@@ -84,7 +125,14 @@ export class PlayerPresentationBuffer {
 
   public sample(alpha: number, renderDeltaSeconds: number = 0): PresentedPlayerFrame | null {
     if (!this.current) return null;
-    if (!this.previous) return copyFrame(this.current, this.current.motion);
+    if (!this.previous) {
+      return copyFrame(
+        this.current,
+        this.current.motion,
+        this.current.discontinuityReason,
+        this.current.discontinuitySequence
+      );
+    }
     const t = clamp(alpha, 0, 1);
     const previous = this.previous;
     const current = this.current;
@@ -112,14 +160,18 @@ export class PlayerPresentationBuffer {
         ...current.traversal,
         isGrounded: t < 0.5 ? previous.traversal.isGrounded : current.traversal.isGrounded
       },
-      motion
+      motion,
+      discontinuityReason: current.discontinuityReason,
+      discontinuitySequence: current.discontinuitySequence
     };
   }
 }
 
 function copyFrame(
   pose: ResolvedPlayerPose,
-  motion: PlayerMotionSample
+  motion: PlayerMotionSample,
+  discontinuityReason: PresentationDiscontinuityReason,
+  discontinuitySequence: number
 ): PresentedPlayerFrame {
   return {
     x: pose.x,
@@ -129,8 +181,11 @@ function copyFrame(
     traversal: { ...pose.traversal },
     motion: {
       ...motion,
-      velocity: { ...motion.velocity }
-    }
+      velocity: { ...motion.velocity },
+      groundNormal: { ...motion.groundNormal }
+    },
+    discontinuityReason,
+    discontinuitySequence
   };
 }
 
@@ -157,6 +212,20 @@ function interpolateMotion(
       t
     ),
     isGrounded: t < 0.5 ? previous.isGrounded : current.isGrounded,
+    groundNormal: {
+      x: lerp(previous.groundNormal.x, current.groundNormal.x, t),
+      y: lerp(previous.groundNormal.y, current.groundNormal.y, t),
+      z: lerp(previous.groundNormal.z, current.groundNormal.z, t)
+    },
+    slopeRadians: lerp(previous.slopeRadians, current.slopeRadians, t),
+    airbornePhase: t < 0.5 ? previous.airbornePhase : current.airbornePhase,
+    contactEvent: t < 0.5 ? previous.contactEvent : current.contactEvent,
+    landingImpactStrength: lerp(
+      previous.landingImpactStrength,
+      current.landingImpactStrength,
+      t
+    ),
+    contactSurface: t < 0.5 ? previous.contactSurface : current.contactSurface,
     isCollisionBlocked: t < 0.5 ? previous.isCollisionBlocked : current.isCollisionBlocked,
     requestedGait: t < 0.5 ? previous.requestedGait : current.requestedGait
   };
