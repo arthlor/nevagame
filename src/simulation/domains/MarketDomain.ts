@@ -81,7 +81,7 @@ export class MarketDomain {
     const starterCrop = [...ContentRegistry.crops.values()].find(
       (crop) =>
         crop.seedItemId === itemId &&
-        ["crop.wheat", "crop.tomato", "crop.potato"].includes(crop.id)
+        ["crop.wheat", "crop.tomato", "crop.potato", "crop.barley"].includes(crop.id)
     );
     if (!item || item.category !== "seed" || !starterCrop) {
       return failure("not-stocked", "That seed is not stocked here");

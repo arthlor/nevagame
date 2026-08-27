@@ -23,6 +23,7 @@ import { WorldLayout } from "../world/WorldLayout";
 import {
   HARBOR_DOCK,
   HARBOR_FISH_TABLE,
+  HARBOR_MARKET,
   HARBOR_SKIFF_MOORING,
   VILLAGE_MARKET,
   WORLD_SPAWN
@@ -30,6 +31,7 @@ import {
 import { SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
 import {
   farmLocalToWorld,
+  findFarmIdAtWorld,
   getFarmLayout,
   isPointInsideRect,
   STARTER_FARM_LAYOUT,
@@ -232,6 +234,7 @@ export class GameApp {
   private readonly interactionResolver = new InteractionTargetResolver();
   private farmingActionSnapshot: FarmingActionSnapshot | null = null;
   private hudFishingHold: FishingHoldInput = { isReeling: false, isSlacking: false, isBracing: false };
+  private basicCastHoldLatched = false;
   private isRunning: boolean = false;
   private lastTimeMs: number = 0;
   private fps: number = 60;
@@ -467,7 +470,7 @@ export class GameApp {
       this.sim = new Simulation(saveResult.envelope.state);
       this.attachSimulationFeedback();
       this.durableWritesEnabled = true;
-      this.requestAutosave();
+      await this.saveRepo.saveGame(this.sim.state);
 
       this.modeController.restoreFromState(saveResult.envelope.state);
       this.inputRouter.setMode(this.mode);
@@ -1062,9 +1065,22 @@ export class GameApp {
   }
 
   private applyBasicFishingInput(): void {
-    if (this.mode !== "basic-fishing" || !this.sim.state.basicFishing) return;
+    if (this.mode !== "basic-fishing" || !this.sim.state.basicFishing) {
+      this.basicCastHoldLatched = false;
+      return;
+    }
     const input = this.inputRouter.getInputState();
-    if (input.fishing.isReeling !== this.sim.state.basicFishing.isHolding) {
+    const attempt = this.sim.state.basicFishing;
+    if (attempt.phase === "charging-cast") {
+      if (input.fishing.isReeling) this.basicCastHoldLatched = true;
+      else if (this.basicCastHoldLatched) {
+        this.basicCastHoldLatched = false;
+        this.releaseBasicFishingCast();
+      }
+    } else {
+      this.basicCastHoldLatched = false;
+    }
+    if (input.fishing.isReeling !== attempt.isHolding) {
       this.sim.execute({
         type: "fishing.control-basic",
         isHolding: input.fishing.isReeling
@@ -1215,12 +1231,7 @@ export class GameApp {
     }
 
     const stationDefinitions = [
-      {
-        stationId: "struct.starter_mill",
-        recipeId: "recipe.wheat_to_grain",
-        idlePrompt: "[E] Mill Wheat",
-        collectPrompt: "[E] Collect Ground Grain"
-      },
+      this.millStationDefinition(),
       {
         stationId: "struct.workbench",
         recipeId: "recipe.craft_chum",
@@ -1308,6 +1319,26 @@ export class GameApp {
         modes: ["on-foot"],
         requiresLineOfSight: true,
         prompt: "[E] Browse the produce stall"
+      });
+    }
+
+    const fishMarket = { ...HARBOR_MARKET.position, radiusMeters: HARBOR_MARKET.radiusMeters };
+    const fishMarketDistance = Math.hypot(p.x - fishMarket.x, p.z - fishMarket.z);
+    if (fishMarketDistance <= fishMarket.radiusMeters) {
+      candidates.push({
+        id: "market:market.harbor:trade",
+        kind: "market",
+        action: "trade",
+        distanceMeters: fishMarketDistance,
+        priority: 1,
+        worldPosition: {
+          x: fishMarket.x,
+          y: WorldLayout.terrainHeight(fishMarket.x, fishMarket.z),
+          z: fishMarket.z
+        },
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: "[E] Trade with Maeve"
       });
     }
 
@@ -1606,10 +1637,16 @@ export class GameApp {
       case "cast":
         this.handleCastFishing();
         break;
-      case "trade":
-        this.activeMarketId = this.sim.getNearbyMarketId() ?? "market.village";
+      case "trade": {
+        const nearbyMarket = this.sim.getNearbyMarketId();
+        if (!nearbyMarket) {
+          this.setToast("Visit a market stall to trade");
+          break;
+        }
+        this.activeMarketId = nearbyMarket;
         this.setActiveModal("market");
         break;
+      }
       case "enter":
         this.transitionDoor(FARMHOUSE_INTERIOR_DOOR.enterSpawn, "Entered cozy home");
         break;
@@ -1681,13 +1718,15 @@ export class GameApp {
       }
       case 2: {
         const playerInv = this.sim.state.inventories[this.sim.state.player.inventoryId];
-        const starterCropIds = ["crop.wheat", "crop.tomato", "crop.potato"];
-        let targetCropId: string | null = null;
-        for (const cropId of starterCropIds) {
-          const crop = ContentRegistry.crops.get(cropId);
-          if (crop && playerInv && InventoryManager.getItemCount(playerInv, crop.seedItemId) > 0) {
-            targetCropId = crop.id;
-            break;
+        let targetCropId: string | null = this.selectedCropId;
+        const selectedCrop = targetCropId ? ContentRegistry.crops.get(targetCropId) : undefined;
+        if (!selectedCrop || !playerInv || InventoryManager.getItemCount(playerInv, selectedCrop.seedItemId) <= 0) {
+          targetCropId = null;
+          for (const crop of ContentRegistry.crops.values()) {
+            if (playerInv && InventoryManager.getItemCount(playerInv, crop.seedItemId) > 0) {
+              targetCropId = crop.id;
+              break;
+            }
           }
         }
         if (targetCropId) {
@@ -1723,8 +1762,8 @@ export class GameApp {
 
   private enterCropPlacement(cropId: string): void {
     if (this.sim.state.sportFishing || this.sim.state.basicFishing) return;
-    if (!new Set(["crop.wheat", "crop.tomato", "crop.potato"]).has(cropId)) {
-      this.setToast("This crop is not available from the starter farm yet");
+    if (!ContentRegistry.crops.get(cropId)) {
+      this.setToast("Unknown crop");
       return;
     }
     this.selectedCropId = cropId;
@@ -1754,10 +1793,17 @@ export class GameApp {
       this.clearPlacementPreview();
       return;
     }
+    const player = this.sim.state.player;
+    const farmId = findFarmIdAtWorld(hit.x, hit.z)
+      ?? findFarmIdAtWorld(player.x, player.z, 2.5);
+    if (!farmId) {
+      this.clearPlacementPreview();
+      return;
+    }
     const result = this.sim.query({
       type: "crop.validate-placement",
       request: {
-        farmId: STARTER_FARM_LAYOUT.farmId,
+        farmId,
         cropId: this.selectedCropId,
         x: hit.x,
         z: hit.z
@@ -1984,6 +2030,34 @@ export class GameApp {
     const result = this.sim.execute({ type: "player.face-target", x, z });
     if (!result.success) return;
     this.playerPresentation.pushCanonicalPose(this.sim.state.player);
+  }
+
+  private millStationDefinition(): {
+    stationId: string;
+    recipeId: string;
+    idlePrompt: string;
+    collectPrompt: string;
+  } {
+    const inventory = this.sim.state.inventories[this.sim.state.player.inventoryId];
+    const millRecipes = [...ContentRegistry.recipes.values()].filter((recipe) => recipe.stationType === "hand-mill");
+    for (const recipe of millRecipes) {
+      if (InventoryManager.hasItems(inventory, recipe.inputs)) {
+        const input = ContentRegistry.items.get(recipe.inputs[0]?.itemId);
+        return {
+          stationId: "struct.starter_mill",
+          recipeId: recipe.id,
+          idlePrompt: `[E] Mill ${input?.name ?? "Grain"}`,
+          collectPrompt: "[E] Collect Ground Grain"
+        };
+      }
+    }
+    const fallback = millRecipes[0];
+    return {
+      stationId: "struct.starter_mill",
+      recipeId: fallback?.id ?? "recipe.wheat_to_grain",
+      idlePrompt: "[E] Mill Grain",
+      collectPrompt: "[E] Collect Ground Grain"
+    };
   }
 
   private fishTableStationDefinition(): {
@@ -2385,7 +2459,8 @@ export class GameApp {
         },
         onDismissBasicFishingModal: () => {
           if (this.sim.state.basicFishing?.phase === "caught" || this.sim.state.basicFishing?.phase === "escaped") {
-            this.sim.execute({ type: "fishing.cancel-basic" });
+            const result = this.sim.execute({ type: "fishing.cancel-basic" });
+            if (!result.success) this.setToast(result.reason ?? "Your backpack is full");
           }
         },
         onSellItem: (marketId: MarketId, itemId: string, quantity: number) => {
@@ -2480,6 +2555,7 @@ export class GameApp {
     this.inputRouter.dispose();
     this.physicsWorld?.dispose();
     this.physicsWorld = null;
+    this.worldScene.dispose();
     this.uiRoot?.unmount();
     this.uiRoot = null;
   }

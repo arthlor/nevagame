@@ -1,8 +1,10 @@
 // src/simulation/economy/updateMarket.ts
 
-import { GameMinute, MarketState, SeasonId } from "../core/types";
+import { GameMinute, MarketCommodityState, MarketState, SeasonId } from "../core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { Rng } from "../core/Rng";
+import { seasonAtMinute } from "../core/GameClock";
+import type { MarketCommodityDefinition } from "../../content/types";
 
 export function tickMarket(
   market: MarketState,
@@ -35,32 +37,48 @@ export function tickMarket(
     const elapsedMinutes = currentMinute - state.lastTickMinute;
     if (elapsedMinutes < 60) continue;
 
-    const hours = elapsedMinutes / 60;
-    state.lastTickMinute = currentMinute;
-    state.seasonalModifier = commodityDef.seasonalFactors[currentSeason] || 1.0;
-    ticked = true;
-
-    // 1. Consume local supply
-    const consumed = state.consumptionRate * hours;
-    state.localSupply = Math.max(1, state.localSupply - consumed);
-
-    // 2. Replenish supply slowly towards target if understocked
-    if (state.localSupply < state.targetSupply) {
-      const recovery = (state.targetSupply - state.localSupply) * 0.15 * hours;
-      state.localSupply += recovery;
+    let remainingMinutes = elapsedMinutes;
+    let cursor = state.lastTickMinute;
+    let tickedHours = false;
+    while (remainingMinutes >= 60) {
+      cursor += 60;
+      remainingMinutes -= 60;
+      applyMarketHour(state, commodityDef, seasonAtMinute(cursor), rng, 1);
+      tickedHours = true;
     }
+    if (remainingMinutes > 0) {
+      applyMarketHour(state, commodityDef, seasonAtMinute(currentMinute), rng, remainingMinutes / 60);
+      tickedHours = true;
+    }
+    if (!tickedHours) continue;
 
-    // 3. Demand is supply ratio + noise only. Seasonal is applied at sale time.
-    const supplyRatio = state.targetSupply / Math.max(1, state.localSupply);
-    const noise = (rng.nextFloat() - 0.5) * 0.05; // ±2.5% variation
-    const rawDemand = supplyRatio + noise;
-
-    // Clamped strictly between 0.65 and 1.60
-    state.demandIndex = Math.min(1.6, Math.max(0.65, rawDemand));
-    state.recentSalesVolume = Math.max(0, state.recentSalesVolume * 0.5); // decay sales memory
+    state.lastTickMinute = currentMinute;
+    state.seasonalModifier = commodityDef.seasonalFactors[seasonAtMinute(currentMinute)] || 1.0;
+    ticked = true;
   }
 
   return ticked;
+}
+
+function applyMarketHour(
+  state: MarketCommodityState,
+  commodityDef: MarketCommodityDefinition,
+  season: SeasonId,
+  rng: Rng,
+  hours: number
+): void {
+  state.seasonalModifier = commodityDef.seasonalFactors[season] || 1.0;
+  const consumed = state.consumptionRate * hours;
+  state.localSupply = Math.max(1, state.localSupply - consumed);
+  if (state.localSupply < state.targetSupply) {
+    const recovery = (state.targetSupply - state.localSupply) * 0.15 * hours;
+    state.localSupply += recovery;
+  }
+  const supplyRatio = state.targetSupply / Math.max(1, state.localSupply);
+  const noise = (rng.nextFloat() - 0.5) * 0.05;
+  const rawDemand = supplyRatio + noise;
+  state.demandIndex = Math.min(1.6, Math.max(0.65, rawDemand));
+  state.recentSalesVolume = Math.max(0, state.recentSalesVolume * 0.5);
 }
 
 export function recordMarketSale(

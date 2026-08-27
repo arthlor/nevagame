@@ -39,6 +39,12 @@ export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boo
       if (supply && InventoryManager.getItemCount(supply, "item.crushed_ice") > 0) {
         return true;
       }
+      if (state.player.activeBoatId === boat.id) {
+        const playerInv = state.inventories[state.player.inventoryId];
+        if (playerInv && InventoryManager.getItemCount(playerInv, "item.crushed_ice") > 0) {
+          return true;
+        }
+      }
     }
   }
 

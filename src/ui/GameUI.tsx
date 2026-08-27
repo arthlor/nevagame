@@ -222,6 +222,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         onCastFishing={onCastFishing}
         onOpenMenu={() => onSetActiveModal("pause")}
         isPlacementActive={mode === "farm-placement"}
+        activeModal={activeModal}
       />
 
       {/* 2. Contextual Overlays */}
@@ -254,6 +255,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           message={activeHint.message}
           icon={activeHint.icon}
           onDismiss={onDismissHint}
+          captureEscape={!activeModal}
         />
       )}
 

@@ -154,8 +154,7 @@ export class Simulation {
         this.setBasicFishingInput(command.isHolding);
         return { success: true };
       case "fishing.cancel-basic":
-        this.cancelBasicFishing();
-        return { success: true };
+        return this.cancelBasicFishing();
       case "fishing.chum-school":
         return this.chumFishSchool(command.schoolId);
       case "fishing.hook-school":
@@ -647,8 +646,8 @@ export class Simulation {
     this.fishingDomain.setBasicFishingInput(isHolding);
   }
 
-  public cancelBasicFishing(): void {
-    this.fishingDomain.cancelBasicFishing();
+  public cancelBasicFishing(): { success: boolean; reason?: string } {
+    return this.fishingDomain.cancelBasicFishing();
   }
 
   public spawnFishSchool(habitatId: string, x: number, z: number, speciesIds: FishSpeciesId[]): FishSchoolId {

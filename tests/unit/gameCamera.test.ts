@@ -5,7 +5,7 @@ import {
   GameCamera,
   INTERIOR_CAMERA_PROFILE
 } from "../../src/render/camera/GameCamera";
-import { FARMHOUSE_INTERIOR_ORIGIN } from "../../src/world/FarmhouseInterior";
+import { FARMHOUSE_INTERIOR_ORIGIN, FARMHOUSE_INTERIOR_BOUNDS } from "../../src/world/FarmhouseInterior";
 
 describe("GameCamera", () => {
   it("maps on-foot movement to the horizontal camera basis", () => {
@@ -244,6 +244,7 @@ describe("GameCamera", () => {
       (INTERIOR_CAMERA_PROFILE.maxDistance - INTERIOR_CAMERA_PROFILE.distance);
     expect(interiorRatio).toBeCloseTo(outsideRatio, 6);
     expect(interior.pitchRadians).toBeCloseTo(INTERIOR_CAMERA_PROFILE.pitchRadians, 12);
+    expect(camera.camera.position.y).toBeLessThan(FARMHOUSE_INTERIOR_BOUNDS.ceilingY);
 
     camera.update(outside, "on-foot", 1 / 60);
     const returned = camera.framingState();

@@ -1,5 +1,5 @@
 // src/ui/HUD.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { GameState, FishCargoState } from "../simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -43,6 +43,7 @@ import {
 import { FarmForecastPopover } from "./components/FarmForecastPopover";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import { QuestTrackerHUD } from "./QuestTrackerHUD";
+import type { ActiveModal } from "../app/ModeController";
 
 export interface HUDProps {
   state: GameState;
@@ -61,6 +62,7 @@ export interface HUDProps {
   onCastFishing: () => void;
   onOpenMenu?: () => void;
   isPlacementActive?: boolean;
+  activeModal?: ActiveModal;
 }
 
 function formatWeatherLabel(type: string): string {
@@ -145,10 +147,15 @@ export const HUD: React.FC<HUDProps> = ({
   onOpenExpedition,
   activeQuest,
   onOpenMenu,
-  isPlacementActive = false
+  isPlacementActive = false,
+  activeModal = null
 }) => {
   const [showForecast, setShowForecast] = useState(false);
   const { clock, player, weather } = state;
+
+  useEffect(() => {
+    if (activeModal) setShowForecast(false);
+  }, [activeModal]);
 
   const sprintStamina = player.traversal.sprintStamina;
   const sprintMaximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;

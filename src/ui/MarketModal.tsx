@@ -91,7 +91,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               <div className="market-seeds-section">
                 <h3 className="section-title"><IconSprout size={15} /> Starter Crop Seeds</h3>
                 <div className="seed-stall-list">
-                  {["crop.wheat", "crop.tomato", "crop.potato"].map((cropId) => {
+                  {["crop.wheat", "crop.tomato", "crop.potato", "crop.barley"].map((cropId) => {
                     const crop = ContentRegistry.crops.get(cropId)!;
                     const seed = ContentRegistry.items.get(crop.seedItemId)!;
                     const owned = InventoryManager.getItemCount(playerInv, seed.id);

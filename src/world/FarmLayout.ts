@@ -229,6 +229,14 @@ export function isPointInsideRect(point: FarmPoint, rect: FarmRect, tolerance: n
   );
 }
 
+export function findFarmIdAtWorld(x: number, z: number, padding: number = 0.5): string | null {
+  for (const layout of Object.values(FARM_LAYOUTS)) {
+    const local = worldToFarmLocal(layout.farmId, { x, z });
+    if (isPointInsideRect(local, layout.farmBounds, padding)) return layout.farmId;
+  }
+  return null;
+}
+
 export function isPlantableFarmSurface(farmId: string, localPoint: FarmPoint): boolean {
   const layout = getFarmLayout(farmId);
   return Boolean(layout?.plantableAreas.some((area) => isPointInsideRect(localPoint, area, 0.0001)));

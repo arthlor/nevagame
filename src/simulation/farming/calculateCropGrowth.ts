@@ -172,15 +172,34 @@ export function advancePlacedCropGrowth(
   weatherType: WeatherTag,
   elapsedMinutes: number
 ): CropStage {
-  crop.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
-    elapsedMinutes,
-    cropDef,
-    farmClimate,
-    crop.moisture,
-    soilFertility,
-    weatherType
-  );
-  applyCropMoistureOverMinutes(crop, elapsedMinutes, cropDef.waterNeed, weatherType);
+  let remaining = Math.floor(elapsedMinutes);
+  while (remaining > 0) {
+    const perMinute = moistureChangePerHour(cropDef.waterNeed, weatherType) / 60;
+    let chunk = remaining;
+    if (perMinute > 0) {
+      if (crop.moisture < 15) {
+        chunk = Math.min(chunk, Math.max(1, Math.ceil((15 - crop.moisture) / perMinute)));
+      } else if (crop.moisture < 40) {
+        chunk = Math.min(chunk, Math.max(1, Math.ceil((40 - crop.moisture) / perMinute)));
+      }
+    } else if (perMinute < 0) {
+      if (crop.moisture > 40) {
+        chunk = Math.min(chunk, Math.max(1, Math.ceil((crop.moisture - 40) / -perMinute)));
+      } else if (crop.moisture > 15) {
+        chunk = Math.min(chunk, Math.max(1, Math.ceil((crop.moisture - 15) / -perMinute)));
+      }
+    }
+    crop.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
+      chunk,
+      cropDef,
+      farmClimate,
+      crop.moisture,
+      soilFertility,
+      weatherType
+    );
+    applyCropMoistureOverMinutes(crop, chunk, cropDef.waterNeed, weatherType);
+    remaining -= chunk;
+  }
   crop.stage = determineCropStage(crop.effectiveGrowthMinutes, cropDef.baseGrowthMinutes, cropDef.regrows);
   return crop.stage;
 }

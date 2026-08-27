@@ -16,7 +16,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     rankIndex: 1,
     rankName: "Apprentice",
     xpRequired: 1000,
-    farmingUnlocks: ["crop.tomato", "crop.carrot", "crop.corn", "feature.quality_preview"],
+    farmingUnlocks: ["crop.tomato", "crop.carrot", "crop.corn", "crop.barley", "feature.quality_preview"],
     fishingUnlocks: ["rod.river", "habitat.lake", "feature.lake_sport_fishing"],
     tradingUnlocks: ["market.harbor", "feature.price_breakdown"],
     processingUnlocks: ["recipe.craft_chum", "recipe.barley_to_grain"]

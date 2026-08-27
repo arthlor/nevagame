@@ -330,6 +330,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 <h2 id="start-screen-options-title">Options</h2>
               </div>
               <button
+                ref={optionsCloseRef}
                 type="button"
                 className="start-screen__dialog-close"
                 data-testid="startup-options-close"

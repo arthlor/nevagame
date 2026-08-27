@@ -6,6 +6,7 @@ import type {
 } from "../../simulation/core/PhysicsAdapter";
 import type { GameMode } from "../../simulation/core/types";
 import { WorldLayout } from "../../world/WorldLayout";
+import { FARMHOUSE_INTERIOR_BOUNDS } from "../../world/FarmhouseInterior";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 
 export interface CameraCollisionResolver {
@@ -67,14 +68,14 @@ const ON_FOOT_PROFILE: CameraProfile = {
 };
 
 export const INTERIOR_CAMERA_PROFILE: CameraProfile = {
-  distance: 6.8,
-  minDistance: 3.8,
-  maxDistance: 9.8,
-  pitchRadians: degrees(24),
-  minPitchRadians: degrees(14),
-  maxPitchRadians: degrees(45),
+  distance: 4.6,
+  minDistance: 2.8,
+  maxDistance: 5.8,
+  pitchRadians: degrees(18),
+  minPitchRadians: degrees(8),
+  maxPitchRadians: degrees(32),
   focusHeight: 0.95,
-  lookAhead: 1.4,
+  lookAhead: 0.85,
   fovDegrees: 52
 };
 
@@ -291,6 +292,9 @@ export class GameCamera {
       this.desiredCameraPosition.y,
       groundClearance + CAMERA_TUNING.terrainClearanceMeters
     );
+    if (isInterior) {
+      this.clampInteriorBoom();
+    }
 
     let safeFraction = 1;
     let collisionHit = false;
@@ -522,6 +526,25 @@ export class GameCamera {
     this.currentMode = activeMode;
     this.currentProfile = nextProfile;
     return nextProfile;
+  }
+
+  private clampInteriorBoom(): void {
+    const bounds = FARMHOUSE_INTERIOR_BOUNDS;
+    const maxY = bounds.ceilingY - 0.28;
+    const minY = bounds.floorY + 0.32;
+    if (this.desiredCameraPosition.y > maxY) {
+      const sinPitch = Math.sin(this.currentPitch);
+      if (sinPitch > 0.04) {
+        const maxDistance = Math.max(0.8, (maxY - this.currentLookAt.y) / sinPitch);
+        const desiredLength = this.currentAnchor.distanceTo(this.desiredCameraPosition);
+        const t = Math.min(1, maxDistance / Math.max(0.001, desiredLength));
+        this.desiredCameraPosition.lerpVectors(this.currentLookAt, this.desiredCameraPosition, t);
+      }
+      this.desiredCameraPosition.y = Math.min(this.desiredCameraPosition.y, maxY);
+    }
+    this.desiredCameraPosition.y = clamp(this.desiredCameraPosition.y, minY, maxY);
+    this.desiredCameraPosition.x = clamp(this.desiredCameraPosition.x, bounds.minX + 0.45, bounds.maxX - 0.45);
+    this.desiredCameraPosition.z = clamp(this.desiredCameraPosition.z, bounds.minZ + 0.45, bounds.maxZ - 0.45);
   }
 }
 

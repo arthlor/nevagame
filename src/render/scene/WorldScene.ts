@@ -500,7 +500,9 @@ export class WorldScene {
         }
       `
     });
-    this.scene.add(new THREE.Mesh(skyGeometry, this.skyMaterial));
+    const skyMesh = new THREE.Mesh(skyGeometry, this.skyMaterial);
+    skyMesh.name = "world_sky_dome";
+    this.scene.add(skyMesh);
     const celestialDiscTexture = createCelestialDiscTexture();
     const sunMaterial = new THREE.SpriteMaterial({
       map: celestialDiscTexture,
@@ -3020,6 +3022,116 @@ export class WorldScene {
     this.buildPlayerContactShadow();
     this.handleResize(window.innerWidth, window.innerHeight);
   }
+
+  /**
+   * Releases GPU resources owned by this scene. Catalog GLB clones share
+   * geometry with AssetLoader and are only detached, not disposed.
+   */
+  public dispose(): void {
+    this.cropInstances.dispose();
+    this.groundCover.dispose();
+    this.farmVfx.dispose();
+    this.farmVfx.group.removeFromParent();
+    this.water.dispose();
+    this.water.mesh.removeFromParent();
+    this.shoreFoam.dispose();
+    this.shoreFoam.mesh.removeFromParent();
+    this.boatWakes.dispose();
+    this.boatWakes.group.removeFromParent();
+    this.rendererPipeline.dispose();
+    this.terrainSurfaceMaterial.dispose();
+    this.roadSurfaceMaterial.dispose();
+
+    for (const group of this.schoolEffects.values()) {
+      group.removeFromParent();
+    }
+    this.schoolEffects.clear();
+    this.hookedFishModel?.removeFromParent();
+    this.hookedFishModel = null;
+    this.hookedFishAssetId = null;
+    this.hookedFishPresentation = null;
+
+    if (this.terrainMesh) {
+      this.terrainMesh.removeFromParent();
+      this.terrainMesh.geometry.dispose();
+      this.terrainMesh = null;
+    }
+    disposeNamedGeneratedMesh(this.environmentGroup, "world_path_overlay");
+    const farmGround = this.environmentGroup.getObjectByName("starter_farm_cultivated_ground");
+    if (farmGround) {
+      farmGround.traverse((object) => {
+        if (object instanceof THREE.Mesh) object.geometry.dispose();
+      });
+      farmGround.removeFromParent();
+    }
+    disposeNamedGeneratedMesh(this.environmentGroup, "farm_harbor_path_accents");
+    disposeNamedGeneratedMesh(this.environmentGroup, "static_contact_grounding");
+
+    this.placementPreview.traverse((object) => {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) material.dispose();
+      }
+    });
+    this.placementPreview.removeFromParent();
+    this.interactionFeedback.geometry.dispose();
+    (this.interactionFeedback.material as THREE.Material).dispose();
+    this.interactionFeedback.removeFromParent();
+    this.questWaypointRing.geometry.dispose();
+    (this.questWaypointRing.material as THREE.Material).dispose();
+    this.questWaypointRing.removeFromParent();
+    if (this.playerContactShadow) {
+      this.playerContactShadow.removeFromParent();
+      this.playerContactShadow.geometry.dispose();
+      (this.playerContactShadow.material as THREE.Material).dispose();
+      this.playerContactShadow = null;
+    }
+
+    const skyMesh = this.scene.getObjectByName("world_sky_dome");
+    if (skyMesh instanceof THREE.Mesh) {
+      skyMesh.removeFromParent();
+      skyMesh.geometry.dispose();
+    }
+    this.skyMaterial?.dispose();
+    this.skyMaterial = null;
+    const celestialMap = this.sunDisc?.material.map;
+    this.sunDisc?.removeFromParent();
+    this.sunDisc?.material.dispose();
+    this.moonDisc?.removeFromParent();
+    this.moonDisc?.material.dispose();
+    celestialMap?.dispose();
+    this.sunDisc = null;
+    this.moonDisc = null;
+    if (this.starField) {
+      this.starField.removeFromParent();
+      this.starField.geometry.dispose();
+      (this.starField.material as THREE.Material).dispose();
+      this.starField = null;
+    }
+
+    this.fishingBobberGroup.traverse((object) => {
+      if (object instanceof THREE.Mesh) object.geometry.dispose();
+    });
+    this.fishingBobberGroup.removeFromParent();
+    if (this.fishingLineMesh) {
+      this.fishingLineMesh.removeFromParent();
+      this.fishingLineMesh.geometry.dispose();
+      (this.fishingLineMesh.material as THREE.Material).dispose();
+      this.fishingLineMesh = null;
+    }
+
+    this.lightingRig.sun.shadow.map?.dispose();
+    this.lightingRig.moon.shadow.map?.dispose();
+    this.renderer.dispose();
+  }
+}
+
+function disposeNamedGeneratedMesh(root: THREE.Object3D, name: string): void {
+  const object = root.getObjectByName(name);
+  if (!(object instanceof THREE.Mesh)) return;
+  object.removeFromParent();
+  object.geometry.dispose();
 }
 
 function wrapPresentationAngle(angle: number): number {

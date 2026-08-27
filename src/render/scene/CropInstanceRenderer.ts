@@ -471,4 +471,17 @@ export class CropInstanceRenderer {
     }
     return null;
   }
+
+  public dispose(): void {
+    for (const template of this.templates.values()) {
+      for (const batch of template.batches) {
+        batch.mesh.removeFromParent();
+        batch.mesh.geometry.dispose();
+      }
+    }
+    this.templates.clear();
+    this.loading.clear();
+    this.moistureBatch.mesh.removeFromParent();
+    this.moistureBatch.mesh.geometry.dispose();
+  }
 }

@@ -143,6 +143,21 @@ function resolveWalkableSlide(
     return { x: moveX, z: moveZ, limited: false };
   }
 
+  if (!isStableWalkable(currentX, currentZ)) {
+    const nearest = WorldLayout.nearestValidGround({ x: currentX, z: currentZ }, 8);
+    const recoverX = nearest.x - currentX;
+    const recoverZ = nearest.z - currentZ;
+    const recoverLen = Math.hypot(recoverX, recoverZ);
+    if (recoverLen > 0.0001 && isStableWalkable(nearest.x, nearest.z)) {
+      const step = Math.min(recoverLen, Math.max(0.16, Math.hypot(moveX, moveZ)));
+      const scaledX = (recoverX / recoverLen) * step;
+      const scaledZ = (recoverZ / recoverLen) * step;
+      if (isStableWalkable(currentX + scaledX, currentZ + scaledZ)) {
+        return { x: scaledX, z: scaledZ, limited: true };
+      }
+    }
+  }
+
   // Compute coastline/waterway tangent slide candidate
   const sampleDist = 0.25;
   const dX =

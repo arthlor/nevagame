@@ -260,10 +260,11 @@ export function isPlacementFootprintStable(
     const offset = rotatedOffset(localX, localZ, placement.rotationY);
     const x = placement.x + offset.x;
     const z = placement.z + offset.z;
-    if (!WorldLayout.isWalkable(x, z) || WorldLayout.isWater(x, z)) return false;
-    if (WorldLayout.terrainHeight(x, z) < 0.25 || WorldLayout.waterSignedDistance(x, z) > -0.85) return false;
-    if (WorldLayout.terrainNormal(x, z).y < minimumNormalY) return false;
-    heights.push(WorldLayout.terrainHeight(x, z));
+    if (!WorldLayout.isWalkable(x, z)) return false;
+    const height = WorldLayout.terrainHeight(x, z);
+    if (height < 0.25 || WorldLayout.waterSignedDistance(x, z) > -0.85) return false;
+    if (WorldLayout.terrainNormalY(x, z) < minimumNormalY) return false;
+    heights.push(height);
   }
   return Math.max(...heights) - Math.min(...heights) <= maximumHeightDelta;
 }
@@ -600,13 +601,12 @@ function scatterCoastGroundCover(
 export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPlacement[] {
   const high = GROUND_COVER_DENSITY.high;
   const commonGround = (x: number, z: number) =>
-    WorldLayout.isWalkable(x, z)
-    && !WorldLayout.isWater(x, z)
-    && !WorldLayout.isInterior(x, z)
-    && WorldLayout.terrainNormal(x, z).y > 0.78
+    !WorldLayout.isInterior(x, z)
+    && WorldLayout.isWalkable(x, z)
+    && WorldLayout.farmSoilInfluence(x, z) < 0.08
     && WorldLayout.pathInfluence(x, z) < 0.08
     && WorldLayout.roadsideInfluence(x, z) < 0.94
-    && WorldLayout.farmSoilInfluence(x, z) < 0.08;
+    && WorldLayout.terrainNormalY(x, z) > 0.78;
 
   const grass = scatterGroundCover(
     "grass",
@@ -641,25 +641,24 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     { patchCount: 92, radiusRange: [0.55, 1.65], depthScaleRange: [0.6, 1] }
   );
   const coastPebbleCount = Math.round(high.pebbles * 0.56);
-  const coastPebbles = scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainNormal(x, z).y > 0.68 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42, [0.74, 1.12]);
+  const coastPebbles = scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42 && WorldLayout.terrainNormalY(x, z) > 0.68, [0.74, 1.12]);
   const pathPebbleCount = Math.round(high.pebbles * 0.2);
-  const shoulderPebbles = scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.farmSoilInfluence(x, z) < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32);
+  const shoulderPebbles = scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.farmSoilInfluence(x, z) < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32);
   const pathPebbles = scatterGroundCover(
     "pebbles",
     ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"],
     pathPebbleCount,
     mixSeed(worldSeed, 0x3c5b),
     (x, z) => WorldLayout.isWalkable(x, z)
-      && !WorldLayout.isWater(x, z)
       && !WorldLayout.isBridgeDeck(x, z)
-      && WorldLayout.terrainNormal(x, z).y > 0.74
       && WorldLayout.farmSoilInfluence(x, z) < 0.12
-      && WorldLayout.pathInfluence(x, z) > 0.28,
+      && WorldLayout.pathInfluence(x, z) > 0.28
+      && WorldLayout.terrainNormalY(x, z) > 0.74,
     [0.52, 0.86],
     "ground-cover.path.pebbles",
     (x, z) => WorldLayout.pathInfluence(x, z)
   );
-  const driftwood = scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08]);
+  const driftwood = scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.terrainNormalY(x, z) > 0.72, [0.78, 1.08]);
   return [...grass, ...flowers, ...coastPebbles, ...shoulderPebbles, ...pathPebbles, ...driftwood];
 }
 

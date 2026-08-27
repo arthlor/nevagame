@@ -688,6 +688,23 @@ function routeIndexCell(value: number): number {
 }
 
 const ROUTE_SEGMENT_INDEX = buildRouteSegmentIndex(COMPILED_WORLD_ROUTES);
+const ROUTE_CANDIDATE_KEYS = new Set<number>();
+const FAR_FROM_ROUTES: RouteProjection = {
+  distance: Number.POSITIVE_INFINITY,
+  halfWidth: COMPILED_WORLD_ROUTES[0].halfWidth,
+  shoulderWidthMeters: COMPILED_WORLD_ROUTES[0].shoulderWidthMeters,
+  terrainFeatherMeters: COMPILED_WORLD_ROUTES[0].terrainFeatherMeters,
+  route: COMPILED_WORLD_ROUTES[0].route,
+  point: { ...COMPILED_WORLD_ROUTES[0].segments[0].start },
+  tangent: { ...COMPILED_WORLD_ROUTES[0].segments[0].tangent },
+  normal: {
+    x: -COMPILED_WORLD_ROUTES[0].segments[0].tangent.z,
+    z: COMPILED_WORLD_ROUTES[0].segments[0].tangent.x
+  },
+  routeIndex: 0,
+  segmentIndex: 0,
+  distanceAlongRoute: COMPILED_WORLD_ROUTES[0].segments[0].cumulativeStart
+};
 
 interface RouteProjection {
   distance: number;
@@ -779,6 +796,10 @@ function routeJunctionInfluence(x: number, z: number): number {
 
 /** Canonical authored-region geography shared by simulation, physics, and presentation. */
 export class WorldLayout {
+  private static lastRouteX = Number.NaN;
+  private static lastRouteZ = Number.NaN;
+  private static lastRouteProjection: RouteProjection = FAR_FROM_ROUTES;
+
   public static routeDefinitions(): readonly WorldRoute[] {
     return WORLD_ROUTE_NETWORK;
   }
@@ -1166,6 +1187,19 @@ export class WorldLayout {
     return this.terrainBaseHeight(x, z) + this.roadSurfaceSample(x, z).surfaceOffsetMeters;
   }
 
+  /** Y component of the terrain normal without allocating a Vector3. */
+  public static terrainNormalY(x: number, z: number, sampleDistance: number = 0.45): number {
+    const left = this.terrainHeight(x - sampleDistance, z);
+    const right = this.terrainHeight(x + sampleDistance, z);
+    const back = this.terrainHeight(x, z - sampleDistance);
+    const front = this.terrainHeight(x, z + sampleDistance);
+    const nx = left - right;
+    const ny = sampleDistance * 2;
+    const nz = back - front;
+    const length = Math.hypot(nx, ny, nz);
+    return length > 1e-8 ? ny / length : 1;
+  }
+
   public static terrainNormal(x: number, z: number, sampleDistance: number = 0.45): THREE.Vector3 {
     const left = this.terrainHeight(x - sampleDistance, z);
     const right = this.terrainHeight(x + sampleDistance, z);
@@ -1175,43 +1209,40 @@ export class WorldLayout {
   }
 
   private static nearestRouteDistance(x: number, z: number): RouteProjection {
-    const routes = COMPILED_WORLD_ROUTES;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    let bestProjection: RouteProjection = {
-      distance: Number.POSITIVE_INFINITY,
-      halfWidth: routes[0].halfWidth,
-      shoulderWidthMeters: routes[0].shoulderWidthMeters,
-      terrainFeatherMeters: routes[0].terrainFeatherMeters,
-      route: routes[0].route,
-      point: { ...routes[0].segments[0].start },
-      tangent: { ...routes[0].segments[0].tangent },
-      normal: { x: -routes[0].segments[0].tangent.z, z: routes[0].segments[0].tangent.x },
-      routeIndex: 0,
-      segmentIndex: 0,
-      distanceAlongRoute: routes[0].segments[0].cumulativeStart
-    };
+    if (x === this.lastRouteX && z === this.lastRouteZ) {
+      return this.lastRouteProjection;
+    }
 
+    const routes = COMPILED_WORLD_ROUTES;
     const minCellX = routeIndexCell(x - ROUTE_INDEX_PADDING_METERS);
     const maxCellX = routeIndexCell(x + ROUTE_INDEX_PADDING_METERS);
     const minCellZ = routeIndexCell(z - ROUTE_INDEX_PADDING_METERS);
     const maxCellZ = routeIndexCell(z + ROUTE_INDEX_PADDING_METERS);
-    const candidates = new Set<number>();
+    ROUTE_CANDIDATE_KEYS.clear();
     for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
       for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
         for (const reference of ROUTE_SEGMENT_INDEX.get(routeIndexKey(cellX, cellZ)) ?? []) {
-          candidates.add(reference.routeIndex * 10000 + reference.segmentIndex);
+          ROUTE_CANDIDATE_KEYS.add(reference.routeIndex * 10000 + reference.segmentIndex);
         }
       }
     }
 
-    const references = candidates.size > 0
-      ? [...candidates].map((reference) => {
-        const routeIndex = Math.floor(reference / 10000);
-        return { routeIndex, segmentIndex: reference - routeIndex * 10000 };
-      })
-      : routes.flatMap((route, routeIndex) => route.segments.map((_, segmentIndex) => ({ routeIndex, segmentIndex })));
+    // Index miss means the point is outside every road corridor + padding, so
+    // path/shoulder/grading influence is already zero. Scanning every segment
+    // here was the cover-scatter timeout: 7k grass attempts × four height
+    // samples each used to flatten the whole network.
+    if (ROUTE_CANDIDATE_KEYS.size === 0) {
+      this.lastRouteX = x;
+      this.lastRouteZ = z;
+      this.lastRouteProjection = FAR_FROM_ROUTES;
+      return FAR_FROM_ROUTES;
+    }
 
-    for (const { routeIndex, segmentIndex } of references) {
+    let bestDistance = Number.POSITIVE_INFINITY;
+    let bestProjection: RouteProjection = FAR_FROM_ROUTES;
+    for (const packed of ROUTE_CANDIDATE_KEYS) {
+      const routeIndex = Math.floor(packed / 10000);
+      const segmentIndex = packed - routeIndex * 10000;
       const pRoute = routes[routeIndex];
       const seg = pRoute.segments[segmentIndex];
       const dx = seg.dx;
@@ -1223,22 +1254,25 @@ export class WorldLayout {
 
       if (dist < bestDistance) {
         bestDistance = dist;
-          bestProjection = {
-            distance: dist,
-            halfWidth: pRoute.halfWidth,
-            shoulderWidthMeters: pRoute.shoulderWidthMeters,
-            terrainFeatherMeters: pRoute.terrainFeatherMeters,
-            route: pRoute.route,
-            point: { x: projX, z: projZ },
-            tangent: seg.tangent,
-            normal: { x: -seg.tangent.z, z: seg.tangent.x },
-            routeIndex,
-            segmentIndex,
-            distanceAlongRoute: THREE.MathUtils.lerp(seg.cumulativeStart, seg.cumulativeEnd, progress)
-          };
+        bestProjection = {
+          distance: dist,
+          halfWidth: pRoute.halfWidth,
+          shoulderWidthMeters: pRoute.shoulderWidthMeters,
+          terrainFeatherMeters: pRoute.terrainFeatherMeters,
+          route: pRoute.route,
+          point: { x: projX, z: projZ },
+          tangent: seg.tangent,
+          normal: { x: -seg.tangent.z, z: seg.tangent.x },
+          routeIndex,
+          segmentIndex,
+          distanceAlongRoute: THREE.MathUtils.lerp(seg.cumulativeStart, seg.cumulativeEnd, progress)
+        };
       }
     }
 
+    this.lastRouteX = x;
+    this.lastRouteZ = z;
+    this.lastRouteProjection = bestProjection;
     return bestProjection;
   }
 
@@ -1327,7 +1361,7 @@ export class WorldLayout {
     const riverFringe = coastDistance <= 0
       ? 1 - smoothstep(this.riverHalfWidth(z) + 0.7, this.riverHalfWidth(z) + 5.2, this.riverDistance(x, z))
       : 0;
-    const normalY = sampledNormalY ?? this.terrainNormal(x, z).y;
+    const normalY = sampledNormalY ?? this.terrainNormalY(x, z);
     const coastProfile = this.coastProfile(x);
     const coastBand = coastDistance <= 0 ? smoothstep(-18, -0.15, coastDistance) : 0;
     const slopeCliff = clamp01((0.76 - normalY) / 0.3);
