@@ -7,6 +7,7 @@ import { tickMarket } from "../../src/simulation/economy/updateMarket";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
 import { HARBOR_MARKET, VILLAGE_MARKET, HARBOR_DOCK } from "../../src/world/WorldAnchors";
+import { WorldLayout } from "../../src/world/WorldLayout";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
@@ -164,6 +165,15 @@ describe("Core hunt fixes", () => {
     expect(apronDistance).toBeGreaterThan(HARBOR_DOCK.boardRadius);
     expect(sim.boardBoat("boat.player_rowboat").success).toBe(true);
     expect(sim.state.player.activeBoatId).toBe("boat.player_rowboat");
+  });
+
+  it("keeps the harbor slip walkable without swallowing the sailable hull slot", () => {
+    const apron = HARBOR_DOCK.playerPosition;
+    const hull = HARBOR_DOCK.boatPosition;
+    const mid = { x: (apron.x + hull.x) / 2, z: (apron.z + hull.z) / 2 };
+    expect(WorldLayout.isWalkable(apron.x, apron.z)).toBe(true);
+    expect(WorldLayout.isWalkable(mid.x, mid.z)).toBe(true);
+    expect(WorldLayout.isSailable(hull.x, hull.z)).toBe(true);
   });
 
   it("nulls a failed sport-fishing hydrate so planting and basic casts are not locked", () => {

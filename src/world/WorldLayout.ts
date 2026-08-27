@@ -913,13 +913,26 @@ export class WorldLayout {
     );
   }
 
-  /** Walkable harbor slip from the shore apron to the rowboat / skiff hull. */
+  /** Walkable harbor slip from the shore apron toward the hull. Hull water stays sailable. */
   public static isPierDeck(x: number, z: number): boolean {
     const halfWidth = 2.35;
+    const hullKeepout = 2.25;
     return (
-      pointToSegmentDistance(x, z, HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z, HARBOR_DOCK.boatPosition.x, HARBOR_DOCK.boatPosition.z) <= halfWidth
-      || pointToSegmentDistance(x, z, HARBOR_SKIFF_MOORING.playerPosition.x, HARBOR_SKIFF_MOORING.playerPosition.z, HARBOR_SKIFF_MOORING.boatPosition.x, HARBOR_SKIFF_MOORING.boatPosition.z) <= halfWidth
+      this.isPierSlip(x, z, HARBOR_DOCK.playerPosition, HARBOR_DOCK.boatPosition, halfWidth, hullKeepout)
+      || this.isPierSlip(x, z, HARBOR_SKIFF_MOORING.playerPosition, HARBOR_SKIFF_MOORING.boatPosition, halfWidth, hullKeepout)
     );
+  }
+
+  private static isPierSlip(
+    x: number,
+    z: number,
+    apron: { x: number; z: number },
+    hull: { x: number; z: number },
+    halfWidth: number,
+    hullKeepout: number
+  ): boolean {
+    if (Math.hypot(x - hull.x, z - hull.z) <= hullKeepout) return false;
+    return pointToSegmentDistance(x, z, apron.x, apron.z, hull.x, hull.z) <= halfWidth;
   }
 
   public static isWater(x: number, z: number): boolean {
