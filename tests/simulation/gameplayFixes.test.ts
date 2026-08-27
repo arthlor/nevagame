@@ -116,6 +116,8 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.state.basicFishing?.catchItemId).toBe("fish.perch");
     sim.state.basicFishing!.willCatch = true;
     sim.tick(10);
+    expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
+    sim.tick(2);
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "fish.perch")).toBe(0);
 
@@ -220,10 +222,11 @@ describe("Gameplay simulation fixes", () => {
     const market = sim.state.markets["market.village"];
     const wheat = market.commodities["produce.wheat"];
     wheat.localSupply = wheat.targetSupply;
-    wheat.lastTickMinute = sim.state.clock.currentMinute - 60;
+    const winterMinute = 90 * 1440 + 8 * 60;
+    wheat.lastTickMinute = winterMinute - 60;
     wheat.seasonalModifier = 1.2;
     const rng = new SeededRng(99);
-    tickMarket(market, sim.state.clock.currentMinute, "winter", rng);
+    tickMarket(market, winterMinute, "winter", rng);
     expect(wheat.seasonalModifier).toBe(1.2);
     expect(wheat.demandIndex).toBeGreaterThanOrEqual(0.65);
     expect(wheat.demandIndex).toBeLessThanOrEqual(1.1);
@@ -558,6 +561,8 @@ describe("Gameplay simulation fixes", () => {
     const reloaded = new Simulation(JSON.parse(JSON.stringify(sim.state)));
     expect(reloaded.state.basicFishing).toMatchObject({ habitatId: "river", phase: "casting" });
     reloaded.tick(10);
+    expect(reloaded.state.basicFishing?.phase).toBe("bite-reaction");
+    reloaded.tick(2);
     expect(reloaded.state.basicFishing).toBeNull();
   });
 

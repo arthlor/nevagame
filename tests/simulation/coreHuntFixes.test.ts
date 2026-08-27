@@ -87,8 +87,9 @@ describe("Core hunt fixes", () => {
   it("respawns sport schools per unoccupied habitat instead of blocking the whole map", () => {
     const lake = SCHOOL_SPAWN_POINTS[0];
     const coast = SCHOOL_SPAWN_POINTS[1];
-    sim.clock.setDebugMinute(DAYS_PER_SEASON * MINUTES_PER_DAY + 10 * 60);
+    sim.setDebugMinute(DAYS_PER_SEASON * MINUTES_PER_DAY + 10 * 60);
     sim.state.weather.type = "clear";
+    sim.state.weather.nextWeatherMinute = sim.state.clock.currentMinute + 10_000;
     sim.state.world.storySchoolSpawned = true;
     sim.spawnFishSchool(lake.habitatId, lake.x, lake.z, ["fish.trout"]);
     sim.state.world.lastSchoolSpawnMinute = sim.state.clock.currentMinute - 90;
