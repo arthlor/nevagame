@@ -582,8 +582,4 @@ export class FishingDomain {
     });
     return true;
   }
-
-  private resolveCatchSuccess(attempt: BasicFishingState): void {
-    this.tryCommitBasicCatch(attempt);
-  }
 }
