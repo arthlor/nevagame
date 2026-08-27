@@ -512,6 +512,129 @@ def fishing_net_rack(spec: dict, root) -> None:
     consolidate_lod_level(root, f"{spec['id']}_rack")
 
 
+def fish_drying_rack(spec: dict, root) -> None:
+    """Build a working coastal drying rack with clearly visible hanging fish."""
+    wood, cord, fish = spec["palette"]
+    params = spec["parameters"]
+    width = params["width"]
+    depth = params["depth"]
+    height = params["height"]
+    half_width = width * 0.5
+    half_depth = depth * 0.5
+    top_z = height * 0.90
+
+    # A shallow four-post frame gives the prop a readable profile from the
+    # front and side, while keeping the fish on the camera-facing plane.
+    for x_index, x in enumerate((-half_width, half_width)):
+        for y_index, y in enumerate((-half_depth, half_depth)):
+            add_tapered_beam(
+                f"fish_drying_post_{x_index}_{y_index}",
+                (x, y, 0.04),
+                (x, y, top_z),
+                0.065,
+                0.045,
+                wood,
+                root,
+                vertices=6,
+            )
+            add_box(
+                f"fish_drying_foot_{x_index}_{y_index}",
+                (x, y, 0.07),
+                (0.24, 0.22, 0.14),
+                wood,
+                root,
+                bevel=0.014,
+            )
+    for y_index, y in enumerate((-half_depth, half_depth)):
+        add_box(
+            f"fish_drying_top_rail_{y_index}",
+            (0, y, top_z),
+            (width + 0.16, 0.10, 0.11),
+            wood,
+            root,
+            bevel=0.016,
+        )
+    for x_index, x in enumerate((-half_width, half_width)):
+        add_box(
+            f"fish_drying_side_rail_{x_index}",
+            (x, 0, height * 0.52),
+            (0.09, depth, 0.09),
+            wood,
+            root,
+            bevel=0.012,
+        )
+    for bar_index, z in enumerate((height * 0.42, height * 0.64)):
+        add_box(
+            f"fish_drying_bar_{bar_index}",
+            (0, -half_depth, z),
+            (width - 0.16, 0.07, 0.07),
+            wood,
+            root,
+            bevel=0.010,
+        )
+
+    fish_count = params["fishCount"]
+    for index in range(fish_count):
+        t = (index + 1) / (fish_count + 1)
+        fish_x = -width * 0.43 + width * 0.86 * t
+        fish_y = -half_depth - 0.045
+        fish_z = height * (0.47 + 0.13 * (index % 2))
+        tail_direction = 1 if index % 2 == 0 else -1
+        head_direction = -tail_direction
+        add_ico(
+            f"fish_drying_body_{index:02d}",
+            (fish_x, fish_y, fish_z),
+            (0.17, 0.045, 0.075),
+            fish,
+            root,
+            subdivisions=1,
+        )
+        add_tri_prism(
+            f"fish_drying_tail_{index:02d}",
+            (fish_x + tail_direction * 0.20, fish_y, fish_z),
+            (0.17, 0.045, 0.14),
+            fish,
+            root,
+            rotation=(0, tail_direction * math.pi * 0.5, 0),
+        )
+        add_tri_prism(
+            f"fish_drying_fin_{index:02d}",
+            (fish_x - tail_direction * 0.01, fish_y, fish_z + 0.08),
+            (0.10, 0.035, 0.07),
+            fish,
+            root,
+        )
+        head_x = fish_x + head_direction * 0.12
+        add_ico(
+            f"fish_drying_eye_{index:02d}",
+            (head_x, fish_y - 0.045, fish_z + 0.012),
+            (0.018, 0.012, 0.018),
+            cord,
+            root,
+            subdivisions=1,
+        )
+        add_beam(
+            f"fish_drying_hanger_{index:02d}",
+            (head_x, -half_depth * 0.98, top_z - 0.04),
+            (head_x, fish_y, fish_z + 0.075),
+            0.007,
+            cord,
+            root,
+            vertices=4,
+        )
+        add_beam(
+            f"fish_drying_gill_{index:02d}",
+            (head_x, fish_y - 0.048, fish_z - 0.045),
+            (head_x, fish_y - 0.048, fish_z + 0.045),
+            0.006,
+            cord,
+            root,
+            vertices=4,
+        )
+    add_collision_primitives(spec, root)
+    consolidate_lod_level(root, f"{spec['id']}_rack")
+
+
 def wood_crate(spec: dict, root) -> None:
     wood, dark = spec["palette"]
     size = spec["parameters"]["size"]
@@ -1331,6 +1454,28 @@ def produce_stall(spec: dict, root) -> None:
             depth=0.07,
         )
 
+    # Short knee braces and exposed canopy rafters make the stall read as
+    # assembled carpentry rather than four poles holding a paper canopy.
+    for side, x in ((-1, -post_x), (1, post_x)):
+        add_beam(
+            f"produce_stall_knee_front_{'l' if side < 0 else 'r'}",
+            (x, -post_y, roof_height * 0.68),
+            (x - side * width * 0.18, -post_y, roof_height * 0.92),
+            0.045,
+            dark,
+            root,
+            vertices=4,
+        )
+        add_beam(
+            f"produce_stall_knee_back_{'l' if side < 0 else 'r'}",
+            (x, post_y, roof_height * 0.68),
+            (x - side * width * 0.18, post_y, roof_height * 0.92),
+            0.045,
+            dark,
+            root,
+            vertices=4,
+        )
+
     add_plank_field(
         "produce_stall_back_wall",
         (0, post_y + 0.02, roof_height * 0.42),
@@ -1414,6 +1559,16 @@ def produce_stall(spec: dict, root) -> None:
             root,
             rotation=(sag, 0, 0),
             bevel=0.012,
+        )
+    for rafter in range(5):
+        rx = -width * 0.42 + width * 0.84 * rafter / 4
+        add_box(
+            f"produce_stall_canopy_rafter_{rafter}",
+            (rx, 0, roof_height - 0.15),
+            (0.08, depth * 1.10, 0.08),
+            dark,
+            root,
+            bevel=0.007,
         )
     for index in range(5):
         x = -width * 0.40 + index * width * 0.20
@@ -1562,6 +1717,9 @@ def seed_pouch(spec: dict, root) -> None:
     burlap, tie = spec["palette"]
     add_burlap_sack("seed_pouch", (0, 0, 0.22), (0.36, 0.18, 0.44), burlap, tie, root, rotation=(0.08, 0.0, -0.10))
     add_catenary_rope("seed_pouch_loop", (-0.13, 0, 0.40), (0.13, 0, 0.40), 0.10, 0.018, tie, root, segments=5, vertices=5)
+    add_box("seed_pouch_front_flap", (0, -0.105, 0.43), (0.28, 0.035, 0.14), tie, root, rotation=(0.08, 0, 0), bevel=0.012)
+    add_box("seed_pouch_front_pocket", (0, -0.112, 0.30), (0.27, 0.028, 0.12), tie, root, bevel=0.010)
+    add_box("seed_pouch_pocket_seam", (0, -0.132, 0.36), (0.29, 0.018, 0.025), tie, root, bevel=0.004)
 
 
 def watering_can(spec: dict, root) -> None:
@@ -1596,6 +1754,10 @@ def watering_can(spec: dict, root) -> None:
         bevel=0.002,
     )
     add_cylinder("watering_can_body", (0.16, 0, 0.0), 0.11, 0.20, metal, root, vertices=10, bevel=0.014)
+    add_beam("watering_can_carry_handle_a", (0.07, 0, 0.08), (0.14, 0, 0.24), 0.015, dark, root, vertices=6)
+    add_beam("watering_can_carry_handle_b", (0.14, 0, 0.24), (0.25, 0, 0.08), 0.015, dark, root, vertices=6)
+    add_cylinder("watering_can_lid", (0.16, 0, 0.11), 0.07, 0.035, accent, root, vertices=8, bevel=0.005)
+    add_cylinder("watering_can_lid_knob", (0.16, 0, 0.145), 0.018, 0.025, dark, root, vertices=6, bevel=0.003)
     add_cone(
         "watering_can_spout",
         (0.16, -0.16, 0.02),
@@ -1709,7 +1871,12 @@ def workstation_scoop(spec: dict, root) -> None:
     wood, metal = spec["palette"]
     grip = 0.14
     add_tapered_beam("workstation_scoop_handle", (0, 0, -grip), (0, 0, 0.58 - grip), 0.045, 0.032, wood, root, vertices=7)
-    add_box("workstation_scoop_bowl", (0, 0, 0.70 - grip), (0.28, 0.11, 0.26), metal, root, rotation=(0.18, 0, 0), bevel=0.045)
+    add_cylinder("workstation_scoop_ferrule", (0, 0, 0.45), 0.052, 0.08, metal, root, vertices=7, bevel=0.006)
+    add_box("workstation_scoop_floor", (0, -0.015, 0.51), (0.34, 0.12, 0.06), metal, root, bevel=0.018)
+    add_box("workstation_scoop_back", (0, 0.04, 0.60), (0.34, 0.04, 0.22), metal, root, bevel=0.018)
+    add_box("workstation_scoop_side_left", (-0.145, -0.005, 0.59), (0.05, 0.11, 0.20), metal, root, rotation=(0, 0, -0.12), bevel=0.014)
+    add_box("workstation_scoop_side_right", (0.145, -0.005, 0.59), (0.05, 0.11, 0.20), metal, root, rotation=(0, 0, 0.12), bevel=0.014)
+    add_box("workstation_scoop_front_lip", (0, -0.085, 0.56), (0.38, 0.04, 0.08), metal, root, bevel=0.014)
 
 
 def fishing_rod(spec: dict, root) -> None:

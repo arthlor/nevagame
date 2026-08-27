@@ -9,7 +9,7 @@ import {
   type FarmPathKind
 } from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_MARKET, RIVER_CROSSING, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MARKET, RIVER_CROSSING, VILLAGE_MARKET, VILLAGE_PLAZA, WORLD_SPAWN } from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
   sampleRoadCrossSection,
@@ -95,6 +95,22 @@ export interface WorldRoute {
   linearSegmentIndices?: readonly number[];
 }
 
+/**
+ * Canonical authored footprint for a static village building.
+ *
+ * The environment composer consumes these values rather than keeping a
+ * second, drift-prone table of building centers, rotations, and clearances.
+ */
+export interface WorldArchitecturePad {
+  id: string;
+  center: WorldPoint;
+  rotationY: number;
+  /** Unscaled horizontal half-extents used for grounding and collision review. */
+  envelope: readonly [number, number];
+  frontageClearanceMeters: number;
+  frontApproachMeters: number;
+}
+
 export interface WorldRouteJunction {
   id: string;
   center: WorldPoint;
@@ -116,7 +132,7 @@ export interface WorldRouteProfile {
 }
 
 export interface WorldLayoutDescriptor {
-  revision: 6;
+  revision: 7;
   anchors: {
     starterFarm: WorldPoint;
     playerSpawn: WorldPoint;
@@ -132,6 +148,7 @@ export interface WorldLayoutDescriptor {
   river: readonly WorldPoint[];
   riverMouth: WorldPoint;
   routes: readonly WorldRoute[];
+  architecturePads: readonly WorldArchitecturePad[];
 }
 
 export const WORLD_BOUNDS: WorldBounds = { minX: -180, maxX: 180, minZ: -160, maxZ: 120 };
@@ -204,7 +221,7 @@ export const WORLD_ROUTE_PROFILES: Readonly<Record<WorldRouteKind, Readonly<Worl
   })
 });
 
-const BRIDGE_CENTER = Object.freeze({ x: -14, z: -7 });
+const BRIDGE_CENTER = Object.freeze({ x: -15.3, z: -6});
 export const BRIDGE_WORLD_PROFILE = Object.freeze({
   spanLength: 14.2,
   deckWidth: 3.8,
@@ -220,6 +237,7 @@ export const BRIDGE_WORLD_PROFILE = Object.freeze({
 });
 
 const BRIDGE_HALF_SPAN = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
+const roundBridgeCoordinate = (value: number): number => Math.round(value * 10) / 10;
 const BRIDGE_WEST_DECK_EDGE = Object.freeze({
   x: BRIDGE_CENTER.x - BRIDGE_HALF_SPAN,
   z: BRIDGE_CENTER.z
@@ -233,7 +251,7 @@ const BRIDGE_WEST_APPROACH_START = Object.freeze({
   z: BRIDGE_CENTER.z
 });
 const BRIDGE_EAST_APPROACH_END = Object.freeze({
-  x: BRIDGE_EAST_DECK_EDGE.x + BRIDGE_WORLD_PROFILE.approachLength,
+  x: roundBridgeCoordinate(BRIDGE_EAST_DECK_EDGE.x + BRIDGE_WORLD_PROFILE.approachLength),
   z: BRIDGE_CENTER.z
 });
 const LIGHTHOUSE_GATEWAY = Object.freeze({ x: -92, z: 74 });
@@ -310,11 +328,17 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 38, z: -36 },
       { x: 18, z: -20 },
       RIVER_CROSSING,
+      BRIDGE_EAST_APPROACH_END,
+      BRIDGE_EAST_DECK_EDGE,
+      BRIDGE_CENTER,
+      BRIDGE_WEST_DECK_EDGE,
+      BRIDGE_WEST_APPROACH_START,
       { x: -20, z: 14 },
       { x: -43, z: 34 },
       { x: -68, z: 54 },
       LIGHTHOUSE_GATEWAY
-    ]
+    ],
+    linearSegmentIndices: [4, 5, 6, 7]
   },
   {
     id: "cliffside-coastal-walk",
@@ -402,8 +426,94 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   }
 ];
 
+function villageArchitectureRotation(center: WorldPoint): number {
+  return Math.atan2(VILLAGE_MARKET.position.x - center.x, VILLAGE_MARKET.position.z - center.z);
+}
+
+/**
+ * Authored village composition contract. Keep this table aligned with the
+ * published architecture collision primitives and use it as the sole source
+ * for runtime building placement envelopes and frontage spacing.
+ */
+export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
+  {
+    id: "village.tool-shed",
+    center: { x: 23, z: -72 },
+    rotationY: villageArchitectureRotation({ x: 23, z: -72 }),
+    envelope: [2, 1.7],
+    frontageClearanceMeters: 2.6,
+    frontApproachMeters: 4
+  },
+  {
+    id: "village.outhouse",
+    center: { x: 24, z: -62 },
+    rotationY: villageArchitectureRotation({ x: 24, z: -62 }),
+    envelope: [1.35, 1.25],
+    frontageClearanceMeters: 2.2,
+    frontApproachMeters: 2.2
+  },
+  {
+    id: "village.cottage-west",
+    center: { x: 36, z: -50 },
+    rotationY: villageArchitectureRotation({ x: 36, z: -50 }),
+    envelope: [2.7, 2.4],
+    frontageClearanceMeters: 4.5,
+    frontApproachMeters: 4.5
+  },
+  {
+    id: "village.cottage-southwest",
+    center: { x: 38, z: -60 },
+    rotationY: villageArchitectureRotation({ x: 38, z: -60 }),
+    envelope: [2.5, 2.7],
+    frontageClearanceMeters: 4.3,
+    frontApproachMeters: 4.5
+  },
+  {
+    id: "village.cottage-garden",
+    center: { x: 72, z: -64 },
+    rotationY: villageArchitectureRotation({ x: 72, z: -64 }),
+    envelope: [3.4, 2.8],
+    frontageClearanceMeters: 5,
+    frontApproachMeters: 4.8
+  },
+  {
+    id: "village.cottage-south",
+    center: { x: 66.2, z: -69.7},
+    rotationY: -0.5236,
+    envelope: [2.5, 2.7],
+    frontageClearanceMeters: 4.3,
+    frontApproachMeters: 4.5
+  },
+  {
+    id: "village.inn",
+    // 2 m south of the original (64, -38) so the north corners stay on the court.
+    center: { x: 63.1, z: -38.9},
+    rotationY: -1.5708,
+    envelope: [5.2, 4.2],
+    frontageClearanceMeters: 6.5,
+    frontApproachMeters: 6
+  },
+  {
+    id: "village.market-hall",
+    // 2 m west of the original (72, -51) so the east corners stay off the upland ridge.
+    center: { x: 68.9, z: -53.1},
+    rotationY: -2.0944,
+    envelope: [5.3, 4.2],
+    frontageClearanceMeters: 7,
+    frontApproachMeters: 6
+  },
+  {
+    id: "village.barn",
+    center: { x: 46.1, z: -66 },
+    rotationY: 0.5236,
+    envelope: [5.3, 3.2],
+    frontageClearanceMeters: 6,
+    frontApproachMeters: 5.5
+  }
+];
+
 export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
-  revision: 6,
+  revision: 7,
   anchors: {
     starterFarm: STARTER_FARM_LAYOUT.origin,
     playerSpawn: WORLD_SPAWN.playerPosition,
@@ -418,7 +528,8 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
   coast: COAST_SPLINE,
   river: RIVER_SPLINE,
   riverMouth: RIVER_MOUTH,
-  routes: WORLD_ROUTE_NETWORK
+  routes: WORLD_ROUTE_NETWORK,
+  architecturePads: WORLD_ARCHITECTURE_PADS
 };
 
 function clamp01(value: number): number {
@@ -702,6 +813,8 @@ interface RouteProjection {
   segmentIndex: number;
   distanceAlongRoute: number;
 }
+
+let cachedRouteQuery: { x: number; z: number; result: RouteProjection } | null = null;
 
 export function pointSegmentProjection(
   x: number,
@@ -1045,7 +1158,7 @@ export class WorldLayout {
     height = this.applyPlateau(height, x, z, 1.2, -65, -55, 17, 13.5, 9);
     height = this.applyPlateau(height, x, z, 1.16, -57, -53.5, 7.5, 7.0, 6.5);
     height = this.applyPlateau(height, x, z, 2.05, RIVER_CROSSING.x, RIVER_CROSSING.z, 5.5, 5.0, 6.5);
-    height = this.applyPlateau(height, x, z, 6.4, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z, 18, 16, 11);
+    height = this.applyPlateau(height, x, z, 6.4, VILLAGE_PLAZA.x, VILLAGE_PLAZA.z, 18, 16, 11);
     height = this.applyPlateau(height, x, z, 6.3, 60, -60, 9, 8, 8);
     height = this.applyPlateau(height, x, z, 6.5, STARTER_MILL_WORLD.x, STARTER_MILL_WORLD.z, 7.2, 7.2, 6.5);
     height = this.applyPlateau(height, x, z, 1.05, 68, 64, 7.5, 5.5, 5.5);
@@ -1175,6 +1288,9 @@ export class WorldLayout {
   }
 
   private static nearestRouteDistance(x: number, z: number): RouteProjection {
+    if (cachedRouteQuery && cachedRouteQuery.x === x && cachedRouteQuery.z === z) {
+      return cachedRouteQuery.result;
+    }
     const routes = COMPILED_WORLD_ROUTES;
     let bestDistance = Number.POSITIVE_INFINITY;
     let bestProjection: RouteProjection = {
@@ -1239,6 +1355,7 @@ export class WorldLayout {
       }
     }
 
+    cachedRouteQuery = { x, z, result: bestProjection };
     return bestProjection;
   }
 
@@ -1293,14 +1410,9 @@ export class WorldLayout {
     const route = this.nearestRouteDistance(x, z);
     const dryRoute = waterDistance < -0.2 ? 1 : 0;
 
-    // Village marketplace plaza on the northeast hub
-    // Moderate terrain tint — provides a warm buffer zone so the overlay ribbon edges blend in
-    const distToVillageMarket = Math.hypot(x - VILLAGE_MARKET.position.x, z - VILLAGE_MARKET.position.z);
-    const villagePlaza = (1 - smoothstep(7.0, 16.0, distToVillageMarket)) * dryRoute * 0.48;
-
-    // Terrain-level path warmth uses the same compiled centerline and width as
-    // the visible ribbon. A second, unrelated width wobble makes the road edge
-    // drift away from the actual mesh and creates the broken-looking shoulders.
+    // Terrain-level path warmth uses the same compiled centerline, width, and
+    // junction envelope as the visible ribbon. A second village-wide dirt
+    // wash made meadow triangles read as road.
     const junction = routeJunctionInfluence(x, z) * dryRoute;
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
     const packedCore = (1 - smoothstep(
@@ -1313,12 +1425,11 @@ export class WorldLayout {
       route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
       route.distance
     )) * dryRoute;
-    const path = Math.max(packedCore * 0.5, villagePlaza, junction * 0.5);
+    const path = Math.max(packedCore, junction * 0.72);
     const shoulder = Math.max(
       0,
-      shoulderOuter - packedCore * 0.62,
-      villagePlaza * 0.4,
-      junction * 0.3
+      shoulderOuter - packedCore * 0.72,
+      junction * 0.22
     ) * 0.52;
     const farm = this.farmSoilInfluence(x, z);
     const wet = this.shorelineWetness(x, z);
@@ -1380,7 +1491,7 @@ export class WorldLayout {
     const layouts: Record<LandmarkId, Omit<LandmarkLayout, "id">> = {
       farmhouse: { x: farmhouse.x, z: farmhouse.z, yOffset: 0, rotationY: farmhouse.rotationY, scale: farmhouse.scale },
       well: { x: well.x, z: well.z, yOffset: 0, rotationY: well.rotationY, scale: well.scale },
-      bridge: { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: 0.1, rotationY: 0, scale: 1 },
+      bridge: { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: 0.35, rotationY: 0, scale: 1 },
       "fish-market": {
         x: HARBOR_MARKET.position.x,
         z: HARBOR_MARKET.position.z,
@@ -1403,7 +1514,7 @@ export class WorldLayout {
         rotationY: VILLAGE_MARKET.rotationY,
         scale: 1
       },
-      dock: { x: 78, z: 67, yOffset: -0.65, rotationY: Math.PI / 2, scale: 1 }
+      dock: { x: 78, z: 67.3, yOffset: -0.65, rotationY: Math.PI / 2, scale: 1 }
     };
     return { id, ...layouts[id] };
   }
@@ -1474,6 +1585,7 @@ export class WorldLayout {
     const indexedNormals = indexed.getAttribute("normal") as THREE.BufferAttribute;
     const indexedColors = new Float32Array(indexedPositions.count * 3);
     const indexedTerrainGreenMask = new Uint8Array(indexedPositions.count);
+    const indexedTerrainPathBlend = new Float32Array(indexedPositions.count);
     const indexedFaceting = new Float32Array(indexedPositions.count);
     const palette: Record<keyof TerrainSurfaceWeights, THREE.Color> = {
       grass: this.tokenColor("foliage_sage_01"),
@@ -1496,20 +1608,31 @@ export class WorldLayout {
       const normalY = Math.abs(indexedNormals.getY(index));
       const normalZ = indexedNormals.getZ(index);
       const weights = this.terrainSurfaceWeights(x, z, normalY);
+      const routeUnderlayWeight = weights.path + weights.shoulder;
       const protectedSurfaceWeight =
         weights.drySoil
         + weights.dampSoil
-        + weights.path
-        + weights.shoulder
         + weights.beach
         + weights.riverbed
         + weights.wetShoreline
         + weights.cliff;
       const greenMask = protectedSurfaceWeight > 0.0001
         ? 0
-        : Math.round(clamp01(weights.grass + weights.meadow) * 255);
+        : Math.round(clamp01(weights.grass + weights.meadow + routeUnderlayWeight) * 255);
+      // The precise 17-strip route ribbon owns visible worked ground. Keep its
+      // coarse terrain-grid underlay green so interpolated path vertices cannot
+      // produce a second several-metre brown halo outside the ribbon edge.
+      const grassShare = weights.grass + weights.meadow;
+      const grassBoost = grassShare > 1e-5 ? weights.grass / grassShare : 0.72;
+      const visualWeights: TerrainSurfaceWeights = {
+        ...weights,
+        path: 0,
+        shoulder: 0,
+        grass: weights.grass + routeUnderlayWeight * grassBoost,
+        meadow: weights.meadow + routeUnderlayWeight * (1 - grassBoost)
+      };
       const color = new THREE.Color(0, 0, 0);
-      for (const [key, weight] of Object.entries(weights) as Array<[keyof TerrainSurfaceWeights, number]>) {
+      for (const [key, weight] of Object.entries(visualWeights) as Array<[keyof TerrainSurfaceWeights, number]>) {
         color.r += palette[key].r * weight;
         color.g += palette[key].g * weight;
         color.b += palette[key].b * weight;
@@ -1527,6 +1650,7 @@ export class WorldLayout {
       color.multiplyScalar(facetVariation);
       indexedColors.set([color.r, color.g, color.b], index * 3);
       indexedTerrainGreenMask[index] = greenMask;
+      indexedTerrainPathBlend[index] = clamp01(this.pathInfluence(x, z));
       const slopeFaceting = 1 - smoothstep(
         normalPolicy.fullyFacetedNormalY,
         normalPolicy.continuityStartNormalY,
@@ -1544,6 +1668,10 @@ export class WorldLayout {
     indexed.setAttribute(
       "terrainGreenMask",
       new THREE.Uint8BufferAttribute(indexedTerrainGreenMask, 1, true)
+    );
+    indexed.setAttribute(
+      "terrainPathBlend",
+      new THREE.BufferAttribute(indexedTerrainPathBlend, 1)
     );
     indexed.setAttribute("terrainFaceting", new THREE.BufferAttribute(indexedFaceting, 1));
 

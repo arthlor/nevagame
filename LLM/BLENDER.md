@@ -30,6 +30,7 @@ Add the owning full authorities:
 - new generator/family/shared helper: Art Bible + `LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md`;
 - renderer/material/lighting/water: `01`, Art Bible, and Art Pipeline;
 - gameplay contract or persistence: `01` + `02` and the owning gameplay/runtime files;
+- story-relevant zone, character, landmark, or prop design/integration: `02` narrative contract + `04` environmental-storytelling section; routine generation-only prompts keep the lean asset route and leave `02`/ArcheAge unread;
 - release/gold slice: `01`, `02`, Art Bible, Art Pipeline, Roadmap, this file, README, and relevant machine contracts.
 
 Conflict priority remains: human instruction → `01` → `02` → Art Bible → Art Pipeline → this file → machine owner for its fields → Roadmap → implementation → assumption.
@@ -42,7 +43,7 @@ Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obe
 
 **Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator (not polyfork for unique silhouettes or isolated sheets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB.
 
-Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. Catalog IDs win if that README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
+Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. `art/references/neva-ui-hud-on-foot.png` is the scoped gameplay-distance graphics benchmark for starter-farm terrain, worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting; it never authorizes copying camera, UI, layout, depth of field, tilt-shift, or composition. Catalog IDs win if a reference README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
 
 Sculpt in passes without screenshot/SSIM gates: blockout (primary masses and negative space vs the isolated sheet) → structure (masonry, timber, shingles, openings) → sparse tertiary readable at 8 m → palette + vertex value on the existing `COLOR_0` path. Human revision remains `asset ID + observed miss + desired change`.
 
@@ -61,6 +62,9 @@ selected catalog entry
 ```
 
 Commands always require an explicit selector. A bare generation command must fail rather than regenerate the full catalog.
+`art:brief` is reference-guided only: it accepts selected assets/families whose
+catalog entries contain `referenceAuthoring` and rejects `--all` (or a mixed
+selection) before emitting a partial brief.
 
 ```bash
 # Only when the selected referenceAuthoring brief changed
@@ -127,13 +131,41 @@ npm run art:determinism -- --family architecture
 npm run art:generate -- --family architecture
 ```
 
-## Release or gold-slice gate
+## P0.75 visual-gold gate
+
+The visual-gold gate refreshes provenance for the existing published GLBs,
+validates the current catalog/manifest contract, and runs the gameplay-camera
+benchmark. It does not regenerate or reauthor assets; per-asset triangle target
+floors are advisory in this lane, while production minimums, hard maximums,
+materials, nodes, palette, and runtime validation remain enforced.
+
+```bash
+npm run art:sync -- --all
+npm run art:validate -- --all
+npm run art:benchmark
+```
+
+The benchmark must have no browser errors, no more than 220 draw calls, and no
+more than 900,000 visible triangles per measured scene. It runs against the
+Vite DEV server; layout-editor picking intentionally keeps static prefabs
+unmerged and omits the baked static-shadow proxy. Therefore DEV measurements
+are diagnostic rather than production-equivalent proof, and a current
+over-budget DEV result must remain visible instead of being addressed by
+relaxing `tools/blender/asset_budgets.json`.
+
+## Technical-art certification or release gate
 
 ```bash
 npm run art:generate:strict -- --all
 npm run art:validate -- --all
+npm run art:determinism -- --all
 npm run art:benchmark
 ```
+
+`art:generate:strict` and determinism retain their existing semantics. They are
+separate technical-art/release gates and remain open after visual-gold approval
+until clean-source generation, determinism, and the certified render-budget
+path are repaired.
 
 Release screenshots are evidence artifacts. Do not spend AI tokens reviewing or iterating on them unless the human explicitly requests visual analysis.
 
@@ -152,6 +184,11 @@ Release screenshots are evidence artifacts. Do not spend AI tokens reviewing or 
 
 Same catalog seed + parameters + generator code must reproduce the same semantic asset. Use seeded bounded variation; never uncontrolled RGB, random material assignment, or `Math.random()`-style nondeterminism.
 
+`art:validate` checks the catalog schema, generator-parameter contracts,
+LOD/animation/reference contracts, and published GLB metrics. It does not run
+family generators or prove authored geometry semantics beyond the exported
+artifact contract.
+
 ---
 
 # 4. Reference-Guided Assets
@@ -164,7 +201,7 @@ Same catalog seed + parameters + generator code must reproduce the same semantic
 - Read or emit only the selected asset's brief; do not load unrelated briefs.
 - The required views describe what the human can inspect through Art Yard/game controls. They do not require static renders or agent screenshot capture.
 - `ready` means the brief is structurally complete, not visually approved. Missing `repo://` files fail closed.
-- Isolated studio sheets under `tools/blender/references/isolated/` may inform that one asset’s silhouette, proportions, component counts, and construction language. Diorama stills remain graphics-only.
+- Isolated studio sheets under `tools/blender/references/isolated/` may inform that one asset’s silhouette, proportions, component counts, and construction language. Diorama stills remain graphics-only. `art/references/neva-ui-hud-on-foot.png` may guide the cataloged environment assets named by the Art Bible benchmark lock, but each image-guided asset still requires its own closed `referenceAuthoring` brief and parameter bindings.
 - Pass order for sheet-guided work: blockout → structure → sparse tertiary → palette. Agents do not add daily screenshot or SSIM gates.
 - Human revision remains `asset ID + observed miss + desired change`.
 
@@ -179,6 +216,7 @@ Same catalog seed + parameters + generator code must reproduce the same semantic
 - Orbit, distance/LOD, wireframe, bounds, collision, animation, lighting, weather, ground, and water controls remain diagnostics for the human.
 - The normal game is the final visual judge. Integrate the catalog ID through the existing loader/placement/batching path; do not create a direct loader or local asset registry.
 - Compatible repeated static assets use the existing batching/instancing path. Do not fold skinned, morph-target, dynamic, or LOD descendants into static batching.
+- For a story-relevant asset or zone, the integrated review also checks that its practical role and relationship to the current quest beat read at gameplay distance. This is visual/environmental evidence only; quest progression remains owned by simulation/content code.
 
 Mechanical success permits the agent to say `generated`, `validated`, `published`, and `integrated` only when those gates passed. It does not permit `visually approved`, `final`, or `production-ready` before human game review.
 
@@ -236,6 +274,7 @@ Integration: <game/runtime location>
 Mechanical generation: passed/failed
 Runtime TypeScript check: passed/not required/failed
 Save impact: no (unless explicitly changed)
+Narrative role: <none or concise practical/story function>
 Visual status: Awaiting human game review
 ```
 

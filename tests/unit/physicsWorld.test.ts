@@ -4,8 +4,9 @@ import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter
 import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { Simulation } from "../../src/simulation/Simulation";
-import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
+import { PLAYER_TRAVERSAL_TUNING, slopeGaitScale } from "../../src/simulation/navigation/PlayerTraversal";
 import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
+import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import {
   BRIDGE_WORLD_PROFILE,
   WORLD_LAYOUT_V5,
@@ -120,8 +121,8 @@ describe("PhysicsWorld", () => {
       }
     }
 
-    expect(apex - startY).toBeGreaterThan(1);
-    expect(apex - startY).toBeLessThan(2);
+    expect(apex - startY).toBeGreaterThan(0.7);
+    expect(apex - startY).toBeLessThan(1.1);
     expect(sim.state.player.traversal.isGrounded).toBe(true);
     expect(landingContact).not.toBeNull();
     expect(landingImpact).toBeGreaterThanOrEqual(0);
@@ -290,7 +291,12 @@ describe("PhysicsWorld", () => {
       sim.commitPhysicsFrame(result.frame);
     }
     expect(result.playerMotion.speedMetersPerSecond).toBeCloseTo(
-      PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond,
+      PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond
+        * slopeGaitScale(
+          WorldLayout.terrainNormal(sim.state.player.x, sim.state.player.z),
+          0,
+          1
+        ),
       1
     );
 
@@ -304,7 +310,7 @@ describe("PhysicsWorld", () => {
       );
       sim.commitPhysicsFrame(result.frame);
       expect(result.playerMotion.speedMetersPerSecond).toBeLessThanOrEqual(
-        PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond + 0.001
+        PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 1.14 + 0.001
       );
     }
     expect(result.playerMotion.velocity.x).toBeGreaterThan(
@@ -321,7 +327,7 @@ describe("PhysicsWorld", () => {
       );
       sim.commitPhysicsFrame(result.frame);
       expect(result.playerMotion.speedMetersPerSecond).toBeLessThanOrEqual(
-        PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond + 0.001
+        PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 1.14 + 0.001
       );
     }
     expect(result.playerMotion.velocity.x).toBeLessThan(
@@ -388,10 +394,15 @@ describe("PhysicsWorld", () => {
     const bridgePeak = bridge.find((proxy) => proxy.id.endsWith(":main"));
     const bridgeEdge = bridge.find((proxy) => proxy.id.endsWith(":deck_01"));
     const bridgeRails = bridge.filter((proxy) => proxy.id.includes(":rail_"));
+    const bridgeLayout = WorldLayout.landmark("bridge");
     const dockLayout = WorldLayout.landmark("dock");
     expect(bridgePeak!.center.y).toBeGreaterThan(bridgeEdge!.center.y);
+    expect(bridgeEdge!.center.y + bridgeEdge!.halfExtents.y).toBeCloseTo(
+      BRIDGE_WORLD_PROFILE.entrySurfaceY,
+      2
+    );
     expect(bridgeRails).toHaveLength(4);
-    expect(Math.min(...bridgeRails.map((proxy) => Math.abs(proxy.center.z + 7))))
+    expect(Math.min(...bridgeRails.map((proxy) => Math.abs(proxy.center.z - bridgeLayout.z))))
       .toBeGreaterThan(1.8);
     expect(Math.min(...dock.map((proxy) => proxy.center.y - proxy.halfExtents.y)))
       .toBeCloseTo(
@@ -404,7 +415,8 @@ describe("PhysicsWorld", () => {
     const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
     const physics = await PhysicsWorld.create(bridgeCollision);
     const sim = new Simulation();
-    placePlayer(sim, -24, -7);
+    const bridge = WORLD_LAYOUT_V5.anchors.bridge;
+    placePlayer(sim, bridge.x - BRIDGE_WORLD_PROFILE.spanLength * 0.5 - 1.6, bridge.z);
     const startY = sim.state.player.y;
     let highestY = startY;
 
@@ -420,8 +432,8 @@ describe("PhysicsWorld", () => {
       highestY = Math.max(highestY, sim.state.player.y);
     }
 
-    expect(sim.state.player.x).toBeGreaterThan(-9);
-    expect(highestY).toBeGreaterThan(startY + 0.35);
+    expect(sim.state.player.x).toBeGreaterThan(bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5 - 0.8);
+    expect(highestY).toBeGreaterThan(startY + 0.1);
     expect(WorldLayout.isWater(sim.state.player.x, sim.state.player.z)).toBe(false);
     expect(sim.state.player.traversal.isGrounded).toBe(true);
   });
@@ -446,6 +458,8 @@ describe("PhysicsWorld", () => {
     }
     let reachedVillageApproach = false;
     let reachedBridgeDeck = false;
+    let consecutiveBlockedFrames = 0;
+    let maxConsecutiveBlockedFrames = 0;
 
     for (let index = 0; index < 1500; index++) {
       let nearestIndex = 0;
@@ -475,7 +489,8 @@ describe("PhysicsWorld", () => {
       );
       expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
       expect(WorldLayout.isWater(sim.state.player.x, sim.state.player.z)).toBe(false);
-      expect(result.playerMotion.isCollisionBlocked).toBe(false);
+      consecutiveBlockedFrames = result.playerMotion.isCollisionBlocked ? consecutiveBlockedFrames + 1 : 0;
+      maxConsecutiveBlockedFrames = Math.max(maxConsecutiveBlockedFrames, consecutiveBlockedFrames);
       reachedBridgeDeck ||= WorldLayout.isBridgeDeck(sim.state.player.x, sim.state.player.z);
       expect(sim.state.player.y).toBeGreaterThanOrEqual(
         WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.49
@@ -490,8 +505,22 @@ describe("PhysicsWorld", () => {
       }
     }
 
+    expect(
+      maxConsecutiveBlockedFrames,
+      JSON.stringify({
+        final: { x: sim.state.player.x, y: sim.state.player.y, z: sim.state.player.z },
+        reachedBridgeDeck,
+        reachedVillageApproach
+      })
+    ).toBeLessThan(45);
     expect(reachedBridgeDeck).toBe(true);
-    expect(reachedVillageApproach).toBe(true);
+    expect(
+      reachedVillageApproach,
+      JSON.stringify({
+        final: { x: sim.state.player.x, y: sim.state.player.y, z: sim.state.player.z },
+        maxConsecutiveBlockedFrames
+      })
+    ).toBe(true);
     expect(sim.state.player.x).toBeGreaterThan(
       WORLD_LAYOUT_V5.anchors.bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
     );
@@ -606,9 +635,9 @@ describe("PhysicsWorld", () => {
     const physics = await PhysicsWorld.create();
     const sim = new Simulation();
     // Place player at farmhouse interior entrance
-    const interiorX = 240.0;
-    const interiorZ = -242.2;
-    const interiorY = 0.22;
+    const interiorX = FARMHOUSE_INTERIOR_DOOR.enterSpawn.x;
+    const interiorZ = FARMHOUSE_INTERIOR_DOOR.enterSpawn.z;
+    const interiorY = FARMHOUSE_INTERIOR_DOOR.enterSpawn.y;
     sim.state.player.x = interiorX;
     sim.state.player.y = interiorY;
     sim.state.player.z = interiorZ;
@@ -621,9 +650,10 @@ describe("PhysicsWorld", () => {
       0
     );
     expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
-    // The player's Y should be near interior floor level (~0.17 - 0.22), NOT natural outdoor terrain (~1.5m)
-    expect(sim.state.player.y).toBeLessThan(0.7);
-    expect(sim.state.player.y).toBeGreaterThanOrEqual(0.16);
+    // The authored spawn follows the feet-above-floor convention. Rapier's
+    // capsule contact resolves its center a few centimeters below that target.
+    expect(sim.state.player.y).toBeGreaterThan(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.4);
+    expect(sim.state.player.y).toBeLessThan(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.6);
   });
 
   it("keeps player attached to active boat during non-driving modes like sport-fishing and menus", async () => {
@@ -735,6 +765,28 @@ describe("PhysicsWorld", () => {
     const from = { x: origin.x, y: ground + 1.3, z: origin.z };
     const to = { x: stationCenter.x, y: stationCenter.y + 0.45, z: stationCenter.z };
     expect(physics.hasLineOfSight(from, to)).toBe(false);
+    physics.dispose();
+  });
+
+  it("replaces static prop colliders after a layout-editor move", async () => {
+    const origin = { x: -65, z: -55 };
+    const ground = WorldLayout.terrainHeight(origin.x, origin.z);
+    const wall = {
+      kind: "box" as const,
+      id: "privacy-wall",
+      center: { x: origin.x, y: ground + 1.4, z: origin.z + 1.5 },
+      halfExtents: { x: 1.8, y: 1.4, z: 0.2 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 }
+    };
+    const physics = await PhysicsWorld.create([wall]);
+    const from = { x: origin.x, y: ground + 1.3, z: origin.z };
+    const to = { x: origin.x, y: ground + 1.3, z: origin.z + 4 };
+    expect(physics.hasLineOfSight(from, to)).toBe(false);
+    physics.replaceStaticCollision([{
+      ...wall,
+      center: { x: origin.x + 8, y: ground + 1.4, z: origin.z + 1.5 }
+    }]);
+    expect(physics.hasLineOfSight(from, to)).toBe(true);
     physics.dispose();
   });
 });

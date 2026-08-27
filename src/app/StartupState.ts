@@ -3,7 +3,7 @@ import type { SaveSummary } from "../persistence/IndexedDbSaveRepository";
 export type StartupStatus = "title" | "loading" | "error" | "revealing" | "ready";
 
 export type StartupPhase = "waiting" | "save" | "assets" | "world" | "physics" | "complete";
-export type StartupSaveStatus = "checking" | "available" | "empty" | "corrupt" | "unavailable";
+export type StartupSaveStatus = "checking" | "available" | "empty" | "corrupt" | "incompatible" | "unavailable";
 
 export interface StartupState {
   status: StartupStatus;

@@ -107,6 +107,7 @@ export class InputRouter {
   private interruptionListeners: InterruptionCallback[] = [];
   private currentMode: GameMode = "on-foot";
   private worldInputSuspended = false;
+  private layoutEditorActive = false;
   private readonly pointerNdc = { x: 0, y: 0 };
   private orbitPointer: {
     id: number;
@@ -117,6 +118,8 @@ export class InputRouter {
     lastY: number;
     dragged: boolean;
   } | null = null;
+  private layoutPointer: { id: number; target: HTMLElement } | null = null;
+  private pendingLayoutPickNdc: { x: number; y: number } | null = null;
   private orbitDeltaX = 0;
   private orbitDeltaY = 0;
   private zoomDelta = 0;
@@ -147,6 +150,25 @@ export class InputRouter {
     if (suspended === this.worldInputSuspended) return;
     this.worldInputSuspended = suspended;
     if (suspended) this.interrupt();
+  }
+
+  public setLayoutEditorActive(active: boolean): void {
+    this.layoutEditorActive = active;
+    if (!active) {
+      this.pendingLayoutPickNdc = null;
+      this.releaseLayoutPointer();
+    }
+  }
+
+  /** Layout-editor clicks are consumed once so a tap between frames is not lost. */
+  public consumeLayoutPrimaryPress(): { x: number; y: number } | null {
+    const pending = this.pendingLayoutPickNdc;
+    this.pendingLayoutPickNdc = null;
+    return pending;
+  }
+
+  public isHeld(code: string): boolean {
+    return this.heldInput.values.has(code);
   }
 
   public onAction(callback: ActionCallback): () => void {
@@ -221,15 +243,35 @@ export class InputRouter {
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
+    // Modal focus managers may consume Escape during capture. Do not let the
+    // global router pop a second overlay in the same key event.
+    if (event.code === "Escape" && event.defaultPrevented) return;
     const isTyping = this.isTypingTarget(event.target);
     if (isTyping && event.code !== "Escape") return;
+    if (
+      this.layoutEditorActive
+      && (event.metaKey || event.ctrlKey)
+      && (event.code === "KeyC" || event.code === "KeyV" || event.code === "KeyD")
+    ) {
+      event.preventDefault();
+      return;
+    }
+    if (this.layoutEditorActive && (event.code === "Delete" || event.code === "Backspace")) {
+      event.preventDefault();
+      return;
+    }
     if (!isTyping && GAME_KEY_CODES.has(event.code)) event.preventDefault();
+    if (!isTyping && this.layoutEditorActive && (event.code === "KeyQ" || event.code === "KeyE")) {
+      event.preventDefault();
+    }
     if (event.repeat) return;
 
     if (!this.worldInputSuspended || event.code === "Escape") this.heldInput.press(event.code);
     switch (event.code) {
       case "KeyE":
-        if (!this.worldInputSuspended && this.currentMode !== "sport-fishing") this.dispatch("interact");
+        if (!this.worldInputSuspended && !this.layoutEditorActive && this.currentMode !== "sport-fishing") {
+          this.dispatch("interact");
+        }
         break;
       case "KeyI": this.dispatch("open-inventory"); break;
       case "KeyJ": this.dispatch("open-journal"); break;
@@ -279,7 +321,13 @@ export class InputRouter {
     this.updatePointerNdc(event, event.target);
     if (event.button === 0) {
       this.heldInput.press("Mouse0");
-      this.dispatch(this.currentMode === "sport-fishing" ? "fish-reel" : "use-primary");
+      if (this.layoutEditorActive) {
+        this.pendingLayoutPickNdc = { x: this.pointerNdc.x, y: this.pointerNdc.y };
+        this.layoutPointer = { id: event.pointerId, target: event.target };
+        event.target.setPointerCapture?.(event.pointerId);
+      } else {
+        this.dispatch(this.currentMode === "sport-fishing" ? "fish-reel" : "use-primary");
+      }
       return;
     }
     if (event.button !== 2) return;
@@ -304,7 +352,9 @@ export class InputRouter {
   private onPointerMove = (event: PointerEvent): void => {
     const pointerTarget = this.orbitPointer?.id === event.pointerId
       ? this.orbitPointer.target
-      : this.isCanvasTarget(event.target) ? event.target : null;
+      : this.layoutPointer?.id === event.pointerId
+        ? this.layoutPointer.target
+        : this.isCanvasTarget(event.target) ? event.target : null;
     if (pointerTarget) this.updatePointerNdc(event, pointerTarget);
     const orbit = this.orbitPointer;
     if (!orbit || orbit.id !== event.pointerId || this.worldInputSuspended) return;
@@ -322,22 +372,30 @@ export class InputRouter {
   };
 
   private onPointerUp = (event: PointerEvent): void => {
-    if (event.button === 0) this.heldInput.release("Mouse0");
+    if (event.button === 0) {
+      this.heldInput.release("Mouse0");
+      if (this.layoutPointer?.id === event.pointerId) this.releaseLayoutPointer();
+    }
     if (event.button !== 2) return;
     this.heldInput.release("Mouse2");
     const orbit = this.orbitPointer;
     if (!orbit || orbit.id !== event.pointerId) return;
-    if (!orbit.dragged && !this.worldInputSuspended) this.dispatch("use-secondary");
+    if (!orbit.dragged && !this.worldInputSuspended && !this.layoutEditorActive) this.dispatch("use-secondary");
     this.releaseOrbitPointer();
   };
 
   private onPointerCancel = (event: PointerEvent): void => {
     this.heldInput.release("Mouse0");
     this.heldInput.release("Mouse2");
+    if (this.layoutPointer?.id === event.pointerId) this.releaseLayoutPointer();
     if (this.orbitPointer?.id === event.pointerId) this.releaseOrbitPointer();
   };
 
   private onLostPointerCapture = (event: PointerEvent): void => {
+    if (this.layoutPointer?.id === event.pointerId) {
+      this.heldInput.release("Mouse0");
+      this.layoutPointer = null;
+    }
     if (this.orbitPointer?.id !== event.pointerId) return;
     this.heldInput.release("Mouse2");
     this.orbitPointer = null;
@@ -368,6 +426,17 @@ export class InputRouter {
     if (document.hidden) this.interrupt();
   };
 
+  private releaseLayoutPointer(): void {
+    const pointer = this.layoutPointer;
+    this.layoutPointer = null;
+    if (!pointer) return;
+    try {
+      if (pointer.target.hasPointerCapture?.(pointer.id)) pointer.target.releasePointerCapture?.(pointer.id);
+    } catch {
+      // The browser may already have released capture during blur or element removal.
+    }
+  }
+
   private releaseOrbitPointer(): void {
     const orbit = this.orbitPointer;
     this.orbitPointer = null;
@@ -385,6 +454,8 @@ export class InputRouter {
     this.orbitDeltaY = 0;
     this.zoomDelta = 0;
     this.jumpQueued = false;
+    this.pendingLayoutPickNdc = null;
+    this.releaseLayoutPointer();
     this.releaseOrbitPointer();
   }
 

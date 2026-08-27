@@ -116,8 +116,8 @@ describe("processing station front approach", () => {
   it("keeps the workbench collider in runtime Y-up axes", () => {
     const [primitive] = collisionPrimitivesForAsset(ASSET_IDS.PROP_FARM_WORKBENCH_A);
     expect(primitive).toMatchObject({
-      center: [0, 0.8, 0],
-      halfExtents: [1.05, 0.8, 0.48]
+      center: [0, 0, 0.8],
+      halfExtents: [1.05, 0.48, 0.8]
     });
   });
 

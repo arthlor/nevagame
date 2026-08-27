@@ -11,6 +11,9 @@ Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Obey root `AGE
 
 Every catalog command requires `--asset`, `--family`, or explicit release
 `--all`. A bare command fails instead of silently selecting all assets.
+`art:brief` is reference-guided only: it accepts selected assets/families whose
+catalog entries contain `referenceAuthoring` and rejects `--all` (or a mixed
+selection) before emitting a partial brief.
 
 ```bash
 # Only when an image/study-guided referenceAuthoring brief changed
@@ -40,14 +43,31 @@ npm run art:test-builders
 npm run art:determinism -- --family architecture
 npm run art:generate -- --family architecture
 
-# Release or gold slice
+# P0.75 visual-gold gate (existing published GLBs; no reauthoring)
+npm run art:sync -- --all
+npm run art:validate -- --all
+npm run art:benchmark
+
+# Technical-art certification or release
 npm run art:generate:strict -- --all
 npm run art:validate -- --all
+npm run art:determinism -- --all
 npm run art:benchmark
 ```
 
-`art:benchmark:extended` remains an explicit release diagnostic. Agents do not
-inspect generated images unless the human requests visual analysis.
+The visual-gold benchmark enforces no browser errors, ≤220 draw calls, and
+≤900,000 visible triangles per scene. Its lower triangle target floor is
+advisory. `art:generate:strict` and determinism retain their existing
+semantics and remain separate technical-art/release gates. `art:benchmark:extended`
+remains an explicit release diagnostic. Agents do not inspect generated images
+unless the human requests visual analysis.
+
+The benchmark uses the Vite DEV server. DEV layout-editor picking intentionally
+keeps static prefabs unmerged and omits the baked static-shadow proxy, so its
+draw/triangle measurements are diagnostic and not production-equivalent proof.
+Do not relax `tools/blender/asset_budgets.json` to accommodate that path; record
+the result as an open technical render gate until a certified measurement path
+exists.
 
 ## What generation preserves
 
@@ -75,6 +95,11 @@ An image/study-guided asset must keep its closed `referenceAuthoring` object in
 the selected catalog entry. `art:brief` validates sources, hierarchy, feature and
 parameter bindings, hidden-surface confidence, failure modes, and requested
 views. Run it when the brief changes; do not read or print unrelated briefs.
+
+`art:validate` validates the catalog schema, generator-parameter contracts,
+LOD/animation/reference contracts, and published GLB metrics. It does not run
+family generators or establish that a generator's authored geometry is
+semantically correct beyond the exported artifact contract.
 
 Requested views are available through Art Yard/game diagnostics and do not
 require static render files. `ready` means brief completeness, not visual

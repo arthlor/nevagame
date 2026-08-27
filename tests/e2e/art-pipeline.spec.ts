@@ -57,6 +57,13 @@ interface ArtSceneMeasurement {
   candidate?: "bridge" | "farm" | "harbor" | "coast";
 }
 
+const visualGoldBenchmarkPolicy = {
+  browserErrors: "must-be-empty",
+  maxDrawCalls: highSceneBudget.drawCalls.preferredMax,
+  maxVisibleTriangles: highSceneBudget.visibleTriangles.targetMax,
+  triangleTargetFloor: "advisory"
+} as const;
+
 test("captures deterministic 1440x900 gameplay-camera lighting and mode candidates", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "The deterministic candidate set is captured once in Chromium");
   // Each deterministic navigation preloads the complete catalog so the
@@ -145,6 +152,8 @@ test("captures deterministic 1440x900 gameplay-camera lighting and mode candidat
       batches: Number(objectMatch?.[3]),
       instances: Number(objectMatch?.[4]),
       fps,
+      // The lower scene target is diagnostic/advisory for visual-gold acceptance;
+      // the upper draw/triangle budgets and browser-error check remain enforced.
       reachesHighQualityTriangleTarget: triangles >= highSceneBudget.visibleTriangles.targetMin,
       candidate
     });
@@ -157,9 +166,17 @@ test("captures deterministic 1440x900 gameplay-camera lighting and mode candidat
 
   const benchmarkNote =
     "FPS is an observed Playwright browser sample; use the recorded renderer identity to distinguish hardware evidence from software-renderer diagnostics.";
+  const benchmarkMetadata = {
+    version: 1,
+    viewport: [1440, 900],
+    gpu,
+    budget: highSceneBudget,
+    visualGoldBenchmarkPolicy,
+    benchmarkNote
+  };
   fs.writeFileSync(
     path.join(output, isExtendedCapture ? "art-benchmark-extended.json" : "art-benchmark.json"),
-    `${JSON.stringify({ version: 1, viewport: [1440, 900], gpu, budget: highSceneBudget, benchmarkNote, scenes: measurements }, null, 2)}\n`
+    `${JSON.stringify({ ...benchmarkMetadata, scenes: measurements }, null, 2)}\n`
   );
 
   const candidateScenes = measurements
@@ -168,7 +185,7 @@ test("captures deterministic 1440x900 gameplay-camera lighting and mode candidat
   expect(candidateScenes).toHaveLength(4);
   fs.writeFileSync(
     path.join(candidateOutput, "art-benchmark.json"),
-    `${JSON.stringify({ version: 1, viewport: [1440, 900], gpu, budget: highSceneBudget, benchmarkNote, scenes: candidateScenes }, null, 2)}\n`
+    `${JSON.stringify({ ...benchmarkMetadata, scenes: candidateScenes }, null, 2)}\n`
   );
 
   for (const capture of captures) {

@@ -2,10 +2,13 @@
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
 import { GameState } from "../simulation/core/types";
+import { ContentRegistry } from "../content/ContentRegistry";
 import { STARTER_STRUCTURE_IDS, starterStructureAnchor } from "../world/FarmLayout";
-import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_FISH_TABLE } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
+import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
+import { DEFAULT_MINUTES_PER_REAL_SECOND } from "../simulation/core/GameClock";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -15,6 +18,8 @@ const CURRENT_STARTER_FARM = { x: -65, z: -55 } as const;
 const CURRENT_HOMESTEAD = { x: 60, z: -60 } as const;
 /** Layout revision 5 mill pad, west of the packed plaza. Frozen for the v13 hop. */
 const LAYOUT_5_MILL = { x: 46, z: -58 } as const;
+/** Layout revision 6 mill pad, southwest of the packed plaza. Frozen for the v14 hop. */
+const LAYOUT_6_MILL = { x: 36, z: -76 } as const;
 
 function finite(value: unknown, fallback: number = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -45,11 +50,22 @@ function countEmptyFishCargoCapacity(
   for (const boatId of migrationBoatIds(player, boats)) {
     const boat = boats[boatId];
     const slots = Array.isArray(boat.fishCargoSlotIds) ? boat.fishCargoSlotIds : [];
-    for (const slotId of slots) {
-      if (slotId == null || slotId === "") empty += 1;
+    for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
+      if (isTroutMigrationSlot(boat, slotIndex) && (slots[slotIndex] == null || slots[slotIndex] === "")) {
+        empty += 1;
+      }
     }
   }
   return empty;
+}
+
+function isTroutMigrationSlot(boat: Record<string, unknown>, slotIndex: number): boolean {
+  const boatTypeId = typeof boat.boatTypeId === "string" ? boat.boatTypeId : null;
+  const definition = boatTypeId ? ContentRegistry.boats.get(boatTypeId) : undefined;
+  if (!definition) return true;
+  const slot = definition.fishCargoSlots.find((candidate) => candidate.slotIndex === slotIndex)
+    ?? definition.fishCargoSlots[slotIndex];
+  return Boolean(slot && slot.type === "hold" && cargoClassFits("small", slot.maxCargoClass));
 }
 
 /**
@@ -417,7 +433,9 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       for (const boatId of migrationBoatIds(player, boats)) {
         const boat = boats[boatId];
         const slots = Array.isArray(boat.fishCargoSlotIds) ? boat.fishCargoSlotIds : [];
-        const empty = slots.findIndex((slotId) => slotId == null || slotId === "");
+        const empty = slots.findIndex((slotId, slotIndex) =>
+          isTroutMigrationSlot(boat, slotIndex) && (slotId == null || slotId === "")
+        );
         if (empty < 0) continue;
         slots[empty] = cargoId;
         boats[boatId] = { ...boat, fishCargoSlotIds: slots };
@@ -544,7 +562,7 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
     const playerZ = finite(player.z);
     const world = (previous.world ?? {}) as Record<string, unknown>;
     const structures = (world.structures ?? {}) as Record<string, Record<string, unknown>>;
-    const mill = starterStructureAnchor("struct.starter_mill");
+    const mill = { id: "struct.starter_mill", ...LAYOUT_6_MILL };
     const migratedStructures = Object.fromEntries(
       Object.entries(structures).map(([id, structure]) => {
         if (id === mill?.id) {
@@ -570,8 +588,67 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       },
       world: {
         ...world,
-        layoutRevision: WORLD_LAYOUT_REVISION,
+        layoutRevision: 6,
         structures: migratedStructures
+      }
+    };
+  },
+  15: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const boats = (previous.boats ?? {}) as Record<string, Record<string, unknown>>;
+    const activeBoatId = typeof player.activeBoatId === "string" ? player.activeBoatId : null;
+    const hasActiveBoat = activeBoatId !== null && boats[activeBoatId] !== undefined;
+    const playerX = finite(player.x);
+    const playerZ = finite(player.z);
+    const world = (previous.world ?? {}) as Record<string, unknown>;
+    const structures = (world.structures ?? {}) as Record<string, Record<string, unknown>>;
+    const currentStationAnchors = new Map<string, { x: number; z: number }>();
+
+    for (const structureId of STARTER_STRUCTURE_IDS) {
+      const anchor = starterStructureAnchor(structureId);
+      if (anchor) currentStationAnchors.set(structureId, anchor);
+    }
+    currentStationAnchors.set(HARBOR_FISH_TABLE.structureId, HARBOR_FISH_TABLE.position);
+
+    const migratedStructures = Object.fromEntries(
+      Object.entries(structures).map(([id, structure]) => {
+        const anchor = currentStationAnchors.get(id);
+        const x = anchor?.x ?? finite(structure.x);
+        const z = anchor?.z ?? finite(structure.z);
+        return [id, { ...structure, x, y: WorldLayout.terrainHeight(x, z), z }];
+      })
+    );
+
+    return {
+      ...previous,
+      schemaVersion: 15,
+      player: {
+        ...player,
+        ...(!hasActiveBoat ? { y: WorldLayout.terrainHeight(playerX, playerZ) + 0.5 } : {})
+      },
+      world: {
+        ...world,
+        layoutRevision: 7,
+        structures: migratedStructures
+      }
+    };
+  },
+  16: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const clock = { ...((previous.clock ?? {}) as Record<string, unknown>) };
+    const weather = { ...((previous.weather ?? {}) as Record<string, unknown>) };
+    const previousSpeed = finite(clock.minutesPerRealSecond, 1);
+    return {
+      ...previous,
+      schemaVersion: 16,
+      clock: {
+        ...clock,
+        minutesPerRealSecond: previousSpeed === 1 ? DEFAULT_MINUTES_PER_REAL_SECOND : previousSpeed
+      },
+      weather: {
+        ...weather,
+        nextWeatherType: typeof weather.nextWeatherType === "string" ? weather.nextWeatherType : "cloudy"
       }
     };
   }

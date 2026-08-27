@@ -2,7 +2,7 @@ import type RAPIER from "@dimforge/rapier3d-compat";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { boatAssetId } from "../render/assets/AssetCatalog";
 import { WaterSurface } from "../render/water/WaterSurface";
-import type { GameMode, GameState } from "../simulation/core/types";
+import type { GameMode, GameState, TimeWindowId } from "../simulation/core/types";
 import type {
   BoatMotionSample,
   PhysicsAdapter,
@@ -14,7 +14,8 @@ import type {
 } from "../simulation/core/PhysicsAdapter";
 import {
   advancePlayerTraversal,
-  PLAYER_TRAVERSAL_TUNING
+  PLAYER_TRAVERSAL_TUNING,
+  slopeGaitScale
 } from "../simulation/navigation/PlayerTraversal";
 import type { StaticCollisionProxy } from "./StaticCollision";
 import { collisionPrimitivesForAsset } from "./CollisionCatalogAdapter";
@@ -202,6 +203,7 @@ export class PhysicsWorld implements PhysicsAdapter {
   private playerContactSurface: PhysicsContactSurface = "unknown";
   private jumpBufferRemainingSeconds = 0;
   private coyoteTimeRemainingSeconds: number = PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds;
+  private readonly staticPropBodies: RAPIER.RigidBody[] = [];
 
   private constructor(rapier: typeof RAPIER, staticCollision: readonly StaticCollisionProxy[]) {
     this.rapier = rapier;
@@ -235,23 +237,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.world.createCollider(
       rapier.ColliderDesc.trimesh(road.vertices, road.indices).setFriction(0.9)
     );
-    for (const proxy of staticCollision) {
-      const centerX = Number.isFinite(proxy.center.x) ? proxy.center.x : 0;
-      const centerY = Number.isFinite(proxy.center.y) ? proxy.center.y : 0;
-      const centerZ = Number.isFinite(proxy.center.z) ? proxy.center.z : 0;
-      const hx = Math.max(0.02, Number.isFinite(proxy.halfExtents.x) ? proxy.halfExtents.x : 0.1);
-      const hy = Math.max(0.02, Number.isFinite(proxy.halfExtents.y) ? proxy.halfExtents.y : 0.1);
-      const hz = Math.max(0.02, Number.isFinite(proxy.halfExtents.z) ? proxy.halfExtents.z : 0.1);
-      const body = this.world.createRigidBody(
-        rapier.RigidBodyDesc.fixed()
-          .setTranslation(centerX, centerY, centerZ)
-          .setRotation(proxy.rotation)
-      );
-      this.world.createCollider(
-        rapier.ColliderDesc.cuboid(hx, hy, hz).setFriction(0.9),
-        body
-      );
-    }
+    this.ingestStaticCollision(staticCollision);
     this.world.updateSceneQueries();
   }
 
@@ -259,6 +245,37 @@ export class PhysicsWorld implements PhysicsAdapter {
     const { default: rapier } = await import("@dimforge/rapier3d-compat");
     await rapier.init();
     return new PhysicsWorld(rapier, staticCollision);
+  }
+
+  /** DEV layout editor: rebuild authored prop/building colliders from current presentation poses. */
+  public replaceStaticCollision(proxies: readonly StaticCollisionProxy[]): void {
+    for (const body of this.staticPropBodies) {
+      this.world.removeRigidBody(body);
+    }
+    this.staticPropBodies.length = 0;
+    this.ingestStaticCollision(proxies);
+    this.world.updateSceneQueries();
+  }
+
+  private ingestStaticCollision(proxies: readonly StaticCollisionProxy[]): void {
+    for (const proxy of proxies) {
+      const centerX = Number.isFinite(proxy.center.x) ? proxy.center.x : 0;
+      const centerY = Number.isFinite(proxy.center.y) ? proxy.center.y : 0;
+      const centerZ = Number.isFinite(proxy.center.z) ? proxy.center.z : 0;
+      const hx = Math.max(0.02, Number.isFinite(proxy.halfExtents.x) ? proxy.halfExtents.x : 0.1);
+      const hy = Math.max(0.02, Number.isFinite(proxy.halfExtents.y) ? proxy.halfExtents.y : 0.1);
+      const hz = Math.max(0.02, Number.isFinite(proxy.halfExtents.z) ? proxy.halfExtents.z : 0.1);
+      const body = this.world.createRigidBody(
+        this.rapier.RigidBodyDesc.fixed()
+          .setTranslation(centerX, centerY, centerZ)
+          .setRotation(proxy.rotation)
+      );
+      this.world.createCollider(
+        this.rapier.ColliderDesc.cuboid(hx, hy, hz).setFriction(0.9),
+        body
+      );
+      this.staticPropBodies.push(body);
+    }
   }
 
   public dispose(): void {
@@ -431,9 +448,12 @@ export class PhysicsWorld implements PhysicsAdapter {
       { wantsSprint: input.sprint, isMoving: inputLength > 0.001 },
       safeDt
     );
-    const speed = traversalStep.isSprinting
+    const gaitScale = this.playerGrounded
+      ? slopeGaitScale(this.playerGroundNormal, inputX, inputZ)
+      : 1;
+    const speed = (traversalStep.isSprinting
       ? PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond
-      : PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond;
+      : PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond) * gaitScale;
     const targetVelocityX = inputX * speed;
     const targetVelocityZ = inputZ * speed;
     const acceleration = inputLength > 0.001
@@ -598,8 +618,12 @@ export class PhysicsWorld implements PhysicsAdapter {
 
     if (this.playerGrounded) {
       const evidence = groundEvidenceAt(resolved.x, resolved.z);
-      this.playerGroundNormal = collisionGroundNormal ?? evidence.normal;
       this.playerContactSurface = evidence.surface;
+      const terrainContact =
+        evidence.surface !== "bridge-deck" && evidence.surface !== "interior-floor";
+      this.playerGroundNormal = terrainContact
+        ? evidence.normal
+        : collisionGroundNormal ?? evidence.normal;
     }
     const resolvedVerticalVelocity = movement.y / safeDt;
     const airbornePhase = this.playerGrounded
@@ -720,7 +744,8 @@ export class PhysicsWorld implements PhysicsAdapter {
       throttle = clamp(-rawInputZ, -1, 1);
       steering = rawInputX;
       const roughnessPenalty = clamp01(
-        (state.weather.seaRoughness - definition.safeSeaRoughness) / Math.max(0.1, 1 - definition.safeSeaRoughness)
+        (state.weather.seaRoughness + nightSeaExtra(state.clock.timeOfDay) - definition.safeSeaRoughness)
+          / Math.max(0.1, 1 - definition.safeSeaRoughness)
       );
       const control = 1 - roughnessPenalty * 0.38;
       const mooring = harborMooringForBoatType(boat.boatTypeId);
@@ -1182,6 +1207,12 @@ export class PhysicsWorld implements PhysicsAdapter {
 
 function clamp01(value: number): number {
   return clamp(value, 0, 1);
+}
+
+function nightSeaExtra(timeOfDay: TimeWindowId): number {
+  if (timeOfDay === "night") return 0.22;
+  if (timeOfDay === "dusk") return 0.1;
+  return 0;
 }
 
 function clamp(value: number, min: number, max: number): number {

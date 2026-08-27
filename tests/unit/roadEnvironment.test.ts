@@ -8,7 +8,8 @@ import { STARTER_FARM_LAYOUT, worldToFarmLocal } from "../../src/world/FarmLayou
 import {
   createWorldEnvironmentLayout,
   generateFarmPathPaverSamples,
-  GROUND_COVER_DENSITY
+  GROUND_COVER_DENSITY,
+  HOMESTEAD_MEADOW_GRASS_COUNT
 } from "../../src/world/WorldEnvironmentLayout";
 import { groundCoverActiveCount } from "../../src/render/config/VisualRenderConfig";
 
@@ -25,6 +26,7 @@ describe("Organic road environment", () => {
     expect(second.groundCoverPlacements).toEqual(first.groundCoverPlacements);
     expect(first.groundCoverPlacements).toHaveLength(
       Object.values(GROUND_COVER_DENSITY.high).reduce((total, count) => total + count, 0)
+        + HOMESTEAD_MEADOW_GRASS_COUNT
     );
 
     const shoulderCover = first.groundCoverPlacements.filter((placement) =>
@@ -93,6 +95,9 @@ describe("Organic road environment", () => {
   it("preserves the farm gate opening and keeps authored road-side props clear", () => {
     const southFence = STARTER_FARM_LAYOUT.fenceAnchors.filter((anchor) => anchor.id.startsWith("fence_south_"));
     expect(southFence.some((anchor) => Math.abs(anchor.x) < 0.001)).toBe(false);
+    const farmhouse = STARTER_FARM_LAYOUT.farmsteadAnchors.find((anchor) => anchor.id === "farmhouse")!;
+    const eastFence = STARTER_FARM_LAYOUT.fenceAnchors.filter((anchor) => anchor.id.startsWith("fence_east_"));
+    expect(eastFence.every((anchor) => Math.hypot(anchor.x - farmhouse.x, anchor.z - farmhouse.z) >= farmhouse.clearanceRadius)).toBe(true);
 
     const entry = FARM_ROUTES.find((route) => route.id === "farm-entry")!;
     const gatePoint = entry.points.find((point) => {
@@ -107,6 +112,12 @@ describe("Organic road environment", () => {
 
     const authored = createWorldEnvironmentLayout(42891).staticPlacements.filter((placement) => placement.origin === "authored");
     const wagon = authored.find((placement) => placement.id === "authored.prop.wagon.farm-road")!;
+    const firewood = authored.find((placement) => placement.id === "authored.farm.firewood")!;
+    const firewoodLocal = worldToFarmLocal(STARTER_FARM_LAYOUT.farmId, firewood);
+    expect(Math.hypot(
+      firewoodLocal.x - farmhouse.x,
+      firewoodLocal.z - farmhouse.z
+    )).toBeGreaterThanOrEqual(farmhouse.clearanceRadius);
     const bridgeReeds = authored.filter((placement) => placement.id.includes("bridge-"));
     expect(WorldLayout.pathInfluence(wagon.x, wagon.z)).toBeLessThan(0.12);
     expect(bridgeReeds.every((placement) => WorldLayout.pathInfluence(placement.x, placement.z) < 0.12)).toBe(true);

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
+import { GROUND_POLYGON_CELL_GLSL } from "../materials/GroundPolygonCells";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { WATER_SURFACE } from "../../world/WorldLayout";
 import {
@@ -152,6 +153,11 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uFogColor;
   uniform float uFogNear;
   uniform float uFogFar;
+  uniform float uPolygonCellScale;
+  uniform float uPolygonColorVariation;
+  uniform float uPolygonNormalStrength;
+  uniform float uFresnelStrength;
+  uniform float uSunGlintStrength;
 
   in vec3 vWorldPosition;
   in float vWaveHeight;
@@ -159,23 +165,37 @@ const fragmentShader = /* glsl */ `
   in vec3 vRegionWeights;
   out vec4 outColor;
 
+  ${GROUND_POLYGON_CELL_GLSL}
+
   void main() {
     vec3 normal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
     if (normal.y < 0.0) normal *= -1.0;
+    vec4 waterPolygonCell = nevaGroundPolygonCell(vWorldPosition.xz, uPolygonCellScale);
+    normal = normalize(normal + vec3(
+      waterPolygonCell.y - 0.5,
+      0.0,
+      waterPolygonCell.z - 0.5
+    ) * uPolygonNormalStrength);
 
     float waterDepth = max(0.0, vSignedWaterDistance);
     float shallowMix = 1.0 - smoothstep(0.35, 8.5, waterDepth);
     vec3 waterColor = mix(uMidColor, uShallowColor, shallowMix * 0.74);
     waterColor = mix(waterColor, uDeepColor, vRegionWeights.z * 0.82);
+    float waterFacetBand = step(0.34, waterPolygonCell.x) + step(0.7, waterPolygonCell.x);
+    waterColor *= mix(
+      1.0 - uPolygonColorVariation,
+      1.0 + uPolygonColorVariation,
+      waterFacetBand * 0.5
+    );
 
     vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
     float fresnel = pow(1.0 - max(dot(viewDirection, normal), 0.0), 2.5);
     float sunLight = max(dot(normal, normalize(uSunDirection)), 0.0);
-    float sunGlint = pow(sunLight, 58.0) * 0.12 * uKeyLightStrength;
+    float sunGlint = pow(sunLight, 58.0) * uSunGlintStrength * uKeyLightStrength;
     float facetVariation = 0.95 + 0.07 * step(0.0, normal.x + normal.z * 0.7);
     float environmentLight = mix(0.24, 1.0, uDaylight);
     vec3 color = waterColor * facetVariation * environmentLight;
-    color = mix(color, uSkyColor * environmentLight, fresnel * 0.18);
+    color = mix(color, uSkyColor * environmentLight, fresnel * uFresnelStrength);
     color += uSunColor * sunGlint;
 
     float steepness = 1.0 - normal.y;
@@ -258,7 +278,12 @@ export class FacetedWater {
         uSkyColor: { value: new THREE.Color(PALETTE_HEX.sky_pale_01) },
         uFogColor: { value: new THREE.Color(CANONICAL_RENDER_CONFIG.fog.colorHex) },
         uFogNear: { value: CANONICAL_RENDER_CONFIG.fog.near },
-        uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far }
+        uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far },
+        uPolygonCellScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonCellScaleMeters },
+        uPolygonColorVariation: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonColorVariationStrength },
+        uPolygonNormalStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonNormalStrength },
+        uFresnelStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength },
+        uSunGlintStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.sunGlintStrength }
       },
       transparent: true,
       opacity: 0.96,

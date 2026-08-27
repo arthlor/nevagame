@@ -16,6 +16,18 @@ export interface CatalogAsset {
   palette: string[];
   dimensions: { width: number; depth: number; height: number };
   budget: { trianglesMin: number; trianglesTarget: number; trianglesMax: number; materialsMax: number };
+  pivot: "ground_center" | "center" | "buoyancy";
+  collision: "none" | "box" | "compound";
+  collisionPrimitives?: Array<{
+    id: string;
+    center: [number, number, number];
+    halfExtents: [number, number, number];
+    yawDegrees?: number;
+  }>;
+  instancing: boolean;
+  lod: "none" | "small" | "medium" | "hero";
+  rootNode: string;
+  requiredNodes: string[];
   readDistanceMeters: number;
   parameters: Record<string, unknown>;
   lodLevels?: Array<{ node: string; distanceMeters: number; triangleRatioMin: number; triangleRatioMax: number }>;
@@ -117,3 +129,8 @@ export function validatePublishedManifest(
   label?: string,
   selectedAssets?: CatalogAsset[],
 ): Record<string, unknown>;
+export function validateGlb(
+  filename: string,
+  spec: CatalogAsset,
+  phase: string,
+): Promise<Record<string, unknown>>;

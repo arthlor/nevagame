@@ -9,6 +9,12 @@
     "harbor": "harbor.png",
     "coast": "coast.png"
   },
+  "visualGoldGate": {
+    "status": "accepted",
+    "acceptedAt": "2026-08-27",
+    "acceptedBy": "human",
+    "scope": "bridge-farm-harbor-coast"
+  },
   "sha256": {
     "farm": "a6085a0f43bf4b20f3b09f3a5ff6052ccb9167d3a3d530ed1afaac09ebb42044",
     "bridge": "e6b7c83864e58abf240ba5ae9a6a89adaeba9dfe327b3438985e9fcdcc8963cb",

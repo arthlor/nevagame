@@ -1,6 +1,6 @@
 # ArcheAge Farming System — Neva Adaptation Blueprint (Compact)
 
-> **Role:** Farming inspiration/adaptation guide, subordinate to `01`, `02`, `04`, and the Art Pipeline. Where this file's historical ArcheAge values conflict with canonical Neva values, **use `02`**; preserve the ArcheAge behavior only as design reference unless explicitly promoted.
+> **Role:** Farming inspiration/adaptation guide, subordinate to `01`, `02`, `04`, and the Art Pipeline. Every number, footprint, duration, modifier, capacity, and feature in this document is historical/reference-only unless `02` explicitly promotes it. Where this file's historical ArcheAge values conflict with canonical Neva values, **use `02`**; preserve the ArcheAge behavior only as design reference unless explicitly promoted. ArcheAge factions, lore, quests, terminology, and MMO social assumptions are not Neva story content; Neva's authored narrative is defined by `02` and presented through the connected coastal work loop.
 
 # 0. Why ArcheAge Farming Matters
 
@@ -12,7 +12,7 @@ ArcheAge farming works because agriculture is a **physical economic foundation**
 
 # 1. Land & Property Inspiration
 
-ArcheAge reference models:
+ArcheAge reference models (not current Neva budgets or runtime contracts):
 | Plot | Reference scale/capacity | Purpose |
 |---|---|---|
 | 8×8 Scarecrow Garden | ~16 small crops / ~4 saplings | starter claim |
@@ -24,7 +24,7 @@ Permission inspiration: **Private** = owner interactions only; **Public/Unclaime
 
 # 2. Footprint & Crop Taxonomy Inspiration
 
-ArcheAge uses 2D circular footprints rather than rigid square grids. Neva's canonical placement still uses `CropDefinition.footprint`/simulation collision; use this section to guide scale and free-placement feel.
+ArcheAge uses 2D circular footprints rather than rigid square grids. Neva's canonical placement still uses `CropDefinition.footprint`/simulation collision; use this section only to guide scale and free-placement feel. Do not copy these reference footprints or timings into the live catalog or simulation.
 
 | Category | Reference footprint | Examples | Reference behavior/use |
 |---|---|---|---|

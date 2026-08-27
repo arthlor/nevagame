@@ -2,9 +2,9 @@
 ## Farming, Fishing & Coastal Village Browser Game
 
 > **Role:** Visual source of truth for 3D art, environment design, technical art, lighting, materials, animation, UI-world relationship, and visual QA.
-> **Graphics reference lock:** `coastal_lighthouse_cliff_1787253807104.jpg`, `cozy_farmstead_plot_1787253754847.jpg`, `maritime_dock_props_1787253788406.jpg`, and `rustic_timber_bridge_1787253770645.jpg` define **rendering/asset graphics only**. They do **not** define world layout, level composition, camera angle, diorama/tabletop presentation, depth of field, tilt-shift, staging, prop placement, or scene borders. Gameplay/world architecture remains authoritative.
+> **Graphics reference lock:** `coastal_lighthouse_cliff_1787253807104.jpg`, `cozy_farmstead_plot_1787253754847.jpg`, `maritime_dock_props_1787253788406.jpg`, `rustic_timber_bridge_1787253770645.jpg`, and `art/references/neva-ui-hud-on-foot.png` define **rendering/asset graphics only**. `art/references/neva-ui-hud-on-foot.png` is the authoritative gameplay-distance benchmark for starter-farm ground, warm worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting/color balance. These references do **not** define world layout, level composition, camera angle, UI composition, diorama/tabletop presentation, depth of field, tilt-shift, staging, prop placement, or scene borders. Gameplay/world architecture remains authoritative.
 >
-> **Two evidence classes:** (1) diorama/gold stills (`art/references/art-reference.png` and the four bible lock images) remain graphics-only and do not define world layout, camera, or staging; (2) isolated studio sheets under `tools/blender/references/isolated/` may inform **that one asset’s** silhouette, proportions, component counts, and construction language. Neither class is a pixel-copy target. Style-match the construction language; do not copy diorama pixels.
+> **Two evidence classes:** (1) diorama/gold stills (`art/references/art-reference.png` and the graphics-lock images above) remain graphics-only and do not define world layout, camera, or staging; (2) isolated studio sheets under `tools/blender/references/isolated/` may inform **that one asset’s** silhouette, proportions, component counts, and construction language. Neither class is a pixel-copy target. Style-match the construction language; do not copy diorama pixels.
 
 # 0. Global Visual Grammar
 
@@ -98,9 +98,9 @@ Typical construction: stone foundation → timber frame → warm plaster/timber 
 
 Roof families: turf, warm wooden shingle, desaturated red clay, dark weathered plank, simple thatch. Turf is signature, not universal. Roofs use 2–4 broad overlapping planes, thickness, slight ridge unevenness, occasional patch/color sections, integrated chimneys; never model every shingle.
 
-Hero buildings: player farmhouse, fish market, harbor warehouse, boat workshop, village market hall, mill, inn. Target **6k–18k triangles, 2–6 material groups max**, selective 512–1024 textures; unique silhouettes. LOD1 is required above 12k when the asset can remain visible at distance.
+Hero buildings: player farmhouse, fish market, harbor warehouse, boat workshop, village market hall, mill, inn. Give each a distinct silhouette, readable structural planes, and a useful gameplay-distance LOD. Exact triangle floors/targets/hard maxima, material caps, texture-related fields, required nodes, pivots, and LOD declarations belong to the individual entry in `assets/specs/asset-catalog.json`; this guide must not be treated as a second asset-budget table. The current architecture catalog reaches approximately **33k target / 70k hard maximum** for some hero variants, while smaller landmarks are lower. Spend that range only when silhouette, structure, or gameplay readability justifies it.
 
-Support buildings: cottages/sheds/shops/barns/workshops, **2.5k–10k triangles, 1–4 material groups**.
+Support buildings: cottages, sheds, shops, barns, and workshops use the same catalog-owned contract. Do not infer a universal support-building triangle or material range from this guide.
 
 # 5. Materials, Textures & Surface Detail
 
@@ -179,7 +179,7 @@ Sky: simple pale-blue gradient + warm horizon + few large faceted cloud masses; 
 
 ## 7.1 Canonical Renderer Baseline — `VisualRenderConfig`
 
-The project MUST have one renderer-level visual configuration owned by the render subsystem (for example `src/render/config/VisualRenderConfig.ts`). The gold-standard art slice calibrates it; after approval, changes are deliberate, benchmarked art-direction changes rather than per-scene fixes.
+The project MUST have one renderer-level visual configuration owned by the render subsystem (currently `src/render/config/VisualRenderConfig.ts`). The gold-standard art slice calibrates it; after approval, changes are deliberate, benchmarked art-direction changes rather than per-scene fixes. The live object is richer than the compact interface below; treat this as the minimum ownership shape, not a copy of current numeric settings.
 
 The config must centrally own at least:
 ```ts
@@ -248,6 +248,8 @@ grass → irregular shoulder/grass intrusion → compacted edge → worn core/ru
 
 They conform to and subtly grade the land, with crown/depression, wear, soft shoulders, occasional contextual stones, and controlled irregularity. Steep routes may form a small cut or bench instead of wrapping over every terrain fluctuation. A separate surface mesh is acceptable only when it shares the canonical route/profile owner, follows the terrain, feathers into it, avoids z-fighting/visible slab thickness, and cannot drift from terrain/cover/collision semantics. Any deformation that materially changes the walkable surface follows `01`'s canonical height/collision contract; cosmetic-only displacement must remain visually and physically negligible. Do not require a shader-only road solution when the existing shared route system satisfies the visual contract.
 
+The visible route edge must be owned once. Prefer a narrow world-space irregular coverage edge over stacking a coarse terrain tint beneath a wide transparent road feather; overlapping metre-scale blends create muddy halos and view-order instability. Pixel-scale anti-aliasing is allowed, but it must not turn the shoulder into a blurry ribbon. Terrain and road variation remains world-space and cannot change with camera orbit, pitch, or zoom.
+
 ## 7.2.4 Clustered Ground Cover
 
 Ground cover is distributed by deterministic semantic density, not uniform scatter. Density responds to meadow/soil/shore/slope/route/farm/building/landmark clearances and preserves authored breathing room. Use a hierarchy:
@@ -259,11 +261,26 @@ Cluster palette variation by patch/area (sage, olive, yellow-green, shadow green
 
 Increase perceived coverage before raw instance count: use broader cheap clumps, clustered patch rhythm, coordinated palette/value regions, distance-aware density, and preserved open ground. Never pursue another game's vegetation count literally; the scene budgets and gameplay-camera result own the decision.
 
+Distance budgets and LOD membership for terrain dressing use the player/world anchor, not the render camera or its look-ahead direction. Camera orbit, pitch, and zoom must not regenerate a ground field, reshuffle nearby cover, or switch world-asset membership. Ordinary frustum rejection may skip objects that are genuinely off-screen; it must not cause visible in-frame popping from stale or camera-led bounds.
+
 ## 7.2.5 Shore & Weather Continuity
 
 Land-to-water transitions read as `dry ground → darker vegetation → wet soil/stone → reeds/pebbles where appropriate → shallow water → deeper water`. Foam is contextual around obstacles, supports, fast water, wakes, and exposed coast—not a uniform calm-river outline.
 
 Precipitation wetness is a shared render response: palette-preserving darkening plus bounded roughness/specular change, smoothed over time and controlled centrally. It must not make the world glossy/plastic, recolor protected non-ground surfaces accidentally, or mutate soil moisture/gameplay state.
+
+## 7.2.6 Starter-Farm Gameplay Benchmark Lock
+
+For starter-farm environment graphics, `art/references/neva-ui-hud-on-foot.png` fixes the following construction language at the normal gameplay camera:
+
+- grass and worked ground separate through broad polygon regions with a narrow, filtered shoulder; the silhouette stays irregular and faceted, but it must merge without dark cutout holes, black seams, or an obvious floating overlay. Avoid both a blurry uniform ribbon and a binary cell-step fringe;
+- paths use warm sandy-ochre/tan cores with restrained value variation, occasional grass intrusion, and intermittent low flagstones/stepping stones rather than continuous cobble;
+- meadow coverage combines a continuous low, broad grass read with deterministic clustered chamomile/daisy drifts, chunky leafy bushes, and authored breathing room around routes, fields, buildings, and interactions. Flower heads sit within the meadow silhouette rather than reading as repeated tall bouquets; reeds/cattails stay on wet edges instead of ordinary dry path shoulders;
+- tree crowns read as several asymmetrical faceted masses rather than spheres or leaf-card noise;
+- mature wheat reads as dense warm-gold heads, while decorative pumpkin beds read through chunky faceted fruit, broad leaves, and vines. Only simulation-owned crop states are interactive gameplay truth;
+- the clear-day baseline begins from an approximately 35-degree sun elevation and 45-degree azimuth, warm key light, cool ambient fill, contact grounding, and palette-preserving ACES output. `VisualRenderConfig` owns the exact calibrated values.
+
+This is a graphics-language lock, not permission to copy the reference camera, layout, UI, depth of field, tilt-shift, or scene composition. Bloom and depth of field remain disabled in ordinary world rendering.
 
 # 8. Water, Waves, Shoreline & Foam
 
@@ -308,7 +325,7 @@ Priority farm props: crates, baskets, watering can, bucket, hand plow, wheelbarr
 
 Fish: species-readable major body proportions + simplified fins + controlled color blocks + faceting; no cartoon faces/hyperreal scales/plastic. Preserve small/medium/large/gargantuan size contrast. Material: high-ish roughness, subtle specular edge, lighter belly, darker dorsal region.
 
-Boats are aspirational progression silhouettes: rowboat → fishing skiff → future larger vessel. Rowboat: simple worn timber, 2 benches/oars/storage, **2.5k–6k triangles**. Skiff: compact working boat, optional small console/cabin, visible hold/hooks/rope/buoys/crates/ice/nav lamp, **6k–16k triangles**, cargo capacity visually legible.
+Boats are progression silhouettes: rowboat → fishing skiff → future larger vessel. Rowboat: simple worn timber, two benches/oars/storage, with the current catalog target/hard maximum at **5.5k / 6k triangles**. Skiff: compact working boat, optional small console/cabin, visible hold/hooks/rope/buoys/crates/ice/nav lamp, with the current catalog target/hard maximum at **8.5k / 16k triangles**. The catalog remains the authority for all floors, targets, materials, nodes, and future variants.
 
 # 11. Environment Composition & Density
 
@@ -327,6 +344,41 @@ Density rhythm: quiet farm low-medium; village medium; harbor medium-high; offsh
 Prop clusters are authored, not confetti (e.g. 2 crates + rope + barrel + bucket + small net, then breathing space).
 
 Every scene has Hero/Support/Filler hierarchy. Filler does not receive hero detail.
+
+## 11.1 Environmental Storytelling & Narrative Readability
+
+Neva's visual story is carried by working places, worn routes, repaired
+objects, and the relationship between land and water. Narrative dressing must
+support the live ten-quest spine in `02`; it must not become a second quest
+system or a pile of decorative clues. A player should feel who keeps a place
+working and why the next district matters before reading a large amount of
+text.
+
+| Area | Narrative promise | Visual evidence | Gameplay relationship |
+|---|---|---|---|
+| Northwest starter farm | This is inherited responsibility becoming home. | Tilled furrows, seed pouch, watering can, worn fence repairs, compost, workbench, farmhouse warmth, and a clear garden gate. | Planting, watering, harvest, and processing are readable as care and preparation, not isolated minigames. |
+| Northeast village hub | Private work becomes community exchange. | Curved paths converge on the produce market; bakery, cottages, mill, barn, and courtyard show different kinds of shared labor. | The market and mill route should explain why the player leaves the farm and where local trust is built. |
+| River corridor and bridge | The first crossing is a lesson in reading a living place. | Worn bridge approaches, visible banks, reeds, calmer water, simple fishing traces, and a route that remains legible from both sides. | Basic fishing is framed as learning currents before attempting the open water. |
+| Southeast harbor | The sea is a working economy with consequences. | Fish tables, scales, ice, crates, nets, rope, drying racks, mooring hardware, market frontage, and the family rowboat slip. | Freshness, cargo, boat preparation, and Maeve/Silas dialogue have visible context. |
+| Southwest headland and lighthouse | The island is larger than the first route and requires orientation. | Cliffs, beacon/lighthouse silhouette, wind-shaped vegetation, lookout lines, and restrained navigation marks. | It provides optional horizon/context and future route promise without blocking the current P12 story. |
+| Coast and offshore fishing grounds | Abundance is temporary, ecological, and worth returning from responsibly. | Gulls, water disturbance, wake, changing depth/color, sparse horizon, and readable school presence; avoid magical glow as the only signal. | School discovery, weather, time, travel distance, and freshness create the expedition's pressure. |
+
+Environmental story rules:
+
+- Give each narrative prop a practical or navigational reason to exist and
+  place it in an authored cluster with breathing room. Do not fix weak lore by
+  adding barrels, signs, flowers, papers, or clutter.
+- Prefer visible evidence of use—worn path cores, repaired timber, sorted
+  catch, damp soil, stacked supplies, maintained rope—over exposition plaques.
+- A story cue may deepen or orient a required action, but noticing it must never
+  be the only way to satisfy a required quest objective or unlock.
+- Repeat motifs with variation: family woodwork, blue-green fishing trim,
+  rope/net language, warm grain/soil, and the transition from furrow to water.
+- Keep text/signage short and readable at gameplay distance. The dialogue and
+  journal remain the authoritative explanation; the world supplies evidence,
+  mood, and anticipation.
+- Review the farm, bridge, harbor, and coast cues from the actual gameplay
+  camera. A diorama or beauty render can prove style, not narrative usability.
 
 # 12. Modular Kits & Variation
 
@@ -366,8 +418,8 @@ Characters must look as though they were authored by the same art team as the en
 - Reuse shared cloth/leather/metal palette/material families; character-specific textures should stay low-frequency and support identifiers, not carry the whole style.
 
 ## 13.5 Budgets, Rigging & LOD
-- Typical gameplay character target: **6k–18k triangles LOD0**, fewer for background NPCs; use the upper half for the player/hero only when silhouette and animation visibly benefit. LOD1 is required above 12k when the character remains visible at distance.
-- Prefer **2–6 material groups max** per normal character including eyes/hair/clothes where practical.
+- Character triangle and material budgets are catalog-owned. The current five character entries use approximately **8k–12k targets** and **16k–18k hard maxima**, with the player at the upper end; use the declared entry rather than a universal range. LOD1 is required when the catalog contract declares it and the character remains visible at distance.
+- Prefer the catalog-declared material cap and shared material families; do not introduce a second character budget table here.
 - Standard reusable humanoid rig; consistent naming/retargeting; minimal extra bones for coat tails, hair clumps, tools only where visibly useful.
 - LOD preserves head/hair/clothing silhouette, color blocks, hands/tools, then removes tertiary pieces.
 
@@ -376,23 +428,28 @@ Animation is slightly exaggerated, clear, soft, and grounded; neither hyperreal 
 
 **Character gold gate:** before producing a large NPC set, approve one player/worker character in neutral idle + walk + farming interaction + fishing interaction under the canonical gameplay camera and renderer. Judge it beside farm/harbor assets, not in an isolated studio render.
 
+**Narrative role cues:** character silhouette, clothing wear, carried tools, and
+station context should communicate practical identity at distance. Elspeth
+reads as garden/bakery stewardship, Barnaby as timber/workbench craft, Maeve as
+fish market/cold-storage trade, and Old Silas as weathered harbor/seamanship.
+These are visual role cues, not new gameplay tags or permission to assign fixed
+backstories that are absent from the canonical quest content.
+
 # 14. Camera-Aware Modeling, LOD & Budgets
 
 Validate assets at **8m, 15m, 30m**, plus each catalog-declared `readDistanceMeters`. The 8/15/30 m views are baseline review distances, not a replacement for an asset's declared gameplay read distance. If important detail disappears at 15m, enlarge the form rather than add detail.
 
 LOD: small props usually none; trees LOD0/LOD1/optional LOD2 impostor/low mesh; hero buildings LOD0/LOD1 where useful; crops prefer instancing + distance simplification. LOD must preserve silhouette, color blocks, major facets before tertiary details.
 
-Triangle targets:
+Non-normative visual scale heuristics (not production budgets):
 ```text
-tiny prop 100–1,200 | normal prop 300–2,500 | large prop 1,000–6,000
-crop clump 120–700 | tree 600–3,000
-support building 2,500–10,000 | hero building 6,000–18,000
-rowboat 2,500–6,000 | skiff 6,000–16,000
-fish 500–2,500 | hero/legendary fish up to 4,000 by explicit override
+tiny prop ≪ normal prop ≪ large prop
+crop clump < tree < support building < hero building
+rowboat < skiff; ordinary fish stay compact and readable
 ```
 The production floor/quality target/hard maximum for each generated asset is defined in `assets/specs/asset-catalog.json`. The lower bound is a validity gate and the target is a quality-review trigger, not permission to inflate meshes: silhouette, authored planes, thickness, proportion, deformation, and gameplay-camera readability must explain the spend.
 
-Material budgets: tiny prop 1; normal 1–2; support building max 4; hero/landmark max 6; rowboat max 4; skiff max 5; character max 6. Material reuse matters strongly for draw calls.
+Material budgets are also catalog-owned; current entries may use up to eight material groups where the asset contract requires it. Material reuse still matters strongly for draw calls, but this guide must not override an individual catalog cap.
 
 # 15. Runtime Export, Naming, Pivot & Collision
 
@@ -418,20 +475,20 @@ Avoid normal gameplay: **DOF, tilt-shift, heavy bloom, chromatic aberration, fil
 
 # 17. UI-to-World Relationship
 
-UI should inherit palette warmth/material cues without literally becoming wooden boards. Keep text-heavy interfaces clean and modern. World remains primary; functional clarity outranks decorative theming.
+UI should inherit palette warmth/material cues without literally becoming wooden boards. Keep text-heavy interfaces clean and modern. World remains primary; functional clarity outranks decorative theming. Dialogue should feel like a brief pause beside the person and place that motivated it, while the quest HUD remains compact and action-oriented. The journal may organize the current story and discovered practices, but it must not become a permanent lore dashboard.
 
 # 18. LLM/Artist Workflow
 
 Do not improvise art task-by-task. Work through controlled visual systems: Art Bible + Palette + Geometry Grammar + Material Library + Procedural Generators + Prefabs + World Schemas + Visual Regression.
 
 Zone workflow:
-`read owning sections → identify gameplay purpose → catalog assets → palette/materials → referenceAuthoring brief when evidence-guided → registered generators/helpers → selected generate/validate/optimize/publish → Art Yard entry → runtime assemble/batch → human review in the game`. Fixed screenshots, strict generation and benchmark evidence are release/gold-slice gates, not everyday asset steps.
+`read owning sections → identify gameplay purpose → catalog assets → palette/materials → referenceAuthoring brief when evidence-guided → registered generators/helpers → selected generate/validate/optimize/publish → Art Yard entry → runtime assemble/batch → human review in the game`. Fixed gameplay-camera captures and benchmark evidence support P0.75 visual-gold acceptance; strict generation and determinism are separate technical-art/release gates, not everyday asset steps.
 
 `tools/blender/common/authored.py` is the implemented shared vocabulary for deliberate mid-scale forms such as masonry courses, shingles, planks, lattice/rope, arches and fasteners. It exists to make handcrafted geometry language consistent across architecture, props and boats while preserving seeded reproducibility. It does not replace silhouette design, family-specific composition, catalog ownership or gameplay-camera review.
 
 The machine workflow is not optional: catalog/schema/palette validation precedes Blender; normal generation records quality debt; strict generation blocks production acceptance; published manifests are distinct from the latest candidate quality report. Use the commands and artifact semantics in `BLENDER.md` / `tools/blender/README.md` rather than direct Blender-to-public export.
 
-Zone brief fields: zone, gameplay purpose, emotion, hero landmark, primary/secondary/accent colors, architecture, ground, vegetation, water, hero/support/filler assets, ambient animation, clusters, navigation cues, prohibited elements, performance constraints.
+Zone brief fields: zone, gameplay purpose, narrative promise/story beat, emotional state, people/roles present, hero landmark, primary/secondary/accent colors, architecture, ground, vegetation, water, hero/support/filler assets, practical story props, ambient animation, clusters, navigation cues, required player decision, prohibited elements, performance constraints.
 
 Asset brief fields: ID/name/category/gameplay purpose/silhouette/dimensions/primary+secondary shapes/asymmetry/materials/palette/texture/triangle+material targets/LOD/pivot/collision/animation/variants/interactions/gameplay-distance readability/avoid list. When references guide the asset, the catalog's closed `referenceAuthoring` object additionally records source roles, component hierarchy, negative space, hidden-surface strategy/confidence, critical features, bindings to generator parameters, failure modes, and required multi-angle/gameplay-distance views. Run `npm run art:brief -- --asset ID` once when that selected brief changes; `ready` describes brief completeness, never visual approval.
 
@@ -451,7 +508,7 @@ diagnostics. A successful publish is available there through
 readability problems; they are not agent style approval. The actual integrated
 game remains the final visual judge.
 
-For human release/gold-slice acceptance, score 1–10: silhouette, facet/geometry, palette, material, lighting, water/foliage, atmosphere, gameplay readability, consistency, distinctiveness, repetition, performance. Approval: **overall ≥8/10, no category <7, graphics-reference match ≥8/10**. Zone-layout review uses the game's zone brief, not uploaded layouts. Routine agents do not perform or report this visual score.
+For human visual review, use a qualitative checklist covering silhouette, facet/geometry, palette, material, lighting, water/foliage, atmosphere, gameplay readability, consistency, distinctiveness, repetition, and performance. Do not invent or require numeric scores when recording a human decision. The P0.75 visual-gold decision is the explicit human approval of the four gameplay-camera slices; current-manifest validation and the upper-budget benchmark are separate mechanical/technical evidence recorded by `03`/`BLENDER.md`. The registry records decision and scope, not a fabricated score. Zone-layout review uses the game's zone brief, not uploaded layouts. Routine agents do not perform or report a visual score.
 
 ## 19.1 Regression QA — Game vs Approved Game Benchmark
 Use identical scene/state/seed/camera/resolution/time/weather/render configuration. Screenshot diff, SSIM, LPIPS, histogram/luminance, palette-distribution and silhouette/edge metrics may detect unintended changes. A metric failure is a review signal, not permission to optimize visuals toward a number. Approved intentional art changes replace the benchmark only after human/Art Director approval.
@@ -482,7 +539,7 @@ Do not use SSIM/LPIPS thresholds between compositionally different reference ima
 - low-frequency surfaces; correct pivot/name/GLB hierarchy;
 - no unused materials; triangle/texture budgets respected;
 - collision proxy correct; no shading artifacts;
-- normal generation passes production floors/hard maxima and produces a quality report; production/gold-slice acceptance additionally requires `npm run art:generate:strict` to pass;
+- normal generation passes production floors/hard maxima and produces a quality report; P0.75 visual-gold acceptance additionally requires the four gameplay-camera human decisions, current manifest validation, and the upper-budget benchmark; technical-art/release certification additionally requires `npm run art:generate:strict` and determinism to pass;
 - not default primitive/photoreal/plastic/beauty-camera dependent;
 - graphics plausibly belong beside references without copying layout/presentation.
 
@@ -538,7 +595,14 @@ Material fails if plastic, photographic/noisy, micro-normal dependent, palette-b
 
 # 23. Worldbuilding & Source of Truth
 
-Every area communicates work: farm=growing/storage/tools; harbor=loading/fishing/repair; market=weighing/sorting/selling; boat yard=wood/hulls/repair. Avoid irrelevant decorative medieval clichés.
+Every area communicates work and a place in the story: farm=growing/storage/tools and inherited care; harbor=loading/fishing/repair and maritime responsibility; market=weighing/sorting/selling and community exchange; river/bridge=currents/learning/crossing; boat yard=wood/hulls/repair and earned capability; lighthouse/coast=orientation and future horizons. Avoid irrelevant decorative medieval clichés.
+
+`02_GAMEPLAY_SYSTEMS_IMPLEMENTATION.md` owns the current story spine,
+dialogue intent, objective/reward meaning, and narrative progression. This
+bible owns how that intent becomes visible through form, palette, composition,
+wear, props, landmarks, and atmosphere. `01` owns state and presentation
+boundaries. If visual evidence conflicts with a quest condition, simulation and
+quest content win; repair the visual cue rather than adding a hidden rule.
 
 Visual priority:
 1. human's latest explicit visual instruction

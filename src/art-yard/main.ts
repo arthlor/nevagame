@@ -57,11 +57,11 @@ const yardApp = requiredElement<HTMLElement>("yard-app");
 const canvas = requiredElement<HTMLCanvasElement>("yard-canvas");
 const status = requiredElement<HTMLDivElement>("yard-status");
 const toast = requiredElement<HTMLDivElement>("yard-toast");
-const hudAssetBadge = requiredElement<HTMLDivElement>("hud-asset-badge");
-const hudViewBadge = requiredElement<HTMLDivElement>("hud-view-badge");
-const hudTrisBadge = requiredElement<HTMLDivElement>("hud-tris-badge");
+const hudAssetBadge = requiredElement<HTMLElement>("hud-asset-badge");
+const hudViewBadge = requiredElement<HTMLElement>("hud-view-badge");
+const hudTrisBadge = requiredElement<HTMLElement>("hud-tris-badge");
 const assetSearch = requiredElement<HTMLInputElement>("asset-search");
-const familyPills = requiredElement<HTMLDivElement>("family-pills");
+const familyFilter = requiredElement<HTMLSelectElement>("family-filter");
 const assetSelect = requiredElement<HTMLSelectElement>("asset-select");
 const assetCountBadge = requiredElement<HTMLSpanElement>("asset-count-badge");
 const prevAssetBtn = requiredElement<HTMLButtonElement>("prev-asset-btn");
@@ -86,7 +86,6 @@ const distanceOutput = requiredElement<HTMLOutputElement>("distance-output");
 const camFitBtn = requiredElement<HTMLButtonElement>("cam-fit-btn");
 const turntableToggle = requiredElement<HTMLInputElement>("turntable-toggle");
 const turntableSpeed = requiredElement<HTMLInputElement>("turntable-speed");
-const quickTurntable = requiredElement<HTMLButtonElement>("quick-turntable");
 
 // Diagnostics Elements
 const shadingSelect = requiredElement<HTMLSelectElement>("shading-select");
@@ -221,6 +220,11 @@ function requiredElement<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
+function setStatus(message = ""): void {
+  status.textContent = message;
+  status.hidden = !message;
+}
+
 function showToast(message: string): void {
   if (toastTimeout) clearTimeout(toastTimeout);
   toast.textContent = message;
@@ -258,7 +262,8 @@ function previewState(): Pick<GameState, "clock" | "weather" | "worldSeed"> {
     seaRoughness: isStorm ? 0.82 : 0.12,
     visibility: isStorm ? 0.58 : isFog ? 0.34 : 1,
     temperatureC: 20,
-    nextWeatherMinute: currentMinute() + 60
+    nextWeatherMinute: currentMinute() + 60,
+    nextWeatherType: "cloudy"
   };
   return {
     worldSeed: 42891,
@@ -327,6 +332,10 @@ function fitModel(root: THREE.Group): void {
   camera.position.copy(controls.target).addScaledVector(direction, distance);
   distanceRange.value = String(Math.round(Math.min(80, Math.max(1, distance))));
   updateDistanceLabel();
+  document.querySelectorAll("[data-cam]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-cam") === "three-quarter");
+  });
+  hudViewBadge.textContent = `${cameraAngleLabel("three-quarter")} · ${distanceRange.value}m`;
   controls.update();
   updateBoundingBoxOverlay();
 }
@@ -358,7 +367,24 @@ function setCameraAngle(angle: string): void {
   document.querySelectorAll("[data-cam]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-cam") === angle);
   });
-  hudViewBadge.textContent = `View: ${angle} · ${distance}m`;
+  hudViewBadge.textContent = `${cameraAngleLabel(angle)} · ${distance}m`;
+}
+
+function cameraAngleLabel(angle: string): string {
+  switch (angle) {
+    case "three-quarter":
+      return "3/4";
+    case "front":
+      return "Front";
+    case "side":
+      return "Side";
+    case "rear":
+      return "Rear";
+    case "top":
+      return "Top";
+    default:
+      return angle;
+  }
 }
 
 function updateCameraDistance(): void {
@@ -367,7 +393,7 @@ function updateCameraDistance(): void {
   const direction = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(direction, distance);
   controls.update();
-  hudViewBadge.textContent = `View: ${distance}m`;
+  hudViewBadge.textContent = `${distance}m`;
 }
 
 function updateDistanceLabel(): void {
@@ -607,18 +633,18 @@ function metricValue(value: string | number | null | undefined): string {
 function updateMetrics(): void {
   if (!currentModel) {
     metricsList.replaceChildren();
-    hudTrisBadge.textContent = "Tris: —";
+    hudTrisBadge.textContent = "—";
     return;
   }
   const tris = meshTriangleCount(currentModel);
-  hudTrisBadge.textContent = `Tris: ${tris.toLocaleString()}`;
+  hudTrisBadge.textContent = `${tris.toLocaleString("en-US")} tris`;
 
   if (activeShowcaseTitle) {
     const rows: Array<[string, string]> = [
       ["Showcase", activeShowcaseTitle],
       ["Total tris", tris.toLocaleString()],
       ["Lighting", formatTime(currentMinute())],
-      ["Water", waterPlane.visible ? "Active (Floating Physics)" : "Ground View"],
+      ["Water", waterPlane.visible ? "On" : "Off"],
       ["Render Mode", shadingSelect.value]
     ];
     metricsList.replaceChildren(
@@ -675,18 +701,19 @@ function populateAssetSelect(): void {
     return matchesFamily && matchesSearch;
   });
 
-  assetCountBadge.textContent = `${filteredAssets.length} Assets`;
+  assetCountBadge.textContent = String(filteredAssets.length);
 
   const showcaseOptions = [
-    { value: "__showcase_village", text: "✨ Complete Village & Farmstead (Reference Benchmark)" },
-    { value: "__showcase_farm", text: "🌾 Cozy Starter Homestead & Crop Rows" },
-    { value: "__showcase_harbor", text: "⚓ Working Fishing Harbor & Pier" },
-    { value: "__showcase_riverside", text: "🎣 Riverside Angler's Bend & Bridge" },
-    { value: "__showcase_interior", text: "🏠 Farmhouse Interior Shell & Hearth" }
+    { value: "__showcase_village", text: "Village & farmstead" },
+    { value: "__showcase_architecture", text: "Architecture lineup" },
+    { value: "__showcase_farm", text: "Starter homestead" },
+    { value: "__showcase_harbor", text: "Fishing harbor" },
+    { value: "__showcase_riverside", text: "Riverside bend" },
+    { value: "__showcase_interior", text: "Farmhouse interior" }
   ];
 
   const showcaseGroup = document.createElement("optgroup");
-  showcaseGroup.label = "✨ Curated Showcases";
+  showcaseGroup.label = "Showcases";
   for (const item of showcaseOptions) {
     if (!searchTerm || item.text.toLowerCase().includes(searchTerm)) {
       const opt = document.createElement("option");
@@ -707,12 +734,12 @@ function populateAssetSelect(): void {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([family, assets]) => {
       const group = document.createElement("optgroup");
-      group.label = `${family.toUpperCase()} (${assets.length})`;
+      group.label = `${family.charAt(0).toUpperCase()}${family.slice(1)} (${assets.length})`;
       group.append(
         ...assets.map((asset) => {
           const option = document.createElement("option");
           option.value = asset.id;
-          option.textContent = `${asset.id} · ${asset.file}`;
+          option.textContent = asset.id;
           return option;
         })
       );
@@ -783,7 +810,7 @@ function playAnimationClip(name: string): void {
   activeAction.fadeIn(0.2);
   activeAction.play();
   isAnimationPlaying = true;
-  animPlayToggle.textContent = "⏸ Pause";
+  animPlayToggle.textContent = "Pause";
   animPlayToggle.classList.add("primary");
 
   // Auto-equip matching tool when switching animation
@@ -878,10 +905,10 @@ async function assembleDiorama(
   options: { water?: boolean; time?: string; camPos?: [number, number, number]; camTarget?: [number, number, number]; distance?: string } = {}
 ): Promise<void> {
   const serial = ++loadSerial;
-  status.textContent = `Assembling ${title}…`;
+  setStatus(`Assembling ${title}…`);
   clearModel();
   activeShowcaseTitle = title;
-  hudAssetBadge.textContent = `Showcase: ${title}`;
+  hudAssetBadge.textContent = title;
 
   const dioramaRoot = new THREE.Group();
   dioramaRoot.name = "showcase_diorama_root";
@@ -934,9 +961,9 @@ async function assembleDiorama(
     updateShadingMode(shadingSelect.value);
     setCollision(collisionToggle.checked);
     updateMetrics();
-    status.textContent = `✨ ${title} · Interactive Showcase Active`;
+    setStatus();
   } catch (error) {
-    status.textContent = error instanceof Error ? error.message : "Showcase could not be assembled";
+    setStatus(error instanceof Error ? error.message : "Showcase could not be assembled");
   }
 }
 
@@ -978,6 +1005,40 @@ async function loadShowcase(showcaseId: string): Promise<void> {
         { id: "tool_fishing_rod_a", pos: [-19.5, 0.35, 9.8], rotY: 25, scale: 1.1 }
       ],
       { water: true, time: "1020", camPos: [24, 15, 28], distance: "38" }
+    );
+  } else if (showcaseId === "__showcase_architecture") {
+    await assembleDiorama(
+      "Architecture Lineup · Farmhouse-Derived Roles",
+      [
+        // Row one: farmhouse and compact cottage silhouettes.
+        { id: "house_farmhouse_a", pos: [-30, 0.05, -14], rotY: 0 },
+        { id: "house_farmhouse_b", pos: [-18, 0.05, -14], rotY: 0 },
+        { id: "house_cottage_a", pos: [-6, 0.05, -14], rotY: 0 },
+        { id: "house_cottage_b", pos: [6, 0.05, -14], rotY: 0 },
+        { id: "house_cottage_c", pos: [18, 0.05, -14], rotY: 0 },
+        { id: "prop_tool_shed_a", pos: [30, 0.05, -14], rotY: 0 },
+        // Row two: lodging, market frontage, and agricultural volume pairs.
+        { id: "building_inn_a", pos: [-30, 0.05, 0], rotY: 0 },
+        { id: "building_inn_b", pos: [-18, 0.05, 0], rotY: 0 },
+        { id: "building_village_market_hall_a", pos: [-6, 0.05, 0], rotY: 0 },
+        { id: "building_village_market_hall_b", pos: [6, 0.05, 0], rotY: 0 },
+        { id: "building_barn_a", pos: [18, 0.05, 0], rotY: 0 },
+        { id: "building_barn_b", pos: [30, 0.05, 0], rotY: 0 },
+        // Row three: distinctive coastal structures and small functional forms.
+        { id: "building_lighthouse_a", pos: [-30, 0.05, 14], rotY: 0 },
+        { id: "building_windmill_a", pos: [-18, 0.05, 14], rotY: 0 },
+        { id: "building_fish_market_a", pos: [-6, 0.05, 14], rotY: 0 },
+        { id: "interior_farmhouse_shell", pos: [6, 0.05, 14], rotY: 0 },
+        { id: "building_market_stall_a", pos: [18, 0.05, 14], rotY: 0 },
+        { id: "building_outhouse_a", pos: [30, 0.05, 14], rotY: 0 },
+        // Row four: support architecture retained in the same material grammar.
+        { id: "building_outhouse_b", pos: [-30, 0.05, 28], rotY: 0 },
+        { id: "prop_tool_shed_b", pos: [-18, 0.05, 28], rotY: 0 },
+        { id: "bridge_stone_a", pos: [-6, 0.05, 28], rotY: 0 },
+        { id: "bridge_log_plank_a", pos: [6, 0.05, 28], rotY: 0 },
+        { id: "dock_straight_a", pos: [18, 0.05, 28], rotY: 0 }
+      ],
+      { water: false, time: "720", camPos: [42, 34, 58], camTarget: [0, 2, 7], distance: "72" }
     );
   } else if (showcaseId === "__showcase_farm") {
     await assembleDiorama(
@@ -1067,9 +1128,9 @@ async function loadAsset(assetId: string): Promise<void> {
   }
 
   const serial = ++loadSerial;
-  status.textContent = `Loading ${assetId}…`;
+  setStatus(`Loading ${assetId}…`);
   clearModel();
-  hudAssetBadge.textContent = `Asset: ${assetId}`;
+  hudAssetBadge.textContent = assetId;
 
   try {
     const spec = ASSET_BY_ID.get(assetId as AssetId);
@@ -1110,9 +1171,9 @@ async function loadAsset(assetId: string): Promise<void> {
     }
 
     updateMetrics();
-    status.textContent = `${assetId} · ${yardData?.source ?? "published"}`;
+    setStatus();
   } catch (error) {
-    status.textContent = error instanceof Error ? error.message : "Asset could not be loaded";
+    setStatus(error instanceof Error ? error.message : "Asset could not be loaded");
     updateMetrics();
   }
 }
@@ -1213,12 +1274,8 @@ updateAzimuthLabel();
 // Search & Filter
 assetSearch.addEventListener("input", populateAssetSelect);
 
-familyPills.addEventListener("click", (event) => {
-  const target = (event.target as HTMLElement).closest(".pill-btn") as HTMLButtonElement | null;
-  if (!target) return;
-  familyPills.querySelectorAll(".pill-btn").forEach((btn) => btn.classList.remove("active"));
-  target.classList.add("active");
-  activeFamilyFilter = target.dataset.family ?? "all";
+familyFilter.addEventListener("change", () => {
+  activeFamilyFilter = familyFilter.value;
   populateAssetSelect();
 });
 
@@ -1228,16 +1285,15 @@ nextAssetBtn.addEventListener("click", () => navigateAsset(1));
 copyAssetIdBtn.addEventListener("click", () => {
   const textToCopy = currentSpec?.id ?? activeShowcaseTitle ?? assetSelect.value;
   navigator.clipboard.writeText(textToCopy).then(
-    () => showToast(`Copied "${textToCopy}" to clipboard!`),
-    () => showToast(`Failed to copy to clipboard`)
+    () => showToast(`Copied ${textToCopy}`),
+    () => showToast("Copy failed")
   );
 });
 
 togglePanelBtn.addEventListener("click", () => {
   yardApp.classList.toggle("panel-collapsed");
   const isCollapsed = yardApp.classList.contains("panel-collapsed");
-  togglePanelBtn.textContent = isCollapsed ? "⛶ Show Controls" : "⛶ Full View";
-  togglePanelBtn.classList.toggle("active-toggle", isCollapsed);
+  togglePanelBtn.textContent = isCollapsed ? "Show" : "Hide";
   setTimeout(resize, 100);
 });
 
@@ -1248,7 +1304,7 @@ animPlayToggle.addEventListener("click", () => {
   if (!activeAction) return;
   isAnimationPlaying = !isAnimationPlaying;
   activeAction.paused = !isAnimationPlaying;
-  animPlayToggle.textContent = isAnimationPlaying ? "⏸ Pause" : "▶ Play";
+  animPlayToggle.textContent = isAnimationPlaying ? "Pause" : "Play";
   animPlayToggle.classList.toggle("primary", isAnimationPlaying);
 });
 
@@ -1313,14 +1369,9 @@ distanceRange.addEventListener("input", () => {
   updateCameraDistance();
 });
 
-turntableToggle.addEventListener("change", () => {
-  quickTurntable.classList.toggle("active-toggle", turntableToggle.checked);
-});
-
-quickTurntable.addEventListener("click", () => {
+function toggleTurntable(): void {
   turntableToggle.checked = !turntableToggle.checked;
-  quickTurntable.classList.toggle("active-toggle", turntableToggle.checked);
-});
+}
 
 // Diagnostics
 shadingSelect.addEventListener("change", () => updateShadingMode(shadingSelect.value));
@@ -1331,9 +1382,6 @@ shadowsToggle.addEventListener("change", () => updateShadowPolicies(shadowsToggl
 // Environment
 timeRange.addEventListener("input", updateTimeLabel);
 azimuthRange.addEventListener("input", updateAzimuthLabel);
-weatherSelect.addEventListener("change", () => {
-  status.textContent = `${activeShowcaseTitle ?? currentSpec?.id ?? "Asset"} · ${weatherSelect.value}`;
-});
 groundSelect.addEventListener("change", () => updateGroundBed(groundSelect.value));
 waterToggle.addEventListener("change", () => {
   waterPlane.visible = waterToggle.checked;
@@ -1357,14 +1405,22 @@ window.addEventListener("resize", resize);
 
 // Global Keyboard Shortcuts
 window.addEventListener("keydown", (event) => {
-  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+  if (
+    event.target instanceof HTMLInputElement ||
+    event.target instanceof HTMLSelectElement ||
+    event.target instanceof HTMLTextAreaElement ||
+    event.target instanceof HTMLButtonElement ||
+    (event.target instanceof HTMLElement && event.target.closest("summary"))
+  ) {
+    return;
+  }
 
   if (event.code === "Space") {
     event.preventDefault();
     if (activeAction) {
       animPlayToggle.click();
     } else {
-      quickTurntable.click();
+      toggleTurntable();
     }
   } else if (event.key === "1") {
     setCameraAngle("front");
@@ -1384,7 +1440,7 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     togglePanelBtn.click();
   } else if (event.key.toLowerCase() === "t") {
-    quickTurntable.click();
+    toggleTurntable();
   } else if (event.key.toLowerCase() === "f") {
     if (currentModel) fitModel(currentModel);
   } else if (event.key.toLowerCase() === "w") {
@@ -1401,7 +1457,7 @@ resize();
 const requestedAssetId = new URLSearchParams(window.location.search).get("asset");
 void loadYardData()
   .catch((error: unknown) => {
-    status.textContent = error instanceof Error ? error.message : "Art yard data is unavailable";
+    setStatus(error instanceof Error ? error.message : "Art yard data is unavailable");
   })
   .finally(() => {
     const initialAssetId = resolveArtYardAssetId(

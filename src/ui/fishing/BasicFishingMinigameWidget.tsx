@@ -3,6 +3,11 @@
 import React, { useEffect, useRef } from "react";
 import { BasicFishingState } from "../../simulation/core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { IconFish } from "../components/HudIcons";
+import { AtlasImage } from "../chrome/AtlasImage";
+import { atlasForFish } from "../chrome/uiAtlas";
+import { ChromeButton, ChromeKeycap, ChromeMeter, ChromePanel, ChromeQuality } from "../chrome/Chrome";
+import { playUiSound } from "../audio/uiAudio";
 import "./BasicFishingMinigame.css";
 
 interface BasicFishingMinigameWidgetProps {
@@ -11,6 +16,7 @@ interface BasicFishingMinigameWidgetProps {
   onSetInput?: (isHolding: boolean) => void;
   onReleaseCast?: (power?: number) => void;
   onDismissModal?: () => void;
+  onCancel?: () => void;
 }
 
 export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProps> = ({
@@ -18,7 +24,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   onHookBite,
   onSetInput,
   onReleaseCast,
-  onDismissModal
+  onDismissModal,
+  onCancel
 }) => {
   const {
     phase,
@@ -39,10 +46,19 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   const species = catchItemId ? ContentRegistry.fishSpecies.get(catchItemId) : undefined;
   const speciesName = species?.name || "Fish";
 
-  const propsRef = useRef({ phase, onHookBite, onSetInput, onReleaseCast, onDismissModal });
+  const propsRef = useRef({ phase, onHookBite, onSetInput, onReleaseCast, onDismissModal, onCancel });
   const inputHeldRef = useRef(false);
   const castChargingRef = useRef(false);
-  propsRef.current = { phase, onHookBite, onSetInput, onReleaseCast, onDismissModal };
+  const prevPhaseRef = useRef(phase);
+  propsRef.current = { phase, onHookBite, onSetInput, onReleaseCast, onDismissModal, onCancel };
+
+  useEffect(() => {
+    if (prevPhaseRef.current === phase) return;
+    prevPhaseRef.current = phase;
+    if (phase === "bite-reaction") playUiSound("confirm");
+    if (phase === "caught") playUiSound("chime");
+    if (phase === "escaped") playUiSound("click");
+  }, [phase]);
 
   const releaseHeldInput = () => {
     const current = propsRef.current;
@@ -58,6 +74,22 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        const { phase: currentPhase, onCancel: cancel, onDismissModal: dismiss } = propsRef.current;
+        if (currentPhase === "caught" || currentPhase === "escaped") {
+          dismiss?.();
+          return;
+        }
+        if (
+          currentPhase === "charging-cast" ||
+          currentPhase === "waiting-bite" ||
+          currentPhase === "bite-reaction" ||
+          currentPhase === "minigame"
+        ) {
+          cancel?.();
+        }
+        return;
+      }
       if (e.code === "Space" || e.code === "KeyE" || e.code === "KeyF" || e.code === "KeyC") {
         e.preventDefault();
         const { phase: currentPhase, onHookBite: hook, onSetInput: setInp, onDismissModal: dismiss } = propsRef.current;
@@ -157,17 +189,19 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "charging-cast") {
     return (
       <div className="basic-fishing-container" onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
-        <div className="cast-power-card">
-          <div className="cast-title">🎣 Cast Power</div>
-          <div className="cast-power-bar-track">
-            <div
-              className="cast-power-bar-fill"
-              style={{ width: `${Math.round(castPower * 100)}%` }}
-            />
-          </div>
-          <div className="cast-power-percentage">{Math.round(castPower * 100)}%</div>
-          <div className="cast-hint">Release [Space / LMB] to Cast</div>
-        </div>
+        <ChromePanel tone="slate" flourish corners className="cast-power-card">
+          <div className="cast-title">Cast power</div>
+          <ChromeMeter
+            className="cast-power-meter"
+            label="Cast power"
+            value={castPower}
+            max={1}
+            valueText={`${Math.round(castPower * 100)}%`}
+            variant="gold"
+            data-testid="cast-power-meter"
+          />
+          <div className="cast-hint">Release <ChromeKeycap keyName="Space" glow /> to Cast · <ChromeKeycap keyName="Esc" /> cancel</div>
+        </ChromePanel>
       </div>
     );
   }
@@ -175,11 +209,11 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "bite-reaction") {
     return (
       <div className="basic-fishing-container">
-        <div className="bite-alert-banner" onPointerDown={handlePointerDown}>
+        <ChromePanel tone="slate" flourish corners className="bite-alert-banner" onPointerDown={handlePointerDown} data-testid="bite-alert">
           <div className="bite-exclamation">!</div>
-          <div className="bite-text">Bite! Hook It!</div>
-          <div className="cast-hint" style={{ color: "#fef08a" }}>Press [Space] or Click!</div>
-        </div>
+          <div className="bite-text">Bite!</div>
+          <div className="cast-hint">Hook set — press <ChromeKeycap keyName="Space" glow /></div>
+        </ChromePanel>
       </div>
     );
   }
@@ -193,10 +227,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
         onPointerCancel={handlePointerUp}
         onLostPointerCapture={handlePointerUp}
       >
-        <div className="minigame-card">
+        <ChromePanel tone="slate" flourish corners className="minigame-card" data-testid="reeling-minigame">
           <div className="minigame-header">
             <span className="minigame-species-name">Reeling Fish</span>
-            {isPerfect && <span className="perfect-badge">✨ Perfect</span>}
+            {isPerfect && <span className="perfect-badge">Perfect</span>}
           </div>
 
           <div className="minigame-board">
@@ -222,7 +256,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
                     opacity: treasureCaught ? 0.3 : 1.0
                   }}
                 >
-                  🎁
+                  <span className="treasure-mark" aria-label="Sunken treasure">◆</span>
                   {!treasureCaught && (
                     <div className="treasure-progress-ring">
                       <div
@@ -241,7 +275,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
                   bottom: `${fishY * 100}%`
                 }}
               >
-                🐟
+                <AtlasImage src={atlasForFish(catchItemId)} alt="" size={18} />
+                {!atlasForFish(catchItemId) && <IconFish size={18} aria-hidden="true" />}
               </div>
             </div>
 
@@ -255,9 +290,9 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
 
           <div className="minigame-footer-hint">
-            Hold [Space / LMB] to Raise Bar
+            Hold <ChromeKeycap keyName="Space" glow /> to keep pressure · <ChromeKeycap keyName="Esc" /> cancel
           </div>
-        </div>
+        </ChromePanel>
       </div>
     );
   }
@@ -265,35 +300,53 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "caught") {
     return (
       <div className="basic-fishing-container">
-        <div className="catch-summary-card">
-          <div className="catch-summary-header">🎉 Fish Caught!</div>
+        <ChromePanel tone="slate" flourish corners className="catch-summary-card" data-testid="catch-landed">
+          <div className="catch-summary-header">Fish landed</div>
           <div className="catch-item-preview">
-            <div className="catch-item-emoji">🐟</div>
-            <div className="catch-item-name">{speciesName}</div>
-            <div className={`catch-quality-badge quality-${quality}`}>
-              {quality === "iridium" ? "🌟 Iridium Quality" :
-               quality === "gold" ? "⭐ Gold Quality" :
-               quality === "silver" ? "⭐ Silver Quality" :
-               "Regular Quality"}
+            <div className="catch-item-emoji">
+              <AtlasImage src={atlasForFish(catchItemId)} alt="" size={72} />
+              {!atlasForFish(catchItemId) && <IconFish size={22} aria-hidden="true" />}
             </div>
+            <div className="catch-item-name">{speciesName}</div>
+            <ChromeQuality quality={quality} />
           </div>
 
           {isPerfect && (
             <div className="perfect-badge" style={{ fontSize: "12px", padding: "4px 10px" }}>
-              ✨ PERFECT CATCH (+Double XP)
+              Perfect catch (+double experience)
             </div>
           )}
 
           {hasTreasure && treasureCaught && (
             <div className="treasure-summary-tag">
-              🎁 Sunken Treasure Recovered!
+              Sunken treasure recovered
             </div>
           )}
 
-          <button className="dismiss-button" onClick={onDismissModal}>
-            Collect Catch [Space]
-          </button>
-        </div>
+          <ChromeButton className="dismiss-button" variant="gold" soundCue="confirm" onClick={onDismissModal}>
+            Collect <ChromeKeycap keyName="Space" />
+          </ChromeButton>
+        </ChromePanel>
+      </div>
+    );
+  }
+
+  if (phase === "escaped") {
+    return (
+      <div className="basic-fishing-container">
+        <ChromePanel tone="slate" flourish corners className="catch-summary-card escaped-card" data-testid="catch-escaped">
+          <div className="catch-summary-header">Got away</div>
+          <div className="catch-item-preview">
+            <div className="catch-item-emoji">
+              <AtlasImage src={atlasForFish(catchItemId)} alt="" size={72} />
+              {!atlasForFish(catchItemId) && <IconFish size={22} aria-hidden="true" />}
+            </div>
+            <p className="cast-hint">The fish slipped the hook.</p>
+          </div>
+          <ChromeButton className="dismiss-button dismiss-secondary" onClick={onDismissModal}>
+            Dismiss
+          </ChromeButton>
+        </ChromePanel>
       </div>
     );
   }

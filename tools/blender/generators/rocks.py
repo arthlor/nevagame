@@ -6,7 +6,7 @@ import math
 
 import bpy
 
-from common.geometry import add_box, add_collision_primitives, add_ico, add_tri_prism, apply_vertex_values, seeded_rng
+from common.geometry import add_box, add_collision_primitives, add_cylinder, add_ico, add_tri_prism, apply_vertex_values, seeded_rng
 from common.lod import consolidate_lod_level, create_lod_roots
 
 
@@ -153,4 +153,41 @@ def pebble_cluster(spec: dict, root) -> None:
             rotation=(rng.uniform(-0.28, 0.28), rng.uniform(-0.28, 0.28), angle),
         )
         _shape_rock(pebble, spec["seed"] + index * 23)
+    consolidate_lod_level(root, f"{spec['id']}_cluster")
+
+
+def path_slab(spec: dict, root) -> None:
+    """Flat faceted stepping stone for packed dirt paths."""
+    params = spec["parameters"]
+    rng = seeded_rng(spec["seed"])
+    token = spec["palette"][0]
+    accent = spec["palette"][1] if len(spec["palette"]) > 1 else token
+    radius = params["radius"]
+    height = params["height"]
+    sides = params["sides"]
+    slab = add_cylinder(
+        "path_slab_body",
+        (0.0, 0.0, height * 0.5),
+        radius,
+        height,
+        token,
+        root,
+        vertices=sides,
+        rotation=(0.0, 0.0, rng.uniform(-0.18, 0.18)),
+    )
+    _shape_rock(slab, spec["seed"])
+    chip_count = params["chipCount"]
+    for index in range(chip_count):
+        angle = index * 2.39996 + rng.uniform(-0.2, 0.2)
+        chip_radius = radius * rng.uniform(0.42, 0.78)
+        chip = add_ico(
+            f"path_slab_chip_{index:02d}",
+            (math.cos(angle) * chip_radius, math.sin(angle) * chip_radius * 0.82, height * 0.72),
+            (radius * 0.22, radius * 0.18, height * 0.55),
+            accent,
+            root,
+            subdivisions=1,
+            rotation=(rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), angle),
+        )
+        _shape_rock(chip, spec["seed"] + 17 * (index + 1))
     consolidate_lod_level(root, f"{spec['id']}_cluster")

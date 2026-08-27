@@ -644,3 +644,184 @@
   border-radius: 4px;
   box-shadow: none;
 }
+
+/* Active field-journal treatment. Keep the minigame legible while it is
+   contextual; it should never read as a floating web dashboard. */
+.basic-fishing-container {
+  right: calc(18px + env(safe-area-inset-right));
+  top: 50%;
+  z-index: 45;
+}
+
+.cast-power-card,
+.minigame-card,
+.catch-summary-card {
+  min-width: 0;
+  width: min(282px, calc(100vw - 28px));
+  padding: 14px 16px 12px;
+  color: var(--ui-ink, #3f4039);
+  background: var(--ui-paper, #eee5cf) !important;
+  background-image: none !important;
+  border: 1px solid var(--ui-rule, rgba(73, 67, 54, 0.24));
+  border-left: 2px solid var(--ui-teal, #3f7775);
+  border-radius: 3px;
+  box-shadow: var(--ui-shadow, 0 5px 16px rgba(38, 40, 33, 0.16));
+  filter: none;
+}
+
+.cast-title,
+.catch-summary-header,
+.minigame-species-name {
+  color: var(--ui-ink, #3f4039);
+  font-family: var(--font-serif, Georgia, serif);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cast-power-bar-track,
+.catch-progress-track,
+.water-track {
+  background: rgba(63, 119, 117, 0.12);
+  border: 1px solid var(--ui-rule, rgba(73, 67, 54, 0.24));
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.cast-power-bar-fill,
+.catch-progress-fill {
+  background: var(--ui-teal, #3f7775);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.water-track {
+  background: #aec8c2;
+  border-color: var(--ui-teal, #3f7775);
+}
+
+.green-catch-bar {
+  background: var(--ui-moss, #667955);
+  border-color: var(--ui-paper-light, #f8f1df);
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.green-bar-handle {
+  background: var(--ui-paper-light, #f8f1df);
+  border-radius: 0;
+}
+
+.bite-alert-banner {
+  padding: 13px 20px;
+  color: var(--ui-red, #9a574a);
+  background: rgba(154, 87, 74, 0.1);
+  background-image: none !important;
+  border: 1px solid rgba(154, 87, 74, 0.32);
+  border-left: 2px solid var(--ui-red, #9a574a);
+  border-radius: 3px;
+  box-shadow: var(--ui-shadow, 0 5px 16px rgba(38, 40, 33, 0.16));
+  animation: none;
+}
+
+.bite-exclamation,
+.bite-text,
+.cast-hint,
+.minigame-footer-hint,
+.cast-power-percentage,
+.catch-item-name {
+  color: var(--ui-ink-soft, #706b5e);
+  text-shadow: none;
+}
+
+.bite-exclamation,
+.bite-text {
+  color: var(--ui-red, #9a574a);
+}
+
+.perfect-badge,
+.catch-quality-badge,
+.treasure-summary-tag {
+  color: var(--ui-brass, #a9773f);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0;
+}
+
+.fish-avatar,
+.treasure-chest-icon,
+.catch-item-emoji {
+  color: var(--ui-teal-deep, #2f5e5e);
+  filter: none;
+}
+
+.treasure-mark {
+  color: var(--ui-brass, #a9773f);
+  font-size: 14px;
+}
+
+.dismiss-button {
+  min-height: 31px;
+  color: var(--ui-paper-light, #f8f1df);
+  background: var(--ui-teal-deep, #2f5e5e);
+  border: 1px solid var(--ui-teal-deep, #2f5e5e);
+  border-radius: 3px;
+}
+
+.dismiss-button:hover {
+  background: var(--ui-teal, #3f7775);
+}
+
+@media (max-width: 760px) {
+  .basic-fishing-container {
+    right: var(--ui-safe-right, 14px);
+    left: var(--ui-safe-left, 14px);
+  }
+
+  .cast-power-card,
+  .minigame-card,
+  .catch-summary-card {
+    width: min(282px, 100%);
+  }
+}
+
+/* M5 slate winner — keep last so parchment layers in this file do not leak. */
+.cast-power-card,
+.minigame-card,
+.catch-summary-card,
+.bite-alert-banner {
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass, rgba(14, 20, 28, 0.9)) !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55) !important;
+  filter: none !important;
+}
+
+.cast-title,
+.catch-summary-header,
+.minigame-species-name {
+  color: var(--mm-text-gold, #f0dd9a) !important;
+}
+
+.cast-hint,
+.minigame-footer-hint,
+.catch-item-name {
+  color: var(--mm-text-muted, #9e9589) !important;
+}
+
+.bite-alert-banner {
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.94), rgba(69, 10, 10, 0.96)) !important;
+  border-color: #fecaca !important;
+}
+
+.water-track {
+  background: linear-gradient(180deg, #16324a 0%, #0b1724 100%) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.35) !important;
+}
+
+.green-catch-bar {
+  background: linear-gradient(180deg, #34d399, #059669) !important;
+  border-color: #a7f3d0 !important;
+}

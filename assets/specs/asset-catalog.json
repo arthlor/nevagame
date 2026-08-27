@@ -1425,6 +1425,155 @@
         "clusters": 5,
         "flowerCount": 7,
         "leafTips": 6
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chunky leafy meadow bush with layered faceted masses and sparse warm-white flowers",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns Neva's clustered faceted foliage, palette discipline, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks the chunky layered bush grammar and meadow-scale read around the starter-farm paths."
+          }
+        ],
+        "components": [
+          {
+            "id": "leaf_masses",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Defines the broad irregular bush silhouette",
+            "shape": "Five overlapping compressed faceted crown masses",
+            "count": "5 clusters",
+            "cues": [
+              "One low shadow mass grounds the cluster",
+              "Widths and elevations vary without becoming noisy"
+            ]
+          },
+          {
+            "id": "leaf_tips",
+            "parent": "leaf_masses",
+            "importance": "secondary",
+            "role": "Breaks the lobe outline with sparse readable foliage points",
+            "shape": "Broad triangular leaf prisms at selected outer edges",
+            "count": "6 tips",
+            "cues": [
+              "Tips extend the silhouette rather than fill the center",
+              "No radial starburst"
+            ]
+          },
+          {
+            "id": "flower_accents",
+            "parent": "leaf_masses",
+            "importance": "tertiary",
+            "role": "Connects the bush to the chamomile meadow palette",
+            "shape": "Small faceted warm-white flower accents",
+            "count": "7 accents",
+            "cues": [
+              "Flowers remain subordinate to the leaf masses",
+              "Accents stay visible at eight meters"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The bush reads wider than tall with an uneven upper contour.",
+          "Overlapping lobes remain individually legible at gameplay distance.",
+          "Sparse leaf tips interrupt the outline without creating visual fuzz."
+        ],
+        "negativeSpace": [
+          "Small gaps between outer lobes keep the bush from reading as one sphere.",
+          "The planted lower edge remains irregular instead of forming a circular skirt."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views preserve the layered lobe hierarchy with seeded variation.",
+            "No view collapses into a single smooth ball or exposes an empty center."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "chunky_lobes",
+            "componentIds": [
+              "leaf_masses"
+            ],
+            "requirement": "Five faceted masses remain the first-read form at 8-15 meters.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_shadow",
+            "componentIds": [
+              "leaf_masses"
+            ],
+            "requirement": "A lower shadow-green mass gives contact without a dark blob decal.",
+            "priority": "must"
+          },
+          {
+            "id": "restrained_accents",
+            "componentIds": [
+              "leaf_tips",
+              "flower_accents"
+            ],
+            "requirement": "Tips and flowers enrich the silhouette without obscuring the major lobes.",
+            "priority": "should"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "clusters",
+            "componentIds": [
+              "leaf_masses"
+            ],
+            "purpose": "Controls the count of overlapping primary foliage masses."
+          },
+          {
+            "parameter": "leafTips",
+            "componentIds": [
+              "leaf_tips"
+            ],
+            "purpose": "Controls sparse silhouette-breaking leaves at the lobe perimeter."
+          },
+          {
+            "parameter": "flowerCount",
+            "componentIds": [
+              "flower_accents"
+            ],
+            "purpose": "Controls the subordinate warm-white meadow accents."
+          }
+        ],
+        "failureModes": [
+          "Five lobes merge into one smooth spherical bush.",
+          "Flowers dominate the palette or read as evenly spaced dots.",
+          "Leaf tips form a radial crown or noisy grass-like fringe.",
+          "The planted base floats above terrain at gameplay distance."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
       }
     },
     {
@@ -1536,7 +1685,7 @@
         "bladeCount": 6,
         "height": 0.42,
         "spread": 0.52,
-        "bladeWidth": 0.2
+        "bladeWidth": 0.11
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -1716,7 +1865,7 @@
         "bladeCount": 7,
         "height": 0.36,
         "spread": 0.58,
-        "bladeWidth": 0.22
+        "bladeWidth": 0.12
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -1896,7 +2045,7 @@
         "bladeCount": 5,
         "height": 0.48,
         "spread": 0.48,
-        "bladeWidth": 0.18
+        "bladeWidth": 0.1
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -2576,6 +2725,904 @@
           "gameplay_15m",
           "gameplay_read_distance",
           "close_material"
+        ]
+      }
+    },
+    {
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "id": "foliage_flower_drift_a",
+      "file": "foliage_flower_drift_a.glb",
+      "family": "vegetation",
+      "generator": "flower_drift",
+      "seed": 141,
+      "dimensions": {
+        "width": 0.42,
+        "depth": 0.38,
+        "height": 0.28
+      },
+      "palette": [
+        "foliage_sage_01",
+        "foam_warm_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 220,
+        "trianglesMax": 300,
+        "materialsMax": 3
+      },
+      "rootNode": "foliage_flower_drift_a_root",
+      "requiredNodes": [
+        "foliage_flower_drift_a_root"
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "blossomCount": 5,
+        "height": 0.24,
+        "spread": 0.28,
+        "blossomSize": 0.055
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "White chamomile meadow mat for dense clustered flower drifts",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "stems",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the short blossom height",
+            "shape": "Few tapered four-sided stems",
+            "count": "5 stems",
+            "cues": [
+              "Stems stay short and planted",
+              "No radial starburst"
+            ]
+          },
+          {
+            "id": "blossoms",
+            "parent": "stems",
+            "importance": "primary",
+            "role": "Reads as a white daisy drift at distance",
+            "shape": "Six broad faceted diamond petals around raised ochre centers",
+            "count": "5 blossoms",
+            "cues": [
+              "White reads warmer than paper",
+              "Centers stay ochre"
+            ]
+          },
+          {
+            "id": "ground_leaves",
+            "parent": "root",
+            "importance": "secondary",
+            "role": "Grounds the clump to meadow grass",
+            "shape": "Two bent grass leaves",
+            "count": "2 leaves",
+            "cues": [
+              "Leaves sit at the base",
+              "Do not form a circular skirt"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The mat reads as a low clustered blossom patch, not a bouquet.",
+          "Height stays below nearby grass peaks at gameplay distance.",
+          "Outline stays irregular with one lean direction."
+        ],
+        "negativeSpace": [
+          "Keep gaps between blossoms so the mat does not become a white disc.",
+          "Preserve air under the flower heads so stems remain readable."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "chamomile_read",
+            "componentIds": [
+              "blossoms"
+            ],
+            "requirement": "Blossoms remain readable as flowers at 8-15 m without dense petal spheres.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_base",
+            "componentIds": [
+              "stems",
+              "ground_leaves"
+            ],
+            "requirement": "The clump sits on the ground plane with no floating heads.",
+            "priority": "must"
+          },
+          {
+            "id": "palette_lock",
+            "componentIds": [
+              "blossoms"
+            ],
+            "requirement": "White foam and ochre centers stay on approved palette tokens.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "blossomCount",
+            "componentIds": [
+              "stems",
+              "blossoms"
+            ],
+            "purpose": "Keeps the mat dense enough to read as a drift within the instance budget."
+          },
+          {
+            "parameter": "height",
+            "componentIds": [
+              "stems"
+            ],
+            "purpose": "Keeps blossoms below tall meadow grass."
+          }
+        ],
+        "failureModes": [
+          "A circular white disc that reads as a painted splat.",
+          "Ico-sphere petals that blow the instance triangle budget.",
+          "Heads floating above terrain without visible stems."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "id": "foliage_flower_drift_b",
+      "file": "foliage_flower_drift_b.glb",
+      "family": "vegetation",
+      "generator": "flower_drift",
+      "seed": 142,
+      "dimensions": {
+        "width": 0.44,
+        "depth": 0.4,
+        "height": 0.3
+      },
+      "palette": [
+        "foliage_sage_01",
+        "canvas_cream_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 256,
+        "trianglesMax": 340,
+        "materialsMax": 3
+      },
+      "rootNode": "foliage_flower_drift_b_root",
+      "requiredNodes": [
+        "foliage_flower_drift_b_root"
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "blossomCount": 6,
+        "height": 0.26,
+        "spread": 0.3,
+        "blossomSize": 0.05
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Cream meadow blossom mat used as a second clustered flower drift",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "stems",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries cream blossom height",
+            "shape": "Short tapered stems",
+            "count": "6 stems",
+            "cues": [
+              "Stems stay planted",
+              "Count stays instance-efficient"
+            ]
+          },
+          {
+            "id": "blossoms",
+            "parent": "stems",
+            "importance": "primary",
+            "role": "Reads as cream daisies in a drift",
+            "shape": "Six broad faceted cream petals around raised ochre centers",
+            "count": "6 blossoms",
+            "cues": [
+              "Cream is warmer than white",
+              "Irregular outline"
+            ]
+          },
+          {
+            "id": "ground_leaves",
+            "parent": "root",
+            "importance": "secondary",
+            "role": "Ties the mat to grass",
+            "shape": "Two bent leaves",
+            "count": "2 leaves",
+            "cues": [
+              "Base stays grounded",
+              "No circular skirt"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The patch stays low and clustered rather than radial.",
+          "Cream blossoms sit below tall meadow blades.",
+          "One lean direction keeps the drift readable."
+        ],
+        "negativeSpace": [
+          "Gaps between heads prevent a cream disc.",
+          "Stem air remains visible in close view."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "chamomile_read",
+            "componentIds": [
+              "blossoms"
+            ],
+            "requirement": "Remains an instance-friendly chamomile mat.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_base",
+            "componentIds": [
+              "stems",
+              "ground_leaves"
+            ],
+            "requirement": "Sits on terrain without floating.",
+            "priority": "must"
+          },
+          {
+            "id": "palette_lock",
+            "componentIds": [
+              "blossoms"
+            ],
+            "requirement": "Uses canvas cream and ochre tokens.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "blossomCount",
+            "componentIds": [
+              "stems",
+              "blossoms"
+            ],
+            "purpose": "Controls drift density inside the instance budget."
+          },
+          {
+            "parameter": "spread",
+            "componentIds": [
+              "stems",
+              "blossoms"
+            ],
+            "purpose": "Keeps the mat wider than a single stem bouquet."
+          }
+        ],
+        "failureModes": [
+          "A circular cream splat on the meadow.",
+          "Dense ico petals that inflate draw cost.",
+          "Uniform height with no lean."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "id": "foliage_flower_drift_c",
+      "file": "foliage_flower_drift_c.glb",
+      "family": "vegetation",
+      "generator": "flower_drift",
+      "seed": 143,
+      "dimensions": {
+        "width": 0.4,
+        "depth": 0.36,
+        "height": 0.26
+      },
+      "palette": [
+        "foliage_sage_01",
+        "accent_ochre_01",
+        "canvas_cream_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 184,
+        "trianglesMax": 260,
+        "materialsMax": 3
+      },
+      "rootNode": "foliage_flower_drift_c_root",
+      "requiredNodes": [
+        "foliage_flower_drift_c_root"
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "blossomCount": 4,
+        "height": 0.22,
+        "spread": 0.26,
+        "blossomSize": 0.06
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Yellow ochre blossom mat for warm meadow flower pockets",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "stems",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries yellow blossom height",
+            "shape": "Short tapered stems",
+            "count": "4 stems",
+            "cues": [
+              "Fewer stems keep the pocket instance-efficient",
+              "Planted bases"
+            ]
+          },
+          {
+            "id": "blossoms",
+            "parent": "stems",
+            "importance": "primary",
+            "role": "Reads as yellow wildflowers",
+            "shape": "Six broad faceted ochre petals around raised cream centers",
+            "count": "4 blossoms",
+            "cues": [
+              "Ochre is the dominant read",
+              "Cream centers stay small"
+            ]
+          },
+          {
+            "id": "ground_leaves",
+            "parent": "root",
+            "importance": "secondary",
+            "role": "Grounds the yellow pocket",
+            "shape": "Two bent leaves",
+            "count": "2 leaves",
+            "cues": [
+              "Leaves sit low",
+              "No skirt disc"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Yellow pockets stay compact and low.",
+          "The outline is irregular, not a circle.",
+          "Height never competes with tall meadow grass."
+        ],
+        "negativeSpace": [
+          "Keep air between the four heads.",
+          "Do not pack blossoms into one ochre mass."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "yellow_read",
+            "componentIds": [
+              "blossoms"
+            ],
+            "requirement": "Ochre is the first-read color at 8 m.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_base",
+            "componentIds": [
+              "stems",
+              "ground_leaves"
+            ],
+            "requirement": "The pocket sits on the ground.",
+            "priority": "must"
+          },
+          {
+            "id": "instance_budget",
+            "componentIds": [
+              "stems",
+              "blossoms"
+            ],
+            "requirement": "Triangle count stays inside the instanced-cover budget.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "blossomCount",
+            "componentIds": [
+              "blossoms"
+            ],
+            "purpose": "Keeps yellow pockets sparse enough to mix with white drifts."
+          },
+          {
+            "parameter": "blossomSize",
+            "componentIds": [
+              "blossoms"
+            ],
+            "purpose": "Makes fewer heads still readable."
+          }
+        ],
+        "failureModes": [
+          "A solid ochre disc on the meadow.",
+          "Over-detailed petals that waste the instance budget.",
+          "Heads taller than surrounding grass."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "id": "foliage_meadow_tall_a",
+      "file": "foliage_meadow_tall_a.glb",
+      "family": "vegetation",
+      "generator": "grass_clump",
+      "seed": 144,
+      "dimensions": {
+        "width": 0.7,
+        "depth": 0.48,
+        "height": 0.96
+      },
+      "palette": [
+        "foliage_olive_01",
+        "foliage_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 220,
+        "trianglesMax": 480,
+        "materialsMax": 2
+      },
+      "rootNode": "foliage_meadow_tall_a_root",
+      "requiredNodes": [
+        "foliage_meadow_tall_a_root"
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "bladeCount": 10,
+        "height": 0.92,
+        "spread": 0.46,
+        "bladeWidth": 0.1
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Tall meadow grass tuft for wet edges and unused road shoulders",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "base_cluster",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Anchors the tall tuft",
+            "shape": "Low overlapping blade bases",
+            "count": "1 base",
+            "cues": [
+              "Base stays planted",
+              "No pedestal"
+            ]
+          },
+          {
+            "id": "primary_blades",
+            "parent": "base_cluster",
+            "importance": "primary",
+            "role": "Creates the tall meadow silhouette",
+            "shape": "Tapered blades around 0.9 m",
+            "count": "most blades",
+            "cues": [
+              "Height is clearly taller than short grass",
+              "Lean is directional"
+            ]
+          },
+          {
+            "id": "accent_blades",
+            "parent": "base_cluster",
+            "importance": "secondary",
+            "role": "Breaks the outer edge",
+            "shape": "Shorter and taller edge blades",
+            "count": "remaining blades",
+            "cues": [
+              "Unequal peaks",
+              "No rectangular hedge"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The tuft reads as a tall meadow clump, not a reed or hedge.",
+          "Three height peaks remain visible at 8 m.",
+          "The outline fans with a directional lean."
+        ],
+        "negativeSpace": [
+          "Keep gaps between the dominant blade groups.",
+          "Do not pack blades into a solid wall."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "tall_read",
+            "componentIds": [
+              "primary_blades"
+            ],
+            "requirement": "Height clearly exceeds short grass clumps.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_base",
+            "componentIds": [
+              "base_cluster"
+            ],
+            "requirement": "Blade roots sit on the ground.",
+            "priority": "must"
+          },
+          {
+            "id": "asymmetric_fan",
+            "componentIds": [
+              "primary_blades",
+              "accent_blades"
+            ],
+            "requirement": "The outline is an irregular fan, not a cylinder.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "height",
+            "componentIds": [
+              "primary_blades"
+            ],
+            "purpose": "Sets the tall meadow read versus short grass."
+          },
+          {
+            "parameter": "bladeCount",
+            "componentIds": [
+              "primary_blades",
+              "accent_blades"
+            ],
+            "purpose": "Keeps the tuft full without becoming a hedge."
+          }
+        ],
+        "failureModes": [
+          "A cylindrical hedge of identical blades.",
+          "Height that matches short grass and disappears in the meadow.",
+          "A floating tuft with no grounded base."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "id": "foliage_meadow_tall_b",
+      "file": "foliage_meadow_tall_b.glb",
+      "family": "vegetation",
+      "generator": "grass_clump",
+      "seed": 145,
+      "dimensions": {
+        "width": 0.66,
+        "depth": 0.44,
+        "height": 1.08
+      },
+      "palette": [
+        "foliage_sage_01",
+        "foliage_olive_01"
+      ],
+      "budget": {
+        "trianglesMin": 55,
+        "trianglesTarget": 200,
+        "trianglesMax": 460,
+        "materialsMax": 2
+      },
+      "rootNode": "foliage_meadow_tall_b_root",
+      "requiredNodes": [
+        "foliage_meadow_tall_b_root"
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "bladeCount": 8,
+        "height": 1.05,
+        "spread": 0.42,
+        "bladeWidth": 0.09
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Taller sparse meadow tuft for wet depressions and unused shoulders",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "base_cluster",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Anchors the sparse tuft",
+            "shape": "Low blade gathering",
+            "count": "1 base",
+            "cues": [
+              "Planted roots",
+              "No pedestal"
+            ]
+          },
+          {
+            "id": "primary_blades",
+            "parent": "base_cluster",
+            "importance": "primary",
+            "role": "Creates a taller sparse silhouette",
+            "shape": "Fewer taller blades",
+            "count": "most blades",
+            "cues": [
+              "Sparser than variant a",
+              "Still taller than short grass"
+            ]
+          },
+          {
+            "id": "accent_blades",
+            "parent": "base_cluster",
+            "importance": "secondary",
+            "role": "Adds uneven peaks",
+            "shape": "Edge blades of mixed height",
+            "count": "remaining blades",
+            "cues": [
+              "Unequal tips",
+              "Directional lean"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The tuft is taller and thinner than meadow tall A.",
+          "It still reads as grass, not a reed bundle.",
+          "Sparse gaps remain at gameplay distance."
+        ],
+        "negativeSpace": [
+          "Preserve larger gaps than the denser tall variant.",
+          "Do not fill into a wall of blades."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "taller_read",
+            "componentIds": [
+              "primary_blades"
+            ],
+            "requirement": "Height exceeds meadow tall A slightly while staying grass-like.",
+            "priority": "must"
+          },
+          {
+            "id": "sparse_fan",
+            "componentIds": [
+              "primary_blades",
+              "accent_blades"
+            ],
+            "requirement": "Fewer blades keep air in the silhouette.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_base",
+            "componentIds": [
+              "base_cluster"
+            ],
+            "requirement": "Roots sit on terrain.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "height",
+            "componentIds": [
+              "primary_blades"
+            ],
+            "purpose": "Sets the extra tall meadow read."
+          },
+          {
+            "parameter": "bladeCount",
+            "componentIds": [
+              "primary_blades"
+            ],
+            "purpose": "Keeps the tuft sparse."
+          }
+        ],
+        "failureModes": [
+          "A reed cylinder that no longer reads as grass.",
+          "Density matching the shorter tall variant.",
+          "A floating clump with no base."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
         ]
       }
     },
@@ -3521,15 +4568,370 @@
       }
     },
     {
+      "id": "prop_path_slab_a",
+      "file": "prop_path_slab_a.glb",
+      "family": "prop",
+      "generator": "path_slab",
+      "seed": 146,
+      "dimensions": {
+        "width": 0.56,
+        "depth": 0.48,
+        "height": 0.07
+      },
+      "palette": [
+        "stone_warm_01",
+        "stone_golden_01"
+      ],
+      "budget": {
+        "trianglesMin": 24,
+        "trianglesTarget": 90,
+        "trianglesMax": 220,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_path_slab_a_root",
+      "requiredNodes": [
+        "prop_path_slab_a_root"
+      ],
+      "readDistanceMeters": 12,
+      "parameters": {
+        "radius": 0.26,
+        "height": 0.055,
+        "sides": 6,
+        "chipCount": 2
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Warm hexagonal stepping slab for packed dirt path edges",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "slab_body",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the stepping-stone silhouette",
+            "shape": "Low six-sided faceted disc",
+            "count": "1 slab",
+            "cues": [
+              "Sits flat on dirt",
+              "Facets stay chunky"
+            ]
+          },
+          {
+            "id": "edge_chips",
+            "parent": "slab_body",
+            "importance": "secondary",
+            "role": "Breaks the perfect hex outline",
+            "shape": "Small golden stone chips",
+            "count": "2 chips",
+            "cues": [
+              "Chips sit on the rim",
+              "Do not stack into a cairn"
+            ]
+          },
+          {
+            "id": "ground_contact",
+            "parent": "slab_body",
+            "importance": "primary",
+            "role": "Keeps the slab planted on the path",
+            "shape": "Broad underside",
+            "count": "1 contact",
+            "cues": [
+              "No floating rim",
+              "Thickness stays low"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The slab reads as a flat stepping stone, not a boulder.",
+          "The hex is irregular after rock shaping.",
+          "Height stays below a boot sole."
+        ],
+        "negativeSpace": [
+          "Keep the top plane mostly open.",
+          "Do not pile chips into a second rock."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "flat_read",
+            "componentIds": [
+              "slab_body"
+            ],
+            "requirement": "The stone is a low slab, not a pebble cluster.",
+            "priority": "must"
+          },
+          {
+            "id": "path_color",
+            "componentIds": [
+              "slab_body"
+            ],
+            "requirement": "Warm stone tokens match packed dirt paths.",
+            "priority": "must"
+          },
+          {
+            "id": "irregular_hex",
+            "componentIds": [
+              "slab_body",
+              "edge_chips"
+            ],
+            "requirement": "The outline is faceted and slightly broken.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "radius",
+            "componentIds": [
+              "slab_body"
+            ],
+            "purpose": "Sets the stepping-stone footprint."
+          },
+          {
+            "parameter": "sides",
+            "componentIds": [
+              "slab_body"
+            ],
+            "purpose": "Locks the hexagonal read."
+          }
+        ],
+        "failureModes": [
+          "A round pebble that disappears into the dirt.",
+          "A thick block that reads as a crate.",
+          "A perfectly regular hexagon with no facet wear."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "prop_path_slab_b",
+      "file": "prop_path_slab_b.glb",
+      "family": "prop",
+      "generator": "path_slab",
+      "seed": 147,
+      "dimensions": {
+        "width": 0.5,
+        "depth": 0.44,
+        "height": 0.065
+      },
+      "palette": [
+        "stone_golden_01",
+        "stone_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 22,
+        "trianglesTarget": 80,
+        "trianglesMax": 200,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_path_slab_b_root",
+      "requiredNodes": [
+        "prop_path_slab_b_root"
+      ],
+      "readDistanceMeters": 12,
+      "parameters": {
+        "radius": 0.23,
+        "height": 0.048,
+        "sides": 5,
+        "chipCount": 1
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Golden pentagonal stepping slab for packed dirt path edges",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "slab_body",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the smaller stepping-stone silhouette",
+            "shape": "Low five-sided faceted disc",
+            "count": "1 slab",
+            "cues": [
+              "Sits flatter than variant a",
+              "Golden token reads warmer"
+            ]
+          },
+          {
+            "id": "edge_chip",
+            "parent": "slab_body",
+            "importance": "secondary",
+            "role": "Breaks the pentagon rim",
+            "shape": "One warm chip",
+            "count": "1 chip",
+            "cues": [
+              "Single chip only",
+              "Stays on the rim"
+            ]
+          },
+          {
+            "id": "ground_contact",
+            "parent": "slab_body",
+            "importance": "primary",
+            "role": "Keeps the slab planted",
+            "shape": "Broad underside",
+            "count": "1 contact",
+            "cues": [
+              "Low thickness",
+              "No float"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The slab is smaller and lower than variant A.",
+          "Five sides keep it from matching the hex variant.",
+          "It still reads as a stepping stone."
+        ],
+        "negativeSpace": [
+          "Keep the top plane open.",
+          "Do not add a second chip pile."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "flat_read",
+            "componentIds": [
+              "slab_body"
+            ],
+            "requirement": "Remains a low slab.",
+            "priority": "must"
+          },
+          {
+            "id": "variant_read",
+            "componentIds": [
+              "slab_body"
+            ],
+            "requirement": "Five sides distinguish it from the hex slab.",
+            "priority": "must"
+          },
+          {
+            "id": "path_color",
+            "componentIds": [
+              "slab_body"
+            ],
+            "requirement": "Golden stone matches packed dirt.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "radius",
+            "componentIds": [
+              "slab_body"
+            ],
+            "purpose": "Sets the smaller footprint."
+          },
+          {
+            "parameter": "sides",
+            "componentIds": [
+              "slab_body"
+            ],
+            "purpose": "Locks the pentagon read."
+          }
+        ],
+        "failureModes": [
+          "A copy of the hexagonal slab.",
+          "A pebble cluster instead of a slab.",
+          "A thick block standing off the path."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
       "id": "house_farmhouse_a",
       "file": "house_farmhouse_a.glb",
       "family": "architecture",
       "generator": "farmhouse",
       "seed": 201,
       "dimensions": {
-        "width": 7.4,
-        "depth": 6.2,
-        "height": 6.2
+        "width": 8.6,
+        "depth": 8.9,
+        "height": 7.5
       },
       "palette": [
         "stone_warm_01",
@@ -3537,13 +4939,15 @@
         "wood_honey_01",
         "wood_dark_01",
         "roof_terracotta_01",
-        "emissive_lantern_01"
+        "emissive_lantern_01",
+        "roof_warm_orange_01",
+        "stone_cool_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 10000,
-        "trianglesMax": 18000,
-        "materialsMax": 6
+        "trianglesMin": 8000,
+        "trianglesTarget": 24000,
+        "trianglesMax": 65000,
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -3564,8 +4968,8 @@
         "roofPitchDeg": 34,
         "masonryCourses": 4,
         "masonryBlocks": 5,
-        "shingleRows": 7,
-        "shingleColumns": 8,
+        "shingleRows": 10,
+        "shingleColumns": 14,
         "crossGableWidth": 3.2,
         "porchDepth": 1.7,
         "porchPlanks": 8,
@@ -3627,6 +5031,18 @@
               "detail_density"
             ],
             "notes": "Isolated 3/4 sheet locking porch volume, overlapping shingles, chimney masonry, and lantern glow."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Derived annotated board measuring roof, porch, plinth, openings, value hierarchy, and inferred rear continuity."
           }
         ],
         "components": [
@@ -3881,9 +5297,9 @@
         "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 10000,
-        "trianglesMax": 18000,
+        "trianglesMin": 8000,
+        "trianglesTarget": 14000,
+        "trianglesMax": 24000,
         "materialsMax": 6
       },
       "pivot": "ground_center",
@@ -4189,9 +5605,9 @@
         "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 1500,
-        "trianglesTarget": 6000,
-        "trianglesMax": 10000,
+        "trianglesMin": 4000,
+        "trianglesTarget": 7000,
+        "trianglesMax": 14000,
         "materialsMax": 5
       },
       "pivot": "ground_center",
@@ -4445,8 +5861,8 @@
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 9000,
-        "trianglesMax": 16000,
+        "trianglesTarget": 28000,
+        "trianglesMax": 45000,
         "materialsMax": 6
       },
       "pivot": "ground_center",
@@ -5160,7 +6576,7 @@
       "seed": 239,
       "dimensions": {
         "width": 8.8,
-        "depth": 6.4,
+        "depth": 9.2,
         "height": 6
       },
       "palette": [
@@ -5172,9 +6588,9 @@
         "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 10000,
-        "trianglesMax": 18000,
+        "trianglesMin": 7000,
+        "trianglesTarget": 11000,
+        "trianglesMax": 24000,
         "materialsMax": 6
       },
       "pivot": "ground_center",
@@ -10950,6 +12366,387 @@
       }
     },
     {
+      "id": "fauna_gull_a",
+      "file": "fauna_gull_a.glb",
+      "family": "prop",
+      "generator": "fauna_gull",
+      "seed": 831,
+      "dimensions": {
+        "width": 0.7,
+        "depth": 0.55,
+        "height": 0.22
+      },
+      "palette": [
+        "canvas_cream_01",
+        "foam_warm_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 320,
+        "trianglesMax": 900,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_gull_a_root",
+      "requiredNodes": [
+        "fauna_gull_a_root",
+        "fauna_gull_a_motion_root",
+        "fauna_gull_a_wing_left_pivot",
+        "fauna_gull_a_wing_right_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "glide",
+          "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "flap",
+          "durationSeconds": 0.36,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "scale": 0.7,
+        "wingSpan": 1
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Faceted coastal gull with cream body and broad wing planes",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "body",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the gull fuselage",
+            "shape": "Elongated cream ico body",
+            "count": "1 body",
+            "cues": [
+              "Reads as a bird, not a cloud",
+              "Beak is ochre"
+            ]
+          },
+          {
+            "id": "wings",
+            "parent": "body",
+            "importance": "primary",
+            "role": "Creates the flying silhouette",
+            "shape": "Broad flat wing boxes",
+            "count": "2 wings",
+            "cues": [
+              "Wings are planes, not feathers",
+              "Pivots allow flap"
+            ]
+          },
+          {
+            "id": "head",
+            "parent": "body",
+            "importance": "secondary",
+            "role": "Identifies the gull at distance",
+            "shape": "Small head with cone beak",
+            "count": "1 head",
+            "cues": [
+              "Beak is short",
+              "Head stays cream"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The gull reads as a simple coastal bird with a wide wing span.",
+          "The body is longer than it is tall.",
+          "Wings stay planar and chunky."
+        ],
+        "negativeSpace": [
+          "Keep air under the wings.",
+          "Do not fill the span with extra feathers."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "wing_planes",
+            "componentIds": [
+              "wings"
+            ],
+            "requirement": "Wings are broad faceted planes with flap pivots.",
+            "priority": "must"
+          },
+          {
+            "id": "coastal_read",
+            "componentIds": [
+              "body",
+              "head"
+            ],
+            "requirement": "Cream body and ochre beak read as a gull at 15 m.",
+            "priority": "must"
+          },
+          {
+            "id": "flight_pivots",
+            "componentIds": [
+              "wings"
+            ],
+            "requirement": "Left and right wing pivots exist for presentation flap.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "scale",
+            "componentIds": [
+              "body",
+              "head"
+            ],
+            "purpose": "Sets gameplay-camera bird size while keeping the head proportional."
+          },
+          {
+            "parameter": "wingSpan",
+            "componentIds": [
+              "wings"
+            ],
+            "purpose": "Sets wing plane width independently of body mass."
+          }
+        ],
+        "failureModes": [
+          "A generic white blob with no wing silhouette.",
+          "Feathered photoreal wings.",
+          "Missing flap pivots so the bird cannot animate."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "fauna_butterfly_a",
+      "file": "fauna_butterfly_a.glb",
+      "family": "prop",
+      "generator": "fauna_butterfly",
+      "seed": 832,
+      "dimensions": {
+        "width": 0.18,
+        "depth": 0.12,
+        "height": 0.06
+      },
+      "palette": [
+        "wood_dark_01",
+        "accent_ochre_01",
+        "accent_red_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 140,
+        "trianglesMax": 400,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_butterfly_a_root",
+      "requiredNodes": [
+        "fauna_butterfly_a_root",
+        "fauna_butterfly_a_motion_root",
+        "fauna_butterfly_a_wing_left_pivot",
+        "fauna_butterfly_a_wing_right_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "flap",
+          "durationSeconds": 0.24,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 12,
+      "parameters": {
+        "scale": 0.45,
+        "wingSpan": 1
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Tiny faceted meadow butterfly with ochre and red wing planes",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "body",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the insect body",
+            "shape": "Dark short cylinder",
+            "count": "1 body",
+            "cues": [
+              "Tiny at gameplay distance",
+              "Darker than wings"
+            ]
+          },
+          {
+            "id": "wings",
+            "parent": "body",
+            "importance": "primary",
+            "role": "Creates the butterfly read",
+            "shape": "Paired triangular wing planes",
+            "count": "2 wings",
+            "cues": [
+              "Ochre and red stay distinct",
+              "Pivots allow flap"
+            ]
+          },
+          {
+            "id": "head",
+            "parent": "body",
+            "importance": "secondary",
+            "role": "Marks the forward end",
+            "shape": "Tiny dark ico",
+            "count": "1 head",
+            "cues": [
+              "No antenna noise",
+              "Stays smaller than wings"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The insect reads as two wing planes on a dark body.",
+          "It stays tiny against meadow grass.",
+          "Wings are triangular, not discs."
+        ],
+        "negativeSpace": [
+          "Keep a gap between the two wings.",
+          "Do not add extra decorative petals."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "wing_planes",
+            "componentIds": [
+              "wings"
+            ],
+            "requirement": "Two pivoted wing planes carry the silhouette.",
+            "priority": "must"
+          },
+          {
+            "id": "tiny_scale",
+            "componentIds": [
+              "body",
+              "wings"
+            ],
+            "requirement": "The insect stays meadow-scale, not a bird.",
+            "priority": "must"
+          },
+          {
+            "id": "palette_lock",
+            "componentIds": [
+              "wings"
+            ],
+            "requirement": "Ochre and red use accent tokens.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "scale",
+            "componentIds": [
+              "body",
+              "head"
+            ],
+            "purpose": "Keeps the butterfly meadow-tiny without a dominating head."
+          },
+          {
+            "parameter": "wingSpan",
+            "componentIds": [
+              "wings"
+            ],
+            "purpose": "Sets wing plane size independently of the body."
+          }
+        ],
+        "failureModes": [
+          "A bird-sized insect.",
+          "Disc wings with no flap pivots.",
+          "Unapproved rainbow colors."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
       "id": "interior_farmhouse_shell",
       "file": "interior_farmhouse_shell.glb",
       "family": "architecture",
@@ -11455,8 +13252,8 @@
       ],
       "budget": {
         "trianglesMin": 1200,
-        "trianglesTarget": 2800,
-        "trianglesMax": 6000,
+        "trianglesTarget": 7000,
+        "trianglesMax": 12000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -11474,6 +13271,26 @@
         "depth": 2.2,
         "wallHeight": 2.05,
         "roofPitchDeg": 32,
+        "foundationHeight": 0.42,
+        "roofOverhang": 0.34,
+        "roofCourses": 3,
+        "shingleRows": 4,
+        "shingleColumns": 5,
+        "masonryCourses": 2,
+        "masonryBlocks": 3,
+        "porchDepth": 0.55,
+        "porchPlanks": 4,
+        "wingOffset": 0.15,
+        "wingWidth": 0.9,
+        "wingDepth": 0.9,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 1,
+        "porchWidthRatio": 0.65,
+        "doorWidth": 0.86,
+        "doorHeight": 1.55,
+        "roofForm": "lean-to",
+        "openingLayout": "shed-tools",
         "variant": "shed"
       },
       "collisionPrimitives": [
@@ -12397,7 +14214,7 @@
       "id": "prop_fish_drying_rack_a",
       "file": "prop_fish_drying_rack_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "fish_drying_rack",
       "seed": 123,
       "dimensions": {
         "width": 2.2,
@@ -12407,14 +14224,13 @@
       "palette": [
         "wood_warm_01",
         "metal_dark_01",
-        "canvas_cream_01",
         "stone_golden_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 220,
+        "trianglesTarget": 450,
+        "trianglesMax": 900,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -12425,7 +14241,12 @@
         "prop_fish_drying_rack_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
+      "parameters": {
+        "width": 1.9,
+        "depth": 0.62,
+        "height": 1.5,
+        "fishCount": 4
+      },
       "collisionPrimitives": [
         {
           "id": "main",
@@ -13337,35 +15158,198 @@
       "id": "fauna_rabbit_a",
       "file": "fauna_rabbit_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
-      "seed": 114,
+      "generator": "fauna_rabbit",
+      "seed": 833,
       "dimensions": {
-        "width": 0.11,
-        "depth": 0.2,
-        "height": 0.3
+        "width": 0.28,
+        "depth": 0.42,
+        "height": 0.38
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "plaster_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 80,
+        "trianglesTarget": 420,
+        "trianglesMax": 900,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
       "instancing": true,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "fauna_rabbit_a_root",
       "requiredNodes": [
-        "fauna_rabbit_a_root"
+        "fauna_rabbit_a_root",
+        "fauna_rabbit_a_motion_root",
+        "fauna_rabbit_a_head_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 1.4,
+          "loop": true
+        },
+        {
+          "name": "look",
+          "durationSeconds": 1.2,
+          "loop": true
+        },
+        {
+          "name": "hop",
+          "durationSeconds": 0.48,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {
+        "scale": 0.55,
+        "earLength": 1
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Faceted cream meadow rabbit with hop, idle, and look clips",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "body",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the rabbit mass",
+            "shape": "Rounded cream haunch and torso",
+            "count": "1 body",
+            "cues": [
+              "Haunch is readable",
+              "Sits planted"
+            ]
+          },
+          {
+            "id": "head",
+            "parent": "body",
+            "importance": "primary",
+            "role": "Identifies the rabbit",
+            "shape": "Small head with long ears",
+            "count": "1 head",
+            "cues": [
+              "Ears rise above the body",
+              "Eyes stay dark"
+            ]
+          },
+          {
+            "id": "legs",
+            "parent": "body",
+            "importance": "secondary",
+            "role": "Grounds the hop silhouette",
+            "shape": "Blocky fore and hind legs",
+            "count": "4 legs",
+            "cues": [
+              "Hind legs are larger",
+              "No stick-figure limbs"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The rabbit reads as a compact cream animal with tall ears.",
+          "The haunch is heavier than the chest.",
+          "It stays meadow-scale beside grass clumps."
+        ],
+        "negativeSpace": [
+          "Keep air between the ears.",
+          "Do not fill under the body into a blob."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "mirror_with_variation",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side views keep the same planted silhouette with seeded variation.",
+            "No hidden face collapses into a single flat card at gameplay distance."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "ear_read",
+            "componentIds": [
+              "head"
+            ],
+            "requirement": "Ears remain the first-read silhouette cue.",
+            "priority": "must"
+          },
+          {
+            "id": "hop_pivot",
+            "componentIds": [
+              "body"
+            ],
+            "requirement": "A motion root exists for hop and idle.",
+            "priority": "must"
+          },
+          {
+            "id": "meadow_scale",
+            "componentIds": [
+              "body"
+            ],
+            "requirement": "The animal stays smaller than a chicken cluster.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "scale",
+            "componentIds": [
+              "body",
+              "head",
+              "legs"
+            ],
+            "purpose": "Sets meadow-scale size while keeping legs proportional to the haunch."
+          },
+          {
+            "parameter": "earLength",
+            "componentIds": [
+              "head"
+            ],
+            "purpose": "Keeps ear height the first-read silhouette cue."
+          }
+        ],
+        "failureModes": [
+          "A static polyfork prop with no hop clip.",
+          "Chibi proportions that break the coastal worker scale.",
+          "Missing ear silhouette."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "cloud_towering_a",
@@ -13643,12 +15627,12 @@
       "id": "bridge_log_plank_a",
       "file": "bridge_log_plank_a.glb",
       "family": "architecture",
-      "generator": "polyfork_architecture",
+      "generator": "log_bridge",
       "seed": 118,
       "dimensions": {
         "width": 4,
         "depth": 1.72,
-        "height": 1.33
+        "height": 1.5
       },
       "palette": [
         "wood_warm_01",
@@ -13657,9 +15641,9 @@
         "roof_terracotta_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
+        "trianglesMin": 1200,
+        "trianglesTarget": 2500,
+        "trianglesMax": 4800,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -13668,10 +15652,16 @@
       "lod": "none",
       "rootNode": "bridge_log_plank_a_root",
       "requiredNodes": [
-        "bridge_log_plank_a_root"
+        "bridge_log_plank_a_root",
+        "COL_bridge_log_plank_a"
       ],
       "readDistanceMeters": 30,
-      "parameters": {},
+      "parameters": {
+        "length": 3.8,
+        "width": 1.5,
+        "deckPlanks": 11,
+        "railPosts": 4
+      },
       "collisionPrimitives": [
         {
           "id": "main",
@@ -14069,7 +16059,7 @@
       "seed": 457,
       "dimensions": {
         "width": 2.2,
-        "depth": 2,
+        "depth": 3,
         "height": 3
       },
       "palette": [
@@ -14079,9 +16069,9 @@
         "roof_terracotta_01"
       ],
       "budget": {
-        "trianglesMin": 800,
-        "trianglesTarget": 1800,
-        "trianglesMax": 4000,
+        "trianglesMin": 1800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 6000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -14099,6 +16089,26 @@
         "depth": 1.6,
         "wallHeight": 2,
         "roofPitchDeg": 40,
+        "foundationHeight": 0.42,
+        "roofOverhang": 0.28,
+        "roofCourses": 3,
+        "shingleRows": 3,
+        "shingleColumns": 4,
+        "masonryCourses": 2,
+        "masonryBlocks": 3,
+        "porchDepth": 0,
+        "porchPlanks": 0,
+        "wingOffset": 0.2,
+        "wingWidth": 0,
+        "wingDepth": 0,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 0.95,
+        "porchWidthRatio": 0.5,
+        "doorWidth": 0.72,
+        "doorHeight": 1.55,
+        "roofForm": "offset-gable",
+        "openingLayout": "outhouse-vent",
         "variant": "outhouse"
       },
       "collisionPrimitives": [
@@ -14989,13 +16999,14 @@
         "stone_warm_01",
         "plaster_cream_01",
         "wood_honey_01",
-        "roof_terracotta_01"
+        "roof_terracotta_01",
+        "emissive_window_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 4500,
-        "trianglesMax": 10000,
-        "materialsMax": 4
+        "trianglesMin": 6000,
+        "trianglesTarget": 10500,
+        "trianglesMax": 18000,
+        "materialsMax": 5
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -15014,6 +17025,26 @@
         "depth": 4.2,
         "wallHeight": 2.55,
         "roofPitchDeg": 32,
+        "foundationHeight": 0.7,
+        "roofOverhang": 0.42,
+        "roofCourses": 4,
+        "shingleRows": 6,
+        "shingleColumns": 7,
+        "masonryCourses": 3,
+        "masonryBlocks": 5,
+        "porchDepth": 0.72,
+        "porchPlanks": 6,
+        "wingOffset": 0,
+        "wingWidth": 0,
+        "wingDepth": 0,
+        "chimneyOffsetX": 1.6,
+        "chimneyHeight": 1.22,
+        "plinthScale": 1,
+        "porchWidthRatio": 0.7,
+        "doorWidth": 0.92,
+        "doorHeight": 1.78,
+        "roofForm": "front-gable",
+        "openingLayout": "cottage-front",
         "variant": "cottage-a"
       },
       "collisionPrimitives": [
@@ -15240,13 +17271,14 @@
         "stone_warm_01",
         "plaster_warm_01",
         "wood_honey_01",
-        "roof_warm_orange_01"
+        "roof_warm_orange_01",
+        "emissive_window_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 4500,
-        "trianglesMax": 10000,
-        "materialsMax": 4
+        "trianglesMin": 6000,
+        "trianglesTarget": 10500,
+        "trianglesMax": 18000,
+        "materialsMax": 5
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -15265,6 +17297,26 @@
         "depth": 5,
         "wallHeight": 2.5,
         "roofPitchDeg": 36,
+        "foundationHeight": 0.68,
+        "roofOverhang": 0.5,
+        "roofCourses": 4,
+        "shingleRows": 6,
+        "shingleColumns": 7,
+        "masonryCourses": 3,
+        "masonryBlocks": 5,
+        "porchDepth": 0.45,
+        "porchPlanks": 4,
+        "wingOffset": -0.85,
+        "wingWidth": 1.1,
+        "wingDepth": 1.6,
+        "chimneyOffsetX": -1.2,
+        "chimneyHeight": 1.2,
+        "plinthScale": 1.05,
+        "porchWidthRatio": 0.55,
+        "doorWidth": 0.86,
+        "doorHeight": 1.78,
+        "roofForm": "side-gable",
+        "openingLayout": "cottage-side",
         "variant": "cottage-b"
       },
       "collisionPrimitives": [
@@ -15493,13 +17545,14 @@
         "wood_honey_01",
         "wood_dark_01",
         "roof_deep_red_01",
-        "canvas_cream_01"
+        "canvas_cream_01",
+        "emissive_window_01"
       ],
       "budget": {
-        "trianglesMin": 5000,
-        "trianglesTarget": 8000,
-        "trianglesMax": 18000,
-        "materialsMax": 6
+        "trianglesMin": 9000,
+        "trianglesTarget": 15000,
+        "trianglesMax": 26000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -15518,6 +17571,26 @@
         "depth": 5.8,
         "wallHeight": 3.2,
         "roofPitchDeg": 33,
+        "foundationHeight": 0.8,
+        "roofOverhang": 0.62,
+        "roofCourses": 5,
+        "shingleRows": 7,
+        "shingleColumns": 9,
+        "masonryCourses": 4,
+        "masonryBlocks": 7,
+        "porchDepth": 1.45,
+        "porchPlanks": 8,
+        "wingOffset": 0,
+        "wingWidth": 0,
+        "wingDepth": 0,
+        "chimneyOffsetX": 2.2,
+        "chimneyHeight": 1.55,
+        "plinthScale": 1.12,
+        "porchWidthRatio": 0.78,
+        "doorWidth": 1.05,
+        "doorHeight": 2.1,
+        "roofForm": "front-gable",
+        "openingLayout": "inn-veranda",
         "variant": "inn"
       },
       "collisionPrimitives": [
@@ -15749,9 +17822,9 @@
         "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 5000,
-        "trianglesTarget": 8000,
-        "trianglesMax": 18000,
+        "trianglesMin": 9000,
+        "trianglesTarget": 12000,
+        "trianglesMax": 24000,
         "materialsMax": 6
       },
       "pivot": "ground_center",
@@ -15771,6 +17844,26 @@
         "depth": 6,
         "wallHeight": 3.15,
         "roofPitchDeg": 30,
+        "foundationHeight": 0.72,
+        "roofOverhang": 0.58,
+        "roofCourses": 4,
+        "shingleRows": 6,
+        "shingleColumns": 9,
+        "masonryCourses": 4,
+        "masonryBlocks": 7,
+        "porchDepth": 1.1,
+        "porchPlanks": 8,
+        "wingOffset": 0,
+        "wingWidth": 0,
+        "wingDepth": 0,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 1.1,
+        "porchWidthRatio": 0.8,
+        "doorWidth": 1.3,
+        "doorHeight": 2.1,
+        "roofForm": "front-gable",
+        "openingLayout": "market-arcade",
         "variant": "market-hall"
       },
       "collisionPrimitives": [
@@ -16000,9 +18093,9 @@
         "roof_turf_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 5000,
-        "trianglesMax": 10000,
+        "trianglesMin": 6000,
+        "trianglesTarget": 9000,
+        "trianglesMax": 16000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -16022,6 +18115,26 @@
         "depth": 5,
         "wallHeight": 2.9,
         "roofPitchDeg": 28,
+        "foundationHeight": 0.55,
+        "roofOverhang": 0.36,
+        "roofCourses": 4,
+        "shingleRows": 5,
+        "shingleColumns": 8,
+        "masonryCourses": 3,
+        "masonryBlocks": 6,
+        "porchDepth": 0,
+        "porchPlanks": 0,
+        "wingOffset": 0.2,
+        "wingWidth": 1.5,
+        "wingDepth": 3.2,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 1,
+        "porchWidthRatio": 0.4,
+        "doorWidth": 1.9,
+        "doorHeight": 2.35,
+        "roofForm": "tall-gable",
+        "openingLayout": "barn-loft",
         "variant": "barn"
       },
       "collisionPrimitives": [
@@ -16230,6 +18343,2071 @@
           "gameplay_8m",
           "gameplay_15m",
           "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "house_farmhouse_b",
+      "file": "house_farmhouse_b.glb",
+      "family": "architecture",
+      "generator": "farmhouse",
+      "seed": 203,
+      "dimensions": {
+        "width": 9,
+        "depth": 9.5,
+        "height": 7.9
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "wood_dark_01",
+        "roof_terracotta_01",
+        "emissive_lantern_01",
+        "roof_warm_orange_01",
+        "stone_cool_01"
+      ],
+      "budget": {
+        "trianglesMin": 8000,
+        "trianglesTarget": 28000,
+        "trianglesMax": 70000,
+        "materialsMax": 8
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "house_farmhouse_b_root",
+      "requiredNodes": [
+        "house_farmhouse_b_root",
+        "house_farmhouse_b_LOD0",
+        "house_farmhouse_b_LOD1",
+        "COL_house_farmhouse_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 6.9,
+        "depth": 5.1,
+        "wallHeight": 3.25,
+        "roofPitchDeg": 36,
+        "masonryCourses": 5,
+        "masonryBlocks": 6,
+        "shingleRows": 11,
+        "shingleColumns": 14,
+        "crossGableWidth": 3.5,
+        "porchDepth": 1.85,
+        "porchPlanks": 9,
+        "chimneyOffsetX": 3,
+        "chimneyHeight": 6.9
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.2,
+            0
+          ],
+          "halfExtents": [
+            3.5,
+            2.2,
+            2.55
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "house_farmhouse_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "house_farmhouse_b_LOD1",
+          "distanceMeters": 72,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Farmhouse-derived alternate homestead with offset chimney, deeper porch, and layered terracotta roof",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns authored planes, palette tokens, material response, and gameplay readability."
+          },
+          {
+            "id": "farmhouse_isolated",
+            "kind": "visual_reference",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Locks the farmhouse structural anchor while allowing a distinct second arrangement."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Measures roof, plinth, porch, openings, and value hierarchy."
+          }
+        ],
+        "components": [
+          {
+            "id": "foundation",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the house above wet coastal ground",
+            "shape": "Chunky stepped masonry plinth with water table",
+            "count": "1 plinth",
+            "cues": [
+              "Courses remain legible",
+              "Plaster never floats"
+            ]
+          },
+          {
+            "id": "timber_frame",
+            "parent": "foundation",
+            "importance": "primary",
+            "role": "Breaks plaster walls into structural bays",
+            "shape": "Heavy corner posts, plates, and sills",
+            "count": "4 posts plus plates",
+            "cues": [
+              "Timber is thicker than infill",
+              "Frame wraps rear and side faces"
+            ]
+          },
+          {
+            "id": "shingle_roof",
+            "parent": "timber_frame",
+            "importance": "primary",
+            "role": "Owns the alternate homestead silhouette",
+            "shape": "Steep layered gable with cross-gable and fascia",
+            "count": "main roof plus porch roof",
+            "cues": [
+              "Rows overlap",
+              "Ridge and bargeboards have thickness"
+            ]
+          },
+          {
+            "id": "chimney",
+            "parent": "foundation",
+            "importance": "primary",
+            "role": "Adds an offset masonry counterweight",
+            "shape": "Stepped shaft, crown, and dark flue pot",
+            "count": "1 chimney",
+            "cues": [
+              "Chimney breaks roofline",
+              "Courses stagger around shaft"
+            ]
+          },
+          {
+            "id": "porch",
+            "parent": "foundation",
+            "importance": "primary",
+            "role": "Creates a deeper lived-in entry volume",
+            "shape": "Planked deck, posts, steps, and lantern",
+            "count": "1 porch assembly",
+            "cues": [
+              "Entry remains open",
+              "Planks read in close view"
+            ]
+          },
+          {
+            "id": "openings",
+            "parent": "timber_frame",
+            "importance": "secondary",
+            "role": "Keeps the alternate facade gameplay-readable",
+            "shape": "Proud mullioned windows, shutters, and door",
+            "count": "door plus window bays",
+            "cues": [
+              "Bays stay separated",
+              "Shutters are not decals"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A steep layered roof, deep porch, and offset chimney form the farmhouse-derived identity.",
+          "The continuous stone plinth keeps the alternate homestead grounded on coastal terrain.",
+          "The cross-gable and chimney prevent a duplicate starter-house read."
+        ],
+        "negativeSpace": [
+          "Porch canopy and stair gaps remain open at the entry.",
+          "Window bays preserve shadow gaps between shutters, timber, and plaster."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Rear and side faces continue the timber/plaster hierarchy.",
+            "Chimney and plinth wrap continuously beyond camera."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "layered_roof",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "requirement": "Roof rows, fascia, and cross-gable read as layered construction.",
+            "priority": "must"
+          },
+          {
+            "id": "deep_entry",
+            "componentIds": [
+              "porch",
+              "openings"
+            ],
+            "requirement": "The deep porch keeps an open approach and readable threshold.",
+            "priority": "must"
+          },
+          {
+            "id": "masonry_counterweight",
+            "componentIds": [
+              "foundation",
+              "chimney"
+            ],
+            "requirement": "Plinth and chimney share the staggered masonry language.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "foundation",
+              "timber_frame",
+              "shingle_roof",
+              "porch"
+            ],
+            "purpose": "Sets house span, frame bays, roof width, and porch stance."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "foundation",
+              "timber_frame",
+              "shingle_roof",
+              "porch"
+            ],
+            "purpose": "Sets grounded depth and farmhouse entry."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "timber_frame",
+              "openings"
+            ],
+            "purpose": "Sets wall and opening proportions."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sets steep roof rise."
+          },
+          {
+            "parameter": "masonryCourses",
+            "componentIds": [
+              "foundation"
+            ],
+            "purpose": "Sets plinth course cadence."
+          },
+          {
+            "parameter": "masonryBlocks",
+            "componentIds": [
+              "foundation"
+            ],
+            "purpose": "Sets block rhythm."
+          },
+          {
+            "parameter": "shingleRows",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sets roof layering."
+          },
+          {
+            "parameter": "shingleColumns",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sets shingle rhythm."
+          },
+          {
+            "parameter": "crossGableWidth",
+            "componentIds": [
+              "shingle_roof"
+            ],
+            "purpose": "Sets front roof break."
+          },
+          {
+            "parameter": "porchDepth",
+            "componentIds": [
+              "porch"
+            ],
+            "purpose": "Sets open entry depth."
+          },
+          {
+            "parameter": "porchPlanks",
+            "componentIds": [
+              "porch"
+            ],
+            "purpose": "Sets deck cadence."
+          },
+          {
+            "parameter": "chimneyOffsetX",
+            "componentIds": [
+              "chimney"
+            ],
+            "purpose": "Sets chimney counterweight position."
+          },
+          {
+            "parameter": "chimneyHeight",
+            "componentIds": [
+              "chimney"
+            ],
+            "purpose": "Sets roofline break."
+          }
+        ],
+        "failureModes": [
+          "A slab roof or paper-thin porch loses farmhouse construction.",
+          "A centered chimney and mirrored facade erase the alternate silhouette.",
+          "Glossy noise or a floating plinth breaks the cozy coastal identity."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "house_cottage_c",
+      "file": "house_cottage_c.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 429,
+      "dimensions": {
+        "width": 6.8,
+        "depth": 5.8,
+        "height": 6.1
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "roof_terracotta_01",
+        "emissive_window_01"
+      ],
+      "budget": {
+        "trianglesMin": 6000,
+        "trianglesTarget": 12000,
+        "trianglesMax": 20000,
+        "materialsMax": 5
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "house_cottage_c_root",
+      "requiredNodes": [
+        "house_cottage_c_root",
+        "house_cottage_c_LOD0",
+        "house_cottage_c_LOD1",
+        "COL_house_cottage_c"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 5.4,
+        "depth": 4.6,
+        "wallHeight": 2.6,
+        "roofPitchDeg": 35,
+        "foundationHeight": 0.74,
+        "roofOverhang": 0.52,
+        "roofCourses": 3,
+        "shingleRows": 6,
+        "shingleColumns": 7,
+        "masonryCourses": 3,
+        "masonryBlocks": 4,
+        "porchDepth": 1.15,
+        "porchPlanks": 5,
+        "wingOffset": 0.75,
+        "wingWidth": 2,
+        "wingDepth": 1.15,
+        "chimneyOffsetX": 2,
+        "chimneyHeight": 1.28,
+        "plinthScale": 1.08,
+        "porchWidthRatio": 0.62,
+        "doorWidth": 0.92,
+        "doorHeight": 1.82,
+        "roofForm": "front-gable",
+        "openingLayout": "cottage-garden",
+        "variant": "cottage-c"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.3,
+            0
+          ],
+          "halfExtents": [
+            3.4,
+            2.3,
+            2.7
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "house_cottage_c_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "house_cottage_c_LOD1",
+          "distanceMeters": 72,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Compact garden cottage with offset cross-gable, deep entry, and farmhouse-derived timber frame",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns faceted coastal construction and palette relationships."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Provides measured farmhouse roof, porch, plinth, and opening relationships."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Grounds the cottage on a visible stone base",
+            "shape": "Stepped water-table masonry band",
+            "count": "1 plinth",
+            "cues": [
+              "Course breaks remain visible",
+              "Base meets terrain cleanly"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Divides plaster into readable timber bays",
+            "shape": "Corner posts, plates, and sills",
+            "count": "1 frame",
+            "cues": [
+              "Posts are beam-thick",
+              "Frame wraps rear and side faces"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the garden cottage a second roof beat",
+            "shape": "Layered gable with offset cross-gable",
+            "count": "main roof plus cross-gable",
+            "cues": [
+              "Ridge and fascia have thickness",
+              "Cross-gable is visibly offset"
+            ]
+          },
+          {
+            "id": "garden_entry",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Creates a welcoming garden-facing threshold",
+            "shape": "Deep plank entry with proud openings",
+            "count": "1 entry",
+            "cues": [
+              "Entry has open negative space",
+              "Window and door do not mirror cottage-a"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The offset cross-gable keeps this cottage distinct from the compact front-gable slot.",
+          "The stone plinth and thick timber frame keep it within the farmhouse family.",
+          "A deeper porch and garden-side offset give the small building a lived-in profile."
+        ],
+        "negativeSpace": [
+          "The cross-gable leaves a readable shadow break above the entry.",
+          "Porch and shutter gaps preserve open air between roof and wall planes."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear walls continue the plaster and timber cadence.",
+            "The offset roof junction remains structurally closed behind gameplay view."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "cross_gable",
+            "componentIds": [
+              "roof"
+            ],
+            "requirement": "The offset cross-gable must survive the 8 m silhouette read.",
+            "priority": "must"
+          },
+          {
+            "id": "garden_plinth",
+            "componentIds": [
+              "plinth"
+            ],
+            "requirement": "The cottage must sit on a chunky readable water-table plinth.",
+            "priority": "must"
+          },
+          {
+            "id": "entry_gap",
+            "componentIds": [
+              "garden_entry"
+            ],
+            "requirement": "The porch and openings must keep a clear garden-facing approach.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof",
+              "garden_entry"
+            ],
+            "purpose": "Sets cottage span and cross-gable width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof",
+              "garden_entry"
+            ],
+            "purpose": "Sets compact depth and porch stance."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "garden_entry"
+            ],
+            "purpose": "Sets wall and opening height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets the steep roof profile."
+          },
+          {
+            "parameter": "porchDepth",
+            "componentIds": [
+              "garden_entry"
+            ],
+            "purpose": "Sets welcoming entry projection."
+          },
+          {
+            "parameter": "wingOffset",
+            "componentIds": [
+              "roof",
+              "garden_entry"
+            ],
+            "purpose": "Sets cross-gable and entry offset."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "roof",
+              "garden_entry"
+            ],
+            "purpose": "Selects the garden cottage profile."
+          }
+        ],
+        "failureModes": [
+          "A mirrored cottage-a shell wastes the garden slot.",
+          "A thin roof or missing porch gap loses farmhouse construction.",
+          "A universal closed facade makes the cottage read as a generic village box."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "building_inn_b",
+      "file": "building_inn_b.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 435,
+      "dimensions": {
+        "width": 10.6,
+        "depth": 9,
+        "height": 8
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "wood_dark_01",
+        "roof_deep_red_01",
+        "canvas_cream_01",
+        "emissive_window_01"
+      ],
+      "budget": {
+        "trianglesMin": 10000,
+        "trianglesTarget": 33000,
+        "trianglesMax": 48000,
+        "materialsMax": 7
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "building_inn_b_root",
+      "requiredNodes": [
+        "building_inn_b_root",
+        "building_inn_b_LOD0",
+        "building_inn_b_LOD1",
+        "COL_building_inn_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 8.4,
+        "depth": 6.4,
+        "wallHeight": 3.8,
+        "roofPitchDeg": 34,
+        "foundationHeight": 0.82,
+        "roofOverhang": 0.68,
+        "roofCourses": 5,
+        "shingleRows": 8,
+        "shingleColumns": 10,
+        "masonryCourses": 4,
+        "masonryBlocks": 8,
+        "porchDepth": 1.7,
+        "porchPlanks": 10,
+        "wingOffset": 0.25,
+        "wingWidth": 2.2,
+        "wingDepth": 3.4,
+        "chimneyOffsetX": 2.6,
+        "chimneyHeight": 1.8,
+        "plinthScale": 1.16,
+        "porchWidthRatio": 0.8,
+        "doorWidth": 1.1,
+        "doorHeight": 2.25,
+        "roofForm": "front-gable",
+        "openingLayout": "inn-veranda",
+        "variant": "inn-b"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.9,
+            0
+          ],
+          "halfExtents": [
+            5,
+            2.9,
+            4
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "building_inn_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_inn_b_LOD1",
+          "distanceMeters": 80,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Two-storey village inn with deep veranda, hanging sign, chimney, and offset lodging wing",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns coastal timber, plaster, roof, and value grammar."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Anchors porch depth, plinth, roof layering, and opening cadence."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Supports a larger public building on a strong stone base",
+            "shape": "Wide stepped masonry plinth",
+            "count": "1 plinth",
+            "cues": [
+              "Base reads at 15 m",
+              "Water table runs continuously"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Organizes two storeys of plaster and timber",
+            "shape": "Heavy frame with upper floor tie",
+            "count": "2-storey frame",
+            "cues": [
+              "Floor band separates levels",
+              "Corner posts break long wall"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Makes the inn a village landmark",
+            "shape": "Steep layered gable and side wing roof",
+            "count": "main roof plus wing",
+            "cues": [
+              "Roof has stepped fascia",
+              "Wing stays a secondary volume"
+            ]
+          },
+          {
+            "id": "veranda",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Signals hospitality and public entry",
+            "shape": "Deep planked veranda with posts and sign",
+            "count": "1 veranda",
+            "cues": [
+              "Approach stays open",
+              "Sign marks entry"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A tall two-storey wall, deep veranda, and offset wing establish the inn role.",
+          "Roof and chimney retain farmhouse value hierarchy at a larger civic scale.",
+          "The side wing breaks the rectangular mass with a secondary roof edge."
+        ],
+        "negativeSpace": [
+          "The veranda remains open under its canopy for a clear approach.",
+          "The side wing leaves a readable seam against the main mass."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear walls retain the upper-floor frame cadence.",
+            "Wing roof and wall meet continuously behind the veranda."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "two_storeys",
+            "componentIds": [
+              "frame",
+              "roof"
+            ],
+            "requirement": "The inn must read taller and more civic than a cottage at 15 m.",
+            "priority": "must"
+          },
+          {
+            "id": "veranda_entry",
+            "componentIds": [
+              "veranda"
+            ],
+            "requirement": "Deep veranda, sign, and posts must mark the public entry.",
+            "priority": "must"
+          },
+          {
+            "id": "lodging_wing",
+            "componentIds": [
+              "roof",
+              "frame"
+            ],
+            "requirement": "The side wing must remain an asymmetric secondary volume.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof",
+              "veranda"
+            ],
+            "purpose": "Sets civic span, roof, and veranda width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "veranda"
+            ],
+            "purpose": "Sets inn depth and public approach."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "veranda"
+            ],
+            "purpose": "Sets two-storey body and posts."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets landmark roof rise."
+          },
+          {
+            "parameter": "porchDepth",
+            "componentIds": [
+              "veranda"
+            ],
+            "purpose": "Sets veranda depth."
+          },
+          {
+            "parameter": "wingOffset",
+            "componentIds": [
+              "roof",
+              "frame"
+            ],
+            "purpose": "Sets asymmetric wing position."
+          },
+          {
+            "parameter": "wingWidth",
+            "componentIds": [
+              "roof",
+              "frame"
+            ],
+            "purpose": "Sets wing scale."
+          },
+          {
+            "parameter": "wingDepth",
+            "componentIds": [
+              "roof",
+              "frame"
+            ],
+            "purpose": "Sets wing footprint."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "veranda",
+              "roof"
+            ],
+            "purpose": "Selects the inn-b role profile."
+          }
+        ],
+        "failureModes": [
+          "A single-storey cottage shell makes the inn lose civic importance.",
+          "A shallow porch or missing sign erases the public lodging read.",
+          "A merged rectangular wing recreates the architecture convergence."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "building_village_market_hall_b",
+      "file": "building_village_market_hall_b.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 441,
+      "dimensions": {
+        "width": 11.5,
+        "depth": 9,
+        "height": 7.6
+      },
+      "palette": [
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "wood_dark_01",
+        "roof_terracotta_01",
+        "canvas_cream_01"
+      ],
+      "budget": {
+        "trianglesMin": 10000,
+        "trianglesTarget": 18000,
+        "trianglesMax": 30000,
+        "materialsMax": 6
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "building_village_market_hall_b_root",
+      "requiredNodes": [
+        "building_village_market_hall_b_root",
+        "building_village_market_hall_b_LOD0",
+        "building_village_market_hall_b_LOD1",
+        "COL_building_village_market_hall_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 9.2,
+        "depth": 6.4,
+        "wallHeight": 3.3,
+        "roofPitchDeg": 31,
+        "foundationHeight": 0.74,
+        "roofOverhang": 0.68,
+        "roofCourses": 5,
+        "shingleRows": 7,
+        "shingleColumns": 10,
+        "masonryCourses": 4,
+        "masonryBlocks": 8,
+        "porchDepth": 1.4,
+        "porchPlanks": 10,
+        "wingOffset": 0.3,
+        "wingWidth": 2,
+        "wingDepth": 2.4,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 1.12,
+        "porchWidthRatio": 0.9,
+        "doorWidth": 1.5,
+        "doorHeight": 2.2,
+        "roofForm": "front-gable",
+        "openingLayout": "market-arcade",
+        "variant": "market-hall-b"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.75,
+            0
+          ],
+          "halfExtents": [
+            5.1,
+            2.75,
+            4.1
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "building_village_market_hall_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_village_market_hall_b_LOD1",
+          "distanceMeters": 80,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Open village market hall with arcade, service counter, canvas canopy, and side storage wing",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns tactile timber, plaster, roof, and coastal working language."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "proportion",
+              "structure",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Supplies plinth and layered roof discipline for the working hall."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Anchors the hall against the packed plaza",
+            "shape": "Wide masonry plinth and water table",
+            "count": "1 plinth",
+            "cues": [
+              "Base reads beneath open hall",
+              "Facade never floats"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries the roof and open front",
+            "shape": "Corner posts, back wall, and side returns",
+            "count": "1 hall frame",
+            "cues": [
+              "Front remains open",
+              "Side returns close volume"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Gives the hall a strong civic roof mass",
+            "shape": "Layered gable with thick fascia",
+            "count": "1 main roof",
+            "cues": [
+              "Roof stays distinct from awning",
+              "Shingle rhythm reads at 15 m"
+            ]
+          },
+          {
+            "id": "arcade",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Creates the market-facing working frontage",
+            "shape": "Four posts, canopy, service opening, and counter",
+            "count": "1 arcade",
+            "cues": [
+              "Walk space stays open",
+              "Counter reads as cargo edge"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Open arcade and long roof make the hall read as a public work building.",
+          "The side storage wing breaks the box and supports market logistics.",
+          "A thick plinth and roof edge keep the hall in the farmhouse-derived family."
+        ],
+        "negativeSpace": [
+          "Arcade gaps remain open between posts and counter.",
+          "The canopy does not close the service mouth into a solid wall."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Back wall and side returns close the hall behind the arcade.",
+            "Storage wing roof and wall continue around the unseen side."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "working_arcade",
+            "componentIds": [
+              "arcade"
+            ],
+            "requirement": "Posts, canopy, service opening, and counter survive the gameplay read.",
+            "priority": "must"
+          },
+          {
+            "id": "civic_roof",
+            "componentIds": [
+              "roof"
+            ],
+            "requirement": "The roof reads as a layered public-building mass, not a flat awning.",
+            "priority": "must"
+          },
+          {
+            "id": "storage_logic",
+            "componentIds": [
+              "frame",
+              "arcade"
+            ],
+            "requirement": "The side wing supports a plausible market cargo workflow.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "roof",
+              "arcade"
+            ],
+            "purpose": "Sets hall span and working frontage."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "frame",
+              "arcade"
+            ],
+            "purpose": "Sets hall depth and canopy approach."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "frame",
+              "arcade"
+            ],
+            "purpose": "Sets hall and arcade post height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets civic gable rise."
+          },
+          {
+            "parameter": "porchDepth",
+            "componentIds": [
+              "arcade"
+            ],
+            "purpose": "Sets canopy depth and walk space."
+          },
+          {
+            "parameter": "wingOffset",
+            "componentIds": [
+              "frame",
+              "arcade"
+            ],
+            "purpose": "Sets storage wing offset."
+          },
+          {
+            "parameter": "wingWidth",
+            "componentIds": [
+              "frame"
+            ],
+            "purpose": "Sets storage width."
+          },
+          {
+            "parameter": "wingDepth",
+            "componentIds": [
+              "frame"
+            ],
+            "purpose": "Sets storage depth."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "arcade"
+            ],
+            "purpose": "Selects market-hall-b working profile."
+          }
+        ],
+        "failureModes": [
+          "A closed cottage facade loses the hall's market-facing job.",
+          "A paper awning or missing counter turns the hall into a generic shed.",
+          "A symmetrical storage-free mass recreates the old architecture convergence."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "building_barn_b",
+      "file": "building_barn_b.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 445,
+      "dimensions": {
+        "width": 11,
+        "depth": 7.5,
+        "height": 6.8
+      },
+      "palette": [
+        "stone_warm_01",
+        "wood_weathered_01",
+        "wood_dark_01",
+        "roof_turf_01"
+      ],
+      "budget": {
+        "trianglesMin": 7000,
+        "trianglesTarget": 11000,
+        "trianglesMax": 18000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "building_barn_b_root",
+      "requiredNodes": [
+        "building_barn_b_root",
+        "building_barn_b_LOD0",
+        "building_barn_b_LOD1",
+        "COL_building_barn_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "width": 8,
+        "depth": 5.6,
+        "wallHeight": 3.2,
+        "roofPitchDeg": 31,
+        "foundationHeight": 0.58,
+        "roofOverhang": 0.42,
+        "roofCourses": 4,
+        "shingleRows": 6,
+        "shingleColumns": 9,
+        "masonryCourses": 3,
+        "masonryBlocks": 7,
+        "porchDepth": 0,
+        "porchPlanks": 0,
+        "wingOffset": 0.3,
+        "wingWidth": 1.8,
+        "wingDepth": 3.6,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 1.02,
+        "porchWidthRatio": 0.4,
+        "doorWidth": 2.2,
+        "doorHeight": 2.6,
+        "roofForm": "tall-gable",
+        "openingLayout": "barn-loft",
+        "variant": "barn-b"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.55,
+            0
+          ],
+          "halfExtents": [
+            5.1,
+            2.55,
+            3.1
+          ]
+        }
+      ],
+      "lodLevels": [
+        {
+          "node": "building_barn_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_barn_b_LOD1",
+          "distanceMeters": 72,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Tall agricultural barn with double loading doors, loft vents, vertical battens, and side lean-to",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns weathered timber and faceted coastal material language."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Provides plinth and roof discipline without turning the barn into a cottage."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps the agricultural volume grounded and dry",
+            "shape": "Low masonry plinth and water table",
+            "count": "1 plinth",
+            "cues": [
+              "Low profile",
+              "Terrain contact is clear"
+            ]
+          },
+          {
+            "id": "timber_volume",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Carries the tall agricultural wall",
+            "shape": "Vertical battened post-and-beam volume",
+            "count": "1 barn body",
+            "cues": [
+              "Planks run vertically",
+              "Long wall is not plaster"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "timber_volume",
+            "importance": "primary",
+            "role": "Creates the tall grain-storage silhouette",
+            "shape": "High gable with thick fascia and ridge",
+            "count": "1 roof",
+            "cues": [
+              "Roof rises above loading face",
+              "Loft vents sit beneath gable"
+            ]
+          },
+          {
+            "id": "loading_yard",
+            "parent": "timber_volume",
+            "importance": "primary",
+            "role": "Makes loading and storage legible",
+            "shape": "Double braced doors, loft vents, and open lean-to",
+            "count": "1 working yard face",
+            "cues": [
+              "Doors fit cargo",
+              "Lean-to stays open on posts"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A tall agricultural gable and low side lean-to separate the barn from dwelling profiles.",
+          "Vertical battens, broad doors, and loft vents establish storage and loading logic.",
+          "The low plinth and turf-toned roof keep the barn practical rather than civic."
+        ],
+        "negativeSpace": [
+          "The side lean-to remains open between its posts.",
+          "Door seams and loft vent gaps break the long battened wall."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear battens continue around the agricultural volume.",
+            "Lean-to roof and posts close into a usable side loading bay."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "loading_doors",
+            "componentIds": [
+              "loading_yard"
+            ],
+            "requirement": "Wide braced doors must read as agricultural cargo access.",
+            "priority": "must"
+          },
+          {
+            "id": "loft_break",
+            "componentIds": [
+              "roof",
+              "loading_yard"
+            ],
+            "requirement": "Loft vents must break the upper front wall beneath the gable.",
+            "priority": "must"
+          },
+          {
+            "id": "battened_mass",
+            "componentIds": [
+              "timber_volume"
+            ],
+            "requirement": "The body must remain timber-battened rather than a plaster house.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "timber_volume",
+              "roof",
+              "loading_yard"
+            ],
+            "purpose": "Sets barn span and loading face."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "timber_volume",
+              "loading_yard"
+            ],
+            "purpose": "Sets agricultural footprint."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "timber_volume",
+              "roof",
+              "loading_yard"
+            ],
+            "purpose": "Sets tall body and loft height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets tall gable profile."
+          },
+          {
+            "parameter": "wingOffset",
+            "componentIds": [
+              "loading_yard"
+            ],
+            "purpose": "Sets lean-to position."
+          },
+          {
+            "parameter": "wingWidth",
+            "componentIds": [
+              "loading_yard"
+            ],
+            "purpose": "Sets loading bay width."
+          },
+          {
+            "parameter": "wingDepth",
+            "componentIds": [
+              "loading_yard"
+            ],
+            "purpose": "Sets loading bay depth."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "timber_volume",
+              "loading_yard"
+            ],
+            "purpose": "Selects barn-b role profile."
+          }
+        ],
+        "failureModes": [
+          "Plaster walls or a squat gable make the barn look like a cottage.",
+          "A closed lean-to without posts loses working-yard logic.",
+          "Tiny doors or missing loft vents make the agricultural volume semantically wrong."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "prop_tool_shed_b",
+      "file": "prop_tool_shed_b.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 455,
+      "dimensions": {
+        "width": 4,
+        "depth": 3.6,
+        "height": 3.8
+      },
+      "palette": [
+        "stone_warm_01",
+        "wood_weathered_01",
+        "wood_dark_01",
+        "roof_terracotta_01"
+      ],
+      "budget": {
+        "trianglesMin": 1200,
+        "trianglesTarget": 7500,
+        "trianglesMax": 15000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "prop_tool_shed_b_root",
+      "requiredNodes": [
+        "prop_tool_shed_b_root",
+        "COL_prop_tool_shed_b"
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {
+        "width": 2.8,
+        "depth": 2.5,
+        "wallHeight": 2.15,
+        "roofPitchDeg": 30,
+        "foundationHeight": 0.45,
+        "roofOverhang": 0.48,
+        "roofCourses": 3,
+        "shingleRows": 4,
+        "shingleColumns": 5,
+        "masonryCourses": 2,
+        "masonryBlocks": 4,
+        "porchDepth": 0.8,
+        "porchPlanks": 4,
+        "wingOffset": 0.35,
+        "wingWidth": 1.3,
+        "wingDepth": 1.2,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 1,
+        "porchWidthRatio": 0.65,
+        "doorWidth": 0.92,
+        "doorHeight": 1.65,
+        "roofForm": "lean-to",
+        "openingLayout": "shed-tools",
+        "variant": "shed-b"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            1.55,
+            0
+          ],
+          "halfExtents": [
+            1.9,
+            1.55,
+            1.55
+          ]
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Asymmetric tool shed with lean-to roof, overhang rail, hooks, and weathered plank walls",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns tactile low-poly timber and grounded coastal values."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Supplies plinth, roof edge, porch depth, and opening separation cues."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps the small shed planted",
+            "shape": "Low stone water-table plinth",
+            "count": "1 plinth",
+            "cues": [
+              "Base does not float",
+              "Masonry stays chunky"
+            ]
+          },
+          {
+            "id": "tool_volume",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Stores tools in an asymmetrical body",
+            "shape": "Weathered plank volume with offset opening",
+            "count": "1 shed body",
+            "cues": [
+              "Planks read vertically",
+              "Mass is not a cottage"
+            ]
+          },
+          {
+            "id": "lean_to",
+            "parent": "tool_volume",
+            "importance": "primary",
+            "role": "Creates a real tool-overhang work edge",
+            "shape": "Offset lean-to roof, rail, and hooks",
+            "count": "1 overhang",
+            "cues": [
+              "Overhang projects beyond wall",
+              "Hooks read functionally"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The offset lean-to and overhang rail make the shed read as a work building.",
+          "Weathered plank walls distinguish it from plaster cottages.",
+          "A low plinth keeps the small asset aligned to farmhouse-derived ground grammar."
+        ],
+        "negativeSpace": [
+          "The tool overhang leaves an open working edge in front of the wall.",
+          "The offset roof keeps a visible shadow gap from the main mass."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Planks continue around rear and side walls.",
+            "The lean-to is supported at its wall junction."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "lean_to_profile",
+            "componentIds": [
+              "lean_to"
+            ],
+            "requirement": "The shed must have an asymmetric lean-to rather than a cottage gable.",
+            "priority": "must"
+          },
+          {
+            "id": "tool_edge",
+            "componentIds": [
+              "lean_to"
+            ],
+            "requirement": "Rail and hooks must establish tool use at close distance.",
+            "priority": "must"
+          },
+          {
+            "id": "plank_body",
+            "componentIds": [
+              "tool_volume"
+            ],
+            "requirement": "Weathered planks must replace a generic cream facade.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "tool_volume",
+              "lean_to"
+            ],
+            "purpose": "Sets shed span and overhang width."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "tool_volume",
+              "lean_to"
+            ],
+            "purpose": "Sets the small work footprint."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "tool_volume",
+              "lean_to"
+            ],
+            "purpose": "Sets wall and overhang height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "lean_to"
+            ],
+            "purpose": "Sets shallow lean-to pitch."
+          },
+          {
+            "parameter": "wingOffset",
+            "componentIds": [
+              "lean_to"
+            ],
+            "purpose": "Sets overhang offset."
+          },
+          {
+            "parameter": "wingWidth",
+            "componentIds": [
+              "lean_to"
+            ],
+            "purpose": "Sets tool edge span."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "tool_volume",
+              "lean_to"
+            ],
+            "purpose": "Selects shed-b work profile."
+          }
+        ],
+        "failureModes": [
+          "A miniature cottage gable makes the shed semantically generic.",
+          "No overhang, rail, or hooks leaves no tool-work cue.",
+          "Plastic-clean walls or an ungrounded base break coastal farm language."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "building_outhouse_b",
+      "file": "building_outhouse_b.glb",
+      "family": "architecture",
+      "generator": "village_building",
+      "seed": 459,
+      "dimensions": {
+        "width": 2.8,
+        "depth": 3.4,
+        "height": 3.4
+      },
+      "palette": [
+        "stone_warm_01",
+        "wood_weathered_01",
+        "wood_dark_01",
+        "roof_terracotta_01"
+      ],
+      "budget": {
+        "trianglesMin": 1800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 6000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "building_outhouse_b_root",
+      "requiredNodes": [
+        "building_outhouse_b_root",
+        "COL_building_outhouse_b"
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "width": 1.9,
+        "depth": 1.8,
+        "wallHeight": 2.1,
+        "roofPitchDeg": 42,
+        "foundationHeight": 0.44,
+        "roofOverhang": 0.36,
+        "roofCourses": 3,
+        "shingleRows": 3,
+        "shingleColumns": 4,
+        "masonryCourses": 2,
+        "masonryBlocks": 3,
+        "porchDepth": 0,
+        "porchPlanks": 0,
+        "wingOffset": 0.32,
+        "wingWidth": 0,
+        "wingDepth": 0,
+        "chimneyOffsetX": 0,
+        "chimneyHeight": 0,
+        "plinthScale": 0.98,
+        "porchWidthRatio": 0.5,
+        "doorWidth": 0.75,
+        "doorHeight": 1.65,
+        "roofForm": "offset-gable",
+        "openingLayout": "outhouse-vent",
+        "variant": "outhouse-b"
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            1.4,
+            0
+          ],
+          "halfExtents": [
+            1.25,
+            1.4,
+            1.15
+          ]
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Functional outhouse with offset roof, high vent, privacy wall, and compact stone footing",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns restrained practical prop language and palette."
+          },
+          {
+            "id": "farmhouse_structural_study",
+            "kind": "structural_study",
+            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
+            "use": [
+              "proportion",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "Keeps plinth and roof-edge grammar related without copying the facade."
+          }
+        ],
+        "components": [
+          {
+            "id": "plinth",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps the utility building grounded",
+            "shape": "Compact stone footing and water table",
+            "count": "1 footing",
+            "cues": [
+              "Footing meets terrain",
+              "Masonry stays readable"
+            ]
+          },
+          {
+            "id": "privacy_volume",
+            "parent": "plinth",
+            "importance": "primary",
+            "role": "Creates a distinct functional micro-silhouette",
+            "shape": "Narrow plank volume with privacy wall",
+            "count": "1 body",
+            "cues": [
+              "Wall is offset",
+              "Door is not a cottage entry"
+            ]
+          },
+          {
+            "id": "vent_roof",
+            "parent": "privacy_volume",
+            "importance": "primary",
+            "role": "Separates the outhouse from a generic shed",
+            "shape": "Offset gable cap and high vent",
+            "count": "1 roof and vent",
+            "cues": [
+              "Vent sits high",
+              "Roof edge shifts off center"
+            ]
+          }
+        ],
+        "silhouette": [
+          "An offset roof and privacy wall give the outhouse a functional micro-silhouette.",
+          "The high vent reads above the small door at close gameplay distance.",
+          "The compact stone footing aligns it to farmhouse construction language."
+        ],
+        "negativeSpace": [
+          "The privacy wall leaves a narrow readable entry gap.",
+          "The offset roof creates a shadow break above vent and door."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear plank walls continue the utility volume.",
+            "The offset roof closes over the vent without a hollow shell."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "offset_roof",
+            "componentIds": [
+              "vent_roof"
+            ],
+            "requirement": "The roof must sit off center rather than mimic a tiny cottage.",
+            "priority": "must"
+          },
+          {
+            "id": "privacy_wall",
+            "componentIds": [
+              "privacy_volume"
+            ],
+            "requirement": "A privacy wall must create the functional entry break.",
+            "priority": "must"
+          },
+          {
+            "id": "high_vent",
+            "componentIds": [
+              "vent_roof"
+            ],
+            "requirement": "The high vent must remain readable above the door.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "plinth",
+              "privacy_volume",
+              "vent_roof"
+            ],
+            "purpose": "Sets compact utility span."
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "plinth",
+              "privacy_volume",
+              "vent_roof"
+            ],
+            "purpose": "Sets utility footprint."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "privacy_volume",
+              "vent_roof"
+            ],
+            "purpose": "Sets body and vent height."
+          },
+          {
+            "parameter": "roofPitchDeg",
+            "componentIds": [
+              "vent_roof"
+            ],
+            "purpose": "Sets offset gable rise."
+          },
+          {
+            "parameter": "wingOffset",
+            "componentIds": [
+              "privacy_volume",
+              "vent_roof"
+            ],
+            "purpose": "Sets privacy and roof offset."
+          },
+          {
+            "parameter": "variant",
+            "componentIds": [
+              "privacy_volume",
+              "vent_roof"
+            ],
+            "purpose": "Selects outhouse-b micro-profile."
+          }
+        ],
+        "failureModes": [
+          "A centered gable and window make the outhouse a miniature cottage.",
+          "Missing privacy wall or high vent removes its functional identity.",
+          "Over-decoration or glossy toy finish breaks the restrained utility role."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
         ]
       }
     }

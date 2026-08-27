@@ -1,11 +1,14 @@
 import type { FishCargoId, GameState, ItemId } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
+import { ContentRegistry } from "../../content/ContentRegistry";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { qualityRank } from "./domainRules";
+
+const MAX_ACTIVE_CONTRACTS = 2;
 
 export class ContractDomain {
   constructor(
@@ -89,6 +92,54 @@ export class ContractDomain {
       if (contract.status === "active" && state.clock.currentMinute >= contract.expiresAtMinute) {
         contract.status = "expired";
       }
+    }
+    this.refillContracts();
+  }
+
+  public refillContracts(): void {
+    const { state, rng } = this.context;
+    const eligible = [...ContentRegistry.contractTemplates.values()].filter((template) => {
+      const required = template.requiredXp ?? 0;
+      return state.player.proficiencies[template.rewardSkill] >= required;
+    });
+
+    while (state.contracts.filter((contract) => contract.status === "active").length < MAX_ACTIVE_CONTRACTS) {
+      const activeTemplates = new Set(
+        state.contracts.filter((contract) => contract.status === "active").map((contract) => contract.templateId)
+      );
+      const remaining = eligible.filter((template) => !activeTemplates.has(template.id));
+      if (remaining.length === 0) break;
+      const template = remaining[rng.intInclusive(0, remaining.length - 1)];
+      if (!template) break;
+      const target = template.itemOrSpeciesPool[rng.intInclusive(0, template.itemOrSpeciesPool.length - 1)];
+      if (!target) break;
+      const quantity = rng.intInclusive(template.quantityRange[0], template.quantityRange[1]);
+      const base = ContentRegistry.items.get(target)?.baseValue
+        ?? ContentRegistry.fishSpecies.get(target)?.baseMarketValue
+        ?? 10;
+      const rewardMoney = Math.max(1, Math.round(base * quantity * template.rewardBaseMultiplier));
+      const minWeight = template.minWeightKgRange
+        ? rng.range(template.minWeightKgRange[0], template.minWeightKgRange[1])
+        : undefined;
+      state.contracts.push({
+        id: this.context.nextEntityId("contract"),
+        templateId: template.id,
+        requesterId: template.requesterName,
+        type: template.type,
+        targetItemIdOrSpecies: target,
+        quantityRequired: quantity,
+        quantityFulfilled: 0,
+        minQuality: template.minQuality,
+        minFreshness: template.minFreshness,
+        minWeightKg: minWeight,
+        rewardMoney,
+        rewardSkillXp: {
+          skill: template.rewardSkill,
+          xp: Math.max(40, quantity * 25)
+        },
+        expiresAtMinute: state.clock.currentMinute + template.durationMinutes,
+        status: "active"
+      });
     }
   }
 

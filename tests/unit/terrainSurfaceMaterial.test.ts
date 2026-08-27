@@ -97,17 +97,43 @@ describe("TerrainSurfaceMaterial", () => {
     compile(shader);
 
     expect(shader.vertexShader).toContain("attribute float terrainGreenMask;");
+    expect(shader.vertexShader).toContain("attribute float terrainPathBlend;");
+    expect(shader.vertexShader).toContain("vTerrainPathBlend");
     expect(shader.vertexShader).toContain("vTerrainWorldPosition");
     expect(shader.fragmentShader).toContain("texture2D(terrainDetailTexture, terrainLargeUv)");
+    expect(shader.fragmentShader).toContain("nevaGroundPolygonCell");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");
+    expect(shader.fragmentShader).toContain("nevaGroundPolygonCellEdge");
     expect(shader.fragmentShader).toContain("nevaGroundCellJitter");
     expect(shader.fragmentShader).toContain("terrainPolygonJaggedStrength");
+    expect(shader.fragmentShader).toContain("terrainPolygonFacetLightingStrength");
     expect(shader.fragmentShader).toContain("mosaicMask");
+    expect(shader.fragmentShader).toContain("terrainPolygonJaggedStrength * terrainMask");
+    expect(shader.fragmentShader).toContain("pathShoulderMix = smoothstep(");
+    expect(shader.fragmentShader).toContain("terrainPathShoulderStart, terrainPathShoulderFull");
+    expect(shader.fragmentShader).toContain("pathCoreMix = smoothstep(");
+    expect(shader.fragmentShader).toContain("terrainPathCoreStart, terrainPathCoreFull");
+    expect(shader.fragmentShader).toContain("pathUnderlayMix = pathShoulderMix * terrainPathUnderlayStrength");
+    expect(shader.fragmentShader).toContain("mosaicMask *= 1.0 - pathUnderlayMix");
+    expect(shader.fragmentShader).toContain("mix(diffuseColor.rgb, pathCellColor, pathUnderlayMix)");
+    expect(shader.fragmentShader).not.toContain("pathShoulderMask = step");
+    expect(shader.fragmentShader).toContain("terrainPathDustColor");
+    expect(shader.fragmentShader).toContain("terrainPathShoulderColor");
+    expect(shader.fragmentShader).toContain("terrainPaletteVariationStrength");
+    expect(shader.fragmentShader).toContain("terrainPaletteBand = step(0.34, terrainPolygonSignal)");
+    expect(shader.fragmentShader).toContain("mix(0.97, 1.03, fract(terrainPolygonSignal");
+    expect(shader.fragmentShader).toContain("terrainPaletteOliveColor");
     expect(shader.fragmentShader).toContain("terrainPaletteHighlightColor");
     expect(shader.fragmentShader).toContain("terrainPaletteColor");
-    expect(shader.fragmentShader).toContain("roughnessFactor = mix(roughnessFactor");
+    expect(shader.fragmentShader).toContain("roughnessFactor = mix(");
+    expect(shader.fragmentShader).not.toContain("displacement");
     expect(terrain.material.flatShading).toBe(false);
-    expect(terrain.material.customProgramCacheKey()).toBe("neva-terrain-surface-r174-v5");
+    expect(shader.uniforms.terrainPathShoulderStart.value).toBe(0.48);
+    expect(shader.uniforms.terrainPathShoulderFull.value).toBe(0.62);
+    expect(shader.uniforms.terrainPathCoreStart.value).toBe(0.74);
+    expect(shader.uniforms.terrainPathCoreFull.value).toBe(0.88);
+    expect(shader.uniforms.terrainPathUnderlayStrength.value).toBe(0.14);
+    expect(terrain.material.customProgramCacheKey()).toBe("neva-terrain-surface-r174-v13");
   });
 
   it("fails loudly when a required standard-shader chunk drifts", () => {

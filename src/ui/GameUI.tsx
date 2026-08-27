@@ -1,5 +1,5 @@
 // src/ui/GameUI.tsx
-import React from "react";
+import React, { useState } from "react";
 import { FishCargoState, FishingEncounterState, GameMode, GameState, MarketId } from "../simulation/core/types";
 import { HUD } from "./HUD";
 import { InventoryModal } from "./InventoryModal";
@@ -7,11 +7,11 @@ import { MarketModal } from "./MarketModal";
 import { FishingHUD } from "./FishingHUD";
 import { BasicFishingMinigameWidget } from "./fishing/BasicFishingMinigameWidget";
 import { ExpeditionBoard } from "./ExpeditionBoard";
-import { JournalModal } from "./JournalModal";
+import { JournalFolio, JournalModal } from "./JournalModal";
 import { EscapeMenuModal } from "./EscapeMenuModal";
 import { WorldMapModal } from "./components/WorldMapModal";
 import { LogisticsLedgerModal } from "./components/LogisticsLedgerModal";
-import { CatchInspectionModal } from "./components/CatchInspectionModal";
+import { CatchSummaryToast } from "./components/CatchInspectionModal";
 import { PlantingSeedBar } from "./components/PlantingSeedBar";
 import { FarmGISLegend } from "./components/FarmGISLegend";
 import {
@@ -29,7 +29,12 @@ import type { FarmingActionSnapshot } from "../app/FarmingActionController";
 import type { StartupState } from "../app/StartupState";
 import type { CropInspectionDto } from "../simulation/core/contracts";
 import { IconSprout } from "./components/HudIcons";
+import { ChromeAlert, ChromeButton, ChromeClose, ChromeMeter, ChromePanel } from "./chrome/Chrome";
+import { AtlasImage } from "./chrome/AtlasImage";
+import { atlasForAction, atlasForCrop, atlasForGrowth } from "./chrome/uiAtlas";
 import { StartScreen } from "./StartScreen";
+import { PlacementEditorHud } from "./PlacementEditorHud";
+import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -58,7 +63,6 @@ export interface GameUIProps {
   farmingAction: FarmingActionSnapshot | null;
   activeModal: ActiveModal;
   onSetActiveModal: (modal: ActiveModal) => void;
-  onOpenMarket: () => void;
   marketId: MarketId | null;
   activeQuest?: ActiveQuestDto | null;
   activeDialogueNpcId?: string | null;
@@ -79,8 +83,7 @@ export interface GameUIProps {
   activeToolSlot?: number;
   onSelectToolSlot?: (slot: number) => void;
   landedCatch?: FishCargoState | null;
-  onKeepCatch?: () => void;
-  onReleaseCatch?: () => void;
+  onDismissCatchSummary?: () => void;
   fishingEncounter: FishingEncounterState | null;
   onSetFishingInput: (input: {
     isReeling: boolean;
@@ -92,6 +95,7 @@ export interface GameUIProps {
   onSetBasicFishingInput?: (isHolding: boolean) => void;
   onReleaseBasicFishingCast?: (power?: number) => void;
   onDismissBasicFishingModal?: () => void;
+  onCancelBasicFishing?: () => void;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
@@ -99,9 +103,8 @@ export interface GameUIProps {
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
   onDeliverFishCargo: (contractId: string, cargoId: string) => void;
   onQuickSave: () => void;
-  saveRecoveryReason?: "corrupt" | "unavailable" | null;
+  saveRecoveryReason?: "corrupt" | "incompatible" | "unavailable" | null;
   onConfirmNewGame?: () => void;
-  onCastFishing: () => void;
   onResetPlayerToSafePlace: () => void;
   onAdvanceHours: (hours: number) => void;
   onGrantMoney: (amount: number) => void;
@@ -115,6 +118,12 @@ export interface GameUIProps {
   onRetry?: () => void;
   bootReady?: boolean;
   screenFade?: boolean;
+  layoutEditor?: {
+    active: boolean;
+    selected: LayoutEditHudSelection | null;
+    status: string | null;
+    onToggle: () => void;
+  } | null;
 }
 
 export const GameUI: React.FC<GameUIProps> = ({
@@ -133,7 +142,6 @@ export const GameUI: React.FC<GameUIProps> = ({
   farmingAction,
   activeModal,
   onSetActiveModal,
-  onOpenMarket,
   marketId,
   activeQuest,
   onTalkNpc,
@@ -147,14 +155,14 @@ export const GameUI: React.FC<GameUIProps> = ({
   activeToolSlot = 1,
   onSelectToolSlot,
   landedCatch = null,
-  onKeepCatch,
-  onReleaseCatch,
+  onDismissCatchSummary,
   fishingEncounter,
   onSetFishingInput,
   onHookBasicFishingBite,
   onSetBasicFishingInput,
   onReleaseBasicFishingCast,
   onDismissBasicFishingModal,
+  onCancelBasicFishing,
   onSellItem,
   onBuySeed,
   onSellFishCargo,
@@ -164,7 +172,6 @@ export const GameUI: React.FC<GameUIProps> = ({
   onQuickSave,
   saveRecoveryReason = null,
   onConfirmNewGame,
-  onCastFishing,
   onResetPlayerToSafePlace,
   onAdvanceHours,
   onGrantMoney,
@@ -177,7 +184,8 @@ export const GameUI: React.FC<GameUIProps> = ({
   onStartWithoutSaving = onStart,
   onRetry = () => {},
   bootReady = false,
-  screenFade = false
+  screenFade = false,
+  layoutEditor = null
 }) => {
   const showDiagnostics =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
@@ -199,27 +207,20 @@ export const GameUI: React.FC<GameUIProps> = ({
   }
 
   const plannerUnlocked = state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
+  const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("quests");
 
   return (
-    <div id="ui-container" style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div id="ui-container" tabIndex={-1} style={{ width: "100%", height: "100%", position: "relative" }}>
       <div className={`screen-transition-overlay ${screenFade ? "active" : ""}`} />
 
       {/* 1. Main Head-Up Display */}
       <HUD
         state={state}
-        activeQuest={activeQuest}
         promptText={promptText}
         toastMessage={toastMessage}
+        activeQuest={activeQuest}
         activeToolSlot={activeToolSlot}
         onSelectToolSlot={onSelectToolSlot}
-        onOpenInventory={() => onSetActiveModal("inventory")}
-        onOpenMarket={onOpenMarket}
-        onOpenJournal={() => onSetActiveModal("journal")}
-        onOpenMap={() => onSetActiveModal("map")}
-        onOpenLedger={() => onSetActiveModal("ledger")}
-        onOpenExpedition={() => onSetActiveModal("expedition")}
-        onQuickSave={onQuickSave}
-        onCastFishing={onCastFishing}
         onOpenMenu={() => onSetActiveModal("pause")}
         isPlacementActive={mode === "farm-placement"}
       />
@@ -258,13 +259,14 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {/* 3. Basic Fishing Minigame Widget */}
-      {state.basicFishing && (
+      {state.basicFishing && !activeModal && (
         <BasicFishingMinigameWidget
           fishingState={state.basicFishing}
           onHookBite={onHookBasicFishingBite}
           onSetInput={onSetBasicFishingInput}
           onReleaseCast={onReleaseBasicFishingCast}
           onDismissModal={onDismissBasicFishingModal}
+          onCancel={onCancelBasicFishing}
         />
       )}
 
@@ -274,11 +276,11 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {/* 5. Landed Sport Fish Catch Record Inspection Plaque */}
-      {landedCatch && onKeepCatch && onReleaseCatch && (
-        <CatchInspectionModal
+      {landedCatch && onDismissCatchSummary && (
+        <CatchSummaryToast
           cargo={landedCatch}
-          onKeep={onKeepCatch}
-          onRelease={onReleaseCatch}
+          harborMarket={state.markets["market.harbor"]}
+          onDismiss={onDismissCatchSummary}
         />
       )}
 
@@ -328,37 +330,56 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {activeModal === "journal" && (
-        <JournalModal state={state} onClose={() => onSetActiveModal(null)} />
+        <JournalModal
+          state={state}
+          initialFolio={journalInitialFolio}
+          onClose={() => {
+            setJournalInitialFolio("quests");
+            onSetActiveModal(null);
+          }}
+        />
       )}
 
       {activeModal === "new-game-confirm" && (
         <div className="modal-overlay interactive">
-          <div
+          <ChromePanel
+            as="div"
             className="neva-panel modal-content"
+            tone="plaque"
+            flourish
             style={{ width: "min(480px, 94vw)" }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
           >
             <div className="modal-header">
-              <span>{saveRecoveryReason === "unavailable" ? "Save storage unavailable" : "Save could not be read"}</span>
+              <span>
+                {saveRecoveryReason === "unavailable"
+                  ? "Save storage unavailable"
+                  : saveRecoveryReason === "incompatible"
+                    ? "Older development world"
+                    : "Save could not be read"}
+              </span>
             </div>
             <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <p style={{ margin: 0, color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
                 {saveRecoveryReason === "unavailable"
                   ? "IndexedDB could not be opened. Your existing save has not been overwritten. This session will not be saved until storage is available again."
+                  : saveRecoveryReason === "incompatible"
+                    ? "This harbor log belongs to an older development world layout. It will remain untouched until you confirm a fresh game."
                   : "The primary and backup saves could not be migrated and validated. Start a new game? Nothing will be written until you confirm."}
               </p>
             </div>
             <div className="modal-footer" style={{ justifyContent: "center" }}>
-              <button
-                type="button"
-                className="neva-button neva-button-primary"
+              <ChromeButton
+                variant="primary"
                 style={{ minWidth: "160px" }}
                 onClick={() => onConfirmNewGame?.()}
               >
                 {saveRecoveryReason === "unavailable" ? "Continue without saving" : "Start new game"}
-              </button>
+              </ChromeButton>
             </div>
-          </div>
+          </ChromePanel>
         </div>
       )}
 
@@ -369,9 +390,27 @@ export const GameUI: React.FC<GameUIProps> = ({
           onResetPlayerToSafePlace={onResetPlayerToSafePlace}
           onQuickSave={onQuickSave}
           onOpenInventory={() => onSetActiveModal("inventory")}
-          onOpenJournal={() => onSetActiveModal("journal")}
+          onOpenJournal={() => {
+            setJournalInitialFolio("quests");
+            onSetActiveModal("journal");
+          }}
+          onOpenGuide={() => {
+            setJournalInitialFolio("guide");
+            onSetActiveModal("journal");
+          }}
+          onOpenMap={() => onSetActiveModal("map")}
+          onOpenLedger={() => onSetActiveModal("ledger")}
           onOpenExpedition={() => onSetActiveModal("expedition")}
           expeditionUnlocked={plannerUnlocked}
+        />
+      )}
+
+      {layoutEditor && (
+        <PlacementEditorHud
+          active={layoutEditor.active}
+          selected={layoutEditor.selected}
+          status={layoutEditor.status}
+          onToggle={layoutEditor.onToggle}
         />
       )}
 
@@ -401,7 +440,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 const titleCase = (value: string): string =>
   value.replace(/(^|[-_])\w/g, (match) => match.replace(/[-_]/, "").toUpperCase());
 
-const CropInspection: React.FC<{
+export const CropInspection: React.FC<{
   inspection: CropInspectionDto;
   onClose?: () => void;
 }> = ({ inspection, onClose }) => {
@@ -420,11 +459,16 @@ const CropInspection: React.FC<{
         : "dry";
 
   return (
-    <section
+    <ChromePanel
+      as="section"
       className="crop-inspection interactive"
+      tone="slate"
+      flourish
+      corners
       role="region"
       aria-label={`${inspection.name} crop inspection`}
       tabIndex={0}
+      data-testid="crop-inspection"
       onKeyDown={(e) => {
         if (e.key === "Escape" && onClose) {
           e.preventDefault();
@@ -439,20 +483,15 @@ const CropInspection: React.FC<{
         </div>
         <div className="crop-header-right">
           <span className={`crop-stage-chip stage-${inspection.stage}`}>{titleCase(inspection.stage)}</span>
-          {onClose && (
-            <button
-              type="button"
-              className="crop-inspection-close-btn"
-              onClick={onClose}
-              aria-label="Close crop inspection"
-            >
-              ✕
-            </button>
-          )}
+          {onClose && <ChromeClose onClick={onClose} label="Close crop inspection" className="crop-inspection-close-btn" />}
         </div>
       </header>
 
-      <dl className="crop-inspection-grid">
+      <div className="crop-inspect-layout">
+        <div className="crop-inspect-plate">
+          <AtlasImage src={atlasForCrop(inspection.cropId) ?? atlasForGrowth(inspection.stage)} alt="" />
+        </div>
+        <dl className="crop-inspection-grid">
         <div className="crop-meta-item">
           <dt>Growth Status</dt>
           <dd className="crop-growth-status">{remaining}</dd>
@@ -476,46 +515,50 @@ const CropInspection: React.FC<{
           <dd className="crop-yield-text">{inspection.expectedYield.min}–{inspection.expectedYield.max} units</dd>
         </div>
         <div className="crop-meta-item">
-          <dt>Work Capacity</dt>
+          <dt>Labor</dt>
           <dd>{Math.round(inspection.work.current)} · Action costs {inspection.work.actionCost}</dd>
         </div>
       </dl>
+      </div>
 
       {inspection.work.current <= 0 && (
-        <p className="crop-inspection-warning">⚠️ Work Capacity depleted: Reduced XP and rare drop chance</p>
+        <ChromeAlert tone="caution" className="crop-inspection-warning">
+          Labor depleted: reduced experience and rare-drop chance
+        </ChromeAlert>
       )}
-    </section>
+    </ChromePanel>
   );
 };
 
-const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: string; icon: string }> = {
-  plant: { title: "Planting Seeds…", icon: "🌱" },
-  water: { title: "Watering Soil…", icon: "💧" },
-  harvest: { title: "Harvesting Crop…", icon: "🌾" },
-  "processing-start": { title: "Starting Processing…", icon: "⚙️" },
-  "processing-collect": { title: "Collecting Yield…", icon: "📦" },
-  pickup: { title: "Picking Up…", icon: "📦" },
-  place: { title: "Placing…", icon: "📦" },
-  workstation: { title: "Working…", icon: "⚙️" },
-  cast: { title: "Casting…", icon: "🎣" },
-  board: { title: "Boarding…", icon: "⛵" },
-  dock: { title: "Docking…", icon: "⚓" }
+const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: string }> = {
+  plant: { title: "Planting seeds…" },
+  water: { title: "Watering soil…" },
+  harvest: { title: "Harvesting crop…" },
+  "processing-start": { title: "Starting processing…" },
+  "processing-collect": { title: "Collecting yield…" },
+  pickup: { title: "Picking up…" },
+  place: { title: "Placing…" },
+  workstation: { title: "Working…" },
+  cast: { title: "Casting…" },
+  board: { title: "Boarding…" },
+  dock: { title: "Docking…" }
 };
 
 const FarmingActionStatus: React.FC<{ action: FarmingActionSnapshot }> = ({ action }) => {
-  const meta = ACTION_LABELS[action.action] ?? { title: "Working…", icon: "✨" };
+  const meta = ACTION_LABELS[action.action] ?? { title: "Working…" };
   const percent = Math.round(action.progress * 100);
 
   return (
-    <div className="farming-action-status" role="status" aria-live="polite">
-      <div className="farming-action-header">
-        <span className="farming-action-icon" aria-hidden="true">{meta.icon}</span>
-        <span className="farming-action-title">{meta.title}</span>
-        <span className="farming-action-pct">{percent}%</span>
-      </div>
-      <div className="farming-action-track" aria-hidden="true">
-        <div className="farming-action-fill" style={{ width: `${percent}%` }} />
-      </div>
-    </div>
+    <ChromePanel tone="slate" flourish corners className={`farming-action-status action-${action.action}`} role="status" aria-live="polite" data-testid="farming-action-status">
+      <ChromeMeter
+        className="farming-action-meter"
+        label={meta.title}
+        icon={<AtlasImage src={atlasForAction(action.action)} className="farming-action-icon" size={22} aria-hidden="true" />}
+        value={percent}
+        max={100}
+        valueText={`${percent}%`}
+        variant="gold"
+      />
+    </ChromePanel>
   );
 };

@@ -64,7 +64,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
       { itemId: "item.compost_starter", quantity: 1 }
     ],
     outputs: [{ itemId: "item.bait_worms", quantity: 25 }],
-    durationMinutes: 180, // 3 hours
+    durationMinutes: 360,
     tags: ["worms", "bait-production"]
   },
   "recipe.perch_to_scraps": {

@@ -8,6 +8,12 @@ interface ApprovedBaselineManifest {
   approvedBy: string;
   viewport: readonly [number, number];
   scenes: Record<string, string>;
+  visualGoldGate: {
+    status: string;
+    acceptedAt: string;
+    acceptedBy: string;
+    scope: string;
+  };
   sha256: Record<string, string>;
 }
 
@@ -22,6 +28,12 @@ describe("approved visual baselines", () => {
     expect(manifest.approvedBy).toBe("human-art-director");
     expect(manifest.viewport).toEqual([1440, 900]);
     expect(Object.keys(manifest.scenes).sort()).toEqual(["bridge", "coast", "farm", "harbor"]);
+    expect(manifest.visualGoldGate).toEqual({
+      status: "accepted",
+      acceptedAt: "2026-08-27",
+      acceptedBy: "human",
+      scope: "bridge-farm-harbor-coast"
+    });
 
     for (const [scene, filename] of Object.entries(manifest.scenes)) {
       const content = fs.readFileSync(path.join(referenceDirectory, filename));

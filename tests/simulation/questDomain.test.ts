@@ -242,7 +242,7 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(sim.state.quests.unlockedFeatureIds).toContain("boat.player_rowboat");
     expect(sim.state.quests.activeQuestId).toBe("quest.act5_maiden_voyage");
 
-    sim.tick(1);
+    sim.advanceGameMinutes(1);
     const schools = Object.values(sim.state.world.activeSchools);
     expect(sim.state.world.storySchoolSpawned).toBe(true);
     expect(schools).toHaveLength(1);

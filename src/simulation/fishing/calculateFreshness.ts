@@ -4,6 +4,27 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { CarryLocationType, FishCargoState, GameState } from "../core/types";
 
+function cargoSupplyInventory(state: GameState, cargo: FishCargoState) {
+  if (cargo.location.type === "player") {
+    return state.inventories[state.player.inventoryId];
+  }
+  if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return undefined;
+  const boat = state.boats[cargo.location.containerId];
+  return boat ? state.inventories[boat.supplyInventoryId] : undefined;
+}
+
+function cargoHasBuiltInIce(state: GameState, cargo: FishCargoState): boolean {
+  if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
+  const boat = state.boats[cargo.location.containerId];
+  if (!boat) return false;
+  const def = ContentRegistry.boats.get(boat.boatTypeId);
+  const slotIndex = cargo.location.slotIndex;
+  const slot = typeof slotIndex === "number"
+    ? (def?.fishCargoSlots.find((candidate) => candidate.slotIndex === slotIndex) ?? def?.fishCargoSlots[slotIndex])
+    : undefined;
+  return slot?.hasIce === true;
+}
+
 export function getStorageFreshnessModifier(locationType: CarryLocationType, hasIce: boolean = false): number {
   if (hasIce) return 0.4; // Iced hold
   switch (locationType) {
@@ -25,31 +46,72 @@ export function getStorageFreshnessModifier(locationType: CarryLocationType, has
 export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boolean {
   if (cargo.location.type === "cold-storage") return false;
 
-  if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
-    const boat = state.boats[cargo.location.containerId];
-    if (boat) {
-      const def = ContentRegistry.boats.get(boat.boatTypeId);
-      const slotIndex = cargo.location.slotIndex;
-      const slot =
-        typeof slotIndex === "number"
-          ? (def?.fishCargoSlots.find((s) => s.slotIndex === slotIndex) ?? def?.fishCargoSlots[slotIndex])
-          : undefined;
-      if (slot?.hasIce) return true;
-      const supply = state.inventories[boat.supplyInventoryId];
-      if (supply && InventoryManager.getItemCount(supply, "item.crushed_ice") > 0) {
-        return true;
+  if (cargoHasBuiltInIce(state, cargo)) return true;
+  const supply = cargoSupplyInventory(state, cargo);
+  return supply ? InventoryManager.getItemCount(supply, "item.crushed_ice") > 0 : false;
+}
+
+/**
+ * Applies freshness in hour-bounded slices and bills loose ice at the end of
+ * each covered game hour. Boat slots with authored built-in ice are never
+ * billed; one loose pack preserves every cargo in that storage container for
+ * the preceding hour.
+ */
+export function advanceCargoFreshness(
+  state: GameState,
+  minutes: number,
+  startMinute: number,
+  ambientTemperatureC: number
+): number {
+  if (minutes <= 0) return 0;
+
+  const cargos = Object.values(state.fishCargo);
+  let spoiledCount = 0;
+  let elapsed = 0;
+
+  while (elapsed < minutes) {
+    const currentMinute = startMinute + elapsed;
+    const minuteOfHour = ((currentMinute % 60) + 60) % 60;
+    const untilHourBoundary = minuteOfHour === 0 ? 60 : 60 - minuteOfHour;
+    const sliceMinutes = Math.min(minutes - elapsed, untilHourBoundary);
+    const activeCargos = cargos.filter((cargo) => cargo.freshness > 0 && ContentRegistry.fishSpecies.has(cargo.speciesId));
+
+    for (const cargo of activeCargos) {
+      // A cargo landed during this simulation tick starts at full freshness.
+      if (cargo.caughtAtMinute === state.clock.currentMinute) continue;
+      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
+      if (!speciesDef) continue;
+      const freshnessBefore = cargo.freshness;
+      cargo.freshness = Math.max(
+        0,
+        cargo.freshness - calculateFreshnessLoss(
+          sliceMinutes,
+          speciesDef.baseDecayRatePerMinute,
+          cargo.location.type,
+          resolveCargoHasIce(state, cargo),
+          ambientTemperatureC
+        )
+      );
+      if (freshnessBefore > 0 && cargo.freshness <= 0) spoiledCount += 1;
+    }
+
+    elapsed += sliceMinutes;
+    if ((startMinute + elapsed) % 60 === 0) {
+      const containersNeedingLooseIce = new Set<string>();
+      for (const cargo of activeCargos) {
+        if (cargoHasBuiltInIce(state, cargo)) continue;
+        const supply = cargoSupplyInventory(state, cargo);
+        if (!supply) continue;
+        containersNeedingLooseIce.add(supply.id);
+      }
+      for (const inventoryId of containersNeedingLooseIce) {
+        const inventory = state.inventories[inventoryId];
+        if (inventory) InventoryManager.removeItemsAtomically(inventory, [{ itemId: "item.crushed_ice", quantity: 1 }]);
       }
     }
   }
 
-  if (cargo.location.type === "player") {
-    const playerInv = state.inventories[state.player.inventoryId];
-    if (playerInv && InventoryManager.getItemCount(playerInv, "item.crushed_ice") > 0) {
-      return true;
-    }
-  }
-
-  return false;
+  return spoiledCount;
 }
 
 export function calculateFreshnessLoss(

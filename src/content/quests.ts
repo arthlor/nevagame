@@ -90,7 +90,7 @@ export const QUESTS: QuestDefinition[] = [
       "Keeping soil moisture in the ideal green band speeds up growth and yields prize-winning harvests!"
     ],
     completionDialogue: [
-      "Look how rich and dark the soil looks when watered! Now give the sun a little time to do its work."
+      "Look how rich and dark the soil looks when watered! Wheat takes a morning to ripen — tend other chores, or rest at the farmhouse and return."
     ],
     objectives: [
       {
@@ -119,8 +119,8 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Cycle of the Soil",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Hey there! I'm Barnaby, the homestead handyman. Your wheat has turned golden-ripe in the sun!",
-      "Harvest that wheat, then come see me by the farmhouse workbench. Farming on Neva isn't just for bread—it's how we supply our fishing trips!"
+      "Hey there! I'm Barnaby, the homestead handyman. Wheat takes a morning to ripen — come back after it grows, or rest at the farmhouse overnight.",
+      "Harvest that wheat when the heads turn gold, then see me by the farmhouse workbench. Farming on Neva isn't just for bread—it's how we supply our fishing trips!"
     ],
     completionDialogue: [
       "That's prime grain right there! Heavy ears and full kernels. Now let's turn it into sea supplies."

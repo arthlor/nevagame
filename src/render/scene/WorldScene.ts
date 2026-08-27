@@ -3,6 +3,10 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
+import {
+  selectNearestPracticalLightIndices,
+  uniquePracticalLightSourceNames
+} from "../lighting/practicalLightBudget";
 import { FacetedWater } from "../water/FacetedWater";
 import { AssetLoader } from "../loaders/AssetLoader";
 import { Simulation } from "../../simulation/Simulation";
@@ -28,6 +32,8 @@ import type { BoatMotionSample } from "../../simulation/core/PhysicsAdapter";
 import type { CropPlacementResult } from "../../simulation/core/contracts";
 import {
   WATER_SURFACE,
+  WORLD_ARCHITECTURE_PADS,
+  WORLD_LAYOUT_V5,
   WorldLayout
 } from "../../world/WorldLayout";
 import {
@@ -38,12 +44,28 @@ import {
 import { HARBOR_FISH_TABLE } from "../../world/WorldAnchors";
 import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
 import {
+  ARCHITECTURE_PLACEMENT_TO_PAD,
+  LAYOUT_EDIT_USERDATA_KEY,
+  createArchitecturePadTag,
+  createAuthoredDetailTag,
+  createEnvironmentOverrideTag,
+  createFarmFenceTag,
+  createFarmPropTag,
+  createFarmsteadTag,
+  createFarmStructureTag,
+  createInteriorPropTag,
+  createLandmarkTag,
+  createNpcTag,
+  createWorldAnchorTag,
+  readLayoutEditTag,
+  type LayoutEditTag
+} from "../../layout-editor/layoutEdit";
+import {
   FARMHOUSE_INTERIOR_ORIGIN,
   FARMHOUSE_INTERIOR_PROPS
 } from "../../world/FarmhouseInterior";
 import {
   createWorldEnvironmentLayout,
-  generateFarmPathPaverSamples,
   type EnvironmentAssetPlacement,
   type WorldEnvironmentLayout
 } from "../../world/WorldEnvironmentLayout";
@@ -65,6 +87,13 @@ import { ShoreFoam } from "../water/ShoreFoam";
 import { BoatWakePool } from "../water/BoatWakePool";
 import { CropInstanceRenderer } from "./CropInstanceRenderer";
 import { GroundCoverRenderer } from "./GroundCoverRenderer";
+import {
+  BUTTERFLY_ORBITS,
+  GULL_ORBITS,
+  sampleAmbientFlyerPose,
+  type AmbientFlyerOrbit
+} from "./ambientFlyers";
+import { NPC_STATION_BEATS, sampleNpcStationBeat } from "./npcStationBeat";
 import { buildStarterFarmGround } from "./StarterFarmGround";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { fishSchoolAsset, fishSpeciesAsset } from "./FishSchoolAssets";
@@ -72,6 +101,7 @@ import { fishSchoolAsset, fishSpeciesAsset } from "./FishSchoolAssets";
 
 
 import { FarmVfxPool, type FarmVfxKind, type FarmVfxPoint } from "../effects/FarmVfxPool";
+import { RainField } from "../weather/RainField";
 import type { WaterConditions } from "../water/WaterSurface";
 import {
   createWeatherMotionSignal,
@@ -102,9 +132,17 @@ interface NpcPresentation {
   detailReduced: boolean;
 }
 
-type NpcAnimationClip = "idle" | "talk_gesture" | "turn_left" | "turn_right";
+type NpcAnimationClip = "idle" | "talk_gesture" | "turn_left" | "turn_right" | "walk";
 
 const CHARACTER_DETAIL_DISTANCE_METERS = 14;
+// Published farmhouse A local-space chimney socket. The plume is attached
+// after static collision and shadow setup so it follows layout edits without
+// entering collision or inflating the farmhouse's broad shadow silhouette.
+const FARMHOUSE_SMOKE_ATTACHMENT = {
+  position: [3.168, 7.36, -0.576] as const,
+  rotationY: 0.18,
+  scale: 0.65
+} as const;
 const CHARACTER_DETAIL_NODE_PATTERNS = [
   /finger/,
   /lace/,
@@ -199,11 +237,11 @@ interface FaunaMotionNode {
   baseRotation: THREE.Euler;
 }
 
-type FaunaAnimationClip = "idle" | "graze" | "peck" | "look";
+type FaunaAnimationClip = "idle" | "graze" | "peck" | "look" | "hop";
 
 interface FaunaPresentation {
   id: string;
-  kind: "cow" | "chicken";
+  kind: "cow" | "chicken" | "rabbit";
   phase: number;
   body: FaunaMotionNode;
   head?: FaunaMotionNode;
@@ -212,6 +250,15 @@ interface FaunaPresentation {
   mixer: THREE.AnimationMixer | null;
   actions: Map<FaunaAnimationClip, THREE.AnimationAction>;
   activeClip: FaunaAnimationClip | null;
+}
+
+interface AmbientFlyerPresentation {
+  kind: "gull" | "butterfly";
+  object: THREE.Group;
+  orbit: AmbientFlyerOrbit;
+  mixer: THREE.AnimationMixer | null;
+  flap: THREE.AnimationAction | null;
+  glide: THREE.AnimationAction | null;
 }
 
 type FishAnimationClip = "swim" | "turn" | "burst" | "struggle";
@@ -275,6 +322,7 @@ export class WorldScene {
   private readonly shoreFoam: ShoreFoam;
   private readonly boatWakes: BoatWakePool;
   private readonly farmVfx: FarmVfxPool;
+  private readonly rainField: RainField;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
   private readonly roadSurfaceMaterial = new RoadSurfaceMaterial();
 
@@ -291,6 +339,15 @@ export class WorldScene {
   private cosmeticCropCarryUntilSeconds = 0;
   private readonly playerAnimationEvents: CharacterAnimationEvent[] = [];
   private latestPresentedPlayer: PresentedPlayerFrame | null = null;
+  private readonly visibilityAnchor = new THREE.Vector3(
+    WORLD_LAYOUT_V5.anchors.playerSpawn.x,
+    WorldLayout.terrainHeight(
+      WORLD_LAYOUT_V5.anchors.playerSpawn.x,
+      WORLD_LAYOUT_V5.anchors.playerSpawn.z
+    ),
+    WORLD_LAYOUT_V5.anchors.playerSpawn.z
+  );
+  private readonly visibilityLodCamera = new THREE.PerspectiveCamera();
   private lastPresentationTime = 0;
   private prefersReducedMotion: boolean = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   private skyMaterial: THREE.ShaderMaterial | null = null;
@@ -299,14 +356,15 @@ export class WorldScene {
   private starField: THREE.Points | null = null;
   private readonly practicalLights: Array<{
     light: THREE.PointLight;
-    maxIntensity: number;
-    priority: number;
     qualityEnabled: boolean;
   }> = [];
+  private readonly practicalLightFocus = new THREE.Vector3();
+  private readonly practicalLightWorld = new THREE.Vector3();
   private playerContactShadow: THREE.Mesh | null = null;
   private windmillRotor: THREE.Group | null = null;
   private cloudMeshes: Array<{ object: THREE.Group; origin: THREE.Vector3 }> = [];
   private readonly faunaPresentations: FaunaPresentation[] = [];
+  private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
   private syncInFlight: boolean = false;
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
@@ -315,6 +373,9 @@ export class WorldScene {
   private latestBoatPresentationInput: BoatPresentationInput | null = null;
   private terrainMesh: THREE.Mesh | null = null;
   private readonly raycaster = new THREE.Raycaster();
+  private readonly layoutEditRoots: THREE.Object3D[] = [];
+  private layoutEditHelper: THREE.BoxHelper | null = null;
+  private layoutEditLockedObject: THREE.Object3D | null = null;
   private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
   private readonly placementPreview = new THREE.Group();
   private readonly interactionFeedback = new THREE.Mesh(
@@ -410,6 +471,8 @@ export class WorldScene {
     this.scene.add(this.boatWakes.group);
     this.farmVfx = new FarmVfxPool();
     this.scene.add(this.farmVfx.group);
+    this.rainField = new RainField(CANONICAL_RENDER_CONFIG.qualityTier);
+    this.scene.add(this.rainField.group);
 
     // 3. Build World Geometry
     this.scene.add(this.environmentGroup);
@@ -466,6 +529,16 @@ export class WorldScene {
   }
 
   public staticCollisionProxies(): readonly StaticCollisionProxy[] {
+    return this.staticCollisionProxyList;
+  }
+
+  /** DEV layout editor: reproject catalog colliders from the current prefab poses. */
+  public rebuildStaticCollisionProxies(): readonly StaticCollisionProxy[] {
+    this.staticPrefabGroup.updateMatrixWorld(true);
+    const roots = this.staticPrefabGroup.children.filter(
+      (child) => child.name !== "static_shadow_silhouette_proxy" && Boolean(child.userData.assetId)
+    );
+    this.staticCollisionProxyList = this.buildStaticCollisionProxies(roots);
     return this.staticCollisionProxyList;
   }
 
@@ -588,13 +661,10 @@ export class WorldScene {
     this.terrainMesh = layoutTerrain;
     this.environmentGroup.add(layoutTerrain);
 
-    // High-resolution path ribbon overlay — paints the actual road colors at
-    // 17-strip transverse resolution, far smoother than the ~2.3m terrain faces.
+    // High-resolution path ribbon — paints the packed core and shoulder at
+    // 17-strip transverse resolution. A narrow alpha-tested polygon edge owns
+    // the visible merge; the coarse terrain grid remains a green underlay.
     const pathGeometry = WorldLayout.buildPathGeometry();
-    // The shared render/physics ribbon remains on the exact canonical surface.
-    // Vertex alpha dissolves its shoulder into the terrain instead of painting
-    // a second fixed-green strip over the terrain material. Its custom material
-    // adds color/roughness cells only and cannot displace the physical surface.
     const pathMesh = new THREE.Mesh(pathGeometry, this.roadSurfaceMaterial.material);
     pathMesh.name = "world_path_overlay";
     pathMesh.receiveShadow = true;
@@ -610,7 +680,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.accent_teal_01,
         transparent: true,
-        opacity: 0.88,
+        opacity: 0.42,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -626,7 +696,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.accent_teal_01,
         transparent: true,
-        opacity: 0.18,
+        opacity: 0.07,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -642,7 +712,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.foam_warm_01,
         transparent: true,
-        opacity: 0.42,
+        opacity: 0.22,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -667,7 +737,7 @@ export class WorldScene {
       new THREE.LineBasicMaterial({
         color: PALETTE_HEX.foam_warm_01,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.38,
         depthWrite: false
       })
     );
@@ -682,7 +752,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.foam_warm_01,
         transparent: true,
-        opacity: 0.95,
+        opacity: 0.7,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -696,7 +766,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.accent_teal_01,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.48,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -719,7 +789,7 @@ export class WorldScene {
       new THREE.LineBasicMaterial({
         color: PALETTE_HEX.foam_warm_01,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.42,
         depthWrite: false
       })
     );
@@ -736,7 +806,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.roof_terracotta_01,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.4,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -753,9 +823,9 @@ export class WorldScene {
         new THREE.Vector3(-0.13, 0.008, 0.13)
       ]),
       new THREE.LineBasicMaterial({
-        color: PALETTE_HEX.foam_warm_01,
+        color: PALETTE_HEX.roof_terracotta_01,
         transparent: true,
-        opacity: 0.95,
+        opacity: 0.45,
         depthWrite: false
       })
     );
@@ -798,14 +868,26 @@ export class WorldScene {
     const invalidMarker = this.placementPreview.getObjectByName("crop_placement_invalid_marker");
     const seedCenterRing = this.placementPreview.getObjectByName("crop_placement_seed_ring") as THREE.Mesh | undefined;
 
-    if (outerRing) (outerRing.material as THREE.MeshBasicMaterial).color.set(primaryColor);
-    if (fill) (fill.material as THREE.MeshBasicMaterial).color.set(primaryColor);
-    if (innerRing) {
-      (innerRing.material as THREE.MeshBasicMaterial).color.set(
-        result.valid ? PALETTE_HEX.foam_warm_01 : PALETTE_HEX.roof_terracotta_01
-      );
+    if (outerRing) {
+      const material = outerRing.material as THREE.MeshBasicMaterial;
+      material.color.set(primaryColor);
+      material.opacity = result.valid ? 0.42 : 0.28;
     }
-    if (ticks) (ticks.material as THREE.LineBasicMaterial).color.set(accentColor);
+    if (fill) {
+      const material = fill.material as THREE.MeshBasicMaterial;
+      material.color.set(primaryColor);
+      material.opacity = result.valid ? 0.07 : 0.04;
+    }
+    if (innerRing) {
+      const material = innerRing.material as THREE.MeshBasicMaterial;
+      material.color.set(result.valid ? PALETTE_HEX.foam_warm_01 : PALETTE_HEX.roof_terracotta_01);
+      material.opacity = result.valid ? 0.22 : 0.16;
+    }
+    if (ticks) {
+      const material = ticks.material as THREE.LineBasicMaterial;
+      material.color.set(accentColor);
+      material.opacity = result.valid ? 0.38 : 0.22;
+    }
     if (seedCenterRing) (seedCenterRing.material as THREE.MeshBasicMaterial).color.set(primaryColor);
 
     if (seedMarker) seedMarker.visible = result.valid;
@@ -843,6 +925,107 @@ export class WorldScene {
 
   public pickCrop(camera: THREE.Camera, pointerNdc: { x: number; y: number }): string | null {
     return this.cropInstances.pick(camera, pointerNdc);
+  }
+
+  public pickLayoutEditable(
+    camera: THREE.Camera,
+    pointerNdc: { x: number; y: number }
+  ): THREE.Object3D | null {
+    if (this.layoutEditRoots.length === 0) return null;
+    this.raycaster.setFromCamera(new THREE.Vector2(pointerNdc.x, pointerNdc.y), camera);
+    const hits = this.raycaster.intersectObjects(this.layoutEditRoots, true);
+    for (const hit of hits) {
+      let cursor: THREE.Object3D | null = hit.object;
+      while (cursor) {
+        if (readLayoutEditTag(cursor)) return cursor;
+        cursor = cursor.parent;
+      }
+    }
+    return null;
+  }
+
+  public highlightLayoutEdit(object: THREE.Object3D | null): void {
+    this.layoutEditLockedObject = object;
+    if (!this.layoutEditHelper) {
+      this.layoutEditHelper = new THREE.BoxHelper(object ?? new THREE.Object3D(), PALETTE_HEX.accent_ochre_01);
+      this.layoutEditHelper.name = "layout_edit_helper";
+      this.scene.add(this.layoutEditHelper);
+    }
+    if (!object) {
+      this.layoutEditHelper.visible = false;
+      return;
+    }
+    this.layoutEditHelper.visible = true;
+    this.layoutEditHelper.setFromObject(object);
+  }
+
+  public updateLayoutEditHighlight(): void {
+    if (!this.layoutEditHelper?.visible || !this.layoutEditLockedObject) return;
+    this.layoutEditHelper.setFromObject(this.layoutEditLockedObject);
+  }
+
+  public relocateNpcPresentation(id: string, x: number, z: number, rotationY: number): void {
+    const npc = this.npcPresentations.get(id);
+    if (!npc) return;
+    const y = WorldLayout.terrainHeight(x, z);
+    npc.anchor = { x, z, rotationY };
+    npc.initialRotationY = rotationY;
+    npc.model.position.set(x, y, z);
+    npc.model.rotation.y = rotationY;
+  }
+
+  public raycastHorizontalPlane(
+    camera: THREE.Camera,
+    pointerNdc: { x: number; y: number },
+    planeY: number
+  ): { x: number; y: number; z: number } | null {
+    this.raycaster.setFromCamera(new THREE.Vector2(pointerNdc.x, pointerNdc.y), camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
+    const hit = new THREE.Vector3();
+    if (!this.raycaster.ray.intersectPlane(plane, hit)) return null;
+    return { x: hit.x, y: planeY, z: hit.z };
+  }
+
+  public findLayoutEditable(id: string): THREE.Object3D | null {
+    return this.layoutEditRoots.find((object) => readLayoutEditTag(object)?.id === id) ?? null;
+  }
+
+  public cloneLayoutEditable(
+    source: THREE.Object3D,
+    tag: LayoutEditTag,
+    pose: { x: number; y: number; z: number; rotationY: number }
+  ): THREE.Object3D {
+    const clone = source.clone(true);
+    clone.userData = {
+      ...source.userData,
+      environmentPlacementId: tag.id
+    };
+    clone.position.set(pose.x, pose.y, pose.z);
+    clone.rotation.copy(source.rotation);
+    clone.rotation.y = pose.rotationY;
+    this.tagLayoutEdit(clone, tag);
+    (source.parent ?? this.environmentGroup).add(clone);
+    return clone;
+  }
+
+  public removeLayoutEditable(object: THREE.Object3D): void {
+    if (this.layoutEditLockedObject === object) this.highlightLayoutEdit(null);
+    const index = this.layoutEditRoots.indexOf(object);
+    if (index >= 0) this.layoutEditRoots.splice(index, 1);
+    const placementId = object.userData.environmentPlacementId;
+    if (typeof placementId === "string") {
+      const faunaIndex = this.faunaPresentations.findIndex((fauna) => fauna.id === placementId);
+      if (faunaIndex >= 0) {
+        this.faunaPresentations[faunaIndex]?.mixer?.stopAllAction();
+        this.faunaPresentations.splice(faunaIndex, 1);
+      }
+    }
+    object.removeFromParent();
+  }
+
+  private tagLayoutEdit(object: THREE.Object3D, tag: LayoutEditTag): void {
+    object.userData[LAYOUT_EDIT_USERDATA_KEY] = tag;
+    this.layoutEditRoots.push(object);
   }
 
   private buildStarterFarmDetails(): void {
@@ -954,32 +1137,6 @@ export class WorldScene {
       }
     }
 
-    const warmPaver = new THREE.Color(PALETTE_HEX.stone_warm_01);
-    const goldenPaver = new THREE.Color(PALETTE_HEX.stone_golden_01);
-    for (const [paverIndex, paver] of generateFarmPathPaverSamples().entries()) {
-      const groundHeight = WorldLayout.terrainHeight(paver.x, paver.z);
-      const normal = WorldLayout.terrainNormal(paver.x, paver.z);
-      const slab = new THREE.CylinderGeometry(paver.radius, paver.radius * 0.94, paver.height, paver.sides);
-      slab.scale(1, 1, paver.depth / Math.max(0.08, paver.radius));
-      const alignQuat = new THREE.Quaternion().setFromUnitVectors(up, normal);
-      const yawQuat = new THREE.Quaternion().setFromAxisAngle(normal, paver.rotationY);
-      slab.applyQuaternion(yawQuat.multiply(alignQuat));
-      slab.translate(paver.x, groundHeight + paver.height * 0.42, paver.z);
-      const nonIndexed = slab.index ? slab.toNonIndexed() : slab;
-      if (nonIndexed !== slab) slab.dispose();
-      const count = nonIndexed.getAttribute("position").count;
-      const vColors = new Float32Array(count * 3);
-      const color = paver.token === "stone_warm_01" ? warmPaver : goldenPaver;
-      for (let vertex = 0; vertex < count; vertex++) {
-        const facetVariation = 0.94 + (Math.sin(paverIndex * 1.31 + vertex * 1.17) * 0.5 + 0.5) * 0.09;
-        vColors[vertex * 3] = color.r * facetVariation;
-        vColors[vertex * 3 + 1] = color.g * facetVariation;
-        vColors[vertex * 3 + 2] = color.b * facetVariation;
-      }
-      nonIndexed.setAttribute("color", new THREE.BufferAttribute(vColors, 3));
-      stoneGeometries.push(nonIndexed);
-    }
-
     const mergedStones = mergeGeometries(stoneGeometries, false);
     for (const geometry of stoneGeometries) geometry.dispose();
     if (!mergedStones) return;
@@ -1065,42 +1222,50 @@ export class WorldScene {
     });
   }
 
-  private registerPracticalLight(
-    root: THREE.Object3D,
-    sourceNodeName: string,
-    maxIntensity: number,
-    distance: number,
-    priority: number = 1
-  ): void {
+  private attachPracticalLights(root: THREE.Object3D, fallbackIfMissing = false): void {
     root.updateMatrixWorld(true);
-    const source = root.getObjectByName(sourceNodeName);
-    const light = new THREE.PointLight(
-      CANONICAL_RENDER_CONFIG.practicalLights.colorHex,
-      0,
-      distance,
-      2
-    );
+    const names: string[] = [];
+    root.traverse((object) => {
+      names.push(object.name);
+    });
+    const sourceNames = uniquePracticalLightSourceNames(names);
+    if (sourceNames.length > 0) {
+      for (const name of sourceNames) {
+        this.registerPracticalLight(root, root.getObjectByName(name) ?? undefined);
+      }
+      return;
+    }
+    if (fallbackIfMissing) this.registerPracticalLight(root);
+  }
+
+  private registerPracticalLight(root: THREE.Object3D, source?: THREE.Object3D): void {
+    const recipe = CANONICAL_RENDER_CONFIG.practicalLights;
+    const light = new THREE.PointLight(recipe.colorHex, 0, recipe.localDistance, recipe.decay);
     if (source) {
-      light.position.copy(source.getWorldPosition(new THREE.Vector3()));
+      light.position.copy(source.getWorldPosition(this.practicalLightWorld));
     } else {
       const box = new THREE.Box3().setFromObject(root);
-      const center = box.getCenter(new THREE.Vector3());
+      const center = box.getCenter(this.practicalLightWorld);
       light.position.set(center.x, box.max.y * 0.85 + box.min.y * 0.15, center.z);
     }
     light.castShadow = false;
     this.scene.add(light);
-    this.practicalLights.push({ light, maxIntensity, priority, qualityEnabled: true });
-    this.applyPracticalLightBudget(this.qualityTier);
+    this.practicalLights.push({ light, qualityEnabled: true });
+    this.applyPracticalLightBudget();
   }
 
-  private applyPracticalLightBudget(tier: QualityTier): void {
-    const budget = CANONICAL_RENDER_CONFIG.quality[tier].practicalLightBudget;
+  private applyPracticalLightBudget(): void {
+    const budget = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].practicalLightBudget;
     const enabled = new Set(
-      [...this.practicalLights]
-        .sort((a, b) => a.priority - b.priority)
-        .slice(0, budget)
+      selectNearestPracticalLightIndices(
+        this.practicalLights.map((practical) => practical.light.position),
+        this.practicalLightFocus,
+        budget
+      )
     );
-    for (const practical of this.practicalLights) practical.qualityEnabled = enabled.has(practical);
+    this.practicalLights.forEach((practical, index) => {
+      practical.qualityEnabled = enabled.has(index);
+    });
   }
 
   private configureWindmillRotor(windmill: THREE.Group): void {
@@ -1137,49 +1302,49 @@ export class WorldScene {
     // 1. Farmhouse at starter homestead
     const farmhouse = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.farmhouse);
     this.placeLandmark(farmhouse, "farmhouse");
+    this.tagLayoutEdit(farmhouse, createFarmsteadTag("farmhouse"));
     this.environmentGroup.add(farmhouse);
-    this.registerPracticalLight(
-      farmhouse,
-      "farmhouse_lantern_glow",
-      CANONICAL_RENDER_CONFIG.practicalLights.localIntensity,
-      CANONICAL_RENDER_CONFIG.practicalLights.localDistance
-    );
+    this.attachPracticalLights(farmhouse);
 
     const well = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.well);
     this.placeLandmark(well, "well");
+    this.tagLayoutEdit(well, createFarmsteadTag("well"));
     this.environmentGroup.add(well);
 
     // 2. Stone Bridge crossing river
     const bridge = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.bridge);
     this.placeLandmark(bridge, "bridge");
+    this.tagLayoutEdit(bridge, createLandmarkTag("bridge", WorldLayout.landmark("bridge").yOffset));
     this.environmentGroup.add(bridge);
+    this.attachPracticalLights(bridge);
 
     // 3. Harbor Dock extending into water
     const dock = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.dock);
     this.placeLandmark(dock, "dock");
+    this.tagLayoutEdit(dock, createLandmarkTag("dock", WorldLayout.landmark("dock").yOffset));
     this.environmentGroup.add(dock);
+    this.attachPracticalLights(dock);
 
     const fishMarket = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishMarket);
     this.placeLandmark(fishMarket, "fish-market");
+    this.tagLayoutEdit(fishMarket, createLandmarkTag("fish-market", 0));
     this.environmentGroup.add(fishMarket);
+    this.attachPracticalLights(fishMarket);
 
     // Distant working landmarks establish the same farm-to-coast depth hierarchy
     // as the reference without copying its exact diorama layout.
     const lighthouse = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.lighthouse);
     this.placeLandmark(lighthouse, "lighthouse");
+    this.tagLayoutEdit(lighthouse, createLandmarkTag("lighthouse", 0));
     this.environmentGroup.add(lighthouse);
-    this.registerPracticalLight(
-      lighthouse,
-      "lighthouse_lantern_beacon",
-      CANONICAL_RENDER_CONFIG.practicalLights.lighthouseIntensity,
-      CANONICAL_RENDER_CONFIG.practicalLights.lighthouseDistance,
-      0
-    );
+    this.attachPracticalLights(lighthouse);
 
     const windmill = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.windmill);
     this.placeLandmark(windmill, "windmill");
+    this.tagLayoutEdit(windmill, createFarmStructureTag("struct.starter_mill"));
     this.environmentGroup.add(windmill);
     this.configureWindmillRotor(windmill);
+    this.attachPracticalLights(windmill);
 
     const workbenchAnchor = starterStructureAnchor("struct.workbench")!;
     const workbench = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.workbench);
@@ -1190,6 +1355,7 @@ export class WorldScene {
     );
     workbench.rotation.y = getProcessingStationRuntimeRotationY("struct.workbench");
     this.environmentGroup.add(workbench);
+    this.tagLayoutEdit(workbench, createFarmStructureTag("struct.workbench"));
 
     const compostAnchor = starterStructureAnchor("struct.starter_compost")!;
     const compost = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.compost);
@@ -1200,6 +1366,7 @@ export class WorldScene {
     );
     compost.rotation.y = getProcessingStationRuntimeRotationY("struct.starter_compost");
     this.environmentGroup.add(compost);
+    this.tagLayoutEdit(compost, createFarmStructureTag("struct.starter_compost"));
 
     const fishTable = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishTable);
     fishTable.position.set(
@@ -1209,9 +1376,14 @@ export class WorldScene {
     );
     fishTable.rotation.y = getProcessingStationRuntimeRotationY(HARBOR_FISH_TABLE.structureId);
     this.environmentGroup.add(fishTable);
+    this.tagLayoutEdit(
+      fishTable,
+      createWorldAnchorTag("struct.harbor_fish_table", "processing-station")
+    );
 
     const produceStall = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.produceStall);
     this.placeLandmark(produceStall, "produce-stall");
+    this.tagLayoutEdit(produceStall, createLandmarkTag("produce-stall", 0));
     this.environmentGroup.add(produceStall);
 
     const farmPropAssets = STATIC_FARM_PROP_ASSETS;
@@ -1221,15 +1393,9 @@ export class WorldScene {
       object.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
       object.rotation.y = anchor.rotationY;
       object.scale.setScalar(anchor.scale);
+      this.tagLayoutEdit(object, createFarmPropTag(anchor.id));
       this.environmentGroup.add(object);
-      if (anchor.type === "lamp-post") {
-        this.registerPracticalLight(
-          object,
-          "lamp_post_glow",
-          CANONICAL_RENDER_CONFIG.practicalLights.localIntensity,
-          CANONICAL_RENDER_CONFIG.practicalLights.localDistance
-        );
-      }
+      this.attachPracticalLights(object);
     }
 
     // 4. Farmhouse Cozy Interior
@@ -1247,16 +1413,9 @@ export class WorldScene {
       propModel.position.set(propPlacement.x, propPlacement.y, propPlacement.z);
       propModel.rotation.y = propPlacement.rotationY;
       if (propPlacement.scale) propModel.scale.setScalar(propPlacement.scale);
+      this.tagLayoutEdit(propModel, createInteriorPropTag(propPlacement.id));
       this.environmentGroup.add(propModel);
-
-      if (propPlacement.assetId === ASSET_IDS.PROP_FIREPLACE_HEARTH_A) {
-        this.registerPracticalLight(
-          propModel,
-          "hearth_fire_glow",
-          CANONICAL_RENDER_CONFIG.practicalLights.localIntensity * 1.5,
-          CANONICAL_RENDER_CONFIG.practicalLights.localDistance * 1.4
-        );
-      }
+      this.attachPracticalLights(propModel);
     }
 
     const groundingPatches: Array<{
@@ -1285,11 +1444,37 @@ export class WorldScene {
       object.scale.set(placement.scale[0], placement.scale[1], placement.scale[2]);
       object.userData.environmentPlacementId = placement.id;
       object.userData.environmentPlacementOrigin = placement.origin;
-      if (assetId === ASSET_IDS.FAUNA_COW_A || assetId === ASSET_IDS.FAUNA_CHICKEN_A) {
+      const padId = ARCHITECTURE_PLACEMENT_TO_PAD[placement.id];
+      if (padId) {
+        const pad = WORLD_ARCHITECTURE_PADS.find((candidate) => candidate.id === padId);
+        this.tagLayoutEdit(object, {
+          ...createArchitecturePadTag(padId),
+          grounding: pad?.envelope
+        });
+      } else if (placement.origin === "authored") {
+        this.tagLayoutEdit(object, {
+          ...createAuthoredDetailTag(placement.id, placement.assetId),
+          grounding: placement.grounding
+        });
+      } else {
+        this.tagLayoutEdit(object, {
+          ...createEnvironmentOverrideTag(placement.id, placement.assetId),
+          grounding: placement.grounding
+        });
+      }
+      if (
+        assetId === ASSET_IDS.FAUNA_COW_A
+        || assetId === ASSET_IDS.FAUNA_CHICKEN_A
+        || assetId === ASSET_IDS.FAUNA_RABBIT_A
+      ) {
         object.userData.dynamicPresentation = true;
         this.registerFaunaPresentation(
           placement.id,
-          assetId === ASSET_IDS.FAUNA_COW_A ? "cow" : "chicken",
+          assetId === ASSET_IDS.FAUNA_COW_A
+            ? "cow"
+            : assetId === ASSET_IDS.FAUNA_CHICKEN_A
+              ? "chicken"
+              : "rabbit",
           object
         );
       }
@@ -1303,14 +1488,7 @@ export class WorldScene {
           rotation: placement.rotationY
         });
       }
-      if (placement.practicalLight) {
-        this.registerPracticalLight(
-          object,
-          "lamp_post_glow",
-          CANONICAL_RENDER_CONFIG.practicalLights.localIntensity,
-          CANONICAL_RENDER_CONFIG.practicalLights.localDistance
-        );
-      }
+      this.attachPracticalLights(object, placement.practicalLight === true);
     }
     this.buildStaticGroundingPatches(groundingPatches);
 
@@ -1331,6 +1509,8 @@ export class WorldScene {
       this.cloudMeshes.push({ object: cloud, origin: cloud.position.clone() });
     }
 
+    await this.loadAmbientFlyers();
+
     // 7. Fences framing the 8 x 8 planting area with authored entrances.
     for (const anchor of STARTER_FARM_LAYOUT.fenceAnchors) {
       const fence = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fence);
@@ -1338,25 +1518,42 @@ export class WorldScene {
       const height = this.sampleTerrainHeight(world.x, world.z) ?? 0.8;
       fence.position.set(world.x, height, world.z);
       fence.rotation.y = anchor.rotationY;
+      this.tagLayoutEdit(fence, createFarmFenceTag(anchor.id));
       this.environmentGroup.add(fence);
     }
 
-    const staticAssetRoots = [...this.environmentGroup.children].filter(
+    const spawnedRoots = [...this.environmentGroup.children].filter(
       (child) => child !== this.staticPrefabGroup && !preexistingEnvironmentChildren.has(child)
     );
+    const staticAssetRoots = spawnedRoots.filter((child) => !child.userData.dynamicPresentation);
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(staticAssetRoots);
-    for (const root of staticAssetRoots) this.applyStaticShadowPolicy(root);
-    const staticShadowProxy = this.buildStaticShadowProxy(staticAssetRoots);
+    for (const root of spawnedRoots) this.applyStaticShadowPolicy(root);
+    if (import.meta.env.DEV) {
+      for (const root of spawnedRoots) this.applyLayoutEditShadowFollow(root);
+    }
     if (this.windmillRotor) this.batchCompatibleMeshes(this.windmillRotor, () => false);
 
-    for (const child of [...this.environmentGroup.children]) {
-      if (child !== this.staticPrefabGroup && !preexistingEnvironmentChildren.has(child)) {
-        this.environmentGroup.remove(child);
-        this.staticPrefabGroup.add(child);
-      }
+    for (const child of staticAssetRoots) {
+      this.environmentGroup.remove(child);
+      this.staticPrefabGroup.add(child);
     }
-    this.mergeStaticPrefabMeshes();
-    if (staticShadowProxy) this.staticPrefabGroup.add(staticShadowProxy);
+    // Mesh merge pulls visible geometry into BatchedMesh siblings and then
+    // strips LOD children, leaving layout-edit tags on empty groups. DEV
+    // keeps live meshes so F2 picking/dragging can hit the object you see.
+    if (!import.meta.env.DEV) {
+      this.mergeStaticPrefabMeshes();
+      const staticShadowProxy = this.buildStaticShadowProxy(staticAssetRoots);
+      if (staticShadowProxy) this.staticPrefabGroup.add(staticShadowProxy);
+    }
+
+    const farmhouseSmoke = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
+    farmhouseSmoke.name = "farmhouse_chimney_smoke";
+    farmhouseSmoke.position.set(...FARMHOUSE_SMOKE_ATTACHMENT.position);
+    farmhouseSmoke.rotation.y = FARMHOUSE_SMOKE_ATTACHMENT.rotationY;
+    farmhouseSmoke.scale.setScalar(FARMHOUSE_SMOKE_ATTACHMENT.scale);
+    this.setShadowPolicy(farmhouseSmoke, false);
+    farmhouse.add(farmhouseSmoke);
+
     await this.loadNpcPresentations();
   }
 
@@ -1370,6 +1567,7 @@ export class WorldScene {
         model.position.set(npc.anchor.x, y, npc.anchor.z);
         model.rotation.y = npc.anchor.rotationY;
         model.userData.dynamicPresentation = true;
+        this.tagLayoutEdit(model, createNpcTag(npc.id));
         // NPCs use the authored contact disc below for grounding. Keeping the
         // full articulated rig out of the sun-shadow pass prevents each body
         // facet from becoming a separate shadow draw while preserving the
@@ -1389,18 +1587,21 @@ export class WorldScene {
             polygonOffsetFactor: -1
           });
           const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-          shadowMesh.position.set(npc.anchor.x, y + 0.02, npc.anchor.z);
+          shadowMesh.position.set(0, 0.02, 0);
           shadowMesh.renderOrder = 1;
-          this.environmentGroup.add(shadowMesh);
+          model.add(shadowMesh);
         }
 
         const mixer = new THREE.AnimationMixer(model);
         const actions = new Map<NpcAnimationClip, THREE.AnimationAction>();
-        for (const clipName of ["idle", "talk_gesture", "turn_left", "turn_right"] as const) {
-          const clip = model.animations?.find((candidate) => candidate.name === clipName);
+        const clips = (model.userData.animationClips as THREE.AnimationClip[] | undefined)
+          ?? model.animations
+          ?? [];
+        for (const clipName of ["idle", "talk_gesture", "turn_left", "turn_right", "walk"] as const) {
+          const clip = clips.find((candidate) => candidate.name === clipName);
           if (!clip) continue;
           const action = mixer.clipAction(clip);
-          const repeats = clipName === "idle" || clipName === "talk_gesture";
+          const repeats = clipName === "idle" || clipName === "talk_gesture" || clipName === "walk";
           action.setLoop(repeats ? THREE.LoopRepeat : THREE.LoopOnce, repeats ? Infinity : 1);
           action.clampWhenFinished = !repeats;
           actions.set(clipName, action);
@@ -1547,6 +1748,22 @@ export class WorldScene {
     this.setShadowPolicy(root, castShadow);
   }
 
+  /** DEV layout editor: colliding props self-cast so sun shadows follow the mesh. */
+  private applyLayoutEditShadowFollow(root: THREE.Object3D): void {
+    const assetId = root.userData.assetId as AssetId | undefined;
+    const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
+    if (!spec || spec.collision === "none") return;
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (object.name.startsWith("COL_")) {
+        object.castShadow = false;
+        return;
+      }
+      object.castShadow = true;
+      object.receiveShadow = true;
+    });
+  }
+
   private buildStaticCollisionProxies(assetRoots: THREE.Object3D[]): StaticCollisionProxy[] {
     const proxies: StaticCollisionProxy[] = [];
     for (const [index, root] of assetRoots.entries()) {
@@ -1557,7 +1774,9 @@ export class WorldScene {
       // Catalog primitives are the canonical collision geometry. COL_* nodes
       // remain an asset-validation signal, but runtime physics must not depend
       // on a presentation node that is discarded after loading.
-      proxies.push(...projectAssetCollision(assetId, root, `${assetId}:${index}`));
+      const tag = readLayoutEditTag(root);
+      const instanceId = tag?.id ?? `${assetId}:${index}`;
+      proxies.push(...projectAssetCollision(assetId, root, instanceId));
     }
     return proxies;
   }
@@ -1570,7 +1789,7 @@ export class WorldScene {
    */
   private mergeStaticPrefabMeshes(): void {
     this.batchCompatibleMeshes(this.staticPrefabGroup, (object) => {
-      let ancestor: THREE.Object3D | null = object.parent;
+      let ancestor: THREE.Object3D | null = object;
       while (ancestor) {
         if (ancestor.name === "windmill_runtime_rotor" || ancestor.userData.dynamicPresentation) {
           return true;
@@ -1735,10 +1954,13 @@ export class WorldScene {
     }
   }
 
-  private updateStaticLodBatches(camera: THREE.Camera): void {
+  private updateStaticLodBatches(): void {
     const distanceScale = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].lodDistanceScale;
     for (const instance of this.staticLodBatchInstances) {
-      const distance = camera.position.distanceTo(instance.position);
+      const distance = Math.hypot(
+        this.visibilityAnchor.x - instance.position.x,
+        this.visibilityAnchor.z - instance.position.z
+      );
       let selectedLevel = instance.distances.length - 1;
       for (let index = 1; index < instance.distances.length; index++) {
         if (distance < instance.distances[index] * distanceScale) {
@@ -1760,10 +1982,13 @@ export class WorldScene {
     });
   }
 
-  private updateCharacterDetailLod(camera: THREE.Camera): void {
+  private updateCharacterDetailLod(): void {
     if (this.playerMesh) {
       this.playerMesh.getWorldPosition(this.tempCharacterWorldPosition);
-      const reduced = camera.position.distanceTo(this.tempCharacterWorldPosition) > CHARACTER_DETAIL_DISTANCE_METERS;
+      const reduced = Math.hypot(
+        this.visibilityAnchor.x - this.tempCharacterWorldPosition.x,
+        this.visibilityAnchor.z - this.tempCharacterWorldPosition.z
+      ) > CHARACTER_DETAIL_DISTANCE_METERS;
       if (reduced !== this.playerDetailReduced) {
         this.setCharacterDetailVisibility(this.playerMesh, reduced);
         this.playerDetailReduced = reduced;
@@ -1771,11 +1996,32 @@ export class WorldScene {
     }
     for (const npc of this.npcPresentations.values()) {
       npc.model.getWorldPosition(this.tempCharacterWorldPosition);
-      const reduced = camera.position.distanceTo(this.tempCharacterWorldPosition) > CHARACTER_DETAIL_DISTANCE_METERS;
+      const reduced = Math.hypot(
+        this.visibilityAnchor.x - this.tempCharacterWorldPosition.x,
+        this.visibilityAnchor.z - this.tempCharacterWorldPosition.z
+      ) > CHARACTER_DETAIL_DISTANCE_METERS;
       if (reduced === npc.detailReduced) continue;
       this.setCharacterDetailVisibility(npc.model, reduced);
       npc.detailReduced = reduced;
     }
+  }
+
+  /**
+   * Runtime GLB LODs follow the same player/world anchor as static batches and
+   * ground cover. Orbit, pitch, and zoom therefore cannot swap an asset's
+   * visible level; the render camera remains responsible only for projection
+   * and ordinary off-screen frustum rejection.
+   */
+  private updateWorldAnchoredRuntimeLods(): void {
+    this.visibilityLodCamera.position.copy(this.visibilityAnchor);
+    this.visibilityLodCamera.zoom = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].lodDistanceScale;
+    this.visibilityLodCamera.updateMatrixWorld(true);
+    this.scene.traverse((object) => {
+      if (!(object instanceof THREE.LOD)) return;
+      object.autoUpdate = false;
+      object.updateWorldMatrix(true, false);
+      object.update(this.visibilityLodCamera);
+    });
   }
 
   private batchPlayerRigidMeshes(root: THREE.Group): void {
@@ -1829,8 +2075,12 @@ export class WorldScene {
       this.starField.visible = frame.starVisibility > 0.002;
       (this.starField.material as THREE.PointsMaterial).opacity = frame.starVisibility * 0.82;
     }
+    this.practicalLightFocus.copy(focus);
+    this.applyPracticalLightBudget();
+    const practicalIntensity =
+      CANONICAL_RENDER_CONFIG.practicalLights.localIntensity * frame.practicalLightIntensity;
     for (const practical of this.practicalLights) {
-      practical.light.intensity = practical.maxIntensity * frame.practicalLightIntensity;
+      practical.light.intensity = practicalIntensity;
       practical.light.visible = practical.qualityEnabled && frame.practicalLightIntensity > 0.002;
     }
     if (this.playerContactShadow) {
@@ -1842,6 +2092,15 @@ export class WorldScene {
     this.boatWakes.updateLighting(frame);
     this.terrainSurfaceMaterial.updateWeather(state.weather.precipitation, timeSeconds);
     this.updateAmbientMotion(state, timeSeconds);
+    this.rainField.update({
+      focus,
+      timeSeconds,
+      precipitation: state.weather.precipitation,
+      wind: this.weatherMotion,
+      waterConditions: this.waterConditions(state),
+      reducedMotion: this.prefersReducedMotion,
+      daylight: frame.daylight
+    });
   }
 
   private waterConditions(state: Readonly<GameState>): WaterConditions {
@@ -2082,6 +2341,8 @@ export class WorldScene {
       );
     }
     this.updateFaunaMotion(timeSeconds, delta, motionScale);
+    this.updateAmbientFlyers(timeSeconds, delta, motionScale);
+    this.groundCover.updateWind(this.weatherMotion, timeSeconds, motionScale);
   }
 
   private registerFaunaPresentation(
@@ -2089,7 +2350,11 @@ export class WorldScene {
     kind: FaunaPresentation["kind"],
     root: THREE.Group
   ): void {
-    const prefix = kind === "cow" ? "fauna_cow_a" : "fauna_chicken_a";
+    const prefix = kind === "cow"
+      ? "fauna_cow_a"
+      : kind === "chicken"
+        ? "fauna_chicken_a"
+        : "fauna_rabbit_a";
     const node = (name: string): FaunaMotionNode | undefined => {
       const object = root.getObjectByName(name);
       return object
@@ -2114,7 +2379,7 @@ export class WorldScene {
     const mixer = clips.length > 0 ? new THREE.AnimationMixer(root) : null;
     const actions = new Map<FaunaAnimationClip, THREE.AnimationAction>();
     if (mixer) {
-      for (const clipName of ["idle", "graze", "peck", "look"] as const) {
+      for (const clipName of ["idle", "graze", "peck", "look", "hop"] as const) {
         const clip = clips.find((candidate) => candidate.name === clipName);
         if (!clip) continue;
         const action = mixer.clipAction(clip);
@@ -2159,18 +2424,22 @@ export class WorldScene {
       * motionScale;
     for (const fauna of this.faunaPresentations) {
       const localTime = timeSeconds + fauna.phase * 9.7;
-      const cycle = localTime % (fauna.kind === "cow" ? 13 : 7.5);
+      const cycle = localTime % (fauna.kind === "cow" ? 13 : fauna.kind === "rabbit" ? 6.4 : 7.5);
       const breathing = Math.sin(localTime * (fauna.kind === "cow" ? 1.25 : 2.1));
       const activity = fauna.kind === "cow"
         ? smoothPresentationWindow(cycle, 3.2, 8.4, 0.9)
-        : smoothPresentationWindow(cycle, 1.1, 4.3, 0.32);
+        : fauna.kind === "rabbit"
+          ? smoothPresentationWindow(cycle, 1.4, 2.4, 0.22)
+          : smoothPresentationWindow(cycle, 1.1, 4.3, 0.32);
       const lookActivity = fauna.kind === "cow"
         ? smoothPresentationWindow(cycle, 10.1, 12.2, 0.35)
-        : smoothPresentationWindow(cycle, 5.2, 7, 0.25);
+        : fauna.kind === "rabbit"
+          ? smoothPresentationWindow(cycle, 3.6, 5.2, 0.28)
+          : smoothPresentationWindow(cycle, 5.2, 7, 0.25);
       const desiredClip: FaunaAnimationClip = this.prefersReducedMotion
         ? "idle"
         : activity > 0.05
-          ? fauna.kind === "cow" ? "graze" : "peck"
+          ? fauna.kind === "cow" ? "graze" : fauna.kind === "rabbit" ? "hop" : "peck"
           : lookActivity > 0.05 ? "look" : "idle";
       this.setFaunaAnimation(fauna, desiredClip);
       if (fauna.mixer) {
@@ -2208,6 +2477,51 @@ export class WorldScene {
         wing.object.rotation.y = wing.baseRotation.y
           + wingSign * Math.sin(localTime * 2.4 + fauna.phase) * 0.08 * motionScale;
         wing.object.rotation.z = wing.baseRotation.z + wingSign * windLean * 1.8;
+      }
+    }
+  }
+
+  private async loadAmbientFlyers(): Promise<void> {
+    const spawn = async (
+      kind: AmbientFlyerPresentation["kind"],
+      assetId: AssetId,
+      orbits: readonly AmbientFlyerOrbit[]
+    ): Promise<void> => {
+      for (const orbit of orbits) {
+        try {
+          const object = await AssetLoader.loadModel(assetId);
+          object.userData.dynamicPresentation = true;
+          object.scale.setScalar(kind === "butterfly" ? 3.4 : 1.45);
+          this.setShadowPolicy(object, false);
+          this.environmentGroup.add(object);
+          const clips = (object.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
+          const mixer = clips.length > 0 ? new THREE.AnimationMixer(object) : null;
+          const flapClip = clips.find((clip) => clip.name === "flap");
+          const glideClip = clips.find((clip) => clip.name === "glide");
+          const flap = mixer && flapClip ? mixer.clipAction(flapClip) : null;
+          const glide = mixer && glideClip ? mixer.clipAction(glideClip) : null;
+          flap?.setLoop(THREE.LoopRepeat, Infinity).play();
+          glide?.setLoop(THREE.LoopRepeat, Infinity).play();
+          this.ambientFlyers.push({ kind, object, orbit, mixer, flap, glide });
+        } catch (error) {
+          console.warn(`[WorldScene] Failed to load ${kind} flyer ${assetId}:`, error);
+        }
+      }
+    };
+    await spawn("gull", ASSET_IDS.FAUNA_GULL_A, GULL_ORBITS);
+    await spawn("butterfly", ASSET_IDS.FAUNA_BUTTERFLY_A, BUTTERFLY_ORBITS);
+  }
+
+  private updateAmbientFlyers(timeSeconds: number, delta: number, motionScale: number): void {
+    for (const flyer of this.ambientFlyers) {
+      const pose = sampleAmbientFlyerPose(flyer.orbit, timeSeconds, motionScale);
+      flyer.object.position.set(pose.x, pose.y, pose.z);
+      flyer.object.rotation.y = pose.heading;
+      if (flyer.mixer) {
+        flyer.mixer.timeScale = this.prefersReducedMotion
+          ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+          : flyer.kind === "butterfly" ? 1.35 : 1;
+        flyer.mixer.update(delta);
       }
     }
   }
@@ -2297,6 +2611,7 @@ export class WorldScene {
       discontinuityReason: "none" as const,
       discontinuitySequence: 0
     };
+    this.visibilityAnchor.set(playerPose.x, playerPose.y, playerPose.z);
 
     const delta = this.lastPresentationTime > 0
       ? THREE.MathUtils.clamp(timeSeconds - this.lastPresentationTime, 0.001, 0.1)
@@ -2466,31 +2781,56 @@ export class WorldScene {
 
     // NPC positions remain content anchored. Dialogue only adds a presentation
     // turn and authored gesture; closing it restores the catalog heading.
+    // Station beats stay inside 1.2 m of the anchor so talk radius is unchanged.
     for (const npc of this.npcPresentations.values()) {
       npc.mixer.update(delta);
+      if (this.layoutEditLockedObject === npc.model) continue;
       const dx = playerPose.x - npc.anchor.x;
       const dz = playerPose.z - npc.anchor.z;
       const distSq = dx * dx + dz * dz;
       const isDialogueTarget = npc.id === this.activeDialogueNpcId;
+      const beat = NPC_STATION_BEATS[npc.id];
+      const beatSample = !isDialogueTarget && beat
+        ? sampleNpcStationBeat(beat, timeSeconds)
+        : { dx: 0, dz: 0, heading: npc.initialRotationY, walking: false };
+      const worldX = npc.anchor.x + beatSample.dx;
+      const worldZ = npc.anchor.z + beatSample.dz;
+      npc.model.position.set(worldX, WorldLayout.terrainHeight(worldX, worldZ), worldZ);
       const playerHeading = Math.atan2(dx, dz);
-      const desiredHeading = isDialogueTarget ? playerHeading : npc.initialRotationY;
+      const desiredHeading = isDialogueTarget
+        ? playerHeading
+        : beatSample.walking
+          ? beatSample.heading
+          : npc.initialRotationY;
       const turnDifference = wrapPresentationAngle(desiredHeading - npc.model.rotation.y);
       npc.model.rotation.y = dampPresentationAngle(
         npc.model.rotation.y,
         desiredHeading,
-        isDialogueTarget ? 9.5 : 5.5,
+        isDialogueTarget ? 9.5 : beatSample.walking ? 8.2 : 5.5,
         delta
       );
-      const isTurning = Math.abs(turnDifference) > 0.1;
+      const isTurning = Math.abs(turnDifference) > 0.1 && !beatSample.walking;
+      const walkAction = npc.actions.get("walk");
+      if (walkAction) {
+        const playback = THREE.MathUtils.clamp(
+          (beat?.walkSpeedMetersPerSecond ?? 1.45) / 3.2,
+          CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMinimum,
+          CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMaximum
+        );
+        walkAction.setEffectiveTimeScale(playback);
+      }
       this.setNpcAnimation(
         npc,
         isTurning
           ? turnDifference < 0 ? "turn_left" : "turn_right"
-          : isDialogueTarget ? "talk_gesture" : "idle"
+          : isDialogueTarget
+            ? "talk_gesture"
+            : beatSample.walking
+              ? "walk"
+              : "idle"
       );
       if (npc.headBone) {
         if (isDialogueTarget || distSq < 20.0) {
-          // Player within 4.5 meters; turn head toward player
           const angleDiff = wrapPresentationAngle(playerHeading - npc.model.rotation.y);
           const clampedTurn = Math.max(-0.75, Math.min(0.75, angleDiff));
           npc.headBone.rotation.y = THREE.MathUtils.damp(npc.headBone.rotation.y, clampedTurn, 10, delta);
@@ -2979,9 +3319,10 @@ export class WorldScene {
   }
 
   public render(camera: THREE.Camera): void {
-    this.updateCharacterDetailLod(camera);
-    this.updateStaticLodBatches(camera);
-    this.groundCover.update(camera);
+    this.updateWorldAnchoredRuntimeLods();
+    this.updateCharacterDetailLod();
+    this.updateStaticLodBatches();
+    this.groundCover.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
     this.rendererPipeline.render(camera);
   }
 
@@ -3011,8 +3352,9 @@ export class WorldScene {
     this.qualityTier = tier;
     this.lightingRig.setQuality(tier);
     this.rendererPipeline.setQuality(tier);
-    this.applyPracticalLightBudget(tier);
+    this.applyPracticalLightBudget();
     this.groundCover.setQuality(tier);
+    this.rainField.setQuality(tier);
     this.playerContactShadow?.removeFromParent();
     this.playerContactShadow?.geometry.dispose();
     (this.playerContactShadow?.material as THREE.Material | undefined)?.dispose();

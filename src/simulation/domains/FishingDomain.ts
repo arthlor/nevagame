@@ -193,6 +193,11 @@ export class FishingDomain {
       return { success: false, reason: "No fish biting yet!" };
     }
 
+    if (!attempt.willCatch) {
+      this.resolveMissedBite(attempt);
+      return { success: false, reason: "The fish slipped the hook" };
+    }
+
     attempt.phase = "minigame";
     events.emit("BasicFishingMinigameStarted", {
       habitatId: attempt.habitatId,
@@ -367,7 +372,11 @@ export class FishingDomain {
         delete state.world.activeSchools[id];
       }
     }
-    if (Object.keys(state.world.activeSchools).length > 0) return;
+    if (Object.keys(state.world.activeSchools).length > 0 && !(
+      state.quests.activeQuestId === "quest.act5_maiden_voyage" &&
+      state.quests.unlockedFeatureIds.includes("boat.player_rowboat") &&
+      !state.world.storySchoolSpawned
+    )) return;
 
     // Act 5 has an authored entry path. The first lake school is guaranteed
     // once the rowboat has been commissioned, independent of weather or the
@@ -378,7 +387,17 @@ export class FishingDomain {
       !state.world.storySchoolSpawned
     ) {
       const starterPoint = SCHOOL_SPAWN_POINTS[0];
-      this.spawnSchool(starterPoint.habitatId, starterPoint.x, starterPoint.z, ["fish.trout"]);
+      const existingLake = Object.values(state.world.activeSchools).find((school) => school.habitatId === "lake");
+      if (existingLake) {
+        existingLake.x = starterPoint.x;
+        existingLake.z = starterPoint.z;
+        existingLake.speciesWeights = [{ speciesId: "fish.trout", weight: 1 }];
+        existingLake.remainingCatchPotential = Math.max(existingLake.remainingCatchPotential, 1);
+        existingLake.expiresAtMinute = currentMinute + 180;
+        delete existingLake.feedingFrenzyUntilMinute;
+      } else {
+        this.spawnSchool(starterPoint.habitatId, starterPoint.x, starterPoint.z, ["fish.trout"]);
+      }
       state.world.storySchoolSpawned = true;
       state.world.lastSchoolSpawnMinute = currentMinute;
       return;
@@ -542,26 +561,39 @@ export class FishingDomain {
       return;
     }
 
-    InventoryManager.addItemsAtomically(inventory, catchStack);
-
     let treasureLootItemIds: string[] | undefined;
+    const treasureStack: Array<{ itemId: string; quantity: number }> = [];
     if (attempt.treasureCaught) {
       const rolled = BasicFishingMinigame.generateTreasureLoot(attempt.habitatId, rng);
-      const granted: string[] = [];
+      const lootCounts = new Map<string, number>();
       for (const itemId of rolled) {
         if (!ContentRegistry.items.has(itemId)) continue;
-        const stack = [{ itemId, quantity: 1 }];
-        if (InventoryManager.addItemsAtomically(inventory, stack)) {
-          granted.push(itemId);
-        }
+        lootCounts.set(itemId, (lootCounts.get(itemId) ?? 0) + 1);
       }
-      if (granted.length > 0) {
-        treasureLootItemIds = granted;
-        events.emit("BasicFishingTreasureCaught", {
-          lootItemIds: granted,
-          minute: state.clock.currentMinute
-        });
-      }
+      for (const [itemId, quantity] of lootCounts) treasureStack.push({ itemId, quantity });
+    }
+
+    // The catch and its treasure are one inventory transaction. Do not land
+    // the fish while silently dropping or partially granting rolled loot.
+    const catchAndTreasure = [catchStack[0], ...treasureStack];
+    if (!InventoryManager.canAddItems(inventory, catchAndTreasure)) {
+      events.emit("BasicFishingResolved", {
+        habitatId: attempt.habitatId,
+        reason: "inventory-full",
+        minute: state.clock.currentMinute
+      });
+      return;
+    }
+    InventoryManager.addItemsAtomically(inventory, catchAndTreasure);
+
+    if (treasureStack.length > 0) {
+      treasureLootItemIds = treasureStack.flatMap(({ itemId, quantity }) =>
+        Array.from({ length: quantity }, () => itemId)
+      );
+      events.emit("BasicFishingTreasureCaught", {
+        lootItemIds: treasureLootItemIds,
+        minute: state.clock.currentMinute
+      });
     }
 
     const xpGained = attempt.isPerfect ? 50 : 25;

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Neva Art Yard — 3D Asset Review & Diagnostic Suite</title>
+    <title>Neva Art Yard</title>
     <link rel="stylesheet" href="/src/art-yard/styles.css" />
   </head>
   <body>
@@ -12,257 +12,204 @@
         <canvas id="yard-canvas"></canvas>
         <div id="yard-status" class="stage-status" role="status" aria-live="polite">Loading catalog…</div>
         <div id="yard-toast" class="stage-toast" role="status" aria-live="polite"></div>
-        
-        <!-- Viewport Quick HUD overlay -->
+
         <div class="stage-hud" id="stage-hud">
-          <div class="hud-pill" id="hud-asset-badge">Asset: Loading…</div>
-          <div class="hud-pill" id="hud-view-badge">View: 3/4 · 8m</div>
-          <div class="hud-pill" id="hud-tris-badge">Tris: —</div>
+          <span id="hud-asset-badge">Loading…</span>
+          <span class="hud-sep" aria-hidden="true">·</span>
+          <span id="hud-view-badge">3/4 · 8m</span>
+          <span class="hud-sep" aria-hidden="true">·</span>
+          <span id="hud-tris-badge">—</span>
         </div>
 
-        <!-- Floating Quick View Controls on Stage -->
-        <div class="stage-quick-controls" aria-label="Quick camera controls">
-          <button type="button" class="quick-btn" data-cam="front" title="Front View (Key 1)">Front</button>
-          <button type="button" class="quick-btn" data-cam="three-quarter" title="3/4 View (Key 2)">3/4</button>
-          <button type="button" class="quick-btn" data-cam="side" title="Side View (Key 3)">Side</button>
-          <button type="button" class="quick-btn" data-cam="rear" title="Rear View (Key 4)">Rear</button>
-          <button type="button" class="quick-btn" data-cam="top" title="Top View (Key 5)">Top</button>
-          <button type="button" class="quick-btn" id="quick-turntable" title="Toggle Turntable (Key T)">🔄 Turntable</button>
-          <button type="button" class="quick-btn" id="toggle-panel-btn" title="Toggle Sidebar Panel (Key Tab)">⛶ Full View</button>
+        <div class="stage-toolbar" aria-label="Camera">
+          <button type="button" data-cam="front" title="Front (1)">Front</button>
+          <button type="button" data-cam="three-quarter" class="active" title="3/4 (2)">3/4</button>
+          <button type="button" data-cam="side" title="Side (3)">Side</button>
+          <button type="button" data-cam="rear" title="Rear (4)">Rear</button>
+          <button type="button" data-cam="top" title="Top (5)">Top</button>
+          <button type="button" id="cam-fit-btn" title="Fit (F)">Fit</button>
+          <button type="button" id="toggle-panel-btn" title="Toggle panel (Tab)">Hide</button>
         </div>
       </section>
 
       <aside class="yard-panel" id="yard-panel">
         <header class="panel-heading">
-          <div>
-            <p class="panel-kicker">3D Review &amp; Diagnostics</p>
-            <h1>Neva Art Yard</h1>
-          </div>
-          <a href="/" class="back-link" title="Return to Playable Game">← Back to Game</a>
+          <h1>Art Yard</h1>
+          <a href="/" class="back-link">Game</a>
         </header>
 
-        <!-- 1. Asset & Showcase Selection -->
-        <section class="panel-section" aria-labelledby="sec-asset">
+        <section class="panel-asset" aria-labelledby="sec-asset">
           <div class="section-title-row">
-            <h2 id="sec-asset">Asset &amp; Showcase</h2>
-            <div class="header-action-group">
-              <button type="button" id="copy-asset-id-btn" class="mini-icon-btn" title="Copy Asset ID to clipboard">📋 Copy ID</button>
-              <span class="section-badge" id="asset-count-badge">86 Assets</span>
-            </div>
+            <h2 id="sec-asset">Asset</h2>
+            <span class="count-badge" id="asset-count-badge">0</span>
           </div>
 
-          <div class="search-box">
-            <input id="asset-search" type="search" placeholder="🔍 Filter by name, ID, or family…" spellcheck="false" />
+          <div class="asset-filter-row">
+            <input id="asset-search" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter assets" />
+            <select id="family-filter" aria-label="Family">
+              <option value="all" selected>All</option>
+              <option value="showcase">Showcases</option>
+              <option value="architecture">Architecture</option>
+              <option value="prop">Prop</option>
+              <option value="boat">Boat</option>
+              <option value="vegetation">Vegetation</option>
+              <option value="crop">Crop</option>
+              <option value="fish">Fish</option>
+              <option value="character">Character</option>
+              <option value="rock">Rock</option>
+              <option value="cloud">Cloud</option>
+            </select>
           </div>
 
-          <div class="family-pills" id="family-pills" aria-label="Filter asset families">
-            <button type="button" class="pill-btn active" data-family="all">All</button>
-            <button type="button" class="pill-btn highlight" data-family="showcase">✨ Showcase</button>
-            <button type="button" class="pill-btn" data-family="architecture">Architecture</button>
-            <button type="button" class="pill-btn" data-family="prop">Prop</button>
-            <button type="button" class="pill-btn" data-family="boat">Boat</button>
-            <button type="button" class="pill-btn" data-family="vegetation">Vegetation</button>
-            <button type="button" class="pill-btn" data-family="crop">Crop</button>
-            <button type="button" class="pill-btn" data-family="fish">Fish</button>
-            <button type="button" class="pill-btn" data-family="character">Character</button>
-            <button type="button" class="pill-btn" data-family="rock">Rock</button>
-            <button type="button" class="pill-btn" data-family="cloud">Cloud</button>
-          </div>
+          <label class="sr-only" for="asset-select">Active asset</label>
+          <select id="asset-select" size="8" class="asset-select"></select>
 
           <div class="asset-nav-row">
-            <button type="button" id="prev-asset-btn" class="nav-btn" title="Previous Asset (Key [)">◀ Prev</button>
-            <button type="button" id="next-asset-btn" class="nav-btn" title="Next Asset (Key ])">Next ▶</button>
+            <button type="button" id="prev-asset-btn" title="Previous ([)">Prev</button>
+            <button type="button" id="next-asset-btn" title="Next (])">Next</button>
+            <button type="button" id="copy-asset-id-btn" title="Copy ID">Copy ID</button>
           </div>
-
-          <label class="field-label sr-only" for="asset-select">Active Asset</label>
-          <select id="asset-select" size="6" class="enhanced-asset-select"></select>
         </section>
 
-        <!-- 2. Animation Studio (Dynamic for rigged assets) -->
-        <section class="panel-section" id="animation-section" style="display: none;" aria-labelledby="sec-anim">
-          <div class="section-title-row">
-            <h2 id="sec-anim">🎬 Animation Studio</h2>
-            <span class="section-badge anim-live-badge">Rig Active</span>
-          </div>
+        <section class="panel-fold" id="animation-section" style="display: none;" aria-labelledby="sec-anim">
+          <h2 id="sec-anim">Animation</h2>
 
-          <label class="field-label" for="clip-select">Animation Clip</label>
+          <label class="field-label" for="clip-select">Clip</label>
           <select id="clip-select"></select>
 
           <div class="anim-control-row">
-            <button type="button" id="anim-play-toggle" class="anim-action-btn primary">⏸ Pause</button>
-            <button type="button" id="anim-step-back-btn" class="anim-action-btn" title="Step Back 0.1s">⏮ -0.1s</button>
-            <button type="button" id="anim-step-fwd-btn" class="anim-action-btn" title="Step Forward 0.1s">+0.1s ⏭</button>
+            <button type="button" id="anim-play-toggle" class="anim-action-btn primary">Pause</button>
+            <button type="button" id="anim-step-back-btn" class="anim-action-btn" title="Step back 0.1s">−0.1s</button>
+            <button type="button" id="anim-step-fwd-btn" class="anim-action-btn" title="Step forward 0.1s">+0.1s</button>
             <div class="speed-select-wrap">
               <label for="anim-speed" class="sr-only">Speed</label>
-              <select id="anim-speed" title="Playback Speed">
-                <option value="0.25">0.25x</option>
-                <option value="0.5">0.5x</option>
-                <option value="1.0" selected>1.0x</option>
-                <option value="1.5">1.5x</option>
-                <option value="2.0">2.0x</option>
+              <select id="anim-speed" title="Playback speed">
+                <option value="0.25">0.25×</option>
+                <option value="0.5">0.5×</option>
+                <option value="1.0" selected>1×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2.0">2×</option>
               </select>
             </div>
           </div>
 
           <div class="scrubber-row">
-            <label class="field-label" for="anim-scrubber">Timeline <output id="anim-time-output">0.00s / 0.00s</output></label>
+            <label class="field-label" for="anim-scrubber">Time <output id="anim-time-output">0.00s / 0.00s</output></label>
             <input id="anim-scrubber" type="range" min="0" max="1" step="0.001" value="0" />
           </div>
 
-          <div class="socket-preview-row">
-            <label class="field-label" for="socket-prop-select">Equip Tool / Hand Prop</label>
-            <select id="socket-prop-select">
-              <option value="none">None</option>
-              <option value="tool_fishing_rod_a">🎣 Fishing Rod (tool_fishing_rod_a)</option>
-              <option value="tool_watering_can_a">💧 Watering Can (tool_watering_can_a)</option>
-              <option value="tool_sickle_a">🌾 Harvesting Sickle (tool_sickle_a)</option>
-              <option value="tool_seed_pouch_a">🌱 Seed Pouch (tool_seed_pouch_a)</option>
-              <option value="prop_harvest_basket_a">🧺 Harvest Basket (prop_harvest_basket_a)</option>
-              <option value="prop_crop_bundle_a">🪵 Crop Bundle (prop_crop_bundle_a)</option>
-              <option value="tool_workstation_scoop_a">🥄 Workstation Scoop (tool_workstation_scoop_a)</option>
-            </select>
-          </div>
+          <label class="field-label" for="socket-prop-select">Hand prop</label>
+          <select id="socket-prop-select">
+            <option value="none">None</option>
+            <option value="tool_fishing_rod_a">Fishing rod</option>
+            <option value="tool_watering_can_a">Watering can</option>
+            <option value="tool_sickle_a">Sickle</option>
+            <option value="tool_seed_pouch_a">Seed pouch</option>
+            <option value="prop_harvest_basket_a">Harvest basket</option>
+            <option value="prop_crop_bundle_a">Crop bundle</option>
+            <option value="tool_workstation_scoop_a">Scoop</option>
+          </select>
         </section>
 
-        <!-- 3. Camera & View Inspection -->
-        <section class="panel-section" aria-labelledby="sec-camera">
-          <h2 id="sec-camera">Camera &amp; View Inspection</h2>
-
-          <div class="camera-preset-grid">
-            <button type="button" data-cam="front">Front</button>
-            <button type="button" data-cam="three-quarter" class="active">3/4 Hero</button>
-            <button type="button" data-cam="side">Side</button>
-            <button type="button" data-cam="rear">Rear</button>
-            <button type="button" data-cam="top">Top</button>
-            <button type="button" id="cam-fit-btn" class="fit-btn">🎯 Focus Fit</button>
+        <details class="panel-fold">
+          <summary>View</summary>
+          <label class="field-label" for="distance-range">Distance <output id="distance-output">8 m</output></label>
+          <input id="distance-range" type="range" min="1" max="80" step="1" value="8" />
+          <div class="chip-row" aria-label="Distance presets">
+            <button type="button" data-dist="2">2m</button>
+            <button type="button" data-dist="4">4m</button>
+            <button type="button" data-dist="8">8m</button>
+            <button type="button" data-dist="15">15m</button>
+            <button type="button" data-dist="30">30m</button>
           </div>
-
-          <div class="control-grid">
-            <label class="field-label" for="distance-range">View Distance <output id="distance-output">8 m</output></label>
-            <input id="distance-range" type="range" min="1" max="80" step="1" value="8" />
-            <div class="preset-row" aria-label="Distance presets">
-              <button type="button" data-dist="2">2m (Tool)</button>
-              <button type="button" data-dist="4">4m (Close)</button>
-              <button type="button" data-dist="8">8m (Prop)</button>
-              <button type="button" data-dist="15">15m (Building)</button>
-              <button type="button" data-dist="30">30m (Hero/Scene)</button>
-            </div>
-          </div>
-
           <div class="turntable-row">
             <label class="toggle-checkbox">
               <input id="turntable-toggle" type="checkbox" />
-              <span>🔄 Auto-Rotate Turntable</span>
+              <span>Rotate</span>
             </label>
             <div class="turntable-speed-wrap">
               <label for="turntable-speed" class="field-label-sm">Speed</label>
               <input id="turntable-speed" type="range" min="0.2" max="3" step="0.1" value="1.0" />
             </div>
           </div>
-        </section>
+        </details>
 
-        <!-- 4. Diagnostics & Shading Modes -->
-        <section class="panel-section" aria-labelledby="sec-shading">
-          <h2 id="sec-shading">Diagnostics &amp; Shading Modes</h2>
-
-          <label class="field-label" for="shading-select">Render Mode</label>
+        <details class="panel-fold">
+          <summary>Shading</summary>
+          <label class="field-label" for="shading-select">Mode</label>
           <select id="shading-select">
-            <option value="lit" selected>Default Lit (Palette PBR + AO)</option>
-            <option value="wireframe_overlay">Wireframe Overlay (Polygonal Mesh)</option>
-            <option value="wireframe_pure">Pure Wireframe (Topology CAD)</option>
-            <option value="vertex_colors">Vertex Colors (Baked COLOR_0)</option>
-            <option value="normals">Surface Normals (RGB)</option>
-            <option value="lod0">Force LOD0 (Maximum Detail)</option>
-            <option value="lod1">Force LOD1 (Simplified Far Mesh)</option>
+            <option value="lit" selected>Lit</option>
+            <option value="wireframe_overlay">Wire overlay</option>
+            <option value="wireframe_pure">Wire</option>
+            <option value="vertex_colors">Vertex color</option>
+            <option value="normals">Normals</option>
+            <option value="lod0">LOD0</option>
+            <option value="lod1">LOD1</option>
           </select>
-
-          <div class="diagnostic-toggles">
+          <div class="flag-row">
             <label class="toggle-checkbox">
               <input id="bounds-toggle" type="checkbox" />
-              <span>📐 Bounding Box &amp; Dimensions</span>
+              <span>Bounds</span>
             </label>
             <label class="toggle-checkbox">
               <input id="collision-toggle" type="checkbox" />
-              <span>🛡️ Collision Proxies (COL_)</span>
+              <span>Collision</span>
             </label>
             <label class="toggle-checkbox">
               <input id="shadows-toggle" type="checkbox" checked />
-              <span>☀️ Cast &amp; Contact Shadows</span>
+              <span>Shadows</span>
             </label>
           </div>
-        </section>
+        </details>
 
-        <!-- 5. Lighting & Environment -->
-        <section class="panel-section" aria-labelledby="sec-env">
-          <h2 id="sec-env">Lighting &amp; Environment</h2>
-
-          <label class="field-label" for="time-range">Time of Day <output id="time-output">12:00</output></label>
+        <details class="panel-fold">
+          <summary>Environment</summary>
+          <label class="field-label" for="time-range">Time <output id="time-output">12:00</output></label>
           <input id="time-range" type="range" min="0" max="1439" step="1" value="720" />
-          <div class="preset-row" aria-label="Time presets">
-            <button type="button" data-time="480">Morning (8:00)</button>
-            <button type="button" data-time="720">Noon (12:00)</button>
-            <button type="button" data-time="1020" class="golden-btn">✨ Golden Hour</button>
-            <button type="button" data-time="1110">Sunset (18:30)</button>
-            <button type="button" data-time="1180">Dusk (19:40)</button>
-            <button type="button" data-time="1320">Night (22:00)</button>
+          <div class="chip-row" aria-label="Time presets">
+            <button type="button" data-time="480">8:00</button>
+            <button type="button" data-time="720">12:00</button>
+            <button type="button" data-time="1020">17:00</button>
+            <button type="button" data-time="1110">18:30</button>
+            <button type="button" data-time="1180">19:40</button>
+            <button type="button" data-time="1320">22:00</button>
           </div>
-
-          <div class="control-grid">
-            <label class="field-label" for="azimuth-range">Sun Azimuth (Angle) <output id="azimuth-output">45°</output></label>
-            <input id="azimuth-range" type="range" min="0" max="360" step="5" value="45" />
-          </div>
-
+          <label class="field-label" for="azimuth-range">Azimuth <output id="azimuth-output">45°</output></label>
+          <input id="azimuth-range" type="range" min="0" max="360" step="5" value="45" />
           <div class="env-row">
             <div>
               <label class="field-label" for="weather-select">Weather</label>
               <select id="weather-select">
-                <option value="clear">☀️ Clear Sky</option>
-                <option value="fog">🌫️ Coastal Fog</option>
-                <option value="storm">⛈️ Maritime Storm</option>
+                <option value="clear">Clear</option>
+                <option value="fog">Fog</option>
+                <option value="storm">Storm</option>
               </select>
             </div>
             <div>
-              <label class="field-label" for="ground-select">Ground Bed</label>
+              <label class="field-label" for="ground-select">Ground</label>
               <select id="ground-select">
-                <option value="grass" selected>🌿 Meadow Grass</option>
-                <option value="sand">🏖️ Warm Sand</option>
-                <option value="rock">🪨 Dark Coastal Rock</option>
-                <option value="grid">📐 Neutral Studio Grid</option>
-                <option value="none">🚫 Hidden Floor</option>
+                <option value="grass" selected>Grass</option>
+                <option value="sand">Sand</option>
+                <option value="rock">Rock</option>
+                <option value="grid">Grid</option>
+                <option value="none">None</option>
               </select>
             </div>
           </div>
+          <label class="toggle-checkbox water-toggle">
+            <input id="water-toggle" type="checkbox" />
+            <span>Water</span>
+          </label>
+        </details>
 
-          <div class="water-toggle-wrap">
-            <label class="toggle-checkbox">
-              <input id="water-toggle" type="checkbox" />
-              <span>🌊 Faceted Coastal Water &amp; Buoyant Physics</span>
-            </label>
-          </div>
-        </section>
-
-        <!-- 6. Staging & Performance Metrics -->
-        <section class="panel-section" aria-labelledby="sec-metrics">
-          <div class="section-title-row">
-            <h2 id="sec-metrics">Asset Metrics &amp; Staging</h2>
-            <span class="section-badge" id="source-badge">published</span>
-          </div>
-
+        <details class="panel-fold">
+          <summary>Metrics <span class="count-badge" id="source-badge">published</span></summary>
           <div class="stage-input-row">
-            <input id="stage-input" type="text" placeholder="published or run-…" spellcheck="false" />
-            <button id="stage-apply" type="button">Apply Stage</button>
+            <input id="stage-input" type="text" placeholder="published or run-…" spellcheck="false" aria-label="Art stage" />
+            <button id="stage-apply" type="button">Apply</button>
           </div>
-          <p class="field-help">Staged runs test unpromoted candidate GLBs without modifying production models.</p>
-
           <dl id="metrics-list" class="metrics-grid"></dl>
-        </section>
-
-        <footer class="panel-footer">
-          <p class="keyboard-help">
-            <strong>Shortcuts:</strong> <kbd>Space</kbd> Play/Pause &bull; <kbd>[</kbd> / <kbd>]</kbd> Prev/Next &bull; <kbd>1-5</kbd> Camera &bull; <kbd>T</kbd> Turntable &bull; <kbd>F</kbd> Focus &bull; <kbd>W</kbd> Wireframe &bull; <kbd>C</kbd> Collision &bull; <kbd>Tab</kbd> Toggle UI
-          </p>
-          <p class="yard-note">Art Yard reuses the canonical runtime stack (AssetLoader, VisualRenderConfig, PaletteMaterials, LightingRig) for authentic gameplay-equivalent validation.</p>
-        </footer>
+        </details>
       </aside>
     </main>
 

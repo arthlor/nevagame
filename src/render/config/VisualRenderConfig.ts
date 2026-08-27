@@ -35,6 +35,7 @@ export interface VisualRenderConfig {
   };
   shadows: {
     type: THREE.ShadowMapType;
+    intensity: number;
     bias: number;
     normalBias: number;
     radius: number;
@@ -59,6 +60,8 @@ export interface VisualRenderConfig {
       lodDistanceScale: number;
       groundCoverDrawDistanceMeters: number;
       groundCoverDensityScale: number;
+      rainDropCount: number;
+      rainSplashCount: number;
     }
   >;
   contact: {
@@ -83,6 +86,14 @@ export interface VisualRenderConfig {
     paletteVariationStrength: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
+    polygonFacetLightingStrength: number;
+    pathTransition: {
+      shoulderStart: number;
+      shoulderFull: number;
+      coreStart: number;
+      coreFull: number;
+      underlayStrength: number;
+    };
     roughnessVariation: number;
     normals: {
       continuityStartNormalY: number;
@@ -105,17 +116,26 @@ export interface VisualRenderConfig {
   };
   roadSurface: {
     polygonCellScaleMeters: number;
+    polygonEdgeCellScaleMeters: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
+    edgeFadeStart: number;
+    edgeFadeFull: number;
     roughness: number;
     roughnessVariation: number;
+  };
+  waterSurface: {
+    polygonCellScaleMeters: number;
+    polygonColorVariationStrength: number;
+    polygonNormalStrength: number;
+    fresnelStrength: number;
+    sunGlintStrength: number;
   };
   practicalLights: {
     colorHex: string;
     localIntensity: number;
     localDistance: number;
-    lighthouseIntensity: number;
-    lighthouseDistance: number;
+    decay: number;
   };
   stars: {
     count: number;
@@ -138,6 +158,24 @@ export interface VisualRenderConfig {
     lightningIntensity: number;
     lightningCycleSeconds: number;
     lightningDurationSeconds: number;
+    rain: {
+      gravity: number;
+      terminalSpeed: number;
+      windCoupling: number;
+      windResponse: number;
+      volumeRadius: number;
+      spawnHeight: number;
+      recycleClearance: number;
+      visiblePrecipitationFloor: number;
+      dropLengthMin: number;
+      dropLengthMax: number;
+      dropWidth: number;
+      splashDuration: number;
+      splashSizeTerrain: number;
+      splashSizeWater: number;
+      streakOpacity: number;
+      splashOpacity: number;
+    };
   };
   fog: {
     colorHex: string;
@@ -188,11 +226,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   nightExposure: 1.24,
   qualityTier: "high",
   sun: {
-    maxElevationDeg: 54,
-    noonAzimuthDeg: 32,
+    maxElevationDeg: 35,
+    noonAzimuthDeg: 45,
     colorHex: PALETTE_HEX.horizon_warm_01,
     horizonColorHex: PALETTE_HEX.emissive_window_01,
-    intensity: 2.1
+    intensity: 2.2
   },
   moon: {
     colorHex: PALETTE_HEX.sky_pale_01,
@@ -213,9 +251,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   shadows: {
     type: THREE.PCFSoftShadowMap,
+    intensity: 0.7,
     bias: -0.00012,
-    normalBias: 0.032,
-    radius: 2.8,
+    normalBias: 0.028,
+    radius: 2.35,
     near: 0.5,
     far: 260,
     followSnap: true,
@@ -235,7 +274,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 1,
       lodDistanceScale: 0.7,
       groundCoverDrawDistanceMeters: 55,
-      groundCoverDensityScale: 0.24
+      groundCoverDensityScale: 0.24,
+      rainDropCount: 140,
+      rainSplashCount: 20
     },
     medium: {
       shadowMapSize: 1536,
@@ -247,19 +288,23 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 3,
       lodDistanceScale: 0.85,
       groundCoverDrawDistanceMeters: 78,
-      groundCoverDensityScale: 0.48
+      groundCoverDensityScale: 0.48,
+      rainDropCount: 240,
+      rainSplashCount: 32
     },
     high: {
       shadowMapSize: 2048,
       shadowCameraSize: 28,
       pixelRatioCap: 2,
-      dynamicContactShadows: true,
-      ambientOcclusion: "contact",
+      dynamicContactShadows: false,
+      ambientOcclusion: "gtao",
       postProcessPixelRatioCap: 1.5,
       practicalLightBudget: 4,
       lodDistanceScale: 0.95,
       groundCoverDrawDistanceMeters: 96,
-      groundCoverDensityScale: 0.6
+      groundCoverDensityScale: 0.6,
+      rainDropCount: 360,
+      rainSplashCount: 48
     }
   },
   contact: {
@@ -278,12 +323,20 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     textureSize: 128,
     largeSampleScaleMeters: 46,
     smallSampleScaleMeters: 13,
-    polygonCellScaleMeters: 5.2,
+    polygonCellScaleMeters: 1.2,
     smallLayerRotationRadians: 0.61,
     colorVariationStrength: 0.06,
-    paletteVariationStrength: 0.42,
-    polygonVariationStrength: 0.72,
-    polygonJaggedStrength: 0.62,
+    paletteVariationStrength: 0.34,
+    polygonVariationStrength: 0.24,
+    polygonJaggedStrength: 0.14,
+    polygonFacetLightingStrength: 0.04,
+    pathTransition: {
+      shoulderStart: 0.48,
+      shoulderFull: 0.62,
+      coreStart: 0.74,
+      coreFull: 0.88,
+      underlayStrength: 0.14
+    },
     roughnessVariation: 0.025,
     normals: {
       continuityStartNormalY: 0.88,
@@ -305,27 +358,36 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     }
   },
   roadSurface: {
-    polygonCellScaleMeters: 2.8,
-    polygonVariationStrength: 0.78,
-    polygonJaggedStrength: 0.62,
+    polygonCellScaleMeters: 1.35,
+    polygonEdgeCellScaleMeters: 0.92,
+    polygonVariationStrength: 0.16,
+    polygonJaggedStrength: 0.14,
+    edgeFadeStart: 0.22,
+    edgeFadeFull: 0.42,
     roughness: 0.94,
-    roughnessVariation: 0.04
+    roughnessVariation: 0.025
+  },
+  waterSurface: {
+    polygonCellScaleMeters: 3.2,
+    polygonColorVariationStrength: 0.075,
+    polygonNormalStrength: 0.11,
+    fresnelStrength: 0.2,
+    sunGlintStrength: 0.13
   },
   practicalLights: {
     colorHex: PALETTE_HEX.emissive_lantern_01,
     localIntensity: 18,
     localDistance: 13,
-    lighthouseIntensity: 32,
-    lighthouseDistance: 34
+    decay: 2
   },
   stars: {
     count: 180,
     size: 0.72
   },
   gtao: {
-    blendIntensity: 0.72,
-    radius: 0.72,
-    thickness: 1.15,
+    blendIntensity: 0.38,
+    radius: 0.68,
+    thickness: 0.85,
     distanceFallOff: 0.9,
     samples: 8,
     denoiseSamples: 6,
@@ -338,7 +400,25 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     lightningColorHex: PALETTE_HEX.sky_pale_01,
     lightningIntensity: 6.4,
     lightningCycleSeconds: 11,
-    lightningDurationSeconds: 0.48
+    lightningDurationSeconds: 0.48,
+    rain: {
+      gravity: -26,
+      terminalSpeed: 18,
+      windCoupling: 0.28,
+      windResponse: 6,
+      volumeRadius: 22,
+      spawnHeight: 11,
+      recycleClearance: 1.4,
+      visiblePrecipitationFloor: 0.12,
+      dropLengthMin: 0.38,
+      dropLengthMax: 0.78,
+      dropWidth: 0.014,
+      splashDuration: 0.28,
+      splashSizeTerrain: 0.18,
+      splashSizeWater: 0.24,
+      streakOpacity: 0.26,
+      splashOpacity: 0.42
+    }
   },
   fog: {
     colorHex: PALETTE_HEX.sky_pale_01,

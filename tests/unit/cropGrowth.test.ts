@@ -5,7 +5,9 @@ import {
   determineCropStage,
   calculateCropQuality,
   calculateHarvestYield,
-  applyCropMoistureOverMinutes
+  applyCropMoistureOverMinutes,
+  advancePlacedCropGrowth,
+  calculateCropHealth
 } from "../../src/simulation/farming/calculateCropGrowth";
 import { CROPS } from "../../src/content/crops";
 import { SeededRng } from "../../src/simulation/core/Rng";
@@ -93,5 +95,34 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(crop.moisture).toBe(0);
     expect(crop.moistureSampleCount).toBe(1 + 72 * 60);
     expect(crop.averageMoistureAccum).toBeGreaterThan(70);
+  });
+
+  it("updates crop health from moisture stress and clamps withered crops", () => {
+    const dryCrop: Parameters<typeof advancePlacedCropGrowth>[0] = {
+      effectiveGrowthMinutes: 0,
+      moisture: 0,
+      health: 100,
+      averageMoistureAccum: 0,
+      moistureSampleCount: 0,
+      stage: "seeded"
+    };
+    advancePlacedCropGrowth(dryCrop, wheat, "temperate", 50, "clear", 60);
+    expect(dryCrop.health).toBeLessThan(100);
+    expect(dryCrop.health).toBeGreaterThanOrEqual(0);
+
+    const witheredCrop: Parameters<typeof advancePlacedCropGrowth>[0] = {
+      ...dryCrop,
+      effectiveGrowthMinutes: wheat.baseGrowthMinutes * 1.7,
+      health: 42,
+      stage: "mature"
+    };
+    advancePlacedCropGrowth(witheredCrop, wheat, "temperate", 50, "clear", 1);
+    expect(witheredCrop.stage).toBe("withered");
+    expect(witheredCrop.health).toBe(0);
+  });
+
+  it("does not damage health while moisture remains healthy", () => {
+    expect(calculateCropHealth(100, 70, 240)).toBe(100);
+    expect(calculateCropHealth(100, 20, 60)).toBeCloseTo(97.5);
   });
 });

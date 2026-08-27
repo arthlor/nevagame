@@ -1,5 +1,9 @@
 // src/main.ts
 import "./ui/styles.css";
+import "./ui/chrome/chrome.css";
+import "./ui/hud.css";
+import "./ui/modals.css";
+import "./ui/overlays.css";
 import { GameApp } from "./app/GameApp";
 
 function showFatalBootOverlay(error: unknown): void {

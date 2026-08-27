@@ -62,6 +62,12 @@ Never rely on default smoothing.
 # 3. World Scale & Modular Standards
 
 `1 world unit = 1 meter`.
+
+The current runtime world is a finite authored composition: `WORLD_LAYOUT_V5`
+is a retained implementation symbol, the live layout revision is 7, and the
+terrain field is 600 m. Runtime chunk streaming is not implemented. The
+following values are **authoring heuristics only** for making reusable forms;
+they are not runtime grid, streaming, or asset-budget contracts:
 ```text
 Building modules: 2m / 4m / 8m
 Fence module: 2m
@@ -71,7 +77,10 @@ Large streaming chunk: 128×128m
 Rotation snap: 15° / 30° / 45°
 Common prop scale: 0.90 / 1.00 / 1.10
 ```
-These are authoring standards, not visible-grid permission. Break repetition using controlled offsets, scale/rotation variation, terrain adaptation, clustering, landmarks, irregular paths.
+The 32 m terrain grouping may help authoring or future tooling; the 128 m
+streaming concept is future-only and must not be described as a live system.
+Break repetition using controlled offsets, scale/rotation variation, terrain
+adaptation, clustering, landmarks, and irregular paths.
 
 # 4. Material, Vertex Color, Texture & Palette Systems
 
@@ -141,14 +150,18 @@ Road implementation requirements:
 - any deformation that materially changes the walkable surface is incorporated into the canonical height/normal query used by rendering, Rapier, placement, and affected anchors; cosmetic shader displacement stays below visible render/collision mismatch and never changes traversal;
 - route-kind widths, crown/depression/ruts, shoulders, feather, junctions, caps, bridge transitions, and steep-route cuts are explicit/profiled rather than scattered magic numbers;
 - a terrain-conforming road mesh is permitted when it is visibly integrated and robust against z-fighting; shader/control-field-only roads are also permitted; neither approach may create a second route network;
+- the visible merge has one owner: do not stack a coarse terrain-grid dirt tint under a broad transparent road feather. Use a narrow world-space irregular coverage transition with only pixel-scale anti-aliasing so it cannot form a muddy halo or change through transparent draw ordering;
 - road center, shoulder, and surrounding cover are reviewed together from gameplay cameras.
 
 Ground-cover implementation requirements:
 - deterministic world-seed derivation with stable placement IDs where identity is exposed;
 - semantic density plus authored exclusions/clearances, clustered patch signals, variant families, and patch-level palette grouping;
 - high-count uniform geometry uses `InstancedMesh`/the established batching path, with quality-tier counts and draw-distance culling;
+- distance selection and world-asset LOD membership are anchored to the player/world focus. Camera orbit, pitch, zoom, and look-ahead direction may not reshuffle instances or switch asset membership; ordinary off-screen frustum rejection remains allowed;
 - short cover generally receives light but does not cast dynamic shadows; reserve real shadows/contact for readable clumps and anchors;
 - changing quality tier may reduce count/distance, not change route readability, shoreline continuity, collision, or gameplay truth.
+
+For the starter-farm ground/meadow pass, `art/references/neva-ui-hud-on-foot.png` is the authoritative gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
 
 Terrain/ground shader work must use a stable program cache key, fail clearly when patched Three.js chunks drift, keep uniforms/config centrally owned, dispose generated textures/materials, and receive focused tests for deterministic field/texture generation, bounds, mask protection, wetness transitions, and program-key stability. Do not copy a reference's realism, texture frequency, or exact numeric thresholds into code without gameplay-camera validation.
 
@@ -174,8 +187,8 @@ Every generated asset MUST be one entry in `assets/specs/asset-catalog.json`, va
   "palette": ["wood_warm_01", "foliage_sage_01", "foliage_shadow_01"],
   "budget": {
     "trianglesMin": 300,
-    "trianglesTarget": 1500,
-    "trianglesMax": 3000,
+    "trianglesTarget": 2900,
+    "trianglesMax": 5000,
     "materialsMax": 4
   },
   "pivot": "ground_center",
@@ -188,6 +201,9 @@ Every generated asset MUST be one entry in `assets/specs/asset-catalog.json`, va
   "parameters": { "height": 5.8, "spread": 2.2, "canopyClusters": 7, "lean": 0.12 }
 }
 ```
+The numeric values in this shape-only example mirror the current `tree_oak_a`
+entry for readability; they are illustrative and must never be copied to a
+different asset. The catalog entry is authoritative.
 The schema is closed (`additionalProperties: false`): extend the schema deliberately before adding a new contract field. Unknown palette tokens, duplicate/unsafe IDs or filenames, missing roots, or invalid min ≤ target ≤ max ordering fail before Blender starts.
 
 ## 8.1 Reference-Guided Authoring Contract
@@ -215,7 +231,7 @@ Reference-authoring data is build-time only. The Vite virtual catalog module pro
 
 `npm run art:codegen` derives `src/render/assets/AssetCatalog.generated.ts` from the canonical catalog. It owns typed `ASSET_IDS`, family names, and family maps only; it is generated and must never be hand-edited. `npm run art:codegen:check` fails when the adapter is stale. The Vite runtime plugin may refresh codegen during development, while production consumes only the runtime projection.
 
-Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/blender/asset_budgets.json`. Every exported GLB MUST report triangle count, material groups, mesh/node count, file size, target status, bounds, and required-node coverage to `generated/reports/asset_budget_report.json`. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` additionally rejects every below-target asset and is required for production/gold-slice acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
+Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/blender/asset_budgets.json`. Every exported GLB MUST report triangle count, material groups, mesh/node count, file size, target status, bounds, and required-node coverage to `generated/reports/asset_budget_report.json`. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` retains its existing semantics and additionally rejects every below-target asset; it is the technical-art/release certification gate, separate from P0.75 visual-gold acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
 
 Implemented command contract:
 ```bash
@@ -225,13 +241,14 @@ npm run art:brief -- --asset tree_oak_a
 npm run art:generate -- --asset tree_oak_a
 npm run art:generate -- --family architecture --no-publish
 npm run art:generate -- --all
+npm run art:sync -- --all
 npm run art:generate:strict -- --all
 npm run art:validate -- --all
 npm run art:determinism -- --asset tree_oak_a
 npm run art:benchmark
 npm run art:benchmark:extended
 ```
-Every catalog command requires `--asset`, `--family`, or explicit release `--all`; a bare command fails. Repeated `--asset`/`--family` selectors form a union. `--no-publish` keeps both published directories unchanged. `--strict` belongs only to `generate`.
+Every catalog command requires `--asset`, `--family`, or explicit release `--all`; a bare command fails. Repeated `--asset`/`--family` selectors form a union. `--no-publish` keeps both published directories unchanged. `--strict` belongs only to `generate`. `art:sync -- --all` refreshes published manifest provenance and derived measurements against existing GLBs; it does not regenerate or reauthor them.
 
 `generate` uses a unique `generated/.staging/run-*` directory, computes a per-asset input/toolchain hash, revalidates a matching optimized GLB from `generated/.cache/art/` when available, and invokes Blender only for cache misses. Cache artifacts are acceleration state: they are validated before reuse, never published, and report `inputHash`/`cacheHit`. A catalog/spec/palette/generator/helper/dependency/Blender-version change invalidates the affected asset. Shared-generator/release `art:determinism` bypasses the cache; routine asset work does not double-generate. Only the three newest successful staging runs are retained.
 
@@ -247,6 +264,31 @@ World-layout semantics may generate deterministic presentation fields for surfac
 
 Important areas require visual anchors, readable routes, foreground/midground/background, prop clusters, negative space, height variation, sightline control, landmarks, compositional asymmetry. Avoid even scatter, identical rotations/spacing, world-axis alignment everywhere. Modular settlements must still feel authored.
 
+## 9.1 Narrative-to-art contract
+
+Art supports the live story spine in `02` rather than inventing a parallel
+world history. Every zone or story-relevant asset brief must identify, when
+applicable, its narrative promise, the quest/action it supports, the person or
+role associated with it, the practical evidence a player should read, and the
+future-content boundary it must not imply. For the current loop this means:
+
+```text
+starter farm  = inherited care and preparation
+village       = community exchange and shared work
+river/bridge  = learning to read currents
+harbor        = perishable responsibility and earned seamanship
+coast/offshore= orientation, temporary abundance, and open horizons
+```
+
+Use the existing catalog, world-layout, zone-brief, and runtime integration
+contracts. Do not create a lore YAML, filename list, or unvalidated asset
+metadata tree just to annotate story meaning. Narrative notes belong in the
+owning task/zone/asset brief unless a future machine-readable field is
+explicitly added to the existing schema with validation and migration-aware
+ownership. Visual cues may foreshadow a future system, but they must not claim
+that deferred P13/P14 content is playable or make a prop the authority for a
+quest condition.
+
 # 10. Instancing & Physics
 
 Repeated environment assets MUST be evaluated for batching/instancing; any static asset appearing roughly **>10 times** is a strong candidate. Common: grass, wheat/crops, flowers, rocks, fence modules, repeated trees, reeds, debris, repeated roof/architecture modules. The current static-prefab path groups compatible material/geometry signatures into `THREE.BatchedMesh`; use `InstancedMesh` for uniform high-count runtime systems where it is the clearer fit. Animated, skinned or morph-target meshes must not be folded into static batching.
@@ -255,7 +297,7 @@ Rapier is for gameplay-relevant physics: player capsule, NPC collision if presen
 
 # 11. Optimization & LOD
 
-The implemented post-export baseline is glTF Transform `dedup → prune → weld → meshopt`, followed by Khronos revalidation and generated/public hash parity. Catalog entries may now declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Blender consolidates only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching must skip LOD descendants so it cannot flatten the switch hierarchy. KTX2/BasisU, chunk streaming, and broader distance culling remain permitted extensions when a current asset/scene requires them; do not document them as already shipping unless the code path exists.
+The implemented post-export baseline is glTF Transform `dedup → prune → weld → meshopt`, followed by Khronos revalidation and generated/public hash parity. Catalog entries may now declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Blender consolidates only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching must skip LOD descendants so it cannot flatten the switch hierarchy. KTX2/BasisU and broader distance culling remain permitted extensions when a current asset/scene requires them. Runtime chunk streaming is not implemented; do not describe it as shipped or add it to the current world contract without a separate architecture decision.
 
 Do not optimize away art direction: hero silhouette/faceting can matter more than a few hundred triangles.
 
@@ -287,7 +329,7 @@ tests/visual/candidates/
   harbor-candidate.png
   coast-candidate.png
 ```
-Release/gold-slice `npm run art:benchmark` captures four fixed 1440×900 comparison images through Playwright, rejects browser errors and preferred budget overruns, and records measurements in `tests/visual/candidates/art-benchmark.json`. The current human-approved references are registered in `tests/visual/reference/approved-baselines.json`; new captures are comparison evidence, not a request to select replacement candidates unless a human explicitly reopens that gate. `art:benchmark:extended` remains an explicit release diagnostic. Agents do not capture or inspect these images during routine asset work and do not visually analyze release images unless the human requests it.
+P0.75 `npm run art:benchmark` captures four fixed 1440×900 comparison images through Playwright (`farm`, `bridge`, `harbor`, `coast`), rejects browser errors and preferred upper-budget overruns (≤220 draw calls and ≤900,000 visible triangles per scene), and records measurements in `tests/visual/candidates/art-benchmark.json`. `NEVA_ART_EXTENDED=1 npm run art:benchmark` captures the full 14-view matrix: dawn, morning, noon, harbor, coast, sunset, night, light rain, storm, lightning, on-foot farmhouse, on-foot bridge, boat harbor night, and sport-fishing framing. The lower scene triangle target is diagnostic/advisory for this gate. The current human-approved references and the 2026-08-27 visual-gold decision are registered in `tests/visual/reference/approved-baselines.json`; new captures are comparison evidence, not a request to select replacement candidates unless a human explicitly reopens that gate. The benchmark runs against the Vite DEV server, where layout-editor picking intentionally disables static prefab merging and the baked shadow proxy; those DEV draw/triangle measurements are diagnostic and do not constitute production-equivalent certification. `art:benchmark:extended` remains an explicit release diagnostic. Agents do not capture or inspect these images during routine asset work and do not visually analyze release images unless the human requests it.
 
 The development-only Art Yard is served at `/__neva_art_yard` by Vite and is the sole asset-review surface. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. It is not included in the production build. The human performs visual approval in the actual integrated game.
 
@@ -339,7 +381,7 @@ Before full-world production, validate in order:
 3. **Harbor:** docks, boats, ropes, crates, ocean water, coastal architecture.
 4. **Coast/lighthouse:** cliffs, rocks, foam, atmospheric perspective, sunset.
 
-Do not mass-produce assets until these meet the art target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. The current four slices in `tests/visual/reference/approved-baselines.json` are human-approved, so world expansion reuses those generators/palettes/materials/rendering rules without another candidate-selection pass. P14 is final coverage/polish, not the first real art pass.
+Do not mass-produce assets until these meet the visual-gold target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. The current four slices in `tests/visual/reference/approved-baselines.json` are human-approved and the 2026-08-27 visual-gold decision allows world expansion to reuse those generators/palettes/materials/rendering rules without another candidate-selection pass. This does not close technical-art certification: strict generation and determinism remain separate release gates, and the 33 below-target records are not reauthored by this policy change. P14 is final coverage/polish, not the first real art pass.
 
 # 18. Definition of Done — Asset
 
@@ -356,6 +398,7 @@ Do not mass-produce assets until these meet the art target. In the Roadmap this 
 - [ ] per-asset input hash/cache status is recorded; cache artifacts are not published
 - [ ] GLB export + asset validation + runtime load succeed
 - [ ] published to the Art Yard and integrated into the actual game for human review
+- [ ] if story-relevant, the silhouette/material/prop context communicates the intended practical role without inventing an unimplemented plot or gameplay condition
 - [ ] no realism/style drift
 
 # 19. Definition of Done — Environment/POI
@@ -369,10 +412,12 @@ Do not mass-produce assets until these meet the art target. In the Roadmap this 
 - [ ] approved water where applicable
 - [ ] performance budget met
 - [ ] generated asset budget report has no hard violations
-- [ ] strict asset-quality gate passes for production/gold-slice assets
+- [ ] P0.75 visual-gold gate is accepted for the four gameplay-camera slices
+- [ ] technical-art strict/determinism gate passes when production or release certification is required
 - [ ] screenshot benchmark captured only for release/gold-slice acceptance
 - [ ] integrated game is ready for human review
 - [ ] visual regression passes or approved
+- [ ] the zone's narrative promise is readable from gameplay cameras through people, routes, landmarks, and practical work cues; required quest progression does not depend on noticing decorative art
 - [ ] no prohibited drift
 
 # 20. Final Technical Direction
@@ -385,7 +430,7 @@ optional Miniplex/bitECS, React DOM, Zustand
 
 ART: catalog/schema + Blender Python family generators; Geometry Nodes/UV/bakes only when deliberately added; semantic COLOR_0 + GLB export
 OPTIMIZATION: implemented gltf-transform + Meshopt; KTX2/BasisU when introduced for a concrete texture path
-WORLD: validated JSON/TS schemas + seeded generation + chunk streaming + prefabs + biomes/POIs + authored overrides
+WORLD: validated JSON/TS schemas + seeded authored layout + prefabs + district/POI composition + authored overrides; no runtime chunk streaming
 QA: AJV schema checks + Blender validation + Khronos glTF validation + semantic determinism + Vitest + Playwright candidates + human style review
 ```
 

@@ -4,10 +4,11 @@ import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { advancePlacedCropGrowth } from "../simulation/farming/calculateCropGrowth";
 import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBoundedSegments";
-import { calculateFreshnessLoss, resolveCargoHasIce } from "../simulation/fishing/calculateFreshness";
+import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
 import { GameClock } from "../simulation/core/GameClock";
+import { regenerateWorkCapacity } from "../simulation/domains/ProgressionDomain";
 
 export interface OfflineProgressionSummary {
   elapsedRealMinutes: number;
@@ -26,7 +27,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   const elapsedMs = Math.max(0, nowUtcMs - state.metadata.lastSavedUtcMs);
   const elapsedRealMinutes = Math.floor(elapsedMs / (1000 * 60));
   const cappedMs = Math.min(elapsedMs, MAX_OFFLINE_MS);
-  // In default settings, 1 real second = 1 game minute.
+  // In default settings, 2.5 real seconds = 1 game minute (0.4 minutes per real second).
   // GameMinute is an integer. Apply only whole minutes so offline state never
   // advances crops or cargo farther than the canonical clock.
   const gameMinutesToSimulate = Math.floor(Math.floor(cappedMs / 1000) * state.clock.minutesPerRealSecond);
@@ -51,7 +52,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
 
   // Advance in weather-bounded segments so long offline periods do not apply a
   // single stale weather snapshot to every crop and cargo item.
-  forEachWeatherBoundedSegment(state.weather, startMinute, gameMinutesToSimulate, rng, (segmentMinutes) => {
+  forEachWeatherBoundedSegment(state.weather, startMinute, gameMinutesToSimulate, rng, (segmentMinutes, segmentStartMinute) => {
     for (const cropState of Object.values(state.crops)) {
       const cropDef = ContentRegistry.crops.get(cropState.cropId);
       const farm = state.farms[cropState.farmId];
@@ -73,29 +74,18 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
       }
     }
 
-    for (const cargo of Object.values(state.fishCargo)) {
-      if (cargo.freshness <= 0) continue;
-      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-      if (!speciesDef) continue;
-      const hasIce = resolveCargoHasIce(state, cargo);
-      const freshnessBefore = cargo.freshness;
-      cargo.freshness = Math.max(
-        0,
-        cargo.freshness - calculateFreshnessLoss(
-          segmentMinutes,
-          speciesDef.baseDecayRatePerMinute,
-          cargo.location.type,
-          hasIce,
-          state.weather.temperatureC
-        )
-      );
-      if (freshnessBefore > 0 && cargo.freshness <= 0) summary.cargoSpoiledCount += 1;
-    }
+    summary.cargoSpoiledCount += advanceCargoFreshness(
+      state,
+      segmentMinutes,
+      segmentStartMinute,
+      state.weather.temperatureC
+    );
   });
 
   clock.advanceMinutes(gameMinutesToSimulate);
   state.clock = { ...clock.getState() };
   for (const cropState of Object.values(state.crops)) cropState.lastUpdatedMinute = state.clock.currentMinute;
+  regenerateWorkCapacity(state.player.workCapacity, gameMinutesToSimulate, state.clock.currentMinute);
 
   // Step 4: Processing jobs
   for (const job of Object.values(state.processingJobs)) {

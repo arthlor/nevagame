@@ -5,7 +5,7 @@ import { GROUND_POLYGON_CELL_GLSL } from "./GroundPolygonCells";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { PALETTE_HEX } from "./PaletteTokens";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v5";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v13";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -131,6 +131,7 @@ function patchTerrainSurfaceShader(
   const vertexWorldPosition = "#include <worldpos_vertex>";
   const fragmentCommon = "#include <common>";
   const fragmentColor = "#include <color_fragment>";
+  const fragmentNormal = "#include <normal_fragment_begin>";
   const fragmentRoughness = "#include <roughnessmap_fragment>";
 
   shader.vertexShader = replaceShaderChunk(
@@ -138,7 +139,9 @@ function patchTerrainSurfaceShader(
     vertexCommon,
     `${vertexCommon}
 attribute float terrainGreenMask;
+attribute float terrainPathBlend;
 varying float vTerrainGreenMask;
+varying float vTerrainPathBlend;
 varying vec3 vTerrainWorldPosition;`,
     "vertex"
   );
@@ -146,7 +149,8 @@ varying vec3 vTerrainWorldPosition;`,
     shader.vertexShader,
     vertexBegin,
     `${vertexBegin}
-vTerrainGreenMask = terrainGreenMask;`,
+vTerrainGreenMask = terrainGreenMask;
+vTerrainPathBlend = clamp(terrainPathBlend, 0.0, 1.0);`,
     "vertex"
   );
   shader.vertexShader = replaceShaderChunk(
@@ -170,10 +174,19 @@ uniform float terrainColorVariationStrength;
 uniform float terrainPaletteVariationStrength;
 uniform float terrainPolygonVariationStrength;
 uniform float terrainPolygonJaggedStrength;
+uniform float terrainPolygonFacetLightingStrength;
+uniform float terrainPathShoulderStart;
+uniform float terrainPathShoulderFull;
+uniform float terrainPathCoreStart;
+uniform float terrainPathCoreFull;
+uniform float terrainPathUnderlayStrength;
+uniform vec3 terrainPaletteShadowColor;
 uniform vec3 terrainPaletteOliveColor;
 uniform vec3 terrainPaletteSageColor;
 uniform vec3 terrainPaletteGrassColor;
 uniform vec3 terrainPaletteHighlightColor;
+uniform vec3 terrainPathDustColor;
+uniform vec3 terrainPathShoulderColor;
 uniform float terrainRoughnessVariation;
 uniform float terrainWetness;
 uniform vec3 terrainWetColor;
@@ -183,6 +196,7 @@ uniform float terrainWetRoughness;
 uniform float terrainRoughnessMin;
 uniform float terrainRoughnessMax;
 varying float vTerrainGreenMask;
+varying float vTerrainPathBlend;
 varying vec3 vTerrainWorldPosition;
 ${GROUND_POLYGON_CELL_GLSL}`,
     "fragment"
@@ -208,39 +222,78 @@ float terrainSampleFactor = mix(0.94, 1.06, terrainSample);
 float terrainSampleStrength = clamp(terrainColorVariationStrength / 0.06, 0.0, 1.0);
 float terrainDetail = 1.0 + (terrainSampleFactor - 1.0) * terrainSampleStrength;
 float terrainPaletteSignal = mix(terrainLargeSignals.g, terrainSmallSignals.b, 0.42);
-float terrainPaletteLower = smoothstep(0.08, 0.5, terrainPaletteSignal);
-float terrainPaletteUpper = smoothstep(0.5, 0.92, terrainPaletteSignal);
-vec3 terrainPaletteColor = mix(terrainPaletteOliveColor, terrainPaletteSageColor, terrainPaletteLower);
-terrainPaletteColor = mix(terrainPaletteColor, terrainPaletteGrassColor, terrainPaletteUpper);
 float terrainMask = clamp(vTerrainGreenMask, 0.0, 1.0);
-float terrainPolygonSignal = nevaGroundPolygonCellSignal(
+vec4 terrainPolygonCell = nevaGroundPolygonCell(
   vTerrainWorldPosition.xz,
   terrainPolygonCellScale
 );
-float mosaicMask = step(
-  0.5,
-  terrainMask + (terrainPolygonSignal - 0.5) * terrainPolygonJaggedStrength
+float terrainPolygonSignal = terrainPolygonCell.x;
+float mosaicMask = smoothstep(
+  0.24,
+  0.76,
+  terrainMask + (terrainPolygonSignal - 0.5) * terrainPolygonJaggedStrength * terrainMask
 );
-diffuseColor.rgb *= mix(vec3(1.0), vec3(terrainDetail), mosaicMask);
+float pathPolygonSignal = nevaGroundPolygonCellSignal(
+  vTerrainWorldPosition.xz,
+  terrainPolygonCellScale * 1.18
+);
+float pathJaggedBias = (pathPolygonSignal - 0.5) * terrainPolygonJaggedStrength * 0.72;
+float pathField = clamp(
+  vTerrainPathBlend + pathJaggedBias * (1.0 - smoothstep(0.48, 0.92, vTerrainPathBlend)),
+  0.0,
+  1.0
+);
+float pathShoulderMix = smoothstep(terrainPathShoulderStart, terrainPathShoulderFull, pathField);
+float pathCoreMix = smoothstep(terrainPathCoreStart, terrainPathCoreFull, pathField);
+float pathUnderlayMix = pathShoulderMix * terrainPathUnderlayStrength;
+mosaicMask *= 1.0 - pathUnderlayMix;
+vec3 terrainRegionDark = mix(
+  terrainPaletteShadowColor,
+  terrainPaletteOliveColor,
+  smoothstep(0.2, 0.62, terrainPaletteSignal)
+);
+vec3 terrainRegionLight = terrainPaletteSageColor;
+terrainRegionDark = mix(terrainRegionDark, terrainPaletteSageColor, smoothstep(0.28, 0.72, terrainPaletteSignal));
+terrainRegionLight = mix(terrainRegionLight, terrainPaletteHighlightColor, smoothstep(0.28, 0.72, terrainPaletteSignal));
+terrainRegionLight = mix(terrainRegionLight, terrainPaletteGrassColor, smoothstep(0.7, 0.9, terrainPaletteSignal) * 0.45);
+float terrainPaletteBand = step(0.34, terrainPolygonSignal) + step(0.7, terrainPolygonSignal);
+vec3 terrainPaletteColor = mix(
+  terrainRegionDark,
+  terrainRegionLight,
+  terrainPaletteBand * 0.5
+);
+terrainPaletteColor = mix(terrainPaletteSageColor, terrainPaletteColor, terrainPaletteVariationStrength);
+terrainPaletteColor *= mix(0.97, 1.03, fract(terrainPolygonSignal * 6.17 + 0.13));
+terrainPaletteColor *= mix(vec3(1.0), vec3(terrainDetail), 0.28);
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   terrainPaletteColor,
-  mosaicMask * terrainPaletteVariationStrength
-);
-vec3 terrainPolygonColor = terrainPaletteOliveColor;
-terrainPolygonColor = mix(terrainPolygonColor, terrainPaletteSageColor, step(0.25, terrainPolygonSignal));
-terrainPolygonColor = mix(terrainPolygonColor, terrainPaletteGrassColor, step(0.5, terrainPolygonSignal));
-terrainPolygonColor = mix(terrainPolygonColor, terrainPaletteHighlightColor, step(0.75, terrainPolygonSignal));
-terrainPolygonColor *= mix(0.92, 1.08, fract(terrainPolygonSignal * 6.17 + 0.13));
-diffuseColor.rgb = mix(
-  diffuseColor.rgb,
-  terrainPolygonColor,
   mosaicMask * terrainPolygonVariationStrength
 );
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   terrainWetColor,
   mosaicMask * clamp(terrainWetness, 0.0, 1.0) * terrainWetColorMix
+);
+vec3 pathCellColor = mix(terrainPathShoulderColor, terrainPathDustColor, pathCoreMix);
+float pathValueBand = step(0.34, pathPolygonSignal) + step(0.72, pathPolygonSignal);
+pathCellColor *= mix(0.98, 1.025, pathValueBand * 0.5);
+diffuseColor.rgb = mix(diffuseColor.rgb, pathCellColor, pathUnderlayMix);
+float terrainFacetMask = max(mosaicMask, pathUnderlayMix * 0.36);`,
+    "fragment"
+  );
+  shader.fragmentShader = replaceShaderChunk(
+    shader.fragmentShader,
+    fragmentNormal,
+    `${fragmentNormal}
+vec3 terrainFacetAxis = abs(normal.y) > 0.92 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+vec3 terrainFacetTangent = normalize(cross(terrainFacetAxis, normal));
+vec3 terrainFacetBitangent = cross(normal, terrainFacetTangent);
+normal = normalize(
+  normal + terrainFacetMask * terrainPolygonFacetLightingStrength * (
+    terrainFacetTangent * (terrainPolygonCell.y - 0.5)
+    + terrainFacetBitangent * (terrainPolygonCell.z - 0.5)
+  ) * 2.4
 );`,
     "fragment"
   );
@@ -255,7 +308,11 @@ float terrainSurfaceRoughness = clamp(
   terrainRoughnessMin,
   terrainRoughnessMax
 );
-roughnessFactor = mix(roughnessFactor, terrainSurfaceRoughness, mosaicMask);`,
+roughnessFactor = mix(
+  roughnessFactor,
+  terrainSurfaceRoughness,
+  max(mosaicMask, pathUnderlayMix * 0.65)
+);`,
     "fragment"
   );
 
@@ -287,10 +344,19 @@ export class TerrainSurfaceMaterial {
       terrainPaletteVariationStrength: { value: config.paletteVariationStrength },
       terrainPolygonVariationStrength: { value: config.polygonVariationStrength },
       terrainPolygonJaggedStrength: { value: config.polygonJaggedStrength },
+      terrainPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
+      terrainPathShoulderStart: { value: config.pathTransition.shoulderStart },
+      terrainPathShoulderFull: { value: config.pathTransition.shoulderFull },
+      terrainPathCoreStart: { value: config.pathTransition.coreStart },
+      terrainPathCoreFull: { value: config.pathTransition.coreFull },
+      terrainPathUnderlayStrength: { value: config.pathTransition.underlayStrength },
+      terrainPaletteShadowColor: { value: new THREE.Color(PALETTE_HEX.foliage_shadow_01) },
       terrainPaletteOliveColor: { value: new THREE.Color(PALETTE_HEX.foliage_olive_01) },
       terrainPaletteSageColor: { value: new THREE.Color(PALETTE_HEX.foliage_sage_01) },
       terrainPaletteGrassColor: { value: new THREE.Color(PALETTE_HEX.grass_yellow_01) },
       terrainPaletteHighlightColor: { value: new THREE.Color(PALETTE_HEX.foliage_highlight_01) },
+      terrainPathDustColor: { value: new THREE.Color(PALETTE_HEX.path_dust_01) },
+      terrainPathShoulderColor: { value: new THREE.Color(PALETTE_HEX.soil_dry_01) },
       terrainRoughnessVariation: { value: config.roughnessVariation },
       terrainWetness: { value: this.wetnessValue },
       terrainWetColor: { value: new THREE.Color(PALETTE_HEX.foliage_shadow_01) },

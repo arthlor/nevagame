@@ -260,6 +260,7 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   const rut = paletteColor("soil_damp_01").lerp(road, 0.46);
   const warmShoulder = paletteColor("soil_warm_01");
   const dryShoulder = paletteColor("soil_dry_01");
+  const shoulderGrass = paletteColor("foliage_sage_01");
   const warmStone = paletteColor("stone_warm_01");
   const goldenStone = paletteColor("stone_golden_01");
   const heightAt = (x: number, z: number): number => options.heightAt(renderedCoordinate(x), renderedCoordinate(z));
@@ -362,14 +363,17 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
           0.04
         );
         // Keep both wheel tracks visible at gameplay distance while avoiding
-        // the old high-frequency, transverse striping across every road.
+        // transverse striping. The outer shoulder picks up a bounded amount
+        // of the meadow token before the coverage cut, creating grass intrusion
+        // through color and shape instead of a wide transparent blur.
         const lowFrequencyFacet = 0.5 + routeFacetSignal * 0.5 + Math.sin(
           sample.distanceAlongRoute * 0.11 + offset * 0.42 + stableRoutePhase(route.id)
         ) * 0.035;
         const vertexColor = baseColor
           .lerp(wearColor, clamp01(crossSection.wheelBand))
+          .lerp(shoulderGrass, clamp01(crossSection.edgeGrassAmount * 0.34))
           .multiplyScalar(0.975 + clamp01(lowFrequencyFacet) * 0.05);
-        const surfaceOpacity = 1 - smoothstep(0.08, 0.9, crossSection.edgeGrassAmount);
+        const surfaceOpacity = 1 - smoothstep(0.08, 0.92, crossSection.edgeGrassAmount);
         ring.push(appendVertex({ x, y, z }, vertexColor, surfaceOpacity));
       }
       ringVertices.push(ring);

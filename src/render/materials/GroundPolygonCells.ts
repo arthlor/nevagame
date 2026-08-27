@@ -12,24 +12,40 @@ vec2 nevaGroundCellJitter(vec2 cell) {
   return fract(sin(signal) * 43758.5453123);
 }
 
-float nevaGroundPolygonCellSignal(vec2 worldPosition, float cellScale) {
+vec4 nevaGroundPolygonCell(vec2 worldPosition, float cellScale) {
   vec2 position = worldPosition / max(cellScale, 0.001);
   vec2 baseCell = floor(position);
   vec2 localPosition = fract(position);
   float nearestDistance = 8.0;
+  float secondNearestDistance = 8.0;
   float nearestSignal = 0.5;
+  vec2 winningJitter = vec2(0.5);
   for (int row = -1; row <= 1; row++) {
     for (int column = -1; column <= 1; column++) {
       vec2 offset = vec2(float(column), float(row));
       vec2 candidateCell = baseCell + offset;
-      vec2 delta = offset + nevaGroundCellJitter(candidateCell) - localPosition;
+      vec2 jitter = nevaGroundCellJitter(candidateCell);
+      vec2 delta = offset + jitter - localPosition;
       float distanceSquared = dot(delta, delta);
       if (distanceSquared < nearestDistance) {
+        secondNearestDistance = nearestDistance;
         nearestDistance = distanceSquared;
+        winningJitter = jitter;
         nearestSignal = nevaGroundCellJitter(candidateCell + vec2(19.7, 47.3)).x;
+      } else if (distanceSquared < secondNearestDistance) {
+        secondNearestDistance = distanceSquared;
       }
     }
   }
-  return nearestSignal;
+  float edgeDistance = sqrt(secondNearestDistance) - sqrt(nearestDistance);
+  return vec4(nearestSignal, winningJitter.x, winningJitter.y, edgeDistance);
+}
+
+float nevaGroundPolygonCellSignal(vec2 worldPosition, float cellScale) {
+  return nevaGroundPolygonCell(worldPosition, cellScale).x;
+}
+
+float nevaGroundPolygonCellEdge(vec2 worldPosition, float cellScale) {
+  return nevaGroundPolygonCell(worldPosition, cellScale).w;
 }
 `;

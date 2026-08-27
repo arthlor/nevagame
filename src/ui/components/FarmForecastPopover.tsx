@@ -1,7 +1,10 @@
 // src/ui/components/FarmForecastPopover.tsx
-import React from "react";
+import React, { useRef } from "react";
 import { WeatherState, ClockState } from "../../simulation/core/types";
-import { IconWeatherClear, IconWeatherRain, IconWeatherStorm, IconWeatherOvercast } from "./HudIcons";
+import { forecastWeatherAt } from "../../simulation/weather/updateWeather";
+import { formatWeatherLabel, WeatherIcon } from "../weatherPresentation";
+import { useModalAccessibility } from "../useModalAccessibility";
+import { ChromeClose, ChromePanel } from "../chrome/Chrome";
 
 interface FarmForecastPopoverProps {
   weather: WeatherState;
@@ -14,45 +17,68 @@ export const FarmForecastPopover: React.FC<FarmForecastPopoverProps> = ({
   clock,
   onClose
 }) => {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility(popoverRef, onClose);
+
   const currentTemp = Math.round(weather.temperatureC);
-  const currentDay = ((clock.dayCount - 1) % 30) + 1;
-  const condition = weather.type === "storm" ? "Storm" : weather.type === "heavy-rain" ? "Heavy rain" : weather.type === "light-rain" ? "Light rain" : weather.type === "cloudy" ? "Cloudy" : weather.type === "windy" ? "Windy" : weather.type === "fog" ? "Fog" : "Clear";
-  const icon = weather.type === "storm" ? <IconWeatherStorm size={18} /> : weather.type === "heavy-rain" || weather.type === "light-rain" ? <IconWeatherRain size={18} /> : weather.type === "cloudy" || weather.type === "fog" ? <IconWeatherOvercast size={18} /> : <IconWeatherClear size={18} />;
-  const minutesUntilChange = Math.max(0, weather.nextWeatherMinute - clock.currentMinute);
+  const seasonName = clock.season.charAt(0).toUpperCase() + clock.season.slice(1);
+  const slots = [
+    { label: "Now", type: forecastWeatherAt(weather, clock.currentMinute, 0) },
+    { label: "+2h", type: forecastWeatherAt(weather, clock.currentMinute, 120) },
+    { label: "+5h", type: forecastWeatherAt(weather, clock.currentMinute, 300) }
+  ] as const;
 
   return (
-    <div className="forecast-popover interactive" role="dialog" aria-label="Farm weather forecast">
+    <ChromePanel
+      id="farm-forecast-popover"
+      ref={popoverRef}
+      tone="slate"
+      as="div"
+      className="forecast-popover interactive"
+      role="dialog"
+      aria-label="Current farm conditions and forecast"
+      tabIndex={-1}
+      flourish
+    >
       <div className="forecast-header">
         <div className="forecast-title-group">
-          <span className="forecast-badge-icon">🌾</span>
-            <strong>Current Farm Conditions</strong>
+          <strong className="forecast-title">Almanac & Forecast</strong>
+          <span className="forecast-season">{seasonName}</span>
         </div>
-        <button type="button" className="forecast-close-btn" onClick={onClose} aria-label="Close forecast">
-          ✕
-        </button>
+        <ChromeClose onClick={onClose} label="Close forecast" className="forecast-close-btn" />
       </div>
 
       <div className="forecast-days-grid">
-        <div className="forecast-day-card is-today">
-          <div className="forecast-day-meta">
-            <span className="forecast-day-label">DAY {currentDay} · {clock.timeOfDay.toUpperCase()}</span>
-            <span className="forecast-day-cond">{icon}{condition}</span>
+        {slots.map((slot) => (
+          <div className={`forecast-day-card${slot.label === "Now" ? " is-today" : ""}`} key={slot.label}>
+            <div className="forecast-day-meta">
+              <span className="forecast-day-cond">
+                <WeatherIcon type={slot.type} size={18} />
+                <span className="forecast-slot-label">{slot.label}</span>
+                <span className="forecast-slot-type">{formatWeatherLabel(slot.type)}</span>
+                {slot.label === "Now" ? <span className="forecast-slot-temp">{`${currentTemp}°C`}</span> : null}
+              </span>
+            </div>
           </div>
-          <div className="forecast-temp-row">
-            <span className="temp-high">{currentTemp}°C</span>
-            <span className="rain-prob">💧 {Math.round(weather.precipitation * 100)}%</span>
-          </div>
+        ))}
+        <div className="forecast-day-card forecast-metrics-card">
           <div className="forecast-impact-list">
-            <div className="forecast-impact-item"><span>Wind</span><span>{weather.windSpeed.toFixed(1)} m/s</span></div>
-            <div className="forecast-impact-item"><span>Visibility</span><span>{Math.round(weather.visibility * 100)}%</span></div>
-            <div className="forecast-impact-item"><span>Next weather update</span><span>{minutesUntilChange} min</span></div>
+            <div className="forecast-impact-item">
+              <span className="impact-label">Precipitation</span>
+              <span className="impact-value">{`${Math.round(weather.precipitation * 100)}%`}</span>
+            </div>
+            <div className="forecast-impact-item">
+              <span className="impact-label">Wind Speed</span>
+              <span className="impact-value">{`${Math.round(weather.windSpeed * 1.944)} kn`}</span>
+            </div>
+            <div className="forecast-impact-item">
+              <span className="impact-label">Sea Swell</span>
+              <span className="impact-value">{`${Math.round(weather.seaRoughness * 100)}%`}</span>
+            </div>
           </div>
         </div>
       </div>
-
-      <div className="forecast-footer-note">
-        <span>Future weather is not simulated in this save; these values are the current world conditions.</span>
-      </div>
-    </div>
+    </ChromePanel>
   );
 };
+

@@ -1,5 +1,7 @@
-// src/ui/components/FarmGISLegend.tsx
 import React from "react";
+import { ChromePanel } from "../chrome/Chrome";
+import { UI_GIS } from "../chrome/uiAtlas";
+import { AtlasImage } from "../chrome/AtlasImage";
 
 interface FarmGISLegendProps {
   visible: boolean;
@@ -9,35 +11,34 @@ export const FarmGISLegend: React.FC<FarmGISLegendProps> = ({ visible }) => {
   if (!visible) return null;
 
   return (
-    <aside className="farm-gis-legend interactive" role="status" aria-label="Agricultural Soil & Crop GIS Overlay">
+    <ChromePanel as="aside" className="farm-gis-legend interactive" tone="slate" flourish corners role="status" aria-label="Field signs" data-testid="farm-gis-legend">
       <div className="gis-legend-header">
-        <span className="gis-legend-icon">🌱</span>
-        <strong className="gis-legend-title">AGRICULTURAL GIS OVERLAY</strong>
-        <span className="gis-legend-hint">Release [Alt] to exit</span>
+        <strong className="gis-legend-title">Field signs</strong>
+        <span className="gis-legend-hint">Release Alt to hide</span>
       </div>
 
       <div className="gis-legend-items">
         <div className="gis-legend-item">
-          <span className="gis-color-swatch swatch-moist" />
-          <span>Optimal Moisture</span>
+          <AtlasImage src={UI_GIS.moist} alt="" />
+          <span>Good moisture</span>
         </div>
         <div className="gis-legend-item">
-          <span className="gis-color-swatch swatch-dry" />
-          <span>Moisture Problem / Dry</span>
+          <AtlasImage src={UI_GIS.dry} alt="" />
+          <span>Dry soil</span>
         </div>
         <div className="gis-legend-item">
-          <span className="gis-color-swatch swatch-mature" />
-          <span>Ready to Harvest</span>
+          <AtlasImage src={UI_GIS.harvestReady} alt="" />
+          <span>Ready to harvest</span>
         </div>
         <div className="gis-legend-item">
-          <span className="gis-color-swatch swatch-growing" />
-          <span>Growing (Normal)</span>
+          <AtlasImage src={UI_GIS.growing} alt="" />
+          <span>Growing</span>
         </div>
         <div className="gis-legend-item">
-          <span className="gis-color-swatch swatch-empty" />
-          <span>Tilled / Unplanted</span>
+          <AtlasImage src={UI_GIS.prepared} alt="" />
+          <span>Prepared soil</span>
         </div>
       </div>
-    </aside>
+    </ChromePanel>
   );
 };

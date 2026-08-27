@@ -42,8 +42,11 @@ export const FARMING_ACTION_COST = {
   plant: 10,
   water: 5,
   harvest: 45,
-  fertilize: 8
+  fertilize: 8,
+  irrigate: 8
 } as const;
+export const IRRIGATION_FEATURE_ID = "feature.irrigation_zone";
+export const IRRIGATION_COST = 120;
 export const ANNUAL_PLANT_MATTER_ITEM_ID = "item.plant_matter";
 export const ANNUAL_PLANT_MATTER_YIELD = 1;
 
@@ -398,7 +401,6 @@ export class FarmingDomain {
       if (cropDef.regrows) {
         return { success: false, reason: "This crop is not ready" };
       }
-      this.tryGrantAnnualPlantMatter();
       this.removePlacedCrop(placedCropId);
       return { success: true, yield: 0, reason: "Withered crop cleared" };
     }
@@ -477,6 +479,50 @@ export class FarmingDomain {
     }
     farm.soil.fertility = Math.min(FERTILITY_MAX, farm.soil.fertility + FERTILITY_RESTORE);
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.fertilize);
+    return { success: true };
+  }
+
+  public getNearbyFarmId(): FarmId | null {
+    for (const farmId of Object.keys(this.context.state.farms) as FarmId[]) {
+      if (this.isNearFarm(farmId)) return farmId;
+    }
+    return null;
+  }
+
+  public buyIrrigation(): InteractionResult {
+    const { state } = this.context;
+    const farmId = this.getNearbyFarmId();
+    if (!farmId) return { success: false, reason: "Stand on a farm to install irrigation" };
+    if (state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) {
+      return { success: false, reason: "Irrigation is already installed" };
+    }
+    if (state.player.money < IRRIGATION_COST) {
+      return { success: false, reason: `Irrigation costs ${IRRIGATION_COST} G` };
+    }
+    state.player.money -= IRRIGATION_COST;
+    state.quests.unlockedFeatureIds = [...state.quests.unlockedFeatureIds, IRRIGATION_FEATURE_ID];
+    return { success: true, cost: IRRIGATION_COST };
+  }
+
+  public irrigate(farmId: FarmId): InteractionResult {
+    const { state, events } = this.context;
+    if (!state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) {
+      return { success: false, reason: "Install irrigation first" };
+    }
+    const farm = state.farms[farmId];
+    if (!farm) return { success: false, reason: "This farm is unavailable" };
+    if (!this.isNearFarm(farmId)) return { success: false, reason: "Move closer to the farm" };
+    let watered = 0;
+    for (const placedCropId of farm.placedCropIds) {
+      const crop = state.crops[placedCropId];
+      if (!crop || crop.stage === "withered") continue;
+      if (crop.moisture >= WET_MOISTURE_THRESHOLD) continue;
+      crop.moisture = 100;
+      watered += 1;
+      events.emit("CropWatered", { placedCropId, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
+    }
+    if (watered <= 0) return { success: false, reason: "The soil is already wet", reasonCode: "already-wet" };
+    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.irrigate);
     return { success: true };
   }
 

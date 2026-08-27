@@ -68,6 +68,18 @@ describe("ModeController", () => {
     expect(onFoot.blocksHudOverlaysAndTools).toBe(false);
   });
 
+  it("allows closing overlays and opening pause while fishing, but not inventory", () => {
+    const basicState = createInitialGameState();
+    basicState.basicFishing = { phase: "minigame" } as (typeof basicState)["basicFishing"];
+    const modes = new ModeController();
+    modes.restoreFromState(basicState);
+
+    expect(modes.allowsOverlayChange("pause")).toBe(true);
+    expect(modes.allowsOverlayChange(null)).toBe(true);
+    expect(modes.allowsOverlayChange("inventory")).toBe(false);
+    expect(modes.allowsOverlayChange("journal")).toBe(false);
+  });
+
   it("locks the new-game confirm overlay until the player confirms", () => {
     const modes = new ModeController();
     modes.open("new-game-confirm");

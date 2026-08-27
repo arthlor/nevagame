@@ -1,714 +1,415 @@
 // src/ui/HUD.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { GameState, FishCargoState } from "../simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { ContentRegistry } from "../content/ContentRegistry";
 import {
-  IconCoin,
   IconEnergy,
-  IconBackpack,
-  IconJournal,
-  IconLedger,
-  IconExpedition,
-  IconCompass,
-  IconMenu,
   IconHoe,
   IconWateringCan,
-  IconPickaxe,
   IconBait,
-  IconBasket,
+  IconRod,
   IconSprout,
-  IconMoon,
-  IconDawn,
-  IconDusk,
-  IconWeatherClear,
-  IconWeatherOvercast,
-  IconWeatherLightRain,
-  IconWeatherRain,
-  IconWeatherStorm,
-  IconWeatherFog,
-  IconWind,
-  IconThermometer,
-  IconWave,
   IconFish,
   IconBoat,
-  IconWarning
+  IconWarning,
+  IconMenu
 } from "./components/HudIcons";
-import {
-  CornerLeafSprout,
-  CornerRopeKnot,
-  OrnateDivider,
-  KeycapBadge
-} from "./components/HudDecorations";
+import { CelestialTimeDial, MedallionPurse, KeycapBadge } from "./HudDecorations";
 import { FarmForecastPopover } from "./components/FarmForecastPopover";
+import { formatWeatherLabel, WeatherIcon } from "./weatherPresentation";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import { QuestTrackerHUD } from "./QuestTrackerHUD";
+import { ChromeMeter, ChromeQuality, ChromeSlot } from "./chrome/Chrome";
+import { AtlasImage } from "./chrome/AtlasImage";
+import { atlasForFish, atlasForTime } from "./chrome/uiAtlas";
+import { playUiSound } from "./audio/uiAudio";
 
 export interface HUDProps {
   state: GameState;
-  activeQuest?: ActiveQuestDto | null;
   promptText: string | null;
   toastMessage?: string | null;
+  activeQuest?: ActiveQuestDto | null;
   activeToolSlot?: number;
   onSelectToolSlot?: (slot: number) => void;
-  onOpenInventory: () => void;
-  onOpenMarket: () => void;
-  onOpenJournal: () => void;
-  onOpenMap: () => void;
-  onOpenLedger: () => void;
-  onOpenExpedition: () => void;
-  onQuickSave: () => void;
-  onCastFishing: () => void;
   onOpenMenu?: () => void;
   isPlacementActive?: boolean;
 }
 
-function formatWeatherLabel(type: string): string {
-  switch (type.toLowerCase()) {
-    case "clear":
-      return "Clear Sky";
-    case "overcast":
-      return "Overcast";
-    case "light-rain":
-    case "light_rain":
-      return "Light Rain";
-    case "rain":
-      return "Steady Rain";
-    case "storm":
-      return "Gale Storm";
-    case "fog":
-      return "Dense Fog";
-    default:
-      return type.charAt(0).toUpperCase() + type.slice(1);
+function parsePrompt(promptText: string | null, toastMessage: string | null | undefined) {
+  if (!promptText || (toastMessage && promptText.trim() === toastMessage.trim())) return null;
+  if (promptText.startsWith("Equipped:") || promptText.startsWith("Saved")) {
+    return null;
   }
+
+  const match = promptText.match(/^\[(.*?)\]\s*(.*)$/);
+  if (match) {
+    const key = match[1].split("/")[0]?.trim() || match[1];
+    return { key, label: match[2] };
+  }
+  return { key: "E", label: promptText };
 }
 
-function getWeatherIcon(type: string, hour: number) {
-  switch (type.toLowerCase()) {
-    case "clear":
-      return hour >= 5 && hour < 8 ? (
-        <IconDawn size={18} />
-      ) : hour >= 8 && hour < 18 ? (
-        <IconWeatherClear size={18} />
-      ) : hour >= 18 && hour < 21 ? (
-        <IconDusk size={18} />
-      ) : (
-        <IconMoon size={18} />
-      );
-    case "overcast":
-      return <IconWeatherOvercast size={18} />;
-    case "light-rain":
-    case "light_rain":
-      return <IconWeatherLightRain size={18} />;
-    case "rain":
-      return <IconWeatherRain size={18} />;
-    case "storm":
-      return <IconWeatherStorm size={18} />;
-    case "fog":
-      return <IconWeatherFog size={18} />;
-    default:
-      return <IconWeatherClear size={18} />;
-  }
-}
-
-function getWeatherConditionIcon(type: string, size = 15) {
-  switch (type.toLowerCase()) {
-    case "clear":
-      return <IconWeatherClear size={size} className="hud-weather-icon" />;
-    case "overcast":
-      return <IconWeatherOvercast size={size} className="hud-weather-icon" />;
-    case "light-rain":
-    case "light_rain":
-      return <IconWeatherLightRain size={size} className="hud-weather-icon" />;
-    case "rain":
-      return <IconWeatherRain size={size} className="hud-weather-icon" />;
-    case "storm":
-      return <IconWeatherStorm size={size} className="hud-weather-icon" />;
-    case "fog":
-      return <IconWeatherFog size={size} className="hud-weather-icon" />;
-    default:
-      return <IconWeatherClear size={size} className="hud-weather-icon" />;
-  }
+function seaStateLabel(roughness: number): string {
+  if (roughness < 0.35) return "Calm";
+  if (roughness < 0.7) return "Swell";
+  return "Rough";
 }
 
 export const HUD: React.FC<HUDProps> = ({
   state,
   promptText,
   toastMessage,
+  activeQuest = null,
   activeToolSlot = 1,
   onSelectToolSlot,
-  onOpenInventory,
-  onOpenMarket,
-  onOpenJournal,
-  onOpenMap,
-  onOpenLedger,
-  onOpenExpedition,
-  activeQuest,
   onOpenMenu,
   isPlacementActive = false
 }) => {
   const [showForecast, setShowForecast] = useState(false);
   const { clock, player, weather } = state;
 
+  useEffect(() => {
+    if (toastMessage) playUiSound("open");
+  }, [toastMessage]);
+
   const sprintStamina = player.traversal.sprintStamina;
   const sprintMaximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;
-  const sprintPercent = Math.max(0, Math.min(100, (sprintStamina / sprintMaximum) * 100));
   const showSprintStamina =
     !player.activeBoatId &&
     !state.basicFishing &&
     !state.sportFishing &&
     (sprintStamina < sprintMaximum - 0.01 || player.traversal.sprintExhausted);
 
-  // Time & Calendar
   const hour = Math.floor((clock.currentMinute % 1440) / 60);
   const minute = clock.currentMinute % 60;
   const hh = String(hour).padStart(2, "0");
   const mm = String(minute).padStart(2, "0");
   const seasonName = clock.season.charAt(0).toUpperCase() + clock.season.slice(1);
   const dayInSeason = ((clock.dayCount - 1) % 30) + 1;
+  const timeOfDayLabel = clock.timeOfDay.charAt(0).toUpperCase() + clock.timeOfDay.slice(1);
+  const currentTemp = Math.round(weather.temperatureC);
 
-  // Severe weather alert
+  // Dynamic celestial sun/moon rotation: 12:00 = 0° (Sun zenith), 00:00 = 180° (Moon zenith)
+  const dialRotation = ((clock.currentMinute - 720) / 1440) * 360;
+  const isNightTime = clock.timeOfDay === "night" || clock.timeOfDay === "dusk" || hour < 6 || hour >= 20;
+
   const severeAlert = useMemo(() => {
-    if (weather.type === "storm") return { text: "Gale Storm Alert", tone: "danger" };
-    if (weather.type === "fog" && weather.visibility < 0.5) return { text: "Low Visibility Fog", tone: "caution" };
-    if (weather.windSpeed >= 11) return { text: "High Winds", tone: "caution" };
-    if (weather.seaRoughness >= 0.7) return { text: "Rough Swell", tone: "caution" };
+    if (weather.type === "storm") return { text: "Storm Warning", tone: "danger" as const };
+    if (weather.type === "fog" && weather.visibility < 0.5) return { text: "Dense Fog", tone: "caution" as const };
+    if (weather.windSpeed >= 11) return { text: "Gale Winds", tone: "caution" as const };
+    if (weather.seaRoughness >= 0.7) return { text: "Rough Swell", tone: "caution" as const };
     return null;
   }, [weather]);
 
-  // Work Capacity (Labor resource)
-  const workCurrent = Math.round(player.workCapacity.current);
-  const workMax = player.workCapacity.maximum;
-  const workPercent = Math.max(0, Math.min(100, (workCurrent / workMax) * 100));
-  const showWorkAlert = workCurrent < 20;
+  const laborCurrent = Math.round(player.workCapacity.current);
+  const laborMaximum = player.workCapacity.maximum;
+  const showLaborNote = laborCurrent < 20;
 
-  // Backpack capacity (slots used / total slots)
-  const playerInv = state.inventories[player.inventoryId];
-  const filledSlots = playerInv
-    ? playerInv.slots.filter((s) => s.itemId !== null && (s.quantity ?? 0) > 0).length
-    : 0;
-  const totalSlots = playerInv ? playerInv.slots.length : 16;
-
-  // Active Boat & Physical Cargo
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDef = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
   const boatCargoSlots = activeBoat
     ? activeBoat.fishCargoSlotIds.map((cargoId) => (cargoId ? state.fishCargo[cargoId] ?? null : null))
     : [];
 
-  // Player carried cargo
   const carriedFish = player.carriedFishCargoId ? state.fishCargo[player.carriedFishCargoId] : null;
   const carriedDef = carriedFish ? ContentRegistry.fishSpecies.get(carriedFish.speciesId) : null;
+  const parsedPrompt = useMemo(() => parsePrompt(promptText, toastMessage), [promptText, toastMessage]);
+  const showQuest =
+    Boolean(activeQuest) || state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
 
-  // Parse prompt text for keycaps (e.g. "[E] Interact" or "[E / Click] Plant Wheat")
-  const parsedPrompt = useMemo(() => {
-    if (!promptText) return null;
-    if (toastMessage && promptText.trim() === toastMessage.trim()) return null;
-    const match = promptText.match(/^\[(.*?)\]\s*(.*)$/);
-    if (match) {
-      return { key: match[1], label: match[2] };
-    }
-    if (promptText.startsWith("Equipped:") || promptText.startsWith("Saved") || promptText.startsWith("✨")) {
-      return null;
-    }
-    return { key: "E", label: promptText };
-  }, [promptText, toastMessage]);
+  const handleToolClick = (slot: number) => {
+    playUiSound("click");
+    onSelectToolSlot?.(slot);
+  };
+
+  const handleToggleForecast = () => {
+    playUiSound("open");
+    setShowForecast((prev) => !prev);
+  };
+
+  const handleMenuClick = () => {
+    playUiSound("open");
+    onOpenMenu?.();
+  };
+
+  const toolButton = (slot: number, label: string, icon: React.ReactNode) => (
+    <ChromeSlot
+      className={`hud-hotbar-slot ${activeToolSlot === slot ? "is-active" : ""}`}
+      selected={activeToolSlot === slot}
+      onClick={() => handleToolClick(slot)}
+      label={`${label}, tool slot ${slot}`}
+      data-testid={`tool-slot-${slot}`}
+    >
+      <span className="slot-num-badge" aria-hidden="true">
+        {slot}
+      </span>
+      {icon}
+    </ChromeSlot>
+  );
 
   return (
     <>
       {/* =========================================================================
-          1. TOP-LEFT: ATMOSPHERE & CALENDAR (Reference Top-Left)
+          1. TOP-LEFT HUD CLUSTER: Celestial Dial, Time, Weather, Almanac & Purse
           ========================================================================= */}
-      <div className="hud-top-left-container interactive">
-        <header
-          className="hud-diegetic-panel hud-top-left"
-          aria-label="Game clock, calendar, and weather"
-        >
-          <CornerLeafSprout className="panel-corner-tl" size={28} />
-          <CornerRopeKnot className="panel-corner-br" size={28} />
-
-          <div
-            className="hud-weather-card-inner"
-            onClick={() => setShowForecast((prev) => !prev)}
-            title="Click to open 3-Day Farm Forecast"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setShowForecast((prev) => !prev);
-              }
-            }}
-          >
-            {/* Top Row: Season & Time */}
-            <div className="hud-header-row hud-calendar-row">
-              <div className="hud-season-group">
-                <IconSprout size={18} className="hud-sprout-icon" />
-                <span className="hud-season-text">{seasonName} {dayInSeason}</span>
-              </div>
-
-              <div className="hud-time-group">
-                <span className="hud-time-icon">{getWeatherIcon(weather.type, hour)}</span>
-                <span className="hud-time-text" data-testid="game-clock">{hh}:{mm}</span>
-              </div>
-            </div>
-
-            <OrnateDivider />
-
-            {/* Bottom Row: Weather, Temperature & Wind */}
-            <div className="hud-header-row hud-weather-row">
-              <div className="hud-weather-condition">
-                {getWeatherConditionIcon(weather.type, 15)}
-                <span className="hud-weather-name">{formatWeatherLabel(weather.type)}</span>
-              </div>
-
-              <div className="hud-weather-metrics">
-                <span className="hud-metric-item" title="Temperature">
-                  <IconThermometer size={14} className="hud-metric-icon" />
-                  <span>{Math.round(weather.temperatureC)}°C</span>
-                </span>
-
-                <span className="hud-metric-item" title="Wind speed">
-                  <IconWind size={14} className="hud-metric-icon" />
-                  <span>{Math.round(weather.windSpeed)} m/s</span>
-                </span>
-
-                {weather.seaRoughness > 0.4 && (
-                  <span className="hud-metric-item" title="Sea Swell">
-                    <IconWave size={14} className="hud-metric-icon" />
+      <aside className="hud-top-left-container interactive" aria-label="Almanac, clock, and purse">
+        <div className="hud-top-left">
+          <div className="hud-clock-widget hud-almanac-panel">
+            <button
+              type="button"
+              className="hud-clock"
+              onClick={handleToggleForecast}
+              title={`${formatWeatherLabel(weather.type)}, ${currentTemp}°C — Click for Forecast`}
+              aria-expanded={showForecast}
+              aria-controls="farm-forecast-popover"
+              aria-label="Open current conditions and farm forecast"
+            >
+              <CelestialTimeDial
+                size={44}
+                rotation={dialRotation}
+                isNight={isNightTime}
+                className="hud-clock-dial"
+              />
+              <div className="hud-clock-copy">
+                <div className="hud-clock-season">
+                  <AtlasImage src={atlasForTime(clock.timeOfDay)} alt="" size={16} />
+                  <span>{`${timeOfDayLabel} · ${seasonName} ${dayInSeason}`}</span>
+                </div>
+                <div className="hud-clock-row">
+                  <span className="hud-clock-time" data-testid="game-clock">
+                    {`${hh}:${mm}`}
                   </span>
-                )}
+                  <span className="hud-weather-badge">
+                    <WeatherIcon type={weather.type} hour={hour} size={16} />
+                    <span className="hud-weather-label">{formatWeatherLabel(weather.type)}</span>
+                    <span className="hud-weather-temp">{`${currentTemp}°C`}</span>
+                  </span>
+                </div>
               </div>
+            </button>
+            <div className="hud-purse-note" aria-label={`Purse: ${player.money.toLocaleString()} gold`}>
+              <MedallionPurse size={22} className="hud-purse-medallion" />
+              <span className="hud-gold-text">{`${player.money.toLocaleString()} G`}</span>
             </div>
           </div>
-
-          {severeAlert && (
-            <div className={`hud-weather-alert alert-${severeAlert.tone}`} role="status">
-              <IconWarning size={14} className="hud-alert-icon" />
-              <span>{severeAlert.text}</span>
-            </div>
+          {showForecast && (
+            <FarmForecastPopover weather={weather} clock={clock} onClose={() => setShowForecast(false)} />
           )}
-        </header>
+        </div>
+      </aside>
 
-        {/* 3-Day Forecast Popover anchored beside Top-Left Column */}
-        {showForecast && (
-          <FarmForecastPopover
-            weather={weather}
-            clock={clock}
-            onClose={() => setShowForecast(false)}
-          />
-        )}
-      </div>
-
-      {/* 2. Top-Center: Discreet Event Toasts */}
+      {/* =========================================================================
+          2. TOAST NOTIFICATIONS (Centered Top)
+          ========================================================================= */}
       {toastMessage && (
         <aside className="hud-toast-container" role="status" aria-live="polite">
           <div className="hud-toast-pill">
-            <span className="toast-sparkle" aria-hidden="true">✨</span>
             <span className="toast-message-text">{toastMessage}</span>
           </div>
         </aside>
       )}
 
       {/* =========================================================================
-          3. TOP-RIGHT: STATUS, NAVIGATION & QUEST TRACKER (Reference Top-Right)
+          3. TOP-RIGHT HUD CLUSTER: Weather Alerts, Quest Tracker & Menu Button
           ========================================================================= */}
-      <div className="hud-top-right-cluster interactive">
-        <nav className="hud-top-right" aria-label="Player wealth and quick navigation">
-        {/* Top Badges Row */}
-        <div className="hud-vitals-plaques">
-          {/* Purse Plaque */}
-          <div
-            className="hud-plaque hud-plaque-purse"
-            title="Purse Balance"
-            onClick={onOpenMarket}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onOpenMarket();
-              }
-            }}
-          >
-            <CornerLeafSprout className="plaque-corner-tl" size={16} />
-            <CornerRopeKnot className="plaque-corner-br" size={16} />
-            <div className="hud-plaque-content">
-              <IconCoin size={22} className="hud-plaque-icon" />
-              <strong className="hud-gold-text">{player.money.toLocaleString()} G</strong>
-            </div>
-          </div>
-
-          {/* Work Capacity Plaque */}
-          <div
-            className={`hud-plaque hud-plaque-work ${showWorkAlert ? "is-depleted" : ""}`}
-            title={`Work Capacity: ${workCurrent} / ${workMax}`}
-          >
-            <CornerLeafSprout className="plaque-corner-tl" size={16} />
-            <CornerRopeKnot className="plaque-corner-br" size={16} />
-            <div className="hud-plaque-content">
-              <div className="hud-work-top-row">
-                <IconEnergy size={18} className="hud-work-icon" />
-                <span className="hud-work-label">Work {workCurrent}/{workMax}</span>
+      <aside className="hud-top-right-cluster interactive" aria-label="Active quest and game menu">
+        <div className="hud-top-right">
+          <div className="hud-top-right-main">
+            {severeAlert && (
+              <div className={`hud-weather-chip hud-weather-chip--${severeAlert.tone}`} role="status">
+                <IconWarning size={14} aria-hidden="true" />
+                <span>{severeAlert.text}</span>
               </div>
-              <div className="hud-work-progress-track">
-                <div
-                  className="hud-work-progress-fill"
-                  style={{ width: `${workPercent}%` }}
-                />
-              </div>
-            </div>
+            )}
+            {showQuest && <QuestTrackerHUD activeQuest={activeQuest} />}
           </div>
-
-          {/* Backpack Plaque */}
-          <div
-            className="hud-plaque hud-plaque-pack"
-            title="Backpack Inventory (I)"
-            onClick={onOpenInventory}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onOpenInventory();
-              }
-            }}
-          >
-            <CornerLeafSprout className="plaque-corner-tl" size={16} />
-            <CornerRopeKnot className="plaque-corner-br" size={16} />
-            <div className="hud-plaque-content">
-              <IconBackpack size={20} className="hud-pack-icon" />
-              <strong className="hud-pack-count">{filledSlots}/{totalSlots}</strong>
-            </div>
-          </div>
-
-          {/* Carried Physical Cargo Plaque (if carrying fish) */}
-          {carriedFish && carriedDef && (
-            <div
-              className="hud-plaque hud-plaque-cargo"
-              title={`Carrying ${carriedDef.name} (${Math.round(carriedFish.freshness)}% fresh)`}
-            >
-              <CornerLeafSprout className="plaque-corner-tl" size={16} />
-              <CornerRopeKnot className="plaque-corner-br" size={16} />
-              <div className="hud-plaque-content">
-                <IconFish size={18} className="hud-cargo-icon" />
-                <div className="hud-cargo-copy">
-                  <span className="hud-cargo-title">{carriedFish.weightKg.toFixed(1)}kg {carriedDef.name}</span>
-                  <div className="hud-cargo-bar">
-                    <div
-                      className="hud-cargo-fill"
-                      style={{ width: `${Math.round(carriedFish.freshness)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation Action Buttons Row */}
-        <div className="hud-navigation-bar" role="toolbar" aria-label="Field navigation tabs">
-          <button
-            type="button"
-            className="hud-wood-btn"
-            onClick={onOpenJournal}
-            aria-label="Captain's Journal"
-          >
-            <IconJournal size={15} className="btn-icon" />
-            <span className="btn-text">Journal</span>
-            <KeycapBadge keyName="J" />
-          </button>
-
-          <button
-            type="button"
-            className="hud-wood-btn"
-            onClick={onOpenMap}
-            aria-label="World Map"
-          >
-            <IconCompass size={15} className="btn-icon" />
-            <span className="btn-text">Map</span>
-            <KeycapBadge keyName="M" />
-          </button>
-
-          <button
-            type="button"
-            className="hud-wood-btn"
-            onClick={onOpenLedger}
-            aria-label="Merchant Ledger"
-          >
-            <IconLedger size={15} className="btn-icon" />
-            <span className="btn-text">Ledger</span>
-            <KeycapBadge keyName="L" />
-          </button>
-
-          {state.quests.unlockedFeatureIds.includes("feature.expedition_planner") && (
-            <button
-              type="button"
-              className="hud-wood-btn"
-              onClick={onOpenExpedition}
-              aria-label="Expedition Planner"
-            >
-              <IconExpedition size={15} className="btn-icon" />
-              <span className="btn-text">Board</span>
-              <KeycapBadge keyName="P" />
-            </button>
-          )}
-
           {onOpenMenu && (
             <button
               type="button"
-              className="hud-wood-btn hud-wood-btn-menu"
-              onClick={onOpenMenu}
-              aria-label="Game Menu"
+              className="hud-menu-button"
+              onClick={handleMenuClick}
+              aria-label="Open game menu"
+              title="Open game menu (Esc)"
             >
-              <IconMenu size={16} className="btn-icon" />
-              <KeycapBadge keyName="ESC" />
+              <IconMenu size={22} aria-hidden="true" />
             </button>
           )}
-        </div>
-        </nav>
-
-        {/* Quest Tracker beneath the top-right navigation row */}
-        {(activeQuest || state.quests.unlockedFeatureIds.includes("feature.expedition_planner")) && (
-          <QuestTrackerHUD activeQuest={activeQuest ?? null} />
-        )}
-      </div>
-
-      {/* =========================================================================
-          4. BOAT DRIVING HUD (Offshore Navigation)
-          ========================================================================= */}
-      {activeBoat && boatDef && (
-        <section className="hud-diegetic-panel hud-boat-panel interactive" aria-label="Boat driving status">
-          <CornerLeafSprout className="panel-corner-tl" size={24} />
-          <CornerRopeKnot className="panel-corner-br" size={24} />
-
-          <header className="boat-panel-header">
-            <IconBoat size={18} className="boat-header-icon" />
-            <div className="boat-header-meta">
-              <strong>{boatDef.name}</strong>
-              <span>
-                {Math.round(activeBoat.speed * 1.944)} kn ·{" "}
-                {weather.seaRoughness < 0.35 ? "Calm Waters" : weather.seaRoughness < 0.7 ? "Moderate Swell" : "Rough Sea"}
-              </span>
-            </div>
-          </header>
-
-          <div className="boat-status-bars">
-            <div className="boat-meter-row">
-              <span className="boat-meter-label">Hull Condition</span>
-              <span className="boat-meter-val">{Math.round(activeBoat.durability)}%</span>
-            </div>
-            <div className="boat-bar-track">
-              <div
-                className={`boat-bar-fill ${activeBoat.durability < 30 ? "is-low" : ""}`}
-                style={{ width: `${Math.max(0, Math.min(100, activeBoat.durability))}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Physical Cargo Bay Grid */}
-          <div className="boat-cargo-bay">
-            <div className="boat-cargo-title">
-              <span>Hold Cargo</span>
-              <span className="boat-cargo-count">
-                {boatCargoSlots.filter(Boolean).length}/{boatCargoSlots.length}
-              </span>
-            </div>
-            <div className="boat-cargo-grid">
-              {boatCargoSlots.map((cargo: FishCargoState | null, index: number) => {
-                if (!cargo) {
-                  return (
-                    <div key={`cargo-slot-${index}`} className="boat-cargo-slot is-empty">
-                      <span className="cargo-empty-label">Slot 0{index + 1} Empty</span>
-                    </div>
-                  );
-                }
-                const fishDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-                const freshnessColor = cargo.freshness > 65 ? "fresh" : cargo.freshness > 35 ? "medium" : "stale";
-                return (
-                  <div key={cargo.id || `cargo-${index}`} className="boat-cargo-slot is-filled">
-                    <div className="cargo-slot-icon">
-                      <IconFish size={14} />
-                    </div>
-                    <div className="cargo-slot-details">
-                      <strong>{fishDef?.name ?? "Sport Fish"}</strong>
-                      <div className="cargo-slot-sub">
-                        <span>{cargo.weightKg.toFixed(1)} kg</span>
-                        <span className={`cargo-quality-tag quality-${cargo.quality}`}>{cargo.quality}</span>
-                      </div>
-                      <div className="cargo-freshness-track" title={`Freshness: ${Math.round(cargo.freshness)}%`}>
-                        <div
-                          className={`cargo-freshness-fill freshness-${freshnessColor}`}
-                          style={{ width: `${Math.round(cargo.freshness)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* =========================================================================
-          5. BOTTOM-LEFT: WOODEN QUICKBAR & SPRINT STAMINA (Reference Bottom-Left)
-          ========================================================================= */}
-      <aside className="hud-bottom-left interactive" aria-label="Tool Quickbar">
-        {/* Sprint Stamina floating above quickbar */}
-        {showSprintStamina && (
-          <div
-            className={`sprint-stamina-wood${player.traversal.sprintExhausted ? " sprint-stamina-winded" : ""}`}
-            data-testid="sprint-stamina"
-            role="progressbar"
-            aria-label="Sprint stamina"
-            aria-valuemin={0}
-            aria-valuemax={sprintMaximum}
-            aria-valuenow={Math.round(sprintStamina)}
-          >
-            <div className="sprint-stamina-label">
-              <span>Sprint Stamina</span>
-              {player.traversal.sprintExhausted ? (
-                <span className="winded-tag">Winded</span>
-              ) : (
-                <span>{Math.round(sprintPercent)}%</span>
-              )}
-            </div>
-            <div className="sprint-stamina-track">
-              <span style={{ width: `${sprintPercent}%` }} />
-            </div>
-          </div>
-        )}
-
-        {/* Quickbar Dock with Wood Frame & Corner Ornaments */}
-        <div className="hud-quickbar-wood-dock" role="toolbar" aria-label="Tool Belt">
-          <CornerLeafSprout className="quickbar-corner-tl" size={26} />
-          <CornerRopeKnot className="quickbar-corner-br" size={26} />
-
-          {/* Slot 1: Tool / Hoe / Axe */}
-          <button
-            type="button"
-            className={`quickbar-wood-slot ${activeToolSlot === 1 ? "is-active" : ""}`}
-            onClick={() => onSelectToolSlot?.(1)}
-            title="Primary Tool (1)"
-          >
-            <span className="slot-num-badge">1</span>
-            <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />
-          </button>
-
-          {/* Slot 2: Watering Can */}
-          <button
-            type="button"
-            className={`quickbar-wood-slot ${activeToolSlot === 2 ? "is-active" : ""}`}
-            onClick={() => onSelectToolSlot?.(2)}
-            title="Watering Can (2)"
-          >
-            <span className="slot-num-badge">2</span>
-            <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />
-          </button>
-
-          {/* Slot 3: Mattock / Pickaxe */}
-          <button
-            type="button"
-            className={`quickbar-wood-slot ${activeToolSlot === 3 ? "is-active" : ""}`}
-            onClick={() => onSelectToolSlot?.(3)}
-            title="Mattock / Pick (3)"
-          >
-            <span className="slot-num-badge">3</span>
-            <IconPickaxe size={26} className="quickbar-slot-icon" aria-hidden="true" />
-          </button>
-
-          {/* Slot 4: Fishing Bait / Net */}
-          <button
-            type="button"
-            className={`quickbar-wood-slot ${activeToolSlot === 4 ? "is-active" : ""}`}
-            onClick={() => onSelectToolSlot?.(4)}
-            title="Fishing Bait (4)"
-          >
-            <span className="slot-num-badge">4</span>
-            <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />
-          </button>
-
-          {/* Slot 5: Harvest Basket / Foraging (Reference Slot 5) */}
-          <button
-            type="button"
-            className={`quickbar-wood-slot ${activeToolSlot === 5 ? "is-active" : ""}`}
-            onClick={() => onSelectToolSlot?.(5)}
-            title="Harvest Basket / Rod (5)"
-          >
-            <span className="slot-num-badge">5</span>
-            <IconBasket size={26} className="quickbar-slot-icon" aria-hidden="true" />
-          </button>
         </div>
       </aside>
 
       {/* =========================================================================
-          6. BOTTOM-CENTER: INTERACTION BANNER & HOTKEY RIBBON (Reference Bottom-Center)
+          4. BOTTOM-LEFT HUD CLUSTER: Vitals (Labor/Sprint), Statuses & Boat Panel
           ========================================================================= */}
-      {!isPlacementActive && (
-        <footer className="hud-bottom-center" aria-label="Contextual interactions">
-          {/* Fishing Minigame Cues */}
-          {state.basicFishing && (
-            <div className={`interaction-wood-banner fishing-phase-banner phase-${state.basicFishing.phase}`} role="status">
-              <CornerLeafSprout className="banner-corner-tl" size={22} />
-              <CornerRopeKnot className="banner-corner-br" size={22} />
-              {state.basicFishing.phase === "charging-cast" ? (
-                <span className="banner-text">🎣 Charging cast power… Release to throw</span>
-              ) : state.basicFishing.phase === "bite-reaction" || (state.basicFishing.phase as string) === "bite" ? (
-                <div className="banner-content-row">
-                  <KeycapBadge keyName="Space" />
-                  <span className="banner-text is-bite-alert">Hook the fish!</span>
+      <div className="hud-bottom-left-container">
+        <div className="hud-bottom-left">
+          {(showLaborNote || carriedFish) && (
+            <aside className="hud-context-statuses interactive" aria-label="Current field notes">
+              {showLaborNote && (
+                <div className="hud-context-note hud-labor-note" role="status">
+                  <IconEnergy size={14} aria-hidden="true" />
+                  <span>Low Labor</span>
+                  <strong>{`${laborCurrent}/${laborMaximum}`}</strong>
                 </div>
-              ) : state.basicFishing.phase === "minigame" ? (
-                <span className="banner-text">🐟 Reeling: Hold [Space] to keep bar on fish!</span>
-              ) : state.basicFishing.phase === "caught" ? (
-                <div className="banner-content-row">
-                  <KeycapBadge keyName="Space" />
-                  <span className="banner-text">Collect Catch</span>
+              )}
+              {carriedFish && carriedDef && (
+                <div className="hud-context-note hud-cargo-note" role="status">
+                  <AtlasImage src={atlasForFish(carriedFish.speciesId)} alt="" size={28} />
+                  <span>{carriedDef.name}</span>
+                  <strong>{`${carriedFish.weightKg.toFixed(1)} kg`}</strong>
+                  <span className="hud-context-note-detail">
+                    {`${Math.round(carriedFish.freshness)}% · ${carriedFish.quality}`}
+                  </span>
                 </div>
-              ) : state.basicFishing.phase === "escaped" ? (
-                <span className="banner-text">💨 The fish got away…</span>
-              ) : (
-                <span className="banner-text">🌊 Bobber in water… Waiting for a bite</span>
+              )}
+            </aside>
+          )}
+
+          {activeBoat && boatDef && (
+            <section className="hud-boat-panel interactive" aria-label="Boat driving status">
+              <header className="boat-panel-header">
+                <IconBoat size={18} className="boat-header-icon" aria-hidden="true" />
+                <strong>{boatDef.name}</strong>
+                <span>{`${Math.round(activeBoat.speed * 1.944)} kn · ${seaStateLabel(weather.seaRoughness)}`}</span>
+                {(clock.timeOfDay === "night" || clock.timeOfDay === "dusk") && (
+                  <span className="hud-weather-chip hud-weather-chip--caution" role="status">
+                    Night waters
+                  </span>
+                )}
+              </header>
+              <ChromeMeter
+                className="hud-boat-hull"
+                label="Hull"
+                value={activeBoat.durability}
+                max={100}
+                showLabel={false}
+                valueText={`${Math.round(activeBoat.durability)}%`}
+                fill={activeBoat.durability < 30 ? "danger" : "hull"}
+              />
+              <div className="boat-cargo-grid" aria-label="Hold">
+                {boatCargoSlots.map((cargo: FishCargoState | null, index: number) => {
+                  if (!cargo) {
+                    return <ChromeSlot key={`cargo-slot-${index}`} className="boat-cargo-slot" slotNumber={index + 1} label="Empty hold slot" />;
+                  }
+                  const fishDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
+                  const freshnessTone = cargo.freshness > 65 ? "fresh" : cargo.freshness > 35 ? "medium" : "stale";
+                  return (
+                    <ChromeSlot
+                      key={cargo.id || `cargo-${index}`}
+                      filled
+                      slotNumber={index + 1}
+                      className="boat-cargo-slot"
+                      label={fishDef?.name ?? "Sport fish"}
+                    >
+                      <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={28} />
+                      {!atlasForFish(cargo.speciesId) && <IconFish size={14} aria-hidden="true" />}
+                      <ChromeQuality quality={cargo.quality} />
+                      <div
+                        className="cargo-freshness-track"
+                        title={`Freshness: ${Math.round(cargo.freshness)}%`}
+                        aria-hidden="true"
+                      >
+                        <div
+                          className={`cargo-freshness-fill freshness-${freshnessTone}`}
+                          style={{ width: `${Math.round(cargo.freshness)}%` }}
+                        />
+                      </div>
+                    </ChromeSlot>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <aside className="hud-vitals interactive" aria-label="Labor and sprint">
+            <div className="hud-vitals-tray">
+              <ChromeMeter
+                className="hud-labor-meter"
+                label="Labor"
+                value={laborCurrent}
+                max={laborMaximum}
+                orientation="vertical"
+                showLabel={false}
+                showValue={false}
+                variant="labor"
+                fill="gold"
+                icon={<IconEnergy size={16} aria-hidden="true" />}
+              />
+              {showSprintStamina && (
+                <ChromeMeter
+                  className={`hud-sprint-meter${player.traversal.sprintExhausted ? " sprint-stamina-winded" : ""}`}
+                  label="Sprint"
+                  value={sprintStamina}
+                  max={sprintMaximum}
+                  orientation="vertical"
+                  showLabel={false}
+                  showValue={false}
+                  valueText={player.traversal.sprintExhausted ? "Winded" : undefined}
+                  fill={player.traversal.sprintExhausted ? "danger" : "sprint"}
+                  data-testid="sprint-stamina"
+                />
               )}
             </div>
-          )}
+          </aside>
+        </div>
+      </div>
 
-          {/* Diegetic Interaction Banner (e.g. [E] Interact / Talk to Elspeth) */}
-          {!state.basicFishing && parsedPrompt && (
-            <div className="interaction-wood-banner" role="status">
-              <CornerLeafSprout className="banner-corner-tl" size={22} />
-              <CornerRopeKnot className="banner-corner-br" size={22} />
-              <div className="banner-content-row">
-                <KeycapBadge keyName={parsedPrompt.key} />
-                <span className="banner-text">{parsedPrompt.label}</span>
+      {/* =========================================================================
+          5. BOTTOM-CENTER HUD CLUSTER: Interaction Prompt & 5-Slot Tool Hotbar
+          ========================================================================= */}
+      <div className="hud-play-cluster">
+        {!isPlacementActive && (state.basicFishing || parsedPrompt) && (
+          <footer className="hud-bottom-center" aria-label="Contextual interactions">
+            {state.basicFishing ? (
+              <div
+                className={`interaction-prompt fishing-phase-banner phase-${state.basicFishing.phase}`}
+                role="status"
+                data-testid="context-prompt"
+              >
+                {state.basicFishing.phase === "charging-cast" ? (
+                  <span className="banner-text">Release to cast</span>
+                ) : state.basicFishing.phase === "bite-reaction" || (state.basicFishing.phase as string) === "bite" ? (
+                  <div className="banner-content-row">
+                    <KeycapBadge keyName="Space" />
+                    <span className="banner-text is-bite-alert">Hook the fish</span>
+                  </div>
+                ) : state.basicFishing.phase === "minigame" ? (
+                  <span className="banner-text">Hold Space to keep the fish in the bar</span>
+                ) : state.basicFishing.phase === "caught" ? (
+                  <div className="banner-content-row">
+                    <KeycapBadge keyName="Space" />
+                    <span className="banner-text">Collect catch</span>
+                  </div>
+                ) : state.basicFishing.phase === "escaped" ? (
+                  <span className="banner-text">The fish got away</span>
+                ) : (
+                  <span className="banner-text">Waiting for a bite</span>
+                )}
               </div>
-            </div>
-          )}
+            ) : parsedPrompt ? (
+              <div className="interaction-prompt" role="status" data-testid="context-prompt">
+                <div className="banner-content-row">
+                  <KeycapBadge keyName={parsedPrompt.key} />
+                  <span className="banner-text">{parsedPrompt.label}</span>
+                </div>
+              </div>
+            ) : null}
+          </footer>
+        )}
 
-          {/* Subtle Hotkey Ribbon */}
-          <div className="hud-hotkey-ribbon-wood interactive">
-            {activeBoat ? (
-              <>
-                <span className="control-note"><KeycapBadge keyName="W/S" /> Throttle</span>
-                <span className="control-note"><KeycapBadge keyName="A/D" /> Steer</span>
-                <span className="control-note"><KeycapBadge keyName="E" /> Dock</span>
-                <span className="control-note"><KeycapBadge keyName="M" /> Map</span>
-                <span className="control-note"><KeycapBadge keyName="L" /> Ledger</span>
-              </>
-            ) : (
-              <>
-                <span className="control-note"><KeycapBadge keyName="WASD" /> Move</span>
-                <span className="control-note"><KeycapBadge keyName="Shift" /> Sprint</span>
-                <span className="control-note"><KeycapBadge keyName="E" /> Interact</span>
-                <span className="control-note"><KeycapBadge keyName="Alt" /> Soil GIS</span>
-                <span className="control-note"><KeycapBadge keyName="M" /> Map</span>
-                <span className="control-note"><KeycapBadge keyName="L" /> Ledger</span>
-              </>
-            )}
+        <aside className="hud-hotbar interactive">
+          <div className="hud-tool-belt" role="toolbar" aria-label="Tool belt">
+            <div className="hud-tool-slots">
+              {toolButton(1, "Hand tools and hoe", <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+              {toolButton(2, "Seeds", <IconSprout size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+              {toolButton(3, "Watering can", <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+              {toolButton(4, "Fishing bait", <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+              {toolButton(5, "Fishing rod", <IconRod size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+            </div>
           </div>
-        </footer>
-      )}
+        </aside>
+      </div>
     </>
   );
 };
+

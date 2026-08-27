@@ -12,12 +12,13 @@ import {
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
-import { HARBOR_DOCK, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import saveV11Layout3 from "../fixtures/save_v11_layout3.json";
 import saveV12Layout4 from "../fixtures/save_v12_layout4.json";
 import saveV13Layout5 from "../fixtures/save_v13_layout5.json";
+import saveV14Layout6 from "../fixtures/save_v14_layout6.json";
 
 function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
   const factory = globalThis.indexedDB as unknown as {
@@ -154,7 +155,7 @@ describe("Persistence & Offline Progression", () => {
       const restored = new Simulation(loaded!.state);
       expect(restored.clock.isPaused()).toBe(false);
       const start = restored.state.clock.currentMinute;
-      restored.tick(8);
+      restored.advanceGameMinutes(8);
       expect(restored.state.clock.currentMinute).toBe(start + 8);
     });
 
@@ -190,6 +191,43 @@ describe("Persistence & Offline Progression", () => {
       expect(loaded?.state.player.money).toBe(731);
       expect(loaded?.state.player.traversal).toBeDefined();
       expect(validateSaveEnvelope(loaded)).toBe(true);
+    });
+
+    it("loads a valid v14/layout-6 save through the v15/layout-7 migration", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const legacy = structuredClone(createInitialGameState());
+      legacy.schemaVersion = 14;
+      legacy.world.layoutRevision = 6;
+      legacy.player.money = 731;
+      for (const stationId of [
+        "struct.starter_mill",
+        "struct.workbench",
+        "struct.starter_compost",
+        HARBOR_FISH_TABLE.structureId
+      ]) {
+        const historical = saveV14Layout6.state.world.structures[stationId as keyof typeof saveV14Layout6.state.world.structures];
+        const station = legacy.world.structures[stationId];
+        station.x = historical.x;
+        station.y = historical.y;
+        station.z = historical.z;
+      }
+      await putRawSave("primary_save", { schemaVersion: 14, savedAtUtcMs: 1, state: legacy });
+
+      const result = await repo.loadGameResult();
+      expect(result.status).toBe("loaded");
+      if (result.status !== "loaded") throw new Error(`Expected migrated save, got ${result.status}`);
+      expect(result.envelope.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+      expect(result.envelope.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+      expect(result.envelope.state.player.money).toBe(731);
+      for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.starter_compost"]) {
+        const anchor = starterStructureAnchor(stationId)!;
+        expect(result.envelope.state.world.structures[stationId]).toMatchObject({ x: anchor.x, z: anchor.z });
+      }
+      expect(result.envelope.state.world.structures[HARBOR_FISH_TABLE.structureId]).toMatchObject({
+        x: HARBOR_FISH_TABLE.position.x,
+        z: HARBOR_FISH_TABLE.position.z
+      });
+      expect(validateSaveEnvelope(result.envelope)).toBe(true);
     });
 
     it("rejects a save that cannot reach CURRENT_SCHEMA_VERSION after migrations", async () => {
@@ -413,22 +451,47 @@ describe("Persistence & Offline Progression", () => {
     );
 
     const now = Date.now();
-    sim.state.metadata.lastSavedUtcMs = now - 52 * 1000; // 52 real seconds = 52 game minutes (52 * 1.2 = 62.4 effective minutes)
+    sim.state.metadata.lastSavedUtcMs = now - 400_000; // 400 real seconds at 0.4 = 160 game minutes (wheat 180m / 1.2 climate)
 
     const summary = applyOfflineProgression(sim.state, now);
-    expect(summary.simulatedGameMinutes).toBe(52);
+    expect(summary.simulatedGameMinutes).toBe(160);
     expect(summary.cropsMaturedCount).toBe(1);
 
     const cropId = Object.keys(sim.state.crops)[0];
     expect(sim.state.crops[cropId].stage).toBe("mature");
   });
 
-  it("caps wall clock first so 3 real hours simulate 3*3600 game minutes", () => {
+  it("caps wall clock first so 3 real hours simulate 3*3600*0.4 game minutes", () => {
     const sim = new Simulation();
     const now = Date.now();
     sim.state.metadata.lastSavedUtcMs = now - 3 * 3600 * 1000;
     const summary = applyOfflineProgression(sim.state, now);
-    expect(summary.simulatedGameMinutes).toBe(3 * 3600);
+    expect(summary.simulatedGameMinutes).toBe(Math.floor(3 * 3600 * 0.4));
+  });
+
+  it("regenerates work capacity during offline progression", () => {
+    const sim = new Simulation();
+    const now = Date.now();
+    sim.state.player.workCapacity.current = 0;
+    sim.state.metadata.lastSavedUtcMs = now - 150_000;
+
+    applyOfflineProgression(sim.state, now);
+
+    expect(sim.state.player.workCapacity.current).toBe(100);
+    expect(sim.state.player.workCapacity.regeneratedAtMinute).toBe(sim.state.clock.currentMinute);
+  });
+
+  it("advances offline markets hour by hour without supply overshooting its target", () => {
+    const sim = new Simulation();
+    const wheat = sim.state.markets["market.village"].commodities["produce.wheat"];
+    const now = Date.now();
+    sim.state.metadata.lastSavedUtcMs = now - 72 * 3600 * 1000;
+
+    applyOfflineProgression(sim.state, now);
+
+    expect(wheat.localSupply).toBeLessThanOrEqual(wheat.targetSupply);
+    expect(wheat.localSupply).toBeGreaterThan(0);
+    expect(wheat.lastTickMinute).toBe(sim.state.clock.currentMinute);
   });
 
   it("rejects poisoned numeric state before it can be restored", () => {
@@ -670,6 +733,62 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
   });
 
+  it("migrates the v14 layout fixture to current station anchors without changing unrelated truth", () => {
+    const legacy = structuredClone(saveV14Layout6) as unknown as SaveEnvelope;
+    const preserved = {
+      playerX: legacy.state.player.x,
+      playerZ: legacy.state.player.z,
+      playerRotationY: legacy.state.player.rotationY,
+      workbench: structuredClone(legacy.state.world.structures["struct.fixture_workbench"]),
+      crops: structuredClone(legacy.state.crops),
+      inventories: structuredClone(legacy.state.inventories),
+      fishCargo: structuredClone(legacy.state.fishCargo),
+      markets: structuredClone(legacy.state.markets),
+      quests: structuredClone(legacy.state.quests),
+      boats: structuredClone(legacy.state.boats),
+      rngState: legacy.state.metadata.rngState
+    };
+
+    const migrated = migrateSaveData(legacy);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toMatchObject({
+      x: preserved.playerX,
+      z: preserved.playerZ,
+      rotationY: preserved.playerRotationY
+    });
+    expect(migrated.state.player.y).toBeCloseTo(
+      WorldLayout.terrainHeight(preserved.playerX, preserved.playerZ) + 0.5,
+      6
+    );
+    for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.starter_compost"]) {
+      const anchor = starterStructureAnchor(stationId)!;
+      expect(migrated.state.world.structures[stationId]).toMatchObject({ x: anchor.x, z: anchor.z });
+      expect(migrated.state.world.structures[stationId].y).toBeCloseTo(
+        WorldLayout.terrainHeight(anchor.x, anchor.z),
+        6
+      );
+    }
+    expect(migrated.state.world.structures[HARBOR_FISH_TABLE.structureId]).toMatchObject({
+      x: HARBOR_FISH_TABLE.position.x,
+      z: HARBOR_FISH_TABLE.position.z
+    });
+    expect(migrated.state.world.structures["struct.fixture_workbench"]).toMatchObject({
+      x: preserved.workbench.x,
+      z: preserved.workbench.z,
+      rotationY: preserved.workbench.rotationY
+    });
+    expect(migrated.state.crops).toEqual(preserved.crops);
+    expect(migrated.state.inventories).toEqual(preserved.inventories);
+    expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
+    expect(migrated.state.markets).toEqual(preserved.markets);
+    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+  });
+
   it("leaves active-boat waterline and player height unchanged in the v12 layout migration", () => {
     const legacy = structuredClone(saveV11Layout3) as unknown as SaveEnvelope;
     legacy.state.player.activeBoatId = "boat.fixture";
@@ -710,6 +829,42 @@ describe("Persistence & Offline Progression", () => {
       /fish\.trout quantity .* exceeds player carry and boat hold capacity/
     );
     expect(inventory.slots[0]).toEqual(slotBefore);
+  });
+
+  it("migrates v10 trout stacks into skiff holds without using external hooks", () => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 10;
+    const rowboat = legacy.boats["boat.player_rowboat"];
+    const skiffSupplyId = "inv.skiff_supply";
+    legacy.inventories[skiffSupplyId] = {
+      id: skiffSupplyId,
+      slotCount: 8,
+      slots: Array.from({ length: 8 }, () => ({}))
+    };
+    legacy.boats["boat.player_skiff"] = {
+      ...structuredClone(rowboat),
+      id: "boat.player_skiff",
+      boatTypeId: "boat.skiff",
+      fishCargoSlotIds: Array.from({ length: 6 }, () => null),
+      supplyInventoryId: skiffSupplyId,
+      isDocked: false,
+      dockedMarketId: null
+    };
+    legacy.player.activeBoatId = "boat.player_skiff";
+    legacy.inventories[legacy.player.inventoryId].slots[0] = { itemId: "fish.trout", quantity: 5 };
+
+    const migrated = migrateSaveData({ schemaVersion: 10, savedAtUtcMs: 1, state: legacy });
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+    expect(migrated.state.boats["boat.player_skiff"].fishCargoSlotIds.slice(0, 4).every(Boolean)).toBe(true);
+    expect(migrated.state.boats["boat.player_skiff"].fishCargoSlotIds.slice(4)).toEqual([null, null]);
+    for (const cargoId of migrated.state.boats["boat.player_skiff"].fishCargoSlotIds.slice(0, 4)) {
+      expect(cargoId && migrated.state.fishCargo[cargoId]?.location).toMatchObject({
+        type: "boat-hold",
+        containerId: "boat.player_skiff"
+      });
+    }
   });
 
   it("maps a complete pre-release v6 world into layout revision 3 without discarding simulation truth", () => {

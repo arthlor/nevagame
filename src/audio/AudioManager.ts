@@ -1,7 +1,10 @@
 import manifestJson from "../../assets/audio/audio-manifest.json";
 import { audioSettings, AudioSettings } from "./AudioSettings";
+import { computePlaybackRate, finiteAudioValue, setAudioParam, setAudioParamNow } from "./audioParams";
 
 export type AudioCueId = keyof typeof manifestJson.cues;
+export type AudioBankId = string;
+export type AudioBedId = "farm" | "village" | "coast" | "water" | "interior";
 
 interface AudioPosition {
   x: number;
@@ -9,15 +12,19 @@ interface AudioPosition {
   z: number;
 }
 
+type AudioBusId = "sfx" | "ambience" | "ui" | "weather" | "boat" | "fishing" | "music";
+
 interface AudioCueDefinition {
   sourceId: string;
-  bus: "sfx" | "ambience";
+  bus: AudioBusId;
   offset: number;
   duration: number;
   gain: number;
   spatial: boolean;
   poolSize: number;
   loop?: boolean;
+  pitchMin?: number;
+  pitchMax?: number;
 }
 
 interface AudioSourceDefinition {
@@ -32,14 +39,57 @@ interface Voice {
   startedAt: number;
 }
 
+interface LoopVoice {
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+  panner: PannerNode | null;
+}
+
 const cues = manifestJson.cues as Record<AudioCueId, AudioCueDefinition>;
+const banks = ((manifestJson as { banks?: Record<string, AudioCueId[]> }).banks ?? {}) as Record<string, AudioCueId[]>;
+const beds = ((manifestJson as { beds?: Record<AudioBedId, AudioCueId[]> }).beds ?? {
+  farm: ["ambience-wind", "ambience-insects", "ambience-birds"],
+  village: ["ambience-wind", "ambience-birds"],
+  coast: ["ambience-wind"],
+  water: ["ambience-wind"],
+  interior: ["ambience-wind"]
+}) as Record<AudioBedId, AudioCueId[]>;
+const weatherLoops = ((manifestJson as { weatherLoops?: Record<string, AudioCueId[]> }).weatherLoops ?? {}) as Record<string, AudioCueId[]>;
+const hasCue = (cueId: string): cueId is AudioCueId => cueId in cues;
 const sources = new Map(
   (manifestJson.sources as AudioSourceDefinition[]).map((source) => [source.id, source])
 );
 
-const setAudioParam = (param: AudioParam, value: number, at: number): void => {
-  param.cancelScheduledValues(at);
-  param.setTargetAtTime(value, at, 0.025);
+const finitePosition = (position?: AudioPosition): AudioPosition | undefined => {
+  if (!position) {
+    return undefined;
+  }
+  if (![position.x, position.y, position.z].every(Number.isFinite)) {
+    return undefined;
+  }
+  return position;
+};
+
+const connectBus = (
+  node: AudioNode,
+  bus: AudioBusId,
+  gains: {
+    sfx: GainNode;
+    ui: GainNode;
+    fishing: GainNode;
+    boat: GainNode;
+    ambience: GainNode;
+    weather: GainNode;
+    music: GainNode;
+  }
+): void => {
+  if (bus === "ui") node.connect(gains.ui);
+  else if (bus === "fishing") node.connect(gains.fishing);
+  else if (bus === "boat") node.connect(gains.boat);
+  else if (bus === "weather") node.connect(gains.weather);
+  else if (bus === "ambience") node.connect(gains.ambience);
+  else if (bus === "music") node.connect(gains.music);
+  else node.connect(gains.sfx);
 };
 
 /**
@@ -49,13 +99,24 @@ export class AudioManager {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  private uiGain: GainNode | null = null;
+  private fishingGain: GainNode | null = null;
+  private boatGain: GainNode | null = null;
   private ambienceGain: GainNode | null = null;
+  private weatherGain: GainNode | null = null;
+  private musicGain: GainNode | null = null;
   private readonly bufferPromises = new Map<string, Promise<AudioBuffer>>();
   private readonly voicePools = new Map<AudioCueId, Voice[]>();
-  private readonly ambienceSources = new Map<AudioCueId, AudioBufferSourceNode>();
+  private readonly loops = new Map<AudioCueId, LoopVoice>();
+  private readonly actionLoops = new Map<AudioCueId, AudioPosition | true>();
+  private readonly bankCursors = new Map<AudioBankId, number>();
   private unlockPromise: Promise<void> | null = null;
   private disposed = false;
   private ambienceRequested = true;
+  private variationSeed = 1;
+  private bedId: AudioBedId = "farm";
+  private weatherId = "clear";
+  private lastStormCueAt = 0;
   private readonly unsubscribeSettings: () => void;
 
   constructor() {
@@ -88,48 +149,98 @@ export class AudioManager {
     void this.unlock().then(() => this.playOneShotReady(cueId, position));
   }
 
-  startAmbience(): void {
-    this.ambienceRequested = true;
-    if (!this.context || this.context.state !== "running" || document.visibilityState === "hidden") {
+  playBank(bankId: AudioBankId, position?: AudioPosition): void {
+    const variants = banks[bankId];
+    if (!variants || variants.length === 0) {
       return;
     }
-    for (const cueId of ["ambience-wind", "ambience-insects", "ambience-birds"] as AudioCueId[]) {
-      void this.startAmbienceCue(cueId);
+    const cursor = this.bankCursors.get(bankId) ?? 0;
+    this.bankCursors.set(bankId, cursor + 1);
+    this.playOneShot(variants[cursor % variants.length], position);
+  }
+
+  setWorldContext(bedId: AudioBedId, weatherId: string): void {
+    this.bedId = bedId;
+    const weatherChanged = weatherId !== this.weatherId;
+    this.weatherId = weatherId;
+    if (weatherChanged && weatherId === "storm" && hasCue("thunder")) {
+      const now = typeof performance !== "undefined" ? performance.now() : 0;
+      if (now - this.lastStormCueAt > 8000) {
+        this.lastStormCueAt = now;
+        this.playOneShot("thunder");
+      }
     }
+    if (this.ambienceRequested) {
+      this.syncBeds();
+    }
+  }
+
+  setActionLoop(cueId: AudioCueId, enabled: boolean, position?: AudioPosition): void {
+    if (enabled) {
+      this.actionLoops.set(cueId, finitePosition(position) ?? true);
+    } else {
+      this.actionLoops.delete(cueId);
+    }
+    if (!this.context || this.context.state !== "running") {
+      return;
+    }
+    if (enabled) {
+      void this.startLoopCue(cueId, finitePosition(position));
+      return;
+    }
+    this.stopLoopCue(cueId);
+  }
+
+  startAmbience(): void {
+    this.ambienceRequested = true;
+    this.syncBeds();
+  }
+
+  /** Loop the project theme on the music bus; survives bed/weather swaps. */
+  private startTheme(): void {
+    if (!hasCue("theme")) {
+      return;
+    }
+    void this.startLoopCue("theme");
   }
 
   stopAmbience(): void {
     this.ambienceRequested = false;
-    for (const source of this.ambienceSources.values()) {
-      try {
-        source.stop();
-      } catch {
-        // A source may have already ended while the page was hidden.
+    for (const cueId of [...this.loops.keys()]) {
+      if (this.actionLoops.has(cueId) || cues[cueId]?.bus === "music") {
+        continue;
       }
+      this.stopLoopCue(cueId);
     }
-    this.ambienceSources.clear();
   }
 
   setListener(position: AudioPosition, forward: AudioPosition = { x: 0, y: 0, z: -1 }): void {
     if (!this.context) {
       return;
     }
+    const resolvedPosition = finitePosition(position);
+    const resolvedForward = finitePosition(forward) ?? { x: 0, y: 0, z: -1 };
+    if (!resolvedPosition) {
+      return;
+    }
     const listener = this.context.listener;
     const now = this.context.currentTime;
+    if (!Number.isFinite(now)) {
+      return;
+    }
     if (listener.positionX && listener.forwardX) {
-      listener.positionX.setValueAtTime(position.x, now);
-      listener.positionY.setValueAtTime(position.y, now);
-      listener.positionZ.setValueAtTime(position.z, now);
-      listener.forwardX.setValueAtTime(forward.x, now);
-      listener.forwardY.setValueAtTime(forward.y, now);
-      listener.forwardZ.setValueAtTime(forward.z, now);
-      listener.upX.setValueAtTime(0, now);
-      listener.upY.setValueAtTime(1, now);
-      listener.upZ.setValueAtTime(0, now);
+      setAudioParamNow(listener.positionX, resolvedPosition.x, now, 0);
+      setAudioParamNow(listener.positionY, resolvedPosition.y, now, 0);
+      setAudioParamNow(listener.positionZ, resolvedPosition.z, now, 0);
+      setAudioParamNow(listener.forwardX, resolvedForward.x, now, 0);
+      setAudioParamNow(listener.forwardY, resolvedForward.y, now, 0);
+      setAudioParamNow(listener.forwardZ, resolvedForward.z, now, -1);
+      setAudioParamNow(listener.upX, 0, now, 0);
+      setAudioParamNow(listener.upY, 1, now, 1);
+      setAudioParamNow(listener.upZ, 0, now, 0);
     } else {
-      // Firefox still exposes the legacy Web Audio spatial-listener API.
-      listener.setPosition(position.x, position.y, position.z);
-      listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0);
+      listener.setPosition(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
+      listener.setOrientation(resolvedForward.x, resolvedForward.y, resolvedForward.z, 0, 1, 0);
     }
   }
 
@@ -139,6 +250,10 @@ export class AudioManager {
     }
     this.disposed = true;
     this.stopAmbience();
+    for (const cueId of [...this.actionLoops.keys()]) {
+      this.stopLoopCue(cueId);
+    }
+    this.actionLoops.clear();
     this.unsubscribeSettings();
     if (typeof window !== "undefined") {
       window.removeEventListener("pointerdown", this.handleFirstInput, true);
@@ -162,8 +277,12 @@ export class AudioManager {
       return;
     }
     void this.context.resume().then(() => {
+      this.startTheme();
       if (this.ambienceRequested) {
         this.startAmbience();
+      }
+      for (const [cueId, position] of this.actionLoops) {
+        void this.startLoopCue(cueId, position === true ? undefined : position);
       }
     });
   };
@@ -173,28 +292,76 @@ export class AudioManager {
       this.context = new AudioContext({ latencyHint: "interactive" });
       this.masterGain = this.context.createGain();
       this.sfxGain = this.context.createGain();
+      this.uiGain = this.context.createGain();
+      this.fishingGain = this.context.createGain();
+      this.boatGain = this.context.createGain();
       this.ambienceGain = this.context.createGain();
+      this.weatherGain = this.context.createGain();
+      this.musicGain = this.context.createGain();
+      this.uiGain.connect(this.sfxGain);
+      this.fishingGain.connect(this.sfxGain);
+      this.boatGain.connect(this.sfxGain);
+      this.weatherGain.connect(this.ambienceGain);
       this.sfxGain.connect(this.masterGain);
       this.ambienceGain.connect(this.masterGain);
+      this.musicGain.connect(this.masterGain);
       this.masterGain.connect(this.context.destination);
+      this.uiGain.gain.value = 0.9;
+      this.fishingGain.gain.value = 1;
+      this.boatGain.gain.value = 1;
+      this.weatherGain.gain.value = 1;
+      this.musicGain.gain.value = 1;
       this.applySettings(audioSettings.get());
     }
     if (this.context.state === "suspended") {
       await this.context.resume();
     }
+    this.startTheme();
     if (this.ambienceRequested) {
       this.startAmbience();
     }
   }
 
   private applySettings(settings: Readonly<AudioSettings>): void {
-    if (!this.context || !this.masterGain || !this.sfxGain || !this.ambienceGain) {
+    if (!this.context || !this.masterGain || !this.sfxGain || !this.ambienceGain || !this.musicGain) {
       return;
     }
     const now = this.context.currentTime;
     setAudioParam(this.masterGain.gain, settings.masterMuted ? 0 : settings.master, now);
     setAudioParam(this.sfxGain.gain, settings.sfxMuted ? 0 : settings.sfx, now);
     setAudioParam(this.ambienceGain.gain, settings.ambienceMuted ? 0 : settings.ambience, now);
+    setAudioParam(this.musicGain.gain, settings.musicMuted ? 0 : settings.music, now);
+  }
+
+  private busGains(): {
+    sfx: GainNode;
+    ui: GainNode;
+    fishing: GainNode;
+    boat: GainNode;
+    ambience: GainNode;
+    weather: GainNode;
+    music: GainNode;
+  } | null {
+    if (
+      !this.sfxGain
+      || !this.uiGain
+      || !this.fishingGain
+      || !this.boatGain
+      || !this.ambienceGain
+      || !this.weatherGain
+      || !this.musicGain
+    ) {
+      return null;
+    }
+    return {
+      sfx: this.sfxGain,
+      ui: this.uiGain,
+      fishing: this.fishingGain,
+      boat: this.boatGain,
+      ambience: this.ambienceGain,
+      weather: this.weatherGain,
+      music: this.musicGain
+    };
   }
 
   private loadBuffer(sourceId: string): Promise<AudioBuffer> {
@@ -220,6 +387,38 @@ export class AudioManager {
     return loading;
   }
 
+  private desiredBedCues(): AudioCueId[] {
+    const region = beds[this.bedId] ?? beds.farm;
+    const weather = weatherLoops[this.weatherId] ?? [];
+    return [...new Set([...region, ...weather])];
+  }
+
+  private syncBeds(): void {
+    if (!this.context || this.context.state !== "running" || document.visibilityState === "hidden") {
+      return;
+    }
+    const desired = new Set(this.desiredBedCues());
+    for (const cueId of [...this.loops.keys()]) {
+      if (this.actionLoops.has(cueId) || desired.has(cueId) || cues[cueId]?.bus === "music") {
+        continue;
+      }
+      this.stopLoopCue(cueId);
+    }
+    for (const cueId of desired) {
+      void this.startLoopCue(cueId);
+    }
+  }
+
+  private applyPannerPosition(panner: PannerNode, position: AudioPosition, at: number): void {
+    if (panner.positionX) {
+      setAudioParamNow(panner.positionX, position.x, at, 0);
+      setAudioParamNow(panner.positionY, position.y, at, 0);
+      setAudioParamNow(panner.positionZ, position.z, at, 0);
+    } else {
+      panner.setPosition(position.x, position.y, position.z);
+    }
+  }
+
   private async playOneShotReady(cueId: AudioCueId, position?: AudioPosition): Promise<void> {
     const context = this.context;
     const cue = cues[cueId];
@@ -228,7 +427,7 @@ export class AudioManager {
     }
     try {
       const buffer = await this.loadBuffer(cue.sourceId);
-      if (this.disposed || context.state !== "running") {
+      if (this.disposed || context.state !== "running" || !Number.isFinite(context.currentTime)) {
         return;
       }
       const voice = this.acquireVoice(cueId, cue);
@@ -241,18 +440,17 @@ export class AudioManager {
       }
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.playbackRate.value = 0.97 + ((voice.startedAt * 997) % 0.06);
+      source.playbackRate.value = computePlaybackRate(
+        this.variationSeed++,
+        cue.pitchMin ?? 0.97,
+        cue.pitchMax ?? 1.03
+      );
       voice.source = source;
-      voice.startedAt = context.currentTime;
-      voice.gain.gain.setValueAtTime(cue.gain, context.currentTime);
-      if (voice.panner && position) {
-        if (voice.panner.positionX) {
-          voice.panner.positionX.setValueAtTime(position.x, context.currentTime);
-          voice.panner.positionY.setValueAtTime(position.y, context.currentTime);
-          voice.panner.positionZ.setValueAtTime(position.z, context.currentTime);
-        } else {
-          voice.panner.setPosition(position.x, position.y, position.z);
-        }
+      voice.startedAt = finiteAudioValue(context.currentTime, 0);
+      setAudioParamNow(voice.gain.gain, cue.gain, context.currentTime, cue.gain);
+      const resolved = finitePosition(position);
+      if (voice.panner && resolved) {
+        this.applyPannerPosition(voice.panner, resolved, context.currentTime);
       }
       source.connect(voice.gain);
       source.onended = () => {
@@ -261,8 +459,8 @@ export class AudioManager {
           voice.source = null;
         }
       };
-      const safeDuration = Math.max(0.01, Math.min(cue.duration, buffer.duration - cue.offset));
-      source.start(0, cue.offset, safeDuration);
+      const safeDuration = Math.max(0.01, Math.min(cue.duration, Math.max(0, buffer.duration - cue.offset)));
+      source.start(0, Math.max(0, cue.offset), safeDuration);
     } catch (error) {
       console.warn(`Audio cue '${cueId}' could not be played.`, error);
     }
@@ -270,8 +468,8 @@ export class AudioManager {
 
   private acquireVoice(cueId: AudioCueId, cue: AudioCueDefinition): Voice {
     const context = this.context;
-    const bus = cue.bus === "ambience" ? this.ambienceGain : this.sfxGain;
-    if (!context || !bus) {
+    const gains = this.busGains();
+    if (!context || !gains) {
       throw new Error("Audio graph is not ready.");
     }
     let pool = this.voicePools.get(cueId);
@@ -293,49 +491,94 @@ export class AudioManager {
         panner.maxDistance = 28;
         panner.rolloffFactor = 1.15;
         gain.connect(panner);
-        panner.connect(bus);
+        connectBus(panner, cue.bus, gains);
       } else {
-        gain.connect(bus);
+        connectBus(gain, cue.bus, gains);
       }
-      const voice: Voice = { source: null, gain, panner, startedAt: -Infinity };
+      const voice: Voice = { source: null, gain, panner, startedAt: 0 };
       pool.push(voice);
       return voice;
     }
     return pool.reduce((oldest, voice) => voice.startedAt < oldest.startedAt ? voice : oldest);
   }
 
-  private async startAmbienceCue(cueId: AudioCueId): Promise<void> {
+  private async startLoopCue(cueId: AudioCueId, position?: AudioPosition): Promise<void> {
     const context = this.context;
     const cue = cues[cueId];
-    if (!context || !this.ambienceGain || !this.ambienceRequested || this.ambienceSources.has(cueId) || !cue.loop) {
+    const gains = this.busGains();
+    if (!context || !gains || !cue?.loop) {
+      return;
+    }
+    const existing = this.loops.get(cueId);
+    const resolved = finitePosition(position);
+    if (existing) {
+      if (existing.panner && resolved) {
+        this.applyPannerPosition(existing.panner, resolved, context.currentTime);
+      }
       return;
     }
     try {
       const buffer = await this.loadBuffer(cue.sourceId);
-      if (!this.ambienceRequested || context.state !== "running" || this.ambienceSources.has(cueId)) {
+      if (this.loops.has(cueId) || context.state !== "running") {
+        return;
+      }
+      const isMusic = cue.bus === "music";
+      if (!this.ambienceRequested && !this.actionLoops.has(cueId) && !isMusic) {
         return;
       }
       const source = context.createBufferSource();
       const gain = context.createGain();
+      const panner = cue.spatial ? context.createPanner() : null;
       source.buffer = buffer;
       source.loop = true;
-      source.loopStart = cue.offset;
+      source.loopStart = Math.max(0, cue.offset);
       source.loopEnd = Math.min(buffer.duration, cue.offset + cue.duration);
-      gain.gain.setValueAtTime(0, context.currentTime);
-      gain.gain.linearRampToValueAtTime(cue.gain, context.currentTime + 1.2);
+      setAudioParamNow(gain.gain, 0, context.currentTime, 0);
+      const fadeSeconds = this.actionLoops.has(cueId) ? 0.12 : isMusic ? 2.6 : 1.2;
+      gain.gain.linearRampToValueAtTime(cue.gain, context.currentTime + fadeSeconds);
       source.connect(gain);
-      gain.connect(this.ambienceGain);
+      if (panner) {
+        panner.panningModel = "HRTF";
+        panner.distanceModel = "inverse";
+        panner.refDistance = 3.4;
+        panner.maxDistance = 42;
+        panner.rolloffFactor = 1.05;
+        gain.connect(panner);
+        connectBus(panner, cue.bus, gains);
+        if (resolved) {
+          this.applyPannerPosition(panner, resolved, context.currentTime);
+        }
+      } else {
+        connectBus(gain, cue.bus, gains);
+      }
       source.onended = () => {
         source.disconnect();
         gain.disconnect();
-        if (this.ambienceSources.get(cueId) === source) {
-          this.ambienceSources.delete(cueId);
+        panner?.disconnect();
+        if (this.loops.get(cueId)?.source === source) {
+          this.loops.delete(cueId);
         }
       };
-      this.ambienceSources.set(cueId, source);
-      source.start(0, cue.offset);
+      this.loops.set(cueId, { source, gain, panner });
+      source.start(0, Math.max(0, cue.offset));
     } catch (error) {
       console.warn(`Ambience cue '${cueId}' could not be started.`, error);
+    }
+  }
+
+  private stopLoopCue(cueId: AudioCueId): void {
+    const voice = this.loops.get(cueId);
+    if (!voice || !this.context) {
+      return;
+    }
+    this.loops.delete(cueId);
+    try {
+      const now = this.context.currentTime;
+      voice.gain.gain.cancelScheduledValues(now);
+      voice.gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      voice.source.stop(now + 0.4);
+    } catch {
+      // A source may have already ended while the page was hidden.
     }
   }
 }

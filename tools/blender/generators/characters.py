@@ -1267,3 +1267,175 @@ def fauna_chicken(spec: dict, root) -> None:
         (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
     ])
     add_collision_primitives(spec, root)
+
+
+def fauna_rabbit(spec: dict, root) -> None:
+    """Faceted meadow rabbit with idle, look, and hop clips."""
+    params = spec["parameters"]
+    fur, dark, pink = spec["palette"][:3]
+    s = params.get("scale", 0.55)
+    ear = params.get("earLength", 1.0)
+    add_ico("rabbit_body", (0, 0.04 * s, 0.22 * s), (0.16 * s, 0.24 * s, 0.14 * s), fur, root, subdivisions=1)
+    add_ico("rabbit_haunch", (0, 0.14 * s, 0.2 * s), (0.14 * s, 0.12 * s, 0.12 * s), fur, root, subdivisions=1)
+    add_ico("rabbit_head", (0, -0.18 * s, 0.32 * s), (0.11 * s, 0.12 * s, 0.11 * s), fur, root, subdivisions=1)
+    add_ico("rabbit_muzzle", (0, -0.28 * s, 0.28 * s), (0.06 * s, 0.06 * s, 0.05 * s), pink, root, subdivisions=1)
+    add_ico("rabbit_eye_left", (-0.06 * s, -0.22 * s, 0.36 * s), (0.016 * s, 0.016 * s, 0.016 * s), dark, root, subdivisions=1)
+    add_ico("rabbit_eye_right", (0.06 * s, -0.22 * s, 0.36 * s), (0.016 * s, 0.016 * s, 0.016 * s), dark, root, subdivisions=1)
+    for side, sign in (("left", -1), ("right", 1)):
+        add_box(
+            f"rabbit_ear_{side}",
+            (sign * 0.05 * s, -0.16 * s, 0.48 * s),
+            (0.04 * s, 0.05 * s, 0.18 * s * ear),
+            fur,
+            root,
+            rotation=(math.radians(-12), 0, sign * math.radians(8)),
+            bevel=0.0,
+        )
+        add_box(
+            f"rabbit_foreleg_{side}",
+            (sign * 0.06 * s, -0.08 * s, 0.08 * s),
+            (0.05 * s, 0.05 * s, 0.12 * s),
+            fur,
+            root,
+            bevel=0.0,
+        )
+        add_box(
+            f"rabbit_hindleg_{side}",
+            (sign * 0.07 * s, 0.12 * s, 0.09 * s),
+            (0.07 * s, 0.08 * s, 0.14 * s),
+            fur,
+            root,
+            bevel=0.0,
+        )
+    add_tapered_beam("rabbit_tail", (0, 0.24 * s, 0.24 * s), (0, 0.3 * s, 0.28 * s), 0.03 * s, 0.04 * s, fur, root, vertices=5)
+    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
+    head_pivot = _fauna_motion_node(f"{spec['id']}_head_pivot", motion_root, (0.0, -0.16 * s, 0.3 * s))
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not root:
+            continue
+        if obj.name.startswith(("rabbit_head", "rabbit_muzzle", "rabbit_eye", "rabbit_ear")):
+            _reparent_preserving_world(obj, head_pivot)
+        else:
+            _reparent_preserving_world(obj, motion_root)
+    consolidate_lod_level(motion_root, f"{spec['id']}_body")
+    consolidate_lod_level(head_pivot, f"{spec['id']}_head")
+    _author_fauna_action(spec, "idle", motion_root, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.7, (math.radians(2), 0.0, 0.0), (0.0, 0.0, 0.01 * s)),
+        (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "look", head_pivot, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.4, (math.radians(-6), 0.0, math.radians(-18)), (0.0, 0.0, 0.0)),
+        (0.8, (math.radians(-4), 0.0, math.radians(16)), (0.0, 0.0, 0.0)),
+        (1.2, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "hop", motion_root, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.16, (math.radians(-8), 0.0, 0.0), (0.0, -0.04 * s, 0.08 * s)),
+        (0.32, (math.radians(6), 0.0, 0.0), (0.0, 0.0, 0.12 * s)),
+        (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    add_collision_primitives(spec, root)
+
+
+def fauna_gull(spec: dict, root) -> None:
+    """Coastal gull with flap and glide wing clips."""
+    params = spec["parameters"]
+    body_token, wing_token, beak_token = spec["palette"][:3]
+    s = params.get("scale", 0.7)
+    wing_span = params.get("wingSpan", 1.0)
+    add_ico("gull_body", (0, 0, 0.04 * s), (0.1 * s, 0.22 * s, 0.08 * s), body_token, root, subdivisions=1)
+    add_ico("gull_chest", (0, -0.06 * s, 0.02 * s), (0.08 * s, 0.1 * s, 0.07 * s), body_token, root, subdivisions=1)
+    add_ico("gull_head", (0, -0.22 * s, 0.08 * s), (0.06 * s, 0.07 * s, 0.06 * s), body_token, root, subdivisions=1)
+    add_cone("gull_beak", (0, -0.3 * s, 0.06 * s), 0.018 * s, 0.006 * s, 0.08 * s, beak_token, root, vertices=4, rotation=(math.pi / 2, 0, 0))
+    add_tapered_beam("gull_tail", (0, 0.2 * s, 0.04 * s), (0, 0.34 * s, 0.02 * s), 0.05 * s, 0.02 * s, body_token, root, vertices=4)
+    for side, sign in (("left", -1), ("right", 1)):
+        add_box(
+            f"gull_wing_{side}",
+            (sign * 0.22 * s * wing_span, 0.02 * s, 0.06 * s),
+            (0.32 * s * wing_span, 0.08 * s, 0.03 * s),
+            wing_token,
+            root,
+            bevel=0.0,
+        )
+    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
+    wing_left = _fauna_motion_node(f"{spec['id']}_wing_left_pivot", motion_root, (-0.08 * s, 0.0, 0.05 * s))
+    wing_right = _fauna_motion_node(f"{spec['id']}_wing_right_pivot", motion_root, (0.08 * s, 0.0, 0.05 * s))
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not root:
+            continue
+        if obj.name == "gull_wing_left":
+            _reparent_preserving_world(obj, wing_left)
+        elif obj.name == "gull_wing_right":
+            _reparent_preserving_world(obj, wing_right)
+        else:
+            _reparent_preserving_world(obj, motion_root)
+    consolidate_lod_level(motion_root, f"{spec['id']}_body")
+    consolidate_lod_level(wing_left, f"{spec['id']}_wing_left")
+    consolidate_lod_level(wing_right, f"{spec['id']}_wing_right")
+    _author_fauna_action(spec, "glide", motion_root, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.8, (math.radians(2), 0.0, 0.0), (0.0, 0.0, 0.012 * s)),
+        (1.6, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "flap", wing_left, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.12, (0.0, 0.0, math.radians(-38)), (0.0, 0.0, 0.0)),
+        (0.24, (0.0, 0.0, math.radians(22)), (0.0, 0.0, 0.0)),
+        (0.36, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "flap", wing_right, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.12, (0.0, 0.0, math.radians(38)), (0.0, 0.0, 0.0)),
+        (0.24, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
+        (0.36, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    add_collision_primitives(spec, root)
+
+
+def fauna_butterfly(spec: dict, root) -> None:
+    """Meadow butterfly with a flap clip on paired wings."""
+    params = spec["parameters"]
+    body_token, wing_token, accent_token = spec["palette"][:3]
+    s = params.get("scale", 0.45)
+    wing_span = params.get("wingSpan", 1.0)
+    add_cylinder("butterfly_body", (0, 0, 0.02 * s), 0.016 * s, 0.1 * s, body_token, root, vertices=5, rotation=(math.pi / 2, 0, 0))
+    add_ico("butterfly_head", (0, -0.055 * s, 0.028 * s), (0.02 * s, 0.02 * s, 0.02 * s), body_token, root, subdivisions=1)
+    for side, sign in (("left", -1), ("right", 1)):
+        add_tri_prism(
+            f"butterfly_wing_{side}",
+            (sign * 0.08 * s * wing_span, 0.0, 0.03 * s),
+            (0.14 * s * wing_span, 0.08 * s, 0.016 * s),
+            wing_token if sign < 0 else accent_token,
+            root,
+            rotation=(0, sign * math.radians(12), sign * math.radians(8)),
+        )
+    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
+    wing_left = _fauna_motion_node(f"{spec['id']}_wing_left_pivot", motion_root, (-0.02 * s, 0.0, 0.02 * s))
+    wing_right = _fauna_motion_node(f"{spec['id']}_wing_right_pivot", motion_root, (0.02 * s, 0.0, 0.02 * s))
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH" or obj.parent is not root:
+            continue
+        if obj.name == "butterfly_wing_left":
+            _reparent_preserving_world(obj, wing_left)
+        elif obj.name == "butterfly_wing_right":
+            _reparent_preserving_world(obj, wing_right)
+        else:
+            _reparent_preserving_world(obj, motion_root)
+    consolidate_lod_level(motion_root, f"{spec['id']}_body")
+    consolidate_lod_level(wing_left, f"{spec['id']}_wing_left")
+    consolidate_lod_level(wing_right, f"{spec['id']}_wing_right")
+    _author_fauna_action(spec, "flap", wing_left, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.08, (0.0, 0.0, math.radians(-50)), (0.0, 0.0, 0.0)),
+        (0.16, (0.0, 0.0, math.radians(18)), (0.0, 0.0, 0.0)),
+        (0.24, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    _author_fauna_action(spec, "flap", wing_right, [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        (0.08, (0.0, 0.0, math.radians(50)), (0.0, 0.0, 0.0)),
+        (0.16, (0.0, 0.0, math.radians(-18)), (0.0, 0.0, 0.0)),
+        (0.24, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    ])
+    add_collision_primitives(spec, root)

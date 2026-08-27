@@ -3,7 +3,9 @@ import React from "react";
 import { GameState } from "../../simulation/core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../../simulation/inventory/InventoryManager";
-import { IconSprout } from "./HudIcons";
+import { AtlasImage } from "../chrome/AtlasImage";
+import { atlasForSeedItem } from "../chrome/uiAtlas";
+import { ChromeButton, ChromeKeycap, ChromePanel, ChromeSlot } from "../chrome/Chrome";
 
 interface PlantingSeedBarProps {
   state: GameState;
@@ -21,7 +23,6 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   const playerInv = state.inventories[state.player.inventoryId];
   if (!playerInv) return null;
 
-  // Find all seed items player owns
   const availableSeeds = Array.from(ContentRegistry.crops.values()).map((crop) => {
     const seedItem = ContentRegistry.items.get(crop.seedItemId);
     const count = seedItem ? InventoryManager.getItemCount(playerInv, seedItem.id) : 0;
@@ -33,66 +34,50 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
 
   const selectedCrop = selectedCropId ? ContentRegistry.crops.get(selectedCropId) : availableSeeds[0]?.crop;
 
-  return (
-    <div className="planting-dock interactive" role="toolbar" aria-label="Seed planting toolbar">
-      <div className="planting-dock-shell">
-        <header className="planting-dock-header">
-          <div className="planting-header-left">
-            <IconSprout size={16} />
-            <span className="planting-header-title">PLANT SEEDS</span>
-          </div>
-          <div className="planting-header-hints">
-            <button type="button" className="neva-button neva-button-secondary" style={{ padding: "2px 8px", fontSize: "11px" }} onClick={onCancel} title="Cancel Planting (ESC)">
-              ✕ Cancel
-            </button>
-            <span className="planting-hint-chip"><kbd>LMB</kbd> Plant</span>
-          </div>
-        </header>
+  if (availableSeeds.length === 0) {
+    return (
+      <div className="planting-dock interactive" role="status" aria-label="No seeds">
+        <p className="planting-no-seeds chrome-panel chrome-panel--slate" data-testid="planting-empty">No seeds in backpack.</p>
+      </div>
+    );
+  }
 
+  return (
+    <div className="planting-dock interactive" role="toolbar" aria-label="Choose a seed">
+      <ChromePanel tone="slate" flourish corners className="planting-dock-shell" data-testid="planting-seed-dock">
         <div className="planting-seeds-row">
-          {availableSeeds.length === 0 ? (
-            <div className="planting-no-seeds">
-              <span>No seeds in backpack. Purchase seeds at the Village Market.</span>
-            </div>
-          ) : (
-            availableSeeds.map(({ crop, count }) => {
-              const isSelected = selectedCrop?.id === crop.id;
-              return (
-                <button
-                  key={crop.id}
-                  type="button"
-                  className={`planting-seed-card ${isSelected ? "is-selected" : ""}`}
-                  onClick={() => onSelectCrop(crop.id)}
-                >
-                  <span className="seed-name">{crop.name}</span>
-                  <span className="seed-count">{count}×</span>
-                </button>
-              );
-            })
-          )}
+          {availableSeeds.map(({ crop, count }) => {
+            const isSelected = selectedCrop?.id === crop.id;
+            return (
+              <ChromeSlot
+                key={crop.id}
+                filled
+                quantity={count}
+                selected={isSelected}
+                className={`planting-seed-card ${isSelected ? "is-selected" : ""}`}
+                soundCue="cloth"
+                onSelect={() => onSelectCrop(crop.id)}
+                label={`${crop.name}, ${count} seeds`}
+              >
+                <AtlasImage src={atlasForSeedItem(crop.seedItemId)} alt="" size={28} />
+              </ChromeSlot>
+            );
+          })}
+          <div className="planting-dock-actions">
+            <ChromeButton onClick={onCancel} title="Cancel Planting (ESC)">
+              Cancel
+            </ChromeButton>
+            <span className="planting-hint-chip"><ChromeKeycap keyName="LMB" /> Place</span>
+          </div>
         </div>
 
         {selectedCrop && (
           <footer className="planting-dock-meta">
-            <div className="planting-meta-group">
-              <span className="meta-label">Selected:</span>
-              <strong className="meta-value">{selectedCrop.name}</strong>
-            </div>
-            <div className="planting-meta-group">
-              <span className="meta-label">Est. Growth:</span>
-              <span className="meta-value">{Math.round(selectedCrop.baseGrowthMinutes / 60)}h</span>
-            </div>
-            <div className="planting-meta-group">
-              <span className="meta-label">Est. Yield:</span>
-              <span className="meta-value">{selectedCrop.baseYield.min}–{selectedCrop.baseYield.max} units</span>
-            </div>
-            <div className="planting-meta-group">
-              <span className="meta-label">Preferred Climate:</span>
-              <span className="meta-value">{selectedCrop.preferredClimates.join(", ")}</span>
-            </div>
+            <strong className="meta-value">{selectedCrop.name}</strong>
+            <span className="meta-value">Likes: {selectedCrop.preferredClimates.join(", ")}</span>
           </footer>
         )}
-      </div>
+      </ChromePanel>
     </div>
   );
 };

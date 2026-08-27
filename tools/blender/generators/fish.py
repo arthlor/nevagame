@@ -7,7 +7,7 @@ import math
 import bmesh
 import bpy
 
-from common.geometry import add_ico, add_ring, add_tri_prism, apply_vertex_values
+from common.geometry import add_ico, add_tri_prism, apply_vertex_values
 from common.materials import get_or_create_material
 
 
@@ -227,7 +227,7 @@ def stylized_fish(spec: dict, root) -> None:
         eye_y = -length * (0.37 if species == "trout" else 0.39)
         eye_z = height * (0.36 if species == "trout" else 0.32)
         eye_x = x * (0.76 if species == "trout" else 0.83)
-        eye_r = girth * (0.16 if species == "trout" else 0.12)
+        eye_r = girth * (0.14 if species == "trout" else 0.10)
         eye_d = eye_r * 0.75
         add_ico(
             f"{species}_eye_{side}",
@@ -236,17 +236,6 @@ def stylized_fish(spec: dict, root) -> None:
             dorsal,
             root,
             subdivisions=1,
-        )
-        add_ring(
-            f"{species}_eye_rim_{side}",
-            (eye_x * 1.02, eye_y, eye_z),
-            eye_r * 1.3,
-            eye_r * 0.25,
-            accent,
-            root,
-            major_segments=8,
-            minor_segments=4,
-            rotation=(0, math.pi / 2, 0),
         )
         add_ico(
             f"{species}_gill_plate_{side}",

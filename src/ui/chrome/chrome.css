@@ -1,0 +1,1750 @@
+/* NEVA chrome kit — parchment, brass rivets, serif titles, navy actions.
+   Tokens live in styles.css :root. This file owns primitive classes. */
+
+.atlas-image,
+.hud-atlas-icon {
+  display: block;
+  object-fit: contain;
+  image-rendering: auto;
+  pointer-events: none;
+}
+
+.quest-corner-tl,
+.quest-corner-br,
+.chrome-flourish {
+  display: block !important;
+}
+
+.chrome-panel {
+  position: relative;
+  box-sizing: border-box;
+  color: var(--mm-text-ivory);
+  filter: none;
+  text-shadow: none;
+}
+
+.chrome-panel--slate,
+.chrome-panel--plaque {
+  color: var(--mm-text-ivory);
+  background-color: var(--mm-slate-glass);
+  background-image: linear-gradient(180deg, rgba(22, 30, 42, 0.96) 0%, rgba(12, 16, 23, 0.96) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid var(--mm-timber-mid);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.35),
+    inset 0 0 0 2.5px rgba(20, 14, 10, 0.8),
+    0 0 0 1px #805e26,
+    var(--mm-shadow-modal);
+}
+
+.chrome-panel--scroll {
+  color: var(--ui-ink);
+  background-color: var(--ui-paper-light);
+  background-image: var(--chrome-grain);
+  background-size: 220px 220px;
+  background-repeat: repeat;
+  border: 2px solid var(--mm-gold-leaf);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 2px var(--chrome-frame),
+    inset 0 0 16px rgba(107, 68, 40, 0.12),
+    var(--mm-shadow-panel);
+}
+
+.chrome-panel--timber {
+  color: var(--mm-text-ivory);
+  background-color: var(--mm-timber-dark);
+  background-image: linear-gradient(180deg, rgba(42, 28, 20, 0.96), rgba(23, 15, 10, 0.98)), var(--chrome-grain);
+  background-size: auto, 220px 220px;
+  border: 2px solid #4a3224;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1.5px #18100b,
+    inset 0 0 0 3px #6b4428,
+    0 0 0 1px #805e26,
+    var(--mm-shadow-modal);
+}
+
+.chrome-panel--dock {
+  color: var(--mm-text-ivory);
+  background-color: var(--mm-slate-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(212, 175, 55, 0.35);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    var(--mm-shadow-panel);
+}
+
+.chrome-panel--ghost {
+  color: var(--mm-text-ivory);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.chrome-wax-seal {
+  position: absolute;
+  top: -12px;
+  right: 18px;
+  z-index: 12;
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+.chrome-wax-seal:hover {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+.chrome-ribbon-banner {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #991b1b 0%, #5f0f0f 100%);
+  color: #fff4d6;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 20px;
+  border: 1.5px solid var(--mm-gold-leaf);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  z-index: 10;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.chrome-rivet {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff2be, #d4af37 55%, #6a4a24);
+  border: 1px solid #1b120c;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.chrome-rivet--tl { top: 2px; left: 2px; }
+.chrome-rivet--tr { top: 2px; right: 2px; }
+.chrome-rivet--bl { bottom: 2px; left: 2px; }
+.chrome-rivet--br { bottom: 2px; right: 2px; }
+
+.chrome-flourish {
+  position: absolute;
+  z-index: 4;
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.chrome-flourish--tl { top: -2px; left: -2px; }
+.chrome-flourish--tr { top: -2px; right: -2px; }
+.chrome-flourish--bl { bottom: -2px; left: -2px; }
+.chrome-flourish--br { right: -2px; bottom: -2px; }
+
+.chrome-flourish .atlas-image {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  opacity: 0.94;
+}
+
+.chrome-flourish--tl .atlas-image {
+  transform: scaleY(-1);
+  margin: -3px 0 0 -4px;
+}
+
+.chrome-flourish--br .atlas-image {
+  transform: scaleX(-1);
+  margin: 0 -4px -3px 0;
+}
+
+.chrome-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.chrome-divider span {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--mm-gold-leaf) 50%, transparent);
+}
+
+.chrome-divider i {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--mm-gold-leaf);
+  border: 1px solid #1b120c;
+  box-shadow: 0 0 6px var(--mm-gold-glow);
+}
+
+.neva-button,
+.start-screen__secondary-button,
+.start-screen__option-button,
+.comm-sell-btn,
+.fishing-btn {
+  font-family: var(--font-serif);
+  letter-spacing: 0.03em;
+  text-transform: none;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 100ms cubic-bezier(0.2, 0, 0, 1), filter 100ms ease, box-shadow 100ms ease, border-color 100ms ease, background 100ms ease;
+  outline: none;
+}
+
+.neva-button:hover,
+.start-screen__secondary-button:hover,
+.start-screen__option-button:hover,
+.comm-sell-btn:hover,
+.fishing-btn:hover {
+  transform: scale(1.02);
+}
+
+.neva-button:active,
+.start-screen__button:active,
+.start-screen__secondary-button:active,
+.dialogue-action-btn:active,
+.quickbar-wood-slot:active,
+.inventory-slot:active,
+.planting-seed-card:active,
+.comm-sell-btn:active,
+.fishing-btn:active {
+  transform: scale(0.98) translateY(1px);
+  filter: brightness(0.92);
+}
+
+.neva-button--sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.neva-button--md {
+  padding: 6px 14px;
+  font-size: 13.5px;
+}
+
+.neva-button--lg {
+  padding: 8px 18px;
+  font-size: 15px;
+}
+
+.neva-button-primary,
+.neva-button-teal,
+.start-screen__button,
+.start-screen__button--dialog,
+.dialogue-action-btn {
+  color: var(--mm-gold-bright);
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 1.5px solid var(--mm-gold-leaf);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(240, 221, 154, 0.3), 0 3px 6px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-serif);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.neva-button-primary:hover,
+.neva-button-teal:hover,
+.start-screen__button:hover {
+  background: linear-gradient(180deg, #28374d 0%, #152035 100%);
+  border-color: #fff2be;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 12px var(--mm-gold-glow);
+}
+
+.neva-button-secondary,
+.start-screen__secondary-button,
+.start-screen__option-button {
+  color: var(--mm-text-ivory);
+  background: linear-gradient(180deg, rgba(34, 46, 62, 0.9) 0%, rgba(18, 25, 36, 0.9) 100%);
+  border: 1.5px solid rgba(212, 175, 55, 0.45);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 5px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-serif);
+  font-weight: 600;
+  text-shadow: none;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.neva-button-secondary:hover,
+.start-screen__secondary-button:hover {
+  background: linear-gradient(180deg, rgba(46, 62, 84, 0.95) 0%, rgba(26, 36, 52, 0.95) 100%);
+  border-color: var(--mm-gold-bright);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.35);
+}
+
+.neva-button-gold {
+  color: #241404;
+  background: linear-gradient(180deg, #ffe17d 0%, #d4af37 55%, #aa820a 100%);
+  border: 1.5px solid #6b4428;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 3px 6px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.neva-button-gold:hover {
+  background: linear-gradient(180deg, #ffea9f 0%, #e5be42 55%, #c49915 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 0 14px var(--mm-gold-glow);
+}
+
+.neva-button-danger {
+  color: #fff5f5;
+  background: linear-gradient(180deg, #991b1b 0%, #6b1010 100%);
+  border: 1.5px solid var(--mm-gold-leaf);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 200, 0.25), 0 3px 6px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-serif);
+  cursor: pointer;
+}
+
+.neva-button-danger:hover {
+  background: linear-gradient(180deg, #b91c1c 0%, #831414 100%);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.neva-button-ghost {
+  color: var(--mm-text-muted);
+  background: transparent;
+  border: 1px dashed rgba(212, 175, 55, 0.35);
+  border-radius: 4px;
+  font-family: var(--font-serif);
+  cursor: pointer;
+}
+
+.neva-button-ghost:hover {
+  color: var(--mm-text-ivory);
+  background: rgba(212, 175, 55, 0.12);
+  border-color: var(--mm-gold-leaf);
+}
+
+.chrome-alert--guild {
+  color: var(--mm-text-gold);
+  background: linear-gradient(180deg, rgba(34, 46, 62, 0.96) 0%, rgba(20, 28, 38, 0.96) 100%);
+  border: 1.5px solid var(--mm-gold-leaf);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.2), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.chrome-alert--success {
+  color: #a7f3d0;
+  background: linear-gradient(180deg, rgba(6, 78, 59, 0.95) 0%, rgba(4, 47, 36, 0.95) 100%);
+  border: 1.5px solid #10b981;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.chrome-meter--gold .chrome-meter-track span {
+  background: linear-gradient(90deg, #aa820a 0%, #d4af37 50%, #fff0a8 100%);
+  box-shadow: 0 0 8px var(--mm-gold-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.chrome-meter--stamina .chrome-meter-track span {
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 50%, #38bdf8 100%);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.start-screen__dialog,
+.start-screen__dialog h2,
+.start-screen__dialog-copy,
+.start-screen__dialog-kicker,
+.start-screen__options-section h3,
+.start-screen__options .audio-settings h5,
+.start-screen__controls-grid > span {
+  color: var(--ui-ink) !important;
+  text-shadow: none !important;
+}
+
+.start-screen__dialog-kicker {
+  color: var(--ui-brass) !important;
+}
+
+.start-screen__dialog-header,
+.start-screen__options .audio-settings,
+.start-screen__options-section {
+  border-color: var(--ui-rule-light) !important;
+}
+
+.start-screen__options .audio-settings-row label,
+.start-screen__option-note,
+.start-screen__option-message,
+.start-screen__controls-grid > span {
+  color: var(--ui-ink-soft) !important;
+}
+
+.start-screen__option-button {
+  color: var(--ui-ink) !important;
+  background: var(--ui-paper-light) !important;
+  border: 1px solid var(--chrome-frame) !important;
+  font-family: var(--font-serif) !important;
+}
+
+.start-screen__option-button:hover {
+  color: var(--chrome-navy) !important;
+  border-color: var(--ui-brass) !important;
+}
+
+.start-screen__controls-grid kbd {
+  color: var(--ui-ink) !important;
+  background: var(--ui-paper-light) !important;
+  border-color: var(--chrome-frame) !important;
+}
+
+.neva-button-primary:hover,
+.neva-button-teal:hover,
+.start-screen__button:hover,
+.dialogue-action-btn:hover,
+.neva-button-primary:focus-visible,
+.start-screen__button:focus-visible {
+  color: #fffaf0;
+  background: linear-gradient(#4a6580, #35506a);
+  box-shadow: 0 0 0 2px rgba(90, 170, 190, 0.35), 0 2px 0 #1c2a38;
+}
+
+.neva-button:disabled,
+.start-screen__button:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}
+
+.chrome-close,
+.forecast-close-btn,
+.map-close-btn,
+.ledger-close-btn,
+.market-close-btn,
+.dialogue-close-btn,
+.catch-summary-close,
+.crop-inspection-close-btn,
+.hint-card-close-btn,
+.start-screen__dialog-close {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--mm-text-gold);
+  background: radial-gradient(circle at 35% 30%, #2a374a 0%, #101722 100%);
+  border: 1.5px solid var(--mm-gold-leaf);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(240, 221, 154, 0.3), 0 2px 6px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.chrome-close-mark {
+  display: block;
+  font-weight: 700;
+  transform: translateY(-0.5px);
+}
+
+.chrome-close:hover,
+.forecast-close-btn:hover,
+.map-close-btn:hover,
+.ledger-close-btn:hover,
+.market-close-btn:hover,
+.dialogue-close-btn:hover,
+.catch-summary-close:hover,
+.crop-inspection-close-btn:hover,
+.hint-card-close-btn:hover,
+.start-screen__dialog-close:hover {
+  color: #ffffff;
+  border-color: #fff2be;
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: inset 0 0 0 1px #fff2be, 0 0 12px var(--mm-gold-glow);
+}
+
+.chrome-close:active,
+.forecast-close-btn:active,
+.map-close-btn:active,
+.ledger-close-btn:active,
+.market-close-btn:active,
+.dialogue-close-btn:active,
+.catch-summary-close:active,
+.crop-inspection-close-btn:active,
+.hint-card-close-btn:active,
+.start-screen__dialog-close:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+.hud-keycap-badge,
+.chrome-keycap,
+kbd,
+.hud-embossed-keycap {
+  display: inline-flex;
+  min-width: 20px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  color: var(--mm-text-gold);
+  background: linear-gradient(180deg, #2c394b 0%, #151d28 100%);
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  border-bottom: 2.5px solid #7a5418;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+}
+
+.hud-keycap-badge.is-glowing,
+.chrome-keycap.is-glowing,
+.hud-embossed-keycap.is-glowing {
+  border-color: #fff2be;
+  box-shadow: 0 0 8px var(--mm-gold-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.chrome-meter-head,
+.hud-context-note-heading,
+.boat-meter-row,
+.sprint-stamina-label,
+.farming-action-header,
+.fishing-meter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-family: var(--font-serif);
+  letter-spacing: 0.02em;
+  color: var(--mm-text-muted);
+}
+
+.chrome-meter-value,
+.boat-meter-val,
+.farming-action-pct {
+  margin-left: auto;
+  color: var(--mm-text-ivory);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.chrome-meter-track,
+.hud-context-meter,
+.cargo-freshness-track,
+.boat-bar-track,
+.sprint-stamina-track,
+.farming-action-track,
+.quest-progress-bar,
+.stamina-bar-track,
+.catch-progress-track,
+.cast-power-bar-track {
+  height: 8px !important;
+  overflow: hidden;
+  background: rgba(10, 14, 20, 0.85) !important;
+  border: 1.5px solid #4a3224;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(212, 175, 55, 0.2);
+}
+
+.chrome-meter-track span,
+.hud-context-meter span,
+.boat-bar-fill,
+.sprint-stamina-track span,
+.farming-action-fill,
+.quest-progress-fill,
+.stamina-bar-fill,
+.catch-progress-fill,
+.cast-power-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 1.5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.chrome-meter--vertical {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 4px;
+  width: 22px;
+}
+
+.chrome-meter--vertical .chrome-meter-head {
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+}
+
+.chrome-meter--vertical .chrome-meter-track {
+  width: 12px;
+  height: 76px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 3px;
+}
+
+.chrome-meter--vertical .chrome-meter-track span {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
+
+.chrome-meter--icon .chrome-meter-head {
+  padding: 0;
+}
+
+.chrome-meter--labor .chrome-meter-track span,
+.hud-labor-note .hud-context-meter span {
+  background: linear-gradient(90deg, #059669 0%, #10b981 50%, #34d399 100%);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.chrome-meter--sprint .chrome-meter-track span,
+.sprint-stamina-wood .sprint-stamina-track span {
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 50%, #38bdf8 100%);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.chrome-meter--hull .chrome-meter-track span,
+.boat-bar-fill {
+  background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #2dd4bf 100%);
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.chrome-meter--fishing .chrome-meter-track span,
+.stamina-bar-fill {
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #7dd3fc 100%);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.chrome-meter--danger .chrome-meter-track span,
+.boat-bar-fill.is-low {
+  background: linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #f87171 100%);
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.chrome-slot,
+.inventory-slot,
+.planting-seed-card,
+.boat-cargo-slot,
+.quickbar-wood-slot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--mm-well-slate);
+  border: 1.5px solid rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+  box-shadow: var(--mm-well-shadow);
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 100ms ease;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.chrome-slot:hover,
+.inventory-slot:hover,
+.planting-seed-card:hover,
+.boat-cargo-slot:hover,
+.quickbar-wood-slot:hover {
+  border-color: var(--mm-gold-bright);
+  box-shadow: var(--mm-well-shadow), 0 0 10px var(--mm-gold-glow);
+  transform: translateY(-1px);
+}
+
+.chrome-slot.is-selected,
+.inventory-slot.selected,
+.planting-seed-card.is-selected,
+.quickbar-wood-slot.is-active,
+.chrome-slot:active {
+  border-color: #fff2be;
+  box-shadow: var(--mm-well-shadow), 0 0 14px var(--mm-gold-glow), inset 0 0 0 1px var(--mm-gold-bright);
+  transform: scale(0.98);
+}
+
+.chrome-slot .atlas-image,
+.chrome-slot .hud-atlas-icon,
+.inventory-slot .atlas-image,
+.planting-seed-card .atlas-image,
+.quickbar-wood-slot .atlas-image,
+.boat-cargo-slot .atlas-image {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+}
+
+.chrome-slot-num {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--mm-text-gold);
+  text-shadow: 0 1px 2px #000000;
+  pointer-events: none;
+}
+
+.chrome-slot-qty,
+.slot-quantity,
+.seed-count {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  color: var(--mm-text-ivory);
+  font-size: 10px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px #000000;
+  pointer-events: none;
+}
+
+.chrome-slot-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  z-index: 2;
+}
+
+.chrome-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: capitalize;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--mm-text-ivory);
+}
+
+.chrome-quality--silver { color: #cbd5e1; }
+.chrome-quality--gold { color: var(--mm-text-gold); }
+.chrome-quality--iridium { color: #e879f9; }
+
+.chrome-quality .atlas-image {
+  width: 22px;
+  height: 22px;
+}
+
+.chrome-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.chrome-alert--caution {
+  color: #7a5210;
+  background: rgba(212, 176, 90, 0.22);
+  border: 1px solid rgba(122, 82, 16, 0.35);
+}
+
+.chrome-alert--danger {
+  color: #8c2214;
+  background: rgba(196, 96, 88, 0.18);
+  border: 1px solid rgba(140, 34, 20, 0.35);
+}
+
+/* Almanac */
+.hud-almanac-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-compass-dial {
+  flex: 0 0 auto;
+  color: var(--ui-leather);
+}
+
+.hud-almanac-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hud-season-text {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.hud-day-text,
+.hud-sea-text {
+  color: var(--ui-ink-soft);
+  font-size: 11px;
+}
+
+.hud-weather-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-alert-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.hud-chip {
+  padding: 2px 6px;
+  border: 1px solid var(--ui-rule);
+  border-radius: 2px;
+  color: var(--ui-ink-soft);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.hud-chip.is-alert {
+  color: var(--ui-red);
+  border-color: rgba(154, 87, 74, 0.45);
+  background: rgba(154, 87, 74, 0.08);
+}
+
+.hud-labor-meter {
+  width: 188px;
+  padding: 6px 8px;
+}
+
+.quest-act-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  color: #f8f1e4;
+  background: var(--ui-red);
+  border-radius: 0 2px 2px 0;
+  font-family: var(--font-serif);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quest-tracker-hud-wood.completed .quest-act-badge {
+  background: var(--ui-moss);
+}
+
+.start-screen h1 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.start-screen__tagline {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+.start-screen__button,
+.start-screen__secondary-button {
+  min-width: 280px;
+  justify-content: center;
+  border-radius: 3px !important;
+}
+
+.start-screen__progress {
+  width: 100%;
+  height: 12px;
+  border: 1.5px solid var(--chrome-frame);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ui-paper-deep);
+}
+
+.start-screen__progress::-webkit-progress-value,
+.start-screen__progress::-moz-progress-bar {
+  background: linear-gradient(90deg, #4a8c84, #2f6b73);
+}
+
+.dialogue-avatar {
+  width: 56px !important;
+  height: 56px !important;
+  overflow: hidden;
+  background: var(--ui-paper-deep) !important;
+  border: 1.5px solid var(--chrome-frame) !important;
+}
+
+.dialogue-avatar .atlas-image,
+.dialogue-avatar-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inventory-slot .atlas-image,
+.planting-seed-card .atlas-image,
+.boat-cargo-slot .atlas-image,
+.journal-fish-row .atlas-image,
+.crop-inspect-plate .atlas-image,
+.catch-summary .atlas-image,
+.fishing-fish-badge .atlas-image {
+  width: 36px;
+  height: 36px;
+}
+
+.gis-legend-item .atlas-image {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.crop-inspect-layout {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.crop-inspect-plate {
+  flex: 0 0 72px;
+}
+
+.crop-inspect-plate .atlas-image {
+  width: 72px;
+  height: 88px;
+}
+
+.farming-action-icon.atlas-image,
+.behavior-arrow.atlas-image {
+  width: 28px;
+  height: 28px;
+}
+
+.chrome-flourish.atlas-image,
+.chrome-flourish .atlas-image {
+  width: 32px;
+  height: 32px;
+}
+
+.hint-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+/* Basic fishing — parchment, not dark glass */
+.basic-fishing-container {
+  font-family: var(--font-sans);
+}
+
+.cast-power-card,
+.minigame-card,
+.catch-summary-card {
+  min-width: 240px;
+  padding: 14px 16px !important;
+  border-radius: 4px !important;
+}
+
+.cast-title,
+.minigame-species-name,
+.catch-summary-header,
+.catch-item-name {
+  color: var(--ui-ink) !important;
+  font-family: var(--font-serif);
+  letter-spacing: 0.04em;
+}
+
+.cast-power-percentage,
+.catch-item-name {
+  color: var(--ui-ink) !important;
+}
+
+.cast-hint,
+.minigame-footer-hint {
+  color: var(--ui-ink-soft) !important;
+}
+
+.bite-alert-banner {
+  padding: 10px 18px !important;
+  color: #8c2214 !important;
+  background: #f3d5c8 !important;
+  border: 2px solid #8c2214 !important;
+  box-shadow: var(--ui-shadow) !important;
+  border-radius: 4px !important;
+}
+
+.bite-text,
+.bite-exclamation {
+  color: #8c2214 !important;
+  font-family: var(--font-serif);
+}
+
+.water-track {
+  background: linear-gradient(#c5d8d4, #8eada6) !important;
+  border: 1px solid var(--chrome-frame);
+}
+
+.green-catch-bar {
+  background: rgba(102, 121, 85, 0.55) !important;
+  border: 1px solid #4e6b32;
+}
+
+.perfect-badge {
+  color: #f8f1e4 !important;
+  background: #2d4158 !important;
+  border: 1px solid var(--chrome-brass) !important;
+}
+
+.dismiss-button {
+  color: #f8f1e4 !important;
+  background: linear-gradient(#3a5168, #2d4158) !important;
+  border: 1.5px solid var(--chrome-brass) !important;
+  font-family: var(--font-serif);
+}
+
+.tension-gauge-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 15% 60% 25%;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid var(--chrome-frame);
+  border-radius: 2px;
+}
+
+.tension-slack-zone { background: #667955; }
+.tension-safe-zone { background: linear-gradient(90deg, #667955, #c4a46a); }
+.tension-danger-zone { background: #9a574a; }
+
+.tension-zone span {
+  display: none;
+}
+
+.tension-indicator {
+  position: absolute;
+  top: -2px;
+  width: 3px;
+  height: 18px;
+  background: var(--ui-ink);
+  border-radius: 1px;
+}
+
+.fishing-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pause-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.modal-heading-with-mark,
+.hud-season-text,
+.quest-title,
+.details-title,
+.dialogue-speaker-name,
+.market-modal-title,
+.map-title,
+.ledger-title,
+.pause-modal #pause-title,
+.journal-modal #journal-title,
+.expedition-modal #expedition-title {
+  font-family: var(--font-serif);
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+}
+
+.hud-gold-text,
+.hud-time-text,
+.chrome-meter-value,
+.hud-day-text,
+.comm-price,
+.arb-val {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.details-title,
+.seed-card-meta,
+.comm-left,
+.cargo-card-meta,
+.fish-row-left,
+.expedition-row strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comm-left {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.dismiss-secondary {
+  color: var(--ui-ink) !important;
+  background: var(--ui-paper-light) !important;
+  border: 1.5px solid var(--chrome-frame) !important;
+}
+
+.farming-action-status.action-plant .farming-action-fill { background: var(--ui-moss); }
+.farming-action-status.action-water .farming-action-fill { background: var(--ui-teal); }
+.farming-action-status.action-harvest .farming-action-fill { background: var(--ui-brass); }
+
+.inventory-grid {
+  gap: 6px;
+}
+
+.inventory-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-height: 52px;
+  padding: 6px;
+}
+
+.inventory-slot .slot-item-name,
+.inventory-slot .slot-empty-label {
+  display: none;
+}
+
+.chrome-panel--plaque {
+  animation: chrome-panel-enter 120ms ease-out;
+}
+
+@keyframes chrome-panel-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-panel--plaque,
+  .neva-button,
+  .start-screen__button,
+  .start-screen__secondary-button,
+  .quickbar-wood-slot,
+  .inventory-slot,
+  .planting-seed-card,
+  .dialogue-action-btn {
+    animation: none;
+    transition: none;
+  }
+
+  .neva-button:active,
+  .start-screen__button:active,
+  .quickbar-wood-slot:active,
+  .inventory-slot:active {
+    transform: none;
+    filter: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Game-feel layout: sparse HUD clusters, plaque modals, stamp CTAs            */
+/* -------------------------------------------------------------------------- */
+
+.hud-top-left-container {
+  width: min(220px, calc(100vw - 28px));
+}
+
+.hud-almanac-cluster.chrome-panel--dock {
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px 7px;
+}
+
+.hud-weather-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hud-almanac-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-almanac-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hud-season-text {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.hud-day-text {
+  color: var(--ui-ink-soft);
+  font-size: 11px;
+}
+
+.hud-weather-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ui-ink-soft);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-alert-chips {
+  display: none;
+}
+
+.hud-weather-metrics {
+  display: none;
+}
+
+.hud-journal-rule {
+  display: none;
+}
+
+.hud-weather-alert {
+  margin-top: 5px;
+}
+
+.forecast-popover.chrome-panel--dock {
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(248px, calc(100vw - 28px));
+  max-height: min(280px, 42vh);
+  overflow: auto;
+  padding: 10px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-brass) var(--ui-paper-deep);
+}
+
+.forecast-days-grid {
+  display: block;
+}
+
+.forecast-day-card,
+.forecast-day-card.is-today {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.forecast-footer-note {
+  margin-top: 8px;
+  color: var(--ui-ink-soft);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.hud-top-right-cluster > .hud-top-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  gap: 0;
+  padding: 2px 4px 2px 8px;
+  background: rgba(245, 242, 233, 0.92);
+  background-image: var(--chrome-grain);
+  border: 1px solid var(--ui-rule);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(44, 33, 24, 0.18);
+}
+
+.hud-purse-note {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.hud-menu-button.neva-button {
+  min-width: 34px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--ui-ink-soft);
+}
+
+.hud-menu-button .btn-icon {
+  display: none;
+}
+
+.quest-tracker-hud-wood.chrome-panel--ghost {
+  width: min(240px, calc(100vw - 36px));
+  margin-top: 8px;
+  padding: 2px 2px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ui-ink);
+  text-shadow: 0 1px 1px rgba(251, 247, 238, 0.92), 0 0 10px rgba(245, 242, 233, 0.55);
+}
+
+.quest-tracker-hud-wood .quest-tracker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.quest-open-horizons-title,
+.quest-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quest-epilogue-desc {
+  display: none;
+}
+
+.quest-tracker-hud-wood.collapsed .quest-title {
+  display: none;
+}
+
+.quest-tracker-hud-wood:not(.collapsed) .quest-objective-text {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.quest-collapse-toggle {
+  margin-left: auto;
+  color: var(--ui-ink-soft);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.quest-tracker-hud-wood.chrome-panel--ghost::after {
+  content: "";
+  display: block;
+  width: 42px;
+  height: 2px;
+  margin-top: 4px;
+  background: var(--ui-brass);
+  opacity: 0.7;
+}
+
+.hud-toast-container {
+  pointer-events: none;
+}
+
+.hud-toast-pill.chrome-panel--ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: var(--ui-ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  font-family: var(--font-serif);
+  font-size: 13px;
+}
+
+.hud-toast-pill.chrome-panel--ghost .toast-message-text {
+  border-bottom: 1px solid var(--ui-brass);
+  padding-bottom: 1px;
+}
+
+.hud-context-note.chrome-panel--ghost {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.hud-bottom-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.hud-tool-belt.chrome-panel--dock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px 8px 8px;
+}
+
+.hud-labor-meter {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.hud-tool-slots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quickbar-wood-slot.chrome-slot {
+  width: 42px;
+  height: 42px;
+  padding: 4px;
+  color: var(--ui-ink-soft);
+  background: rgba(44, 33, 24, 0.06);
+  border: 1px solid var(--ui-rule);
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.quickbar-wood-slot.is-active,
+.quickbar-wood-slot.is-selected {
+  color: var(--chrome-navy);
+  background: rgba(45, 65, 88, 0.12);
+  border-color: var(--chrome-brass);
+  box-shadow: inset 0 0 0 1px var(--chrome-brass);
+}
+
+.sprint-stamina-wood.chrome-meter {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.interaction-prompt.chrome-panel--ghost,
+.interaction-wood-banner.chrome-panel--ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.banner-text {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ui-ink);
+}
+
+.planting-dock {
+  left: 50%;
+  right: auto;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: auto;
+  max-width: min(640px, calc(100vw - 28px));
+  transform: translateX(-50%);
+}
+
+.planting-dock-shell.chrome-panel--dock {
+  min-width: 0;
+  width: auto;
+  padding: 8px 10px 7px;
+}
+
+.planting-dock-header {
+  display: none;
+}
+
+.planting-seeds-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.planting-seed-card {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.planting-seed-card .seed-name {
+  display: none;
+}
+
+.planting-dock-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ui-rule-light);
+  font-size: 11px;
+}
+
+.planting-meta-group .meta-label {
+  color: var(--ui-ink-soft);
+}
+
+.planting-no-seeds {
+  color: var(--ui-ink-soft);
+  font-family: var(--font-serif);
+  font-size: 13px;
+}
+
+.planting-dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.hud-boat-panel.chrome-panel--dock {
+  padding: 10px 12px;
+}
+
+.boat-cargo-slot .cargo-empty-label {
+  display: none;
+}
+
+.fishing-hud-container.chrome-panel--dock,
+.cast-power-card.chrome-panel--dock,
+.minigame-card.chrome-panel--dock,
+.catch-summary-card.chrome-panel--dock {
+  padding: 12px 14px;
+}
+
+.farm-gis-legend.chrome-panel--dock {
+  padding: 8px 10px;
+}
+
+.farming-action-status.chrome-panel--dock {
+  padding: 8px 10px;
+}
+
+.layout-editor-chip {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  background: rgba(245, 242, 233, 0.92);
+  color: var(--ui-ink);
+  border: 1px solid var(--ui-rule);
+  box-shadow: none;
+}
+
+.start-screen__shade {
+  background:
+    linear-gradient(180deg, rgba(18, 28, 21, 0.06) 0%, transparent 46%, rgba(17, 26, 20, 0.34) 100%),
+    linear-gradient(90deg, rgba(18, 28, 21, 0.22) 0%, transparent 42%);
+}
+
+.start-screen__content {
+  justify-content: flex-start;
+  padding-top: clamp(36px, 8vh, 88px);
+}
+
+.start-screen h1 {
+  letter-spacing: 0.04em;
+}
+
+.start-screen__utilities {
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+}
+
+.start-screen__utility-button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1.5px solid var(--chrome-brass);
+  border-radius: 50%;
+  background: rgba(245, 242, 233, 0.88);
+  color: var(--ui-ink);
+  box-shadow: 0 2px 8px rgba(20, 28, 18, 0.22);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.start-screen__utility-button .atlas-image {
+  width: 28px;
+  height: 28px;
+}
+
+.start-screen__utility-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.start-screen__actions {
+  gap: 10px;
+}
+
+.start-screen__button,
+.start-screen__secondary-button:not(.start-screen__secondary-button--dialog) {
+  min-width: 260px;
+  min-height: 46px;
+  justify-content: center;
+  border-radius: 3px;
+  text-transform: none;
+}
+
+.start-screen__secondary-button:not(.start-screen__secondary-button--dialog) {
+  color: var(--ui-ink);
+  background: var(--ui-paper);
+  border: 1.5px solid var(--chrome-frame);
+  border-bottom: 1.5px solid var(--chrome-frame);
+  box-shadow: inset 0 0 0 2px var(--ui-paper-light), 0 2px 0 rgba(62, 39, 35, 0.18);
+}
+
+.start-screen__save-line {
+  margin-top: 10px;
+  color: rgba(255, 250, 240, 0.78);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(13, 21, 15, 0.35);
+}
+
+.start-screen__save-summary {
+  display: none;
+}
+
+.pause-modal {
+  width: min(560px, 94vw);
+  max-height: min(86vh, 640px);
+  overflow: hidden;
+}
+
+.pause-body {
+  overflow: hidden;
+  padding-right: 22px;
+  padding-left: 22px;
+}
+
+.pause-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px 22px;
+  align-items: start;
+}
+
+.pause-status-card,
+.pause-controls-card,
+.pause-recovery {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.pause-status-card {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--ui-rule-light);
+}
+
+.pause-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pause-actions .neva-button {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.pause-audio-column .audio-settings {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.pause-controls-card {
+  display: none;
+}
+
+.pause-modal,
+.modal-content,
+.market-trading-modal,
+.ledger-modal,
+.world-map-modal,
+.dialogue-card {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-brass) var(--ui-paper-deep);
+}
+
+.pause-modal ::-webkit-scrollbar,
+.modal-content ::-webkit-scrollbar,
+.market-trading-modal ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pause-modal ::-webkit-scrollbar-thumb,
+.modal-content ::-webkit-scrollbar-thumb,
+.market-trading-modal ::-webkit-scrollbar-thumb {
+  background: var(--ui-brass);
+  border-radius: 2px;
+}
+
+.inventory-details-card {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--ui-rule-light);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.market-decision-tip.chrome-alert {
+  margin-top: 10px;
+}
+
+.distant-arbitrage-box,
+.arb-kicker {
+  display: none;
+}
+
+.arb-metric-box {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .pause-layout {
+    grid-template-columns: 1fr;
+  }
+}

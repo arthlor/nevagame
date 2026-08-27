@@ -35,6 +35,7 @@ describe("Farmhouse Interior System", () => {
     // Interior door inside room
     expect(FARMHOUSE_INTERIOR_DOOR.radiusMeters).toBeGreaterThan(1.2);
     expect(isInsideFarmhouseInterior(FARMHOUSE_INTERIOR_DOOR.enterSpawn.x, FARMHOUSE_INTERIOR_DOOR.enterSpawn.z)).toBe(true);
+    expect(FARMHOUSE_INTERIOR_DOOR.enterSpawn.y).toBe(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.5);
   });
 
   it("declares and projects valid collision primitives for all interior catalog assets", () => {

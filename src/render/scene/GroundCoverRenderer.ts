@@ -11,16 +11,29 @@ import {
 } from "../../world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../world/WorldLayout";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
+import {
+  groundCoverSwaysInWind,
+  groundCoverWindPhase,
+  groundCoverWindStrength,
+  GROUND_COVER_WIND_AMPLITUDE
+} from "./groundCoverWind";
+import {
+  groundCoverIndexListsEqual,
+  selectStableGroundCoverIndices
+} from "./groundCoverVisibility";
 
 interface GroundCoverInstance {
   x: number;
   z: number;
+  phase: number;
   matrix: THREE.Matrix4;
 }
 
 interface InstancedSourceMesh {
   mesh: THREE.InstancedMesh;
   relative: THREE.Matrix4;
+  phaseAttribute: THREE.InstancedBufferAttribute | null;
 }
 
 interface InstancedAssetRecord {
@@ -29,10 +42,39 @@ interface InstancedAssetRecord {
   activeCount: number;
   instances: GroundCoverInstance[];
   meshes: InstancedSourceMesh[];
+  visibleIndices: number[];
 }
 
-const CAMERA_FOCUS_LEAD_METERS = 28;
-const VISIBILITY_REFRESH_DISTANCE_METERS = 0.75;
+interface GroundCoverWindUniforms {
+  uTime: { value: number };
+  uWindDir: { value: THREE.Vector2 };
+  uWindStrength: { value: number };
+  uSwayAmplitude: { value: number };
+  uMotionScale: { value: number };
+}
+
+const VISIBILITY_REFRESH_DISTANCE_METERS = 0.55;
+const KEEP_DISTANCE_SCALE = 1.34;
+
+const CATEGORY_DRAW_DISTANCE_SCALE: Readonly<Record<GroundCoverCategory, number>> = {
+  grass: 0.84,
+  flowers: 0.9,
+  bushes: 0.78,
+  meadowTall: 0.82,
+  pebbles: 0.7,
+  paving: 0.74,
+  driftwood: 0.88
+};
+
+const CATEGORY_DENSITY_SCALE: Readonly<Record<GroundCoverCategory, number>> = {
+  grass: 0.58,
+  flowers: 0.82,
+  bushes: 0.28,
+  meadowTall: 0.56,
+  pebbles: 0.82,
+  paving: 1,
+  driftwood: 1
+};
 
 function stablePlacementOrder(value: string): number {
   let hash = 0x811c9dc5;
@@ -43,25 +85,80 @@ function stablePlacementOrder(value: string): number {
   return hash >>> 0;
 }
 
+function patchGroundCoverWind(
+  material: THREE.MeshStandardMaterial,
+  category: GroundCoverCategory
+): THREE.MeshStandardMaterial {
+  const amplitude = GROUND_COVER_WIND_AMPLITUDE[category];
+  if (amplitude <= 0) return material;
+  material.userData.nevaGroundCoverWind = true;
+  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}`;
+  material.onBeforeCompile = (shader) => {
+    const uniforms: GroundCoverWindUniforms = {
+      uTime: { value: 0 },
+      uWindDir: { value: new THREE.Vector2(0, 1) },
+      uWindStrength: { value: 0 },
+      uSwayAmplitude: { value: amplitude },
+      uMotionScale: { value: 1 }
+    };
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+attribute float instancePhase;
+uniform float uTime;
+uniform vec2 uWindDir;
+uniform float uWindStrength;
+uniform float uSwayAmplitude;
+uniform float uMotionScale;`
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+{
+  float heightFactor = clamp(transformed.y * 2.8, 0.0, 1.15);
+  float wave = sin(uTime * (1.12 + instancePhase * 0.38) + instancePhase * 6.283185);
+  float gust = sin(uTime * 0.37 + instancePhase * 4.1);
+  float sway = heightFactor * uSwayAmplitude * uWindStrength * uMotionScale;
+  transformed.xz += uWindDir * sway * (0.72 * wave + 0.28 * gust);
+}`
+      );
+    material.userData.nevaWindShader = shader;
+  };
+  return material;
+}
+
 function groundCoverMaterial(
   source: THREE.Material,
   category: GroundCoverCategory
 ): THREE.Material {
-  if (category !== "grass" || !(source instanceof THREE.MeshStandardMaterial)) return source;
-  const material = source.clone();
-  const lift = material.name.includes("shadow") ? 1.16 : 1.08;
-  material.color.multiplyScalar(lift);
-  material.roughness = Math.max(0.8, material.roughness);
-  return material;
+  const cloned = source.clone();
+  if (!(cloned instanceof THREE.MeshStandardMaterial)) return cloned;
+  if (
+    category === "grass"
+    || category === "flowers"
+    || category === "bushes"
+    || category === "meadowTall"
+  ) {
+    const darkPalette = /shadow|olive|wood_dark/.test(cloned.name);
+    const lift = darkPalette
+      ? 1.16
+      : category === "flowers"
+        ? 1.05
+        : category === "bushes"
+          ? 1.08
+          : 1.1;
+    cloned.color.multiplyScalar(lift);
+    cloned.roughness = Math.max(0.8, cloned.roughness);
+  }
+  return patchGroundCoverWind(cloned, category);
 }
 
 export class GroundCoverRenderer {
   public readonly group = new THREE.Group();
   private readonly records: InstancedAssetRecord[] = [];
-  private readonly cameraPosition = new THREE.Vector3();
-  private readonly cameraDirection = new THREE.Vector3();
-  private readonly focus = new THREE.Vector2(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-  private readonly nextFocus = new THREE.Vector2();
+  private readonly lastRebuildFocus = new THREE.Vector2(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
   private readonly composedMatrix = new THREE.Matrix4();
   private visibilityDirty = true;
   private tier: QualityTier;
@@ -106,6 +203,8 @@ export class GroundCoverRenderer {
       });
       if (sourceMeshes.length === 0) throw new Error(`[GroundCoverRenderer] ${assetId} has no visible meshes`);
 
+      const category = orderedPlacements[0].category;
+      const sway = groundCoverSwaysInWind(category);
       const instances = orderedPlacements.map((placement) => {
         const position = new THREE.Vector3(
           placement.x,
@@ -117,35 +216,44 @@ export class GroundCoverRenderer {
         return {
           x: placement.x,
           z: placement.z,
+          phase: groundCoverWindPhase(placement.id),
           matrix: new THREE.Matrix4().compose(position, rotation, scale)
         };
       });
 
       const meshes = sourceMeshes.map((sourceMesh, meshIndex) => {
+        const geometry = sourceMesh.geometry.clone();
+        const phaseAttribute = sway
+          ? new THREE.InstancedBufferAttribute(new Float32Array(orderedPlacements.length), 1)
+          : null;
+        if (phaseAttribute) geometry.setAttribute("instancePhase", phaseAttribute);
         const mesh = new THREE.InstancedMesh(
-          sourceMesh.geometry,
-          groundCoverMaterial(sourceMesh.material, orderedPlacements[0].category),
+          geometry,
+          groundCoverMaterial(sourceMesh.material, category),
           orderedPlacements.length
         );
         mesh.name = `${assetId}_instances_${meshIndex}`;
         mesh.count = 0;
-        // The rendered instance prefix is rebuilt around the camera focus, so
-        // the static full-world bounds would be both stale and unnecessarily broad.
+        // The rendered instance prefix is rebuilt around the player/world
+        // anchor, so the static full-world bounds would be stale and broad.
         mesh.frustumCulled = false;
         mesh.castShadow = false;
-        // Tiny grass clumps turning nearly black under the directional shadow
-        // map reads as hair/noise at the gameplay camera. They still receive
-        // the shared key/fill lighting; larger cover may still receive shadows.
-        mesh.receiveShadow = orderedPlacements[0].category !== "grass";
+        // Short cover uses the shared key/fill and GTAO contact, not a second
+        // directional shadow over every blade/petal. This prevents thin clumps
+        // from collapsing into black strokes while larger bushes still ground.
+        mesh.receiveShadow = category === "bushes"
+          || category === "paving"
+          || category === "driftwood";
         this.group.add(mesh);
-        return { mesh, relative: sourceMesh.relative };
+        return { mesh, relative: sourceMesh.relative, phaseAttribute };
       });
       this.records.push({
-        category: orderedPlacements[0].category,
+        category,
         highCount: orderedPlacements.length,
         activeCount: orderedPlacements.length,
         instances,
-        meshes
+        meshes,
+        visibleIndices: []
       });
     }
     this.setQuality(this.tier);
@@ -154,62 +262,92 @@ export class GroundCoverRenderer {
   public setQuality(tier: QualityTier): void {
     this.tier = tier;
     for (const record of this.records) {
-      record.activeCount = groundCoverActiveCount(record.highCount, tier);
+      record.activeCount = Math.max(
+        0,
+        Math.floor(groundCoverActiveCount(record.highCount, tier) * CATEGORY_DENSITY_SCALE[record.category])
+      );
     }
     this.visibilityDirty = true;
   }
 
+  public updateWind(signal: Readonly<WeatherMotionSignal>, timeSeconds: number, motionScale: number): void {
+    const strength = groundCoverWindStrength(signal);
+    for (const record of this.records) {
+      for (const source of record.meshes) {
+        const material = source.mesh.material;
+        if (!(material instanceof THREE.Material)) continue;
+        const shader = material.userData.nevaWindShader as { uniforms: GroundCoverWindUniforms } | undefined;
+        if (!shader) continue;
+        shader.uniforms.uTime.value = timeSeconds;
+        shader.uniforms.uWindDir.value.set(signal.directionX, signal.directionZ);
+        shader.uniforms.uWindStrength.value = strength;
+        shader.uniforms.uMotionScale.value = motionScale;
+      }
+    }
+  }
+
   /**
    * Ground cover is authored across the complete world, but grass-scale assets
-   * are only readable near the gameplay camera. Compact nearby placements into
-   * each InstancedMesh instead of submitting the entire 600 m scatter every frame.
+   * are only readable near the player. Compact nearby placements into each
+   * InstancedMesh without letting camera orbit, pitch, or zoom reshuffle them.
    */
-  public update(camera: THREE.Camera): void {
-    camera.getWorldPosition(this.cameraPosition);
-    camera.getWorldDirection(this.cameraDirection);
-    const horizontalLength = Math.hypot(this.cameraDirection.x, this.cameraDirection.z);
-    const leadX = horizontalLength > 1e-5
-      ? (this.cameraDirection.x / horizontalLength) * CAMERA_FOCUS_LEAD_METERS
-      : 0;
-    const leadZ = horizontalLength > 1e-5
-      ? (this.cameraDirection.z / horizontalLength) * CAMERA_FOCUS_LEAD_METERS
-      : 0;
-    this.nextFocus.set(this.cameraPosition.x + leadX, this.cameraPosition.z + leadZ);
+  public update(anchorX: number, anchorZ: number): void {
+    if (!Number.isFinite(anchorX) || !Number.isFinite(anchorZ)) return;
+    const anchorDeltaX = this.lastRebuildFocus.x - anchorX;
+    const anchorDeltaZ = this.lastRebuildFocus.y - anchorZ;
     if (
       !this.visibilityDirty &&
-      this.focus.distanceToSquared(this.nextFocus) < VISIBILITY_REFRESH_DISTANCE_METERS ** 2
+      Number.isFinite(this.lastRebuildFocus.x) &&
+      anchorDeltaX * anchorDeltaX + anchorDeltaZ * anchorDeltaZ
+        < VISIBILITY_REFRESH_DISTANCE_METERS ** 2
     ) {
       return;
     }
 
-    this.focus.copy(this.nextFocus);
+    this.lastRebuildFocus.set(anchorX, anchorZ);
     this.visibilityDirty = false;
-    const drawDistance = CANONICAL_RENDER_CONFIG.quality[this.tier].groundCoverDrawDistanceMeters;
-    const drawDistanceSquared = drawDistance * drawDistance;
+    const baseDrawDistance = CANONICAL_RENDER_CONFIG.quality[this.tier].groundCoverDrawDistanceMeters;
 
     for (const record of this.records) {
-      let visibleCount = 0;
-      for (let index = 0; index < record.activeCount; index++) {
-        const instance = record.instances[index];
-        const dx = instance.x - this.focus.x;
-        const dz = instance.z - this.focus.y;
-        if (dx * dx + dz * dz > drawDistanceSquared) continue;
+      const drawDistance = baseDrawDistance * CATEGORY_DRAW_DISTANCE_SCALE[record.category];
+      const keepDistance = drawDistance * KEEP_DISTANCE_SCALE;
+      const visibleIndices = selectStableGroundCoverIndices(
+        record.instances,
+        anchorX,
+        anchorZ,
+        drawDistance,
+        record.activeCount,
+        record.visibleIndices,
+        keepDistance
+      );
+      if (groundCoverIndexListsEqual(record.visibleIndices, visibleIndices)) continue;
+      record.visibleIndices = visibleIndices;
+      for (let visibleCount = 0; visibleCount < visibleIndices.length; visibleCount += 1) {
+        const instance = record.instances[visibleIndices[visibleCount]];
         for (const source of record.meshes) {
           this.composedMatrix.multiplyMatrices(instance.matrix, source.relative);
           source.mesh.setMatrixAt(visibleCount, this.composedMatrix);
+          source.phaseAttribute?.setX(visibleCount, instance.phase);
         }
-        visibleCount += 1;
       }
       for (const source of record.meshes) {
-        source.mesh.count = visibleCount;
+        source.mesh.count = visibleIndices.length;
         source.mesh.instanceMatrix.needsUpdate = true;
+        if (source.phaseAttribute) source.phaseAttribute.needsUpdate = true;
       }
     }
   }
 
   public dispose(): void {
     for (const record of this.records) {
-      for (const source of record.meshes) source.mesh.removeFromParent();
+      for (const source of record.meshes) {
+        source.mesh.geometry.dispose();
+        const materials = Array.isArray(source.mesh.material)
+          ? source.mesh.material
+          : [source.mesh.material];
+        for (const material of materials) material.dispose();
+        source.mesh.removeFromParent();
+      }
     }
     this.records.length = 0;
   }

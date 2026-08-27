@@ -37,8 +37,8 @@ describe("Simulation Vertical Slice Loop", () => {
     const placedCropId = Object.keys(sim.state.crops)[0];
     expect(placedCropId).toBeDefined();
 
-    // 2. Advance time 52 game minutes to reach maturity (wheat base is 60m with 1.2x climate = 62.4 effective minutes)
-    sim.tick(52);
+    // 2. Advance ~150 game minutes to reach maturity (wheat base is 180m with 1.2x climate)
+    sim.advanceGameMinutes(155);
     expect(sim.state.crops[placedCropId].stage).toBe("mature");
 
     // 3. Harvest Wheat
@@ -55,7 +55,7 @@ describe("Simulation Vertical Slice Loop", () => {
     const millJobId = Object.keys(sim.state.processingJobs)[0];
 
     // Fast-forward 6 minutes
-    sim.tick(6);
+    sim.advanceGameMinutes(6);
     expect(sim.state.processingJobs[millJobId].status).toBe("complete");
     const collectMill = sim.collectProcessingJob(millJobId);
     expect(collectMill.success).toBe(true);
@@ -68,7 +68,7 @@ describe("Simulation Vertical Slice Loop", () => {
     const chumJobId = Object.keys(sim.state.processingJobs)[0];
 
     // Fast-forward 11 minutes
-    sim.tick(11);
+    sim.advanceGameMinutes(11);
     expect(sim.state.processingJobs[chumJobId].status).toBe("complete");
     sim.collectProcessingJob(chumJobId);
     expect(InventoryManager.getItemCount(playerInv, "item.chum_bucket")).toBe(1);

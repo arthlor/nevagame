@@ -73,6 +73,8 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     const goldBox = page.locator(".hud-top-right");
     await expect(goldBox).toBeVisible();
     await expect(goldBox).toContainText("100 G");
+    await expect(page.locator(".hud-hotkey-ribbon-wood")).toHaveCount(0);
+    await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Fishing rod/);
 
     // 5. Test opening Backpack Inventory through the player-facing hotkey.
     await page.keyboard.press("KeyI");
@@ -91,8 +93,8 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.keyboard.press("KeyJ");
     const journalModal = page.locator(".modal-content");
     await expect(journalModal).toBeVisible();
-    await expect(journalModal).toContainText("Captain & Farm Journal");
-    await expect(journalModal).toContainText("Skill Proficiencies");
+    await expect(journalModal).toContainText("Captain's journal");
+    await expect(journalModal).toContainText("Skills");
 
     const closeJournalBtn = page.getByRole("button", { name: /Close Journal/i });
     await closeJournalBtn.click();

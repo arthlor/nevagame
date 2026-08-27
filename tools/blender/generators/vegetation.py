@@ -8,6 +8,7 @@ import bpy
 
 from common.geometry import (
     add_beam,
+    add_box,
     add_cone,
     add_cylinder,
     add_ico,
@@ -248,15 +249,20 @@ def _apple_tree(spec: dict, root) -> None:
         )
     for index in range(params["fruitCount"]):
         angle = index * 2.39996
-        radius = spread * (0.35 + 0.34 * ((index * 5) % 7) / 6)
+        # Keep fruit inside the overlapping crown masses. The previous lower
+        # band dropped apples onto the visible trunk, weakening the orchard
+        # read from the gameplay camera.
+        radius = spread * (0.50 + 0.18 * ((index * 5) % 7) / 6)
+        face_offset = spread * (-0.46 if index % 4 in (0, 1) else 0.38)
+        fruit_z = height * (0.72 + 0.16 * ((index * 3) % 5) / 4)
         add_ico(
             f"apple_fruit_{index:02d}",
-            (math.cos(angle) * radius, math.sin(angle) * radius * 0.72, height * (0.60 + 0.22 * ((index * 3) % 5) / 4)),
+            (math.cos(angle) * radius, math.sin(angle) * radius * 0.72 + face_offset, fruit_z),
             (0.16, 0.15, 0.16), fruit, root, subdivisions=1,
         )
         add_cone(
             f"apple_stem_{index:02d}",
-            (math.cos(angle) * radius, math.sin(angle) * radius * 0.72, height * (0.60 + 0.22 * ((index * 3) % 5) / 4) + 0.12),
+            (math.cos(angle) * radius, math.sin(angle) * radius * 0.72 + face_offset, fruit_z + 0.12),
             0.018, 0.010, 0.08, wood, root, vertices=5,
         )
     if lod_index == 0:
@@ -271,9 +277,10 @@ def _apple_tree(spec: dict, root) -> None:
         for bloom in range(max(4, params["fruitCount"] // 3)):
             angle = bloom * 2.39996 + 0.7
             radius = spread * (0.30 + 0.28 * ((bloom * 3) % 5) / 4)
+            face_offset = spread * (-0.18 if bloom % 3 == 0 else 0.10)
             add_ico(
                 f"apple_blossom_{bloom:02d}",
-                (math.cos(angle) * radius, math.sin(angle) * radius * 0.78, height * (0.58 + 0.18 * (bloom % 3) / 2)),
+                (math.cos(angle) * radius, math.sin(angle) * radius * 0.78 + face_offset, height * (0.66 + 0.14 * (bloom % 3) / 2)),
                 (0.07, 0.07, 0.05), blossom, root, subdivisions=1,
             )
         for index in range(min(4, params["canopyClusters"])):
@@ -403,7 +410,7 @@ def _add_bent_grass_blade(
     token: str,
     root,
 ) -> None:
-    """Build one connected, tapered blade with a broad mid facet and authored bend."""
+    """Build one connected, tapered blade with a thin mid facet and authored bend."""
     width_axis = (-math.sin(facing_angle), math.cos(facing_angle), 0.0)
     normal_axis = (math.cos(facing_angle), math.sin(facing_angle), 0.0)
     lean_axis = (math.cos(lean_angle), math.sin(lean_angle), 0.0)
@@ -420,8 +427,8 @@ def _add_bent_grass_blade(
             base[2] + height,
         ),
     )
-    half_widths = (width * 0.22, width * 0.50, width * 0.035)
-    half_thickness = min(0.009, width * 0.08)
+    half_widths = (width * 0.16, width * 0.36, width * 0.028)
+    half_thickness = min(0.0036, width * 0.038)
     vertices: list[tuple[float, float, float]] = []
     for face_sign in (-1.0, 1.0):
         for center, half_width in zip(centers, half_widths):
@@ -465,10 +472,10 @@ def grass_clump(spec: dict, root) -> None:
             f"grass_blade_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.82, 0.006),
             height,
-            params["bladeWidth"] * rng.uniform(0.90, 1.30),
+            params["bladeWidth"] * rng.uniform(0.86, 1.08),
             angle,
             gesture_angle + rng.uniform(-0.46, 0.46),
-            height * rng.uniform(0.15, 0.32),
+            height * rng.uniform(0.18, 0.38),
             shadow if index % 5 == 0 else primary,
             root,
         )
@@ -525,6 +532,118 @@ def wildflower_clump(spec: dict, root) -> None:
             leaf_angle,
             leaf_angle,
             leaf_height * rng.uniform(0.72, 0.90),
+            foliage,
+            root,
+        )
+    consolidate_lod_level(root, f"{spec['id']}_cluster")
+
+
+def _add_daisy_petals(name: str, center, radius: float, token: str, parent, rotation: float) -> None:
+    """Build six broad diamond petals as one tiny double-sided faceted mesh."""
+    center_x, center_y, center_z = center
+    vertices = []
+    faces = []
+    for petal in range(6):
+        angle = rotation + petal * math.tau / 6
+        direction = (math.cos(angle), math.sin(angle))
+        side = (-direction[1], direction[0])
+        inner_radius = radius * 0.16
+        shoulder_radius = radius * 0.58
+        half_width = radius * 0.30
+        base_index = len(vertices)
+        vertices.extend([
+            (
+                center_x + direction[0] * inner_radius,
+                center_y + direction[1] * inner_radius,
+                center_z,
+            ),
+            (
+                center_x + direction[0] * shoulder_radius + side[0] * half_width,
+                center_y + direction[1] * shoulder_radius + side[1] * half_width,
+                center_z + radius * 0.035,
+            ),
+            (
+                center_x + direction[0] * radius,
+                center_y + direction[1] * radius,
+                center_z + radius * 0.015,
+            ),
+            (
+                center_x + direction[0] * shoulder_radius - side[0] * half_width,
+                center_y + direction[1] * shoulder_radius - side[1] * half_width,
+                center_z + radius * 0.035,
+            ),
+        ])
+        top_a = (base_index, base_index + 2, base_index + 1)
+        top_b = (base_index, base_index + 3, base_index + 2)
+        faces.extend([top_a, top_b, tuple(reversed(top_a)), tuple(reversed(top_b))])
+    mesh = bpy.data.meshes.new(f"{name}_mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    petals = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(petals)
+    petals.data.materials.append(get_or_create_material(token))
+    petals.parent = parent
+    apply_vertex_values(petals)
+
+
+def flower_drift(spec: dict, root) -> None:
+    """Instance-efficient chamomile/daisy mat with broad petals and raised centers."""
+    params = spec["parameters"]
+    rng = seeded_rng(spec["seed"])
+    foliage, flower, center = spec["palette"]
+    gesture_angle = rng.uniform(-math.pi, math.pi)
+    blossom_count = params["blossomCount"]
+    for index in range(blossom_count):
+        angle = index * 2.39996 + rng.uniform(-0.22, 0.22)
+        radius = params["spread"] * (0.12 + 0.82 * ((index * 5) % blossom_count) / max(1, blossom_count - 1))
+        height = params["height"] * rng.uniform(0.55, 1.0)
+        x = math.cos(angle) * radius
+        y = math.sin(angle) * radius * 0.78
+        lean = gesture_angle + rng.uniform(-0.48, 0.48)
+        tip = (
+            x + math.cos(lean) * height * 0.12,
+            y + math.sin(lean) * height * 0.12,
+            height,
+        )
+        add_tapered_beam(
+            f"drift_stem_{index:02d}",
+            (x, y, 0.008),
+            tip,
+            0.012,
+            0.006,
+            foliage,
+            root,
+            vertices=4,
+        )
+        size = params["blossomSize"]
+        petal_rotation = angle * 0.12 + rng.uniform(-0.18, 0.18)
+        _add_daisy_petals(
+            f"drift_petals_{index:02d}",
+            (tip[0], tip[1], tip[2] + size * 0.05),
+            size,
+            flower,
+            root,
+            petal_rotation,
+        )
+        add_box(
+            f"drift_center_{index:02d}",
+            (tip[0], tip[1], tip[2] + size * 0.12),
+            (size * 0.38, size * 0.38, size * 0.22),
+            center,
+            root,
+            rotation=(0.0, 0.0, petal_rotation),
+            bevel=0.0,
+        )
+    for leaf_index in range(2):
+        leaf_angle = gesture_angle + (-0.9, 1.1)[leaf_index]
+        _add_bent_grass_blade(
+            f"drift_leaf_{leaf_index:02d}",
+            (math.cos(leaf_angle) * params["spread"] * 0.18, math.sin(leaf_angle) * params["spread"] * 0.16, 0.004),
+            params["height"] * rng.uniform(0.28, 0.4),
+            params["spread"] * 0.16,
+            leaf_angle,
+            leaf_angle,
+            params["height"] * 0.22,
             foliage,
             root,
         )

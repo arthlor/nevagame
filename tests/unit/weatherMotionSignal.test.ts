@@ -14,7 +14,8 @@ const weather: WeatherState = {
   seaRoughness: 0.35,
   visibility: 1,
   temperatureC: 18,
-  nextWeatherMinute: 600
+  nextWeatherMinute: 600,
+  nextWeatherType: "cloudy"
 };
 
 describe("WeatherMotionSignal", () => {

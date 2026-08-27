@@ -63,6 +63,11 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     for (const crop of ContentRegistry.crops.values()) {
       expect(CROP_STAGE_ASSETS[crop.id], crop.id).toBeDefined();
     }
+    expect(CROP_STAGE_ASSETS["crop.wheat"].mature).toBe(ASSET_IDS.CROP_WHEAT_MATURE);
+    expect(layout.staticPlacements).toContainEqual(expect.objectContaining({
+      id: "authored.farm.pumpkin-patch",
+      assetId: ASSET_IDS.PROP_PUMPKIN_PATCH_A
+    }));
 
     expect(FISH_SCHOOL_ASSETS).toMatchObject({
       "fish.trout": ASSET_IDS.FISH_TROUT_A,
@@ -86,6 +91,12 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     expect(byId.get(ASSET_IDS.BOAT_SKIFF_A)).toMatchObject({
       disposition: "progression-world",
       freshSaveVisible: false
+    });
+    expect(byId.get(ASSET_IDS.PROP_SMOKE_PLUME_A)).toMatchObject({
+      disposition: "static-world",
+      placementSource: "WorldScene farmhouse chimney attachment",
+      worldContext: "Farmhouse chimney",
+      freshSaveVisible: true
     });
   });
 

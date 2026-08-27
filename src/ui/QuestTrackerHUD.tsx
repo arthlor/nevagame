@@ -1,7 +1,9 @@
 // src/ui/QuestTrackerHUD.tsx
 import React, { useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
-import { CornerLeafSprout, CornerRopeKnot } from "./components/HudDecorations";
+import { ChromeMeter, ChromePanel } from "./chrome/Chrome";
+import { IconJournal } from "./components/HudIcons";
+import { playUiSound } from "./audio/uiAudio";
 
 export interface QuestTrackerHUDProps {
   activeQuest: ActiveQuestDto | null;
@@ -11,82 +13,81 @@ export interface QuestTrackerHUDProps {
 export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest }) => {
   const [collapsed, setCollapsed] = useState(false);
 
+  const handleToggle = () => {
+    playUiSound("click");
+    setCollapsed((prev) => !prev);
+  };
+
   if (!activeQuest) {
     return (
-      <aside className="quest-tracker-hud-wood completed" aria-label="Story Progression">
-        <CornerLeafSprout className="quest-corner-tl" size={20} />
-        <CornerRopeKnot className="quest-corner-br" size={20} />
+      <ChromePanel as="aside" tone="dock" className="quest-tracker-hud-wood completed" aria-label="Story Progression">
         <div className="quest-tracker-header">
-          <span className="quest-act-badge">Epilogue</span>
+          <IconJournal size={18} aria-hidden="true" className="quest-tracker-icon" />
           <span className="quest-open-horizons-title">Open Horizons</span>
         </div>
-        <p className="quest-epilogue-desc">
-          The story acts are complete. Review weather, supplies, and harbor demand from the Expedition Planner.
-        </p>
-      </aside>
+      </ChromePanel>
     );
   }
 
-  const progressPercent = Math.min(
-    100,
-    Math.round((activeQuest.currentProgress / activeQuest.targetQuantity) * 100)
-  );
+  const current = Math.min(activeQuest.currentProgress, activeQuest.targetQuantity);
+  const target = Math.max(1, activeQuest.targetQuantity);
+  const progressPercent = Math.min(100, Math.round((current / target) * 100));
 
   return (
-    <aside
+    <ChromePanel
+      as="aside"
+      tone="dock"
       className={`quest-tracker-hud-wood ${collapsed ? "collapsed" : ""}`}
       aria-label="Active Quest Objective"
     >
-      <CornerLeafSprout className="quest-corner-tl" size={20} />
-      <CornerRopeKnot className="quest-corner-br" size={20} />
-
-      <header className="quest-tracker-header" onClick={() => setCollapsed(!collapsed)}>
-        <div className="quest-header-left">
-          <span className="quest-act-badge">{activeQuest.actTitle}</span>
-          <h3 className="quest-title">{activeQuest.questTitle}</h3>
-        </div>
+      <header className="quest-tracker-header">
         <button
           type="button"
-          className="quest-collapse-toggle"
+          className="quest-tracker-toggle"
+          aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand quest tracker" : "Collapse quest tracker"}
-          onClick={(event) => {
-            event.stopPropagation();
-            setCollapsed(!collapsed);
-          }}
+          onClick={handleToggle}
         >
-          {collapsed ? "▼" : "▲"}
+          <IconJournal size={18} aria-hidden="true" className="quest-tracker-icon" />
+          <span className="quest-tracker-copy">
+            <h3 className="quest-title">{activeQuest.questTitle}</h3>
+            <span className="quest-objective-text">{activeQuest.objectiveDescription}</span>
+          </span>
+          <span className={`quest-collapse-chevron ${collapsed ? "is-collapsed" : ""}`} aria-hidden="true">
+            ▾
+          </span>
         </button>
       </header>
 
       {!collapsed && (
         <div className="quest-tracker-content">
-          <div className="quest-objective-row">
-            <span className={`quest-step-marker ${activeQuest.isStepComplete ? "complete" : ""}`}>
-              {activeQuest.isStepComplete ? "✓" : "●"}
-            </span>
-            <span className="quest-objective-text">{activeQuest.objectiveDescription}</span>
-          </div>
-
-          <div className="quest-progress-container">
-            <div className="quest-progress-bar">
-              <div
-                className="quest-progress-fill"
-                style={{ width: `${progressPercent}%` }}
+          {activeQuest.targetQuantity > 1 && (
+            <div className="quest-progress-wrap">
+              <div className="quest-progress-bar-track" aria-hidden="true">
+                <div className="quest-progress-bar-fill" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <ChromeMeter
+                label="Objective Progress"
+                value={current}
+                max={target}
+                showLabel={false}
+                valueText={`${current} / ${target}`}
+                variant="gold"
+                className="quest-progress-meter"
               />
+              <span className="quest-progress-count">{`${current} / ${target}`}</span>
             </div>
-            <span className="quest-progress-count">
-              {Math.min(activeQuest.currentProgress, activeQuest.targetQuantity)} /{" "}
-              {activeQuest.targetQuantity}
-            </span>
-          </div>
-
+          )}
           {activeQuest.targetLocation && (
             <div className="quest-location-hint">
-              <span className="quest-pin-icon">📍</span> {activeQuest.targetLocation.name}
+              <span className="location-pin" aria-hidden="true">📍</span>
+              <span>{activeQuest.targetLocation.name}</span>
             </div>
           )}
         </div>
       )}
-    </aside>
+    </ChromePanel>
   );
 };
+
+

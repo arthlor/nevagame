@@ -7,6 +7,20 @@ export const HOURS_PER_DAY = 24;
 export const MINUTES_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR; // 1440
 export const DAYS_PER_SEASON = 30;
 export const SEASONS: SeasonId[] = ["spring", "summer", "autumn", "winter"];
+/** Live/offline cadence: 2.5 real seconds per game minute (~60 real minutes per day). */
+export const DEFAULT_MINUTES_PER_REAL_SECOND = 0.4;
+export const REST_WAKE_MINUTE_OF_DAY = 8 * MINUTES_PER_HOUR;
+
+export function seasonAtMinute(currentMinute: number): SeasonId {
+  const totalDays = Math.floor(Math.max(0, currentMinute) / MINUTES_PER_DAY);
+  return SEASONS[Math.floor(totalDays / DAYS_PER_SEASON) % SEASONS.length];
+}
+
+export function minutesUntilNextMorning(currentMinute: number): number {
+  const minuteOfDay = ((currentMinute % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  if (minuteOfDay < REST_WAKE_MINUTE_OF_DAY) return REST_WAKE_MINUTE_OF_DAY - minuteOfDay;
+  return MINUTES_PER_DAY - minuteOfDay + REST_WAKE_MINUTE_OF_DAY;
+}
 
 export class GameClock {
   private state: ClockState;
@@ -15,7 +29,7 @@ export class GameClock {
   constructor(initialState?: Partial<ClockState>) {
     this.state = {
       currentMinute: 8 * MINUTES_PER_HOUR, // Start at 08:00 on Day 1
-      minutesPerRealSecond: 1, // 1 real second = 1 game minute (24 min = 1 day)
+      minutesPerRealSecond: DEFAULT_MINUTES_PER_REAL_SECOND,
       dayCount: 1,
       season: "spring",
       year: 1,

@@ -1,5 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { calculateFreshnessLoss, resolveCargoHasIce } from "../fishing/calculateFreshness";
+import { advanceCargoFreshness } from "../fishing/calculateFreshness";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoClass, CargoLocation, FishCargoId, FishCargoState, FishInstance } from "../core/types";
 import type { DomainContext } from "./DomainContext";
@@ -92,21 +92,9 @@ export class CargoDomain {
     return { success: true, scraps };
   }
 
-  public tick(minutes: number): void {
+  public tick(minutes: number, startMinute: number = this.context.state.clock.currentMinute - minutes): void {
     const { state } = this.context;
-    for (const cargo of Object.values(state.fishCargo)) {
-      if (cargo.freshness <= 0 || cargo.caughtAtMinute === state.clock.currentMinute) continue;
-      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-      if (!speciesDef) continue;
-      const decay = calculateFreshnessLoss(
-        minutes,
-        speciesDef.baseDecayRatePerMinute,
-        cargo.location.type,
-        resolveCargoHasIce(state, cargo),
-        state.weather.temperatureC
-      );
-      cargo.freshness = Math.max(0, cargo.freshness - decay);
-    }
+    advanceCargoFreshness(state, minutes, startMinute, state.weather.temperatureC);
   }
 
   public clearPointers(cargo: FishCargoState): void {

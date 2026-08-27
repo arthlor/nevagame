@@ -8,6 +8,7 @@ import { ASSET_IDS, type AssetId } from "./AssetCatalog";
  */
 export const STATIC_LANDMARK_ASSETS = {
   farmhouse: ASSET_IDS.HOUSE_FARMHOUSE_A,
+  farmhouseSmoke: ASSET_IDS.PROP_SMOKE_PLUME_A,
   well: ASSET_IDS.PROP_WATER_WELL_A,
   bridge: ASSET_IDS.BRIDGE_STONE_A,
   dock: ASSET_IDS.DOCK_STRAIGHT_A,

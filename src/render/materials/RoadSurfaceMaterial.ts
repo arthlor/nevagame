@@ -5,7 +5,7 @@ import { GROUND_POLYGON_CELL_GLSL } from "./GroundPolygonCells";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { PALETTE_HEX } from "./PaletteTokens";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v2";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v11";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -76,6 +76,8 @@ uniform float roadPolygonCellScale;
 uniform float roadEdgeCellScale;
 uniform float roadPolygonVariationStrength;
 uniform float roadPolygonJaggedStrength;
+uniform float roadEdgeFadeStart;
+uniform float roadEdgeFadeFull;
 uniform float roadRoughness;
 uniform float roadRoughnessVariation;
 uniform vec3 roadPackedColor;
@@ -90,17 +92,18 @@ ${GROUND_POLYGON_CELL_GLSL}`,
     shader.fragmentShader,
     fragmentColor,
     `${fragmentColor}
-float roadPolygonSignal = nevaGroundPolygonCellSignal(vRoadWorldPosition.xz, roadPolygonCellScale);
 float roadEdgeSignal = nevaGroundPolygonCellSignal(vRoadWorldPosition.xz, roadEdgeCellScale);
-float keepDirt = step(
-  0.5,
-  vRoadOpacity + (roadEdgeSignal - 0.5) * roadPolygonJaggedStrength
+float roadEdgeField = clamp(
+  vRoadOpacity + (roadEdgeSignal - 0.5) * roadPolygonJaggedStrength,
+  0.0,
+  1.0
 );
-if (keepDirt < 0.5) discard;
-diffuseColor.a = 1.0;
-vec3 roadPolygonColor = roadPackedColor;
-roadPolygonColor = mix(roadPolygonColor, roadDryColor, step(0.38, roadPolygonSignal));
-roadPolygonColor = mix(roadPolygonColor, roadLightColor, step(0.72, roadPolygonSignal));
+float roadCoverage = smoothstep(roadEdgeFadeStart, roadEdgeFadeFull, roadEdgeField);
+diffuseColor.a = roadCoverage;
+float roadPolygonSignal = nevaGroundPolygonCellSignal(vRoadWorldPosition.xz, roadPolygonCellScale);
+float roadValueBand = step(0.34, roadPolygonSignal) + step(0.7, roadPolygonSignal);
+vec3 roadPolygonColor = mix(roadPackedColor, roadDryColor, step(0.5, roadValueBand));
+roadPolygonColor = mix(roadPolygonColor, roadLightColor, step(1.5, roadValueBand));
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   roadPolygonColor,
@@ -135,9 +138,11 @@ export class RoadSurfaceMaterial {
   public constructor(config: RoadSurfaceConfig = CANONICAL_RENDER_CONFIG.roadSurface) {
     this.shaderUniforms = {
       roadPolygonCellScale: { value: config.polygonCellScaleMeters },
-      roadEdgeCellScale: { value: CANONICAL_RENDER_CONFIG.terrainSurface.polygonCellScaleMeters },
+      roadEdgeCellScale: { value: config.polygonEdgeCellScaleMeters },
       roadPolygonVariationStrength: { value: config.polygonVariationStrength },
       roadPolygonJaggedStrength: { value: config.polygonJaggedStrength },
+      roadEdgeFadeStart: { value: config.edgeFadeStart },
+      roadEdgeFadeFull: { value: config.edgeFadeFull },
       roadRoughness: { value: config.roughness },
       roadRoughnessVariation: { value: config.roughnessVariation },
       roadPackedColor: { value: new THREE.Color(PALETTE_HEX.path_dust_01) },
@@ -153,8 +158,13 @@ export class RoadSurfaceMaterial {
     });
     this.material = canonicalBase.clone();
     this.material.name = "road_surface_path_dust_01";
-    this.material.transparent = true;
-    this.material.depthWrite = false;
+    // Keep the worked-ground ribbon in the opaque pass. Its vertex alpha now
+    // feeds a narrow alpha-tested, alpha-to-coverage edge instead of a broad
+    // transparent overlay, so camera order cannot change the merge.
+    this.material.transparent = false;
+    this.material.depthWrite = true;
+    this.material.alphaTest = 0.5;
+    this.material.alphaToCoverage = true;
     this.material.polygonOffset = true;
     this.material.polygonOffsetFactor = -3;
     this.material.polygonOffsetUnits = -3;

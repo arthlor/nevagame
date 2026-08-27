@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "key": "magenta",
+  "output": { "size": 256, "coverage": 0.86 },
+  "sheetDir": "assets/ui/sheets",
+  "atlasDir": "assets/ui/atlas",
+  "runtimeDir": "public/assets/ui/atlas",
+  "families": {
+    "fish": { "export": "UI_FISH", "doc": "Catchable species, used in HUD cargo, journal, market and both fishing modes." },
+    "seed": { "export": "UI_SEEDS", "doc": "Plantable seed stock shown in the seed bar, inventory and market stall." },
+    "produce": { "export": "UI_PRODUCE", "doc": "Harvested crop goods carried in inventory and traded at market." },
+    "plant": { "export": "UI_PLANTS", "doc": "Growing crop portraits for the field inspection panel." },
+    "growth": { "export": "UI_GROWTH", "doc": "Crop lifecycle stage badges." },
+    "supply": { "export": "UI_SUPPLIES", "doc": "Consumable supplies for fishing, farming and boats." },
+    "quality": { "export": "UI_QUALITY", "doc": "Catch and produce quality medallions." },
+    "gis": { "export": "UI_GIS", "doc": "Farm field-sign chips shown while the GIS overlay is held." },
+    "portrait": { "export": "UI_PORTRAITS", "doc": "NPC dialogue portraits." },
+    "weather": { "export": "UI_WEATHER", "doc": "Sky and sea condition icons for the almanac and forecast." },
+    "time": { "export": "UI_TIME", "doc": "Time-of-day icons for the almanac dial." },
+    "tool": { "export": "UI_TOOLS", "doc": "Tool belt icons." },
+    "menu": { "export": "UI_MENU", "doc": "Navigation icons for modal headers and the pause menu." },
+    "status": { "export": "UI_STATUS", "doc": "Purse, labour and alert icons." },
+    "world": { "export": "UI_WORLD", "doc": "Generic world-subject icons used as fallbacks." },
+    "action": { "export": "UI_ACTION", "doc": "Icons for the timed action progress bar." },
+    "behavior": { "export": "UI_BEHAVIOR", "doc": "Hooked-fish behaviour cues in the sport fishing HUD." },
+    "mapnode": { "export": "UI_MAP_NODES", "doc": "World map landmark markers." },
+    "chrome": { "export": "UI_CHROME", "doc": "Panel ornament and trend indicators." }
+  },
+  "sheets": [
+    {
+      "id": "fish-a",
+      "family": "fish",
+      "source": "assets/ui/sheets/fish-a.png",
+      "sprites": [
+        { "id": "fish.carp", "file": "fish-carp.png" },
+        { "id": "fish.trout", "file": "fish-trout.png" },
+        { "id": "fish.perch", "file": "fish-perch.png" },
+        { "id": "fish.catfish", "file": "fish-catfish.png" },
+        { "id": "fish.pike", "file": "fish-pike.png" },
+        { "id": "fish.arowana", "file": "fish-arowana.png" }
+      ]
+    },
+    {
+      "id": "fish-b",
+      "family": "fish",
+      "source": "assets/ui/sheets/fish-b.png",
+      "sprites": [
+        { "id": "fish.mackerel", "file": "fish-mackerel.png" },
+        { "id": "fish.tuna", "file": "fish-tuna.png" },
+        { "id": "fish.sturgeon", "file": "fish-sturgeon.png" },
+        { "id": "fish.sailfish", "file": "fish-sailfish.png" },
+        { "id": "fish.swordfish", "file": "fish-swordfish.png" },
+        { "id": "fish.blue_marlin", "file": "fish-blue_marlin.png" }
+      ]
+    },
+    {
+      "id": "seed-a",
+      "family": "seed",
+      "source": "assets/ui/sheets/seed-a.png",
+      "sprites": [
+        { "id": "seed.wheat", "file": "seed-wheat.png" },
+        { "id": "seed.barley", "file": "seed-barley.png" },
+        { "id": "seed.corn", "file": "seed-corn.png" },
+        { "id": "seed.tomato", "file": "seed-tomato.png" }
+      ]
+    },
+    {
+      "id": "seed-b",
+      "family": "seed",
+      "source": "assets/ui/sheets/seed-b.png",
+      "sprites": [
+        { "id": "seed.potato", "file": "seed-potato.png" },
+        { "id": "seed.carrot", "file": "seed-carrot.png" },
+        { "id": "seed.flax", "file": "seed-flax.png" },
+        { "id": "seed.apple_sapling", "file": "seed-apple_sapling.png" }
+      ]
+    },
+    {
+      "id": "produce-a",
+      "family": "produce",
+      "source": "assets/ui/sheets/produce-a.png",
+      "sprites": [
+        { "id": "produce.wheat", "file": "produce-wheat.png" },
+        { "id": "produce.barley", "file": "produce-barley.png" },
+        { "id": "produce.corn", "file": "produce-corn.png" },
+        { "id": "produce.tomato", "file": "produce-tomato.png" }
+      ]
+    },
+    {
+      "id": "produce-b",
+      "family": "produce",
+      "source": "assets/ui/sheets/produce-b.png",
+      "sprites": [
+        { "id": "produce.potato", "file": "produce-potato.png" },
+        { "id": "produce.carrot", "file": "produce-carrot.png" },
+        { "id": "produce.flax", "file": "produce-flax.png" },
+        { "id": "produce.apple", "file": "produce-apple.png" }
+      ]
+    },
+    {
+      "id": "plant-a",
+      "family": "plant",
+      "source": "assets/ui/sheets/plant-a.png",
+      "sprites": [
+        { "id": "crop.wheat", "file": "plant-wheat.png" },
+        { "id": "crop.barley", "file": "plant-barley.png" },
+        { "id": "crop.corn", "file": "plant-corn.png" },
+        { "id": "crop.tomato", "file": "plant-tomato.png" }
+      ]
+    },
+    {
+      "id": "plant-b",
+      "family": "plant",
+      "source": "assets/ui/sheets/plant-b.png",
+      "sprites": [
+        { "id": "crop.potato", "file": "plant-potato.png" },
+        { "id": "crop.carrot", "file": "plant-carrot.png" },
+        { "id": "crop.flax", "file": "plant-flax.png" },
+        { "id": "crop.apple_tree", "file": "plant-apple_tree.png" }
+      ]
+    },
+    {
+      "id": "growth",
+      "family": "growth",
+      "source": "assets/ui/sheets/growth.png",
+      "sprites": [
+        { "id": "seeded", "file": "growth-seeded.png" },
+        { "id": "growing", "file": "growth-growing.png" },
+        { "id": "mature", "file": "growth-mature.png" },
+        { "id": "withered", "file": "growth-withered.png" }
+      ]
+    },
+    {
+      "id": "supply-a",
+      "family": "supply",
+      "source": "assets/ui/sheets/supply-a.png",
+      "sprites": [
+        { "id": "item.ground_grain", "file": "item-ground_grain.png" },
+        { "id": "item.bait_worms", "file": "item-bait_worms.png" },
+        { "id": "item.chum_bucket", "file": "item-chum_bucket.png" },
+        { "id": "item.basic_lure", "file": "item-basic_lure.png" },
+        { "id": "item.fish_scraps", "file": "item-fish_scraps.png" }
+      ]
+    },
+    {
+      "id": "supply-b",
+      "family": "supply",
+      "source": "assets/ui/sheets/supply-b.png",
+      "sprites": [
+        { "id": "item.basic_fertilizer", "file": "item-basic_fertilizer.png" },
+        { "id": "item.compost_starter", "file": "item-compost_starter.png" },
+        { "id": "item.plant_matter", "file": "item-plant_matter.png" },
+        { "id": "item.boat_fuel", "file": "item-boat_fuel.png" },
+        { "id": "item.crushed_ice", "file": "item-crushed_ice.png" }
+      ]
+    },
+    {
+      "id": "quality",
+      "family": "quality",
+      "source": "assets/ui/sheets/quality.png",
+      "sprites": [
+        { "id": "normal", "file": "quality-normal.png" },
+        { "id": "silver", "file": "quality-silver.png" },
+        { "id": "gold", "file": "quality-gold.png" },
+        { "id": "iridium", "file": "quality-iridium.png" }
+      ]
+    },
+    {
+      "id": "gis",
+      "family": "gis",
+      "source": "assets/ui/sheets/gis.png",
+      "sprites": [
+        { "id": "moist", "file": "gis-moist.png" },
+        { "id": "dry", "file": "gis-dry.png" },
+        { "id": "harvestReady", "file": "gis-harvest-ready.png" },
+        { "id": "growing", "file": "gis-growing.png" },
+        { "id": "prepared", "file": "gis-prepared.png" }
+      ]
+    },
+    {
+      "id": "portrait",
+      "family": "portrait",
+      "source": "assets/ui/sheets/portrait.png",
+      "output": { "coverage": 0.94 },
+      "sprites": [
+        { "id": "npc.elspeth", "file": "portrait-elspeth.png" },
+        { "id": "npc.barnaby", "file": "portrait-barnaby.png" },
+        { "id": "npc.silas", "file": "portrait-silas.png" },
+        { "id": "npc.maeve", "file": "portrait-maeve.png" }
+      ]
+    },
+    {
+      "id": "weather-a",
+      "family": "weather",
+      "source": "assets/ui/sheets/weather-a.png",
+      "sprites": [
+        { "id": "clear", "file": "weather-clear.png" },
+        { "id": "overcast", "file": "weather-overcast.png" },
+        { "id": "light-rain", "file": "weather-light-rain.png" },
+        { "id": "rain", "file": "weather-rain.png" },
+        { "id": "storm", "file": "weather-storm.png" }
+      ]
+    },
+    {
+      "id": "weather-b",
+      "family": "weather",
+      "source": "assets/ui/sheets/weather-b.png",
+      "sprites": [
+        { "id": "fog", "file": "weather-fog.png" },
+        { "id": "wind", "file": "weather-wind.png" },
+        { "id": "thermometer", "file": "weather-thermometer.png" },
+        { "id": "wave", "file": "weather-wave.png" }
+      ]
+    },
+    {
+      "id": "time",
+      "family": "time",
+      "source": "assets/ui/sheets/time.png",
+      "sprites": [
+        { "id": "sun", "file": "time-sun.png" },
+        { "id": "moon", "file": "time-moon.png" },
+        { "id": "dawn", "file": "time-dawn.png" },
+        { "id": "dusk", "file": "time-dusk.png" }
+      ]
+    },
+    {
+      "id": "tool",
+      "family": "tool",
+      "source": "assets/ui/sheets/tool.png",
+      "sprites": [
+        { "id": "hoe", "file": "tool-hoe.png" },
+        { "id": "watering_can", "file": "tool-watering_can.png" },
+        { "id": "bait", "file": "tool-bait.png" },
+        { "id": "rod", "file": "tool-rod.png" },
+        { "id": "pickaxe", "file": "tool-pickaxe.png" },
+        { "id": "basket", "file": "tool-basket.png" }
+      ]
+    },
+    {
+      "id": "menu",
+      "family": "menu",
+      "source": "assets/ui/sheets/menu.png",
+      "sprites": [
+        { "id": "backpack", "file": "menu-backpack.png" },
+        { "id": "journal", "file": "menu-journal.png" },
+        { "id": "ledger", "file": "menu-ledger.png" },
+        { "id": "compass", "file": "menu-compass.png" },
+        { "id": "expedition", "file": "menu-expedition.png" },
+        { "id": "menu", "file": "menu-menu.png" }
+      ]
+    },
+    {
+      "id": "status",
+      "family": "status",
+      "source": "assets/ui/sheets/status.png",
+      "sprites": [
+        { "id": "coin", "file": "status-coin.png" },
+        { "id": "labor", "file": "status-labor.png" },
+        { "id": "warning", "file": "status-warning.png" }
+      ]
+    },
+    {
+      "id": "world",
+      "family": "world",
+      "source": "assets/ui/sheets/world.png",
+      "sprites": [
+        { "id": "sprout", "file": "world-sprout.png" },
+        { "id": "fish", "file": "world-fish.png" },
+        { "id": "boat", "file": "world-boat.png" }
+      ]
+    },
+    {
+      "id": "action-a",
+      "family": "action",
+      "source": "assets/ui/sheets/action-a.png",
+      "sprites": [
+        { "id": "plant", "file": "action-plant.png" },
+        { "id": "water", "file": "action-water.png" },
+        { "id": "harvest", "file": "action-harvest.png" },
+        { "id": "processing", "file": "action-processing.png" },
+        { "id": "pickup", "file": "action-pickup.png" }
+      ]
+    },
+    {
+      "id": "action-b",
+      "family": "action",
+      "source": "assets/ui/sheets/action-b.png",
+      "sprites": [
+        { "id": "place", "file": "action-place.png" },
+        { "id": "workstation", "file": "action-workstation.png" },
+        { "id": "cast", "file": "action-cast.png" },
+        { "id": "board", "file": "action-board.png" },
+        { "id": "dock", "file": "action-dock.png" }
+      ]
+    },
+    {
+      "id": "behavior",
+      "family": "behavior",
+      "source": "assets/ui/sheets/behavior.png",
+      "sprites": [
+        { "id": "run", "file": "behavior-run.png" },
+        { "id": "dive", "file": "behavior-dive.png" },
+        { "id": "surface", "file": "behavior-surface.png" },
+        { "id": "burst", "file": "behavior-burst.png" },
+        { "id": "shake", "file": "behavior-shake.png" },
+        { "id": "tiring", "file": "behavior-tiring.png" }
+      ]
+    },
+    {
+      "id": "mapnode-a",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-a.png",
+      "sprites": [
+        { "id": "homestead", "file": "mapnode-homestead.png" },
+        { "id": "garden", "file": "mapnode-garden.png" },
+        { "id": "village", "file": "mapnode-village.png" },
+        { "id": "river_crossing", "file": "mapnode-river_crossing.png" }
+      ]
+    },
+    {
+      "id": "mapnode-b",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-b.png",
+      "sprites": [
+        { "id": "river", "file": "mapnode-river.png" },
+        { "id": "harbor", "file": "mapnode-harbor.png" },
+        { "id": "lighthouse", "file": "mapnode-lighthouse.png" },
+        { "id": "offshore", "file": "mapnode-offshore.png" }
+      ]
+    },
+    {
+      "id": "chrome",
+      "family": "chrome",
+      "source": "assets/ui/sheets/chrome.png",
+      "sprites": [
+        { "id": "demand_up", "file": "chrome-demand_up.png" },
+        { "id": "demand_down", "file": "chrome-demand_down.png" },
+        { "id": "corner_leaf", "file": "chrome-corner_leaf.png" },
+        { "id": "corner_rope", "file": "chrome-corner_rope.png" }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "id": "parchment-grain",
+      "file": "parchment-grain.png",
+      "source": "assets/ui/sheets/parchment-grain.png",
+      "size": 512,
+      "doc": "Seamless paper tile behind every panel. Copied whole, not keyed."
+    }
+  ]
+}

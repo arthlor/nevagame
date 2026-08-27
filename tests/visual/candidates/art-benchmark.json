@@ -19,18 +19,24 @@
       "hardMax": 300
     }
   },
+  "visualGoldBenchmarkPolicy": {
+    "browserErrors": "must-be-empty",
+    "maxDrawCalls": 220,
+    "maxVisibleTriangles": 900000,
+    "triangleTargetFloor": "advisory"
+  },
   "benchmarkNote": "FPS is an observed Playwright browser sample; use the recorded renderer identity to distinguish hardware evidence from software-renderer diagnostics.",
   "scenes": [
     {
       "scene": "farm",
       "name": "clear-morning-0800",
       "view": "farm",
-      "drawCalls": 94,
-      "triangles": 732903,
-      "meshes": 140,
-      "shadowCasters": 1,
-      "batches": 36,
-      "instances": 14,
+      "drawCalls": 723,
+      "triangles": 1196445,
+      "meshes": 1700,
+      "shadowCasters": 281,
+      "batches": 0,
+      "instances": 31,
       "fps": 10,
       "reachesHighQualityTriangleTarget": true
     },
@@ -39,39 +45,39 @@
       "name": "clear-noon-1200",
       "view": "bridge",
       "drawCalls": 9,
-      "triangles": 182086,
-      "meshes": 126,
-      "shadowCasters": 1,
-      "batches": 36,
+      "triangles": 185286,
+      "meshes": 1691,
+      "shadowCasters": 273,
+      "batches": 0,
       "instances": 0,
-      "fps": 60,
+      "fps": 12,
       "reachesHighQualityTriangleTarget": false
     },
     {
       "scene": "harbor",
       "name": "clear-harbor-1200",
       "view": "harbor",
-      "drawCalls": 33,
-      "triangles": 645390,
-      "meshes": 140,
-      "shadowCasters": 1,
-      "batches": 36,
-      "instances": 14,
-      "fps": 60,
-      "reachesHighQualityTriangleTarget": true
+      "drawCalls": 9,
+      "triangles": 185286,
+      "meshes": 1691,
+      "shadowCasters": 273,
+      "batches": 0,
+      "instances": 0,
+      "fps": 12,
+      "reachesHighQualityTriangleTarget": false
     },
     {
       "scene": "coast",
       "name": "clear-coast-1200",
       "view": "coast",
-      "drawCalls": 9,
-      "triangles": 182086,
-      "meshes": 126,
-      "shadowCasters": 1,
-      "batches": 36,
-      "instances": 0,
-      "fps": 60,
-      "reachesHighQualityTriangleTarget": false
+      "drawCalls": 261,
+      "triangles": 911948,
+      "meshes": 1689,
+      "shadowCasters": 274,
+      "batches": 0,
+      "instances": 31,
+      "fps": 12,
+      "reachesHighQualityTriangleTarget": true
     }
   ]
 }

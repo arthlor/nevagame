@@ -360,6 +360,7 @@ export interface WeatherState {
   visibility: number; // 0..1
   temperatureC: number;
   nextWeatherMinute: GameMinute;
+  nextWeatherType: WeatherTag;
 }
 
 export interface MarketCommodityState {

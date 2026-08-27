@@ -58,7 +58,7 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.state.clock.currentMinute).toBe(start);
 
     sim.clock.setPaused(false);
-    sim.tick(8);
+    sim.advanceGameMinutes(8);
     expect(sim.state.clock.isPaused).toBe(false);
     expect(sim.state.clock.currentMinute).toBe(start + 8);
   });
@@ -88,6 +88,10 @@ describe("Gameplay simulation fixes", () => {
       sim.state.inventories[sim.state.player.inventoryId],
       "produce.wheat"
     );
+    const plantMatterBefore = InventoryManager.getItemCount(
+      sim.state.inventories[sim.state.player.inventoryId],
+      "item.plant_matter"
+    );
 
     const res = sim.harvestCrop(placedCropId);
     expect(res.success).toBe(true);
@@ -98,6 +102,9 @@ describe("Gameplay simulation fixes", () => {
     expect(
       InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "produce.wheat")
     ).toBe(wheatBefore);
+    expect(
+      InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "item.plant_matter")
+    ).toBe(plantMatterBefore);
 
     const replant = sim.plantCrop(
       "farm.starter_garden",
@@ -137,6 +144,7 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.z = 0;
     expect(sim.castBasicFishing().success).toBe(true);
     sim.state.basicFishing!.remainingSeconds = 0.05;
+    sim.state.basicFishing!.willCatch = true;
     sim.tick(0.1);
     expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
     expect(sim.hookBiteBasicFishing().success).toBe(true);
@@ -191,18 +199,18 @@ describe("Gameplay simulation fixes", () => {
     expect(() => sim.spawnFishSchool("lake", lake.x, lake.z, [])).toThrow(/eligible sport-fish/);
   });
 
-  it("offline cap: 3 real hours still simulates 3*3600 game minutes", () => {
+  it("offline cap: 3 real hours simulates 3*3600*0.4 game minutes", () => {
     const now = Date.now();
     sim.state.metadata.lastSavedUtcMs = now - 3 * 3600 * 1000;
     const summary = applyOfflineProgression(sim.state, now);
-    expect(summary.simulatedGameMinutes).toBe(3 * 3600);
+    expect(summary.simulatedGameMinutes).toBe(Math.floor(3 * 3600 * 0.4));
   });
 
-  it("offline cap: more than 72 real hours is capped at 72h of game minutes", () => {
+  it("offline cap: more than 72 real hours is capped at 72h at the stored clock speed", () => {
     const now = Date.now();
     sim.state.metadata.lastSavedUtcMs = now - 80 * 3600 * 1000;
     const summary = applyOfflineProgression(sim.state, now);
-    expect(summary.simulatedGameMinutes).toBe(72 * 3600);
+    expect(summary.simulatedGameMinutes).toBe(Math.floor(72 * 3600 * sim.state.clock.minutesPerRealSecond));
   });
 
   it("rounds offline fractional speeds to canonical whole game minutes", () => {
@@ -366,10 +374,10 @@ describe("Gameplay simulation fixes", () => {
     const wheat = sim.state.markets["market.village"].commodities["produce.wheat"];
     const startMinute = sim.state.clock.currentMinute;
     expect(startMinute % 60).toBe(0);
-    sim.tick(90);
+    sim.advanceGameMinutes(90);
     expect(sim.state.clock.currentMinute).toBe(startMinute + 90);
     expect(sim.clock.getMinuteOfHour()).toBe(30);
-    expect(wheat.lastTickMinute).toBe(sim.state.clock.currentMinute);
+    expect(wheat.lastTickMinute).toBe(startMinute + 60);
   });
 
   it("advances scheduled weather deterministically and persists the next forecast window", () => {
@@ -389,7 +397,7 @@ describe("Gameplay simulation fixes", () => {
     const contract = sim.state.contracts[0];
     contract.status = "active";
     contract.expiresAtMinute = sim.state.clock.currentMinute + 1;
-    sim.tick(1);
+    sim.advanceGameMinutes(1);
     expect(contract.status).toBe("expired");
   });
 
@@ -780,7 +788,7 @@ describe("Gameplay simulation fixes", () => {
     const started = sim.startProcessingJob("recipe.mackerel_to_scraps", HARBOR_FISH_TABLE.structureId);
     expect(started).toMatchObject({ success: true });
     const jobId = Object.keys(sim.state.processingJobs)[0];
-    sim.tick(6);
+    sim.advanceGameMinutes(6);
 
     const inventoryBeforeInvalidCollect = inventory.slots.map((slot) => ({ ...slot }));
     const processingXpBeforeInvalidCollect = sim.state.player.proficiencies.processing;
@@ -942,7 +950,7 @@ describe("Gameplay simulation fixes", () => {
     expect(loaded.clock.isPaused()).toBe(false);
     expect(loaded.state.clock.isPaused).toBe(false);
     const start = loaded.state.clock.currentMinute;
-    loaded.tick(8);
+    loaded.advanceGameMinutes(8);
     expect(loaded.state.clock.currentMinute).toBe(start + 8);
   });
 
@@ -959,7 +967,7 @@ describe("Gameplay simulation fixes", () => {
     const appleId = Object.keys(sim.state.crops)[0];
     const appleDef = ContentRegistry.crops.get("crop.apple_tree")!;
     sim.state.crops[appleId].effectiveGrowthMinutes = appleDef.baseGrowthMinutes * 1.7;
-    sim.tick(1);
+    sim.advanceGameMinutes(1);
     expect(sim.state.crops[appleId]).toBeDefined();
     expect(sim.state.crops[appleId].stage).toBe("overripe");
     expect(sim.state.crops[appleId].stage).not.toBe("withered");
@@ -976,8 +984,9 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.z = wheatPos.z;
     expect(sim.plantCrop("farm.starter_garden", "crop.wheat", wheatPos.x, wheatPos.z).success).toBe(true);
     const wheatId = Object.keys(sim.state.crops)[0];
-    sim.state.crops[wheatId].effectiveGrowthMinutes = 60 * 1.7;
-    sim.tick(1);
+    const wheatDef = ContentRegistry.crops.get("crop.wheat")!;
+    sim.state.crops[wheatId].effectiveGrowthMinutes = wheatDef.baseGrowthMinutes * 1.7;
+    sim.advanceGameMinutes(1);
     expect(sim.state.crops[wheatId].stage).toBe("withered");
     const wheatClear = sim.harvestCrop(wheatId);
     expect(wheatClear.success).toBe(true);

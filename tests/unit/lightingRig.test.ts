@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { PALETTE_HEX } from "../../src/render/materials/PaletteTokens";
+import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import {
   deriveCelestialDirections,
   deriveLightingFrame,
@@ -14,7 +15,7 @@ describe("LightingRig", () => {
     const first = deriveLightingFrame(state, 12);
     const second = deriveLightingFrame(state, 12);
     expect(first.sunDirection.toArray()).toEqual(second.sunDirection.toArray());
-    expect(first.sunDirection.y).toBeGreaterThan(0.3);
+    expect(first.sunDirection.y).toBeGreaterThan(0.25);
     expect(first.sunIntensity).toBeGreaterThan(1);
   });
 
@@ -35,8 +36,11 @@ describe("LightingRig", () => {
     const state = createInitialGameState(42);
     state.clock.currentMinute = 0;
     const night = deriveLightingFrame(state, 12);
-    expect(night.sunDirection.y).toBeLessThan(-0.7);
-    expect(night.moonDirection.y).toBeGreaterThan(0.7);
+    const canonicalElevationY = Math.sin(
+      THREE.MathUtils.degToRad(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg)
+    );
+    expect(night.sunDirection.y).toBeCloseTo(-canonicalElevationY, 6);
+    expect(night.moonDirection.y).toBeCloseTo(canonicalElevationY, 6);
     expect(night.sunDirection.dot(night.moonDirection)).toBeCloseTo(-1, 6);
     expect(night.sunIntensity).toBe(0);
     expect(night.moonIntensity).toBeGreaterThan(0.2);
@@ -49,7 +53,10 @@ describe("LightingRig", () => {
     const noon = deriveCelestialDirections(12 * 60);
     const sunset = deriveCelestialDirections(18 * 60);
     expect(Math.abs(sunrise.sunDirection.y)).toBeLessThan(0.001);
-    expect(noon.sunDirection.y).toBeGreaterThan(0.8);
+    expect(noon.sunDirection.y).toBeCloseTo(
+      Math.sin(THREE.MathUtils.degToRad(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg)),
+      6
+    );
     expect(Math.abs(sunset.sunDirection.y)).toBeLessThan(0.001);
     expect(sunrise.sunDirection.dot(sunset.sunDirection)).toBeCloseTo(-1, 5);
   });

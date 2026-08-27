@@ -2,7 +2,7 @@
 
 import { ContentRegistry } from "../content/ContentRegistry";
 import { EventBus } from "./core/EventBus";
-import { GameClock } from "./core/GameClock";
+import { GameClock, minutesUntilNextMorning } from "./core/GameClock";
 import { SeededRng } from "./core/Rng";
 import {
   FarmId,
@@ -138,6 +138,12 @@ export class Simulation {
         return this.harvestCrop(command.placedCropId);
       case "farm.apply-fertilizer":
         return this.applyFertilizer(command.farmId);
+      case "farm.irrigate":
+        return this.farmingDomain.irrigate(command.farmId);
+      case "farm.buy-irrigation":
+        return this.farmingDomain.buyIrrigation();
+      case "player.rest-until-dawn":
+        return this.restUntilDawn();
       case "processing.start":
         return this.startProcessingJob(command.recipeId, command.stationId);
       case "processing.collect":
@@ -170,6 +176,8 @@ export class Simulation {
         return this.sellItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.buy-seed":
         return this.buySeedAtMarket(command.marketId, command.itemId, command.quantity);
+      case "market.buy-item":
+        return this.marketDomain.buyItem(command.marketId, command.itemId, command.quantity);
       case "market.sell-fish":
         return this.sellFishCargoAtMarket(command.marketId, command.cargoId);
       case "contract.deliver-items":
@@ -234,11 +242,8 @@ export class Simulation {
       return;
     }
 
-    // 1. Advance Game Clock
     const minutesAdvanced = this.clock.tick(realDeltaSeconds);
     this.state.clock = { ...this.clock.getState() };
-
-    // 2. Tick fishing state machines through their domain owner.
     this.fishingDomain.tick(realDeltaSeconds);
 
     if (minutesAdvanced <= 0) {
@@ -246,22 +251,49 @@ export class Simulation {
       return;
     }
 
-    // 3-5. Crops, moisture, and cargo freshness in the same weather-bounded
-    // segments used by offline catch-up (LLM/01). Clock is already at the end
-    // of this tick; weather is walked from the start minute.
+    this.applyElapsedGameMinutes(minutesAdvanced);
+  }
+
+  public advanceGameMinutes(minutes: number): void {
+    if (!Number.isSafeInteger(minutes) || minutes <= 0) return;
+    this.clock.advanceMinutes(minutes);
+    this.state.clock = { ...this.clock.getState() };
+    this.applyElapsedGameMinutes(minutes);
+  }
+
+  private restUntilDawn(): InteractionResult {
+    const { player, clock } = this.state;
+    if (!WorldLayout.isInterior(player.x, player.z)) {
+      return { success: false, reason: "Rest in the farmhouse" };
+    }
+    if (clock.timeOfDay !== "dusk" && clock.timeOfDay !== "night") {
+      return { success: false, reason: "It's too early to turn in" };
+    }
+    const minutes = minutesUntilNextMorning(clock.currentMinute);
+    this.advanceGameMinutes(minutes);
+    return { success: true };
+  }
+
+  private applyElapsedGameMinutes(minutesAdvanced: number): void {
     const startMinute = this.state.clock.currentMinute - minutesAdvanced;
+    const weatherBefore = this.state.weather.type;
     forEachWeatherBoundedSegment(
       this.state.weather,
       startMinute,
       minutesAdvanced,
       this.rng,
-      (segmentMinutes) => {
+      (segmentMinutes, segmentStartMinute) => {
         this.farmingDomain.tick(segmentMinutes);
-        this.cargoDomain.tick(segmentMinutes);
+        this.cargoDomain.tick(segmentMinutes, segmentStartMinute);
       }
     );
+    if (this.state.weather.type !== weatherBefore) {
+      this.events.emit("WeatherChanged", {
+        weather: this.state.weather.type,
+        minute: this.state.clock.currentMinute
+      });
+    }
 
-    // After all segments: processing, contracts, markets (LLM/01), then live-only extras.
     this.processingDomain.tick();
     this.contractDomain.tick();
     this.marketDomain.tick();
@@ -277,9 +309,35 @@ export class Simulation {
     this.state.player.money += amount;
   }
 
+  /** Development-only relocate for in-game layout editing. Not a schema migration. */
+  public debugRelocateStructure(
+    id: string,
+    x: number,
+    z: number,
+    rotationY?: number
+  ): boolean {
+    const structure = this.state.world.structures[id];
+    if (!structure) return false;
+    this.state.world.structures[id] = {
+      ...structure,
+      x,
+      y: WorldLayout.terrainHeight(x, z),
+      z,
+      rotationY: rotationY ?? structure.rotationY
+    };
+    return true;
+  }
+
   /** Development-only weather override that keeps the complete profile coherent. */
   public setDebugWeather(type: GameState["weather"]["type"]): void {
+    const previous = this.state.weather.type;
     applyWeatherProfile(this.state.weather, type);
+    if (this.state.weather.type !== previous) {
+      this.events.emit("WeatherChanged", {
+        weather: this.state.weather.type,
+        minute: this.state.clock.currentMinute
+      });
+    }
   }
 
   public setDebugMinute(currentMinute: number): boolean {
@@ -607,6 +665,10 @@ export class Simulation {
 
   public applyFertilizer(farmId: FarmId): InteractionResult {
     return this.farmingDomain.applyFertilizer(farmId);
+  }
+
+  public getNearbyFarmId(): FarmId | null {
+    return this.farmingDomain.getNearbyFarmId();
   }
 
   public inspectCrop(placedCropId: PlacedCropId): CropInspectionDto | null {

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import { buildStarterFarmGround } from "../../src/render/scene/StarterFarmGround";
-import { SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
+import { FacetedWater, SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
 import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
@@ -18,9 +18,40 @@ describe("renderer foundation", () => {
     expect(CANONICAL_RENDER_CONFIG.quality.low.ambientOcclusion).toBe("off");
     expect(CANONICAL_RENDER_CONFIG.quality.low.dynamicContactShadows).toBe(false);
     expect(CANONICAL_RENDER_CONFIG.quality.medium.ambientOcclusion).toBe("contact");
-    expect(CANONICAL_RENDER_CONFIG.quality.high.ambientOcclusion).toBe("contact");
+    expect(CANONICAL_RENDER_CONFIG.quality.high.ambientOcclusion).toBe("gtao");
+    expect(CANONICAL_RENDER_CONFIG.quality.high.dynamicContactShadows).toBe(false);
     expect(CANONICAL_RENDER_CONFIG.gtao.resolutionScale).toBeLessThan(1);
     expect(CANONICAL_RENDER_CONFIG.shadows.vegetationCastDistanceMeters).toBe(28);
+    expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBe(0.7);
+    expect(CANONICAL_RENDER_CONFIG.skyFill.intensity).toBe(1.45);
+    expect(CANONICAL_RENDER_CONFIG.gtao.blendIntensity).toBe(0.38);
+    expect(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg).toBe(35);
+    expect(CANONICAL_RENDER_CONFIG.sun.noonAzimuthDeg).toBe(45);
+    expect(CANONICAL_RENDER_CONFIG.terrainSurface.polygonCellScaleMeters).toBe(1.2);
+    expect(CANONICAL_RENDER_CONFIG.terrainSurface.pathTransition).toEqual({
+      shoulderStart: 0.48,
+      shoulderFull: 0.62,
+      coreStart: 0.74,
+      coreFull: 0.88,
+      underlayStrength: 0.14
+    });
+    expect(CANONICAL_RENDER_CONFIG.roadSurface.edgeFadeStart)
+      .toBeLessThan(CANONICAL_RENDER_CONFIG.roadSurface.edgeFadeFull);
+  });
+
+  it("uses canonical turquoise depth bands and polygonal reflection normals", () => {
+    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const material = water.mesh.material;
+    expect(material.fragmentShader).toContain("nevaGroundPolygonCell(vWorldPosition.xz, uPolygonCellScale)");
+    expect(material.fragmentShader).toContain("waterFacetBand = step(0.34, waterPolygonCell.x)");
+    expect(material.fragmentShader).toContain("uPolygonNormalStrength");
+    expect(material.uniforms.uPolygonCellScale.value).toBe(
+      CANONICAL_RENDER_CONFIG.waterSurface.polygonCellScaleMeters
+    );
+    expect(material.uniforms.uFresnelStrength.value).toBe(
+      CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength
+    );
+    water.dispose();
   });
 
   it("builds deterministic broken coastal foam patches", () => {

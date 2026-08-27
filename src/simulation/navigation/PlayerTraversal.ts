@@ -7,7 +7,7 @@ export const PLAYER_TRAVERSAL_TUNING = Object.freeze({
   decelerationMetersPerSecondSquared: 42,
   gravityMetersPerSecondSquared: 18,
   terminalFallSpeedMetersPerSecond: 22,
-  jumpSpeedMetersPerSecond: 7.25,
+  jumpSpeedMetersPerSecond: 5.55,
   jumpBufferSeconds: 0.12,
   coyoteTimeSeconds: 0.1,
   maximumSprintStamina: 100,
@@ -76,6 +76,26 @@ export function advancePlayerTraversal(
     },
     isSprinting
   };
+}
+
+/**
+ * Modest uphill penalty and downhill gain from the ground normal so hills read
+ * as effort. Flat ground and missing/degenerate normals leave gait unchanged.
+ */
+export function slopeGaitScale(
+  normal: Readonly<{ x: number; y: number; z: number }>,
+  moveX: number,
+  moveZ: number
+): number {
+  const moveLength = Math.hypot(moveX, moveZ);
+  if (moveLength < 0.001 || !Number.isFinite(normal.y)) return 1;
+  const slope = 1 - clamp(normal.y, 0, 1);
+  if (slope < 0.01) return 1;
+  const downhillLength = Math.hypot(-normal.x, -normal.z);
+  if (downhillLength < 0.001) return 1;
+  const alignment = (moveX * -normal.x + moveZ * -normal.z) / (moveLength * downhillLength);
+  const signed = alignment >= 0 ? 0.12 * alignment : 0.22 * alignment;
+  return clamp(1 + slope * signed, 0.78, 1.14);
 }
 
 function finiteOr(value: number, fallback: number): number {

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from common.geometry import (
+    add_beam,
     add_box,
     add_collision_primitives,
     add_cylinder,
@@ -16,6 +17,50 @@ from common.authored import (
     add_masonry_courses,
     add_plank_field,
 )
+
+
+def _add_inner_stone_band(
+    prefix: str,
+    center: tuple[float, float, float],
+    span: float,
+    height: float,
+    token: str,
+    root,
+    *,
+    axis: str,
+    blocks: int,
+    courses: int,
+    seed: int,
+) -> None:
+    """Staggered interior plinth blocks that respect doorway/opening segments."""
+    rng = seeded_rng(seed)
+    cx, cy, cz = center
+    course_h = height / courses
+    block_span = span / blocks
+    for course in range(courses):
+        offset = block_span * 0.5 if course % 2 else 0.0
+        for index in range(blocks):
+            along = -span * 0.5 + block_span * (index + 0.5) + offset
+            if along > span * 0.5 - block_span * 0.25:
+                along -= span
+            z = cz - height * 0.5 + course_h * (course + 0.5) + rng.uniform(-0.012, 0.012)
+            if axis == "x":
+                location = (cx + along, cy, z)
+                dimensions = (block_span * 0.90, 0.12, course_h * 0.84)
+                rotation = (0, rng.uniform(-0.010, 0.010), rng.uniform(-0.014, 0.014))
+            else:
+                location = (cx, cy + along, z)
+                dimensions = (0.12, block_span * 0.90, course_h * 0.84)
+                rotation = (rng.uniform(-0.010, 0.010), 0, rng.uniform(-0.014, 0.014))
+            add_box(
+                f"{prefix}_{course:02d}_{index:02d}",
+                location,
+                dimensions,
+                token,
+                root,
+                rotation=rotation,
+                bevel=0.012,
+            )
 
 
 def interior_farmhouse_shell(spec: dict, root) -> None:
@@ -43,7 +88,7 @@ def interior_farmhouse_shell(spec: dict, root) -> None:
         0.04,
         (timber,),
         root,
-        count=params.get("floorPlanks", 16),
+        count=params["floorPlanks"],
         axis="x",
         seed=spec["seed"] + 1,
     )
@@ -110,11 +155,121 @@ def interior_farmhouse_shell(spec: dict, root) -> None:
     add_box("door_frame_lintel", (0, -half_d, door_h + 0.22), (door_w + 0.16, wall_t + 0.06, 0.12), dark_wood, root, bevel=0.02)
     add_box("door_threshold_step", (0, -half_d, 0.18), (door_w + 0.1, wall_t + 0.12, 0.06), timber, root, bevel=0.015)
 
+    # A continuous but doorway-aware masonry wainscot carries the exterior
+    # farmhouse plinth language inside and gives the shell real contact weight.
+    stone_band_h = 0.58
+    stone_band_z = 0.18 + stone_band_h * 0.5
+    _add_inner_stone_band("interior_stone_back", (0, half_d - 0.12, stone_band_z), width - 0.34, stone_band_h, stone, root, axis="x", blocks=10, courses=3, seed=spec["seed"] + 11)
+    _add_inner_stone_band("interior_stone_left", (-half_w + 0.12, 0, stone_band_z), depth - 0.34, stone_band_h, stone, root, axis="y", blocks=8, courses=3, seed=spec["seed"] + 17)
+    _add_inner_stone_band("interior_stone_right", (half_w - 0.12, 0, stone_band_z), depth - 0.34, stone_band_h, stone, root, axis="y", blocks=8, courses=3, seed=spec["seed"] + 23)
+    front_segment_span = max(0.6, front_half_w - 0.12)
+    _add_inner_stone_band("interior_stone_front_left", (-(door_w * 0.5 + front_half_w * 0.5), -half_d + 0.12, stone_band_z), front_segment_span, stone_band_h, stone, root, axis="x", blocks=4, courses=3, seed=spec["seed"] + 29)
+    _add_inner_stone_band("interior_stone_front_right", (door_w * 0.5 + front_half_w * 0.5, -half_d + 0.12, stone_band_z), front_segment_span, stone_band_h, stone, root, axis="x", blocks=4, courses=3, seed=spec["seed"] + 31)
+
     # 4. Timber Framing Corner Posts and Ceiling Crossbeams
     post_size = 0.22
     for px in (-half_w, half_w):
         for py in (-half_d, half_d):
             add_box(f"timber_post_{int(px)}_{int(py)}", (px, py, wall_height * 0.5 + 0.18), (post_size, post_size, wall_height), timber, root, bevel=0.025)
+
+    # Wall bays and knee braces expose the post-and-beam structure instead of
+    # leaving large plaster planes as an empty box.
+    for index, px in enumerate((-width * 0.25, 0.0, width * 0.25)):
+        add_box(f"timber_bay_post_back_{index}", (px, half_d - 0.07, wall_height * 0.5 + 0.18), (0.15, 0.14, wall_height - 0.08), dark_wood, root, bevel=0.014)
+    for side, name in ((-1, "left"), (1, "right")):
+        for index, py in enumerate((-depth * 0.27, 0.0, depth * 0.27)):
+            add_box(f"timber_bay_post_{name}_{index}", (side * (half_w - 0.07), py, wall_height * 0.5 + 0.18), (0.14, 0.15, wall_height - 0.08), dark_wood, root, bevel=0.014)
+        add_beam(
+            f"timber_knee_brace_{name}_front",
+            (side * (half_w - 0.10), -half_d + 0.10, wall_height - 0.74),
+            (side * (half_w - 0.10), -half_d + 0.82, wall_height + 0.04),
+            0.055,
+            timber,
+            root,
+            vertices=6,
+        )
+        add_beam(
+            f"timber_knee_brace_{name}_back",
+            (side * (half_w - 0.10), half_d - 0.10, wall_height - 0.74),
+            (side * (half_w - 0.10), half_d - 0.82, wall_height + 0.04),
+            0.055,
+            timber,
+            root,
+            vertices=6,
+        )
+
+    # Continuous rails divide the lime finish into human-scale bays. They sit
+    # slightly proud of the plaster, exposing the actual frame instead of
+    # leaving room-sized cream planes.
+    for rail_index, rail_z in enumerate((1.22, 2.40)):
+        add_box(
+            f"timber_wall_rail_back_{rail_index}",
+            (0, half_d - 0.075, rail_z),
+            (width - 0.26, 0.14, 0.16),
+            dark_wood if rail_index == 0 else timber,
+            root,
+            bevel=0.012,
+        )
+        add_box(
+            f"timber_wall_rail_right_{rail_index}",
+            (half_w - 0.075, 0, rail_z),
+            (0.14, depth - 0.26, 0.16),
+            dark_wood if rail_index == 0 else timber,
+            root,
+            bevel=0.012,
+        )
+        # The front rail respects the doorway rather than crossing it.
+        add_box(
+            f"timber_wall_rail_front_left_{rail_index}",
+            (-(door_w * 0.5 + front_half_w * 0.5), -half_d + 0.075, rail_z),
+            (front_half_w - 0.10, 0.14, 0.16),
+            dark_wood if rail_index == 0 else timber,
+            root,
+            bevel=0.012,
+        )
+        add_box(
+            f"timber_wall_rail_front_right_{rail_index}",
+            (door_w * 0.5 + front_half_w * 0.5, -half_d + 0.075, rail_z),
+            (front_half_w - 0.10, 0.14, 0.16),
+            dark_wood if rail_index == 0 else timber,
+            root,
+            bevel=0.012,
+        )
+
+    # A small repaired wattle/lath bay makes the wall history legible without
+    # covering the room in noisy micro-detail.
+    repair_y = depth * 0.18
+    repair_w = 1.25
+    repair_h = 1.34
+    repair_z = 1.70
+    add_box(
+        "interior_wattle_repair_recess",
+        (half_w - 0.115, repair_y, repair_z),
+        (0.07, repair_w + 0.16, repair_h + 0.16),
+        dark_wood,
+        root,
+        bevel=0.010,
+    )
+    for lath in range(7):
+        lath_z = repair_z - repair_h * 0.5 + repair_h * (lath + 0.5) / 7
+        add_box(
+            f"interior_wattle_lath_{lath:02d}",
+            (half_w - 0.155, repair_y, lath_z),
+            (0.055, repair_w, 0.075),
+            timber if lath % 3 else dark_wood,
+            root,
+            rotation=(0.0, 0.0, 0.006 if lath % 2 else -0.006),
+            bevel=0.006,
+        )
+    for upright, y in enumerate((repair_y - repair_w * 0.31, repair_y, repair_y + repair_w * 0.31)):
+        add_box(
+            f"interior_wattle_upright_{upright}",
+            (half_w - 0.175, y, repair_z),
+            (0.06, 0.075, repair_h),
+            dark_wood,
+            root,
+            bevel=0.006,
+        )
 
     # Top Wall Plates
     add_box("timber_plate_back", (0, half_d, wall_height + 0.14), (width, post_size, 0.16), timber, root, bevel=0.02)
@@ -123,10 +278,17 @@ def interior_farmhouse_shell(spec: dict, root) -> None:
     add_box("timber_plate_right", (half_w, 0, wall_height + 0.14), (post_size, depth, 0.16), timber, root, bevel=0.02)
 
     # Ceiling Beams spanning X axis
-    num_beams = params.get("ceilingBeams", 4)
+    num_beams = params["ceilingBeams"]
     for index in range(num_beams):
         by = -half_d + (depth / (num_beams + 1)) * (index + 1)
         add_box(f"ceiling_beam_{index:02d}", (0, by, wall_height + 0.10), (width - 0.1, 0.18, 0.20), dark_wood, root, bevel=0.02)
+
+    # Two longitudinal purlins and short pegged ends make the ceiling framing
+    # read as a carried structure rather than independent floating bars.
+    for side, x in (("left", -width * 0.27), ("right", width * 0.27)):
+        add_box(f"ceiling_purlin_{side}", (x, 0, wall_height + 0.03), (0.16, depth - 0.18, 0.16), timber, root, bevel=0.018)
+        for end, y in (("front", -half_d + 0.20), ("back", half_d - 0.20)):
+            add_cylinder(f"ceiling_peg_{side}_{end}", (x, y, wall_height - 0.07), 0.035, 0.18, dark_wood, root, vertices=6, bevel=0.006)
 
     add_collision_primitives(spec, root)
 
@@ -253,8 +415,15 @@ def fireplace_hearth(spec: dict, root) -> None:
     ]):
         add_cylinder(f"hearth_fire_log_{index}", (lx, ly, lz), 0.055, 0.52, dark_wood, root, vertices=6, rotation=(rot_y, math.pi / 2, rot_z), bevel=0.01)
 
+    # Layered flame tongues keep the fire readable as a fire rather than a
+    # single over-bright emissive blob in the dark interior.
+    add_ico("hearth_flame_outer_center", (0, -0.12, 0.66), (0.18, 0.09, 0.25), stone_golden, root, subdivisions=1)
+    add_ico("hearth_flame_outer_left", (-0.13, -0.10, 0.59), (0.09, 0.07, 0.16), stone_golden, root, subdivisions=1)
+    add_ico("hearth_flame_outer_right", (0.14, -0.09, 0.61), (0.08, 0.065, 0.18), stone_golden, root, subdivisions=1)
+    add_ico("hearth_flame_inner", (0, -0.18, 0.67), (0.075, 0.045, 0.16), emissive_fire, root, subdivisions=1)
+
     # Practical Light Anchor: hearth_fire_glow
-    add_ico("hearth_fire_glow", (0, -0.05, 0.52), (0.16, 0.16, 0.22), emissive_fire, root, subdivisions=2)
+    add_ico("hearth_fire_glow", (0, -0.05, 0.54), (0.11, 0.11, 0.15), emissive_fire, root, subdivisions=2)
 
     add_collision_primitives(spec, root)
 

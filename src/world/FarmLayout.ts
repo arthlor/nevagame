@@ -77,18 +77,18 @@ const STARTER_STRUCTURE_ANCHORS = [
     id: "struct.starter_mill",
     type: "hand-mill",
     // Working windmill on the mill pad southwest of the northeast village plaza.
-    // World (36, -76); door faces the plaza at (54, -52) from outside the courtyard.
-    x: 101,
-    z: -21,
-    rotationY: Math.atan2(-18, -24),
+    // World (57.8, -81.2); door faces the plaza at (53.2, -51.5) from outside the courtyard.
+    x: 122.8,
+    z: -26.2,
+    rotationY: -3.6652,
     clearanceRadius: 2.65,
     frontApproachDistanceMeters: 1.75
   },
   {
     id: "struct.workbench",
     type: "workbench",
-    x: -10,
-    z: -1.8,
+    x: -10.1,
+    z: -0.9,
     // The vise/drawer face opens toward the farm work trail (south).
     rotationY: 0,
     clearanceRadius: 1.3,
@@ -97,10 +97,10 @@ const STARTER_STRUCTURE_ANCHORS = [
   {
     id: "struct.starter_compost",
     type: "compost-bin",
-    x: -10.8,
-    z: -6.2,
+    x: -11.2,
+    z: -6.4,
     // The open slatted working face opens onto the northeast work-trail apron.
-    rotationY: Math.PI + 0.7,
+    rotationY: 3.8416,
     clearanceRadius: 1.15,
     frontApproachDistanceMeters: 1.0
   }
@@ -111,17 +111,17 @@ const STARTER_MARKET_ANCHORS: readonly FarmMarketAnchor[] = [];
 const STARTER_FARMSTEAD_ANCHORS = [
   {
     id: "farmhouse",
-    x: 8,
-    z: 1.5,
-    rotationY: Math.PI + 0.08,
+    x: 10.9,
+    z: 5.5,
+    rotationY: 3.1416,
     scale: 1.12,
     clearanceRadius: 5.2
   },
   {
     id: "well",
-    x: 6,
-    z: 5.5,
-    rotationY: 0.18,
+    x: 8.6,
+    z: -0.7,
+    rotationY: -0.5236,
     scale: 1,
     clearanceRadius: 1.65
   }
@@ -131,15 +131,42 @@ const STARTER_FENCE_ANCHORS = [
   ...[-6, -4, -2, 0, 2, 4, 6].map((x) => ({ id: `fence_north_${x}`, x, z: 6.2, rotationY: 0 })),
   ...[-6, -4, -2, 2, 4, 6].map((x) => ({ id: `fence_south_${x}`, x, z: -6.2, rotationY: 0 })),
   ...[-4, -2, 0, 2, 4].map((z) => ({ id: `fence_west_${z}`, x: -7.2, z, rotationY: Math.PI / 2 })),
-  ...[-4, -2, 0, 2, 4].map((z) => ({ id: `fence_east_${z}`, x: 7.2, z, rotationY: Math.PI / 2 }))
+  // Keep the east field fence outside the farmhouse collider and its access apron.
+  ...[-4, -2, 0, 2, 4].map((z) => ({ id: `fence_east_${z}`, x: 13.2, z, rotationY: Math.PI / 2 }))
 ] as const satisfies readonly FarmFenceAnchor[];
+
+/** DEV layout-editor pins for generated fence posts. Empty until an in-game drop writes an id. */
+export const FARM_FENCE_OVERRIDES: Readonly<Record<string, { x: number; z: number; rotationY: number }>> = {
+  "fence_east_-4": { x: 15.9, z: -1.6, rotationY: 1.5708 },
+  "fence_east_2": { x: 15.9, z: 2.6, rotationY: 1.5708 },
+  "fence_east_4": { x: 16.1, z: 4.6, rotationY: 1.5708 },
+  "fence_east_0": { x: 15.9, z: 0.5, rotationY: 1.5708 },
+  "fence_east_-2": { x: 16, z: 6.6, rotationY: 1.5708 },
+};
+
+/** Extra fence posts created by the DEV layout editor (copy/paste). */
+export const FARM_FENCE_EXTRAS: readonly FarmFenceAnchor[] = [
+];
+
+/** Generated fence posts removed by the DEV layout editor. */
+export const FARM_FENCE_REMOVED: readonly string[] = [
+];
+
+function applyFarmFenceOverrides(anchors: readonly FarmFenceAnchor[]): readonly FarmFenceAnchor[] {
+  return anchors
+    .filter((anchor) => !FARM_FENCE_REMOVED.includes(anchor.id))
+    .map((anchor) => {
+      const override = FARM_FENCE_OVERRIDES[anchor.id];
+      return override ? { ...anchor, ...override } : anchor;
+    });
+}
 
 const STARTER_PROP_ANCHORS = [
   { id: "farm_hay_a", type: "hay-bale", x: -13.4, z: -8.2, rotationY: 0.22, scale: 1 },
   { id: "farm_hay_b", type: "hay-bale", x: -12.1, z: -8.5, rotationY: 0.66, scale: 0.94 },
-  { id: "stall_crate_a", type: "produce-crate", x: 8.4, z: -8.2, rotationY: -0.18, scale: 0.9 },
-  { id: "stall_basket_a", type: "harvest-basket", x: 9.1, z: -7.8, rotationY: 0.24, scale: 1 },
-  { id: "farm_lamp_a", type: "lamp-post", x: 9.8, z: -2.2, rotationY: 0.1, scale: 0.88 }
+  { id: "stall_crate_a", type: "produce-crate", x: 13.1, z: -4.1, rotationY: -0.18, scale: 0.9 },
+  { id: "stall_basket_a", type: "harvest-basket", x: 14.3, z: -4, rotationY: 0.24, scale: 1 },
+  { id: "farm_lamp_a", type: "lamp-post", x: 7.3, z: -6.1, rotationY: 0.1, scale: 0.88 }
 ] as const satisfies readonly FarmPropAnchor[];
 
 const STARTER_PATHS = [
@@ -164,9 +191,10 @@ const STARTER_PATHS = [
     id: "farm-home",
     kind: "lane",
     widthMeters: 2.2,
-    // Local z -2.8 resolves to FARMHOUSE_OUTSIDE_DOOR.z. Never route the
-    // visible path through the farmhouse body at local z 1.5.
-    points: [{ x: 7.4, z: -8.4 }, { x: 8.0, z: -5.0 }, { x: 8.0, z: -3.0 }, { x: 8.0, z: -2.8 }]
+    // The final local point resolves to the current outside door at
+    // world (-53.76, -53.79). Approach from the south without crossing the
+    // well or cutting through the farmhouse body.
+    points: [{ x: 7.4, z: -8.4 }, { x: 8.8, z: -5.2 }, { x: 10.4, z: -2.0 }, { x: 11.24, z: 1.21 }]
   }
 ] as const satisfies readonly FarmPathDefinition[];
 
@@ -178,7 +206,7 @@ export const STARTER_FARM_LAYOUT: FarmLayoutDefinition = {
   structureAnchors: STARTER_STRUCTURE_ANCHORS,
   marketAnchors: STARTER_MARKET_ANCHORS,
   farmsteadAnchors: STARTER_FARMSTEAD_ANCHORS,
-  fenceAnchors: STARTER_FENCE_ANCHORS,
+  fenceAnchors: applyFarmFenceOverrides([...STARTER_FENCE_ANCHORS, ...FARM_FENCE_EXTRAS]),
   propAnchors: STARTER_PROP_ANCHORS,
   paths: STARTER_PATHS
 };

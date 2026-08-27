@@ -11,6 +11,24 @@ export interface GrowthStepResult {
   newHealth: number;
 }
 
+/**
+ * Health is damaged by sustained moisture stress, independently of growth
+ * progress. Healthy soil does not heal a damaged crop, but it stops further
+ * loss; very dry soil applies the full stress rate.
+ */
+export function calculateCropHealth(
+  currentHealth: number,
+  currentMoisture: number,
+  elapsedMinutes: number
+): number {
+  const health = Math.min(100, Math.max(0, currentHealth));
+  if (elapsedMinutes <= 0) return health;
+
+  const moistureStress = currentMoisture >= 40 ? 0 : currentMoisture >= 15 ? 0.5 : 1;
+  const healthLoss = (elapsedMinutes / 60) * 5 * moistureStress;
+  return Math.max(0, health - healthLoss);
+}
+
 export function calculateEffectiveGrowthDelta(
   elapsedMinutes: number,
   crop: CropDefinition,
@@ -51,7 +69,7 @@ export function calculateEffectiveGrowthDelta(
 
   // 4. Weather modifier
   let weatherMod = 1.0;
-  if (weatherType === "light-rain" || weatherType === "heavy-rain") {
+  if (weatherType === "light-rain" || weatherType === "heavy-rain" || weatherType === "storm") {
     weatherMod = 1.05;
   }
 
@@ -129,7 +147,7 @@ export function calculateHarvestYield(
 export function moistureChangePerHour(waterNeed: number, weatherType: WeatherTag): number {
   let delta = -(waterNeed * 0.4);
   if (weatherType === "light-rain") delta += 15;
-  else if (weatherType === "heavy-rain") delta += 35;
+  else if (weatherType === "heavy-rain" || weatherType === "storm") delta += 35;
   if (weatherType === "windy") delta -= waterNeed * 0.2;
   return delta;
 }
@@ -162,6 +180,7 @@ export function advancePlacedCropGrowth(
   crop: {
     effectiveGrowthMinutes: number;
     moisture: number;
+    health: number;
     averageMoistureAccum: number;
     moistureSampleCount: number;
     stage: CropStage;
@@ -172,6 +191,7 @@ export function advancePlacedCropGrowth(
   weatherType: WeatherTag,
   elapsedMinutes: number
 ): CropStage {
+  const initialMoisture = crop.moisture;
   crop.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
     elapsedMinutes,
     cropDef,
@@ -181,6 +201,8 @@ export function advancePlacedCropGrowth(
     weatherType
   );
   applyCropMoistureOverMinutes(crop, elapsedMinutes, cropDef.waterNeed, weatherType);
+  crop.health = calculateCropHealth(crop.health, Math.min(initialMoisture, crop.moisture), elapsedMinutes);
   crop.stage = determineCropStage(crop.effectiveGrowthMinutes, cropDef.baseGrowthMinutes, cropDef.regrows);
+  if (crop.stage === "withered") crop.health = 0;
   return crop.stage;
 }

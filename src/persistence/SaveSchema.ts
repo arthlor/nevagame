@@ -7,7 +7,7 @@ import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversa
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
 
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 16;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -89,9 +89,11 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 14
+    (schemaVersion >= 15
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
-      : schemaVersion === 13
+      : schemaVersion === 14
+        ? state.world.layoutRevision !== 6
+        : schemaVersion === 13
         ? state.world.layoutRevision !== 5
         : schemaVersion === 12
           ? state.world.layoutRevision !== 4
@@ -117,6 +119,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     !isFiniteInRange(state.weather.visibility, 0, 1) ||
     !isFiniteNumber(state.weather.temperatureC) ||
     !isSafeInteger(state.weather.nextWeatherMinute, 0) ||
+    (schemaVersion >= 16 && !isOneOf(state.weather.nextWeatherType, WEATHER_TYPES)) ||
     !isRecord(state.markets) ||
     !Array.isArray(state.contracts) ||
     !isRecord(state.journal) ||

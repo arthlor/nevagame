@@ -1,8 +1,10 @@
 export interface AudioSettings {
   master: number;
+  music: number;
   sfx: number;
   ambience: number;
   masterMuted: boolean;
+  musicMuted: boolean;
   sfxMuted: boolean;
   ambienceMuted: boolean;
 }
@@ -10,9 +12,11 @@ export interface AudioSettings {
 const STORAGE_KEY = "neva.audio.v1";
 const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   master: 0.8,
+  music: 0.52,
   sfx: 0.8,
   ambience: 0.62,
   masterMuted: false,
+  musicMuted: false,
   sfxMuted: false,
   ambienceMuted: false
 };
@@ -29,9 +33,11 @@ const parseSettings = (value: unknown): AudioSettings => {
   const candidate = value as Partial<AudioSettings>;
   return {
     master: clampLevel(candidate.master, DEFAULT_AUDIO_SETTINGS.master),
+    music: clampLevel(candidate.music, DEFAULT_AUDIO_SETTINGS.music),
     sfx: clampLevel(candidate.sfx, DEFAULT_AUDIO_SETTINGS.sfx),
     ambience: clampLevel(candidate.ambience, DEFAULT_AUDIO_SETTINGS.ambience),
     masterMuted: candidate.masterMuted === true,
+    musicMuted: candidate.musicMuted === true,
     sfxMuted: candidate.sfxMuted === true,
     ambienceMuted: candidate.ambienceMuted === true
   };

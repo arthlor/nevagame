@@ -74,6 +74,8 @@ function dynamicWorldAssets(): Set<AssetId> {
   return new Set<AssetId>([
     ASSET_IDS.CHAR_PLAYER_A,
     ASSET_IDS.CLOUD_LOWPOLY_A,
+    ASSET_IDS.FAUNA_GULL_A,
+    ASSET_IDS.FAUNA_BUTTERFLY_A,
     ...Array.from(ContentRegistry.npcs.values()).map((npc) => npc.assetId),
     ...Object.values(FISH_SCHOOL_ASSETS).filter((assetId): assetId is AssetId => Boolean(assetId)),
     ...FARMING_PROP_ASSET_IDS,
@@ -125,6 +127,14 @@ function sourceFor(
         worldContext: "Farmhouse interior",
         freshSaveVisible: true,
         activationTrigger: "Enter the farmhouse"
+      };
+    }
+    if (id === ASSET_IDS.PROP_SMOKE_PLUME_A) {
+      return {
+        placementSource: "WorldScene farmhouse chimney attachment",
+        worldContext: "Farmhouse chimney",
+        freshSaveVisible: true,
+        activationTrigger: "Loaded with the farmhouse"
       };
     }
     return {

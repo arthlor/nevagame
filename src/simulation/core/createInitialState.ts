@@ -8,6 +8,9 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { PLAYER_HOMESTEAD_LAYOUT, STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../world/FarmLayout";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION, WORLD_SPAWN } from "../../world/WorldAnchors";
 import { WorldLayout } from "../../world/WorldLayout";
+import { DEFAULT_MINUTES_PER_REAL_SECOND } from "./GameClock";
+import { SeededRng } from "./Rng";
+import { applyWeatherProfile, rollWeatherType, WEATHER_FRONT_MIN_MINUTES } from "../weather/updateWeather";
 
 function farmSizeFromLayout(layout: {
   plantableAreas: readonly { minX: number; maxX: number; minZ: number; maxZ: number }[];
@@ -27,6 +30,27 @@ function structureOnTerrain(
   z: number
 ): { id: StructureId; type: StationType; x: number; y: number; z: number } {
   return { id, type, x, y: WorldLayout.terrainHeight(x, z), z };
+}
+
+function initialWeather(worldSeed: number): GameState["weather"] {
+  const rng = new SeededRng(worldSeed + 17);
+  const weather = {
+    type: "clear" as const,
+    windDirectionDeg: 45,
+    windSpeed: 4.2,
+    precipitation: 0,
+    cloudCover: 0.15,
+    seaRoughness: 0.1,
+    visibility: 1.0,
+    temperatureC: 21,
+    nextWeatherMinute: 14 * 60,
+    nextWeatherType: rollWeatherType(rng, 14 * 60)
+  };
+  applyWeatherProfile(weather, "clear");
+  weather.windDirectionDeg = 45;
+  weather.nextWeatherMinute = 8 * 60 + WEATHER_FRONT_MIN_MINUTES;
+  weather.nextWeatherType = rollWeatherType(rng, weather.nextWeatherMinute);
+  return weather;
 }
 
 
@@ -123,7 +147,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     worldSeed,
     clock: {
       currentMinute: 8 * 60, // 08:00
-      minutesPerRealSecond: 1,
+      minutesPerRealSecond: DEFAULT_MINUTES_PER_REAL_SECOND,
       dayCount: 1,
       season: "spring",
       year: 1,
@@ -183,17 +207,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     sportFishing: null,
     boats: initialBoats,
     fishCargo: {},
-    weather: {
-      type: "clear",
-      windDirectionDeg: 45,
-      windSpeed: 4.2,
-      precipitation: 0,
-      cloudCover: 0.15,
-      seaRoughness: 0.1,
-      visibility: 1.0,
-      temperatureC: 21,
-      nextWeatherMinute: 14 * 60
-    },
+    weather: initialWeather(worldSeed),
     markets: initialMarkets,
     contracts: [
       {

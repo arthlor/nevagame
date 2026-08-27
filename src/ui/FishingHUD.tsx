@@ -3,6 +3,9 @@ import React, { useRef, useState } from "react";
 import { FishingEncounterState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { IconFish, IconWarning } from "./components/HudIcons";
+import { AtlasImage } from "./chrome/AtlasImage";
+import { atlasForBehavior, atlasForFish } from "./chrome/uiAtlas";
+import { ChromeButton, ChromeKeycap, ChromeMeter, ChromePanel, ChromeQuality } from "./chrome/Chrome";
 
 interface FishingHUDProps {
   encounter: FishingEncounterState;
@@ -25,8 +28,6 @@ const EMPTY_HOLD: FishingHoldState = {
   isSlacking: false,
   isBracing: false
 };
-
-const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
 
 export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput }) => {
   const species = ContentRegistry.fishSpecies.get(encounter.fish.speciesId);
@@ -54,19 +55,19 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
   const behaviorCue = (() => {
     switch (encounter.behavior) {
       case "run-left":
-        return { text: "Running Left — Lean Right", key: "D", tone: "caution", arrow: "⬅️" };
+        return { text: "Running Left — Lean Right", key: "D", tone: "caution", behavior: "run" };
       case "run-right":
-        return { text: "Running Right — Lean Left", key: "A", tone: "caution", arrow: "➡️" };
+        return { text: "Running Right — Lean Left", key: "A", tone: "caution", behavior: "run" };
       case "dive":
-        return { text: "Diving Deep — Brace Rod", key: "Space", tone: "cool", arrow: "⚓" };
+        return { text: "Diving Deep — Brace Rod", key: "Space", tone: "cool", behavior: "dive" };
       case "surface":
-        return { text: "Surfacing — Keep Line Steady", key: null, tone: "cool", arrow: "🌊" };
+        return { text: "Surfacing — Keep Line Steady", key: null, tone: "cool", behavior: "surface" };
       case "burst":
-        return { text: "Hard Run — Give Line Slack", key: "S", tone: "danger", arrow: "⚡" };
+        return { text: "Hard Run — Give Line Slack", key: "S", tone: "danger", behavior: "burst" };
       case "shake":
-        return { text: "Thrashing — Ease Pressure", key: null, tone: "caution", arrow: "💥" };
+        return { text: "Thrashing — Ease Pressure", key: null, tone: "caution", behavior: "shake" };
       default:
-        return { text: "Tiring Out — Reel In!", key: "W / LMB", tone: "steady", arrow: "🎣" };
+        return { text: "Tiring Out — Reel In", key: "W / LMB", tone: "steady", behavior: "tiring" };
     }
   })();
 
@@ -97,15 +98,16 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
   });
 
   return (
-    <section className="fishing-hud-container interactive" aria-label="Sport fishing encounter">
+    <ChromePanel as="section" tone="slate" flourish corners className="fishing-hud-container interactive" aria-label="Sport fishing encounter" data-testid="sport-fishing-hud">
       {/* 1. Header: Fish Profile & Distance */}
       <header className="fishing-header">
         <div className="fishing-fish-badge">
-          <IconFish size={22} className="fishing-header-icon" />
+          <AtlasImage src={atlasForFish(encounter.fish.speciesId)} alt="" size={40} />
+          {!atlasForFish(encounter.fish.speciesId) && <IconFish size={22} className="fishing-header-icon" />}
           <div className="fishing-fish-meta">
             <strong>{species?.name || "Hooked Sport Fish"}</strong>
             <span className="fishing-fish-sub">
-              {encounter.fish.weightKg.toFixed(1)} kg · <span className={`quality-chip quality-${encounter.fish.quality}`}>{capitalize(encounter.fish.quality)}</span>
+              {encounter.fish.weightKg.toFixed(1)} kg · <ChromeQuality quality={encounter.fish.quality} />
             </span>
           </div>
         </div>
@@ -121,9 +123,9 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
 
       {/* 2. Behavior Cue Banner */}
       <div className={`fishing-behavior fishing-behavior-${behaviorCue.tone}`} role="status" aria-live="polite">
-        <span className="behavior-arrow" aria-hidden="true">{behaviorCue.arrow}</span>
+        <AtlasImage src={atlasForBehavior(behaviorCue.behavior)} className="behavior-arrow" size={28} aria-hidden="true" />
         <span className="behavior-text">{behaviorCue.text}</span>
-        {behaviorCue.key && <kbd className="behavior-kbd">{behaviorCue.key}</kbd>}
+        {behaviorCue.key && <ChromeKeycap keyName={behaviorCue.key} glow={behaviorCue.tone === "danger"} />}
       </div>
 
       {/* 3. Meters: Tension Gauge & Stamina Bar */}
@@ -152,48 +154,46 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
           />
         </div>
 
-        {/* Fish Stamina Bar */}
-        <div className="fishing-meter-label fishing-stamina-label">
-          <span className="meter-name">Fish Energy</span>
-          <span className="meter-status">{staminaPercent}% remaining</span>
-        </div>
-        <div className="stamina-bar-track" aria-label={`Fish stamina ${staminaPercent} percent`}>
-          <div className="stamina-bar-fill" style={{ width: `${staminaPercent}%` }} />
-        </div>
+        <ChromeMeter
+          className="fishing-stamina-meter"
+          label="Fish stamina"
+          value={encounter.stamina}
+          max={encounter.maxStamina}
+          valueText={`${staminaPercent}% remaining`}
+          variant="stamina"
+          data-testid="fish-stamina"
+        />
       </div>
 
       {/* 4. Action Controls */}
       <div className="fishing-actions" aria-label="Fishing encounter controls">
-        <button
-          type="button"
+        <ChromeButton
           className={`fishing-btn fishing-btn-reel ${activeActions.isReeling ? "is-active" : ""}`}
           aria-pressed={activeActions.isReeling}
           {...holdButtonProps("isReeling")}
         >
           <span className="btn-title">Reel</span>
-          <kbd>W / LMB</kbd>
-        </button>
+          <ChromeKeycap keyName="W" glow={activeActions.isReeling} />
+        </ChromeButton>
 
-        <button
-          type="button"
+        <ChromeButton
           className={`fishing-btn fishing-btn-brace ${activeActions.isBracing ? "is-active" : ""}`}
           aria-pressed={activeActions.isBracing}
           {...holdButtonProps("isBracing")}
         >
           <span className="btn-title">Brace</span>
-          <kbd>Space</kbd>
-        </button>
+          <ChromeKeycap keyName="Space" glow={activeActions.isBracing} />
+        </ChromeButton>
 
-        <button
-          type="button"
+        <ChromeButton
           className={`fishing-btn fishing-btn-slack ${activeActions.isSlacking ? "is-active" : ""}`}
           aria-pressed={activeActions.isSlacking}
           {...holdButtonProps("isSlacking")}
         >
           <span className="btn-title">Slack</span>
-          <kbd>S</kbd>
-        </button>
+          <ChromeKeycap keyName="S" glow={activeActions.isSlacking} />
+        </ChromeButton>
       </div>
-    </section>
+    </ChromePanel>
   );
 };

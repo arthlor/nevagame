@@ -1,6 +1,17 @@
 import { getRankForXp } from "../../content/progression";
-import type { SkillId } from "../core/types";
+import type { GameMinute, SkillId, WorkCapacityState } from "../core/types";
 import type { DomainContext } from "./DomainContext";
+
+export function regenerateWorkCapacity(
+  workCapacity: WorkCapacityState,
+  minutes: number,
+  currentMinute: GameMinute
+): void {
+  if (minutes <= 0 || workCapacity.current >= workCapacity.maximum) return;
+  const regen = (minutes / 60) * 100;
+  workCapacity.current = Math.min(workCapacity.maximum, workCapacity.current + regen);
+  workCapacity.regeneratedAtMinute = currentMinute;
+}
 
 export class ProgressionDomain {
   constructor(private readonly context: DomainContext) {}
@@ -46,10 +57,6 @@ export class ProgressionDomain {
 
   public tickWorkCapacity(minutes: number): void {
     const { state } = this.context;
-    const workCapacity = state.player.workCapacity;
-    if (workCapacity.current >= workCapacity.maximum) return;
-    const regen = (minutes / 60) * 100;
-    workCapacity.current = Math.min(workCapacity.maximum, workCapacity.current + regen);
-    workCapacity.regeneratedAtMinute = state.clock.currentMinute;
+    regenerateWorkCapacity(state.player.workCapacity, minutes, state.clock.currentMinute);
   }
 }

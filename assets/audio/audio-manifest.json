@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "license": "CC0-1.0",
   "sources": [
     {
@@ -96,7 +96,7 @@
       "licenseSnapshot": "assets/audio/licenses/freesound-535013.html",
       "runtimeUrl": "/assets/audio/windmill-mechanism.mp3",
       "sha256": "a0370ca0e2d0cf614a00e90aeef70f8aa25c9d6791081d2897ba81b347088a0a",
-      "durationSeconds": 38.0
+      "durationSeconds": 38
     },
     {
       "id": "workstation-grind",
@@ -145,22 +145,982 @@
       "runtimeUrl": "/assets/audio/ambience-birds.mp3",
       "sha256": "9aebcb869cf37040c4588fc05d72bed197951aaa1beacb6874b379c69e379dbb",
       "durationSeconds": 27.051667
+    },
+    {
+      "id": "rain-light",
+      "title": "Soft Rain Loop",
+      "creator": "_lynks",
+      "sourceUrl": "https://freesound.org/people/_lynks/sounds/595717/",
+      "previewUrl": "https://cdn.freesound.org/previews/595/595717_2530992-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-595717.html",
+      "runtimeUrl": "/assets/audio/rain-light.mp3",
+      "sha256": "c42458d0383b82d5b03e09650ae3db75368d14f51702acf28c8125a23eadfa73",
+      "durationSeconds": 22.543673
+    },
+    {
+      "id": "rain-heavy",
+      "title": "Heavy_Rain_Loop.wav",
+      "creator": "Rubaoliva",
+      "sourceUrl": "https://freesound.org/people/Rubaoliva/sounds/624645/",
+      "previewUrl": "https://cdn.freesound.org/previews/624/624645_12956617-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-624645.html",
+      "runtimeUrl": "/assets/audio/rain-heavy.mp3",
+      "sha256": "c4a04f677ad4d601ac7fdd416cc189b2c4320d37d01e23ba46a543aceaee6fb6",
+      "durationSeconds": 15.542857
+    },
+    {
+      "id": "water-splash",
+      "title": "water_splash_10shots.wav",
+      "creator": "vibe_crc",
+      "sourceUrl": "https://freesound.org/people/vibe_crc/sounds/50623/",
+      "previewUrl": "https://cdn.freesound.org/previews/50/50623_333536-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-50623.html",
+      "runtimeUrl": "/assets/audio/water-splash.mp3",
+      "sha256": "f6479f6b80d298abfcb37f1aad8f25db27cf57e01c9410d0c8439e0fd4af9100",
+      "durationSeconds": 15.751837
+    },
+    {
+      "id": "fishing-cast",
+      "title": "Casting Fishing Rod for Game Fishing SFX",
+      "creator": "el_boss",
+      "sourceUrl": "https://freesound.org/people/el_boss/sounds/853287/",
+      "previewUrl": "https://cdn.freesound.org/previews/853/853287_9129912-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-853287.html",
+      "runtimeUrl": "/assets/audio/fishing-cast.mp3",
+      "sha256": "5d43cd095f3f0db63b03044960f61e34b0e73874c020a9f6d5d3225b9b466af8",
+      "durationSeconds": 2.904
+    },
+    {
+      "id": "fishing-reel-slow",
+      "title": "Angel Fly Fish Reel Slow Wind_1.wav",
+      "creator": "paulprit",
+      "sourceUrl": "https://freesound.org/people/paulprit/sounds/507078/",
+      "previewUrl": "https://cdn.freesound.org/previews/507/507078_8682843-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-507078.html",
+      "runtimeUrl": "/assets/audio/fishing-reel-slow.mp3",
+      "sha256": "39cd7b25ed93da4e1661b60baeab0ccc90ac73b953f219e684dae3b3a39989ac",
+      "durationSeconds": 6.936
+    },
+    {
+      "id": "fishing-reel-fast",
+      "title": "Fly Fishing Reel Running_5.wav",
+      "creator": "paulprit",
+      "sourceUrl": "https://freesound.org/people/paulprit/sounds/507099/",
+      "previewUrl": "https://cdn.freesound.org/previews/507/507099_8682843-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-507099.html",
+      "runtimeUrl": "/assets/audio/fishing-reel-fast.mp3",
+      "sha256": "d537af7910ee9e41142e2d1ab7df5995b6677682d4cd40d8ddd512f3950a0595",
+      "durationSeconds": 9.144
+    },
+    {
+      "id": "fishing-reel-click",
+      "title": "Fishing Reel",
+      "creator": "mwchristian95",
+      "sourceUrl": "https://freesound.org/people/mwchristian95/sounds/725424/",
+      "previewUrl": "https://cdn.freesound.org/previews/725/725424_14375679-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-725424.html",
+      "runtimeUrl": "/assets/audio/fishing-reel-click.mp3",
+      "sha256": "074981efc743288e5ab0d7d155dd791fc51ce64068bcca00bd11b894d40cbf3b",
+      "durationSeconds": 2.742857
+    },
+    {
+      "id": "coins",
+      "title": "Drop Coins 1",
+      "creator": "FlatHill",
+      "sourceUrl": "https://freesound.org/people/FlatHill/sounds/211447/",
+      "previewUrl": "https://cdn.freesound.org/previews/211/211447_3839718-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-211447.html",
+      "runtimeUrl": "/assets/audio/coins.mp3",
+      "sha256": "5ceb5a1986bcffd07d26cadf360ee341fd96a740ae865240f86ef2c46f05e54d",
+      "durationSeconds": 3.186939
+    },
+    {
+      "id": "ui-click",
+      "title": "Soft UI Button Click",
+      "creator": "Jummit",
+      "sourceUrl": "https://freesound.org/people/Jummit/sounds/528561/",
+      "previewUrl": "https://cdn.freesound.org/previews/528/528561_10360410-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-528561.html",
+      "runtimeUrl": "/assets/audio/ui-click.mp3",
+      "sha256": "6f7f5551bf02803ca25eccb134388281a1e00e2756faf412082f7dffc5abf22e",
+      "durationSeconds": 0.287347
+    },
+    {
+      "id": "ui-confirm",
+      "title": "Waterdrop Click - Clean UI Drop",
+      "creator": "LilMati",
+      "sourceUrl": "https://freesound.org/people/LilMati/sounds/702806/",
+      "previewUrl": "https://cdn.freesound.org/previews/702/702806_6142149-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-702806.html",
+      "runtimeUrl": "/assets/audio/ui-confirm.mp3",
+      "sha256": "3f0f9a3278d237a7da20faf23ef0255ff11f5635c20c7b1528f3b389d5df4650",
+      "durationSeconds": 0.624
+    },
+    {
+      "id": "ui-inventory",
+      "title": "Inventory Close",
+      "creator": "Fission9",
+      "sourceUrl": "https://freesound.org/people/Fission9/sounds/568991/",
+      "previewUrl": "https://cdn.freesound.org/previews/568/568991_9395330-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-568991.html",
+      "runtimeUrl": "/assets/audio/ui-inventory.mp3",
+      "sha256": "fa0f58557d69b73e58b987047ca899b14ce8388b72a8ce2edd63fd985f7974b2",
+      "durationSeconds": 0.835918
+    },
+    {
+      "id": "ocean-waves",
+      "title": "Gentle Ocean Waves Loop",
+      "creator": "kkenny101",
+      "sourceUrl": "https://freesound.org/people/kkenny101/sounds/852826/",
+      "previewUrl": "https://cdn.freesound.org/previews/852/852826_17997500-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-852826.html",
+      "runtimeUrl": "/assets/audio/ocean-waves.mp3",
+      "sha256": "68cd94cdf360945f187e59ce583e45f7cd24dbf70e1cefac30b02e23a36035ed",
+      "durationSeconds": 21.816
+    },
+    {
+      "id": "boat-row",
+      "title": "Paddles rowing on a calm water stream",
+      "creator": "brunoboselli",
+      "sourceUrl": "https://freesound.org/people/brunoboselli/sounds/249707/",
+      "previewUrl": "https://cdn.freesound.org/previews/249/249707_300738-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-249707.html",
+      "runtimeUrl": "/assets/audio/boat-row.mp3",
+      "sha256": "73cd2f6de9e107cab5d2df48239e66763e644cf6e58724c73b8b2953a0b03af7",
+      "durationSeconds": 38.713469
+    },
+    {
+      "id": "boat-wake",
+      "title": "rowing boat rear wave.wav",
+      "creator": "Fenodyrie",
+      "sourceUrl": "https://freesound.org/people/Fenodyrie/sounds/588308/",
+      "previewUrl": "https://cdn.freesound.org/previews/588/588308_6371307-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-588308.html",
+      "runtimeUrl": "/assets/audio/boat-wake.mp3",
+      "sha256": "a670931fad725dc7d89447e2df863645ce572b60c9e3854a3fdeaf823126593a",
+      "durationSeconds": 34.272
+    },
+    {
+      "id": "wood-creak",
+      "title": "Wood Floor Creaking  2_13",
+      "creator": "Joao_Janz",
+      "sourceUrl": "https://freesound.org/people/Joao_Janz/sounds/504137/",
+      "previewUrl": "https://cdn.freesound.org/previews/504/504137_9961300-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-504137.html",
+      "runtimeUrl": "/assets/audio/wood-creak.mp3",
+      "sha256": "4ca390cc0f48ebb41ba0f677c57be8ad45d4ebbd080417a142e20e7feba8b019",
+      "durationSeconds": 0.576
+    },
+    {
+      "id": "thunder",
+      "title": "Distant thunder in suburban area",
+      "creator": "csengeri",
+      "sourceUrl": "https://freesound.org/people/csengeri/sounds/238743/",
+      "previewUrl": "https://cdn.freesound.org/previews/238/238743_197070-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-238743.html",
+      "runtimeUrl": "/assets/audio/thunder.mp3",
+      "sha256": "1e89447ae176b80869f8d71743d2e6374ceaf0a06d75282468efb054448ec47d",
+      "durationSeconds": 34.76898
+    },
+    {
+      "id": "quest-bell",
+      "title": "Bell rings timidly.wav",
+      "creator": "Fenodyrie",
+      "sourceUrl": "https://freesound.org/people/Fenodyrie/sounds/583947/",
+      "previewUrl": "https://cdn.freesound.org/previews/583/583947_6371307-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-583947.html",
+      "runtimeUrl": "/assets/audio/quest-bell.mp3",
+      "sha256": "418dd2a73f5cac030d9ae8e8dd1250a6c5c215e4614b130dbb9d9ad11ec1f57d",
+      "durationSeconds": 11.328
+    },
+    {
+      "id": "line-snap",
+      "title": "Guitar string snap or breaks - various sounds",
+      "creator": "khenshom",
+      "sourceUrl": "https://freesound.org/people/khenshom/sounds/537084/",
+      "previewUrl": "https://cdn.freesound.org/previews/537/537084_6652872-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-537084.html",
+      "runtimeUrl": "/assets/audio/line-snap.mp3",
+      "sha256": "b27703e3f933ea2588d9b6384148fcf278097247800391b236291a359950f252",
+      "durationSeconds": 36.024
+    },
+    {
+      "id": "footsteps-wood",
+      "title": "Footsteps on hollow wood",
+      "creator": "florianreichelt",
+      "sourceUrl": "https://freesound.org/people/florianreichelt/sounds/459970/",
+      "previewUrl": "https://cdn.freesound.org/previews/459/459970_6253486-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-459970.html",
+      "runtimeUrl": "/assets/audio/footsteps-wood.mp3",
+      "sha256": "bebd4a237688386a1fdc54c2c2095dcf98ea15937091848d9dfb831672a3416b",
+      "durationSeconds": 27.010612
+    },
+    {
+      "id": "footsteps-dock",
+      "title": "Walking On Wood Dock (rainforest, Hawaii)",
+      "creator": "coalcon",
+      "sourceUrl": "https://freesound.org/people/coalcon/sounds/636080/",
+      "previewUrl": "https://cdn.freesound.org/previews/636/636080_3320549-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-636080.html",
+      "runtimeUrl": "/assets/audio/footsteps-dock.mp3",
+      "sha256": "374a837c56c1f966404794ee896a7b743a21ca156dd431ae3e84a8862001b7be",
+      "durationSeconds": 14.28898
+    },
+    {
+      "id": "water-drop",
+      "title": "water drop",
+      "creator": "florianreichelt",
+      "sourceUrl": "https://freesound.org/people/florianreichelt/sounds/683102/",
+      "previewUrl": "https://cdn.freesound.org/previews/683/683102_6253486-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-683102.html",
+      "runtimeUrl": "/assets/audio/water-drop.mp3",
+      "sha256": "133935bde028f4c6b3f10c22e057b092e065f9d8ddbfed6aedccbcc0e7b28a34",
+      "durationSeconds": 1.704
+    },
+    {
+      "id": "theme",
+      "title": "Neva Main Theme",
+      "creator": "Neva",
+      "origin": "project",
+      "sourceUrl": "project://theme.mp3",
+      "licenseUrl": "project",
+      "licenseSnapshot": null,
+      "runtimeUrl": "/assets/audio/theme.mp3",
+      "sha256": "37d2cf4d800dc917be1cee1fb2653602879d6ef2c84f293acb735822666a8f19",
+      "durationSeconds": 230.016
+    },
+    {
+      "id": "seagulls",
+      "title": "Seagull Beach Ambience Loop",
+      "creator": "kkenny101",
+      "sourceUrl": "https://freesound.org/people/kkenny101/sounds/853455/",
+      "previewUrl": "https://cdn.freesound.org/previews/853/853455_17997500-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-853455.html",
+      "runtimeUrl": "/assets/audio/seagulls.mp3",
+      "sha256": "5ab554a88645d068aad423bb8fb2d013cb76c127df880e47b3c1399f63cf2a9d",
+      "durationSeconds": 268.824
+    },
+    {
+      "id": "fireplace",
+      "title": "Ambiance_Fire_Bushes_Loop_Stereo.wav",
+      "creator": "Nox_Sound",
+      "sourceUrl": "https://freesound.org/people/Nox_Sound/sounds/564621/",
+      "previewUrl": "https://cdn.freesound.org/previews/564/564621_9250976-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-564621.html",
+      "runtimeUrl": "/assets/audio/fireplace.mp3",
+      "sha256": "add3756dec5cd84809e0e152675f83fe497cb5e5690886212b788b4a80fb070d",
+      "durationSeconds": 11.04
+    },
+    {
+      "id": "wooden-door",
+      "title": "Wooden door open-close",
+      "creator": "Ryding",
+      "sourceUrl": "https://freesound.org/people/Ryding/sounds/125958/",
+      "previewUrl": "https://cdn.freesound.org/previews/125/125958_981397-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-125958.html",
+      "runtimeUrl": "/assets/audio/wooden-door.mp3",
+      "sha256": "5607b7f609c9e3f817a7bf82113c2915105409c37ef6a7d29b9363aa0e0a245c",
+      "durationSeconds": 2.904
+    },
+    {
+      "id": "footsteps-grass",
+      "title": "Hiking Boot Footsteps on Grass",
+      "creator": "Fission9",
+      "sourceUrl": "https://freesound.org/people/Fission9/sounds/521587/",
+      "previewUrl": "https://cdn.freesound.org/previews/521/521587_9395330-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-521587.html",
+      "runtimeUrl": "/assets/audio/footsteps-grass.mp3",
+      "sha256": "13657d6ebcce7616163ff2aae46c8f55bf337ea92e7ce8f1d710a5b2c4a96f36",
+      "durationSeconds": 4.392
+    },
+    {
+      "id": "fish-flop",
+      "title": "Fish Flopping.wav",
+      "creator": "RatBird",
+      "sourceUrl": "https://freesound.org/people/RatBird/sounds/570208/",
+      "previewUrl": "https://cdn.freesound.org/previews/570/570208_12508711-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-570208.html",
+      "runtimeUrl": "/assets/audio/fish-flop.mp3",
+      "sha256": "1cb05f833c2bd0a0b13dbd555c71fbbb83f428271c7e4ca5656fff19983323fc",
+      "durationSeconds": 4.056
+    },
+    {
+      "id": "page-turn",
+      "title": "turning pages book slow quickly.wav",
+      "creator": "jephwallace",
+      "sourceUrl": "https://freesound.org/people/jephwallace/sounds/318615/",
+      "previewUrl": "https://cdn.freesound.org/previews/318/318615_1198112-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-318615.html",
+      "runtimeUrl": "/assets/audio/page-turn.mp3",
+      "sha256": "c79cfc2720aa15f0333b0264bfc6cd0430f72b215cd51e1e3db1d5d3e5d396cb",
+      "durationSeconds": 30.92898
+    },
+    {
+      "id": "rope-creak",
+      "title": "Creaking wood",
+      "creator": "Patrick_Corra",
+      "sourceUrl": "https://freesound.org/people/Patrick_Corra/sounds/557378/",
+      "previewUrl": "https://cdn.freesound.org/previews/557/557378_8711646-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-557378.html",
+      "runtimeUrl": "/assets/audio/rope-creak.mp3",
+      "sha256": "885a38a6253174695cfa1b0b2ba18267ef46d094ba4697ed14cc9e8ec85a7807",
+      "durationSeconds": 18.288
+    },
+    {
+      "id": "market-murmur",
+      "title": "Super Market Ambience",
+      "creator": "IENBA",
+      "sourceUrl": "https://freesound.org/people/IENBA/sounds/864846/",
+      "previewUrl": "https://cdn.freesound.org/previews/864/864846_9616576-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-864846.html",
+      "runtimeUrl": "/assets/audio/market-murmur.mp3",
+      "sha256": "63c78001f105300c4d63f77242e94e0634372ade94441b16d91d1f7bb1d4b649",
+      "durationSeconds": 32.026122
+    },
+    {
+      "id": "ui-cloth",
+      "title": "Inventory Open",
+      "creator": "Fission9",
+      "sourceUrl": "https://freesound.org/people/Fission9/sounds/568992/",
+      "previewUrl": "https://cdn.freesound.org/previews/568/568992_9395330-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-568992.html",
+      "runtimeUrl": "/assets/audio/ui-cloth.mp3",
+      "sha256": "43672f9a82619c2af0c6f8294f4df2186cd4c10e8ce825ebb103272c53be64f9",
+      "durationSeconds": 1.07102
     }
   ],
   "cues": {
-    "footstep-dirt-a": { "sourceId": "footsteps-dirt", "bus": "sfx", "offset": 0.30, "duration": 0.34, "gain": 0.34, "spatial": true, "poolSize": 4 },
-    "footstep-dirt-b": { "sourceId": "footsteps-dirt", "bus": "sfx", "offset": 0.90, "duration": 0.28, "gain": 0.34, "spatial": true, "poolSize": 4 },
-    "plant-dirt": { "sourceId": "plant-dirt", "bus": "sfx", "offset": 0.0, "duration": 2.25, "gain": 0.42, "spatial": true, "poolSize": 3 },
-    "watering": { "sourceId": "watering-can", "bus": "sfx", "offset": 3.6, "duration": 3.4, "gain": 0.36, "spatial": true, "poolSize": 3 },
-    "crop-rustle": { "sourceId": "crop-rustle", "bus": "sfx", "offset": 0.0, "duration": 1.0, "gain": 1.15, "spatial": true, "poolSize": 4 },
-    "sickle-swish": { "sourceId": "sickle-swish", "bus": "sfx", "offset": 0.48, "duration": 0.34, "gain": 0.46, "spatial": true, "poolSize": 3 },
-    "harvest-cut": { "sourceId": "harvest-cut", "bus": "sfx", "offset": 0.0, "duration": 1.55, "gain": 0.42, "spatial": true, "poolSize": 3 },
-    "pickup": { "sourceId": "basket-pick-place", "bus": "sfx", "offset": 0.0, "duration": 1.25, "gain": 0.36, "spatial": true, "poolSize": 3 },
-    "place": { "sourceId": "basket-pick-place", "bus": "sfx", "offset": 3.15, "duration": 1.45, "gain": 0.34, "spatial": true, "poolSize": 3 },
-    "windmill": { "sourceId": "windmill-mechanism", "bus": "sfx", "offset": 1.0, "duration": 24.0, "gain": 0.20, "spatial": true, "poolSize": 2 },
-    "workstation": { "sourceId": "workstation-grind", "bus": "sfx", "offset": 0.0, "duration": 4.2, "gain": 0.32, "spatial": true, "poolSize": 2 },
-    "ambience-wind": { "sourceId": "ambience-wind", "bus": "ambience", "offset": 10.8, "duration": 20.5, "gain": 0.22, "loop": true, "spatial": false, "poolSize": 1 },
-    "ambience-insects": { "sourceId": "ambience-insects", "bus": "ambience", "offset": 0.3, "duration": 81.7, "gain": 0.12, "loop": true, "spatial": false, "poolSize": 1 },
-    "ambience-birds": { "sourceId": "ambience-birds", "bus": "ambience", "offset": 0.0, "duration": 27.0, "gain": 0.16, "loop": true, "spatial": false, "poolSize": 1 }
+    "footstep-dirt-a": {
+      "sourceId": "footsteps-dirt",
+      "bus": "sfx",
+      "offset": 0.3,
+      "duration": 0.34,
+      "gain": 0.34,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "footstep-dirt-b": {
+      "sourceId": "footsteps-dirt",
+      "bus": "sfx",
+      "offset": 0.9,
+      "duration": 0.28,
+      "gain": 0.34,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "footstep-wood-a": {
+      "sourceId": "footsteps-wood",
+      "bus": "sfx",
+      "offset": 0.22,
+      "duration": 0.42,
+      "gain": 0.38,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.93,
+      "pitchMax": 1.07
+    },
+    "footstep-wood-b": {
+      "sourceId": "footsteps-wood",
+      "bus": "sfx",
+      "offset": 0.92,
+      "duration": 0.4,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.93,
+      "pitchMax": 1.07
+    },
+    "footstep-dock-a": {
+      "sourceId": "footsteps-dock",
+      "bus": "sfx",
+      "offset": 0.28,
+      "duration": 0.42,
+      "gain": 0.4,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.92,
+      "pitchMax": 1.08
+    },
+    "footstep-dock-b": {
+      "sourceId": "footsteps-dock",
+      "bus": "sfx",
+      "offset": 1.05,
+      "duration": 0.4,
+      "gain": 0.38,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.92,
+      "pitchMax": 1.08
+    },
+    "plant-dirt": {
+      "sourceId": "plant-dirt",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 2.25,
+      "gain": 0.42,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "watering": {
+      "sourceId": "watering-can",
+      "bus": "sfx",
+      "offset": 3.6,
+      "duration": 3.4,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "crop-rustle": {
+      "sourceId": "crop-rustle",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 1,
+      "gain": 1.15,
+      "spatial": true,
+      "poolSize": 4
+    },
+    "sickle-swish": {
+      "sourceId": "sickle-swish",
+      "bus": "sfx",
+      "offset": 0.48,
+      "duration": 0.34,
+      "gain": 0.46,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "harvest-cut": {
+      "sourceId": "harvest-cut",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 1.55,
+      "gain": 0.42,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "pickup": {
+      "sourceId": "basket-pick-place",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 1.25,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "place": {
+      "sourceId": "basket-pick-place",
+      "bus": "sfx",
+      "offset": 3.15,
+      "duration": 1.45,
+      "gain": 0.34,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "windmill": {
+      "sourceId": "windmill-mechanism",
+      "bus": "sfx",
+      "offset": 1,
+      "duration": 24,
+      "gain": 0.2,
+      "spatial": true,
+      "poolSize": 2
+    },
+    "workstation": {
+      "sourceId": "workstation-grind",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 4.2,
+      "gain": 0.32,
+      "spatial": true,
+      "poolSize": 2
+    },
+    "ambience-wind": {
+      "sourceId": "ambience-wind",
+      "bus": "ambience",
+      "offset": 10.8,
+      "duration": 20.5,
+      "gain": 0.22,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-insects": {
+      "sourceId": "ambience-insects",
+      "bus": "ambience",
+      "offset": 0.3,
+      "duration": 81.7,
+      "gain": 0.12,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-birds": {
+      "sourceId": "ambience-birds",
+      "bus": "ambience",
+      "offset": 0,
+      "duration": 27,
+      "gain": 0.16,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-waves": {
+      "sourceId": "ocean-waves",
+      "bus": "ambience",
+      "offset": 0.2,
+      "duration": 21.4,
+      "gain": 0.2,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-rain-light": {
+      "sourceId": "rain-light",
+      "bus": "weather",
+      "offset": 0.15,
+      "duration": 22.2,
+      "gain": 0.28,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-rain-heavy": {
+      "sourceId": "rain-heavy",
+      "bus": "weather",
+      "offset": 0.1,
+      "duration": 15.3,
+      "gain": 0.34,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "thunder": {
+      "sourceId": "thunder",
+      "bus": "weather",
+      "offset": 0.4,
+      "duration": 6.8,
+      "gain": 0.42,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "splash-a": {
+      "sourceId": "water-splash",
+      "bus": "fishing",
+      "offset": 0.05,
+      "duration": 0.85,
+      "gain": 0.48,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.9,
+      "pitchMax": 1.12
+    },
+    "splash-b": {
+      "sourceId": "water-splash",
+      "bus": "fishing",
+      "offset": 1.6,
+      "duration": 0.9,
+      "gain": 0.46,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.9,
+      "pitchMax": 1.12
+    },
+    "splash-c": {
+      "sourceId": "water-splash",
+      "bus": "fishing",
+      "offset": 3.15,
+      "duration": 0.85,
+      "gain": 0.46,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.9,
+      "pitchMax": 1.12
+    },
+    "splash-d": {
+      "sourceId": "water-splash",
+      "bus": "fishing",
+      "offset": 4.7,
+      "duration": 0.95,
+      "gain": 0.44,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.9,
+      "pitchMax": 1.12
+    },
+    "fishing-cast": {
+      "sourceId": "fishing-cast",
+      "bus": "fishing",
+      "offset": 0,
+      "duration": 2.4,
+      "gain": 0.5,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.96,
+      "pitchMax": 1.05
+    },
+    "fishing-bite": {
+      "sourceId": "water-drop",
+      "bus": "fishing",
+      "offset": 0,
+      "duration": 1.2,
+      "gain": 0.62,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.92,
+      "pitchMax": 1.1
+    },
+    "fishing-hook": {
+      "sourceId": "fishing-reel-click",
+      "bus": "fishing",
+      "offset": 0,
+      "duration": 1.35,
+      "gain": 0.4,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.94,
+      "pitchMax": 1.08
+    },
+    "fishing-reel": {
+      "sourceId": "fishing-reel-slow",
+      "bus": "fishing",
+      "offset": 0.15,
+      "duration": 6.6,
+      "gain": 0.22,
+      "loop": true,
+      "spatial": true,
+      "poolSize": 1
+    },
+    "fishing-reel-fast": {
+      "sourceId": "fishing-reel-fast",
+      "bus": "fishing",
+      "offset": 0.12,
+      "duration": 8.8,
+      "gain": 0.26,
+      "loop": true,
+      "spatial": true,
+      "poolSize": 1
+    },
+    "fishing-strain": {
+      "sourceId": "wood-creak",
+      "bus": "fishing",
+      "offset": 0,
+      "duration": 0.55,
+      "gain": 0.48,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.88,
+      "pitchMax": 1.12
+    },
+    "fishing-snap": {
+      "sourceId": "line-snap",
+      "bus": "fishing",
+      "offset": 0.05,
+      "duration": 0.7,
+      "gain": 0.5,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.9,
+      "pitchMax": 1.08
+    },
+    "fishing-catch": {
+      "sourceId": "fishing-reel-click",
+      "bus": "fishing",
+      "offset": 0.9,
+      "duration": 1.5,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 2
+    },
+    "boat-wake": {
+      "sourceId": "boat-wake",
+      "bus": "boat",
+      "offset": 0.4,
+      "duration": 33.4,
+      "gain": 0.18,
+      "loop": true,
+      "spatial": true,
+      "poolSize": 1
+    },
+    "boat-row": {
+      "sourceId": "boat-row",
+      "bus": "boat",
+      "offset": 0.35,
+      "duration": 37.9,
+      "gain": 0.24,
+      "loop": true,
+      "spatial": true,
+      "poolSize": 1
+    },
+    "coins": {
+      "sourceId": "coins",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.95,
+      "gain": 0.42,
+      "spatial": false,
+      "poolSize": 3,
+      "pitchMin": 0.94,
+      "pitchMax": 1.08
+    },
+    "ui-click": {
+      "sourceId": "ui-click",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.28,
+      "gain": 0.38,
+      "spatial": false,
+      "poolSize": 4,
+      "pitchMin": 0.96,
+      "pitchMax": 1.06
+    },
+    "ui-confirm": {
+      "sourceId": "ui-confirm",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.6,
+      "gain": 0.4,
+      "spatial": false,
+      "poolSize": 3
+    },
+    "ui-open": {
+      "sourceId": "ui-inventory",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.8,
+      "gain": 0.34,
+      "spatial": false,
+      "poolSize": 2,
+      "pitchMin": 0.94,
+      "pitchMax": 1.08
+    },
+    "quest-chime": {
+      "sourceId": "quest-bell",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 2.6,
+      "gain": 0.32,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "theme": {
+      "sourceId": "theme",
+      "bus": "music",
+      "offset": 0,
+      "duration": 230.016,
+      "gain": 0.22,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1,
+      "pitchMin": 1,
+      "pitchMax": 1
+    },
+    "ambience-seagulls": {
+      "sourceId": "seagulls",
+      "bus": "ambience",
+      "offset": 0.4,
+      "duration": 267.8,
+      "gain": 0.12,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-fireplace": {
+      "sourceId": "fireplace",
+      "bus": "ambience",
+      "offset": 0.08,
+      "duration": 10.88,
+      "gain": 0.2,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "ambience-market": {
+      "sourceId": "market-murmur",
+      "bus": "ambience",
+      "offset": 0.25,
+      "duration": 31.5,
+      "gain": 0.09,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "footstep-grass-a": {
+      "sourceId": "footsteps-grass",
+      "bus": "sfx",
+      "offset": 0.12,
+      "duration": 0.42,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "footstep-grass-b": {
+      "sourceId": "footsteps-grass",
+      "bus": "sfx",
+      "offset": 1.08,
+      "duration": 0.4,
+      "gain": 0.34,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "door-open": {
+      "sourceId": "wooden-door",
+      "bus": "sfx",
+      "offset": 0.04,
+      "duration": 1.35,
+      "gain": 0.46,
+      "spatial": true,
+      "poolSize": 2
+    },
+    "fish-flop": {
+      "sourceId": "fish-flop",
+      "bus": "fishing",
+      "offset": 0.05,
+      "duration": 1.15,
+      "gain": 0.44,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.92,
+      "pitchMax": 1.08
+    },
+    "page-turn": {
+      "sourceId": "page-turn",
+      "bus": "ui",
+      "offset": 0.04,
+      "duration": 0.9,
+      "gain": 0.38,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "rope-creak": {
+      "sourceId": "rope-creak",
+      "bus": "boat",
+      "offset": 0.12,
+      "duration": 1.35,
+      "gain": 0.4,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.9,
+      "pitchMax": 1.08
+    },
+    "ui-cloth": {
+      "sourceId": "ui-cloth",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 1.07,
+      "gain": 0.32,
+      "spatial": false,
+      "poolSize": 2,
+      "pitchMin": 0.96,
+      "pitchMax": 1.05
+    }
+  },
+  "banks": {
+    "footstep-dirt": [
+      "footstep-dirt-a",
+      "footstep-dirt-b"
+    ],
+    "footstep-wood": [
+      "footstep-wood-a",
+      "footstep-wood-b"
+    ],
+    "footstep-dock": [
+      "footstep-dock-a",
+      "footstep-dock-b"
+    ],
+    "footstep-grass": [
+      "footstep-grass-a",
+      "footstep-grass-b"
+    ],
+    "splash": [
+      "splash-a",
+      "splash-b",
+      "splash-c",
+      "splash-d"
+    ],
+    "ui-click": [
+      "ui-click"
+    ],
+    "ui-open": [
+      "ui-open",
+      "ui-cloth"
+    ]
+  },
+  "beds": {
+    "farm": [
+      "ambience-wind",
+      "ambience-insects",
+      "ambience-birds"
+    ],
+    "village": [
+      "ambience-wind",
+      "ambience-birds",
+      "ambience-market"
+    ],
+    "coast": [
+      "ambience-wind",
+      "ambience-waves",
+      "ambience-seagulls"
+    ],
+    "water": [
+      "ambience-wind",
+      "ambience-waves",
+      "ambience-seagulls"
+    ],
+    "interior": [
+      "ambience-wind",
+      "ambience-fireplace"
+    ]
+  },
+  "weatherLoops": {
+    "clear": [],
+    "cloudy": [],
+    "light-rain": [
+      "ambience-rain-light"
+    ],
+    "heavy-rain": [
+      "ambience-rain-heavy"
+    ],
+    "windy": [],
+    "fog": [],
+    "storm": [
+      "ambience-rain-heavy"
+    ]
   }
 }

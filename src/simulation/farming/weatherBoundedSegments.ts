@@ -12,7 +12,7 @@ export function forEachWeatherBoundedSegment(
   startMinute: number,
   totalMinutes: number,
   rng: Rng,
-  onSegment: (segmentMinutes: number) => void
+  onSegment: (segmentMinutes: number, segmentStartMinute: number) => void
 ): void {
   if (totalMinutes <= 0) return;
 
@@ -22,7 +22,7 @@ export function forEachWeatherBoundedSegment(
     advanceScheduledWeather(weather, currentMinute, rng);
     const untilWeatherChange = Math.max(1, weather.nextWeatherMinute - currentMinute);
     const segmentMinutes = Math.min(remainingMinutes, untilWeatherChange);
-    onSegment(segmentMinutes);
+    onSegment(segmentMinutes, currentMinute);
     currentMinute += segmentMinutes;
     remainingMinutes -= segmentMinutes;
   }

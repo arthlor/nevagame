@@ -31,6 +31,54 @@ Core loops:
 - **Expedition (20–60m):** market + forecast → prepare → sail → scout → chum → hook → tension → store → continue/return → dock → sell/process.
 - **Meta (days/weeks):** earn → capability → specialize → regions/species → optimize → contracts → infrastructure.
 
+## 2.1 Narrative & Lore Contract
+
+Neva's MVP is a **coastal inheritance story told through useful work**. The
+player arrives at the long-waiting family homestead in Neva Cove, learns how
+soil, water, craft, river, harbor, and open sea depend on one another, and earns
+the knowledge and capability to reopen the family's maritime future. The
+protagonist's name, gender, voice, and unspoken personal history remain
+player-projected; authored content must not require a fixed identity to make
+the story work.
+
+The intended tone is warm, salt-weathered, observant, and quietly hopeful.
+Thematic anchors are **stewardship, memory carried by objects and routines,
+reciprocity between land and sea, earned belonging, and responsible abundance**.
+Conflict is non-combat: weather, distance, freshness, capacity, timing,
+uncertain knowledge, and the consequences of preparation create pressure.
+
+Narrative ownership is explicit:
+
+- `src/content/quests.ts` and `src/content/npcs.ts` own the current authored
+  story text, quest titles, acts, speakers, objectives, and idle dialogue.
+- `ContentRegistry` validates and exposes that content; it is the single
+  runtime content entry point, not a second story database.
+- `QuestDomain` owns quest progression, target/location predicates, turn-ins,
+  rewards, `nextQuestId`, and quest-related domain events.
+- `GameState.quests` owns only serializable progression truth: active quest and
+  step, progress, completed quest IDs, feature unlocks, and hints. Dialogue
+  pages are a transient presentation interaction; do not save the current page,
+  modal state, or DOM text.
+- `GameApp`, `DialogueModal`, `QuestTrackerHUD`, `JournalModal`, audio, and
+  world presentation consume simulation results. They must never decide that a
+  lore beat, reward, or quest objective happened.
+- `WorldLayout`/environment composition and the Art Bible own environmental
+  storytelling cues. A prop, landmark, or material may suggest history, but it
+  cannot become the gameplay authority for a quest condition.
+
+Every authored story beat must connect **a person, a place, a player action,
+and a consequence**. Dialogue explains or deepens a decision the player can
+make; it must not replace the action. Quest progression must remain valid if a
+player closes a dialogue early and resumes the objective. Conversely, a
+mechanic must not silently advance because the player merely read text.
+
+The current MVP uses a single explicit quest chain with contextual intro,
+completion, and idle dialogue. It does not yet include branching outcomes,
+romance, NPC schedules, a dialogue transcript, or a separate lore-codex state.
+Those are future content/system decisions, not permission to invent local
+flags or parallel narrative state. `unlockedDialogueIds` remains a reserved
+field until a real unlock model, content IDs, migration plan, and tests exist.
+
 # 3. Non-Negotiable Invariants
 
 - **No combat:** no player health combat, weapons, enemies, attack UI/trees, boat weapons. Fishing tension/stamina is not combat.
@@ -56,7 +104,7 @@ Playwright
 ESLint + Prettier
 Rapier 3D
 ```
-UI: Vanilla TS or React DOM; UI state via vanilla observers or Zustand. **Do not wrap the core 3D world in React Three Fiber.** Three.js owns 3D; DOM/React owns 2D overlays. Canonical simulation remains domain-driven; optional Miniplex/bitECS/spatial indexing may support rendering/streaming/VFX only.
+UI: Vanilla TS or React DOM; UI state via vanilla observers or Zustand. **Do not wrap the core 3D world in React Three Fiber.** Three.js owns 3D; DOM/React owns 2D overlays. Canonical simulation remains domain-driven; optional Miniplex/bitECS/spatial indexing may support rendering/VFX only and must not imply a runtime-streamed world.
 
 Asset tooling: implemented glTF Transform + Meshopt + Khronos validation; KTX2/BasisU when a concrete texture path is added; SpectorJS/browser diagnostics for profiling.
 
@@ -68,8 +116,9 @@ Required scripts (compatible stable versions): `dev`, `build` (`tsc && vite buil
 CONTENT DEFINITIONS → SIMULATION → APPLICATION SERVICES → PRESENTATION ADAPTERS → THREE.JS / DOM / AUDIO
 ```
 - **Content:** static crops, fish, recipes, boats, items, markets, regions, unlocks, contracts.
+- **Narrative content:** static NPC definitions, authored quest chain, dialogue, and story-facing discovery labels.
 - **Simulation:** authoritative mutable state + deterministic rules.
-- **Application:** save/load, input, scene transitions, ticks, renderer sync, UI events.
+- **Application:** save/load, input, scene transitions, ticks, renderer sync, dialogue/modal orchestration, UI events.
 - **Presentation:** displays state; MUST NOT decide economic/gameplay outcomes.
 
 Recommended repository ownership:
@@ -89,7 +138,7 @@ tests/ unit/ simulation/ integration/ fixtures/ e2e/
 
 # 6. Canonical State, IDs, RNG & Time
 
-Representative state (`CURRENT_SCHEMA_VERSION = 14`, `world.layoutRevision = 6`):
+Representative state (`CURRENT_SCHEMA_VERSION = 16`, `world.layoutRevision = 7`):
 ```ts
 interface GameState {
   schemaVersion: number;
@@ -109,11 +158,11 @@ interface GameState {
   markets: Record<MarketId, MarketState>;
   contracts: ContractState[];
   journal: JournalState;
-  quests: QuestState; // nextQuestId chain; unlockedFeatureIds
+  quests: QuestState; // nextQuestId chain; completed IDs; feature/knowledge unlocks
   metadata: GameMetadata;
 }
 ```
-All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. Schema v10 inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`) and lifts y=0 stations onto terrain. Schema v11 converts illegal `fish.trout` item stacks to cargo. Schema v12 advances layout revision 3 → 4 for physical worked-road relief: it preserves X/Z, rotations, crops, inventory, cargo, markets, progression, quests, and boat truth; re-grounds an on-foot player and placed structures through the final canonical terrain height; and leaves an active boat plus its player waterline unchanged. Schema v13 advances layout revision 4 → 5 for the northeast village hub: it moves `struct.starter_mill` off the homestead plantable onto the mill pad, relocates `market.village` and the arterial road hub to the northeast plaza, keeps the former stall site as a river-crossing gateway, preserves crops, Work Capacity, boats, quests, and the fish-table, and re-grounds on-foot player plus structures through final terrain height. Schema v14 advances layout revision 5 → 6: it moves `struct.starter_mill` off the packed plaza onto a southwest mill pad, keeps `market.village` at `(54, -52)`, enlarges the village courtyard, preserves other structure/player/boat/crop/quest truth, and re-grounds on-foot player plus structures through final terrain height. New-game station `y` is `terrainHeight(x, z)`.
+All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. Schema v10 inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`) and lifts y=0 stations onto terrain. Schema v11 converts illegal `fish.trout` item stacks to cargo. Schema v12 advances layout revision 3 → 4 for physical worked-road relief: it preserves X/Z, rotations, crops, inventory, cargo, markets, progression, quests, and boat truth; re-grounds an on-foot player and placed structures through the final canonical terrain height; and leaves an active boat plus its player waterline unchanged. Schema v13 advances layout revision 4 → 5 for the northeast village hub: it moves `struct.starter_mill` off the homestead plantable onto the mill pad, relocates `market.village` and the arterial road hub to the northeast plaza, keeps the former stall site as a river-crossing gateway, preserves crops, Work Capacity, boats, quests, and the fish-table, and re-grounds on-foot player plus structures through final terrain height. Schema v14 advances layout revision 5 → 6: it moves `struct.starter_mill` off the packed plaza onto a southwest mill pad, keeps `market.village` at the northeast hub, enlarges the village courtyard, preserves other structure/player/boat/crop/quest truth, and re-grounds on-foot player plus structures through final terrain height. Schema v15 advances layout revision 6 → 7 for the current authored composition: it relocates the mill, starter workbench, compost bin, and harbor fish table to their canonical anchors; adopts the revised bridge/road/terrain topology; preserves crops, inventory, cargo, boats, markets, quests, progression, and unrelated structures; re-grounds an on-foot player and all structures; and leaves an active boat plus its player waterline unchanged. Schema v16 does not move the world: it retunes the live/offline clock from `1` to `0.4` game minutes per real second when a save still stores the old stopwatch ratio, and it fills `weather.nextWeatherType` so the Now / +2h / +5h forecast can persist. New-game station `y` is `terrainHeight(x, z)`.
 
 `WorldState` owns the current world seed, `activeSchools`, authored
 `structures`, and the last school-spawn minute. Do not add fish schools or
@@ -138,7 +187,7 @@ Use for harvest/quality, fish weight/schools, weather, markets. Tests MUST accep
 Time:
 - wall time only for save timestamp, offline elapsed, diagnostics;
 - canonical simulation time = integer `GameMinute`;
-- starting ratio: `1 real second = 1 game minute`, `1 game day = 24 real minutes`, configured centrally.
+- starting ratio: `2.5 real seconds = 1 game minute` (`minutesPerRealSecond = 0.4`), `1 game day ≈ 60 real minutes`, configured centrally. Schema v16 snaps stored `minutesPerRealSecond === 1` to `0.4` and requires `weather.nextWeatherType` for the forecast window.
 
 Ticking: rendering via RAF; movement/physics fixed timestep; economics event/coarse-tick; market hourly game tick; crop/freshness delta-based; weather scheduled. **Never iterate crop growth each render frame.**
 
@@ -174,9 +223,11 @@ interface ContentRegistry {
   recipes: ReadonlyMap<RecipeId, RecipeDefinition>;
   boats: ReadonlyMap<BoatTypeId, BoatDefinition>;
   markets: ReadonlyMap<MarketId, MarketDefinition>;
+  npcs: ReadonlyMap<NpcId, NpcDefinition>;
+  quests: ReadonlyMap<QuestId, QuestDefinition>;
 }
 ```
-Fail clearly on unknown IDs, recipes referencing missing items, fish missing habitats, duplicate persistent IDs.
+Fail clearly on unknown IDs, recipes referencing missing items, fish missing habitats, quests referencing missing speakers/next quests/reward items, duplicate persistent IDs, and invalid objective quantities. Story text may be revised, but quest IDs, objective IDs, and unlock IDs are persistent contracts once a save can contain them.
 
 # 9. Input, Modes & Cameras
 
@@ -216,7 +267,7 @@ Southwest headland: cliffs, lighthouse, coastal walk
 Southeast harbor: fish market, dock, boat vendor, fuel/ice
 Coast and offshore: coastal and higher-value sport fishing
 ```
-The loop is farm → village hub → harbor. Spawn and the northwest farmhouse stay on the starter farm. World `(0, -5)` is the river-crossing apron after the bridge, not a fake village. `market.village` and the arterial road hub sit on the northeast plaza near `(54, -52)`. The mill pad sits southwest of that courtyard so the packed plaza stays an open market square. The world is allowed to be large enough for multi-district travel and long-term expansion, but it remains deliberately authored rather than unbounded or runtime-procedural. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data, large/streaming chunk boundaries where the runtime needs them, and preserve strategic travel rather than tedious traversal.
+The loop is farm → village hub → harbor. Spawn and the northwest farmhouse stay on the starter farm. World `(0, -5)` is the river-crossing apron after the bridge, not a fake village. `market.village` and the arterial road hub sit on the northeast plaza near `(54, -52)`. The mill pad sits southwest of that courtyard so the packed plaza stays an open market square. The current world is a finite, deliberately authored multi-district composition rather than an unbounded or runtime-procedural map: its implementation uses a 600 m terrain field with explicit world and sailing bounds, while `WORLD_LAYOUT_V5` is a retained symbol whose live layout revision is 7. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data and preserve strategic travel rather than tedious traversal. Runtime chunk streaming is not implemented.
 
 # 11. Physics & Water
 
@@ -277,13 +328,13 @@ High-quality hard ceiling: 1.5M visible triangles, <=300 draw calls
 Textures: follow `04` as the normal target — 128–256 tiny, 256–512 normal props, 512–1024 hero assets; 2048 is rare/shared/exceptional. Any 1K–2K allowance here is a ceiling, not a default.
 Repeated crops/props: instancing/material reuse
 ```
-These are scene envelopes, not instructions to spend triangles uniformly. `tools/blender/asset_budgets.json` owns scene/texture profiles; `assets/specs/asset-catalog.json` owns each asset's production floor, quality target, hard maximum, material limit, and LOD policy. `04` explains how to spend them. Use glTF Transform where appropriate.
+These are scene envelopes, not instructions to spend triangles uniformly. `tools/blender/asset_budgets.json` owns the exact scene/texture profiles; `assets/specs/asset-catalog.json` owns each asset's production floor, quality target, hard maximum, material limit, and LOD policy. `VisualRenderConfig` owns the richer live renderer configuration in `src/render/config/VisualRenderConfig.ts`; the guide documents ownership and invariants, not a second frozen copy of that object. `04` explains how to spend the budgets. Use glTF Transform where appropriate.
 
 # 13. UI & Accessibility
 
 WebGL renders world; DOM renders inventory, market, journal, farm selection, boat management, contracts, settings, tooltips.
 
-Normal HUD: top-left compact day/time/weather; top-right money; bottom-center context prompt; temporary fishing/boat status. Persistent HUD target: **<20–25%** desktop viewport.
+Normal HUD: compact clock + gold top-right; slim quest (and weather warnings) top-left; Labor/Sprint bottom-left; bottom-center context prompt and 5-slot tool hotbar; temporary fishing/boat status. Dialogue is a contextual DOM overlay opened only from an authoritative nearby NPC interaction; the journal exposes the current story title/objective and completed quest history without becoming a permanent dashboard. Persistent HUD target: **<20–25%** desktop viewport.
 
 UI style should use centralized CSS variables, not scattered hardcoded colors. Visual details remain under `04`.
 
@@ -291,9 +342,9 @@ Baseline accessibility: keyboard support, readable contrast, UI scaling, audio s
 
 # 14. Audio & Domain Events
 
-Audio categories: `master`, `music`, `ambience`, `weather`, `boat`, `fishing`, `ui`. Fishing feedback MUST include cast, bite, reel, strain, near-snap, splash, catch, snap/escape so fishing is not meter-only.
+Audio categories: `master`, `music`, `ambience`, `weather`, `boat`, `fishing`, `ui`. Fishing feedback MUST include cast, bite, reel, strain, near-snap, splash, catch, snap/escape so fishing is not meter-only. Narrative feedback may respond to `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`, but audio must reinforce a real state transition rather than invent one.
 
-Use explicit domain events such as `CropPlanted`, `CropMatured`, `CropHarvested`, `RecipeStarted/Completed`, `FishSchoolSpawned/Activated`, `FishHooked/Escaped/Caught/Stored`, `BoatDocked`, `ItemSold`, `MarketTicked`, `WeatherChanged`, `ProficiencyRankUnlocked`, `ContractCompleted`. Events may feed UI/audio/analytics/achievements/diagnostics; do not turn simulation into one opaque event bus.
+Use explicit domain events such as `CropPlanted`, `CropMatured`, `CropHarvested`, `RecipeStarted/Completed`, `FishSchoolSpawned/Activated`, `FishHooked/Escaped/Caught/Stored`, `BoatDocked`, `ItemSold`, `MarketTicked`, `WeatherChanged`, `ProficiencyRankUnlocked`, `ContractCompleted`, `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`. Events may feed UI/audio/analytics/achievements/diagnostics; do not turn simulation into one opaque event bus. Narrative events are signals, not a replacement for `GameState.quests` or the content registry.
 
 # 15. Error Recovery & Diagnostics
 
@@ -305,13 +356,15 @@ Never soft-lock:
 
 Debug panel: FPS, frame time, draw calls, triangles, coordinates, region, mode, game time, weather, market tick, active schools, save state, world seed.
 
+DEV layout editor (`F2` / `?place`, Vite `import.meta.env.DEV` only): presentation picking of discrete world objects. It is not a `GameplayMode` or `GameAction`. Dropped poses write the owning layout TypeScript via `/__neva_layout_editor/commit`; this session also debug-relocates simulation structures, market/station interact anchors, and Rapier static colliders. DEV skips static mesh merging and the baked sun-shadow proxy so picks hit live meshes and colliding meshes self-cast and follow the move. Copy/paste (`⌘/Ctrl+C` / `⌘/Ctrl+V`, or `⌘/Ctrl+D` duplicate) inserts a new catalog instance for props, fences, authored details, seeded trees (as a new authored pin), and interior furniture. Delete/Backspace removes those same kinds from source (`PLACEMENT_REMOVED` / `FARM_FENCE_REMOVED` for generated instances). Unique gameplay objects (farmhouse, mill, NPCs, landmarks, architecture pads) cannot be copied or deleted. Grass scatter, crops, boats, and the player stay undraggable. Operational owner: `LLM/LAYOUT_EDITOR.md`.
+
 Dev commands: advance time, force weather, spawn school, set demand, grant item/money, set proficiency, damage/repair boat, save/load/reset. Protect/exclude in production.
 
 # 16. Performance & Testing
 
 Representative performance states: empty starter area; full farm; harbor + boat; offshore + gulls/weather; sport-fishing HUD; rain/storm; inventory/market UI. Measure FPS, frame time, memory, draw calls, loading stalls. **Profile; do not optimize by intuition.**
 
-Visual production is not deferred until late polish. Before broad world/content asset production, the renderer/material foundation and at least one gold-standard gameplay-camera scene MUST satisfy `04` + Art Pipeline. Large asset batches are blocked if the gold slice is visually below target, even when performance/tests pass.
+Visual production is not deferred until late polish. P0.75 has explicit sub-gates: the human visual decision for the four gameplay-camera slices, current 188-asset published-manifest validation, and the measured benchmark contract. The recorded human visual decision unlocks further authored-world expansion; the benchmark and clean-source strict/determinism evidence remain technical-art/release certification gates. DEV layout-editor measurements are intentionally unbatched and are diagnostic, not production-equivalent proof. No sub-gate waives production minimums, hard maximums, material/node/palette contracts, or runtime validation.
 
 Testing layers:
 - **Unit:** pure growth/yield/quality/pricing/freshness/demand/capacity/rank rules.
@@ -370,6 +423,13 @@ Any technical feature requires:
 - [ ] failure state handled
 - [ ] tests/typecheck/lint/build pass
 - [ ] browser behavior verified manually or automatically
+
+Any story-bearing feature additionally requires:
+- [ ] a stable content owner and persistent IDs where progression can be saved
+- [ ] a person/place/action/consequence connection that serves the current loop
+- [ ] explicit simulation events or objective predicates for every mechanical beat
+- [ ] contextual dialogue/journal presentation that can close and resume safely
+- [ ] no hidden progression, invented player identity, or presentation-owned lore state
 
 Architecture changes require human approval with: problem, current limitation, proposed change, affected modules, save impact, performance impact, dependency, alternatives, and why current architecture cannot solve it safely. Never silently introduce a new framework/paradigm.
 

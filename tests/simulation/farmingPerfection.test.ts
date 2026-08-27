@@ -23,7 +23,7 @@ import {
   starterStructureAnchor,
   worldToFarmLocal
 } from "../../src/world/FarmLayout";
-import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { VILLAGE_MARKET, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
@@ -142,10 +142,13 @@ describe("NEVA farming correctness foundation", () => {
       rotationY: well.rotationY,
       scale: well.scale
     });
-    expect(VILLAGE_MARKET.position).toMatchObject({ x: 54, z: -52 });
+    expect(VILLAGE_MARKET.position).toMatchObject({ x: 53.2, z: -51.5 });
     expect(STARTER_FARM_LAYOUT.marketAnchors).toEqual([]);
     const mill = starterStructureAnchor("struct.starter_mill")!;
-    expect(mill).toMatchObject({ x: 46, z: -58 });
+    expect(Number.isFinite(mill.x)).toBe(true);
+    expect(Number.isFinite(mill.z)).toBe(true);
+    expect(Math.hypot(mill.x - VILLAGE_MARKET.position.x, mill.z - VILLAGE_MARKET.position.z))
+      .toBeGreaterThan(STARTER_FARM_LAYOUT.structureAnchors[0].clearanceRadius * 2);
     expect(isPlantableFarmSurface("farm.player_homestead", worldToFarmLocal("farm.player_homestead", mill))).toBe(false);
   });
 
@@ -338,6 +341,7 @@ describe("NEVA farming correctness foundation", () => {
     const migrated = migrateSaveData(source);
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(migrated.state.player.workCapacity).toMatchObject({ regeneratedAtMinute: 480 });
     expect("lastRegenMinute" in migrated.state.player.workCapacity).toBe(false);
     expect(migrated.state.journal.cropRecords["crop.wheat"].bestQuality).toBe("prize");

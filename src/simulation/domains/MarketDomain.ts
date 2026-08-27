@@ -10,6 +10,20 @@ import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import type { BuySeedReasonCode, InteractionResult } from "../core/contracts";
 
+const VILLAGE_BUYABLE = new Set<ItemId>([
+  "seed.wheat",
+  "seed.tomato",
+  "seed.potato",
+  "item.compost_starter"
+]);
+const HARBOR_BUYABLE = new Set<ItemId>(["item.crushed_ice"]);
+
+function stockForMarket(marketId: MarketId): Set<ItemId> | null {
+  if (marketId === "market.village") return VILLAGE_BUYABLE;
+  if (marketId === "market.harbor") return HARBOR_BUYABLE;
+  return null;
+}
+
 export class MarketDomain {
   constructor(
     private readonly context: DomainContext,
@@ -62,31 +76,36 @@ export class MarketDomain {
     itemId: ItemId,
     quantity: number
   ): InteractionResult {
+    return this.buyItem(marketId, itemId, quantity);
+  }
+
+  public buyItem(
+    marketId: MarketId,
+    itemId: ItemId,
+    quantity: number
+  ): InteractionResult {
     const { state, events } = this.context;
     const failure = (reasonCode: BuySeedReasonCode, reason: string): InteractionResult => ({
       success: false,
       reasonCode,
       reason
     });
-    if (marketId !== "market.village" || !state.markets[marketId]) {
-      return failure("not-seed-stall", "Seeds are sold at the produce stall");
+    const stock = stockForMarket(marketId);
+    if (!stock || !state.markets[marketId]) {
+      return failure("not-seed-stall", "That stall does not sell supplies");
     }
     if (this.getNearbyMarketId() !== marketId) {
-      return failure("too-far", "Move closer to the produce stall");
+      return failure("too-far", "Move closer to the stall");
     }
     if (!Number.isSafeInteger(quantity) || quantity <= 0) {
       return failure("invalid-quantity", "Choose a positive whole quantity");
     }
     const item = ContentRegistry.items.get(itemId);
-    const starterCrop = [...ContentRegistry.crops.values()].find(
-      (crop) =>
-        crop.seedItemId === itemId &&
-        ["crop.wheat", "crop.tomato", "crop.potato"].includes(crop.id)
-    );
-    if (!item || item.category !== "seed" || !starterCrop) {
-      return failure("not-stocked", "That seed is not stocked here");
+    if (!item || !stock.has(itemId)) {
+      return failure("not-stocked", "That item is not stocked here");
     }
-    if (state.player.proficiencies.farming < starterCrop.minimumFarmingXp) {
+    const starterCrop = [...ContentRegistry.crops.values()].find((crop) => crop.seedItemId === itemId);
+    if (starterCrop && state.player.proficiencies.farming < starterCrop.minimumFarmingXp) {
       return failure("locked", `Requires ${starterCrop.minimumFarmingXp} Farming XP`);
     }
     const cost = item.baseValue * quantity;

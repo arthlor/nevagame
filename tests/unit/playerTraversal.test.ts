@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   advancePlayerTraversal,
   createFullPlayerTraversalState,
-  PLAYER_TRAVERSAL_TUNING
+  PLAYER_TRAVERSAL_TUNING,
+  slopeGaitScale
 } from "../../src/simulation/navigation/PlayerTraversal";
 
 describe("player traversal", () => {
@@ -81,5 +82,15 @@ describe("player traversal", () => {
     }
     expect(resumed).toBe(true);
     expect(traversal.sprintStamina).toBeGreaterThan(0);
+  });
+
+  it("slows uphill gait and gains a little downhill without leaving the authored clamp", () => {
+    expect(slopeGaitScale({ x: 0, y: 1, z: 0 }, 0, 1)).toBe(1);
+    const uphill = slopeGaitScale({ x: 0, y: 0.92, z: 0.39 }, 0, 1);
+    const downhill = slopeGaitScale({ x: 0, y: 0.92, z: 0.39 }, 0, -1);
+    expect(uphill).toBeGreaterThanOrEqual(0.78);
+    expect(uphill).toBeLessThan(1);
+    expect(downhill).toBeGreaterThan(1);
+    expect(downhill).toBeLessThanOrEqual(1.14);
   });
 });

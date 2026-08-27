@@ -25,8 +25,9 @@ If a canonical path is missing, duplicated, renamed, or conflicts with another s
 
 - Routine existing-asset work reads this file, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, its owning generator, and the runtime integration point only. Read the directly relevant Art Bible section when appearance is being changed. Do not read the full catalog or `01`/`02`/`03`/`04`/Art Pipeline by default.
 - New generator families, shared construction helpers, renderer/material changes, or gameplay-contract changes read their owning canonical document(s) in full in addition to the routine set.
-- Release/gold-slice work reads the full canonical art/architecture set because it activates strict, determinism, benchmark, and cross-scene gates.
+- Release/gold-slice work reads the full canonical art/architecture set because it activates the P0.75 visual-gold benchmark and the separate strict, determinism, and cross-scene technical/release gates.
 - `referenceAuthoring` remains required for image/study-guided assets. Read and validate only the selected asset brief; rerun `art:brief` only when that brief changes.
+- In-game layout / Place / F2 editor work reads `LLM/LAYOUT_EDITOR.md`, `src/layout-editor/`, `src/app/PlacementEditor.ts`, and `tools/layout-editor/patchPlacement.ts`. Do not import `src/world` into the Vite patcher. Leave `02` unread unless a drop changes a saved structure contract.
 
 ## Generate-asset prompt contract
 
@@ -62,7 +63,7 @@ Resolve conflicts in this order: the human's latest explicit instruction; `01`; 
 - Avoid primitive-only/toy-like art, photoreal textures, noisy micro detail, plastic gloss, chibi/anime drift, generic fantasy kitbashing, diorama-only styling, heavy bloom/DOF, local exposure/tone-map hacks, and permanent toon/ink outlines.
 - Production color/materials must use `PaletteTokens`/`PaletteMaterials` and the palette JSON. `VisualRenderConfig` is the only renderer baseline; zone/asset code cannot invent a second lighting or grading system.
 - Runtime static assets are GLB/glTF 2.0 only. Use the single catalog, schema, registered generator workflow, CLI staging/validation/optimization/atomic publication, Meshopt-aware loader, and batching/instancing path. Do not create direct exporters, parallel palette/spec files, filename lists, or runtime `.blend`/`.fbx`/`.obj` paths.
-- Do not mass-produce world art before P0.5 and P0.75 establish and pass the renderer/material foundation plus bridge-river, starter-farm, harbor, and coast/lighthouse gold slices.
+- Do not mass-produce world art before P0.5 and P0.75 establish and pass the renderer/material foundation plus the bridge-river, starter-farm, harbor, and coast/lighthouse visual-gold slices. Technical-art certification remains a separate release gate.
 
 ## Required task discipline
 

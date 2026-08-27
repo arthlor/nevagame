@@ -68,7 +68,9 @@ export type InteractionAction =
   | "trade"
   | "cast"
   | "enter"
-  | "exit";
+  | "exit"
+  | "rest"
+  | "irrigate";
 
 export interface InteractionTarget {
   id: string;
@@ -153,6 +155,9 @@ export type GameCommand =
   | { type: "crop.water"; placedCropId: PlacedCropId }
   | { type: "crop.harvest"; placedCropId: PlacedCropId }
   | { type: "farm.apply-fertilizer"; farmId: FarmId }
+  | { type: "farm.irrigate"; farmId: FarmId }
+  | { type: "farm.buy-irrigation" }
+  | { type: "player.rest-until-dawn" }
   | { type: "processing.start"; recipeId: RecipeId; stationId: string }
   | { type: "processing.collect"; jobId: ProcessingJobId }
   | { type: "fishing.cast-basic"; castPower?: number }
@@ -170,6 +175,7 @@ export type GameCommand =
   | { type: "cargo.discard"; cargoId: FishCargoId }
   | { type: "market.sell-item"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.buy-seed"; marketId: MarketId; itemId: ItemId; quantity: number }
+  | { type: "market.buy-item"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.sell-fish"; marketId: MarketId; cargoId: FishCargoId }
   | { type: "contract.deliver-items"; contractId: string; itemId: ItemId; quantity: number }
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }

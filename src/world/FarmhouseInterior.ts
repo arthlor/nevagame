@@ -32,15 +32,15 @@ export const FARMHOUSE_INTERIOR_BOUNDS = Object.freeze({
  * Porch steps and doorway extend South to world z ≈ -57.8 to -58.5.
  */
 export const FARMHOUSE_OUTSIDE_DOOR = Object.freeze({
-  x: -57.0,
+  x: -53.76,
   y: 0.95,
-  z: -57.8,
+  z: -53.79,
   radiusMeters: 3.2,
   exitSpawn: {
-    x: -57.0,
+    x: -53.61,
     y: 1.0,
-    z: -59.6,
-    rotationY: Math.PI
+    z: -55.58,
+    rotationY: 3.0616
   }
 });
 
@@ -54,7 +54,8 @@ export const FARMHOUSE_INTERIOR_DOOR = Object.freeze({
   radiusMeters: 2.2,
   enterSpawn: {
     x: FARMHOUSE_INTERIOR_ORIGIN.x,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.05,
+    // Player feet use the shared terrain + 0.5 m convention, including indoors.
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.5,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
     rotationY: 0
   }

@@ -3,6 +3,7 @@
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope, validateSaveEnvelope } from "./SaveSchema";
 import { migrateSaveData } from "./SaveMigrations";
 import { GameState } from "../simulation/core/types";
+import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
 
 const DB_NAME = "neva_save_db";
 const STORE_NAME = "game_saves";
@@ -22,6 +23,7 @@ export type LoadGameResult =
   | { status: "loaded"; envelope: SaveEnvelope }
   | { status: "empty" }
   | { status: "corrupt" }
+  | { status: "incompatible" }
   | { status: "unavailable" };
 
 export interface SaveInspection {
@@ -181,7 +183,7 @@ export class IndexedDbSaveRepository {
     return true;
   }
 
-  private migrateAndValidate(raw: unknown): SaveEnvelope | null {
+  private migrateAndValidate(raw: unknown): SaveEnvelope | "incompatible" | null {
     if (!raw || typeof raw !== "object") return null;
     const candidate = raw as SaveEnvelope;
     if (typeof candidate.schemaVersion !== "number" || !Number.isInteger(candidate.schemaVersion)) return null;
@@ -189,6 +191,23 @@ export class IndexedDbSaveRepository {
       return null;
     }
     if (!candidate.state || typeof candidate.state !== "object") return null;
+
+    const state = candidate.state as Partial<GameState>;
+    const world = state.world as Partial<GameState["world"]> | undefined;
+    const structurallyReadable = state.schemaVersion === candidate.schemaVersion
+      && Number.isSafeInteger(state.worldSeed)
+      && !!world
+      && Number.isSafeInteger(world.layoutRevision);
+    if (structurallyReadable && candidate.schemaVersion > CURRENT_SCHEMA_VERSION) {
+      return "incompatible";
+    }
+    if (
+      structurallyReadable
+      && candidate.schemaVersion === CURRENT_SCHEMA_VERSION
+      && world.layoutRevision !== WORLD_LAYOUT_REVISION
+    ) {
+      return "incompatible";
+    }
 
     let migrated: SaveEnvelope;
     try {
@@ -203,7 +222,8 @@ export class IndexedDbSaveRepository {
   }
 
   private async readAndMigrate(db: IDBDatabase, key: string): Promise<SaveEnvelope | null> {
-    return this.migrateAndValidate(await this.readRawFromDb(db, key));
+    const result = this.migrateAndValidate(await this.readRawFromDb(db, key));
+    return result === "incompatible" ? null : result;
   }
 
   private async readGameResult(): Promise<LoadGameResult> {
@@ -214,16 +234,17 @@ export class IndexedDbSaveRepository {
 
     const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY);
     const primary = this.migrateAndValidate(primaryRaw);
-    if (primary) return { status: "loaded", envelope: primary };
+    if (primary && primary !== "incompatible") return { status: "loaded", envelope: primary };
 
     const backupRaw = await this.readRawFromDb(db, BACKUP_KEY);
     const backup = this.migrateAndValidate(backupRaw);
-    if (backup) {
+    if (backup && backup !== "incompatible") {
       console.warn("Primary save missing or corrupted. Restored from backup.");
       return { status: "loaded", envelope: backup };
     }
 
     if (primaryRaw == null && backupRaw == null) return { status: "empty" };
+    if (primary === "incompatible" || backup === "incompatible") return { status: "incompatible" };
     return { status: "corrupt" };
   }
 

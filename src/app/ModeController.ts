@@ -51,6 +51,12 @@ export class ModeController {
     return this.gameplayMode === "basic-fishing" || this.gameplayMode === "sport-fishing";
   }
 
+  /** Closing overlays (null) and Pause are allowed while fishing; other HUD modals are not. */
+  public allowsOverlayChange(modal: ActiveModal): boolean {
+    if (!this.blocksHudOverlaysAndTools) return true;
+    return modal === "pause" || modal === null;
+  }
+
   public restoreFromState(state: Readonly<GameState>): void {
     this.gameplayMode = modeFromState(state);
     this.overlays.clear();

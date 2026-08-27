@@ -1,21 +1,33 @@
 // src/ui/components/LogisticsLedgerModal.tsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { GameState, FishCargoState } from "../../simulation/core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { calculateFishPrice } from "../../simulation/economy/calculateFishValue";
-import { IconCoin, IconFish, IconSprout, IconBoat } from "./HudIcons";
+import { IconCoin, IconFish, IconSprout, IconBoat, IconLedger } from "./HudIcons";
+import { useModalAccessibility } from "../useModalAccessibility";
+import { ChromeButton, ChromeClose, ChromeMeter, ChromePanel, ChromeQuality, ChromeSlot } from "../chrome/Chrome";
+import { AtlasImage } from "../chrome/AtlasImage";
+import { atlasForFish } from "../chrome/uiAtlas";
+import { playUiSound } from "../audio/uiAudio";
 
 interface LogisticsLedgerModalProps {
   state: GameState;
   onClose: () => void;
+  initialTab?: LedgerTab;
 }
 
-type LedgerTab = "pnl" | "logistics";
+type LedgerTab = "money" | "cargo";
 
-export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ state, onClose }) => {
-  const [activeTab, setActiveTab] = useState<LedgerTab>("pnl");
+export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
+  state,
+  onClose,
+  initialTab = "money"
+}) => {
+  const [activeTab, setActiveTab] = useState<LedgerTab>(initialTab);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility(modalRef, onClose);
+
   const { player } = state;
-
   const totalGold = player.money;
   const allCargo = Object.values(state.fishCargo);
   const totalCargoWeightKg = allCargo.reduce((sum, cargo) => sum + cargo.weightKg, 0);
@@ -38,212 +50,201 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stat
     (sum, boat) => sum + (ContentRegistry.boats.get(boat.boatTypeId)?.costMoney ?? 0),
     0
   );
-  const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
-  const boatDef = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
-
-  // Calculate cargo carried on boat
-  const boatCargoSlots: (FishCargoState | null)[] = activeBoat
-    ? activeBoat.fishCargoSlotIds.map((id) => (id ? state.fishCargo[id] ?? null : null))
-    : [];
-
-  const boatWeightKg = boatCargoSlots.reduce((acc, c) => acc + (c ? c.weightKg : 0), 0);
-  // These are current holdings only. Sales history and warehouse capacity are
-  // not persisted in the simulation, so the ledger does not invent them.
   const plantedCount = Object.keys(state.crops).length;
   const totalFarmPlots = Object.values(state.farms).reduce(
     (sum, farm) => sum + farm.placedCropIds.length,
     0
   );
+  const selectTab = (tab: LedgerTab) => {
+    playUiSound("page-turn");
+    setActiveTab(tab);
+  };
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <div className="ledger-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Captain & Master Ledger">
+      <ChromePanel
+        ref={modalRef}
+        as="div"
+        className="ledger-modal"
+        tone="slate"
+        flourish
+        corners
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ledger-title"
+        tabIndex={-1}
+      >
         <header className="ledger-header">
           <div className="ledger-title-group">
-            <span className="ledger-icon">📖</span>
+            <span className="ledger-icon" aria-hidden="true"><IconLedger size={24} /></span>
             <div>
-              <h2 className="ledger-title">MERCHANT & LOGISTICS LEDGER</h2>
-              <span className="ledger-subtitle">Financial Accounting & Physical Cargo Holdings</span>
+              <h2 id="ledger-title" className="ledger-title">Captain's ledger</h2>
+              <span className="ledger-subtitle">Gold, cargo, and vessels</span>
             </div>
           </div>
 
-          <div className="ledger-tabs-bar" role="tablist">
+          <div className="ledger-tabs-bar mm-ribbon-tabs" role="tablist" aria-label="Ledger sections" data-testid="ledger-tabs">
             <button
               type="button"
               role="tab"
-              aria-selected={activeTab === "pnl"}
-              className={`ledger-tab-btn ${activeTab === "pnl" ? "is-active" : ""}`}
-              onClick={() => setActiveTab("pnl")}
+              aria-selected={activeTab === "money"}
+              aria-controls="ledger-tab-content"
+              className={`ledger-tab-btn ${activeTab === "money" ? "is-active" : ""}`}
+              onClick={() => selectTab("money")}
             >
-              Financial Analytics (P&L)
+              <IconCoin size={18} aria-hidden="true" />
+              Money
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={activeTab === "logistics"}
-              className={`ledger-tab-btn ${activeTab === "logistics" ? "is-active" : ""}`}
-              onClick={() => setActiveTab("logistics")}
+              aria-selected={activeTab === "cargo"}
+              aria-controls="ledger-tab-content"
+              className={`ledger-tab-btn ${activeTab === "cargo" ? "is-active" : ""}`}
+              onClick={() => selectTab("cargo")}
             >
-              Physical Assets & Logistics
+              <IconFish size={18} aria-hidden="true" />
+              Cargo & boats
             </button>
           </div>
 
-          <button type="button" className="ledger-close-btn" onClick={onClose} aria-label="Close ledger">
-            ✕
-          </button>
+          <ChromeClose onClick={onClose} label="Close ledger" className="ledger-close-btn" />
         </header>
 
-        <div className="ledger-body">
-          {activeTab === "pnl" ? (
-            <div className="ledger-pnl-view">
-              {/* Current, save-derived financial position */}
-              <div className="ledger-kpi-grid">
-                <div className="kpi-card">
-                  <span className="kpi-label">Current Liquid Capital</span>
-                  <strong className="kpi-value gold-text">
-                    <IconCoin size={18} />
-                    {totalGold.toLocaleString()} G
-                  </strong>
-                </div>
-                <div className="kpi-card">
-                  <span className="kpi-label">Estimated Net Asset Value</span>
-                  <strong className="kpi-value">{(totalGold + estimatedBoatValue + estimatedCargoValue).toLocaleString()} G</strong>
-                </div>
-                <div className="kpi-card">
-                  <span className="kpi-label">Estimated Cargo Value</span>
-                  <strong className="kpi-value green-text">{estimatedCargoValue.toLocaleString()} G</strong>
-                </div>
-              </div>
-
-              {/* Current holdings, not fabricated historical revenue */}
-              <section className="ledger-section">
-                <h3>Current Holdings</h3>
-                <div className="revenue-bars-list">
-                  <div className="rev-bar-row">
-                    <div className="rev-bar-meta">
-                      <span><IconFish size={15} /> Fishing & Sport Catches</span>
-                      <strong>{allCargo.length} fish · {totalCargoWeightKg.toFixed(1)} kg</strong>
-                    </div>
-                    <div className="rev-track"><div className="rev-fill fill-fish" style={{ width: `${allCargo.length > 0 ? 100 : 0}%` }} /></div>
+        <div id="ledger-tab-content" className="ledger-body" role="tabpanel">
+          {activeTab === "money" ? (
+            <div className="ledger-ledger-sheet">
+              <section className="ledger-section" aria-labelledby="ledger-position-title">
+                <h3 id="ledger-position-title">Position</h3>
+                <dl className="ledger-entry-list">
+                  <div className="ledger-entry-row">
+                    <dt><IconCoin size={18} aria-hidden="true" /> Gold on hand</dt>
+                    <dd className="gold-text">{totalGold.toLocaleString()} G</dd>
                   </div>
-
-                  <div className="rev-bar-row">
-                    <div className="rev-bar-meta">
-                      <span><IconSprout size={15} /> Farming & Harvests</span>
-                      <strong>{plantedCount} planted crops</strong>
-                    </div>
-                    <div className="rev-track"><div className="rev-fill fill-farm" style={{ width: `${plantedCount > 0 ? 100 : 0}%` }} /></div>
+                  <div className="ledger-entry-row">
+                    <dt><IconBoat size={18} aria-hidden="true" /> Vessels at cost</dt>
+                    <dd>{estimatedBoatValue.toLocaleString()} G</dd>
                   </div>
-
-                  <div className="rev-bar-row">
-                    <div className="rev-bar-meta">
-                      <span><IconBoat size={15} /> Owned vessels</span>
-                      <strong>{ownedBoats.length}</strong>
-                    </div>
-                    <div className="rev-track"><div className="rev-fill fill-proc" style={{ width: `${ownedBoats.length > 0 ? 100 : 0}%` }} /></div>
+                  <div className="ledger-entry-row">
+                    <dt><IconFish size={18} aria-hidden="true" /> Fish at harbor prices</dt>
+                    <dd className="green-text">{estimatedCargoValue.toLocaleString()} G</dd>
                   </div>
-                </div>
+                  <div className="ledger-entry-row ledger-entry-total">
+                    <dt>Estimated holdings</dt>
+                    <dd>{(totalGold + estimatedBoatValue + estimatedCargoValue).toLocaleString()} G</dd>
+                  </div>
+                </dl>
               </section>
 
-              {/* Explicitly state what this save does not record. */}
-              <div className="ledger-two-col">
-                <div className="summary-box">
-                  <h4>Revenue history</h4>
-                  <p><strong>Not recorded in this save</strong></p>
-                  <small>Current money is the authoritative balance.</small>
-                </div>
-                <div className="summary-box">
-                  <h4>Operating costs</h4>
-                  <p><strong>Not recorded in this save</strong></p>
-                  <small>Purchases are reflected immediately in the balance.</small>
-                </div>
-              </div>
+              <section className="ledger-section" aria-labelledby="ledger-holdings-title">
+                <h3 id="ledger-holdings-title">What is in hand</h3>
+                <dl className="ledger-entry-list">
+                  <div className="ledger-entry-row">
+                    <dt><IconFish size={18} aria-hidden="true" /> Sport fish</dt>
+                    <dd>{allCargo.length} fish · {totalCargoWeightKg.toFixed(1)} kg</dd>
+                  </div>
+                  <div className="ledger-entry-row">
+                    <dt><IconSprout size={18} aria-hidden="true" /> Planted crops</dt>
+                    <dd>{plantedCount}</dd>
+                  </div>
+                  <div className="ledger-entry-row">
+                    <dt><IconBoat size={18} aria-hidden="true" /> Owned vessels</dt>
+                    <dd>{ownedBoats.length}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <p className="ledger-note">This ledger records the present balance and holdings. It does not invent a sales history or operating-cost history.</p>
             </div>
           ) : (
-            <div className="ledger-logistics-view">
-              {/* Asset Hold Grid */}
-              <div className="logistics-asset-cards">
-                {/* Farm Storage */}
-                <div className="asset-card">
-                  <div className="asset-header">
-                    <IconSprout size={18} />
-                    <strong>Starter Homestead Storage</strong>
+            <div className="ledger-ledger-sheet">
+              <section className="ledger-section" aria-labelledby="ledger-stores-title">
+                <h3 id="ledger-stores-title">Stores and vessels</h3>
+                <dl className="ledger-entry-list">
+                  <div className="ledger-entry-row">
+                    <dt><IconSprout size={18} aria-hidden="true" /> Homestead plots in use</dt>
+                    <dd>{totalFarmPlots}</dd>
                   </div>
-                  <div className="asset-capacity-row">
-                    <span>Planted crops:</span>
-                    <strong>{plantedCount}</strong>
+                  <div className="ledger-entry-row">
+                    <dt><IconSprout size={18} aria-hidden="true" /> Planted crops</dt>
+                    <dd>{plantedCount}</dd>
                   </div>
-                  <div className="asset-capacity-row">
-                    <span>Farm plots in use:</span>
-                    <strong>{totalFarmPlots}</strong>
+                  <div className="ledger-entry-row">
+                    <dt><IconBoat size={18} aria-hidden="true" /> Registered vessels</dt>
+                    <dd>{ownedBoats.length}</dd>
                   </div>
-                  <div className="rev-track"><div className="rev-fill fill-farm" style={{ width: `${plantedCount > 0 ? 100 : 0}%` }} /></div>
-                </div>
+                </dl>
+              </section>
 
-                {/* Vessel Cargo Hold */}
-                <div className="asset-card">
-                  <div className="asset-header">
-                    <IconBoat size={18} />
-                    <strong>{boatDef?.name ?? "Rowboat Hold"}</strong>
-                  </div>
-                  <div className="asset-capacity-row">
-                    <span>Physical Cargo Slots:</span>
-                    <strong>{boatCargoSlots.filter(Boolean).length}/{boatCargoSlots.length} Slots Used</strong>
-                  </div>
-                  <div className="asset-capacity-row">
-                    <span>Hold weight:</span>
-                    <strong>{boatWeightKg.toFixed(1)} kg</strong>
-                  </div>
-                  <div className="rev-track"><div className="rev-fill fill-fish" style={{ width: `${boatCargoSlots.length > 0 ? (boatCargoSlots.filter(Boolean).length / boatCargoSlots.length) * 100 : 0}%` }} /></div>
-                </div>
-
-                {/* Owned vessels */}
-                <div className="asset-card">
-                  <div className="asset-header">
-                    <IconBoat size={18} />
-                    <strong>Owned vessels</strong>
-                  </div>
-                  <div className="asset-capacity-row">
-                    <span>Registered boats:</span>
-                    <strong>{ownedBoats.length}</strong>
-                  </div>
-                  <div className="asset-capacity-row">
-                    <span>Estimated hull value:</span>
-                    <strong>{estimatedBoatValue.toLocaleString()} G</strong>
-                  </div>
-                  <div className="rev-track"><div className="rev-fill fill-trade" style={{ width: `${ownedBoats.length > 0 ? 100 : 0}%` }} /></div>
-                </div>
-              </div>
-
-              {/* Spatial Vessel Cargo Bay Map */}
-              {activeBoat && (
-                <section className="vessel-spatial-bay-section">
-                  <h3>Vessel Spatial Layout ({boatDef?.name})</h3>
-                  <div className="spatial-vessel-diagram">
-                    <span className="vessel-bow-label">▲ BOW</span>
-                    <div className="vessel-slots-grid">
-                      {boatCargoSlots.map((cargo, idx) => (
-                        <div key={`slot-${idx}`} className={`vessel-slot-cell ${cargo ? "is-occupied" : "is-empty"}`}>
-                          <span className="cell-num">Slot 0{idx + 1}</span>
-                          {cargo ? (
-                            <div className="cell-cargo-info">
-                              <strong>{ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "Fish"}</strong>
-                              <span>{cargo.weightKg.toFixed(1)} kg · {Math.round(cargo.freshness)}%</span>
+              {ownedBoats.map((boat) => {
+                const boatDef = ContentRegistry.boats.get(boat.boatTypeId);
+                const boatCargoSlots: (FishCargoState | null)[] = boat.fishCargoSlotIds.map((id) =>
+                  id ? state.fishCargo[id] ?? null : null
+                );
+                const occupiedHold = boatCargoSlots.filter(Boolean).length;
+                const boatWeightKg = boatCargoSlots.reduce((sum, cargo) => sum + (cargo ? cargo.weightKg : 0), 0);
+                return (
+                  <section
+                    key={boat.id}
+                    className="vessel-spatial-bay-section ledger-section"
+                    aria-labelledby={`ledger-hold-title-${boat.id}`}
+                  >
+                    <h3 id={`ledger-hold-title-${boat.id}`}>{boatDef?.name ?? "Vessel"} hold</h3>
+                    <ChromeMeter
+                      className="ledger-hold-meter"
+                      label="Hold occupancy"
+                      value={occupiedHold}
+                      max={Math.max(1, boatCargoSlots.length)}
+                      valueText={`${occupiedHold} / ${boatCargoSlots.length} · ${boatWeightKg.toFixed(1)} kg`}
+                      variant="gold"
+                    />
+                    <div className="vessel-slots-grid" aria-label={`${boatDef?.name ?? "Vessel"} hold slots`} data-testid="ledger-hold-grid">
+                      {boatCargoSlots.map((cargo, index) => {
+                        if (!cargo) {
+                          return (
+                            <ChromeSlot
+                              key={`${boat.id}-slot-${index}`}
+                              className="vessel-hold-slot"
+                              slotNumber={index + 1}
+                              label={`Empty hold slot ${index + 1}`}
+                            />
+                          );
+                        }
+                        const freshnessTone = cargo.freshness > 65 ? "fresh" : cargo.freshness > 35 ? "medium" : "stale";
+                        const fishName = ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "Fish";
+                        return (
+                          <ChromeSlot
+                            key={`${boat.id}-slot-${index}`}
+                            className="vessel-hold-slot is-occupied"
+                            filled
+                            slotNumber={index + 1}
+                            label={`${fishName}, ${cargo.weightKg.toFixed(1)} kg, ${Math.round(cargo.freshness)}% fresh`}
+                          >
+                            <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={28} />
+                            <ChromeQuality quality={cargo.quality} showLabel={false} />
+                            <span className="cell-cargo-meta">{cargo.weightKg.toFixed(1)} kg</span>
+                            <div className="cargo-freshness-track" aria-hidden="true">
+                              <div
+                                className={`cargo-freshness-fill freshness-${freshnessTone}`}
+                                style={{ width: `${Math.round(cargo.freshness)}%` }}
+                              />
                             </div>
-                          ) : (
-                            <span className="cell-empty-text">Empty Rack</span>
-                          )}
-                        </div>
-                      ))}
+                          </ChromeSlot>
+                        );
+                      })}
                     </div>
-                    <span className="vessel-stern-label">▼ STERN</span>
-                  </div>
-                </section>
-              )}
+                  </section>
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
+
+        <footer className="modal-footer">
+          <ChromeButton onClick={onClose}>Close ledger</ChromeButton>
+        </footer>
+      </ChromePanel>
     </div>
   );
 };

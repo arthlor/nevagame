@@ -85,6 +85,14 @@ export function getProcessingStationApproach(stationId: string): ProcessingStati
   return APPROACH_BY_STATION_ID.get(stationId);
 }
 
+/** DEV layout editor: session-only facing update. Does not persist and is not a schema migration. */
+export function debugRelocateProcessingStationApproach(stationId: string, rotationY: number): boolean {
+  const approach = APPROACH_BY_STATION_ID.get(stationId);
+  if (!approach) return false;
+  (approach as { rotationY: number }).rotationY = rotationY;
+  return true;
+}
+
 /** Returns the runtime yaw that aligns the published GLB working face with the authored approach. */
 export function getProcessingStationRuntimeRotationY(stationId: ProcessingStationId): number {
   const approach = getProcessingStationApproach(stationId);

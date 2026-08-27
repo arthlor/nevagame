@@ -190,7 +190,27 @@ const PARAMETER_CONTRACTS = Object.freeze({
     depth: number(1.4, 14),
     wallHeight: number(1.6, 7),
     roofPitchDeg: number(20, 55),
-    variant: choice("cottage-a", "cottage-b", "inn", "market-hall", "barn", "shed", "outhouse")
+    foundationHeight: number(0.3, 1.4),
+    roofOverhang: number(0.15, 1.2),
+    roofCourses: integer(2, 8),
+    shingleRows: integer(3, 12),
+    shingleColumns: integer(4, 14),
+    masonryCourses: integer(2, 8),
+    masonryBlocks: integer(3, 12),
+    porchDepth: number(0, 2.8),
+    porchPlanks: integer(0, 16),
+    wingOffset: number(-4, 4),
+    wingWidth: number(0, 8),
+    wingDepth: number(0, 7),
+    chimneyOffsetX: number(-6, 6),
+    chimneyHeight: number(0, 4),
+    plinthScale: number(0.8, 1.5),
+    porchWidthRatio: number(0.2, 1.2),
+    doorWidth: number(0.4, 2.8),
+    doorHeight: number(1.2, 3.2),
+    roofForm: choice("front-gable", "side-gable", "lean-to", "offset-gable", "tall-gable"),
+    openingLayout: choice("cottage-front", "cottage-side", "cottage-garden", "inn-veranda", "market-arcade", "barn-loft", "shed-tools", "outhouse-vent"),
+    variant: choice("cottage-a", "cottage-b", "cottage-c", "inn", "inn-b", "market-hall", "market-hall-b", "barn", "barn-b", "shed", "shed-b", "outhouse", "outhouse-b")
   },
   lighthouse: {
     height: number(6, 24),
@@ -208,6 +228,12 @@ const PARAMETER_CONTRACTS = Object.freeze({
     archCount: integer(1, 4),
     masonryCourses: integer(2, 8),
     railPosts: integer(5, 16),
+  },
+  log_bridge: {
+    length: number(2, 12),
+    width: number(1, 4),
+    deckPlanks: integer(4, 20),
+    railPosts: integer(2, 12),
   },
   working_dock: {
     length: number(3, 20),
@@ -230,6 +256,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
   pumpkin_patch: { pumpkins: integer(3, 12), vineSegments: integer(3, 20), lobes: integer(3, 7), blossomCount: integer(2, 12) },
   lobster_trap: { ribs: integer(4, 14), length: number(0.5, 3), netColumns: integer(2, 8), netRows: integer(2, 8) },
   fishing_net_rack: { width: number(1.2, 5), depth: number(0.4, 2), height: number(1, 4), netColumns: integer(3, 12), netRows: integer(2, 10), buoys: integer(2, 8) },
+  fish_drying_rack: { width: number(1.2, 5), depth: number(0.4, 2), height: number(1, 4), fishCount: integer(2, 8) },
   wood_crate: { size: number(0.3, 2), slats: integer(3, 9) },
   wood_barrel: { height: number(0.4, 2), radius: number(0.2, 1), staves: integer(8, 20) },
   wood_fence: { length: number(1, 8), posts: integer(2, 8), rails: integer(1, 4), railSegments: integer(3, 12), hasGate: boolean() },
@@ -259,7 +286,9 @@ const PARAMETER_CONTRACTS = Object.freeze({
 
   grass_clump: { bladeCount: integer(4, 50), height: number(0.1, 3), spread: number(0.1, 3), bladeWidth: number(0.01, 0.5) },
   wildflower_clump: { stemCount: integer(2, 30), height: number(0.1, 3), spread: number(0.1, 3), petals: integer(3, 12) },
+  flower_drift: { blossomCount: integer(3, 12), height: number(0.1, 1.2), spread: number(0.1, 1.2), blossomSize: number(0.02, 0.2) },
   pebble_cluster: { count: integer(2, 50), spread: number(0.1, 4), size: number(0.02, 2) },
+  path_slab: { radius: number(0.12, 0.8), height: number(0.02, 0.16), sides: integer(5, 8), chipCount: integer(0, 4) },
   driftwood_cluster: { logCount: integer(1, 10), length: number(0.5, 5), radius: number(0.02, 0.5), angle: number(-3.14, 3.14) },
   farm_workbench: { width: number(1, 5), depth: number(0.5, 3), topHeight: number(0.5, 2.5) },
   produce_stall: { width: number(1, 5), depth: number(0.5, 4), roofHeight: number(1.5, 4.5) },
@@ -274,6 +303,9 @@ const PARAMETER_CONTRACTS = Object.freeze({
   produce_crate: { size: number(0.4, 2), content: choice("pumpkins", "apples") },
   fauna_cow: { scale: number(0.5, 2), hornScale: number(0.5, 2) },
   fauna_chicken: { scale: number(0.3, 1.5), combScale: number(0.5, 2) },
+  fauna_rabbit: { scale: number(0.3, 1.2), earLength: number(0.6, 1.6) },
+  fauna_gull: { scale: number(0.4, 1.4), wingSpan: number(0.6, 1.6) },
+  fauna_butterfly: { scale: number(0.12, 0.5), wingSpan: number(0.6, 1.6) },
   interior_farmhouse_shell: { width: number(3, 14), depth: number(3, 12), wallHeight: number(2, 7), floorPlanks: integer(6, 30), ceilingBeams: integer(2, 10) },
   cozy_bed: { scale: number(0.5, 2) },
   fireplace_hearth: { width: number(1, 5), depth: number(0.5, 3), height: number(1.5, 5) },
@@ -1651,12 +1683,19 @@ async function main() {
     await syncPublishedManifest(catalog, specHash);
     return;
   }
+  if (args.command === "brief" && args.all) {
+    throw new Error("brief requires --asset or --family; --all is not supported because only reference-guided assets have briefs");
+  }
   const selected = selectAssets(catalog, args);
   if (args.command === "list") {
     for (const asset of selected) console.log(`${asset.id}\t${asset.family}\t${asset.file}`);
     return;
   }
   if (args.command === "brief") {
+    const missingBriefs = selected.filter((asset) => !asset.referenceAuthoring).map((asset) => asset.id);
+    if (missingBriefs.length) {
+      throw new Error(`brief requires referenceAuthoring for every selected asset; missing contracts: ${missingBriefs.join(", ")}`);
+    }
     for (const asset of selected) process.stdout.write(referenceBriefMarkdown(asset));
     return;
   }

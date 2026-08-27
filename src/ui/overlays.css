@@ -1,0 +1,309 @@
+/* M5 — Tactile overlays, minigames, toasts. Imported last after modals.css. */
+
+#ui-container .hud-toast-pill,
+#ui-container .catch-summary,
+#ui-container .contextual-hint-card,
+#ui-container .crop-inspection,
+#ui-container .farm-gis-legend,
+#ui-container .planting-dock-shell,
+#ui-container .planting-no-seeds,
+#ui-container .fishing-hud-container,
+#ui-container .farming-action-status,
+.cast-power-card,
+.minigame-card,
+.catch-summary-card,
+.bite-alert-banner {
+  color: var(--mm-text-ivory) !important;
+}
+
+#ui-container .hud-toast-pill {
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass-elevated) !important;
+  border: 1.5px solid var(--mm-gold-leaf) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(240, 221, 154, 0.2) !important;
+}
+
+#ui-container .catch-summary,
+#ui-container .contextual-hint-card {
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass) !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+  border-left: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Sit under the top-left clock, not under the quest tracker. */
+#ui-container .contextual-hint-card {
+  position: absolute;
+  top: calc(118px + env(safe-area-inset-top, 0px));
+  right: auto;
+  left: var(--ui-safe-left);
+  z-index: 32;
+  width: min(280px, calc(100vw - 28px));
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+#ui-container .catch-summary-copy strong,
+#ui-container .hint-card-title,
+#ui-container .crop-inspection-title strong,
+#ui-container .gis-legend-title,
+#ui-container .fishing-fish-meta strong,
+#ui-container .cast-title,
+#ui-container .catch-summary-header,
+#ui-container .minigame-species-name {
+  color: var(--mm-text-gold) !important;
+  font-family: var(--font-serif);
+}
+
+#ui-container .catch-summary-copy span,
+#ui-container .catch-summary-copy small,
+#ui-container .hint-card-message,
+#ui-container .gis-legend-hint,
+#ui-container .gis-legend-item span,
+#ui-container .planting-dock-meta,
+#ui-container .fishing-fish-sub,
+#ui-container .meter-status,
+#ui-container .cast-hint,
+#ui-container .minigame-footer-hint {
+  color: var(--mm-text-muted) !important;
+}
+
+#ui-container .crop-inspection {
+  position: absolute;
+  top: 50%;
+  right: var(--ui-safe-right);
+  left: auto;
+  z-index: 30;
+  width: min(320px, calc(100vw - 28px));
+  transform: translateY(-50%);
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass) !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.4) !important;
+}
+
+#ui-container .crop-inspection dt {
+  color: var(--mm-text-gold) !important;
+}
+
+#ui-container .crop-inspection dd,
+#ui-container .crop-growth-status,
+#ui-container .crop-yield-text {
+  color: var(--mm-text-ivory) !important;
+}
+
+#ui-container .crop-stage-chip,
+#ui-container .moisture-badge {
+  color: var(--mm-text-gold) !important;
+  background: var(--mm-well-gold) !important;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+#ui-container .crop-inspection .chrome-alert--caution {
+  color: var(--mm-gold-bright) !important;
+  background: rgba(51, 39, 16, 0.88) !important;
+  border-color: rgba(212, 175, 55, 0.45) !important;
+}
+
+#ui-container .farm-gis-legend,
+#ui-container .planting-dock-shell,
+#ui-container .planting-no-seeds,
+#ui-container .fishing-hud-container,
+#ui-container .farming-action-status {
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass) !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.38) !important;
+}
+
+#ui-container .planting-seed-card.chrome-slot {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-well-slate) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.32) !important;
+  box-shadow: var(--mm-well-shadow) !important;
+}
+
+#ui-container .planting-seed-card.is-selected {
+  border-color: var(--mm-gold-bright) !important;
+  box-shadow: var(--mm-well-shadow), var(--mm-glow-active) !important;
+}
+
+#ui-container .boat-cargo-slot.chrome-slot {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--mm-well-slate) !important;
+  border: 1px solid rgba(212, 175, 55, 0.28) !important;
+}
+
+#ui-container .fishing-behavior-danger {
+  color: #fecaca !important;
+  background: rgba(127, 29, 29, 0.55) !important;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+}
+
+#ui-container .fishing-behavior-caution {
+  color: var(--mm-gold-bright) !important;
+  background: rgba(51, 39, 16, 0.72) !important;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+#ui-container .fishing-behavior-cool,
+#ui-container .fishing-behavior-steady {
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass-card) !important;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+}
+
+#ui-container .tension-gauge-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 15% 60% 25%;
+  height: 18px;
+  overflow: hidden;
+  background: var(--mm-slate-900);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 3px;
+}
+
+#ui-container .tension-slack-zone {
+  background: rgba(56, 189, 248, 0.28);
+}
+
+#ui-container .tension-safe-zone {
+  background: rgba(52, 211, 153, 0.32);
+}
+
+#ui-container .tension-danger-zone {
+  background: rgba(248, 113, 113, 0.38);
+}
+
+#ui-container .tension-indicator {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 4px;
+  background: var(--mm-gold-bright);
+  box-shadow: 0 0 8px var(--mm-gold-glow);
+}
+
+#ui-container .status-danger {
+  color: #fecaca !important;
+}
+
+#ui-container .fishing-btn.is-active {
+  border-color: var(--mm-gold-bright) !important;
+  box-shadow: 0 0 10px var(--mm-gold-glow) !important;
+}
+
+.cast-power-card,
+.minigame-card,
+.catch-summary-card,
+.bite-alert-banner {
+  color: var(--mm-text-ivory) !important;
+  background: var(--mm-slate-glass) !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+  border-left: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55) !important;
+  filter: none !important;
+}
+
+.cast-title,
+.catch-summary-header,
+.minigame-species-name {
+  color: var(--mm-text-gold) !important;
+  font-family: var(--font-serif);
+}
+
+.cast-hint,
+.minigame-footer-hint,
+.cast-power-percentage,
+.catch-item-name {
+  color: var(--mm-text-muted) !important;
+}
+
+.bite-alert-banner {
+  color: #fff5f5 !important;
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.94), rgba(69, 10, 10, 0.96)) !important;
+  border-color: #fecaca !important;
+  animation: mm-bite-pulse 0.7s ease-in-out infinite alternate;
+}
+
+.bite-exclamation,
+.bite-text {
+  color: #fff5f5 !important;
+}
+
+.water-track {
+  background: linear-gradient(180deg, #16324a 0%, #0b1724 100%) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.35) !important;
+  border-radius: 4px !important;
+}
+
+.green-catch-bar {
+  background: linear-gradient(180deg, #34d399, #059669) !important;
+  border-color: #a7f3d0 !important;
+  border-radius: 3px !important;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.45) !important;
+}
+
+.catch-progress-fill,
+.cast-power-bar-fill {
+  background: linear-gradient(90deg, #aa820a, #d4af37, #fff0a8) !important;
+}
+
+.perfect-badge,
+.treasure-summary-tag {
+  color: var(--mm-gold-bright) !important;
+  background: var(--mm-well-gold) !important;
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  border-radius: 999px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bite-alert-banner,
+  .perfect-badge,
+  #ui-container .hud-toast-pill {
+    animation: none !important;
+  }
+}
+
+@keyframes mm-bite-pulse {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.35);
+  }
+  to {
+    transform: scale(1.04);
+    box-shadow: 0 0 18px rgba(248, 113, 113, 0.7);
+  }
+}
+
+@media (max-width: 760px) {
+  #ui-container .fishing-hud-container,
+  #ui-container .crop-inspection {
+    width: min(280px, calc(100vw - 24px));
+  }
+
+  #ui-container .contextual-hint-card {
+    top: calc(100px + env(safe-area-inset-top, 0px));
+    width: min(280px, calc(100vw - 24px));
+  }
+
+  #ui-container .planting-dock {
+    width: min(94vw, 520px);
+  }
+}

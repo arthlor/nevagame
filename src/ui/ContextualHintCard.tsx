@@ -1,5 +1,8 @@
 // src/ui/ContextualHintCard.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { IconCompass } from "./components/HudIcons";
+import { ChromeClose, ChromePanel } from "./chrome/Chrome";
+import { playUiSound } from "./audio/uiAudio";
 
 export interface ContextualHintCardProps {
   hintId: string;
@@ -13,20 +16,36 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   hintId,
   title,
   message,
-  icon = "💡",
+  icon = "✦",
   onDismiss
 }) => {
   const [visible, setVisible] = useState(true);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
-    // Auto fade after 7 seconds
-    const timer = setTimeout(() => {
+    setVisible(true);
+    playUiSound("open");
+    // GameApp renders once per frame, so the callback must not be a timer dependency.
+    const timer = window.setTimeout(() => {
       setVisible(false);
-      onDismiss(hintId);
+      onDismissRef.current(hintId);
     }, 7000);
 
-    return () => clearTimeout(timer);
-  }, [hintId, onDismiss]);
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setVisible(false);
+      onDismissRef.current(hintId);
+    };
+
+    window.addEventListener("keydown", handleWindowKeyDown, true);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", handleWindowKeyDown, true);
+    };
+  }, [hintId]);
 
   const handleDismiss = () => {
     setVisible(false);
@@ -36,34 +55,37 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   if (!visible) return null;
 
   return (
-    <div
+    <ChromePanel
       className="contextual-hint-card interactive"
-      onClick={handleDismiss}
+      tone="slate"
+      flourish
+      corners
       role="status"
       tabIndex={0}
+      data-testid="contextual-hint"
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+        if (e.key === "Escape") {
           e.preventDefault();
+          e.stopPropagation();
           handleDismiss();
         }
       }}
     >
-      <div className="hint-card-icon">{icon}</div>
+      <div className="hint-card-icon" aria-hidden="true">
+        {icon === "✦" ? <IconCompass size={16} /> : icon}
+      </div>
       <div className="hint-card-body">
-        <strong className="hint-card-title">{title}</strong>
+        <strong className="hint-card-title">Hint · {title}</strong>
         <p className="hint-card-message">{message}</p>
       </div>
-      <button
-        type="button"
+      <ChromeClose
         className="hint-card-close-btn"
+        label="Dismiss hint"
         onClick={(e) => {
           e.stopPropagation();
           handleDismiss();
         }}
-        aria-label="Dismiss hint"
-      >
-        ✕
-      </button>
-    </div>
+      />
+    </ChromePanel>
   );
 };

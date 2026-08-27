@@ -69,7 +69,7 @@ export const NPCS: NpcDefinition[] = [
     anchor: {
       x: HARBOR_SILAS_ANCHOR.x,
       z: HARBOR_SILAS_ANCHOR.z,
-      rotationY: -Math.PI * 0.5,
+      rotationY: -1.5708,
       locationName: "Harbor Pier"
     },
     idleDialogue: [

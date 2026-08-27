@@ -252,6 +252,7 @@ export class LightingRig {
   private configureShadowLight(light: THREE.DirectionalLight): void {
     light.castShadow = true;
     light.shadow.bias = CANONICAL_RENDER_CONFIG.shadows.bias;
+    light.shadow.intensity = CANONICAL_RENDER_CONFIG.shadows.intensity;
     light.shadow.normalBias = CANONICAL_RENDER_CONFIG.shadows.normalBias;
     light.shadow.radius = CANONICAL_RENDER_CONFIG.shadows.radius;
     light.shadow.camera.near = CANONICAL_RENDER_CONFIG.shadows.near;

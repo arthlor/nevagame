@@ -50,6 +50,15 @@ async function loadScenario(
   return diagnostics;
 }
 
+async function loadUiScenario(page: Page, scenario: string): Promise<Locator> {
+  await page.goto(`/?debug=1&debugStart=${scenario}`);
+  await expect(page.locator("#game-canvas")).toBeVisible();
+  const diagnostics = page.getByTestId("diagnostics");
+  await expect(diagnostics).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 20_000 });
+  return diagnostics;
+}
+
 async function canvasPoint(page: Page, xRatio: number, yRatio: number) {
   const bounds = await page.locator("#game-canvas").boundingBox();
   if (!bounds) throw new Error("Game canvas has no bounding box");
@@ -177,6 +186,122 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await expect(canvas).toBeVisible();
     await expect.poll(async () => (await canvas.boundingBox())?.width).toBeCloseTo(1050, 0);
     await expect.poll(async () => (await canvas.boundingBox())?.height).toBeCloseTo(720, 0);
+  });
+
+  test("field-journal HUD stays compact and pause exposes contextual records", async ({ page }) => {
+    const diagnostics = await loadUiScenario(page, "farm");
+    const topLeft = page.locator(".hud-top-left");
+    const topRight = page.locator(".hud-top-right");
+    const toolBelt = page.getByRole("toolbar", { name: "Tool belt" }).last();
+    const vitals = page.locator(".hud-vitals");
+    const contextPrompt = page.locator("[data-testid=context-prompt]");
+    const screenshotsDir = path.resolve(process.cwd(), "output/playwright/ui-audit");
+    fs.mkdirSync(screenshotsDir, { recursive: true });
+
+    await expect(page.locator(".hud-hotkey-ribbon-wood")).toHaveCount(0);
+    await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Fishing rod/);
+    await expect(page.locator(".hud-navigation-bar")).toHaveCount(0);
+    await expect(page.locator(".quest-tracker-hud-wood")).toHaveCount(1);
+    await expect(page.locator(".quest-tracker-hud-wood")).toContainText("The Inherited Soil");
+    await page.screenshot({ path: path.join(screenshotsDir, "hud-desktop.png") });
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1050, height: 720 },
+      { width: 390, height: 844 }
+    ]) {
+      await page.setViewportSize(viewport);
+      const boxes = await Promise.all([
+        topLeft.boundingBox(),
+        topRight.boundingBox(),
+        toolBelt.boundingBox(),
+        vitals.boundingBox()
+      ]);
+      if (!boxes[0] || !boxes[1] || !boxes[2] || !boxes[3]) throw new Error("HUD surface has no layout box");
+      const leftBox = boxes[0];
+      const rightBox = boxes[1];
+      const beltBox = boxes[2];
+      const vitalsBox = boxes[3];
+      const leftRight = leftBox.x + leftBox.width;
+      const leftBottom = leftBox.y + leftBox.height;
+      const rightLeft = rightBox.x;
+      const beltTop = beltBox.y;
+      const beltBottom = beltBox.y + beltBox.height;
+      const promptBox = await contextPrompt.boundingBox();
+      const overlap = (
+        a: { x: number; y: number; width: number; height: number },
+        b: { x: number; y: number; width: number; height: number }
+      ) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      if (viewport.width > 760) {
+        expect(leftRight).toBeLessThanOrEqual(rightLeft + 1);
+      } else {
+        expect(overlap(leftBox, rightBox)).toBe(false);
+      }
+      expect(beltTop).toBeGreaterThan(leftBottom);
+      expect(beltBottom).toBeLessThanOrEqual(viewport.height + 1);
+      expect(vitalsBox.y).toBeGreaterThan(leftBottom);
+      expect(overlap(vitalsBox, beltBox)).toBe(false);
+      expect(overlap(vitalsBox, leftBox)).toBe(false);
+      expect(overlap(vitalsBox, rightBox)).toBe(false);
+      if (promptBox) {
+        expect(promptBox.y + promptBox.height).toBeLessThanOrEqual(beltTop + 1);
+        expect(overlap(vitalsBox, promptBox)).toBe(false);
+      }
+      if (viewport.width === 390) {
+        await page.screenshot({ path: path.join(screenshotsDir, "hud-mobile-390.png") });
+      }
+    }
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.getByRole("button", { name: "Open game menu" }).click();
+    const pause = page.getByRole("dialog", { name: "Pause" });
+    await expect(pause).toBeVisible();
+    await expect(pause.getByRole("button", { name: /^Inventory/ })).toBeVisible();
+    await expect(pause.getByRole("button", { name: /^Journal/ })).toBeVisible();
+    await expect(pause.getByRole("button", { name: /^Map/ })).toBeVisible();
+    await expect(pause.getByRole("button", { name: /^Ledger/ })).toBeVisible();
+    await page.screenshot({ path: path.join(screenshotsDir, "pause-menu.png") });
+
+    await pause.getByRole("button", { name: /^Journal/ }).click();
+    await expect(page.getByRole("dialog", { name: /Captain's journal/i })).toBeVisible();
+    await page.screenshot({ path: path.join(screenshotsDir, "journal.png") });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: /Captain's journal/i })).not.toBeVisible();
+    await expect(pause).toBeVisible();
+
+    await pause.getByRole("button", { name: /^Map/ }).click();
+    await expect(page.getByRole("dialog", { name: "Coastal map" })).toBeVisible();
+    await page.screenshot({ path: path.join(screenshotsDir, "map.png") });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Coastal map" })).not.toBeVisible();
+    await expect(pause).toBeVisible();
+    expect(await pause.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+
+    await pause.getByRole("button", { name: /^Ledger/ }).click();
+    await expect(page.getByRole("dialog", { name: /Captain's ledger/i })).toBeVisible();
+    await page.screenshot({ path: path.join(screenshotsDir, "ledger.png") });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: /Captain's ledger/i })).not.toBeVisible();
+    await expect(pause).toBeVisible();
+    expect(await pause.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+
+    await pause.getByRole("button", { name: /^Inventory/ }).click();
+    const inventory = page.getByRole("dialog", { name: "Backpack Inventory" });
+    await expect(inventory).toBeVisible();
+    await expect(inventory.locator(".inventory-slot").first()).toHaveAttribute("aria-pressed");
+    await page.screenshot({ path: path.join(screenshotsDir, "inventory.png") });
+    await page.keyboard.press("Escape");
+    await expect(inventory).not.toBeVisible();
+    await expect(pause).toBeVisible();
+    expect(await pause.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(pause).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Open game menu" })).toBeFocused();
+    await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
   });
 
   test("grounded jump and sprint stamina work through real keyboard input", async ({ page, browserName }) => {
@@ -399,6 +524,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await page.setViewportSize({ width: 1180, height: 760 });
 
     await enterWheatPlacement(page);
+    const screenshotsDir = path.resolve(process.cwd(), "output/playwright/ui-audit");
+    fs.mkdirSync(screenshotsDir, { recursive: true });
+    await page.screenshot({ path: path.join(screenshotsDir, "farm-placement.png") });
     await expect(diagnostics).toHaveAttribute("data-mode", "farm-placement");
     let point = await findValidPlacementPoint(page, diagnostics);
     await expect(diagnostics).toHaveAttribute("data-placement-valid", "true");
@@ -455,6 +583,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     const diagnostics = await loadScenario(page, "sport-fishing");
     await expect(diagnostics).toHaveAttribute("data-mode", "sport-fishing");
     await expect(page.getByRole("region", { name: "Fishing encounter" })).toBeVisible();
+    const screenshotsDir = path.resolve(process.cwd(), "output/playwright/ui-audit");
+    fs.mkdirSync(screenshotsDir, { recursive: true });
+    await page.screenshot({ path: path.join(screenshotsDir, "fishing-hud.png") });
 
     await page.keyboard.down("KeyW");
     await expect(diagnostics).toHaveAttribute("data-fishing-reeling", "true");

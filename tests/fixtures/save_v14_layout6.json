@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 14,
+  "savedAtUtcMs": 1720000000000,
+  "state": {
+    "schemaVersion": 14,
+    "worldSeed": 42891,
+    "player": {
+      "x": -48.5,
+      "y": 1.2,
+      "z": -61.25,
+      "rotationY": 1.25,
+      "activeBoatId": null,
+      "money": 731,
+      "proficiencies": {
+        "farming": 420,
+        "fishing": 315,
+        "processing": 88,
+        "trading": 144
+      }
+    },
+    "world": {
+      "layoutRevision": 6,
+      "structures": {
+        "struct.starter_mill": {
+          "id": "struct.starter_mill",
+          "type": "hand-mill",
+          "x": 36,
+          "y": 6.6,
+          "z": -76,
+          "rotationY": -1.25
+        },
+        "struct.workbench": {
+          "id": "struct.workbench",
+          "type": "workbench",
+          "x": -75,
+          "y": 1.1,
+          "z": -56.8,
+          "rotationY": 0
+        },
+        "struct.starter_compost": {
+          "id": "struct.starter_compost",
+          "type": "compost-bin",
+          "x": -75.8,
+          "y": 1.1,
+          "z": -61.2,
+          "rotationY": 3.8416
+        },
+        "struct.harbor_fish_table": {
+          "id": "struct.harbor_fish_table",
+          "type": "fish-table",
+          "x": 71,
+          "y": 1.05,
+          "z": 60.8,
+          "rotationY": 4.141592653589793
+        },
+        "struct.fixture_workbench": {
+          "id": "struct.fixture_workbench",
+          "type": "workbench",
+          "x": -48,
+          "y": 1.2,
+          "z": -60,
+          "rotationY": 0.75
+        }
+      },
+      "activeSchools": {},
+      "storySchoolSpawned": true
+    },
+    "boats": {
+      "boat.fixture": {
+        "id": "boat.fixture",
+        "x": 81,
+        "y": 0,
+        "z": 72,
+        "headingRadians": 0.4
+      }
+    },
+    "fishCargo": {
+      "cargo.fixture": {
+        "id": "cargo.fixture",
+        "speciesId": "fish.trout",
+        "weightKg": 3.4,
+        "quality": "fine"
+      }
+    },
+    "crops": {
+      "crop.fixture": {
+        "id": "crop.fixture",
+        "x": -64.25,
+        "z": -55.75,
+        "stage": "growing"
+      }
+    },
+    "inventories": {
+      "inventory.fixture": {
+        "id": "inventory.fixture",
+        "slots": [{ "itemId": "item.wheat", "quantity": 4 }]
+      }
+    },
+    "markets": {
+      "market.fixture": {
+        "demandIndex": 1.17
+      }
+    },
+    "quests": {
+      "activeQuestId": "quest.fixture",
+      "completedQuestIds": ["quest.fixture_done"]
+    },
+    "metadata": {
+      "rngState": 90210
+    }
+  }
+}
