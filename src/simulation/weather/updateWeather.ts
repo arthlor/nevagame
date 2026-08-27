@@ -1,5 +1,26 @@
-import { WeatherState, WeatherTag } from "../core/types";
+import { SeasonId, WeatherState, WeatherTag } from "../core/types";
 import { Rng } from "../core/Rng";
+import { seasonAtMinute } from "../core/GameClock";
+
+interface WeatherProfile {
+  windSpeed: number;
+  precipitation: number;
+  cloudCover: number;
+  seaRoughness: number;
+  visibility: number;
+  temperatureDelta: number;
+}
+
+const SEASONAL_BASELINE_C: Record<SeasonId, number> = {
+  spring: 16,
+  summer: 22,
+  autumn: 14,
+  winter: 4
+};
+
+function seasonalBaselineC(season: SeasonId): number {
+  return SEASONAL_BASELINE_C[season];
+}
 
 interface WeatherProfile {
   windSpeed: number;
@@ -30,7 +51,7 @@ const WEATHER_WEIGHTS: ReadonlyArray<{ value: WeatherTag; weight: number }> = [
   { value: "storm", weight: 4 }
 ];
 
-export function applyWeatherProfile(weather: WeatherState, type: WeatherTag): void {
+export function applyWeatherProfile(weather: WeatherState, type: WeatherTag, season: SeasonId = "spring"): void {
   const profile = WEATHER_PROFILES[type];
   weather.type = type;
   weather.windSpeed = profile.windSpeed;
@@ -38,7 +59,7 @@ export function applyWeatherProfile(weather: WeatherState, type: WeatherTag): vo
   weather.cloudCover = profile.cloudCover;
   weather.seaRoughness = profile.seaRoughness;
   weather.visibility = profile.visibility;
-  weather.temperatureC = Math.max(-10, Math.min(38, 19 + profile.temperatureDelta));
+  weather.temperatureC = Math.max(-10, Math.min(38, seasonalBaselineC(season) + profile.temperatureDelta));
 }
 
 /** Advances all overdue scheduled weather periods and returns whether the visible weather changed. */
@@ -46,7 +67,7 @@ export function advanceScheduledWeather(weather: WeatherState, currentMinute: nu
   const initialType = weather.type;
   while (currentMinute >= weather.nextWeatherMinute) {
     const nextType = rng.weighted(WEATHER_WEIGHTS);
-    applyWeatherProfile(weather, nextType);
+    applyWeatherProfile(weather, nextType, seasonAtMinute(weather.nextWeatherMinute));
     weather.windDirectionDeg = rng.range(0, 360);
     weather.nextWeatherMinute += rng.intInclusive(120, 300);
   }

@@ -61,7 +61,7 @@ export class FishingDomain {
           message,
           type: "error"
         });
-        // Keep sportFishing so a corrupt restore is visible instead of silently dropped.
+        context.state.sportFishing = null;
       }
     } else {
       context.state.sportFishing = null;
@@ -117,7 +117,7 @@ export class FishingDomain {
 
   public startChargingCastBasic(): { success: boolean; reason?: string } {
     const { state } = this.context;
-    if (this.encounter || state.basicFishing) return { success: false, reason: "Already fishing" };
+    if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -151,6 +151,9 @@ export class FishingDomain {
   public releaseCastBasic(castPower?: number): { success: boolean; reason?: string } {
     const { state, rng, events } = this.context;
     if (!state.basicFishing) return { success: false, reason: "Not casting" };
+    if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
+      return { success: false, reason: "Not charging a cast" };
+    }
     const power = Math.max(0.05, Math.min(1.0, castPower ?? state.basicFishing.castPower ?? 0.75));
     const habitatId = state.basicFishing.habitatId;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
@@ -177,7 +180,7 @@ export class FishingDomain {
       hasBait,
       rng
     );
-    newState.willCatch = rod ? rng.chance(rod.hookReliability) : false;
+    newState.willCatch = rod ? rng.chance(Math.min(1, rod.hookReliability + (this.consumeLureIfPresent() ? 0.18 : 0))) : false;
     state.basicFishing = newState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { habitatId, castPower: power, minute: state.clock.currentMinute });
@@ -229,7 +232,7 @@ export class FishingDomain {
 
   public castBasic(castPower: number = 0.75): { success: boolean; reason?: string } {
     const { state, rng, events } = this.context;
-    if (this.encounter || state.basicFishing) return { success: false, reason: "Already fishing" };
+    if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -326,7 +329,7 @@ export class FishingDomain {
     schoolId: FishSchoolId
   ): { success: boolean; encounter?: FishingEncounterState; reason?: string } {
     const { state, rng, events } = this.context;
-    if (this.encounter || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
+    if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
     if (distance2d(state.player, school) > SCHOOL_INTERACTION_RADIUS) {
@@ -348,7 +351,9 @@ export class FishingDomain {
       return { success: false, reason: "Rod class is too light for this species" };
     }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
-    const quality = this.rollQuality(this.progression.getWorkOutcome().rareChanceMultiplier);
+    const quality = this.rollQuality(
+      this.progression.getWorkOutcome().rareChanceMultiplier * (this.consumeLureIfPresent() ? 1.35 : 1)
+    );
     const fish: FishInstance = {
       instanceId: this.context.nextEntityId("fish_inst"),
       speciesId,
@@ -440,6 +445,14 @@ export class FishingDomain {
     const bait = [{ itemId: "item.bait_worms", quantity: 1 }];
     if (!InventoryManager.hasItems(inventory, bait)) return false;
     InventoryManager.removeItemsAtomically(inventory, bait);
+    return true;
+  }
+
+  private consumeLureIfPresent(): boolean {
+    const inventory = this.context.state.inventories[this.context.state.player.inventoryId];
+    const lure = [{ itemId: "item.basic_lure", quantity: 1 }];
+    if (!InventoryManager.hasItems(inventory, lure)) return false;
+    InventoryManager.removeItemsAtomically(inventory, lure);
     return true;
   }
 

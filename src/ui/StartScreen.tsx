@@ -24,6 +24,7 @@ const REGION_LABELS: Record<string, string> = {
   "region.farm": "Homestead Farm",
   "region.village": "Neva Village",
   "region.coast": "Rocky Coast & Lighthouse",
+  "region.harbor": "Seabreak Harbor",
   "region.offshore": "Open Waters"
 };
 

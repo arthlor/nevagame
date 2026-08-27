@@ -757,6 +757,7 @@ describe("Gameplay simulation fixes", () => {
 
   it("processes fish scraps at the fish-table and rejects mill or workbench", () => {
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    sim.state.player.proficiencies.processing = 1000;
     InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.fish_scraps", quantity: 9 }]);
 
     movePlayerToProcessingFront(sim, "struct.starter_mill");
@@ -832,6 +833,7 @@ describe("Gameplay simulation fixes", () => {
     ] as const;
 
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    sim.state.player.proficiencies.processing = 1000;
     for (const testCase of cases) {
       expect(InventoryManager.addItemsAtomically(
         inventory,

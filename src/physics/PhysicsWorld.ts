@@ -118,7 +118,7 @@ function groundEvidenceAt(
   if (WorldLayout.isInterior(x, z)) {
     return { normal: { x: 0, y: 1, z: 0 }, surface: "interior-floor" };
   }
-  if (WorldLayout.isBridgeDeck(x, z)) {
+  if (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z)) {
     return { normal: { x: 0, y: 1, z: 0 }, surface: "bridge-deck" };
   }
   const normal = WorldLayout.terrainNormal(x, z);
@@ -137,7 +137,7 @@ function resolveWalkableSlide(
   const isStableWalkable = (x: number, z: number): boolean =>
     WorldLayout.isWalkable(x, z) &&
     !WorldLayout.isWater(x, z) &&
-    (WorldLayout.isBridgeDeck(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
+    (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
 
   if (isStableWalkable(currentX + moveX, currentZ + moveZ)) {
     return { x: moveX, z: moveZ, limited: false };
@@ -732,7 +732,8 @@ export class PhysicsWorld implements PhysicsAdapter {
 
     const active = mode === "boat-driving" && state.player.activeBoatId === id && definition;
     if (active && definition) {
-      throttle = clamp(-rawInputZ, -1, 1);
+      const outOfFuel = definition.fuelCapacity > 0 && boat.fuel <= 0;
+      throttle = outOfFuel ? 0 : clamp(-rawInputZ, -1, 1);
       steering = rawInputX;
       const roughnessPenalty = clamp01(
         (state.weather.seaRoughness - definition.safeSeaRoughness) / Math.max(0.1, 1 - definition.safeSeaRoughness)

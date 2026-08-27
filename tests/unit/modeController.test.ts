@@ -68,7 +68,21 @@ describe("ModeController", () => {
     expect(onFoot.blocksHudOverlaysAndTools).toBe(false);
   });
 
-  it("locks the new-game confirm overlay until the player confirms", () => {
+  it("lets Escape dismiss new-game confirm without confirming a wipe", () => {
+    const modes = new ModeController();
+    modes.open("new-game-confirm");
+    expect(modes.activeModal).toBe("new-game-confirm");
+
+    modes.closeActive();
+    modes.open("pause");
+    expect(modes.activeModal).toBe("new-game-confirm");
+
+    modes.handleEscape();
+    expect(modes.activeModal).toBeNull();
+    expect(modes.pausesSimulation).toBe(false);
+  });
+
+  it("locks other overlays on new-game confirm until confirm or dismiss", () => {
     const modes = new ModeController();
     modes.open("new-game-confirm");
 
@@ -76,9 +90,8 @@ describe("ModeController", () => {
     expect(modes.pausesSimulation).toBe(true);
     expect(modes.blocksWorldInput).toBe(true);
 
-    modes.handleEscape();
-    modes.open("pause");
     modes.closeActive();
+    modes.open("pause");
     expect(modes.activeModal).toBe("new-game-confirm");
 
     modes.confirmNewGame();

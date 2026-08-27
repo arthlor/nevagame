@@ -165,6 +165,7 @@ export function advancePlacedCropGrowth(
     averageMoistureAccum: number;
     moistureSampleCount: number;
     stage: CropStage;
+    health?: number;
   },
   cropDef: CropDefinition,
   farmClimate: ClimateId,
@@ -197,6 +198,15 @@ export function advancePlacedCropGrowth(
       soilFertility,
       weatherType
     );
+    if ("health" in crop && typeof crop.health === "number") {
+      if (crop.moisture < 15) {
+        crop.health = Math.max(20, crop.health - chunk * 0.08);
+      } else if (crop.moisture < 40) {
+        crop.health = Math.max(35, crop.health - chunk * 0.02);
+      } else {
+        crop.health = Math.min(100, crop.health + chunk * 0.01);
+      }
+    }
     applyCropMoistureOverMinutes(crop, chunk, cropDef.waterNeed, weatherType);
     remaining -= chunk;
   }

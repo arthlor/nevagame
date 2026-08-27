@@ -140,8 +140,92 @@ export class ContentRegistry {
           }
         }
       }
+      for (const objective of quest.objectives) {
+        if (!objective.targetId) continue;
+        this.validateQuestTarget(questId, objective.type, objective.targetId);
+        if (objective.location?.kind === "farm" && objective.location.id !== "farm.starter_garden" && objective.location.id !== "farm.player_homestead") {
+          throw new Error(`Quest '${questId}' objective '${objective.id}' references unknown farm '${objective.location.id}'`);
+        }
+        if (objective.location?.kind === "market" && !this.markets.has(objective.location.id)) {
+          throw new Error(`Quest '${questId}' objective '${objective.id}' references unknown market '${objective.location.id}'`);
+        }
+        if (objective.location?.kind === "station" && !objective.location.id.startsWith("struct.")) {
+          throw new Error(`Quest '${questId}' objective '${objective.id}' references invalid station '${objective.location.id}'`);
+        }
+      }
+    }
+
+    for (const rank of this.ranks) {
+      for (const id of rank.farmingUnlocks) {
+        if (id.startsWith("crop.") && !this.crops.has(id)) {
+          throw new Error(`Rank '${rank.rankName}' farmingUnlocks missing crop '${id}'`);
+        }
+      }
+      for (const id of rank.processingUnlocks) {
+        if (id.startsWith("recipe.") && !this.recipes.has(id)) {
+          throw new Error(`Rank '${rank.rankName}' processingUnlocks missing recipe '${id}'`);
+        }
+      }
+      for (const id of rank.fishingUnlocks) {
+        if (id.startsWith("rod.") && !this.rods.has(id)) {
+          throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing rod '${id}'`);
+        }
+        if (id.startsWith("boat.") && ![...this.boats.values()].some((boat) => boat.id === id)) {
+          throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing boat '${id}'`);
+        }
+      }
+      for (const id of rank.tradingUnlocks) {
+        if (id.startsWith("market.") && !this.markets.has(id)) {
+          throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing market '${id}'`);
+        }
+        if (id.startsWith("contract.") && !this.contractTemplates.has(id)) {
+          throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing contract template '${id}'`);
+        }
+      }
+    }
+
+    for (const [rodId, rod] of this.rods.entries()) {
+      if (rod.costMoney < 0) throw new Error(`Rod '${rodId}' has invalid costMoney`);
+    }
+    for (const [boatId, boat] of this.boats.entries()) {
+      if (boat.fuelCapacity < 0) throw new Error(`Boat '${boatId}' has invalid fuelCapacity`);
+    }
+    for (const [templateId, template] of this.contractTemplates.entries()) {
+      for (const poolId of template.itemOrSpeciesPool) {
+        if (!this.items.has(poolId) && !this.fishSpecies.has(poolId)) {
+          throw new Error(`Contract '${templateId}' pool id '${poolId}' is neither an item nor a fish species`);
+        }
+      }
     }
 
     this.isInitialized = true;
+  }
+
+  private static validateQuestTarget(questId: string, type: string, targetId: string): void {
+    switch (type) {
+      case "talk-npc":
+        if (!this.npcs.has(targetId)) throw new Error(`Quest '${questId}' talk-npc target '${targetId}' is not an NPC`);
+        return;
+      case "plant-crop":
+      case "harvest-crop":
+        if (!this.crops.has(targetId)) throw new Error(`Quest '${questId}' crop target '${targetId}' is missing`);
+        return;
+      case "craft-recipe":
+        if (!this.recipes.has(targetId)) throw new Error(`Quest '${questId}' recipe target '${targetId}' is missing`);
+        return;
+      case "sell-item":
+        if (!this.items.has(targetId)) throw new Error(`Quest '${questId}' sell-item target '${targetId}' is missing`);
+        return;
+      case "catch-basic-fish":
+      case "hook-sport-fish":
+      case "land-sport-fish":
+      case "sell-fish":
+        if (!this.fishSpecies.has(targetId) && !this.items.has(targetId)) {
+          throw new Error(`Quest '${questId}' fish target '${targetId}' is missing`);
+        }
+        return;
+      default:
+        return;
+    }
   }
 }

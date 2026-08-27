@@ -2,6 +2,7 @@
 import React from "react";
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
+import { getRankForXp } from "../content/progression";
 
 interface JournalModalProps {
   state: GameState;
@@ -68,12 +69,15 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose }) =>
               🏆 Skill Proficiencies
             </h4>
             <div className="journal-skills-grid">
-              {Object.entries(proficiencies).map(([skill, xp]) => (
+              {Object.entries(proficiencies).map(([skill, xp]) => {
+                const rank = getRankForXp(xp);
+                return (
                 <div key={skill} className="journal-skill-pill">
-                  <div className="skill-name">{skill}</div>
+                  <div className="skill-name">{skill} · {rank.rankName}</div>
                   <div className="skill-xp">{xp} XP</div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

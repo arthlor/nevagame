@@ -9,7 +9,7 @@ import {
   type FarmPathKind
 } from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_MARKET, RIVER_CROSSING, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_MARKET, WORLD_SPAWN } from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
   sampleRoadCrossSection,
@@ -423,6 +423,21 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
 
 function clamp01(value: number): number {
   return THREE.MathUtils.clamp(value, 0, 1);
+}
+
+function pointToSegmentDistance(
+  px: number,
+  pz: number,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number
+): number {
+  const abx = bx - ax;
+  const abz = bz - az;
+  const lengthSq = abx * abx + abz * abz;
+  const t = lengthSq <= 1e-12 ? 0 : THREE.MathUtils.clamp(((px - ax) * abx + (pz - az) * abz) / lengthSq, 0, 1);
+  return Math.hypot(px - (ax + abx * t), pz - (az + abz * t));
 }
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
@@ -898,8 +913,17 @@ export class WorldLayout {
     );
   }
 
+  /** Walkable harbor slip from the shore apron to the rowboat / skiff hull. */
+  public static isPierDeck(x: number, z: number): boolean {
+    const halfWidth = 2.35;
+    return (
+      pointToSegmentDistance(x, z, HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z, HARBOR_DOCK.boatPosition.x, HARBOR_DOCK.boatPosition.z) <= halfWidth
+      || pointToSegmentDistance(x, z, HARBOR_SKIFF_MOORING.playerPosition.x, HARBOR_SKIFF_MOORING.playerPosition.z, HARBOR_SKIFF_MOORING.boatPosition.x, HARBOR_SKIFF_MOORING.boatPosition.z) <= halfWidth
+    );
+  }
+
   public static isWater(x: number, z: number): boolean {
-    return this.waterSignedDistance(x, z) > 0 && !this.isBridgeDeck(x, z);
+    return this.waterSignedDistance(x, z) > 0 && !this.isBridgeDeck(x, z) && !this.isPierDeck(x, z);
   }
 
   public static fishingHabitatAt(x: number, z: number): FishingHabitatId | null {
@@ -916,6 +940,7 @@ export class WorldLayout {
 
   public static nearbyFishingHabitat(x: number, z: number, reachMeters: number = 4.5): FishingHabitatId | null {
     if (this.isBridgeDeck(x, z)) return "river";
+    if (this.isPierDeck(x, z)) return "coast";
     const direct = this.fishingHabitatAt(x, z);
     if (direct) return direct;
     const coastDistance = z - this.coastlineZ(x);
@@ -929,7 +954,10 @@ export class WorldLayout {
     return null;
   }
 
-  public static regionAt(x: number, z: number): "region.village" | "region.farm" | "region.coast" {
+  public static regionAt(x: number, z: number): "region.village" | "region.farm" | "region.coast" | "region.harbor" | "region.offshore" {
+    const habitat = this.fishingHabitatAt(x, z);
+    if (habitat === "offshore" || z >= 130) return "region.offshore";
+    if (z >= 48 && x >= 40) return "region.harbor";
     if (z >= 48) return "region.coast";
     if (x <= -34 && z <= 8) return "region.farm";
     return "region.village";
@@ -944,7 +972,7 @@ export class WorldLayout {
     return (
       x >= WORLD_BOUNDS.minX && x <= WORLD_BOUNDS.maxX &&
       z >= WORLD_BOUNDS.minZ && z <= WORLD_BOUNDS.maxZ &&
-      (!this.isWater(x, z) || this.isBridgeDeck(x, z))
+      (!this.isWater(x, z) || this.isBridgeDeck(x, z) || this.isPierDeck(x, z))
     );
   }
 
@@ -952,7 +980,7 @@ export class WorldLayout {
     return (
       x >= SAILABLE_BOUNDS.minX && x <= SAILABLE_BOUNDS.maxX &&
       z >= SAILABLE_BOUNDS.minZ && z <= SAILABLE_BOUNDS.maxZ &&
-      this.isWater(x, z) && !this.isBridgeDeck(x, z)
+      this.isWater(x, z) && !this.isBridgeDeck(x, z) && !this.isPierDeck(x, z)
     );
   }
 

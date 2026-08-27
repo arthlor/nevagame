@@ -301,6 +301,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         !isFiniteNumber(commodity.recentSalesVolume, 0)
       ) return false;
     }
+    if (!definition.commodities.every((entry) => Boolean(market.commodities[entry.itemId]))) return false;
   }
 
   if (!isRecord(state.journal.cropRecords)) return false;

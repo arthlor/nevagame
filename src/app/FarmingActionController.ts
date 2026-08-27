@@ -3,6 +3,7 @@ import { ASSET_BY_ID, ASSET_IDS } from "../render/assets/AssetCatalog";
 export type AuthoredPresentationAction =
   | "plant"
   | "water"
+  | "fertilize"
   | "harvest"
   | "processing-start"
   | "processing-collect"
@@ -57,6 +58,7 @@ interface FarmingActionTiming {
 const ACTION_CLIP: Readonly<Record<AuthoredPresentationAction, string>> = {
   plant: "plant",
   water: "water",
+  fertilize: "place",
   harvest: "harvest",
   "processing-start": "workstation",
   "processing-collect": "pickup",

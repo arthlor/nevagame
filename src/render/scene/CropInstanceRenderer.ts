@@ -52,9 +52,11 @@ const APPLE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
 };
 
 /**
- * Every playable crop has a presentation binding. A crop-specific model is
- * used when the catalog has one; the explicit stage maps below keep authored
- * crop lifecycles visible until their dedicated families are promoted.
+ * Every playable crop has a presentation binding. Wheat, tomato, and potato
+ * have dedicated Blender stage families. Barley, corn, and flax reuse the
+ * wheat meshes and carrot reuses potato until those generators exist — these
+ * are silhouette stand-ins, not distinct crop models. Apple uses the wheat
+ * early stages plus the apple-tree mesh at mature/overripe.
  */
 export const CROP_STAGE_ASSETS: Readonly<Record<string, Readonly<Record<CropStage, AssetId>>>> = {
   "crop.wheat": WHEAT_STAGE_ASSET,

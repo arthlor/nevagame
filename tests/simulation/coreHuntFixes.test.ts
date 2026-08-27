@@ -6,7 +6,12 @@ import { GameClock, seasonAtMinute, DAYS_PER_SEASON, MINUTES_PER_DAY } from "../
 import { tickMarket } from "../../src/simulation/economy/updateMarket";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
-import { HARBOR_MARKET, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { HARBOR_MARKET, VILLAGE_MARKET, HARBOR_DOCK } from "../../src/world/WorldAnchors";
+import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
+import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
+import { createInitialGameState } from "../../src/simulation/core/createInitialState";
+import { pickUnlockedStationRecipe } from "../../src/simulation/domains/ProcessingDomain";
+import type { FishingEncounterState } from "../../src/simulation/core/types";
 
 describe("Core hunt fixes", () => {
   let sim: Simulation;
@@ -115,4 +120,117 @@ describe("Core hunt fixes", () => {
     expect(wheat.lastTickMinute).toBe(winterStart + 30);
     expect(wheat.seasonalModifier).toBe(1.2);
   });
+
+  it("prices harbor ice buys from the same unit-price function as sells", () => {
+    sim.state.player.x = HARBOR_MARKET.position.x;
+    sim.state.player.z = HARBOR_MARKET.position.z;
+    const money = sim.state.player.money;
+    const buy = sim.buyItemAtMarket("market.harbor", "item.crushed_ice", 1);
+    expect(buy.success).toBe(true);
+    expect(buy.cost).toBeGreaterThan(0);
+    const sell = sim.sellItemAtMarket("market.harbor", "item.crushed_ice", 1);
+    expect(sell.success).toBe(true);
+    expect(sell.revenue).toBe(buy.cost);
+    expect(sim.state.player.money).toBe(money);
+  });
+
+  it("decays cargo freshness across offline catch-up even when caughtAtMinute equals the frozen clock", () => {
+    const cargoId = "cargo.offline_trout";
+    const frozenMinute = sim.state.clock.currentMinute;
+    sim.state.fishCargo[cargoId] = {
+      id: cargoId,
+      speciesId: "fish.trout",
+      weightKg: 2,
+      quality: "common",
+      caughtAtMinute: frozenMinute,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "player", containerId: "player" }
+    };
+    sim.state.player.carriedFishCargoId = cargoId;
+    sim.state.metadata.lastSavedUtcMs = 0;
+    applyOfflineProgression(sim.state, 30 * 60 * 1000);
+    expect(sim.state.clock.currentMinute).toBeGreaterThan(frozenMinute);
+    expect(sim.state.fishCargo[cargoId].freshness).toBeLessThan(100);
+  });
+
+  it("lets the player board from the vessel hull, not only the shore apron", () => {
+    const boat = sim.state.boats["boat.player_rowboat"];
+    expect(boat.isDocked).toBe(true);
+    sim.state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    sim.state.player.x = boat.x;
+    sim.state.player.z = boat.z;
+    const apronDistance = Math.hypot(boat.x - HARBOR_DOCK.playerPosition.x, boat.z - HARBOR_DOCK.playerPosition.z);
+    expect(apronDistance).toBeGreaterThan(HARBOR_DOCK.boardRadius);
+    expect(sim.boardBoat("boat.player_rowboat").success).toBe(true);
+    expect(sim.state.player.activeBoatId).toBe("boat.player_rowboat");
+  });
+
+  it("nulls a failed sport-fishing hydrate so planting and basic casts are not locked", () => {
+    const state = createInitialGameState();
+    state.sportFishing = {
+      result: "active",
+      fish: {
+        instanceId: "fish_inst.broken",
+        speciesId: "fish.not_a_species",
+        weightKg: 4,
+        quality: "common",
+        caughtAtMinute: state.clock.currentMinute
+      },
+      rodId: "rod.willow",
+      stamina: 10,
+      maxStamina: 10,
+      distanceMeters: 20,
+      lineTension: 35,
+      lineIntegrity: 100,
+      fishDirection: 0,
+      behavior: "rest",
+      behaviorUntilSeconds: 1,
+      elapsedSeconds: 0,
+      rodDirectionAngle: 0,
+      isReeling: false,
+      isSlacking: false,
+      isBracing: false,
+      slackTimerSeconds: 0,
+      snapTimerSeconds: 0
+    } as unknown as FishingEncounterState;
+    const recovered = new Simulation(state);
+    expect(recovered.state.sportFishing).toBeNull();
+    recovered.state.player.x = -8;
+    recovered.state.player.z = 0;
+    expect(recovered.startChargingBasicFishing().success).toBe(true);
+  });
+
+  it("rejects save envelopes that are missing market commodity rows", () => {
+    const state = createInitialGameState();
+    const envelope = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state
+    };
+    expect(validateSaveEnvelope(envelope)).toBe(true);
+    delete state.markets["market.harbor"].commodities["item.crushed_ice"];
+    expect(validateSaveEnvelope(envelope)).toBe(false);
+  });
+
+  it("cancels a charging-cast and no-ops release unless a cast is charging", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    expect(sim.startChargingBasicFishing().success).toBe(true);
+    expect(sim.state.basicFishing?.phase).toBe("charging-cast");
+    expect(sim.cancelBasicFishing().success).toBe(true);
+    expect(sim.state.basicFishing).toBeNull();
+    expect(sim.releaseCastBasicFishing(0.8)).toMatchObject({ success: false });
+  });
+
+  it("picks the workbench lure recipe when unlocked and inputs are present", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "produce.flax", quantity: 1 },
+      { itemId: "item.fish_scraps", quantity: 1 }
+    ]);
+    expect(pickUnlockedStationRecipe("workbench", inventory, 0)?.id).toBe("recipe.craft_chum");
+    expect(pickUnlockedStationRecipe("workbench", inventory, 3000)?.id).toBe("recipe.craft_lure");
+  });
 });
+

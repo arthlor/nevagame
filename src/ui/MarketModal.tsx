@@ -6,12 +6,14 @@ import { calculateFishPrice } from "../simulation/economy/calculateFishValue";
 import { calculateCommodityUnitPrice } from "../simulation/economy/calculateCommodityValue";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { IconCoin, IconFish, IconSprout, IconWarning } from "./components/HudIcons";
+import { MarketDomain } from "../simulation/domains/MarketDomain";
 
 interface MarketModalProps {
   state: GameState;
   marketId: MarketId | null;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDiscardFishCargo: (cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
@@ -24,6 +26,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   marketId,
   onSellItem,
   onBuySeed,
+  onBuyItem,
   onSellFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
@@ -89,25 +92,33 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           <section className="market-left-panel">
             {activeMarketId === "market.village" && (
               <div className="market-seeds-section">
-                <h3 className="section-title"><IconSprout size={15} /> Starter Crop Seeds</h3>
+                <h3 className="section-title"><IconSprout size={15} /> Crop Seeds</h3>
                 <div className="seed-stall-list">
-                  {["crop.wheat", "crop.tomato", "crop.potato", "crop.barley"].map((cropId) => {
-                    const crop = ContentRegistry.crops.get(cropId)!;
-                    const seed = ContentRegistry.items.get(crop.seedItemId)!;
+                  {[...ContentRegistry.crops.values()]
+                    .slice()
+                    .sort((a, b) => a.minimumFarmingXp - b.minimumFarmingXp || a.name.localeCompare(b.name))
+                    .map((crop) => {
+                    const seed = ContentRegistry.items.get(crop.seedItemId);
+                    if (!seed) return null;
                     const owned = InventoryManager.getItemCount(playerInv, seed.id);
+                    const locked = state.player.proficiencies.farming < crop.minimumFarmingXp;
                     return (
-                      <div className="seed-stall-card" key={cropId}>
+                      <div className="seed-stall-card" key={crop.id}>
                         <div className="seed-card-meta">
                           <strong>{crop.name}</strong>
-                          <span>{owned} owned in backpack</span>
+                          <span>
+                            {locked
+                              ? `Locked · ${crop.minimumFarmingXp} Farming XP`
+                              : `${owned} owned in backpack`}
+                          </span>
                         </div>
                         <button
                           type="button"
                           className="neva-button seed-buy-btn"
-                          disabled={state.player.money < seed.baseValue}
+                          disabled={locked || state.player.money < seed.baseValue}
                           onClick={() => onBuySeed(activeMarketId, seed.id, 1)}
                         >
-                          Buy 1 · {seed.baseValue} G
+                          {locked ? "Locked" : `Buy 1 · ${seed.baseValue} G`}
                         </button>
                       </div>
                     );
@@ -161,6 +172,38 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 })}
               </div>
             </div>
+
+            {/* Harbor supply purchases */}
+            {activeMarketId === "market.harbor" && onBuyItem && (
+              <div className="market-seeds-section">
+                <h3 className="section-title"><IconCoin size={15} /> Harbor Supplies</h3>
+                <div className="seed-stall-list">
+                  {MarketDomain.HARBOR_BUYABLE.map((itemId) => {
+                    const item = ContentRegistry.items.get(itemId);
+                    const commodity = currentMarket?.commodities[itemId];
+                    if (!item || !commodity) return null;
+                    const price = calculateCommodityUnitPrice(commodity);
+                    const owned = InventoryManager.getItemCount(playerInv, itemId);
+                    return (
+                      <div className="seed-stall-card" key={itemId}>
+                        <div className="seed-card-meta">
+                          <strong>{item.name}</strong>
+                          <span>{owned} owned in backpack</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="neva-button seed-buy-btn"
+                          disabled={state.player.money < price.unitPrice}
+                          onClick={() => onBuyItem(activeMarketId, itemId, 1)}
+                        >
+                          Buy 1 · {price.unitPrice} G
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Landed Sport Fish Section (Harbor) */}
             {activeMarketId === "market.harbor" && (

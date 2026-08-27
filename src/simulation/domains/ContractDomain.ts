@@ -1,11 +1,39 @@
 import type { FishCargoId, GameState, ItemId } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
+import { ContentRegistry } from "../../content/ContentRegistry";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { qualityRank } from "./domainRules";
+
+export function expireContracts(state: GameState): void {
+  for (const contract of state.contracts) {
+    if (contract.status === "active" && state.clock.currentMinute >= contract.expiresAtMinute) {
+      refundAndExpireContract(state, contract);
+    }
+  }
+}
+
+function refundAndExpireContract(state: GameState, contract: GameState["contracts"][number]): void {
+  contract.status = "expired";
+  if (contract.type !== "produce" || contract.quantityFulfilled <= 0) return;
+  const itemId = contract.targetItemIdOrSpecies;
+  const quantity = contract.quantityFulfilled;
+  const inventory = state.inventories[state.player.inventoryId];
+  const stack = [{ itemId, quantity }];
+  if (inventory && InventoryManager.canAddItems(inventory, stack)) {
+    InventoryManager.addItemsAtomically(inventory, stack);
+    contract.quantityFulfilled = 0;
+    return;
+  }
+  const item = ContentRegistry.items.get(itemId);
+  if (item) {
+    state.player.money += item.baseValue * quantity;
+    contract.quantityFulfilled = 0;
+  }
+}
 
 export class ContractDomain {
   constructor(
@@ -84,12 +112,7 @@ export class ContractDomain {
   }
 
   public tick(): void {
-    const { state } = this.context;
-    for (const contract of state.contracts) {
-      if (contract.status === "active" && state.clock.currentMinute >= contract.expiresAtMinute) {
-        contract.status = "expired";
-      }
-    }
+    expireContracts(this.context.state);
   }
 
   private getActive(contractId: string): GameState["contracts"][number] | null {
@@ -97,7 +120,7 @@ export class ContractDomain {
     const contract = state.contracts.find((candidate) => candidate.id === contractId);
     if (!contract || contract.status !== "active") return null;
     if (state.clock.currentMinute >= contract.expiresAtMinute) {
-      contract.status = "expired";
+      refundAndExpireContract(state, contract);
       return null;
     }
     return contract;
