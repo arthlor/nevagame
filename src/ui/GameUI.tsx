@@ -98,6 +98,7 @@ export interface GameUIProps {
   onCancelBasicFishing?: () => void;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDiscardFishCargo: (cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
@@ -105,6 +106,7 @@ export interface GameUIProps {
   onQuickSave: () => void;
   saveRecoveryReason?: "corrupt" | "incompatible" | "unavailable" | null;
   onConfirmNewGame?: () => void;
+  onDismissNewGameConfirm?: () => void;
   onResetPlayerToSafePlace: () => void;
   onAdvanceHours: (hours: number) => void;
   onGrantMoney: (amount: number) => void;
@@ -165,6 +167,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onCancelBasicFishing,
   onSellItem,
   onBuySeed,
+  onBuyItem,
   onSellFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
@@ -172,6 +175,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onQuickSave,
   saveRecoveryReason = null,
   onConfirmNewGame,
+  onDismissNewGameConfirm,
   onResetPlayerToSafePlace,
   onAdvanceHours,
   onGrantMoney,
@@ -238,7 +242,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       <FarmGISLegend visible={isFarmGisHeld} />
 
       {/* Farm Planting Seed Selector Bar (when in farm-placement mode) */}
-      {mode === "farm-placement" && (
+      {mode === "farm-placement" && !activeModal && (
         <PlantingSeedBar
           state={state}
           selectedCropId={selectedPlantCropId}
@@ -255,6 +259,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           message={activeHint.message}
           icon={activeHint.icon}
           onDismiss={onDismissHint}
+          captureEscape={!activeModal && mode !== "basic-fishing" && mode !== "sport-fishing"}
         />
       )}
 
@@ -309,6 +314,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           marketId={marketId}
           onSellItem={onSellItem}
           onBuySeed={onBuySeed}
+          onBuyItem={onBuyItem}
           onSellFishCargo={onSellFishCargo}
           onDiscardFishCargo={onDiscardFishCargo}
           onDeliverContractItems={onDeliverContractItems}
@@ -370,7 +376,14 @@ export const GameUI: React.FC<GameUIProps> = ({
                   : "The primary and backup saves could not be migrated and validated. Start a new game? Nothing will be written until you confirm."}
               </p>
             </div>
-            <div className="modal-footer" style={{ justifyContent: "center" }}>
+            <div className="modal-footer" style={{ justifyContent: "center", gap: "10px" }}>
+              <ChromeButton
+                variant="secondary"
+                style={{ minWidth: "120px" }}
+                onClick={() => onDismissNewGameConfirm?.()}
+              >
+                Cancel
+              </ChromeButton>
               <ChromeButton
                 variant="primary"
                 style={{ minWidth: "160px" }}
@@ -533,6 +546,7 @@ export const CropInspection: React.FC<{
 const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: string }> = {
   plant: { title: "Planting seeds…" },
   water: { title: "Watering soil…" },
+  fertilize: { title: "Fertilizing soil…" },
   harvest: { title: "Harvesting crop…" },
   "processing-start": { title: "Starting processing…" },
   "processing-collect": { title: "Collecting yield…" },

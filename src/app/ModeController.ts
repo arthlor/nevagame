@@ -100,11 +100,20 @@ export class ModeController {
   }
 
   public handleEscape(): void {
-    if (this.activeModal === "new-game-confirm") return;
+    if (this.activeModal === "new-game-confirm") {
+      this.overlays.clear();
+      return;
+    }
     if (this.hasOverlay) {
       this.closeActive();
     } else {
       this.open("pause");
+    }
+  }
+
+  public dismissNewGameConfirm(): void {
+    if (this.activeModal === "new-game-confirm") {
+      this.overlays.clear();
     }
   }
 

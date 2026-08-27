@@ -124,6 +124,10 @@ export class CargoDomain {
         };
       }
     }
-    return state.player.carriedFishCargoId ? null : { type: "player", containerId: "player" };
+    return state.player.carriedFishCargoId
+      ? null
+      : cargoClassFits(cargoClass, "medium")
+        ? { type: "player", containerId: "player" }
+        : null;
   }
 }

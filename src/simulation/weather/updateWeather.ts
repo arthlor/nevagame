@@ -11,6 +11,17 @@ interface WeatherProfile {
   temperatureDelta: number;
 }
 
+const SEASONAL_BASELINE_C: Record<SeasonId, number> = {
+  spring: 16,
+  summer: 22,
+  autumn: 14,
+  winter: 4
+};
+
+function seasonalBaselineC(season: SeasonId): number {
+  return SEASONAL_BASELINE_C[season];
+}
+
 const WEATHER_PROFILES: Record<WeatherTag, WeatherProfile> = {
   clear: { windSpeed: 4, precipitation: 0, cloudCover: 0.15, seaRoughness: 0.1, visibility: 1, temperatureDelta: 2 },
   cloudy: { windSpeed: 5, precipitation: 0, cloudCover: 0.65, seaRoughness: 0.18, visibility: 0.82, temperatureDelta: 0 },
@@ -63,7 +74,7 @@ export const SEASONAL_WEATHER_WEIGHTS: Record<SeasonId, ReadonlyArray<{ value: W
   ]
 };
 
-export function applyWeatherProfile(weather: WeatherState, type: WeatherTag): void {
+export function applyWeatherProfile(weather: WeatherState, type: WeatherTag, season: SeasonId = "spring"): void {
   const profile = WEATHER_PROFILES[type];
   weather.type = type;
   weather.windSpeed = profile.windSpeed;
@@ -71,7 +82,7 @@ export function applyWeatherProfile(weather: WeatherState, type: WeatherTag): vo
   weather.cloudCover = profile.cloudCover;
   weather.seaRoughness = profile.seaRoughness;
   weather.visibility = profile.visibility;
-  weather.temperatureC = Math.max(-10, Math.min(38, 19 + profile.temperatureDelta));
+  weather.temperatureC = Math.max(-10, Math.min(38, seasonalBaselineC(season) + profile.temperatureDelta));
 }
 
 function weightsForMinute(currentMinute: number): ReadonlyArray<{ value: WeatherTag; weight: number }> {
@@ -97,7 +108,7 @@ export function advanceScheduledWeather(weather: WeatherState, currentMinute: nu
   const initialType = weather.type;
   while (currentMinute >= weather.nextWeatherMinute) {
     const nextType = weather.nextWeatherType ?? rollWeatherType(rng, currentMinute);
-    applyWeatherProfile(weather, nextType);
+    applyWeatherProfile(weather, nextType, seasonAtMinute(weather.nextWeatherMinute));
     weather.windDirectionDeg = rng.range(0, 360);
     weather.nextWeatherMinute += rng.intInclusive(WEATHER_FRONT_MIN_MINUTES, WEATHER_FRONT_MAX_MINUTES);
     weather.nextWeatherType = rollWeatherType(rng, weather.nextWeatherMinute);

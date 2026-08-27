@@ -11,6 +11,7 @@ import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeDivider, ChromePanel, ChromeQuality } from "./chrome/Chrome";
 import { playUiSound } from "./audio/uiAudio";
+import { MarketDomain } from "../simulation/domains/MarketDomain";
 
 type MarketStallTab = "buy" | "sell" | "hold";
 
@@ -19,6 +20,7 @@ interface MarketModalProps {
   marketId: MarketId | null;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDiscardFishCargo: (cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
@@ -36,6 +38,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   marketId,
   onSellItem,
   onBuySeed,
+  onBuyItem,
   onSellFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
@@ -268,47 +271,43 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             {stallTab === "buy" && activeMarketId === "market.village" && (
               <div className="market-seeds-section">
                 <h3 className="section-title">
-                  <IconSprout size={15} aria-hidden="true" /> Starter Crop Seeds & Supplies
+                  <IconSprout size={15} aria-hidden="true" /> Crop Seeds & Supplies
                 </h3>
                 <div className="seed-stall-list">
-                  {["crop.wheat", "crop.tomato", "crop.potato"].map((cropId) => {
-                    const crop = ContentRegistry.crops.get(cropId);
-                    if (!crop) return null;
-                    const seed = ContentRegistry.items.get(crop.seedItemId);
-                    if (!seed) return null;
-                    const owned = InventoryManager.getItemCount(playerInv, seed.id);
-                    return (
-                      <div className="seed-stall-card" key={cropId}>
-                        <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(seed.id)} alt="" size={32} />
-                          <div>
-                            <strong>{crop.name}</strong>
-                            <span className="seed-meta-sub">
-                              {owned} in bag · Yield: ~{crop.baseYield.min}-{crop.baseYield.max}
-                            </span>
+                  {[...ContentRegistry.crops.values()]
+                    .slice()
+                    .sort((a, b) => a.minimumFarmingXp - b.minimumFarmingXp || a.name.localeCompare(b.name))
+                    .map((crop) => {
+                      const seed = ContentRegistry.items.get(crop.seedItemId);
+                      if (!seed) return null;
+                      const owned = InventoryManager.getItemCount(playerInv, seed.id);
+                      const locked = state.player.proficiencies.farming < crop.minimumFarmingXp;
+                      return (
+                        <div className="seed-stall-card" key={crop.id}>
+                          <div className="seed-card-meta">
+                            <AtlasImage src={atlasForItem(seed.id)} alt="" size={32} />
+                            <div>
+                              <strong>{crop.name}</strong>
+                              <span className="seed-meta-sub">
+                                {locked
+                                  ? `Locked · ${crop.minimumFarmingXp} Farming XP`
+                                  : `${owned} in bag · Yield: ~${crop.baseYield.min}-${crop.baseYield.max}`}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="seed-card-actions">
+                            <ChromeButton
+                              className="seed-buy-btn"
+                              soundCue="coins"
+                              disabled={locked || state.player.money < seed.baseValue}
+                              onClick={() => onBuySeed(activeMarketId, seed.id, 1)}
+                            >
+                              {locked ? "Locked" : `Buy 1 · ${seed.baseValue} G`}
+                            </ChromeButton>
                           </div>
                         </div>
-                        <div className="seed-card-actions">
-                          <ChromeButton
-                            className="seed-buy-btn"
-                            soundCue="coins"
-                            disabled={state.player.money < seed.baseValue}
-                            onClick={() => onBuySeed(activeMarketId, seed.id, 1)}
-                          >
-                            Buy 1 · {seed.baseValue} G
-                          </ChromeButton>
-                          <ChromeButton
-                            className="seed-buy-btn seed-buy-5"
-                            soundCue="coins"
-                            disabled={state.player.money < seed.baseValue * 5}
-                            onClick={() => onBuySeed(activeMarketId, seed.id, 5)}
-                          >
-                            Buy 5 · {seed.baseValue * 5} G
-                          </ChromeButton>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                   {(() => {
                     const fertilizer = ContentRegistry.items.get("item.basic_fertilizer");
                     if (!fertilizer) return null;
@@ -341,43 +340,37 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
             {stallTab === "buy" && activeMarketId === "market.harbor" && (
               <div className="market-seeds-section">
-                <h3 className="section-title">Expedition Ice & Preservation</h3>
-                {(() => {
-                  const ice = ContentRegistry.items.get("item.crushed_ice");
-                  if (!ice) return null;
-                  const owned = InventoryManager.getItemCount(playerInv, ice.id);
-                  return (
-                    <div className="seed-stall-list">
-                      <div className="seed-stall-card">
+                <h3 className="section-title">Harbor Supplies</h3>
+                <div className="seed-stall-list">
+                  {MarketDomain.HARBOR_BUYABLE.map((itemId) => {
+                    const item = ContentRegistry.items.get(itemId);
+                    const commodity = currentMarket?.commodities[itemId];
+                    if (!item || !commodity) return null;
+                    const price = calculateCommodityUnitPrice(commodity);
+                    const owned = InventoryManager.getItemCount(playerInv, itemId);
+                    return (
+                      <div className="seed-stall-card" key={itemId}>
                         <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(ice.id)} alt="" size={32} />
+                          <AtlasImage src={atlasForItem(item.id)} alt="" size={32} />
                           <div>
-                            <strong>{ice.name}</strong>
-                            <span className="seed-meta-sub">{owned} in satchel · Prevents cargo spoilage</span>
+                            <strong>{item.name}</strong>
+                            <span className="seed-meta-sub">{owned} in satchel</span>
                           </div>
                         </div>
                         <div className="seed-card-actions">
                           <ChromeButton
                             className="seed-buy-btn"
                             soundCue="coins"
-                            disabled={state.player.money < ice.baseValue}
-                            onClick={() => onBuySeed(activeMarketId, ice.id, 1)}
+                            disabled={state.player.money < price.unitPrice}
+                            onClick={() => onBuyItem?.(activeMarketId, itemId, 1)}
                           >
-                            Buy 1 · {ice.baseValue} G
-                          </ChromeButton>
-                          <ChromeButton
-                            className="seed-buy-btn seed-buy-5"
-                            soundCue="coins"
-                            disabled={state.player.money < ice.baseValue * 5}
-                            onClick={() => onBuySeed(activeMarketId, ice.id, 5)}
-                          >
-                            Buy 5 · {ice.baseValue * 5} G
+                            Buy 1 · {price.unitPrice} G
                           </ChromeButton>
                         </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })}
+                </div>
               </div>
             )}
 

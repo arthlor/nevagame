@@ -61,7 +61,7 @@ export class FishingDomain {
           message,
           type: "error"
         });
-        // Keep sportFishing so a corrupt restore is visible instead of silently dropped.
+        context.state.sportFishing = null;
       }
     } else {
       context.state.sportFishing = null;
@@ -117,7 +117,7 @@ export class FishingDomain {
 
   public startChargingCastBasic(): { success: boolean; reason?: string } {
     const { state } = this.context;
-    if (this.encounter || state.basicFishing) return { success: false, reason: "Already fishing" };
+    if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -134,24 +134,26 @@ export class FishingDomain {
 
     const hasBait = InventoryManager.hasItems(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
 
-    const initial = BasicFishingMinigame.createInitialState(
+    state.basicFishing = {
       habitatId,
-      eligibleSpecies[0].id,
-      0.0,
-      state.player.equippedRodId,
-      this.progression.getProficiencyLevel("fishing"),
-      hasBait,
-      this.context.rng
-    );
-    initial.phase = "charging-cast";
-    initial.isChargingCast = true;
-    state.basicFishing = initial;
+      phase: "charging-cast",
+      remainingSeconds: 0,
+      catchItemId: eligibleSpecies[0].id,
+      willCatch: false,
+      castPower: 0,
+      isChargingCast: true,
+      castChargeDirection: 1,
+      hasBait
+    };
     return { success: true };
   }
 
   public releaseCastBasic(castPower?: number): { success: boolean; reason?: string } {
     const { state, rng, events } = this.context;
     if (!state.basicFishing) return { success: false, reason: "Not casting" };
+    if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
+      return { success: false, reason: "Not charging a cast" };
+    }
     const power = Math.max(0.05, Math.min(1.0, castPower ?? state.basicFishing.castPower ?? 0.75));
     const habitatId = state.basicFishing.habitatId;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
@@ -178,7 +180,7 @@ export class FishingDomain {
       hasBait,
       rng
     );
-    newState.willCatch = rod ? rng.chance(rod.hookReliability) : false;
+    newState.willCatch = rod ? rng.chance(Math.min(1, rod.hookReliability + (this.consumeLureIfPresent() ? 0.18 : 0))) : false;
     state.basicFishing = newState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { habitatId, castPower: power, minute: state.clock.currentMinute });
@@ -214,21 +216,28 @@ export class FishingDomain {
     }
   }
 
-  public cancelBasicFishing(): void {
+  public cancelBasicFishing(): { success: boolean; reason?: string } {
     const { state, events } = this.context;
-    if (state.basicFishing) {
-      events.emit("BasicFishingResolved", {
-        habitatId: state.basicFishing.habitatId,
-        reason: "cancelled",
-        minute: state.clock.currentMinute
-      });
-      state.basicFishing = null;
+    const attempt = state.basicFishing;
+    if (!attempt) return { success: true };
+    if (attempt.phase === "caught") {
+      if (!this.tryCommitBasicCatch(attempt)) {
+        return { success: false, reason: "Your backpack is full. Make space to land the catch." };
+      }
+      return { success: true };
     }
+    events.emit("BasicFishingResolved", {
+      habitatId: attempt.habitatId,
+      reason: "cancelled",
+      minute: state.clock.currentMinute
+    });
+    state.basicFishing = null;
+    return { success: true };
   }
 
   public castBasic(castPower: number = 0.75): { success: boolean; reason?: string } {
     const { state, rng, events } = this.context;
-    if (this.encounter || state.basicFishing) return { success: false, reason: "Already fishing" };
+    if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -325,7 +334,7 @@ export class FishingDomain {
     schoolId: FishSchoolId
   ): { success: boolean; encounter?: FishingEncounterState; reason?: string } {
     const { state, rng, events } = this.context;
-    if (this.encounter || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
+    if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
     if (distance2d(state.player, school) > SCHOOL_INTERACTION_RADIUS) {
@@ -347,7 +356,9 @@ export class FishingDomain {
       return { success: false, reason: "Rod class is too light for this species" };
     }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
-    const quality = this.rollQuality(this.progression.getWorkOutcome().rareChanceMultiplier);
+    const quality = this.rollQuality(
+      this.progression.getWorkOutcome().rareChanceMultiplier * (this.consumeLureIfPresent() ? 1.35 : 1)
+    );
     const fish: FishInstance = {
       instanceId: this.context.nextEntityId("fish_inst"),
       speciesId,
@@ -372,12 +383,6 @@ export class FishingDomain {
         delete state.world.activeSchools[id];
       }
     }
-    if (Object.keys(state.world.activeSchools).length > 0 && !(
-      state.quests.activeQuestId === "quest.act5_maiden_voyage" &&
-      state.quests.unlockedFeatureIds.includes("boat.player_rowboat") &&
-      !state.world.storySchoolSpawned
-    )) return;
-
     // Act 5 has an authored entry path. The first lake school is guaranteed
     // once the rowboat has been commissioned, independent of weather or the
     // normal respawn cadence; subsequent schools retain the live ecology.
@@ -406,8 +411,13 @@ export class FishingDomain {
     const lastSpawn = state.world.lastSchoolSpawnMinute ?? Number.NEGATIVE_INFINITY;
     if (currentMinute - lastSpawn < SCHOOL_RESPAWN_COOLDOWN_MINUTES) return;
 
+    const occupiedHabitats = new Set(
+      Object.values(state.world.activeSchools).map((school) => school.habitatId)
+    );
+
     let spawned = false;
     for (const point of SCHOOL_SPAWN_POINTS) {
+      if (occupiedHabitats.has(point.habitatId)) continue;
       const speciesIds = Array.from(ContentRegistry.fishSpecies.values())
         .filter(
           (fish) =>
@@ -452,6 +462,14 @@ export class FishingDomain {
     return true;
   }
 
+  private consumeLureIfPresent(): boolean {
+    const inventory = this.context.state.inventories[this.context.state.player.inventoryId];
+    const lure = [{ itemId: "item.basic_lure", quantity: 1 }];
+    if (!InventoryManager.hasItems(inventory, lure)) return false;
+    InventoryManager.removeItemsAtomically(inventory, lure);
+    return true;
+  }
+
   private commitSchoolCatch(): void {
     const { state } = this.context;
     const schoolId = this.pendingLandSchoolId;
@@ -489,17 +507,14 @@ export class FishingDomain {
     ) {
       attempt.remainingSeconds -= realDeltaSeconds;
       if (attempt.remainingSeconds <= 0) {
-        const leftover = -attempt.remainingSeconds;
+        const window = attempt.biteReactionWindowSeconds ?? 1.4;
         attempt.phase = "bite-reaction";
-        attempt.remainingSeconds = (attempt.biteReactionWindowSeconds ?? 1.4) - leftover;
+        attempt.remainingSeconds = window;
         events.emit("BasicFishingBiteAlert", {
           habitatId: attempt.habitatId,
           speciesId: (attempt.catchItemId || "fish.perch") as FishSpeciesId,
           minute: state.clock.currentMinute
         });
-        if (attempt.remainingSeconds <= 0) {
-          this.resolveMissedBite(attempt);
-        }
       }
       return;
     }
@@ -516,7 +531,7 @@ export class FishingDomain {
     if (attempt.phase === "minigame") {
       const outcome = BasicFishingMinigame.tick(attempt, realDeltaSeconds, rng);
       if (outcome === "landed") {
-        this.resolveCatchSuccess(attempt);
+        this.tryCommitBasicCatch(attempt);
       } else if (outcome === "escaped") {
         state.basicFishing = null;
         events.emit("BasicFishingResolved", {
@@ -538,27 +553,23 @@ export class FishingDomain {
     });
   }
 
-  private resolveCatchSuccess(attempt: BasicFishingState): void {
+  private tryCommitBasicCatch(attempt: BasicFishingState): boolean {
     const { state, events, rng } = this.context;
-    state.basicFishing = null;
     const inventory = state.inventories[state.player.inventoryId];
     if (!attempt.catchItemId) {
+      state.basicFishing = null;
       events.emit("BasicFishingResolved", {
         habitatId: attempt.habitatId,
         reason: "missed",
         minute: state.clock.currentMinute
       });
-      return;
+      return true;
     }
 
     const catchStack = [{ itemId: attempt.catchItemId, quantity: 1 }];
     if (!InventoryManager.canAddItems(inventory, catchStack)) {
-      events.emit("BasicFishingResolved", {
-        habitatId: attempt.habitatId,
-        reason: "inventory-full",
-        minute: state.clock.currentMinute
-      });
-      return;
+      attempt.phase = "caught";
+      return false;
     }
 
     let treasureLootItemIds: string[] | undefined;
@@ -577,12 +588,8 @@ export class FishingDomain {
     // the fish while silently dropping or partially granting rolled loot.
     const catchAndTreasure = [catchStack[0], ...treasureStack];
     if (!InventoryManager.canAddItems(inventory, catchAndTreasure)) {
-      events.emit("BasicFishingResolved", {
-        habitatId: attempt.habitatId,
-        reason: "inventory-full",
-        minute: state.clock.currentMinute
-      });
-      return;
+      attempt.phase = "caught";
+      return false;
     }
     InventoryManager.addItemsAtomically(inventory, catchAndTreasure);
 
@@ -599,6 +606,7 @@ export class FishingDomain {
     const xpGained = attempt.isPerfect ? 50 : 25;
     this.progression.addProficiencyXp("fishing", xpGained);
 
+    state.basicFishing = null;
     events.emit("BasicFishingResolved", {
       habitatId: attempt.habitatId,
       catchItemId: attempt.catchItemId,
@@ -608,5 +616,6 @@ export class FishingDomain {
       treasureLootItemIds,
       minute: state.clock.currentMinute
     });
+    return true;
   }
 }

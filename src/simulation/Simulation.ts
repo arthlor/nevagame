@@ -160,8 +160,7 @@ export class Simulation {
         this.setBasicFishingInput(command.isHolding);
         return { success: true };
       case "fishing.cancel-basic":
-        this.cancelBasicFishing();
-        return { success: true };
+        return this.cancelBasicFishing();
       case "fishing.chum-school":
         return this.chumFishSchool(command.schoolId);
       case "fishing.hook-school":
@@ -177,7 +176,7 @@ export class Simulation {
       case "market.buy-seed":
         return this.buySeedAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.buy-item":
-        return this.marketDomain.buyItem(command.marketId, command.itemId, command.quantity);
+        return this.buyItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.sell-fish":
         return this.sellFishCargoAtMarket(command.marketId, command.cargoId);
       case "contract.deliver-items":
@@ -245,6 +244,7 @@ export class Simulation {
     const minutesAdvanced = this.clock.tick(realDeltaSeconds);
     this.state.clock = { ...this.clock.getState() };
     this.fishingDomain.tick(realDeltaSeconds);
+    this.fishingDomain.tickSchools();
 
     if (minutesAdvanced <= 0) {
       this.persistRng();
@@ -297,6 +297,7 @@ export class Simulation {
     this.processingDomain.tick();
     this.contractDomain.tick();
     this.marketDomain.tick();
+    this.navigationDomain.tickFuel(minutesAdvanced);
     this.fishingDomain.tickSchools();
     this.progressionDomain.tickWorkCapacity(minutesAdvanced);
 
@@ -331,7 +332,7 @@ export class Simulation {
   /** Development-only weather override that keeps the complete profile coherent. */
   public setDebugWeather(type: GameState["weather"]["type"]): void {
     const previous = this.state.weather.type;
-    applyWeatherProfile(this.state.weather, type);
+    applyWeatherProfile(this.state.weather, type, this.state.clock.season);
     if (this.state.weather.type !== previous) {
       this.events.emit("WeatherChanged", {
         weather: this.state.weather.type,
@@ -709,8 +710,8 @@ export class Simulation {
     this.fishingDomain.setBasicFishingInput(isHolding);
   }
 
-  public cancelBasicFishing(): void {
-    this.fishingDomain.cancelBasicFishing();
+  public cancelBasicFishing(): { success: boolean; reason?: string } {
+    return this.fishingDomain.cancelBasicFishing();
   }
 
   public spawnFishSchool(habitatId: string, x: number, z: number, speciesIds: FishSpeciesId[]): FishSchoolId {
@@ -756,6 +757,10 @@ export class Simulation {
 
   public buySeedAtMarket(marketId: MarketId, itemId: ItemId, quantity: number): InteractionResult {
     return this.marketDomain.buySeed(marketId, itemId, quantity);
+  }
+
+  public buyItemAtMarket(marketId: MarketId, itemId: ItemId, quantity: number): { success: boolean; cost?: number; reason?: string } {
+    return this.marketDomain.buyItem(marketId, itemId, quantity);
   }
 
   public sellFishCargoAtMarket(marketId: MarketId, cargoId: FishCargoId): { success: boolean; revenue?: number; reason?: string } {

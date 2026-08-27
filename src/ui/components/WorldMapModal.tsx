@@ -59,10 +59,16 @@ const MAP_NODES: MapNode[] = [
   },
   {
     id: "node_village",
-    name: "Neva Village & Mill",
+    name: "Neva Village Market",
     category: "village",
     worldPosition: WORLD_LAYOUT_V5.anchors.villageMarket,
     marketId: "market.village"
+  },
+  {
+    id: "node_mill",
+    name: "Village Mill",
+    category: "village",
+    worldPosition: { x: WorldLayout.landmark("windmill").x, z: WorldLayout.landmark("windmill").z }
   },
   {
     id: "node_crossing",

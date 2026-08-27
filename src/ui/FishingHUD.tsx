@@ -1,5 +1,5 @@
 // src/ui/FishingHUD.tsx
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FishingEncounterState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { IconFish, IconWarning } from "./components/HudIcons";
@@ -32,7 +32,11 @@ const EMPTY_HOLD: FishingHoldState = {
 export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput }) => {
   const species = ContentRegistry.fishSpecies.get(encounter.fish.speciesId);
   const holdRef = useRef<FishingHoldState>(EMPTY_HOLD);
+  const onSetInputRef = useRef(onSetInput);
+  const encounterRef = useRef(encounter);
   const [heldActions, setHeldActions] = useState<FishingHoldState>(EMPTY_HOLD);
+  onSetInputRef.current = onSetInput;
+  encounterRef.current = encounter;
 
   const emitHold = (patch: Partial<FishingHoldState>) => {
     holdRef.current = { ...holdRef.current, ...patch };
@@ -42,6 +46,32 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
       rodDirectionAngle: encounter.rodDirectionAngle
     });
   };
+
+  const releaseAllHolds = () => {
+    if (!holdRef.current.isReeling && !holdRef.current.isSlacking && !holdRef.current.isBracing) {
+      return;
+    }
+    holdRef.current = EMPTY_HOLD;
+    setHeldActions(EMPTY_HOLD);
+    onSetInputRef.current({
+      ...EMPTY_HOLD,
+      rodDirectionAngle: encounterRef.current.rodDirectionAngle
+    });
+  };
+
+  useEffect(() => {
+    const handleWindowBlur = () => releaseAllHolds();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") releaseAllHolds();
+    };
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      releaseAllHolds();
+    };
+  }, []);
 
   const releaseAction = (action: keyof FishingHoldState) => emitHold({ [action]: false });
   const staminaPercent = Math.max(0, Math.round((encounter.stamina / encounter.maxStamina) * 100));

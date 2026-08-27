@@ -126,9 +126,10 @@ export const ChromeButton = React.forwardRef<HTMLButtonElement, ChromeButtonProp
 );
 ChromeButton.displayName = "ChromeButton";
 
-export const ChromeClose: React.FC<
+export const ChromeClose = React.forwardRef<
+  HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & { label?: string; soundCue?: string }
-> = ({ label = "Close", soundCue = "click", className = "", onClick, ...rest }) => {
+>(({ label = "Close", soundCue = "click", className = "", onClick, ...rest }, ref) => {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!rest.disabled) {
       playUiSound(soundCue);
@@ -138,6 +139,7 @@ export const ChromeClose: React.FC<
 
   return (
     <button
+      ref={ref}
       type="button"
       className={`chrome-close ${className}`.trim()}
       aria-label={label}
@@ -149,7 +151,8 @@ export const ChromeClose: React.FC<
       </span>
     </button>
   );
-};
+});
+ChromeClose.displayName = "ChromeClose";
 
 export const ChromeKeycap: React.FC<{
   children?: React.ReactNode;

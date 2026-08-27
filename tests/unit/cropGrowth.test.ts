@@ -125,4 +125,19 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(calculateCropHealth(100, 70, 240)).toBe(100);
     expect(calculateCropHealth(100, 20, 60)).toBeCloseTo(97.5);
   });
+
+  it("subdivides long rest intervals when moisture crosses growth bands", () => {
+    const crop = {
+      effectiveGrowthMinutes: 0,
+      moisture: 50,
+      averageMoistureAccum: 0,
+      moistureSampleCount: 0,
+      stage: "seeded" as const
+    };
+    advancePlacedCropGrowth(crop, wheat, "temperate", 50, "clear", 600);
+    const frozenAtStart = calculateEffectiveGrowthDelta(600, wheat, "temperate", 50, 50, "clear");
+    expect(crop.moisture).toBeLessThan(15);
+    expect(crop.effectiveGrowthMinutes).toBeLessThan(frozenAtStart);
+    expect(crop.effectiveGrowthMinutes).toBeGreaterThan(0);
+  });
 });

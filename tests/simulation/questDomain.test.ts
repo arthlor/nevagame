@@ -4,6 +4,7 @@ import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayou
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
+import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 
 describe("QuestDomain & Storyline Progression", () => {
   it("chains every authored quest until the final epilogue quest", () => {
@@ -152,13 +153,18 @@ describe("QuestDomain & Storyline Progression", () => {
       expect(harvestRes.success).toBe(true);
     }
 
-    // Complete the explicit compost step, then turn in to Barnaby.
-    sim.questDomain.onObjectiveEvent(
-      "craft-recipe",
-      "recipe.compost_worms",
-      1,
-      { kind: "station", id: "struct.starter_compost" }
-    );
+    // Complete the compost step at the compost bin (start + clock + collect).
+    const compost = sim.state.world.structures["struct.starter_compost"];
+    const compostFront = getProcessingStationFrontPosition("struct.starter_compost", compost);
+    expect(compostFront).not.toBeNull();
+    sim.state.player.x = compostFront!.x;
+    sim.state.player.z = compostFront!.z;
+    expect(sim.startProcessingJob("recipe.compost_worms", "struct.starter_compost").success).toBe(true);
+    sim.setDebugMinute(sim.state.clock.currentMinute + 180);
+    sim.tick(1);
+    const compostJobId = Object.keys(sim.state.processingJobs)[0];
+    expect(sim.state.processingJobs[compostJobId]?.status).toBe("complete");
+    expect(sim.collectProcessingJob(compostJobId).success).toBe(true);
     sim.state.player.x = -73.5;
     sim.state.player.z = -58.8;
     sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" });

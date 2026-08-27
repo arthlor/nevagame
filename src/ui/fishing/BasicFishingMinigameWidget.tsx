@@ -48,7 +48,9 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   const propsRef = useRef({ phase, onHookBite, onSetInput, onReleaseCast, onDismissModal, onCancel });
   const inputHeldRef = useRef(false);
-  const castChargingRef = useRef(false);
+  // Charge starts in GameApp before this widget mounts, so the starting hold
+  // must count as already down or the first Space/click up is ignored.
+  const castChargingRef = useRef(phase === "charging-cast");
   const prevPhaseRef = useRef(phase);
   propsRef.current = { phase, onHookBite, onSetInput, onReleaseCast, onDismissModal, onCancel };
 

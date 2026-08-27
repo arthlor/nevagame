@@ -2,13 +2,14 @@
 
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
+import { GameClock } from "../simulation/core/GameClock";
 import { advancePlacedCropGrowth } from "../simulation/farming/calculateCropGrowth";
 import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBoundedSegments";
 import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
-import { GameClock } from "../simulation/core/GameClock";
 import { regenerateWorkCapacity } from "../simulation/domains/ProgressionDomain";
+import { expireContracts } from "../simulation/domains/ContractDomain";
 
 export interface OfflineProgressionSummary {
   elapsedRealMinutes: number;
@@ -97,13 +98,12 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
 
   // Step 5: Spoilage is advanced inside weather-bounded segments above.
 
-  // Step 6: Contracts expiry
-  for (const contract of state.contracts) {
-    if (contract.status === "active" && state.clock.currentMinute >= contract.expiresAtMinute) {
-      contract.status = "expired";
-      summary.contractsExpiredCount += 1;
-    }
-  }
+  const expiredBefore = state.contracts.filter((contract) => contract.status === "expired").length;
+  expireContracts(state);
+  summary.contractsExpiredCount = Math.max(
+    0,
+    state.contracts.filter((contract) => contract.status === "expired").length - expiredBefore
+  );
 
   // Step 7: Market ticks
   for (const market of Object.values(state.markets)) {

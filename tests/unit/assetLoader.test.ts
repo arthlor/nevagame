@@ -53,7 +53,7 @@ describe("generated asset LOD runtime", () => {
   it("preloads every catalog asset and reports catalog-derived progress", async () => {
     const loadedIds: string[] = [];
     const progress: Array<{ assetId: string; completed: number; total: number }> = [];
-    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockImplementation(async (assetId) => {
+    const loadCached = vi.spyOn(AssetLoader, "loadCached").mockImplementation(async (assetId) => {
       loadedIds.push(assetId);
       return new THREE.Group();
     });
@@ -61,7 +61,7 @@ describe("generated asset LOD runtime", () => {
     try {
       await AssetLoader.preloadAll((entry) => progress.push(entry));
     } finally {
-      loadModel.mockRestore();
+      loadCached.mockRestore();
     }
 
     expect(loadedIds).toHaveLength(ASSET_CATALOG.length);

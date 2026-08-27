@@ -380,6 +380,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 <h2 id="start-screen-options-title">Options</h2>
               </div>
               <ChromeClose
+                ref={optionsCloseRef}
                 className="start-screen__dialog-close"
                 data-testid="startup-options-close"
                 label="Close options"

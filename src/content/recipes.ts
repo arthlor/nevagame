@@ -84,5 +84,14 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     outputs: [{ itemId: "item.fish_scraps", quantity: 2 }],
     durationMinutes: 5,
     tags: ["fish-prep", "scraps"]
+  },
+  "recipe.carp_to_scraps": {
+    id: "recipe.carp_to_scraps",
+    name: "Clean Carp into Scraps",
+    stationType: "fish-table",
+    inputs: [{ itemId: "fish.carp", quantity: 1 }],
+    outputs: [{ itemId: "item.fish_scraps", quantity: 2 }],
+    durationMinutes: 5,
+    tags: ["fish-prep", "scraps"]
   }
 };

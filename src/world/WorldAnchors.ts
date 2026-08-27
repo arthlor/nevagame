@@ -38,7 +38,9 @@ export const HARBOR_DOCK = {
   marketId: "market.harbor",
   boatPosition: { x: 81, y: 0, z: 72 },
   playerPosition: { x: 76, z: 64 },
+  /** Shore-apron reach. The hull itself uses hullBoardRadius so Act 5's boat pin can board. */
   boardRadius: 4,
+  hullBoardRadius: 6,
   dockRadius: 6
 } as const;
 
@@ -48,6 +50,7 @@ export const HARBOR_SKIFF_MOORING = {
   boatPosition: { x: 88, y: 0, z: 72 },
   playerPosition: { x: 86, z: 69 },
   boardRadius: 4,
+  hullBoardRadius: 6,
   dockRadius: 6
 } as const;
 

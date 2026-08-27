@@ -48,7 +48,19 @@ export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boo
 
   if (cargoHasBuiltInIce(state, cargo)) return true;
   const supply = cargoSupplyInventory(state, cargo);
-  return supply ? InventoryManager.getItemCount(supply, "item.crushed_ice") > 0 : false;
+  if (supply && InventoryManager.getItemCount(supply, "item.crushed_ice") > 0) return true;
+
+  if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
+    const boat = state.boats[cargo.location.containerId];
+    if (boat && state.player.activeBoatId === boat.id) {
+      const playerInv = state.inventories[state.player.inventoryId];
+      if (playerInv && InventoryManager.getItemCount(playerInv, "item.crushed_ice") > 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -77,15 +89,17 @@ export function advanceCargoFreshness(
     const activeCargos = cargos.filter((cargo) => cargo.freshness > 0 && ContentRegistry.fishSpecies.has(cargo.speciesId));
 
     for (const cargo of activeCargos) {
-      // A cargo landed during this simulation tick starts at full freshness.
-      if (cargo.caughtAtMinute === state.clock.currentMinute) continue;
       const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
       if (!speciesDef) continue;
+      const sliceStart = startMinute + elapsed;
+      const sliceEnd = sliceStart + sliceMinutes;
+      const decayMinutes = Math.max(0, sliceEnd - Math.max(sliceStart, cargo.caughtAtMinute));
+      if (decayMinutes <= 0) continue;
       const freshnessBefore = cargo.freshness;
       cargo.freshness = Math.max(
         0,
         cargo.freshness - calculateFreshnessLoss(
-          sliceMinutes,
+          decayMinutes,
           speciesDef.baseDecayRatePerMinute,
           cargo.location.type,
           resolveCargoHasIce(state, cargo),

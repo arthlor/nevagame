@@ -281,6 +281,8 @@ describe("Simulation Basic Fishing Loop Integration", () => {
     sim.state.basicFishing!.willCatch = true;
     sim.state.basicFishing!.remainingSeconds = 0.05;
     sim.tick(3);
+    expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
+    sim.tick(2);
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(inv, "fish.perch")).toBe(0);
   });

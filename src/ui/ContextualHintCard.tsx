@@ -10,6 +10,8 @@ export interface ContextualHintCardProps {
   message: string;
   icon?: string;
   onDismiss: (hintId: string) => void;
+  /** When false, Escape is left for an open modal instead of dismissing this card. */
+  captureEscape?: boolean;
 }
 
 export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
@@ -17,7 +19,8 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   title,
   message,
   icon = "✦",
-  onDismiss
+  onDismiss,
+  captureEscape = true
 }) => {
   const [visible, setVisible] = useState(true);
   const onDismissRef = useRef(onDismiss);
@@ -33,7 +36,7 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
     }, 7000);
 
     const handleWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || !captureEscape) return;
       event.preventDefault();
       event.stopPropagation();
       setVisible(false);
@@ -45,7 +48,7 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       clearTimeout(timer);
       window.removeEventListener("keydown", handleWindowKeyDown, true);
     };
-  }, [hintId]);
+  }, [hintId, captureEscape]);
 
   const handleDismiss = () => {
     setVisible(false);
@@ -64,7 +67,7 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       tabIndex={0}
       data-testid="contextual-hint"
       onKeyDown={(e) => {
-        if (e.key === "Escape") {
+        if (e.key === "Enter" || e.key === " " || (captureEscape && e.key === "Escape")) {
           e.preventDefault();
           e.stopPropagation();
           handleDismiss();

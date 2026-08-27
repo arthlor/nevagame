@@ -82,9 +82,12 @@ export class GameClock {
     if (!Number.isFinite(realDeltaSeconds) || this.state.isPaused || realDeltaSeconds <= 0) {
       return 0;
     }
+    if (this.state.minutesPerRealSecond === 0) {
+      return 0;
+    }
 
     this.accumulatorSeconds += realDeltaSeconds;
-    const secondsPerGameMinute = 1 / Math.max(0.001, this.state.minutesPerRealSecond);
+    const secondsPerGameMinute = 1 / this.state.minutesPerRealSecond;
 
     let minutesToAdvance = 0;
     while (this.accumulatorSeconds >= secondsPerGameMinute) {

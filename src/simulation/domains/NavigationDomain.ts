@@ -70,6 +70,19 @@ export class NavigationDomain {
     return { success: true };
   }
 
+  /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
+  public tickFuel(minutes: number): void {
+    if (minutes <= 0) return;
+    const { state } = this.context;
+    for (const boat of Object.values(state.boats)) {
+      const definition = ContentRegistry.boats.get(boat.boatTypeId);
+      if (!definition || definition.fuelCapacity <= 0) continue;
+      const speedRatio = Math.min(1, Math.abs(boat.speed) / Math.max(0.01, definition.maxSpeed));
+      if (speedRatio < 0.02) continue;
+      boat.fuel = Math.max(0, boat.fuel - minutes * 2 * speedRatio);
+    }
+  }
+
   public setDebugPlayerPose(pose: { x: number; y: number; z: number; rotationY: number }): boolean {
     if (![pose.x, pose.y, pose.z, pose.rotationY].every(Number.isFinite)) return false;
     Object.assign(this.context.state.player, pose);
@@ -166,7 +179,10 @@ export class NavigationDomain {
         boat.isDocked &&
         mooring &&
         boat.dockedMarketId === mooring.marketId &&
-        distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius
+        (
+          distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius ||
+          distance2d(state.player, boat) <= mooring.hullBoardRadius
+        )
     );
   }
 

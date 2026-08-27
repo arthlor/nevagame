@@ -8,7 +8,7 @@ import { HARBOR_DOCK, HARBOR_FISH_TABLE } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
-import { DEFAULT_MINUTES_PER_REAL_SECOND } from "../simulation/core/GameClock";
+import { DEFAULT_MINUTES_PER_REAL_SECOND, seasonAtMinute } from "../simulation/core/GameClock";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -669,10 +669,38 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
     }
   }
 
+  const migrated = state as GameState;
+  fillMissingMarketCommodities(migrated);
+
   return {
     schemaVersion: currentVersion,
-    state: state as GameState,
+    state: migrated,
     savedAtUtcMs: envelope.savedAtUtcMs,
     checksum: envelope.checksum
   };
+}
+
+function fillMissingMarketCommodities(state: GameState): void {
+  if (!state?.markets) return;
+  ContentRegistry.initializeAndValidate();
+  const season = state.clock ? seasonAtMinute(state.clock.currentMinute) : "spring";
+  const lastTick = state.clock?.currentMinute ?? 8 * 60;
+  for (const [marketId, definition] of ContentRegistry.markets.entries()) {
+    const market = state.markets[marketId];
+    if (!market || !market.commodities) continue;
+    for (const comm of definition.commodities) {
+      if (market.commodities[comm.itemId]) continue;
+      market.commodities[comm.itemId] = {
+        itemId: comm.itemId,
+        basePrice: comm.basePrice,
+        demandIndex: 1.0,
+        localSupply: comm.targetSupply,
+        targetSupply: comm.targetSupply,
+        consumptionRate: comm.consumptionRatePerHour,
+        seasonalModifier: comm.seasonalFactors[season] || 1.0,
+        lastTickMinute: lastTick,
+        recentSalesVolume: 0
+      };
+    }
+  }
 }

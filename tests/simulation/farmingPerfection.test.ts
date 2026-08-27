@@ -316,8 +316,11 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.money).toBe(money - 8);
     expect(sim.buySeedAtMarket("market.village", "seed.barley", 1)).toMatchObject({
       success: false,
-      reasonCode: "not-stocked"
+      reasonCode: "locked"
     });
+    sim.state.player.proficiencies.farming = 500;
+    expect(sim.buySeedAtMarket("market.village", "seed.barley", 1)).toMatchObject({ success: true, cost: 6 });
+    expect(InventoryManager.getItemCount(inventory, "seed.barley")).toBe(1);
 
     sim.state.player.money = 0;
     const before = InventoryManager.getItemCount(inventory, "seed.wheat");
