@@ -11,6 +11,13 @@ import type { ProgressionDomain } from "./ProgressionDomain";
 import type { BuySeedReasonCode, InteractionResult } from "../core/contracts";
 
 export class MarketDomain {
+  public static readonly HARBOR_BUYABLE = [
+    "item.crushed_ice",
+    "item.chum_bucket",
+    "item.boat_fuel",
+    "item.bait_worms"
+  ] as const;
+
   constructor(
     private readonly context: DomainContext,
     private readonly navigation: NavigationDomain,
@@ -78,11 +85,7 @@ export class MarketDomain {
       return failure("invalid-quantity", "Choose a positive whole quantity");
     }
     const item = ContentRegistry.items.get(itemId);
-    const starterCrop = [...ContentRegistry.crops.values()].find(
-      (crop) =>
-        crop.seedItemId === itemId &&
-        ["crop.wheat", "crop.tomato", "crop.potato"].includes(crop.id)
-    );
+    const starterCrop = [...ContentRegistry.crops.values()].find((crop) => crop.seedItemId === itemId);
     if (!item || item.category !== "seed" || !starterCrop) {
       return failure("not-stocked", "That seed is not stocked here");
     }
@@ -100,6 +103,40 @@ export class MarketDomain {
     InventoryManager.addItemsAtomically(inventory, purchase);
     state.player.money -= cost;
     events.emit("SeedPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
+    return { success: true, cost };
+  }
+
+  public buyItem(
+    marketId: MarketId,
+    itemId: ItemId,
+    quantity: number
+  ): { success: boolean; cost?: number; reason?: string } {
+    const { state, events } = this.context;
+    const market = state.markets[marketId];
+    if (!market) return { success: false, reason: "Market not found" };
+    if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+      return { success: false, reason: "Choose a positive whole quantity" };
+    }
+    if (marketId !== "market.harbor" || !MarketDomain.HARBOR_BUYABLE.includes(itemId as (typeof MarketDomain.HARBOR_BUYABLE)[number])) {
+      return { success: false, reason: "This stall does not sell that supply" };
+    }
+    const item = ContentRegistry.items.get(itemId);
+    const commodity = market.commodities[itemId];
+    if (!item || !commodity) return { success: false, reason: "Market does not trade this item" };
+    const unitPrice = calculateCommodityUnitPrice(commodity).unitPrice;
+    const cost = unitPrice * quantity;
+    if (state.player.money < cost) return { success: false, reason: "Not enough money" };
+    const inventory = state.inventories[state.player.inventoryId];
+    const purchase = [{ itemId, quantity }];
+    if (!InventoryManager.canAddItems(inventory, purchase)) {
+      return { success: false, reason: "Your backpack is full" };
+    }
+
+    InventoryManager.addItemsAtomically(inventory, purchase);
+    state.player.money -= cost;
+    commodity.localSupply = Math.max(1, commodity.localSupply - quantity);
+    events.emit("ItemPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
     return { success: true, cost };
   }
 

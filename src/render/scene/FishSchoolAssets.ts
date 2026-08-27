@@ -1,6 +1,9 @@
 import { ASSET_IDS, type AssetId } from "../assets/AssetCatalog";
 
-/** Runtime presentation bindings for every species that can appear in a sport-fishing school. */
+/** Runtime presentation bindings for every species that can appear in a sport-fishing school.
+ *  Only trout and tuna have authored GLBs. Other freshwater species reuse trout and
+ *  other saltwater species reuse tuna as silhouette stand-ins, not distinct models.
+ */
 export const FISH_SCHOOL_ASSETS: Readonly<Record<string, AssetId>> = {
   "fish.trout": ASSET_IDS.FISH_TROUT_A,
   "fish.catfish": ASSET_IDS.FISH_TROUT_A,

@@ -7,6 +7,8 @@ export interface ContextualHintCardProps {
   message: string;
   icon?: string;
   onDismiss: (hintId: string) => void;
+  /** When false, Escape is left for an open modal instead of dismissing this card. */
+  captureEscape?: boolean;
 }
 
 export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
@@ -14,7 +16,8 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   title,
   message,
   icon = "💡",
-  onDismiss
+  onDismiss,
+  captureEscape = true
 }) => {
   const [visible, setVisible] = useState(true);
 
@@ -42,7 +45,7 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       role="status"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+        if (e.key === "Enter" || e.key === " " || (captureEscape && e.key === "Escape")) {
           e.preventDefault();
           handleDismiss();
         }

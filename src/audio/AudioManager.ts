@@ -56,6 +56,7 @@ export class AudioManager {
   private unlockPromise: Promise<void> | null = null;
   private disposed = false;
   private ambienceRequested = true;
+  private ambienceGeneration = 0;
   private readonly unsubscribeSettings: () => void;
 
   constructor() {
@@ -90,16 +91,18 @@ export class AudioManager {
 
   startAmbience(): void {
     this.ambienceRequested = true;
+    this.ambienceGeneration += 1;
     if (!this.context || this.context.state !== "running" || document.visibilityState === "hidden") {
       return;
     }
     for (const cueId of ["ambience-wind", "ambience-insects", "ambience-birds"] as AudioCueId[]) {
-      void this.startAmbienceCue(cueId);
+      void this.startAmbienceCue(cueId, this.ambienceGeneration);
     }
   }
 
   stopAmbience(): void {
     this.ambienceRequested = false;
+    this.ambienceGeneration += 1;
     for (const source of this.ambienceSources.values()) {
       try {
         source.stop();
@@ -304,7 +307,7 @@ export class AudioManager {
     return pool.reduce((oldest, voice) => voice.startedAt < oldest.startedAt ? voice : oldest);
   }
 
-  private async startAmbienceCue(cueId: AudioCueId): Promise<void> {
+  private async startAmbienceCue(cueId: AudioCueId, generation: number): Promise<void> {
     const context = this.context;
     const cue = cues[cueId];
     if (!context || !this.ambienceGain || !this.ambienceRequested || this.ambienceSources.has(cueId) || !cue.loop) {
@@ -312,7 +315,12 @@ export class AudioManager {
     }
     try {
       const buffer = await this.loadBuffer(cue.sourceId);
-      if (!this.ambienceRequested || context.state !== "running" || this.ambienceSources.has(cueId)) {
+      if (
+        generation !== this.ambienceGeneration ||
+        !this.ambienceRequested ||
+        context.state !== "running" ||
+        this.ambienceSources.has(cueId)
+      ) {
         return;
       }
       const source = context.createBufferSource();

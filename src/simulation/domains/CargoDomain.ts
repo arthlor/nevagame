@@ -95,11 +95,13 @@ export class CargoDomain {
   public tick(minutes: number): void {
     const { state } = this.context;
     for (const cargo of Object.values(state.fishCargo)) {
-      if (cargo.freshness <= 0 || cargo.caughtAtMinute === state.clock.currentMinute) continue;
+      if (cargo.freshness <= 0) continue;
+      const ageMinutes = state.clock.currentMinute - cargo.caughtAtMinute;
+      if (ageMinutes <= 0) continue;
       const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
       if (!speciesDef) continue;
       const decay = calculateFreshnessLoss(
-        minutes,
+        Math.min(minutes, ageMinutes),
         speciesDef.baseDecayRatePerMinute,
         cargo.location.type,
         resolveCargoHasIce(state, cargo),
@@ -136,6 +138,10 @@ export class CargoDomain {
         };
       }
     }
-    return state.player.carriedFishCargoId ? null : { type: "player", containerId: "player" };
+    return state.player.carriedFishCargoId
+      ? null
+      : cargoClassFits(cargoClass, "medium")
+        ? { type: "player", containerId: "player" }
+        : null;
   }
 }

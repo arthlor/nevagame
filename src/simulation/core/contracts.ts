@@ -170,6 +170,7 @@ export type GameCommand =
   | { type: "cargo.discard"; cargoId: FishCargoId }
   | { type: "market.sell-item"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.buy-seed"; marketId: MarketId; itemId: ItemId; quantity: number }
+  | { type: "market.buy-item"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.sell-fish"; marketId: MarketId; cargoId: FishCargoId }
   | { type: "contract.deliver-items"; contractId: string; itemId: ItemId; quantity: number }
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }

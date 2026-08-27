@@ -209,7 +209,13 @@ export class GroundCoverRenderer {
 
   public dispose(): void {
     for (const record of this.records) {
-      for (const source of record.meshes) source.mesh.removeFromParent();
+      for (const source of record.meshes) {
+        const material = source.mesh.material;
+        source.mesh.removeFromParent();
+        if (record.category === "grass" && material instanceof THREE.MeshStandardMaterial) {
+          material.dispose();
+        }
+      }
     }
     this.records.length = 0;
   }

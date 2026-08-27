@@ -38,7 +38,11 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
         ? "Homestead Farm"
         : player.currentRegionId === "region.coast"
           ? "Rocky Coast & Lighthouse"
-          : "Open Waters";
+          : player.currentRegionId === "region.harbor"
+            ? "Seabreak Harbor"
+            : player.currentRegionId === "region.offshore"
+              ? "Open Waters"
+              : "Open Waters";
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>

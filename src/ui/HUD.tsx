@@ -1,5 +1,5 @@
 // src/ui/HUD.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { GameState, FishCargoState } from "../simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -14,10 +14,9 @@ import {
   IconMenu,
   IconHoe,
   IconWateringCan,
-  IconPickaxe,
   IconBait,
-  IconBasket,
   IconSprout,
+  IconRod,
   IconMoon,
   IconDawn,
   IconDusk,
@@ -43,6 +42,7 @@ import {
 import { FarmForecastPopover } from "./components/FarmForecastPopover";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import { QuestTrackerHUD } from "./QuestTrackerHUD";
+import type { ActiveModal } from "../app/ModeController";
 
 export interface HUDProps {
   state: GameState;
@@ -61,6 +61,7 @@ export interface HUDProps {
   onCastFishing: () => void;
   onOpenMenu?: () => void;
   isPlacementActive?: boolean;
+  activeModal?: ActiveModal;
 }
 
 function formatWeatherLabel(type: string): string {
@@ -145,10 +146,15 @@ export const HUD: React.FC<HUDProps> = ({
   onOpenExpedition,
   activeQuest,
   onOpenMenu,
-  isPlacementActive = false
+  isPlacementActive = false,
+  activeModal = null
 }) => {
   const [showForecast, setShowForecast] = useState(false);
   const { clock, player, weather } = state;
+
+  useEffect(() => {
+    if (activeModal) setShowForecast(false);
+  }, [activeModal]);
 
   const sprintStamina = player.traversal.sprintStamina;
   const sprintMaximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;
@@ -585,40 +591,40 @@ export const HUD: React.FC<HUDProps> = ({
           <CornerLeafSprout className="quickbar-corner-tl" size={26} />
           <CornerRopeKnot className="quickbar-corner-br" size={26} />
 
-          {/* Slot 1: Tool / Hoe / Axe */}
+          {/* Slot 1: Hoe */}
           <button
             type="button"
             className={`quickbar-wood-slot ${activeToolSlot === 1 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(1)}
-            title="Primary Tool (1)"
+            title="Hand Tools & Hoe (1)"
           >
             <span className="slot-num-badge">1</span>
             <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
 
-          {/* Slot 2: Watering Can */}
+          {/* Slot 2: Seeds */}
           <button
             type="button"
             className={`quickbar-wood-slot ${activeToolSlot === 2 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(2)}
-            title="Watering Can (2)"
+            title="Seeds (2)"
           >
             <span className="slot-num-badge">2</span>
-            <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />
+            <IconSprout size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
 
-          {/* Slot 3: Mattock / Pickaxe */}
+          {/* Slot 3: Watering Can */}
           <button
             type="button"
             className={`quickbar-wood-slot ${activeToolSlot === 3 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(3)}
-            title="Mattock / Pick (3)"
+            title="Watering Can (3)"
           >
             <span className="slot-num-badge">3</span>
-            <IconPickaxe size={26} className="quickbar-slot-icon" aria-hidden="true" />
+            <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
 
-          {/* Slot 4: Fishing Bait / Net */}
+          {/* Slot 4: Fishing Bait */}
           <button
             type="button"
             className={`quickbar-wood-slot ${activeToolSlot === 4 ? "is-active" : ""}`}
@@ -629,15 +635,15 @@ export const HUD: React.FC<HUDProps> = ({
             <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
 
-          {/* Slot 5: Harvest Basket / Foraging (Reference Slot 5) */}
+          {/* Slot 5: Fishing Rod */}
           <button
             type="button"
             className={`quickbar-wood-slot ${activeToolSlot === 5 ? "is-active" : ""}`}
             onClick={() => onSelectToolSlot?.(5)}
-            title="Harvest Basket / Rod (5)"
+            title="Fishing Rod (5)"
           >
             <span className="slot-num-badge">5</span>
-            <IconBasket size={26} className="quickbar-slot-icon" aria-hidden="true" />
+            <IconRod size={26} className="quickbar-slot-icon" aria-hidden="true" />
           </button>
         </div>
       </aside>

@@ -267,7 +267,7 @@ export class FacetedWater {
     });
 
     this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.position.set(centerX, -0.2, centerZ);
+    this.mesh.position.set(centerX, 0, centerZ);
     this.mesh.receiveShadow = false;
     this.mesh.castShadow = false;
   }

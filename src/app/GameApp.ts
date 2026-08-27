@@ -20,9 +20,29 @@ import { ContentRegistry } from "../content/ContentRegistry";
 import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { WorldLayout } from "../world/WorldLayout";
+import { pickUnlockedStationRecipe } from "../simulation/domains/ProcessingDomain";
+
+const STARTUP_STAGE_TIMEOUT_MS = 30_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
 import {
   HARBOR_DOCK,
   HARBOR_FISH_TABLE,
+  HARBOR_MARKET,
   HARBOR_SKIFF_MOORING,
   VILLAGE_MARKET,
   WORLD_SPAWN
@@ -30,6 +50,7 @@ import {
 import { SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
 import {
   farmLocalToWorld,
+  findFarmIdAtWorld,
   getFarmLayout,
   isPointInsideRect,
   STARTER_FARM_LAYOUT,
@@ -232,6 +253,7 @@ export class GameApp {
   private readonly interactionResolver = new InteractionTargetResolver();
   private farmingActionSnapshot: FarmingActionSnapshot | null = null;
   private hudFishingHold: FishingHoldInput = { isReeling: false, isSlacking: false, isBracing: false };
+  private basicCastHoldLatched = false;
   private isRunning: boolean = false;
   private lastTimeMs: number = 0;
   private fps: number = 60;
@@ -467,7 +489,7 @@ export class GameApp {
       this.sim = new Simulation(saveResult.envelope.state);
       this.attachSimulationFeedback();
       this.durableWritesEnabled = true;
-      this.requestAutosave();
+      await this.saveRepo.saveGame(this.sim.state);
 
       this.modeController.restoreFromState(saveResult.envelope.state);
       this.inputRouter.setMode(this.mode);
@@ -559,20 +581,28 @@ export class GameApp {
       loadedAssets: 0,
       message: "Unpacking the shoreline"
     });
-    await AssetLoader.preloadAll((progress) => {
-      this.updateStartupState({
-        phase: "assets",
-        loadedAssets: progress.completed,
-        totalAssets: progress.total,
-        message: `Unpacking the shoreline · ${progress.completed} of ${progress.total}`
-      });
-    });
+    await withTimeout(
+      AssetLoader.preloadAll((progress) => {
+        this.updateStartupState({
+          phase: "assets",
+          loadedAssets: progress.completed,
+          totalAssets: progress.total,
+          message: `Unpacking the shoreline · ${progress.completed} of ${progress.total}`
+        });
+      }),
+      STARTUP_STAGE_TIMEOUT_MS,
+      "Asset preload timed out"
+    );
 
     this.updateStartupState({ phase: "world", message: "Waking the harbor" });
     await this.worldScene.ready(this.sim.state.worldSeed);
 
     this.updateStartupState({ phase: "physics", message: "Setting the paths" });
-    this.physicsWorld = await PhysicsWorld.create(this.worldScene.staticCollisionProxies());
+    this.physicsWorld = await withTimeout(
+      PhysicsWorld.create(this.worldScene.staticCollisionProxies()),
+      STARTUP_STAGE_TIMEOUT_MS,
+      "Physics startup timed out"
+    );
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
     this.assetCoverage = getAssetCoverageSummary(this.sim.state.worldSeed);
     // Resolve the initial target before exposing boot-ready state. This keeps
@@ -713,7 +743,16 @@ export class GameApp {
             // without rolling the already-applied simulation mutation back.
             if (this.cancelFarmingAction()) return;
           }
+          if (this.mode === "basic-fishing" && this.sim.state.basicFishing?.phase === "charging-cast") {
+            this.sim.execute({ type: "fishing.cancel-basic" });
+            this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
+          }
           if (this.mode === "farm-placement") {
+            if (this.activeModal) {
+              this.modeController.handleEscape();
+              this.syncOverlayState();
+              return;
+            }
             this.exitCropPlacement();
             return;
           }
@@ -806,7 +845,11 @@ export class GameApp {
         if (catchItemId) {
           const qualText = quality && quality !== "normal" ? ` (${quality.toUpperCase()})` : "";
           const perfText = isPerfect ? " [PERFECT!]" : "";
-          this.setToast(`Caught ${ContentRegistry.items.get(catchItemId)?.name ?? "a fish"}${qualText}${perfText}!`, 3000);
+          const catchName =
+            ContentRegistry.items.get(catchItemId)?.name
+            ?? ContentRegistry.fishSpecies.get(catchItemId)?.name
+            ?? "a fish";
+          this.setToast(`Caught ${catchName}${qualText}${perfText}!`, 3000);
           this.worldScene.playPlayerAction("pickup");
         } else if (reason === "inventory-full") {
           this.setToast("Your backpack is full; the fish got away", 2800);
@@ -846,6 +889,7 @@ export class GameApp {
       this.sim.events.on("BasicFishingStarted", () => this.requestAutosave()),
       this.sim.events.on("BasicFishingResolved", () => this.requestAutosave()),
       this.sim.events.on("ItemSold", () => this.requestAutosave()),
+      this.sim.events.on("ItemPurchased", () => this.requestAutosave()),
       this.sim.events.on("SeedPurchased", () => this.requestAutosave()),
       this.sim.events.on("FishSold", () => this.requestAutosave()),
       this.sim.events.on("ContractCompleted", () => this.requestAutosave()),
@@ -1062,9 +1106,25 @@ export class GameApp {
   }
 
   private applyBasicFishingInput(): void {
-    if (this.mode !== "basic-fishing" || !this.sim.state.basicFishing) return;
+    if (this.mode !== "basic-fishing" || !this.sim.state.basicFishing) {
+      this.basicCastHoldLatched = false;
+      return;
+    }
     const input = this.inputRouter.getInputState();
-    if (input.fishing.isReeling !== this.sim.state.basicFishing.isHolding) {
+    const attempt = this.sim.state.basicFishing;
+    if (attempt.phase === "charging-cast") {
+      if (input.fishing.isReeling) this.basicCastHoldLatched = true;
+      else if (this.basicCastHoldLatched) {
+        this.basicCastHoldLatched = false;
+        this.releaseBasicFishingCast();
+      }
+    } else {
+      this.basicCastHoldLatched = false;
+    }
+    if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
+      if (attempt.phase === "charging-cast") return;
+    }
+    if (input.fishing.isReeling !== attempt.isHolding) {
       this.sim.execute({
         type: "fishing.control-basic",
         isHolding: input.fishing.isReeling
@@ -1215,18 +1275,8 @@ export class GameApp {
     }
 
     const stationDefinitions = [
-      {
-        stationId: "struct.starter_mill",
-        recipeId: "recipe.wheat_to_grain",
-        idlePrompt: "[E] Mill Wheat",
-        collectPrompt: "[E] Collect Ground Grain"
-      },
-      {
-        stationId: "struct.workbench",
-        recipeId: "recipe.craft_chum",
-        idlePrompt: "[E] Mix Chum",
-        collectPrompt: "[E] Collect Chum"
-      },
+      this.millStationDefinition(),
+      this.workbenchStationDefinition(),
       {
         stationId: "struct.starter_compost",
         recipeId: "recipe.compost_worms",
@@ -1308,6 +1358,26 @@ export class GameApp {
         modes: ["on-foot"],
         requiresLineOfSight: true,
         prompt: "[E] Browse the produce stall"
+      });
+    }
+
+    const fishMarket = { ...HARBOR_MARKET.position, radiusMeters: HARBOR_MARKET.radiusMeters };
+    const fishMarketDistance = Math.hypot(p.x - fishMarket.x, p.z - fishMarket.z);
+    if (fishMarketDistance <= fishMarket.radiusMeters) {
+      candidates.push({
+        id: "market:market.harbor:trade",
+        kind: "market",
+        action: "trade",
+        distanceMeters: fishMarketDistance,
+        priority: 1,
+        worldPosition: {
+          x: fishMarket.x,
+          y: WorldLayout.terrainHeight(fishMarket.x, fishMarket.z),
+          z: fishMarket.z
+        },
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: "[E] Trade with Maeve"
       });
     }
 
@@ -1606,10 +1676,16 @@ export class GameApp {
       case "cast":
         this.handleCastFishing();
         break;
-      case "trade":
-        this.activeMarketId = this.sim.getNearbyMarketId() ?? "market.village";
+      case "trade": {
+        const nearbyMarket = this.sim.getNearbyMarketId();
+        if (!nearbyMarket) {
+          this.setToast("Visit a market stall to trade");
+          break;
+        }
+        this.activeMarketId = nearbyMarket;
         this.setActiveModal("market");
         break;
+      }
       case "enter":
         this.transitionDoor(FARMHOUSE_INTERIOR_DOOR.enterSpawn, "Entered cozy home");
         break;
@@ -1681,13 +1757,15 @@ export class GameApp {
       }
       case 2: {
         const playerInv = this.sim.state.inventories[this.sim.state.player.inventoryId];
-        const starterCropIds = ["crop.wheat", "crop.tomato", "crop.potato"];
-        let targetCropId: string | null = null;
-        for (const cropId of starterCropIds) {
-          const crop = ContentRegistry.crops.get(cropId);
-          if (crop && playerInv && InventoryManager.getItemCount(playerInv, crop.seedItemId) > 0) {
-            targetCropId = crop.id;
-            break;
+        let targetCropId: string | null = this.selectedCropId;
+        const selectedCrop = targetCropId ? ContentRegistry.crops.get(targetCropId) : undefined;
+        if (!selectedCrop || !playerInv || InventoryManager.getItemCount(playerInv, selectedCrop.seedItemId) <= 0) {
+          targetCropId = null;
+          for (const crop of ContentRegistry.crops.values()) {
+            if (playerInv && InventoryManager.getItemCount(playerInv, crop.seedItemId) > 0) {
+              targetCropId = crop.id;
+              break;
+            }
           }
         }
         if (targetCropId) {
@@ -1723,8 +1801,12 @@ export class GameApp {
 
   private enterCropPlacement(cropId: string): void {
     if (this.sim.state.sportFishing || this.sim.state.basicFishing) return;
-    if (!new Set(["crop.wheat", "crop.tomato", "crop.potato"]).has(cropId)) {
-      this.setToast("This crop is not available from the starter farm yet");
+    if (this.sim.state.player.activeBoatId) {
+      this.setToast("Disembark before planting");
+      return;
+    }
+    if (!ContentRegistry.crops.get(cropId)) {
+      this.setToast("Unknown crop");
       return;
     }
     this.selectedCropId = cropId;
@@ -1754,10 +1836,17 @@ export class GameApp {
       this.clearPlacementPreview();
       return;
     }
+    const player = this.sim.state.player;
+    const farmId = findFarmIdAtWorld(hit.x, hit.z)
+      ?? findFarmIdAtWorld(player.x, player.z, 2.5);
+    if (!farmId) {
+      this.clearPlacementPreview();
+      return;
+    }
     const result = this.sim.query({
       type: "crop.validate-placement",
       request: {
-        farmId: STARTER_FARM_LAYOUT.farmId,
+        farmId,
         cropId: this.selectedCropId,
         x: hit.x,
         z: hit.z
@@ -1856,7 +1945,7 @@ export class GameApp {
       this.inputRouter.setJumpBlocked(false);
     }
     this.worldScene.setFarmingActionPresentation(
-      snapshot.action,
+      snapshot.action === "fertilize" ? "place" : snapshot.action,
       snapshot.phase,
       performance.now() / 1000
     );
@@ -1871,7 +1960,9 @@ export class GameApp {
         ? "workstation"
         : snapshot.action === "processing-collect"
           ? "pickup"
-          : snapshot.action;
+          : snapshot.action === "fertilize"
+            ? "place"
+            : snapshot.action;
       this.worldScene.playPlayerAction(animation);
     }
     if (
@@ -1897,6 +1988,10 @@ export class GameApp {
           break;
         case "water":
           play("watering");
+          break;
+        case "fertilize":
+          play("place");
+          play("plant-dirt");
           break;
         case "harvest":
           play("harvest-cut");
@@ -1934,7 +2029,7 @@ export class GameApp {
       return;
     }
     if (snapshot.phase === "committed") {
-      if (snapshot.action === "plant") this.worldScene.spawnFarmingVfx("dirt", target, timeSeconds);
+      if (snapshot.action === "plant" || snapshot.action === "fertilize") this.worldScene.spawnFarmingVfx("dirt", target, timeSeconds);
       if (snapshot.action === "harvest") this.worldScene.spawnFarmingVfx("straw", target, timeSeconds);
       if (snapshot.action === "processing-start") this.worldScene.spawnFarmingVfx("workstation", target, timeSeconds);
       if (snapshot.action === "processing-collect") this.worldScene.spawnFarmingVfx("pickup", target, timeSeconds);
@@ -1986,23 +2081,68 @@ export class GameApp {
     this.playerPresentation.pushCanonicalPose(this.sim.state.player);
   }
 
-  private fishTableStationDefinition(): {
+  private millStationDefinition(): {
+    stationId: string;
+    recipeId: string;
+    idlePrompt: string;
+    collectPrompt: string;
+  } {
+    return this.pickStationRecipe("struct.starter_mill", "hand-mill", "[E] Mill Grain", "[E] Collect Ground Grain");
+  }
+
+  private workbenchStationDefinition(): {
+    stationId: string;
+    recipeId: string;
+    idlePrompt: string;
+    collectPrompt: string;
+  } {
+    return this.pickStationRecipe("struct.workbench", "workbench", "[E] Mix Chum", "[E] Collect Chum");
+  }
+
+  private pickStationRecipe(
+    stationId: string,
+    stationType: "hand-mill" | "workbench" | "fish-table" | "compost-bin",
+    fallbackIdle: string,
+    fallbackCollect: string
+  ): {
     stationId: string;
     recipeId: string;
     idlePrompt: string;
     collectPrompt: string;
   } {
     const inventory = this.sim.state.inventories[this.sim.state.player.inventoryId];
-    const options = [
-      { recipeId: "recipe.perch_to_scraps", idlePrompt: "[E] Clean Perch", collectPrompt: "[E] Collect Fish Scraps" },
-      { recipeId: "recipe.mackerel_to_scraps", idlePrompt: "[E] Clean Mackerel", collectPrompt: "[E] Collect Fish Scraps" },
-      { recipeId: "recipe.fish_to_fertilizer", idlePrompt: "[E] Make Fertilizer", collectPrompt: "[E] Collect Fertilizer" }
-    ] as const;
-    for (const option of options) {
-      const recipe = ContentRegistry.recipes.get(option.recipeId);
-      if (recipe && InventoryManager.hasItems(inventory, recipe.inputs)) return { stationId: HARBOR_FISH_TABLE.structureId, ...option };
+    const processingXp = this.sim.state.player.proficiencies.processing;
+    const recipe = pickUnlockedStationRecipe(stationType, inventory, processingXp);
+    if (!recipe) {
+      return {
+        stationId,
+        recipeId: "recipe.craft_chum",
+        idlePrompt: fallbackIdle,
+        collectPrompt: fallbackCollect
+      };
     }
-    return { stationId: HARBOR_FISH_TABLE.structureId, ...options[2] };
+    const output = ContentRegistry.items.get(recipe.outputs[0]?.itemId);
+    const hasInputs = InventoryManager.hasItems(inventory, recipe.inputs);
+    return {
+      stationId,
+      recipeId: recipe.id,
+      idlePrompt: hasInputs ? `[E] ${recipe.name}` : fallbackIdle,
+      collectPrompt: `[E] Collect ${output?.name ?? "Output"}`
+    };
+  }
+
+  private fishTableStationDefinition(): {
+    stationId: string;
+    recipeId: string;
+    idlePrompt: string;
+    collectPrompt: string;
+  } {
+    return this.pickStationRecipe(
+      HARBOR_FISH_TABLE.structureId,
+      "fish-table",
+      "[E] Clean Fish",
+      "[E] Collect Scraps"
+    );
   }
 
   private startFertilizeAction(
@@ -2014,7 +2154,7 @@ export class GameApp {
       y: this.sim.state.player.y,
       z: this.sim.state.player.z
     };
-    this.startFarmingAction("water", target.x, target.z, () => {
+    this.startFarmingAction("fertilize", target.x, target.z, () => {
       const result = this.sim.execute({ type: "farm.apply-fertilizer", farmId });
       if (result.success) this.setToast("Fertilized the soil");
       return result;
@@ -2239,6 +2379,11 @@ export class GameApp {
     this.requestAutosave();
   }
 
+  private dismissNewGameConfirm(): void {
+    this.modeController.dismissNewGameConfirm();
+    this.syncOverlayState();
+  }
+
   private handleResetPlayerToSafePlace(): void {
     this.sim.execute({ type: "player.reset-safe" });
     this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
@@ -2324,6 +2469,7 @@ export class GameApp {
         },
         saveRecoveryReason: this.saveRecoveryReason,
         onConfirmNewGame: () => this.confirmNewGame(),
+        onDismissNewGameConfirm: () => this.dismissNewGameConfirm(),
         onOpenMarket: () => {
           if (this.modeController.blocksHudOverlaysAndTools) return;
           const marketId = this.sim.getNearbyMarketId();
@@ -2385,7 +2531,8 @@ export class GameApp {
         },
         onDismissBasicFishingModal: () => {
           if (this.sim.state.basicFishing?.phase === "caught" || this.sim.state.basicFishing?.phase === "escaped") {
-            this.sim.execute({ type: "fishing.cancel-basic" });
+            const result = this.sim.execute({ type: "fishing.cancel-basic" });
+            if (!result.success) this.setToast(result.reason ?? "Your backpack is full");
           }
         },
         onSellItem: (marketId: MarketId, itemId: string, quantity: number) => {
@@ -2395,8 +2542,13 @@ export class GameApp {
         },
         onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => {
           const result = this.sim.execute({ type: "market.buy-seed", marketId, itemId, quantity });
-          if (!result.success) this.setToast(result.reason ?? "Could not buy seed");
-          else if (result.cost != null) this.setToast(`Seed added · ${result.cost} G`);
+          if (result.success) this.setToast("Purchased");
+          else this.setToast(result.reason ?? "Cannot buy");
+        },
+        onBuyItem: (marketId: MarketId, itemId: string, quantity: number) => {
+          const result = this.sim.execute({ type: "market.buy-item", marketId, itemId, quantity });
+          if (result.success) this.setToast("Purchased");
+          else this.setToast(result.reason ?? "Cannot buy");
         },
         onSellFishCargo: (marketId: MarketId, cargoId: string) => {
           const res = this.sim.execute({ type: "market.sell-fish", marketId, cargoId });
@@ -2480,6 +2632,7 @@ export class GameApp {
     this.inputRouter.dispose();
     this.physicsWorld?.dispose();
     this.physicsWorld = null;
+    this.worldScene.dispose();
     this.uiRoot?.unmount();
     this.uiRoot = null;
   }

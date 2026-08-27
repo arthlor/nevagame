@@ -19,7 +19,6 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
     requesterName: "Harbor Tavern Master",
     itemOrSpeciesPool: ["produce.tomato"],
     quantityRange: [5, 10],
-    minQuality: "fine",
     durationMinutes: 960,
     rewardBaseMultiplier: 1.5,
     rewardSkill: "farming",

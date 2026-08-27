@@ -426,12 +426,16 @@ export class FarmingDomain {
       draftRng
     );
     const quantity = calculateHarvestYield(cropDef, crop.health, farmingProficiency, draftRng);
-    if (!InventoryManager.canAddItems(playerInventory, [{ itemId: cropDef.harvestItemId, quantity }])) {
+    const produceStack = [{ itemId: cropDef.harvestItemId, quantity }];
+    const grantPlantMatter = !cropDef.regrows;
+    const harvestStacks = grantPlantMatter
+      ? [...produceStack, { itemId: ANNUAL_PLANT_MATTER_ITEM_ID, quantity: ANNUAL_PLANT_MATTER_YIELD }]
+      : produceStack;
+    if (!InventoryManager.canAddItems(playerInventory, harvestStacks)) {
       return { success: false, reason: "Your backpack is full" };
     }
 
-    InventoryManager.addItemsAtomically(playerInventory, [{ itemId: cropDef.harvestItemId, quantity }]);
-    if (!cropDef.regrows) this.tryGrantAnnualPlantMatter();
+    InventoryManager.addItemsAtomically(playerInventory, harvestStacks);
     farm.soil.fertility = Math.max(FERTILITY_MIN, farm.soil.fertility - cropDef.fertilityCost);
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.harvest);
     state.journal.cropRecords[crop.cropId] ??= { harvestedCount: 0 };

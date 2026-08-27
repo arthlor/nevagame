@@ -53,7 +53,8 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "fish.blue_marlin", basePrice: 480, targetSupply: 1, consumptionRatePerHour: 0.1, seasonalFactors: { summer: 1.35 } },
       { itemId: "item.chum_bucket", basePrice: 25, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} },
       { itemId: "item.crushed_ice", basePrice: 15, targetSupply: 50, consumptionRatePerHour: 3.5, seasonalFactors: { summer: 1.3 } },
-      { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 40, consumptionRatePerHour: 2.5, seasonalFactors: {} }
+      { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 40, consumptionRatePerHour: 2.5, seasonalFactors: {} },
+      { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 4.0, seasonalFactors: {} }
     ]
   }
 };

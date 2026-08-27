@@ -154,8 +154,7 @@ export class Simulation {
         this.setBasicFishingInput(command.isHolding);
         return { success: true };
       case "fishing.cancel-basic":
-        this.cancelBasicFishing();
-        return { success: true };
+        return this.cancelBasicFishing();
       case "fishing.chum-school":
         return this.chumFishSchool(command.schoolId);
       case "fishing.hook-school":
@@ -170,6 +169,8 @@ export class Simulation {
         return this.sellItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.buy-seed":
         return this.buySeedAtMarket(command.marketId, command.itemId, command.quantity);
+      case "market.buy-item":
+        return this.buyItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.sell-fish":
         return this.sellFishCargoAtMarket(command.marketId, command.cargoId);
       case "contract.deliver-items":
@@ -265,6 +266,7 @@ export class Simulation {
     this.processingDomain.tick();
     this.contractDomain.tick();
     this.marketDomain.tick();
+    this.navigationDomain.tickFuel(minutesAdvanced);
     this.fishingDomain.tickSchools();
     this.progressionDomain.tickWorkCapacity(minutesAdvanced);
 
@@ -279,7 +281,7 @@ export class Simulation {
 
   /** Development-only weather override that keeps the complete profile coherent. */
   public setDebugWeather(type: GameState["weather"]["type"]): void {
-    applyWeatherProfile(this.state.weather, type);
+    applyWeatherProfile(this.state.weather, type, this.state.clock.season);
   }
 
   public setDebugMinute(currentMinute: number): boolean {
@@ -647,8 +649,8 @@ export class Simulation {
     this.fishingDomain.setBasicFishingInput(isHolding);
   }
 
-  public cancelBasicFishing(): void {
-    this.fishingDomain.cancelBasicFishing();
+  public cancelBasicFishing(): { success: boolean; reason?: string } {
+    return this.fishingDomain.cancelBasicFishing();
   }
 
   public spawnFishSchool(habitatId: string, x: number, z: number, speciesIds: FishSpeciesId[]): FishSchoolId {
@@ -694,6 +696,10 @@ export class Simulation {
 
   public buySeedAtMarket(marketId: MarketId, itemId: ItemId, quantity: number): InteractionResult {
     return this.marketDomain.buySeed(marketId, itemId, quantity);
+  }
+
+  public buyItemAtMarket(marketId: MarketId, itemId: ItemId, quantity: number): { success: boolean; cost?: number; reason?: string } {
+    return this.marketDomain.buyItem(marketId, itemId, quantity);
   }
 
   public sellFishCargoAtMarket(marketId: MarketId, cargoId: FishCargoId): { success: boolean; revenue?: number; reason?: string } {

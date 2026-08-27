@@ -5,7 +5,8 @@ import {
   determineCropStage,
   calculateCropQuality,
   calculateHarvestYield,
-  applyCropMoistureOverMinutes
+  applyCropMoistureOverMinutes,
+  advancePlacedCropGrowth
 } from "../../src/simulation/farming/calculateCropGrowth";
 import { CROPS } from "../../src/content/crops";
 import { SeededRng } from "../../src/simulation/core/Rng";
@@ -93,5 +94,20 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(crop.moisture).toBe(0);
     expect(crop.moistureSampleCount).toBe(1 + 72 * 60);
     expect(crop.averageMoistureAccum).toBeGreaterThan(70);
+  });
+
+  it("subdivides long rest intervals when moisture crosses growth bands", () => {
+    const crop = {
+      effectiveGrowthMinutes: 0,
+      moisture: 50,
+      averageMoistureAccum: 0,
+      moistureSampleCount: 0,
+      stage: "seeded" as const
+    };
+    advancePlacedCropGrowth(crop, wheat, "temperate", 50, "clear", 600);
+    const frozenAtStart = calculateEffectiveGrowthDelta(600, wheat, "temperate", 50, 50, "clear");
+    expect(crop.moisture).toBeLessThan(15);
+    expect(crop.effectiveGrowthMinutes).toBeLessThan(frozenAtStart);
+    expect(crop.effectiveGrowthMinutes).toBeGreaterThan(0);
   });
 });

@@ -68,14 +68,13 @@ export class AssetLoader {
     return cloned;
   }
 
-  public static async loadModel(assetId: AssetId): Promise<THREE.Group> {
+  public static async loadCached(assetId: AssetId): Promise<THREE.Group> {
     if (this.modelCache.has(assetId)) {
-      return this.cloneModel(this.modelCache.get(assetId)!);
+      return this.modelCache.get(assetId)!;
     }
 
     if (this.loadingPromises.has(assetId)) {
-      const group = await this.loadingPromises.get(assetId)!;
-      return this.cloneModel(group);
+      return this.loadingPromises.get(assetId)!;
     }
 
     const modelPath = assetUrl(assetId);
@@ -97,8 +96,7 @@ export class AssetLoader {
           new THREE.MeshStandardMaterial({ color: 0xff00ff, roughness: 0.8 })
         );
         fallback.add(mesh);
-        // The fallback is deliberately not cached so a later retry can recover.
-        resolve(this.cloneModel(fallback));
+        resolve(fallback);
       };
       this.loader.load(
         modelPath,
@@ -128,11 +126,6 @@ export class AssetLoader {
             if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
             const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];
             if (missingLodNodes.length > 0) {
-              // Keep a published asset visible when its optional LOD contract has
-              // not made it into the artifact yet. Strict art validation still
-              // rejects the mismatch; runtime should not turn a landmark or
-              // character into a blank world while the full authored mesh is
-              // perfectly usable.
               root.userData.runtimeLodLevels = null;
               root.userData.runtimeLodFallback = {
                 expectedNodes: spec.lodLevels?.map((level) => level.node) ?? [],
@@ -143,7 +136,7 @@ export class AssetLoader {
             }
             this.modelCache.set(assetId, root);
             this.loadingPromises.delete(assetId);
-            resolve(this.cloneModel(root));
+            resolve(root);
           } catch (error) {
             fail(error);
           }
@@ -154,8 +147,11 @@ export class AssetLoader {
     });
 
     this.loadingPromises.set(assetId, promise);
-    const result = await promise;
-    return this.cloneModel(result);
+    return promise;
+  }
+
+  public static async loadModel(assetId: AssetId): Promise<THREE.Group> {
+    return this.cloneModel(await this.loadCached(assetId));
   }
 
   public static async preloadAll(
@@ -164,7 +160,7 @@ export class AssetLoader {
     const total = PRELOAD_ASSET_IDS.length;
     let completed = 0;
     await Promise.all(PRELOAD_ASSET_IDS.map(async (assetId) => {
-      await this.loadModel(assetId);
+      await this.loadCached(assetId);
       completed += 1;
       onProgress?.({ assetId, completed, total });
     }));

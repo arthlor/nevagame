@@ -24,6 +24,7 @@ const REGION_LABELS: Record<string, string> = {
   "region.farm": "Homestead Farm",
   "region.village": "Neva Village",
   "region.coast": "Rocky Coast & Lighthouse",
+  "region.harbor": "Seabreak Harbor",
   "region.offshore": "Open Waters"
 };
 
@@ -330,6 +331,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 <h2 id="start-screen-options-title">Options</h2>
               </div>
               <button
+                ref={optionsCloseRef}
                 type="button"
                 className="start-screen__dialog-close"
                 data-testid="startup-options-close"

@@ -166,6 +166,11 @@ export class IndexedDbSaveRepository {
       return false;
     }
 
+    if (!validateSaveEnvelope(envelope)) {
+      console.error("[IndexedDbSaveRepository] Refusing to persist an invalid save envelope");
+      return false;
+    }
+
     const existing = await this.readAndMigrate(db, PRIMARY_KEY);
     if (existing) {
       const backedUp = await this.writeRawToDb(db, BACKUP_KEY, existing);

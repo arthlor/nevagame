@@ -8,6 +8,12 @@ export const MINUTES_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR; // 1440
 export const DAYS_PER_SEASON = 30;
 export const SEASONS: SeasonId[] = ["spring", "summer", "autumn", "winter"];
 
+export function seasonAtMinute(currentMinute: number): SeasonId {
+  const totalDays = Math.floor(Math.max(0, currentMinute) / MINUTES_PER_DAY);
+  const seasonIndex = Math.floor(totalDays / DAYS_PER_SEASON) % SEASONS.length;
+  return SEASONS[seasonIndex];
+}
+
 export class GameClock {
   private state: ClockState;
   private accumulatorSeconds: number = 0;
@@ -68,9 +74,12 @@ export class GameClock {
     if (!Number.isFinite(realDeltaSeconds) || this.state.isPaused || realDeltaSeconds <= 0) {
       return 0;
     }
+    if (this.state.minutesPerRealSecond === 0) {
+      return 0;
+    }
 
     this.accumulatorSeconds += realDeltaSeconds;
-    const secondsPerGameMinute = 1 / Math.max(0.001, this.state.minutesPerRealSecond);
+    const secondsPerGameMinute = 1 / this.state.minutesPerRealSecond;
 
     let minutesToAdvance = 0;
     while (this.accumulatorSeconds >= secondsPerGameMinute) {

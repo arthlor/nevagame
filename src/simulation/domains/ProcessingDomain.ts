@@ -1,11 +1,24 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
-import type { ProcessingJobId, RecipeId } from "../core/types";
+import { isProcessingRecipeUnlocked } from "../../content/progression";
+import type { RecipeDefinition } from "../../content/types";
+import type { InventoryState, ProcessingJobId, RecipeId, StationType } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { assessProcessingStationApproach } from "../../world/ProcessingStationApproach";
 
 export { PROCESSING_STATION_INTERACTION_RADIUS } from "../../world/ProcessingStationApproach";
+
+/** First unlocked recipe the backpack can actually start, else the first unlocked recipe. */
+export function pickUnlockedStationRecipe(
+  stationType: StationType,
+  inventory: InventoryState,
+  processingXp: number
+): RecipeDefinition | undefined {
+  const recipes = [...ContentRegistry.recipes.values()].filter((recipe) => recipe.stationType === stationType);
+  const unlocked = recipes.filter((recipe) => isProcessingRecipeUnlocked(processingXp, recipe.id));
+  return unlocked.find((recipe) => InventoryManager.hasItems(inventory, recipe.inputs)) ?? unlocked[0];
+}
 
 export class ProcessingDomain {
   constructor(
@@ -28,6 +41,9 @@ export class ProcessingDomain {
     }
     if (recipe.minimumSkill && state.player.proficiencies[recipe.minimumSkill.skill] < recipe.minimumSkill.xp) {
       return { success: false, reason: `Requires ${recipe.minimumSkill.xp} ${recipe.minimumSkill.skill} XP` };
+    }
+    if (!isProcessingRecipeUnlocked(state.player.proficiencies.processing, recipeId)) {
+      return { success: false, reason: "That recipe is still locked" };
     }
     if (Object.values(state.processingJobs).some((job) => job.stationId === stationId && job.status !== "collected")) {
       return { success: false, reason: "Station is already in use" };
