@@ -61,7 +61,9 @@ const QUALITY_SPRITE_ALIASES: Readonly<Record<string, QualitySpriteKey>> = {
   fine: "silver",
   exceptional: "gold",
   trophy: "iridium",
-  prize: "iridium"
+  prize: "iridium",
+  good: "silver",
+  pristine: "iridium"
 };
 
 function lookup(map: Record<string, string>, key: string | null | undefined): SpriteUrl | undefined {

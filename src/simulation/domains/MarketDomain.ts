@@ -10,8 +10,6 @@ import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import type { BuySeedReasonCode, InteractionResult } from "../core/contracts";
 
-const VILLAGE_SUPPLIES = new Set<ItemId>(["item.basic_fertilizer", "item.compost_starter"]);
-
 export class MarketDomain {
   public static readonly HARBOR_BUYABLE = [
     "item.crushed_ice",
@@ -19,6 +17,8 @@ export class MarketDomain {
     "item.boat_fuel",
     "item.bait_worms"
   ] as const;
+
+  public static readonly VILLAGE_SUPPLIES = ["item.basic_fertilizer", "item.compost_starter"] as const;
 
   constructor(
     private readonly context: DomainContext,
@@ -88,7 +88,7 @@ export class MarketDomain {
     }
     const item = ContentRegistry.items.get(itemId);
     const starterCrop = [...ContentRegistry.crops.values()].find((crop) => crop.seedItemId === itemId);
-    const isVillageSupply = VILLAGE_SUPPLIES.has(itemId);
+    const isVillageSupply = (MarketDomain.VILLAGE_SUPPLIES as readonly ItemId[]).includes(itemId);
     if (!item || (!starterCrop && !isVillageSupply) || (starterCrop && item.category !== "seed")) {
       return failure("not-stocked", "That seed is not stocked here");
     }

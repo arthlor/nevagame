@@ -14,6 +14,8 @@ describe("UI atlas resolvers", () => {
     expect(qualitySpriteKey("fine")).toBe("silver");
     expect(qualitySpriteKey("exceptional")).toBe("gold");
     expect(qualitySpriteKey("trophy")).toBe("iridium");
+    expect(qualitySpriteKey("good")).toBe("silver");
+    expect(qualitySpriteKey("pristine")).toBe("iridium");
     expect(atlasForQuality("gold")).toContain("quality-gold.png");
   });
 

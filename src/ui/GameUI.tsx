@@ -193,6 +193,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 }) => {
   const showDiagnostics =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+  const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("quests");
 
   // Debug sessions need the diagnostic surface while the real runtime boots;
   // the boot-ready attribute is the synchronization point for browser checks.
@@ -211,7 +212,6 @@ export const GameUI: React.FC<GameUIProps> = ({
   }
 
   const plannerUnlocked = state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
-  const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("quests");
 
   return (
     <div id="ui-container" tabIndex={-1} style={{ width: "100%", height: "100%", position: "relative" }}>

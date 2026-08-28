@@ -6,6 +6,7 @@ import { MarketModal } from "../../src/ui/MarketModal";
 import { InventoryModal } from "../../src/ui/InventoryModal";
 import { JournalModal } from "../../src/ui/JournalModal";
 import { WorldMapModal } from "../../src/ui/components/WorldMapModal";
+import { HowToPlayGuide } from "../../src/ui/components/HowToPlayGuide";
 
 describe("UI Modals Server/Unit Render", () => {
   it("renders MarketModal for village market without throwing", () => {
@@ -26,6 +27,7 @@ describe("UI Modals Server/Unit Render", () => {
     expect(html).toContain("Village Produce Market");
     expect(html).toContain("Wheat");
     expect(html).toContain("Fish Fertilizer");
+    expect(html).toContain("Compost Starter");
   });
 
   it("renders MarketModal for harbor market without throwing", () => {
@@ -79,5 +81,11 @@ describe("UI Modals Server/Unit Render", () => {
       })
     );
     expect(html).toContain("Illuminated Realm of Neva");
+  });
+
+  it("documents the live tool-slot map in the field guide", () => {
+    const html = renderToString(React.createElement(HowToPlayGuide));
+    expect(html).toContain("Hoe, Seeds, Watering Can, Bait, Rod");
+    expect(html).not.toContain("Hoe, Watering Can, Bait, Rod, Basket");
   });
 });

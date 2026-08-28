@@ -1,7 +1,7 @@
 import type { ResolvedPhysicsFrame } from "../core/PhysicsAdapter";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
-import type { BoatId, BoatState, FishCargoState, MarketId } from "../core/types";
+import type { BoatId, BoatState, FishCargoState, GameState, MarketId } from "../core/types";
 import {
   HARBOR_SKIFF_MOORING,
   harborMooringForBoatType,
@@ -14,6 +14,18 @@ import {
   createFullPlayerTraversalState,
   PLAYER_TRAVERSAL_TUNING
 } from "../navigation/PlayerTraversal";
+
+/** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
+export function drainMotorFuel(state: GameState, minutes: number): void {
+  if (minutes <= 0) return;
+  for (const boat of Object.values(state.boats)) {
+    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+    if (!definition || definition.fuelCapacity <= 0) continue;
+    const speedRatio = Math.min(1, Math.abs(boat.speed) / Math.max(0.01, definition.maxSpeed));
+    if (speedRatio < 0.02) continue;
+    boat.fuel = Math.max(0, boat.fuel - minutes * 2 * speedRatio);
+  }
+}
 
 export class NavigationDomain {
   constructor(private readonly context: DomainContext) {}
@@ -72,15 +84,7 @@ export class NavigationDomain {
 
   /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
   public tickFuel(minutes: number): void {
-    if (minutes <= 0) return;
-    const { state } = this.context;
-    for (const boat of Object.values(state.boats)) {
-      const definition = ContentRegistry.boats.get(boat.boatTypeId);
-      if (!definition || definition.fuelCapacity <= 0) continue;
-      const speedRatio = Math.min(1, Math.abs(boat.speed) / Math.max(0.01, definition.maxSpeed));
-      if (speedRatio < 0.02) continue;
-      boat.fuel = Math.max(0, boat.fuel - minutes * 2 * speedRatio);
-    }
+    drainMotorFuel(this.context.state, minutes);
   }
 
   public setDebugPlayerPose(pose: { x: number; y: number; z: number; rotationY: number }): boolean {

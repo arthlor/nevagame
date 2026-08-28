@@ -269,7 +269,12 @@ export class InputRouter {
     if (!this.worldInputSuspended || event.code === "Escape") this.heldInput.press(event.code);
     switch (event.code) {
       case "KeyE":
-        if (!this.worldInputSuspended && !this.layoutEditorActive && this.currentMode !== "sport-fishing") {
+        if (
+          !this.worldInputSuspended &&
+          !this.layoutEditorActive &&
+          this.currentMode !== "sport-fishing" &&
+          this.currentMode !== "basic-fishing"
+        ) {
           this.dispatch("interact");
         }
         break;

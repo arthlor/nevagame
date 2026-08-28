@@ -7,7 +7,8 @@ import type {
   FishSpeciesId,
   FishingEncounterState,
   FishInstance,
-  FishQuality
+  FishQuality,
+  GameState
 } from "../core/types";
 import { BasicFishingMinigame } from "../fishing/BasicFishingMinigame";
 import { FishingEncounter } from "../fishing/FishingEncounter";
@@ -36,6 +37,19 @@ export interface FishingControlInput {
   isSlacking: boolean;
   isBracing: boolean;
   rodDirectionAngle: number;
+}
+
+/** Drop expired or spent schools unless an active sport fight still references them. */
+export function expireSpentSchools(state: GameState): void {
+  const protectedSchoolId =
+    state.sportFishing?.result === "active" ? state.sportFishing.schoolId ?? null : null;
+  const currentMinute = state.clock.currentMinute;
+  for (const [id, school] of Object.entries(state.world.activeSchools)) {
+    if (id === protectedSchoolId) continue;
+    if (currentMinute >= school.expiresAtMinute || school.remainingCatchPotential <= 0) {
+      delete state.world.activeSchools[id];
+    }
+  }
 }
 
 export class FishingDomain {
@@ -356,8 +370,10 @@ export class FishingDomain {
       return { success: false, reason: "Rod class is too light for this species" };
     }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
+    const lureUsed = this.consumeLureIfPresent();
     const quality = this.rollQuality(
-      this.progression.getWorkOutcome().rareChanceMultiplier * (this.consumeLureIfPresent() ? 1.35 : 1)
+      this.progression.getWorkOutcome().rareChanceMultiplier,
+      lureUsed ? 1.35 : 1
     );
     const fish: FishInstance = {
       instanceId: this.context.nextEntityId("fish_inst"),
@@ -377,12 +393,8 @@ export class FishingDomain {
 
   public tickSchools(): void {
     const { state } = this.context;
+    expireSpentSchools(state);
     const currentMinute = state.clock.currentMinute;
-    for (const [id, school] of Object.entries(state.world.activeSchools)) {
-      if (currentMinute >= school.expiresAtMinute || school.remainingCatchPotential <= 0) {
-        delete state.world.activeSchools[id];
-      }
-    }
     // Act 5 has an authored entry path. The first lake school is guaranteed
     // once the rowboat has been commissioned, independent of weather or the
     // normal respawn cadence; subsequent schools retain the live ecology.
@@ -481,9 +493,11 @@ export class FishingDomain {
     if (school.remainingCatchPotential <= 0) delete state.world.activeSchools[schoolId];
   }
 
-  private rollQuality(rareChanceMultiplier: number): FishQuality {
+  private rollQuality(workMultiplier: number, lureMultiplier = 1): FishQuality {
     const roll = this.context.rng.nextFloat();
-    const effectiveRoll = roll * Math.max(0, Math.min(1, rareChanceMultiplier));
+    const work = Math.max(0, Math.min(1, workMultiplier));
+    const lure = Math.max(1, lureMultiplier);
+    const effectiveRoll = Math.min(1, roll * work * lure);
     if (effectiveRoll > 0.92) return "trophy";
     if (effectiveRoll > 0.75) return "exceptional";
     if (effectiveRoll > 0.45) return "fine";

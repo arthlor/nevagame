@@ -1,5 +1,4 @@
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
-import { FARMHOUSE_INTERIOR_BOUNDS } from "../../world/FarmhouseInterior";
 import { WorldLayout } from "../../world/WorldLayout";
 import { waterHeight, type WaterConditions } from "../water/WaterSurface";
 
@@ -111,8 +110,9 @@ export function sampleRainHitSurface(
   timeSeconds: number,
   conditions: WaterConditions
 ): RainSurfaceSample {
-  if (WorldLayout.isInterior(x, z)) {
-    return { height: FARMHOUSE_INTERIOR_BOUNDS.ceilingY, kind: "interior" };
+  const shelter = WorldLayout.rainShelterHit(x, z);
+  if (shelter) {
+    return { height: shelter.height, kind: "interior" };
   }
   if (WorldLayout.isWater(x, z)) {
     return { height: waterHeight(x, z, timeSeconds, conditions), kind: "water" };

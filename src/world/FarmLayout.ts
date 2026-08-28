@@ -141,7 +141,7 @@ export const FARM_FENCE_OVERRIDES: Readonly<Record<string, { x: number; z: numbe
   "fence_east_2": { x: 15.9, z: 2.6, rotationY: 1.5708 },
   "fence_east_4": { x: 16.1, z: 4.6, rotationY: 1.5708 },
   "fence_east_0": { x: 15.9, z: 0.5, rotationY: 1.5708 },
-  "fence_east_-2": { x: 16, z: 6.6, rotationY: 1.5708 },
+  "fence_east_-2": { x: 15.9, z: -0.55, rotationY: 1.5708 },
 };
 
 /** Extra fence posts created by the DEV layout editor (copy/paste). */

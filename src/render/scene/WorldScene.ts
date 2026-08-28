@@ -3374,6 +3374,8 @@ export class WorldScene {
     this.groundCover.dispose();
     this.farmVfx.dispose();
     this.farmVfx.group.removeFromParent();
+    this.rainField.dispose();
+    this.rainField.group.removeFromParent();
     this.water.dispose();
     this.water.mesh.removeFromParent();
     this.shoreFoam.dispose();

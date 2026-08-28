@@ -539,6 +539,14 @@ export class GameApp {
   private setActiveModal(modal: ActiveModal): void {
     const previous = this.activeModal;
     if (modal) this.cancelFarmingAction();
+    if (
+      modal === "pause" &&
+      this.sim.state.basicFishing?.phase === "charging-cast"
+    ) {
+      this.sim.execute({ type: "fishing.cancel-basic" });
+      this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
+      this.basicCastHoldLatched = false;
+    }
     if (modal !== "dialogue") {
       this.activeDialogueNpcId = null;
       this.worldScene.setDialogueNpc(null);
@@ -905,7 +913,7 @@ export class GameApp {
       if (this.modeController.blocksHudOverlaysAndTools && action !== "pause") return;
       switch (action) {
         case "interact":
-          if (this.mode === "sport-fishing" || this.activeModal) return;
+          if (this.mode === "sport-fishing" || this.mode === "basic-fishing" || this.activeModal) return;
           if (this.mode === "farm-placement") this.confirmCropPlacement();
           else this.handleContextInteract();
           break;
@@ -1350,6 +1358,9 @@ export class GameApp {
       this.basicCastHoldLatched = false;
       return;
     }
+    if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
+      return;
+    }
     const input = this.inputRouter.getInputState();
     const attempt = this.sim.state.basicFishing;
     if (attempt.phase === "charging-cast") {
@@ -1360,10 +1371,6 @@ export class GameApp {
       }
     } else {
       this.basicCastHoldLatched = false;
-    }
-    if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
-      if (attempt.phase === "charging-cast") return;
-      return;
     }
     const isHolding = input.fishing.isReeling || this.hudBasicHold;
     if (isHolding !== Boolean(attempt.isHolding)) {
@@ -1911,7 +1918,7 @@ export class GameApp {
   }
 
   private handleContextInteract(): void {
-    if (this.mode === "sport-fishing" || this.farmingActions.isActive) return;
+    if (this.mode === "sport-fishing" || this.mode === "basic-fishing" || this.farmingActions.isActive) return;
 
     const picked = this.pickInteraction();
     if (!picked) return;

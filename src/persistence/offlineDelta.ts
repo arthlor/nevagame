@@ -10,6 +10,8 @@ import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
 import { regenerateWorkCapacity } from "../simulation/domains/ProgressionDomain";
 import { expireContracts } from "../simulation/domains/ContractDomain";
+import { expireSpentSchools } from "../simulation/domains/FishingDomain";
+import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
 
 export interface OfflineProgressionSummary {
   elapsedRealMinutes: number;
@@ -87,6 +89,8 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   state.clock = { ...clock.getState() };
   for (const cropState of Object.values(state.crops)) cropState.lastUpdatedMinute = state.clock.currentMinute;
   regenerateWorkCapacity(state.player.workCapacity, gameMinutesToSimulate, state.clock.currentMinute);
+  drainMotorFuel(state, gameMinutesToSimulate);
+  expireSpentSchools(state);
 
   // Step 4: Processing jobs
   for (const job of Object.values(state.processingJobs)) {

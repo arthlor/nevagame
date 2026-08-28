@@ -8,7 +8,7 @@ import {
   starterStructureAnchor,
   type FarmPathKind
 } from "./FarmLayout";
-import { FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
+import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
 import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_MARKET, VILLAGE_PLAZA, WORLD_SPAWN } from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
@@ -511,6 +511,29 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
     frontApproachMeters: 5.5
   }
 ];
+
+const RAIN_SHELTER_LANDMARKS: readonly { id: LandmarkId; radius: number; rise: number }[] = [
+  { id: "farmhouse", radius: 4.6, rise: 4.4 },
+  { id: "windmill", radius: 3.4, rise: 7.5 },
+  { id: "lighthouse", radius: 2.8, rise: 10 }
+];
+
+function pointInRotatedEnvelope(
+  x: number,
+  z: number,
+  center: WorldPoint,
+  rotationY: number,
+  halfX: number,
+  halfZ: number
+): boolean {
+  const dx = x - center.x;
+  const dz = z - center.z;
+  const cosine = Math.cos(-rotationY);
+  const sine = Math.sin(-rotationY);
+  const localX = dx * cosine - dz * sine;
+  const localZ = dx * sine + dz * cosine;
+  return Math.abs(localX) <= halfX && Math.abs(localZ) <= halfZ;
+}
 
 export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
   revision: 7,
@@ -1087,6 +1110,30 @@ export class WorldLayout {
 
   public static isInterior(x: number, z: number): boolean {
     return isInsideFarmhouseInterior(x, z);
+  }
+
+  /**
+   * Presentation rain hit for roofs and interiors. Gameplay weather is unchanged.
+   * Village pads use authored envelopes; farmhouse/mill/lighthouse use landmark radii.
+   */
+  public static rainShelterHit(x: number, z: number): { height: number } | null {
+    if (this.isInterior(x, z)) {
+      return { height: FARMHOUSE_INTERIOR_BOUNDS.ceilingY };
+    }
+    for (const pad of WORLD_ARCHITECTURE_PADS) {
+      if (!pointInRotatedEnvelope(x, z, pad.center, pad.rotationY, pad.envelope[0], pad.envelope[1])) {
+        continue;
+      }
+      const rise = Math.max(3.6, Math.max(pad.envelope[0], pad.envelope[1]) * 0.85);
+      return { height: this.terrainHeight(x, z) + rise };
+    }
+    for (const shelter of RAIN_SHELTER_LANDMARKS) {
+      const landmark = this.landmark(shelter.id);
+      if (Math.hypot(x - landmark.x, z - landmark.z) <= shelter.radius) {
+        return { height: this.terrainHeight(x, z) + shelter.rise };
+      }
+    }
+    return null;
   }
 
   public static isWalkable(x: number, z: number): boolean {

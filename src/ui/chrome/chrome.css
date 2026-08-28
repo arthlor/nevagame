@@ -560,15 +560,23 @@ kbd,
 .sprint-stamina-track,
 .farming-action-track,
 .quest-progress-bar,
-.stamina-bar-track,
-.catch-progress-track,
-.cast-power-bar-track {
+.stamina-bar-track {
   height: 8px !important;
   overflow: hidden;
   background: rgba(10, 14, 20, 0.85) !important;
   border: 1.5px solid #4a3224;
   border-radius: 3px;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(212, 175, 55, 0.2);
+}
+
+.basic-fishing-container .chrome-meter-track,
+.basic-fishing-container .cast-power-bar-track {
+  height: 16px !important;
+}
+
+.basic-fishing-container .catch-progress-track {
+  width: 14px;
+  height: 100% !important;
 }
 
 .chrome-meter-track span,

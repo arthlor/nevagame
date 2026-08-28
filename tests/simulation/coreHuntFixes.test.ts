@@ -242,5 +242,117 @@ describe("Core hunt fixes", () => {
     expect(pickUnlockedStationRecipe("workbench", inventory, 0)?.id).toBe("recipe.craft_chum");
     expect(pickUnlockedStationRecipe("workbench", inventory, 3000)?.id).toBe("recipe.craft_lure");
   });
+
+  it("keeps the hooked school and a valid save while a sport fight outlives the school TTL", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = sim.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    sim.state.player.x = lake.x;
+    sim.state.player.z = lake.z;
+    expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    expect(sim.hookSportFish(schoolId).success).toBe(true);
+    sim.state.world.activeSchools[schoolId].expiresAtMinute = sim.state.clock.currentMinute;
+    sim.advanceGameMinutes(1);
+    expect(sim.state.world.activeSchools[schoolId]).toBeDefined();
+    expect(sim.state.sportFishing?.schoolId).toBe(schoolId);
+    expect(validateSaveEnvelope({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: sim.state
+    })).toBe(true);
+  });
+
+  it("expires unreferenced schools during offline catch-up without dropping an active fight's school", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = sim.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    sim.state.player.x = lake.x;
+    sim.state.player.z = lake.z;
+    expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    expect(sim.hookSportFish(schoolId).success).toBe(true);
+    sim.state.world.activeSchools[schoolId].expiresAtMinute = sim.state.clock.currentMinute;
+    sim.state.metadata.lastSavedUtcMs = 0;
+    applyOfflineProgression(sim.state, 120_000);
+    expect(sim.state.world.activeSchools[schoolId]).toBeDefined();
+    expect(validateSaveEnvelope({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 120_000,
+      state: sim.state
+    })).toBe(true);
+  });
+
+  it("buys compost starter at the village stall the same way as fertilizer", () => {
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    const before = InventoryManager.getItemCount(inventory, "item.compost_starter");
+    const money = sim.state.player.money;
+    expect(sim.buySeedAtMarket("market.village", "item.compost_starter", 1)).toMatchObject({
+      success: true,
+      cost: 10
+    });
+    expect(InventoryManager.getItemCount(inventory, "item.compost_starter")).toBe(before + 1);
+    expect(sim.state.player.money).toBe(money - 10);
+  });
+
+  it("lets a consumed lure raise sport quality when Work Capacity is full", () => {
+    const qualityRank: Record<string, number> = { common: 0, fine: 1, exceptional: 2, trophy: 3 };
+    const hookQuality = (seed: number, withLure: boolean): { quality: string; lureLeft: number } => {
+      const state = structuredClone(sim.state);
+      state.worldSeed = seed;
+      state.metadata.rngState = undefined;
+      const candidate = new Simulation(state);
+      candidate.state.player.workCapacity.current = 1000;
+      const inventory = candidate.state.inventories[candidate.state.player.inventoryId];
+      InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
+      if (withLure) InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.basic_lure", quantity: 1 }]);
+      const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+      const schoolId = candidate.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+      candidate.state.player.x = lake.x;
+      candidate.state.player.z = lake.z;
+      expect(candidate.chumFishSchool(schoolId).success).toBe(true);
+      const hooked = candidate.hookSportFish(schoolId);
+      expect(hooked.success).toBe(true);
+      return {
+        quality: hooked.encounter!.fish.quality,
+        lureLeft: InventoryManager.getItemCount(inventory, "item.basic_lure")
+      };
+    };
+
+    let improved = false;
+    for (let seed = 0; seed < 64; seed += 1) {
+      const plain = hookQuality(seed, false);
+      const lured = hookQuality(seed, true);
+      expect(lured.lureLeft).toBe(0);
+      expect(qualityRank[lured.quality]).toBeGreaterThanOrEqual(qualityRank[plain.quality]);
+      if (qualityRank[lured.quality] > qualityRank[plain.quality]) improved = true;
+    }
+    expect(improved).toBe(true);
+  });
+
+  it("drains underway skiff fuel during offline catch-up", () => {
+    sim.state.boats["boat.player_skiff"] = {
+      id: "boat.player_skiff",
+      boatTypeId: "boat.skiff",
+      x: HARBOR_DOCK.boatPosition.x,
+      y: 0,
+      z: HARBOR_DOCK.boatPosition.z,
+      headingRadians: 0,
+      speed: 5,
+      fuel: 100,
+      durability: 250,
+      fishCargoSlotIds: [null, null, null, null, null, null],
+      supplyInventoryId: "inv.skiff_supply",
+      upgrades: [],
+      isDocked: false,
+      dockedMarketId: null
+    };
+    sim.state.inventories["inv.skiff_supply"] = InventoryManager.createInventory("inv.skiff_supply", 8);
+    sim.state.metadata.lastSavedUtcMs = 0;
+    applyOfflineProgression(sim.state, 60_000);
+    expect(sim.state.boats["boat.player_skiff"].fuel).toBeLessThan(100);
+  });
 });
 

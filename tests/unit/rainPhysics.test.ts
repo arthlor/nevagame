@@ -14,6 +14,7 @@ import {
   type RainSplashState,
   type RainSurfaceSample
 } from "../../src/render/weather/rainPhysics";
+import { WORLD_ARCHITECTURE_PADS, WorldLayout } from "../../src/world/WorldLayout";
 
 const config = rainPhysicsConfig();
 const focus = { x: 0, y: 2, z: 0 };
@@ -99,5 +100,18 @@ describe("rainPhysics", () => {
     expect(sampleRainHitSurface(240, -240, 0, stillWater).kind).toBe("interior");
     expect(sampleRainHitSurface(0, 180, 0, stillWater).kind).toBe("water");
     expect(sampleRainHitSurface(-65, -55, 0, stillWater).kind).toBe("terrain");
+  });
+
+  it("hits village building roofs instead of falling through to terrain", () => {
+    const stillWater = { seaRoughness: 0.2, windDirectionDeg: 0, windSpeed: 0 };
+    const inn = WORLD_ARCHITECTURE_PADS.find((pad) => pad.id === "village.inn")!;
+    const innHit = sampleRainHitSurface(inn.center.x, inn.center.z, 0, stillWater);
+    expect(innHit.kind).toBe("interior");
+    expect(innHit.height).toBeGreaterThan(WorldLayout.terrainHeight(inn.center.x, inn.center.z) + 3);
+
+    const farmhouse = WorldLayout.landmark("farmhouse");
+    const houseHit = sampleRainHitSurface(farmhouse.x, farmhouse.z, 0, stillWater);
+    expect(houseHit.kind).toBe("interior");
+    expect(houseHit.height).toBeGreaterThan(WorldLayout.terrainHeight(farmhouse.x, farmhouse.z) + 3);
   });
 });

@@ -138,7 +138,7 @@ const ControlsChapter: React.FC = () => (
             <span className="guide-keys">
               <KeycapBadge keyName="1" /> - <KeycapBadge keyName="5" />
             </span>
-            <span className="guide-key-desc">Select Tool Slot (Hoe, Watering Can, Bait, Rod, Basket)</span>
+            <span className="guide-key-desc">Select Tool Slot (Hoe, Seeds, Watering Can, Bait, Rod)</span>
           </div>
           <div className="guide-keybind-row">
             <span className="guide-keys">
@@ -252,7 +252,7 @@ const FarmingChapter: React.FC = () => (
           <IconWateringCan size={24} aria-hidden="true" />
         </div>
         <h6>Water & Maintain</h6>
-        <p>Water thirsty crops with your Can <KeycapBadge keyName="2" />. Keep moisture in the ideal band to prevent withering.</p>
+        <p>Water thirsty crops with your Can <KeycapBadge keyName="3" />. Keep moisture in the ideal band to prevent withering.</p>
       </div>
 
       <div className="guide-step-card">
@@ -343,10 +343,10 @@ const FishingChapter: React.FC = () => (
           For quick shore angling along beaches and wooden docks:
         </p>
         <ol className="guide-numbered-list">
-          <li>Select Bait <KeycapBadge keyName="3" /> and equip your Fishing Rod <KeycapBadge keyName="4" />.</li>
+          <li>Select Bait <KeycapBadge keyName="4" /> and equip your Fishing Rod <KeycapBadge keyName="5" />.</li>
           <li>Stand near the water's edge and hold <strong>Space</strong> or <strong>Left Click</strong> to charge cast distance.</li>
           <li>Watch the water ripples and listen for the bobber bite indicator.</li>
-          <li>Strike promptly with <KeycapBadge keyName="E" /> to hook and land your fish into your satchel!</li>
+          <li>Strike promptly with <KeycapBadge keyName="Space" /> to hook and land your fish into your satchel!</li>
         </ol>
       </div>
 
@@ -468,24 +468,20 @@ const MarketsChapter: React.FC = () => (
       </p>
       <div className="guide-quality-showcase">
         <div className="guide-quality-chip">
-          <ChromeQuality quality="normal" showLabel />
+          <ChromeQuality quality="common" showLabel />
           <span>Base Value (1.0×)</span>
         </div>
         <div className="guide-quality-chip">
-          <ChromeQuality quality="good" showLabel />
-          <span>Good Tier (1.25×)</span>
+          <ChromeQuality quality="fine" showLabel />
+          <span>Fine (1.25×)</span>
         </div>
         <div className="guide-quality-chip">
-          <ChromeQuality quality="silver" showLabel />
-          <span>Silver Star (1.5×)</span>
+          <ChromeQuality quality="exceptional" showLabel />
+          <span>Exceptional (1.6×)</span>
         </div>
         <div className="guide-quality-chip">
-          <ChromeQuality quality="gold" showLabel />
-          <span>Gold Star (2.0×)</span>
-        </div>
-        <div className="guide-quality-chip">
-          <ChromeQuality quality="pristine" showLabel />
-          <span>Pristine Crown (3.0×)</span>
+          <ChromeQuality quality="trophy" showLabel />
+          <span>Trophy / Prize (2.2×)</span>
         </div>
       </div>
     </div>

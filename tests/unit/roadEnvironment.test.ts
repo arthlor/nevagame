@@ -98,6 +98,9 @@ describe("Organic road environment", () => {
     const farmhouse = STARTER_FARM_LAYOUT.farmsteadAnchors.find((anchor) => anchor.id === "farmhouse")!;
     const eastFence = STARTER_FARM_LAYOUT.fenceAnchors.filter((anchor) => anchor.id.startsWith("fence_east_"));
     expect(eastFence.every((anchor) => Math.hypot(anchor.x - farmhouse.x, anchor.z - farmhouse.z) >= farmhouse.clearanceRadius)).toBe(true);
+    const eastMinusTwo = eastFence.find((anchor) => anchor.id === "fence_east_-2")!;
+    expect(eastMinusTwo.z).toBeLessThan(2);
+    expect(eastMinusTwo.z).toBeGreaterThan(-2);
 
     const entry = FARM_ROUTES.find((route) => route.id === "farm-entry")!;
     const gatePoint = entry.points.find((point) => {

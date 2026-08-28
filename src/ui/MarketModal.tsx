@@ -308,32 +308,32 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         </div>
                       );
                     })}
-                  {(() => {
-                    const fertilizer = ContentRegistry.items.get("item.basic_fertilizer");
-                    if (!fertilizer) return null;
-                    const owned = InventoryManager.getItemCount(playerInv, fertilizer.id);
+                  {MarketDomain.VILLAGE_SUPPLIES.map((itemId) => {
+                    const supply = ContentRegistry.items.get(itemId);
+                    if (!supply) return null;
+                    const owned = InventoryManager.getItemCount(playerInv, supply.id);
                     return (
-                      <div className="seed-stall-card" key={fertilizer.id}>
+                      <div className="seed-stall-card" key={supply.id}>
                         <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(fertilizer.id)} alt="" size={32} />
+                          <AtlasImage src={atlasForItem(supply.id)} alt="" size={32} />
                           <div>
-                            <strong>{fertilizer.name}</strong>
-                            <span className="seed-meta-sub">{owned} in bag · Enriches soil</span>
+                            <strong>{supply.name}</strong>
+                            <span className="seed-meta-sub">{owned} in bag · {supply.description}</span>
                           </div>
                         </div>
                         <div className="seed-card-actions">
                           <ChromeButton
                             className="seed-buy-btn"
                             soundCue="coins"
-                            disabled={state.player.money < fertilizer.baseValue}
-                            onClick={() => onBuySeed(activeMarketId, fertilizer.id, 1)}
+                            disabled={state.player.money < supply.baseValue}
+                            onClick={() => onBuySeed(activeMarketId, supply.id, 1)}
                           >
-                            Buy 1 · {fertilizer.baseValue} G
+                            Buy 1 · {supply.baseValue} G
                           </ChromeButton>
                         </div>
                       </div>
                     );
-                  })()}
+                  })}
                 </div>
               </div>
             )}
