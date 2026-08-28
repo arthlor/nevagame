@@ -944,9 +944,9 @@ export class GameApp {
           }
           if (this.mode === "basic-fishing" && this.sim.state.basicFishing?.phase === "charging-cast") {
             this.sim.execute({ type: "fishing.cancel-basic" });
-            this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
             this.basicCastHoldLatched = false;
             this.hudBasicHold = false;
+            this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
           }
           if (this.mode === "farm-placement") {
             if (this.activeModal) {
@@ -1020,10 +1020,8 @@ export class GameApp {
     this.inputRouter.onInterruption(() => {
       this.cancelFarmingAction();
       this.clearFarmGisHold();
-      if (this.sim.state.basicFishing?.phase === "charging-cast") {
-        this.sim.execute({ type: "fishing.cancel-basic" });
-        this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
-      }
+      // setMode/pause also interrupt. Do not cancel a charge here — entering
+      // basic-fishing calls setMode, which would otherwise abort the new cast.
       this.basicCastHoldLatched = false;
       this.hudBasicHold = false;
     });

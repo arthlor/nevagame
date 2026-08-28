@@ -3483,6 +3483,14 @@ export class WorldScene {
     this.playerMesh?.traverse((object) => {
       if (object instanceof THREE.BatchedMesh) batches.add(object);
     });
+    this.windmillRotor?.traverse((object) => {
+      if (object instanceof THREE.BatchedMesh) batches.add(object);
+    });
+    for (const boat of this.boatMeshes.values()) {
+      boat.traverse((object) => {
+        if (object instanceof THREE.BatchedMesh) batches.add(object);
+      });
+    }
     for (const batch of batches) {
       batch.removeFromParent();
       batch.dispose();
