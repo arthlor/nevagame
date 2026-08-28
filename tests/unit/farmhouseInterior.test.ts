@@ -25,6 +25,13 @@ describe("Farmhouse Interior System", () => {
     // Outside starter farm origin should not be interior
     expect(isInsideFarmhouseInterior(8, 0)).toBe(false);
     expect(WorldLayout.isInterior(8, 0)).toBe(false);
+    expect(WorldLayout.regionAt(FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z)).toBe("region.farm");
+    expect(WorldLayout.terrainBaseHeight(FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z)).toBe(
+      FARMHOUSE_INTERIOR_BOUNDS.floorY
+    );
+    expect(WorldLayout.terrainHeight(FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z)).toBe(
+      FARMHOUSE_INTERIOR_BOUNDS.floorY
+    );
   });
 
   it("places doorway anchors with valid interaction radiuses and safe spawn offsets", () => {

@@ -69,7 +69,7 @@ export function calculateEffectiveGrowthDelta(
 
   // 4. Weather modifier
   let weatherMod = 1.0;
-  if (weatherType === "light-rain" || weatherType === "heavy-rain") {
+  if (weatherType === "light-rain" || weatherType === "heavy-rain" || weatherType === "storm") {
     weatherMod = 1.05;
   }
 
@@ -147,7 +147,7 @@ export function calculateHarvestYield(
 export function moistureChangePerHour(waterNeed: number, weatherType: WeatherTag): number {
   let delta = -(waterNeed * 0.4);
   if (weatherType === "light-rain") delta += 15;
-  else if (weatherType === "heavy-rain") delta += 35;
+  else if (weatherType === "heavy-rain" || weatherType === "storm") delta += 35;
   if (weatherType === "windy") delta -= waterNeed * 0.2;
   return delta;
 }

@@ -105,6 +105,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(emptySell).not.toContain('aria-label="Select Harvested Barley"');
     expect(emptySell).not.toContain('aria-label="Select Harvested Wheat"');
     expect(emptySell).not.toContain("Trade Goods at this Stall");
+    expect(emptySell).not.toContain("Sell all produce");
 
     const stocked = new Simulation();
     const inv = stocked.state.inventories[stocked.state.player.inventoryId];

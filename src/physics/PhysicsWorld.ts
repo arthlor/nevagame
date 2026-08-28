@@ -668,10 +668,12 @@ export class PhysicsWorld implements PhysicsAdapter {
     const playerPose = {
       x: resolved.x,
       // Rapier keeps a small collision skin; the canonical/visual foot anchor remains on the terrain or floor.
-      y: Math.max(
-        groundY + PLAYER_POSE_GROUND_OFFSET_METERS,
-        resolved.y - PLAYER_COLLIDER_CENTER_FROM_POSE_METERS - CHARACTER_CONTROLLER_OFFSET_METERS
-      ),
+      y: isResolvedInterior
+        ? FARMHOUSE_INTERIOR_BOUNDS.floorY + PLAYER_POSE_GROUND_OFFSET_METERS
+        : Math.max(
+            groundY + PLAYER_POSE_GROUND_OFFSET_METERS,
+            resolved.y - PLAYER_COLLIDER_CENTER_FROM_POSE_METERS - CHARACTER_CONTROLLER_OFFSET_METERS
+          ),
       z: resolved.z,
       rotationY: this.playerRotationY,
       traversal: {

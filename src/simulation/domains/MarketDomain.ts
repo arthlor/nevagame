@@ -20,6 +20,12 @@ export class MarketDomain {
 
   public static readonly VILLAGE_SUPPLIES = ["item.basic_fertilizer", "item.compost_starter"] as const;
 
+  /** Batch "Sell all produce" is harvest goods only — never bait, fertilizer, ice, chum, or fuel. */
+  public static isBatchSellableProduce(itemId: ItemId): boolean {
+    const category = ContentRegistry.items.get(itemId)?.category;
+    return category === "produce" || category === "grain";
+  }
+
   constructor(
     private readonly context: DomainContext,
     private readonly navigation: NavigationDomain,

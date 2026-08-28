@@ -430,21 +430,29 @@ export class FishingDomain {
     let spawned = false;
     for (const point of SCHOOL_SPAWN_POINTS) {
       if (occupiedHabitats.has(point.habitatId)) continue;
-      const speciesIds = Array.from(ContentRegistry.fishSpecies.values())
-        .filter(
-          (fish) =>
-            fish.isSportFish &&
-            fish.habitats.includes(point.habitatId) &&
-            fish.seasons.includes(state.clock.season) &&
-            fish.timeWindows.includes(state.clock.timeOfDay) &&
-            fish.weatherPreferences.includes(state.weather.type)
-        )
-        .map((fish) => fish.id);
+      const speciesIds = this.listEligibleSportSpecies(point.habitatId);
       if (speciesIds.length === 0) continue;
       this.spawnSchool(point.habitatId, point.x, point.z, speciesIds);
       spawned = true;
     }
     if (spawned) state.world.lastSchoolSpawnMinute = currentMinute;
+  }
+
+  private listEligibleSportSpecies(habitatId: string): FishSpeciesId[] {
+    const { state } = this.context;
+    const inHabitat = Array.from(ContentRegistry.fishSpecies.values()).filter(
+      (fish) =>
+        fish.isSportFish &&
+        fish.habitats.includes(habitatId) &&
+        fish.seasons.includes(state.clock.season)
+    );
+    const inConditions = inHabitat.filter(
+      (fish) =>
+        fish.timeWindows.includes(state.clock.timeOfDay) &&
+        fish.weatherPreferences.includes(state.weather.type)
+    );
+    // Never AND time×weather into a hard-empty sport pool for the vertical slice.
+    return (inConditions.length > 0 ? inConditions : inHabitat).map((fish) => fish.id);
   }
 
   private listEligibleBasicSpecies(habitatId: string, rodClass: "willow" | "river" | "heavy-sport" | "offshore" | "master") {

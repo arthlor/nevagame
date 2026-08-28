@@ -3370,6 +3370,12 @@ export class WorldScene {
    * geometry with AssetLoader and are only detached, not disposed.
    */
   public dispose(): void {
+    this.staticLodBatchInstances.length = 0;
+    this.disposeRuntimeBatchedMeshes(this.staticPrefabGroup);
+    this.disposeRuntimeBatchedMeshes(this.playerMesh);
+    this.disposeRuntimeBatchedMeshes(this.windmillRotor);
+    for (const boat of this.boatMeshes.values()) this.disposeRuntimeBatchedMeshes(boat);
+
     this.cropInstances.dispose();
     this.groundCover.dispose();
     this.farmVfx.dispose();
@@ -3468,6 +3474,19 @@ export class WorldScene {
     this.lightingRig.sun.shadow.map?.dispose();
     this.lightingRig.moon.shadow.map?.dispose();
     this.renderer.dispose();
+  }
+
+  /** Runtime BatchedMesh geometry is generated, not shared with AssetLoader clones. */
+  private disposeRuntimeBatchedMeshes(root: THREE.Object3D | null | undefined): void {
+    if (!root) return;
+    const batches: THREE.BatchedMesh[] = [];
+    root.traverse((object) => {
+      if (object instanceof THREE.BatchedMesh) batches.push(object);
+    });
+    for (const batch of batches) {
+      batch.removeFromParent();
+      batch.dispose();
+    }
   }
 }
 

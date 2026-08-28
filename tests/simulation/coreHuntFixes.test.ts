@@ -6,6 +6,7 @@ import { GameClock, seasonAtMinute, DAYS_PER_SEASON, MINUTES_PER_DAY } from "../
 import { tickMarket } from "../../src/simulation/economy/updateMarket";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
+import { MarketDomain } from "../../src/simulation/domains/MarketDomain";
 import { HARBOR_MARKET, VILLAGE_MARKET, HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
@@ -107,6 +108,55 @@ describe("Core hunt fixes", () => {
     );
     expect(habitats.has(lake.habitatId)).toBe(true);
     expect(habitats.has(coast.habitatId)).toBe(true);
+  });
+
+  it("keeps starter bait when batch-selling produce and never treats supplies as produce", () => {
+    expect(MarketDomain.isBatchSellableProduce("item.bait_worms")).toBe(false);
+    expect(MarketDomain.isBatchSellableProduce("item.basic_fertilizer")).toBe(false);
+    expect(MarketDomain.isBatchSellableProduce("item.crushed_ice")).toBe(false);
+    expect(MarketDomain.isBatchSellableProduce("item.chum_bucket")).toBe(false);
+    expect(MarketDomain.isBatchSellableProduce("item.boat_fuel")).toBe(false);
+    expect(MarketDomain.isBatchSellableProduce("produce.wheat")).toBe(true);
+    expect(MarketDomain.isBatchSellableProduce("produce.tomato")).toBe(true);
+
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    expect(InventoryManager.getItemCount(inventory, "item.bait_worms")).toBe(10);
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 4 }]);
+    const market = sim.state.markets["market.village"];
+    for (const slot of [...inventory.slots]) {
+      const qty = slot.quantity ?? 0;
+      if (!slot.itemId || qty <= 0) continue;
+      if (!MarketDomain.isBatchSellableProduce(slot.itemId)) continue;
+      if (!market.commodities[slot.itemId]) continue;
+      expect(sim.sellItemAtMarket("market.village", slot.itemId, qty).success).toBe(true);
+    }
+    expect(InventoryManager.getItemCount(inventory, "item.bait_worms")).toBe(10);
+    expect(InventoryManager.getItemCount(inventory, "produce.wheat")).toBe(0);
+  });
+
+  it("spawns sport schools in default spring/day/clear using habitat-season fallback", () => {
+    expect(sim.state.clock.season).toBe("spring");
+    expect(sim.state.clock.timeOfDay).toBe("day");
+    expect(sim.state.weather.type).toBe("clear");
+    sim.state.world.storySchoolSpawned = true;
+    sim.state.world.lastSchoolSpawnMinute = sim.state.clock.currentMinute - 90;
+    sim.advanceGameMinutes(1);
+    const habitats = new Set(
+      Object.values(sim.state.world.activeSchools).map((school) => school.habitatId)
+    );
+    expect(habitats.has("lake")).toBe(true);
+    expect(habitats.has("coast")).toBe(true);
+    for (const school of Object.values(sim.state.world.activeSchools)) {
+      expect(school.speciesWeights.length).toBeGreaterThan(0);
+      for (const entry of school.speciesWeights) {
+        const fish = ContentRegistry.fishSpecies.get(entry.speciesId);
+        expect(fish?.isSportFish).toBe(true);
+        expect(fish?.habitats).toContain(school.habitatId);
+        expect(fish?.seasons).toContain("spring");
+      }
+    }
   });
 
   it("applies each market catch-up hour with the season at that hour", () => {

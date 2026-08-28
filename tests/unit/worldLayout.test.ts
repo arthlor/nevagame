@@ -829,6 +829,17 @@ describe("WorldLayout", () => {
     }
   });
 
+  it("keeps cliffside coastal-walk samples on walkable ground into the harbor", () => {
+    const compiled = WorldLayout.compiledRouteNetwork().find((entry) => entry.route.id === "cliffside-coastal-walk");
+    expect(compiled).toBeDefined();
+    for (const sample of compiled!.samples) {
+      expect(
+        WorldLayout.isWalkable(sample.point.x, sample.point.z),
+        `coastal sample (${sample.point.x.toFixed(2)}, ${sample.point.z.toFixed(2)})`
+      ).toBe(true);
+    }
+  });
+
   it("compiles the farmstead paths into the canonical network with shared junctions and a door endpoint", () => {
     expect(WORLD_ROUTE_NETWORK).toEqual([...WORLD_ROUTES, ...FARM_ROUTES]);
     expect(FARM_ROUTES.map((route) => route.id)).toEqual([

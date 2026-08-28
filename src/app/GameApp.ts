@@ -422,6 +422,7 @@ export class GameApp {
     this.modeController.setGameplayMode(mode);
     this.inputRouter.setMode(mode);
     if (mode !== "farm-placement") this.clearPlacementPreview();
+    if (mode !== "basic-fishing") this.basicCastHoldLatched = false;
   }
 
   private syncOverlayState(): void {
@@ -940,6 +941,7 @@ export class GameApp {
           }
           if (this.mode === "basic-fishing" && this.sim.state.basicFishing?.phase === "charging-cast") {
             this.sim.execute({ type: "fishing.cancel-basic" });
+            this.basicCastHoldLatched = false;
             this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
           }
           if (this.mode === "farm-placement") {
@@ -1014,6 +1016,7 @@ export class GameApp {
     this.inputRouter.onInterruption(() => {
       this.cancelFarmingAction();
       this.clearFarmGisHold();
+      this.basicCastHoldLatched = false;
     });
   }
 
@@ -1384,6 +1387,7 @@ export class GameApp {
   private cancelBasicFishingLine(): void {
     if (!this.sim.state.basicFishing) return;
     this.hudBasicHold = false;
+    this.basicCastHoldLatched = false;
     this.sim.execute({ type: "fishing.cancel-basic" });
     this.setToast("Line reeled in", 1600);
   }
@@ -2819,6 +2823,7 @@ export class GameApp {
     }
     if (this.mode === "basic-fishing" && !this.sim.state.basicFishing) {
       this.hudBasicHold = false;
+      this.basicCastHoldLatched = false;
       this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
     }
 

@@ -346,14 +346,22 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     kind: "trail",
     widthMeters: 2.6,
     points: [
-      { x: -92, z: 74 },
+      LIGHTHOUSE_GATEWAY,
       { x: -68, z: 70 },
-      { x: -40, z: 68 },
-      { x: -10, z: 66 },
-      { x: 22, z: 62 },
-      { x: 47, z: 58 },
+      { x: -68, z: 54 },
+      { x: -43, z: 34 },
+      { x: -20, z: 14 },
+      BRIDGE_WEST_APPROACH_START,
+      BRIDGE_WEST_DECK_EDGE,
+      BRIDGE_CENTER,
+      BRIDGE_EAST_DECK_EDGE,
+      BRIDGE_EAST_APPROACH_END,
+      { x: 20, z: 8 },
+      { x: 40, z: 24 },
+      { x: 62, z: 44 },
       HARBOR_MARKET.position
-    ]
+    ],
+    linearSegmentIndices: [5, 6, 7, 8, 12]
   }
 ] as const;
 
@@ -1100,6 +1108,7 @@ export class WorldLayout {
   }
 
   public static regionAt(x: number, z: number): "region.village" | "region.farm" | "region.coast" | "region.harbor" | "region.offshore" {
+    if (this.isInterior(x, z)) return "region.farm";
     const habitat = this.fishingHabitatAt(x, z);
     if (habitat === "offshore" || z >= 130) return "region.offshore";
     if (z >= 48 && x >= 40) return "region.harbor";
@@ -1311,6 +1320,7 @@ export class WorldLayout {
 
   /** Graded landform without the exact worked-road relief collider. */
   public static terrainBaseHeight(x: number, z: number): number {
+    if (this.isInterior(x, z)) return FARMHOUSE_INTERIOR_BOUNDS.floorY;
     const naturalHeight = this.naturalTerrainHeight(x, z);
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];

@@ -1,12 +1,24 @@
-import type { FishCargoId, GameState, ItemId } from "../core/types";
+import type { ContractState, FishCargoId, GameState, ItemId } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import type { ContractTemplateDefinition } from "../../content/types";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { qualityRank } from "./domainRules";
+
+const CONTRACT_BOARD_LIMIT = 2;
+const CONTRACT_SKILL_XP_PER_UNIT = 25;
+
+const CONTRACT_REQUESTER_IDS: Readonly<Record<string, string>> = {
+  "Village Baker": "npc.elspeth",
+  "Harbor Tavern Master": "npc.maeve",
+  "Harbor Innkeeper": "npc.silas",
+  "Wholesale Fish Buyer": "npc.maeve",
+  "Maritime Guild Officer": "npc.silas"
+};
 
 export function expireContracts(state: GameState): void {
   for (const contract of state.contracts) {
@@ -113,6 +125,65 @@ export class ContractDomain {
 
   public tick(): void {
     expireContracts(this.context.state);
+    this.refillContracts();
+  }
+
+  /** Deterministic board refill from catalog templates. Max two active; honor requiredXp. */
+  private refillContracts(): void {
+    const { state, rng } = this.context;
+    const active = state.contracts.filter((contract) => contract.status === "active");
+    const occupiedTemplates = new Set(active.map((contract) => contract.templateId));
+    let slots = CONTRACT_BOARD_LIMIT - active.length;
+    if (slots <= 0) return;
+
+    for (const template of ContentRegistry.contractTemplates.values()) {
+      if (slots <= 0) break;
+      if (occupiedTemplates.has(template.id)) continue;
+      const requiredXp = template.requiredXp ?? 0;
+      if (state.player.proficiencies[template.rewardSkill] < requiredXp) continue;
+      const listing = this.instantiateFromTemplate(template);
+      if (!listing) continue;
+      state.contracts.push(listing);
+      occupiedTemplates.add(template.id);
+      slots -= 1;
+    }
+    if (rng.getState() !== state.metadata.rngState) this.context.persistRng();
+  }
+
+  private instantiateFromTemplate(template: ContractTemplateDefinition): ContractState | null {
+    const { state, rng } = this.context;
+    if (template.itemOrSpeciesPool.length === 0) return null;
+    const poolIndex = template.itemOrSpeciesPool.length === 1
+      ? 0
+      : rng.intInclusive(0, template.itemOrSpeciesPool.length - 1);
+    const targetItemIdOrSpecies = template.itemOrSpeciesPool[poolIndex];
+    const quantityRequired = rng.intInclusive(template.quantityRange[0], template.quantityRange[1]);
+    const item = ContentRegistry.items.get(targetItemIdOrSpecies);
+    const fish = ContentRegistry.fishSpecies.get(targetItemIdOrSpecies);
+    const baseValue = item?.baseValue ?? fish?.baseMarketValue;
+    if (baseValue === undefined) return null;
+    const minWeightKg = template.minWeightKgRange
+      ? rng.intInclusive(template.minWeightKgRange[0], template.minWeightKgRange[1])
+      : undefined;
+    return {
+      id: this.context.nextEntityId("contract"),
+      templateId: template.id,
+      requesterId: CONTRACT_REQUESTER_IDS[template.requesterName] ?? `npc.${template.requesterName.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+      type: template.type,
+      targetItemIdOrSpecies,
+      quantityRequired,
+      quantityFulfilled: 0,
+      minQuality: template.minQuality,
+      minFreshness: template.minFreshness,
+      minWeightKg,
+      rewardMoney: Math.round(baseValue * quantityRequired * template.rewardBaseMultiplier),
+      rewardSkillXp: {
+        skill: template.rewardSkill,
+        xp: quantityRequired * CONTRACT_SKILL_XP_PER_UNIT
+      },
+      expiresAtMinute: state.clock.currentMinute + template.durationMinutes,
+      status: "active"
+    };
   }
 
   private getActive(contractId: string): GameState["contracts"][number] | null {
