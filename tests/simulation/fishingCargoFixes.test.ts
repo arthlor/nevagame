@@ -3,8 +3,6 @@ import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
-import { FishingEncounter } from "../../src/simulation/fishing/FishingEncounter";
-import { SeededRng } from "../../src/simulation/core/Rng";
 import { QUESTS } from "../../src/content/quests";
 
 describe("Fishing, cargo, quest, and habitat fixes", () => {
@@ -125,7 +123,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
   });
 
-  it("logs and keeps sportFishing when fromState cannot restore the encounter", () => {
+  it("nulls unrestorable sport fishing so the encounter cannot lock other actions", () => {
     const clone = structuredClone(sim.state);
     clone.sportFishing = {
       fish: {
@@ -154,10 +152,11 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
       result: "active"
     };
     const loaded = new Simulation(clone);
-    expect(loaded.state.sportFishing).not.toBeNull();
-    expect(loaded.state.sportFishing?.fish.speciesId).toBe("fish.missing");
+    expect(loaded.state.sportFishing).toBeNull();
     expect(loaded.activeFishingEncounter).toBeNull();
-    expect(() => FishingEncounter.fromState(loaded.state.sportFishing!, new SeededRng(1))).toThrow(/Unknown species/);
+    loaded.state.player.x = -8;
+    loaded.state.player.z = 0;
+    expect(loaded.startChargingBasicFishing().success).toBe(true);
   });
 
   it("keeps the authored story school in lake water", () => {

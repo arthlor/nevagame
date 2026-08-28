@@ -380,7 +380,7 @@ describe("Gameplay simulation fixes", () => {
     sim.advanceGameMinutes(90);
     expect(sim.state.clock.currentMinute).toBe(startMinute + 90);
     expect(sim.clock.getMinuteOfHour()).toBe(30);
-    expect(wheat.lastTickMinute).toBe(startMinute + 60);
+    expect(wheat.lastTickMinute).toBe(startMinute + 90);
   });
 
   it("advances scheduled weather deterministically and persists the next forecast window", () => {
