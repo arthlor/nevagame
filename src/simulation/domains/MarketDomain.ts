@@ -9,6 +9,7 @@ import type { DomainContext } from "./DomainContext";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import type { BuySeedReasonCode, InteractionResult } from "../core/contracts";
+import { isVillageSeedCrop } from "../../content/markets";
 
 export class MarketDomain {
   public static readonly HARBOR_BUYABLE = [
@@ -95,7 +96,11 @@ export class MarketDomain {
     const item = ContentRegistry.items.get(itemId);
     const starterCrop = [...ContentRegistry.crops.values()].find((crop) => crop.seedItemId === itemId);
     const isVillageSupply = (MarketDomain.VILLAGE_SUPPLIES as readonly ItemId[]).includes(itemId);
-    if (!item || (!starterCrop && !isVillageSupply) || (starterCrop && item.category !== "seed")) {
+    if (
+      !item ||
+      (!starterCrop && !isVillageSupply) ||
+      (starterCrop && (!isVillageSeedCrop(starterCrop.id) || item.category !== "seed"))
+    ) {
       return failure("not-stocked", "That seed is not stocked here");
     }
     if (starterCrop && state.player.proficiencies.farming < starterCrop.minimumFarmingXp) {
@@ -127,7 +132,11 @@ export class MarketDomain {
     if (!Number.isSafeInteger(quantity) || quantity <= 0) {
       return { success: false, reason: "Choose a positive whole quantity" };
     }
-    if (marketId !== "market.harbor" || !MarketDomain.HARBOR_BUYABLE.includes(itemId as (typeof MarketDomain.HARBOR_BUYABLE)[number])) {
+    const isHarborBuyable = marketId === "market.harbor" && MarketDomain.HARBOR_BUYABLE.includes(itemId as (typeof MarketDomain.HARBOR_BUYABLE)[number]);
+    const isVillageBuyable =
+      marketId === "market.village" &&
+      (MarketDomain.VILLAGE_SUPPLIES as readonly ItemId[]).includes(itemId);
+    if (!isHarborBuyable && !isVillageBuyable) {
       return { success: false, reason: "This stall does not sell that supply" };
     }
     const item = ContentRegistry.items.get(itemId);

@@ -41,8 +41,12 @@ export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = 
   "seeded-fill.trees.northwest-farm.001": { x: -77.7, z: -76.2, rotationY: 1.3619 },
   "seeded-fill.trees.northwest-farm.002": { x: -67, z: -74.1, rotationY: 5.1019 },
   "seeded-fill.trees.northwest-farm.009": { x: -47.5, z: -48.5, rotationY: 3.5326 },
-  "seeded-fill.trees.southeast-harbor.007": { x: 88.4, z: 60.1, rotationY: 4.453 },
+  "seeded-fill.trees.southeast-harbor.007": { x: 106.9, z: 34, rotationY: 4.453 },
   "seeded-fill.trees.southeast-harbor.006": { x: 85.8, z: 49.5, rotationY: 5.3055 },
+  "seeded-fill.bushes.uplands.001": { x: 50.7, z: -29.3, rotationY: 6.2832 },
+  "seeded-fill.bushes.uplands.014": { x: 30.4, z: -23.8, rotationY: 2.7361 },
+  "seeded-fill.bushes.coastal.018": { x: 97.8, z: 58.9, rotationY: 3.7116 },
+  "seeded-fill.bushes.coastal.004": { x: 36.9, z: 22.2, rotationY: 2.3684 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
@@ -167,9 +171,9 @@ function clamp01(value: number): number {
 
 /** Low, broad clumps make one meadow carpet instead of isolated dark spikes. */
 function grassClumpScale(variant: number): { horizontal: number; vertical: number } {
-  if (variant === 2) return { horizontal: 0.98, vertical: 1.02 };
-  if (variant === 1) return { horizontal: 1, vertical: 1 };
-  return { horizontal: 1.02, vertical: 0.98 };
+  if (variant === 2) return { horizontal: 1.02, vertical: 0.84 };
+  if (variant === 1) return { horizontal: 1.08, vertical: 0.8 };
+  return { horizontal: 1.12, vertical: 0.72 };
 }
 
 /** @internal Deterministic world-space bias used to form broad meadow grass pockets. */
@@ -374,7 +378,7 @@ const CLEARANCES = [
   { x: -14, z: -7, radius: 9 },
   { x: HARBOR_MARKET.position.x, z: HARBOR_MARKET.position.z, radius: 8 },
   { x: -92, z: 74, radius: 7 },
-  { x: 78, z: 67, radius: 8 },
+  { x: 77.6, z: 70.2, radius: 10 },
   { x: HARBOR_DOCK.boatPosition.x, z: HARBOR_DOCK.boatPosition.z, radius: 5.5 },
   { x: HARBOR_SKIFF_MOORING.boatPosition.x, z: HARBOR_SKIFF_MOORING.boatPosition.z, radius: 5.5 },
   { x: FARMHOUSE_INTERIOR_ORIGIN.x, z: FARMHOUSE_INTERIOR_ORIGIN.z, radius: 8.5 }
@@ -514,37 +518,45 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.tree.pine.headland", { assetId: "tree_pine_b", x: -122, z: 45, rotationY: -0.42, scale: [1, 1, 1], grounding: [1.28, 0.8] }),
   authoredPlacement("authored.foliage.reeds.bridge-south", { assetId: "foliage_reeds_a", x: -8, z: -14.5, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.foliage.reeds.bridge-north", { assetId: "foliage_reeds_a", x: -20, z: 0.5, rotationY: -0.25, scale: [1, 1, 1] }),
-  authoredPlacement("authored.rock.headland-a", { assetId: "rock_coastal_a", x: -98, z: WorldLayout.coastlineZ(-98) - 15, rotationY: 0.24, scale: [1.15, 0.82, 1.1], grounding: [2.25, 1.35] }),
+  authoredPlacement("authored.rock.headland-a", { assetId: "rock_coastal_a", x: -97.5, z: 71.5, rotationY: 0.24, scale: [1.15, 0.82, 1.1], grounding: [2.25, 1.35] }),
   authoredPlacement("authored.rock.headland-b", { assetId: "rock_coastal_b", x: -88, z: WorldLayout.coastlineZ(-88) - 15, rotationY: -0.36, scale: [0.9, 0.72, 0.86], grounding: [2.05, 1.25] }),
   authoredPlacement("authored.rock.western-shelf", { assetId: "rock_coastal_c", x: -48, z: WorldLayout.coastlineZ(-48) - 10, rotationY: 0.17, scale: [0.82, 0.72, 0.86], grounding: [1.65, 1.18] }),
   authoredPlacement("authored.rock.harbor-shelf-boulder", { assetId: "rock_coastal_boulder_a", x: 108, z: WorldLayout.coastlineZ(108) - 8, rotationY: 0.32, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
-  authoredPlacement("authored.rock.eastern-shelf", { assetId: "rock_coastal_d", x: 126, z: WorldLayout.coastlineZ(126) - 10, rotationY: -0.22, scale: [1, 0.8, 0.95], grounding: [2.15, 1.42] }),
+  authoredPlacement("authored.rock.eastern-shelf", { assetId: "rock_coastal_d", x: 93.9, z: 65.9, rotationY: -0.22, scale: [1, 0.8, 0.95], grounding: [2.15, 1.42] }),
   authoredPlacement("authored.rock.uplands-boulder", { assetId: "rock_boulder_a", x: 93, z: -31, rotationY: 0.38, scale: [1.2, 1, 1.1], grounding: [1.7, 1.15] }),
   authoredPlacement("authored.rock.village-field", { assetId: "rock_field_a", x: 80, z: -34, rotationY: 0.62, scale: [0.8, 0.65, 0.75], grounding: [0.85, 0.58] }),
-  authoredPlacement("authored.rock.harbor-boulder", { assetId: "rock_boulder_a", x: 91, z: 54.4, rotationY: -0.18, scale: [1.1, 0.9, 1], grounding: [1.55, 1.05] }),
+  authoredPlacement("authored.rock.harbor-boulder", { assetId: "rock_boulder_a", x: 97.1, z: 54.6, rotationY: -0.18, scale: [1.1, 0.9, 1], grounding: [1.55, 1.05] }),
   authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 43.1, z: -47.5, rotationY: -1.8326, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-east", { assetId: "prop_lamp_post_a", x: 64.4, z: -47.4, rotationY: 2.618, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-mill", { assetId: "prop_lamp_post_a", x: 44.3, z: -64.7, rotationY: 0.12, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.harbor", { assetId: "prop_lamp_post_a", x: 68.5, z: 57.2, rotationY: 0.05, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.harbor", { assetId: "prop_lamp_post_a", x: 68.8, z: 57.6, rotationY: -4.1888, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.crate.harbor", { assetId: "prop_crate_wood_a", x: 69, z: 65.1, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.barrel.harbor", { assetId: "prop_barrel_wood_a", x: 81.9, z: 66.9, rotationY: 0.1, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.trap.harbor", { assetId: "prop_lobster_trap_a", x: 81.5, z: 66, rotationY: 0.65, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.net-rack.harbor", { assetId: "prop_fishing_net_rack_a", x: 67.5, z: 64.5, rotationY: 0.22, scale: [1, 1, 1] }),
-  authoredPlacement("authored.fauna.chicken.farm-a", { assetId: "fauna_chicken_a", x: -61.7, z: -69.6, rotationY: 0.8, scale: [1.1, 1.1, 1.1] }),
-  authoredPlacement("authored.fauna.chicken.farm-b", { assetId: "fauna_chicken_a", x: -60.4, z: -68.1, rotationY: -0.5, scale: [0.92, 0.92, 0.92] }),
+  authoredPlacement("authored.fauna.chicken.farm-a", { assetId: "fauna_chicken_a", x: -63.3, z: -69.6, rotationY: 0.7854, scale: [1.1, 1.1, 1.1] }),
+  authoredPlacement("authored.fauna.chicken.farm-a.copy.1", { assetId: "fauna_chicken_a", x: -60.2, z: -69.6, rotationY: 0.8, scale: [1.1, 1.1, 1.1] }),
+  authoredPlacement("authored.fauna.chicken.farm-a.copy.2", { assetId: "fauna_chicken_a", x: -63.5, z: -66.6, rotationY: 0.7854, scale: [1.1, 1.1, 1.1] }),
+  authoredPlacement("authored.fauna.chicken.farm-b", { assetId: "fauna_chicken_a", x: -61.2, z: -68.1, rotationY: -0.5, scale: [0.92, 0.92, 0.92] }),
   authoredPlacement("authored.prop.wagon.farm-road", { assetId: "prop_wagon_cart_a", x: -50.6, z: -57.4, rotationY: -3.6652, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
-  authoredPlacement("authored.fauna.cow.farm-meadow", { assetId: "fauna_cow_a", x: -69.8, z: -67.5, rotationY: 0.42, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
+  authoredPlacement("authored.fauna.cow.farm-meadow", { assetId: "fauna_cow_a", x: -70.1, z: -68, rotationY: 0.42, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
+  authoredPlacement("authored.fauna.cow.farm-meadow.copy.1", { assetId: "fauna_cow_a", x: -67.8, z: -69.4, rotationY: 0.7854, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
 
   // --- Curated Polyfork Vignettes ---
 
   // Farmhouse exterior: firewood stacked just outside the southeast wall
   authoredPlacement("authored.farm.firewood", { assetId: "prop_firewood_stack_a", x: -50, z: -54.1, rotationY: 4.7124, scale: [1, 1, 1] }),
   // Wheelbarrow parked beside the farm work-path, facing the crop rows
-  authoredPlacement("authored.farm.wheelbarrow", { assetId: "prop_wheelbarrow_a", x: -56.9, z: -60.8, rotationY: -4.1888, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.wheelbarrow", { assetId: "prop_wheelbarrow_a", x: -56.5, z: -61.4, rotationY: -4.1888, scale: [1, 1, 1] }),
   // Beehive in the sunny meadow east of the chicken yard
   authoredPlacement("authored.farm.beehive", { assetId: "prop_beehive_a", x: -56, z: -49, rotationY: -0.2, scale: [1, 1, 1] }),
   // Sunflower row along the northern farm perimeter fence
-  authoredPlacement("authored.farm.sunflowers", { assetId: "foliage_sunflower_a", x: -70, z: -44.3, rotationY: 0.4, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.sunflowers", { assetId: "foliage_sunflower_a", x: -71.5, z: -42.6, rotationY: 1.0472, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.sunflowers.copy.1", { assetId: "foliage_sunflower_a", x: -70.7, z: -43.2, rotationY: 1.0472, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.sunflowers.copy.2", { assetId: "foliage_sunflower_a", x: -71.7, z: -41.9, rotationY: 1.309, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.sunflowers.copy.3", { assetId: "foliage_sunflower_a", x: -71.3, z: -43.4, rotationY: 1.309, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.sunflowers.copy.4", { assetId: "foliage_sunflower_a", x: -71.1, z: -42.5, rotationY: 1.309, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.sunflowers.copy.5", { assetId: "foliage_sunflower_a", x: -71.2, z: -41.7, rotationY: 1.309, scale: [1, 1, 1] }),
   // Mushroom cluster under the large western oak (shade-dwelling)
   authoredPlacement("authored.farm.mushrooms", { assetId: "foliage_mushroom_cluster_a", x: -80, z: -49, rotationY: 0.2, scale: [0.9, 0.9, 0.9] }),
   authoredPlacement("authored.spawn.bush-left", { assetId: "foliage_bush_a", x: -70.4, z: -63.6, rotationY: 0.55, scale: [1.38, 1.42, 1.38], grounding: [0.9, 0.7] }),
@@ -563,8 +575,7 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   // Dock lantern at the pier entrance, aligned with the walkway
 
   // Mooring post at the dock edge near the rowboat
-  authoredPlacement("authored.harbor.mooring-post", { assetId: "prop_mooring_post_a", x: 79.6, z: 64, rotationY: 0, scale: [1, 1, 1] }),
-  authoredPlacement("authored.harbor.mooring-post.copy.1", { assetId: "prop_mooring_post_a", x: 76.4, z: 63.5, rotationY: 0, scale: [1, 1, 1] }),
+
 
   // Village plaza: open packed courtyard. Buildings sit on a wide ring with
   // published +Z doors facing the market. The mill pad stays southwest, off-court.
@@ -919,7 +930,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
       meadowCoverGround(x, z)
       && WorldLayout.pathInfluence(x, z) < GRASS_MAX_PATH_INFLUENCE
       && WorldLayout.shorelineWetness(x, z) < 0.62,
-    [1.08, 1.36],
+    [0.96, 1.22],
     "ground-cover.grass",
     grassPlacementDensityAt,
     {
@@ -932,7 +943,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
   const homesteadGrass = scatterHomesteadMeadowGrass(
     HOMESTEAD_MEADOW_GRASS_COUNT,
     mixSeed(worldSeed, 0x1a42),
-    [1.08, 1.36]
+    [0.96, 1.22]
   );
   const flowers = scatterGroundCover(
     "flowers",
@@ -967,11 +978,13 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     mixSeed(worldSeed, 0x2b91)
   );
   const tallMeadowGround = (x: number, z: number) => {
-    if (!meadowCoverGround(x, z) || WorldLayout.pathInfluence(x, z) >= 0.18) return false;
+    if (!meadowCoverGround(x, z) || WorldLayout.pathInfluence(x, z) >= 0.08) return false;
     const wetness = WorldLayout.shorelineWetness(x, z);
     const waterDistance = WorldLayout.waterSignedDistance(x, z);
+    // Taller growth belongs to unworked meadow pockets and wet banks, not a
+    // continuous verge that obscures the road's low, walkable shoulder.
     return (wetness > 0.1 && wetness < 0.72)
-      || WorldLayout.pathShoulderInfluence(x, z) > 0.18
+      || WorldLayout.terrainSurfaceWeights(x, z).meadow > 0.26
       || (waterDistance > -8 && waterDistance < -1.4);
   };
   const meadowTall = scatterGroundCover(
@@ -985,8 +998,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     (x, z) => clamp01(
       0.22
         + WorldLayout.shorelineWetness(x, z) * 0.55
-        + WorldLayout.pathShoulderInfluence(x, z) * 0.42
-        + WorldLayout.terrainSurfaceWeights(x, z).meadow * 0.18
+        + WorldLayout.terrainSurfaceWeights(x, z).meadow * 0.36
     ),
     {
       patchCount: 190,
@@ -997,11 +1009,19 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
   ).map((placement, index) => {
     const wetness = WorldLayout.shorelineWetness(placement.x, placement.z);
     const waterDistance = WorldLayout.waterSignedDistance(placement.x, placement.z);
-    const belongsAtWetEdge = wetness > 0.16 || (waterDistance > -8 && waterDistance < -1.4);
-    if (!belongsAtWetEdge) return placement;
+    const coast = WorldLayout.coastProfile(placement.x);
+    const coastDistance = placement.z - WorldLayout.coastlineZ(placement.x);
+    const belongsAtCoastalWetEdge = coastDistance > -8
+      && coastDistance < -0.7
+      && (wetness > 0.14 || waterDistance > -5.5);
+    if (!belongsAtCoastalWetEdge) return placement;
+    const belongsInReedPocket = coast.reedPocket > 0.22
+      || WorldLayout.estuaryInfluence(placement.x, placement.z) > 0.08;
     return {
       ...placement,
-      assetId: index % 2 === 0 ? "foliage_reeds_a" : "foliage_cattail_a"
+      assetId: belongsInReedPocket
+        ? index % 2 === 0 ? "foliage_reeds_a" : "foliage_cattail_a"
+        : "foliage_beach_grass_a"
     };
   });
   const coastPebbleCount = Math.round(high.pebbles * 0.42);

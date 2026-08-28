@@ -560,7 +560,8 @@ kbd,
 .sprint-stamina-track,
 .farming-action-track,
 .quest-progress-bar,
-.stamina-bar-track {
+.stamina-bar-track,
+.cast-power-bar-track {
   height: 8px !important;
   overflow: hidden;
   background: rgba(10, 14, 20, 0.85) !important;
@@ -586,7 +587,6 @@ kbd,
 .farming-action-fill,
 .quest-progress-fill,
 .stamina-bar-fill,
-.catch-progress-fill,
 .cast-power-bar-fill {
   display: block;
   height: 100%;
@@ -1250,15 +1250,14 @@ kbd,
   margin-top: 5px;
 }
 
-.forecast-popover.chrome-panel--dock {
+.forecast-popover.chrome-panel--dock,
+.forecast-popover.chrome-panel--slate {
   top: calc(100% + 6px);
   left: 0;
-  width: min(248px, calc(100vw - 28px));
-  max-height: min(280px, 42vh);
-  overflow: auto;
-  padding: 10px 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--ui-brass) var(--ui-paper-deep);
+  width: min(320px, calc(100vw - 28px));
+  max-height: none;
+  overflow: visible;
+  padding: 12px 14px;
 }
 
 .forecast-days-grid {

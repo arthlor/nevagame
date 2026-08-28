@@ -158,6 +158,10 @@ const fragmentShader = /* glsl */ `
   uniform float uPolygonNormalStrength;
   uniform float uFresnelStrength;
   uniform float uSunGlintStrength;
+  uniform float uShallowStartMeters;
+  uniform float uShallowEndMeters;
+  uniform float uShallowColorStrength;
+  uniform float uNearShoreNormalScale;
 
   in vec3 vWorldPosition;
   in float vWaveHeight;
@@ -170,16 +174,21 @@ const fragmentShader = /* glsl */ `
   void main() {
     vec3 normal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
     if (normal.y < 0.0) normal *= -1.0;
+    float waterDepth = max(0.0, vSignedWaterDistance);
+    float resolvedShoreNormalScale = mix(
+      uNearShoreNormalScale,
+      1.0,
+      smoothstep(uShallowStartMeters, uShallowEndMeters, waterDepth)
+    );
     vec4 waterPolygonCell = nevaGroundPolygonCell(vWorldPosition.xz, uPolygonCellScale);
     normal = normalize(normal + vec3(
       waterPolygonCell.y - 0.5,
       0.0,
       waterPolygonCell.z - 0.5
-    ) * uPolygonNormalStrength);
+    ) * uPolygonNormalStrength * resolvedShoreNormalScale);
 
-    float waterDepth = max(0.0, vSignedWaterDistance);
-    float shallowMix = 1.0 - smoothstep(0.35, 8.5, waterDepth);
-    vec3 waterColor = mix(uMidColor, uShallowColor, shallowMix * 0.74);
+    float shallowMix = 1.0 - smoothstep(uShallowStartMeters, uShallowEndMeters, waterDepth);
+    vec3 waterColor = mix(uMidColor, uShallowColor, shallowMix * uShallowColorStrength);
     waterColor = mix(waterColor, uDeepColor, vRegionWeights.z * 0.82);
     float waterFacetBand = step(0.34, waterPolygonCell.x) + step(0.7, waterPolygonCell.x);
     waterColor *= mix(
@@ -196,6 +205,7 @@ const fragmentShader = /* glsl */ `
     float environmentLight = mix(0.24, 1.0, uDaylight);
     vec3 color = waterColor * facetVariation * environmentLight;
     color = mix(color, uSkyColor * environmentLight, fresnel * uFresnelStrength);
+    color = mix(color, uShallowColor * environmentLight, shallowMix * (1.0 - fresnel) * 0.08);
     color += uSunColor * sunGlint;
 
     float steepness = 1.0 - normal.y;
@@ -283,7 +293,11 @@ export class FacetedWater {
         uPolygonColorVariation: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonColorVariationStrength },
         uPolygonNormalStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonNormalStrength },
         uFresnelStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength },
-        uSunGlintStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.sunGlintStrength }
+        uSunGlintStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.sunGlintStrength },
+        uShallowStartMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowStartMeters },
+        uShallowEndMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters },
+        uShallowColorStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowColorStrength },
+        uNearShoreNormalScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.nearShoreNormalScale }
       },
       transparent: true,
       opacity: 0.96,

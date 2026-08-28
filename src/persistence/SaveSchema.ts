@@ -7,7 +7,7 @@ import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversa
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
 
-export const CURRENT_SCHEMA_VERSION = 16;
+export const CURRENT_SCHEMA_VERSION = 17;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -89,8 +89,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 15
+    (schemaVersion >= 17
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 15
+        ? state.world.layoutRevision !== 7
       : schemaVersion === 14
         ? state.world.layoutRevision !== 6
         : schemaVersion === 13

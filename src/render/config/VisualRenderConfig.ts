@@ -26,6 +26,10 @@ export interface VisualRenderConfig {
   skyFill: {
     skyColorHex: string;
     groundColorHex: string;
+    clearDayHueOffset: number;
+    clearDaySaturationLift: number;
+    clearDayLightnessOffset: number;
+    clearDayHorizonBlueMix: number;
     nightSkyColorHex: string;
     nightGroundColorHex: string;
     nightSkyColorStrength: number;
@@ -80,6 +84,14 @@ export interface VisualRenderConfig {
     textureSize: number;
     largeSampleScaleMeters: number;
     smallSampleScaleMeters: number;
+    externalTextures: {
+      leafySampleScaleMeters: number;
+      sparseSampleScaleMeters: number;
+      leafyRotationRadians: number;
+      sparseRotationRadians: number;
+      colorStrength: number;
+      roughnessStrength: number;
+    };
     polygonCellScaleMeters: number;
     smallLayerRotationRadians: number;
     colorVariationStrength: number;
@@ -113,12 +125,31 @@ export interface VisualRenderConfig {
       min: number;
       max: number;
     };
+    shoreline: {
+      beachColorMix: number;
+      wetColorMix: number;
+      cliffColorMix: number;
+      rainDarkening: number;
+      beachRoughness: number;
+      wetRoughness: number;
+      cliffRoughness: number;
+      facetStrength: number;
+    };
   };
   roadSurface: {
+    externalTexture: {
+      sampleScaleMeters: number;
+      mesoSampleScaleMeters: number;
+      rotationRadians: number;
+      lodBias: number;
+      colorStrength: number;
+      roughnessStrength: number;
+    };
     polygonCellScaleMeters: number;
     polygonEdgeCellScaleMeters: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
+    polygonFacetLightingStrength: number;
     edgeFadeStart: number;
     edgeFadeFull: number;
     roughness: number;
@@ -130,6 +161,13 @@ export interface VisualRenderConfig {
     polygonNormalStrength: number;
     fresnelStrength: number;
     sunGlintStrength: number;
+    shoreline: {
+      shallowStartMeters: number;
+      shallowEndMeters: number;
+      shallowColorStrength: number;
+      nearShoreNormalScale: number;
+      foamHeightOffsetMeters: number;
+    };
   };
   practicalLights: {
     colorHex: string;
@@ -181,6 +219,8 @@ export interface VisualRenderConfig {
     colorHex: string;
     near: number;
     far: number;
+    clearDayNear: number;
+    clearDayFar: number;
     distanceDesaturation: number;
   };
   bloom: {
@@ -242,6 +282,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   skyFill: {
     skyColorHex: PALETTE_HEX.sky_pale_01,
     groundColorHex: PALETTE_HEX.foliage_sage_01,
+    clearDayHueOffset: 0.02,
+    clearDaySaturationLift: 0.28,
+    clearDayLightnessOffset: -0.17,
+    clearDayHorizonBlueMix: 0.2,
     nightSkyColorHex: PALETTE_HEX.water_deep_01,
     nightGroundColorHex: PALETTE_HEX.foliage_shadow_01,
     nightSkyColorStrength: 0.82,
@@ -323,6 +367,14 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     textureSize: 128,
     largeSampleScaleMeters: 46,
     smallSampleScaleMeters: 13,
+    externalTextures: {
+      leafySampleScaleMeters: 7.5,
+      sparseSampleScaleMeters: 10.5,
+      leafyRotationRadians: 0.61,
+      sparseRotationRadians: -0.83,
+      colorStrength: 1,
+      roughnessStrength: 1
+    },
     polygonCellScaleMeters: 1.2,
     smallLayerRotationRadians: 0.61,
     colorVariationStrength: 0.06,
@@ -331,11 +383,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     polygonJaggedStrength: 0.14,
     polygonFacetLightingStrength: 0.04,
     pathTransition: {
-      shoulderStart: 0.48,
-      shoulderFull: 0.62,
-      coreStart: 0.74,
-      coreFull: 0.88,
-      underlayStrength: 0.14
+      shoulderStart: 0.32,
+      shoulderFull: 0.52,
+      coreStart: 0.68,
+      coreFull: 0.86,
+      underlayStrength: 0.22
     },
     roughnessVariation: 0.025,
     normals: {
@@ -355,24 +407,50 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       wet: 0.8,
       min: 0.775,
       max: 0.945
+    },
+    shoreline: {
+      beachColorMix: 0.46,
+      wetColorMix: 0.62,
+      cliffColorMix: 0.5,
+      rainDarkening: 0.12,
+      beachRoughness: 0.93,
+      wetRoughness: 0.72,
+      cliffRoughness: 0.88,
+      facetStrength: 0.62
     }
   },
   roadSurface: {
-    polygonCellScaleMeters: 1.35,
-    polygonEdgeCellScaleMeters: 0.92,
-    polygonVariationStrength: 0.16,
-    polygonJaggedStrength: 0.14,
-    edgeFadeStart: 0.22,
-    edgeFadeFull: 0.42,
+    externalTexture: {
+      sampleScaleMeters: 3.2,
+      mesoSampleScaleMeters: 11,
+      rotationRadians: 0.37,
+      lodBias: 0.2,
+      colorStrength: 1,
+      roughnessStrength: 1
+    },
+    polygonCellScaleMeters: 1.05,
+    polygonEdgeCellScaleMeters: 1.2,
+    polygonVariationStrength: 0.28,
+    polygonJaggedStrength: 0.22,
+    polygonFacetLightingStrength: 0.048,
+    edgeFadeStart: 0.16,
+    edgeFadeFull: 0.72,
     roughness: 0.94,
-    roughnessVariation: 0.025
+    roughnessVariation: 0.02
   },
   waterSurface: {
     polygonCellScaleMeters: 3.2,
     polygonColorVariationStrength: 0.075,
     polygonNormalStrength: 0.11,
     fresnelStrength: 0.2,
-    sunGlintStrength: 0.13
+    sunGlintStrength: 0.13,
+    shoreline: {
+      shallowStartMeters: 0.2,
+      shallowEndMeters: 13,
+      shallowColorStrength: 0.9,
+      nearShoreNormalScale: 0.48,
+      foamHeightOffsetMeters: 0.024
+    }
   },
   practicalLights: {
     colorHex: PALETTE_HEX.emissive_lantern_01,
@@ -424,6 +502,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     colorHex: PALETTE_HEX.sky_pale_01,
     near: 120,
     far: 450,
+    clearDayNear: 300,
+    clearDayFar: 1100,
     distanceDesaturation: 0.2
   },
   bloom: {

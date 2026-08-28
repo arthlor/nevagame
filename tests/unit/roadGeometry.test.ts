@@ -12,7 +12,7 @@ import {
   WORLD_ROUTE_PROFILES,
   WorldLayout
 } from "../../src/world/WorldLayout";
-import { sampleRoadCrossSection } from "../../src/world/RoadGeometry";
+import { buildOrganicRoadGeometry, sampleRoadCrossSection } from "../../src/world/RoadGeometry";
 
 type PositionAttribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
@@ -37,6 +37,106 @@ function triangleAreaSquared(
     ab[0] * ac[1] - ab[1] * ac[0]
   ];
   return cross[0] ** 2 + cross[1] ** 2 + cross[2] ** 2;
+}
+
+function authoredRoadGeometry(): THREE.BufferGeometry {
+  const center = WORLD_LAYOUT_V5.anchors.bridge;
+  const halfSpan = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
+  return buildOrganicRoadGeometry({
+    routes: COMPILED_WORLD_ROUTES,
+    junctions: WORLD_ROUTE_JUNCTIONS,
+    profiles: WORLD_ROUTE_PROFILES,
+    bridge: {
+      center,
+      halfSpan,
+      deckWidth: BRIDGE_WORLD_PROFILE.deckWidth,
+      entrySurfaceY: BRIDGE_WORLD_PROFILE.entrySurfaceY,
+      westDeckEdge: { x: center.x - halfSpan, z: center.z },
+      eastDeckEdge: { x: center.x + halfSpan, z: center.z },
+      gatewayDepthMeters: BRIDGE_WORLD_PROFILE.gatewayDepthMeters,
+      gatewayInsetMeters: BRIDGE_WORLD_PROFILE.gatewayInsetMeters,
+      gatewaySlabCount: BRIDGE_WORLD_PROFILE.gatewaySlabCount,
+      gatewaySlabGapMeters: BRIDGE_WORLD_PROFILE.gatewaySlabGapMeters
+    },
+    heightAt: (x, z) => WorldLayout.terrainHeight(x, z),
+    isBridgeDeck: (x, z) => WorldLayout.isBridgeDeck(x, z)
+  });
+}
+
+function baseTerrainPlaneSampler(): (x: number, z: number) => number {
+  const step = TERRAIN_SIZE_METERS / TERRAIN_RESOLUTION;
+  const minimum = -TERRAIN_SIZE_METERS * 0.5;
+  const heights = new Map<string, number>();
+  const height = (column: number, row: number): number => {
+    const key = `${column}:${row}`;
+    if (!heights.has(key)) {
+      heights.set(key, Math.fround(WorldLayout.terrainBaseHeight(
+        minimum + column * step,
+        minimum + row * step
+      )));
+    }
+    return heights.get(key)!;
+  };
+  return (x, z) => {
+    const column = Math.floor((x - minimum) / step);
+    const row = Math.floor((z - minimum) / step);
+    const u = (x - minimum - column * step) / step;
+    const v = (z - minimum - row * step) / step;
+    const a = height(column, row);
+    const b = height(column, row + 1);
+    const c = height(column + 1, row + 1);
+    const d = height(column + 1, row);
+    return u + v <= 1
+      ? a + u * (d - a) + v * (b - a)
+      : c + (1 - u) * (b - c) + (1 - v) * (d - c);
+  };
+}
+
+function indexedRoadSurface(geometry: THREE.BufferGeometry) {
+  type Triangle = [number[], number[], number[]];
+  const cells = new Map<string, Triangle[]>();
+  const centroids: Array<[number, number, number]> = [];
+  const positions = geometry.getAttribute("position");
+  const indices = geometry.getIndex()!;
+  const cellSize = TERRAIN_SIZE_METERS / TERRAIN_RESOLUTION;
+  let area = 0;
+  for (let offset = 0; offset < indices.count; offset += 3) {
+    const triangle: Triangle = [
+      vertex(positions, indices.getX(offset)),
+      vertex(positions, indices.getX(offset + 1)),
+      vertex(positions, indices.getX(offset + 2))
+    ];
+    const [a, b, c] = triangle;
+    centroids.push([(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]);
+    area += Math.abs((b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0])) * 0.5;
+    const firstX = Math.floor(Math.min(a[0], b[0], c[0]) / cellSize);
+    const lastX = Math.floor(Math.max(a[0], b[0], c[0]) / cellSize);
+    const firstZ = Math.floor(Math.min(a[2], b[2], c[2]) / cellSize);
+    const lastZ = Math.floor(Math.max(a[2], b[2], c[2]) / cellSize);
+    for (let x = firstX; x <= lastX; x++) {
+      for (let z = firstZ; z <= lastZ; z++) {
+        const key = `${x}:${z}`;
+        const bucket = cells.get(key) ?? [];
+        bucket.push(triangle);
+        cells.set(key, bucket);
+      }
+    }
+  }
+  return {
+    area,
+    centroids,
+    heightAt(x: number, z: number): number {
+      let highest = Number.NEGATIVE_INFINITY;
+      for (const [a, b, c] of cells.get(`${Math.floor(x / cellSize)}:${Math.floor(z / cellSize)}`) ?? []) {
+        const determinant = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+        const wa = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / determinant;
+        const wb = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / determinant;
+        const wc = 1 - wa - wb;
+        if (Math.min(wa, wb, wc) >= -1e-6) highest = Math.max(highest, a[1] * wa + b[1] * wb + c[1] * wc);
+      }
+      return highest;
+    }
+  };
 }
 
 describe("Organic road geometry", () => {
@@ -111,9 +211,12 @@ describe("Organic road geometry", () => {
     expect(first.userData.maximumMiterScale).toBeLessThanOrEqual(1.28);
     expect(first.userData.roundedCapCount).toBeGreaterThan(0);
     expect(first.userData.roadTriangleCount).toBeGreaterThan(0);
-    expect(first.userData.junctionTriangleCount).toBe(
+    expect(first.userData.terrainConformity.sourceJunctionTriangleCount).toBe(
       WORLD_ROUTE_JUNCTIONS.length * first.userData.junctionCoreSegmentCount
         + first.userData.junctionArmCount * 2
+    );
+    expect(first.userData.junctionTriangleCount).toBeGreaterThanOrEqual(
+      first.userData.terrainConformity.sourceJunctionTriangleCount
     );
     expect(first.userData.junctionCoreSegmentCount).toBe(20);
     expect(first.userData.junctionArmCount).toBeGreaterThan(WORLD_ROUTE_JUNCTIONS.length);
@@ -127,7 +230,9 @@ describe("Organic road geometry", () => {
       const a = triangles.getX(index);
       const b = triangles.getX(index + 1);
       const c = triangles.getX(index + 2);
-      expect(triangleAreaSquared(positions, a, b, c)).toBeGreaterThan(0.00000001);
+      // Exact plane intersections can produce valid sub-millimetre triangles;
+      // reject float32 degeneracy, not a world-space minimum facet size.
+      expect(triangleAreaSquared(positions, a, b, c)).toBeGreaterThan(0);
       const firstVertex = vertex(positions, a);
       const secondVertex = vertex(positions, b);
       const thirdVertex = vertex(positions, c);
@@ -147,7 +252,7 @@ describe("Organic road geometry", () => {
     second.dispose();
   });
 
-  it("keeps the bridge deck empty and every terrain-owned road vertex on the canonical height", () => {
+  it("keeps the bridge deck empty, its gateways unchanged, and source vertices on canonical heights", () => {
     const geometry = WorldLayout.buildPathGeometry();
     const positions = geometry.getAttribute("position");
     const triangles = geometry.getIndex()!;
@@ -191,17 +296,51 @@ describe("Organic road geometry", () => {
       expect(ab[2] * ac[0] - ab[0] * ac[2]).toBeGreaterThan(0);
     }
 
-    for (let index = 0; index < positions.count; index++) {
-      const x = positions.getX(index);
-      const y = positions.getY(index);
-      const z = positions.getZ(index);
+    const authored = authoredRoadGeometry();
+    const authoredPositions = authored.getAttribute("position");
+    for (let index = 0; index < authoredPositions.count; index++) {
+      const x = authoredPositions.getX(index);
+      const y = authoredPositions.getY(index);
+      const z = authoredPositions.getZ(index);
       if (!WorldLayout.isBridgeDeck(x, z)) {
         expect(y).toBeCloseTo(WorldLayout.terrainHeight(x, z), 5);
       } else {
         expect(y).toBeGreaterThan(0.5);
       }
     }
+    authored.dispose();
     geometry.dispose();
+  });
+
+  it("removes buried road faces without changing the existing road-plus-base collision envelope", () => {
+    const authored = authoredRoadGeometry();
+    const conformed = WorldLayout.buildPathGeometry();
+    const before = indexedRoadSurface(authored);
+    const after = indexedRoadSurface(conformed);
+    const baseHeightAt = baseTerrainPlaneSampler();
+    let maximumHeightChange = 0;
+    let maximumBurial = 0;
+    let maximumAddedHeight = 0;
+    for (const [x, , z] of before.centroids) {
+      const base = baseHeightAt(x, z);
+      maximumHeightChange = Math.max(maximumHeightChange, Math.abs(
+        Math.max(base, before.heightAt(x, z)) - Math.max(base, after.heightAt(x, z))
+      ));
+    }
+    const roadCount = conformed.userData.roadTriangleCount + conformed.userData.junctionTriangleCount;
+    for (const [index, [x, y, z]] of after.centroids.entries()) {
+      const base = baseHeightAt(x, z);
+      const previousEnvelope = Math.max(base, before.heightAt(x, z));
+      maximumAddedHeight = Math.max(maximumAddedHeight, y - previousEnvelope);
+      // Gateway slabs are intentionally separate from the ground ribbon.
+      if (index < roadCount) maximumBurial = Math.max(maximumBurial, base - y);
+    }
+    expect(maximumHeightChange).toBeLessThan(0.00002);
+    expect(maximumAddedHeight).toBeLessThan(0.00002);
+    expect(maximumBurial).toBeLessThan(0.00002);
+    expect(after.area).toBeCloseTo(before.area, 3);
+    authored.dispose();
+    conformed.dispose();
   });
 
   it("keeps the coarse base heightfield on terrain and leaves the bridge deck to its asset collider", () => {

@@ -23,6 +23,7 @@ import { WorldLayout } from "../world/WorldLayout";
 import { pickUnlockedStationRecipe } from "../simulation/domains/ProcessingDomain";
 
 const STARTUP_STAGE_TIMEOUT_MS = 30_000;
+const FISHING_ROD_TOOL_SLOT = 5;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -523,7 +524,7 @@ export class GameApp {
 
   private refreshLayoutEditStaticWorld(): void {
     if (!this.physicsWorld) return;
-    this.physicsWorld.replaceStaticCollision(this.worldScene.rebuildStaticCollisionProxies());
+    this.physicsWorld.replaceStaticCollision(this.worldScene.syncLayoutEditPresentation());
   }
 
   private playOverlayAudio(previous: ActiveModal, next: ActiveModal): void {
@@ -1044,7 +1045,14 @@ export class GameApp {
         }
       }),
       this.sim.events.on("FishEscaped", ({ reason }) => {
-        this.setToast(reason === "snapped" ? "The line snapped" : "The fish slipped free", 3200);
+        this.setToast(
+          reason === "snapped"
+            ? "The line snapped"
+            : reason === "no-cargo-space"
+              ? "No cargo space—the fish escaped"
+              : "The fish slipped free",
+          3200
+        );
         this.worldScene.playPlayerAction(reason === "snapped" ? "brace" : "slack");
       }),
       this.sim.events.on("BasicFishingStarted", ({ castPower }) => {
@@ -1675,7 +1683,11 @@ export class GameApp {
     }
 
     const fishingHabitat = WorldLayout.nearbyFishingHabitat(p.x, p.z);
-    if (fishingHabitat && (this.mode === "on-foot" || this.mode === "boat-driving")) {
+    if (
+      fishingHabitat &&
+      this.activeToolSlot === FISHING_ROD_TOOL_SLOT &&
+      (this.mode === "on-foot" || this.mode === "boat-driving")
+    ) {
       candidates.push({
         id: `fishing-habitat:${fishingHabitat}:cast`,
         kind: "fishing-habitat",
@@ -2221,7 +2233,7 @@ export class GameApp {
       }
       case 5: {
         if (this.mode === "farm-placement") this.exitCropPlacement();
-        this.handleCastFishing();
+        this.setToast("Equipped: Fishing Rod", 1600);
         break;
       }
     }
@@ -2245,7 +2257,7 @@ export class GameApp {
     this.showContextualHint(
       "hint.farming_plant",
       "Field Cultivation",
-      "Left-click tilled soil to plant seeds. Space crops to allow healthy growth!",
+      "Left-click prepared soil to plant seeds. Space crops to allow healthy growth!",
       "✧"
     );
   }
@@ -2760,6 +2772,10 @@ export class GameApp {
 
   private handleCastFishing(): void {
     if (this.mode === "sport-fishing") return;
+    if (this.activeToolSlot !== FISHING_ROD_TOOL_SLOT) {
+      this.setToast("Equip your fishing rod to cast");
+      return;
+    }
     const p = this.sim.state.player;
     if (!WorldLayout.nearbyFishingHabitat(p.x, p.z)) {
       this.setToast("Move closer to water to fish");
@@ -2814,7 +2830,11 @@ export class GameApp {
   }
 
   private handleResetPlayerToSafePlace(): void {
-    this.sim.execute({ type: "player.reset-safe" });
+    const result = this.sim.execute({ type: "player.reset-safe" });
+    if (!result.success) {
+      this.setToast(result.reason ?? "Return to the harbor before using Safe Return", 3600);
+      return;
+    }
     this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
       discontinuity: "recovery"
     });

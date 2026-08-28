@@ -5,6 +5,7 @@ import { buildStarterFarmGround } from "../../src/render/scene/StarterFarmGround
 import { FacetedWater, SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
 import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
+import { WaterSurface } from "../../src/render/water/WaterSurface";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 
 const WATER_CONDITIONS = {
@@ -29,11 +30,11 @@ describe("renderer foundation", () => {
     expect(CANONICAL_RENDER_CONFIG.sun.noonAzimuthDeg).toBe(45);
     expect(CANONICAL_RENDER_CONFIG.terrainSurface.polygonCellScaleMeters).toBe(1.2);
     expect(CANONICAL_RENDER_CONFIG.terrainSurface.pathTransition).toEqual({
-      shoulderStart: 0.48,
-      shoulderFull: 0.62,
-      coreStart: 0.74,
-      coreFull: 0.88,
-      underlayStrength: 0.14
+      shoulderStart: 0.32,
+      shoulderFull: 0.52,
+      coreStart: 0.68,
+      coreFull: 0.86,
+      underlayStrength: 0.22
     });
     expect(CANONICAL_RENDER_CONFIG.roadSurface.edgeFadeStart)
       .toBeLessThan(CANONICAL_RENDER_CONFIG.roadSurface.edgeFadeFull);
@@ -51,6 +52,11 @@ describe("renderer foundation", () => {
     expect(material.uniforms.uFresnelStrength.value).toBe(
       CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength
     );
+    expect(material.uniforms.uShallowEndMeters.value).toBe(
+      CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters
+    );
+    expect(material.fragmentShader).toContain("resolvedShoreNormalScale");
+    expect(material.fragmentShader).toContain("shallowMix * uShallowColorStrength");
     water.dispose();
   });
 
@@ -62,9 +68,20 @@ describe("renderer foundation", () => {
 
     expect(firstPositions.length).toBeGreaterThan(100);
     expect(firstPositions).toEqual(secondPositions);
-    expect(SHORE_FOAM_STYLE.minWidth).toBeLessThan(0.2);
-    expect(SHORE_FOAM_STYLE.maxWidth).toBeLessThan(0.5);
-    expect(first.mesh.material.uniforms.uMaxAlpha.value).toBeLessThanOrEqual(0.4);
+    expect(SHORE_FOAM_STYLE.minWidth).toBeGreaterThanOrEqual(0.2);
+    expect(SHORE_FOAM_STYLE.maxWidth).toBeLessThanOrEqual(0.7);
+    expect(first.mesh.material.uniforms.uMaxAlpha.value).toBeLessThanOrEqual(0.45);
+
+    first.update(12, WATER_CONDITIONS);
+    const updatedPositions = first.mesh.geometry.getAttribute("position");
+    const x = updatedPositions.getX(0);
+    const z = updatedPositions.getZ(0);
+    expect(updatedPositions.getY(0)).toBeCloseTo(
+      WaterSurface.height(x, z, 12, WATER_CONDITIONS)
+        + CANONICAL_RENDER_CONFIG.waterSurface.shoreline.foamHeightOffsetMeters,
+      6
+    );
+    expect(first.mesh.position.y).toBe(0);
 
     first.dispose();
     second.dispose();

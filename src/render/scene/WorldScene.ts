@@ -13,7 +13,10 @@ import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { RoadSurfaceMaterial } from "../materials/RoadSurfaceMaterial";
-import { TerrainSurfaceMaterial } from "../materials/TerrainSurfaceMaterial";
+import {
+  isTerrainDebugMode,
+  TerrainSurfaceMaterial
+} from "../materials/TerrainSurfaceMaterial";
 import {
   ASSET_BY_ID,
   ASSET_IDS,
@@ -89,6 +92,7 @@ import { CropInstanceRenderer } from "./CropInstanceRenderer";
 import { GroundCoverRenderer } from "./GroundCoverRenderer";
 import {
   BUTTERFLY_ORBITS,
+  CLOUD_PLACEMENTS,
   GULL_ORBITS,
   sampleAmbientFlyerPose,
   type AmbientFlyerOrbit
@@ -139,7 +143,7 @@ const CHARACTER_DETAIL_DISTANCE_METERS = 14;
 // after static collision and shadow setup so it follows layout edits without
 // entering collision or inflating the farmhouse's broad shadow silhouette.
 const FARMHOUSE_SMOKE_ATTACHMENT = {
-  position: [3.168, 7.36, -0.576] as const,
+  position: [3.168, 8.76, -0.576] as const,
   rotationY: 0.18,
   scale: 0.65
 } as const;
@@ -356,13 +360,22 @@ export class WorldScene {
   private starField: THREE.Points | null = null;
   private readonly practicalLights: Array<{
     light: THREE.PointLight;
+    root: THREE.Object3D;
     qualityEnabled: boolean;
   }> = [];
   private readonly practicalLightFocus = new THREE.Vector3();
   private readonly practicalLightWorld = new THREE.Vector3();
+  private readonly practicalLightWorldPositions: THREE.Vector3[] = [];
   private playerContactShadow: THREE.Mesh | null = null;
   private windmillRotor: THREE.Group | null = null;
-  private cloudMeshes: Array<{ object: THREE.Group; origin: THREE.Vector3 }> = [];
+  private cloudMeshes: Array<{
+    object: THREE.Group;
+    origin: THREE.Vector3;
+    bobPhase: number;
+    orbitRadius: number;
+    orbitAngle: number;
+    baseRotationY: number;
+  }> = [];
   private readonly faunaPresentations: FaunaPresentation[] = [];
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
   private syncInFlight: boolean = false;
@@ -435,6 +448,12 @@ export class WorldScene {
   }
 
   constructor(canvas: HTMLCanvasElement) {
+    if (import.meta.env.DEV) {
+      const requestedTerrainDebug = new URLSearchParams(window.location.search).get("terrainDebug");
+      if (isTerrainDebugMode(requestedTerrainDebug)) {
+        this.terrainSurfaceMaterial.setDebugMode(requestedTerrainDebug);
+      }
+    }
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.skyColorHex);
@@ -494,6 +513,10 @@ export class WorldScene {
   }
 
   private async initializeWorldGeometry(): Promise<void> {
+    await Promise.all([
+      this.terrainSurfaceMaterial.loadExternalTextures(),
+      this.roadSurfaceMaterial.loadExternalTextures()
+    ]);
     this.buildWorldTerrain();
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     this.buildPlacementPreview();
@@ -540,6 +563,22 @@ export class WorldScene {
     );
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(roots);
     return this.staticCollisionProxyList;
+  }
+
+  /**
+   * DEV layout editor: after paste / drop / delete, keep colliders, contact
+   * grounding, and practical-light budget aligned with live poses.
+   */
+  public syncLayoutEditPresentation(): readonly StaticCollisionProxy[] {
+    this.environmentGroup.updateMatrixWorld(true);
+    this.rebuildLayoutGroundingPatches();
+    this.applyPracticalLightBudget();
+    return this.rebuildStaticCollisionProxies();
+  }
+
+  /** DEV layout editor: rebuild contact discs while dragging so they follow the mesh. */
+  public followLayoutEditGrounding(): void {
+    this.rebuildLayoutGroundingPatches();
   }
 
   private buildSky(): void {
@@ -992,42 +1031,150 @@ export class WorldScene {
     return this.layoutEditRoots.find((object) => readLayoutEditTag(object)?.id === id) ?? null;
   }
 
-  public cloneLayoutEditable(
-    source: THREE.Object3D,
+  public async duplicateLayoutEditable(
+    source: THREE.Object3D | null,
     tag: LayoutEditTag,
-    pose: { x: number; y: number; z: number; rotationY: number }
-  ): THREE.Object3D {
-    const clone = source.clone(true);
-    clone.userData = {
-      ...source.userData,
-      environmentPlacementId: tag.id
-    };
-    clone.position.set(pose.x, pose.y, pose.z);
-    clone.rotation.copy(source.rotation);
-    clone.rotation.y = pose.rotationY;
-    this.tagLayoutEdit(clone, tag);
-    (source.parent ?? this.environmentGroup).add(clone);
-    return clone;
+    pose: {
+      x: number;
+      y: number;
+      z: number;
+      rotationY: number;
+      scale?: readonly [number, number, number];
+    }
+  ): Promise<THREE.Object3D> {
+    const assetId = this.resolveLayoutAssetId(source, tag);
+    if (!assetId) {
+      throw new Error(`[WorldScene] Cannot duplicate ${tag.id} without a catalog assetId`);
+    }
+    const instance = await AssetLoader.loadModel(assetId);
+    instance.position.set(pose.x, pose.y, pose.z);
+    if (source) {
+      instance.rotation.copy(source.rotation);
+    }
+    instance.rotation.y = pose.rotationY;
+    if (pose.scale) {
+      instance.scale.set(pose.scale[0], pose.scale[1], pose.scale[2]);
+    } else if (source) {
+      instance.scale.copy(source.scale);
+    }
+    instance.userData.environmentPlacementId = tag.id;
+    if (tag.kind === "authored-detail" || tag.kind === "environment-override") {
+      instance.userData.environmentPlacementOrigin = "authored";
+    }
+    this.tagLayoutEdit(instance, tag);
+    const parent = this.faunaKindForAsset(assetId) ? this.environmentGroup : this.staticPrefabGroup;
+    parent.add(instance);
+    this.bindLayoutInstanceFeatures(instance, {
+      id: tag.id,
+      practicalLightFallback: tag.practicalLight === true
+    });
+    return instance;
   }
 
   public removeLayoutEditable(object: THREE.Object3D): void {
     if (this.layoutEditLockedObject === object) this.highlightLayoutEdit(null);
     const index = this.layoutEditRoots.indexOf(object);
     if (index >= 0) this.layoutEditRoots.splice(index, 1);
-    const placementId = object.userData.environmentPlacementId;
-    if (typeof placementId === "string") {
-      const faunaIndex = this.faunaPresentations.findIndex((fauna) => fauna.id === placementId);
-      if (faunaIndex >= 0) {
-        this.faunaPresentations[faunaIndex]?.mixer?.stopAllAction();
-        this.faunaPresentations.splice(faunaIndex, 1);
-      }
-    }
+    this.unbindLayoutInstanceFeatures(object);
     object.removeFromParent();
   }
 
   private tagLayoutEdit(object: THREE.Object3D, tag: LayoutEditTag): void {
     object.userData[LAYOUT_EDIT_USERDATA_KEY] = tag;
     this.layoutEditRoots.push(object);
+  }
+
+  private resolveLayoutAssetId(source: THREE.Object3D | null, tag: LayoutEditTag): AssetId | null {
+    const candidates = [source?.userData.assetId, tag.catalogAssetId];
+    for (const candidate of candidates) {
+      if (typeof candidate !== "string" || candidate.length === 0) continue;
+      if (ASSET_BY_ID.has(candidate as AssetId)) return candidate as AssetId;
+    }
+    return null;
+  }
+
+  private faunaKindForAsset(assetId: AssetId): FaunaPresentation["kind"] | null {
+    if (assetId === ASSET_IDS.FAUNA_COW_A) return "cow";
+    if (assetId === ASSET_IDS.FAUNA_CHICKEN_A) return "chicken";
+    if (assetId === ASSET_IDS.FAUNA_RABBIT_A) return "rabbit";
+    return null;
+  }
+
+  private bindLayoutInstanceFeatures(
+    root: THREE.Object3D,
+    options: { id: string; practicalLightFallback?: boolean }
+  ): void {
+    const assetId = root.userData.assetId as AssetId | undefined;
+    const faunaKind = assetId ? this.faunaKindForAsset(assetId) : null;
+    if (faunaKind && root instanceof THREE.Group) {
+      root.userData.dynamicPresentation = true;
+      this.registerFaunaPresentation(options.id, faunaKind, root);
+    }
+    this.attachPracticalLights(root, options.practicalLightFallback === true);
+    this.applyStaticShadowPolicy(root);
+    if (import.meta.env.DEV) this.applyLayoutEditShadowFollow(root);
+  }
+
+  private unbindLayoutInstanceFeatures(root: THREE.Object3D): void {
+    for (let index = this.practicalLights.length - 1; index >= 0; index -= 1) {
+      const practical = this.practicalLights[index];
+      if (!practical || practical.root !== root) continue;
+      practical.light.removeFromParent();
+      practical.light.dispose();
+      this.practicalLights.splice(index, 1);
+    }
+    const tag = readLayoutEditTag(root);
+    const placementId = typeof root.userData.environmentPlacementId === "string"
+      ? root.userData.environmentPlacementId
+      : tag?.id;
+    if (placementId) {
+      const faunaIndex = this.faunaPresentations.findIndex((fauna) => fauna.id === placementId);
+      if (faunaIndex >= 0) {
+        const fauna = this.faunaPresentations[faunaIndex];
+        if (fauna?.mixer) {
+          fauna.mixer.stopAllAction();
+          fauna.mixer.uncacheRoot(fauna.mixer.getRoot());
+        }
+        this.faunaPresentations.splice(faunaIndex, 1);
+      }
+    }
+    this.applyPracticalLightBudget();
+  }
+
+  private rebuildLayoutGroundingPatches(): void {
+    const existing = this.environmentGroup.getObjectByName("static_contact_grounding");
+    if (existing) {
+      existing.removeFromParent();
+      existing.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        if (Array.isArray(object.material)) {
+          for (const material of object.material) material.dispose();
+        } else {
+          object.material.dispose();
+        }
+      });
+    }
+    const patches: Array<{
+      x: number;
+      z: number;
+      radiusX: number;
+      radiusZ: number;
+      rotation: number;
+    }> = [];
+    for (const root of this.layoutEditRoots) {
+      const tag = readLayoutEditTag(root);
+      if (!tag?.grounding) continue;
+      const world = root.getWorldPosition(this.practicalLightWorld);
+      patches.push({
+        x: world.x,
+        z: world.z,
+        radiusX: tag.grounding[0],
+        radiusZ: tag.grounding[1],
+        rotation: root.rotation.y
+      });
+    }
+    this.buildStaticGroundingPatches(patches);
   }
 
   private buildStarterFarmDetails(): void {
@@ -1243,27 +1390,43 @@ export class WorldScene {
   private registerPracticalLight(root: THREE.Object3D, source?: THREE.Object3D): void {
     const recipe = CANONICAL_RENDER_CONFIG.practicalLights;
     const light = new THREE.PointLight(recipe.colorHex, 0, recipe.localDistance, recipe.decay);
-    if (source) {
+    light.name = "layout_practical_light";
+    light.castShadow = false;
+    root.updateMatrixWorld(true);
+    if (import.meta.env.DEV) {
+      if (source) {
+        light.position.set(0, 0, 0);
+        source.add(light);
+      } else {
+        const box = new THREE.Box3().setFromObject(root);
+        const center = box.getCenter(this.practicalLightWorld);
+        const worldY = box.max.y * 0.85 + box.min.y * 0.15;
+        light.position.copy(root.worldToLocal(new THREE.Vector3(center.x, worldY, center.z)));
+        root.add(light);
+      }
+    } else if (source) {
       light.position.copy(source.getWorldPosition(this.practicalLightWorld));
+      this.scene.add(light);
     } else {
       const box = new THREE.Box3().setFromObject(root);
       const center = box.getCenter(this.practicalLightWorld);
       light.position.set(center.x, box.max.y * 0.85 + box.min.y * 0.15, center.z);
+      this.scene.add(light);
     }
-    light.castShadow = false;
-    this.scene.add(light);
-    this.practicalLights.push({ light, qualityEnabled: true });
+    this.practicalLights.push({ light, root, qualityEnabled: true });
     this.applyPracticalLightBudget();
   }
 
   private applyPracticalLightBudget(): void {
     const budget = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].practicalLightBudget;
+    while (this.practicalLightWorldPositions.length < this.practicalLights.length) {
+      this.practicalLightWorldPositions.push(new THREE.Vector3());
+    }
+    const positions = this.practicalLights.map((practical, index) =>
+      practical.light.getWorldPosition(this.practicalLightWorldPositions[index]!)
+    );
     const enabled = new Set(
-      selectNearestPracticalLightIndices(
-        this.practicalLights.map((practical) => practical.light.position),
-        this.practicalLightFocus,
-        budget
-      )
+      selectNearestPracticalLightIndices(positions, this.practicalLightFocus, budget)
     );
     this.practicalLights.forEach((practical, index) => {
       practical.qualityEnabled = enabled.has(index);
@@ -1395,9 +1558,15 @@ export class WorldScene {
       object.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
       object.rotation.y = anchor.rotationY;
       object.scale.setScalar(anchor.scale);
-      this.tagLayoutEdit(object, createFarmPropTag(anchor.id));
+      this.tagLayoutEdit(object, createFarmPropTag(anchor.id, farmPropAssets[anchor.type], {
+        propType: anchor.type,
+        practicalLight: anchor.type === "lamp-post"
+      }));
       this.environmentGroup.add(object);
-      this.attachPracticalLights(object);
+      this.bindLayoutInstanceFeatures(object, {
+        id: anchor.id,
+        practicalLightFallback: anchor.type === "lamp-post"
+      });
     }
 
     // 4. Farmhouse Cozy Interior
@@ -1415,18 +1584,11 @@ export class WorldScene {
       propModel.position.set(propPlacement.x, propPlacement.y, propPlacement.z);
       propModel.rotation.y = propPlacement.rotationY;
       if (propPlacement.scale) propModel.scale.setScalar(propPlacement.scale);
-      this.tagLayoutEdit(propModel, createInteriorPropTag(propPlacement.id));
+      this.tagLayoutEdit(propModel, createInteriorPropTag(propPlacement.id, propPlacement.assetId));
       this.environmentGroup.add(propModel);
-      this.attachPracticalLights(propModel);
+      this.bindLayoutInstanceFeatures(propModel, { id: propPlacement.id });
     }
 
-    const groundingPatches: Array<{
-      x: number;
-      z: number;
-      radiusX: number;
-      radiusZ: number;
-      rotation: number;
-    }> = [];
     for (const placement of environmentPlacements) {
       const assetId = placement.assetId as AssetId;
       const spec = ASSET_BY_ID.get(assetId);
@@ -1451,64 +1613,46 @@ export class WorldScene {
         const pad = WORLD_ARCHITECTURE_PADS.find((candidate) => candidate.id === padId);
         this.tagLayoutEdit(object, {
           ...createArchitecturePadTag(padId),
+          catalogAssetId: placement.assetId,
           grounding: pad?.envelope
         });
       } else if (placement.origin === "authored") {
-        this.tagLayoutEdit(object, {
-          ...createAuthoredDetailTag(placement.id, placement.assetId),
-          grounding: placement.grounding
-        });
+        this.tagLayoutEdit(object, createAuthoredDetailTag(placement.id, placement.assetId, {
+          grounding: placement.grounding,
+          practicalLight: placement.practicalLight
+        }));
       } else {
-        this.tagLayoutEdit(object, {
-          ...createEnvironmentOverrideTag(placement.id, placement.assetId),
-          grounding: placement.grounding
-        });
-      }
-      if (
-        assetId === ASSET_IDS.FAUNA_COW_A
-        || assetId === ASSET_IDS.FAUNA_CHICKEN_A
-        || assetId === ASSET_IDS.FAUNA_RABBIT_A
-      ) {
-        object.userData.dynamicPresentation = true;
-        this.registerFaunaPresentation(
-          placement.id,
-          assetId === ASSET_IDS.FAUNA_COW_A
-            ? "cow"
-            : assetId === ASSET_IDS.FAUNA_CHICKEN_A
-              ? "chicken"
-              : "rabbit",
-          object
-        );
+        this.tagLayoutEdit(object, createEnvironmentOverrideTag(placement.id, placement.assetId, {
+          grounding: placement.grounding,
+          practicalLight: placement.practicalLight
+        }));
       }
       this.environmentGroup.add(object);
-      if (placement.grounding) {
-        groundingPatches.push({
-          x: placement.x,
-          z: placement.z,
-          radiusX: placement.grounding[0],
-          radiusZ: placement.grounding[1],
-          rotation: placement.rotationY
-        });
-      }
-      this.attachPracticalLights(object, placement.practicalLight === true);
+      this.bindLayoutInstanceFeatures(object, {
+        id: placement.id,
+        practicalLightFallback: placement.practicalLight === true
+      });
     }
-    this.buildStaticGroundingPatches(groundingPatches);
+    this.rebuildLayoutGroundingPatches();
 
-    const cloudPlacements = [
-      { pos: [-145, 46, -18], scale: 2.1 },
-      { pos: [-72, 39, 94], scale: 1.8 },
-      { pos: [12, 52, 126], scale: 2.5 },
-      { pos: [86, 43, 38], scale: 1.9 },
-      { pos: [154, 48, -62], scale: 2.2 }
-    ];
-    for (const placement of cloudPlacements) {
+    for (const placement of CLOUD_PLACEMENTS) {
       const cloud = await AssetLoader.loadModel(ASSET_IDS.CLOUD_LOWPOLY_A);
-      cloud.position.set(placement.pos[0], placement.pos[1], placement.pos[2]);
+      cloud.position.set(placement.x, placement.y, placement.z);
+      cloud.rotation.y = placement.rotationY;
       cloud.scale.setScalar(placement.scale);
       cloud.userData.dynamicPresentation = true;
       this.setShadowPolicy(cloud, false);
       this.environmentGroup.add(cloud);
-      this.cloudMeshes.push({ object: cloud, origin: cloud.position.clone() });
+      const offsetX = placement.x - WATER_SURFACE.centerX;
+      const offsetZ = placement.z - WATER_SURFACE.centerZ;
+      this.cloudMeshes.push({
+        object: cloud,
+        origin: cloud.position.clone(),
+        bobPhase: placement.bobPhase,
+        orbitRadius: Math.max(Math.hypot(offsetX, offsetZ), Number.EPSILON),
+        orbitAngle: Math.atan2(offsetZ, offsetX),
+        baseRotationY: placement.rotationY
+      });
     }
 
     await this.loadAmbientFlyers();
@@ -1520,7 +1664,7 @@ export class WorldScene {
       const height = this.sampleTerrainHeight(world.x, world.z) ?? 0.8;
       fence.position.set(world.x, height, world.z);
       fence.rotation.y = anchor.rotationY;
-      this.tagLayoutEdit(fence, createFarmFenceTag(anchor.id));
+      this.tagLayoutEdit(fence, createFarmFenceTag(anchor.id, STATIC_LANDMARK_ASSETS.fence));
       this.environmentGroup.add(fence);
     }
 
@@ -2336,11 +2480,14 @@ export class WorldScene {
       this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
     }
     for (const cloud of this.cloudMeshes) {
+      const orbitOffset = this.weatherMotion.cloudTravelMeters * motionScale / cloud.orbitRadius;
+      const orbitAngle = cloud.orbitAngle + orbitOffset;
       cloud.object.position.set(
-        cloud.origin.x + this.weatherMotion.directionX * this.weatherMotion.cloudTravelMeters * motionScale,
-        cloud.origin.y + Math.sin(timeSeconds * 0.08 + cloud.origin.x) * 0.32 * motionScale,
-        cloud.origin.z + this.weatherMotion.directionZ * this.weatherMotion.cloudTravelMeters * motionScale
+        WATER_SURFACE.centerX + Math.cos(orbitAngle) * cloud.orbitRadius,
+        cloud.origin.y + Math.sin(timeSeconds * 0.035 + cloud.bobPhase) * 0.32 * motionScale,
+        WATER_SURFACE.centerZ + Math.sin(orbitAngle) * cloud.orbitRadius
       );
+      cloud.object.rotation.y = cloud.baseRotationY + orbitOffset;
     }
     this.updateFaunaMotion(timeSeconds, delta, motionScale);
     this.updateAmbientFlyers(timeSeconds, delta, motionScale);
@@ -2621,7 +2768,7 @@ export class WorldScene {
 
     const waterConditions = this.waterConditions(state);
     this.water.update(timeSeconds, waterConditions);
-    this.shoreFoam.update(timeSeconds, state.weather.seaRoughness);
+    this.shoreFoam.update(timeSeconds, waterConditions);
     this.boatWakes.update(timeSeconds);
     this.farmVfx.update(timeSeconds);
     if (this.cosmeticCropCarryUntilSeconds > 0 && timeSeconds >= this.cosmeticCropCarryUntilSeconds) {

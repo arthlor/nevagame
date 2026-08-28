@@ -1,4 +1,3 @@
-// src/ui/QuestTrackerHUD.tsx
 import React, { useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import { ChromeMeter, ChromePanel } from "./chrome/Chrome";
@@ -31,7 +30,6 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
 
   const current = Math.min(activeQuest.currentProgress, activeQuest.targetQuantity);
   const target = Math.max(1, activeQuest.targetQuantity);
-  const progressPercent = Math.min(100, Math.round((current / target) * 100));
 
   return (
     <ChromePanel
@@ -63,15 +61,12 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
         <div className="quest-tracker-content">
           {activeQuest.targetQuantity > 1 && (
             <div className="quest-progress-wrap">
-              <div className="quest-progress-bar-track" aria-hidden="true">
-                <div className="quest-progress-bar-fill" style={{ width: `${progressPercent}%` }} />
-              </div>
               <ChromeMeter
                 label="Objective Progress"
                 value={current}
                 max={target}
                 showLabel={false}
-                valueText={`${current} / ${target}`}
+                showValue={false}
                 variant="gold"
                 className="quest-progress-meter"
               />
@@ -81,7 +76,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
           {activeQuest.targetLocation && (
             <div className="quest-location-hint">
               <span className="location-pin" aria-hidden="true">📍</span>
-              <span>{activeQuest.targetLocation.name}</span>
+              <span className="quest-location-name">{activeQuest.targetLocation.name}</span>
             </div>
           )}
         </div>

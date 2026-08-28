@@ -233,6 +233,211 @@ describe("layout editor patcher", () => {
     expect(next.environment).toContain('authoredPlacement("authored.prop.wagon.farm-road.copy.1"');
     expect(next.environment).toContain("x: -48");
     expect(next.environment).toMatch(/authoredPlacement\("authored\.prop\.wagon\.farm-road"/);
+    expect(next.environment).not.toMatch(/\}\)\s*\n\s+authoredPlacement\(/);
+  });
+
+  it("keeps commas on both the original and copy when duplicating twice", () => {
+    const sources = readLayoutSources(ROOT);
+    const first = applyLayoutEditToSources(sources, {
+      kind: "authored-detail",
+      id: "authored.prop.wagon.farm-road",
+      duplicateFrom: "authored.prop.wagon.farm-road",
+      x: -48,
+      z: -58,
+      rotationY: 0.2
+    });
+    const second = applyLayoutEditToSources(first, {
+      kind: "authored-detail",
+      id: "authored.prop.wagon.farm-road.copy.1",
+      duplicateFrom: "authored.prop.wagon.farm-road.copy.1",
+      x: -47,
+      z: -57,
+      rotationY: 0.3
+    });
+    expect(second.environment).toContain('authoredPlacement("authored.prop.wagon.farm-road.copy.2"');
+    expect(second.environment).toMatch(
+      /authoredPlacement\("authored\.prop\.wagon\.farm-road", \{[^}]+\}\),/
+    );
+    expect(second.environment).toMatch(
+      /authoredPlacement\("authored\.prop\.wagon\.farm-road\.copy\.1", \{[^}]+\}\),/
+    );
+    expect(second.environment).toMatch(
+      /authoredPlacement\("authored\.prop\.wagon\.farm-road\.copy\.2", \{[^}]+\}\),/
+    );
+    expect(second.environment).not.toMatch(/\}\)\s*\n\s+authoredPlacement\(/);
+  });
+
+  it("inserts a comma after a source call that currently has none", () => {
+    const sources = readLayoutSources(ROOT);
+    const withoutComma = {
+      ...sources,
+      environment: sources.environment.replace(
+        /authoredPlacement\("authored\.prop\.wagon\.farm-road", \{[^}]+\}\),/,
+        (call) => call.slice(0, -1)
+      )
+    };
+    expect(withoutComma.environment).toMatch(
+      /authoredPlacement\("authored\.prop\.wagon\.farm-road", \{[^}]+\}\)\s*\n/
+    );
+    const next = applyLayoutEditToSources(withoutComma, {
+      kind: "authored-detail",
+      id: "authored.prop.wagon.farm-road",
+      duplicateFrom: "authored.prop.wagon.farm-road",
+      x: -48,
+      z: -58,
+      rotationY: 0.2
+    });
+    expect(next.environment).toMatch(
+      /authoredPlacement\("authored\.prop\.wagon\.farm-road", \{[^}]+\}\),/
+    );
+    expect(next.environment).toMatch(
+      /authoredPlacement\("authored\.prop\.wagon\.farm-road\.copy\.1", \{[^}]+\}\),/
+    );
+    expect(next.environment).not.toMatch(/\}\)\s*\n\s+authoredPlacement\(/);
+  });
+
+  it("returns the allocated copy id rather than another newly noticed string", () => {
+    const planned = planLayoutEdit(ROOT, {
+      kind: "authored-detail",
+      id: "authored.prop.wagon.farm-road",
+      duplicateFrom: "authored.prop.wagon.farm-road",
+      x: -48,
+      z: -58,
+      rotationY: 0.2
+    });
+    expect(planned.id).toBe("authored.prop.wagon.farm-road.copy.1");
+  });
+
+  it("moves authored copy.1 without rewriting copy.10", () => {
+    const sources = readLayoutSources(ROOT);
+    const withTen = {
+      ...sources,
+      environment: sources.environment.replace(
+        /authoredPlacement\("authored\.fauna\.chicken\.farm-a\.copy\.1", \{[^}]+\}\),/,
+        (call) => `${call}\n  authoredPlacement("authored.fauna.chicken.farm-a.copy.10", { assetId: "fauna_chicken_a", x: 999, z: 888, rotationY: 0, scale: [1, 1, 1] }),`
+      )
+    };
+    const next = applyLayoutEditToSources(withTen, {
+      kind: "authored-detail",
+      id: "authored.fauna.chicken.farm-a.copy.1",
+      x: -60,
+      z: -70,
+      rotationY: 0.5
+    });
+    expect(next.environment).toMatch(
+      /authoredPlacement\("authored\.fauna\.chicken\.farm-a\.copy\.1", \{[^}]*x: -60/
+    );
+    expect(next.environment).toMatch(
+      /authoredPlacement\("authored\.fauna\.chicken\.farm-a\.copy\.10", \{[^}]*x: 999/
+    );
+  });
+
+  it("duplicates a village lamp including practicalLight", () => {
+    const sources = readLayoutSources(ROOT);
+    const next = applyLayoutEditToSources(sources, {
+      kind: "authored-detail",
+      id: "authored.prop.lamp.village-west",
+      duplicateFrom: "authored.prop.lamp.village-west",
+      x: 45,
+      z: -47,
+      rotationY: 0.2
+    });
+    expect(next.environment).toContain('authoredPlacement("authored.prop.lamp.village-west.copy.1"');
+    const copy = next.environment.match(
+      /authoredPlacement\("authored\.prop\.lamp\.village-west\.copy\.1",\s*\{[^}]+\}/
+    );
+    expect(copy?.[0]).toContain("practicalLight: true");
+    expect(copy?.[0]).toContain("x: 45");
+  });
+
+  it("duplicates a grounded tree including grounding extents", () => {
+    const sources = readLayoutSources(ROOT);
+    const next = applyLayoutEditToSources(sources, {
+      kind: "authored-detail",
+      id: "authored.tree.apple.orchard-a",
+      duplicateFrom: "authored.tree.apple.orchard-a",
+      x: 84,
+      z: -44,
+      rotationY: 0.4
+    });
+    const copy = next.environment.match(
+      /authoredPlacement\("authored\.tree\.apple\.orchard-a\.copy\.1",\s*\{[^}]+\}/
+    );
+    expect(copy?.[0]).toContain("grounding: [1.05, 0.74]");
+    expect(copy?.[0]).toContain("x: 84");
+  });
+
+  it("writes grounding and practicalLight when pasting a seeded instance as authored", () => {
+    const sources = readLayoutSources(ROOT);
+    const next = applyLayoutEditToSources(sources, {
+      kind: "environment-override",
+      id: "seeded-fill.trees.northwest-farm.023",
+      duplicateFrom: "seeded-fill.trees.northwest-farm.023",
+      assetId: "tree_oak_a",
+      x: -70,
+      z: -60,
+      rotationY: 0.5,
+      scale: [1, 1, 1],
+      grounding: [1.2, 0.8],
+      practicalLight: true
+    });
+    expect(next.environment).toContain('authoredPlacement("authored.copy.tree_oak_a.1"');
+    const copy = next.environment.match(
+      /authoredPlacement\("authored\.copy\.tree_oak_a\.1",\s*\{[^}]+\}/
+    );
+    expect(copy?.[0]).toContain('assetId: "tree_oak_a"');
+    expect(copy?.[0]).toContain("grounding: [1.2, 0.8]");
+    expect(copy?.[0]).toContain("practicalLight: true");
+    expect(copy?.[0]).toContain("x: -70");
+  });
+
+  it("duplicates an interior prop including y and assetId", () => {
+    const sources = readLayoutSources(ROOT);
+    const next = applyLayoutEditToSources(sources, {
+      kind: "interior-prop",
+      id: "interior_bed",
+      duplicateFrom: "interior_bed",
+      x: 241.2,
+      y: 0.17,
+      z: -238.1,
+      rotationY: 0.3
+    });
+    expect(next.interior).toContain('id: "interior_bed_copy_1"');
+    const copy = next.interior.match(/\{[^{}]*id:\s*"interior_bed_copy_1"[^{}]*\}/);
+    expect(copy?.[0]).toContain("assetId:");
+    expect(copy?.[0]).toContain("y: 0.17");
+    expect(copy?.[0]).toContain("x: 241.2");
+  });
+
+  it("accepts optional duplicate feature fields on a commit", () => {
+    expect(isLayoutEditCommit({
+      kind: "authored-detail",
+      id: "authored.prop.lamp.village-west",
+      duplicateFrom: "authored.prop.lamp.village-west",
+      x: 45,
+      z: -47,
+      rotationY: 0.2,
+      grounding: [1.05, 0.74],
+      practicalLight: true
+    })).toBe(true);
+    expect(isLayoutEditCommit({
+      kind: "authored-detail",
+      id: "authored.prop.lamp.village-west",
+      x: 45,
+      z: -47,
+      rotationY: 0.2,
+      grounding: [1.05]
+    })).toBe(false);
+    expect(isLayoutEditCommit({
+      kind: "farm-prop",
+      id: "farm_hay_a",
+      duplicateFrom: "farm_hay_a",
+      x: -78,
+      z: -63,
+      rotationY: 0.2,
+      propType: "hay-bale",
+      scale: [1, 1, 1]
+    })).toBe(true);
   });
 
   it("duplicates a farm prop and a fence extra without double commas", () => {
@@ -257,6 +462,75 @@ describe("layout editor patcher", () => {
     expect(fence.farmLayout).toContain("FARM_FENCE_EXTRAS");
     expect(fence.farmLayout).toMatch(/id: "fence_east_0_copy_1"/);
     expect(fence.farmLayout).not.toMatch(/,\s*,/);
+  });
+
+  it("pastes a farm prop and interior prop after the original source object was removed", () => {
+    const sources = readLayoutSources(ROOT);
+    const withoutHay = applyLayoutEditToSources(sources, {
+      kind: "farm-prop",
+      id: "farm_hay_a",
+      x: 0,
+      z: 0,
+      rotationY: 0,
+      remove: true
+    });
+    const hayPaste = applyLayoutEditToSources(withoutHay, {
+      kind: "farm-prop",
+      id: "farm_hay_a",
+      duplicateFrom: "farm_hay_a",
+      propType: "hay-bale",
+      assetId: "prop_hay_bale_a",
+      scale: [1, 1, 1],
+      x: -78,
+      z: -63,
+      rotationY: 0.2
+    });
+    expect(hayPaste.farmLayout).toContain('id: "farm_hay_a_copy_1"');
+    expect(hayPaste.farmLayout).toContain('type: "hay-bale"');
+    const withoutBed = applyLayoutEditToSources(sources, {
+      kind: "interior-prop",
+      id: "interior_bed",
+      x: 0,
+      y: 0.17,
+      z: 0,
+      rotationY: 0,
+      remove: true
+    });
+    const bedPaste = applyLayoutEditToSources(withoutBed, {
+      kind: "interior-prop",
+      id: "interior_bed",
+      duplicateFrom: "interior_bed",
+      assetId: "prop_bed_cozy_a",
+      scale: [1, 1, 1],
+      x: 241.2,
+      y: 0.17,
+      z: -238.1,
+      rotationY: 0.3
+    });
+    expect(bedPaste.interior).toContain('id: "interior_bed_copy_1"');
+    expect(bedPaste.interior).toContain('assetId: "prop_bed_cozy_a"');
+  });
+
+  it("inserts a fence extra after a trailing comment without commenting out the comma", () => {
+    const sources = readLayoutSources(ROOT);
+    const withComment = {
+      ...sources,
+      farmLayout: sources.farmLayout.replace(
+        "export const FARM_FENCE_EXTRAS: readonly FarmFenceAnchor[] = [\n];",
+        "export const FARM_FENCE_EXTRAS: readonly FarmFenceAnchor[] = [\n  // pasted extras\n];"
+      )
+    };
+    const next = applyLayoutEditToSources(withComment, {
+      kind: "farm-fence",
+      id: "fence_east_0",
+      duplicateFrom: "fence_east_0",
+      x: -49,
+      z: -55,
+      rotationY: Math.PI / 2
+    });
+    expect(next.farmLayout).toContain('id: "fence_east_0_copy_1"');
+    expect(next.farmLayout).toContain("// pasted extras");
+    expect(next.farmLayout).not.toMatch(/pasted extras,/);
   });
 
   it("refuses to copy a unique farmhouse", () => {
@@ -382,6 +656,15 @@ describe("layout editor patcher", () => {
     expect(allocateCopyId([], "seeded-fill.trees.northwest-farm.003", "tree_oak_a")).toBe(
       "authored.copy.tree_oak_a.1"
     );
+    expect(allocateCopyId(
+      ["authored.copy.tree_oak_a.1"],
+      "authored.copy.tree_oak_a.1",
+      "tree_oak_a"
+    )).toBe("authored.copy.tree_oak_a.2");
+    expect(allocateCopyId(
+      ["authored.fauna.chicken.farm-a", "authored.fauna.chicken.farm-a.copy.1", "authored.fauna.chicken.farm-a.copy.2"],
+      "authored.fauna.chicken.farm-a.copy.1"
+    )).toBe("authored.fauna.chicken.farm-a.copy.3");
   });
 
   it("patches Elspeth's npc anchor and a harbor NPC world anchor", () => {

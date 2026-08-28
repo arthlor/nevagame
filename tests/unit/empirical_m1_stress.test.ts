@@ -247,10 +247,13 @@ describe("Milestone M1 Empirical Stress & Boundary Verification", () => {
       const playOneShotSpy = vi.spyOn(gameAudio, "playOneShot").mockImplementation(() => {});
       let closed = false;
 
-      const rendered = ChromeClose({
-        label: "Dismiss Modal",
-        onClick: () => { closed = true; }
-      }) as React.ReactElement<{ "aria-label"?: string; onClick: (e: any) => void }>;
+      const rendered = (ChromeClose as any).render(
+        {
+          label: "Dismiss Modal",
+          onClick: () => { closed = true; }
+        },
+        null
+      );
 
       expect(rendered.props["aria-label"]).toBe("Dismiss Modal");
       rendered.props.onClick({} as any);

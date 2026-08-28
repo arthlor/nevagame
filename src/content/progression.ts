@@ -16,8 +16,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
       "recipe.craft_chum",
       "recipe.compost_worms",
       "recipe.perch_to_scraps",
-      "recipe.mackerel_to_scraps",
-      "recipe.carp_to_scraps"
+      "recipe.mackerel_to_scraps"
     ]
   },
   {

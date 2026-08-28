@@ -251,6 +251,8 @@ const PARAMETER_CONTRACTS = Object.freeze({
     masonryBlocks: integer(3, 14),
     shingleRows: integer(3, 12),
     shingleColumns: integer(4, 14),
+    porchDepth: number(0.8, 3),
+    porchPlanks: integer(4, 16),
   },
   water_well: { radius: number(0.4, 2), postHeight: number(0.8, 2.4) },
   pumpkin_patch: { pumpkins: integer(3, 12), vineSegments: integer(3, 20), lobes: integer(3, 7), blossomCount: integer(2, 12) },

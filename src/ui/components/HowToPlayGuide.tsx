@@ -12,7 +12,6 @@ import {
   IconEnergy,
   IconExpedition,
   IconFish,
-  IconHoe,
   IconJournal,
   IconLedger,
   IconMoon,
@@ -181,9 +180,9 @@ const ControlsChapter: React.FC = () => (
       <div className="guide-callout-text">
         <h6>Work Capacity (Labor Energy)</h6>
         <p>
-          Tilling soil, watering crops, casting rods, and harvesting require <strong>Work Capacity</strong>.
-          Your capacity regenerates naturally over time and fully restores when resting overnight. Plan your daily
-          tasks to avoid exhausting your labor pool.
+          Actions that earn XP—planting, watering, fertilizing, harvesting, processing, trading, and landing fish—draw
+          from <strong>Labor</strong>. When Labor is empty, play continues with reduced XP and rare-outcome chances;
+          it recovers over time. Sprint stamina is a separate resource.
         </p>
       </div>
     </div>
@@ -197,16 +196,16 @@ const ControlsChapter: React.FC = () => (
       </p>
       <div className="guide-cycle-pills">
         <span className="guide-cycle-pill">
-          <IconDawn size={16} aria-hidden="true" /> <strong>Dawn</strong> (06:00 - 09:00)
+          <IconDawn size={16} aria-hidden="true" /> <strong>Dawn</strong> (04:00 - 08:00)
         </span>
         <span className="guide-cycle-pill">
-          <IconSun size={16} aria-hidden="true" /> <strong>Day</strong> (09:00 - 18:00)
+          <IconSun size={16} aria-hidden="true" /> <strong>Day</strong> (08:00 - 18:00)
         </span>
         <span className="guide-cycle-pill">
-          <IconDusk size={16} aria-hidden="true" /> <strong>Dusk</strong> (18:00 - 21:00)
+          <IconDusk size={16} aria-hidden="true" /> <strong>Dusk</strong> (18:00 - 22:00)
         </span>
         <span className="guide-cycle-pill">
-          <IconMoon size={16} aria-hidden="true" /> <strong>Night</strong> (21:00 - 06:00)
+          <IconMoon size={16} aria-hidden="true" /> <strong>Night</strong> (22:00 - 04:00)
         </span>
       </div>
     </div>
@@ -231,10 +230,10 @@ const FarmingChapter: React.FC = () => (
       <div className="guide-step-card">
         <span className="guide-step-num">1</span>
         <div className="guide-step-icon">
-          <IconHoe size={24} aria-hidden="true" />
+          <IconSprout size={24} aria-hidden="true" />
         </div>
-        <h6>Till Arable Plots</h6>
-        <p>Equip your Hoe <KeycapBadge keyName="1" /> and interact with untilled soil to create planting beds.</p>
+        <h6>Select Seeds</h6>
+        <p>Choose Seeds <KeycapBadge keyName="2" /> and point at prepared farm soil.</p>
       </div>
 
       <div className="guide-step-card">
@@ -242,8 +241,8 @@ const FarmingChapter: React.FC = () => (
         <div className="guide-step-icon">
           <IconSprout size={24} aria-hidden="true" />
         </div>
-        <h6>Sow Seeds</h6>
-        <p>Open your satchel <KeycapBadge keyName="I" /> or click a tilled plot to select and plant viable crop seeds.</p>
+        <h6>Place the Crop</h6>
+        <p>Confirm with <KeycapBadge keyName="E" /> or left-click. The field checks space, surface, and crop access.</p>
       </div>
 
       <div className="guide-step-card">
@@ -278,7 +277,7 @@ const FarmingChapter: React.FC = () => (
       <ul className="guide-feature-bullets">
         <li>
           <strong>1-Action Whole Field Watering:</strong> Unlocks the <em>[E] Irrigate the field</em> prompt, which
-          simultaneously restores 100% moisture to every planted crop on the entire farm.
+          waters every thirsty planted crop on the farm to 100% moisture in one action.
         </li>
         <li>
           <strong>Permanent Efficiency:</strong> Saves valuable Work Capacity and time, allowing you to venture out
@@ -297,8 +296,8 @@ const FarmingChapter: React.FC = () => (
         </p>
         <ul className="guide-bullet-list">
           <li>Crop growth speed slows down.</li>
-          <li>Chances of high-quality grades (Silver, Gold, Pristine) decrease.</li>
-          <li>Apply <strong>Fertilizer</strong> from your satchel to restore soil fertility back to 100%.</li>
+          <li>Chances of higher crop grades (Fine, Exceptional, Prize) decrease.</li>
+          <li>Apply <strong>Fertilizer</strong> from your satchel to raise fertility by 20 points, up to 100.</li>
         </ul>
       </div>
 
@@ -327,7 +326,7 @@ const FarmingChapter: React.FC = () => (
 const FishingChapter: React.FC = () => (
   <div className="guide-chapter">
     <div className="guide-section-intro">
-      <h4>Maritime Navigation & Ocean Fishing</h4>
+        <h4>Coastal Fishing, Boats & Cargo</h4>
       <p>
         From coastal piers to stormy offshore banks, the waters of Neva teem with distinct fish species.
         Pilot seaworthy vessels, balance physical cargo, and protect your catch's freshness.
@@ -355,7 +354,7 @@ const FishingChapter: React.FC = () => (
           <IconBoat size={18} aria-hidden="true" /> Vessel Piloting
         </h5>
         <p className="guide-body-copy" style={{ fontSize: "13px", margin: "0 0 8px" }}>
-          Take the helm of motorboats and trawlers at the harbor:
+          Take the helm of the rowboat at the harbor. A coastal skiff is a later vessel:
         </p>
         <div className="guide-table">
           <div className="guide-keybind-row">
@@ -384,7 +383,7 @@ const FishingChapter: React.FC = () => (
         <h5>Offshore Sport Fishing & Tension Battles</h5>
       </div>
       <p>
-        When offshore, locate boiling water schools and cast heavy tackle to trigger deep-sea sport fishing encounters:
+          At a sport-fishing school, use chum to start an encounter and manage the line:
       </p>
       <div className="guide-substep-cards">
         <div className="guide-substep-card">
@@ -394,7 +393,8 @@ const FishingChapter: React.FC = () => (
           <strong>Fish Stamina:</strong> Brace and counter-steer while the fish thrashes, then reel vigorously when it tires out.
         </div>
         <div className="guide-substep-card">
-          <strong>Physical Deck Cargo:</strong> Giant catches are landed onto your boat's physical deck crane and cargo hold—not stacked in your backpack!
+          <strong>Physical Cargo:</strong> Sport fish occupy a boat hold or external hook when the vessel supports it;
+          they are never stackable backpack items.
         </div>
       </div>
     </div>
@@ -407,8 +407,8 @@ const FishingChapter: React.FC = () => (
         <h6>Fish Freshness & Decay Mechanics</h6>
         <p>
           Fresh fish retain maximum flavor and trade value. Over time at sea, fish freshness naturally decays from{" "}
-          <strong>Prime (100%)</strong> down toward <strong>Spoiled</strong>. Return to the village market swiftly or
-          pack ice to secure top gold payouts!
+          <strong>100% fresh</strong> down toward <strong>Spoiled</strong>. Bring fish to the Harbor Fish Market while
+          fresh; iced boat storage slows the decay.
         </p>
       </div>
     </div>
@@ -422,7 +422,7 @@ const FishingChapter: React.FC = () => (
 const MarketsChapter: React.FC = () => (
   <div className="guide-chapter">
     <div className="guide-section-intro">
-      <h4>Commerce, Quality Grades & Trade Orders</h4>
+        <h4>Markets, Fish Value & Trade Orders</h4>
       <p>
         Neva's village economy rewards quality, freshness, and reliable supply chains. Trade directly with merchants
         or fulfill high-paying regional logistics contracts.
@@ -435,12 +435,12 @@ const MarketsChapter: React.FC = () => (
           <IconCoin size={18} aria-hidden="true" /> Village Market Stalls
         </h5>
         <p className="guide-body-copy" style={{ fontSize: "13px", margin: "0 0 8px" }}>
-          Located at Neva Harbor and Village Plaza:
+          The Village Produce Stall and Harbor Fish Market serve different parts of the loop:
         </p>
         <ul className="guide-bullet-list">
-          <li><strong>Produce Merchant:</strong> Purchase crop seeds, fertilizers, and sell harvested produce.</li>
-          <li><strong>Fishmonger:</strong> Sells bait and tackle, and purchases both satchel fish and heavy boat cargo catches.</li>
-          <li><strong>Dynamic Pricing:</strong> Selling in bulk meets demand; varied supply yields highest returns.</li>
+          <li><strong>Village:</strong> Buy wheat, tomato, and potato seeds, fertilizer, and compost starter; sell produce and grain.</li>
+          <li><strong>Harbor:</strong> Buy fishing supplies and sell physical fish cargo at the Fish Market.</li>
+          <li><strong>Demand:</strong> Commodity prices move with local supply, demand, and season; fish also depends on weight, quality, and freshness.</li>
         </ul>
       </div>
 
@@ -452,19 +452,20 @@ const MarketsChapter: React.FC = () => (
           Press <KeycapBadge keyName="L" /> anywhere to inspect the Commercial Ledger:
         </p>
         <ul className="guide-bullet-list">
-          <li><strong>Merchant Orders:</strong> Require specific species, quantities, or minimum quality tiers.</li>
-          <li><strong>Contract Bonuses:</strong> Fulfilling contracts awards substantially more gold than standard market sales.</li>
-          <li><strong>Guild Reputation:</strong> Completing contracts unlocks prestigious regional delivery assignments.</li>
+          <li><strong>Merchant Orders:</strong> Require specific produce or physical fish, quantities, and sometimes quality or freshness.</li>
+          <li><strong>Correct destination:</strong> Produce orders are delivered at the Village; fish orders are delivered at the Harbor.</li>
+          <li><strong>Contract Bonuses:</strong> Fulfilling an order awards gold and the skill XP shown in the ledger.</li>
         </ul>
       </div>
     </div>
 
     <div className="guide-card" style={{ marginTop: "14px" }}>
-      <h5 className="guide-card-title">
-        <IconSprout size={18} aria-hidden="true" /> Quality Grades & Price Multipliers
+        <h5 className="guide-card-title">
+        <IconSprout size={18} aria-hidden="true" /> Fish Quality & Freshness
       </h5>
       <p className="guide-body-copy" style={{ fontSize: "13px", margin: "0 0 10px" }}>
-        Every crop and fish is graded upon harvest. Higher grades dramatically increase trade profits:
+        Fish value combines species, weight, quality, freshness, demand, and season. Crop grades are recorded separately
+        as Common, Fine, Exceptional, or Prize; crop prices follow the village commodity market.
       </p>
       <div className="guide-quality-showcase">
         <div className="guide-quality-chip">
@@ -508,13 +509,13 @@ const ProgressionChapter: React.FC = () => (
           <IconTools size={18} aria-hidden="true" /> Guild Proficiencies
         </h5>
         <p className="guide-body-copy" style={{ fontSize: "13px", margin: "0 0 8px" }}>
-          Gain proficiency XP by performing trade actions (tracked in <KeycapBadge keyName="J" />):
+          Gain proficiency XP by performing trade actions (press <KeycapBadge keyName="J" /> to view):
         </p>
         <ul className="guide-bullet-list">
-          <li><strong>Farming:</strong> Tilling, watering, fertilizing, and harvesting boost crop yields and quality rolls.</li>
-          <li><strong>Fishing:</strong> Angling and sport battles increase cast range, reeling power, and rare catch rates.</li>
-          <li><strong>Navigation:</strong> Piloting vessels unlocks greater engine efficiency and rough-sea handling.</li>
-          <li><strong>Commerce:</strong> Trading goods and completing contracts yields market price discounts and bonuses.</li>
+          <li><strong>Farming:</strong> Planting, watering, fertilizing, and harvesting build Farming XP and shape crop quality.</li>
+          <li><strong>Fishing:</strong> Angling and sport battles build Fishing XP; rods and habitats determine what you can target.</li>
+          <li><strong>Processing:</strong> Milling, composting, crafting, and fish preparation build Processing XP.</li>
+          <li><strong>Trading:</strong> Market sales and completed contracts build Trading XP.</li>
         </ul>
       </div>
 
@@ -523,12 +524,12 @@ const ProgressionChapter: React.FC = () => (
           <IconExpedition size={18} aria-hidden="true" /> Offshore Expeditions
         </h5>
         <p className="guide-body-copy" style={{ fontSize: "13px", margin: "0 0 8px" }}>
-          Unlocked via the Guild Expedition Board <KeycapBadge keyName="P" />:
+          Unlocked via the Guild Expedition Board (press <KeycapBadge keyName="P" />):
         </p>
         <ul className="guide-bullet-list">
-          <li><strong>Voyage Preparation:</strong> Stock fuel, ice, bait, and provisions before setting sail.</li>
-          <li><strong>Uncharted Banks:</strong> Chart isolated reefs to discover exotic deep-sea species and maritime relics.</li>
-          <li><strong>Return Safely:</strong> Manage boat weight and weather risks to return your haul to port intact.</li>
+          <li><strong>Voyage Preparation:</strong> Check weather, hull condition, hold space, chum, bait, and ice before setting sail.</li>
+          <li><strong>First Route:</strong> Take the rowboat to the lake school, chum it, and land a sport fish.</li>
+          <li><strong>Return Safely:</strong> Physical fish must come back to the Harbor Fish Market; Safe Return will not abandon a cargo hold.</li>
         </ul>
       </div>
     </div>
@@ -551,7 +552,7 @@ const ProgressionChapter: React.FC = () => (
             <IconWeatherRain size={20} aria-hidden="true" />
             <h6>Rain & Downpours</h6>
           </div>
-          <p><strong>Natural Blessing:</strong> All farm crops are automatically watered at 100% moisture for free!</p>
+          <p><strong>Steady Rain:</strong> Rain adds moisture over time and slightly improves growth; it does not instantly fill every crop to 100%.</p>
         </div>
 
         <div className="guide-weather-card">
@@ -559,7 +560,7 @@ const ProgressionChapter: React.FC = () => (
             <IconWeatherFog size={20} aria-hidden="true" />
             <h6>Thick Coastal Fog</h6>
           </div>
-          <p>Reduced visibility across open waters. Follow the lighthouse light beams to navigate safely.</p>
+          <p>Visibility drops across open water. Use the map, landmarks, and a conservative route when the coast disappears into fog.</p>
         </div>
 
         <div className="guide-weather-card">
@@ -567,7 +568,7 @@ const ProgressionChapter: React.FC = () => (
             <IconWeatherStorm size={20} aria-hidden="true" />
             <h6>Ocean Gales & Storms</h6>
           </div>
-          <p>Violent winds and rough swells. Waters all crops, but small vessels risk high instability offshore.</p>
+          <p>Storms raise sea roughness and replenish crop moisture faster, but make small-boat handling less forgiving.</p>
         </div>
       </div>
     </div>

@@ -27,7 +27,7 @@ export const QUESTS: QuestDefinition[] = [
     introDialogue: [
       "Welcome to Neva Cove, dear! Your family once tended these quiet coastal fields and sailed the deep waters beyond the headland.",
       "The old homestead has waited a long time for you. Let's start with the foundation of all life on the island: the soil.",
-      "Take these wheat seeds. Head into the tilled garden field just behind me to begin."
+      "Take these wheat seeds. Head into the prepared garden field just behind me to begin."
     ],
     completionDialogue: [
       "You have your grandfather's steady hands. Let's get these seeds into the earth!"
@@ -56,17 +56,17 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Sowing the First Furrows",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Walk onto the dark tilled soil plot. Open your inventory, select the Wheat Seeds, and click on the soil to place them.",
+      "Walk onto the prepared field soil. Select the Wheat Seeds and click a clear spot to place them.",
       "Each crop has its own footprint. Space them out nicely so their roots have room to breathe."
     ],
     completionDialogue: [
-      "Wonderful! The seeds are snug in the furrows. But seeds won't sprout without water."
+      "Wonderful! The seeds are in the soil. But they won't sprout without water."
     ],
     objectives: [
       {
         id: "step.act1_sow_3_wheat",
         type: "plant-crop",
-        description: "Plant 3 Wheat Seeds in the tilled plot",
+        description: "Plant 3 Wheat Seeds in the prepared field",
         targetId: "crop.wheat",
         targetQuantity: 3,
         locationAnchor: STARTER_FARM_ANCHOR,
@@ -87,7 +87,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.elspeth",
     introDialogue: [
       "Approach your freshly seeded crops and press [E] or left-click to water them with your watering can.",
-      "Keeping soil moisture in the ideal green band speeds up growth and yields prize-winning harvests!"
+      "Keeping soil moisture in the ideal green band supports healthy growth and better harvest grades!"
     ],
     completionDialogue: [
       "Look how rich and dark the soil looks when watered! Wheat takes a morning to ripen — tend other chores, or rest at the farmhouse and return."
@@ -235,7 +235,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.elspeth",
     introDialogue: [
       "The village produce stall is always eager for extra grain and garden produce.",
-      "Visit the Village Produce Stall near the farm edge. Open the market trade menu and sell extra produce for silver. Harbor is where the catch is traded."
+      "Visit the Village Produce Stall near the farm edge. Open the market trade menu and sell extra produce for gold. Harbor is where the catch is traded."
     ],
     completionDialogue: [
       "Look at that purse jingle! Honest coin from your own labor. Now you're ready to see the wider harbor."
@@ -336,8 +336,8 @@ export const QUESTS: QuestDefinition[] = [
       "Stow your catch in the boat hold, race back before freshness drops, and sell to Maeve!"
     ],
     completionDialogue: [
-      "Magnificent! You've mastered the true loop of Neva: from wheat seed, to worm, to chum, to ocean leviathan, to market gold!",
-      "The entire archipelago is open to you now. The Expedition Board is active, and new horizons await!"
+      "Magnificent! You've mastered the first loop of Neva: from wheat seed, to worm, to chum, to lake sport fish, to harbor gold!",
+      "The Expedition Board is active now. Keep tending the homestead, learning the water, and preparing for longer routes."
     ],
     objectives: [
       {

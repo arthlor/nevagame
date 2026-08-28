@@ -9,6 +9,7 @@ import { ChromeButton, ChromeClose, ChromeDivider, ChromeMeter, ChromePanel } fr
 import { IconCoin, IconCompass, IconFish, IconJournal, IconSprout, IconTools } from "./components/HudIcons";
 import { HowToPlayGuide } from "./components/HowToPlayGuide";
 import { playUiSound } from "./audio/uiAudio";
+import { getNextRank, getRankForXp } from "../content/progression";
 
 export type JournalFolio = "quests" | "skills" | "bestiary" | "farming" | "guide";
 
@@ -35,11 +36,12 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
   const discoveredFishCount = Object.keys(journal.fishRecords).length;
 
   const getRankName = (xp: number): { title: string; nextXp: number; progress: number } => {
-    if (xp >= 1000) return { title: "Grandmaster", nextXp: 1000, progress: 100 };
-    if (xp >= 500) return { title: "Master Artisan", nextXp: 1000, progress: Math.round(((xp - 500) / 500) * 100) };
-    if (xp >= 200) return { title: "Journeyman", nextXp: 500, progress: Math.round(((xp - 200) / 300) * 100) };
-    if (xp >= 50) return { title: "Apprentice", nextXp: 200, progress: Math.round(((xp - 50) / 150) * 100) };
-    return { title: "Novice", nextXp: 50, progress: Math.round((xp / 50) * 100) };
+    const current = getRankForXp(xp);
+    const next = getNextRank(xp);
+    if (!next) return { title: current.rankName, nextXp: current.xpRequired, progress: 100 };
+    const span = Math.max(1, next.xpRequired - current.xpRequired);
+    const progress = Math.round(Math.min(1, Math.max(0, (xp - current.xpRequired) / span)) * 100);
+    return { title: current.rankName, nextXp: next.xpRequired, progress };
   };
 
   return (
@@ -218,7 +220,6 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
                           value={rank.progress}
                           max={100}
                           showLabel={false}
-                          valueText={`${rank.progress}% to next tier`}
                           variant="gold"
                         />
                         <div className="mastery-footer">
@@ -301,30 +302,30 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
                       <strong>Starter Crops of Homestead Farm</strong>
                     </div>
                     <p>
-                      Wheat is hardy and quick to mature (approx. 4 mins). Potatoes and Tomatoes yield higher market profits
-                      when delivered fresh to Neva Village Plaza.
+                      Wheat has a 180-game-minute base growth timer. Climate, moisture, fertility, and weather change its
+                      effective growth. Potatoes and tomatoes are also available in the starter crop set.
                     </p>
                   </div>
 
                   <div className="field-note-card">
                     <div className="field-note-header">
                       <IconTools size={18} aria-hidden="true" />
-                      <strong>Soil Moisture & Tilling</strong>
+                      <strong>Soil Moisture & Fertility</strong>
                     </div>
                     <p>
-                      Till soil with your Hoe before sowing. Watered soil retains moisture during sunny weather and speeds crop growth.
-                      Rainstorms naturally saturate all outdoor farm plots.
+                      Plant on prepared soil. Watered soil supports growth, while low fertility and moisture stress slow the
+                      crop and can damage it. Rain adds moisture over time; it does not instantly saturate every crop.
                     </p>
                   </div>
 
                   <div className="field-note-card">
                     <div className="field-note-header">
                       <IconCoin size={18} aria-hidden="true" />
-                      <strong>Market Arbitrage & Trade Routes</strong>
+                      <strong>Market Routes & Fish Value</strong>
                     </div>
                     <p>
-                      Village merchants pay top gold for harvested produce and grain, while Seabreak Harbor pays premiums
-                      for preserved fish cargo and expedition supplies.
+                      Sell produce and grain at the Village Produce Stall. Bring physical fish cargo to the Harbor Fish Market;
+                      fish value also reflects weight, quality, freshness, demand, and season.
                     </p>
                   </div>
                 </div>
@@ -349,4 +350,3 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
     </div>
   );
 };
-

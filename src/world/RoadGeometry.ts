@@ -21,6 +21,7 @@ export interface OrganicRoadGeometryOptions {
     eastDeckEdge: WorldPoint;
     gatewayDepthMeters: number;
     gatewayInsetMeters: number;
+    gatewayOverlapMeters?: number;
     gatewaySlabCount: number;
     gatewaySlabGapMeters: number;
   };
@@ -371,7 +372,7 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
         ) * 0.035;
         const vertexColor = baseColor
           .lerp(wearColor, clamp01(crossSection.wheelBand))
-          .lerp(shoulderGrass, clamp01(crossSection.edgeGrassAmount * 0.34))
+          .lerp(shoulderGrass, clamp01(crossSection.edgeGrassAmount * 0.7))
           .multiplyScalar(0.975 + clamp01(lowFrequencyFacet) * 0.05);
         const surfaceOpacity = 1 - smoothstep(0.08, 0.92, crossSection.edgeGrassAmount);
         ring.push(appendVertex({ x, y, z }, vertexColor, surfaceOpacity));
@@ -526,8 +527,10 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
       const endY = (point: WorldPoint): number => heightAt(point.x, point.z);
       const startLeftIndex = appendVertex({ ...startLeft, y: startY(startLeft) }, branchColor);
       const startRightIndex = appendVertex({ ...startRight, y: startY(startRight) }, branchColor);
-      const endLeftIndex = appendVertex({ ...endLeft, y: endY(endLeft) }, branchEdgeColor, 0.06);
-      const endRightIndex = appendVertex({ ...endRight, y: endY(endRight) }, branchEdgeColor, 0.06);
+      // These ends join the packed route, not the meadow. Fading an entire
+      // longitudinal arm here lets alpha testing cut holes through the road.
+      const endLeftIndex = appendVertex({ ...endLeft, y: endY(endLeft) }, branchEdgeColor);
+      const endRightIndex = appendVertex({ ...endRight, y: endY(endRight) }, branchEdgeColor);
       appendTriangle(startLeftIndex, startRightIndex, endRightIndex);
       appendTriangle(startLeftIndex, endRightIndex, endLeftIndex);
       junctionTriangleCount += 2;
@@ -540,6 +543,7 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   const totalGap = options.bridge.gatewaySlabGapMeters * (slabCount - 1);
   const slabWidth = (options.bridge.deckWidth - totalGap) / slabCount;
   const gatewayHeight = options.bridge.entrySurfaceY;
+  const gatewayOverlap = options.bridge.gatewayOverlapMeters ?? 0.22;
   const gatewayVertexStart = positions.length / 3;
 
   for (const [sideIndex, side] of [-1, 1].entries()) {
@@ -549,15 +553,19 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
       const zEnd = zStart + slabWidth;
       const boundaryInset = options.bridge.gatewayInsetMeters;
       const irregular = Math.sin((slabIndex + 1) * 2.7 + sideIndex * 1.9);
-      const nearX = edge.x + side * boundaryInset;
+      // Overlap the final deck box so the character capsule has a continuous
+      // physical top at the bridge/road seam.
+      const nearX = edge.x + side * (boundaryInset - gatewayOverlap);
       const farX = edge.x + side * options.bridge.gatewayDepthMeters;
       const nearZStart = options.bridge.center.z + zStart + 0.035 + irregular * 0.025;
       const nearZEnd = options.bridge.center.z + zEnd - 0.035 + irregular * 0.018;
       const farZStart = nearZStart + Math.sin(slabIndex * 1.4 + sideIndex) * 0.035;
       const farZEnd = nearZEnd + Math.cos(slabIndex * 1.1 + sideIndex) * 0.028;
       const slabColor = (slabIndex + sideIndex) % 2 === 0 ? warmStone : goldenStone;
-      const nearStart = { x: nearX, y: heightAt(nearX, nearZStart), z: nearZStart };
-      const nearEnd = { x: nearX, y: heightAt(nearX, nearZEnd), z: nearZEnd };
+      const gatewayHeightAt = (x: number, z: number): number =>
+        isBridgeDeck(x, z) ? gatewayHeight : heightAt(x, z);
+      const nearStart = { x: nearX, y: gatewayHeightAt(nearX, nearZStart), z: nearZStart };
+      const nearEnd = { x: nearX, y: gatewayHeightAt(nearX, nearZEnd), z: nearZEnd };
       const farStart = { x: farX, y: heightAt(farX, farZStart), z: farZStart };
       const farEnd = { x: farX, y: heightAt(farX, farZEnd), z: farZEnd };
       // Reverse the west-bank winding so both entries present their stone

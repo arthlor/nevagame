@@ -166,7 +166,7 @@ const STARTER_PROP_ANCHORS = [
   { id: "farm_hay_b", type: "hay-bale", x: -12.1, z: -8.5, rotationY: 0.66, scale: 0.94 },
   { id: "stall_crate_a", type: "produce-crate", x: 13.1, z: -4.1, rotationY: -0.18, scale: 0.9 },
   { id: "stall_basket_a", type: "harvest-basket", x: 14.3, z: -4, rotationY: 0.24, scale: 1 },
-  { id: "farm_lamp_a", type: "lamp-post", x: 7.3, z: -6.1, rotationY: 0.1, scale: 0.88 }
+  { id: "farm_lamp_a", type: "lamp-post", x: 7.5, z: -6.4, rotationY: 0.7854, scale: 0.88 }
 ] as const satisfies readonly FarmPropAnchor[];
 
 const STARTER_PATHS = [

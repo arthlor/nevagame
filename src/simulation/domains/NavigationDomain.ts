@@ -143,11 +143,20 @@ export class NavigationDomain {
     return { success: true };
   }
 
-  public resetToSafeSpawn(): void {
+  public resetToSafeSpawn(): { success: boolean; reason?: string } {
     const { state } = this.context;
     const activeBoatId = state.player.activeBoatId;
     if (activeBoatId) {
       const boat = state.boats[activeBoatId];
+      if (
+        state.player.carriedFishCargoId ||
+        boat?.fishCargoSlotIds.some((cargoId) => cargoId !== null)
+      ) {
+        return {
+          success: false,
+          reason: "Return to the harbor before using Safe Return while carrying physical fish cargo"
+        };
+      }
       if (boat) {
         const mooring = harborMooringForBoatType(boat.boatTypeId);
         Object.assign(boat, {
@@ -170,6 +179,7 @@ export class NavigationDomain {
       currentRegionId: WORLD_SPAWN.regionId,
       traversal: createFullPlayerTraversalState()
     });
+    return { success: true };
   }
 
   public canBoardBoat(boatId: BoatId): boolean {
@@ -233,7 +243,9 @@ export class NavigationDomain {
     state.player.activeBoatId = null;
     Object.assign(state.player, {
       x: mooring.playerPosition.x,
-      y: WorldLayout.terrainHeight(mooring.playerPosition.x, mooring.playerPosition.z) + 0.5,
+      y: WorldLayout.isPierDeck(mooring.playerPosition.x, mooring.playerPosition.z)
+        ? WorldLayout.pierDeckSurfaceY() + 0.5
+        : WorldLayout.terrainHeight(mooring.playerPosition.x, mooring.playerPosition.z) + 0.5,
       z: mooring.playerPosition.z,
       traversal: { ...state.player.traversal, isGrounded: true }
     });

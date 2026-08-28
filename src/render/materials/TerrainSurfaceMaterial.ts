@@ -2,13 +2,31 @@ import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
 import { GROUND_POLYGON_CELL_GLSL } from "./GroundPolygonCells";
+import {
+  createSurfaceFallbackTexture,
+  loadSurfaceTexture,
+  POLYHAVEN_SURFACE_TEXTURES
+} from "./ExternalSurfaceTextures";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { PALETTE_HEX } from "./PaletteTokens";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v13";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v17";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
+
+export type TerrainDebugMode = "off" | "surface" | "shoreline" | "slope";
+
+const TERRAIN_DEBUG_MODE_VALUE: Readonly<Record<TerrainDebugMode, number>> = Object.freeze({
+  off: 0,
+  surface: 1,
+  shoreline: 2,
+  slope: 3
+});
+
+export function isTerrainDebugMode(value: string | null): value is TerrainDebugMode {
+  return value !== null && Object.hasOwn(TERRAIN_DEBUG_MODE_VALUE, value);
+}
 
 type TerrainSurfaceConfig = VisualRenderConfig["terrainSurface"];
 
@@ -140,8 +158,10 @@ function patchTerrainSurfaceShader(
     `${vertexCommon}
 attribute float terrainGreenMask;
 attribute float terrainPathBlend;
+attribute vec3 terrainShoreWeights;
 varying float vTerrainGreenMask;
 varying float vTerrainPathBlend;
+varying vec3 vTerrainShoreWeights;
 varying vec3 vTerrainWorldPosition;`,
     "vertex"
   );
@@ -150,7 +170,8 @@ varying vec3 vTerrainWorldPosition;`,
     vertexBegin,
     `${vertexBegin}
 vTerrainGreenMask = terrainGreenMask;
-vTerrainPathBlend = clamp(terrainPathBlend, 0.0, 1.0);`,
+vTerrainPathBlend = clamp(terrainPathBlend, 0.0, 1.0);
+vTerrainShoreWeights = clamp(terrainShoreWeights, 0.0, 1.0);`,
     "vertex"
   );
   shader.vertexShader = replaceShaderChunk(
@@ -166,8 +187,18 @@ vTerrainWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
     fragmentCommon,
     `${fragmentCommon}
 uniform sampler2D terrainDetailTexture;
+uniform sampler2D terrainLeafyGrassColorTexture;
+uniform sampler2D terrainLeafyGrassRoughnessTexture;
+uniform sampler2D terrainSparseGrassColorTexture;
+uniform sampler2D terrainSparseGrassRoughnessTexture;
 uniform float terrainLargeSampleScale;
 uniform float terrainSmallSampleScale;
+uniform float terrainLeafyGrassSampleScale;
+uniform float terrainSparseGrassSampleScale;
+uniform float terrainLeafyGrassRotation;
+uniform float terrainSparseGrassRotation;
+uniform float terrainExternalColorStrength;
+uniform float terrainExternalRoughnessStrength;
 uniform float terrainPolygonCellScale;
 uniform float terrainSmallLayerRotation;
 uniform float terrainColorVariationStrength;
@@ -187,6 +218,19 @@ uniform vec3 terrainPaletteGrassColor;
 uniform vec3 terrainPaletteHighlightColor;
 uniform vec3 terrainPathDustColor;
 uniform vec3 terrainPathShoulderColor;
+uniform vec3 terrainBeachColor;
+uniform vec3 terrainShoreWetColor;
+uniform vec3 terrainCliffColor;
+uniform vec3 terrainRainDarkColor;
+uniform float terrainBeachColorMix;
+uniform float terrainShoreWetColorMix;
+uniform float terrainCliffColorMix;
+uniform float terrainShoreRainDarkening;
+uniform float terrainBeachRoughness;
+uniform float terrainShoreWetRoughness;
+uniform float terrainCliffRoughness;
+uniform float terrainShoreFacetStrength;
+uniform float terrainDebugMode;
 uniform float terrainRoughnessVariation;
 uniform float terrainWetness;
 uniform vec3 terrainWetColor;
@@ -197,6 +241,7 @@ uniform float terrainRoughnessMin;
 uniform float terrainRoughnessMax;
 varying float vTerrainGreenMask;
 varying float vTerrainPathBlend;
+varying vec3 vTerrainShoreWeights;
 varying vec3 vTerrainWorldPosition;
 ${GROUND_POLYGON_CELL_GLSL}`,
     "fragment"
@@ -265,10 +310,120 @@ vec3 terrainPaletteColor = mix(
 terrainPaletteColor = mix(terrainPaletteSageColor, terrainPaletteColor, terrainPaletteVariationStrength);
 terrainPaletteColor *= mix(0.97, 1.03, fract(terrainPolygonSignal * 6.17 + 0.13));
 terrainPaletteColor *= mix(vec3(1.0), vec3(terrainDetail), 0.28);
+vec2 terrainLeafyGrassPosition = vTerrainWorldPosition.xz / terrainLeafyGrassSampleScale;
+float terrainLeafyGrassRotationSin = sin(terrainLeafyGrassRotation);
+float terrainLeafyGrassRotationCos = cos(terrainLeafyGrassRotation);
+vec2 terrainLeafyGrassUv = vec2(
+  terrainLeafyGrassPosition.x * terrainLeafyGrassRotationCos
+    - terrainLeafyGrassPosition.y * terrainLeafyGrassRotationSin,
+  terrainLeafyGrassPosition.x * terrainLeafyGrassRotationSin
+    + terrainLeafyGrassPosition.y * terrainLeafyGrassRotationCos
+);
+vec2 terrainSparseGrassPosition = vTerrainWorldPosition.xz / terrainSparseGrassSampleScale;
+float terrainSparseGrassRotationSin = sin(terrainSparseGrassRotation);
+float terrainSparseGrassRotationCos = cos(terrainSparseGrassRotation);
+vec2 terrainSparseGrassUv = vec2(
+  terrainSparseGrassPosition.x * terrainSparseGrassRotationCos
+    - terrainSparseGrassPosition.y * terrainSparseGrassRotationSin,
+  terrainSparseGrassPosition.x * terrainSparseGrassRotationSin
+    + terrainSparseGrassPosition.y * terrainSparseGrassRotationCos
+);
+float terrainMeadowBlend = smoothstep(0.22, 0.8, terrainPaletteSignal);
+vec3 terrainLeafyGrassSample = texture2D(
+  terrainLeafyGrassColorTexture,
+  terrainLeafyGrassUv
+).rgb;
+vec3 terrainSparseGrassSample = texture2D(
+  terrainSparseGrassColorTexture,
+  terrainSparseGrassUv
+).rgb;
+float terrainLeafyGrassLuma = dot(terrainLeafyGrassSample, vec3(0.299, 0.587, 0.114));
+float terrainLeafyGrassSignal = clamp(
+  (terrainLeafyGrassSample.g - terrainLeafyGrassSample.r * 0.58) * 2.2 + 0.42,
+  0.0,
+  1.0
+);
+float terrainLeafyValue = smoothstep(0.16, 0.82, terrainLeafyGrassLuma);
+vec3 terrainLeafyGrassColor = mix(
+  terrainPaletteOliveColor,
+  terrainPaletteSageColor,
+  smoothstep(0.18, 0.72, terrainLeafyGrassSignal)
+);
+terrainLeafyGrassColor = mix(
+  terrainPaletteShadowColor,
+  terrainLeafyGrassColor,
+  0.72 + terrainLeafyValue * 0.28
+);
+terrainLeafyGrassColor = mix(
+  terrainLeafyGrassColor,
+  terrainPaletteGrassColor,
+  smoothstep(0.68, 0.94, terrainLeafyGrassSignal) * 0.2
+);
+terrainLeafyGrassColor *= mix(0.92, 1.08, terrainLeafyValue);
+float terrainSparseGrassLuma = dot(terrainSparseGrassSample, vec3(0.299, 0.587, 0.114));
+float terrainSparseGrassSignal = clamp(
+  (terrainSparseGrassSample.g - terrainSparseGrassSample.r * 0.52) * 2.1 + 0.44,
+  0.0,
+  1.0
+);
+float terrainSparseValue = smoothstep(0.14, 0.78, terrainSparseGrassLuma);
+vec3 terrainSparseGrassColor = mix(
+  terrainPaletteOliveColor,
+  terrainPaletteSageColor,
+  smoothstep(0.16, 0.7, terrainSparseGrassSignal)
+);
+terrainSparseGrassColor = mix(
+  terrainPaletteShadowColor,
+  terrainSparseGrassColor,
+  0.76 + terrainSparseValue * 0.24
+);
+terrainSparseGrassColor = mix(
+  terrainSparseGrassColor,
+  terrainPaletteGrassColor,
+  smoothstep(0.68, 0.94, terrainSparseGrassSignal) * 0.15
+);
+terrainSparseGrassColor *= mix(0.93, 1.07, terrainSparseValue);
+vec3 terrainExternalColor = mix(
+  terrainLeafyGrassColor,
+  terrainSparseGrassColor,
+  terrainMeadowBlend
+);
+terrainExternalColor = mix(terrainPaletteColor, terrainExternalColor, 0.76);
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   terrainPaletteColor,
   mosaicMask * terrainPolygonVariationStrength
+);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  terrainExternalColor,
+  mosaicMask * terrainExternalColorStrength
+);
+vec3 terrainShoreWeights = clamp(vTerrainShoreWeights, 0.0, 1.0);
+float terrainShoreWeight = clamp(
+  terrainShoreWeights.x + terrainShoreWeights.y + terrainShoreWeights.z,
+  0.0,
+  1.0
+);
+vec3 terrainShoreColor = (
+  terrainBeachColor * terrainShoreWeights.x
+  + terrainShoreWetColor * terrainShoreWeights.y
+  + terrainCliffColor * terrainShoreWeights.z
+) / max(terrainShoreWeight, 0.0001);
+float terrainShoreColorMix = clamp(
+  terrainShoreWeights.x * terrainBeachColorMix
+  + terrainShoreWeights.y * terrainShoreWetColorMix
+  + terrainShoreWeights.z * terrainCliffColorMix,
+  0.0,
+  1.0
+);
+float terrainShoreValue = mix(0.965, 1.035, terrainLargeSample);
+terrainShoreColor *= terrainShoreValue;
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainShoreColor, terrainShoreColorMix);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  terrainRainDarkColor,
+  terrainShoreWeight * clamp(terrainWetness, 0.0, 1.0) * terrainShoreRainDarkening
 );
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
@@ -279,7 +434,21 @@ vec3 pathCellColor = mix(terrainPathShoulderColor, terrainPathDustColor, pathCor
 float pathValueBand = step(0.34, pathPolygonSignal) + step(0.72, pathPolygonSignal);
 pathCellColor *= mix(0.98, 1.025, pathValueBand * 0.5);
 diffuseColor.rgb = mix(diffuseColor.rgb, pathCellColor, pathUnderlayMix);
-float terrainFacetMask = max(mosaicMask, pathUnderlayMix * 0.36);`,
+float terrainFacetMask = max(
+  max(mosaicMask, pathUnderlayMix * 0.36),
+  terrainShoreWeights.z * terrainShoreFacetStrength
+);
+float terrainDebugSlope = 1.0 - abs(normalize(cross(
+  dFdx(vTerrainWorldPosition),
+  dFdy(vTerrainWorldPosition)
+)).y);
+if (terrainDebugMode > 0.5 && terrainDebugMode < 1.5) {
+  diffuseColor.rgb = vec3(terrainMask, vTerrainPathBlend, terrainShoreWeight);
+} else if (terrainDebugMode >= 1.5 && terrainDebugMode < 2.5) {
+  diffuseColor.rgb = terrainShoreWeights;
+} else if (terrainDebugMode >= 2.5) {
+  diffuseColor.rgb = vec3(terrainDebugSlope);
+}`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -308,11 +477,37 @@ float terrainSurfaceRoughness = clamp(
   terrainRoughnessMin,
   terrainRoughnessMax
 );
+float terrainExternalRoughnessSignal = mix(
+  texture2D(terrainLeafyGrassRoughnessTexture, terrainLeafyGrassUv).r,
+  texture2D(terrainSparseGrassRoughnessTexture, terrainSparseGrassUv).r,
+  terrainMeadowBlend
+);
+float terrainExternalRoughness = mix(
+  0.86,
+  0.97,
+  clamp(terrainExternalRoughnessSignal, 0.0, 1.0)
+);
+terrainSurfaceRoughness = mix(
+  terrainSurfaceRoughness,
+  terrainExternalRoughness,
+  terrainExternalRoughnessStrength
+);
 roughnessFactor = mix(
   roughnessFactor,
   terrainSurfaceRoughness,
   max(mosaicMask, pathUnderlayMix * 0.65)
-);`,
+);
+float terrainShoreRoughness = (
+  terrainBeachRoughness * terrainShoreWeights.x
+  + terrainShoreWetRoughness * terrainShoreWeights.y
+  + terrainCliffRoughness * terrainShoreWeights.z
+) / max(terrainShoreWeight, 0.0001);
+terrainShoreRoughness = mix(
+  terrainShoreRoughness,
+  min(terrainShoreRoughness, terrainShoreWetRoughness),
+  clamp(terrainWetness, 0.0, 1.0) * terrainShoreWeight
+);
+roughnessFactor = mix(roughnessFactor, terrainShoreRoughness, terrainShoreWeight);`,
     "fragment"
   );
 
@@ -324,6 +519,8 @@ export class TerrainSurfaceMaterial {
   public readonly detailTexture: THREE.DataTexture;
   private readonly config: TerrainSurfaceConfig;
   private readonly shaderUniforms: TerrainSurfaceShaderSource["uniforms"];
+  private readonly ownedExternalTextures = new Set<THREE.Texture>();
+  private externalTextureLoadPromise: Promise<void> | null = null;
   private initialized = false;
   private lastTimeSeconds = 0;
   private targetWetness = 0;
@@ -334,10 +531,28 @@ export class TerrainSurfaceMaterial {
   public constructor(config: TerrainSurfaceConfig = CANONICAL_RENDER_CONFIG.terrainSurface) {
     this.config = config;
     this.detailTexture = createTerrainDetailTexture(config.textureSize);
+    const leafyGrassColorFallback = createSurfaceFallbackTexture("color");
+    const leafyGrassRoughnessFallback = createSurfaceFallbackTexture("roughness");
+    const sparseGrassColorFallback = createSurfaceFallbackTexture("color");
+    const sparseGrassRoughnessFallback = createSurfaceFallbackTexture("roughness");
+    this.ownedExternalTextures.add(leafyGrassColorFallback);
+    this.ownedExternalTextures.add(leafyGrassRoughnessFallback);
+    this.ownedExternalTextures.add(sparseGrassColorFallback);
+    this.ownedExternalTextures.add(sparseGrassRoughnessFallback);
     this.shaderUniforms = {
       terrainDetailTexture: { value: this.detailTexture },
+      terrainLeafyGrassColorTexture: { value: leafyGrassColorFallback },
+      terrainLeafyGrassRoughnessTexture: { value: leafyGrassRoughnessFallback },
+      terrainSparseGrassColorTexture: { value: sparseGrassColorFallback },
+      terrainSparseGrassRoughnessTexture: { value: sparseGrassRoughnessFallback },
       terrainLargeSampleScale: { value: config.largeSampleScaleMeters },
       terrainSmallSampleScale: { value: config.smallSampleScaleMeters },
+      terrainLeafyGrassSampleScale: { value: config.externalTextures.leafySampleScaleMeters },
+      terrainSparseGrassSampleScale: { value: config.externalTextures.sparseSampleScaleMeters },
+      terrainLeafyGrassRotation: { value: config.externalTextures.leafyRotationRadians },
+      terrainSparseGrassRotation: { value: config.externalTextures.sparseRotationRadians },
+      terrainExternalColorStrength: { value: config.externalTextures.colorStrength },
+      terrainExternalRoughnessStrength: { value: config.externalTextures.roughnessStrength },
       terrainPolygonCellScale: { value: config.polygonCellScaleMeters },
       terrainSmallLayerRotation: { value: config.smallLayerRotationRadians },
       terrainColorVariationStrength: { value: config.colorVariationStrength },
@@ -357,6 +572,19 @@ export class TerrainSurfaceMaterial {
       terrainPaletteHighlightColor: { value: new THREE.Color(PALETTE_HEX.foliage_highlight_01) },
       terrainPathDustColor: { value: new THREE.Color(PALETTE_HEX.path_dust_01) },
       terrainPathShoulderColor: { value: new THREE.Color(PALETTE_HEX.soil_dry_01) },
+      terrainBeachColor: { value: new THREE.Color(PALETTE_HEX.sand_warm_01) },
+      terrainShoreWetColor: { value: new THREE.Color(PALETTE_HEX.shore_wet_01) },
+      terrainCliffColor: { value: new THREE.Color(PALETTE_HEX.stone_cool_01) },
+      terrainRainDarkColor: { value: new THREE.Color(PALETTE_HEX.soil_warm_01) },
+      terrainBeachColorMix: { value: config.shoreline.beachColorMix },
+      terrainShoreWetColorMix: { value: config.shoreline.wetColorMix },
+      terrainCliffColorMix: { value: config.shoreline.cliffColorMix },
+      terrainShoreRainDarkening: { value: config.shoreline.rainDarkening },
+      terrainBeachRoughness: { value: config.shoreline.beachRoughness },
+      terrainShoreWetRoughness: { value: config.shoreline.wetRoughness },
+      terrainCliffRoughness: { value: config.shoreline.cliffRoughness },
+      terrainShoreFacetStrength: { value: config.shoreline.facetStrength },
+      terrainDebugMode: { value: TERRAIN_DEBUG_MODE_VALUE.off },
       terrainRoughnessVariation: { value: config.roughnessVariation },
       terrainWetness: { value: this.wetnessValue },
       terrainWetColor: { value: new THREE.Color(PALETTE_HEX.foliage_shadow_01) },
@@ -382,8 +610,57 @@ export class TerrainSurfaceMaterial {
     this.material.needsUpdate = true;
   }
 
+  public loadExternalTextures(
+    loader: Pick<THREE.TextureLoader, "loadAsync"> = new THREE.TextureLoader()
+  ): Promise<void> {
+    if (this.externalTextureLoadPromise) return this.externalTextureLoadPromise;
+
+    const jobs = [
+      {
+        uniformName: "terrainLeafyGrassColorTexture",
+        spec: POLYHAVEN_SURFACE_TEXTURES.leafyGrassColor
+      },
+      {
+        uniformName: "terrainLeafyGrassRoughnessTexture",
+        spec: POLYHAVEN_SURFACE_TEXTURES.leafyGrassRoughness
+      },
+      {
+        uniformName: "terrainSparseGrassColorTexture",
+        spec: POLYHAVEN_SURFACE_TEXTURES.sparseGrassColor
+      },
+      {
+        uniformName: "terrainSparseGrassRoughnessTexture",
+        spec: POLYHAVEN_SURFACE_TEXTURES.sparseGrassRoughness
+      }
+    ] as const;
+
+    this.externalTextureLoadPromise = Promise.all(
+      jobs.map(async ({ uniformName, spec }) => {
+        const texture = await loadSurfaceTexture(spec, loader);
+        if (!texture) return;
+
+        const uniform = this.shaderUniforms[uniformName];
+        const previous = uniform.value;
+        uniform.value = texture;
+        if (previous instanceof THREE.Texture) {
+          this.ownedExternalTextures.delete(previous);
+          previous.dispose();
+        }
+        this.ownedExternalTextures.add(texture);
+      })
+    ).then(() => {
+      this.material.needsUpdate = true;
+    });
+
+    return this.externalTextureLoadPromise;
+  }
+
   public get wetness(): number {
     return this.wetnessValue;
+  }
+
+  public setDebugMode(mode: TerrainDebugMode): void {
+    this.shaderUniforms.terrainDebugMode.value = TERRAIN_DEBUG_MODE_VALUE[mode];
   }
 
   /**
@@ -417,6 +694,8 @@ export class TerrainSurfaceMaterial {
   public dispose(): void {
     this.material.dispose();
     this.detailTexture.dispose();
+    for (const texture of this.ownedExternalTextures) texture.dispose();
+    this.ownedExternalTextures.clear();
   }
 
   private transitionWetness(timeSeconds: number): number {

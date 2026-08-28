@@ -1,5 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { isProcessingRecipeUnlocked } from "../../content/progression";
+import { LIVE_RECIPE_IDS } from "../../content/recipes";
 import type { RecipeDefinition } from "../../content/types";
 import type { InventoryState, ProcessingJobId, RecipeId, StationType } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -15,8 +15,12 @@ export function pickUnlockedStationRecipe(
   inventory: InventoryState,
   processingXp: number
 ): RecipeDefinition | undefined {
-  const recipes = [...ContentRegistry.recipes.values()].filter((recipe) => recipe.stationType === stationType);
-  const unlocked = recipes.filter((recipe) => isProcessingRecipeUnlocked(processingXp, recipe.id));
+  const recipes = [...ContentRegistry.recipes.values()].filter(
+    (recipe) => recipe.stationType === stationType && LIVE_RECIPE_IDS.has(recipe.id)
+  );
+  const unlocked = recipes.filter(
+    (recipe) => !recipe.minimumSkill || processingXp >= recipe.minimumSkill.xp
+  );
   return unlocked.find((recipe) => InventoryManager.hasItems(inventory, recipe.inputs)) ?? unlocked[0];
 }
 
@@ -30,6 +34,7 @@ export class ProcessingDomain {
     const { state, events } = this.context;
     const recipe = ContentRegistry.recipes.get(recipeId);
     if (!recipe) return { success: false, reason: "Unknown recipe" };
+    if (!LIVE_RECIPE_IDS.has(recipe.id)) return { success: false, reason: "That recipe is not available yet" };
     const station = state.world.structures[stationId];
     if (!station) return { success: false, reason: "Station not found" };
     const approach = assessProcessingStationApproach(stationId, state.player, station);
@@ -41,9 +46,6 @@ export class ProcessingDomain {
     }
     if (recipe.minimumSkill && state.player.proficiencies[recipe.minimumSkill.skill] < recipe.minimumSkill.xp) {
       return { success: false, reason: `Requires ${recipe.minimumSkill.xp} ${recipe.minimumSkill.skill} XP` };
-    }
-    if (!isProcessingRecipeUnlocked(state.player.proficiencies.processing, recipeId)) {
-      return { success: false, reason: "That recipe is still locked" };
     }
     if (Object.values(state.processingJobs).some((job) => job.stationId === stationId && job.status !== "collected")) {
       return { success: false, reason: "Station is already in use" };

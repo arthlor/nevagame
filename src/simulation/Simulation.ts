@@ -120,8 +120,7 @@ export class Simulation {
       case "player.face-target":
         return this.navigationDomain.facePlayerTarget(command.x, command.z);
       case "player.reset-safe":
-        this.resetPlayerToSafeSpawn();
-        return { success: true };
+        return this.resetPlayerToSafeSpawn();
       case "boat.board":
         return this.boardBoat(command.boatId);
       case "boat.dock":
@@ -566,9 +565,10 @@ export class Simulation {
     this.navigationDomain.refreshPlayerRegion();
   }
 
-  public resetPlayerToSafeSpawn(): void {
-    this.fishingDomain.cancelAll();
-    this.navigationDomain.resetToSafeSpawn();
+  public resetPlayerToSafeSpawn(): InteractionResult {
+    const result = this.navigationDomain.resetToSafeSpawn();
+    if (result.success) this.fishingDomain.cancelAll();
+    return result;
   }
 
   public canBoardBoat(boatId: BoatId): boolean {
@@ -619,7 +619,9 @@ export class Simulation {
     });
     this.setDebugPlayerPose({
       x: HARBOR_DOCK.playerPosition.x,
-      y: WorldLayout.terrainHeight(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z) + 0.5,
+      y: WorldLayout.isPierDeck(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z)
+        ? WorldLayout.pierDeckSurfaceY() + 0.5
+        : WorldLayout.terrainHeight(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z) + 0.5,
       z: HARBOR_DOCK.playerPosition.z,
       rotationY: 0
     });

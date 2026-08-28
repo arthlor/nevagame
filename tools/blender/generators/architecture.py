@@ -73,6 +73,57 @@ def _add_rect_brace(
     )
 
 
+def _add_daub_infill(
+    name: str,
+    location: tuple[float, float, float],
+    dimensions: tuple[float, float, float],
+    token: str,
+    root,
+    *,
+    face_axis: str,
+    face_sign: int,
+) -> None:
+    """Recessed lime panel plus a proud pillow so plaster reads as trowelled daub."""
+    add_box(name, location, dimensions, token, root, bevel=0.028)
+    lx, ly, lz = location
+    dx, dy, dz = dimensions
+    proud = 0.028 * face_sign
+    if face_axis == "y":
+        add_box(
+            f"{name}_pillow",
+            (lx, ly + proud, lz + dz * 0.02),
+            (dx * 0.70, 0.07, dz * 0.58),
+            token,
+            root,
+            bevel=0.016,
+        )
+        add_box(
+            f"{name}_trowel",
+            (lx, ly + proud * 1.2, lz - dz * 0.14),
+            (dx * 0.52, 0.05, 0.06),
+            token,
+            root,
+            bevel=0.008,
+        )
+    else:
+        add_box(
+            f"{name}_pillow",
+            (lx + proud, ly, lz + dz * 0.02),
+            (0.07, dy * 0.70, dz * 0.58),
+            token,
+            root,
+            bevel=0.016,
+        )
+        add_box(
+            f"{name}_trowel",
+            (lx + proud * 1.2, ly, lz - dz * 0.14),
+            (0.05, dy * 0.52, 0.06),
+            token,
+            root,
+            bevel=0.008,
+        )
+
+
 def _add_framed_infill_volume(
     prefix: str,
     width: float,
@@ -90,6 +141,7 @@ def _add_framed_infill_volume(
     side_bays: int = 3,
     panel_rows: int = 2,
     open_front: bool = False,
+    daub_texture: bool = False,
 ) -> None:
     """Build lime infill as recessed panels inside an unmistakable timber frame.
 
@@ -178,15 +230,27 @@ def _add_framed_infill_volume(
             x = -width * 0.5 + post_w * 0.8 + bay_w * (bay + 0.5)
             for row in range(panel_rows):
                 z = wall_base + 0.19 + row_h * (row + 0.5)
-                add_box(
-                    f"{prefix}_infill_{face_name}_{bay:02d}_{row:02d}",
-                    (x, y, z + rng.uniform(-0.012, 0.012)),
-                    (bay_w - 0.14, 0.095, row_h - 0.14),
-                    infill_token,
-                    root,
-                    rotation=(rng.uniform(-0.005, 0.005), 0, rng.uniform(-0.008, 0.008)),
-                    bevel=0.028,
-                )
+                panel_name = f"{prefix}_infill_{face_name}_{bay:02d}_{row:02d}"
+                if daub_texture:
+                    _add_daub_infill(
+                        panel_name,
+                        (x, y, z),
+                        (bay_w - 0.14, 0.095, row_h - 0.14),
+                        infill_token,
+                        root,
+                        face_axis="y",
+                        face_sign=y_sign,
+                    )
+                else:
+                    add_box(
+                        panel_name,
+                        (x, y, z + rng.uniform(-0.012, 0.012)),
+                        (bay_w - 0.14, 0.095, row_h - 0.14),
+                        infill_token,
+                        root,
+                        rotation=(rng.uniform(-0.005, 0.005), 0, rng.uniform(-0.008, 0.008)),
+                        bevel=0.028,
+                    )
         for bay in range(1, front_bays):
             x = -width * 0.5 + post_w * 0.8 + bay_w * bay
             add_box(f"{prefix}_stud_{face_name}_{bay:02d}", (x, y - y_sign * 0.018, wall_cz), (0.17, frame_depth, wall_height - 0.14), dark_token, root, bevel=0.012)
@@ -228,15 +292,27 @@ def _add_framed_infill_volume(
             y = -depth * 0.5 + post_w * 0.8 + bay_d * (bay + 0.5)
             for row in range(panel_rows):
                 z = wall_base + 0.19 + row_h * (row + 0.5)
-                add_box(
-                    f"{prefix}_infill_{face_name}_{bay:02d}_{row:02d}",
-                    (x, y, z + rng.uniform(-0.012, 0.012)),
-                    (0.095, bay_d - 0.14, row_h - 0.14),
-                    infill_token,
-                    root,
-                    rotation=(0, rng.uniform(-0.005, 0.005), rng.uniform(-0.008, 0.008)),
-                    bevel=0.028,
-                )
+                panel_name = f"{prefix}_infill_{face_name}_{bay:02d}_{row:02d}"
+                if daub_texture:
+                    _add_daub_infill(
+                        panel_name,
+                        (x, y, z),
+                        (0.095, bay_d - 0.14, row_h - 0.14),
+                        infill_token,
+                        root,
+                        face_axis="x",
+                        face_sign=x_sign,
+                    )
+                else:
+                    add_box(
+                        panel_name,
+                        (x, y, z + rng.uniform(-0.012, 0.012)),
+                        (0.095, bay_d - 0.14, row_h - 0.14),
+                        infill_token,
+                        root,
+                        rotation=(0, rng.uniform(-0.005, 0.005), rng.uniform(-0.008, 0.008)),
+                        bevel=0.028,
+                    )
         for bay in range(1, side_bays):
             y = -depth * 0.5 + post_w * 0.8 + bay_d * bay
             add_box(f"{prefix}_stud_{face_name}_{bay:02d}", (x - x_sign * 0.018, y, wall_cz), (frame_depth, 0.17, wall_height - 0.14), dark_token, root, bevel=0.012)
@@ -624,11 +700,18 @@ def _farmhouse_context(spec: dict) -> dict:
     if len(stone_tokens) == 2:
         stone_tokens = (stone_tokens[0], stone_tokens[0], stone_tokens[1])
     roof_tokens = tuple(token for token in palette if token.startswith("roof_")) or ((palette[4] if len(palette) > 4 else "roof_terracotta_01"),)
+    is_variant_a = not spec["id"].endswith("_b")
+    cross_gable_x = -1.60 if is_variant_a else 1.60
+    entry_x = -1.60 if is_variant_a else 1.60
+    porch_w = 3.20
+    chimney_x = 3.35 if is_variant_a else -3.35
+    window_xs = (0.85, 2.35) if is_variant_a else (-2.35, -0.85)
     return {
         "spec": spec,
         "params": params,
         "seed": spec["seed"],
         "detail": detail,
+        "is_variant_a": is_variant_a,
         "stone": palette[0],
         "plaster": palette[1] if len(palette) > 1 else "plaster_cream_01",
         "timber": palette[2] if len(palette) > 2 else "wood_honey_01",
@@ -637,6 +720,8 @@ def _farmhouse_context(spec: dict) -> dict:
         "stone_tokens": stone_tokens,
         "roof_tokens": roof_tokens,
         "glow": palette[5] if len(palette) > 5 else "emissive_lantern_01",
+        "glass": "emissive_window_01" if "emissive_window_01" in palette else (palette[5] if len(palette) > 5 else "emissive_lantern_01"),
+        "metal": "metal_dark_01" if "metal_dark_01" in palette else (palette[3] if len(palette) > 3 else "wood_dark_01"),
         "width": width,
         "depth": depth,
         "wall_height": wall_height,
@@ -649,14 +734,79 @@ def _farmhouse_context(spec: dict) -> dict:
         "masonry_blocks": params["masonryBlocks"],
         "shingle_rows": params["shingleRows"] if detail else max(3, params["shingleRows"] // 2),
         "shingle_columns": params["shingleColumns"] if detail else max(4, params["shingleColumns"] // 2),
-        "cross_gable_width": params["crossGableWidth"],
+        "cross_gable_width": 3.30,
+        "porch_width": porch_w,
         "porch_depth": params["porchDepth"],
         "porch_planks": params["porchPlanks"] if detail else max(5, params["porchPlanks"] // 2),
-        "chimney_offset_x": params["chimneyOffsetX"],
+        "chimney_offset_x": chimney_x,
         "chimney_height": params["chimneyHeight"],
-        "cross_gable_x": -0.48 if spec["id"].endswith("_a") else 0.42,
-        "entry_x": 0.48 if spec["id"].endswith("_a") else -0.42,
+        "cross_gable_x": cross_gable_x,
+        "entry_x": entry_x,
+        "window_xs": window_xs,
     }
+
+
+def _farmhouse_aligned_plinth(ctx: dict, root) -> None:
+    """Flush stacked-bond masonry so the plinth sits on a shared ground plane."""
+    width = ctx["width"] + 0.68
+    depth = ctx["depth"] + 0.68
+    height = ctx["foundation_h"]
+    courses = ctx["masonry_courses"]
+    long_blocks = ctx["masonry_blocks"]
+    course_h = height / courses
+    block_depth = 0.22
+    short_blocks = max(3, round(long_blocks * depth / max(width, 0.001)))
+    tokens = ctx["stone_tokens"]
+    for course in range(courses):
+        z = course_h * (course + 0.5)
+        for face, axis, span, count, fixed in (
+            ("front", "x", width, long_blocks, -depth * 0.5 - block_depth * 0.35),
+            ("back", "x", width, long_blocks, depth * 0.5 + block_depth * 0.35),
+            ("left", "y", depth, short_blocks, -width * 0.5 - block_depth * 0.35),
+            ("right", "y", depth, short_blocks, width * 0.5 + block_depth * 0.35),
+        ):
+            block_span = span / count
+            for index in range(count):
+                along = -span * 0.5 + block_span * (index + 0.5)
+                token = tokens[(course + index) % len(tokens)]
+                if axis == "x":
+                    location = (along, fixed, z)
+                    dimensions = (block_span * 0.98, block_depth, course_h * 0.96)
+                else:
+                    location = (fixed, along, z)
+                    dimensions = (block_depth, block_span * 0.98, course_h * 0.96)
+                add_box(
+                    f"farmhouse_foundation_masonry_{face}_{course:02d}_{index:02d}",
+                    location,
+                    dimensions,
+                    token,
+                    root,
+                    bevel=0.012,
+                )
+
+
+def _farmhouse_glazed_window(name, location, width, height, ctx: dict, root) -> None:
+    """Hollow frame + proud emissive panes so the opening reads as glass, not a wood slab."""
+    cx, cy, cz = location
+    frame, glass, mullion = ctx["dark"], ctx["glass"], ctx["timber"]
+    add_box(f"{name}_glass", (cx, cy - 0.05, cz), (width * 0.90, 0.035, height * 0.90), glass, root, bevel=0.006)
+    add_box(f"{name}_mullion_v", (cx, cy - 0.07, cz), (0.04, 0.04, height * 0.88), mullion, root, bevel=0.005)
+    add_box(f"{name}_mullion_h", (cx, cy - 0.07, cz), (width * 0.88, 0.04, 0.04), mullion, root, bevel=0.005)
+    add_box(f"{name}_frame_l", (cx - width * 0.5, cy - 0.02, cz), (0.10, 0.12, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_r", (cx + width * 0.5, cy - 0.02, cz), (0.10, 0.12, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_t", (cx, cy - 0.02, cz + height * 0.5), (width + 0.16, 0.12, 0.10), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_b", (cx, cy - 0.02, cz - height * 0.5), (width + 0.16, 0.12, 0.10), frame, root, bevel=0.012)
+
+
+def _farmhouse_glazed_side_window(name, x, y, z, width, height, ctx: dict, root, *, side: int) -> None:
+    frame, glass, mullion = ctx["dark"], ctx["glass"], ctx["timber"]
+    add_box(f"{name}_glass", (x + side * 0.05, y, z), (0.035, width * 0.90, height * 0.90), glass, root, bevel=0.006)
+    add_box(f"{name}_mullion_v", (x + side * 0.07, y, z), (0.04, 0.04, height * 0.88), mullion, root, bevel=0.005)
+    add_box(f"{name}_mullion_h", (x + side * 0.07, y, z), (0.04, width * 0.88, 0.04), mullion, root, bevel=0.005)
+    add_box(f"{name}_frame_l", (x + side * 0.02, y - width * 0.5, z), (0.12, 0.10, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_r", (x + side * 0.02, y + width * 0.5, z), (0.12, 0.10, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_t", (x + side * 0.02, y, z + height * 0.5), (0.12, width + 0.16, 0.10), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_b", (x + side * 0.02, y, z - height * 0.5), (0.12, width + 0.16, 0.10), frame, root, bevel=0.012)
 
 
 def _farmhouse_foundation(ctx: dict, root) -> None:
@@ -666,26 +816,13 @@ def _farmhouse_foundation(ctx: dict, root) -> None:
     add_box(
         "farmhouse_foundation_base",
         (0, 0, foundation_h * 0.5),
-        (width + 0.28, depth + 0.28, foundation_h),
+        (width + 0.32, depth + 0.32, foundation_h),
         stone,
         root,
         bevel=0.06,
     )
     if ctx["masonry_courses"]:
-        add_masonry_courses(
-            "farmhouse_foundation_masonry",
-            (0, 0, foundation_h * 0.5),
-            width + 0.64,
-            depth + 0.64,
-            foundation_h,
-            ctx["stone_tokens"],
-            root,
-            courses=ctx["masonry_courses"],
-            blocks_per_long_side=ctx["masonry_blocks"],
-            seed=ctx["seed"] + 11,
-            block_depth=0.22,
-            bevel=0.018,
-        )
+        _farmhouse_aligned_plinth(ctx, root)
     add_box(
         "farmhouse_foundation_water_table",
         (0, 0, foundation_h + 0.04),
@@ -712,7 +849,37 @@ def _farmhouse_timber_frame(ctx: dict, root) -> None:
         front_bays=5,
         side_bays=4,
         panel_rows=2,
+        daub_texture=ctx["detail"],
     )
+    if ctx["detail"]:
+        # Add diagonal knee braces on the right front facade
+        front_y = ctx["front_y"]
+        wall_base = ctx["wall_base"]
+        wall_top = ctx["wall_top"]
+        brace_x0 = 0.20 if ctx["is_variant_a"] else -3.10
+        brace_x1 = 3.10 if ctx["is_variant_a"] else -0.20
+        _add_rect_brace(
+            "farmhouse_front_knee_brace_1",
+            (brace_x0, front_y - 0.04, wall_base + 0.15),
+            (brace_x0 + 0.85, front_y - 0.04, wall_base + 1.25),
+            0.12,
+            0.08,
+            ctx["dark"],
+            root,
+            plane="xz",
+            bevel=0.010,
+        )
+        _add_rect_brace(
+            "farmhouse_front_knee_brace_2",
+            (brace_x1, front_y - 0.04, wall_base + 0.15),
+            (brace_x1 - 0.85, front_y - 0.04, wall_base + 1.25),
+            0.12,
+            0.08,
+            ctx["dark"],
+            root,
+            plane="xz",
+            bevel=0.010,
+        )
 
 
 def _farmhouse_shingle_roof(ctx: dict, root) -> None:
@@ -751,21 +918,22 @@ def _farmhouse_shingle_roof(ctx: dict, root) -> None:
     )
 
     cg_w = ctx["cross_gable_width"]
-    cg_d = 2.2
+    cg_d = 2.40
     cg_base_z = wall_top + 0.10
     cg_y = -depth * 0.5 - 0.45
     cg_x = ctx["cross_gable_x"]
+    cg_pitch_deg = pitch_deg + 4
     _shingled_gable_roof(
         "farmhouse_cross_gable",
         cg_w,
         cg_d,
         cg_base_z,
-        38,
+        cg_pitch_deg,
         roof,
         timber,
         root,
-        overhang_front=0.34,
-        overhang_side=0.40,
+        overhang_front=0.36,
+        overhang_side=0.42,
         courses=3 if ctx["detail"] else 2,
         course_thickness=0.14,
         gable_token=ctx["plaster"],
@@ -778,74 +946,112 @@ def _farmhouse_shingle_roof(ctx: dict, root) -> None:
             cg_w,
             cg_d,
             cg_base_z,
-            38,
+            cg_pitch_deg,
             ctx["roof_tokens"],
             root,
-            rows=4,
+            rows=5,
             columns=6,
             seed=ctx["seed"] + 21,
             center_x=cg_x,
             center_y=cg_y,
-            overhang_front=0.34,
-            overhang_side=0.40,
+            overhang_front=0.36,
+            overhang_side=0.42,
         )
     add_box(
         "farmhouse_attic_win_reveal",
         (cg_x, cg_y - cg_d * 0.5 - 0.02, wall_top + 0.92),
-        (0.82, 0.22, 0.82),
+        (0.78, 0.22, 0.78),
         dark,
         root,
         bevel=0.014,
     )
-    add_mullioned_window(
+    _farmhouse_glazed_window(
         "farmhouse_attic_win",
-        (cg_x, cg_y - cg_d * 0.5 - 0.12, wall_top + 0.92),
-        0.58,
-        0.58,
-        timber,
-        glow,
-        dark,
+        (cg_x, cg_y - cg_d * 0.5 - 0.10, wall_top + 0.92),
+        0.56,
+        0.56,
+        ctx,
         root,
     )
 
 
 def _farmhouse_chimney(ctx: dict, root) -> None:
     chim_x = ctx["chimney_offset_x"]
-    chim_y = ctx["depth"] * 0.12
+    chim_y = 0.35
     chim_h = ctx["chimney_height"]
     stone, roof = ctx["stone"], ctx["roof"]
-    add_box("farmhouse_chimney_base", (chim_x, chim_y, 1.12), (1.16, 1.14, 2.24), stone, root, bevel=0.045)
-    add_box("farmhouse_chimney_shoulder", (chim_x, chim_y, 2.34), (1.04, 1.02, 0.28), stone, root, bevel=0.025)
-    add_box("farmhouse_chimney_shaft", (chim_x, chim_y, 2.38 + (chim_h - 2.38) * 0.5), (0.82, 0.80, chim_h - 2.38), stone, root, rotation=(0.004, -0.006, 0.004), bevel=0.035)
+
+    # Broad chimney mass on the plinth, without scattered ground boulders
+    add_box("farmhouse_chimney_base", (chim_x, chim_y, 1.15), (1.60, 1.50, 2.30), stone, root, bevel=0.040)
+
+    # Organic tapered transition shoulder
+    add_box("farmhouse_chimney_shoulder_lower", (chim_x, chim_y, 2.45), (1.38, 1.30, 0.32), stone, root, bevel=0.045)
+    add_box("farmhouse_chimney_shoulder_upper", (chim_x, chim_y, 2.75), (1.16, 1.10, 0.30), stone, root, bevel=0.038)
+
+    # Vertical shaft with subtle low-poly tilt
+    shaft_h = chim_h - 2.90
+    add_box(
+        "farmhouse_chimney_shaft",
+        (chim_x, chim_y, 2.90 + shaft_h * 0.5),
+        (0.96, 0.90, shaft_h),
+        stone,
+        root,
+        rotation=(0.003, -0.004, 0.003),
+        bevel=0.035,
+    )
+
     if ctx["masonry_courses"]:
         add_masonry_courses(
-            "farmhouse_chimney_masonry",
-            (chim_x, chim_y, 2.38 + (chim_h - 2.38) * 0.5),
-            0.82,
-            0.80,
-            chim_h - 2.38,
+            "farmhouse_chimney_masonry_base",
+            (chim_x, chim_y, 1.20),
+            1.60,
+            1.50,
+            2.20,
+            ctx["stone_tokens"],
+            root,
+            courses=max(3, ctx["masonry_courses"]),
+            blocks_per_long_side=3,
+            seed=ctx["seed"] + 22,
+            block_depth=0.22,
+            bevel=0.024,
+        )
+        add_masonry_courses(
+            "farmhouse_chimney_masonry_shaft",
+            (chim_x, chim_y, 2.90 + shaft_h * 0.5),
+            0.96,
+            0.90,
+            shaft_h,
             ctx["stone_tokens"],
             root,
             courses=max(4, ctx["masonry_courses"] + 1),
-            blocks_per_long_side=3,
-            seed=ctx["seed"] + 23,
-            block_depth=0.16,
-            bevel=0.016,
+            blocks_per_long_side=2,
+            seed=ctx["seed"] + 24,
+            block_depth=0.18,
+            bevel=0.020,
         )
-    add_box("farmhouse_chimney_crown_lower", (chim_x, chim_y, chim_h + 0.03), (0.98, 0.96, 0.16), stone, root, bevel=0.025)
-    add_box("farmhouse_chimney_crown_upper", (chim_x, chim_y, chim_h + 0.17), (0.88, 0.86, 0.14), stone, root, bevel=0.022)
-    add_cylinder("farmhouse_chimney_pot", (chim_x, chim_y, chim_h + 0.48), 0.20, 0.50, roof, root, vertices=8, bevel=0.02)
+
+    # Stepped corbel rim / crown
+    add_box("farmhouse_chimney_crown_lower", (chim_x, chim_y, chim_h + 0.05), (1.14, 1.08, 0.18), stone, root, bevel=0.030)
+    add_box("farmhouse_chimney_crown_upper", (chim_x, chim_y, chim_h + 0.20), (1.00, 0.94, 0.15), ctx["stone_tokens"][-1], root, bevel=0.025)
+
+    # Cylindrical terracotta pot with lip
+    add_cylinder("farmhouse_chimney_pot", (chim_x, chim_y, chim_h + 0.52), 0.22, 0.54, roof, root, vertices=8, bevel=0.025)
+    add_cylinder("farmhouse_chimney_pot_rim", (chim_x, chim_y, chim_h + 0.77), 0.245, 0.06, roof, root, vertices=8, bevel=0.015)
 
 
 def _farmhouse_porch(ctx: dict, root) -> None:
     front_y = ctx["front_y"]
-    porch_w = 4.8
+    porch_x = ctx["entry_x"]
+    porch_w = ctx["porch_width"]
     porch_d = ctx["porch_depth"]
     porch_deck_z = ctx["wall_base"] + 0.12
-    timber, dark, roof, glow = ctx["timber"], ctx["dark"], ctx["roof"], ctx["glow"]
+    timber, dark, roof, glow = ctx["timber"], ctx["dark"], ctx["glow"], ctx["glow"]
+    roof_mat = ctx["roof"]
+
+    # Porch foundation & deck base
     add_box(
         "farmhouse_porch_deck_base",
-        (0, front_y - porch_d * 0.5, porch_deck_z - 0.08),
+        (porch_x, front_y - porch_d * 0.5, porch_deck_z - 0.08),
         (porch_w, porch_d, 0.18),
         dark,
         root,
@@ -853,7 +1059,7 @@ def _farmhouse_porch(ctx: dict, root) -> None:
     )
     add_plank_field(
         "farmhouse_porch_planks",
-        (0, front_y - porch_d * 0.5, porch_deck_z + 0.05),
+        (porch_x, front_y - porch_d * 0.5, porch_deck_z + 0.05),
         porch_w - 0.06,
         porch_d - 0.04,
         0.08,
@@ -864,28 +1070,56 @@ def _farmhouse_porch(ctx: dict, root) -> None:
         seed=ctx["seed"] + 29,
         bevel=0.012,
     )
-    post_x = porch_w * 0.44
+
+    # Porch posts
+    post_half_w = porch_w * 0.44
     post_y = front_y - porch_d + 0.15
-    for p_idx, px in enumerate((-post_x, post_x)):
-        add_box(f"farmhouse_porch_post_{p_idx}", (px, post_y, porch_deck_z + 1.15), (0.26, 0.26, 2.30), timber, root, bevel=0.025)
-        add_box(f"farmhouse_porch_post_cap_{p_idx}", (px, post_y, porch_deck_z + 2.32), (0.26, 0.26, 0.10), timber, root, bevel=0.015)
-    add_box("farmhouse_porch_header_beam", (0, post_y, porch_deck_z + 2.26), (porch_w + 0.20, 0.18, 0.18), timber, root, bevel=0.02)
+    for p_idx, px_rel in enumerate((-post_half_w, post_half_w)):
+        px = porch_x + px_rel
+        add_box(f"farmhouse_porch_post_{p_idx}", (px, post_y, porch_deck_z + 1.15), (0.28, 0.28, 2.30), timber, root, bevel=0.028)
+        add_box(f"farmhouse_porch_post_cap_{p_idx}", (px, post_y, porch_deck_z + 2.32), (0.30, 0.30, 0.10), timber, root, bevel=0.015)
+        # Knee braces connecting post to header
+        brace_dir = 1 if px_rel < 0 else -1
+        _add_rect_brace(
+            f"farmhouse_porch_post_brace_{p_idx}",
+            (px, post_y, porch_deck_z + 1.80),
+            (px + brace_dir * 0.48, post_y, porch_deck_z + 2.26),
+            0.10,
+            0.12,
+            timber,
+            root,
+            plane="xz",
+            bevel=0.010,
+        )
+
+    add_box(
+        "farmhouse_porch_header_beam",
+        (porch_x, post_y, porch_deck_z + 2.26),
+        (porch_w + 0.20, 0.20, 0.20),
+        timber,
+        root,
+        bevel=0.02,
+    )
+
+    # Sloped porch roof canopy
     canopy_pitch = math.radians(14)
-    canopy_rows = 5 if ctx["detail"] else 2
-    canopy_columns = 10 if ctx["detail"] else 4
+    canopy_rows = 4 if ctx["detail"] else 2
+    canopy_columns = 7 if ctx["detail"] else 4
     canopy_slope = porch_d / math.cos(canopy_pitch)
     canopy_row_step = canopy_slope / canopy_rows
     canopy_tile_w = (porch_w + 0.35) / canopy_columns
     canopy_outer_z = porch_deck_z + 2.36
+
     add_box(
         "farmhouse_porch_roof_deck",
-        (0, front_y - porch_d * 0.5, canopy_outer_z + math.sin(canopy_pitch) * canopy_slope * 0.5 - 0.04),
+        (porch_x, front_y - porch_d * 0.5, canopy_outer_z + math.sin(canopy_pitch) * canopy_slope * 0.5 - 0.04),
         (porch_w + 0.35, canopy_slope + 0.08, 0.065),
-        roof,
+        roof_mat,
         root,
         rotation=(canopy_pitch, 0, 0),
         bevel=0.008,
     )
+
     porch_rng = seeded_rng(ctx["seed"] + 31)
     for row in range(canopy_rows):
         distance = canopy_row_step * (row + 0.5)
@@ -893,7 +1127,7 @@ def _farmhouse_porch(ctx: dict, root) -> None:
         z = canopy_outer_z + math.sin(canopy_pitch) * distance + 0.09
         stagger = -canopy_tile_w * 0.5 if row % 2 else 0.0
         for column in range(canopy_columns + (1 if row % 2 else 0)):
-            x = -(porch_w + 0.35) * 0.5 + canopy_tile_w * (column + 0.5) + stagger
+            x = porch_x - (porch_w + 0.35) * 0.5 + canopy_tile_w * (column + 0.5) + stagger
             roof_roll = porch_rng.random()
             if len(ctx["roof_tokens"]) == 1 or roof_roll < 0.84:
                 porch_roof_token = ctx["roof_tokens"][0]
@@ -903,15 +1137,17 @@ def _farmhouse_porch(ctx: dict, root) -> None:
                 porch_roof_token = ctx["roof_tokens"][2]
             add_box(
                 f"farmhouse_porch_roof_tile_{row:02d}_{column:02d}",
-                (x, y, z + porch_rng.uniform(-0.009, 0.012)),
-                (canopy_tile_w * porch_rng.uniform(0.88, 0.96), canopy_row_step * 1.55, 0.085),
+                (x, y, z + porch_rng.uniform(-0.008, 0.010)),
+                (canopy_tile_w * porch_rng.uniform(0.88, 0.96), canopy_row_step * 1.50, 0.080),
                 porch_roof_token,
                 root,
                 rotation=(canopy_pitch, 0, porch_rng.uniform(-0.014, 0.014)),
                 bevel=0.008,
             )
-    for rafter in range(5 if ctx["detail"] else 3):
-        rx = -porch_w * 0.45 + porch_w * 0.90 * rafter / (4 if ctx["detail"] else 2)
+
+    # Exposed rafters under canopy
+    for rafter in range(4 if ctx["detail"] else 2):
+        rx = porch_x - porch_w * 0.42 + porch_w * 0.84 * rafter / (3 if ctx["detail"] else 1)
         add_box(
             f"farmhouse_porch_rafter_{rafter}",
             (rx, front_y - porch_d * 0.5, canopy_outer_z + math.sin(canopy_pitch) * canopy_slope * 0.5 - 0.09),
@@ -921,91 +1157,164 @@ def _farmhouse_porch(ctx: dict, root) -> None:
             rotation=(canopy_pitch, 0, 0),
             bevel=0.008,
         )
-    for side_idx, sx in enumerate((-post_x, post_x)):
+
+    # Side railings on outer flank
+    side_px = porch_x - post_half_w if ctx["is_variant_a"] else porch_x + post_half_w
+    add_box(
+        "farmhouse_porch_rail_top_side",
+        (side_px, front_y - porch_d * 0.5, porch_deck_z + 0.88),
+        (0.12, porch_d - 0.25, 0.10),
+        timber,
+        root,
+        bevel=0.015,
+    )
+    for b_idx in range(3):
         add_box(
-            f"farmhouse_porch_rail_top_{side_idx}",
-            (sx, front_y - porch_d * 0.5, porch_deck_z + 0.88),
-            (0.12, porch_d - 0.25, 0.10),
+            f"farmhouse_porch_baluster_side_{b_idx}",
+            (side_px, front_y - 0.35 - b_idx * 0.42, porch_deck_z + 0.46),
+            (0.08, 0.08, 0.74),
             timber,
             root,
-            bevel=0.015,
+            bevel=0.010,
         )
-        for b_idx in range(3):
-            add_box(
-                f"farmhouse_porch_baluster_{side_idx}_{b_idx}",
-                (sx, front_y - 0.35 - b_idx * 0.42, porch_deck_z + 0.46),
-                (0.08, 0.08, 0.74),
-                timber,
-                root,
-                bevel=0.01,
-            )
-    for step_idx in range(3):
+
+    # Equal-riser treads from porch deck onto the shared ground plane (z=0).
+    tread_h = 0.16
+    tread_run = 0.22
+    z_high = porch_deck_z - tread_h * 0.5
+    z_low = tread_h * 0.5
+    step_count = max(3, int(round(porch_deck_z / tread_h)))
+    for step_idx in range(step_count):
+        t = step_idx / (step_count - 1)
         add_box(
             f"farmhouse_entry_step_{step_idx}",
-            (0, front_y - porch_d - 0.16 - step_idx * 0.24, porch_deck_z - 0.06 - step_idx * 0.20),
-            (1.90 + step_idx * 0.18, 0.32, 0.16),
+            (porch_x, front_y - porch_d - 0.16 - step_idx * tread_run, z_high * (1.0 - t) + z_low * t),
+            (1.80 + step_idx * 0.12, 0.34, tread_h),
             timber,
             root,
-            bevel=0.02,
+            bevel=0.010,
         )
-    bench_x = -math.copysign(post_x * 0.55, ctx["entry_x"])
+
+    # Rustic porch bench
+    bench_x = porch_x - porch_w * 0.32 if ctx["is_variant_a"] else porch_x + porch_w * 0.32
     bench_y = front_y - porch_d * 0.45
-    add_box("farmhouse_porch_bench_seat", (bench_x, bench_y, porch_deck_z + 0.42), (1.35, 0.38, 0.09), timber, root, bevel=0.015)
-    add_box("farmhouse_porch_bench_back", (bench_x, bench_y + 0.15, porch_deck_z + 0.72), (1.35, 0.08, 0.52), timber, root, bevel=0.015)
-    for l_idx, lx in enumerate((bench_x - 0.52, bench_x + 0.52)):
-        add_box(f"farmhouse_porch_bench_leg_{l_idx}", (lx, bench_y, porch_deck_z + 0.20), (0.10, 0.32, 0.38), timber, root, bevel=0.01)
-    lamp_x = ctx["entry_x"] + math.copysign(0.70, ctx["entry_x"])
-    lamp_y, lamp_z = front_y - porch_d + 0.30, porch_deck_z + 1.95
+    add_box("farmhouse_porch_bench_seat", (bench_x, bench_y, porch_deck_z + 0.42), (1.10, 0.36, 0.08), timber, root, bevel=0.015)
+    add_box("farmhouse_porch_bench_back", (bench_x, bench_y + 0.15, porch_deck_z + 0.70), (1.10, 0.08, 0.48), timber, root, bevel=0.015)
+    for l_idx, lx in enumerate((bench_x - 0.42, bench_x + 0.42)):
+        add_box(f"farmhouse_porch_bench_leg_{l_idx}", (lx, bench_y, porch_deck_z + 0.20), (0.09, 0.30, 0.38), timber, root, bevel=0.010)
+
+    # Wall-mounted hanging lantern
+    lamp_x = porch_x + post_half_w if ctx["is_variant_a"] else porch_x - post_half_w
+    lamp_y = front_y - porch_d + 0.30
+    lamp_z = porch_deck_z + 1.95
     add_box("farmhouse_lantern_bracket", (lamp_x, lamp_y + 0.10, lamp_z + 0.22), (0.06, 0.22, 0.06), dark, root, bevel=0.008)
-    add_box("farmhouse_lantern_frame", (lamp_x, lamp_y, lamp_z), (0.32, 0.32, 0.42), dark, root, bevel=0.018)
-    add_ico("farmhouse_lantern_glow", (lamp_x, lamp_y, lamp_z), (0.13, 0.13, 0.20), glow, root, subdivisions=2)
-    ctx["_porch_posts"] = (post_x, post_y, porch_deck_z)
+    add_box("farmhouse_lantern_frame", (lamp_x, lamp_y, lamp_z), (0.30, 0.30, 0.40), dark, root, bevel=0.018)
+    add_ico("farmhouse_lantern_glow", (lamp_x, lamp_y, lamp_z), (0.12, 0.12, 0.18), glow, root, subdivisions=2)
+    ctx["_porch_posts"] = (post_half_w, post_y, porch_deck_z)
 
 
 def _farmhouse_openings(ctx: dict, root) -> None:
     front_y = ctx["front_y"]
     wall_base = ctx["wall_base"]
-    timber, dark, glow = ctx["timber"], ctx["dark"], ctx["glow"]
+    timber, dark, glass, metal, stone = (
+        ctx["timber"],
+        ctx["dark"],
+        ctx["glass"],
+        ctx["metal"],
+        ctx["stone"],
+    )
     door_x = ctx["entry_x"]
+    hinge_sign = -1 if ctx["is_variant_a"] else 1
+
     add_box("farmhouse_front_door_reveal", (door_x, front_y + 0.05, wall_base + 1.15), (1.48, 0.28, 2.40), dark, root, bevel=0.018)
-    add_box("farmhouse_front_door_frame", (door_x, front_y - 0.08, wall_base + 1.15), (1.38, 0.18, 2.34), timber, root, bevel=0.025)
-    add_box("farmhouse_front_door_panel", (door_x, front_y - 0.13, wall_base + 1.12), (1.16, 0.09, 2.16), dark, root, bevel=0.015)
-    for board in range(4):
-        bx = door_x - 0.43 + board * 0.285
-        add_box(f"farmhouse_front_door_board_{board}", (bx, front_y - 0.185, wall_base + 1.12), (0.245, 0.035, 2.02), timber if board % 3 == 1 else dark, root, rotation=(0, 0, 0.004 if board % 2 else -0.004), bevel=0.008)
-    _add_rect_brace("farmhouse_door_brace", (door_x - 0.48, front_y - 0.21, wall_base + 0.32), (door_x + 0.48, front_y - 0.21, wall_base + 1.92), 0.10, 0.06, timber, root, plane="xz", bevel=0.008)
-    add_cylinder("farmhouse_door_handle", (door_x + 0.42, front_y - 0.24, wall_base + 1.10), 0.025, 0.18, dark, root, vertices=6, bevel=0.005)
+    add_box("farmhouse_front_door_lintel", (door_x, front_y - 0.02, wall_base + 2.28), (1.62, 0.22, 0.16), stone, root, bevel=0.018)
+    add_box("farmhouse_front_door_frame", (door_x, front_y - 0.08, wall_base + 1.15), (1.38, 0.18, 2.34), dark, root, bevel=0.025)
+    add_box("farmhouse_front_door_panel", (door_x, front_y - 0.13, wall_base + 1.12), (1.16, 0.10, 2.16), dark, root, bevel=0.012)
+    board_count = 5
+    board_span = 1.10
+    board_w = board_span / board_count
+    for board in range(board_count):
+        bx = door_x - board_span * 0.5 + board_w * (board + 0.5)
+        add_box(
+            f"farmhouse_front_door_board_{board}",
+            (bx, front_y - 0.185, wall_base + 1.12),
+            (board_w * 0.90, 0.040, 2.04),
+            dark,
+            root,
+            bevel=0.006,
+        )
+    for batten_idx, bz in enumerate((wall_base + 0.38, wall_base + 1.12, wall_base + 1.86)):
+        add_box(
+            f"farmhouse_front_door_batten_{batten_idx}",
+            (door_x, front_y - 0.22, bz),
+            (1.12, 0.07, 0.14),
+            timber,
+            root,
+            bevel=0.008,
+        )
+    for hinge_idx, hz in enumerate((wall_base + 0.42, wall_base + 1.12, wall_base + 1.82)):
+        hx = door_x + hinge_sign * 0.48
+        add_box(
+            f"farmhouse_front_door_hinge_{hinge_idx}",
+            (hx, front_y - 0.24, hz),
+            (0.28, 0.06, 0.10),
+            metal,
+            root,
+            bevel=0.008,
+        )
+        add_box(
+            f"farmhouse_front_door_hinge_strap_{hinge_idx}",
+            (door_x + hinge_sign * 0.18, front_y - 0.23, hz),
+            (0.72, 0.04, 0.07),
+            metal,
+            root,
+            bevel=0.006,
+        )
+    latch_x = door_x - hinge_sign * 0.42
+    add_box("farmhouse_door_latch_plate", (latch_x, front_y - 0.24, wall_base + 1.10), (0.14, 0.04, 0.22), metal, root, bevel=0.006)
+    add_cylinder("farmhouse_door_handle", (latch_x, front_y - 0.30, wall_base + 1.10), 0.045, 0.04, metal, root, vertices=8, bevel=0.004)
+    add_ring("farmhouse_door_ring", (latch_x, front_y - 0.34, wall_base + 1.02), 0.055, 0.012, metal, root, major_segments=8, minor_segments=6)
+
     win_z = wall_base + 1.65
-    for sname, wx in (("left", -2.08), ("right", 2.30)):
+    for w_idx, wx in enumerate(ctx["window_xs"]):
+        sname = f"facade_{w_idx}"
         add_box(
             f"farmhouse_window_{sname}_reveal",
             (wx, front_y + 0.055, win_z),
-            (1.39, 0.24, 1.39),
+            (1.30, 0.24, 1.30),
             dark,
             root,
             bevel=0.016,
         )
-        add_mullioned_window(
+        add_box(
+            f"farmhouse_window_{sname}_sill",
+            (wx, front_y - 0.08, win_z - 0.62),
+            (1.28, 0.18, 0.10),
+            stone,
+            root,
+            bevel=0.012,
+        )
+        _farmhouse_glazed_window(
             f"farmhouse_window_{sname}",
             (wx, front_y - 0.04, win_z),
-            1.15,
-            1.15,
-            timber,
-            glow,
-            dark,
+            1.04,
+            1.04,
+            ctx,
             root,
-            shutter_token=timber,
         )
+
     if ctx["detail"]:
         rear_y = ctx["depth"] * 0.5 - 0.02
         add_box("farmhouse_rear_window_reveal", (-1.15, rear_y - 0.05, win_z), (1.28, 0.22, 1.32), dark, root, bevel=0.014)
-        add_mullioned_window("farmhouse_rear_window", (-1.15, rear_y + 0.035, win_z), 1.04, 1.08, timber, glow, dark, root, shutter_token=timber)
-        side_x = -ctx["width"] * 0.5 + 0.02
-        add_box("farmhouse_side_window_reveal", (side_x + 0.05, 0.65, win_z), (0.22, 1.28, 1.32), dark, root, bevel=0.014)
-        _add_side_window("farmhouse_side_window", side_x - 0.035, 0.65, win_z, 1.04, 1.08, timber, glow, dark, root, side=-1, shutters=True)
+        _farmhouse_glazed_window("farmhouse_rear_window", (-1.15, rear_y + 0.035, win_z), 0.98, 1.02, ctx, root)
+        side_x = -ctx["width"] * 0.5 + 0.02 if ctx["is_variant_a"] else ctx["width"] * 0.5 - 0.02
+        side_dir = -1 if ctx["is_variant_a"] else 1
+        add_box("farmhouse_side_window_reveal", (side_x - side_dir * 0.05, 0.65, win_z), (0.22, 1.28, 1.32), dark, root, bevel=0.014)
+        _farmhouse_glazed_side_window("farmhouse_side_window", side_x + side_dir * 0.035, 0.65, win_z, 0.98, 1.02, ctx, root, side=side_dir)
+
     if not ctx["detail"]:
         return
-    post_x, post_y, porch_deck_z = ctx["_porch_posts"]
+    post_half_w, post_y, porch_deck_z = ctx["_porch_posts"]
     add_fasteners(
         "farmhouse_door_fastener",
         (
@@ -1015,17 +1324,17 @@ def _farmhouse_openings(ctx: dict, root) -> None:
             (door_x + 0.46, front_y - 0.10, wall_base + 0.72),
         ),
         0.018,
-        dark,
+        metal,
         root,
         depth=0.07,
     )
     add_fasteners(
         "farmhouse_porch_fastener",
         (
-            (-post_x, post_y, porch_deck_z + 2.20),
-            (post_x, post_y, porch_deck_z + 2.20),
-            (-post_x, post_y, porch_deck_z + 0.18),
-            (post_x, post_y, porch_deck_z + 0.18),
+            (ctx["entry_x"] - post_half_w, post_y, porch_deck_z + 2.20),
+            (ctx["entry_x"] + post_half_w, post_y, porch_deck_z + 2.20),
+            (ctx["entry_x"] - post_half_w, post_y, porch_deck_z + 0.18),
+            (ctx["entry_x"] + post_half_w, post_y, porch_deck_z + 0.18),
         ),
         0.02,
         dark,
@@ -2163,12 +2472,13 @@ def _dock_context(spec: dict) -> dict:
         "red": palette[2] if len(palette) > 2 else "accent_red_01",
         "canvas": palette[3] if len(palette) > 3 else "canvas_cream_01",
         "dark": palette[4] if len(palette) > 4 else "wood_dark_01",
+        "stone": "stone_cool_01" if "stone_cool_01" in palette else palette[4],
         "length": params["length"],
         "width": params["width"],
         "has_canopy": params["canopy"],
         "deck_planks": params["deckPlanks"],
         "pile_rows": params["pileRows"],
-        "deck_z": 1.48,
+        "deck_z": 2.48,
         "deck_thickness": 0.14,
     }
 
@@ -2225,56 +2535,51 @@ def _dock_deck(ctx: dict, root) -> None:
 
 
 def _dock_pilings(ctx: dict, root) -> None:
-    """Paired weathered pilings, collars, caps, and braces."""
+    """Paired weathered pilings, stone footings, caps, and braces."""
     length = ctx["length"]
     width = ctx["width"]
-    has_canopy = ctx["has_canopy"]
-    deck_planks = ctx["deck_planks"]
     pile_rows = ctx["pile_rows"]
     deck_z = ctx["deck_z"]
-    deck_thickness = ctx["deck_thickness"]
-    honey = ctx["honey"]
     weathered = ctx["weathered"]
-    red = ctx["red"]
-    canvas = ctx["canvas"]
     dark = ctx["dark"]
-    spec = ctx["spec"]
+    stone = ctx["stone"]
 
-    # 2. Round Weathered Pilings with Footing Collars and Caps
+    footing_h = 0.30
+    footing_xy = 0.64
+    pile_h = 2.22
+
+    # 2. Tapered pilings on aligned square stone footings
     for r_idx in range(pile_rows):
         px = -length * 0.44 + r_idx * (length * 0.88) / (pile_rows - 1)
         for s_idx, py in enumerate((-width * 0.46, width * 0.46)):
-            # Piling column
-            add_cylinder(
+            add_box(
+                f"dock_piling_footing_{r_idx}_{s_idx}",
+                (px, py, footing_h * 0.5),
+                (footing_xy, footing_xy, footing_h),
+                stone,
+                root,
+                bevel=0.04,
+            )
+            add_cone(
                 f"dock_piling_{r_idx}_{s_idx}",
-                (px, py, 0.75),
-                0.22,
-                1.55,
+                (px, py, footing_h + pile_h * 0.5),
+                0.26,
+                0.18,
+                pile_h,
                 weathered,
                 root,
                 vertices=8,
-                bevel=0.02,
             )
             add_cylinder(
                 f"dock_piling_waterline_{r_idx}_{s_idx}",
-                (px, py, 0.40),
-                0.232,
-                0.34,
+                (px, py, 0.42),
+                0.275,
+                0.32,
                 dark,
                 root,
                 vertices=8,
                 bevel=0.012,
             )
-            # Bottom footing collar
-            add_box(
-                f"dock_piling_collar_{r_idx}_{s_idx}",
-                (px, py, 0.12),
-                (0.52, 0.52, 0.24),
-                dark,
-                root,
-                bevel=0.03,
-            )
-            # Piling top cap extending above deck
             add_box(
                 f"dock_piling_cap_{r_idx}_{s_idx}",
                 (px, py, deck_z + 0.22),
@@ -2287,8 +2592,8 @@ def _dock_pilings(ctx: dict, root) -> None:
         # Transverse cross-brace between pilings under deck
         add_beam(
             f"dock_under_brace_{r_idx}",
-            (px, -width * 0.44, 0.65),
-            (px, width * 0.44, 1.25),
+            (px, -width * 0.44, 0.95),
+            (px, width * 0.44, 2.05),
             0.065,
             weathered,
             root,
@@ -2299,8 +2604,8 @@ def _dock_pilings(ctx: dict, root) -> None:
     for s_idx, py in enumerate((-width * 0.44, width * 0.44)):
         add_beam(
             f"dock_diag_brace_left_{s_idx}",
-            (-length * 0.42, py, 0.35),
-            (-length * 0.15, py, 1.25),
+            (-length * 0.42, py, 0.45),
+            (-length * 0.15, py, 2.05),
             0.065,
             weathered,
             root,
@@ -2308,8 +2613,8 @@ def _dock_pilings(ctx: dict, root) -> None:
         )
         add_beam(
             f"dock_diag_brace_right_{s_idx}",
-            (length * 0.15, py, 1.25),
-            (length * 0.42, py, 0.35),
+            (length * 0.15, py, 2.05),
+            (length * 0.42, py, 0.45),
             0.065,
             weathered,
             root,
@@ -2333,99 +2638,107 @@ def _dock_canopy(ctx: dict, root) -> None:
     dark = ctx["dark"]
     spec = ctx["spec"]
 
-    # 3. Harbor Trading Stall with Gabled Striped Canvas Canopy
+    # 3. Small lean-to stall: one slope toward the working long edge (-Y).
     if has_canopy:
-        stall_x = 0.90
-        stall_w = 3.20
-        stall_d = 2.40
-        stall_post_h = 2.55
+        stall_x = 0.70
+        stall_w = 2.20
+        stall_d = 1.50
+        front_py = -stall_d * 0.44
+        rear_py = stall_d * 0.44
+        front_h = 1.72
+        rear_h = 2.28
+        span_y = rear_py - front_py
+        pitch = math.atan((rear_h - front_h) / span_y)
+        slope_len = math.hypot(span_y, rear_h - front_h) + 0.16
+        mid_z = deck_z + (front_h + rear_h) * 0.5 + 0.06
 
-        # 4 Sturdy timber canopy posts
-        for p_idx, (px, py) in enumerate((
-            (stall_x - stall_w * 0.44, -stall_d * 0.44),
-            (stall_x + stall_w * 0.44, -stall_d * 0.44),
-            (stall_x - stall_w * 0.44, stall_d * 0.44),
-            (stall_x + stall_w * 0.44, stall_d * 0.44),
+        for p_idx, (px, py, post_h) in enumerate((
+            (stall_x - stall_w * 0.44, front_py, front_h),
+            (stall_x + stall_w * 0.44, front_py, front_h),
+            (stall_x - stall_w * 0.44, rear_py, rear_h),
+            (stall_x + stall_w * 0.44, rear_py, rear_h),
         )):
             add_box(
                 f"dock_canopy_post_{p_idx}",
-                (px, py, deck_z + stall_post_h * 0.5),
-                (0.16, 0.16, stall_post_h),
+                (px, py, deck_z + post_h * 0.5),
+                (0.14, 0.14, post_h),
                 dark,
                 root,
-                bevel=0.02,
+                bevel=0.018,
             )
 
-        # Stitched gabled canvas panels on exposed rafters.
-        canopy_ridge_z = deck_z + stall_post_h + 0.48
-        canopy_pitch = math.radians(16)
-        panel_count = 8
-        panel_w = (stall_w + 0.35) / panel_count
-        for panel in range(panel_count):
-            px = stall_x - (stall_w + 0.35) * 0.5 + panel_w * (panel + 0.5)
-            token = red if panel % 3 == 1 else canvas
-            add_box(
-                f"dock_canopy_panel_left_{panel:02d}",
-                (px, -stall_d * 0.25, canopy_ridge_z - 0.12 - (0.012 if panel % 2 else 0.0)),
-                (panel_w * 0.93, stall_d * 0.55, 0.075),
-                token,
-                root,
-                rotation=(-canopy_pitch, 0, 0),
-                bevel=0.009,
-            )
-            add_box(
-                f"dock_canopy_panel_right_{panel:02d}",
-                (px, stall_d * 0.25, canopy_ridge_z - 0.12 - (0.012 if panel % 2 else 0.0)),
-                (panel_w * 0.93, stall_d * 0.55, 0.075),
-                token,
-                root,
-                rotation=(canopy_pitch, 0, 0),
-                bevel=0.009,
-            )
-        for rafter in range(5):
-            px = stall_x - stall_w * 0.46 + stall_w * 0.92 * rafter / 4
-            add_box(f"dock_canopy_rafter_left_{rafter}", (px, -stall_d * 0.25, canopy_ridge_z - 0.18), (0.08, stall_d * 0.58, 0.08), dark, root, rotation=(-canopy_pitch, 0, 0), bevel=0.007)
-            add_box(f"dock_canopy_rafter_right_{rafter}", (px, stall_d * 0.25, canopy_ridge_z - 0.18), (0.08, stall_d * 0.58, 0.08), dark, root, rotation=(canopy_pitch, 0, 0), bevel=0.007)
-
-        # Ridge beam
         add_box(
-            "dock_canopy_ridge",
-            (stall_x, 0, canopy_ridge_z + 0.02),
-            (stall_w + 0.40, 0.14, 0.14),
+            "dock_canopy_eave",
+            (stall_x, front_py, deck_z + front_h + 0.04),
+            (stall_w * 0.94, 0.10, 0.10),
             dark,
             root,
-            bevel=0.015,
+            bevel=0.012,
+        )
+        add_box(
+            "dock_canopy_ridge",
+            (stall_x, rear_py, deck_z + rear_h + 0.04),
+            (stall_w * 0.94, 0.12, 0.12),
+            dark,
+            root,
+            bevel=0.014,
         )
 
-        # Wooden fish cleaning / trading market counter
+        panel_count = 6
+        panel_span = stall_w + 0.18
+        panel_w = panel_span / panel_count
+        for panel in range(panel_count):
+            px = stall_x - panel_span * 0.5 + panel_w * (panel + 0.5)
+            token = red if panel % 2 else canvas
+            add_box(
+                f"dock_canopy_panel_{panel:02d}",
+                (px, 0.0, mid_z),
+                (panel_w * 0.94, slope_len, 0.07),
+                token,
+                root,
+                rotation=(pitch, 0, 0),
+                bevel=0.008,
+            )
+        for rafter in range(3):
+            px = stall_x - stall_w * 0.44 + stall_w * 0.88 * rafter / 2
+            add_box(
+                f"dock_canopy_rafter_{rafter}",
+                (px, 0.0, mid_z - 0.05),
+                (0.07, slope_len * 0.96, 0.07),
+                dark,
+                root,
+                rotation=(pitch, 0, 0),
+                bevel=0.006,
+            )
+
         add_box(
             "dock_counter_body",
-            (stall_x, 0, deck_z + 0.45),
-            (stall_w * 0.85, 1.10, 0.86),
+            (stall_x, -0.06, deck_z + 0.38),
+            (stall_w * 0.78, 0.68, 0.70),
             honey,
             root,
-            bevel=0.025,
+            bevel=0.022,
         )
         add_plank_field(
             "dock_counter_front_planks",
-            (stall_x, -0.56, deck_z + 0.45),
-            stall_w * 0.80,
-            0.07,
-            0.72,
+            (stall_x, -0.40, deck_z + 0.38),
+            stall_w * 0.74,
+            0.06,
+            0.62,
             (honey, weathered),
             root,
-            count=8,
+            count=6,
             axis="x",
             seed=spec["seed"] + 81,
             bevel=0.008,
         )
         add_box(
             "dock_counter_top",
-            (stall_x, 0, deck_z + 0.90),
-            (stall_w * 0.90, 1.20, 0.12),
+            (stall_x, -0.06, deck_z + 0.75),
+            (stall_w * 0.82, 0.76, 0.10),
             dark,
             root,
-            bevel=0.015,
+            bevel=0.012,
         )
 
     # 4. Mooring Cleats, Coiled Ropes, Ladders & Crates
@@ -2472,12 +2785,12 @@ def _dock_canopy(ctx: dict, root) -> None:
         minor_segments=4,
     )
 
-    # Wooden boarding ladders on dock side
+    # Wooden boarding ladders on the working long edge, down to the water.
     for side_idx, lx in enumerate((-length * 0.28, length * 0.28)):
-        for rung in range(5):
+        for rung in range(8):
             add_box(
                 f"dock_ladder_rung_{side_idx}_{rung}",
-                (lx, -width * 0.52, 0.32 + rung * 0.26),
+                (lx, -width * 0.52, 0.28 + rung * 0.28),
                 (0.58, 0.08, 0.07),
                 weathered,
                 root,
@@ -2486,8 +2799,8 @@ def _dock_canopy(ctx: dict, root) -> None:
         for rail_idx, rx in enumerate((lx - 0.30, lx + 0.30)):
             add_box(
                 f"dock_ladder_rail_{side_idx}_{rail_idx}",
-                (rx, -width * 0.52, 0.85),
-                (0.08, 0.08, 1.45),
+                (rx, -width * 0.52, deck_z * 0.5 + 0.08),
+                (0.08, 0.08, deck_z + 0.12),
                 weathered,
                 root,
                 bevel=0.012,
@@ -2505,18 +2818,70 @@ def _dock_canopy(ctx: dict, root) -> None:
         )
 
 
+def _dock_shore_stairs(ctx: dict, root) -> None:
+    """Timber stairs from the shore apron up onto the raised pier."""
+    length = ctx["length"]
+    honey = ctx["honey"]
+    weathered = ctx["weathered"]
+    dark = ctx["dark"]
+    deck_z = ctx["deck_z"]
+    n_steps = 5
+    tread = 0.34
+    riser = 0.18
+    stair_w = 3.40
+    deck_top = deck_z + 0.12
+    for i in range(n_steps):
+        px = length * 0.5 + 0.16 + i * tread
+        tread_top = deck_top - i * riser
+        add_box(
+            f"dock_stair_tread_{i}",
+            (px, 0.0, tread_top - 0.07),
+            (tread + 0.04, stair_w, 0.14),
+            honey if i % 2 == 0 else weathered,
+            root,
+            bevel=0.012,
+        )
+    run = n_steps * tread
+    for s_idx, sy in enumerate((-stair_w * 0.5 - 0.06, stair_w * 0.5 + 0.06)):
+        add_box(
+            f"dock_stair_stringer_{s_idx}",
+            (length * 0.5 + 0.16 + run * 0.5, sy, (deck_top + 1.55) * 0.5),
+            (run + 0.22, 0.12, deck_top - 1.42),
+            dark,
+            root,
+            bevel=0.014,
+        )
+    for rail_idx, (rx, ry) in enumerate((
+        (length * 0.5 + 0.22, -stair_w * 0.5 + 0.08),
+        (length * 0.5 + 0.22, stair_w * 0.5 - 0.08),
+        (length * 0.5 + run - 0.08, -stair_w * 0.5 + 0.08),
+        (length * 0.5 + run - 0.08, stair_w * 0.5 - 0.08),
+    )):
+        rail_h = 0.72 if rail_idx < 2 else 0.42
+        rail_z = (deck_top if rail_idx < 2 else deck_top - n_steps * riser) + 0.28
+        add_box(
+            f"dock_stair_newel_{rail_idx}",
+            (rx, ry, rail_z),
+            (0.10, 0.10, rail_h),
+            dark,
+            root,
+            bevel=0.012,
+        )
+
+
 def working_dock(spec: dict, root) -> None:
     """Authored harbor working dock matching dock_market_isolated."""
     ctx = _dock_context(spec)
     _dock_deck(ctx, root)
     _dock_pilings(ctx, root)
+    _dock_shore_stairs(ctx, root)
     _dock_canopy(ctx, root)
     add_collision_primitives(spec, root)
 
 
 
 def fish_market(spec: dict, root) -> None:
-    _finish_architecture(spec, root, _build_fish_market)
+    _finish_architecture(spec, root, _build_fish_market, preserve_names=("fish_market_lantern_glow",))
 
 
 def _fish_market_context(spec: dict) -> dict:
@@ -2527,6 +2892,7 @@ def _fish_market_context(spec: dict) -> dict:
     foundation_h = 0.76
     wall_height = params["wallHeight"]
     wall_base = foundation_h + 0.06
+    stone_tokens = tuple(token for token in palette if token.startswith("stone_")) or (palette[0],)
     return {
         "spec": spec,
         "seed": spec["seed"],
@@ -2537,6 +2903,8 @@ def _fish_market_context(spec: dict) -> dict:
         "teal": palette[3] if len(palette) > 3 else "accent_teal_01",
         "canvas": palette[4] if len(palette) > 4 else "canvas_cream_01",
         "dark": palette[5] if len(palette) > 5 else "wood_dark_01",
+        "glass": "emissive_window_01" if "emissive_window_01" in palette else (palette[4] if len(palette) > 4 else "canvas_cream_01"),
+        "stone_tokens": stone_tokens,
         "width": params["width"],
         "depth": params["depth"],
         "wall_height": wall_height,
@@ -2545,282 +2913,239 @@ def _fish_market_context(spec: dict) -> dict:
         "masonry_blocks": params["masonryBlocks"],
         "shingle_rows": params["shingleRows"] if detail else max(3, params["shingleRows"] // 2),
         "shingle_columns": params["shingleColumns"] if detail else max(4, params["shingleColumns"] // 2),
+        "porch_depth": params["porchDepth"],
+        "porch_planks": params["porchPlanks"] if detail else max(4, params["porchPlanks"] // 2),
+        "stall_width": 5.2,
         "foundation_h": foundation_h,
         "wall_base": wall_base,
         "wall_cz": wall_base + wall_height * 0.5,
         "wall_top": wall_base + wall_height,
+        "front_y": -params["depth"] * 0.5,
+        "stall_deck_z": wall_base + 0.12,
     }
 
 
+def _fish_market_aligned_plinth(ctx: dict, root) -> None:
+    """Flush stacked-bond masonry so the plinth sits on a shared ground plane."""
+    width = ctx["width"] + 0.68
+    depth = ctx["depth"] + 0.68
+    height = ctx["foundation_h"]
+    courses = ctx["masonry_courses"]
+    long_blocks = ctx["masonry_blocks"]
+    course_h = height / courses
+    block_depth = 0.22
+    short_blocks = max(3, round(long_blocks * depth / max(width, 0.001)))
+    tokens = ctx["stone_tokens"]
+    for course in range(courses):
+        z = course_h * (course + 0.5)
+        for face, axis, span, count, fixed in (
+            ("front", "x", width, long_blocks, -depth * 0.5 - block_depth * 0.35),
+            ("back", "x", width, long_blocks, depth * 0.5 + block_depth * 0.35),
+            ("left", "y", depth, short_blocks, -width * 0.5 - block_depth * 0.35),
+            ("right", "y", depth, short_blocks, width * 0.5 + block_depth * 0.35),
+        ):
+            block_span = span / count
+            for index in range(count):
+                along = -span * 0.5 + block_span * (index + 0.5)
+                token = tokens[(course + index) % len(tokens)]
+                if axis == "x":
+                    location = (along, fixed, z)
+                    dimensions = (block_span * 0.98, block_depth, course_h * 0.96)
+                else:
+                    location = (fixed, along, z)
+                    dimensions = (block_depth, block_span * 0.98, course_h * 0.96)
+                add_box(
+                    f"fish_market_foundation_masonry_{face}_{course:02d}_{index:02d}",
+                    location,
+                    dimensions,
+                    token,
+                    root,
+                    bevel=0.012,
+                )
+
+
+def _fish_market_glazed_window(name, location, width, height, ctx: dict, root) -> None:
+    """Hollow frame + proud emissive panes so the opening reads as glass, not a wood slab."""
+    cx, cy, cz = location
+    frame, glass, mullion = ctx["dark"], ctx["glass"], ctx["weathered"]
+    add_box(f"{name}_glass", (cx, cy - 0.05, cz), (width * 0.90, 0.035, height * 0.90), glass, root, bevel=0.006)
+    add_box(f"{name}_mullion_v", (cx, cy - 0.07, cz), (0.04, 0.04, height * 0.88), mullion, root, bevel=0.005)
+    add_box(f"{name}_mullion_h", (cx, cy - 0.07, cz), (width * 0.88, 0.04, 0.04), mullion, root, bevel=0.005)
+    add_box(f"{name}_frame_l", (cx - width * 0.5, cy - 0.02, cz), (0.10, 0.12, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_r", (cx + width * 0.5, cy - 0.02, cz), (0.10, 0.12, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_t", (cx, cy - 0.02, cz + height * 0.5), (width + 0.16, 0.12, 0.10), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_b", (cx, cy - 0.02, cz - height * 0.5), (width + 0.16, 0.12, 0.10), frame, root, bevel=0.012)
+
+
+def _fish_market_glazed_side_window(name, x, y, z, width, height, ctx: dict, root, *, side: int) -> None:
+    frame, glass, mullion = ctx["dark"], ctx["glass"], ctx["weathered"]
+    add_box(f"{name}_glass", (x + side * 0.05, y, z), (0.035, width * 0.90, height * 0.90), glass, root, bevel=0.006)
+    add_box(f"{name}_mullion_v", (x + side * 0.07, y, z), (0.04, 0.04, height * 0.88), mullion, root, bevel=0.005)
+    add_box(f"{name}_mullion_h", (x + side * 0.07, y, z), (0.04, width * 0.88, 0.04), mullion, root, bevel=0.005)
+    add_box(f"{name}_frame_l", (x + side * 0.02, y - width * 0.5, z), (0.12, 0.10, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_r", (x + side * 0.02, y + width * 0.5, z), (0.12, 0.10, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_t", (x + side * 0.02, y, z + height * 0.5), (0.12, width + 0.16, 0.10), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_b", (x + side * 0.02, y, z - height * 0.5), (0.12, width + 0.16, 0.10), frame, root, bevel=0.012)
+
+
 def _fish_market_foundation(ctx: dict, root) -> None:
-    """Masonry-wrapped stone plinth."""
+    """Aligned masonry plinth with a water-table lip."""
     width = ctx["width"]
     depth = ctx["depth"]
-    wall_height = ctx["wall_height"]
-    pitch_deg = ctx["pitch_deg"]
-    detail = ctx["detail"]
-    seed = ctx["seed"]
-    masonry_courses = ctx["masonry_courses"]
-    masonry_blocks = ctx["masonry_blocks"]
-    shingle_rows = ctx["shingle_rows"]
-    shingle_columns = ctx["shingle_columns"]
     stone = ctx["stone"]
-    weathered = ctx["weathered"]
-    roof = ctx["roof"]
-    teal = ctx["teal"]
-    canvas = ctx["canvas"]
-    dark = ctx["dark"]
     foundation_h = ctx["foundation_h"]
-    wall_base = ctx["wall_base"]
-    wall_cz = ctx["wall_cz"]
-    wall_top = ctx["wall_top"]
-
-    # 1. Grounded Stone Foundation Plinth
-    foundation_h = 0.76
     add_box(
-        "fish_market_foundation",
+        "fish_market_foundation_base",
         (0, 0, foundation_h * 0.5),
-        (width + 0.24, depth + 0.24, foundation_h),
+        (width + 0.32, depth + 0.32, foundation_h),
         stone,
         root,
         bevel=0.06,
     )
-    if masonry_courses:
-        add_masonry_courses(
-            "fish_market_foundation_masonry",
-            (0, 0, foundation_h * 0.5),
-            width + 0.60,
-            depth + 0.60,
-            foundation_h,
-            (stone,),
-            root,
-            courses=masonry_courses,
-            blocks_per_long_side=masonry_blocks,
-            seed=seed + 41,
-            block_depth=0.20,
-            bevel=0.018,
-        )
+    if ctx["masonry_courses"]:
+        _fish_market_aligned_plinth(ctx, root)
+    add_box(
+        "fish_market_foundation_water_table",
+        (0, 0, foundation_h + 0.04),
+        (width + 0.46, depth + 0.46, 0.10),
+        stone,
+        root,
+        bevel=0.03,
+    )
 
 
 def _fish_market_warehouse(ctx: dict, root) -> None:
-    """Weathered plank hall with readable post, rail, and brace structure."""
-    width = ctx["width"]
-    depth = ctx["depth"]
-    wall_height = ctx["wall_height"]
-    pitch_deg = ctx["pitch_deg"]
-    detail = ctx["detail"]
-    seed = ctx["seed"]
-    masonry_courses = ctx["masonry_courses"]
-    masonry_blocks = ctx["masonry_blocks"]
-    shingle_rows = ctx["shingle_rows"]
-    shingle_columns = ctx["shingle_columns"]
-    stone = ctx["stone"]
-    weathered = ctx["weathered"]
-    roof = ctx["roof"]
-    teal = ctx["teal"]
-    canvas = ctx["canvas"]
-    dark = ctx["dark"]
-    foundation_h = ctx["foundation_h"]
-    wall_base = ctx["wall_base"]
-    wall_cz = ctx["wall_cz"]
-    wall_top = ctx["wall_top"]
-
-    # 2. Separate vertical boards sit over a dark recessed shell. This avoids
-    # the former chocolate-colored box while preserving a closed cold-store.
-    add_box(
-        "fish_market_inner_shell",
-        (0, 0, wall_cz),
-        (width - 0.24, depth - 0.24, wall_height - 0.12),
-        dark,
-        root,
-        bevel=0.016,
-    )
-    add_timber_corner_frame(
+    """Weathered infill hall inside a heavy timber frame."""
+    _add_framed_infill_volume(
         "fish_market_frame",
-        width,
-        depth,
-        wall_base,
-        wall_height,
-        dark,
+        ctx["width"],
+        ctx["depth"],
+        ctx["wall_base"],
+        ctx["wall_height"],
+        ctx["weathered"],
+        ctx["dark"],
+        ctx["dark"],
         root,
-        post_w=0.28 if detail else 0.22,
+        detail=ctx["detail"],
+        seed=ctx["seed"] + 13,
+        front_bays=5,
+        side_bays=4,
+        panel_rows=2,
     )
-    if not detail:
-        add_box("fish_market_wall_lod", (0, 0, wall_cz), (width, depth, wall_height), weathered, root, bevel=0.018)
-        return
-
-    front_count = max(8, round(width / 0.46))
-    side_count = max(7, round(depth / 0.46))
-    for y_sign, name in ((-1, "front"), (1, "back")):
-        face_y = y_sign * (depth * 0.5 - 0.035)
-        add_plank_field(
-            f"fish_market_planks_{name}",
-            (0, face_y, wall_cz),
-            width - 0.24,
-            0.085,
-            wall_height - 0.18,
-            (weathered, dark),
-            root,
-            count=front_count,
-            axis="x",
-            seed=seed + 55 + (0 if y_sign < 0 else 7),
-            bevel=0.009,
-        )
-        for rail_index, z in enumerate((wall_base + wall_height * 0.36, wall_base + wall_height * 0.73)):
-            add_box(f"fish_market_rail_{name}_{rail_index}", (0, face_y - y_sign * 0.055, z), (width - 0.28, 0.13, 0.15), dark, root, bevel=0.010)
-        _add_rect_brace(
-            f"fish_market_brace_{name}",
-            (-width * 0.43, face_y - y_sign * 0.075, wall_base + 0.24),
-            (-width * 0.10, face_y - y_sign * 0.075, wall_top - 0.24),
-            0.14,
-            0.12,
-            dark,
-            root,
-            plane="xz",
-            bevel=0.009,
-        )
-    for side, name in ((-1, "left"), (1, "right")):
-        face_x = side * (width * 0.5 - 0.035)
-        add_plank_field(
-            f"fish_market_planks_{name}",
-            (face_x, 0, wall_cz),
-            0.085,
-            depth - 0.24,
-            wall_height - 0.18,
-            (weathered, dark),
-            root,
-            count=side_count,
-            axis="y",
-            seed=seed + 67 + (0 if side < 0 else 7),
-            bevel=0.009,
-        )
-        for rail_index, z in enumerate((wall_base + wall_height * 0.36, wall_base + wall_height * 0.73)):
-            add_box(f"fish_market_rail_{name}_{rail_index}", (face_x - side * 0.055, 0, z), (0.13, depth - 0.28, 0.15), dark, root, bevel=0.010)
 
 
 def _fish_market_roof(ctx: dict, root) -> None:
     """Overlapping deep-red shingle gable."""
-    width = ctx["width"]
-    depth = ctx["depth"]
-    wall_height = ctx["wall_height"]
-    pitch_deg = ctx["pitch_deg"]
-    detail = ctx["detail"]
-    seed = ctx["seed"]
-    masonry_courses = ctx["masonry_courses"]
-    masonry_blocks = ctx["masonry_blocks"]
-    shingle_rows = ctx["shingle_rows"]
-    shingle_columns = ctx["shingle_columns"]
-    stone = ctx["stone"]
-    weathered = ctx["weathered"]
-    roof = ctx["roof"]
-    teal = ctx["teal"]
-    canvas = ctx["canvas"]
-    dark = ctx["dark"]
-    foundation_h = ctx["foundation_h"]
-    wall_base = ctx["wall_base"]
-    wall_cz = ctx["wall_cz"]
-    wall_top = ctx["wall_top"]
-
-    # 3. Clean Gabled Deep-Red Terracotta Roof with Shingle Courses
-    wall_top = wall_base + wall_height
     _shingled_gable_roof(
         "fish_market",
-        width,
-        depth,
-        wall_top,
-        pitch_deg,
-        roof,
-        dark,
+        ctx["width"],
+        ctx["depth"],
+        ctx["wall_top"],
+        ctx["pitch_deg"],
+        ctx["roof"],
+        ctx["dark"],
         root,
         overhang_front=0.72,
         overhang_side=0.55,
-        courses=3 if detail else 2,
+        courses=3 if ctx["detail"] else 2,
         course_thickness=0.18,
-        gable_token=weathered,
+        gable_token=ctx["weathered"],
     )
     _architecture_shingle_rows(
         "fish_market_shingles",
-        width,
-        depth,
-        wall_top,
-        pitch_deg,
-        (roof,),
+        ctx["width"],
+        ctx["depth"],
+        ctx["wall_top"],
+        ctx["pitch_deg"],
+        (ctx["roof"],),
         root,
-        rows=shingle_rows,
-        columns=shingle_columns,
-        seed=seed + 43,
+        rows=ctx["shingle_rows"],
+        columns=ctx["shingle_columns"],
+        seed=ctx["seed"] + 43,
         overhang_front=0.72,
         overhang_side=0.55,
     )
 
 
 def _fish_market_stall(ctx: dict, root) -> None:
-    """Striped stall, loading doors, and trade sign."""
+    """Raised striped stall, loading doors, apron stairs, and trade sign."""
     width = ctx["width"]
-    depth = ctx["depth"]
     wall_height = ctx["wall_height"]
-    pitch_deg = ctx["pitch_deg"]
     detail = ctx["detail"]
     seed = ctx["seed"]
-    masonry_courses = ctx["masonry_courses"]
-    masonry_blocks = ctx["masonry_blocks"]
-    shingle_rows = ctx["shingle_rows"]
-    shingle_columns = ctx["shingle_columns"]
     stone = ctx["stone"]
     weathered = ctx["weathered"]
-    roof = ctx["roof"]
     teal = ctx["teal"]
     canvas = ctx["canvas"]
     dark = ctx["dark"]
-    foundation_h = ctx["foundation_h"]
+    glass = ctx["glass"]
     wall_base = ctx["wall_base"]
-    wall_cz = ctx["wall_cz"]
-    wall_top = ctx["wall_top"]
+    front_y = ctx["front_y"]
+    stall_w = ctx["stall_width"]
+    stall_d = ctx["porch_depth"]
+    stall_deck_z = ctx["stall_deck_z"]
+    counter_z = stall_deck_z + 0.92
 
-    # 4. Open Market Trading Facade with Striped Canvas Awning
-    front_y = -depth * 0.5
-    stall_w = 5.2
-    stall_d = 1.45
-    counter_z = wall_base + 0.95
-
-    # Wooden trading counter
+    add_box(
+        "fish_market_stall_deck_base",
+        (0, front_y - stall_d * 0.5, stall_deck_z - 0.08),
+        (stall_w + 0.20, stall_d, 0.18),
+        dark,
+        root,
+        bevel=0.025,
+    )
     add_box(
         "fish_market_counter_body",
-        (0, front_y - stall_d * 0.4, counter_z * 0.5),
-        (stall_w, 0.65, counter_z),
+        (0, front_y - stall_d * 0.38, (stall_deck_z + counter_z) * 0.5),
+        (stall_w, 0.65, counter_z - stall_deck_z),
         weathered,
         root,
         bevel=0.025,
     )
     add_plank_field(
         "fish_market_counter_planks",
-        (0, front_y - stall_d * 0.4, counter_z + 0.08),
+        (0, front_y - stall_d * 0.38, counter_z + 0.06),
         stall_w + 0.15,
         0.78,
         0.10,
         (teal,),
         root,
-        count=10 if detail else 4,
+        count=ctx["porch_planks"],
         axis="x",
         seed=seed + 47,
         bevel=0.012,
     )
 
-    # Timber awning posts
+    post_y = front_y - stall_d + 0.14
     for p_idx, px in enumerate((-stall_w * 0.46, stall_w * 0.46)):
         add_box(
             f"fish_market_awning_post_{p_idx}",
-            (px, front_y - stall_d + 0.12, wall_base + 1.45),
-            (0.18, 0.18, 2.90),
+            (px, post_y, stall_deck_z + 1.15),
+            (0.22, 0.22, 2.30),
             dark,
             root,
             bevel=0.02,
         )
+        add_box(
+            f"fish_market_awning_post_cap_{p_idx}",
+            (px, post_y, stall_deck_z + 2.32),
+            (0.26, 0.26, 0.10),
+            dark,
+            root,
+            bevel=0.012,
+        )
 
-    # Stitched canvas bays hang from separate rafters; alternating panels read
-    # as cloth construction rather than stripes painted on a plastic slab.
+    add_box(
+        "fish_market_awning_header",
+        (0, post_y, stall_deck_z + 2.26),
+        (stall_w + 0.16, 0.18, 0.18),
+        dark,
+        root,
+        bevel=0.016,
+    )
+
     awning_pitch = math.radians(14)
-    awning_cz = wall_base + 2.75
+    awning_cz = stall_deck_z + 2.42
     panel_count = 9 if detail else 5
     panel_w = (stall_w + 0.40) / panel_count
     for panel in range(panel_count):
@@ -2829,7 +3154,7 @@ def _fish_market_stall(ctx: dict, root) -> None:
         add_box(
             f"fish_market_awning_panel_{panel:02d}",
             (px, front_y - stall_d * 0.52, awning_cz - (0.018 if panel % 2 else 0.0)),
-            (panel_w * 0.94, stall_d + 0.35, 0.085),
+            (panel_w * 0.94, stall_d + 0.28, 0.085),
             token,
             root,
             rotation=(awning_pitch + (0.010 if panel % 2 else -0.006), 0, 0.006 if panel % 3 == 2 else -0.004),
@@ -2838,8 +3163,8 @@ def _fish_market_stall(ctx: dict, root) -> None:
         if detail:
             add_box(
                 f"fish_market_awning_flap_{panel:02d}",
-                (px, front_y - stall_d - 0.20, awning_cz - 0.19 - (0.012 if panel % 2 else 0.0)),
-                (panel_w * 0.84, 0.055, 0.34),
+                (px, front_y - stall_d - 0.16, awning_cz - 0.16 - (0.012 if panel % 2 else 0.0)),
+                (panel_w * 0.84, 0.055, 0.30),
                 token,
                 root,
                 rotation=(math.radians(-24), 0, 0.008 if panel % 2 else -0.006),
@@ -2850,14 +3175,13 @@ def _fish_market_stall(ctx: dict, root) -> None:
         add_box(
             f"fish_market_awning_rafter_{rafter}",
             (rx, front_y - stall_d * 0.52, awning_cz - 0.075),
-            (0.09, stall_d + 0.28, 0.09),
+            (0.09, stall_d + 0.20, 0.09),
             dark,
             root,
             rotation=(awning_pitch, 0, 0),
             bevel=0.008,
         )
 
-    # 5. Warehouse Loading Double Doors & Display Crates
     for d_idx, dx in enumerate((-1.45, 1.45)):
         add_box(
             f"fish_market_loading_door_reveal_{d_idx}",
@@ -2900,18 +3224,41 @@ def _fish_market_stall(ctx: dict, root) -> None:
             bevel=0.006,
         )
 
-    # Display fish crates in front of counter
-    for c_idx, cx in enumerate((-1.8, 0.0, 1.8)):
+    # Equal-riser treads from stall deck onto the shared ground plane (z=0).
+    tread_h = 0.16
+    tread_run = 0.22
+    z_high = stall_deck_z - tread_h * 0.5
+    z_low = tread_h * 0.5
+    step_count = max(3, int(round(stall_deck_z / tread_h)))
+    for step_idx in range(step_count):
+        t = step_idx / (step_count - 1)
+        add_box(
+            f"fish_market_entry_step_{step_idx}",
+            (0, front_y - stall_d - 0.16 - step_idx * tread_run, z_high * (1.0 - t) + z_low * t),
+            (1.80 + step_idx * 0.12, 0.34, tread_h),
+            weathered,
+            root,
+            bevel=0.010,
+        )
+
+    crate_y = front_y - stall_d * 0.62
+    for c_idx, cx in enumerate((-1.85, 1.85)):
         add_box(
             f"fish_market_display_crate_{c_idx}",
-            (cx, front_y - stall_d - 0.25, 0.42),
-            (0.95, 0.65, 0.45),
+            (cx, crate_y, stall_deck_z + 0.28),
+            (0.85, 0.58, 0.42),
             weathered if c_idx % 2 == 0 else teal,
             root,
             bevel=0.018,
         )
 
-    # 6. Hanging Carved Wooden Fish Market Trade Sign
+    lamp_x = stall_w * 0.46
+    lamp_y = post_y + 0.16
+    lamp_z = stall_deck_z + 1.92
+    add_box("fish_market_lantern_bracket", (lamp_x, lamp_y + 0.08, lamp_z + 0.22), (0.06, 0.20, 0.06), dark, root, bevel=0.008)
+    add_box("fish_market_lantern_frame", (lamp_x, lamp_y, lamp_z), (0.28, 0.28, 0.38), dark, root, bevel=0.016)
+    add_ico("fish_market_lantern_glow", (lamp_x, lamp_y, lamp_z), (0.11, 0.11, 0.16), glass, root, subdivisions=2)
+
     sign_x = width * 0.54
     sign_y = front_y - 0.25
     sign_z = wall_base + wall_height * 0.85
@@ -2932,7 +3279,6 @@ def _fish_market_stall(ctx: dict, root) -> None:
         root,
         vertices=6,
     )
-    # Carved fish body & tail
     add_ico(
         "fish_market_sign_fish_body",
         (sign_x + 0.35, sign_y, sign_z - 0.95),
@@ -2951,13 +3297,49 @@ def _fish_market_stall(ctx: dict, root) -> None:
     )
 
 
+def _fish_market_openings(ctx: dict, root) -> None:
+    """Side and rear glazed windows. Loading doors stay on the stall face."""
+    if not ctx["detail"]:
+        return
+    width = ctx["width"]
+    depth = ctx["depth"]
+    wall_base = ctx["wall_base"]
+    dark = ctx["dark"]
+    win_z = wall_base + 1.65
+    rear_y = depth * 0.5 - 0.02
+    add_box("fish_market_rear_window_reveal", (0.0, rear_y - 0.05, win_z), (1.28, 0.22, 1.32), dark, root, bevel=0.014)
+    _fish_market_glazed_window("fish_market_rear_window", (0.0, rear_y + 0.035, win_z), 0.98, 1.02, ctx, root)
+    for side, name, wy in ((-1, "left", 0.55), (1, "right", -0.55)):
+        side_x = side * (width * 0.5 - 0.02)
+        add_box(
+            f"fish_market_{name}_window_reveal",
+            (side_x - side * 0.05, wy, win_z),
+            (0.22, 1.28, 1.32),
+            dark,
+            root,
+            bevel=0.014,
+        )
+        _fish_market_glazed_side_window(
+            f"fish_market_{name}_window",
+            side_x + side * 0.035,
+            wy,
+            win_z,
+            0.98,
+            1.02,
+            ctx,
+            root,
+            side=side,
+        )
+
+
 def _build_fish_market(spec: dict, root) -> None:
-    """Authored coastal fish market matching dock_market_isolated warehouse language."""
+    """Authored coastal fish market: farmhouse stack with dock-sheet stall language."""
     ctx = _fish_market_context(spec)
     _fish_market_foundation(ctx, root)
     _fish_market_warehouse(ctx, root)
     _fish_market_roof(ctx, root)
     _fish_market_stall(ctx, root)
+    _fish_market_openings(ctx, root)
 
 
 def log_bridge(spec: dict, root) -> None:

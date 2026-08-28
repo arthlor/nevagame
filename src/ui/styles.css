@@ -2931,8 +2931,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .arbitrage-detail-card,
 .sparkline-container,
 .arb-metric-box,
-.route-stat-card,
-.section-title {
+.route-stat-card {
   background-color: rgba(251, 244, 223, 0.78);
   border-color: var(--color-border);
   border-radius: 3px;
@@ -4933,12 +4932,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .start-screen__dialog {
   width: min(620px, 100%);
   max-height: min(760px, 100%);
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid rgba(252, 226, 154, 0.55);
   border-radius: 5px;
   background: rgba(25, 39, 28, 0.97);
   box-shadow: 0 22px 70px rgba(5, 12, 7, 0.52), inset 0 1px 0 rgba(255, 250, 240, 0.08);
   color: #fffaf0;
+}
+
+.start-screen__dialog.start-screen__options {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.6) transparent;
 }
 
 .start-screen__dialog-header {
@@ -5268,7 +5273,7 @@ input:focus-visible,
 .market-trading-modal,
 .dialogue-card,
 .catch-plaque-modal {
-  color: var(--ui-ink);
+  color: var(--mm-text-ivory, #fffaf0);
   filter: none;
   text-shadow: none;
 }

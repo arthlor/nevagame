@@ -95,3 +95,19 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["fish-prep", "scraps"]
   }
 };
+
+/**
+ * Recipe definitions may include authored future content, but only this set
+ * is exposed by the current P12 station loop. Keeping the deferred definition
+ * in the registry preserves save validation for an already-created job.
+ */
+export const LIVE_RECIPE_IDS = new Set<RecipeDefinition["id"]>([
+  "recipe.wheat_to_grain",
+  "recipe.barley_to_grain",
+  "recipe.craft_chum",
+  "recipe.craft_lure",
+  "recipe.fish_to_fertilizer",
+  "recipe.compost_worms",
+  "recipe.perch_to_scraps",
+  "recipe.mackerel_to_scraps"
+]);

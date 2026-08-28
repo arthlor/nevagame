@@ -343,8 +343,24 @@
 .market-trading-modal .section-title,
 .journal-chronicle-modal .journal-section-title,
 .world-map-modal .sidebar-section h4 {
-  color: var(--mm-text-gold) !important;
+  color: var(--mm-text-gold, #f3d484) !important;
   font-family: var(--font-serif);
+  font-size: 14.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.market-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .market-trading-modal .seed-stall-card,
@@ -355,15 +371,16 @@
 .market-trading-modal .contract-mini-card,
 .market-trading-modal .no-cargo-card,
 .market-trading-modal .no-commodity-selected {
-  color: var(--mm-text-ivory);
-  background: var(--mm-slate-glass-card) !important;
-  border: 1px solid rgba(212, 175, 55, 0.22);
-  border-radius: 4px;
+  color: var(--mm-text-ivory, #fffaf0);
+  background: var(--mm-slate-glass-card, rgba(16, 22, 32, 0.88)) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.25);
+  border-radius: 6px;
+  box-shadow: var(--mm-well-shadow);
 }
 
 .market-trading-modal .commodity-row.is-selected {
-  border-color: var(--mm-gold-leaf);
-  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.35);
+  border-color: var(--mm-gold-bright, #fef08a);
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.5), 0 0 12px var(--mm-gold-glow);
 }
 
 .market-trading-modal .comm-name,
@@ -371,15 +388,39 @@
 .market-trading-modal .cargo-card-meta strong,
 .market-trading-modal .arb-title,
 .market-trading-modal .arb-val {
-  color: var(--mm-text-ivory);
+  color: var(--mm-text-ivory, #fffaf0);
+  font-size: 13.5px;
+}
+
+.market-trading-modal .contract-mini-header strong {
+  color: var(--mm-text-gold, #f3d484);
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.market-trading-modal .contract-gold {
+  color: var(--mm-text-gold, #f3d484);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.market-trading-modal .contract-prog {
+  color: var(--mm-text-muted, #d4d4d8);
+  font-size: 11.5px;
+  margin-top: 2px;
 }
 
 .market-trading-modal .comm-demand.up {
-  color: var(--mm-text-emerald);
+  color: #34d399;
+  font-weight: 700;
 }
 
 .market-trading-modal .comm-demand.down {
-  color: var(--mm-text-crimson);
+  color: #f87171;
+  font-weight: 700;
 }
 
 .commodity-select-button {
@@ -389,7 +430,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding: 0;
+  padding: 8px 12px;
   color: inherit;
   background: transparent;
   border: 0;
@@ -408,8 +449,8 @@
 .market-sell-ticket {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
+  gap: 12px;
+  padding: 16px;
 }
 
 .market-ticket-head {
@@ -429,13 +470,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--mm-text-ivory);
+  color: var(--mm-text-ivory, #fffaf0);
   font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
 }
 
 .market-ticket-live strong,
 .market-ticket-price strong {
-  color: var(--mm-text-gold);
+  color: var(--mm-text-gold, #f3d484);
+  font-weight: 800;
+  font-size: 15px;
 }
 
 .market-qty-stepper {
@@ -443,18 +487,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  background: rgba(8, 12, 18, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .market-qty-value {
   flex: 1;
   text-align: center;
-  color: var(--mm-text-ivory);
+  color: var(--mm-text-ivory, #fffaf0);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .market-ticket-arb {
   margin: 0;
-  color: var(--mm-text-muted);
+  color: var(--mm-text-muted, #d4d4d8);
   font-size: 12px;
 }
 
@@ -462,6 +511,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 4px;
 }
 
 /* Journal chronicle */

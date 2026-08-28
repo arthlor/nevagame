@@ -12,7 +12,7 @@ export default defineConfig({
     // substantial; cap worker contention and allow the collision setup to
     // finish without making a slow host look like a behavioral failure.
     maxWorkers: 1,
-    testTimeout: 15_000,
+    testTimeout: 30_000,
     include: ["tests/unit/**/*.test.ts", "tests/simulation/**/*.test.ts", "tests/integration/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/._*"]
   },

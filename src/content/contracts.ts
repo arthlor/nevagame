@@ -2,6 +2,13 @@
 
 import { ContractTemplateDefinition } from "./types";
 
+/** Delivery endpoints for the contracts that exist in the P12 slice. */
+export function contractDeliveryMarketId(
+  type: ContractTemplateDefinition["type"]
+): "market.village" | "market.harbor" {
+  return type === "produce" ? "market.village" : "market.harbor";
+}
+
 export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
   {
     id: "contract.wheat_supply",

@@ -33,7 +33,7 @@ export interface DomainEvents {
   FishSchoolChummed: { schoolId: FishSchoolId; habitatId: string; frenzyMinutes: number; minute: GameMinute };
   FishHooked: { speciesId: FishSpeciesId; habitatId: string; weightKg: number; minute: GameMinute };
   FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; boatId?: BoatId; weightKg: number; quality: FishQuality; minute: GameMinute };
-  FishEscaped: { speciesId: FishSpeciesId; reason: "escaped" | "snapped"; minute: GameMinute };
+  FishEscaped: { speciesId: FishSpeciesId; reason: "escaped" | "snapped" | "no-cargo-space"; minute: GameMinute };
   BasicFishingStarted: { habitatId: string; castPower: number; minute: GameMinute };
   BasicFishingBiteAlert: { habitatId: string; speciesId: FishSpeciesId; minute: GameMinute };
   BasicFishingMinigameStarted: { habitatId: string; speciesId: FishSpeciesId; hasTreasure: boolean; minute: GameMinute };

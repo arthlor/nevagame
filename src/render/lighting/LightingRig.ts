@@ -30,8 +30,17 @@ export interface LightingFrame {
 }
 
 const SKY_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.skyColorHex);
+const SKY_CLEAR_DAY = SKY_DAY.clone().offsetHSL(
+  CANONICAL_RENDER_CONFIG.skyFill.clearDayHueOffset,
+  CANONICAL_RENDER_CONFIG.skyFill.clearDaySaturationLift,
+  CANONICAL_RENDER_CONFIG.skyFill.clearDayLightnessOffset
+);
 const SKY_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.36);
 const HORIZON_DAY = new THREE.Color(PALETTE_HEX.horizon_warm_01);
+const HORIZON_CLEAR_DAY = HORIZON_DAY.clone().lerp(
+  SKY_CLEAR_DAY,
+  CANONICAL_RENDER_CONFIG.skyFill.clearDayHorizonBlueMix
+);
 const HORIZON_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.52);
 const GROUND_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.groundColorHex);
 const SKY_FILL_NIGHT = new THREE.Color(
@@ -110,6 +119,7 @@ export function deriveLightingFrame(
   const storm = state.weather.type === "storm";
   const cloudCover = clamp01(state.weather.cloudCover);
   const visibility = clamp01(state.weather.visibility);
+  const clearDaylight = state.weather.type === "clear" ? daylight * (1 - twilight) : 0;
   const lightning = storm ? lightningEnvelope(state.worldSeed, timeSeconds) : 0;
   const lightningCycle = Math.floor(timeSeconds / config.weather.lightningCycleSeconds);
   const lightningAngle = hash01(state.worldSeed + lightningCycle * 19.31) * Math.PI * 2;
@@ -120,9 +130,16 @@ export function deriveLightingFrame(
   ).normalize();
   const lightningColor = new THREE.Color(config.weather.lightningColorHex);
 
+  // Sparse fair-weather clouds leave the direct key intact; keep the existing
+  // overcast response and ease back to it as the sun approaches the horizon.
+  const sunCloudOcclusion = THREE.MathUtils.lerp(
+    cloudCover,
+    cloudCover * cloudCover,
+    clearDaylight
+  );
   const sunWeather = storm
     ? config.weather.stormSunMultiplier
-    : THREE.MathUtils.lerp(1, 0.58, cloudCover);
+    : THREE.MathUtils.lerp(1, 0.58, sunCloudOcclusion);
   const moonWeather = storm
     ? config.moon.stormAttenuation
     : THREE.MathUtils.lerp(1, config.moon.cloudAttenuationFloor, cloudCover);
@@ -147,6 +164,12 @@ export function deriveLightingFrame(
     .lerp(HORIZON_DAY, horizonStrength)
     .lerp(skyTopColor, daylight * 0.22);
   const groundFillColor = GROUND_NIGHT.clone().lerp(GROUND_DAY, daylight);
+  // Clear weather has its own clean-sky radiance instead of inheriting the
+  // pale overcast color used by cloudy and rainy states. Keep this coupled to
+  // the same daylight envelope, sun direction, fog, and hemisphere fill.
+  skyTopColor.lerp(SKY_CLEAR_DAY, clearDaylight);
+  skyHorizonColor.lerp(HORIZON_CLEAR_DAY, clearDaylight);
+  skyFillColor.lerp(SKY_CLEAR_DAY, clearDaylight * 0.32);
   if (storm) {
     skyFillColor.lerp(STORM_SKY, 0.22);
     skyTopColor.lerp(STORM_SKY, 0.56);
@@ -160,13 +183,23 @@ export function deriveLightingFrame(
     groundFillColor.lerp(lightningColor, lightning * 0.18);
   }
 
-  const fogColor = skyTopColor.clone().lerp(skyHorizonColor, storm ? 0.3 : 0.42);
-  const fogNear = storm ? config.weather.stormFogNear : config.fog.near;
+  const fogColor = skyTopColor.clone().lerp(
+    skyHorizonColor,
+    storm ? 0.3 : THREE.MathUtils.lerp(0.42, 0.24, clearDaylight)
+  );
+  const fogNear = storm
+    ? config.weather.stormFogNear
+    : THREE.MathUtils.lerp(config.fog.near, config.fog.clearDayNear, clearDaylight);
   const visibilityDistance = THREE.MathUtils.lerp(0.45, 1, visibility);
   const nightDistance = THREE.MathUtils.lerp(0.78, 1, daylight);
+  const daylightFogFar = THREE.MathUtils.lerp(
+    config.fog.far,
+    config.fog.clearDayFar,
+    clearDaylight
+  );
   const fogFar = storm
     ? config.weather.stormFogFar
-    : Math.max(fogNear + 20, config.fog.far * visibilityDistance * nightDistance);
+    : Math.max(fogNear + 20, daylightFogFar * visibilityDistance * nightDistance);
   const practicalLightIntensity = Math.max(
     smooth01((0.18 - solarHeight) / 0.38),
     storm ? 0.48 : 0

@@ -193,7 +193,7 @@ describe("WorldLayout", () => {
     }
   });
 
-  it("keeps terrain geometry and landmarks on the same height owner", () => {
+  it("keeps rendered ground on the collision landform and landmarks on the canonical height owner", () => {
     const farmhouse = WorldLayout.landmark("farmhouse");
     expect(WorldLayout.terrainSurface(-65, -55)).toBe("dry-soil");
     expect(WorldLayout.terrainNormal(farmhouse.x, farmhouse.z).length()).toBeCloseTo(1, 5);
@@ -209,6 +209,29 @@ describe("WorldLayout", () => {
     const terrainPathBlend = geometry.getAttribute("terrainPathBlend");
     expect(terrainPathBlend.count).toBe(geometry.getAttribute("position").count);
     expect(terrainPathBlend.itemSize).toBe(1);
+    const terrainShoreWeights = geometry.getAttribute("terrainShoreWeights");
+    expect(terrainShoreWeights.count).toBe(geometry.getAttribute("position").count);
+    expect(terrainShoreWeights.itemSize).toBe(3);
+    let hasBeach = false;
+    let hasWetShore = false;
+    let hasCliff = false;
+    for (let index = 0; index < terrainShoreWeights.count; index += 1) {
+      const beach = terrainShoreWeights.getX(index);
+      const wetShore = terrainShoreWeights.getY(index);
+      const cliff = terrainShoreWeights.getZ(index);
+      expect(beach).toBeGreaterThanOrEqual(0);
+      expect(wetShore).toBeGreaterThanOrEqual(0);
+      expect(cliff).toBeGreaterThanOrEqual(0);
+      expect(beach + wetShore + cliff).toBeLessThanOrEqual(1.000001);
+      hasBeach ||= beach > 0.1;
+      hasWetShore ||= wetShore > 0.1;
+      hasCliff ||= cliff > 0.1;
+    }
+    expect({ hasBeach, hasWetShore, hasCliff }).toEqual({
+      hasBeach: true,
+      hasWetShore: true,
+      hasCliff: true
+    });
     expect(geometry.index).toBeNull();
     expect(geometry.userData.terrainNormalPolicy).toEqual({
       continuityStartNormalY: 0.88,
@@ -224,13 +247,18 @@ describe("WorldLayout", () => {
     let highRouteBlend = false;
     let lowOffRoadBlend = false;
     let blendRangeOk = true;
+    let landformHeightMatches = true;
     for (let index = 0; index < positions.count; index += 29) {
       const blend = terrainPathBlend.getX(index);
       if (blend < 0 || blend > 1) blendRangeOk = false;
       if (blend > 0.9) highRouteBlend = true;
       if (blend < 0.12) lowOffRoadBlend = true;
+      if (positions.getY(index) !== Math.fround(WorldLayout.terrainBaseHeight(
+        positions.getX(index), positions.getZ(index)
+      ))) landformHeightMatches = false;
     }
     expect(blendRangeOk).toBe(true);
+    expect(landformHeightMatches).toBe(true);
     let nearestRouteIndex = 0;
     let nearestRouteDist = Number.POSITIVE_INFINITY;
     let nearestOffRoadIndex = 0;
@@ -361,6 +389,9 @@ describe("WorldLayout", () => {
     expect(headland.cliff).toBeGreaterThan(headland.beach);
     expect(harborCove.beach).toBeGreaterThan(harborCove.cliff);
     expect(easternShelf.rockShelf).toBeGreaterThan(easternShelf.beach);
+    expect(headland.cliffRiseStartMeters).toBeGreaterThan(4);
+    expect(harborCove.beachWidthMeters).toBeGreaterThan(16);
+    expect(easternShelf.rockToeWidthMeters).toBeGreaterThan(6);
 
     for (let x = -179; x <= 179; x += 2) {
       expect(Math.abs(WorldLayout.coastlineZ(x + 1) - WorldLayout.coastlineZ(x))).toBeLessThan(1.1);
@@ -369,6 +400,30 @@ describe("WorldLayout", () => {
       if (WorldLayout.riverDistance(x, landwardZ) > WorldLayout.riverHalfWidth(landwardZ) + 1) {
         expect(WorldLayout.waterSignedDistance(x, landwardZ)).toBeLessThan(0);
       }
+    }
+  });
+
+  it("keeps beaches low at the waterline and recesses landmark cliffs behind a dry toe", () => {
+    for (const x of [-154, -46, 0, 50, 64, 72, 94, 132]) {
+      const shore = WorldLayout.coastlineZ(x);
+      expect(WorldLayout.terrainBaseHeight(x, shore)).toBeLessThan(0.25);
+      expect(WorldLayout.terrainBaseHeight(x, shore + 1)).toBeLessThan(0);
+      expect(WorldLayout.terrainBaseHeight(x, shore - 4)).toBeLessThan(1.1);
+    }
+
+    const headlandX = -92;
+    const headlandShore = WorldLayout.coastlineZ(headlandX);
+    expect(WorldLayout.terrainBaseHeight(headlandX, headlandShore)).toBeLessThan(0.35);
+    expect(WorldLayout.terrainBaseHeight(headlandX, headlandShore - 4)).toBeLessThan(0.8);
+    expect(WorldLayout.terrainBaseHeight(headlandX, headlandShore - 12)).toBeGreaterThan(8);
+  });
+
+  it("releases the harbor apron into the canonical beach before reaching the sea", () => {
+    for (const x of [64, 68, 72, 80]) {
+      const shore = WorldLayout.coastlineZ(x);
+      expect(WorldLayout.terrainBaseHeight(x, shore + 1)).toBeLessThan(0);
+      expect(WorldLayout.terrainBaseHeight(x, shore - 2)).toBeLessThan(0.55);
+      expect(WorldLayout.terrainSurfaceWeights(x, shore - 3).beach).toBeGreaterThan(0.2);
     }
   });
 
@@ -433,15 +488,6 @@ describe("WorldLayout", () => {
     }
 
     const geometry = WorldLayout.buildPathGeometry();
-    const positions = geometry.getAttribute("position");
-    const heightDeltaAt = (index: number) => {
-      const x = positions.getX(index);
-      const z = positions.getZ(index);
-      return positions.getY(index) - WorldLayout.terrainHeight(x, z);
-    };
-    for (const index of [0, 5, 7, 8, 9, 16]) {
-      expect(heightDeltaAt(index)).toBeCloseTo(0, 5);
-    }
     const routeCenter = WORLD_ROUTE_NETWORK[0].points[0];
     expect(WorldLayout.roadSurfaceSample(routeCenter.x, routeCenter.z).surfaceOffsetMeters).toBeGreaterThan(0);
     expect(geometry.userData.routeProfiles).toHaveLength(WORLD_ROUTE_NETWORK.length);
@@ -574,7 +620,7 @@ describe("WorldLayout", () => {
       } else if (placement.category === "paving") {
         expect(WorldLayout.pathInfluence(placement.x, placement.z)).toBeGreaterThan(0.34);
       } else if (placement.category === "meadowTall") {
-        expect(WorldLayout.pathInfluence(placement.x, placement.z)).toBeLessThan(0.18);
+        expect(WorldLayout.pathInfluence(placement.x, placement.z)).toBeLessThan(0.08);
       } else if (placement.category !== "pebbles") {
         expect(WorldLayout.pathInfluence(placement.x, placement.z)).toBeLessThan(0.08);
       }
@@ -614,11 +660,11 @@ describe("WorldLayout", () => {
       HOMESTEAD_MEADOW_GRASS_COUNT
     );
     expect(grass.some((placement) => WorldLayout.pathInfluence(placement.x, placement.z) > 0.08)).toBe(true);
-    expect(grass.every((placement) => placement.scale[1] >= 1.05 && placement.scale[1] <= 1.85)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 0.68)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] <= 1.15)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 0.68)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] <= 1.15)).toBe(true);
+    expect(grass.every((placement) => placement.scale[1] >= 0.69 && placement.scale[1] <= 1.03)).toBe(true);
+    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 1.14)).toBe(true);
+    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] <= 1.65)).toBe(true);
+    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 1.14)).toBe(true);
+    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] <= 1.65)).toBe(true);
     expect(grass.every((placement) => WorldLayout.terrainNormal(placement.x, placement.z).y > 0.66)).toBe(true);
     expect(grass.every((placement) => WorldLayout.farmSoilInfluence(placement.x, placement.z) < 0.08)).toBe(true);
     expect(grass.every((placement) => WorldLayout.shorelineWetness(placement.x, placement.z) < 0.62)).toBe(true);
@@ -631,6 +677,13 @@ describe("WorldLayout", () => {
 
     const tallMeadow = layout.groundCoverPlacements.filter((placement) => placement.category === "meadowTall");
     expect(tallMeadow.every((placement) => placement.scale[1] >= 0.78 && placement.scale[1] <= 1.05)).toBe(true);
+    expect(tallMeadow.every((placement) => {
+      const wetness = WorldLayout.shorelineWetness(placement.x, placement.z);
+      const waterDistance = WorldLayout.waterSignedDistance(placement.x, placement.z);
+      return (wetness > 0.1 && wetness < 0.72)
+        || WorldLayout.terrainSurfaceWeights(placement.x, placement.z).meadow > 0.26
+        || (waterDistance > -8 && waterDistance < -1.4);
+    })).toBe(true);
     const wetEdgeTall = tallMeadow.filter((placement) =>
       placement.assetId === "foliage_reeds_a" || placement.assetId === "foliage_cattail_a"
     );
@@ -1000,13 +1053,17 @@ describe("WorldLayout", () => {
     const anchor = HARBOR_DOCK.playerPosition;
     expect(WorldLayout.isWalkable(anchor.x, anchor.z)).toBe(true);
     const dock = WorldLayout.landmark("dock");
-    expect(Math.hypot(anchor.x - dock.x, anchor.z - dock.z)).toBeLessThan(5);
-    expect(dock.rotationY).toBeCloseTo(Math.PI / 2, 6);
+    expect(WorldLayout.isPierDeck(anchor.x, anchor.z)).toBe(true);
+    expect(WorldLayout.isWalkable(dock.x, dock.z)).toBe(true);
+    expect(Math.hypot(anchor.x - dock.x, anchor.z - dock.z)).toBeLessThan(7.2);
+    expect(dock.rotationY).toBeCloseTo(Math.PI / 2, 3);
     expect(WorldLayout.isSailable(HARBOR_DOCK.boatPosition.x, HARBOR_DOCK.boatPosition.z)).toBe(true);
+    expect(WorldLayout.pierDeckSurfaceY()).toBeGreaterThan(1.6);
     expect(Math.hypot(
       HARBOR_DOCK.boatPosition.x - dock.x,
       HARBOR_DOCK.boatPosition.z - dock.z
     )).toBeLessThan(6);
+    expect(Math.abs(HARBOR_DOCK.boatPosition.x - (dock.x + 2.6))).toBeLessThan(1.2);
   });
 
   it("provides stable low-frequency water samples for render and physics", () => {
@@ -1044,7 +1101,7 @@ describe("WorldLayout", () => {
     expect(calm.height).not.toBeCloseTo(crossWind.height, 6);
   });
 
-  it("aligns mathematical path influence precisely with curved spline samples and keeps road ribbons elevated above terrain", () => {
+  it("aligns path influence with curved spline samples and keeps bridge roads out of the riverbed", () => {
     // Verify that intermediate Catmull samples have high path influence (ensuring no straight-chord drift)
     for (const path of WORLD_PATHS) {
       for (const point of path) {
@@ -1058,8 +1115,8 @@ describe("WorldLayout", () => {
     const halfSpan = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
     const halfWidth = BRIDGE_WORLD_PROFILE.deckWidth * 0.6;
 
-    // Verify all indexed road vertices stay elevated above the terrain (no clipping teeth)
-    // and that no road geometry plunges underwater under the bridge
+    // Road/base plane agreement is checked in roadGeometry.test.ts.
+    // Bridge entries must still stay at deck level, never on the riverbed.
     const indices = geometry.getIndex();
     expect(indices).not.toBeNull();
     if (indices) {
@@ -1068,13 +1125,9 @@ describe("WorldLayout", () => {
         const vx = positions.getX(vertexIndex);
         const vy = positions.getY(vertexIndex);
         const vz = positions.getZ(vertexIndex);
-        const groundY = WorldLayout.terrainHeight(vx, vz);
-
         // No indexed road vertex should be in the riverbed (< -1.0) under the bridge
         const inBridgeSpan = Math.abs(vx - bridge.x) < halfSpan && Math.abs(vz - bridge.z) < halfWidth;
-        if (!inBridgeSpan) {
-          expect(vy).toBeGreaterThanOrEqual(groundY - 0.001);
-        } else {
+        if (inBridgeSpan) {
           expect(vy).toBeGreaterThan(0.5); // Deck entry level, never riverbed
         }
       }

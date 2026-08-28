@@ -64,7 +64,7 @@ Never rely on default smoothing.
 `1 world unit = 1 meter`.
 
 The current runtime world is a finite authored composition: `WORLD_LAYOUT_V5`
-is a retained implementation symbol, the live layout revision is 7, and the
+is a retained implementation symbol, the live layout revision is 8, and the
 terrain field is 600 m. Runtime chunk streaming is not implemented. The
 following values are **authoring heuristics only** for making reusable forms;
 they are not runtime grid, streaming, or asset-budget contracts:

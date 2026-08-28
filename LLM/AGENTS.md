@@ -27,8 +27,8 @@ Code-adjacent machine authorities for the implemented art system:
 - `generated/.cache/art/` is a disposable per-asset optimized-GLB cache keyed by content/toolchain input hash. It is never published or treated as source of truth; determinism runs bypass it.
 - `tools/blender/common/authored.py` is an internal deterministic construction vocabulary for reusable masonry, shingles, planks, lattice/rope, arch, root-flare, fastener, timber-frame, mullion, and banded-tower geometry. It is consumed by registered family generators; it is not a generator registry, asset source of truth, or alternate export path.
 
-Current implementation snapshot: the live save schema is 16, the authored world
-layout revision is 7, and the terrain field is 600 m with no runtime chunk
+Current implementation snapshot: the live save schema is 17, the authored world
+layout revision is 8, and the terrain field is 600 m with no runtime chunk
 streaming. The catalog/public manifest contain 188 assets; exact per-asset
 budgets remain in the catalog and exact scene envelopes remain in
 `tools/blender/asset_budgets.json`. Treat those machine-readable files and the

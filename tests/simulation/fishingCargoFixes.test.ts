@@ -66,7 +66,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(sim.state.basicFishing).toBeNull();
   });
 
-  it("does not emit FishEscaped or delete a won sport fight when cargo is full", () => {
+  it("resolves a won sport fight as an escape when cargo is full", () => {
     const inv = sim.state.inventories[sim.state.player.inventoryId];
     InventoryManager.addItemsAtomically(inv, [{ itemId: "item.chum_bucket", quantity: 1 }]);
     const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
@@ -89,9 +89,9 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
       location: { type: "player", containerId: "player" }
     };
 
-    const escaped: string[] = [];
+    const escaped: Array<{ speciesId: string; reason: string }> = [];
     sim.events.on("FishEscaped", (event) => {
-      escaped.push(event.speciesId);
+      escaped.push({ speciesId: event.speciesId, reason: event.reason });
     });
 
     sim.clock.setSpeed(0);
@@ -111,15 +111,10 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
       sim.tick(0.5);
     }
 
-    expect(escaped).toEqual([]);
-    expect(sim.activeFishingEncounter).not.toBeNull();
-    expect(Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.trout")).toBe(false);
-    expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
-
-    sim.discardFishCargo("cargo.blocking");
-    sim.tick(0.5);
+    expect(escaped).toEqual([{ speciesId: "fish.trout", reason: "no-cargo-space" }]);
     expect(sim.activeFishingEncounter).toBeNull();
-    expect(Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.trout")).toBe(true);
+    expect(sim.state.sportFishing).toBeNull();
+    expect(Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.trout")).toBe(false);
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
   });
 
@@ -165,7 +160,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(ContentRegistry.fishSpecies.get("fish.carp")?.habitats).toContain("lake");
   });
 
-  it("persists the owning school while a deferred landing waits for cargo space", () => {
+  it("resolves a full sport-fishing landing after save and reload", () => {
     const state = structuredClone(sim.state);
     state.worldSeed = 7;
     state.metadata.rngState = undefined;
@@ -197,12 +192,12 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
 
     const reloaded = new Simulation(structuredClone(seeded.state));
     expect(reloaded.state.sportFishing?.schoolId).toBe(schoolId);
-    reloaded.tick(0.1);
-    expect(reloaded.activeFishingEncounter).not.toBeNull();
-
-    expect(reloaded.discardFishCargo(blockingCargoId).success).toBe(true);
+    const escaped: string[] = [];
+    reloaded.events.on("FishEscaped", (event) => escaped.push(event.reason));
     reloaded.tick(0.1);
     expect(reloaded.activeFishingEncounter).toBeNull();
+    expect(reloaded.state.sportFishing).toBeNull();
+    expect(escaped).toEqual(["no-cargo-space"]);
     expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
   });
 

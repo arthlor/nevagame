@@ -4,6 +4,13 @@ import { MarketDefinition } from "./types";
 import { VILLAGE_MARKET } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
 
+/** Seed shop scope for the current P12 vertical slice. */
+export const VILLAGE_SEED_CROP_IDS = ["crop.wheat", "crop.tomato", "crop.potato"] as const;
+
+export function isVillageSeedCrop(cropId: string): boolean {
+  return (VILLAGE_SEED_CROP_IDS as readonly string[]).includes(cropId);
+}
+
 export const MARKETS: Record<string, MarketDefinition> = {
   "market.village": {
     id: "market.village",
@@ -25,7 +32,8 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "produce.flax", basePrice: 16, targetSupply: 25, consumptionRatePerHour: 2, seasonalFactors: { spring: 1.1, summer: 1.0 } },
       { itemId: "produce.apple", basePrice: 15, targetSupply: 30, consumptionRatePerHour: 2.5, seasonalFactors: { autumn: 0.8, spring: 1.3 } },
       { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 6, seasonalFactors: {} },
-      { itemId: "item.basic_fertilizer", basePrice: 18, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { spring: 1.25 } }
+      { itemId: "item.basic_fertilizer", basePrice: 18, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { spring: 1.25 } },
+      { itemId: "item.compost_starter", basePrice: 10, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} }
     ]
   },
   "market.harbor": {

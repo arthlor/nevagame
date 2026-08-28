@@ -645,97 +645,136 @@
   box-shadow: none;
 }
 
-/* Active field-journal treatment. Keep the minigame legible while it is
-   contextual; it should never read as a floating web dashboard. */
+/* Active fishing UI treatment: Deep Slate & Gold theme */
 .basic-fishing-container {
-  right: calc(18px + env(safe-area-inset-right));
+  right: calc(24px + env(safe-area-inset-right));
   top: 50%;
+  transform: translateY(-50%);
   z-index: 45;
 }
 
 .cast-power-card,
 .minigame-card,
 .catch-summary-card {
-  min-width: 0;
-  width: min(282px, calc(100vw - 28px));
-  padding: 14px 16px 12px;
-  color: var(--ui-ink, #3f4039);
-  background: var(--ui-paper, #eee5cf) !important;
-  background-image: none !important;
-  border: 1px solid var(--ui-rule, rgba(73, 67, 54, 0.24));
-  border-left: 2px solid var(--ui-teal, #3f7775);
-  border-radius: 3px;
-  box-shadow: var(--ui-shadow, 0 5px 16px rgba(38, 40, 33, 0.16));
+  min-width: 250px;
+  width: auto;
+  padding: 16px 20px 14px;
+  color: var(--mm-text-ivory, #fffaf0);
+  background-color: var(--mm-slate-glass, rgba(22, 30, 42, 0.96)) !important;
+  background-image: linear-gradient(180deg, rgba(22, 30, 42, 0.96) 0%, rgba(12, 16, 23, 0.96) 100%) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--mm-timber-mid, #6b4428) !important;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.35),
+    var(--mm-shadow-panel) !important;
   filter: none;
 }
 
 .cast-title,
 .catch-summary-header,
 .minigame-species-name {
-  color: var(--ui-ink, #3f4039);
+  color: var(--mm-text-gold, #f3d484);
   font-family: var(--font-serif, Georgia, serif);
-  letter-spacing: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: none;
 }
 
-.cast-power-bar-track,
-.catch-progress-track,
-.water-track {
-  background: rgba(63, 119, 117, 0.12);
-  border: 1px solid var(--ui-rule, rgba(73, 67, 54, 0.24));
-  border-radius: 2px;
-  box-shadow: none;
+.cast-power-bar-track {
+  height: 14px;
+  background: rgba(10, 14, 20, 0.9);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
-.cast-power-bar-fill,
-.catch-progress-fill {
-  background: var(--ui-teal, #3f7775);
-  border-radius: 0;
-  box-shadow: none;
+.cast-power-bar-fill {
+  background: linear-gradient(90deg, #10b981 0%, #f59e0b 60%, #ef4444 100%);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
 }
 
 .water-track {
-  background: #aec8c2;
-  border-color: var(--ui-teal, #3f7775);
+  width: 52px;
+  height: 100%;
+  background: linear-gradient(180deg, #163654 0%, #0c2033 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.7);
 }
 
 .green-catch-bar {
-  background: var(--ui-moss, #667955);
-  border-color: var(--ui-paper-light, #f8f1df);
-  border-radius: 2px;
-  box-shadow: none;
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.85) 0%, rgba(16, 185, 129, 0.95) 100%);
+  border: 1.5px solid #a7f3d0;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
 .green-bar-handle {
-  background: var(--ui-paper-light, #f8f1df);
-  border-radius: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 1px;
+}
+
+/* Prominent Risk & Catch Progress Gauge */
+.catch-progress-track {
+  width: 22px;
+  height: 100%;
+  background: rgba(8, 14, 20, 0.92);
+  border: 1.5px solid rgba(212, 175, 55, 0.4);
+  border-radius: 6px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.catch-progress-fill {
+  width: 100%;
+  background: linear-gradient(0deg, #ef4444 0%, #f59e0b 45%, #10b981 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+  transition: height 0.08s ease-out;
 }
 
 .bite-alert-banner {
-  padding: 13px 20px;
-  color: var(--ui-red, #9a574a);
-  background: rgba(154, 87, 74, 0.1);
-  background-image: none !important;
-  border: 1px solid rgba(154, 87, 74, 0.32);
-  border-left: 2px solid var(--ui-red, #9a574a);
-  border-radius: 3px;
-  box-shadow: var(--ui-shadow, 0 5px 16px rgba(38, 40, 33, 0.16));
-  animation: none;
+  padding: 14px 24px;
+  color: #fffaf0;
+  background: rgba(185, 28, 28, 0.95);
+  border: 2px solid #fca5a5;
+  border-radius: 6px;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+  animation: pulseBounce 0.4s infinite alternate ease-in-out;
 }
 
-.bite-exclamation,
-.bite-text,
+.bite-exclamation {
+  font-size: 26px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.bite-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
 .cast-hint,
-.minigame-footer-hint,
 .cast-power-percentage,
 .catch-item-name {
-  color: var(--ui-ink-soft, #706b5e);
+  color: var(--mm-text-ivory, #fffaf0);
   text-shadow: none;
 }
 
-.bite-exclamation,
-.bite-text {
-  color: var(--ui-red, #9a574a);
+.minigame-footer-hint {
+  font-size: 11.5px;
+  color: var(--mm-text-ivory, #fffaf0);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
 }
 
 .perfect-badge,

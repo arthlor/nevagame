@@ -388,9 +388,10 @@ describe("PhysicsWorld", () => {
     const bridge = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
     const dock = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
     expect(bridge).toHaveLength(15);
-    expect(dock).toHaveLength(5);
+    expect(dock).toHaveLength(11);
     expect(bridge.every((proxy) => proxy.kind === "box")).toBe(true);
-    expect(dock.filter((proxy) => proxy.id.includes("piles_"))).toHaveLength(4);
+    expect(dock.filter((proxy) => proxy.id.includes("piles_"))).toHaveLength(5);
+    expect(dock.filter((proxy) => proxy.id.includes("stair_"))).toHaveLength(5);
     const bridgePeak = bridge.find((proxy) => proxy.id.endsWith(":main"));
     const bridgeEdge = bridge.find((proxy) => proxy.id.endsWith(":deck_01"));
     const bridgeRails = bridge.filter((proxy) => proxy.id.includes(":rail_"));

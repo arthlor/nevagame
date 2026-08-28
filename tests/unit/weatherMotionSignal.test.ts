@@ -42,4 +42,14 @@ describe("WeatherMotionSignal", () => {
     expect(Number.isFinite(result.effectiveWindSpeed)).toBe(true);
     expect(Number.isFinite(result.cloudTravelMeters)).toBe(true);
   });
+
+  it("keeps cloud arc travel slow, cumulative, and deterministic", () => {
+    const earlier = sampleWeatherMotionSignal(weather, 500, createWeatherMotionSignal());
+    const later = sampleWeatherMotionSignal(weather, 600, createWeatherMotionSignal());
+    expect(later.cloudTravelMeters).toBeGreaterThan(earlier.cloudTravelMeters);
+    expect(later.cloudTravelMeters - earlier.cloudTravelMeters).toBeLessThan(6);
+
+    const repeated = sampleWeatherMotionSignal(weather, 600, createWeatherMotionSignal());
+    expect(repeated.cloudTravelMeters).toBe(later.cloudTravelMeters);
+  });
 });

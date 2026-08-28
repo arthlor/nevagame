@@ -107,8 +107,17 @@ export class FishingDomain {
         const encounterState = this.encounter.getState();
         const landing = this.cargo.landCaughtFish(encounterState.fish);
         if (!landing.success) {
-          this.encounter.deferLanding();
-          state.sportFishing = this.encounter.getState() as FishingEncounterState;
+          // A won fight still has to resolve immediately. Valuable fish are
+          // physical cargo, so a full hold or carry slot means the catch
+          // escapes instead of leaving the simulation in a hidden limbo.
+          this.commitSchoolCatch();
+          events.emit("FishEscaped", {
+            speciesId: encounterState.fish.speciesId,
+            reason: "no-cargo-space",
+            minute: state.clock.currentMinute
+          });
+          this.encounter = null;
+          state.sportFishing = null;
         } else {
           this.commitSchoolCatch();
           this.encounter = null;
@@ -365,9 +374,12 @@ export class FishingDomain {
       return { success: false, reason: "Unknown fish species" };
     }
     const rodDef = ContentRegistry.rods.get(state.player.equippedRodId) ?? ContentRegistry.rods.get("rod.willow")!;
-    if (!rodMeetsMinimum(rodDef.rodClass, speciesDef.minimumRodClass)) {
+    if (
+      !rodDef.allowedHabitats.includes(school.habitatId) ||
+      !rodMeetsMinimum(rodDef.rodClass, speciesDef.minimumRodClass)
+    ) {
       this.context.persistRng();
-      return { success: false, reason: "Rod class is too light for this species" };
+      return { success: false, reason: "Your equipped rod cannot fish this school" };
     }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
     const lureUsed = this.consumeLureIfPresent();

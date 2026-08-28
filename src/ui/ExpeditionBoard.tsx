@@ -88,6 +88,10 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ state, onClose
                   {boats.map((boat) => {
                     const definition = ContentRegistry.boats.get(boat.boatTypeId);
                     const cargoCount = boat.fishCargoSlotIds.filter(Boolean).length;
+                    const durabilityMax = definition?.durabilityMax ?? 100;
+                    const durabilityPercent = durabilityMax > 0
+                      ? Math.round((boat.durability / durabilityMax) * 100)
+                      : 0;
                     return (
                       <div key={boat.id} className="expedition-vessel-entry">
                         <strong>{definition?.name ?? boat.boatTypeId}</strong>
@@ -95,8 +99,8 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ state, onClose
                           className="expedition-hull-meter"
                           label={`${definition?.name ?? "Vessel"} hull`}
                           value={boat.durability}
-                          max={100}
-                          valueText={`${Math.round(boat.durability)}%`}
+                          max={durabilityMax}
+                          valueText={`${durabilityPercent}%`}
                           variant="hull"
                         />
                         <span>

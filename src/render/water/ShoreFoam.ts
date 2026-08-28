@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { WORLD_BOUNDS, WORLD_LAYOUT_V5, WorldLayout } from "../../world/WorldLayout";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import { waterHeight, type WaterConditions } from "./WaterSurface";
 
 export interface ShoreFoamPatch {
   source: "coast";
@@ -15,12 +17,12 @@ export interface ShoreFoamPatch {
 }
 
 export const SHORE_FOAM_STYLE = Object.freeze({
-  coastSpacing: 4.8,
-  minLength: 1.6,
-  maxLength: 4.4,
-  minWidth: 0.16,
-  maxWidth: 0.48,
-  maxAlpha: 0.34
+  coastSpacing: 4.6,
+  minLength: 1.8,
+  maxLength: 5.2,
+  minWidth: 0.22,
+  maxWidth: 0.64,
+  maxAlpha: 0.42
 });
 
 function deterministicUnit(index: number, salt: number): number {
@@ -49,8 +51,12 @@ export function buildShoreFoamPatches(): ShoreFoamPatch[] {
     }
     const coast = WorldLayout.coastProfile(x);
     const exposure = THREE.MathUtils.clamp(
-      0.22 + coast.rockShelf * 0.48 + coast.headland * 0.42 - coast.harborCove * 0.34,
-      0.12,
+      0.28
+        + coast.rockShelf * 0.4
+        + coast.headland * 0.34
+        + coast.beach * 0.16
+        - coast.harborCove * 0.12,
+      0.2,
       1
     );
     const includeThreshold = 0.34 + exposure * 0.34;
@@ -125,6 +131,7 @@ function appendPatch(
 
 export class ShoreFoam {
   public readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  private readonly basePositions: Float32Array;
 
   constructor() {
     const positions: number[] = [];
@@ -137,12 +144,16 @@ export class ShoreFoam {
     }
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    const positionAttribute = new THREE.Float32BufferAttribute(positions, 3);
+    positionAttribute.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("position", positionAttribute);
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("patchPhase", new THREE.Float32BufferAttribute(phases, 1));
     geometry.setAttribute("patchExposure", new THREE.Float32BufferAttribute(exposures, 1));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    this.basePositions = new Float32Array(positionAttribute.array);
 
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -168,7 +179,7 @@ export class ShoreFoam {
         out float vExposure;
         void main() {
           vec3 displaced = position;
-          displaced.y += 0.018 + sin(uTime * 0.38 + patchPhase) * (0.008 + uRoughness * 0.01);
+          displaced.y += sin(uTime * 0.38 + patchPhase) * (0.004 + uRoughness * 0.006);
           vUv = uv;
           vPhase = patchPhase;
           vExposure = patchExposure;
@@ -205,14 +216,22 @@ export class ShoreFoam {
     });
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.name = "authored_broken_shore_foam";
-    this.mesh.position.y = -0.13;
     this.mesh.renderOrder = 2;
     this.mesh.frustumCulled = true;
   }
 
-  public update(timeSeconds: number, seaRoughness: number): void {
+  public update(timeSeconds: number, conditions: WaterConditions): void {
     this.mesh.material.uniforms.uTime.value = timeSeconds;
-    this.mesh.material.uniforms.uRoughness.value = THREE.MathUtils.clamp(seaRoughness, 0, 1);
+    this.mesh.material.uniforms.uRoughness.value = THREE.MathUtils.clamp(conditions.seaRoughness, 0, 1);
+    const positions = this.mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const heightOffset = CANONICAL_RENDER_CONFIG.waterSurface.shoreline.foamHeightOffsetMeters;
+    for (let index = 0; index < positions.count; index += 1) {
+      const sourceOffset = index * 3;
+      const x = this.basePositions[sourceOffset];
+      const z = this.basePositions[sourceOffset + 2];
+      positions.setY(index, waterHeight(x, z, timeSeconds, conditions) + heightOffset);
+    }
+    positions.needsUpdate = true;
   }
 
   public updateLighting(frame: LightingFrame): void {

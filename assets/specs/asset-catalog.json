@@ -4931,7 +4931,7 @@
       "dimensions": {
         "width": 8.6,
         "depth": 8.9,
-        "height": 7.5
+        "height": 9.0
       },
       "palette": [
         "stone_warm_01",
@@ -4940,8 +4940,8 @@
         "wood_dark_01",
         "roof_terracotta_01",
         "emissive_lantern_01",
-        "roof_warm_orange_01",
-        "stone_cool_01"
+        "emissive_window_01",
+        "metal_dark_01"
       ],
       "budget": {
         "trianglesMin": 8000,
@@ -4965,16 +4965,16 @@
         "width": 6.6,
         "depth": 4.8,
         "wallHeight": 3.1,
-        "roofPitchDeg": 34,
+        "roofPitchDeg": 43,
         "masonryCourses": 4,
         "masonryBlocks": 5,
-        "shingleRows": 10,
+        "shingleRows": 12,
         "shingleColumns": 14,
         "crossGableWidth": 3.2,
         "porchDepth": 1.7,
         "porchPlanks": 8,
         "chimneyOffsetX": 3.168,
-        "chimneyHeight": 6.7
+        "chimneyHeight": 8.1
       },
       "collisionPrimitives": [
         {
@@ -6291,16 +6291,17 @@
       "generator": "working_dock",
       "seed": 233,
       "dimensions": {
-        "width": 8.2,
-        "depth": 4,
-        "height": 5.5
+        "width": 16.2,
+        "depth": 5.8,
+        "height": 5.4
       },
       "palette": [
         "wood_honey_01",
         "wood_weathered_01",
         "accent_red_01",
         "canvas_cream_01",
-        "wood_dark_01"
+        "wood_dark_01",
+        "stone_cool_01"
       ],
       "budget": {
         "trianglesMin": 500,
@@ -6319,76 +6320,154 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "length": 8,
-        "width": 3.6,
+        "length": 14,
+        "width": 5.2,
         "canopy": true,
-        "deckPlanks": 10,
-        "pileRows": 4
+        "deckPlanks": 16,
+        "pileRows": 5
       },
       "collisionPrimitives": [
         {
           "id": "deck",
           "center": [
             0,
-            1.42,
+            2.5,
             0
           ],
           "halfExtents": [
-            4,
-            0.16,
-            1.8
+            7,
+            0.18,
+            2.6
           ]
         },
         {
           "id": "piles_west",
           "center": [
-            -3.68,
-            0.75,
+            -6.16,
+            1.32,
             0
           ],
           "halfExtents": [
-            0.24,
-            0.75,
-            1.86
+            0.32,
+            1.32,
+            2.72
           ]
         },
         {
           "id": "piles_mid_west",
           "center": [
-            -1.2,
-            0.75,
+            -3.08,
+            1.32,
             0
           ],
           "halfExtents": [
-            0.24,
-            0.75,
-            1.86
+            0.32,
+            1.32,
+            2.72
+          ]
+        },
+        {
+          "id": "piles_center",
+          "center": [
+            0,
+            1.32,
+            0
+          ],
+          "halfExtents": [
+            0.32,
+            1.32,
+            2.72
           ]
         },
         {
           "id": "piles_mid_east",
           "center": [
-            1.28,
-            0.75,
+            3.08,
+            1.32,
             0
           ],
           "halfExtents": [
-            0.24,
-            0.75,
-            1.86
+            0.32,
+            1.32,
+            2.72
           ]
         },
         {
           "id": "piles_east",
           "center": [
-            3.68,
-            0.75,
+            6.16,
+            1.32,
             0
           ],
           "halfExtents": [
-            0.24,
-            0.75,
-            1.86
+            0.32,
+            1.32,
+            2.72
+          ]
+        },
+        {
+          "id": "stair_00",
+          "center": [
+            7.16,
+            2.53,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_01",
+          "center": [
+            7.5,
+            2.35,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_02",
+          "center": [
+            7.84,
+            2.17,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_03",
+          "center": [
+            8.18,
+            1.99,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_04",
+          "center": [
+            8.52,
+            1.81,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
           ]
         }
       ],
@@ -6575,9 +6654,9 @@
       "generator": "fish_market",
       "seed": 239,
       "dimensions": {
-        "width": 8.8,
-        "depth": 9.2,
-        "height": 6
+        "width": 10.4,
+        "depth": 10.8,
+        "height": 8.2
       },
       "palette": [
         "stone_warm_01",
@@ -6585,13 +6664,14 @@
         "roof_deep_red_01",
         "accent_teal_01",
         "canvas_cream_01",
-        "wood_dark_01"
+        "wood_dark_01",
+        "emissive_window_01"
       ],
       "budget": {
         "trianglesMin": 7000,
-        "trianglesTarget": 11000,
-        "trianglesMax": 24000,
-        "materialsMax": 6
+        "trianglesTarget": 20000,
+        "trianglesMax": 40000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -6609,24 +6689,26 @@
         "width": 7.4,
         "depth": 5.4,
         "wallHeight": 3.2,
-        "roofPitchDeg": 32,
+        "roofPitchDeg": 38,
         "masonryCourses": 5,
         "masonryBlocks": 8,
-        "shingleRows": 5,
-        "shingleColumns": 6
+        "shingleRows": 8,
+        "shingleColumns": 8,
+        "porchDepth": 1.45,
+        "porchPlanks": 8
       },
       "collisionPrimitives": [
         {
           "id": "main",
           "center": [
             0,
-            2.2,
-            0
+            2.45,
+            0.70
           ],
           "halfExtents": [
-            3.7,
-            2.2,
-            2.7
+            3.95,
+            2.45,
+            5.00
           ]
         }
       ],
@@ -6646,7 +6728,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Weathered fish-market warehouse with masonry plinth, shingled roof, and striped stall",
+        "subject": "Weathered fish-market warehouse on an aligned stone plinth, with a striped stall climbed by timber stairs",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -6669,7 +6751,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "Isolated dock-and-market sheet locking the striped awning stall, counter, and warehouse body."
+            "notes": "Isolated dock-and-market sheet locking the striped awning stall, counter, and posts. Warehouse body, plinth, and stairs follow the farmhouse gabled-building stack."
           }
         ],
         "components": [
@@ -6677,11 +6759,11 @@
             "id": "foundation",
             "parent": "root",
             "importance": "primary",
-            "role": "Grounds the warehouse on stone",
-            "shape": "Masonry-wrapped stone plinth",
+            "role": "Grounds the warehouse as a readable stone plinth",
+            "shape": "Inset stone core wrapped in aligned stacked-bond courses and a water table",
             "count": "1 plinth",
             "cues": [
-              "Courses wrap all four sides",
+              "Courses sit on a shared ground plane",
               "Timber walls sit on the stone lip"
             ]
           },
@@ -6690,10 +6772,10 @@
             "parent": "foundation",
             "importance": "primary",
             "role": "Forms the weathered timber hall",
-            "shape": "Timber body with thick dark corner posts",
+            "shape": "Heavy dark posts and plates with recessed weathered infill",
             "count": "1 hall",
             "cues": [
-              "Corner posts are thicker than wall boards",
+              "Corner posts break the wall silhouette",
               "Loading doors face the stall"
             ]
           },
@@ -6722,6 +6804,30 @@
             ]
           },
           {
+            "id": "entry_stairs",
+            "parent": "trading_stall",
+            "importance": "primary",
+            "role": "Climbs the raised stall from the harbor apron",
+            "shape": "Three timber treads centered on the stall front",
+            "count": "3 steps",
+            "cues": [
+              "Steps read as separate treads",
+              "Lowest tread meets the ground plane"
+            ]
+          },
+          {
+            "id": "openings",
+            "parent": "warehouse",
+            "importance": "secondary",
+            "role": "Keeps side and rear windows gameplay-readable",
+            "shape": "Thick frames, mullions, and glowing panes",
+            "count": "3 windows",
+            "cues": [
+              "Panes sit proud of the wall",
+              "Frames are thicker than the infill"
+            ]
+          },
+          {
             "id": "trade_sign",
             "parent": "warehouse",
             "importance": "tertiary",
@@ -6737,10 +6843,10 @@
         "silhouette": [
           "A wide gabled warehouse sits on a stone plinth with a striped stall projecting from the front.",
           "Deep-red overlapping shingles and thick corner posts keep the hall from reading as a crate.",
-          "The hanging fish sign breaks the right-hand eave line."
+          "Three timber stairs climb the stall from the apron, and the hanging fish sign breaks the right-hand eave line."
         ],
         "negativeSpace": [
-          "Open stall space under the awning and in front of the counter.",
+          "Open stall space under the awning and daylight between stair treads.",
           "Gaps between awning posts and loading doors."
         ],
         "hiddenSurfaces": {
@@ -6775,6 +6881,14 @@
             ],
             "requirement": "Trading counter is a readable plank field.",
             "priority": "should"
+          },
+          {
+            "id": "apron_stairs",
+            "componentIds": [
+              "entry_stairs"
+            ],
+            "requirement": "Stall front keeps three timber treads from the apron up onto the plinth.",
+            "priority": "must"
           }
         ],
         "parameterBindings": [
@@ -6815,7 +6929,7 @@
             "componentIds": [
               "foundation"
             ],
-            "purpose": "Keeps staggered stone courses on the plinth."
+            "purpose": "Keeps aligned stacked-bond courses on the plinth."
           },
           {
             "parameter": "masonryBlocks",
@@ -6837,12 +6951,29 @@
               "market_roof"
             ],
             "purpose": "Sets shingle count across the hall span."
+          },
+          {
+            "parameter": "porchDepth",
+            "componentIds": [
+              "trading_stall",
+              "entry_stairs"
+            ],
+            "purpose": "Sizes the stall projection and stair run from the warehouse face."
+          },
+          {
+            "parameter": "porchPlanks",
+            "componentIds": [
+              "trading_stall"
+            ],
+            "purpose": "Keeps the trading counter as individual planks."
           }
         ],
         "failureModes": [
           "Stall awning as an unstriped slab.",
           "Roof as two unshingled planes.",
-          "Counter as a single thin board."
+          "Counter as a single thin board.",
+          "Plinth masonry floating above a shared ground plane.",
+          "Stall sitting flush on the apron with no entry stairs."
         ],
         "reviewViews": [
           "front",

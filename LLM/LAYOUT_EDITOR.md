@@ -116,20 +116,25 @@ Objects with catalog `grounding` half-extents refuse a write if the footprint is
 
 Allowed: `farm-prop`, `farm-fence`, `authored-detail`, `environment-override`, `interior-prop`.
 
-Blocked (unique gameplay objects): farmhouse, well, mill and other stations, NPCs, landmarks, architecture pads.
+Blocked (unique gameplay objects): farmhouse, well, mill and other stations, NPCs, landmarks, architecture pads. Unique interact anchors (markets, processing stations, NPC talk radii) are not copied.
 
 Paste:
 
-1. POSTs `duplicateFrom` + catalog `assetId` / scale.
-2. Patcher allocates a new id (`*.copy.N`, `_copy_N`, or `authored.copy.<asset>_N` for seeded sources).
-3. Seeded/layout-derived copies become a new **authored** pin, not another seeded override.
-4. Client clones the Three.js object in-place so you do not need a refresh.
+1. POSTs `duplicateFrom` + catalog `assetId` / scale, and any placement extras (`grounding`, `practicalLight`, farm `propType`).
+2. Patcher allocates a new id (`*.copy.N`, `_copy_N`, or `authored.copy.<asset>_N` for seeded sources). The returned id is the allocated copy id, not a guessed “first new string” in the file.
+3. Seeded/layout-derived copies become a new **authored** pin, not another seeded override. The pin keeps `grounding` / `practicalLight` when those were on the commit.
+4. Client **re-instantiates** from `AssetLoader` (same SkeletonUtils path as spawn) and binds lights, fauna mixers, shadow policy, and collision — it does not `Object3D.clone` the live mesh. If instantiate fails, the client POSTs `remove` for the new id so source and scene stay aligned.
+5. Contact grounding discs are rebuilt from live tagged **world** poses so a pasted tree is not a hollow shadow at the old spot.
+6. Paste/delete/drop while a write is in flight are queued. Extra ⌘/Ctrl+V taps increment a paste count (they are not dropped). Copy is blocked while a write is in flight so a queued paste cannot silently switch clipboard. Delete targets the object selected when Delete was pressed, not the clone that paste may select afterward.
+7. Copy, then delete the original, then paste still works: authored pins rebuild from commit fields; farm props use `propType`; interior props use `assetId` / `y`.
+8. Exiting Place (F2) while a paste is in flight still instantiates the object that already wrote to source, but does not leave a yellow helper up after the editor is off. Queued extra pastes are discarded on exit.
 
 Delete:
 
 - Authored details and farm props / interior props are removed from their arrays.
 - Generated fence posts that are not in `FARM_FENCE_EXTRAS` are listed in `FARM_FENCE_REMOVED`.
 - Seeded instances are listed in `PLACEMENT_REMOVED` (and dropped from `PLACEMENT_OVERRIDES`).
+- Runtime unbind disposes parented PointLights and stops fauna mixers for that instance.
 
 ---
 
@@ -137,13 +142,18 @@ Delete:
 
 On drag, rotate, drop, paste, delete, Escape deselect, and F2 exit:
 
-1. **Physics** — `WorldScene.rebuildStaticCollisionProxies()` reprojects catalog collision boxes from current prefab poses; `PhysicsWorld.replaceStaticCollision` swaps Rapier static cuboids.
-2. **Shadows (DEV)** — colliding props self-cast. Production still merges static meshes and uses the baked `static_shadow_silhouette_proxy`.
-3. **Interact** — `applyLayoutEditLiveSession`:
+1. **Physics** — `WorldScene.syncLayoutEditPresentation()` reprojects catalog collision boxes from current prefab poses; `PhysicsWorld.replaceStaticCollision` swaps Rapier static cuboids.
+2. **Grounding** — the merged `static_contact_grounding` mesh is rebuilt from tagged roots that have `grounding`. Drag and rotate also rebuild so contact discs follow the mesh, not only drop/paste.
+3. **Practical lights** — In DEV, PointLights are parented to `_glow` / `_beacon` nodes (or the root for AABB fallback) so they follow drag. Production keeps scene-rooted lights so mesh merge cannot strip them. Quality budget uses world position. Paste registers a new light; delete disposes it.
+4. **Shadows (DEV)** — colliding props self-cast. Production still merges static meshes and uses the baked `static_shadow_silhouette_proxy`.
+5. **Fauna** — paste registers a new mixer on the duplicated cow/chicken/rabbit; delete stops and uncaches that mixer.
+6. **Interact (unique objects only)** — `applyLayoutEditLiveSession` on move of objects that cannot be copied:
    - produce stall → `VILLAGE_MARKET` + `market.village` interaction
    - fish-market landmark → `HARBOR_MARKET` + `market.harbor` interaction
    - mill / workbench / compost / fish table → `sim.debugRelocateStructure` + processing-station approach
    - NPCs → content anchor + `relocateNpcPresentation`
+
+Duplicated crates, lamps, trees, fences, and interior furniture do not gain new E-to-interact points. They keep pick tags, catalog collision, and the spawn presentation of the original (light, animation, grounding, shadows).
 
 While the editor is active, gameplay interact rings and quest waypoints are cleared so a stale teal ring does not sit on the old pose.
 
@@ -182,7 +192,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 6. **Select vs write** — click selects; source writes only on a real move, rotate, paste, or delete.
 7. **Copy/paste/delete** for props, fences, authored details, seeded pins, interior furniture; unique buildings refuse it.
 8. **Farmhouse door follow** when the house moves; processing-station yaw convention preserved.
-9. **Live collision, shadows, and interact** so a moved stall is not a hollow shadow + ring at the old spot.
+9. **Live collision, grounding, parented lights, fauna mixers, and unique-object interact** so a moved stall or pasted lamp is not a hollow shadow + dark copy.
 10. **Place chip in the normal DEV HUD** (`http://localhost:3000/` without `?debug`), not hidden behind a chrome rule.
 11. **DEV unmerged meshes + pointerdown pick queue** so the chip being green actually means you can click the well.
 
@@ -198,7 +208,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 | `src/app/GameApp.ts` | F2, input, live sync, collider rebuild, HUD |
 | `src/input/InputRouter.ts` | layout LMB capture, pick queue, suppress use-primary |
 | `src/ui/PlacementEditorHud.tsx` | Place chip + banner |
-| `src/render/scene/WorldScene.ts` | tags, pick, clone/remove, DEV skip merge, collider rebuild |
+| `src/render/scene/WorldScene.ts` | tags, pick, duplicate/remove, feature bind, DEV skip merge, collider rebuild |
 | `src/physics/PhysicsWorld.ts` | `replaceStaticCollision` / `ingestStaticCollision` |
 | `src/world/ProcessingStationApproach.ts` | `debugRelocateProcessingStationApproach` |
 | `tools/vite/layoutEditorPlugin.ts` | serve-only POST + HMR suppress |
@@ -234,7 +244,7 @@ the simulation predicate and the visual cue must agree.
 npx vitest run tests/unit/layoutEditorPatch.test.ts tests/unit/physicsWorld.test.ts
 ```
 
-Patcher tests cover math (door follow / yaw), source edits (move, copy, delete, overrides), live interact session restore, and the Vite plugin `apply: "serve"` + localhost host check. Physics tests cover replacing static colliders after a layout move.
+Patcher tests cover math (door follow / yaw), source edits (move, copy, delete, overrides), duplicate extras (`practicalLight`, `grounding`, seeded→authored pins, interior y/assetId), duplicate array commas after consecutive pastes, copy.1 vs copy.10 id lookup, paste after the original was removed, live interact session restore, and the Vite plugin `apply: "serve"` + localhost host check. Physics tests cover replacing static colliders after a layout move.
 
 Do not claim the editor is visually approved; the human confirms picks and drops in the actual game.
 
@@ -248,6 +258,7 @@ Do not claim the editor is visually approved; the human confirms picks and drops
 - Production never constructs `PlacementEditor` and never serves the commit route.
 - Simulation remains the serializable gameplay authority; Three.js `userData` is a pick tag only.
 - Unique buildings, NPCs, landmarks, and architecture pads cannot be copied or deleted.
+- Duplicating a prop re-instantiates from the catalog and binds the same spawn features (lights, fauna, shadows, grounding, collision). It does not invent new gameplay interact points.
 - Grass/crop/boat/player/terrain stay undraggable.
 - Unstable architecture footprints refuse a write.
 - Commit endpoint stays POST + localhost + allowlisted files.

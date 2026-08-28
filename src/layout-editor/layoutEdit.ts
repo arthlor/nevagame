@@ -37,8 +37,12 @@ export interface LayoutEditTag {
   rotationWriteMode: LayoutEditRotationWrite;
   warning: LayoutEditWarning | null;
   catalogAssetId?: string;
+  /** Farm-prop `type` (`hay-bale`, `lamp-post`, …) so paste can survive deleting the original. */
+  propType?: string;
   /** Unscaled grounding half-extents used to refuse unstable DEV drops. */
   grounding?: readonly [number, number];
+  /** When true, spawn may attach a fallback PointLight if the GLB has no glow node. */
+  practicalLight?: boolean;
 }
 
 export interface LayoutEditCommit {
@@ -54,6 +58,9 @@ export interface LayoutEditCommit {
   remove?: boolean;
   assetId?: string;
   scale?: readonly [number, number, number];
+  grounding?: readonly [number, number];
+  practicalLight?: boolean;
+  propType?: string;
 }
 
 export interface LayoutEditHudSelection {
@@ -128,6 +135,9 @@ export function allocateCopyId(
   if (sourceId.startsWith("seeded-fill.") || sourceId.startsWith("layout-derived.")) {
     const slug = (assetId ?? "asset").replace(/[^a-z0-9_]+/gi, "_");
     base = `authored.copy.${slug}`;
+    token = ".";
+  } else if (/^authored\.copy\.[^.]+\.\d+$/.test(sourceId)) {
+    base = sourceId.replace(/\.\d+$/, "");
     token = ".";
   } else if (sourceId.includes(".")) {
     base = sourceId.replace(/\.copy\.\d+$/, "");
@@ -228,7 +238,11 @@ export function createFarmsteadTag(id: "farmhouse" | "well"): LayoutEditTag {
   };
 }
 
-export function createFarmPropTag(id: string): LayoutEditTag {
+export function createFarmPropTag(
+  id: string,
+  catalogAssetId?: string,
+  extras?: Pick<LayoutEditTag, "propType" | "grounding" | "practicalLight">
+): LayoutEditTag {
   return {
     kind: "farm-prop",
     id,
@@ -237,11 +251,13 @@ export function createFarmPropTag(id: string): LayoutEditTag {
     indoor: false,
     space: "farm-local",
     rotationWriteMode: "direct",
-    warning: null
+    warning: null,
+    catalogAssetId,
+    ...extras
   };
 }
 
-export function createFarmFenceTag(id: string): LayoutEditTag {
+export function createFarmFenceTag(id: string, catalogAssetId?: string): LayoutEditTag {
   return {
     kind: "farm-fence",
     id,
@@ -250,7 +266,8 @@ export function createFarmFenceTag(id: string): LayoutEditTag {
     indoor: false,
     space: "farm-local",
     rotationWriteMode: "direct",
-    warning: null
+    warning: null,
+    catalogAssetId
   };
 }
 
@@ -315,7 +332,11 @@ export function createWorldAnchorTag(
   };
 }
 
-export function createAuthoredDetailTag(id: string, catalogAssetId?: string): LayoutEditTag {
+export function createAuthoredDetailTag(
+  id: string,
+  catalogAssetId?: string,
+  features?: Pick<LayoutEditTag, "grounding" | "practicalLight">
+): LayoutEditTag {
   return {
     kind: "authored-detail",
     id,
@@ -325,11 +346,16 @@ export function createAuthoredDetailTag(id: string, catalogAssetId?: string): La
     space: "world",
     rotationWriteMode: "direct",
     warning: null,
-    catalogAssetId
+    catalogAssetId,
+    ...features
   };
 }
 
-export function createEnvironmentOverrideTag(id: string, catalogAssetId?: string): LayoutEditTag {
+export function createEnvironmentOverrideTag(
+  id: string,
+  catalogAssetId?: string,
+  features?: Pick<LayoutEditTag, "grounding" | "practicalLight">
+): LayoutEditTag {
   return {
     kind: "environment-override",
     id,
@@ -339,11 +365,12 @@ export function createEnvironmentOverrideTag(id: string, catalogAssetId?: string
     space: "world",
     rotationWriteMode: "direct",
     warning: "seeded-override",
-    catalogAssetId
+    catalogAssetId,
+    ...features
   };
 }
 
-export function createInteriorPropTag(id: string): LayoutEditTag {
+export function createInteriorPropTag(id: string, catalogAssetId?: string): LayoutEditTag {
   return {
     kind: "interior-prop",
     id,
@@ -352,7 +379,8 @@ export function createInteriorPropTag(id: string): LayoutEditTag {
     indoor: true,
     space: "world",
     rotationWriteMode: "direct",
-    warning: null
+    warning: null,
+    catalogAssetId
   };
 }
 

@@ -34,11 +34,22 @@ export function sampleWeatherMotionSignal(
   target: WeatherMotionSignal
 ): WeatherMotionSignal {
   const directionRadians = THREE.MathUtils.degToRad(weather.windDirectionDeg);
-  const broadGust = Math.sin(timeSeconds * 0.37 + directionRadians * 1.7);
-  const detailGust = Math.sin(timeSeconds * 0.91 - directionRadians * 0.6 + 1.9);
+  const broadGustPhase = directionRadians * 1.7;
+  const detailGustPhase = directionRadians * -0.6 + 1.9;
+  const broadGust = Math.sin(timeSeconds * 0.37 + broadGustPhase);
+  const detailGust = Math.sin(timeSeconds * 0.91 + detailGustPhase);
   const gust = THREE.MathUtils.clamp(broadGust * 0.7 + detailGust * 0.3, -1, 1);
-  const normalizedStrength = THREE.MathUtils.clamp(weather.windSpeed / 12, 0, 1.5);
-  const effectiveWindSpeed = Math.max(0, weather.windSpeed * (1 + gust * 0.12));
+  const windSpeed = Math.max(0, weather.windSpeed);
+  const normalizedStrength = THREE.MathUtils.clamp(windSpeed / 12, 0, 1.5);
+  const effectiveWindSpeed = windSpeed * (1 + gust * 0.12);
+
+  // Clouds use a slow cumulative arc distance. Integrating the gust terms
+  // keeps the trajectory one-way while retaining deterministic wind response.
+  const cloudBaseSpeed = 0.02 + windSpeed * 0.0035;
+  const cloudGustDistance = windSpeed * 0.0035 * 0.12 * (
+    0.7 * (Math.cos(broadGustPhase) - Math.cos(timeSeconds * 0.37 + broadGustPhase)) / 0.37
+    + 0.3 * (Math.cos(detailGustPhase) - Math.cos(timeSeconds * 0.91 + detailGustPhase)) / 0.91
+  );
 
   target.directionRadians = directionRadians;
   target.directionX = Math.sin(directionRadians);
@@ -46,6 +57,6 @@ export function sampleWeatherMotionSignal(
   target.normalizedStrength = normalizedStrength;
   target.gust = gust;
   target.effectiveWindSpeed = effectiveWindSpeed;
-  target.cloudTravelMeters = ((timeSeconds * (0.12 + effectiveWindSpeed * 0.018)) % 150) - 75;
+  target.cloudTravelMeters = timeSeconds * cloudBaseSpeed + cloudGustDistance;
   return target;
 }

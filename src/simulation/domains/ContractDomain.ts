@@ -1,5 +1,7 @@
 import type { ContractTemplateDefinition } from "../../content/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { contractDeliveryMarketId } from "../../content/contracts";
+import { isVillageSeedCrop } from "../../content/markets";
 import type { FishCargoId, FishQuality, GameState, ItemId } from "../core/types";
 import type { SeededRng } from "../core/Rng";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -8,7 +10,103 @@ import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
-import { qualityRank } from "./domainRules";
+import { cargoClassFits, qualityRank, rodMeetsMinimum } from "./domainRules";
+import { SCHOOL_SPAWN_POINTS } from "./FishingDomain";
+
+function feasibleContractTarget(
+  state: GameState,
+  template: ContractTemplateDefinition
+): string | null {
+  const requiredXp = template.requiredXp ?? 0;
+  if (state.player.proficiencies[template.rewardSkill] < requiredXp) return null;
+
+  for (const targetId of template.itemOrSpeciesPool) {
+    if (template.type === "produce") {
+      const crop = [...ContentRegistry.crops.values()].find((candidate) => candidate.harvestItemId === targetId);
+      const villageMarket = state.markets["market.village"];
+      if (
+        crop &&
+        isVillageSeedCrop(crop.id) &&
+        state.player.proficiencies.farming >= crop.minimumFarmingXp &&
+        villageMarket?.commodities[targetId]
+      ) {
+        return targetId;
+      }
+      continue;
+    }
+
+    const fish = ContentRegistry.fishSpecies.get(targetId);
+    const rod = ContentRegistry.rods.get(state.player.equippedRodId);
+    const harborMarket = state.markets["market.harbor"];
+    if (
+      !fish ||
+      !fish.isSportFish ||
+      !rod ||
+      !harborMarket?.commodities[targetId] ||
+      !state.quests.unlockedFeatureIds.includes("boat.player_rowboat") ||
+      !fish.seasons.includes(state.clock.season) ||
+      (template.minQuality !== undefined && qualityRank(template.minQuality) > qualityRank("trophy")) ||
+      (template.minWeightKgRange !== undefined && template.minWeightKgRange[0] > fish.weightKg.max)
+    ) {
+      continue;
+    }
+
+    const hasReachableSchool = SCHOOL_SPAWN_POINTS.some(
+      (point) => fish.habitats.includes(point.habitatId) && rod.allowedHabitats.includes(point.habitatId)
+    );
+    if (!hasReachableSchool || !rodMeetsMinimum(rod.rodClass, fish.minimumRodClass)) continue;
+
+    const hasCargoCapacity = fish.cargoClass === "small" || fish.cargoClass === "medium"
+      || Object.values(state.boats).some((boat) => {
+        const definition = ContentRegistry.boats.get(boat.boatTypeId);
+        return definition?.fishCargoSlots.some((slot) => cargoClassFits(fish.cargoClass, slot.maxCargoClass));
+      });
+    if (hasCargoCapacity) return targetId;
+  }
+
+  return null;
+}
+
+export function refillContractsInState(
+  state: GameState,
+  nextEntityId: (prefix: string) => string
+): void {
+  const active = state.contracts.filter((c) => c.status === "active");
+  if (active.length >= 2) return;
+
+  const needed = 2 - active.length;
+  const activeTemplateIds = new Set(active.map((c) => c.templateId));
+  const eligibleTemplates = [...ContentRegistry.contractTemplates.values()].flatMap((template) => {
+    if (activeTemplateIds.has(template.id)) return [];
+    const targetId = feasibleContractTarget(state, template);
+    return targetId ? [{ template, targetId }] : [];
+  });
+
+  for (let i = 0; i < Math.min(needed, eligibleTemplates.length); i++) {
+    const { template, targetId: targetItem } = eligibleTemplates[i];
+    const itemDef = ContentRegistry.items.get(targetItem) ?? ContentRegistry.fishSpecies.get(targetItem);
+    const baseVal = itemDef ? ("baseValue" in itemDef ? itemDef.baseValue : itemDef.baseMarketValue) : 10;
+    const quantity = template.quantityRange[0];
+    const rewardMoney = Math.round(baseVal * quantity * template.rewardBaseMultiplier);
+
+    state.contracts.push({
+      id: nextEntityId("contract"),
+      templateId: template.id,
+      requesterId: template.requesterName,
+      type: template.type,
+      targetItemIdOrSpecies: targetItem,
+      quantityRequired: quantity,
+      quantityFulfilled: 0,
+      minQuality: template.minQuality,
+      minFreshness: template.minFreshness,
+      minWeightKg: template.minWeightKgRange ? template.minWeightKgRange[0] : undefined,
+      rewardMoney,
+      rewardSkillXp: { skill: template.rewardSkill, xp: 150 },
+      expiresAtMinute: state.clock.currentMinute + template.durationMinutes,
+      status: "active"
+    });
+  }
+}
 
 const MAX_ACTIVE_CONTRACTS = 2;
 const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
@@ -123,12 +221,21 @@ export class ContractDomain {
     quantity: number
   ): { success: boolean; delivered?: number; completed?: boolean; rewardMoney?: number; reason?: string } {
     const { state } = this.context;
-    if (!this.market.getNearbyMarketId()) return { success: false, reason: "Deliver contracts at a market" };
     if (!Number.isInteger(quantity) || quantity <= 0) {
       return { success: false, reason: "Delivery quantity must be a positive whole number" };
     }
     const contract = this.getActive(contractId);
     if (!contract) return { success: false, reason: "Contract is not active" };
+    const nearbyMarketId = this.market.getNearbyMarketId();
+    const requiredMarketId = contractDeliveryMarketId(contract.type);
+    if (nearbyMarketId !== requiredMarketId) {
+      return {
+        success: false,
+        reason: requiredMarketId === "market.village"
+          ? "Deliver this produce at the Village Produce Market"
+          : "Deliver this order at the Harbor Fish Market"
+      };
+    }
     if (contract.targetItemIdOrSpecies !== itemId) {
       return { success: false, reason: "This contract does not accept that item" };
     }
@@ -153,9 +260,12 @@ export class ContractDomain {
   ): { success: boolean; delivered?: number; completed?: boolean; rewardMoney?: number; reason?: string } {
     const { state } = this.context;
     const nearbyMarketId = this.market.getNearbyMarketId();
-    if (!nearbyMarketId) return { success: false, reason: "Deliver contracts at a market" };
     const contract = this.getActive(contractId);
     if (!contract) return { success: false, reason: "Contract is not active" };
+    const requiredMarketId = contractDeliveryMarketId(contract.type);
+    if (nearbyMarketId !== requiredMarketId) {
+      return { success: false, reason: "Bring this fish cargo to the Harbor Fish Market" };
+    }
     const fishCargo = state.fishCargo[cargoId];
     if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
     if (!this.navigation.canAccessFishCargo(fishCargo, nearbyMarketId)) {
@@ -188,6 +298,10 @@ export class ContractDomain {
     expireContracts(this.context.state);
     refillContracts(this.context.state, this.context.rng, this.context.nextEntityId);
     this.context.persistRng();
+  }
+
+  public refillContracts(): void {
+    refillContractsInState(this.context.state, this.context.nextEntityId);
   }
 
   private getActive(contractId: string): GameState["contracts"][number] | null {

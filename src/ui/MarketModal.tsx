@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FishCargoState, GameState, MarketCommodityState, MarketId } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
+import { isVillageSeedCrop } from "../content/markets";
 import { calculateFishPrice } from "../simulation/economy/calculateFishValue";
 import { calculateCommodityUnitPrice } from "../simulation/economy/calculateCommodityValue";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
@@ -12,6 +13,7 @@ import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeDivider, ChromePanel, ChromeQuality } from "./chrome/Chrome";
 import { playUiSound } from "./audio/uiAudio";
 import { MarketDomain } from "../simulation/domains/MarketDomain";
+import { contractDeliveryMarketId } from "../content/contracts";
 
 type MarketStallTab = "buy" | "sell" | "hold";
 
@@ -68,7 +70,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     const boat = state.boats[cargo.location.containerId];
     return Boolean(activeMarketId && boat?.isDocked && boat.dockedMarketId === activeMarketId);
   });
-  const activeContracts = state.contracts.filter((contract) => contract.status === "active");
+  const activeContracts = state.contracts.filter(
+    (contract) => contract.status === "active" && contractDeliveryMarketId(contract.type) === activeMarketId
+  );
 
   const ownedSellables = useMemo(() => {
     if (!currentMarket || !playerInv) return [];
@@ -225,7 +229,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           >
             Sell
           </button>
-          {activeMarketId === "market.harbor" && (
+            {activeMarketId === "market.harbor" && (
             <button
               type="button"
               role="tab"
@@ -238,32 +242,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           )}
         </div>
 
-        {stallTab === "sell" &&
-          (totalSellableProduceGold > 0 || (activeMarketId === "market.harbor" && totalFishCargoGold > 0)) && (
-          <div className="market-batch-actions-bar">
-            {totalSellableProduceGold > 0 && (
-              <ChromeButton
-                variant="gold"
-                soundCue="coins"
-                className="batch-sell-btn"
-                onClick={handleSellAllProduce}
-              >
-                <IconSprout size={16} aria-hidden="true" /> Sell all produce (+{totalSellableProduceGold.toLocaleString()} G)
-              </ChromeButton>
-            )}
-            {activeMarketId === "market.harbor" && totalFishCargoGold > 0 && (
-              <ChromeButton
-                variant="gold"
-                soundCue="coins"
-                className="batch-sell-btn"
-                onClick={handleSellAllFishCargo}
-              >
-                <IconFish size={16} aria-hidden="true" /> Sell All Docked Fish (+{totalFishCargoGold.toLocaleString()} G)
-              </ChromeButton>
-            )}
-          </div>
-        )}
-
         <ChromeDivider />
 
         <div className="market-modal-grid">
@@ -275,6 +253,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 </h3>
                 <div className="seed-stall-list">
                   {[...ContentRegistry.crops.values()]
+                    .filter((crop) => isVillageSeedCrop(crop.id))
                     .slice()
                     .sort((a, b) => a.minimumFarmingXp - b.minimumFarmingXp || a.name.localeCompare(b.name))
                     .map((crop) => {
@@ -376,7 +355,22 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
             {stallTab === "sell" && (
             <div className="market-commodities-section">
-              <h3 className="section-title">Your satchel</h3>
+              <div className="market-section-header-row">
+                <h3 className="section-title">
+                  <IconSprout size={15} aria-hidden="true" /> Your Satchel
+                </h3>
+                {totalSellableProduceGold > 0 && (
+                  <ChromeButton
+                    variant="gold"
+                    size="sm"
+                    soundCue="coins"
+                    className="batch-sell-btn-compact"
+                    onClick={handleSellAllProduce}
+                  >
+                    Sell all produce (+{totalSellableProduceGold.toLocaleString()} G)
+                  </ChromeButton>
+                )}
+              </div>
               {ownedSellables.length === 0 ? (
                 <div className="no-cargo-card" data-testid="market-sell-empty">
                   Nothing in your satchel that this stall buys.
@@ -429,9 +423,22 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
             {stallTab === "hold" && activeMarketId === "market.harbor" && (
               <div className="market-fish-cargo-section">
-                <h3 className="section-title">
-                  <IconFish size={15} aria-hidden="true" /> Docked Fish in Boat Hold
-                </h3>
+                <div className="market-section-header-row">
+                  <h3 className="section-title">
+                    <IconFish size={15} aria-hidden="true" /> Docked Fish in Boat Hold
+                  </h3>
+                  {totalFishCargoGold > 0 && (
+                    <ChromeButton
+                      variant="gold"
+                      size="sm"
+                      soundCue="coins"
+                      className="batch-sell-btn-compact"
+                      onClick={handleSellAllFishCargo}
+                    >
+                      Sell All Fish (+{totalFishCargoGold.toLocaleString()} G)
+                    </ChromeButton>
+                  )}
+                </div>
                 {fishCargoList.length === 0 ? (
                   <div className="no-cargo-card">
                     <span>No sport fish currently in boat hold or carried in hand.</span>

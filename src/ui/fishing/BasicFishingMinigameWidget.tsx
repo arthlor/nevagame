@@ -282,10 +282,18 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               </div>
             </div>
 
-            {/* Catch Progress Meter */}
-            <div className="catch-progress-track">
+            {/* Catch Progress & Risk Meter (Right Side) */}
+            <div
+              className="catch-progress-track"
+              role="meter"
+              aria-label="Fish catch risk gauge"
+              aria-valuenow={Math.round(catchProgress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              title={`Catch Progress: ${Math.round(catchProgress * 100)}%`}
+            >
               <div
-                className="catch-progress-fill"
+                className={`catch-progress-fill${catchProgress < 0.25 ? " is-critical-risk" : ""}`}
                 style={{ height: `${Math.round(catchProgress * 100)}%` }}
               />
             </div>

@@ -44,6 +44,9 @@ export class PlacementEditor {
   private status: string | null = null;
   private commitInFlight = false;
   private pendingDelete = false;
+  private pendingPasteCount = 0;
+  private pendingDeleteObject: Object3D | null = null;
+  private pendingCommitObject: Object3D | null = null;
   private pasteCount = 0;
   private clipboard: {
     object: Object3D;
@@ -83,6 +86,8 @@ export class PlacementEditor {
       const tag = object ? readLayoutEditTag(object) : null;
       if (object && tag) this.emitLiveSync(object, tag);
       this.onStaticWorldChanged();
+      this.pendingPasteCount = 0;
+      this.pendingCommitObject = null;
       this.clearSelection();
     }
     this.status = active
@@ -109,6 +114,11 @@ export class PlacementEditor {
 
   public copySelection(): void {
     if (!this.active) return;
+    if (this.commitInFlight) {
+      this.status = "Waiting to copy…";
+      this.onChange();
+      return;
+    }
     const object = this.selected;
     const tag = object ? readLayoutEditTag(object) : null;
     if (!object || !tag) {
@@ -123,7 +133,11 @@ export class PlacementEditor {
     }
     this.clipboard = {
       object,
-      tag: { ...tag },
+      tag: {
+        ...tag,
+        catalogAssetId: tag.catalogAssetId
+          ?? (typeof object.userData.assetId === "string" ? object.userData.assetId : undefined)
+      },
       x: object.position.x,
       y: object.position.y,
       z: object.position.z,
@@ -136,6 +150,15 @@ export class PlacementEditor {
   }
 
   public duplicateSelection(): void {
+    if (!this.active) return;
+    if (this.commitInFlight) {
+      if (this.clipboard) {
+        this.pendingPasteCount += 1;
+        this.status = "Waiting to paste…";
+        this.onChange();
+      }
+      return;
+    }
     const selectedId = this.selected ? readLayoutEditTag(this.selected)?.id : null;
     this.copySelection();
     if (selectedId && this.clipboard?.tag.id === selectedId) void this.pasteClipboard();
@@ -145,12 +168,14 @@ export class PlacementEditor {
     if (!this.active) return;
     if (this.commitInFlight) {
       this.pendingDelete = true;
+      this.pendingDeleteObject = this.selected ?? this.pendingDeleteObject;
       this.status = "Waiting to delete…";
       this.onChange();
       return;
     }
+    const object = this.pendingDeleteObject ?? this.selected;
     this.pendingDelete = false;
-    const object = this.selected;
+    this.pendingDeleteObject = null;
     const tag = object ? readLayoutEditTag(object) : null;
     if (!object || !tag) {
       this.status = "Select a crate, tree, fence, or prop to delete";
@@ -174,20 +199,16 @@ export class PlacementEditor {
     this.status = `Deleting ${tag.id}…`;
     this.onChange();
     try {
-      const response = await fetch(LAYOUT_EDITOR_COMMIT_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(commit)
-      });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
-      if (!response.ok || !body.ok) {
-        this.status = body.error ?? `Delete failed (${response.status})`;
+      const result = await this.postLayoutEdit(commit);
+      if (!result.ok) {
+        this.status = result.error ?? `Delete failed (${result.status})`;
         this.onChange();
         return;
       }
       if (this.clipboard?.tag.id === tag.id) this.clipboard = null;
+      if (this.pendingCommitObject === object) this.pendingCommitObject = null;
       this.worldScene.removeLayoutEditable(object);
-      this.selected = null;
+      if (this.selected === object) this.selected = null;
       this.grabbing = false;
       this.dirty = false;
       this.status = `Deleted ${tag.id}`;
@@ -195,17 +216,23 @@ export class PlacementEditor {
     } catch (error) {
       this.status = error instanceof Error ? error.message : "Delete failed";
     } finally {
-      this.commitInFlight = false;
-      this.onChange();
+      this.flushQueuedLayoutEdits(false);
     }
   }
 
   public async pasteClipboard(): Promise<void> {
-    if (!this.active || this.commitInFlight || !this.clipboard) {
-      if (this.active && !this.clipboard) {
-        this.status = "Copy a crate, tree, fence, or prop first (⌘/Ctrl+C)";
+    if (!this.active) return;
+    if (this.commitInFlight) {
+      if (this.clipboard) {
+        this.pendingPasteCount += 1;
+        this.status = "Waiting to paste…";
         this.onChange();
       }
+      return;
+    }
+    if (!this.clipboard) {
+      this.status = "Copy a crate, tree, fence, or prop first (⌘/Ctrl+C)";
+      this.onChange();
       return;
     }
     const clip = this.clipboard;
@@ -230,41 +257,61 @@ export class PlacementEditor {
       z,
       rotationY: clip.rotationY,
       y: clip.tag.indoor ? y : undefined,
-      scale: clip.scale
+      scale: clip.scale,
+      grounding: clip.tag.grounding,
+      practicalLight: clip.tag.practicalLight,
+      propType: clip.tag.propType
     };
     this.commitInFlight = true;
     this.status = `Pasting ${clip.tag.id}…`;
     this.onChange();
     try {
-      const response = await fetch(LAYOUT_EDITOR_COMMIT_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(commit)
-      });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; id?: string };
-      if (!response.ok || !body.ok || !body.id) {
-        this.status = body.error ?? `Paste failed (${response.status})`;
+      const result = await this.postLayoutEdit(commit);
+      if (!result.ok || !result.id) {
+        this.status = result.error ?? `Paste failed (${result.status})`;
         this.onChange();
         return;
       }
-      this.pasteCount = pasteOffset;
-      const source = this.worldScene.findLayoutEditable(clip.tag.id) ?? clip.object;
-      const nextTag = {
-        ...tagForPastedKind(pasteKind, body.id, clip.tag.catalogAssetId),
-        grounding: clip.tag.grounding
-      };
-      const clone = this.worldScene.cloneLayoutEditable(source, nextTag, {
-        x,
-        y,
-        z,
-        rotationY: clip.rotationY
+      const pastedId = result.id;
+      const nextTag = tagForPastedKind(pasteKind, pastedId, {
+        catalogAssetId: clip.tag.catalogAssetId,
+        grounding: clip.tag.grounding,
+        practicalLight: clip.tag.practicalLight,
+        propType: clip.tag.propType
       });
-      this.selected = clone;
-      this.grabbing = false;
-      this.dirty = false;
-      this.worldScene.highlightLayoutEdit(clone);
-      this.status = `Pasted ${body.id} → ${nextTag.sourceFile}`;
-      this.onStaticWorldChanged();
+      try {
+        const source = this.worldScene.findLayoutEditable(clip.tag.id);
+        const clone = await this.worldScene.duplicateLayoutEditable(source, nextTag, {
+          x,
+          y,
+          z,
+          rotationY: clip.rotationY,
+          scale: clip.scale
+        });
+        this.pasteCount = pasteOffset;
+        this.grabbing = false;
+        this.dirty = false;
+        if (this.active) {
+          this.selected = clone;
+          this.worldScene.highlightLayoutEdit(clone);
+          this.status = `Pasted ${pastedId} → ${nextTag.sourceFile}`;
+        } else {
+          this.worldScene.highlightLayoutEdit(null);
+        }
+        this.onStaticWorldChanged();
+      } catch (instantiateError) {
+        const rolledBack = await this.rollbackPastedId(pasteKind, pastedId, {
+          x,
+          z,
+          rotationY: clip.rotationY
+        });
+        const reason = instantiateError instanceof Error
+          ? instantiateError.message
+          : "live instance failed";
+        this.status = rolledBack
+          ? `Paste failed — ${reason}`
+          : `Paste wrote ${pastedId} but the live instance failed; refresh or delete it`;
+      }
     } catch (error) {
       this.status = error instanceof Error ? error.message : "Paste failed";
     } finally {
@@ -273,7 +320,7 @@ export class PlacementEditor {
   }
 
   public handleKeyDown(code: string, shiftHeld: boolean): void {
-    if (!this.active || (code !== "KeyQ" && code !== "KeyE")) return;
+    if (!this.active || this.commitInFlight || (code !== "KeyQ" && code !== "KeyE")) return;
     this.rotateHeld.add(code);
     this.nudgeRotation(code === "KeyQ" ? -1 : 1, shiftHeld);
   }
@@ -284,6 +331,16 @@ export class PlacementEditor {
 
   public sync(input: PlacementEditorSync): void {
     if (!this.active) return;
+
+    if (this.commitInFlight) {
+      if (this.grabbing && !input.primaryHeld) {
+        this.grabbing = false;
+        this.onStaticWorldChanged();
+        if (this.dirty && this.selected) this.pendingCommitObject = this.selected;
+      }
+      this.worldScene.updateLayoutEditHighlight();
+      return;
+    }
 
     if (input.primaryPressed) this.beginPick(input);
     else if (this.grabbing && input.primaryHeld) this.dragTo(input);
@@ -325,6 +382,7 @@ export class PlacementEditor {
     object.position.set(x, y, z);
     this.dirty = true;
     this.worldScene.highlightLayoutEdit(object);
+    this.worldScene.followLayoutEditGrounding();
     this.status = footprintStatus(tag, x, z, object.rotation.y);
     this.emitLiveSync(object, tag);
     this.onChange();
@@ -337,6 +395,7 @@ export class PlacementEditor {
     object.rotation.y = snapRadians(object.rotation.y + direction * ((fine ? 5 : 15) * Math.PI) / 180, fine);
     this.dirty = true;
     this.worldScene.highlightLayoutEdit(object);
+    this.worldScene.followLayoutEditGrounding();
     this.status = footprintStatus(tag, object.position.x, object.position.z, object.rotation.y);
     this.emitLiveSync(object, tag);
     this.onChange();
@@ -344,9 +403,12 @@ export class PlacementEditor {
   }
 
   private async commitSelected(): Promise<void> {
-    const object = this.selected;
-    const tag = object ? readLayoutEditTag(object) : null;
-    if (!object || !tag || this.commitInFlight) return;
+    if (this.selected) await this.commitObject(this.selected);
+  }
+
+  private async commitObject(object: Object3D): Promise<void> {
+    const tag = readLayoutEditTag(object);
+    if (!tag || this.commitInFlight) return;
     if (!footprintIsStable(tag, object.position.x, object.position.z, object.rotation.y)) {
       this.status = footprintStatus(tag, object.position.x, object.position.z, object.rotation.y)
         ?? "Unstable footprint — move onto flatter ground";
@@ -366,14 +428,9 @@ export class PlacementEditor {
     this.status = `Writing ${tag.id}…`;
     this.onChange();
     try {
-      const response = await fetch(LAYOUT_EDITOR_COMMIT_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(commit)
-      });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
-      if (!response.ok || !body.ok) {
-        this.status = body.error ?? `Write failed (${response.status})`;
+      const result = await this.postLayoutEdit(commit);
+      if (!result.ok) {
+        this.status = result.error ?? `Write failed (${result.status})`;
         this.onChange();
         return;
       }
@@ -393,6 +450,46 @@ export class PlacementEditor {
     }
   }
 
+  private async postLayoutEdit(commit: LayoutEditCommit): Promise<{
+    ok: boolean;
+    error?: string;
+    id?: string;
+    status: number;
+  }> {
+    const response = await fetch(LAYOUT_EDITOR_COMMIT_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(commit)
+    });
+    const body = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; id?: string };
+    return {
+      ok: Boolean(response.ok && body.ok),
+      error: body.error,
+      id: body.id,
+      status: response.status
+    };
+  }
+
+  private async rollbackPastedId(
+    kind: LayoutEditKind,
+    id: string,
+    pose: { x: number; z: number; rotationY: number }
+  ): Promise<boolean> {
+    try {
+      const result = await this.postLayoutEdit({
+        kind,
+        id,
+        x: pose.x,
+        z: pose.z,
+        rotationY: pose.rotationY,
+        remove: true
+      });
+      return result.ok;
+    } catch {
+      return false;
+    }
+  }
+
   private flushQueuedLayoutEdits(wrote: boolean): void {
     this.commitInFlight = false;
     this.onChange();
@@ -400,6 +497,17 @@ export class PlacementEditor {
     if (this.pendingDelete) {
       this.pendingDelete = false;
       void this.deleteSelection();
+      return;
+    }
+    if (this.pendingPasteCount > 0) {
+      this.pendingPasteCount -= 1;
+      void this.pasteClipboard();
+      return;
+    }
+    if (this.pendingCommitObject) {
+      const object = this.pendingCommitObject;
+      this.pendingCommitObject = null;
+      void this.commitObject(object);
       return;
     }
     if (wrote && this.dirty && this.selected) void this.commitSelected();
@@ -436,6 +544,7 @@ export class PlacementEditor {
     this.grabbing = false;
     this.dirty = false;
     this.pendingDelete = false;
+    this.pendingDeleteObject = null;
     this.worldScene.highlightLayoutEdit(null);
   }
 }
@@ -460,10 +569,31 @@ function footprintStatus(
 function tagForPastedKind(
   kind: LayoutEditKind,
   id: string,
-  catalogAssetId?: string
+  features: {
+    catalogAssetId?: string;
+    grounding?: readonly [number, number];
+    practicalLight?: boolean;
+    propType?: string;
+  }
 ): LayoutEditTag {
-  if (kind === "farm-prop") return createFarmPropTag(id);
-  if (kind === "farm-fence") return createFarmFenceTag(id);
-  if (kind === "interior-prop") return createInteriorPropTag(id);
-  return createAuthoredDetailTag(id, catalogAssetId);
+  const extras = {
+    grounding: features.grounding,
+    practicalLight: features.practicalLight
+  };
+  if (kind === "farm-prop") {
+    return {
+      ...createFarmPropTag(id, features.catalogAssetId, {
+        propType: features.propType,
+        grounding: features.grounding,
+        practicalLight: features.practicalLight
+      })
+    };
+  }
+  if (kind === "farm-fence") {
+    return { ...createFarmFenceTag(id, features.catalogAssetId), ...extras };
+  }
+  if (kind === "interior-prop") {
+    return { ...createInteriorPropTag(id, features.catalogAssetId), ...extras };
+  }
+  return createAuthoredDetailTag(id, features.catalogAssetId, extras);
 }

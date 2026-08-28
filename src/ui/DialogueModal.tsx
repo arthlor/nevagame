@@ -221,7 +221,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 
         <footer className="dialogue-footer">
           <span className="dialogue-key-hint">
-            <ChromeKeycap keyName="Space" glow={isTyping} /> Continue
+            <ChromeKeycap keyName="Space" glow={isTyping} /> {isCompletion && isLastPage && !isTyping ? "Complete" : "Continue"}
           </span>
           <ChromeButton
             variant="primary"

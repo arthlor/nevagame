@@ -140,6 +140,24 @@ describe("game loop cadence", () => {
     })).toBe(true);
   });
 
+  it("does not publish fish contracts before the boat and rod route is available", () => {
+    const sim = new Simulation();
+    sim.state.contracts = [];
+    sim.state.player.proficiencies = {
+      farming: 1000,
+      fishing: 15000,
+      processing: 0,
+      trading: 3000
+    };
+
+    sim.advanceGameMinutes(1);
+
+    const active = sim.state.contracts.filter((contract) => contract.status === "active");
+    expect(active.length).toBeGreaterThan(0);
+    expect(active.every((contract) => contract.type === "produce")).toBe(true);
+    expect(active.some((contract) => contract.targetItemIdOrSpecies.startsWith("fish."))).toBe(false);
+  });
+
   it("sells compost starter at the village and crushed ice at the harbor", () => {
     const sim = new Simulation();
     const inventory = sim.state.inventories[sim.state.player.inventoryId];

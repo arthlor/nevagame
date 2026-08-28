@@ -651,6 +651,38 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
         nextWeatherType: typeof weather.nextWeatherType === "string" ? weather.nextWeatherType : "cloudy"
       }
     };
+  },
+  17: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const boats = (previous.boats ?? {}) as Record<string, Record<string, unknown>>;
+    const activeBoatId = typeof player.activeBoatId === "string" ? player.activeBoatId : null;
+    const hasActiveBoat = activeBoatId !== null && boats[activeBoatId] !== undefined;
+    const playerX = finite(player.x);
+    const playerZ = finite(player.z);
+    const world = (previous.world ?? {}) as Record<string, unknown>;
+    const structures = (world.structures ?? {}) as Record<string, Record<string, unknown>>;
+    const migratedStructures = Object.fromEntries(
+      Object.entries(structures).map(([id, structure]) => {
+        const x = finite(structure.x);
+        const z = finite(structure.z);
+        return [id, { ...structure, x, y: WorldLayout.terrainHeight(x, z), z }];
+      })
+    );
+
+    return {
+      ...previous,
+      schemaVersion: 17,
+      player: {
+        ...player,
+        ...(!hasActiveBoat ? { y: WorldLayout.terrainHeight(playerX, playerZ) + 0.5 } : {})
+      },
+      world: {
+        ...world,
+        layoutRevision: 8,
+        structures: migratedStructures
+      }
+    };
   }
 };
 

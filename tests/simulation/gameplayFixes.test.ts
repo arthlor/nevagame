@@ -15,6 +15,7 @@ import { advanceScheduledWeather } from "../../src/simulation/weather/updateWeat
 import {
   HARBOR_DOCK,
   HARBOR_FISH_TABLE,
+  HARBOR_MARKET,
   HARBOR_SKIFF_MOORING,
   VILLAGE_MARKET,
   WORLD_SPAWN
@@ -404,6 +405,17 @@ describe("Gameplay simulation fixes", () => {
     expect(contract.status).toBe("expired");
   });
 
+  it("offline progression expires and refreshes the reachable contract board", () => {
+    const state = structuredClone(sim.state);
+    state.contracts[0].expiresAtMinute = state.clock.currentMinute + 1;
+    const summary = applyOfflineProgression(state, state.metadata.lastSavedUtcMs + 10_000);
+
+    expect(summary.contractsExpiredCount).toBe(1);
+    const active = state.contracts.filter((contract) => contract.status === "active");
+    expect(active.length).toBeGreaterThan(0);
+    expect(active.every((contract) => contract.type === "produce")).toBe(true);
+  });
+
   it("delivers an active item contract atomically and pays its reward exactly once", () => {
     const contract = sim.state.contracts[0];
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
@@ -455,6 +467,26 @@ describe("Gameplay simulation fixes", () => {
     });
   });
 
+  it("keeps the village seed stall and processing list within the live slice", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    sim.state.player.money = 1000;
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
+
+    expect(sim.buySeedAtMarket("market.village", "seed.carrot", 1)).toMatchObject({
+      success: false,
+      reasonCode: "not-stocked"
+    });
+    expect(sim.buySeedAtMarket("market.village", "seed.wheat", 1)).toMatchObject({ success: true });
+
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "fish.carp", quantity: 1 }]);
+    movePlayerToProcessingFront(sim, HARBOR_FISH_TABLE.structureId);
+    expect(sim.startProcessingJob("recipe.carp_to_scraps", HARBOR_FISH_TABLE.structureId)).toMatchObject({
+      success: false,
+      reason: "That recipe is not available yet"
+    });
+  });
+
   it("only accepts contract fish cargo that meets the target requirements", () => {
     const contract = {
       id: "contract.test_trout",
@@ -489,6 +521,13 @@ describe("Gameplay simulation fixes", () => {
     sim.state.fishCargo["cargo.test_trout"].freshness = 80;
     sim.state.player.x = VILLAGE_MARKET.position.x;
     sim.state.player.z = VILLAGE_MARKET.position.z;
+    expect(sim.deliverFishCargoToContract(contract.id, "cargo.test_trout")).toMatchObject({
+      success: false,
+      reason: "Bring this fish cargo to the Harbor Fish Market"
+    });
+
+    sim.state.player.x = HARBOR_MARKET.position.x;
+    sim.state.player.z = HARBOR_MARKET.position.z;
     const delivered = sim.deliverFishCargoToContract(contract.id, "cargo.test_trout");
     expect(delivered).toMatchObject({ success: true, completed: true, rewardMoney: 90 });
     expect(sim.state.fishCargo["cargo.test_trout"]).toBeUndefined();
@@ -945,6 +984,39 @@ describe("Gameplay simulation fixes", () => {
     };
     sim.resetPlayerToSafeSpawn();
     expect(sim.state.basicFishing).toBeNull();
+  });
+
+  it("refuses Safe Return while an active boat carries physical fish cargo", () => {
+    sim.prepareDebugHarborBoarding();
+    expect(sim.boardBoat("boat.player_rowboat")).toMatchObject({ success: true });
+
+    const boat = sim.state.boats["boat.player_rowboat"];
+    const cargoId = "cargo.safe_return_guard";
+    boat.fishCargoSlotIds[0] = cargoId;
+    sim.state.fishCargo[cargoId] = {
+      id: cargoId,
+      speciesId: "fish.trout",
+      weightKg: 3,
+      quality: "fine",
+      caughtAtMinute: sim.state.clock.currentMinute,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "boat-hold", containerId: boat.id, slotIndex: 0 }
+    };
+    const positionBefore = { x: sim.state.player.x, z: sim.state.player.z };
+
+    const result = sim.execute({ type: "player.reset-safe" });
+
+    expect(result).toMatchObject({
+      success: false,
+      reason: "Return to the harbor before using Safe Return while carrying physical fish cargo"
+    });
+    expect(sim.state.player.activeBoatId).toBe(boat.id);
+    expect(sim.state.player.x).toBe(positionBefore.x);
+    expect(sim.state.player.z).toBe(positionBefore.z);
+    expect(boat.isDocked).toBe(false);
+    expect(boat.fishCargoSlotIds[0]).toBe(cargoId);
+    expect(sim.state.fishCargo[cargoId]).toBeDefined();
   });
 
   it("does not restore overlay pause when hydrating a saved clock", () => {

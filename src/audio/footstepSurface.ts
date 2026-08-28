@@ -19,7 +19,8 @@ export const footstepSurfaceAt = (x: number, z: number): FootstepSurface => {
   }
   const dock = WorldLayout.landmark("dock");
   if (
-    nearPoint(x, z, dock.x, dock.z, 7.5)
+    WorldLayout.isPierDeck(x, z)
+    || nearPoint(x, z, dock.x, dock.z, 8.5)
     || nearPoint(x, z, HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z, HARBOR_DOCK.dockRadius + DOCK_RADIUS_PADDING)
     || nearPoint(x, z, HARBOR_DOCK.boatPosition.x, HARBOR_DOCK.boatPosition.z, HARBOR_DOCK.dockRadius)
     || nearPoint(

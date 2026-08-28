@@ -201,13 +201,11 @@ function patchFarmhouseDoorFollow(
 }
 
 function patchAuthoredPlacement(source: string, id: string, commit: LayoutEditCommit): string {
-  const needle = `authoredPlacement("${id}"`;
-  const startCall = source.indexOf(needle);
-  if (startCall < 0) throw new LayoutEditPatchError(`Missing authoredPlacement ${id}`);
-  const brace = source.indexOf("{", startCall);
-  const block = extractBalanced(source, brace);
+  const found = findAuthoredPlacementCall(source, id);
+  const brace = found.text.indexOf("{");
+  const block = extractBalanced(found.text, brace);
   const next = patchObjectXzRotation(block.text, commit.x, commit.z, commit.rotationY);
-  return replaceSlice(source, brace, block.end, next);
+  return replaceSlice(source, found.start + brace, found.start + block.end, next);
 }
 
 function upsertRecordLiteral(
@@ -405,44 +403,97 @@ function insertSnippetIntoConstArray(source: string, constName: string, snippet:
   const open = findConstArrayOpen(source, constName);
   const block = extractBalanced(source, open);
   const inner = block.text.slice(1, -1).replace(/\s*$/, "");
-  const trimmed = inner.trim();
-  const comma = trimmed.length === 0 || trimmed.endsWith(",") ? "" : ",";
+  const comma = constArrayInnerNeedsComma(inner) ? "," : "";
   const insertion = `${inner}${comma}\n  ${snippet}\n`;
   return replaceSlice(source, open, block.end, `[${insertion}]`);
 }
 
-function findAuthoredPlacementCall(source: string, id: string): { start: number; end: number; text: string } {
-  const needle = `authoredPlacement("${id}"`;
-  const start = source.indexOf(needle);
-  if (start < 0) throw new LayoutEditPatchError(`Missing authoredPlacement ${id}`);
-  const objStart = source.indexOf("{", start);
-  if (objStart < 0) throw new LayoutEditPatchError(`Missing authoredPlacement object ${id}`);
-  const obj = extractBalanced(source, objStart);
-  let end = obj.end;
-  while (end < source.length && source[end] !== ")") end += 1;
-  if (source[end] !== ")") throw new LayoutEditPatchError(`Unclosed authoredPlacement ${id}`);
-  end += 1;
-  return { start, end, text: source.slice(start, end) };
+/** True when the last real array element has no trailing comma (comments ignored). */
+function constArrayInnerNeedsComma(inner: string): boolean {
+  const lines = inner.split("\n");
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const code = lines[index]!.replace(/\/\/.*$/, "").trim();
+    if (code.length === 0) continue;
+    return !code.endsWith(",");
+  }
+  return false;
 }
 
-function duplicateAuthoredPlacement(source: string, commit: LayoutEditCommit): string {
-  if (commit.duplicateFrom && source.includes(`authoredPlacement("${commit.duplicateFrom}"`)) {
-    const found = findAuthoredPlacementCall(source, commit.duplicateFrom);
-    const objStart = found.text.indexOf("{");
-    const obj = extractBalanced(found.text, objStart);
-    const patchedObj = patchObjectXzRotation(obj.text, commit.x, commit.z, commit.rotationY);
-    const call = `authoredPlacement("${commit.id}", ${patchedObj})`;
-    const alreadyComma = /^\s*,/.test(source.slice(found.end));
-    return `${source.slice(0, found.end)}${alreadyComma ? "" : ","}\n  ${call}${source.slice(found.end)}`;
+function findAuthoredPlacementCall(source: string, id: string): { start: number; end: number; text: string } {
+  const needle = `authoredPlacement("${id}"`;
+  let from = 0;
+  while (from < source.length) {
+    const start = source.indexOf(needle, from);
+    if (start < 0) throw new LayoutEditPatchError(`Missing authoredPlacement ${id}`);
+    const after = source[start + needle.length];
+    if (after === "," || after === ")" || after === " " || after === "\n" || after === "\r" || after === "\t") {
+      const objStart = source.indexOf("{", start);
+      if (objStart < 0) throw new LayoutEditPatchError(`Missing authoredPlacement object ${id}`);
+      const obj = extractBalanced(source, objStart);
+      let end = obj.end;
+      while (end < source.length && source[end] !== ")") end += 1;
+      if (source[end] !== ")") throw new LayoutEditPatchError(`Unclosed authoredPlacement ${id}`);
+      end += 1;
+      return { start, end, text: source.slice(start, end) };
+    }
+    from = start + needle.length;
   }
+  throw new LayoutEditPatchError(`Missing authoredPlacement ${id}`);
+}
+
+/** Insert a new authoredPlacement after an existing call, keeping commas on both. */
+function insertAuthoredPlacementAfter(source: string, callEnd: number, call: string): string {
+  let after = callEnd;
+  const trailingComma = source.slice(after).match(/^[ \t]*,/);
+  if (trailingComma) after += trailingComma[0].length;
+  return `${source.slice(0, callEnd)},\n  ${call},${source.slice(after)}`;
+}
+
+function formatAuthoredPlacementSnippet(commit: LayoutEditCommit): string {
   if (!commit.assetId || !/^[a-z0-9_]+$/i.test(commit.assetId)) {
     throw new LayoutEditPatchError("Copy needs a catalog assetId for this object");
   }
   const scale = commit.scale
     ? `[${commit.scale.map((value) => formatWorldCoord(value)).join(", ")}]`
     : "[1, 1, 1]";
-  const snippet = `authoredPlacement("${commit.id}", { assetId: "${commit.assetId}", x: ${formatWorldCoord(commit.x)}, z: ${formatWorldCoord(commit.z)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} }),`;
-  return insertSnippetIntoConstArray(source, "AUTHORED_DETAIL_PLACEMENTS", snippet);
+  const fields = [
+    `assetId: "${commit.assetId}"`,
+    `x: ${formatWorldCoord(commit.x)}`,
+    `z: ${formatWorldCoord(commit.z)}`,
+    `rotationY: ${formatRadians(commit.rotationY)}`,
+    `scale: ${scale}`
+  ];
+  if (commit.grounding) {
+    fields.push(
+      `grounding: [${commit.grounding.map((value) => formatWorldCoord(value)).join(", ")}]`
+    );
+  }
+  if (commit.practicalLight === true) {
+    fields.push("practicalLight: true");
+  }
+  return `authoredPlacement("${commit.id}", { ${fields.join(", ")} }),`;
+}
+
+function duplicateAuthoredPlacement(source: string, commit: LayoutEditCommit): string {
+  if (commit.duplicateFrom && authoredPlacementExists(source, commit.duplicateFrom)) {
+    const found = findAuthoredPlacementCall(source, commit.duplicateFrom);
+    const objStart = found.text.indexOf("{");
+    const obj = extractBalanced(found.text, objStart);
+    const patchedObj = patchObjectXzRotation(obj.text, commit.x, commit.z, commit.rotationY);
+    const call = `authoredPlacement("${commit.id}", ${patchedObj})`;
+    return insertAuthoredPlacementAfter(source, found.end, call);
+  }
+  return insertSnippetIntoConstArray(source, "AUTHORED_DETAIL_PLACEMENTS", formatAuthoredPlacementSnippet(commit));
+}
+
+function authoredPlacementExists(source: string, id: string): boolean {
+  try {
+    findAuthoredPlacementCall(source, id);
+    return true;
+  } catch (error) {
+    if (error instanceof LayoutEditPatchError) return false;
+    throw error;
+  }
 }
 
 function duplicateNamedObject(
@@ -453,16 +504,47 @@ function duplicateNamedObject(
   localZ: number
 ): string {
   if (!commit.duplicateFrom) throw new LayoutEditPatchError("Missing duplicate source id");
-  const found = findIdObject(source, commit.duplicateFrom);
-  let next = found.text.replace(
-    new RegExp(`id:\\s*"${commit.duplicateFrom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`),
-    `id: "${commit.id}"`
-  );
-  next = patchObjectXzRotation(next, localX, localZ, commit.rotationY);
-  if (commit.y !== undefined && /\by\s*:/.test(next)) {
-    next = replaceFieldValue(next, "y", formatWorldCoord(commit.y));
+  try {
+    const found = findIdObject(source, commit.duplicateFrom);
+    let next = found.text.replace(
+      new RegExp(`id:\\s*"${commit.duplicateFrom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`),
+      `id: "${commit.id}"`
+    );
+    next = patchObjectXzRotation(next, localX, localZ, commit.rotationY);
+    if (commit.y !== undefined && /\by\s*:/.test(next)) {
+      next = replaceFieldValue(next, "y", formatWorldCoord(commit.y));
+    }
+    if (commit.scale && /\bscale\s*:/.test(next) && !/\bscale\s*:\s*\[/.test(next)) {
+      next = replaceFieldValue(next, "scale", formatWorldCoord(commit.scale[0]!));
+    }
+    return insertSnippetIntoConstArray(source, constName, `${next},`);
+  } catch (error) {
+    if (!(error instanceof LayoutEditPatchError)) throw error;
+    if (constName === "STARTER_PROP_ANCHORS") {
+      return insertSnippetIntoConstArray(source, constName, formatFarmPropSnippet(commit, localX, localZ));
+    }
+    if (constName === "FARMHOUSE_INTERIOR_PROPS") {
+      return insertSnippetIntoConstArray(source, constName, formatInteriorPropSnippet(commit));
+    }
+    throw error;
   }
-  return insertSnippetIntoConstArray(source, constName, `${next},`);
+}
+
+function formatFarmPropSnippet(commit: LayoutEditCommit, localX: number, localZ: number): string {
+  if (!commit.propType || !/^[a-z0-9-]+$/i.test(commit.propType)) {
+    throw new LayoutEditPatchError("Copy needs the farm prop type after the original was removed");
+  }
+  const scale = commit.scale ? formatWorldCoord(commit.scale[0]!) : "1";
+  return `{ id: "${commit.id}", type: "${commit.propType}", x: ${formatWorldCoord(localX)}, z: ${formatWorldCoord(localZ)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} },`;
+}
+
+function formatInteriorPropSnippet(commit: LayoutEditCommit): string {
+  if (!commit.assetId || !/^[a-z0-9_]+$/i.test(commit.assetId)) {
+    throw new LayoutEditPatchError("Copy needs a catalog assetId for this object");
+  }
+  const scale = commit.scale ? formatWorldCoord(commit.scale[0]!) : "1";
+  const y = commit.y !== undefined ? formatWorldCoord(commit.y) : "0";
+  return `{ id: "${commit.id}", assetId: "${commit.assetId}", x: ${formatWorldCoord(commit.x)}, y: ${y}, z: ${formatWorldCoord(commit.z)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} },`;
 }
 
 function insertDuplicate(files: LayoutSourceFiles, commit: LayoutEditCommit): LayoutSourceFiles {
@@ -748,6 +830,15 @@ export function isLayoutEditCommit(value: unknown): value is LayoutEditCommit {
       || (Array.isArray(record.scale)
         && record.scale.length === 3
         && record.scale.every((value) => typeof value === "number" && Number.isFinite(value))))
+    && (record.grounding === undefined
+      || (Array.isArray(record.grounding)
+        && record.grounding.length === 2
+        && record.grounding.every((value) => typeof value === "number" && Number.isFinite(value))))
+    && (record.practicalLight === undefined || typeof record.practicalLight === "boolean")
+    && (record.propType === undefined
+      || (typeof record.propType === "string"
+        && /^[a-z0-9-]+$/i.test(record.propType)
+        && record.propType.length < 40))
   );
 }
 
@@ -798,9 +889,10 @@ export function planLayoutEdit(
       files.push(path.join(rootDirectory, LAYOUT_EDITOR_SOURCE_FILES[key]));
     }
   }
-  const previousIds = collectLayoutIds(current);
-  const added = [...collectLayoutIds(next)].filter((id) => !previousIds.has(id));
-  return { next, files, id: added[0] ?? commit.id };
+  const id = commit.duplicateFrom && !commit.remove
+    ? resolveDuplicateCommit(current, commit).id
+    : commit.id;
+  return { next, files, id };
 }
 
 export function commitLayoutEdit(

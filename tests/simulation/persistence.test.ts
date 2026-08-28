@@ -19,6 +19,7 @@ import saveV11Layout3 from "../fixtures/save_v11_layout3.json";
 import saveV12Layout4 from "../fixtures/save_v12_layout4.json";
 import saveV13Layout5 from "../fixtures/save_v13_layout5.json";
 import saveV14Layout6 from "../fixtures/save_v14_layout6.json";
+import saveV16Layout7 from "../fixtures/save_v16_layout7.json";
 
 function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
   const factory = globalThis.indexedDB as unknown as {
@@ -798,6 +799,60 @@ describe("Persistence & Offline Progression", () => {
 
     expect(migrated.state.player.y).toBe(0.5);
     expect(migrated.state.boats["boat.fixture"]).toEqual(boatBefore);
+  });
+
+  it("migrates the v16 coast layout by preserving X/Z and re-grounding land truth", () => {
+    const legacy = structuredClone(createInitialGameState());
+    const fixture = structuredClone(saveV16Layout7);
+    legacy.schemaVersion = 16;
+    legacy.world.layoutRevision = fixture.state.world.layoutRevision;
+    Object.assign(legacy.player, fixture.state.player);
+    Object.assign(legacy.world.structures, fixture.state.world.structures);
+    legacy.metadata.rngState = fixture.state.metadata.rngState;
+    const playerX = fixture.state.player.x;
+    const playerZ = fixture.state.player.z;
+
+    const migrated = migrateSaveData({ schemaVersion: 16, savedAtUtcMs: 1, state: legacy });
+    const migratedFixture = migrated.state.world.structures["struct.coast_fixture"];
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toMatchObject({
+      x: playerX,
+      z: playerZ,
+      rotationY: fixture.state.player.rotationY,
+      money: fixture.state.player.money
+    });
+    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.terrainHeight(playerX, playerZ) + 0.5, 6);
+    expect(migratedFixture).toMatchObject({
+      x: fixture.state.world.structures["struct.coast_fixture"].x,
+      z: fixture.state.world.structures["struct.coast_fixture"].z,
+      rotationY: fixture.state.world.structures["struct.coast_fixture"].rotationY
+    });
+    expect(migratedFixture.y).toBeCloseTo(
+      WorldLayout.terrainHeight(migratedFixture.x, migratedFixture.z),
+      6
+    );
+    expect(migrated.state.metadata.rngState).toBe(fixture.state.metadata.rngState);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("leaves active-boat and player waterline truth unchanged in the v17 coast migration", () => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 16;
+    legacy.world.layoutRevision = 7;
+    legacy.player.activeBoatId = "boat.player_rowboat";
+    legacy.player.y = 0.5;
+    legacy.boats["boat.player_rowboat"].isDocked = false;
+    legacy.boats["boat.player_rowboat"].dockedMarketId = null;
+    const boatBefore = structuredClone(legacy.boats["boat.player_rowboat"]);
+
+    const migrated = migrateSaveData({ schemaVersion: 16, savedAtUtcMs: 1, state: legacy });
+
+    expect(migrated.state.player.y).toBe(0.5);
+    expect(migrated.state.boats["boat.player_rowboat"]).toEqual(boatBefore);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 
 

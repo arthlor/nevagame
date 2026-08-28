@@ -7,6 +7,7 @@ import {
   generateTerrainDetailTextureData,
   TERRAIN_DETAIL_FACTOR_MAX,
   TERRAIN_DETAIL_FACTOR_MIN,
+  TERRAIN_SURFACE_PROGRAM_CACHE_KEY,
   TerrainSurfaceMaterial
 } from "../../src/render/materials/TerrainSurfaceMaterial";
 
@@ -98,9 +99,20 @@ describe("TerrainSurfaceMaterial", () => {
 
     expect(shader.vertexShader).toContain("attribute float terrainGreenMask;");
     expect(shader.vertexShader).toContain("attribute float terrainPathBlend;");
+    expect(shader.vertexShader).toContain("attribute vec3 terrainShoreWeights;");
     expect(shader.vertexShader).toContain("vTerrainPathBlend");
+    expect(shader.vertexShader).toContain("vTerrainShoreWeights");
     expect(shader.vertexShader).toContain("vTerrainWorldPosition");
     expect(shader.fragmentShader).toContain("texture2D(terrainDetailTexture, terrainLargeUv)");
+    expect(shader.fragmentShader).toContain("terrainLeafyGrassColorTexture");
+    expect(shader.fragmentShader).toContain("terrainSparseGrassColorTexture");
+    expect(shader.fragmentShader).toContain("terrainExternalColorStrength");
+    expect(shader.fragmentShader).toContain("terrainExternalColor = mix(");
+    expect(shader.fragmentShader).toContain("terrainLeafyGrassLuma");
+    expect(shader.fragmentShader).toContain("terrainSparseGrassLuma");
+    expect(shader.fragmentShader).toContain("mosaicMask * terrainExternalColorStrength");
+    expect(shader.fragmentShader).toContain("terrainExternalRoughnessSignal");
+    expect(shader.fragmentShader).toContain("texture2D(terrainSparseGrassRoughnessTexture, terrainSparseGrassUv)");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCell");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellEdge");
@@ -125,15 +137,29 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("terrainPaletteOliveColor");
     expect(shader.fragmentShader).toContain("terrainPaletteHighlightColor");
     expect(shader.fragmentShader).toContain("terrainPaletteColor");
+    expect(shader.fragmentShader).toContain("terrainShoreColor");
+    expect(shader.fragmentShader).toContain("terrainShoreRoughness");
+    expect(shader.fragmentShader).toContain("terrainDebugSlope");
     expect(shader.fragmentShader).toContain("roughnessFactor = mix(");
     expect(shader.fragmentShader).not.toContain("displacement");
     expect(terrain.material.flatShading).toBe(false);
-    expect(shader.uniforms.terrainPathShoulderStart.value).toBe(0.48);
-    expect(shader.uniforms.terrainPathShoulderFull.value).toBe(0.62);
-    expect(shader.uniforms.terrainPathCoreStart.value).toBe(0.74);
-    expect(shader.uniforms.terrainPathCoreFull.value).toBe(0.88);
-    expect(shader.uniforms.terrainPathUnderlayStrength.value).toBe(0.14);
-    expect(terrain.material.customProgramCacheKey()).toBe("neva-terrain-surface-r174-v13");
+    expect(shader.uniforms.terrainPathShoulderStart.value).toBe(0.32);
+    expect(shader.uniforms.terrainPathShoulderFull.value).toBe(0.52);
+    expect(shader.uniforms.terrainPathCoreStart.value).toBe(0.68);
+    expect(shader.uniforms.terrainPathCoreFull.value).toBe(0.86);
+    expect(shader.uniforms.terrainPathUnderlayStrength.value).toBe(0.22);
+    expect(shader.uniforms.terrainLeafyGrassSampleScale.value).toBe(7.5);
+    expect(shader.uniforms.terrainSparseGrassSampleScale.value).toBe(10.5);
+    expect(shader.uniforms.terrainLeafyGrassRotation.value).toBe(0.61);
+    expect(shader.uniforms.terrainSparseGrassRotation.value).toBe(-0.83);
+    expect(shader.uniforms.terrainExternalColorStrength.value).toBe(1);
+    expect(shader.uniforms.terrainExternalRoughnessStrength.value).toBe(1);
+    expect(shader.uniforms.terrainBeachColorMix.value).toBe(0.46);
+    expect(shader.uniforms.terrainShoreWetRoughness.value).toBe(0.72);
+    expect(shader.uniforms.terrainDebugMode.value).toBe(0);
+    terrain.setDebugMode("shoreline");
+    expect(shader.uniforms.terrainDebugMode.value).toBe(2);
+    expect(terrain.material.customProgramCacheKey()).toBe(TERRAIN_SURFACE_PROGRAM_CACHE_KEY);
   });
 
   it("fails loudly when a required standard-shader chunk drifts", () => {

@@ -2,7 +2,7 @@
 
 import type { NpcId } from "../simulation/core/QuestTypes";
 import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog.generated";
-import { HARBOR_MAEVE_ANCHOR, HARBOR_SILAS_ANCHOR } from "../world/WorldAnchors";
+import { HARBOR_MAEVE_ANCHOR, HARBOR_MARKET, HARBOR_SILAS_ANCHOR } from "../world/WorldAnchors";
 
 export interface NpcDefinition {
   id: NpcId;
@@ -88,7 +88,7 @@ export const NPCS: NpcDefinition[] = [
     anchor: {
       x: HARBOR_MAEVE_ANCHOR.x,
       z: HARBOR_MAEVE_ANCHOR.z,
-      rotationY: Math.PI * 0.75,
+      rotationY: HARBOR_MARKET.rotationY,
       locationName: "Fish Market Stall"
     },
     idleDialogue: [

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
+import { applyWeatherProfile } from "../../src/simulation/weather/updateWeather";
 import { PALETTE_HEX } from "../../src/render/materials/PaletteTokens";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import {
@@ -70,6 +71,51 @@ describe("LightingRig", () => {
     expect(frame.sunVisibility).toBeGreaterThan(0.9);
   });
 
+  it("opens clear morning distance and sunlight without changing rainy or cloudy atmosphere", () => {
+    const clear = createInitialGameState(42);
+    clear.clock.currentMinute = 8 * 60;
+    const cloudy = structuredClone(clear);
+    applyWeatherProfile(cloudy.weather, "cloudy");
+    const rainy = structuredClone(clear);
+    applyWeatherProfile(rainy.weather, "light-rain");
+
+    const clearFrame = deriveLightingFrame(clear, 0);
+    const cloudyFrame = deriveLightingFrame(cloudy, 0);
+    const rainyFrame = deriveLightingFrame(rainy, 0);
+    const config = CANONICAL_RENDER_CONFIG;
+
+    expect(clearFrame.fogNear).toBe(config.fog.clearDayNear);
+    expect(clearFrame.fogFar).toBe(config.fog.clearDayFar);
+    const clearSky = clearFrame.skyTopColor.getHSL({ h: 0, s: 0, l: 0 });
+    const cloudySky = cloudyFrame.skyTopColor.getHSL({ h: 0, s: 0, l: 0 });
+    expect(clearSky.s).toBeGreaterThan(cloudySky.s + 0.08);
+    expect(clearSky.l).toBeLessThan(cloudySky.l);
+    const clearFogDistance = Math.hypot(
+      clearFrame.fogColor.r - clearFrame.skyTopColor.r,
+      clearFrame.fogColor.g - clearFrame.skyTopColor.g,
+      clearFrame.fogColor.b - clearFrame.skyTopColor.b
+    );
+    const cloudyFogDistance = Math.hypot(
+      cloudyFrame.fogColor.r - cloudyFrame.skyTopColor.r,
+      cloudyFrame.fogColor.g - cloudyFrame.skyTopColor.g,
+      cloudyFrame.fogColor.b - cloudyFrame.skyTopColor.b
+    );
+    expect(clearFogDistance).toBeLessThan(cloudyFogDistance);
+    expect(clearFrame.sunIntensity).toBeGreaterThan(config.sun.intensity * 0.98);
+    expect(clearFrame.sunIntensity).toBeLessThanOrEqual(config.sun.intensity);
+    for (const [state, frame] of [[cloudy, cloudyFrame], [rainy, rainyFrame]] as const) {
+      expect(frame.fogNear).toBe(config.fog.near);
+      expect(frame.fogFar).toBeCloseTo(
+        config.fog.far * THREE.MathUtils.lerp(0.45, 1, state.weather.visibility)
+      );
+      expect(frame.sunIntensity).toBeCloseTo(
+        config.sun.intensity * THREE.MathUtils.lerp(1, 0.58, state.weather.cloudCover)
+      );
+      expect(frame.fogFar).toBeLessThan(clearFrame.fogFar);
+      expect(frame.exposure).toBe(clearFrame.exposure);
+    }
+  });
+
   it("orders night, dawn, and day illumination with a controlled night readability lift", () => {
     const state = createInitialGameState(42);
     state.clock.currentMinute = 0;
@@ -88,6 +134,10 @@ describe("LightingRig", () => {
     expect(dawn.exposure).toBeGreaterThan(day.exposure);
     expect(dusk.exposure).toBeGreaterThan(day.exposure);
     expect(day.exposure).toBeCloseTo(1.04, 5);
+    for (const frame of [night, dawn, dusk]) {
+      expect(frame.fogNear).toBe(CANONICAL_RENDER_CONFIG.fog.near);
+      expect(frame.fogFar).toBeLessThan(CANONICAL_RENDER_CONFIG.fog.far);
+    }
   });
 
   it("keeps rainy pre-dawn gameplay readable with the shared brighter night profile", () => {
