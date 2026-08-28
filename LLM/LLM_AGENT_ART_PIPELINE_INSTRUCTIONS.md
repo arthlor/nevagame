@@ -14,9 +14,11 @@ Use TypeScript, Vite, Three.js (WebGL2 baseline; WebGPU/TSL allowed where justif
 
 # 1. Hybrid Art Production Pipeline
 
-Use two production paths:
+Use two production paths for authored 3D:
 1. **Static prefabs:** catalog/schema + registered Blender Python family generators, composed from shared deterministic `common/authored.py` construction systems where appropriate (Geometry Nodes only when deliberately introduced) → GLB/glTF 2.0 → Khronos validate → glTF Transform/Meshopt → atomic publish → runtime.
 2. **Dynamic/procedural runtime systems:** Three.js TS builders + shared `PaletteMaterials` for faceted water, crop growth visuals, seasonal tint, dynamic fish, debug proxies.
+
+Ground supporting maps are not a third prefab pipeline. They are renderer presentation textures owned by `ExternalSurfaceTextures` + `VisualRenderConfig` (section 6.2). Do not register them as catalog IDs, run `art:generate` for them, or treat `public/assets/textures/terrain/` as a filename-list authority.
 
 Preferred flow:
 `LLM agent → one catalog entry (+ referenceAuthoring brief when evidence-guided) → registered Blender family generator (+ shared authored construction helpers where reusable) → staged GLB → validation/optimization → atomic publish → catalog-backed Three.js loader`.
@@ -39,6 +41,9 @@ generated/.cache/art/                          disposable validated per-asset ca
 generated/reports/                             manifest, human report, quality report
 public/assets/models/                          runtime-published GLBs + manifest
 src/render/assets + loaders                     catalog consumer and GLB loader
+src/render/config/VisualRenderConfig.ts         live renderer + supporting-map strengths
+src/render/materials/ExternalSurfaceTextures.ts supporting-map provenance and load contract
+public/assets/textures/terrain/                 published ground supporting-map WebPs
 tools/vite/runtimeAssetCatalogPlugin.ts         virtual runtime-only catalog projection/HMR
 tools/vite/artYardPlugin.ts                     dev-only WebGL yard routes
 src/art-yard/ + tools/art-yard/viewer.html      interactive asset review surface
@@ -96,7 +101,7 @@ Variation comes mainly from geometry, vertex colors, palette/hue shifts, roughne
 
 Vertex colors are first-class. Use for top-vs-side value, warmth, age/dirt, gradients, AO-like darkening, deterministic palette variation. Example rock: top lighter/warmer; side medium; downward/crevice darker; sun-facing slightly warmer. Inputs may include normals, height, AO, curvature, seeded randomness, palette index. **Never uncontrolled random RGB.**
 
-Textures support, never define, style. Use for subtle roughness, stylized masks, AO/lightmaps, decals/signs/markings. Normal targets follow `04`: **128–256 tiny, 256–512 normal, 512–1024 hero, 2048 rare/shared exception**. Any broader 1K–2K architecture allowance is a ceiling, not the default. Avoid photogrammetry/photo bark-rock-grass, noisy terrain, excessive resolution, high-frequency normals/micro scratches/scans.
+Textures support, never define, style. Use for subtle roughness, stylized masks, AO/lightmaps, decals/signs/markings, and the ground supporting-map contract in section 6.2. Normal targets follow `04`: **128–256 tiny, 256–512 normal, 512–1024 hero, 2048 rare/shared exception**. Any broader 1K–2K architecture allowance is a ceiling, not the default. Avoid photogrammetry/photo bark-rock-grass as final albedo, noisy terrain, excessive resolution, high-frequency normals/micro scratches/scans. Processed CC0 supporting maps are allowed only as the Art Bible's low-frequency tiler: local reduced derivatives, world-space sampled, palette-remapped, and owned by `VisualRenderConfig` plus `ExternalSurfaceTextures`.
 
 Use shared palette tokens (`wood_warm_01`, `stone_warm_01`, `foliage_spring_01`, `water_shallow_01`, etc.). Do not scatter arbitrary runtime colors. `04` owns the canonical token vocabulary; this pipeline must expose it through one runtime material API such as `PaletteTokens.ts` + `PaletteMaterials.ts`.
 
@@ -111,7 +116,7 @@ Implementation syntax may differ, but material requests must resolve through sha
 
 Lighting follows `04`: warm sun + soft/cool sky contribution + controlled AO/contact + atmosphere + restrained emissives + filmic tone map. Sun direction must reveal planes; shadows welcoming but grounding; AO visible at contacts; avoid flat/harsh HDR/pure-white sun. Use globally controlled exposure, not per-scene hacks.
 
-Implement one render-subsystem-owned `VisualRenderConfig` (name may differ) that centrally controls output color space, tone mapping, exposure, sun/fill baseline, shadow quality tiers, AO/contact policy, atmosphere/fog, restrained bloom and global grade. Gold-standard slices calibrate its exact numbers; after approval, renderer changes are explicit art-direction changes with benchmark review.
+Implement one render-subsystem-owned `VisualRenderConfig` (name may differ) that centrally controls output color space, tone mapping, exposure, sun/fill baseline, shadow quality tiers, AO/contact policy, atmosphere/fog, restrained bloom and global grade, and the live ground supporting-map sampling/blend strengths. Gold-standard slices calibrate its exact numbers; after approval, renderer changes are explicit art-direction changes with benchmark review.
 
 Semantic systems may modify it through controlled inputs (time of day, season, weather, quality mode). Zone/asset code may NOT independently override global exposure/tone mapping/saturation or create a different world-lighting stack to rescue one scene. Fix the asset/composition/local practical lighting, or deliberately revise the canonical config and re-run all gold slices.
 
@@ -150,7 +155,7 @@ Road implementation requirements:
 - any deformation that materially changes the walkable surface is incorporated into the canonical height/normal query used by rendering, Rapier, placement, and affected anchors; cosmetic shader displacement stays below visible render/collision mismatch and never changes traversal;
 - route-kind widths, crown/depression/ruts, shoulders, feather, junctions, caps, bridge transitions, and steep-route cuts are explicit/profiled rather than scattered magic numbers;
 - a terrain-conforming road mesh is permitted when it is visibly integrated and robust against z-fighting; shader/control-field-only roads are also permitted; neither approach may create a second route network;
-- the visible merge has one owner: do not stack a coarse terrain-grid dirt tint under a broad transparent road feather. Use a narrow world-space irregular coverage transition with only pixel-scale anti-aliasing so it cannot form a muddy halo or change through transparent draw ordering;
+- the visible merge has one owner: do not stack a coarse terrain-grid dirt tint under a broad transparent road feather. Use a narrow world-space irregular coverage transition with pixel-scale anti-aliasing and, when the post path has no MSAA, world-space dither so it cannot form a muddy halo or change through transparent draw ordering;
 - road center, shoulder, and surrounding cover are reviewed together from gameplay cameras.
 
 Ground-cover implementation requirements:
@@ -161,9 +166,42 @@ Ground-cover implementation requirements:
 - short cover generally receives light but does not cast dynamic shadows; reserve real shadows/contact for readable clumps and anchors;
 - changing quality tier may reduce count/distance, not change route readability, shoreline continuity, collision, or gameplay truth.
 
-For the starter-farm ground/meadow pass, `art/references/neva-ui-hud-on-foot.png` is the authoritative gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
+For the starter-farm ground/meadow pass, `art/references/neva-ui-hud-on-foot.png` is the authoritative gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. Supporting maps may enrich packed-core wear and meadow meso breakup only after palette remap (section 6.2). The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
 
-Terrain/ground shader work must use a stable program cache key, fail clearly when patched Three.js chunks drift, keep uniforms/config centrally owned, dispose generated textures/materials, and receive focused tests for deterministic field/texture generation, bounds, mask protection, wetness transitions, and program-key stability. Do not copy a reference's realism, texture frequency, or exact numeric thresholds into code without gameplay-camera validation.
+Terrain/ground shader work must use a stable program cache key, fail clearly when patched Three.js chunks drift, keep uniforms/config centrally owned, dispose generated textures/materials, and receive focused tests for deterministic field/texture generation, bounds, mask protection, wetness transitions, supporting-map provenance/load fallback, and program-key stability. Do not copy a reference's realism, texture frequency, or exact numeric thresholds into code without gameplay-camera validation.
+
+## 6.2 Ground Supporting-Map Contract
+
+Ground supporting maps are a renderer presentation system. They are not catalog GLBs, not a second route/meadow mask, and not save-schema. They occupy the Art Bible's optional low-frequency tiler slot.
+
+Owners:
+
+- `src/render/config/VisualRenderConfig.ts` owns `terrainSurface.externalTextures`, `roadSurface.externalTexture`, polygon/edge/path-transition strengths, and roughness bounds. Tune numbers there; do not fork them into a parallel spec.
+- `src/render/materials/ExternalSurfaceTextures.ts` owns source name, source page, runtime URL, texture kind, wrap/filter/color-space, and the 1px fallback used while images decode.
+- `public/assets/textures/terrain/` stores the published local WebP derivatives. It is not an asset catalog and must not gain a filename-list authority.
+- `TerrainSurfaceMaterial` consumes Leafy Grass and Sparse Grass on meadow-masked ground.
+- `RoadSurfaceMaterial` consumes Grass Path 2 on the shared route mesh. Coverage, dither, and packed-core/shoulder response stay on this material.
+- `GroundPolygonCells.ts` owns the shared world-space Worley snippet so meadow mosaic and road-edge irregularity use the same field.
+
+Current selected sources are Poly Haven CC0 maps: Grass Path 2 for the road, Leafy Grass and Sparse Grass for meadows. Keep the source pages in `ExternalSurfaceTextures` when replacing a derivative so provenance is not lost. Licensing remains CC0; do not add non-CC0 ground maps without an explicit human decision.
+
+Required behavior:
+
+- sample in world XZ with explicit rotation; never let mesh UVs or camera orbit change the field;
+- remap luminance/chrominance into `PaletteTokens` (`foliage_sage_01` / olive / grass for meadows; `path_dust_01` / `soil_dry_01` / `sand_warm_01` for worked ground). Photographic RGB is not the final diffuse;
+- keep roughness bounded and palette-preserving; precipitation wetness stays on the existing terrain wetness owner;
+- protect water, shore, farm, and other non-meadow/non-road surfaces with the existing semantic masks;
+- if a file fails to load, log loudly and leave the deterministic palette/procedural path active;
+- dispose loaded textures with the owning material.
+
+Do not:
+
+- register these maps as catalog IDs or run `art:generate` / polyfork / Tripo for them;
+- publish a downloaded photogrammetry GLB or an unprocessed photo as ground albedo;
+- invent a second `VisualRenderConfig`, palette file, or per-zone ground material;
+- change route width, collision, topology, or save schema to “make the texture fit.”
+
+`Save-impact: no` and `Migration required: no` while canonical height, route geometry, Rapier, placement, and serialized world data stay unchanged. Human gameplay-camera review remains required; supporting-map presence is not visual approval.
 
 # 7. Procedural Generator Library
 
@@ -297,7 +335,7 @@ Rapier is for gameplay-relevant physics: player capsule, NPC collision if presen
 
 # 11. Optimization & LOD
 
-The implemented post-export baseline is glTF Transform `dedup → prune → weld → meshopt`, followed by Khronos revalidation and generated/public hash parity. Catalog entries may now declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Blender consolidates only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching must skip LOD descendants so it cannot flatten the switch hierarchy. KTX2/BasisU and broader distance culling remain permitted extensions when a current asset/scene requires them. Runtime chunk streaming is not implemented; do not describe it as shipped or add it to the current world contract without a separate architecture decision.
+The implemented post-export baseline is glTF Transform `dedup → prune → weld → meshopt`, followed by Khronos revalidation and generated/public hash parity. Catalog entries may now declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Blender consolidates only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching must skip LOD descendants so it cannot flatten the switch hierarchy. KTX2/BasisU and broader distance culling remain permitted extensions when a current asset/scene requires them. Ground supporting maps currently use local WebP through `ExternalSurfaceTextures`; that path does not by itself prove KTX2 integration. Runtime chunk streaming is not implemented; do not describe it as shipped or add it to the current world contract without a separate architecture decision.
 
 Do not optimize away art direction: hero silhouette/faceting can matter more than a few hundred triangles.
 
@@ -362,7 +400,7 @@ Every relevant agent MUST:
 
 # 15. Prohibited Visual Drift
 
-Unless explicitly approved, reject: photogrammetry/photo bark-rock-grass; noisy terrain/hyper-detailed PBR/micro normals; regular flat-shaded terrain topology dominating traversable ground; featureless globally smoothed terrain; hard floating road ribbons; independent road/terrain/cover masks; uniform ground-cover scatter; spherical foliage/realistic branching/ocean; excessive gloss; generic asset-store realism; perfectly straight forests/uniform spacing/rotations; thin architecture; high-frequency clutter; uncontrolled material proliferation/colors; per-scene exposure/tone-map/color hacks; toon/ink/black world outlines; high-poly invisible detail; runtime LLM world composition; diorama-only world design.
+Unless explicitly approved, reject: photogrammetry/photo bark-rock-grass as final albedo; unprocessed photo-ground; noisy terrain/hyper-detailed PBR/micro normals; regular flat-shaded terrain topology dominating traversable ground; featureless globally smoothed terrain; hard floating road ribbons; independent road/terrain/cover masks; uniform ground-cover scatter; spherical foliage/realistic branching/ocean; excessive gloss; generic asset-store realism; perfectly straight forests/uniform spacing/rotations; thin architecture; high-frequency clutter; uncontrolled material proliferation/colors; per-scene exposure/tone-map/color hacks; toon/ink/black world outlines; high-poly invisible detail; runtime LLM world composition; diorama-only world design. Processed CC0 supporting maps remain under section 6.2 and are not a general photogrammetry exception.
 
 Required across final game: readable planes/silhouettes/chunky geometry/selective bevels/cohesive warm palette/handcrafted irregularity/low-frequency detail/asymmetry/stylized architecture/selectively smoothed traversable ground with faceted cliffs/cuts/rocks/clustered simplified vegetation/warm sun+cool fill/AO grounding/soft shadows/atmosphere/emissives/polygonal water/coherent roughness/consistent proportions/gameplay-camera readability.
 
@@ -428,8 +466,8 @@ CLIENT: TypeScript, Vite, Three.js/WebGL2 (+ WebGPU/TSL when justified),
 InstancedMesh/BatchedMesh, GLTFLoader, MeshoptDecoder, optional KTX2Loader when implemented, Rapier,
 optional Miniplex/bitECS, React DOM, Zustand
 
-ART: catalog/schema + Blender Python family generators; Geometry Nodes/UV/bakes only when deliberately added; semantic COLOR_0 + GLB export
-OPTIMIZATION: implemented gltf-transform + Meshopt; KTX2/BasisU when introduced for a concrete texture path
+ART: catalog/schema + Blender Python family generators; Geometry Nodes/UV/bakes only when deliberately added; semantic COLOR_0 + GLB export; ground supporting maps via ExternalSurfaceTextures + VisualRenderConfig (section 6.2)
+OPTIMIZATION: implemented gltf-transform + Meshopt; KTX2/BasisU preferred for GLB-embedded textures; supporting maps currently local WebP
 WORLD: validated JSON/TS schemas + seeded authored layout + prefabs + district/POI composition + authored overrides; no runtime chunk streaming
 QA: AJV schema checks + Blender validation + Khronos glTF validation + semantic determinism + Vitest + Playwright candidates + human style review
 ```

@@ -95,8 +95,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
         as="div"
         className="neva-panel modal-content inventory-satchel-modal"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -165,7 +165,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
           </button>
         </div>
 
-        <ChromeDivider />
+        <ChromeDivider ornate={false} />
 
         <div className="modal-body inventory-body">
           <div className="inventory-grid-wrap">

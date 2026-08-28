@@ -5,8 +5,8 @@
     900
   ],
   "gpu": {
-    "vendor": "Google Inc. (Google)",
-    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+    "vendor": "Google Inc. (Apple)",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)"
   },
   "budget": {
     "visibleTriangles": {
@@ -31,53 +31,53 @@
       "scene": "farm",
       "name": "clear-morning-0800",
       "view": "farm",
-      "drawCalls": 723,
-      "triangles": 1196445,
-      "meshes": 1700,
-      "shadowCasters": 281,
+      "drawCalls": 1679,
+      "triangles": 2442933,
+      "meshes": 1854,
+      "shadowCasters": 294,
       "batches": 0,
       "instances": 31,
-      "fps": 10,
+      "fps": 27,
       "reachesHighQualityTriangleTarget": true
     },
     {
       "scene": "bridge",
       "name": "clear-noon-1200",
       "view": "bridge",
-      "drawCalls": 9,
-      "triangles": 185286,
-      "meshes": 1691,
-      "shadowCasters": 273,
+      "drawCalls": 16,
+      "triangles": 84589,
+      "meshes": 3,
+      "shadowCasters": 0,
       "batches": 0,
       "instances": 0,
-      "fps": 12,
+      "fps": 37,
       "reachesHighQualityTriangleTarget": false
     },
     {
       "scene": "harbor",
       "name": "clear-harbor-1200",
       "view": "harbor",
-      "drawCalls": 9,
-      "triangles": 185286,
-      "meshes": 1691,
-      "shadowCasters": 273,
+      "drawCalls": 16,
+      "triangles": 84589,
+      "meshes": 3,
+      "shadowCasters": 0,
       "batches": 0,
       "instances": 0,
-      "fps": 12,
+      "fps": 56,
       "reachesHighQualityTriangleTarget": false
     },
     {
       "scene": "coast",
       "name": "clear-coast-1200",
       "view": "coast",
-      "drawCalls": 261,
-      "triangles": 911948,
-      "meshes": 1689,
-      "shadowCasters": 274,
+      "drawCalls": 16,
+      "triangles": 84589,
+      "meshes": 3,
+      "shadowCasters": 0,
       "batches": 0,
-      "instances": 31,
-      "fps": 12,
-      "reachesHighQualityTriangleTarget": true
+      "instances": 0,
+      "fps": 60,
+      "reachesHighQualityTriangleTarget": false
     }
   ]
 }

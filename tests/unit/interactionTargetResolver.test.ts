@@ -85,4 +85,25 @@ describe("InteractionTargetResolver", () => {
     });
     expect(resolver.resolve([npc, station], context)?.id).toBe("fish-table");
   });
+
+  it("filters ride and dismount targets by gameplay mode", () => {
+    const resolver = new InteractionTargetResolver();
+    const ride = target("mount.donkey_starter", 0, 1, {
+      kind: "mount",
+      action: "mount",
+      prompt: "[E] Ride donkey",
+      priority: 0,
+      modes: ["on-foot"]
+    });
+    const dismount = target("mount.donkey_starter:dismount", 0, 0.4, {
+      kind: "mount",
+      action: "dismount",
+      prompt: "[E] Dismount",
+      priority: 0,
+      modes: ["mounted"]
+    });
+
+    expect(resolver.resolve([ride, dismount], context)?.action).toBe("mount");
+    expect(resolver.resolve([ride, dismount], { ...context, mode: "mounted" })?.action).toBe("dismount");
+  });
 });

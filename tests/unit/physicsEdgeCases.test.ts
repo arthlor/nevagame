@@ -78,7 +78,7 @@ describe("PhysicsWorld Edge Cases", () => {
       sim.commitPhysicsFrame(frame.frame);
     }
 
-    // Barrier is at z=1.5 with half-extent 0.08 (starts at z=1.42), player capsule radius is ~0.34
+    // Barrier is at z=1.5 with half-extent 0.08 (starts at z=1.42), player capsule radius is ~0.32
     expect(sim.state.player.z).toBeLessThan(origin.z + 1.2);
     expect(sim.state.player.z).toBeGreaterThan(origin.z + 0.5);
   });

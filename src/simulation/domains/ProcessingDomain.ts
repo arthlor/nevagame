@@ -2,6 +2,8 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { LIVE_RECIPE_IDS } from "../../content/recipes";
 import type { RecipeDefinition } from "../../content/types";
 import type { InventoryState, ProcessingJobId, RecipeId, StationType } from "../core/types";
+import type { ProcessingJobInspectionDto } from "../core/contracts";
+import { formatClockTime, formatGameDuration } from "../core/GameClock";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
@@ -32,6 +34,7 @@ export class ProcessingDomain {
 
   public start(recipeId: RecipeId, stationId: string): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
     const recipe = ContentRegistry.recipes.get(recipeId);
     if (!recipe) return { success: false, reason: "Unknown recipe" };
     if (!LIVE_RECIPE_IDS.has(recipe.id)) return { success: false, reason: "That recipe is not available yet" };
@@ -75,6 +78,7 @@ export class ProcessingDomain {
 
   public collect(jobId: ProcessingJobId): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
     const job = state.processingJobs[jobId];
     if (!job || job.status !== "complete") return { success: false, reason: "Job not complete" };
     const station = state.world.structures[job.stationId];
@@ -92,6 +96,39 @@ export class ProcessingDomain {
     this.progression.addProficiencyXp("processing", 35);
     events.emit("RecipeCompleted", { jobId, recipeId: recipe.id, stationId: job.stationId, minute: state.clock.currentMinute });
     return { success: true };
+  }
+
+  public inspect(stationId: string): ProcessingJobInspectionDto | null {
+    const { state } = this.context;
+    if (state.player.activeMountId) return null;
+    const job = Object.values(state.processingJobs).find(
+      (candidate) => candidate.stationId === stationId && candidate.status !== "collected"
+    );
+    if (!job) return null;
+    const recipe = ContentRegistry.recipes.get(job.recipeId);
+    if (!recipe) return null;
+    const outputName = ContentRegistry.items.get(recipe.outputs[0]?.itemId)?.name ?? "Output";
+    const remainingMinutes = Math.max(0, job.completesAtMinute - state.clock.currentMinute);
+    const readyClockLabel = formatClockTime(job.completesAtMinute);
+    const durationLabel = formatGameDuration(remainingMinutes);
+    const waitBriefing =
+      job.status === "complete"
+        ? `${outputName} ready to collect`
+        : remainingMinutes <= 0
+          ? `${outputName} working · almost ready`
+          : `${outputName} working · ${durationLabel} left · ready ${readyClockLabel}`;
+    return {
+      jobId: job.id,
+      stationId: job.stationId,
+      recipeId: job.recipeId,
+      recipeName: recipe.name,
+      outputName,
+      status: job.status === "complete" ? "complete" : "active",
+      remainingMinutes: job.status === "complete" ? 0 : remainingMinutes,
+      readyClockLabel,
+      waitBriefing,
+      startBriefing: `${recipe.name} started · ${formatGameDuration(recipe.durationMinutes)} · ready ${readyClockLabel}`
+    };
   }
 
   public tick(): void {

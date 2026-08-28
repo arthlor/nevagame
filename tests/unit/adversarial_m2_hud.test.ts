@@ -423,7 +423,7 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
         currentProgress: 15,
         targetQuantity: 10,
         isStepComplete: true,
-        isQuestReadyToTurnIn: true,
+        isQuestReadyToTurnIn: false,
         targetLocation: undefined
       };
 

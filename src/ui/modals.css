@@ -22,6 +22,19 @@
   overflow: hidden;
 }
 
+.inventory-satchel-modal,
+.journal-chronicle-modal,
+.market-trading-modal,
+.world-map-modal,
+.ledger-modal,
+.pause-modal {
+  --ui-ink: var(--mm-text-ivory);
+  --ui-ink-soft: #c9c0b4;
+  --ui-rule: rgba(245, 240, 230, 0.12);
+  --ui-rule-light: rgba(245, 240, 230, 0.1);
+  --color-text-muted: #c9c0b4;
+}
+
 .inventory-satchel-modal .modal-header,
 .journal-chronicle-modal .modal-header,
 .market-trading-modal .market-modal-header,
@@ -39,7 +52,7 @@
 .dialogue-card .dialogue-footer {
   color: var(--mm-text-ivory) !important;
   background: transparent !important;
-  border-color: rgba(212, 175, 55, 0.28) !important;
+  border-color: rgba(245, 240, 230, 0.12) !important;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -59,6 +72,20 @@
   gap: 8px;
 }
 
+.inventory-satchel-modal .modal-heading-with-mark,
+.journal-chronicle-modal .modal-heading-with-mark,
+.journal-chronicle-modal #journal-title,
+.market-trading-modal .market-modal-title,
+.world-map-modal .map-title,
+.ledger-modal .ledger-title,
+.pause-modal .modal-heading-with-mark,
+.pause-modal #pause-title {
+  font-variant: normal;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 650;
+}
+
 .inventory-satchel-modal .modal-body,
 .journal-chronicle-modal .journal-body,
 .market-trading-modal .market-modal-grid,
@@ -67,6 +94,7 @@
 .expedition-modal .expedition-body,
 .dialogue-card .dialogue-body {
   color: var(--mm-text-ivory);
+  cursor: pointer;
 }
 
 .mm-ribbon-tabs,
@@ -94,17 +122,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 4px 8px;
   color: var(--mm-text-muted) !important;
-  background: var(--mm-slate-900) !important;
-  border: 1px solid rgba(212, 175, 55, 0.28) !important;
-  border-radius: 3px 3px 0 0;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0;
   box-shadow: none !important;
   font-family: var(--font-serif);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition: color 120ms ease, border-color 120ms ease;
 }
 
 .inventory-tab-btn:hover,
@@ -120,7 +149,8 @@
 .guidebook-subtab-btn:focus-visible,
 .ledger-tab-btn:focus-visible {
   color: var(--mm-text-ivory) !important;
-  border-color: var(--mm-gold-leaf) !important;
+  border-color: transparent !important;
+  border-bottom-color: rgba(245, 240, 230, 0.28) !important;
 }
 
 .inventory-tab-btn.is-active,
@@ -129,11 +159,11 @@
 .map-lens-btn.is-active,
 .guidebook-subtab-btn.is-active,
 .ledger-tab-btn.is-active {
-  color: var(--mm-text-gold) !important;
-  background: linear-gradient(180deg, rgba(42, 28, 19, 0.95), rgba(20, 14, 10, 0.95)) !important;
-  border-color: var(--mm-gold-leaf) !important;
+  color: var(--mm-text-ivory) !important;
+  background: transparent !important;
+  border-color: transparent !important;
   border-bottom-color: var(--mm-gold-leaf) !important;
-  box-shadow: inset 0 1px 0 rgba(240, 221, 154, 0.25) !important;
+  box-shadow: none !important;
 }
 
 /* Inventory satchel */
@@ -156,11 +186,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  color: var(--mm-text-gold);
-  background: var(--mm-well-gold);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  border-radius: 999px;
+  padding: 0;
+  color: var(--mm-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
 }
@@ -190,15 +220,15 @@
   min-height: 64px;
   color: var(--mm-text-ivory) !important;
   background: var(--mm-well-slate) !important;
-  border: 1.5px solid rgba(212, 175, 55, 0.32) !important;
+  border: 1px solid rgba(245, 240, 230, 0.12) !important;
   border-radius: 4px !important;
-  box-shadow: var(--mm-well-shadow) !important;
+  box-shadow: none !important;
 }
 
 .inventory-satchel-modal .chrome-slot.inventory-slot.is-selected,
 .inventory-satchel-modal .inventory-slot.is-selected {
-  border-color: var(--mm-gold-bright) !important;
-  box-shadow: var(--mm-well-shadow), var(--mm-glow-active) !important;
+  border-color: var(--mm-gold-leaf) !important;
+  box-shadow: none !important;
 }
 
 .inventory-satchel-modal .inventory-slot.is-dimmed {
@@ -207,11 +237,12 @@
 
 .inventory-satchel-modal .inventory-details-card {
   min-width: 0;
-  padding: 12px;
+  padding: 4px 0 0 16px;
   color: var(--mm-text-ivory) !important;
-  background: var(--mm-slate-glass-card) !important;
-  border: 1px solid rgba(212, 175, 55, 0.28) !important;
-  border-radius: 4px;
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(245, 240, 230, 0.12) !important;
+  border-radius: 0;
   box-shadow: none !important;
 }
 
@@ -227,9 +258,9 @@
   width: 64px;
   height: 64px;
   background: var(--mm-well-slate);
-  border: 1px solid rgba(212, 175, 55, 0.35);
+  border: 1px solid rgba(245, 240, 230, 0.12);
   border-radius: 4px;
-  box-shadow: var(--mm-well-shadow);
+  box-shadow: none;
 }
 
 .details-name,
@@ -242,10 +273,10 @@
 .details-category-tag {
   display: inline-flex;
   margin-top: 4px;
-  padding: 2px 8px;
-  color: var(--mm-text-gold);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  border-radius: 999px;
+  padding: 0;
+  color: var(--mm-text-muted);
+  border: 0;
+  border-radius: 0;
   font-size: 10px;
   letter-spacing: 0.06em;
 }
@@ -260,7 +291,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.16);
+  border-bottom: 1px solid rgba(245, 240, 230, 0.1);
   font-size: 12px;
 }
 
@@ -289,11 +320,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 0;
   color: var(--mm-text-gold);
-  background: var(--mm-well-gold);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -321,11 +352,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 0;
   color: var(--mm-text-gold);
-  background: var(--mm-well-gold);
-  border: 1px solid rgba(212, 175, 55, 0.45);
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   font-variant-numeric: tabular-nums;
 }
 
@@ -343,10 +374,10 @@
 .market-trading-modal .section-title,
 .journal-chronicle-modal .journal-section-title,
 .world-map-modal .sidebar-section h4 {
-  color: var(--mm-text-gold, #f3d484) !important;
+  color: var(--mm-text-ivory, #fffaf0) !important;
   font-family: var(--font-serif);
-  font-size: 14.5px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 650;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -358,9 +389,26 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid rgba(245, 240, 230, 0.12);
+}
+
+.market-trading-modal .market-modal-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.72fr);
+}
+
+.market-trading-modal .market-modal-grid.is-single {
+  grid-template-columns: 1fr;
+}
+
+.market-trading-modal .seed-stall-list,
+.market-trading-modal .commodities-list,
+.market-trading-modal .fish-cargo-trade-list,
+.market-trading-modal .active-contracts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .market-trading-modal .seed-stall-card,
@@ -372,15 +420,70 @@
 .market-trading-modal .no-cargo-card,
 .market-trading-modal .no-commodity-selected {
   color: var(--mm-text-ivory, #fffaf0);
-  background: var(--mm-slate-glass-card, rgba(16, 22, 32, 0.88)) !important;
-  border: 1.5px solid rgba(212, 175, 55, 0.25);
-  border-radius: 6px;
-  box-shadow: var(--mm-well-shadow);
+  background: transparent !important;
+  border: 0;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.1);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.market-trading-modal .seed-stall-card,
+.market-trading-modal .fish-cargo-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 0;
+}
+
+.market-trading-modal .seed-card-meta,
+.market-trading-modal .cargo-card-meta,
+.market-trading-modal .comm-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.market-trading-modal .seed-card-meta > div,
+.market-trading-modal .cargo-card-meta > div,
+.market-trading-modal .comm-left > div {
+  min-width: 0;
+}
+
+.market-trading-modal .seed-buy-btn {
+  display: inline-flex;
+  min-width: 8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  justify-content: center;
+  color: var(--mm-text-gold);
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  font-weight: 650;
+}
+
+.market-trading-modal .seed-buy-btn:hover,
+.market-trading-modal .seed-buy-btn:focus-visible {
+  border-color: rgba(212, 175, 55, 0.4);
+  background: rgba(212, 175, 55, 0.08);
+  box-shadow: none;
+}
+
+.market-trading-modal .seed-meta-sub,
+.market-trading-modal .comm-owned,
+.market-trading-modal .cargo-sub-meta,
+.market-trading-modal .cargo-freshness-num {
+  color: #c9c0b4 !important;
 }
 
 .market-trading-modal .commodity-row.is-selected {
-  border-color: var(--mm-gold-bright, #fef08a);
-  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.5), 0 0 12px var(--mm-gold-glow);
+  border-color: rgba(245, 240, 230, 0.1);
+  background: rgba(212, 175, 55, 0.08) !important;
+  box-shadow: inset 3px 0 0 var(--mm-gold-leaf);
 }
 
 .market-trading-modal .comm-name,
@@ -393,34 +496,40 @@
 }
 
 .market-trading-modal .contract-mini-header strong {
-  color: var(--mm-text-gold, #f3d484);
+  color: var(--mm-text-ivory, #fffaf0);
   font-family: var(--font-serif);
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .market-trading-modal .contract-gold {
   color: var(--mm-text-gold, #f3d484);
-  font-weight: 800;
+  font-weight: 650;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
 .market-trading-modal .contract-prog {
-  color: var(--mm-text-muted, #d4d4d8);
+  color: #c9c0b4;
   font-size: 11.5px;
   margin-top: 2px;
 }
 
+.market-trading-modal .comm-demand {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 .market-trading-modal .comm-demand.up {
-  color: #34d399;
-  font-weight: 700;
+  color: #86c4a8;
+  font-weight: 500;
 }
 
 .market-trading-modal .comm-demand.down {
-  color: #f87171;
-  font-weight: 700;
+  color: #d4a08c;
+  font-weight: 500;
 }
 
 .commodity-select-button {
@@ -430,7 +539,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 8px 8px 8px 10px;
   color: inherit;
   background: transparent;
   border: 0;
@@ -449,8 +558,8 @@
 .market-sell-ticket {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 0 0 4px;
 }
 
 .market-ticket-head {
@@ -462,7 +571,7 @@
 .market-ticket-head .comm-demand {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .market-ticket-price,
@@ -478,7 +587,7 @@
 .market-ticket-live strong,
 .market-ticket-price strong {
   color: var(--mm-text-gold, #f3d484);
-  font-weight: 800;
+  font-weight: 650;
   font-size: 15px;
 }
 
@@ -487,23 +596,24 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: rgba(8, 12, 18, 0.8);
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: transparent;
+  padding: 2px 0;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.12);
 }
 
 .market-qty-value {
   flex: 1;
   text-align: center;
   color: var(--mm-text-ivory, #fffaf0);
-  font-weight: 700;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
 .market-ticket-arb {
   margin: 0;
-  color: var(--mm-text-muted, #d4d4d8);
+  color: #c9c0b4;
   font-size: 12px;
 }
 
@@ -512,6 +622,31 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
+}
+
+.market-trading-modal .market-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.inventory-satchel-modal .chrome-divider i,
+.journal-chronicle-modal .chrome-divider i,
+.market-trading-modal .chrome-divider i {
+  display: none;
+}
+
+.inventory-satchel-modal .chrome-divider span,
+.journal-chronicle-modal .chrome-divider span,
+.market-trading-modal .chrome-divider span {
+  background: rgba(245, 240, 230, 0.12);
+  height: 1px;
+}
+
+.market-trading-modal .market-qty-btn {
+  min-width: 2rem;
+  background: transparent;
+  border: 1px solid rgba(245, 240, 230, 0.16);
+  box-shadow: none;
 }
 
 /* Journal chronicle */
@@ -526,10 +661,11 @@
 .journal-chronicle-modal .field-note-card,
 .journal-chronicle-modal .open-horizons-block {
   color: var(--mm-text-ivory) !important;
-  background: var(--mm-slate-glass-card) !important;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 4px;
-  padding: 12px;
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  padding: 10px 0;
+  box-shadow: none;
 }
 
 .quest-act-badge,
@@ -554,9 +690,9 @@
   width: 56px;
   height: 56px;
   background: var(--mm-well-slate);
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  border: 1px solid rgba(245, 240, 230, 0.12);
   border-radius: 4px;
-  box-shadow: var(--mm-well-shadow);
+  box-shadow: none;
 }
 
 .bestiary-entry-card.is-mystery .bestiary-portrait-well {
@@ -598,35 +734,34 @@
 .world-map-modal .map-canvas-container {
   min-width: 0;
   padding: 10px;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(212, 175, 55, 0.12), transparent 45%),
-    var(--mm-slate-900);
-  border-right: 1px solid rgba(212, 175, 55, 0.22);
+  background: var(--mm-slate-900);
+  border-right: 1px solid rgba(245, 240, 230, 0.12);
 }
 
 .world-map-modal .map-svg-canvas {
-  border: 2px solid rgba(212, 175, 55, 0.45);
+  border: 1px solid rgba(245, 240, 230, 0.18);
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px #1b120c, 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: none;
   background: #ddcca0;
 }
 
 .world-map-modal .map-sidebar-details {
   min-width: 0;
   color: var(--mm-text-ivory) !important;
-  background: var(--mm-slate-800) !important;
-  border-left: 1px solid rgba(212, 175, 55, 0.28);
+  background: transparent !important;
+  border-left: 1px solid rgba(245, 240, 230, 0.12);
 }
 
 .world-map-modal .route-stat-card {
   color: var(--mm-text-ivory) !important;
-  background: var(--mm-slate-glass-card) !important;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 4px;
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 0;
 }
 
 .world-map-modal .route-row {
-  color: var(--mm-text-muted);
+  color: #c9c0b4;
 }
 
 .world-map-modal .route-row strong,
@@ -636,9 +771,11 @@
 }
 
 .world-map-modal .map-sidebar-tip {
-  color: var(--mm-text-muted);
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(212, 175, 55, 0.18);
+  color: #c9c0b4;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(245, 240, 230, 0.1);
+  padding-top: 10px;
 }
 
 .sidebar-node-header {
@@ -657,10 +794,11 @@
 
 .journal-chronicle-modal .guide-section-intro,
 .journal-chronicle-modal .guide-card {
-  background: var(--mm-slate-900) !important;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 4px;
-  padding: 12px;
+  background: transparent !important;
+  border: 0;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.1);
+  border-radius: 0;
+  padding: 10px 0;
 }
 
 .journal-chronicle-modal .guide-card-title,
@@ -688,8 +826,9 @@
 .journal-chronicle-modal .guide-callout-tip,
 .journal-chronicle-modal .guide-callout-warning {
   color: var(--mm-text-ivory) !important;
-  background: var(--mm-slate-glass-card) !important;
-  border: 1px solid rgba(212, 175, 55, 0.22) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.08) !important;
   box-shadow: none;
 }
 
@@ -794,7 +933,6 @@
 }
 
 .ledger-modal .ledger-title,
-.ledger-modal .ledger-section h3,
 .pause-modal .pause-region-title,
 .pause-modal #pause-title,
 .expedition-modal #expedition-title,
@@ -803,6 +941,12 @@
 .dialogue-card .dialogue-rewards-title {
   color: var(--mm-text-gold) !important;
   font-family: var(--font-serif);
+}
+
+.ledger-modal .ledger-section h3 {
+  color: var(--mm-text-ivory) !important;
+  font-family: var(--font-serif);
+  font-weight: 650;
 }
 
 .ledger-modal .ledger-subtitle,
@@ -848,10 +992,11 @@
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  padding: 8px 10px;
-  background: var(--mm-slate-glass-card) !important;
-  border: 1px solid rgba(212, 175, 55, 0.22) !important;
-  border-radius: 4px;
+  padding: 8px 0;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.1) !important;
+  border-radius: 0;
 }
 
 .ledger-modal .ledger-entry-row dt {
@@ -894,9 +1039,9 @@
   padding: 10px 6px 8px;
   color: var(--mm-text-ivory) !important;
   background: var(--mm-well-slate) !important;
-  border: 1.5px solid rgba(212, 175, 55, 0.32) !important;
+  border: 1px solid rgba(245, 240, 230, 0.12) !important;
   border-radius: 4px !important;
-  box-shadow: var(--mm-well-shadow) !important;
+  box-shadow: none !important;
 }
 
 .ledger-modal .vessel-hold-slot .cell-cargo-meta {
@@ -1008,7 +1153,7 @@
 .pause-modal .pause-status-card {
   color: var(--mm-text-ivory) !important;
   background: transparent !important;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.28) !important;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.12) !important;
 }
 
 .pause-modal .audio-settings h5,
@@ -1022,7 +1167,7 @@
 .start-screen__options .audio-settings-row input[type="range"] {
   accent-color: var(--mm-gold-leaf);
   background: rgba(8, 11, 16, 0.72) !important;
-  border: 1px solid rgba(212, 175, 55, 0.35) !important;
+  border: 1px solid rgba(245, 240, 230, 0.16) !important;
 }
 
 .expedition-modal .expedition-checklist {

@@ -239,7 +239,7 @@ export class PlacementEditor {
     const pasteOffset = this.pasteCount + 1;
     const x = snapWorldCoord(clip.x + 1.5 * pasteOffset, false);
     const z = snapWorldCoord(clip.z, false);
-    const y = clip.tag.indoor ? clip.y : WorldLayout.terrainHeight(x, z) + clip.tag.yOffset;
+    const y = clip.tag.fixedY ?? (clip.tag.indoor ? clip.y : WorldLayout.terrainHeight(x, z) + clip.tag.yOffset);
     const pasteKind: LayoutEditKind = clip.tag.kind === "environment-override"
       ? "authored-detail"
       : clip.tag.kind;
@@ -256,7 +256,7 @@ export class PlacementEditor {
       x,
       z,
       rotationY: clip.rotationY,
-      y: clip.tag.indoor ? y : undefined,
+      y: clip.tag.indoor || clip.tag.fixedY !== undefined ? y : undefined,
       scale: clip.scale,
       grounding: clip.tag.grounding,
       practicalLight: clip.tag.practicalLight,
@@ -275,6 +275,7 @@ export class PlacementEditor {
       const pastedId = result.id;
       const nextTag = tagForPastedKind(pasteKind, pastedId, {
         catalogAssetId: clip.tag.catalogAssetId,
+        fixedY: clip.tag.fixedY,
         grounding: clip.tag.grounding,
         practicalLight: clip.tag.practicalLight,
         propType: clip.tag.propType
@@ -371,13 +372,13 @@ export class PlacementEditor {
     const object = this.selected;
     const tag = object ? readLayoutEditTag(object) : null;
     if (!object || !tag) return;
-    const hit = tag.indoor
+    const hit = tag.indoor || tag.fixedY !== undefined
       ? this.worldScene.raycastHorizontalPlane(input.camera, input.pointerNdc, object.position.y)
       : this.worldScene.raycastTerrain(input.camera, input.pointerNdc);
     if (!hit) return;
     const x = snapWorldCoord(hit.x, input.shiftHeld);
     const z = snapWorldCoord(hit.z, input.shiftHeld);
-    const y = tag.indoor ? object.position.y : WorldLayout.terrainHeight(x, z) + tag.yOffset;
+    const y = tag.fixedY ?? (tag.indoor ? object.position.y : WorldLayout.terrainHeight(x, z) + tag.yOffset);
     if (object.position.x === x && object.position.z === z) return;
     object.position.set(x, y, z);
     this.dirty = true;
@@ -422,7 +423,7 @@ export class PlacementEditor {
       x: object.position.x,
       z: object.position.z,
       rotationY: object.rotation.y,
-      y: tag.indoor ? object.position.y : undefined
+      y: tag.indoor || tag.fixedY !== undefined ? object.position.y : undefined
     };
     this.commitInFlight = true;
     this.status = `Writing ${tag.id}…`;
@@ -520,7 +521,7 @@ export class PlacementEditor {
       x: object.position.x,
       z: object.position.z,
       rotationY: object.rotation.y,
-      y: tag.indoor ? object.position.y : undefined
+      y: tag.indoor || tag.fixedY !== undefined ? object.position.y : undefined
     });
   }
 
@@ -571,12 +572,14 @@ function tagForPastedKind(
   id: string,
   features: {
     catalogAssetId?: string;
+    fixedY?: number;
     grounding?: readonly [number, number];
     practicalLight?: boolean;
     propType?: string;
   }
 ): LayoutEditTag {
   const extras = {
+    fixedY: features.fixedY,
     grounding: features.grounding,
     practicalLight: features.practicalLight
   };

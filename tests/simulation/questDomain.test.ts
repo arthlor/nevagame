@@ -77,6 +77,9 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(plantingQuest.questId).toBe("quest.act1_sow_wheat");
     expect(plantingQuest.currentProgress).toBe(3);
     expect(plantingQuest.isStepComplete).toBe(true);
+    expect(plantingQuest.isQuestReadyToTurnIn).toBe(true);
+    expect(plantingQuest.objectiveDescription).toBe("Talk to Elspeth to continue");
+    expect(plantingQuest.targetLocation?.name).toBe("Starter Garden Gate");
 
     // Turn in planting quest to Elspeth
     sim.state.player.x = -63.5;
@@ -164,6 +167,13 @@ describe("QuestDomain & Storyline Progression", () => {
     const compostJobId = Object.keys(sim.state.processingJobs)[0];
     expect(sim.state.processingJobs[compostJobId]?.status).toBe("complete");
     expect(sim.collectProcessingJob(compostJobId).success).toBe(true);
+
+    const compostTurnIn = sim.query({ type: "quest.get-active" }) as ActiveQuestDto;
+    expect(compostTurnIn.questId).toBe("quest.act2_harvest_and_compost");
+    expect(compostTurnIn.isQuestReadyToTurnIn).toBe(true);
+    expect(compostTurnIn.objectiveDescription).toBe("Talk to Barnaby to continue");
+    expect(compostTurnIn.targetLocation?.name).toBe("Farmhouse Workbench");
+
     sim.state.player.x = -73.5;
     sim.state.player.z = -58.8;
     sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" });

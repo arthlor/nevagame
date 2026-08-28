@@ -44,7 +44,13 @@ export type PlayerAnimation =
   | "rowboat_idle"
   | "row"
   | "skiff_idle"
-  | "skiff_drive";
+  | "skiff_drive"
+  | "mounted_idle"
+  | "mounted_walk"
+  | "mounted_trot"
+  | "mount"
+  | "dismount"
+  | "talk_gesture";
 
 export interface BoatAnimationInput {
   boatTypeId: string;
@@ -57,11 +63,15 @@ export interface CharacterAnimationContext {
   mode: GameMode;
   motion: PlayerMotionSample;
   carrying: boolean;
+  talking?: boolean;
   facingRadians?: number;
   fishingInput?: {
     isReeling: boolean;
     isSlacking: boolean;
     isBracing: boolean;
+    rodDirectionAngle?: number;
+    loadRatio?: number;
+    retrievalMetersPerSecond?: number;
   };
   boatInput?: BoatAnimationInput;
 }
@@ -87,6 +97,13 @@ interface RigPart {
   object: THREE.Object3D;
   position: THREE.Vector3;
   rotation: THREE.Euler;
+}
+
+interface SecondarySpring {
+  velocityX: number;
+  velocityZ: number;
+  angleX: number;
+  angleZ: number;
 }
 
 interface ManagedTransition {
@@ -121,10 +138,19 @@ const LOOPING_CLIPS = new Set<PlayerAnimation>([
   "rowboat_idle",
   "row",
   "skiff_idle",
-  "skiff_drive"
+  "skiff_drive",
+  "mounted_idle",
+  "mounted_walk",
+  "mounted_trot",
+  "talk_gesture"
 ]);
 
-const MOVING_BASE_CLIPS = new Set<PlayerAnimation>(["walk", "run"]);
+const MOVING_BASE_CLIPS = new Set<PlayerAnimation>([
+  "walk",
+  "run",
+  "mounted_walk",
+  "mounted_trot"
+]);
 const BASE_TRANSITION_CLIPS = new Set<PlayerAnimation>([
   "walk_start",
   "run_start",
@@ -144,11 +170,16 @@ const UPPER_BODY_ONE_SHOTS = new Set<PlayerAnimation>([
   "workstation",
   "cast"
 ]);
+const FISHING_UPPER_PULSES = new Set<PlayerAnimation>(["reel", "slack", "brace"]);
 
 const RIG_ALIASES: Record<string, readonly string[]> = {
   root: ["rig_root", "character_root"],
   pelvis: ["rig_pelvis", "character_pelvis", "pelvis"],
   spine: ["rig_spine", "character_spine", "spine"],
+  chest: ["rig_chest", "character_chest", "chest"],
+  neck: ["rig_neck", "character_neck", "neck"],
+  clavicle_left: ["rig_clavicle_left", "character_clavicle_left", "clavicle_left"],
+  clavicle_right: ["rig_clavicle_right", "character_clavicle_right", "clavicle_right"],
   head: ["rig_head", "character_head", "head"],
   arm_left: ["rig_upper_arm_left", "character_upper_arm_left", "arm_left"],
   arm_right: ["rig_upper_arm_right", "character_upper_arm_right", "arm_right"],
@@ -166,11 +197,17 @@ const RIG_ALIASES: Record<string, readonly string[]> = {
 
 const UPPER_TRACK_TOKENS = [
   "rig_spine",
+  "rig_chest",
+  "rig_neck",
+  "rig_clavicle_",
   "rig_head",
   "rig_upper_arm_",
   "rig_forearm_",
   "rig_hand_",
   "character_spine",
+  "character_chest",
+  "character_neck",
+  "character_clavicle_",
   "character_head",
   "character_upper_arm_",
   "character_forearm_",
@@ -211,8 +248,21 @@ const ALL_PLAYER_ANIMATIONS: readonly PlayerAnimation[] = [
   "rowboat_idle",
   "row",
   "skiff_idle",
-  "skiff_drive"
+  "skiff_drive",
+  "mounted_idle",
+  "mounted_walk",
+  "mounted_trot",
+  "mount",
+  "dismount",
+  "talk_gesture"
 ];
+
+const SECONDARY_RIG_ALIASES: Record<string, readonly string[]> = {
+  backpack: ["rig_backpack"],
+  canteen_left: ["rig_canteen_left"],
+  canteen_right: ["rig_canteen_right"],
+  hat_brim: ["rig_hat_brim"]
+};
 
 export function isPlayerRigObjectName(name: string): boolean {
   return Object.values(RIG_ALIASES).some((aliases) =>
@@ -241,13 +291,15 @@ function maskedClip(
  * clips and authored markers; the mixer, masks, grounding, and additive lean
  * remain presentation-only.
  */
-export class AnimationController {
+export class HumanoidAnimator {
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<PlayerAnimation, THREE.AnimationAction>();
   private readonly lowerActions = new Map<PlayerAnimation, THREE.AnimationAction>();
   private readonly upperActions = new Map<PlayerAnimation, THREE.AnimationAction>();
   private readonly specs = new Map<PlayerAnimation, RuntimeAnimationClipSpec>();
   private readonly rigParts = new Map<string, RigPart>();
+  private readonly secondaryParts = new Map<string, RigPart>();
+  private readonly secondarySprings = new Map<string, SecondarySpring>();
   private readonly scratchPosition = new THREE.Vector3();
 
   private activeBaseClip: PlayerAnimation = "idle";
@@ -273,7 +325,12 @@ export class AnimationController {
   public constructor(root: THREE.Object3D) {
     this.mixer = new THREE.AnimationMixer(root);
     const asset = ASSET_BY_ID.get(root.userData.assetId as AssetId);
-    for (const spec of asset?.animationClips ?? []) {
+    const stampedSpecs = root.userData.animationClipSpecs as RuntimeAnimationClipSpec[] | undefined;
+    const catalogSpecs = [
+      ...(asset?.animationClips ?? []),
+      ...(asset?.additionalAnimationClips ?? [])
+    ];
+    for (const spec of stampedSpecs ?? catalogSpecs) {
       if (this.isAnimationName(spec.name)) this.specs.set(spec.name, spec);
     }
     const clips = (root.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
@@ -290,18 +347,36 @@ export class AnimationController {
         });
       }
     }
-    root.traverse((object) => {
-      for (const [semantic, aliases] of Object.entries(RIG_ALIASES)) {
-        if (!aliases.some((alias) => object.name === alias || object.name.includes(`__${alias}_`))) continue;
-        if (!this.rigParts.has(semantic)) {
-          this.rigParts.set(semantic, {
-            object,
-            position: object.position.clone(),
-            rotation: object.rotation.clone()
-          });
+    const collectAliases = (
+      map: Map<string, RigPart>,
+      aliasesBySemantic: Record<string, readonly string[]>
+    ): void => {
+      root.traverse((object) => {
+        for (const [semantic, aliases] of Object.entries(aliasesBySemantic)) {
+          if (!aliases.some((alias) => object.name === alias || object.name.includes(`__${alias}_`))) {
+            continue;
+          }
+          const existing = map.get(semantic);
+          if (!existing || (object instanceof THREE.Bone && !(existing.object instanceof THREE.Bone))) {
+            map.set(semantic, {
+              object,
+              position: object.position.clone(),
+              rotation: object.rotation.clone()
+            });
+          }
         }
-      }
-    });
+      });
+    };
+    collectAliases(this.rigParts, RIG_ALIASES);
+    collectAliases(this.secondaryParts, SECONDARY_RIG_ALIASES);
+    for (const [semantic] of this.secondaryParts) {
+      this.secondarySprings.set(semantic, {
+        velocityX: 0,
+        velocityZ: 0,
+        angleX: 0,
+        angleZ: 0
+      });
+    }
   }
 
   public play(action: PlayerAnimation): void {
@@ -310,9 +385,14 @@ export class AnimationController {
       return;
     }
     const spec = this.specs.get(action);
-    if (spec?.loop) return;
+    // Fishing hold clips are normally loops selected by simulation input, but
+    // domain events also need a short presentation pulse for hook-set and
+    // escape feedback. The pulse never mutates the underlying encounter.
+    if (spec?.loop && !FISHING_UPPER_PULSES.has(action)) return;
     this.activeAction = action;
-    this.activeActionLayer = UPPER_BODY_ONE_SHOTS.has(action) ? "upper" : "full";
+    this.activeActionLayer = UPPER_BODY_ONE_SHOTS.has(action) || FISHING_UPPER_PULSES.has(action)
+      ? "upper"
+      : "full";
     this.actionElapsed = 0;
     this.transition = null;
   }
@@ -373,9 +453,19 @@ export class AnimationController {
     }
     this.lastDesiredBase = desired.base;
 
+    // A hook-set or catch gesture must not replace a seated lower body.
+    if (context.boatInput && this.activeAction
+      && ["brace", "cast", "slack", "pickup"].includes(this.activeAction)) {
+      selectedBase = context.boatInput.boatTypeId === "boat.rowboat" ? "rowboat_idle" : "skiff_idle";
+      selectedUpper = this.activeAction;
+    }
     const baseMasked = selectedUpper !== null;
     this.setBaseClip(selectedBase, context.motion.speedMetersPerSecond, context.boatInput, baseMasked);
     this.setUpperClip(selectedUpper, context.motion.speedMetersPerSecond);
+    if (context.mode === "sport-fishing" && this.activeUpperClip === "reel") {
+      this.upperPlaybackScale = THREE.MathUtils.clamp((context.fishingInput?.retrievalMetersPerSecond ?? 0) * 0.8, 0.15, 1.6);
+      this.upperActions.get("reel")?.setEffectiveTimeScale(this.upperPlaybackScale);
+    }
 
     const baseBefore = this.baseClipElapsed;
     const baseDuration = this.clipDuration(this.activeBaseClip);
@@ -431,18 +521,24 @@ export class AnimationController {
       proceduralFrame = this.applyProceduralPose(
         dt,
         this.displayClip(),
-        context.motion,
+        context,
         reducedMotion,
         events
       );
     }
 
     this.updateGrounding(dt, context, reducedMotion);
-    this.applyFootGrounding();
+    this.applyLocomotionIk(context, reducedMotion);
+    this.applySecondarySprings(dt, context, reducedMotion);
+
+    const rodLean = (context.fishingInput?.rodDirectionAngle ?? 0) * 0.1;
+    const fishingLean = -Math.min(1, context.fishingInput?.loadRatio ?? 0) * 0.09;
 
     if (proceduralFrame) {
       return {
         ...proceduralFrame,
+        leanZ: rodLean,
+        leanX: fishingLean,
         groundPitch: this.groundPitch,
         groundRoll: this.groundRoll,
         leftFootOffsetY: this.leftFootOffsetY,
@@ -452,8 +548,8 @@ export class AnimationController {
 
     return {
       bobY: reducedMotion ? 0 : this.additiveBob(context),
-      leanX: reducedMotion ? 0 : this.additiveLeanX(context),
-      leanZ: reducedMotion ? 0 : this.additiveLeanZ(context),
+      leanX: (reducedMotion ? 0 : this.additiveLeanX(context)) + fishingLean,
+      leanZ: reducedMotion ? 0 : this.additiveLeanZ(context) + rodLean,
       groundPitch: this.groundPitch,
       groundRoll: this.groundRoll,
       leftFootOffsetY: this.leftFootOffsetY,
@@ -472,14 +568,19 @@ export class AnimationController {
       return { base: this.actions.has("fall") ? "fall" : "jump", upper: null };
     }
     if (mode === "sport-fishing") {
-      const upper = fishingInput?.isBracing
-        ? "brace"
-        : fishingInput?.isSlacking
-          ? "slack"
-          : fishingInput?.isReeling
-            ? "reel"
+      const upper = fishingInput?.isSlacking
+        ? "slack"
+        : fishingInput?.isReeling
+          ? "reel"
+          : fishingInput?.isBracing
+            ? "brace"
             : "fishing_idle";
-      return { base: "idle", upper };
+      const seated = boatInput?.boatTypeId === "boat.rowboat"
+        ? "rowboat_idle"
+        : boatInput?.boatTypeId === "boat.skiff"
+          ? "skiff_idle"
+          : "idle";
+      return { base: seated, upper };
     }
     if (mode === "basic-fishing") return { base: "idle", upper: "fishing_idle" };
     if (mode === "boat-driving") {
@@ -497,13 +598,32 @@ export class AnimationController {
       }
       return { base: "idle", upper: null };
     }
+    if (mode === "mounted") {
+      if (motion.speedMetersPerSecond <= 0.1 || motion.isCollisionBlocked) {
+        return { base: "mounted_idle", upper: null };
+      }
+      return {
+        base: motion.requestedGait === "trot" ? "mounted_trot" : "mounted_walk",
+        upper: null
+      };
+    }
     if (motion.speedMetersPerSecond <= 0.1 || motion.isCollisionBlocked) {
-      return { base: "idle", upper: carrying ? "carry_idle" : null };
+      const upper = carrying
+        ? "carry_idle"
+        : context.talking && this.actions.has("talk_gesture")
+          ? "talk_gesture"
+          : null;
+      return { base: "idle", upper };
     }
     const running = motion.requestedGait === "run";
+    const locomotionUpper = carrying
+      ? running ? "carry_run" : "carry_walk"
+      : context.talking && this.actions.has("talk_gesture")
+        ? "talk_gesture"
+        : null;
     return {
       base: running ? "run" : "walk",
-      upper: carrying ? running ? "carry_run" : "carry_walk" : null
+      upper: locomotionUpper
     };
   }
 
@@ -512,7 +632,16 @@ export class AnimationController {
     motion: PlayerMotionSample,
     dt: number
   ): PlayerAnimation {
-    if (AIRBORNE_CLIPS.has(desired) || desired === "row" || desired === "rowboat_idle" || desired === "skiff_idle" || desired === "skiff_drive") {
+    if (
+      AIRBORNE_CLIPS.has(desired) ||
+      desired === "row" ||
+      desired === "rowboat_idle" ||
+      desired === "skiff_idle" ||
+      desired === "skiff_drive" ||
+      desired === "mounted_idle" ||
+      desired === "mounted_walk" ||
+      desired === "mounted_trot"
+    ) {
       this.transition = null;
       return desired;
     }
@@ -616,7 +745,9 @@ export class AnimationController {
     if (next === this.activeUpperClip) {
       if (next) {
         this.upperPlaybackScale = this.playbackScale(next, speed);
-        this.upperActions.get(next)?.setEffectiveTimeScale(this.upperPlaybackScale);
+        this.upperActions.get(next)?.setEffectiveTimeScale(
+          this.upperPlaybackScale
+        );
       }
       return;
     }
@@ -838,6 +969,102 @@ export class AnimationController {
     if (right) right.object.position.y += this.rightFootOffsetY;
   }
 
+  private applyLocomotionIk(
+    context: CharacterAnimationContext,
+    reducedMotion: boolean
+  ): void {
+    if (context.boatInput && (context.mode === "sport-fishing" || context.mode === "boat-driving")) return;
+    if (
+      reducedMotion ||
+      !CANONICAL_RENDER_CONFIG.motion.footIkEnabled ||
+      !context.motion.isGrounded ||
+      context.mode === "mounted"
+    ) {
+      this.applyFootGrounding();
+      return;
+    }
+    this.applyTwoBoneFootIk();
+  }
+
+  private applyTwoBoneFootIk(): void {
+    const maxBend = CANONICAL_RENDER_CONFIG.motion.footIkMaxBendRadians;
+    for (const side of ["left", "right"] as const) {
+      const thigh = this.rigParts.get(`thigh_${side}`);
+      const shin = this.rigParts.get(`shin_${side}`);
+      const foot = this.rigParts.get(`boot_${side}`);
+      if (!thigh || !shin || !foot) continue;
+      const offsetY = side === "left" ? this.leftFootOffsetY : this.rightFootOffsetY;
+      const hip = THREE.MathUtils.clamp(
+        this.groundPitch * 0.5 + offsetY * 2.2,
+        -maxBend,
+        maxBend
+      );
+      const knee = THREE.MathUtils.clamp(
+        -this.groundPitch * 0.65 - offsetY * 3.1,
+        -maxBend * 1.2,
+        maxBend * 0.4
+      );
+      const ankle = THREE.MathUtils.clamp(
+        this.groundPitch * 0.4 - offsetY * 0.8,
+        -maxBend,
+        maxBend
+      );
+      thigh.object.rotation.x += hip;
+      shin.object.rotation.x += knee;
+      foot.object.rotation.x += ankle;
+    }
+  }
+
+  private applySecondarySprings(
+    dt: number,
+    context: CharacterAnimationContext,
+    reducedMotion: boolean
+  ): void {
+    const scale = reducedMotion
+      ? CANONICAL_RENDER_CONFIG.motion.reducedMotionSecondaryScale
+      : 1;
+    const clampedDt = THREE.MathUtils.clamp(dt, 0, 0.05);
+    const stiffness = CANONICAL_RENDER_CONFIG.motion.secondarySpringStiffness;
+    const damping = CANONICAL_RENDER_CONFIG.motion.secondarySpringDamping;
+    const accel = THREE.MathUtils.clamp(
+      context.motion.accelerationMetersPerSecondSquared,
+      -24,
+      24
+    );
+    const turn = THREE.MathUtils.clamp(context.motion.turnRateRadiansPerSecond, -4, 4);
+    const responses: Record<string, number> = {
+      backpack: 0.012,
+      canteen_left: 0.018,
+      canteen_right: 0.016,
+      hat_brim: 0.01
+    };
+    for (const [semantic, part] of this.secondaryParts) {
+      const spring = this.secondarySprings.get(semantic);
+      if (!spring) continue;
+      if (scale <= 0) {
+        spring.velocityX = 0;
+        spring.velocityZ = 0;
+        spring.angleX = 0;
+        spring.angleZ = 0;
+        part.object.rotation.x = part.rotation.x;
+        part.object.rotation.z = part.rotation.z;
+        continue;
+      }
+      const response = responses[semantic] ?? 0.012;
+      const targetX = THREE.MathUtils.clamp(-accel * response, -0.18, 0.18) * scale;
+      const targetZ = THREE.MathUtils.clamp(-turn * response * 0.45, -0.14, 0.14) * scale;
+      spring.velocityX += (targetX - spring.angleX) * stiffness * clampedDt;
+      spring.velocityZ += (targetZ - spring.angleZ) * stiffness * clampedDt;
+      const decay = Math.exp(-damping * clampedDt);
+      spring.velocityX *= decay;
+      spring.velocityZ *= decay;
+      spring.angleX += spring.velocityX * clampedDt;
+      spring.angleZ += spring.velocityZ * clampedDt;
+      part.object.rotation.x = part.rotation.x + spring.angleX;
+      part.object.rotation.z = part.rotation.z + spring.angleZ;
+    }
+  }
+
   private displayClip(): PlayerAnimation {
     if (this.activeAction) return this.activeAction;
     if (this.contactRecovery) return this.contactRecovery.clip;
@@ -905,13 +1132,63 @@ export class AnimationController {
     );
   }
 
+  private readonly fishingGripIk = {
+    shoulder: new THREE.Vector3(), elbow: new THREE.Vector3(), wrist: new THREE.Vector3(),
+    direction: new THREE.Vector3(), bend: new THREE.Vector3(), desiredElbow: new THREE.Vector3(),
+    from: new THREE.Vector3(), to: new THREE.Vector3(),
+    rotation: new THREE.Quaternion(), world: new THREE.Quaternion(), parent: new THREE.Quaternion()
+  };
+
+  /** Keep the free hand on the reel after the socket-bearing arm has been posed. */
+  public alignFishingGrip(target: THREE.Vector3): void {
+    const upper = this.rigParts.get("arm_left")?.object;
+    const lower = this.rigParts.get("forearm_left")?.object;
+    const hand = this.rigParts.get("hand_left")?.object;
+    if (!upper || !lower || !hand) return;
+    const k = this.fishingGripIk;
+    upper.getWorldPosition(k.shoulder);
+    lower.getWorldPosition(k.elbow);
+    hand.getWorldPosition(k.wrist);
+    const a = k.shoulder.distanceTo(k.elbow);
+    const b = k.elbow.distanceTo(k.wrist);
+    if (a < 0.001 || b < 0.001) return;
+    k.direction.subVectors(target, k.shoulder);
+    const distance = THREE.MathUtils.clamp(k.direction.length(), Math.abs(a - b) + 0.001, a + b - 0.001);
+    k.direction.normalize();
+    k.bend.subVectors(k.elbow, k.shoulder).addScaledVector(k.direction, -k.bend.dot(k.direction));
+    if (k.bend.lengthSq() < 0.00001) k.bend.set(-1, 0, 0).addScaledVector(k.direction, k.direction.x);
+    k.bend.normalize();
+    const along = (a * a - b * b + distance * distance) / (2 * distance);
+    k.desiredElbow.copy(k.shoulder).addScaledVector(k.direction, along)
+      .addScaledVector(k.bend, Math.sqrt(Math.max(0, a * a - along * along)));
+    k.from.subVectors(k.elbow, k.shoulder).normalize();
+    k.to.subVectors(k.desiredElbow, k.shoulder).normalize();
+    this.rotateFishingBone(upper, k.from, k.to);
+    lower.getWorldPosition(k.elbow);
+    hand.getWorldPosition(k.wrist);
+    k.from.subVectors(k.wrist, k.elbow).normalize();
+    k.to.subVectors(target, k.elbow).normalize();
+    this.rotateFishingBone(lower, k.from, k.to);
+  }
+
+  private rotateFishingBone(bone: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3): void {
+    const k = this.fishingGripIk;
+    k.rotation.setFromUnitVectors(from, to);
+    bone.getWorldQuaternion(k.world).premultiply(k.rotation);
+    if (bone.parent) bone.parent.getWorldQuaternion(k.parent).invert();
+    else k.parent.identity();
+    bone.quaternion.copy(k.parent.multiply(k.world));
+    bone.updateWorldMatrix(false, true);
+  }
+
   private applyProceduralPose(
     dt: number,
     clip: PlayerAnimation,
-    motion: PlayerMotionSample,
+    context: CharacterAnimationContext,
     reducedMotion: boolean,
     events: readonly CharacterAnimationEvent[]
   ): CharacterMotionFrame {
+    const motion = context.motion;
     const smoothing = 1 - Math.exp(-18 * Math.max(0, dt));
     const rate = clip === "run" || clip === "carry_run" ? 11.2 : 8.2;
     const moving = motion.speedMetersPerSecond > 0.1 &&
@@ -932,8 +1209,25 @@ export class AnimationController {
       leftArm = rightArm = -0.58 + stroke * 0.34;
       leftLeg = rightLeg = 1.12;
     } else if (clip === "reel" || clip === "brace" || clip === "slack" || clip === "fishing_idle") {
-      leftArm = -0.58;
-      rightArm = -0.72 + Math.cos(this.elapsed * 5.4) * 0.16;
+      const seated = context.mode === "sport-fishing"
+        && (context.boatInput?.boatTypeId === "boat.rowboat"
+          || context.boatInput?.boatTypeId === "boat.skiff");
+      if (clip === "reel") {
+        leftArm = -0.62;
+        rightArm = -0.78;
+      } else if (clip === "brace") {
+        leftArm = -0.78;
+        rightArm = -0.92;
+      } else if (clip === "slack") {
+        leftArm = -0.42;
+        rightArm = -0.38 + Math.sin(this.elapsed * 3.1) * 0.08;
+      } else {
+        leftArm = -0.58;
+        rightArm = -0.72;
+      }
+      if (seated) {
+        leftLeg = rightLeg = 1.12;
+      }
     } else if (this.activeAction) {
       const duration = this.clipDuration(this.activeAction, 0.6);
       const contact = Math.sin(THREE.MathUtils.clamp(this.actionElapsed / duration, 0, 1) * Math.PI);
@@ -950,12 +1244,13 @@ export class AnimationController {
     this.posePart("thigh_right", 0.84, rightLeg, smoothing);
     this.posePart("shin_right", 0.84, rightLeg * 0.72, smoothing);
     this.posePart("boot_right", 0.84, rightLeg * 0.42, smoothing);
+    const rodLean = (context.fishingInput?.rodDirectionAngle ?? 0) * 0.2;
     return {
       bobY: reducedMotion || AIRBORNE_CLIPS.has(clip) || !moving
         ? 0
         : Math.abs(Math.sin(this.elapsed * rate)) * 0.026,
       leanX: reducedMotion ? 0 : AIRBORNE_CLIPS.has(clip) ? -0.045 : -0.02,
-      leanZ: 0,
+      leanZ: reducedMotion ? 0 : rodLean,
       groundPitch: 0,
       groundRoll: 0,
       leftFootOffsetY: 0,
@@ -969,3 +1264,5 @@ export class AnimationController {
 function wrapTime(value: number, duration: number): number {
   return ((value % duration) + duration) % duration;
 }
+
+export { HumanoidAnimator as AnimationController };

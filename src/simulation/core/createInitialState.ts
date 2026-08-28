@@ -12,6 +12,7 @@ import { WorldLayout } from "../../world/WorldLayout";
 import { DEFAULT_MINUTES_PER_REAL_SECOND } from "./GameClock";
 import { SeededRng } from "./Rng";
 import { applyWeatherProfile, rollWeatherType, WEATHER_FRONT_MIN_MINUTES } from "../weather/updateWeather";
+import { createStarterDonkeyState } from "../mounts/Mounts";
 
 function farmSizeFromLayout(layout: {
   plantableAreas: readonly { minX: number; maxX: number; minZ: number; maxZ: number }[];
@@ -57,6 +58,7 @@ function initialWeather(worldSeed: number): GameState["weather"] {
 
 export function createInitialGameState(worldSeed: number = 42891): GameState {
   ContentRegistry.initializeAndValidate();
+  const starterDonkey = createStarterDonkeyState();
 
   const playerInventory = InventoryManager.createInventory("inv.player", 16);
   // Give starter supplies
@@ -165,6 +167,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       equippedRodId: "rod.willow",
       carriedFishCargoId: null,
       activeBoatId: null,
+      activeMountId: null,
       money: 100,
       traversal: createFullPlayerTraversalState(),
       workCapacity: {
@@ -207,6 +210,9 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     basicFishing: null,
     sportFishing: null,
     boats: initialBoats,
+    mounts: {
+      [starterDonkey.id]: starterDonkey
+    },
     fishCargo: {},
     weather: initialWeather(worldSeed),
     markets: initialMarkets,

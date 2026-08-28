@@ -38,6 +38,19 @@ declare module "virtual:neva-runtime-asset-catalog" {
         timeSeconds: number;
       }>;
     }> | null;
+    additionalAnimationClips: ReadonlyArray<{
+      name: string;
+      durationSeconds: number;
+      commitMarkerSeconds?: number;
+      loop: boolean;
+      referenceSpeedMetersPerSecond?: number;
+      optional?: boolean;
+      fallbackClip?: string;
+      events?: ReadonlyArray<{
+        name: string;
+        timeSeconds: number;
+      }>;
+    }> | null;
   }>;
   export default assets;
 }

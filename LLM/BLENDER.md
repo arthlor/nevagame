@@ -28,7 +28,7 @@ Do not read the full catalog or every LLM authority for this task class.
 Add the owning full authorities:
 
 - new generator/family/shared helper: Art Bible + `LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md`;
-- renderer/material/lighting/water: `01`, Art Bible, and Art Pipeline;
+- renderer/material/lighting/water: `01`, Art Bible, and Art Pipeline, plus `src/render/config/VisualRenderConfig.ts` and `src/render/materials/ExternalSurfaceTextures.ts` when ground supporting maps are in scope;
 - gameplay contract or persistence: `01` + `02` and the owning gameplay/runtime files;
 - story-relevant zone, character, landmark, or prop design/integration: `02` narrative contract + `04` environmental-storytelling section; routine generation-only prompts keep the lean asset route and leave `02`/ArcheAge unread;
 - release/gold slice: `01`, `02`, Art Bible, Art Pipeline, Roadmap, this file, README, and relevant machine contracts.
@@ -41,7 +41,7 @@ Conflict priority remains: human instruction → `01` → `02` → Art Bible →
 
 Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, and the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for generate-asset prompts even if `@LLM` attached them.
 
-**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator (not polyfork for unique silhouettes or isolated sheets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB.
+**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator (not polyfork for unique silhouettes or isolated sheets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
 Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. `art/references/neva-ui-hud-on-foot.png` is the scoped gameplay-distance graphics benchmark for starter-farm terrain, worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting; it never authorizes copying camera, UI, layout, depth of field, tilt-shift, or composition. Catalog IDs win if a reference README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
 
@@ -178,7 +178,7 @@ Release screenshots are evidence artifacts. Do not spend AI tokens reviewing or 
 - `art/palettes/neva.palette.json` owns production tokens and material properties.
 - `tools/blender/asset_budgets.json` owns scene and texture envelopes.
 - `generators/registry.py` is the only generator dispatch table. Family composition stays in its owning module; reusable deterministic mid-scale construction may live in `common/authored.py`.
-- Runtime static assets are optimized GLB/glTF 2.0 only. Never load `.blend`, `.fbx`, or `.obj` in the game.
+- Runtime static 3D assets are optimized GLB/glTF 2.0 only. Never load `.blend`, `.fbx`, or `.obj` in the game. Ground supporting maps are the documented non-GLB exception: local processed WebPs under `public/assets/textures/terrain/`, loaded only through `ExternalSurfaceTextures`, never through `art:generate` or a catalog ID.
 - `1 Blender unit = 1 meter`; use Y-up export, applied transforms, stable nodes, deliberate pivots, palette materials, and `COLOR_0`.
 - Simulation owns gameplay truth. Catalog metadata, scene nodes, collision debug meshes, animations, and Three.js objects remain presentation/runtime data.
 
@@ -245,7 +245,7 @@ Follow the relevant Art Bible section. The compact non-negotiables are:
 - controlled asymmetry and broad authored planes, not untouched primitives or noisy micro-detail;
 - approved palette tokens and shared matte/satin material families;
 - intentional hard/faceted/selective-smooth shading;
-- no photoreal scans, plastic gloss, toon/ink outlines, local exposure hacks, or beauty-camera dependencies;
+- no photoreal scans as final albedo, plastic gloss, toon/ink outlines, local exposure hacks, or beauty-camera dependencies. Processed CC0 ground supporting maps remain under Art Pipeline section 6.2 and must remap into palette families;
 - collision proxies and pivots serve gameplay placement;
 - LOD preserves silhouette, color blocks, and major planes;
 - triangle/material/texture limits come from the catalog, Art Bible, and machine budgets;

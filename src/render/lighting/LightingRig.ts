@@ -1,5 +1,12 @@
 import * as THREE from "three";
 import type { GameState } from "../../simulation/core/types";
+import {
+  DAWN_START_HOUR,
+  DAY_START_HOUR,
+  DUSK_START_HOUR,
+  MINUTES_PER_HOUR,
+  NIGHT_START_HOUR
+} from "../../simulation/core/GameClock";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 
@@ -27,6 +34,8 @@ export interface LightingFrame {
   lightningDirection: THREE.Vector3;
   lightningColor: THREE.Color;
   exposure: number;
+  /** Max of solar daylight and the clock dawn/dusk ramp. Fill, sky, and practicals use this. */
+  ambientDaylight: number;
 }
 
 const SKY_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.skyColorHex);
@@ -64,6 +73,56 @@ function smooth01(value: number): number {
 function hash01(value: number): number {
   const sine = Math.sin(value * 12.9898) * 43758.5453;
   return sine - Math.floor(sine);
+}
+
+/**
+ * Quantizes the shadow receiver center on the directional light's projected
+ * texel grid. World X/Z snapping is not stable once the light is angled: a
+ * small player movement then crosses several unrelated shadow texels.
+ */
+export function snapShadowFocus(
+  focus: THREE.Vector3,
+  lightDirection: THREE.Vector3,
+  texelSize: number,
+  out = new THREE.Vector3()
+): THREE.Vector3 {
+  if (!Number.isFinite(texelSize) || texelSize <= 0 || lightDirection.lengthSq() < 0.000001) {
+    return out.copy(focus);
+  }
+
+  const direction = lightDirection.clone().normalize();
+  const right = new THREE.Vector3(0, 1, 0).cross(direction);
+  if (right.lengthSq() < 0.000001) return out.copy(focus);
+  right.normalize();
+  const up = direction.clone().cross(right).normalize();
+  const lightX = focus.dot(right);
+  const lightY = focus.dot(up);
+  return out.copy(focus)
+    .addScaledVector(right, Math.round(lightX / texelSize) * texelSize - lightX)
+    .addScaledVector(up, Math.round(lightY / texelSize) * texelSize - lightY);
+}
+
+/**
+ * Ambient above night during the HUD dawn/dusk windows. 04:00 starts at
+ * `edgeAmbient`; 08:00 reaches day; 18:00 matches sunrise; 22:00 returns to night.
+ */
+export function clockWindowAmbient(minuteOfDay: number, edgeAmbient: number): number {
+  const minute = ((minuteOfDay % 1440) + 1440) % 1440;
+  const dawn0 = DAWN_START_HOUR * MINUTES_PER_HOUR;
+  const dawn1 = DAY_START_HOUR * MINUTES_PER_HOUR;
+  const dusk0 = DUSK_START_HOUR * MINUTES_PER_HOUR;
+  const dusk1 = NIGHT_START_HOUR * MINUTES_PER_HOUR;
+  const edge = clamp01(edgeAmbient);
+  if (minute >= dawn0 && minute < dawn1) {
+    const t = (minute - dawn0) / (dawn1 - dawn0);
+    return edge + (1 - edge) * smooth01(t);
+  }
+  if (minute >= dusk0 && minute < dusk1) {
+    const t = (minute - dusk0) / (dusk1 - dusk0);
+    const sunsetAmbient = edge + (1 - edge) * smooth01(0.5);
+    return sunsetAmbient * (1 - t) ** 0.7;
+  }
+  return 0;
 }
 
 export function deriveCelestialDirections(minuteOfDay: number): {
@@ -116,6 +175,12 @@ export function deriveLightingFrame(
   const solarHeight = sunDirection.y;
   const daylight = smooth01((solarHeight + 0.08) / 0.28);
   const twilight = 1 - smooth01(Math.abs(solarHeight) / 0.24);
+  const clockAmbient = clockWindowAmbient(minuteOfDay, config.skyFill.dawnDuskEdgeAmbient);
+  const ambientDaylight = Math.max(daylight, clockAmbient);
+  const twilightExposure = smooth01(
+    (daylight - config.skyFill.twilightExposureHold)
+      / Math.max(0.001, 1 - config.skyFill.twilightExposureHold)
+  );
   const storm = state.weather.type === "storm";
   const cloudCover = clamp01(state.weather.cloudCover);
   const visibility = clamp01(state.weather.visibility);
@@ -145,25 +210,32 @@ export function deriveLightingFrame(
     : THREE.MathUtils.lerp(1, config.moon.cloudAttenuationFloor, cloudCover);
   const sunIntensity = config.sun.intensity * daylight * sunWeather;
   const moonIntensity =
-    config.moon.intensity * smooth01((-solarHeight + 0.04) / 0.3) * moonWeather;
-  const skyFillIntensity = THREE.MathUtils.lerp(
-    config.skyFill.nightIntensity,
-    config.skyFill.intensity,
-    daylight
-  ) * THREE.MathUtils.lerp(0.68, 1, visibility) + lightning * 0.48;
+    config.moon.intensity
+    * smooth01((-solarHeight + config.twilight.moonHoldSolarHeight) / config.twilight.moonFadeWidth)
+    * moonWeather;
+  const skyFillIntensity =
+    THREE.MathUtils.lerp(
+      config.skyFill.nightIntensity,
+      config.skyFill.intensity,
+      ambientDaylight
+    ) * THREE.MathUtils.lerp(0.68, 1, visibility)
+    + twilight * config.skyFill.twilightFillLift * (1 - ambientDaylight)
+    + lightning * 0.48;
 
   const sunColor = new THREE.Color(config.sun.horizonColorHex).lerp(
     new THREE.Color(config.sun.colorHex),
     smooth01(Math.max(0, solarHeight) * 1.7)
   );
   const moonColor = new THREE.Color(config.moon.colorHex);
-  const skyFillColor = SKY_FILL_NIGHT.clone().lerp(SKY_DAY, daylight);
-  const skyTopColor = SKY_NIGHT.clone().lerp(SKY_DAY, daylight);
-  const horizonStrength = clamp01(daylight * 0.76 + twilight * 0.72);
+  const skyFillColor = SKY_FILL_NIGHT.clone().lerp(SKY_DAY, ambientDaylight);
+  const skyTopColor = SKY_NIGHT.clone()
+    .lerp(SKY_DAY, ambientDaylight)
+    .lerp(HORIZON_DAY, twilight * config.skyFill.twilightZenithHorizonMix);
+  const horizonStrength = clamp01(ambientDaylight * 0.76 + twilight * 0.72);
   const skyHorizonColor = HORIZON_NIGHT.clone()
     .lerp(HORIZON_DAY, horizonStrength)
-    .lerp(skyTopColor, daylight * 0.22);
-  const groundFillColor = GROUND_NIGHT.clone().lerp(GROUND_DAY, daylight);
+    .lerp(skyTopColor, ambientDaylight * 0.22);
+  const groundFillColor = GROUND_NIGHT.clone().lerp(GROUND_DAY, ambientDaylight);
   // Clear weather has its own clean-sky radiance instead of inheriting the
   // pale overcast color used by cloudy and rainy states. Keep this coupled to
   // the same daylight envelope, sun direction, fog, and hemisphere fill.
@@ -191,7 +263,7 @@ export function deriveLightingFrame(
     ? config.weather.stormFogNear
     : THREE.MathUtils.lerp(config.fog.near, config.fog.clearDayNear, clearDaylight);
   const visibilityDistance = THREE.MathUtils.lerp(0.45, 1, visibility);
-  const nightDistance = THREE.MathUtils.lerp(0.78, 1, daylight);
+  const nightDistance = THREE.MathUtils.lerp(0.78, 1, ambientDaylight);
   const daylightFogFar = THREE.MathUtils.lerp(
     config.fog.far,
     config.fog.clearDayFar,
@@ -201,7 +273,10 @@ export function deriveLightingFrame(
     ? config.weather.stormFogFar
     : Math.max(fogNear + 20, daylightFogFar * visibilityDistance * nightDistance);
   const practicalLightIntensity = Math.max(
-    smooth01((0.18 - solarHeight) / 0.38),
+    1 - smooth01(
+      (daylight - config.twilight.practicalHoldDaylight)
+        / Math.max(0.001, config.twilight.practicalFadeWidth)
+    ),
     storm ? 0.48 : 0
   );
   const starVisibility = storm
@@ -234,7 +309,8 @@ export function deriveLightingFrame(
     lightning,
     lightningDirection,
     lightningColor,
-    exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, daylight)
+    exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, twilightExposure),
+    ambientDaylight
   };
 }
 
@@ -330,11 +406,14 @@ export class LightingRig {
     const frame = deriveLightingFrame(state, timeSeconds);
     const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
     const texelSize = (quality.shadowCameraSize * 2) / quality.shadowMapSize;
-    this.snappedFocus.set(
-      CANONICAL_RENDER_CONFIG.shadows.followSnap ? Math.round(focus.x / texelSize) * texelSize : focus.x,
-      focus.y,
-      CANONICAL_RENDER_CONFIG.shadows.followSnap ? Math.round(focus.z / texelSize) * texelSize : focus.z
-    );
+    const shadowDirection = frame.moonIntensity > frame.sunIntensity
+      ? frame.moonDirection
+      : frame.sunDirection;
+    if (CANONICAL_RENDER_CONFIG.shadows.followSnap) {
+      snapShadowFocus(focus, shadowDirection, texelSize, this.snappedFocus);
+    } else {
+      this.snappedFocus.copy(focus);
+    }
 
     this.updateCelestialLight(this.sun, frame.sunDirection, frame.sunColor, frame.sunIntensity);
     this.updateCelestialLight(this.moon, frame.moonDirection, frame.moonColor, frame.moonIntensity);
@@ -372,6 +451,7 @@ export class LightingRig {
     light.position.copy(this.snappedFocus).addScaledVector(direction, 120);
     light.target.position.copy(this.snappedFocus);
     light.target.updateMatrixWorld();
+    light.updateMatrixWorld();
     light.color.copy(color);
     light.intensity = intensity;
   }

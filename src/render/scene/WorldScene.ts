@@ -12,6 +12,7 @@ import { AssetLoader } from "../loaders/AssetLoader";
 import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import { CultivatedSurfaceMaterial } from "../materials/CultivatedSurfaceMaterial";
 import { RoadSurfaceMaterial } from "../materials/RoadSurfaceMaterial";
 import {
   isTerrainDebugMode,
@@ -30,8 +31,8 @@ import {
 } from "../assets/RuntimeAssetOwners";
 import type { StaticCollisionProxy } from "../../physics/StaticCollision";
 import { projectAssetCollision } from "../../physics/CollisionCatalogAdapter";
-import type { BasicFishingPhase, GameState } from "../../simulation/core/types";
-import type { BoatMotionSample } from "../../simulation/core/PhysicsAdapter";
+import type { BasicFishingPhase, FishingEncounterState, GameState } from "../../simulation/core/types";
+import type { BoatMotionSample, PlayerMotionSample } from "../../simulation/core/PhysicsAdapter";
 import type { CropPlacementResult } from "../../simulation/core/contracts";
 import {
   WATER_SURFACE,
@@ -44,7 +45,8 @@ import {
   farmLocalToWorld,
   starterStructureAnchor
 } from "../../world/FarmLayout";
-import { HARBOR_FISH_TABLE } from "../../world/WorldAnchors";
+import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
+import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING } from "../../world/WorldAnchors";
 import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
 import {
   ARCHITECTURE_PLACEMENT_TO_PAD,
@@ -73,7 +75,7 @@ import {
   type WorldEnvironmentLayout
 } from "../../world/WorldEnvironmentLayout";
 import {
-  AnimationController,
+  HumanoidAnimator,
   isPlayerRigObjectName,
   type BoatAnimationInput,
   type CharacterAnimationEvent,
@@ -89,12 +91,19 @@ import { ShoreFoam } from "../water/ShoreFoam";
 
 import { BoatWakePool } from "../water/BoatWakePool";
 import { CropInstanceRenderer } from "./CropInstanceRenderer";
+import {
+  createContactShadowMesh,
+  setContactShadowOpacity,
+  type ContactShadowMesh
+} from "./ContactShadow";
 import { GroundCoverRenderer } from "./GroundCoverRenderer";
 import {
   BUTTERFLY_ORBITS,
   CLOUD_PLACEMENTS,
   GULL_ORBITS,
+  sampleAmbientCloudPose,
   sampleAmbientFlyerPose,
+  type AmbientCloudPlacement,
   type AmbientFlyerOrbit
 } from "./ambientFlyers";
 import { NPC_STATION_BEATS, sampleNpcStationBeat } from "./npcStationBeat";
@@ -117,6 +126,7 @@ import {
   sampleSportFishingPresentation,
   type SportFishingPresentationSample
 } from "../fishing/FishingPresentation";
+import { FishingRodBend } from "../fishing/FishingRodBend";
 
 export interface BoatPresentationInput extends BoatAnimationInput {
   boatId: string;
@@ -128,15 +138,11 @@ interface NpcPresentation {
   assetId: string;
   anchor: { x: number; z: number; rotationY: number };
   model: THREE.Group;
-  mixer: THREE.AnimationMixer;
-  actions: Map<NpcAnimationClip, THREE.AnimationAction>;
-  activeClip: NpcAnimationClip | null;
+  animator: HumanoidAnimator;
   headBone?: THREE.Object3D;
   initialRotationY: number;
   detailReduced: boolean;
 }
-
-type NpcAnimationClip = "idle" | "talk_gesture" | "turn_left" | "turn_right" | "walk";
 
 const CHARACTER_DETAIL_DISTANCE_METERS = 14;
 // Published farmhouse A local-space chimney socket. The plume is attached
@@ -161,7 +167,8 @@ const CHARACTER_DETAIL_NODE_PATTERNS = [
   /watch/,
   /holster/,
   /trowel/,
-  /hand/,
+  /quilt/,
+  /brim_rib/,
   /neck/,
   /chin/,
   /pack_(flap|pouch|roll)/,
@@ -172,6 +179,25 @@ const CHARACTER_DETAIL_NODE_PATTERNS = [
 
 function isCharacterDetailNode(name: string): boolean {
   return CHARACTER_DETAIL_NODE_PATTERNS.some((pattern) => pattern.test(name));
+}
+
+function npcPresentationMotion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample {
+  return {
+    velocity: { x: 0, y: 0, z: overrides.speedMetersPerSecond ?? 0 },
+    speedMetersPerSecond: 0,
+    accelerationMetersPerSecondSquared: 0,
+    turnRateRadiansPerSecond: 0,
+    isGrounded: true,
+    groundNormal: { x: 0, y: 1, z: 0 },
+    slopeRadians: 0,
+    airbornePhase: "grounded",
+    contactEvent: "none",
+    landingImpactStrength: 0,
+    contactSurface: "grass",
+    isCollisionBlocked: false,
+    requestedGait: "idle",
+    ...overrides
+  };
 }
 
 type FarmingPresentationActionName =
@@ -242,10 +268,11 @@ interface FaunaMotionNode {
 }
 
 type FaunaAnimationClip = "idle" | "graze" | "peck" | "look" | "hop";
+type FaunaKind = "cow" | "chicken" | "rabbit" | "donkey";
 
 interface FaunaPresentation {
   id: string;
-  kind: "cow" | "chicken" | "rabbit";
+  kind: Exclude<FaunaKind, "donkey">;
   phase: number;
   body: FaunaMotionNode;
   head?: FaunaMotionNode;
@@ -254,6 +281,26 @@ interface FaunaPresentation {
   mixer: THREE.AnimationMixer | null;
   actions: Map<FaunaAnimationClip, THREE.AnimationAction>;
   activeClip: FaunaAnimationClip | null;
+}
+
+type DonkeyAnimationClip = "idle" | "graze" | "look" | "walk" | "trot" | "mount" | "dismount";
+
+// char_player_a's rest pelvis origin is 0.626 m above its GLTF root. The
+// donkey rider socket is authored at the saddle, so this keeps the pelvis at
+// the socket instead of leaving the rider hovering above it.
+const DONKEY_RIDER_ROOT_OFFSET_Y = -0.626;
+
+interface DonkeyPresentation {
+  id: string;
+  placementId: string;
+  root: THREE.Group;
+  riderSocket: THREE.Object3D;
+  mixer: THREE.AnimationMixer | null;
+  actions: Map<DonkeyAnimationClip, THREE.AnimationAction>;
+  activeClip: DonkeyAnimationClip | null;
+  attachedMountId: string | null;
+  originalPlayerParent: THREE.Object3D | null;
+  transitionUntilSeconds: number;
 }
 
 interface AmbientFlyerPresentation {
@@ -276,11 +323,22 @@ interface FishPresentationMember {
   tailPivot?: THREE.Object3D;
 }
 
+export interface SportFishingCameraHint {
+  lookHint: { x: number; y: number; z: number };
+  fightReachMeters: number;
+  lineTension: number;
+  snapTimerSeconds: number;
+  fightBehavior: FishingEncounterState["behavior"];
+}
+
 function boatBuoyancyFootprint(boatTypeId: string): { halfLength: number; halfBeam: number } {
   return boatTypeId === "boat.skiff"
     ? { halfLength: 2.45, halfBeam: 0.9 }
     : { halfLength: 1.55, halfBeam: 0.62 };
 }
+
+/** Presentation-only buoyancy key. Not a persisted BoatId. */
+const SKIFF_MOORING_PREVIEW_ID = "preview.harbor-skiff";
 
 const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "seed", assetId: ASSET_IDS.TOOL_SEED_POUCH_A, socket: "char_player_hip_socket", scale: 0.72 },
@@ -329,15 +387,17 @@ export class WorldScene {
   private readonly rainField: RainField;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
   private readonly roadSurfaceMaterial = new RoadSurfaceMaterial();
+  private readonly cultivatedSurfaceMaterial = new CultivatedSurfaceMaterial();
 
   private playerMesh: THREE.Group | null = null;
   private boatMeshes: Map<string, THREE.Group> = new Map();
+  private skiffMooringPreview: THREE.Group | null = null;
   private readonly cropInstances = new CropInstanceRenderer();
   private readonly groundCover = new GroundCoverRenderer(CANONICAL_RENDER_CONFIG.qualityTier);
   private schoolEffects: Map<string, THREE.Group> = new Map();
   private environmentGroup: THREE.Group = new THREE.Group();
   private staticPrefabGroup: THREE.Group = new THREE.Group();
-  private playerAnimation: AnimationController | null = null;
+  private playerAnimation: HumanoidAnimator | null = null;
   private readonly farmingProps = new Map<string, THREE.Group>();
   private farmingPropsAttached = false;
   private cosmeticCropCarryUntilSeconds = 0;
@@ -366,17 +426,14 @@ export class WorldScene {
   private readonly practicalLightFocus = new THREE.Vector3();
   private readonly practicalLightWorld = new THREE.Vector3();
   private readonly practicalLightWorldPositions: THREE.Vector3[] = [];
-  private playerContactShadow: THREE.Mesh | null = null;
+  private playerContactShadow: ContactShadowMesh | null = null;
   private windmillRotor: THREE.Group | null = null;
   private cloudMeshes: Array<{
     object: THREE.Group;
-    origin: THREE.Vector3;
-    bobPhase: number;
-    orbitRadius: number;
-    orbitAngle: number;
-    baseRotationY: number;
+    placement: AmbientCloudPlacement;
   }> = [];
   private readonly faunaPresentations: FaunaPresentation[] = [];
+  private donkeyPresentation: DonkeyPresentation | null = null;
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
   private syncInFlight: boolean = false;
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
@@ -419,12 +476,21 @@ export class WorldScene {
   private fishingBobberGroup: THREE.Group = new THREE.Group();
   private fishingBobberBody: THREE.Group = new THREE.Group();
   private fishingLineMesh: THREE.Line | null = null;
+  private fishingRodBend: FishingRodBend | null = null;
+  private readonly fishingMouthLocal = new THREE.Vector3();
+  private fishingMouthNode: THREE.Object3D | null = null;
+  private readonly fishingEndpointWorld = new THREE.Vector3();
+  private lastFishingInstanceId: string | null = null;
+  private lastFishingSurfaceCrossings = 0;
+  private lastFishingSampleElapsed = 0;
   private fishingBobberRipple: THREE.Mesh | null = null;
   private lastBasicFishingPhase: BasicFishingPhase | null = null;
   private basicCastReleaseAtSeconds = Number.NEGATIVE_INFINITY;
   private basicHookSetAtSeconds = Number.NEGATIVE_INFINITY;
   private readonly sportFishingPresentation: SportFishingPresentationSample =
     createSportFishingPresentationSample();
+  private sportFishingCameraHint: SportFishingCameraHint | null = null;
+  private lastSportFishingSplashAtSeconds = Number.NEGATIVE_INFINITY;
   private hookedFishModel: THREE.Group | null = null;
   private hookedFishAssetId: AssetId | null = null;
   private hookedFishPresentation: FishPresentationMember | null = null;
@@ -670,23 +736,11 @@ export class WorldScene {
 
   private buildPlayerContactShadow(): void {
     if (!this.lightingRig.contactShadowsEnabled()) return;
-    const geometry = new THREE.CircleGeometry(1, 20);
-    geometry.rotateX(-Math.PI / 2);
-    const material = new THREE.MeshBasicMaterial({
-      color: PALETTE_HEX.foliage_shadow_01,
-      transparent: true,
-      opacity: CANONICAL_RENDER_CONFIG.contact.opacity,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1
-    });
-    this.playerContactShadow = new THREE.Mesh(geometry, material);
-    this.playerContactShadow.scale.set(
+    this.playerContactShadow = createContactShadowMesh(
       CANONICAL_RENDER_CONFIG.contact.playerRadius,
-      1,
-      CANONICAL_RENDER_CONFIG.contact.playerRadius * 0.68
+      CANONICAL_RENDER_CONFIG.contact.playerRadius * 0.68,
+      CANONICAL_RENDER_CONFIG.contact.opacity
     );
-    this.playerContactShadow.renderOrder = 1;
     this.scene.add(this.playerContactShadow);
   }
 
@@ -965,7 +1019,9 @@ export class WorldScene {
   }
 
   public pickCrop(camera: THREE.Camera, pointerNdc: { x: number; y: number }): string | null {
-    return this.cropInstances.pick(camera, pointerNdc);
+    const groundPoint = this.raycastTerrain(camera, pointerNdc);
+    return (groundPoint && this.cropInstances.pickByGroundPoint(groundPoint))
+      ?? this.cropInstances.pick(camera, pointerNdc);
   }
 
   public pickLayoutEditable(
@@ -1093,10 +1149,11 @@ export class WorldScene {
     return null;
   }
 
-  private faunaKindForAsset(assetId: AssetId): FaunaPresentation["kind"] | null {
+  private faunaKindForAsset(assetId: AssetId): FaunaKind | null {
     if (assetId === ASSET_IDS.FAUNA_COW_A) return "cow";
     if (assetId === ASSET_IDS.FAUNA_CHICKEN_A) return "chicken";
     if (assetId === ASSET_IDS.FAUNA_RABBIT_A) return "rabbit";
+    if (assetId === ASSET_IDS.FAUNA_DONKEY_A) return "donkey";
     return null;
   }
 
@@ -1108,7 +1165,11 @@ export class WorldScene {
     const faunaKind = assetId ? this.faunaKindForAsset(assetId) : null;
     if (faunaKind && root instanceof THREE.Group) {
       root.userData.dynamicPresentation = true;
-      this.registerFaunaPresentation(options.id, faunaKind, root);
+      if (faunaKind === "donkey") {
+        this.registerDonkeyPresentation(STARTER_DONKEY_ID, options.id, root);
+      } else {
+        this.registerFaunaPresentation(options.id, faunaKind, root);
+      }
     }
     this.attachPracticalLights(root, options.practicalLightFallback === true);
     this.applyStaticShadowPolicy(root);
@@ -1128,6 +1189,14 @@ export class WorldScene {
       ? root.userData.environmentPlacementId
       : tag?.id;
     if (placementId) {
+      if (this.donkeyPresentation?.placementId === placementId) {
+        this.detachPlayerFromDonkey();
+        this.donkeyPresentation.mixer?.stopAllAction();
+        if (this.donkeyPresentation.mixer) {
+          this.donkeyPresentation.mixer.uncacheRoot(this.donkeyPresentation.root);
+        }
+        this.donkeyPresentation = null;
+      }
       const faunaIndex = this.faunaPresentations.findIndex((fauna) => fauna.id === placementId);
       if (faunaIndex >= 0) {
         const fauna = this.faunaPresentations[faunaIndex];
@@ -1183,7 +1252,8 @@ export class WorldScene {
     this.environmentGroup.add(buildStarterFarmGround({
       origin: STARTER_FARM_LAYOUT.origin,
       plantableArea,
-      heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ)
+      heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ),
+      surfaceMaterial: this.cultivatedSurfaceMaterial.material
     }));
   }
 
@@ -1366,9 +1436,32 @@ export class WorldScene {
   private setShadowPolicy(root: THREE.Object3D, castShadow: boolean): void {
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
+      if (object.name === "character_shadow_proxy") return;
       object.castShadow = castShadow;
       object.receiveShadow = true;
     });
+  }
+
+  private attachCharacterShadowProxy(root: THREE.Object3D): void {
+    if (root.getObjectByName("character_shadow_proxy")) return;
+    root.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(root);
+    const measuredHeight = bounds.max.y - bounds.min.y;
+    const height = Number.isFinite(measuredHeight) && measuredHeight > 0.8 ? measuredHeight : 1.96;
+    const radius = 0.28;
+    const cylinderHeight = Math.max(0.24, height - radius * 2);
+    const geometry = new THREE.CapsuleGeometry(radius, cylinderHeight, 2, 8);
+    const material = new THREE.MeshBasicMaterial({
+      colorWrite: false,
+      depthWrite: false
+    });
+    const proxy = new THREE.Mesh(geometry, material);
+    proxy.name = "character_shadow_proxy";
+    proxy.castShadow = true;
+    proxy.receiveShadow = false;
+    proxy.position.y = height * 0.5;
+    proxy.frustumCulled = true;
+    root.add(proxy);
   }
 
   private attachPracticalLights(root: THREE.Object3D, fallbackIfMissing = false): void {
@@ -1603,7 +1696,7 @@ export class WorldScene {
         );
       }
       const object = await AssetLoader.loadModel(assetId);
-      object.position.set(placement.x, WorldLayout.terrainHeight(placement.x, placement.z), placement.z);
+      object.position.set(placement.x, placement.y ?? WorldLayout.terrainHeight(placement.x, placement.z), placement.z);
       object.rotation.y = placement.rotationY;
       object.scale.set(placement.scale[0], placement.scale[1], placement.scale[2]);
       object.userData.environmentPlacementId = placement.id;
@@ -1619,7 +1712,8 @@ export class WorldScene {
       } else if (placement.origin === "authored") {
         this.tagLayoutEdit(object, createAuthoredDetailTag(placement.id, placement.assetId, {
           grounding: placement.grounding,
-          practicalLight: placement.practicalLight
+          practicalLight: placement.practicalLight,
+          fixedY: placement.y
         }));
       } else {
         this.tagLayoutEdit(object, createEnvironmentOverrideTag(placement.id, placement.assetId, {
@@ -1636,22 +1730,16 @@ export class WorldScene {
     this.rebuildLayoutGroundingPatches();
 
     for (const placement of CLOUD_PLACEMENTS) {
-      const cloud = await AssetLoader.loadModel(ASSET_IDS.CLOUD_LOWPOLY_A);
+      const cloud = await AssetLoader.loadModel(placement.assetId);
       cloud.position.set(placement.x, placement.y, placement.z);
       cloud.rotation.y = placement.rotationY;
       cloud.scale.setScalar(placement.scale);
       cloud.userData.dynamicPresentation = true;
       this.setShadowPolicy(cloud, false);
       this.environmentGroup.add(cloud);
-      const offsetX = placement.x - WATER_SURFACE.centerX;
-      const offsetZ = placement.z - WATER_SURFACE.centerZ;
       this.cloudMeshes.push({
         object: cloud,
-        origin: cloud.position.clone(),
-        bobPhase: placement.bobPhase,
-        orbitRadius: Math.max(Math.hypot(offsetX, offsetZ), Number.EPSILON),
-        orbitAngle: Math.atan2(offsetZ, offsetX),
-        baseRotationY: placement.rotationY
+        placement
       });
     }
 
@@ -1673,6 +1761,9 @@ export class WorldScene {
     );
     const staticAssetRoots = spawnedRoots.filter((child) => !child.userData.dynamicPresentation);
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(staticAssetRoots);
+    console.info("[WorldScene] bridge collision probe", JSON.stringify(this.staticCollisionProxyList
+      .filter((proxy) => proxy.center.x >= -24 && proxy.center.x <= -20 && proxy.center.z >= -9 && proxy.center.z <= -3)
+      .map((proxy) => ({ id: proxy.id, center: proxy.center, halfExtents: proxy.halfExtents }))));
     for (const root of spawnedRoots) this.applyStaticShadowPolicy(root);
     if (import.meta.env.DEV) {
       for (const root of spawnedRoots) this.applyLayoutEditShadowFollow(root);
@@ -1719,46 +1810,16 @@ export class WorldScene {
         // facet from becoming a separate shadow draw while preserving the
         // readable feet-to-ground cue in gameplay cameras.
         this.setShadowPolicy(model, false);
+        this.attachCharacterShadowProxy(model);
 
         // Ground contact shadow disc
         if (this.lightingRig.contactShadowsEnabled()) {
-          const shadowGeo = new THREE.CircleGeometry(0.48, 16);
-          shadowGeo.rotateX(-Math.PI / 2);
-          const shadowMat = new THREE.MeshBasicMaterial({
-            color: PALETTE_HEX.foliage_shadow_01,
-            transparent: true,
-            opacity: CANONICAL_RENDER_CONFIG.contact.opacity,
-            depthWrite: false,
-            polygonOffset: true,
-            polygonOffsetFactor: -1
-          });
-          const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+          const shadowMesh = createContactShadowMesh(0.48, 0.33, CANONICAL_RENDER_CONFIG.contact.opacity);
           shadowMesh.position.set(0, 0.02, 0);
-          shadowMesh.renderOrder = 1;
           model.add(shadowMesh);
         }
 
-        const mixer = new THREE.AnimationMixer(model);
-        const actions = new Map<NpcAnimationClip, THREE.AnimationAction>();
-        const clips = (model.userData.animationClips as THREE.AnimationClip[] | undefined)
-          ?? model.animations
-          ?? [];
-        for (const clipName of ["idle", "talk_gesture", "turn_left", "turn_right", "walk"] as const) {
-          const clip = clips.find((candidate) => candidate.name === clipName);
-          if (!clip) continue;
-          const action = mixer.clipAction(clip);
-          const repeats = clipName === "idle" || clipName === "talk_gesture" || clipName === "walk";
-          action.setLoop(repeats ? THREE.LoopRepeat : THREE.LoopOnce, repeats ? Infinity : 1);
-          action.clampWhenFinished = !repeats;
-          actions.set(clipName, action);
-        }
-        const idleAction = actions.get("idle");
-        if (idleAction) {
-          idleAction.play();
-          idleAction.time = (((Math.abs(npc.anchor.x) * 13 + Math.abs(npc.anchor.z) * 17) % 100) / 100)
-            * idleAction.getClip().duration;
-        }
-
+        const animator = new HumanoidAnimator(model);
         const headBone = model.getObjectByName("rig_head") ?? undefined;
         this.environmentGroup.add(model);
         this.npcPresentations.set(npc.id, {
@@ -1766,9 +1827,7 @@ export class WorldScene {
           assetId,
           anchor: npc.anchor,
           model,
-          mixer,
-          actions,
-          activeClip: idleAction ? "idle" : null,
+          animator,
           headBone,
           initialRotationY: npc.anchor.rotationY,
           detailReduced: false
@@ -1781,18 +1840,6 @@ export class WorldScene {
 
   public setDialogueNpc(npcId: string | null): void {
     this.activeDialogueNpcId = npcId;
-  }
-
-  private setNpcAnimation(npc: NpcPresentation, clipName: NpcAnimationClip): void {
-    if (npc.activeClip === clipName) return;
-    const next = npc.actions.get(clipName) ?? npc.actions.get("idle");
-    if (!next) return;
-    const resolvedClip = next === npc.actions.get("idle") ? "idle" : clipName;
-    const previous = npc.activeClip ? npc.actions.get(npc.activeClip) : undefined;
-    const blendSeconds = resolvedClip.startsWith("turn_") ? 0.08 : 0.14;
-    previous?.fadeOut(blendSeconds);
-    next.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).fadeIn(blendSeconds).play();
-    npc.activeClip = resolvedClip;
   }
 
 
@@ -1901,7 +1948,7 @@ export class WorldScene {
     if (!spec || spec.collision === "none") return;
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      if (object.name.startsWith("COL_")) {
+      if (object.name.startsWith("COL_") || object.name === "character_shadow_proxy") {
         object.castShadow = false;
         return;
       }
@@ -2177,6 +2224,8 @@ export class WorldScene {
       for (const track of clip.tracks) animatedNames.add(track.name.split(".")[0] ?? track.name);
     }
     this.batchCompatibleMeshes(root, (object) => {
+      if ((object as THREE.SkinnedMesh).isSkinnedMesh) return true;
+      if (object.name === "character_shadow_proxy") return true;
       let current: THREE.Object3D | null = object;
       while (current && current !== root) {
         if (isPlayerRigObjectName(current.name) || animatedNames.has(current.name)) return true;
@@ -2230,13 +2279,18 @@ export class WorldScene {
       practical.light.visible = practical.qualityEnabled && frame.practicalLightIntensity > 0.002;
     }
     if (this.playerContactShadow) {
-      (this.playerContactShadow.material as THREE.MeshBasicMaterial).opacity =
-        CANONICAL_RENDER_CONFIG.contact.opacity * THREE.MathUtils.lerp(0.42, 1, frame.daylight);
+      setContactShadowOpacity(
+        this.playerContactShadow,
+        CANONICAL_RENDER_CONFIG.contact.opacity * THREE.MathUtils.lerp(0.42, 1, frame.daylight)
+      );
     }
     this.water.updateLighting(frame);
     this.shoreFoam.updateLighting(frame);
     this.boatWakes.updateLighting(frame);
     this.terrainSurfaceMaterial.updateWeather(state.weather.precipitation, timeSeconds);
+    const sharedGroundWetness = this.terrainSurfaceMaterial.wetness;
+    this.roadSurfaceMaterial.setWetness(sharedGroundWetness);
+    this.cultivatedSurfaceMaterial.setWetness(sharedGroundWetness);
     this.updateAmbientMotion(state, timeSeconds);
     this.rainField.update({
       focus,
@@ -2254,6 +2308,23 @@ export class WorldScene {
       seaRoughness: state.weather.seaRoughness,
       windDirectionDeg: state.weather.windDirectionDeg,
       windSpeed: this.weatherMotion.effectiveWindSpeed
+    };
+  }
+
+  /**
+   * Returns the latest presentation-only fish target for the camera. The
+   * encounter remains simulation-owned; this is just the endpoint already
+   * used to draw the line and hooked fish in the current frame.
+   */
+  public getSportFishingPresentation(): Readonly<SportFishingPresentationSample> | undefined {
+    return this.sportFishingCameraHint ? this.sportFishingPresentation : undefined;
+  }
+
+  public getSportFishingCameraHint(): Readonly<SportFishingCameraHint> | undefined {
+    if (!this.sportFishingCameraHint) return undefined;
+    return {
+      ...this.sportFishingCameraHint,
+      lookHint: { ...this.sportFishingCameraHint.lookHint }
     };
   }
 
@@ -2341,6 +2412,7 @@ export class WorldScene {
       this.setShadowPolicy(object, false);
       socket.add(object);
       this.farmingProps.set(attachment.key, object);
+      if (attachment.key === "rod") this.fishingRodBend = new FishingRodBend(object);
     }
     this.farmingPropsAttached = true;
   }
@@ -2374,6 +2446,61 @@ export class WorldScene {
     const driverSeat = boatRoot.getObjectByName("boat_skiff_driver_seat");
     if (!driverSeat) throw new Error("[WorldScene] Skiff is missing boat_skiff_driver_seat");
     this.boatDriverSeats.set(boatId, driverSeat);
+  }
+
+  private skiffMooringPreviewPose(): GameState["boats"][string] {
+    return {
+      id: SKIFF_MOORING_PREVIEW_ID,
+      boatTypeId: "boat.skiff",
+      x: HARBOR_SKIFF_MOORING.boatPosition.x,
+      y: HARBOR_SKIFF_MOORING.boatPosition.y,
+      z: HARBOR_SKIFF_MOORING.boatPosition.z,
+      headingRadians: 0,
+      speed: 0,
+      fuel: 0,
+      durability: 0,
+      fishCargoSlotIds: [],
+      supplyInventoryId: "",
+      upgrades: [],
+      isDocked: true,
+      dockedMarketId: HARBOR_SKIFF_MOORING.marketId
+    };
+  }
+
+  private ownedSkiffMeshReady(state: Readonly<GameState>): boolean {
+    return Boolean(state.boats["boat.player_skiff"] && this.boatMeshes.get("boat.player_skiff"));
+  }
+
+  private syncSkiffMooringPreview(state: Readonly<GameState>, timeSeconds: number): void {
+    const preview = this.skiffMooringPreview;
+    if (!preview) return;
+    if (this.ownedSkiffMeshReady(state)) {
+      preview.visible = false;
+      return;
+    }
+    preview.visible = true;
+    const pose = this.skiffMooringPreviewPose();
+    const presentation = this.sampleBoatPresentation(pose, state, timeSeconds);
+    preview.position.set(pose.x, pose.y + presentation.waveHeight, pose.z);
+    preview.rotation.set(presentation.pitch, pose.headingRadians, presentation.roll, "YXZ");
+    preview.updateMatrixWorld(true);
+  }
+
+  private async ensureSkiffMooringPreview(state: Readonly<GameState>): Promise<void> {
+    if (this.ownedSkiffMeshReady(state)) {
+      if (this.skiffMooringPreview) this.skiffMooringPreview.visible = false;
+      return;
+    }
+    if (this.skiffMooringPreview) {
+      this.skiffMooringPreview.visible = true;
+      return;
+    }
+    const mesh = await AssetLoader.loadModel(ASSET_IDS.BOAT_SKIFF_A);
+    if (this.skiffMooringPreview || this.ownedSkiffMeshReady(state)) return;
+    mesh.name = "skiff_mooring_preview";
+    mesh.userData.dynamicPresentation = true;
+    this.scene.add(mesh);
+    this.skiffMooringPreview = mesh;
   }
 
   private setRowboatOarsHeld(rig: RowboatPresentationRig, held: boolean): void {
@@ -2480,14 +2607,17 @@ export class WorldScene {
       this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
     }
     for (const cloud of this.cloudMeshes) {
-      const orbitOffset = this.weatherMotion.cloudTravelMeters * motionScale / cloud.orbitRadius;
-      const orbitAngle = cloud.orbitAngle + orbitOffset;
-      cloud.object.position.set(
-        WATER_SURFACE.centerX + Math.cos(orbitAngle) * cloud.orbitRadius,
-        cloud.origin.y + Math.sin(timeSeconds * 0.035 + cloud.bobPhase) * 0.32 * motionScale,
-        WATER_SURFACE.centerZ + Math.sin(orbitAngle) * cloud.orbitRadius
+      const pose = sampleAmbientCloudPose(
+        cloud.placement,
+        timeSeconds,
+        motionScale,
+        this.weatherMotion.directionX,
+        this.weatherMotion.directionZ,
+        this.weatherMotion.effectiveWindSpeed
       );
-      cloud.object.rotation.y = cloud.baseRotationY + orbitOffset;
+      cloud.object.position.set(pose.x, pose.y, pose.z);
+      cloud.object.rotation.set(pose.rotationX, pose.rotationY, pose.rotationZ);
+      cloud.object.scale.setScalar(pose.scale);
     }
     this.updateFaunaMotion(timeSeconds, delta, motionScale);
     this.updateAmbientFlyers(timeSeconds, delta, motionScale);
@@ -2553,6 +2683,156 @@ export class WorldScene {
       actions,
       activeClip: idleAction ? "idle" : null
     });
+  }
+
+  private registerDonkeyPresentation(id: string, placementId: string, root: THREE.Group): void {
+    if (this.donkeyPresentation) {
+      throw new Error(`[WorldScene] Duplicate donkey presentation for ${id}`);
+    }
+    const riderSocket = root.getObjectByName(`${ASSET_IDS.FAUNA_DONKEY_A}_rider_socket`);
+    if (!riderSocket) {
+      throw new Error(`[WorldScene] Donkey is missing ${ASSET_IDS.FAUNA_DONKEY_A}_rider_socket`);
+    }
+    const clips = (root.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
+    const clipSpecs = ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)?.animationClips ?? [];
+    const mixer = clips.length > 0 ? new THREE.AnimationMixer(root) : null;
+    const actions = new Map<DonkeyAnimationClip, THREE.AnimationAction>();
+    if (mixer) {
+      for (const clipName of ["idle", "graze", "look", "walk", "trot", "mount", "dismount"] as const) {
+        const clip = clips.find((candidate) => candidate.name === clipName);
+        if (!clip) continue;
+        const spec = clipSpecs.find((candidate) => candidate.name === clipName);
+        const loop = spec?.loop ?? ["idle", "graze", "look", "walk", "trot"].includes(clipName);
+        const action = mixer.clipAction(clip);
+        action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+        action.clampWhenFinished = !loop;
+        actions.set(clipName, action);
+      }
+    }
+    const idleAction = actions.get("idle");
+    if (idleAction) {
+      idleAction.play();
+      idleAction.time = stablePresentationPhase(id) * idleAction.getClip().duration;
+    }
+    this.donkeyPresentation = {
+      id,
+      placementId,
+      root,
+      riderSocket,
+      mixer,
+      actions,
+      activeClip: idleAction ? "idle" : null,
+      attachedMountId: null,
+      originalPlayerParent: null,
+      transitionUntilSeconds: 0
+    };
+  }
+
+  private setDonkeyAnimation(donkey: DonkeyPresentation, clipName: DonkeyAnimationClip): void {
+    if (donkey.activeClip === clipName) return;
+    const next = donkey.actions.get(clipName) ?? donkey.actions.get("idle");
+    if (!next) return;
+    const resolvedClip = next === donkey.actions.get("idle") ? "idle" : clipName;
+    const previous = donkey.activeClip ? donkey.actions.get(donkey.activeClip) : undefined;
+    previous?.fadeOut(0.16);
+    next.reset().fadeIn(0.16).play();
+    donkey.activeClip = resolvedClip;
+  }
+
+  private syncDonkeyAnimationSpeed(
+    donkey: DonkeyPresentation,
+    speedMetersPerSecond: number
+  ): void {
+    const action = donkey.activeClip ? donkey.actions.get(donkey.activeClip) : undefined;
+    const clipSpec = donkey.activeClip
+      ? ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)?.animationClips?.find(
+          (clip) => clip.name === donkey.activeClip
+        )
+      : undefined;
+    const referenceSpeed = clipSpec?.referenceSpeedMetersPerSecond;
+    if (!action || !referenceSpeed) {
+      action?.setEffectiveTimeScale(1);
+      return;
+    }
+    action.setEffectiveTimeScale(
+      THREE.MathUtils.clamp(
+        Math.max(0.01, speedMetersPerSecond) / referenceSpeed,
+        CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMinimum,
+        CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMaximum
+      )
+    );
+  }
+
+  private attachPlayerToDonkey(donkey: DonkeyPresentation, mountId: string, timeSeconds: number): void {
+    if (!this.playerMesh || donkey.attachedMountId === mountId) return;
+    donkey.originalPlayerParent = this.playerMesh.parent ?? this.scene;
+    donkey.riderSocket.attach(this.playerMesh);
+    // The socket marks the saddle seat; the player root is offset to keep the
+    // seated pelvis and boots on that seat while preserving the simulation's
+    // ground-centred player pose.
+    this.playerMesh.position.set(0, DONKEY_RIDER_ROOT_OFFSET_Y, 0);
+    this.playerMesh.rotation.set(0, 0, 0);
+    donkey.attachedMountId = mountId;
+    donkey.transitionUntilSeconds = timeSeconds + 0.8;
+    this.setDonkeyAnimation(donkey, "mount");
+  }
+
+  private detachPlayerFromDonkey(): void {
+    const donkey = this.donkeyPresentation;
+    if (!donkey || !this.playerMesh || donkey.attachedMountId === null) return;
+    const parent = donkey.originalPlayerParent ?? this.scene;
+    parent.attach(this.playerMesh);
+    donkey.originalPlayerParent = null;
+    donkey.attachedMountId = null;
+  }
+
+  private updateDonkeyPresentation(
+    state: Readonly<GameState>,
+    playerPose: PresentedPlayerFrame,
+    timeSeconds: number,
+    delta: number
+  ): void {
+    const donkey = this.donkeyPresentation;
+    if (!donkey) return;
+    const mount = state.mounts[donkey.id];
+    if (!mount) return;
+    donkey.root.position.set(mount.x, mount.y, mount.z);
+    donkey.root.rotation.set(0, mount.rotationY, 0);
+    const activeMountId = state.player.activeMountId;
+    const isMounted = activeMountId === donkey.id;
+    if (isMounted && this.playerMesh) {
+      this.attachPlayerToDonkey(donkey, donkey.id, timeSeconds);
+      if (timeSeconds >= donkey.transitionUntilSeconds) {
+        const gait = playerPose.motion?.requestedGait === "trot" ? "trot" : "walk";
+        this.setDonkeyAnimation(
+          donkey,
+          playerPose.motion?.speedMetersPerSecond > 0.1 && !playerPose.motion.isCollisionBlocked ? gait : "idle"
+        );
+      }
+    } else {
+      if (donkey.attachedMountId !== null) {
+        this.detachPlayerFromDonkey();
+        donkey.transitionUntilSeconds = timeSeconds + 0.8;
+        this.setDonkeyAnimation(donkey, "dismount");
+      } else if (timeSeconds >= donkey.transitionUntilSeconds) {
+        const cycle = (timeSeconds + stablePresentationPhase(donkey.id) * 9.0) % 12;
+        const desired: DonkeyAnimationClip = this.prefersReducedMotion
+          ? "idle"
+          : cycle < 5.0 ? "idle" : cycle < 8.6 ? "graze" : cycle < 10.1 ? "look" : "idle";
+        this.setDonkeyAnimation(donkey, desired);
+      }
+    }
+    if (donkey.mixer) {
+      this.syncDonkeyAnimationSpeed(
+        donkey,
+        isMounted ? playerPose.motion?.speedMetersPerSecond ?? 0 : 0
+      );
+      donkey.mixer.timeScale = this.prefersReducedMotion
+        ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+        : 1;
+      donkey.mixer.update(delta);
+    }
+    donkey.root.updateMatrixWorld(true);
   }
 
   private setFaunaAnimation(fauna: FaunaPresentation, clipName: FaunaAnimationClip): void {
@@ -2766,6 +3046,11 @@ export class WorldScene {
       ? THREE.MathUtils.clamp(timeSeconds - this.lastPresentationTime, 0.001, 0.1)
       : 1 / 60;
 
+    if (state.sportFishing) {
+      sampleSportFishingPresentation(state.sportFishing, playerPose.x, playerPose.z, playerPose.rotationY,
+        this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1,
+        this.sportFishingPresentation);
+    }
     const waterConditions = this.waterConditions(state);
     this.water.update(timeSeconds, waterConditions);
     this.shoreFoam.update(timeSeconds, waterConditions);
@@ -2786,6 +3071,8 @@ export class WorldScene {
       bMesh.updateMatrixWorld(true);
       this.updateBoatWake(boatId, boatState, timeSeconds, waterConditions);
     }
+    this.syncSkiffMooringPreview(state, timeSeconds);
+    this.updateDonkeyPresentation(state, playerPose, timeSeconds, delta);
 
     if (this.playerMesh) {
       const presentationMode = state.sportFishing
@@ -2795,7 +3082,9 @@ export class WorldScene {
           ? "basic-fishing"
           : state.player.activeBoatId
             ? "boat-driving"
-            : "on-foot";
+            : state.player.activeMountId
+              ? "mounted"
+              : "on-foot";
       const activeBoat = state.player.activeBoatId
         ? state.boats[state.player.activeBoatId]
         : undefined;
@@ -2818,9 +3107,12 @@ export class WorldScene {
           carrying: Boolean(state.player.carriedFishCargoId) || timeSeconds < this.cosmeticCropCarryUntilSeconds,
           fishingInput: state.sportFishing
             ? {
-                isReeling: state.sportFishing.isReeling,
+                isReeling: this.sportFishingPresentation.retrievalMetersPerSecond > 0.03,
                 isSlacking: state.sportFishing.isSlacking,
-                isBracing: state.sportFishing.isBracing
+                isBracing: state.sportFishing.isBracing,
+                rodDirectionAngle: state.sportFishing.dynamics?.rodDirection ?? state.sportFishing.rodDirectionAngle,
+                loadRatio: this.sportFishingPresentation.loadRatio,
+                retrievalMetersPerSecond: this.sportFishingPresentation.retrievalMetersPerSecond
               }
             : undefined,
           boatInput: resolvedBoatInput
@@ -2838,12 +3130,18 @@ export class WorldScene {
         events: []
       };
       this.playerAnimationEvents.push(...motion.events);
-      this.updateFarmingProps(motion.clip, timeSeconds);
+      if (presentationMode === "mounted") this.hideFarmingProps();
+      else this.updateFarmingProps(motion.clip, timeSeconds);
       const boatPresentation = activeBoat
         ? this.sampleBoatPresentation(activeBoat, state, timeSeconds)
         : null;
       const driverSeat = activeBoat ? this.boatDriverSeats.get(activeBoat.id) : undefined;
-      if (driverSeat) {
+      const attachedToDonkey = state.player.activeMountId !== null
+        && this.donkeyPresentation?.attachedMountId === state.player.activeMountId;
+      if (attachedToDonkey) {
+        this.playerMesh.position.set(0, DONKEY_RIDER_ROOT_OFFSET_Y, 0);
+        this.playerMesh.rotation.set(motion.leanX, 0, motion.leanZ, "YXZ");
+      } else if (driverSeat) {
         driverSeat.getWorldPosition(this.tempBoatSeatVec);
         this.playerMesh.position.set(
           this.tempBoatSeatVec.x,
@@ -2857,12 +3155,17 @@ export class WorldScene {
           playerPose.z
         );
       }
-      this.playerMesh.rotation.set(
-        motion.leanX + motion.groundPitch + (boatPresentation?.pitch ?? 0),
-        playerPose.rotationY,
-        motion.leanZ + motion.groundRoll + (boatPresentation?.roll ?? 0),
-        "YXZ"
-      );
+      if (!attachedToDonkey) {
+        this.playerMesh.rotation.set(
+          motion.leanX + motion.groundPitch + (boatPresentation?.pitch ?? 0),
+          state.sportFishing
+            ? Math.atan2(this.sportFishingPresentation.endpointX - playerPose.x,
+                this.sportFishingPresentation.endpointZ - playerPose.z)
+            : playerPose.rotationY,
+          motion.leanZ + motion.groundRoll + (boatPresentation?.roll ?? 0),
+          "YXZ"
+        );
+      }
       this.playerMesh.updateMatrixWorld(true);
       const holdingOars = presentationMode === "boat-driving"
         && activeBoat?.boatTypeId === "boat.rowboat";
@@ -2872,7 +3175,7 @@ export class WorldScene {
       }
       this.lastPresentationTime = timeSeconds;
       if (this.playerContactShadow) {
-        this.playerContactShadow.visible = !state.player.activeBoatId;
+        this.playerContactShadow.visible = !state.player.activeBoatId && !state.player.activeMountId;
         this.playerContactShadow.position.set(
           playerPose.x,
           WorldLayout.terrainHeight(playerPose.x, playerPose.z) + 0.025,
@@ -2932,7 +3235,6 @@ export class WorldScene {
     // turn and authored gesture; closing it restores the catalog heading.
     // Station beats stay inside 1.2 m of the anchor so talk radius is unchanged.
     for (const npc of this.npcPresentations.values()) {
-      npc.mixer.update(delta);
       if (this.layoutEditLockedObject === npc.model) continue;
       const dx = playerPose.x - npc.anchor.x;
       const dz = playerPose.z - npc.anchor.z;
@@ -2958,25 +3260,21 @@ export class WorldScene {
         isDialogueTarget ? 9.5 : beatSample.walking ? 8.2 : 5.5,
         delta
       );
-      const isTurning = Math.abs(turnDifference) > 0.1 && !beatSample.walking;
-      const walkAction = npc.actions.get("walk");
-      if (walkAction) {
-        const playback = THREE.MathUtils.clamp(
-          (beat?.walkSpeedMetersPerSecond ?? 1.45) / 3.2,
-          CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMinimum,
-          CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMaximum
-        );
-        walkAction.setEffectiveTimeScale(playback);
-      }
-      this.setNpcAnimation(
-        npc,
-        isTurning
-          ? turnDifference < 0 ? "turn_left" : "turn_right"
-          : isDialogueTarget
-            ? "talk_gesture"
-            : beatSample.walking
-              ? "walk"
-              : "idle"
+      const walkSpeed = beatSample.walking ? (beat?.walkSpeedMetersPerSecond ?? 1.45) : 0;
+      npc.animator.update(
+        delta,
+        {
+          mode: "on-foot",
+          carrying: false,
+          talking: isDialogueTarget,
+          facingRadians: npc.model.rotation.y,
+          motion: npcPresentationMotion({
+            speedMetersPerSecond: walkSpeed,
+            turnRateRadiansPerSecond: isDialogueTarget ? 0 : turnDifference / Math.max(delta, 1 / 60),
+            requestedGait: beatSample.walking ? "walk" : "idle"
+          })
+        },
+        this.prefersReducedMotion
       );
       if (npc.headBone) {
         if (isDialogueTarget || distSq < 20.0) {
@@ -3048,7 +3346,7 @@ export class WorldScene {
     }
     const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
     const lineMat = new THREE.LineBasicMaterial({
-      color: 0xf8fafc,
+      color: PALETTE_HEX.foam_warm_01,
       transparent: true,
       opacity: 0.85
     });
@@ -3069,12 +3367,21 @@ export class WorldScene {
     const rodBaseQuaternion = rodProp?.userData.socketBaseQuaternion as THREE.Quaternion | undefined;
     if (rodProp && rodBaseQuaternion) rodProp.quaternion.copy(rodBaseQuaternion);
 
+    if (!sport) this.fishingRodBend?.update(0, this.fishingEndpointWorld);
+
     if (!basic && !sport) {
       this.fishingBobberGroup.visible = false;
       if (this.fishingLineMesh) this.fishingLineMesh.visible = false;
       if (this.hookedFishModel) this.hookedFishModel.visible = false;
       this.lastBasicFishingPhase = null;
+      this.sportFishingCameraHint = null;
+      this.lastFishingInstanceId = null;
       return;
+    }
+
+    if (!sport) {
+      this.sportFishingCameraHint = null;
+      this.lastFishingInstanceId = null;
     }
 
     const angle = playerPose.rotationY;
@@ -3138,27 +3445,27 @@ export class WorldScene {
       if (this.hookedFishModel) this.hookedFishModel.visible = false;
     } else if (sport) {
       this.lastBasicFishingPhase = null;
-      const secondaryScale = this.prefersReducedMotion
-        ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
-        : 1;
-      const presentation = sampleSportFishingPresentation(
-        sport,
-        playerPose.x,
-        playerPose.z,
-        angle,
-        secondaryScale,
-        this.sportFishingPresentation
-      );
+      const presentation = this.sportFishingPresentation;
       endpointX = presentation.endpointX;
       endpointZ = presentation.endpointZ;
       endpointY = this.water.sample(endpointX, endpointZ, timeSeconds).height - presentation.depthMeters;
+      this.sportFishingCameraHint = {
+        lookHint: { x: endpointX, y: endpointY, z: endpointZ },
+        fightReachMeters: sport.distanceMeters,
+        lineTension: sport.lineTension,
+        snapTimerSeconds: sport.snapTimerSeconds,
+        fightBehavior: sport.behavior
+      };
       lineSag = presentation.lineSagMeters;
       lineCurve = presentation.rodTwistRadians * Math.min(4, sport.distanceMeters * 0.18);
       surfaceStrength = presentation.surfaceStrength;
       this.fishingBobberBody.visible = false;
-      if (rodProp) {
-        rodProp.rotateX(-presentation.rodBendRadians);
-        rodProp.rotateZ(presentation.rodTwistRadians);
+      this.fishingEndpointWorld.set(endpointX, endpointY, endpointZ);
+      this.fishingRodBend?.update(presentation.rodBendRadians, this.fishingEndpointWorld,
+        presentation.retrievalMetersPerSecond, presentation.elapsedSeconds);
+      if (this.fishingRodBend && this.playerAnimation) {
+        this.fishingRodBend.getGripWorld(this.tempRodTipVec);
+        this.playerAnimation.alignFishingGrip(this.tempRodTipVec);
       }
       if (this.hookedFishPresentation) {
         const fishClip: FishAnimationClip = sport.behavior === "burst"
@@ -3171,14 +3478,15 @@ export class WorldScene {
         this.updateFishAnimation(
           this.hookedFishPresentation,
           fishClip,
-          THREE.MathUtils.clamp(timeSeconds - this.lastHookedFishUpdateSeconds, 0, 0.1),
-          timeSeconds
+          THREE.MathUtils.clamp(sport.elapsedSeconds - this.lastHookedFishUpdateSeconds, 0, 0.1),
+          sport.elapsedSeconds
         );
-        this.lastHookedFishUpdateSeconds = timeSeconds;
+        this.lastHookedFishUpdateSeconds = sport.elapsedSeconds;
       }
       if (this.hookedFishModel) {
         this.hookedFishModel.visible = true;
         this.hookedFishModel.position.set(endpointX, endpointY, endpointZ);
+        this.hookedFishModel.scale.setScalar(0.82 * presentation.fishScale);
         this.hookedFishModel.rotation.set(
           presentation.fishPitchRadians,
           presentation.fishYawRadians,
@@ -3189,6 +3497,23 @@ export class WorldScene {
     }
 
     const waterHeight = this.water.sample(endpointX, endpointZ, timeSeconds).height;
+    if (sport) {
+      const presentation = this.sportFishingPresentation;
+      const sameFish = this.lastFishingInstanceId === sport.fish.instanceId;
+      const crossed = sameFish && presentation.surfaceCrossings !== this.lastFishingSurfaceCrossings;
+      const nearSurface = Math.abs(presentation.depthMeters) < 0.3;
+      const advanced = sport.elapsedSeconds > this.lastFishingSampleElapsed;
+      if ((crossed || (advanced && nearSurface && surfaceStrength > 0.45))
+        && timeSeconds - this.lastSportFishingSplashAtSeconds >= (crossed ? 0.12 : 0.65)) {
+        this.farmVfx.spawn("water", { x: endpointX, y: waterHeight + 0.016, z: endpointZ }, timeSeconds,
+          { origin: { x: endpointX, y: waterHeight + 0.2, z: endpointZ }, reducedMotion: this.prefersReducedMotion });
+        this.lastSportFishingSplashAtSeconds = timeSeconds;
+      }
+      this.lastFishingInstanceId = sport.fish.instanceId;
+      this.lastFishingSurfaceCrossings = presentation.surfaceCrossings;
+      this.lastFishingSampleElapsed = sport.elapsedSeconds;
+    }
+
     this.fishingBobberGroup.position.set(endpointX, basic ? endpointY : waterHeight + 0.012, endpointZ);
     this.fishingBobberGroup.visible = lineVisible;
     if (this.fishingBobberRipple) {
@@ -3204,6 +3529,22 @@ export class WorldScene {
     }
 
     if (!this.fishingLineMesh) return;
+    const lineMaterial = this.fishingLineMesh.material as THREE.LineBasicMaterial;
+    if (sport) {
+      const tensionRatio = THREE.MathUtils.clamp(sport.lineTension / 100, 0, 1);
+      lineMaterial.opacity = THREE.MathUtils.lerp(0.62, 0.96, tensionRatio);
+      lineMaterial.linewidth = THREE.MathUtils.lerp(1.15, 1.85, tensionRatio);
+    } else {
+      lineMaterial.opacity = 0.85;
+      lineMaterial.linewidth = 1;
+    }
+    if (sport && this.hookedFishModel && this.fishingMouthNode) {
+      this.hookedFishModel.updateMatrixWorld(true);
+      this.fishingMouthNode.localToWorld(this.fishingEndpointWorld.copy(this.fishingMouthLocal));
+      endpointX = this.fishingEndpointWorld.x;
+      endpointY = this.fishingEndpointWorld.y;
+      endpointZ = this.fishingEndpointWorld.z;
+    }
     let rodTipX = playerPose.x + forwardX * 1.6 + rightX * 0.3;
     let rodTipY = playerPose.y + 0.95;
     let rodTipZ = playerPose.z + forwardZ * 1.6 + rightZ * 0.3;
@@ -3212,7 +3553,8 @@ export class WorldScene {
       const tipObj = rodProp.getObjectByName("rod_guide_tiptop")
         ?? rodProp.getObjectByName("rod_tiptop_sleeve");
       if (tipObj) {
-        tipObj.getWorldPosition(this.tempRodTipVec);
+        if (sport && this.fishingRodBend) this.fishingRodBend.getTipWorld(this.tempRodTipVec);
+        else tipObj.getWorldPosition(this.tempRodTipVec);
         rodTipX = this.tempRodTipVec.x;
         rodTipY = this.tempRodTipVec.y;
         rodTipZ = this.tempRodTipVec.z;
@@ -3345,9 +3687,10 @@ export class WorldScene {
       const mesh = await AssetLoader.loadModel(ASSET_IDS.CHAR_PLAYER_A);
       if (!this.playerMesh) {
         this.setShadowPolicy(mesh, CANONICAL_RENDER_CONFIG.shadows.castPlayer);
+        this.attachCharacterShadowProxy(mesh);
         this.batchPlayerRigidMeshes(mesh);
         this.playerMesh = mesh;
-        this.playerAnimation = new AnimationController(mesh);
+        this.playerAnimation = new HumanoidAnimator(mesh);
         this.scene.add(this.playerMesh);
         await this.attachFarmingProps(mesh);
       }
@@ -3381,6 +3724,8 @@ export class WorldScene {
       }
     }
 
+    await this.ensureSkiffMooringPreview(state);
+
     await this.cropInstances.ensureAssets(state);
 
     const sportFishAssetId = state.sportFishing
@@ -3403,13 +3748,20 @@ export class WorldScene {
         this.setShadowPolicy(hookedFish, false);
         this.scene.add(hookedFish);
         this.hookedFishModel = hookedFish;
+        const speciesKey = currentSpeciesId?.replace("fish.", "");
+        const body = hookedFish.getObjectByName(`${speciesKey}_body`) ?? hookedFish;
+        const bodyBounds = new THREE.Box3().setFromObject(body);
+        bodyBounds.getCenter(this.fishingMouthLocal);
+        this.fishingMouthLocal.z = bodyBounds.max.z;
+        this.fishingMouthNode = body;
+        body.worldToLocal(this.fishingMouthLocal);
         this.hookedFishAssetId = sportFishAssetId;
         this.hookedFishPresentation = this.createFishPresentationMember(
           hookedFish,
           sportFishAssetId,
           stablePresentationPhase(`hooked:${currentSpeciesId}`)
         );
-        this.lastHookedFishUpdateSeconds = timeSeconds;
+        this.lastHookedFishUpdateSeconds = sim.getState().sportFishing?.elapsedSeconds ?? 0;
       }
     }
 
@@ -3517,6 +3869,11 @@ export class WorldScene {
    * geometry with AssetLoader and are only detached, not disposed.
    */
   public dispose(): void {
+    this.detachPlayerFromDonkey();
+    this.donkeyPresentation?.mixer?.stopAllAction();
+    this.donkeyPresentation = null;
+    this.fishingRodBend?.dispose();
+    this.fishingRodBend = null;
     this.cropInstances.dispose();
     this.groundCover.dispose();
     this.farmVfx.dispose();
@@ -3533,15 +3890,19 @@ export class WorldScene {
     this.rendererPipeline.dispose();
     this.terrainSurfaceMaterial.dispose();
     this.roadSurfaceMaterial.dispose();
+    this.cultivatedSurfaceMaterial.dispose();
 
     for (const group of this.schoolEffects.values()) {
       group.removeFromParent();
     }
     this.schoolEffects.clear();
+    this.cloudMeshes.length = 0;
     this.hookedFishModel?.removeFromParent();
     this.hookedFishModel = null;
     this.hookedFishAssetId = null;
     this.hookedFishPresentation = null;
+    this.skiffMooringPreview?.removeFromParent();
+    this.skiffMooringPreview = null;
 
     if (this.terrainMesh) {
       this.terrainMesh.removeFromParent();
@@ -3638,6 +3999,9 @@ export class WorldScene {
         if (object instanceof THREE.BatchedMesh) batches.add(object);
       });
     }
+    this.skiffMooringPreview?.traverse((object) => {
+      if (object instanceof THREE.BatchedMesh) batches.add(object);
+    });
     for (const batch of batches) {
       batch.removeFromParent();
       batch.dispose();

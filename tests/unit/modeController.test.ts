@@ -46,6 +46,17 @@ describe("ModeController", () => {
     expect(modes.pausesSimulation).toBe(false);
   });
 
+  it("restores mounted mode from the active mount authority", () => {
+    const state = createInitialGameState();
+    state.player.activeMountId = "mount.donkey_starter";
+    const modes = new ModeController("boat-driving");
+
+    modes.restoreFromState(state);
+
+    expect(modes.mode).toBe("mounted");
+    expect(modes.activeModal).toBeNull();
+  });
+
   it("treats sport-fishing like basic-fishing for overlay and tool blocking", () => {
     const sportState = createInitialGameState();
     sportState.sportFishing = { result: "active" } as (typeof sportState)["sportFishing"];

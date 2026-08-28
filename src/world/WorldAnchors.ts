@@ -36,7 +36,10 @@ export const HARBOR_MARKET = {
 
 export const HARBOR_DOCK = {
   marketId: "market.harbor",
-  boatPosition: { x: 81, y: 0, z: 72 },
+  // After landmark yaw π/2, catalog pile half-extent Z becomes world X.
+  // Keep the hull east of that water-side face so Rapier never starts the
+  // rowboat overlapping pilings (a toi=0 start freezes every boat cast).
+  boatPosition: { x: 82.4, y: 0, z: 72 },
   // Keep the disembark/boarding point on the authored pier and within the
   // interaction envelope of the current dock landmark.
   playerPosition: { x: 76, z: 66 },

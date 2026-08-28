@@ -16,6 +16,7 @@ export class CargoDomain {
 
   public landCaughtFish(fish: FishInstance): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const speciesDef = ContentRegistry.fishSpecies.get(fish.speciesId);
     if (!speciesDef) return { success: false, reason: "Unknown fish species" };
     const location = this.findLandingLocation(speciesDef.cargoClass);
@@ -75,6 +76,7 @@ export class CargoDomain {
 
   public discard(cargoId: FishCargoId): { success: boolean; scraps?: number; reason?: string } {
     const { state } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const cargo = state.fishCargo[cargoId];
     if (!cargo) return { success: false, reason: "Fish cargo not found" };
     if (!this.navigation.canAccessFishCargo(cargo)) {

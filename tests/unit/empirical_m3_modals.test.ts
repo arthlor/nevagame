@@ -77,7 +77,8 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(html).toContain("Harbor Fish Market &amp; Wholesaler");
     expect(html).toContain("Crushed Ice");
     expect(html).toContain("Docked Fish");
-    expect(html).toContain("Market Intelligence");
+    expect(html).toContain("Harbor Supplies");
+    expect(html).not.toContain("Market Intelligence");
   });
 
   it("sells from owned satchel rows only and opens a quantity ticket", () => {

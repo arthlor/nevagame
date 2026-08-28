@@ -1,7 +1,8 @@
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
-import { GameState } from "../simulation/core/types";
+import { GameState, FishingEncounterState } from "../simulation/core/types";
+import { createFishingDynamics, findFishingWater, FISHING_TUNING } from "../simulation/fishing/FishingTuning";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { STARTER_STRUCTURE_IDS, starterStructureAnchor } from "../world/FarmLayout";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE } from "../world/WorldAnchors";
@@ -9,6 +10,7 @@ import { WorldLayout } from "../world/WorldLayout";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
 import { DEFAULT_MINUTES_PER_REAL_SECOND, seasonAtMinute } from "../simulation/core/GameClock";
+import { createStarterDonkeyState, STARTER_DONKEY_ID } from "../simulation/mounts/Mounts";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -683,6 +685,40 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
         structures: migratedStructures
       }
     };
+  },
+  18: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const mounts = previous.mounts && typeof previous.mounts === "object" && !Array.isArray(previous.mounts)
+      ? { ...(previous.mounts as Record<string, unknown>) }
+      : {};
+    if (!mounts[STARTER_DONKEY_ID]) mounts[STARTER_DONKEY_ID] = createStarterDonkeyState();
+    return {
+      ...previous,
+      schemaVersion: 18,
+      player: { ...player, activeMountId: null },
+      mounts
+    };
+  },
+  19: (state: unknown) => {
+    const previous = state as GameState;
+    const old = previous.sportFishing;
+    let sportFishing = old;
+    if (old) {
+      const fish: FishingEncounterState = { ...old };
+      const player = previous.player;
+      const school = old.schoolId ? previous.world.activeSchools[old.schoolId] : undefined;
+      const bearing = school ? Math.atan2(school.x - player.x, school.z - player.z) : player.rotationY;
+      const water = findFishingWater(player.x, player.z, bearing, Math.min(old.distanceMeters, FISHING_TUNING.maximumDistance),
+        (x, z) => WorldLayout.isSailable(x, z));
+      // Old saves had no fish position. Preserve resources and progress, shortening only
+      // an unreachable legacy line so its new endpoint cannot start on land.
+      if (water) fish.distanceMeters = water.distance;
+      fish.dynamics = createFishingDynamics(fish, player.x, player.z, water?.bearing ?? bearing,
+        previous.metadata.rngState ?? previous.worldSeed);
+      sportFishing = fish;
+    }
+    return { ...previous, schemaVersion: 19, sportFishing };
   }
 };
 

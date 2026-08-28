@@ -16,7 +16,9 @@ import {
   groundCoverSwaysInWind,
   groundCoverWindPhase,
   groundCoverWindStrength,
-  GROUND_COVER_WIND_AMPLITUDE
+  GROUND_COVER_WIND_AMPLITUDE,
+  GROUND_COVER_WIND_ROOT_LOCK,
+  GROUND_COVER_WIND_ROOT_RELEASE
 } from "./groundCoverWind";
 import {
   groundCoverIndexListsEqual,
@@ -51,6 +53,12 @@ interface GroundCoverWindUniforms {
   uWindStrength: { value: number };
   uSwayAmplitude: { value: number };
   uMotionScale: { value: number };
+}
+
+interface SourceMeshData {
+  geometry: THREE.BufferGeometry;
+  material: THREE.Material;
+  relative: THREE.Matrix4;
 }
 
 const VISIBILITY_REFRESH_DISTANCE_METERS = 0.55;
@@ -107,6 +115,7 @@ function patchGroundCoverWind(
         "#include <common>",
         `#include <common>
 attribute float instancePhase;
+attribute float windHeight;
 uniform float uTime;
 uniform vec2 uWindDir;
 uniform float uWindStrength;
@@ -117,11 +126,17 @@ uniform float uMotionScale;`
         "#include <begin_vertex>",
         `#include <begin_vertex>
 {
-  float heightFactor = clamp(transformed.y * 2.8, 0.0, 1.15);
+  float rootedHeight = clamp(windHeight, 0.0, 1.0);
+  float rootWeight = pow(smoothstep(${GROUND_COVER_WIND_ROOT_LOCK.toFixed(3)}, ${GROUND_COVER_WIND_ROOT_RELEASE.toFixed(3)}, rootedHeight), 1.35);
   float wave = sin(uTime * (1.12 + instancePhase * 0.38) + instancePhase * 6.283185);
   float gust = sin(uTime * 0.37 + instancePhase * 4.1);
-  float sway = heightFactor * uSwayAmplitude * uWindStrength * uMotionScale;
-  transformed.xz += uWindDir * sway * (0.72 * wave + 0.28 * gust);
+  float sway = uSwayAmplitude * uWindStrength * uMotionScale;
+  vec2 windDirection = normalize(uWindDir + vec2(0.0001, 0.0001));
+  float bend = sway * rootWeight * (0.72 * wave + 0.28 * gust);
+  transformed.xz += windDirection * bend;
+  vec2 crossWind = vec2(-windDirection.y, windDirection.x);
+  transformed.xz += crossWind * sway * 0.10 * rootWeight * rootWeight
+    * sin(uTime * 1.72 + instancePhase * 9.0);
 }`
       );
     material.userData.nevaWindShader = shader;
@@ -189,7 +204,7 @@ export class GroundCoverRenderer {
       const source = await AssetLoader.loadModel(typedAssetId);
       source.updateMatrixWorld(true);
       const rootInverse = source.matrixWorld.clone().invert();
-      const sourceMeshes: Array<{ geometry: THREE.BufferGeometry; material: THREE.Material; relative: THREE.Matrix4 }> = [];
+      const sourceMeshes: SourceMeshData[] = [];
       source.traverse((object) => {
         if (!(object instanceof THREE.Mesh) || !object.visible || object.name.startsWith("COL_")) return;
         if (Array.isArray(object.material)) {
@@ -205,6 +220,7 @@ export class GroundCoverRenderer {
 
       const category = orderedPlacements[0].category;
       const sway = groundCoverSwaysInWind(category);
+      const windBounds = sway ? sourceHeightBounds(sourceMeshes) : null;
       const instances = orderedPlacements.map((placement) => {
         const position = new THREE.Vector3(
           placement.x,
@@ -227,6 +243,7 @@ export class GroundCoverRenderer {
           ? new THREE.InstancedBufferAttribute(new Float32Array(orderedPlacements.length), 1)
           : null;
         if (phaseAttribute) geometry.setAttribute("instancePhase", phaseAttribute);
+        if (windBounds) addWindHeightAttribute(geometry, sourceMesh.relative, windBounds);
         const mesh = new THREE.InstancedMesh(
           geometry,
           groundCoverMaterial(sourceMesh.material, category),
@@ -351,4 +368,40 @@ export class GroundCoverRenderer {
     }
     this.records.length = 0;
   }
+}
+
+function sourceHeightBounds(sourceMeshes: readonly SourceMeshData[]): { minY: number; maxY: number } {
+  const point = new THREE.Vector3();
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const sourceMesh of sourceMeshes) {
+    const position = sourceMesh.geometry.getAttribute("position");
+    if (!position) continue;
+    for (let vertexIndex = 0; vertexIndex < position.count; vertexIndex += 1) {
+      point.fromBufferAttribute(position, vertexIndex).applyMatrix4(sourceMesh.relative);
+      minY = Math.min(minY, point.y);
+      maxY = Math.max(maxY, point.y);
+    }
+  }
+  return {
+    minY: Number.isFinite(minY) ? minY : 0,
+    maxY: Number.isFinite(maxY) ? maxY : 1
+  };
+}
+
+function addWindHeightAttribute(
+  geometry: THREE.BufferGeometry,
+  relative: THREE.Matrix4,
+  bounds: { minY: number; maxY: number }
+): void {
+  const position = geometry.getAttribute("position");
+  if (!position) return;
+  const span = Math.max(0.001, bounds.maxY - bounds.minY);
+  const values = new Float32Array(position.count);
+  const point = new THREE.Vector3();
+  for (let vertexIndex = 0; vertexIndex < position.count; vertexIndex += 1) {
+    point.fromBufferAttribute(position, vertexIndex).applyMatrix4(relative);
+    values[vertexIndex] = THREE.MathUtils.clamp((point.y - bounds.minY) / span, 0, 1);
+  }
+  geometry.setAttribute("windHeight", new THREE.BufferAttribute(values, 1));
 }

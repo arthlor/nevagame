@@ -12,6 +12,7 @@ import type {
   FishingEncounterState,
   ItemId,
   MarketId,
+  MountId,
   PlacedCropId,
   ProcessingJobId,
   RecipeId
@@ -50,7 +51,8 @@ export type InteractionKind =
   | "station"
   | "market"
   | "fishing-habitat"
-  | "interior-door";
+  | "interior-door"
+  | "mount";
 
 export type InteractionAction =
   | "harvest"
@@ -58,6 +60,8 @@ export type InteractionAction =
   | "plant"
   | "fertilize"
   | "board"
+  | "mount"
+  | "dismount"
   | "dock"
   | "purchase-boat"
   | "chum"
@@ -90,6 +94,7 @@ export type CropPlacementReasonCode =
   | "overlaps-crop"
   | "structure-clearance"
   | "too-far"
+  | "mounted"
   | "locked"
   | "no-seed";
 
@@ -143,12 +148,27 @@ export interface CropInspectionDto {
   };
 }
 
+export interface ProcessingJobInspectionDto {
+  jobId: ProcessingJobId;
+  stationId: string;
+  recipeId: RecipeId;
+  recipeName: string;
+  outputName: string;
+  status: "active" | "complete";
+  remainingMinutes: number;
+  readyClockLabel: string;
+  waitBriefing: string;
+  startBriefing: string;
+}
+
 export type GameCommand =
   | { type: "physics.commit"; frame: ResolvedPhysicsFrame }
   | { type: "player.face-target"; x: number; z: number }
   | { type: "player.reset-safe" }
   | { type: "boat.board"; boatId: BoatId }
   | { type: "boat.dock" }
+  | { type: "mount.board"; mountId: MountId }
+  | { type: "mount.dismount" }
   | { type: "boat.purchase-skiff" }
   | { type: "crop.plant"; request: CropPlacementRequest }
   | { type: "crop.plant-near"; farmId: FarmId; cropId: string }
@@ -189,6 +209,7 @@ export type GameQuery =
   | { type: "boat.can-dock" }
   | { type: "crop.validate-placement"; request: CropPlacementRequest }
   | { type: "crop.inspect"; placedCropId: PlacedCropId }
+  | { type: "processing.inspect"; stationId: string }
   | { type: "crop.find-placement"; farmId: FarmId; cropId: string }
   | { type: "quest.get-active" }
   | { type: "npc.get-nearby" };
@@ -199,6 +220,7 @@ export type GameQueryResult =
   | boolean
   | CropPlacementResult
   | CropInspectionDto
+  | ProcessingJobInspectionDto
   | { success: boolean; x?: number; z?: number; reason?: string }
   | import("./QuestTypes").ActiveQuestDto
   | import("./QuestTypes").NpcId;

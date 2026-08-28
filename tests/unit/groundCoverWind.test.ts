@@ -4,6 +4,7 @@ import {
   GROUND_COVER_WIND_AMPLITUDE,
   groundCoverSwaysInWind,
   groundCoverWindPhase,
+  groundCoverWindRootWeight,
   groundCoverWindStrength
 } from "../../src/render/scene/groundCoverWind";
 import { createWeatherMotionSignal } from "../../src/render/motion/WeatherMotionSignal";
@@ -40,5 +41,15 @@ describe("groundCoverWind", () => {
     expect(groundCoverWindStrength(breeze)).toBeGreaterThan(groundCoverWindStrength(calm));
     expect(groundCoverWindStrength(gale)).toBeGreaterThan(groundCoverWindStrength(breeze));
     expect(Number.isFinite(groundCoverWindStrength(gale))).toBe(true);
+  });
+
+  it("locks planted bases and releases the tips smoothly", () => {
+    expect(groundCoverWindRootWeight(0)).toBe(0);
+    expect(groundCoverWindRootWeight(0.03)).toBe(0);
+    expect(groundCoverWindRootWeight(0.24)).toBe(1);
+    expect(groundCoverWindRootWeight(1)).toBe(1);
+    expect(groundCoverWindRootWeight(0.12)).toBeGreaterThan(0);
+    expect(groundCoverWindRootWeight(0.12)).toBeLessThan(1);
+    expect(groundCoverWindRootWeight(Number.NaN)).toBe(0);
   });
 });

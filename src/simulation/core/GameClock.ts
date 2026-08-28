@@ -7,6 +7,11 @@ export const HOURS_PER_DAY = 24;
 export const MINUTES_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR; // 1440
 export const DAYS_PER_SEASON = 30;
 export const SEASONS: SeasonId[] = ["spring", "summer", "autumn", "winter"];
+/** Clock phase windows. Lighting ramps to these same boundaries. */
+export const DAWN_START_HOUR = 4;
+export const DAY_START_HOUR = 8;
+export const DUSK_START_HOUR = 18;
+export const NIGHT_START_HOUR = 22;
 /** Live/offline cadence: 2.5 real seconds per game minute (~60 real minutes per day). */
 export const DEFAULT_MINUTES_PER_REAL_SECOND = 0.4;
 export const REST_WAKE_MINUTE_OF_DAY = 8 * MINUTES_PER_HOUR;
@@ -20,6 +25,24 @@ export function minutesUntilNextMorning(currentMinute: number): number {
   const minuteOfDay = ((currentMinute % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   if (minuteOfDay < REST_WAKE_MINUTE_OF_DAY) return REST_WAKE_MINUTE_OF_DAY - minuteOfDay;
   return MINUTES_PER_DAY - minuteOfDay + REST_WAKE_MINUTE_OF_DAY;
+}
+
+export function formatClockTime(currentMinute: number): string {
+  const minuteOfDay = ((currentMinute % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const hh = String(Math.floor(minuteOfDay / MINUTES_PER_HOUR)).padStart(2, "0");
+  const mm = String(minuteOfDay % MINUTES_PER_HOUR).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** Compact remaining-wait label for HUD prompts. Exact stored minutes, not a growth estimate. */
+export function formatGameDuration(minutes: number): string {
+  const total = Math.max(0, Math.ceil(minutes));
+  if (total <= 0) return "almost ready";
+  const hours = Math.floor(total / MINUTES_PER_HOUR);
+  const mins = total % MINUTES_PER_HOUR;
+  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${mins}m`;
 }
 
 export class GameClock {
@@ -123,11 +146,11 @@ export class GameClock {
     const minuteOfDay = totalMinutes % MINUTES_PER_DAY;
     const hourOfDay = Math.floor(minuteOfDay / MINUTES_PER_HOUR);
 
-    if (hourOfDay >= 4 && hourOfDay < 8) {
+    if (hourOfDay >= DAWN_START_HOUR && hourOfDay < DAY_START_HOUR) {
       this.state.timeOfDay = "dawn";
-    } else if (hourOfDay >= 8 && hourOfDay < 18) {
+    } else if (hourOfDay >= DAY_START_HOUR && hourOfDay < DUSK_START_HOUR) {
       this.state.timeOfDay = "day";
-    } else if (hourOfDay >= 18 && hourOfDay < 22) {
+    } else if (hourOfDay >= DUSK_START_HOUR && hourOfDay < NIGHT_START_HOUR) {
       this.state.timeOfDay = "dusk";
     } else {
       this.state.timeOfDay = "night";
@@ -151,9 +174,7 @@ export class GameClock {
   }
 
   public getFormattedTime(): string {
-    const hh = String(this.getHourOfDay()).padStart(2, "0");
-    const mm = String(this.getMinuteOfHour()).padStart(2, "0");
-    return `${hh}:${mm}`;
+    return formatClockTime(this.state.currentMinute);
   }
 
   public getFormattedDate(): string {

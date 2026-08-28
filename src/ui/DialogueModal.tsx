@@ -114,6 +114,10 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     setDialogueIndex((prev) => prev + 1);
   }, [currentPageText.length, isLastPage, isTyping, onClose]);
 
+  const handleSkipTalk = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   const handleNextRef = useRef(handleNext);
   handleNextRef.current = handleNext;
   useEffect(() => {
@@ -163,7 +167,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
           <ChromeClose onClick={onClose} label="Close dialogue" className="dialogue-close-btn" />
         </header>
 
-        <div className="dialogue-body">
+        <div className="dialogue-body" onClick={() => handleNext(true)}>
           <p className={`dialogue-text${isTyping ? " is-typing" : ""}`} data-testid="dialogue-text">
             "{visibleText}"
           </p>
@@ -174,7 +178,8 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
                   type="button"
                   key={i}
                   className={`dialogue-dot ${i === dialogueIndex ? "active" : ""}`}
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     playUiSound("page-turn");
                     setDialogueIndex(i);
                   }}
@@ -222,14 +227,24 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         <footer className="dialogue-footer">
           <span className="dialogue-key-hint">
             <ChromeKeycap keyName="Space" glow={isTyping} /> {isCompletion && isLastPage && !isTyping ? "Complete" : "Continue"}
+            <span className="dialogue-skip-hint"> · Esc skip talk</span>
           </span>
+          <ChromeButton
+            variant="ghost"
+            className="dialogue-skip-btn"
+            soundCue="click"
+            data-testid="dialogue-skip-talk"
+            onClick={handleSkipTalk}
+          >
+            Skip talk
+          </ChromeButton>
           <ChromeButton
             variant="primary"
             className="dialogue-action-btn"
             soundCue={isTyping ? "click" : isLastPage ? "confirm" : "page-turn"}
             onClick={() => handleNext(false)}
           >
-            {isTyping ? "Skip" : isLastPage ? (isCompletion ? "Complete" : "Continue") : "Next"}
+            {isTyping ? "Show all" : isLastPage ? (isCompletion ? "Complete" : "Continue") : "Next"}
           </ChromeButton>
         </footer>
       </ChromePanel>

@@ -28,6 +28,8 @@ export type ContractTemplateId = string;
 export type ContractId = string;
 export type BoatUpgradeId = string;
 export type NpcId = string;
+export type MountId = string;
+export type MountTypeId = "mount.donkey";
 
 
 export type GameMinute = number; // integer simulation minutes
@@ -58,6 +60,7 @@ export type GameMode =
   | "basic-fishing"
   | "sport-fishing"
   | "boat-driving"
+  | "mounted"
   | "menu"
   | "paused";
 
@@ -107,6 +110,7 @@ export interface PlayerState {
   equippedRodId: RodId;
   carriedFishCargoId?: FishCargoId | null;
   activeBoatId?: BoatId | null;
+  activeMountId: MountId | null;
   money: number;
   traversal: PlayerTraversalState;
   workCapacity: WorkCapacityState;
@@ -222,6 +226,15 @@ export interface BoatState {
   dockedMarketId: MarketId | null;
 }
 
+export interface MountState {
+  id: MountId;
+  mountTypeId: MountTypeId;
+  x: number;
+  y: number;
+  z: number;
+  rotationY: number;
+}
+
 export interface FishSchoolState {
   id: FishSchoolId;
   habitatId: string;
@@ -252,6 +265,26 @@ export type FishBehavior =
   | "burst"
   | "shake";
 
+export interface FishingDynamicsState {
+  originX: number;
+  originZ: number;
+  bearingRadians: number;
+  headingRadians: number;
+  radialVelocity: number;
+  angularVelocity: number;
+  depthMeters: number;
+  verticalVelocity: number;
+  lineLengthMeters: number;
+  rodDirection: number;
+  effort: number;
+  retrievalMetersPerSecond: number;
+  payoutMetersPerSecond: number;
+  behaviorDurationSeconds: number;
+  surfaceCrossings: number;
+  stepRemainderSeconds: number;
+  rngState: number;
+}
+
 export interface FishingEncounterState {
   fish: FishInstance;
   /** The school that owns this encounter, so a deferred landing survives reload. */
@@ -262,7 +295,9 @@ export interface FishingEncounterState {
   distanceMeters: number;
   lineTension: number; // 0..100
   lineIntegrity: number; // 0..100
-  fishDirection: number; // radians or relative
+  fishDirection: number; // continuous relative pull, -1..1
+  /** Required in schema v19 saves; optional for legacy in-memory callers. */
+  dynamics?: FishingDynamicsState;
   behavior: FishBehavior;
   behaviorUntilSeconds: number;
   elapsedSeconds: number;
@@ -450,6 +485,7 @@ export interface GameState {
   basicFishing: BasicFishingState | null;
   sportFishing: FishingEncounterState | null;
   boats: Record<BoatId, BoatState>;
+  mounts: Record<MountId, MountState>;
   fishCargo: Record<FishCargoId, FishCargoState>;
   weather: WeatherState;
   markets: Record<MarketId, MarketState>;

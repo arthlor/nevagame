@@ -2517,6 +2517,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .dialogue-body {
   padding: 20px 22px;
+  cursor: pointer;
 }
 
 .dialogue-text {

@@ -50,7 +50,7 @@ describe("Neva art catalog", () => {
       new Set(Object.values(ASSET_IDS))
     );
     const runtimeFields = [
-      "animationClips", "collision", "collisionPrimitives", "family", "file", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
+      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "family", "file", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
     ];
     for (const asset of ASSET_CATALOG) {
       expect(Object.keys(asset).sort()).toEqual(runtimeFields);
@@ -88,9 +88,13 @@ describe("Neva art catalog", () => {
     ) as typeof generatedManifest;
     const generatedCharacter = generatedManifest.assets.find((asset) => asset.id === "char_player_a");
     const publicCharacter = publicManifest.assets.find((asset) => asset.id === "char_player_a");
-    expect(generatedCharacter?.animationClips).toHaveLength(character.animationClips.length);
+    const expectedClips = [
+      ...character.animationClips,
+      ...(character.additionalAnimationClips ?? [])
+    ];
+    expect(generatedCharacter?.animationClips).toHaveLength(expectedClips.length);
     expect(publicCharacter?.animationClips).toEqual(generatedCharacter?.animationClips);
-    for (const clip of character.animationClips) {
+    for (const clip of expectedClips) {
       const packaged = generatedCharacter?.animationClips?.find((candidate) => candidate.name === clip.name);
       expect(packaged?.loop).toBe(clip.loop);
       expect(packaged?.referenceSpeedMetersPerSecond ?? null)

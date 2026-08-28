@@ -271,6 +271,8 @@ const PARAMETER_CONTRACTS = Object.freeze({
   wheat_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 24) },
   tomato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), plants: integer(0, 12) },
   potato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
+  turnip_crop: { leafCount: integer(4, 10) },
+  pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
   stylized_fish: {
     species: choice("trout", "tuna"),
     length: number(0.4, 5),
@@ -281,7 +283,13 @@ const PARAMETER_CONTRACTS = Object.freeze({
     radialSegments: integer(8, 18),
     tailPeduncle: number(0.10, 0.42),
   },
-  faceted_cloud: { clusters: integer(3, 12), width: number(2, 14) },
+  faceted_cloud: {
+    variant: choice("bank", "tower"),
+    clusters: integer(3, 16),
+    width: number(2, 16),
+    depth: number(1, 14),
+    height: number(1, 16)
+  },
   coastal_worker: { height: number(1.5, 2.4), headRatio: number(4.0, 7.0), handScale: number(0.8, 1.4) },
   npc_character: { role: choice("gardener", "handyman", "dockmaster", "merchant"), height: number(1.5, 2.4), headRatio: number(4.0, 7.0), handScale: number(0.8, 1.4) },
 
@@ -304,6 +312,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
   wagon_cart: { length: number(1.5, 5), width: number(1, 3), height: number(0.8, 3) },
   produce_crate: { size: number(0.4, 2), content: choice("pumpkins", "apples") },
   fauna_cow: { scale: number(0.5, 2), hornScale: number(0.5, 2) },
+  fauna_donkey: { scale: number(0.5, 2), earLength: number(0.7, 1.4), legLength: number(0.7, 1.3) },
   fauna_chicken: { scale: number(0.3, 1.5), combScale: number(0.5, 2) },
   fauna_rabbit: { scale: number(0.3, 1.2), earLength: number(0.6, 1.6) },
   fauna_gull: { scale: number(0.4, 1.4), wingSpan: number(0.6, 1.6) },
@@ -421,12 +430,21 @@ const REQUIRED_NPC_CLIPS = [
   "idle",
   "talk_gesture",
   "walk",
+  "carry_idle",
   "turn_left",
   "turn_right",
 ];
 
+function animationContractClips(asset) {
+  return [
+    ...(asset.animationClips ?? []),
+    ...(asset.additionalAnimationClips ?? []),
+  ];
+}
+
 function validateAnimationContract(asset) {
-  if (!asset.animationClips?.length) return true;
+  const animationClips = animationContractClips(asset);
+  if (!animationClips.length) return true;
   if (asset.family === "character") {
     if (!asset.requiredNodes.includes(asset.rigNode)) {
       throw new Error(`${asset.id}: requiredNodes must include rigNode ${asset.rigNode}`);
@@ -438,7 +456,7 @@ function validateAnimationContract(asset) {
     }
   }
   const clips = new Map();
-  for (const clip of asset.animationClips ?? []) {
+  for (const clip of animationClips) {
     if (clips.has(clip.name)) throw new Error(`${asset.id}: duplicate animation clip ${clip.name}`);
     if (clip.durationSeconds <= 0) throw new Error(`${asset.id}: ${clip.name} duration must be positive`);
     if (
@@ -935,6 +953,7 @@ async function semanticHash(bytes) {
 
 async function validateGlb(filename, spec, phase) {
   const bytes = fs.readFileSync(filename);
+  const animationClips = animationContractClips(spec);
   const report = await validateBytes(new Uint8Array(bytes), {
     uri: spec.file,
     externalResourceFunction: async () => new Uint8Array(),
@@ -947,7 +966,7 @@ async function validateGlb(filename, spec, phase) {
     if (
       issue.code === "NODE_SKINNED_MESH_NON_ROOT" &&
       spec.lodLevels?.length &&
-      spec.animationClips
+      animationClips.length
     ) {
       return false;
     }
@@ -963,7 +982,7 @@ async function validateGlb(filename, spec, phase) {
   const missing = spec.requiredNodes.filter((name) => !nodeNames.has(name));
   if (missing.length) throw new Error(`${spec.id}: optimized GLB lost required nodes: ${missing.join(", ")}`);
   const animationMetrics = [];
-  if (spec.animationClips) {
+  if (animationClips.length) {
     if (spec.family === "character") {
       const rigMatches = nodes.filter((node) => node.name === spec.rigNode);
       if (rigMatches.length !== 1) {
@@ -994,11 +1013,11 @@ async function validateGlb(filename, spec, phase) {
       }
     }
     const animationsByName = new Map((json.animations ?? []).map((animation) => [animation.name, animation]));
-    for (const clip of spec.animationClips) {
+    for (const clip of animationClips) {
       let animation = animationsByName.get(clip.name);
       let sourceClip = clip;
       if (!animation && clip.optional) {
-        sourceClip = spec.animationClips.find((candidate) => candidate.name === clip.fallbackClip);
+        sourceClip = animationClips.find((candidate) => candidate.name === clip.fallbackClip);
         animation = animationsByName.get(clip.fallbackClip);
       }
       if (!animation || !sourceClip) {
@@ -1785,6 +1804,7 @@ export {
   validateAnimationContract,
   validateLodContract,
   validateReferenceAuthoring,
+  optimizeAsset,
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === CLI_PATH) {

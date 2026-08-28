@@ -153,6 +153,7 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uFogColor;
   uniform float uFogNear;
   uniform float uFogFar;
+  uniform float uFogDistanceDesaturation;
   uniform float uPolygonCellScale;
   uniform float uPolygonColorVariation;
   uniform float uPolygonNormalStrength;
@@ -220,6 +221,8 @@ const fragmentShader = /* glsl */ `
 
     float cameraDistance = distance(cameraPosition, vWorldPosition);
     float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);
+    float waterLuma = dot(color, vec3(0.299, 0.587, 0.114));
+    color = mix(color, vec3(waterLuma), fogFactor * uFogDistanceDesaturation);
     color = mix(color, uFogColor, fogFactor * 0.82);
     outColor = vec4(color, 0.96);
   }
@@ -289,6 +292,7 @@ export class FacetedWater {
         uFogColor: { value: new THREE.Color(CANONICAL_RENDER_CONFIG.fog.colorHex) },
         uFogNear: { value: CANONICAL_RENDER_CONFIG.fog.near },
         uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far },
+        uFogDistanceDesaturation: { value: CANONICAL_RENDER_CONFIG.fog.distanceDesaturation },
         uPolygonCellScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonCellScaleMeters },
         uPolygonColorVariation: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonColorVariationStrength },
         uPolygonNormalStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonNormalStrength },
@@ -354,6 +358,7 @@ export class FacetedWater {
     (uniforms.uFogColor.value as THREE.Color).copy(frame.fogColor);
     uniforms.uFogNear.value = frame.fogNear;
     uniforms.uFogFar.value = frame.fogFar;
+    uniforms.uFogDistanceDesaturation.value = CANONICAL_RENDER_CONFIG.fog.distanceDesaturation;
   }
 
   public sample(x: number, z: number, timeSeconds: number): ReturnType<typeof WaterSurface.sample> {

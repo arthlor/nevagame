@@ -10,6 +10,7 @@ const modeFromState = (state: Readonly<GameState>): GameplayMode => {
   if (state.sportFishing) return "sport-fishing";
   if (state.basicFishing) return "basic-fishing";
   if (state.player.activeBoatId) return "boat-driving";
+  if (state.player.activeMountId) return "mounted";
   return "on-foot";
 };
 

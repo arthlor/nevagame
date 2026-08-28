@@ -71,8 +71,8 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
         as="div"
         className="neva-panel modal-content pause-modal"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

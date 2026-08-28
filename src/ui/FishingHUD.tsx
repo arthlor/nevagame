@@ -1,8 +1,9 @@
 // src/ui/FishingHUD.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { FishingEncounterState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
-import { IconFish, IconWarning } from "./components/HudIcons";
+import { FISHING_TUNING } from "../simulation/fishing/FishingTuning";
+import type { FishingEncounterState } from "../simulation/core/types";
+import { IconEnergy, IconFish, IconRod, IconWarning } from "./components/HudIcons";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForBehavior, atlasForFish } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeKeycap, ChromeMeter, ChromePanel, ChromeQuality } from "./chrome/Chrome";
@@ -23,20 +24,53 @@ interface FishingHoldState {
   isBracing: boolean;
 }
 
+interface FishingCue {
+  behavior: string;
+  key: string | null;
+  label: string;
+}
+
 const EMPTY_HOLD: FishingHoldState = {
   isReeling: false,
   isSlacking: false,
   isBracing: false
 };
 
+function cueForEncounter(encounter: FishingEncounterState): FishingCue {
+  switch (encounter.behavior) {
+    case "run-left":
+      return { behavior: "run", key: null, label: "Running left" };
+    case "run-right":
+      return { behavior: "run", key: null, label: "Running right" };
+    case "dive":
+      return { behavior: "dive", key: null, label: "Diving" };
+    case "burst":
+      return { behavior: "burst", key: null, label: "Surging" };
+    case "shake":
+      return { behavior: "shake", key: null, label: "Shaking the hook" };
+    case "surface":
+      return { behavior: "surface", key: null, label: "Fish is breaking the surface" };
+    default:
+      return { behavior: "tiring", key: null, label: "Recovering" };
+  }
+}
+
 export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput }) => {
-  const species = ContentRegistry.fishSpecies.get(encounter.fish.speciesId);
   const holdRef = useRef<FishingHoldState>(EMPTY_HOLD);
   const onSetInputRef = useRef(onSetInput);
   const encounterRef = useRef(encounter);
   const [heldActions, setHeldActions] = useState<FishingHoldState>(EMPTY_HOLD);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   onSetInputRef.current = onSetInput;
   encounterRef.current = encounter;
+
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const updatePointerMode = () => setIsCoarsePointer(media.matches);
+    updatePointerMode();
+    media.addEventListener?.("change", updatePointerMode);
+    return () => media.removeEventListener?.("change", updatePointerMode);
+  }, []);
 
   const emitHold = (patch: Partial<FishingHoldState>) => {
     holdRef.current = { ...holdRef.current, ...patch };
@@ -48,9 +82,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
   };
 
   const releaseAllHolds = () => {
-    if (!holdRef.current.isReeling && !holdRef.current.isSlacking && !holdRef.current.isBracing) {
-      return;
-    }
+    if (!holdRef.current.isReeling && !holdRef.current.isSlacking && !holdRef.current.isBracing) return;
     holdRef.current = EMPTY_HOLD;
     setHeldActions(EMPTY_HOLD);
     onSetInputRef.current({
@@ -74,48 +106,31 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
   }, []);
 
   const releaseAction = (action: keyof FishingHoldState) => emitHold({ [action]: false });
-  const staminaPercent = Math.max(0, Math.round((encounter.stamina / encounter.maxStamina) * 100));
+  const staminaPercent = encounter.maxStamina <= 0
+    ? 0
+    : Math.round((encounter.stamina / encounter.maxStamina) * 100);
   const tensionPercent = Math.min(100, Math.max(0, encounter.lineTension));
+  const integrityPercent = Math.min(100, Math.max(0, encounter.lineIntegrity));
+  const maxSafeTension = ContentRegistry.rods.get(encounter.rodId)?.maxSafeTension ?? 80;
+  const minimumTension = FISHING_TUNING.minimumLandingTension;
+  const tensionTone = tensionPercent < minimumTension ? "slack" : tensionPercent >= maxSafeTension ? "danger" : "safe";
+  const integrityTone = integrityPercent <= 20 ? "danger" : "safe";
+  const cue = cueForEncounter(encounter);
+  const direction = Math.max(-1, Math.min(1, encounter.fishDirection));
+  const directionMarker = 50 + direction * 35;
+  const rodMarker = 50 + (encounter.dynamics?.rodDirection ?? encounter.rodDirectionAngle) * 35;
+  const dangerCopy = tensionPercent < minimumTension
+    ? "Take up slack"
+    : tensionPercent >= maxSafeTension * 0.95 ? "Let line out" : null;
+  if (dangerCopy) {
+    cue.key = tensionPercent < minimumTension ? "W" : "S";
+    cue.label = dangerCopy;
+  }
   const activeActions = {
-    isReeling: encounter.isReeling || heldActions.isReeling,
+    isReeling: !encounter.isSlacking && !heldActions.isSlacking && (encounter.isReeling || heldActions.isReeling),
     isSlacking: encounter.isSlacking || heldActions.isSlacking,
     isBracing: encounter.isBracing || heldActions.isBracing
   };
-
-  const behaviorCue = (() => {
-    switch (encounter.behavior) {
-      case "run-left":
-        return { text: "Running Left — Lean Right", key: "D", tone: "caution", behavior: "run" };
-      case "run-right":
-        return { text: "Running Right — Lean Left", key: "A", tone: "caution", behavior: "run" };
-      case "dive":
-        return { text: "Diving Deep — Brace Rod", key: "Space", tone: "cool", behavior: "dive" };
-      case "surface":
-        return { text: "Surfacing — Keep Line Steady", key: null, tone: "cool", behavior: "surface" };
-      case "burst":
-        return { text: "Hard Run — Give Line Slack", key: "S", tone: "danger", behavior: "burst" };
-      case "shake":
-        return { text: "Thrashing — Ease Pressure", key: null, tone: "caution", behavior: "shake" };
-      default:
-        return { text: "Tiring Out — Reel In", key: "W / LMB", tone: "steady", behavior: "tiring" };
-    }
-  })();
-
-  const tensionTone =
-    tensionPercent < 15
-      ? "slack"
-      : tensionPercent >= 75
-        ? "danger"
-        : "safe";
-
-  const tensionCueText =
-    tensionPercent < 15
-      ? "Line Slack — Reel in to tighten"
-      : tensionPercent >= 85
-        ? "CRITICAL TENSION — Slack line now!"
-        : tensionPercent >= 75
-          ? "High Tension — Ease pressure"
-          : "Tension Optimal";
 
   const holdButtonProps = (action: keyof FishingHoldState) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -124,106 +139,142 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
     },
     onPointerUp: () => releaseAction(action),
     onPointerCancel: () => releaseAction(action),
+    onPointerLeave: () => releaseAction(action),
     onLostPointerCapture: () => releaseAction(action)
   });
 
   return (
-    <ChromePanel as="section" tone="slate" flourish corners className="fishing-hud-container interactive" aria-label="Sport fishing encounter" data-testid="sport-fishing-hud">
-      {/* 1. Header: Fish Profile & Distance */}
-      <header className="fishing-header">
-        <div className="fishing-fish-badge">
-          <AtlasImage src={atlasForFish(encounter.fish.speciesId)} alt="" size={40} />
-          {!atlasForFish(encounter.fish.speciesId) && <IconFish size={22} className="fishing-header-icon" />}
-          <div className="fishing-fish-meta">
-            <strong>{species?.name || "Hooked Sport Fish"}</strong>
-            <span className="fishing-fish-sub">
-              {encounter.fish.weightKg.toFixed(1)} kg · <ChromeQuality quality={encounter.fish.quality} />
-            </span>
-          </div>
+    <ChromePanel
+      as="section"
+      tone="dock"
+      className="fishing-hud-container interactive"
+      aria-label="Sport fishing controls"
+      data-testid="sport-fishing-hud"
+      data-fishing-behavior={encounter.behavior}
+    >
+      <div className="fishing-hud-top">
+        <div className="fishing-species-badge" aria-label="Hooked fish and quality">
+          <AtlasImage src={atlasForFish(encounter.fish.speciesId)} alt="" size={26} />
+          {!atlasForFish(encounter.fish.speciesId) && <IconFish size={20} aria-hidden="true" />}
+          <ChromeQuality quality={encounter.fish.quality} showLabel={false} />
         </div>
-
-        <div className="fishing-distance-badge">
-          <span className="distance-label">Distance</span>
-          <div className="distance-value-group">
-            <strong>{encounter.distanceMeters.toFixed(1)}</strong>
-            <span>m</span>
-          </div>
-        </div>
-      </header>
-
-      {/* 2. Behavior Cue Banner */}
-      <div className={`fishing-behavior fishing-behavior-${behaviorCue.tone}`} role="status" aria-live="polite">
-        <AtlasImage src={atlasForBehavior(behaviorCue.behavior)} className="behavior-arrow" size={28} aria-hidden="true" />
-        <span className="behavior-text">{behaviorCue.text}</span>
-        {behaviorCue.key && <ChromeKeycap keyName={behaviorCue.key} glow={behaviorCue.tone === "danger"} />}
+        <span
+          className="fishing-distance"
+          aria-label={`${encounter.distanceMeters.toFixed(1)} metres of line remain`}
+        >
+          {`${encounter.distanceMeters.toFixed(1)}m`}
+        </span>
       </div>
 
-      {/* 3. Meters: Tension Gauge & Stamina Bar */}
-      <div className="fishing-meters">
-        {/* Tension Gauge */}
-        <div className="fishing-meter-label">
-          <span className="meter-name">Line Tension</span>
-          <span className={`meter-status status-${tensionTone}`}>
-            {tensionTone === "danger" && <IconWarning size={12} className="meter-status-icon" />}
-            {tensionCueText} · {Math.round(tensionPercent)}%
-          </span>
+      <div
+        className={`fishing-tension fishing-tension-${tensionTone}`}
+        role="progressbar"
+        aria-label="Line tension"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(tensionPercent)}
+        aria-valuetext={`${Math.round(tensionPercent)} percent`}
+      >
+        <div className="fishing-tension-head">
+          <IconRod size={15} aria-hidden="true" />
+          {dangerCopy && (
+            <span className="fishing-danger-copy" role="status" aria-live="polite">
+              <IconWarning size={12} aria-hidden="true" />
+              {dangerCopy}
+            </span>
+          )}
         </div>
-        <div className={`tension-gauge-track track-${tensionTone}`} aria-label={`Line tension ${Math.round(tensionPercent)} percent`}>
-          <div className="tension-zone tension-slack-zone" title="Slack zone (<15%)">
-            <span>Slack</span>
-          </div>
-          <div className="tension-zone tension-safe-zone" title="Safe reeling zone (15%-75%)">
-            <span>Optimal Range</span>
-          </div>
-          <div className="tension-zone tension-danger-zone" title="Line snap risk zone (>75%)">
-            <span>Danger</span>
-          </div>
-          <div
-            className={`tension-indicator indicator-${tensionTone}`}
-            style={{ left: `calc(${tensionPercent}% - 6px)` }}
+        <div className="fishing-tension-track" aria-hidden="true" style={{ gridTemplateColumns: `${minimumTension}% ${maxSafeTension - minimumTension}% ${100 - maxSafeTension}%` }}>
+          <span className="fishing-tension-zone fishing-tension-zone-slack" />
+          <span className="fishing-tension-zone fishing-tension-zone-safe" />
+          <span className="fishing-tension-zone fishing-tension-zone-danger" />
+          <span className="fishing-tension-needle" style={{ left: `${tensionPercent}%` }} />
+        </div>
+      </div>
+
+      <div className="fishing-hud-lower">
+        <div className="fishing-hud-meters" aria-label="Fish stamina and line integrity">
+          <ChromeMeter
+            className="fishing-hud-meter fishing-stamina-meter"
+            label="Fish stamina"
+            value={encounter.stamina}
+            max={encounter.maxStamina}
+            valueText={`${staminaPercent}% remaining`}
+            variant="stamina"
+            orientation="vertical"
+            showLabel={false}
+            showValue={false}
+            icon={<IconEnergy size={15} aria-hidden="true" />}
+            data-testid="fish-stamina"
+          />
+          <ChromeMeter
+            className={`fishing-hud-meter fishing-integrity-meter integrity-${integrityTone}`}
+            label="Line integrity"
+            value={encounter.lineIntegrity}
+            max={100}
+            valueText={`${Math.round(integrityPercent)}% remaining`}
+            variant={integrityTone === "danger" ? "danger" : "fishing"}
+            orientation="vertical"
+            showLabel={false}
+            showValue={false}
+            icon={<IconWarning size={15} aria-hidden="true" />}
+            data-testid="fish-integrity"
           />
         </div>
 
-        <ChromeMeter
-          className="fishing-stamina-meter"
-          label="Fish stamina"
-          value={encounter.stamina}
-          max={encounter.maxStamina}
-          valueText={`${staminaPercent}% remaining`}
-          variant="stamina"
-          data-testid="fish-stamina"
-        />
+        <div className="fishing-direction-block">
+          <div
+            className="fishing-direction-arc-row"
+            role="img"
+            aria-label={`${direction < -0.1 ? "Fish pulling left" : direction > 0.1 ? "Fish pulling right" : "Fish holding center"}; rod ${rodMarker < 45 ? "left" : rodMarker > 55 ? "right" : "center"}`}
+          >
+            <ChromeKeycap keyName="A" />
+            <span className="fishing-direction-arc" aria-hidden="true">
+              <span className="fishing-direction-marker" style={{ left: `${directionMarker}%` }} />
+              <span className="fishing-rod-marker" style={{ left: `${rodMarker}%` }} />
+            </span>
+            <ChromeKeycap keyName="D" />
+          </div>
+          <div className="fishing-action-cue" role="status" aria-label={cue.label} aria-live="polite">
+            <AtlasImage src={atlasForBehavior(cue.behavior)} alt="" size={18} />
+            {!atlasForBehavior(cue.behavior) && <IconFish size={16} aria-hidden="true" />}
+            {cue.key && <ChromeKeycap keyName={cue.key} glow={tensionTone === "danger"} />}
+          </div>
+        </div>
+
       </div>
 
-      {/* 4. Action Controls */}
-      <div className="fishing-actions" aria-label="Fishing encounter controls">
-        <ChromeButton
-          className={`fishing-btn fishing-btn-reel ${activeActions.isReeling ? "is-active" : ""}`}
-          aria-pressed={activeActions.isReeling}
-          {...holdButtonProps("isReeling")}
-        >
-          <span className="btn-title">Reel</span>
-          <ChromeKeycap keyName="W" glow={activeActions.isReeling} />
-        </ChromeButton>
-
-        <ChromeButton
-          className={`fishing-btn fishing-btn-brace ${activeActions.isBracing ? "is-active" : ""}`}
-          aria-pressed={activeActions.isBracing}
-          {...holdButtonProps("isBracing")}
-        >
-          <span className="btn-title">Brace</span>
-          <ChromeKeycap keyName="Space" glow={activeActions.isBracing} />
-        </ChromeButton>
-
-        <ChromeButton
-          className={`fishing-btn fishing-btn-slack ${activeActions.isSlacking ? "is-active" : ""}`}
-          aria-pressed={activeActions.isSlacking}
-          {...holdButtonProps("isSlacking")}
-        >
-          <span className="btn-title">Slack</span>
-          <ChromeKeycap keyName="S" glow={activeActions.isSlacking} />
-        </ChromeButton>
-      </div>
+      {isCoarsePointer && (
+        <div className="fishing-touch-controls" aria-label="Touch fishing controls">
+          <ChromeButton
+            className={`fishing-touch-control fishing-touch-control-reel ${activeActions.isReeling ? "is-active" : ""}`}
+            aria-label="Hold reel"
+            aria-pressed={activeActions.isReeling}
+            {...holdButtonProps("isReeling")}
+          >
+            <span className="fishing-touch-label">Reel</span>
+            <ChromeKeycap keyName="W" glow={activeActions.isReeling} />
+          </ChromeButton>
+          <ChromeButton
+            className={`fishing-touch-control fishing-touch-control-brace ${activeActions.isBracing ? "is-active" : ""}`}
+            aria-label="Hold brace"
+            aria-pressed={activeActions.isBracing}
+            {...holdButtonProps("isBracing")}
+          >
+            <span className="fishing-touch-label">Brace</span>
+            <ChromeKeycap keyName="Space" glow={activeActions.isBracing} />
+          </ChromeButton>
+          <ChromeButton
+            className={`fishing-touch-control fishing-touch-control-slack ${activeActions.isSlacking ? "is-active" : ""}`}
+            aria-label="Hold slack"
+            aria-pressed={activeActions.isSlacking}
+            {...holdButtonProps("isSlacking")}
+          >
+            <span className="fishing-touch-label">Slack</span>
+            <ChromeKeycap keyName="S" glow={activeActions.isSlacking} />
+          </ChromeButton>
+        </div>
+      )}
     </ChromePanel>
   );
 };

@@ -26,7 +26,12 @@ describe("RoadSurfaceMaterial", () => {
 
     expect(shader.vertexShader).toContain("vRoadWorldPosition");
     expect(shader.vertexShader).toContain("vRoadOpacity");
+    expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0");
+    expect(shader.vertexShader).toContain("vSurfaceCauses = max(surfaceCauses");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCell");
+    expect(shader.fragmentShader).toContain("nevaSurfaceWeightedPalette");
+    expect(shader.fragmentShader).toContain("nevaSurfaceWeatherWetness");
+    expect(shader.fragmentShader).toContain("nevaSurfaceFacetNormal");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");
     expect(shader.fragmentShader).toContain("nevaGroundCellJitter");
     expect(shader.fragmentShader).toContain("nevaRoadWorldUv");
@@ -39,6 +44,9 @@ describe("RoadSurfaceMaterial", () => {
       "texture2D(roadSourceColorTexture, roadMesoUv, roadSourceLodBias + 0.45)"
     );
     expect(shader.fragmentShader).toContain("roadSourceLuma");
+    expect(shader.fragmentShader).toContain("roadFineDelta = clamp(");
+    expect(shader.fragmentShader).toContain("roadLightFleck = smoothstep(");
+    expect(shader.fragmentShader).toContain("roadDarkFleck = smoothstep(");
     expect(shader.fragmentShader).toContain(
       "texture2D(roadSourceRoughnessTexture, roadFineUv, roadSourceLodBias)"
     );
@@ -56,20 +64,22 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("roadEdgeFadeStart, roadEdgeFadeFull");
     expect(shader.fragmentShader).toContain("smoothstep(0.2, 0.84, roadPolygonSignal)");
     expect(shader.fragmentShader).toContain("roadWearSignal = clamp(");
-    expect(shader.fragmentShader).toContain("mix(0.22, 0.88, smoothstep(0.1, 0.9");
+    expect(shader.fragmentShader).toContain("mix(0.38, 0.68, smoothstep(0.1, 0.9");
     expect(shader.fragmentShader).toContain("roadCoreMix = smoothstep(0.52, 0.88, vRoadOpacity)");
     expect(shader.fragmentShader).not.toContain("roadValueBand = step");
     expect(shader.fragmentShader).toContain("diffuseColor.a = roadCoverage;");
     expect(shader.fragmentShader).not.toContain("if (roadCoverage <= 0.005) discard;");
     expect(shader.fragmentShader).not.toContain("keepDirt = step");
     expect(shader.uniforms.roadEdgeCellScale.value).toBe(1.2);
-    expect(shader.uniforms.roadPolygonCellScale.value).toBe(1.05);
-    expect(shader.uniforms.roadPolygonVariationStrength.value).toBe(0.28);
-    expect(shader.uniforms.roadPolygonFacetLightingStrength.value).toBe(0.048);
+    expect(shader.uniforms.roadPolygonCellScale.value).toBe(0.75);
+    expect(shader.uniforms.roadSharedCellScale.value).toBe(1.2);
+    expect(shader.uniforms.roadWetness.value).toBe(0);
+    expect(shader.uniforms.roadPolygonVariationStrength.value).toBe(0.08);
+    expect(shader.uniforms.roadPolygonFacetLightingStrength.value).toBe(0.016);
     expect(shader.uniforms.roadEdgeFadeStart.value).toBe(0.16);
     expect(shader.uniforms.roadEdgeFadeFull.value).toBe(0.72);
-    expect(shader.uniforms.roadSourceSampleScale.value).toBe(3.2);
-    expect(shader.uniforms.roadSourceMesoSampleScale.value).toBe(11);
+    expect(shader.uniforms.roadSourceSampleScale.value).toBe(2.6);
+    expect(shader.uniforms.roadSourceMesoSampleScale.value).toBe(8.5);
     expect(shader.uniforms.roadSourceRotation.value).toBe(0.37);
     expect(shader.uniforms.roadSourceLodBias.value).toBe(0.2);
     expect(shader.uniforms.roadExternalColorStrength.value).toBe(1);
@@ -81,6 +91,10 @@ describe("RoadSurfaceMaterial", () => {
     expect(road.material.alphaTest).toBe(0.5);
     expect(road.material.alphaToCoverage).toBe(true);
     expect(road.material.customProgramCacheKey()).toBe(ROAD_SURFACE_PROGRAM_CACHE_KEY);
+    road.setWetness(2);
+    expect(road.wetness).toBe(1);
+    road.setWetness(-1);
+    expect(road.wetness).toBe(0);
   });
 
   it("fails loudly when the installed standard-shader contract drifts", () => {

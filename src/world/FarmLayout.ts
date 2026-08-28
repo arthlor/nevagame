@@ -50,6 +50,15 @@ export interface FarmPropAnchor extends FarmPoint {
   scale: number;
 }
 
+export interface StarterDonkeyAnchor extends FarmPoint {
+  id: "mount.donkey_starter";
+  mountTypeId: "mount.donkey";
+  rotationY: number;
+  clearanceRadius: number;
+  frontApproachDistanceMeters: number;
+  grounding: readonly [number, number];
+}
+
 export type FarmPathKind = "lane" | "trail";
 
 export interface FarmPathDefinition {
@@ -211,6 +220,21 @@ export const STARTER_FARM_LAYOUT: FarmLayoutDefinition = {
   paths: STARTER_PATHS
 };
 
+/**
+ * The starter mount is a farm gameplay anchor, not a static-fauna coordinate.
+ * It sits just south of the home lane, with its nose turned toward the path.
+ */
+export const STARTER_DONKEY_LOCAL_ANCHOR: StarterDonkeyAnchor = {
+  id: "mount.donkey_starter",
+  mountTypeId: "mount.donkey",
+  x: 8,
+  z: -10.4,
+  rotationY: Math.atan2(1.4, 3.2),
+  clearanceRadius: 1.5,
+  frontApproachDistanceMeters: 1.8,
+  grounding: [1.25, 0.95]
+};
+
 export const PLAYER_HOMESTEAD_LAYOUT: FarmLayoutDefinition = {
   farmId: "farm.player_homestead",
   origin: { x: 60, z: -60 },
@@ -228,6 +252,11 @@ export const PLAYER_HOMESTEAD_LAYOUT: FarmLayoutDefinition = {
 const FARM_LAYOUTS: Readonly<Record<string, FarmLayoutDefinition>> = {
   [STARTER_FARM_LAYOUT.farmId]: STARTER_FARM_LAYOUT,
   [PLAYER_HOMESTEAD_LAYOUT.farmId]: PLAYER_HOMESTEAD_LAYOUT
+};
+
+export const STARTER_DONKEY_ANCHOR: StarterDonkeyAnchor = {
+  ...STARTER_DONKEY_LOCAL_ANCHOR,
+  ...farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, STARTER_DONKEY_LOCAL_ANCHOR)
 };
 
 export function getFarmLayout(farmId: string): FarmLayoutDefinition | undefined {
@@ -301,6 +330,13 @@ export function starterFarmsteadAnchor(id: FarmsteadAnchor["id"]): FarmsteadAnch
   const local = STARTER_FARMSTEAD_ANCHORS.find((anchor) => anchor.id === id);
   if (!local) return undefined;
   return { ...local, ...farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, local) };
+}
+
+/** World-space well used for field-pump install and irrigate. Decorative village wells are not farms. */
+export function farmWellWorldAnchor(farmId: string): FarmsteadAnchor | undefined {
+  const local = getFarmLayout(farmId)?.farmsteadAnchors.find((anchor) => anchor.id === "well");
+  if (!local) return undefined;
+  return { ...local, ...farmLocalToWorld(farmId, local) };
 }
 
 export const STARTER_STRUCTURE_IDS = STARTER_STRUCTURE_ANCHORS.map((anchor) => anchor.id);

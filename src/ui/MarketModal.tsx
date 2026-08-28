@@ -176,8 +176,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
         as="div"
         className="market-trading-modal"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -242,9 +242,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           )}
         </div>
 
-        <ChromeDivider />
+        <ChromeDivider ornate={false} />
 
-        <div className="market-modal-grid">
+        <div
+          className={`market-modal-grid${stallTab !== "sell" && activeContracts.length === 0 ? " is-single" : ""}`}
+        >
           <section className="market-left-panel">
             {stallTab === "buy" && activeMarketId === "market.village" && (
               <div className="market-seeds-section">
@@ -270,12 +272,13 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                               <span className="seed-meta-sub">
                                 {locked
                                   ? `Locked · ${crop.minimumFarmingXp} Farming XP`
-                                  : `${owned} in bag · Yield: ~${crop.baseYield.min}-${crop.baseYield.max}`}
+                                  : `${owned} in bag · Yield ~${crop.baseYield.min}–${crop.baseYield.max}`}
                               </span>
                             </div>
                           </div>
                           <div className="seed-card-actions">
                             <ChromeButton
+                              size="sm"
                               className="seed-buy-btn"
                               soundCue="coins"
                               disabled={locked || state.player.money < seed.baseValue}
@@ -292,16 +295,17 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     if (!supply) return null;
                     const owned = InventoryManager.getItemCount(playerInv, supply.id);
                     return (
-                      <div className="seed-stall-card" key={supply.id}>
+                      <div className="seed-stall-card" key={supply.id} title={supply.description}>
                         <div className="seed-card-meta">
                           <AtlasImage src={atlasForItem(supply.id)} alt="" size={32} />
                           <div>
                             <strong>{supply.name}</strong>
-                            <span className="seed-meta-sub">{owned} in bag · {supply.description}</span>
+                            <span className="seed-meta-sub">{owned} in bag</span>
                           </div>
                         </div>
                         <div className="seed-card-actions">
                           <ChromeButton
+                            size="sm"
                             className="seed-buy-btn"
                             soundCue="coins"
                             disabled={state.player.money < supply.baseValue}
@@ -338,6 +342,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         </div>
                         <div className="seed-card-actions">
                           <ChromeButton
+                            size="sm"
                             className="seed-buy-btn"
                             soundCue="coins"
                             disabled={state.player.money < price.unitPrice}
@@ -408,7 +413,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                           </div>
                           <div className="comm-right">
                             <span className={`comm-demand ${price.demandPercent >= 100 ? "up" : "down"}`}>
-                              {price.demandPercent >= 100 ? "▲" : "▼"} {price.demandPercent}%
+                              {price.demandPercent >= 100 ? "↑" : "↓"} {price.demandPercent}%
                             </span>
                             <strong className="comm-price">{price.unitPrice} G</strong>
                           </div>
@@ -503,6 +508,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             )}
           </section>
 
+          {(stallTab === "sell" || activeContracts.length > 0) && (
           <aside className="market-right-panel">
             {stallTab === "sell" ? (
               selectedOwned && ticketPrice ? (
@@ -513,7 +519,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     <div>
                       <strong className="arb-title">{ticketName}</strong>
                       <span className={`comm-demand ${ticketPrice.demandPercent >= 100 ? "up" : "down"}`}>
-                        {ticketPrice.demandPercent >= 100 ? "▲" : "▼"} Demand {ticketPrice.demandPercent}%
+                        {ticketPrice.demandPercent >= 100 ? "↑" : "↓"} Demand {ticketPrice.demandPercent}%
                       </span>
                     </div>
                   </div>
@@ -545,10 +551,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   <div className="market-ticket-live">
                     You receive <strong>{liveGold.toLocaleString()} G</strong>
                   </div>
-                  {comparisonMarket && priceDelta !== null && (
+                  {comparisonMarket && comparisonPrice && (
                     <p className="market-ticket-arb">
-                      {marketShortName(comparisonMarket.id)} pays {priceDelta >= 0 ? "+" : ""}
-                      {priceDelta} G
+                      {marketShortName(comparisonMarket.id)} would pay {comparisonPrice.unitPrice} G
+                      {priceDelta !== null && priceDelta !== 0
+                        ? ` (${priceDelta > 0 ? "+" : "−"}${Math.abs(priceDelta)} vs here)`
+                        : ""}
                     </p>
                   )}
                   <div className="market-ticket-actions">
@@ -578,18 +586,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   <span>Bring produce this stall prices and pick a row to write a ticket.</span>
                 </div>
               )
-            ) : (
-              <>
-                <h3 className="section-title">Market Intelligence</h3>
-                <div className="no-commodity-selected">
-                  <span>
-                    {activeMarketId === "market.harbor"
-                      ? "Ice on the left. Docked fish stay on their own tab."
-                      : "Seeds and supplies on the left. Sell what you grew from the Sell tab."}
-                  </span>
-                </div>
-              </>
-            )}
+            ) : null}
 
             {activeContracts.length > 0 && (
               <div className="market-contracts-sub">
@@ -641,10 +638,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               </div>
             )}
           </aside>
+          )}
         </div>
 
         <footer className="market-modal-footer">
-          <ChromeButton variant="primary" onClick={onClose}>
+          <ChromeButton onClick={onClose}>
             Done Trading
           </ChromeButton>
         </footer>

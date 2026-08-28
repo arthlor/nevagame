@@ -65,6 +65,12 @@ export const FARMHOUSE_INTERIOR_DOOR = Object.freeze({
  * Cozy furniture layout placed inside the farmhouse interior.
  */
 export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object.freeze([
+  // Kitchen provisions and the family's sea keepsakes are displays, not loot pickups.
+  { id: "interior_carrot", assetId: ASSET_IDS.ITEM_CARROT_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.65, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2, rotationY: 0.3 },
+  { id: "interior_corn", assetId: ASSET_IDS.ITEM_CORN_COB_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.9, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.05, rotationY: -0.4 },
+  { id: "interior_coin_pouch", assetId: ASSET_IDS.ITEM_COIN_POUCH_A, x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.45, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.55, z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.4, rotationY: 0.2 },
+  { id: "interior_compass", assetId: ASSET_IDS.ITEM_COMPASS_A, x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.25, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.55, z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.4, rotationY: 0.6 },
+  { id: "interior_sea_chest", assetId: ASSET_IDS.PROP_TREASURE_CHEST_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 2, y: FARMHOUSE_INTERIOR_BOUNDS.floorY, z: FARMHOUSE_INTERIOR_ORIGIN.z + 2.9, rotationY: 0 },
   // 1. Rustic Bed in the northwest corner nook
   {
     id: "interior_bed",

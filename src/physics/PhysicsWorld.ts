@@ -25,7 +25,8 @@ import {
   TERRAIN_SIZE_METERS,
   WorldLayout
 } from "../world/WorldLayout";
-import { harborMooringForBoatType } from "../world/WorldAnchors";
+import { HARBOR_DOCK, harborMooringForBoatType } from "../world/WorldAnchors";
+import { MOUNT_TUNING } from "../simulation/mounts/Mounts";
 
 interface BoatPhysicsBody {
   body: RAPIER.RigidBody;
@@ -42,8 +43,8 @@ interface ResolvedBoatStep {
 }
 
 const CHARACTER_CONTROLLER_OFFSET_METERS = 0.035;
-const PLAYER_CAPSULE_HALF_HEIGHT_METERS = 0.58;
-const PLAYER_CAPSULE_RADIUS_METERS = 0.34;
+const PLAYER_CAPSULE_HALF_HEIGHT_METERS = 0.62;
+const PLAYER_CAPSULE_RADIUS_METERS = 0.32;
 const PLAYER_POSE_GROUND_OFFSET_METERS = 0.5;
 const PLAYER_COLLIDER_CENTER_FROM_POSE_METERS =
   PLAYER_CAPSULE_HALF_HEIGHT_METERS +
@@ -53,6 +54,12 @@ const PLAYER_GROUND_SNAP_METERS = 0.38;
 const PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND = 0.55;
 const PLAYER_HARD_LANDING_SPEED_METERS_PER_SECOND = 8.5;
 const PLAYER_LANDING_RESPONSE_MAX_SPEED_METERS_PER_SECOND = 15;
+const MOUNT_CAPSULE_HALF_HEIGHT_METERS = 0.58;
+const MOUNT_CAPSULE_RADIUS_METERS = 0.62;
+const MOUNT_COLLIDER_CENTER_FROM_POSE_METERS =
+  MOUNT_CAPSULE_HALF_HEIGHT_METERS +
+  MOUNT_CAPSULE_RADIUS_METERS -
+  MOUNT_TUNING.playerPoseGroundOffsetMeters;
 let terrainBaseHeightfieldCache: Float32Array | null = null;
 let roadColliderGeometryCache: { vertices: Float32Array; indices: Uint32Array } | null = null;
 
@@ -119,7 +126,7 @@ function groundEvidenceAt(
   if (WorldLayout.isInterior(x, z)) {
     return { normal: { x: 0, y: 1, z: 0 }, surface: "interior-floor" };
   }
-  if (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z)) {
+  if (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z) || WorldLayout.isPierDeck(x, z)) {
     return { normal: { x: 0, y: 1, z: 0 }, surface: "bridge-deck" };
   }
   const normal = WorldLayout.terrainNormal(x, z);
@@ -133,12 +140,14 @@ function resolveWalkableSlide(
   currentX: number,
   currentZ: number,
   moveX: number,
-  moveZ: number
+  moveZ: number,
+  allowInterior: boolean = true
 ): { x: number; z: number; limited: boolean } {
   const isStableWalkable = (x: number, z: number): boolean =>
     WorldLayout.isWalkable(x, z) &&
     !WorldLayout.isWater(x, z) &&
-    (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
+    (allowInterior || !WorldLayout.isInterior(x, z)) &&
+    (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
 
   if (isStableWalkable(currentX + moveX, currentZ + moveZ)) {
     return { x: moveX, z: moveZ, limited: false };
@@ -204,7 +213,8 @@ export class PhysicsWorld implements PhysicsAdapter {
   private readonly rapier: typeof RAPIER;
   private readonly world: RAPIER.World;
   private readonly playerBody: RAPIER.RigidBody;
-  private readonly playerCollider: RAPIER.Collider;
+  private playerCollider: RAPIER.Collider;
+  private playerColliderMounted = false;
   private readonly controller: RAPIER.KinematicCharacterController;
   private readonly boatBodies = new Map<string, BoatPhysicsBody>();
   private readonly cameraSweepBallCache = new Map<number, RAPIER.Ball>();
@@ -253,6 +263,25 @@ export class PhysicsWorld implements PhysicsAdapter {
       rapier.ColliderDesc.trimesh(road.vertices, road.indices).setFriction(0.9)
     );
     this.ingestStaticCollision(staticCollision);
+    this.world.updateSceneQueries();
+  }
+
+  private ensurePlayerColliderProfile(mounted: boolean): void {
+    if (mounted === this.playerColliderMounted) return;
+    this.world.removeCollider(this.playerCollider, false);
+    this.playerCollider = this.world.createCollider(
+      this.rapier.ColliderDesc.capsule(
+        mounted ? MOUNT_CAPSULE_HALF_HEIGHT_METERS : PLAYER_CAPSULE_HALF_HEIGHT_METERS,
+        mounted ? MOUNT_CAPSULE_RADIUS_METERS : PLAYER_CAPSULE_RADIUS_METERS
+      ).setFriction(0),
+      this.playerBody
+    );
+    this.playerColliderMounted = mounted;
+    this.controller.setMaxSlopeClimbAngle(
+      mounted ? Math.acos(MOUNT_TUNING.maximumSlopeNormalY) : (38 * Math.PI) / 180
+    );
+    if (mounted) this.controller.disableSnapToGround();
+    else this.controller.enableSnapToGround(PLAYER_GROUND_SNAP_METERS);
     this.world.updateSceneQueries();
   }
 
@@ -397,13 +426,94 @@ export class PhysicsWorld implements PhysicsAdapter {
         undefined,
         undefined,
         undefined,
-        physics.body
+        physics.body,
+        (collider) => collider !== this.playerCollider && collider !== this.terrainCollider
       );
       if (hit && (earliest === null || hit.time_of_impact < earliest)) {
         earliest = hit.time_of_impact;
       }
     }
     return earliest;
+  }
+
+  /** True when a compound hull already intersects static world geometry. */
+  private boatOverlapsStatic(
+    physics: BoatPhysicsBody,
+    x: number,
+    y: number,
+    z: number,
+    headingRadians: number
+  ): boolean {
+    const probes: ReadonlyArray<readonly [number, number]> = [
+      [0.03, 0],
+      [-0.03, 0],
+      [0, 0.03],
+      [0, -0.03]
+    ];
+    for (const [deltaX, deltaZ] of probes) {
+      const hitTime = this.castBoat(physics, x, y, z, headingRadians, deltaX, deltaZ);
+      if (hitTime !== null && hitTime <= 0.001) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Nudge a penetrating hull to the nearest nearby sailable pose. Harbor slips
+   * sit against a solid piling wall; a toi=0 start otherwise freezes every cast.
+   */
+  private freeBoatFromOverlap(
+    physics: BoatPhysicsBody,
+    x: number,
+    y: number,
+    z: number,
+    headingRadians: number
+  ): { x: number; z: number } {
+    if (!this.boatOverlapsStatic(physics, x, y, z, headingRadians)) return { x, z };
+    const snaps = [
+      HARBOR_DOCK.boatPosition,
+      { x: HARBOR_DOCK.boatPosition.x, z: HARBOR_DOCK.boatPosition.z + 2.4 },
+      { x: x + 1.8, z },
+      { x: x + 1.8, z: z + 2.2 },
+      { x, z: z + 2.6 }
+    ];
+    for (const snap of snaps) {
+      if (!WorldLayout.isSailable(snap.x, snap.z)) continue;
+      if (!this.boatOverlapsStatic(physics, snap.x, y, snap.z, headingRadians)) {
+        return { x: snap.x, z: snap.z };
+      }
+    }
+    const dock = WorldLayout.landmark("dock");
+    const awayX = x - dock.x;
+    const awayZ = z - dock.z;
+    const awayLength = Math.hypot(awayX, awayZ);
+    const directions: Array<{ x: number; z: number }> = [];
+    if (awayLength > 0.0001) {
+      directions.push({ x: awayX / awayLength, z: awayZ / awayLength });
+    }
+    for (const candidate of [
+      { x: 1, z: 0 },
+      { x: 1, z: 1 },
+      { x: 0, z: 1 },
+      { x: 1, z: -1 },
+      { x: 0, z: -1 },
+      { x: -1, z: 1 },
+      { x: -1, z: -1 },
+      { x: -1, z: 0 }
+    ]) {
+      const length = Math.hypot(candidate.x, candidate.z);
+      directions.push({ x: candidate.x / length, z: candidate.z / length });
+    }
+    for (const step of [0.18, 0.4, 0.75, 1.2, 1.8, 2.6]) {
+      for (const direction of directions) {
+        const nextX = x + direction.x * step;
+        const nextZ = z + direction.z * step;
+        if (!WorldLayout.isSailable(nextX, nextZ)) continue;
+        if (!this.boatOverlapsStatic(physics, nextX, y, nextZ, headingRadians)) {
+          return { x: nextX, z: nextZ };
+        }
+      }
+    }
+    return { x, z };
   }
 
   private resolvePlayer(
@@ -413,14 +523,18 @@ export class PhysicsWorld implements PhysicsAdapter {
   ): { player: ResolvedPhysicsFrame["player"]; motion: PlayerMotionSample } {
     const safeDt = Number.isFinite(dt) && dt > 0 ? Math.min(0.2, dt) : 1 / 60;
     const player = state.player;
-    const isInterior = WorldLayout.isInterior(player.x, player.z);
+    const isMounted = player.activeMountId !== null;
+    this.ensurePlayerColliderProfile(isMounted);
+    const isInterior = !isMounted && WorldLayout.isInterior(player.x, player.z);
     const groundHeight = isInterior
       ? FARMHOUSE_INTERIOR_BOUNDS.floorY - PLAYER_POSE_GROUND_OFFSET_METERS
-      : WorldLayout.terrainHeight(player.x, player.z);
-    const footAnchorY = Math.max(player.y, groundHeight + PLAYER_POSE_GROUND_OFFSET_METERS);
+      : WorldLayout.traversalSurfaceHeight(player.x, player.z);
+    const footAnchorY = isMounted
+      ? groundHeight + MOUNT_TUNING.playerPoseGroundOffsetMeters
+      : Math.max(player.y, groundHeight + PLAYER_POSE_GROUND_OFFSET_METERS);
     const expectedCenter = {
       x: player.x,
-      y: footAnchorY + PLAYER_COLLIDER_CENTER_FROM_POSE_METERS,
+      y: footAnchorY + (isMounted ? MOUNT_COLLIDER_CENTER_FROM_POSE_METERS : PLAYER_COLLIDER_CENTER_FROM_POSE_METERS),
       z: player.z
     };
     const bodyPosition = this.playerBody.translation();
@@ -436,7 +550,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.playerVelocityZ = 0;
       this.playerVerticalVelocity = 0;
       this.playerRotationY = player.rotationY;
-      this.playerGrounded =
+      this.playerGrounded = isMounted ||
         player.traversal.isGrounded === true ||
         Math.abs(footAnchorY - (groundHeight + PLAYER_POSE_GROUND_OFFSET_METERS)) <= 0.08;
       this.jumpBufferRemainingSeconds = 0;
@@ -458,22 +572,35 @@ export class PhysicsWorld implements PhysicsAdapter {
     const inputLength = Math.hypot(rawInputX, rawInputZ);
     const inputX = inputLength > 1 ? rawInputX / inputLength : rawInputX;
     const inputZ = inputLength > 1 ? rawInputZ / inputLength : rawInputZ;
-    const traversalStep = advancePlayerTraversal(
-      player.traversal,
-      { wantsSprint: input.sprint, isMoving: inputLength > 0.001 },
-      safeDt
-    );
+    const traversalStep = isMounted
+      ? {
+          traversal: { ...player.traversal, isGrounded: true },
+          isSprinting: input.sprint
+        }
+      : advancePlayerTraversal(
+          player.traversal,
+          { wantsSprint: input.sprint, isMoving: inputLength > 0.001 },
+          safeDt
+        );
     const gaitScale = this.playerGrounded
       ? slopeGaitScale(this.playerGroundNormal, inputX, inputZ)
       : 1;
-    const speed = (traversalStep.isSprinting
-      ? PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond
-      : PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond) * gaitScale;
+    const speed = (isMounted
+      ? traversalStep.isSprinting
+        ? MOUNT_TUNING.trotSpeedMetersPerSecond
+        : MOUNT_TUNING.walkSpeedMetersPerSecond
+      : traversalStep.isSprinting
+        ? PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond
+        : PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond) * gaitScale;
     const targetVelocityX = inputX * speed;
     const targetVelocityZ = inputZ * speed;
     const acceleration = inputLength > 0.001
-      ? PLAYER_TRAVERSAL_TUNING.accelerationMetersPerSecondSquared
-      : PLAYER_TRAVERSAL_TUNING.decelerationMetersPerSecondSquared;
+      ? isMounted
+        ? MOUNT_TUNING.accelerationMetersPerSecondSquared
+        : PLAYER_TRAVERSAL_TUNING.accelerationMetersPerSecondSquared
+      : isMounted
+        ? MOUNT_TUNING.decelerationMetersPerSecondSquared
+        : PLAYER_TRAVERSAL_TUNING.decelerationMetersPerSecondSquared;
     const previousVelocityX = this.playerVelocityX;
     const previousVelocityZ = this.playerVelocityZ;
     const previousRotationY = this.playerRotationY;
@@ -492,12 +619,17 @@ export class PhysicsWorld implements PhysicsAdapter {
     let moveZ = this.playerVelocityZ * safeDt;
     const requestedMoveDistance = Math.hypot(moveX, moveZ);
     let walkabilityLimited = false;
-    const requestedWalkableMove = resolveWalkableSlide(current.x, current.z, moveX, moveZ);
+    const requestedWalkableMove = resolveWalkableSlide(current.x, current.z, moveX, moveZ, !isMounted);
     moveX = requestedWalkableMove.x;
     moveZ = requestedWalkableMove.z;
     walkabilityLimited = requestedWalkableMove.limited;
 
-    if (input.jumpRequested) {
+    if (isMounted) {
+      this.jumpBufferRemainingSeconds = 0;
+      this.coyoteTimeRemainingSeconds = 0;
+      this.playerGrounded = true;
+      this.playerVerticalVelocity = 0;
+    } else if (input.jumpRequested) {
       this.jumpBufferRemainingSeconds = PLAYER_TRAVERSAL_TUNING.jumpBufferSeconds;
     } else {
       this.jumpBufferRemainingSeconds = Math.max(0, this.jumpBufferRemainingSeconds - safeDt);
@@ -521,9 +653,14 @@ export class PhysicsWorld implements PhysicsAdapter {
       );
     }
     const verticalVelocityBeforeCollision = this.playerVerticalVelocity;
+    const mountedTargetCenterY = isMounted
+      ? WorldLayout.traversalSurfaceHeight(current.x + moveX, current.z + moveZ)
+        + MOUNT_TUNING.playerPoseGroundOffsetMeters
+        + MOUNT_COLLIDER_CENTER_FROM_POSE_METERS
+      : 0;
     this.controller.computeColliderMovement(this.playerCollider, {
       x: moveX,
-      y: this.playerVerticalVelocity * safeDt,
+      y: isMounted ? mountedTargetCenterY - current.y : this.playerVerticalVelocity * safeDt,
       z: moveZ
     });
     const computedMovement = this.controller.computedMovement();
@@ -532,7 +669,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       y: computedMovement.y,
       z: computedMovement.z
     };
-    const resolvedWalkableMove = resolveWalkableSlide(current.x, current.z, movement.x, movement.z);
+    const resolvedWalkableMove = resolveWalkableSlide(current.x, current.z, movement.x, movement.z, !isMounted);
     movement.x = resolvedWalkableMove.x;
     movement.z = resolvedWalkableMove.z;
     walkabilityLimited ||= resolvedWalkableMove.limited;
@@ -567,14 +704,16 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
 
     // Ceiling bonk detection: zero vertical velocity when upward movement is blocked
-    if (this.playerVerticalVelocity > 0 && movement.y < this.playerVerticalVelocity * safeDt * 0.4) {
+    if (!isMounted && this.playerVerticalVelocity > 0 && movement.y < this.playerVerticalVelocity * safeDt * 0.4) {
       this.playerVerticalVelocity = 0;
     }
 
-    this.playerGrounded = this.controller.computedGrounded();
-    const landed = !wasGrounded && this.playerGrounded && verticalVelocityBeforeCollision < -0.5;
+    this.playerGrounded = isMounted ? true : this.controller.computedGrounded();
+    const landed = !isMounted && !wasGrounded && this.playerGrounded && verticalVelocityBeforeCollision < -0.5;
     const landingSpeed = landed ? Math.max(0, -verticalVelocityBeforeCollision) : 0;
-    if (this.playerGrounded && this.playerVerticalVelocity < 0) {
+    if (isMounted) {
+      this.playerVerticalVelocity = 0;
+    } else if (this.playerGrounded && this.playerVerticalVelocity < 0) {
       this.playerVerticalVelocity = -0.25;
     }
     this.playerBody.setTranslation(
@@ -626,10 +765,10 @@ export class PhysicsWorld implements PhysicsAdapter {
       resolvedVelocityZ = 0;
     }
 
-    const isResolvedInterior = WorldLayout.isInterior(resolved.x, resolved.z);
+    const isResolvedInterior = !isMounted && WorldLayout.isInterior(resolved.x, resolved.z);
     const groundY = isResolvedInterior
       ? FARMHOUSE_INTERIOR_BOUNDS.floorY - PLAYER_POSE_GROUND_OFFSET_METERS
-      : WorldLayout.terrainHeight(resolved.x, resolved.z);
+      : WorldLayout.traversalSurfaceHeight(resolved.x, resolved.z);
 
     if (this.playerGrounded) {
       const evidence = groundEvidenceAt(resolved.x, resolved.z);
@@ -640,22 +779,24 @@ export class PhysicsWorld implements PhysicsAdapter {
         ? evidence.normal
         : collisionGroundNormal ?? evidence.normal;
     }
-    const resolvedVerticalVelocity = movement.y / safeDt;
-    const airbornePhase = this.playerGrounded
+    const resolvedVerticalVelocity = isMounted ? 0 : movement.y / safeDt;
+    const airbornePhase = isMounted || this.playerGrounded
       ? "grounded"
       : resolvedVerticalVelocity > PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND
         ? "rising"
         : resolvedVerticalVelocity < -PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND
           ? "falling"
           : "apex";
-    const contactEvent = jumpStarted
+    const contactEvent = isMounted
+      ? "none"
+      : jumpStarted
       ? "takeoff"
       : landed
         ? landingSpeed >= PLAYER_HARD_LANDING_SPEED_METERS_PER_SECOND
           ? "land-hard"
           : "land-soft"
         : "none";
-    const landingImpactStrength = landed
+    const landingImpactStrength = isMounted ? 0 : landed
       ? clamp01(
           (landingSpeed - 2.5) /
           (PLAYER_LANDING_RESPONSE_MAX_SPEED_METERS_PER_SECOND - 2.5)
@@ -668,7 +809,9 @@ export class PhysicsWorld implements PhysicsAdapter {
     const playerPose = {
       x: resolved.x,
       // Rapier keeps a small collision skin; the canonical/visual foot anchor remains on the terrain or floor.
-      y: isResolvedInterior
+      y: isMounted
+        ? groundY + MOUNT_TUNING.playerPoseGroundOffsetMeters
+        : isResolvedInterior
         ? FARMHOUSE_INTERIOR_BOUNDS.floorY + PLAYER_POSE_GROUND_OFFSET_METERS
         : Math.max(
             groundY + PLAYER_POSE_GROUND_OFFSET_METERS,
@@ -708,9 +851,11 @@ export class PhysicsWorld implements PhysicsAdapter {
         isCollisionBlocked: collisionBlocked,
         requestedGait: inputLength <= 0.001
           ? "idle"
-          : traversalStep.isSprinting
-            ? "run"
-            : "walk"
+          : isMounted
+            ? traversalStep.isSprinting ? "trot" : "walk"
+            : traversalStep.isSprinting
+              ? "run"
+              : "walk"
       }
     };
   }
@@ -777,13 +922,20 @@ export class PhysicsWorld implements PhysicsAdapter {
       const reverseLimit = definition.maxSpeed * 0.42;
       const requestedLimit = throttle >= 0 ? definition.maxSpeed : reverseLimit;
       let targetSpeed = throttle * requestedLimit * control;
-      if (dockingAssist > 0) {
-        const assistedLimit = 1.65;
-        targetSpeed = clamp(
-          targetSpeed,
-          -Math.max(0.8, assistedLimit * (1 - dockingAssist * 0.45)),
-          Math.max(1.05, assistedLimit * (1 - dockingAssist * 0.2))
-        );
+      if (dockingAssist > 0 && mooringDistance > 0.35) {
+        const toMooringX = mooring.boatPosition.x - boat.x;
+        const toMooringZ = mooring.boatPosition.z - boat.z;
+        const driveX = Math.sin(physics.headingRadians) * (throttle >= 0 ? 1 : -1);
+        const driveZ = Math.cos(physics.headingRadians) * (throttle >= 0 ? 1 : -1);
+        const approaching = driveX * toMooringX + driveZ * toMooringZ > 0;
+        if (approaching) {
+          const assistedLimit = 1.65;
+          targetSpeed = clamp(
+            targetSpeed,
+            -Math.max(0.8, assistedLimit * (1 - dockingAssist * 0.45)),
+            Math.max(1.05, assistedLimit * (1 - dockingAssist * 0.2))
+          );
+        }
       }
       const isActiveBraking =
         Math.abs(throttle) > 0.01 &&
@@ -818,8 +970,22 @@ export class PhysicsWorld implements PhysicsAdapter {
     const deltaX = Math.sin(physics.headingRadians) * physics.speed * safeDt;
     const deltaZ = Math.cos(physics.headingRadians) * physics.speed * safeDt;
     const requestedTravelDistance = Math.hypot(deltaX, deltaZ);
-    let nextX = boat.x + deltaX;
-    let nextZ = boat.z + deltaZ;
+    this.world.updateSceneQueries();
+    let originX = boat.x;
+    let originZ = boat.z;
+    if (active) {
+      const freed = this.freeBoatFromOverlap(
+        physics,
+        originX,
+        water.height,
+        originZ,
+        physics.headingRadians
+      );
+      originX = freed.x;
+      originZ = freed.z;
+    }
+    let nextX = originX + deltaX;
+    let nextZ = originZ + deltaZ;
     let collisionBlocked = false;
     const rotation = {
       x: 0,
@@ -828,15 +994,14 @@ export class PhysicsWorld implements PhysicsAdapter {
       w: Math.cos(physics.headingRadians / 2)
     };
 
-    this.world.updateSceneQueries();
     const isDesiredSailable = WorldLayout.isSailable(nextX, nextZ);
     let hitTime: number | null = null;
     if (Math.hypot(deltaX, deltaZ) > 0.00001) {
       hitTime = this.castBoat(
         physics,
-        boat.x,
+        originX,
         water.height,
-        boat.z,
+        originZ,
         physics.headingRadians,
         deltaX,
         deltaZ
@@ -848,8 +1013,8 @@ export class PhysicsWorld implements PhysicsAdapter {
     } else if (Math.hypot(deltaX, deltaZ) > 0.00001) {
       collisionBlocked = true;
       const travel = hitTime !== null ? Math.max(0, hitTime - 0.025) : 0;
-      const contactX = boat.x + deltaX * travel;
-      const contactZ = boat.z + deltaZ * travel;
+      const contactX = originX + deltaX * travel;
+      const contactZ = originZ + deltaZ * travel;
       const remainingX = deltaX * (1 - travel);
       const remainingZ = deltaZ * (1 - travel);
 
@@ -908,15 +1073,15 @@ export class PhysicsWorld implements PhysicsAdapter {
       nextZ = contactZ + bestSlide.z;
       physics.speed *= bestSlide.distanceSquared > 0.00001 ? 0.72 : 0.16;
     } else {
-      nextX = boat.x;
-      nextZ = boat.z;
-      physics.speed = 0;
+      nextX = originX;
+      nextZ = originZ;
+      if (Math.hypot(originX - boat.x, originZ - boat.z) <= 0.00001) physics.speed = 0;
     }
 
     if (!WorldLayout.isSailable(nextX, nextZ)) {
       collisionBlocked = true;
-      nextX = boat.x;
-      nextZ = boat.z;
+      nextX = WorldLayout.isSailable(originX, originZ) ? originX : boat.x;
+      nextZ = WorldLayout.isSailable(originX, originZ) ? originZ : boat.z;
       physics.speed *= 0.16;
     }
 
@@ -1212,7 +1377,10 @@ export class PhysicsWorld implements PhysicsAdapter {
         isCollisionBlocked: activeBoatMotion?.isCollisionBlocked ?? false,
         requestedGait: mode === "boat-driving" ? "vehicle" : "idle"
       };
-    } else if (mode === "on-foot" || mode === "farm-placement") {
+    } else if (
+      (mode === "on-foot" || mode === "farm-placement") ||
+      (mode === "mounted" && state.player.activeMountId !== null)
+    ) {
       const resolvedPlayer = this.resolvePlayer(state, input, dt);
       player = resolvedPlayer.player;
       playerMotion = resolvedPlayer.motion;

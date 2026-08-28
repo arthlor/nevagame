@@ -77,6 +77,7 @@ export const HUD: React.FC<HUDProps> = ({
   const sprintMaximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;
   const showSprintStamina =
     !player.activeBoatId &&
+    !player.activeMountId &&
     !state.basicFishing &&
     !state.sportFishing &&
     (sprintStamina < sprintMaximum - 0.01 || player.traversal.sprintExhausted);
@@ -397,19 +398,20 @@ export const HUD: React.FC<HUDProps> = ({
           </footer>
         )}
 
-        <aside className="hud-hotbar interactive">
-          <div className="hud-tool-belt" role="toolbar" aria-label="Tool belt">
-            <div className="hud-tool-slots">
-              {toolButton(1, "Hand tools and hoe", <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-              {toolButton(2, "Seeds", <IconSprout size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-              {toolButton(3, "Watering can", <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-              {toolButton(4, "Fishing bait", <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-              {toolButton(5, "Fishing rod", <IconRod size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+        {!isPlacementActive && !state.sportFishing && (
+          <aside className="hud-hotbar interactive">
+            <div className="hud-tool-belt" role="toolbar" aria-label="Tool belt">
+              <div className="hud-tool-slots">
+                {toolButton(1, "Hand tools and hoe", <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(2, "Seeds", <IconSprout size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(3, "Watering can", <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(4, "Fishing bait", <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(5, "Fishing rod", <IconRod size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </>
   );
 };
-

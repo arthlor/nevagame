@@ -51,8 +51,8 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
         as="div"
         className="neva-panel modal-content journal-chronicle-modal"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -117,7 +117,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
           <ChromeClose onClick={onClose} label="Close chronicle" />
         </header>
 
-        <ChromeDivider />
+        <ChromeDivider ornate={false} />
 
         <div className="modal-body journal-body">
           {/* Folio 1: Chronicles & Quests */}
@@ -130,6 +130,16 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
                   const objective = active?.objectives[quests.activeStepIndex];
                   const progress = objective ? quests.stepProgress[objective.id] ?? 0 : 0;
                   const target = objective?.targetQuantity ?? 1;
+                  const speaker = active ? ContentRegistry.npcs.get(active.speakerId) : undefined;
+                  const awaitingTurnIn = Boolean(
+                    active &&
+                    objective &&
+                    quests.activeStepIndex >= active.objectives.length - 1 &&
+                    progress >= target
+                  );
+                  const objectiveText = awaitingTurnIn
+                    ? `Talk to ${speaker?.name ?? "the quest giver"} to continue`
+                    : objective?.description;
 
                   return active ? (
                     <div className="journal-quest-hero-card">
@@ -140,7 +150,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
 
                       {objective && (
                         <div className="quest-hero-objective">
-                          <p className="objective-desc">"{objective.description}"</p>
+                          <p className="objective-desc">"{objectiveText}"</p>
                           <div className="quest-hero-progress-wrap">
                             <ChromeMeter
                               label="Quest progress"

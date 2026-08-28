@@ -13,26 +13,26 @@ import type { ProgressionDomain } from "./ProgressionDomain";
 import { cargoClassFits, qualityRank, rodMeetsMinimum } from "./domainRules";
 import { SCHOOL_SPAWN_POINTS } from "./FishingDomain";
 
-function feasibleContractTarget(
+const MAX_ACTIVE_CONTRACTS = 2;
+const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
+
+function feasibleContractTargets(
   state: GameState,
   template: ContractTemplateDefinition
-): string | null {
+): string[] {
   const requiredXp = template.requiredXp ?? 0;
-  if (state.player.proficiencies[template.rewardSkill] < requiredXp) return null;
+  if (state.player.proficiencies[template.rewardSkill] < requiredXp) return [];
 
-  for (const targetId of template.itemOrSpeciesPool) {
+  return template.itemOrSpeciesPool.filter((targetId) => {
     if (template.type === "produce") {
       const crop = [...ContentRegistry.crops.values()].find((candidate) => candidate.harvestItemId === targetId);
       const villageMarket = state.markets["market.village"];
-      if (
+      return Boolean(
         crop &&
         isVillageSeedCrop(crop.id) &&
         state.player.proficiencies.farming >= crop.minimumFarmingXp &&
         villageMarket?.commodities[targetId]
-      ) {
-        return targetId;
-      }
-      continue;
+      );
     }
 
     const fish = ContentRegistry.fishSpecies.get(targetId);
@@ -48,68 +48,22 @@ function feasibleContractTarget(
       (template.minQuality !== undefined && qualityRank(template.minQuality) > qualityRank("trophy")) ||
       (template.minWeightKgRange !== undefined && template.minWeightKgRange[0] > fish.weightKg.max)
     ) {
-      continue;
+      return false;
     }
 
     const hasReachableSchool = SCHOOL_SPAWN_POINTS.some(
       (point) => fish.habitats.includes(point.habitatId) && rod.allowedHabitats.includes(point.habitatId)
     );
-    if (!hasReachableSchool || !rodMeetsMinimum(rod.rodClass, fish.minimumRodClass)) continue;
+    if (!hasReachableSchool || !rodMeetsMinimum(rod.rodClass, fish.minimumRodClass)) return false;
 
     const hasCargoCapacity = fish.cargoClass === "small" || fish.cargoClass === "medium"
       || Object.values(state.boats).some((boat) => {
         const definition = ContentRegistry.boats.get(boat.boatTypeId);
         return definition?.fishCargoSlots.some((slot) => cargoClassFits(fish.cargoClass, slot.maxCargoClass));
       });
-    if (hasCargoCapacity) return targetId;
-  }
-
-  return null;
-}
-
-export function refillContractsInState(
-  state: GameState,
-  nextEntityId: (prefix: string) => string
-): void {
-  const active = state.contracts.filter((c) => c.status === "active");
-  if (active.length >= 2) return;
-
-  const needed = 2 - active.length;
-  const activeTemplateIds = new Set(active.map((c) => c.templateId));
-  const eligibleTemplates = [...ContentRegistry.contractTemplates.values()].flatMap((template) => {
-    if (activeTemplateIds.has(template.id)) return [];
-    const targetId = feasibleContractTarget(state, template);
-    return targetId ? [{ template, targetId }] : [];
+    return hasCargoCapacity;
   });
-
-  for (let i = 0; i < Math.min(needed, eligibleTemplates.length); i++) {
-    const { template, targetId: targetItem } = eligibleTemplates[i];
-    const itemDef = ContentRegistry.items.get(targetItem) ?? ContentRegistry.fishSpecies.get(targetItem);
-    const baseVal = itemDef ? ("baseValue" in itemDef ? itemDef.baseValue : itemDef.baseMarketValue) : 10;
-    const quantity = template.quantityRange[0];
-    const rewardMoney = Math.round(baseVal * quantity * template.rewardBaseMultiplier);
-
-    state.contracts.push({
-      id: nextEntityId("contract"),
-      templateId: template.id,
-      requesterId: template.requesterName,
-      type: template.type,
-      targetItemIdOrSpecies: targetItem,
-      quantityRequired: quantity,
-      quantityFulfilled: 0,
-      minQuality: template.minQuality,
-      minFreshness: template.minFreshness,
-      minWeightKg: template.minWeightKgRange ? template.minWeightKgRange[0] : undefined,
-      rewardMoney,
-      rewardSkillXp: { skill: template.rewardSkill, xp: 150 },
-      expiresAtMinute: state.clock.currentMinute + template.durationMinutes,
-      status: "active"
-    });
-  }
 }
-
-const MAX_ACTIVE_CONTRACTS = 2;
-const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
 
 export function expireContracts(state: GameState): void {
   for (const contract of state.contracts) {
@@ -145,22 +99,20 @@ function contractTargetBaseValue(targetId: string): number | null {
   return fish ? fish.baseMarketValue : null;
 }
 
-function isValidContractTarget(targetId: string): boolean {
-  return ContentRegistry.items.has(targetId) || ContentRegistry.fishSpecies.has(targetId);
-}
-
 function asFishQuality(value: string | undefined): FishQuality | undefined {
   return value && FISH_QUALITIES.includes(value as FishQuality) ? value as FishQuality : undefined;
 }
 
-function eligibleContractTemplates(state: GameState): ContractTemplateDefinition[] {
+function eligibleContractCandidates(
+  state: GameState
+): Array<{ template: ContractTemplateDefinition; targetIds: string[] }> {
   const activeTemplateIds = new Set(
     state.contracts.filter((contract) => contract.status === "active").map((contract) => contract.templateId)
   );
-  return [...ContentRegistry.contractTemplates.values()].filter((template) => {
-    if (activeTemplateIds.has(template.id)) return false;
-    if (state.player.proficiencies[template.rewardSkill] < (template.requiredXp ?? 0)) return false;
-    return template.itemOrSpeciesPool.some(isValidContractTarget);
+  return [...ContentRegistry.contractTemplates.values()].flatMap((template) => {
+    if (activeTemplateIds.has(template.id)) return [];
+    const targetIds = feasibleContractTargets(state, template);
+    return targetIds.length > 0 ? [{ template, targetIds }] : [];
   });
 }
 
@@ -171,12 +123,11 @@ export function refillContracts(
 ): void {
   const activeCount = () => state.contracts.filter((contract) => contract.status === "active").length;
   while (activeCount() < MAX_ACTIVE_CONTRACTS) {
-    const eligible = eligibleContractTemplates(state);
+    const eligible = eligibleContractCandidates(state);
     if (eligible.length === 0) return;
-    const template = eligible[rng.intInclusive(0, eligible.length - 1)];
-    const pool = template.itemOrSpeciesPool.filter(isValidContractTarget);
-    if (pool.length === 0) return;
-    const targetId = pool[rng.intInclusive(0, pool.length - 1)];
+    const candidate = eligible[rng.intInclusive(0, eligible.length - 1)];
+    const { template } = candidate;
+    const targetId = candidate.targetIds[rng.intInclusive(0, candidate.targetIds.length - 1)];
     const baseValue = contractTargetBaseValue(targetId);
     if (baseValue === null) return;
     const quantityRequired = rng.intInclusive(template.quantityRange[0], template.quantityRange[1]);
@@ -301,7 +252,8 @@ export class ContractDomain {
   }
 
   public refillContracts(): void {
-    refillContractsInState(this.context.state, this.context.nextEntityId);
+    refillContracts(this.context.state, this.context.rng, this.context.nextEntityId);
+    this.context.persistRng();
   }
 
   private getActive(contractId: string): GameState["contracts"][number] | null {

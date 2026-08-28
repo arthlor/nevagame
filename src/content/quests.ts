@@ -53,7 +53,7 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.act1_sow_wheat",
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
-    questTitle: "Sowing the First Furrows",
+    questTitle: "Sowing the First Seeds",
     speakerId: "npc.elspeth",
     introDialogue: [
       "Walk onto the prepared field soil. Select the Wheat Seeds and click a clear spot to place them.",

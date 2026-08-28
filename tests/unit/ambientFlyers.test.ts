@@ -4,7 +4,9 @@ import {
   BUTTERFLY_ORBITS,
   CLOUD_PLACEMENTS,
   GULL_ORBITS,
-  sampleAmbientFlyerPose
+  sampleAmbientCloudPose,
+  sampleAmbientFlyerPose,
+  wrapCloudCoordinate
 } from "../../src/render/scene/ambientFlyers";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
@@ -26,20 +28,52 @@ describe("ambientFlyers", () => {
     }
   });
 
-  it("keeps the expanded cloud layer finite and low enough for high camera views", () => {
-    expect(CLOUD_PLACEMENTS).toHaveLength(11);
-    expect(CLOUD_PLACEMENTS.filter((cloud) => cloud.y <= 18).length).toBeGreaterThanOrEqual(8);
+  it("keeps the multi-tiered cloud layer rich, finite, and well-distributed across altitudes", () => {
+    expect(CLOUD_PLACEMENTS.length).toBeGreaterThanOrEqual(36);
+    expect(CLOUD_PLACEMENTS.filter((cloud) => (cloud.tier ?? "low") === "low").length).toBeGreaterThanOrEqual(20);
+    expect(CLOUD_PLACEMENTS.filter((cloud) => (cloud.tier ?? "low") === "mid").length).toBeGreaterThanOrEqual(10);
+    expect(CLOUD_PLACEMENTS.filter((cloud) => (cloud.tier ?? "low") === "horizon").length).toBeGreaterThanOrEqual(8);
+
     for (const cloud of CLOUD_PLACEMENTS) {
       for (const value of [cloud.x, cloud.y, cloud.z, cloud.scale, cloud.rotationY, cloud.bobPhase]) {
         expect(Number.isFinite(value)).toBe(true);
       }
-      expect(cloud.y).toBeGreaterThanOrEqual(15);
-      expect(cloud.y).toBeLessThanOrEqual(20);
+      expect(cloud.y).toBeGreaterThanOrEqual(34);
+      expect(cloud.y).toBeLessThanOrEqual(75);
       expect(cloud.scale).toBeGreaterThan(0);
     }
+    expect(CLOUD_PLACEMENTS.filter((cloud) => cloud.assetId === "cloud_towering_a").length).toBeGreaterThanOrEqual(10);
+    expect(CLOUD_PLACEMENTS.filter((cloud) => cloud.assetId === "cloud_lowpoly_a").length).toBeGreaterThanOrEqual(25);
   });
 
-  it("is deterministic for a given orbit and time", () => {
+  it("samples deterministic cloud poses drifting with the wind", () => {
+    const placement = CLOUD_PLACEMENTS[0];
+    const pose0 = sampleAmbientCloudPose(placement, 0, 1, 1, 0, 6);
+    const pose100 = sampleAmbientCloudPose(placement, 100, 1, 1, 0, 6);
+
+    expect(Number.isFinite(pose0.x)).toBe(true);
+    expect(Number.isFinite(pose0.y)).toBe(true);
+    expect(Number.isFinite(pose0.z)).toBe(true);
+    expect(Number.isFinite(pose0.rotationX)).toBe(true);
+    expect(Number.isFinite(pose0.rotationY)).toBe(true);
+    expect(Number.isFinite(pose0.rotationZ)).toBe(true);
+    expect(Number.isFinite(pose0.scale)).toBe(true);
+
+    // Drifts along the positive X axis with East wind (directionX = 1)
+    expect(pose100.x).not.toBe(pose0.x);
+
+    // Deterministic repeatability
+    const pose100Again = sampleAmbientCloudPose(placement, 100, 1, 1, 0, 6);
+    expect(pose100Again).toEqual(pose100);
+  });
+
+  it("wraps cloud coordinates seamlessly within boundary limits", () => {
+    expect(wrapCloudCoordinate(100, -600, 600)).toBe(100);
+    expect(wrapCloudCoordinate(700, -600, 600)).toBe(-500);
+    expect(wrapCloudCoordinate(-700, -600, 600)).toBe(500);
+  });
+
+  it("is deterministic for a given flyer orbit and time", () => {
     const pose = sampleAmbientFlyerPose(GULL_ORBITS[0], 12.25, 1);
     expect(sampleAmbientFlyerPose(GULL_ORBITS[0], 12.25, 1)).toEqual(pose);
   });

@@ -18,13 +18,15 @@ Machine-readable authorities for the fields they own:
 - `art/palettes/neva.palette.json`
 - `tools/blender/asset_budgets.json`
 - `tools/blender/README.md` (code wins if this README drifts)
+- `src/render/config/VisualRenderConfig.ts` (live renderer and supporting-map numbers)
+- `src/render/materials/ExternalSurfaceTextures.ts` (supporting-map provenance and URLs)
 
 If a canonical path is missing, duplicated, renamed, or conflicts with another source, stop and report it. Do not create parallel `*_UPDATED`, `*_FINAL`, `*_COMPACT`, or similar authority documents. Do not list deleted files as authorities.
 
 ### Token-conscious source routing
 
 - Routine existing-asset work reads this file, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, its owning generator, and the runtime integration point only. Read the directly relevant Art Bible section when appearance is being changed. Do not read the full catalog or `01`/`02`/`03`/`04`/Art Pipeline by default.
-- New generator families, shared construction helpers, renderer/material changes, or gameplay-contract changes read their owning canonical document(s) in full in addition to the routine set.
+- New generator families, shared construction helpers, renderer/material changes, or gameplay-contract changes read their owning canonical document(s) in full in addition to the routine set. Ground supporting-map work is renderer/material work: also read Art Pipeline section 6.2, `VisualRenderConfig.ts`, and `ExternalSurfaceTextures.ts`.
 - Release/gold-slice work reads the full canonical art/architecture set because it activates the P0.75 visual-gold benchmark and the separate strict, determinism, and cross-scene technical/release gates.
 - `referenceAuthoring` remains required for image/study-guided assets. Read and validate only the selected asset brief; rerun `art:brief` only when that brief changes.
 - In-game layout / Place / F2 editor work reads `LLM/LAYOUT_EDITOR.md`, `src/layout-editor/`, `src/app/PlacementEditor.ts`, and `tools/layout-editor/patchPlacement.ts`. Do not import `src/world` into the Vite patcher. Leave `02` unread unless a drop changes a saved structure contract.
@@ -33,7 +35,7 @@ If a canonical path is missing, duplicated, renamed, or conflicts with another s
 
 Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Attachment is not equal authority. First files to **obey**: this file, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for this prompt class.
 
-“Generate assets” always means: resolve or add catalog ID(s) → registered family generator (not polyfork for isolated-sheet or unique-silhouette assets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB.
+“Generate assets” always means: resolve or add catalog ID(s) → registered family generator (not polyfork for isolated-sheet or unique-silhouette assets) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/art/import_polyfork.mjs`, `tools/art/register_polyfork_catalog.mjs`, or `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
 Isolated studio sheets under `tools/blender/references/isolated/` are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in the references README are graphics-only extracts from `art-reference.png`; catalog IDs win if that README drifts.
 
@@ -62,7 +64,7 @@ Resolve conflicts in this order: the human's latest explicit instruction; `01`; 
 - Preserve the premium cozy, warm tactile, faceted low-poly coastal identity: authored planar geometry, deliberate asymmetry, warm sun/cool fill, broad AO/contact grounding, teal polygonal water, functional coastal/farm details, and gameplay-camera readability.
 - Avoid primitive-only/toy-like art, photoreal textures, noisy micro detail, plastic gloss, chibi/anime drift, generic fantasy kitbashing, diorama-only styling, heavy bloom/DOF, local exposure/tone-map hacks, and permanent toon/ink outlines.
 - Production color/materials must use `PaletteTokens`/`PaletteMaterials` and the palette JSON. `VisualRenderConfig` is the only renderer baseline; zone/asset code cannot invent a second lighting or grading system.
-- Runtime static assets are GLB/glTF 2.0 only. Use the single catalog, schema, registered generator workflow, CLI staging/validation/optimization/atomic publication, Meshopt-aware loader, and batching/instancing path. Do not create direct exporters, parallel palette/spec files, filename lists, or runtime `.blend`/`.fbx`/`.obj` paths.
+- Runtime static 3D assets are GLB/glTF 2.0 only. Use the single catalog, schema, registered generator workflow, CLI staging/validation/optimization/atomic publication, Meshopt-aware loader, and batching/instancing path. Do not create direct exporters, parallel palette/spec files, filename lists, or runtime `.blend`/`.fbx`/`.obj` paths. Ground supporting maps are the documented non-GLB exception: local processed images under `public/assets/textures/terrain/`, owned by `ExternalSurfaceTextures` plus `VisualRenderConfig`, remapped into palette families. They are not catalog IDs and must not be produced with `art:generate`.
 - Do not mass-produce world art before P0.5 and P0.75 establish and pass the renderer/material foundation plus the bridge-river, starter-farm, harbor, and coast/lighthouse visual-gold slices. Technical-art certification remains a separate release gate.
 
 ## Required task discipline

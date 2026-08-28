@@ -4,11 +4,14 @@ import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import type { FarmPoint, FarmRect } from "../../world/FarmLayout";
+import { WorldLayout } from "../../world/WorldLayout";
+import { attachSurfaceFieldAttributes } from "../materials/SurfaceFieldAttributes";
 
 export interface StarterFarmGroundOptions {
   origin: FarmPoint;
   plantableArea: FarmRect;
   heightAt: (worldX: number, worldZ: number) => number;
+  surfaceMaterial?: THREE.MeshStandardMaterial;
 }
 
 function hashUnit(value: number): number {
@@ -145,6 +148,10 @@ function buildCultivatedBed({
   }
   geometry.setAttribute("color", new THREE.BufferAttribute(colorValues, 3));
   geometry.computeVertexNormals();
+  attachSurfaceFieldAttributes(
+    geometry,
+    (x, z, sampledNormalY) => WorldLayout.terrainSurfaceSample(x, z, sampledNormalY)
+  );
   return geometry;
 }
 
@@ -231,14 +238,15 @@ export function buildStarterFarmGround(options: StarterFarmGroundOptions): THREE
   const group = new THREE.Group();
   group.name = "starter_farm_cultivated_ground";
 
+  const surfaceMaterial = options.surfaceMaterial ?? PaletteMaterials.standard("soil_dry_01", {
+    vertexColors: true,
+    vertexColorMode: "replace",
+    roughness: 0.98,
+    flatShading: true
+  });
   const bed = new THREE.Mesh(
     buildCultivatedBed(options),
-    PaletteMaterials.standard("soil_dry_01", {
-      vertexColors: true,
-      vertexColorMode: "replace",
-      roughness: 0.98,
-      flatShading: true
-    })
+    surfaceMaterial
   );
   bed.name = "starter_farm_faceted_soil_bed";
   bed.receiveShadow = true;

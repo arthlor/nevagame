@@ -87,6 +87,12 @@
           "minItems": 1,
           "items": { "$ref": "#/$defs/animationClip" }
         },
+        "additionalAnimationClips": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Supplemental clips shipped with an asset without expanding its canonical action suite.",
+          "items": { "$ref": "#/$defs/animationClip" }
+        },
         "readDistanceMeters": { "type": "number", "minimum": 8, "maximum": 100 },
         "parameters": { "type": "object" },
         "lodLevels": {

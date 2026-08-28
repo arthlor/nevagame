@@ -201,8 +201,8 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ state, onClose }) 
         as="div"
         className="world-map-modal"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -407,7 +407,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ state, onClose }) 
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="115" height="22" rx="4" fill="rgba(40, 56, 32, 0.92)" stroke="#88aa6e" strokeWidth="1" />
                         <text x="6" y="15" fill="#f0fae8" fontSize="11" fontWeight="700">
-                          {nodeFarm.placedCropIds.length} Plots Tilled
+                          {nodeFarm.placedCropIds.length} Crops Planted
                         </text>
                       </g>
                     )}

@@ -167,7 +167,11 @@ export class ShoreFoam {
         uDaylight: { value: 1 },
         uKeyLightStrength: { value: 1 },
         uFoamColor: { value: new THREE.Color(PALETTE_HEX.foam_warm_01) },
-        uShallowColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) }
+        uShallowColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) },
+        uFogColor: { value: new THREE.Color(CANONICAL_RENDER_CONFIG.fog.colorHex) },
+        uFogNear: { value: CANONICAL_RENDER_CONFIG.fog.near },
+        uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far },
+        uFogDistanceDesaturation: { value: CANONICAL_RENDER_CONFIG.fog.distanceDesaturation }
       },
       vertexShader: `
         uniform float uTime;
@@ -177,18 +181,24 @@ export class ShoreFoam {
         out vec2 vUv;
         out float vPhase;
         out float vExposure;
+        out vec3 vWorldPosition;
         void main() {
           vec3 displaced = position;
           displaced.y += sin(uTime * 0.38 + patchPhase) * (0.004 + uRoughness * 0.006);
           vUv = uv;
           vPhase = patchPhase;
           vExposure = patchExposure;
+          vWorldPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
         }
       `,
       fragmentShader: `
         uniform vec3 uFoamColor;
         uniform vec3 uShallowColor;
+        uniform vec3 uFogColor;
+        uniform float uFogNear;
+        uniform float uFogFar;
+        uniform float uFogDistanceDesaturation;
         uniform float uTime;
         uniform float uRoughness;
         uniform float uMaxAlpha;
@@ -197,6 +207,7 @@ export class ShoreFoam {
         in vec2 vUv;
         in float vPhase;
         in float vExposure;
+        in vec3 vWorldPosition;
         out vec4 outColor;
         void main() {
           float alongEdge = smoothstep(0.02, 0.25, vUv.x) * (1.0 - smoothstep(0.75, 0.98, vUv.x));
@@ -210,6 +221,10 @@ export class ShoreFoam {
           if (alpha < 0.018) discard;
           float lightResponse = clamp(mix(0.16, 0.92, uDaylight) + uKeyLightStrength * 0.08, 0.12, 1.0);
           vec3 color = mix(uShallowColor, uFoamColor, 0.62) * lightResponse;
+          float fogFactor = smoothstep(uFogNear, uFogFar, distance(cameraPosition, vWorldPosition));
+          float foamLuma = dot(color, vec3(0.299, 0.587, 0.114));
+          color = mix(color, vec3(foamLuma), fogFactor * uFogDistanceDesaturation);
+          color = mix(color, uFogColor, fogFactor * 0.82);
           outColor = vec4(color, alpha);
         }
       `
@@ -241,6 +256,11 @@ export class ShoreFoam {
       0,
       1
     );
+    (this.mesh.material.uniforms.uFogColor.value as THREE.Color).copy(frame.fogColor);
+    this.mesh.material.uniforms.uFogNear.value = frame.fogNear;
+    this.mesh.material.uniforms.uFogFar.value = frame.fogFar;
+    this.mesh.material.uniforms.uFogDistanceDesaturation.value =
+      CANONICAL_RENDER_CONFIG.fog.distanceDesaturation;
   }
 
   public dispose(): void {

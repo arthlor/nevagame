@@ -67,6 +67,8 @@ describe("Milestone M4 ornate modal presentation", () => {
     expect(html).toContain("dialogue-card");
     expect(html).toContain("dialogue-avatar");
     expect(html).toContain("Continue");
+    expect(html).toContain("Skip talk");
+    expect(html).toContain('data-testid="dialogue-skip-talk"');
     expect(html).toContain('data-testid="dialogue-text"');
   });
 

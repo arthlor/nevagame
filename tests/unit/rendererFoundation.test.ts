@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
+import { CultivatedSurfaceMaterial } from "../../src/render/materials/CultivatedSurfaceMaterial";
 import { buildStarterFarmGround } from "../../src/render/scene/StarterFarmGround";
 import { FacetedWater, SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
 import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { WaterSurface } from "../../src/render/water/WaterSurface";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
+import { createContactShadowMesh, setContactShadowOpacity } from "../../src/render/scene/ContactShadow";
 
 const WATER_CONDITIONS = {
   seaRoughness: 0.2,
@@ -25,9 +27,16 @@ describe("renderer foundation", () => {
     expect(CANONICAL_RENDER_CONFIG.shadows.vegetationCastDistanceMeters).toBe(28);
     expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBe(0.7);
     expect(CANONICAL_RENDER_CONFIG.skyFill.intensity).toBe(1.45);
-    expect(CANONICAL_RENDER_CONFIG.gtao.blendIntensity).toBe(0.38);
+    expect(CANONICAL_RENDER_CONFIG.gtao.blendIntensity).toBe(0.44);
+    expect(CANONICAL_RENDER_CONFIG.gtao.radius).toBeLessThan(0.6);
+    expect(CANONICAL_RENDER_CONFIG.contact.opacity).toBeGreaterThan(0.2);
     expect(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg).toBe(35);
     expect(CANONICAL_RENDER_CONFIG.sun.noonAzimuthDeg).toBe(45);
+    expect(CANONICAL_RENDER_CONFIG.groundSurface.polygonCellScaleMeters).toBe(1.2);
+    expect(CANONICAL_RENDER_CONFIG.groundSurface.wetness).toMatchObject({
+      riseSeconds: 3,
+      fallSeconds: 8
+    });
     expect(CANONICAL_RENDER_CONFIG.terrainSurface.polygonCellScaleMeters).toBe(1.2);
     expect(CANONICAL_RENDER_CONFIG.terrainSurface.pathTransition).toEqual({
       shoulderStart: 0.32,
@@ -58,6 +67,16 @@ describe("renderer foundation", () => {
     expect(material.fragmentShader).toContain("resolvedShoreNormalScale");
     expect(material.fragmentShader).toContain("shallowMix * uShallowColorStrength");
     water.dispose();
+  });
+
+  it("uses a soft analytic contact footprint instead of a hard decal", () => {
+    const shadow = createContactShadowMesh(0.64, 0.44, 0.23);
+    expect(shadow.geometry.parameters.segments).toBe(24);
+    expect(shadow.material.fragmentShader).toContain("smoothstep(0.42, 1.0, radial)");
+    setContactShadowOpacity(shadow, 0.12);
+    expect(shadow.material.uniforms.uOpacity.value).toBe(0.12);
+    shadow.geometry.dispose();
+    shadow.material.dispose();
   });
 
   it("builds deterministic broken coastal foam patches", () => {
@@ -134,6 +153,12 @@ describe("renderer foundation", () => {
     expect(firstBed.geometry.getAttribute("color").count).toBe(
       firstBed.geometry.getAttribute("position").count
     );
+    for (const name of ["surfaceWeights0", "surfaceWeights1", "surfaceCauses"]) {
+      expect(firstBed.geometry.getAttribute(name).count).toBe(
+        firstBed.geometry.getAttribute("position").count
+      );
+      expect(Array.from(firstBed.geometry.getAttribute(name).array).every(Number.isFinite)).toBe(true);
+    }
 
     const cornerQuadrants = new Set<string>();
     const positions = firstBed.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -151,5 +176,30 @@ describe("renderer foundation", () => {
         if ((object as THREE.Mesh).isMesh) (object as THREE.Mesh).geometry.dispose();
       });
     }
+  });
+
+  it("uses the shared surface shader role for cultivated bed transitions", () => {
+    const cultivated = new CultivatedSurfaceMaterial();
+    const shader = {
+      uniforms: { ...THREE.ShaderLib.standard.uniforms },
+      vertexShader: THREE.ShaderLib.standard.vertexShader,
+      fragmentShader: THREE.ShaderLib.standard.fragmentShader
+    };
+    const compile = cultivated.material.onBeforeCompile as unknown as (source: typeof shader) => void;
+    compile(shader);
+
+    expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0");
+    expect(shader.vertexShader).toContain("vCultivatedWorldPosition");
+    expect(shader.fragmentShader).toContain("nevaSurfaceWeightedPalette");
+    expect(shader.fragmentShader).toContain("nevaSurfaceWeatherWetness");
+    expect(shader.fragmentShader).toContain("nevaSurfaceRoughness");
+    expect(shader.fragmentShader).toContain("nevaSurfaceFacetNormal");
+    expect(shader.uniforms.cultivatedCellScale.value).toBe(1.2);
+    expect(shader.uniforms.cultivatedWetnessMix.value).toBe(0.08);
+    cultivated.setWetness(4);
+    expect(cultivated.wetness).toBe(1);
+    cultivated.setWetness(-1);
+    expect(cultivated.wetness).toBe(0);
+    cultivated.dispose();
   });
 });

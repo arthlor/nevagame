@@ -22,6 +22,11 @@ export interface CameraMotionInput {
   boat?: BoatMotionSample;
   discontinuityReason?: "none" | "teleport" | "load" | "recovery" | "boarding" | "docking";
   discontinuitySequence?: number;
+  lookHint?: { x: number; y: number; z: number };
+  fightReachMeters?: number;
+  lineTension?: number;
+  snapTimerSeconds?: number;
+  fightBehavior?: string;
 }
 
 export interface CameraProfile {
@@ -56,15 +61,15 @@ export const CAMERA_TUNING = Object.freeze({
 });
 
 const ON_FOOT_PROFILE: CameraProfile = {
-  distance: 11.8,
-  minDistance: 7.2,
-  maxDistance: 16.5,
-  pitchRadians: degrees(29),
+  distance: 11.2,
+  minDistance: 7,
+  maxDistance: 16,
+  pitchRadians: degrees(27.5),
   minPitchRadians: degrees(16),
   maxPitchRadians: degrees(58),
-  focusHeight: 1.1,
-  lookAhead: 2.2,
-  fovDegrees: 48
+  focusHeight: 1.22,
+  lookAhead: 2.35,
+  fovDegrees: 47
 };
 
 export const INTERIOR_CAMERA_PROFILE: CameraProfile = {
@@ -93,13 +98,23 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
   },
   "boat-driving": {
     ...ON_FOOT_PROFILE,
-    distance: 17.5,
-    minDistance: 11.5,
-    maxDistance: 24,
-    pitchRadians: degrees(32),
-    focusHeight: 1.35,
-    lookAhead: 5.8,
-    fovDegrees: 52
+    distance: 16.8,
+    minDistance: 11.2,
+    maxDistance: 23,
+    pitchRadians: degrees(30),
+    focusHeight: 1.46,
+    lookAhead: 6.4,
+    fovDegrees: 51
+  },
+  mounted: {
+    ...ON_FOOT_PROFILE,
+    distance: 13.2,
+    minDistance: 9.5,
+    maxDistance: 19,
+    pitchRadians: degrees(29),
+    focusHeight: 1.55,
+    lookAhead: 3.2,
+    fovDegrees: 49
   },
   "basic-fishing": {
     ...ON_FOOT_PROFILE,
@@ -123,6 +138,20 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
   },
   menu: ON_FOOT_PROFILE,
   paused: ON_FOOT_PROFILE
+};
+
+/** Longer boom for pelagic fights so a 40 m+ tuna stays on screen. */
+export const SPORT_TUNA_CAMERA_PROFILE: CameraProfile = {
+  ...ON_FOOT_PROFILE,
+  distance: 13.6,
+  minDistance: 10,
+  maxDistance: 19,
+  pitchRadians: degrees(28),
+  minPitchRadians: degrees(16),
+  maxPitchRadians: degrees(52),
+  focusHeight: 1.58,
+  lookAhead: 11.2,
+  fovDegrees: 48
 };
 
 export class GameCamera {
@@ -151,6 +180,8 @@ export class GameCamera {
   private vehicleMotionPhase = 0;
   private lastContactEvent: PlayerMotionSample["contactEvent"] = "none";
   private lastDiscontinuitySequence = -1;
+  private fightTrauma = 0;
+  private fightTraumaPhase = 0;
   private reducedMotion = typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
@@ -225,12 +256,23 @@ export class GameCamera {
     const dt = Math.min(0.1, Math.max(0, deltaSeconds));
     if (input) this.applyInput(mode, input);
     const isInterior = WorldLayout.isInterior(targetPos.x, targetPos.z);
-    const profile = this.activateMode(mode, isInterior);
-    const targetDistance = clamp(
-      profile.distance + this.zoomOffset,
-      profile.minDistance,
-      profile.maxDistance
-    );
+    const profile = this.activateMode(mode, isInterior, motionInput?.fightReachMeters ?? 0);
+    let framingDistance = profile.distance;
+    if (mode === "sport-fishing" && motionInput?.lookHint) {
+      const dx = motionInput.lookHint.x - targetPos.x;
+      const dz = motionInput.lookHint.z - targetPos.z;
+      const along = Math.abs(dx * Math.sin(this.desiredYaw) + dz * Math.cos(this.desiredYaw)) * 0.5;
+      const across = Math.abs(dx * Math.cos(this.desiredYaw) - dz * Math.sin(this.desiredYaw)) * 0.5;
+      const halfFov = THREE.MathUtils.degToRad(responsiveVerticalFov(profile.fovDegrees, this.camera.aspect)) * 0.5;
+      const vertical = along * Math.sin(this.desiredPitch)
+        + Math.abs(motionInput.lookHint.y - targetPos.y - profile.focusHeight) * Math.cos(this.desiredPitch) * 0.5 + 2;
+      framingDistance = Math.max(profile.distance, Math.max(
+        across / (Math.tan(halfFov) * Math.max(0.5, this.camera.aspect)),
+        vertical / Math.tan(halfFov)
+      ) + along * Math.cos(this.desiredPitch) + 3);
+    }
+    const targetDistance = clamp(framingDistance + this.zoomOffset,
+      profile.minDistance, framingDistance + profile.maxDistance - profile.distance);
 
     if (this.reducedMotion) {
       this.currentYaw = this.desiredYaw;
@@ -246,20 +288,14 @@ export class GameCamera {
       this.currentLookAhead = damp(this.currentLookAhead, profile.lookAhead, CAMERA_TUNING.profileResponse, dt);
     }
 
-    const explicitDiscontinuity = this.updateMotionResponse(
-      motionInput,
-      mode,
-      dt
-    );
-
+    const explicitDiscontinuity = this.updateMotionResponse(motionInput, mode, dt);
     this.rawAnchor.set(
       targetPos.x + this.vehicleMotionOffset.x,
       targetPos.y + this.currentFocusHeight + this.landingOffsetY + this.vehicleMotionOffset.y,
       targetPos.z + this.vehicleMotionOffset.z
     );
     const teleported = this.anchorInitialized &&
-      this.currentAnchor.distanceToSquared(this.rawAnchor) >
-        CAMERA_TUNING.teleportSnapDistanceMeters ** 2;
+      this.currentAnchor.distanceToSquared(this.rawAnchor) > CAMERA_TUNING.teleportSnapDistanceMeters ** 2;
     if (!this.anchorInitialized || this.reducedMotion || teleported || explicitDiscontinuity) {
       this.currentAnchor.copy(this.rawAnchor);
       this.anchorInitialized = true;
@@ -279,6 +315,17 @@ export class GameCamera {
       this.currentAnchor.y,
       this.currentAnchor.z + lookDirectionZ * this.currentLookAhead + this.motionLookAhead.z
     );
+    if (mode === "sport-fishing" && motionInput?.lookHint) {
+      if (!this.fishingFocusActive || explicitDiscontinuity) this.fishingFocus.copy(this.currentLookAt);
+      this.fishingFocusActive = true;
+      const follow = this.reducedMotion ? 1 : 1 - Math.exp(-8 * dt);
+      this.fishingFocus.x = THREE.MathUtils.lerp(this.fishingFocus.x, (this.currentAnchor.x + motionInput.lookHint.x) * 0.5, follow);
+      this.fishingFocus.z = THREE.MathUtils.lerp(this.fishingFocus.z, (this.currentAnchor.z + motionInput.lookHint.z) * 0.5, follow);
+      this.fishingFocus.y = THREE.MathUtils.lerp(this.fishingFocus.y, (this.currentAnchor.y + motionInput.lookHint.y) * 0.5, follow);
+      this.currentLookAt.copy(this.fishingFocus);
+    } else {
+      this.fishingFocusActive = false;
+    }
     const horizontalDistance = Math.cos(this.currentPitch) * this.currentDistance;
     this.desiredCameraPosition.set(
       this.currentLookAt.x + Math.sin(this.currentYaw) * horizontalDistance,
@@ -339,6 +386,25 @@ export class GameCamera {
       this.desiredCameraPosition,
       this.obstructionFraction
     );
+
+    const tension = motionInput?.lineTension ?? 0;
+    const snapTimer = motionInput?.snapTimerSeconds ?? 0;
+    const danger = tension >= 94 || snapTimer > 0.2;
+    const burstStarted = motionInput?.fightBehavior === "burst" && this.previousFightBehavior !== "burst";
+    if (mode === "sport-fishing" && !this.reducedMotion
+      && (burstStarted || (danger && !this.previousFightDanger))) this.fightTrauma = 0.18;
+    if (mode !== "sport-fishing") this.fightTrauma = 0;
+    this.previousFightBehavior = motionInput?.fightBehavior;
+    this.previousFightDanger = danger;
+    this.fightTrauma = Math.max(0, this.fightTrauma - 1.7 * dt);
+    if (this.fightTrauma > 0.012 && !this.reducedMotion) {
+      this.fightTraumaPhase += dt;
+      const magnitude = this.fightTrauma * this.fightTrauma * 0.1;
+      this.camera.position.x += Math.sin(this.fightTraumaPhase * 31.4) * magnitude;
+      this.camera.position.y += Math.sin(this.fightTraumaPhase * 27.1) * magnitude * 0.42;
+    } else if (this.reducedMotion) {
+      this.fightTrauma = 0;
+    }
 
     const targetFov = responsiveVerticalFov(profile.fovDegrees, this.camera.aspect);
     this.camera.fov = this.reducedMotion
@@ -472,6 +538,9 @@ export class GameCamera {
       desiredVehicleZ += rightZ * lateral;
       const horizontalSpeed = Math.hypot(boat.velocity.x, boat.velocity.z);
       if (horizontalSpeed > 0.05) {
+        const boatForwardLead = CANONICAL_RENDER_CONFIG.motion.cameraBoatForwardLeadMeters;
+        desiredLookAheadX += boat.velocity.x / horizontalSpeed * boatForwardLead;
+        desiredLookAheadZ += boat.velocity.z / horizontalSpeed * boatForwardLead;
         const accelerationOffset = THREE.MathUtils.clamp(
           boat.accelerationMetersPerSecondSquared / 12,
           -1,
@@ -507,11 +576,20 @@ export class GameCamera {
     return explicitDiscontinuity;
   }
 
-  private activateMode(mode: GameMode, isInterior = false): CameraProfile {
+  private readonly fishingFocus = new THREE.Vector3();
+  private fishingFocusActive = false;
+  private previousFightBehavior: string | undefined;
+  private previousFightDanger = false;
+
+  private activateMode(mode: GameMode, isInterior = false, fightReachMeters = 0): CameraProfile {
     const activeMode = mode === "menu" || mode === "paused" ? this.currentMode : mode;
     let nextProfile = CAMERA_PROFILES[activeMode] ?? ON_FOOT_PROFILE;
     if (activeMode === "on-foot" && isInterior) {
       nextProfile = INTERIOR_CAMERA_PROFILE;
+    }
+    if (activeMode === "sport-fishing" && (fightReachMeters >= 38
+      || (fightReachMeters === 0 && this.currentProfile === SPORT_TUNA_CAMERA_PROFILE))) {
+      nextProfile = SPORT_TUNA_CAMERA_PROFILE;
     }
     if (activeMode === this.currentMode && nextProfile === this.currentProfile) return nextProfile;
 

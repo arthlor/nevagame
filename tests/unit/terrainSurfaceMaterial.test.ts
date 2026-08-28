@@ -100,6 +100,8 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.vertexShader).toContain("attribute float terrainGreenMask;");
     expect(shader.vertexShader).toContain("attribute float terrainPathBlend;");
     expect(shader.vertexShader).toContain("attribute vec3 terrainShoreWeights;");
+    expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0;");
+    expect(shader.vertexShader).toContain("vSurfaceCauses = max(surfaceCauses");
     expect(shader.vertexShader).toContain("vTerrainPathBlend");
     expect(shader.vertexShader).toContain("vTerrainShoreWeights");
     expect(shader.vertexShader).toContain("vTerrainWorldPosition");
@@ -117,6 +119,11 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellEdge");
     expect(shader.fragmentShader).toContain("nevaGroundCellJitter");
+    expect(shader.fragmentShader).toContain("nevaSurfaceWeightedPalette");
+    expect(shader.fragmentShader).toContain("nevaSurfaceTransitionWeight");
+    expect(shader.fragmentShader).toContain("nevaSurfaceWeatherWetness");
+    expect(shader.fragmentShader).toContain("nevaSurfaceRoughness");
+    expect(shader.fragmentShader).toContain("nevaSurfaceFacetNormal");
     expect(shader.fragmentShader).toContain("terrainPolygonJaggedStrength");
     expect(shader.fragmentShader).toContain("terrainPolygonFacetLightingStrength");
     expect(shader.fragmentShader).toContain("mosaicMask");

@@ -543,7 +543,6 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   const totalGap = options.bridge.gatewaySlabGapMeters * (slabCount - 1);
   const slabWidth = (options.bridge.deckWidth - totalGap) / slabCount;
   const gatewayHeight = options.bridge.entrySurfaceY;
-  const gatewayOverlap = options.bridge.gatewayOverlapMeters ?? 0.22;
   const gatewayVertexStart = positions.length / 3;
 
   for (const [sideIndex, side] of [-1, 1].entries()) {
@@ -553,9 +552,8 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
       const zEnd = zStart + slabWidth;
       const boundaryInset = options.bridge.gatewayInsetMeters;
       const irregular = Math.sin((slabIndex + 1) * 2.7 + sideIndex * 1.9);
-      // Overlap the final deck box so the character capsule has a continuous
-      // physical top at the bridge/road seam.
-      const nearX = edge.x + side * (boundaryInset - gatewayOverlap);
+      // Anchor gateway stone slabs to the approach terrain edge.
+      const nearX = edge.x + side * boundaryInset;
       const farX = edge.x + side * options.bridge.gatewayDepthMeters;
       const nearZStart = options.bridge.center.z + zStart + 0.035 + irregular * 0.025;
       const nearZEnd = options.bridge.center.z + zEnd - 0.035 + irregular * 0.018;

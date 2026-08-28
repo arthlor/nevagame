@@ -6,8 +6,16 @@ import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
+import { FISHING_TUNING } from "../simulation/fishing/FishingTuning";
+import {
+  isPlayerAtMountPose,
+  isValidMountPose,
+  isValidPlayerMountGround,
+  STARTER_DONKEY_ID,
+  STARTER_DONKEY_TYPE_ID
+} from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 17;
+export const CURRENT_SCHEMA_VERSION = 19;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -107,7 +115,17 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     (state.world.lastSchoolSpawnMinute !== undefined && !isSafeInteger(state.world.lastSchoolSpawnMinute, 0))
     || (schemaVersion >= 9 && typeof state.world.storySchoolSpawned !== "boolean")
   ) return false;
-  if (!isRecord(state.processingJobs) || !isRecord(state.boats) || !isRecord(state.fishCargo)) return false;
+  if (
+    !isRecord(state.processingJobs) ||
+    !isRecord(state.boats) ||
+    !isRecord(state.fishCargo) ||
+    (schemaVersion >= 18 && !isRecord(state.mounts))
+  ) return false;
+  if (
+    schemaVersion >= 18 &&
+    (state.player.activeMountId === undefined ||
+      (state.player.activeMountId !== null && typeof state.player.activeMountId !== "string"))
+  ) return false;
   if (schemaVersion >= 2 && state.basicFishing !== null && !isRecord(state.basicFishing)) return false;
   if (schemaVersion >= 3 && state.sportFishing !== null && !isRecord(state.sportFishing)) return false;
   if (
@@ -162,6 +180,30 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       typeof state.basicFishing.willCatch !== "boolean")
   ) return false;
   if (state.sportFishing) {
+    const dynamics = state.sportFishing.dynamics;
+    if (schemaVersion >= 19 && (
+      !isRecord(dynamics) ||
+      ![dynamics.originX, dynamics.originZ, dynamics.bearingRadians, dynamics.headingRadians,
+        dynamics.radialVelocity, dynamics.angularVelocity, dynamics.verticalVelocity].every(value => isFiniteNumber(value)) ||
+      !isFiniteNumber(dynamics.lineLengthMeters, FISHING_TUNING.minimumLineLength) ||
+      !isFiniteInRange(dynamics.depthMeters, -0.9, 4) ||
+      !isFiniteInRange(dynamics.rodDirection, -1, 1) ||
+      !isFiniteNumber(dynamics.effort, 0) ||
+      !isFiniteNumber(dynamics.retrievalMetersPerSecond, 0) ||
+      !isFiniteNumber(dynamics.payoutMetersPerSecond, 0) ||
+      !isFiniteNumber(dynamics.behaviorDurationSeconds, 0.1) ||
+      !isSafeInteger(dynamics.surfaceCrossings, 0) ||
+      !isSafeInteger(dynamics.rngState, 0) ||
+      !isFiniteInRange(dynamics.stepRemainderSeconds, 0, FISHING_TUNING.stepSeconds) ||
+      !isOneOf(state.sportFishing.behavior, ["rest", "run-left", "run-right", "dive", "surface", "burst", "shake"]) ||
+      !isFiniteNumber(state.sportFishing.behaviorUntilSeconds, 0) ||
+      !isFiniteNumber(state.sportFishing.elapsedSeconds, 0) ||
+      !isFiniteInRange(state.sportFishing.fishDirection, -1, 1) ||
+      !isFiniteInRange(state.sportFishing.rodDirectionAngle, -1, 1) ||
+      typeof state.sportFishing.isReeling !== "boolean" ||
+      typeof state.sportFishing.isSlacking !== "boolean" ||
+      typeof state.sportFishing.isBracing !== "boolean"
+    )) return false;
     if (
       state.sportFishing.result !== "active" ||
       typeof state.sportFishing.rodId !== "string" ||
@@ -183,6 +225,39 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         state.sportFishing.schoolId !== null &&
         (typeof state.sportFishing.schoolId !== "string" || !state.world.activeSchools[state.sportFishing.schoolId]))
     ) return false;
+  }
+
+  if (schemaVersion >= 18) {
+    const mounts = state.mounts as Record<string, unknown>;
+    if (!Object.prototype.hasOwnProperty.call(mounts, STARTER_DONKEY_ID)) return false;
+    for (const [mountId, mount] of Object.entries(mounts)) {
+      if (
+        !isRecord(mount) ||
+        mountId !== STARTER_DONKEY_ID ||
+        mount.id !== mountId ||
+        mount.mountTypeId !== STARTER_DONKEY_TYPE_ID ||
+        !isValidMountPose(mount as unknown as GameState["mounts"][string])
+      ) return false;
+    }
+    const activeMountId = state.player.activeMountId;
+    if (activeMountId !== null) {
+      const activeMount = mounts[activeMountId];
+      if (
+        !isRecord(activeMount) ||
+        (state.player.activeBoatId !== null && state.player.activeBoatId !== undefined) ||
+        state.basicFishing !== null ||
+        state.sportFishing !== null ||
+        (state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined) ||
+        state.player.traversal.isGrounded !== true ||
+        !isValidPlayerMountGround(state.player as GameState["player"]) ||
+        !isValidMountPose(activeMount as unknown as GameState["mounts"][string]) ||
+        !isPlayerAtMountPose(
+          state.player as GameState["player"],
+          activeMount as unknown as GameState["mounts"][string],
+          0.24
+        )
+      ) return false;
+    }
   }
 
   for (const [farmId, farm] of Object.entries(state.farms)) {

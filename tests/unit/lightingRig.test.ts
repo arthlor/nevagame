@@ -7,10 +7,29 @@ import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderCon
 import {
   deriveCelestialDirections,
   deriveLightingFrame,
-  lightningEnvelope
+  lightningEnvelope,
+  snapShadowFocus
 } from "../../src/render/lighting/LightingRig";
 
 describe("LightingRig", () => {
+  it("snaps shadow centers on the directional light's projected texel grid", () => {
+    const focus = new THREE.Vector3(17.13, 0.47, -23.82);
+    const lightDirection = new THREE.Vector3(0.58, 0.62, 0.53).normalize();
+    const texelSize = 0.02734375;
+    const snapped = snapShadowFocus(focus, lightDirection, texelSize);
+    const right = new THREE.Vector3(0, 1, 0).cross(lightDirection).normalize();
+    const up = lightDirection.clone().cross(right).normalize();
+    expect(snapped.dot(right) / texelSize).toBeCloseTo(
+      Math.round(snapped.dot(right) / texelSize),
+      6
+    );
+    expect(snapped.dot(up) / texelSize).toBeCloseTo(
+      Math.round(snapped.dot(up) / texelSize),
+      6
+    );
+    expect(snapped.distanceTo(focus)).toBeLessThan(texelSize);
+  });
+
   it("derives stable time-of-day light from simulation inputs", () => {
     const state = createInitialGameState(42);
     const first = deriveLightingFrame(state, 12);
@@ -140,6 +159,54 @@ describe("LightingRig", () => {
     }
   });
 
+  it("keeps dawn and dusk progressively lighter than night", () => {
+    const state = createInitialGameState(42);
+    const illumination = (minute: number) => {
+      state.clock.currentMinute = minute;
+      const frame = deriveLightingFrame(state, 0);
+      const sky = frame.skyTopColor.getHSL({ h: 0, s: 0, l: 0 });
+      return {
+        key: frame.sunIntensity + frame.moonIntensity + frame.skyFillIntensity * 0.55,
+        fill: frame.skyFillIntensity,
+        skyL: sky.l,
+        exposure: frame.exposure,
+        ambient: frame.ambientDaylight,
+        practicals: frame.practicalLightIntensity
+      };
+    };
+
+    const night = illumination(0);
+    const dawnStart = illumination(4 * 60);
+    const preDawn = illumination(5 * 60 + 30);
+    const sunrise = illumination(6 * 60);
+    const lateDawn = illumination(7 * 60);
+    const sunset = illumination(18 * 60);
+    const dusk = illumination(19 * 60);
+    const lateDusk = illumination(21 * 60);
+    const noon = illumination(12 * 60);
+
+    for (const sample of [dawnStart, preDawn, sunrise, lateDawn, sunset, dusk, lateDusk]) {
+      expect(sample.key).toBeGreaterThan(night.key);
+      expect(sample.fill).toBeGreaterThan(night.fill);
+      expect(sample.skyL).toBeGreaterThan(night.skyL);
+      expect(sample.ambient).toBeGreaterThan(night.ambient);
+    }
+    expect(dawnStart.exposure).toBeCloseTo(night.exposure, 5);
+    expect(preDawn.exposure).toBeCloseTo(night.exposure, 5);
+    expect(lateDusk.exposure).toBeCloseTo(night.exposure, 5);
+    expect(dawnStart.ambient).toBeGreaterThan(0.3);
+    expect(preDawn.ambient).toBeGreaterThan(dawnStart.ambient);
+    expect(sunrise.ambient).toBeGreaterThan(preDawn.ambient);
+    expect(lateDawn.ambient).toBeGreaterThan(sunrise.ambient);
+    expect(sunrise.key).toBeGreaterThan(preDawn.key);
+    expect(noon.key).toBeGreaterThan(sunrise.key);
+    expect(sunset.key).toBeGreaterThan(dusk.key);
+    expect(dusk.key).toBeGreaterThan(lateDusk.key);
+    expect(sunset.key).toBeCloseTo(sunrise.key, 5);
+    expect(dawnStart.practicals).toBeGreaterThan(0.7);
+    expect(noon.practicals).toBe(0);
+  });
+
   it("keeps rainy pre-dawn gameplay readable with the shared brighter night profile", () => {
     const state = createInitialGameState(42);
     state.clock.currentMinute = 4 * 60 + 47;
@@ -148,6 +215,9 @@ describe("LightingRig", () => {
     state.weather.visibility = 0.72;
 
     const frame = deriveLightingFrame(state, 0);
+    const midnight = structuredClone(state);
+    midnight.clock.currentMinute = 0;
+    const night = deriveLightingFrame(midnight, 0);
     const calibratedNightSky = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.36);
 
     expect(frame.daylight).toBe(0);
@@ -156,7 +226,10 @@ describe("LightingRig", () => {
     expect(frame.skyFillColor.getHSL({ h: 0, s: 0, l: 0 }).l).toBeGreaterThan(
       frame.skyTopColor.getHSL({ h: 0, s: 0, l: 0 }).l
     );
-    expect(frame.skyTopColor.getHex()).toBe(calibratedNightSky.getHex());
+    expect(frame.skyTopColor.getHSL({ h: 0, s: 0, l: 0 }).l).toBeGreaterThan(
+      calibratedNightSky.getHSL({ h: 0, s: 0, l: 0 }).l
+    );
+    expect(frame.skyFillIntensity).toBeGreaterThan(night.skyFillIntensity);
     expect(frame.exposure).toBeGreaterThan(1.04);
   });
 

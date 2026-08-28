@@ -3,6 +3,13 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
 
 export type QualityTier = "low" | "medium" | "high";
 
+const SHARED_GROUND_WETNESS = {
+  riseSeconds: 3,
+  fallSeconds: 8,
+  colorMix: 0.06,
+  roughnessMix: 0.12
+};
+
 export interface VisualRenderConfig {
   outputColorSpace: THREE.ColorSpace;
   toneMapping: THREE.ToneMapping;
@@ -36,6 +43,25 @@ export interface VisualRenderConfig {
     nightGroundColorStrength: number;
     intensity: number;
     nightIntensity: number;
+    /** Extra hemisphere fill at the solar horizon so dawn/dusk never undercut night. */
+    twilightFillLift: number;
+    /** Warm zenith mix at the horizon hour. */
+    twilightZenithHorizonMix: number;
+    /** Keep night exposure until solar daylight exceeds this. */
+    twilightExposureHold: number;
+    /**
+     * Ambient daylight at 04:00 / equivalent dusk, in the same 0–1 space as solar
+     * daylight, so labeled dawn/dusk start above night rather than matching it.
+     */
+    dawnDuskEdgeAmbient: number;
+  };
+  twilight: {
+    /** Moon stays up until the sun is this far above the horizon. */
+    moonHoldSolarHeight: number;
+    moonFadeWidth: number;
+    /** Window lights stay full until solar daylight reaches this. */
+    practicalHoldDaylight: number;
+    practicalFadeWidth: number;
   };
   shadows: {
     type: THREE.ShadowMapType;
@@ -79,6 +105,19 @@ export interface VisualRenderConfig {
     furrowCount: number;
     furrowSegments: number;
     clodCount: number;
+  };
+  groundSurface: {
+    polygonCellScaleMeters: number;
+    edgeCellScaleMeters: number;
+    wetness: {
+      riseSeconds: number;
+      fallSeconds: number;
+      colorMix: number;
+      roughnessMix: number;
+    };
+    cultivatedEdgeMix: number;
+    cultivatedWetnessMix: number;
+    roadWetnessMix: number;
   };
   terrainSurface: {
     textureSize: number;
@@ -249,9 +288,14 @@ export interface VisualRenderConfig {
     cameraLandingResponse: number;
     cameraBoatAccelerationMeters: number;
     cameraBoatYawMeters: number;
+    cameraBoatForwardLeadMeters: number;
     ambientScale: number;
     reducedMotionScale: number;
     reducedMotionSecondaryScale: number;
+    footIkEnabled: boolean;
+    footIkMaxBendRadians: number;
+    secondarySpringStiffness: number;
+    secondarySpringDamping: number;
   };
 }
 
@@ -291,7 +335,17 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     nightSkyColorStrength: 0.82,
     nightGroundColorStrength: 1.08,
     intensity: 1.45,
-    nightIntensity: 0.88
+    nightIntensity: 0.88,
+    twilightFillLift: 0.3,
+    twilightZenithHorizonMix: 0.28,
+    twilightExposureHold: 0.4,
+    dawnDuskEdgeAmbient: 0.46
+  },
+  twilight: {
+    moonHoldSolarHeight: 0.16,
+    moonFadeWidth: 0.26,
+    practicalHoldDaylight: 0.22,
+    practicalFadeWidth: 0.55
   },
   shadows: {
     type: THREE.PCFSoftShadowMap,
@@ -353,8 +407,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   contact: {
     enabled: true,
-    opacity: 0.2,
-    playerRadius: 0.62
+    opacity: 0.23,
+    playerRadius: 0.64
   },
   farmGround: {
     cultivationMarginMeters: 0.8,
@@ -362,6 +416,14 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     furrowCount: 6,
     furrowSegments: 14,
     clodCount: 24
+  },
+  groundSurface: {
+    polygonCellScaleMeters: 1.2,
+    edgeCellScaleMeters: 1.2,
+    wetness: SHARED_GROUND_WETNESS,
+    cultivatedEdgeMix: 0.1,
+    cultivatedWetnessMix: 0.08,
+    roadWetnessMix: 0.08
   },
   terrainSurface: {
     textureSize: 128,
@@ -397,11 +459,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       cliffWeightFull: 0.5,
       facetedColorBlend: 0.7
     },
-    wetness: {
-      riseSeconds: 3,
-      fallSeconds: 8,
-      colorMix: 0.06
-    },
+    wetness: SHARED_GROUND_WETNESS,
     roughness: {
       dry: 0.92,
       wet: 0.8,
@@ -421,18 +479,18 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   roadSurface: {
     externalTexture: {
-      sampleScaleMeters: 3.2,
-      mesoSampleScaleMeters: 11,
+      sampleScaleMeters: 2.6,
+      mesoSampleScaleMeters: 8.5,
       rotationRadians: 0.37,
       lodBias: 0.2,
       colorStrength: 1,
       roughnessStrength: 1
     },
-    polygonCellScaleMeters: 1.05,
+    polygonCellScaleMeters: 0.75,
     polygonEdgeCellScaleMeters: 1.2,
-    polygonVariationStrength: 0.28,
+    polygonVariationStrength: 0.08,
     polygonJaggedStrength: 0.22,
-    polygonFacetLightingStrength: 0.048,
+    polygonFacetLightingStrength: 0.016,
     edgeFadeStart: 0.16,
     edgeFadeFull: 0.72,
     roughness: 0.94,
@@ -463,10 +521,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     size: 0.72
   },
   gtao: {
-    blendIntensity: 0.38,
-    radius: 0.68,
-    thickness: 0.85,
-    distanceFallOff: 0.9,
+    blendIntensity: 0.44,
+    radius: 0.56,
+    thickness: 0.55,
+    distanceFallOff: 0.92,
     samples: 8,
     denoiseSamples: 6,
     resolutionScale: 0.68
@@ -532,9 +590,14 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     cameraLandingResponse: 12,
     cameraBoatAccelerationMeters: 0.08,
     cameraBoatYawMeters: 0.12,
+    cameraBoatForwardLeadMeters: 1.25,
     ambientScale: 1,
     reducedMotionScale: 0.35,
-    reducedMotionSecondaryScale: 0
+    reducedMotionSecondaryScale: 0,
+    footIkEnabled: true,
+    footIkMaxBendRadians: 0.45,
+    secondarySpringStiffness: 18,
+    secondarySpringDamping: 9
   }
 };
 

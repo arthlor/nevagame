@@ -55,6 +55,7 @@ export interface RuntimeAssetSpec {
   rigNode: string | null;
   socketNodes: readonly string[] | null;
   animationClips: readonly RuntimeAnimationClipSpec[] | null;
+  additionalAnimationClips: readonly RuntimeAnimationClipSpec[] | null;
 }
 
 const knownIds = new Set<string>(Object.values(ASSET_IDS));

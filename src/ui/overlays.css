@@ -307,3 +307,305 @@
     width: min(94vw, 520px);
   }
 }
+
+/* Sport fishing uses the same compact well language as the labor meter. */
+#ui-container .fishing-hud-container {
+  position: absolute;
+  top: auto;
+  right: var(--ui-safe-right);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: auto;
+  z-index: 120;
+  display: flex;
+  width: min(238px, calc(100vw - 24px));
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 7px 8px !important;
+  transform: none;
+  color: var(--mm-text-ivory) !important;
+  background: rgba(12, 16, 23, 0.84) !important;
+  background-image: none !important;
+  border: 1px solid rgba(212, 175, 55, 0.46) !important;
+  border-radius: 5px !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(240, 221, 154, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.42) !important;
+  pointer-events: none !important;
+}
+
+#ui-container .fishing-hud-container > * {
+  pointer-events: none;
+}
+
+#ui-container .fishing-hud-top,
+#ui-container .fishing-tension-head,
+#ui-container .fishing-hud-lower,
+#ui-container .fishing-species-badge,
+#ui-container .fishing-direction-arc-row,
+#ui-container .fishing-action-cue {
+  display: flex;
+  align-items: center;
+}
+
+#ui-container .fishing-hud-top {
+  justify-content: space-between;
+  min-height: 26px;
+}
+
+#ui-container .fishing-species-badge {
+  gap: 5px;
+  min-width: 0;
+}
+
+#ui-container .fishing-species-badge .atlas-image {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+#ui-container .fishing-distance {
+  color: var(--mm-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+#ui-container .fishing-tension {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#ui-container .fishing-tension-head {
+  min-height: 15px;
+  gap: 5px;
+  color: var(--mm-text-muted);
+}
+
+#ui-container .fishing-tension-head > .hud-atlas-icon {
+  opacity: 0.9;
+}
+
+#ui-container .fishing-danger-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #fecaca;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+#ui-container .fishing-tension-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 15% 60% 25%;
+  width: 100%;
+  height: 9px;
+  overflow: visible;
+  background: rgba(5, 8, 12, 0.86);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+#ui-container .fishing-tension-zone {
+  display: block;
+  height: 100%;
+}
+
+#ui-container .fishing-tension-zone-slack {
+  background: rgba(56, 189, 248, 0.38);
+}
+
+#ui-container .fishing-tension-zone-safe {
+  background: rgba(52, 211, 153, 0.38);
+}
+
+#ui-container .fishing-tension-zone-danger {
+  background: rgba(248, 113, 113, 0.46);
+}
+
+#ui-container .fishing-tension-needle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--mm-gold-bright);
+  border-radius: 1px;
+  box-shadow: 0 0 7px var(--mm-gold-glow);
+}
+
+#ui-container .fishing-tension-danger .fishing-tension-needle {
+  background: #fca5a5;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.8);
+}
+
+#ui-container .fishing-hud-lower {
+  min-height: 50px;
+  gap: 9px;
+}
+
+#ui-container .fishing-hud-meters {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+#ui-container .fishing-hud-meter {
+  width: 20px;
+  padding: 2px 2px 3px;
+  background: rgba(5, 8, 12, 0.5) !important;
+  border: 1px solid rgba(212, 175, 55, 0.26) !important;
+  border-radius: 3px;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6) !important;
+}
+
+#ui-container .fishing-hud-meter.chrome-meter--vertical {
+  gap: 3px;
+}
+
+#ui-container .fishing-hud-meter.chrome-meter--vertical .chrome-meter-track {
+  width: 10px !important;
+  height: 44px !important;
+  border: 1px solid #4a3224;
+  border-radius: 2px;
+}
+
+#ui-container .fishing-hud-meter .chrome-meter-head {
+  color: var(--mm-text-muted);
+}
+
+#ui-container .fishing-integrity-meter .chrome-meter-head {
+  color: #b9e7e2;
+}
+
+#ui-container .fishing-integrity-meter.integrity-danger .chrome-meter-head {
+  color: #fca5a5;
+}
+
+#ui-container .fishing-direction-block {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+}
+
+#ui-container .fishing-direction-arc-row {
+  justify-content: space-between;
+  gap: 5px;
+}
+
+#ui-container .fishing-direction-arc-row .chrome-keycap {
+  min-width: 17px;
+  padding: 2px 4px;
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  text-align: center;
+}
+
+#ui-container .fishing-direction-arc {
+  position: relative;
+  display: block;
+  flex: 1;
+  height: 15px;
+  margin: 0 2px;
+  border-top: 1px solid rgba(212, 175, 55, 0.58);
+  border-radius: 50% 50% 0 0;
+}
+
+#ui-container .fishing-direction-arc::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.26), transparent);
+  content: "";
+}
+
+#ui-container .fishing-direction-marker {
+  position: absolute;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  background: var(--mm-gold-bright);
+  border: 1px solid #6a4a24;
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--mm-gold-glow);
+}
+
+#ui-container .fishing-rod-marker {
+  position: absolute;
+  top: 4px;
+  width: 3px;
+  height: 8px;
+  margin-left: -1.5px;
+  background: var(--mm-gold-bright);
+  transform: rotate(18deg);
+}
+
+#ui-container .fishing-action-cue {
+  justify-content: flex-end;
+  min-height: 18px;
+  gap: 5px;
+}
+
+#ui-container .fishing-action-cue .atlas-image {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  opacity: 0.92;
+}
+
+#ui-container .fishing-action-cue .chrome-keycap {
+  min-width: 20px;
+  padding: 2px 5px;
+  font-size: 9px;
+}
+
+#ui-container .fishing-touch-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  pointer-events: auto;
+}
+
+#ui-container .fishing-touch-controls,
+#ui-container .fishing-touch-controls * {
+  pointer-events: auto;
+}
+
+#ui-container .fishing-touch-control {
+  min-height: 34px;
+  gap: 3px;
+  padding: 4px;
+  color: var(--mm-text-ivory);
+  background: rgba(20, 29, 41, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  border-radius: 3px;
+}
+
+#ui-container .fishing-touch-label {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (pointer: fine) {
+  #ui-container .fishing-touch-controls {
+    display: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #ui-container .fishing-hud-container {
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: min(224px, calc(100vw - 20px));
+  }
+}

@@ -90,7 +90,8 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     expect(byId.get(ASSET_IDS.BOAT_ROWBOAT_A)?.freshSaveVisible).toBe(true);
     expect(byId.get(ASSET_IDS.BOAT_SKIFF_A)).toMatchObject({
       disposition: "progression-world",
-      freshSaveVisible: false
+      freshSaveVisible: true,
+      placementSource: "WorldScene skiff mooring preview + NavigationDomain.purchaseSkiff"
     });
     expect(byId.get(ASSET_IDS.PROP_SMOKE_PLUME_A)).toMatchObject({
       disposition: "static-world",

@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
-import { GROUND_POLYGON_CELL_GLSL } from "./GroundPolygonCells";
 import {
   createSurfaceFallbackTexture,
   loadSurfaceTexture,
@@ -9,19 +8,26 @@ import {
 } from "./ExternalSurfaceTextures";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { PALETTE_HEX } from "./PaletteTokens";
+import {
+  SURFACE_FIELD_FRAGMENT_GLSL,
+  SURFACE_FIELD_VERTEX_ASSIGNMENTS,
+  SURFACE_FIELD_VERTEX_DECLARATIONS
+} from "./SurfaceFieldShader";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v17";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v18";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
 
-export type TerrainDebugMode = "off" | "surface" | "shoreline" | "slope";
+export type TerrainDebugMode = "off" | "surface" | "shoreline" | "slope" | "farm" | "wetness";
 
 const TERRAIN_DEBUG_MODE_VALUE: Readonly<Record<TerrainDebugMode, number>> = Object.freeze({
   off: 0,
   surface: 1,
   shoreline: 2,
-  slope: 3
+  slope: 3,
+  farm: 4,
+  wetness: 5
 });
 
 export function isTerrainDebugMode(value: string | null): value is TerrainDebugMode {
@@ -156,6 +162,7 @@ function patchTerrainSurfaceShader(
     shader.vertexShader,
     vertexCommon,
     `${vertexCommon}
+${SURFACE_FIELD_VERTEX_DECLARATIONS}
 attribute float terrainGreenMask;
 attribute float terrainPathBlend;
 attribute vec3 terrainShoreWeights;
@@ -169,6 +176,7 @@ varying vec3 vTerrainWorldPosition;`,
     shader.vertexShader,
     vertexBegin,
     `${vertexBegin}
+${SURFACE_FIELD_VERTEX_ASSIGNMENTS}
 vTerrainGreenMask = terrainGreenMask;
 vTerrainPathBlend = clamp(terrainPathBlend, 0.0, 1.0);
 vTerrainShoreWeights = clamp(terrainShoreWeights, 0.0, 1.0);`,
@@ -243,7 +251,7 @@ varying float vTerrainGreenMask;
 varying float vTerrainPathBlend;
 varying vec3 vTerrainShoreWeights;
 varying vec3 vTerrainWorldPosition;
-${GROUND_POLYGON_CELL_GLSL}`,
+${SURFACE_FIELD_FRAGMENT_GLSL}`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -434,6 +442,32 @@ vec3 pathCellColor = mix(terrainPathShoulderColor, terrainPathDustColor, pathCor
 float pathValueBand = step(0.34, pathPolygonSignal) + step(0.72, pathPolygonSignal);
 pathCellColor *= mix(0.98, 1.025, pathValueBand * 0.5);
 diffuseColor.rgb = mix(diffuseColor.rgb, pathCellColor, pathUnderlayMix);
+vec3 terrainSharedPaletteColor = nevaSurfaceWeightedPalette(
+  terrainPaletteSageColor,
+  terrainPaletteGrassColor,
+  terrainPathShoulderColor,
+  terrainWetColor,
+  terrainPathDustColor,
+  terrainPathShoulderColor,
+  terrainBeachColor,
+  terrainCliffColor,
+  terrainShoreWetColor,
+  terrainCliffColor,
+  diffuseColor.rgb
+);
+float terrainSharedTransition = nevaSurfaceTransitionWeight(0.08, 0.06);
+terrainSharedPaletteColor *= mix(0.985, 1.015, terrainPolygonSignal);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  terrainSharedPaletteColor,
+  terrainSharedTransition * 0.42
+);
+float terrainSharedWetness = nevaSurfaceWeatherWetness(terrainWetness);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  terrainWetColor,
+  terrainSharedWetness * terrainSharedTransition * 0.03
+);
 float terrainFacetMask = max(
   max(mosaicMask, pathUnderlayMix * 0.36),
   terrainShoreWeights.z * terrainShoreFacetStrength
@@ -444,25 +478,34 @@ float terrainDebugSlope = 1.0 - abs(normalize(cross(
 )).y);
 if (terrainDebugMode > 0.5 && terrainDebugMode < 1.5) {
   diffuseColor.rgb = vec3(terrainMask, vTerrainPathBlend, terrainShoreWeight);
-} else if (terrainDebugMode >= 1.5 && terrainDebugMode < 2.5) {
-  diffuseColor.rgb = terrainShoreWeights;
-} else if (terrainDebugMode >= 2.5) {
-  diffuseColor.rgb = vec3(terrainDebugSlope);
-}`,
+  } else if (terrainDebugMode >= 1.5 && terrainDebugMode < 2.5) {
+    diffuseColor.rgb = terrainShoreWeights;
+  } else if (terrainDebugMode >= 2.5 && terrainDebugMode < 3.5) {
+    diffuseColor.rgb = vec3(terrainDebugSlope);
+  } else if (terrainDebugMode >= 3.5 && terrainDebugMode < 4.5) {
+    diffuseColor.rgb = vec3(
+      nevaSurfaceFarmInfluence(),
+      nevaSurfaceDrySoilWeight(),
+      nevaSurfaceDampSoilWeight()
+    );
+  } else if (terrainDebugMode >= 4.5) {
+    diffuseColor.rgb = vec3(
+      nevaSurfaceWetness(),
+      nevaSurfaceWetShorelineWeight(),
+      nevaSurfaceCliffWeight()
+    );
+  }`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
     shader.fragmentShader,
     fragmentNormal,
     `${fragmentNormal}
-vec3 terrainFacetAxis = abs(normal.y) > 0.92 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
-vec3 terrainFacetTangent = normalize(cross(terrainFacetAxis, normal));
-vec3 terrainFacetBitangent = cross(normal, terrainFacetTangent);
-normal = normalize(
-  normal + terrainFacetMask * terrainPolygonFacetLightingStrength * (
-    terrainFacetTangent * (terrainPolygonCell.y - 0.5)
-    + terrainFacetBitangent * (terrainPolygonCell.z - 0.5)
-  ) * 2.4
+normal = nevaSurfaceFacetNormal(
+  normal,
+  terrainPolygonCell,
+  terrainPolygonFacetLightingStrength,
+  terrainFacetMask
 );`,
     "fragment"
   );
@@ -507,7 +550,12 @@ terrainShoreRoughness = mix(
   min(terrainShoreRoughness, terrainShoreWetRoughness),
   clamp(terrainWetness, 0.0, 1.0) * terrainShoreWeight
 );
-roughnessFactor = mix(roughnessFactor, terrainShoreRoughness, terrainShoreWeight);`,
+roughnessFactor = mix(roughnessFactor, terrainShoreRoughness, terrainShoreWeight);
+roughnessFactor = mix(
+  roughnessFactor,
+  nevaSurfaceRoughness(terrainDryRoughness, terrainWetRoughness, terrainWetness),
+  terrainSharedTransition * 0.08
+);`,
     "fragment"
   );
 

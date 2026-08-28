@@ -87,7 +87,9 @@ exists.
 
 The mechanical contract requires `POSITION`, `NORMAL`, semantic `COLOR_0`, a
 palette material, stable required nodes, and back-face-culled generated closed
-geometry. Runtime static assets remain optimized GLB/glTF 2.0.
+geometry. Runtime static 3D assets remain optimized GLB/glTF 2.0. Ground
+supporting maps are a renderer presentation path (`ExternalSurfaceTextures` +
+`VisualRenderConfig`), not catalog GLBs.
 
 ## Reference-guided authoring
 

@@ -11,7 +11,8 @@ import type {
   GameState
 } from "../core/types";
 import { BasicFishingMinigame } from "../fishing/BasicFishingMinigame";
-import { FishingEncounter } from "../fishing/FishingEncounter";
+import { FishingEncounter, sportFishingStartDistanceMeters } from "../fishing/FishingEncounter";
+import { findFishingWater } from "../fishing/FishingTuning";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
@@ -64,7 +65,11 @@ export class FishingDomain {
     const savedEncounter = context.state.sportFishing;
     if (savedEncounter?.result === "active") {
       try {
-        this.encounter = FishingEncounter.fromState(savedEncounter, context.rng);
+        this.encounter = FishingEncounter.fromState(savedEncounter, context.rng, {
+          originX: context.state.player.x, originZ: context.state.player.z,
+          bearingRadians: context.state.player.rotationY,
+          isWater: (x, z) => WorldLayout.isSailable(x, z)
+        });
         this.pendingLandSchoolId = savedEncounter.schoolId ?? null;
         this.encounter.setInput({ isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 });
       } catch (error) {
@@ -102,6 +107,7 @@ export class FishingDomain {
   public tick(realDeltaSeconds: number): void {
     const { state, events } = this.context;
     if (this.encounter) {
+      this.encounter.setAnchor(state.player.x, state.player.z);
       const outcome = this.encounter.tick(realDeltaSeconds);
       if (outcome === "landed") {
         const encounterState = this.encounter.getState();
@@ -140,6 +146,7 @@ export class FishingDomain {
 
   public startChargingCastBasic(): { success: boolean; reason?: string } {
     const { state } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
@@ -260,6 +267,7 @@ export class FishingDomain {
 
   public castBasic(castPower: number = 0.75): { success: boolean; reason?: string } {
     const { state, rng, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
@@ -336,6 +344,7 @@ export class FishingDomain {
 
   public chumSchool(schoolId: FishSchoolId): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "School disappeared" };
     if (distance2d(state.player, school) > SCHOOL_INTERACTION_RADIUS) {
@@ -357,9 +366,13 @@ export class FishingDomain {
     schoolId: FishSchoolId
   ): { success: boolean; encounter?: FishingEncounterState; reason?: string } {
     const { state, rng, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
+    if (state.clock.currentMinute >= school.expiresAtMinute || school.remainingCatchPotential <= 0) {
+      return { success: false, reason: "This school has moved on" };
+    }
     if (distance2d(state.player, school) > SCHOOL_INTERACTION_RADIUS) {
       return { success: false, reason: "Move closer to the fish school" };
     }
@@ -381,6 +394,13 @@ export class FishingDomain {
       this.context.persistRng();
       return { success: false, reason: "Your equipped rod cannot fish this school" };
     }
+    const water = findFishingWater(state.player.x, state.player.z,
+      Math.atan2(school.x - state.player.x, school.z - state.player.z),
+      sportFishingStartDistanceMeters(speciesDef.cargoClass), (x, z) => WorldLayout.isSailable(x, z));
+    if (!water) {
+      this.context.persistRng();
+      return { success: false, reason: "Move to open water before hooking the fish" };
+    }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
     const lureUsed = this.consumeLureIfPresent();
     const quality = this.rollQuality(
@@ -394,7 +414,14 @@ export class FishingDomain {
       quality,
       caughtAtMinute: state.clock.currentMinute
     };
-    this.encounter = new FishingEncounter(fish, state.player.equippedRodId, rng, 30);
+    this.encounter = new FishingEncounter(
+      fish,
+      state.player.equippedRodId,
+      rng,
+      water.distance,
+      { originX: state.player.x, originZ: state.player.z, bearingRadians: water.bearing,
+        isWater: (x, z) => WorldLayout.isSailable(x, z) }
+    );
     state.sportFishing = this.encounter.getState() as FishingEncounterState;
     this.pendingLandSchoolId = schoolId;
     state.sportFishing.schoolId = schoolId;

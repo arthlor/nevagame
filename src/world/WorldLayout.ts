@@ -17,6 +17,10 @@ import {
 } from "./RoadGeometry";
 import { conformRoadGeometryToTerrain } from "./RoadTerrainConformity";
 import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
+import {
+  attachSurfaceFieldAttributes,
+  writeSurfaceFieldAttributes
+} from "../render/materials/SurfaceFieldAttributes";
 
 export interface WorldBounds {
   minX: number;
@@ -70,6 +74,12 @@ export interface TerrainSurfaceWeights {
   riverbed: number;
   wetShoreline: number;
   cliff: number;
+}
+
+export interface TerrainSurfaceSample {
+  weights: TerrainSurfaceWeights;
+  farmInfluence: number;
+  shorelineWetness: number;
 }
 
 export interface CoastProfile {
@@ -244,6 +254,26 @@ export const BRIDGE_WORLD_PROFILE = Object.freeze({
 });
 
 const BRIDGE_HALF_SPAN = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
+const BRIDGE_ROOT_Y_OFFSET = 0.35;
+// The bridge deck is an authored compound collision, not part of the coarse
+// terrain heightfield. Keep this profile beside the traversal surface helper
+// so the kinematic actor follows the same stepped top as the physical boxes.
+const BRIDGE_DECK_COLLISION_HALF_SPAN = 6.4545;
+const BRIDGE_DECK_COLLISION_SEGMENT_SPACING = 1.2909;
+const BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y = Object.freeze([
+  2.708,
+  2.9103,
+  3.0677,
+  3.1801,
+  3.2475,
+  3.27,
+  3.2475,
+  3.1801,
+  3.0677,
+  2.9103,
+  2.708
+]);
+const BRIDGE_BOUNDARY_EPSILON = 0.001;
 const roundBridgeCoordinate = (value: number): number => Math.round(value * 10) / 10;
 const BRIDGE_WEST_DECK_EDGE = Object.freeze({
   x: BRIDGE_CENTER.x - BRIDGE_HALF_SPAN,
@@ -455,10 +485,18 @@ function villageArchitectureRotation(center: WorldPoint): number {
  * for runtime building placement envelopes and frontage spacing.
  */
 export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
+  // Village approach and orchard homesteads; existing terrain, no new gameplay anchors.
+  { id: "village.approach-inn", center: { x: 76, z: -25 }, rotationY: -0.624023, envelope: [4.5, 4.1], frontageClearanceMeters: 7, frontApproachMeters: 4 },
+  { id: "village.cooperative-hall", center: { x: 38, z: 12 }, rotationY: 2.111216, envelope: [5, 4.2], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
+  { id: "orchard.barn", center: { x: 100, z: -66 }, rotationY: -0.566729, envelope: [4.8, 3.2], frontageClearanceMeters: 6.5, frontApproachMeters: 4 },
+  { id: "orchard.farmhouse", center: { x: 134, z: -32 }, rotationY: -1.172274, envelope: [4.5, 4.75], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
+  { id: "orchard.tool-shed", center: { x: 105, z: -49 }, rotationY: -0.764568, envelope: [1.55, 1.4], frontageClearanceMeters: 3, frontApproachMeters: 2.5 },
+  { id: "orchard.outhouse", center: { x: 129, z: -50 }, rotationY: -0.95724, envelope: [1.1, 1.5], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
+  { id: "village.roadside-stall", center: { x: 44, z: -18 }, rotationY: 0.661043, envelope: [1.25, 0.85], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
   {
     id: "village.tool-shed",
-    center: { x: 23, z: -72 },
-    rotationY: villageArchitectureRotation({ x: 23, z: -72 }),
+    center: { x: 25.3, z: -71.5},
+    rotationY: 0.9744,
     envelope: [2, 1.7],
     frontageClearanceMeters: 2.6,
     frontApproachMeters: 4
@@ -1082,6 +1120,19 @@ export class WorldLayout {
     );
   }
 
+  /** Raised road approaches are dry land even while the river sign is nearby. */
+  public static isBridgeApproach(x: number, z: number): boolean {
+    const withinApproachWidth = Math.abs(z - BRIDGE_CENTER.z)
+      <= BRIDGE_WORLD_PROFILE.deckWidth * 0.6 + BRIDGE_BOUNDARY_EPSILON;
+    if (!withinApproachWidth) return false;
+    return (
+      (x >= BRIDGE_WEST_APPROACH_START.x - BRIDGE_BOUNDARY_EPSILON
+        && x <= BRIDGE_WEST_DECK_EDGE.x + BRIDGE_BOUNDARY_EPSILON)
+      || (x >= BRIDGE_EAST_DECK_EDGE.x - BRIDGE_BOUNDARY_EPSILON
+        && x <= BRIDGE_EAST_APPROACH_END.x + BRIDGE_BOUNDARY_EPSILON)
+    );
+  }
+
   /** Walkable harbor pier plus mooring slips. Hull water stays sailable. */
   public static isPierDeck(x: number, z: number): boolean {
     const slipWidth = 2.35;
@@ -1119,12 +1170,23 @@ export class WorldLayout {
     halfWidth: number,
     hullKeepout: number
   ): boolean {
+    const spanX = hull.x - apron.x;
+    const spanZ = hull.z - apron.z;
+    const span = Math.hypot(spanX, spanZ);
+    if (span <= hullKeepout) return false;
     if (Math.hypot(x - hull.x, z - hull.z) <= hullKeepout) return false;
-    return pointToSegmentDistance(x, z, apron.x, apron.z, hull.x, hull.z) <= halfWidth;
+    // End the walkway before the hull so the keepout circle is not ringed by
+    // an unsailable slip band that traps a departing boat.
+    const endX = hull.x - (spanX / span) * hullKeepout;
+    const endZ = hull.z - (spanZ / span) * hullKeepout;
+    return pointToSegmentDistance(x, z, apron.x, apron.z, endX, endZ) <= halfWidth;
   }
 
   public static isWater(x: number, z: number): boolean {
-    return this.waterSignedDistance(x, z) > 0 && !this.isBridgeDeck(x, z) && !this.isPierDeck(x, z);
+    return this.waterSignedDistance(x, z) > 0
+      && !this.isBridgeDeck(x, z)
+      && !this.isBridgeApproach(x, z)
+      && !this.isPierDeck(x, z);
   }
 
   public static fishingHabitatAt(x: number, z: number): FishingHabitatId | null {
@@ -1411,7 +1473,11 @@ export class WorldLayout {
 
     // East approach (smooth ramp towards the village market). The bridge profile
     // owns the approach length so the terrain and route corridor cannot drift.
-    if (x >= BRIDGE_EAST_DECK_EDGE.x && x <= BRIDGE_EAST_APPROACH_END.x && bridgeAcross > 0) {
+    if (
+      x >= BRIDGE_EAST_DECK_EDGE.x - BRIDGE_BOUNDARY_EPSILON
+      && x <= BRIDGE_EAST_APPROACH_END.x + BRIDGE_BOUNDARY_EPSILON
+      && bridgeAcross > 0
+    ) {
       const eastRampHeight = THREE.MathUtils.lerp(
         BRIDGE_WORLD_PROFILE.entrySurfaceY,
         BRIDGE_WORLD_PROFILE.eastBankSurfaceY,
@@ -1421,7 +1487,11 @@ export class WorldLayout {
     }
 
     // West approach (smooth ramp towards the starter farm basin).
-    if (x >= BRIDGE_WEST_APPROACH_START.x && x <= BRIDGE_WEST_DECK_EDGE.x && bridgeAcross > 0) {
+    if (
+      x >= BRIDGE_WEST_APPROACH_START.x - BRIDGE_BOUNDARY_EPSILON
+      && x <= BRIDGE_WEST_DECK_EDGE.x + BRIDGE_BOUNDARY_EPSILON
+      && bridgeAcross > 0
+    ) {
       const westRampHeight = THREE.MathUtils.lerp(
         BRIDGE_WORLD_PROFILE.westBankSurfaceY,
         BRIDGE_WORLD_PROFILE.entrySurfaceY,
@@ -1509,6 +1579,31 @@ export class WorldLayout {
   /** Final canonical terrain height, including physical worked-road relief. */
   public static terrainHeight(x: number, z: number): number {
     return this.terrainBaseHeight(x, z) + this.roadSurfaceSample(x, z).surfaceOffsetMeters;
+  }
+
+  /**
+   * Final height of a walkable traversal surface. Bridge deck collision is
+   * intentionally excluded from terrainHeight(), so actors crossing it must
+   * resolve against the authored deck boxes rather than the riverbed.
+   */
+  public static traversalSurfaceHeight(x: number, z: number): number {
+    if (this.isBridgeDeck(x, z)) {
+      const localX = THREE.MathUtils.clamp(
+        x - BRIDGE_CENTER.x,
+        -BRIDGE_DECK_COLLISION_HALF_SPAN,
+        BRIDGE_DECK_COLLISION_HALF_SPAN
+      );
+      const segmentIndex = THREE.MathUtils.clamp(
+        Math.round((localX + BRIDGE_DECK_COLLISION_HALF_SPAN) / BRIDGE_DECK_COLLISION_SEGMENT_SPACING),
+        0,
+        BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y.length - 1
+      );
+      return this.terrainHeight(BRIDGE_CENTER.x, BRIDGE_CENTER.z)
+        + BRIDGE_ROOT_Y_OFFSET
+        + BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y[segmentIndex];
+    }
+    if (this.isPierDeck(x, z)) return this.pierDeckSurfaceY();
+    return this.terrainHeight(x, z);
   }
 
   /** Y component of the terrain normal without allocating a Vector3. */
@@ -1651,7 +1746,7 @@ export class WorldLayout {
     return Math.max(coastalWetness, riverWetness);
   }
 
-  public static terrainSurfaceWeights(x: number, z: number, sampledNormalY?: number): TerrainSurfaceWeights {
+  public static terrainSurfaceSample(x: number, z: number, sampledNormalY?: number): TerrainSurfaceSample {
     const waterDistance = this.waterSignedDistance(x, z);
     const route = this.nearestRouteDistance(x, z);
     const dryRoute = waterDistance < -0.2 ? 1 : 0;
@@ -1709,18 +1804,26 @@ export class WorldLayout {
     const dampSoil = Math.max(farm * wet * 0.55, riverFringe * 0.65, siltShelf * 0.82);
     const riverbed = waterDistance > 0 ? 0.84 + estuary * 0.14 : 0;
     const remaining = clamp01(1 - Math.max(path, shoulder, drySoil, dampSoil, beach, riverbed, cliff));
-    return normalizedSurfaceWeights({
-      grass: remaining * (1 - meadowPattern * 0.44) * (1 - siltShelf * 0.58),
-      meadow: remaining * meadowPattern * 0.44 * (1 - siltShelf * 0.72),
-      drySoil,
-      dampSoil,
-      path,
-      shoulder,
-      beach,
-      riverbed,
-      wetShoreline: wet * (0.56 + coastProfile.rockShelf * 0.22 + estuary * 0.22),
-      cliff
-    });
+    return {
+      weights: normalizedSurfaceWeights({
+        grass: remaining * (1 - meadowPattern * 0.44) * (1 - siltShelf * 0.58),
+        meadow: remaining * meadowPattern * 0.44 * (1 - siltShelf * 0.72),
+        drySoil,
+        dampSoil,
+        path,
+        shoulder,
+        beach,
+        riverbed,
+        wetShoreline: wet * (0.56 + coastProfile.rockShelf * 0.22 + estuary * 0.22),
+        cliff
+      }),
+      farmInfluence: farm,
+      shorelineWetness: wet
+    };
+  }
+
+  public static terrainSurfaceWeights(x: number, z: number, sampledNormalY?: number): TerrainSurfaceWeights {
+    return this.terrainSurfaceSample(x, z, sampledNormalY).weights;
   }
 
   public static terrainSurface(x: number, z: number): TerrainSurface {
@@ -1741,7 +1844,7 @@ export class WorldLayout {
     const layouts: Record<LandmarkId, Omit<LandmarkLayout, "id">> = {
       farmhouse: { x: farmhouse.x, z: farmhouse.z, yOffset: 0, rotationY: farmhouse.rotationY, scale: farmhouse.scale },
       well: { x: well.x, z: well.z, yOffset: 0, rotationY: well.rotationY, scale: well.scale },
-      bridge: { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: 0.35, rotationY: 0, scale: 1 },
+      bridge: { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: BRIDGE_ROOT_Y_OFFSET, rotationY: 0, scale: 1 },
       "fish-market": {
         x: HARBOR_MARKET.position.x,
         z: HARBOR_MARKET.position.z,
@@ -1764,7 +1867,7 @@ export class WorldLayout {
         rotationY: VILLAGE_MARKET.rotationY,
         scale: 1
       },
-      dock: { x: 77.6, z: 70.2, yOffset: 0, rotationY: 1.5708, scale: 1 }
+      dock: { x: 75.5, z: 71.6, yOffset: 0, rotationY: 1.5708, scale: 1 }
     };
     return { id, ...layouts[id] };
   }
@@ -1826,6 +1929,10 @@ export class WorldLayout {
       heightAt: (x, z) => this.terrainBaseHeight(x, z)
     });
     source.dispose();
+    attachSurfaceFieldAttributes(
+      geometry,
+      (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)
+    );
     return geometry;
   }
 
@@ -1848,6 +1955,7 @@ export class WorldLayout {
     const indexedTerrainPathBlend = new Float32Array(indexedPositions.count);
     const indexedTerrainShoreWeights = new Float32Array(indexedPositions.count * 3);
     const indexedFaceting = new Float32Array(indexedPositions.count);
+    const surfaceSamples = new Array<TerrainSurfaceSample>(indexedPositions.count);
     const palette: Record<keyof TerrainSurfaceWeights, THREE.Color> = {
       grass: this.tokenColor("foliage_sage_01"),
       meadow: this.tokenColor("grass_yellow_01"),
@@ -1868,7 +1976,9 @@ export class WorldLayout {
       const normalX = indexedNormals.getX(index);
       const normalY = Math.abs(indexedNormals.getY(index));
       const normalZ = indexedNormals.getZ(index);
-      const weights = this.terrainSurfaceWeights(x, z, normalY);
+      const surfaceSample = this.terrainSurfaceSample(x, z, normalY);
+      surfaceSamples[index] = surfaceSample;
+      const weights = surfaceSample.weights;
       const routeUnderlayWeight = weights.path + weights.shoulder;
       const protectedSurfaceWeight =
         weights.drySoil
@@ -1943,6 +2053,7 @@ export class WorldLayout {
       new THREE.BufferAttribute(indexedTerrainShoreWeights, 3)
     );
     indexed.setAttribute("terrainFaceting", new THREE.BufferAttribute(indexedFaceting, 1));
+    writeSurfaceFieldAttributes(indexed, surfaceSamples);
 
     const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
     if (geometry !== indexed) indexed.dispose();

@@ -439,6 +439,29 @@ describe("PhysicsWorld", () => {
     expect(sim.state.player.traversal.isGrounded).toBe(true);
   });
 
+  it("walks continuously back across the crowned bridge deck", async () => {
+    const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
+    const physics = await PhysicsWorld.create(bridgeCollision);
+    const sim = new Simulation();
+    const bridge = WORLD_LAYOUT_V5.anchors.bridge;
+    placePlayer(sim, bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5 + 1.6, bridge.z);
+
+    for (let index = 0; index < 360; index++) {
+      const result = physics.step(
+        sim.state,
+        { x: -1, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+    }
+
+    expect(sim.state.player.x).toBeLessThan(bridge.x - BRIDGE_WORLD_PROFILE.spanLength * 0.5 + 0.8);
+    expect(WorldLayout.isWater(sim.state.player.x, sim.state.player.z)).toBe(false);
+    expect(sim.state.player.traversal.isGrounded).toBe(true);
+  });
+
   it("follows the farm gateway route across the bridge into the village approach", async () => {
     const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
     const physics = await PhysicsWorld.create(bridgeCollision);
@@ -788,6 +811,60 @@ describe("PhysicsWorld", () => {
       center: { x: origin.x + 8, y: ground + 1.4, z: origin.z + 1.5 }
     }]);
     expect(physics.hasLineOfSight(from, to)).toBe(true);
+    physics.dispose();
+  });
+
+  it("lets the commissioned rowboat leave the harbor slip past the dock pilings", async () => {
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const physics = await PhysicsWorld.create(dockCollision);
+    const sim = new Simulation();
+    sim.state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    placePlayer(sim, HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z);
+    expect(sim.boardBoat("boat.player_rowboat").success).toBe(true);
+    const boat = sim.state.boats["boat.player_rowboat"];
+    const start = { x: boat.x, z: boat.z };
+    for (let index = 0; index < 240; index++) {
+      const result = physics.step(
+        sim.state,
+        { x: 0, z: -1, sprint: false },
+        "boat-driving",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+    }
+    expect(boat.z).toBeGreaterThan(start.z + 4);
+    expect(WorldLayout.isSailable(boat.x, boat.z)).toBe(true);
+    physics.dispose();
+  });
+
+  it("unsticks a rowboat whose hull starts overlapping the harbor pilings", async () => {
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const physics = await PhysicsWorld.create(dockCollision);
+    const sim = new Simulation();
+    const boat = sim.state.boats["boat.player_rowboat"];
+    boat.isDocked = false;
+    boat.dockedMarketId = null;
+    boat.x = 81;
+    boat.z = 72;
+    boat.headingRadians = 0;
+    sim.state.player.activeBoatId = boat.id;
+    sim.state.player.x = boat.x;
+    sim.state.player.z = boat.z;
+    const startZ = boat.z;
+    for (let index = 0; index < 240; index++) {
+      const result = physics.step(
+        sim.state,
+        { x: 0, z: -1, sprint: false },
+        "boat-driving",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+    }
+    expect(boat.x).toBeGreaterThan(80.5);
+    expect(boat.z).toBeGreaterThan(startZ + 4);
+    expect(WorldLayout.isSailable(boat.x, boat.z)).toBe(true);
     physics.dispose();
   });
 });

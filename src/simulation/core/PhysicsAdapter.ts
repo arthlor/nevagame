@@ -7,7 +7,7 @@ export interface PhysicsIntent {
   jumpRequested?: boolean;
 }
 
-export type RequestedPlayerGait = "idle" | "walk" | "run" | "vehicle";
+export type RequestedPlayerGait = "idle" | "walk" | "run" | "trot" | "vehicle";
 
 export type PlayerAirbornePhase = "grounded" | "rising" | "apex" | "falling";
 

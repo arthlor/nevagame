@@ -328,6 +328,18 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("Harvest Turnip");
     });
 
+    it("renders an in-progress processing wait briefing without hiding remaining time", () => {
+      const state = createInitialGameState();
+      const html = renderToString(
+        React.createElement(HUD, {
+          state,
+          promptText: "[E] Bait Worms working · 6h left · ready 14:00"
+        })
+      );
+      expect(html).toContain('data-testid="context-prompt"');
+      expect(html).toContain("Bait Worms working · 6h left · ready 14:00");
+    });
+
     it("renders basic fishing phase banners with bite-alert highlights", () => {
       const state = createInitialGameState();
       state.basicFishing = {

@@ -271,19 +271,30 @@ const FarmingChapter: React.FC = () => (
         <h5>Field Irrigation System · 120 G</h5>
       </div>
       <p>
-        Tired of watering each crop plot one-by-one? Stand on your farm plot and press{" "}
-        <KeycapBadge keyName="E" /> to <strong>Install Irrigation for 120 Gold</strong>.
+        Tired of watering each crop plot one-by-one? Walk up to the farm well beside the house and press{" "}
+        <KeycapBadge keyName="E" /> to <strong>install a field pump for 120 Gold</strong>.
       </p>
       <ul className="guide-feature-bullets">
         <li>
-          <strong>1-Action Whole Field Watering:</strong> Unlocks the <em>[E] Irrigate the field</em> prompt, which
-          waters every thirsty planted crop on the farm to 100% moisture in one action.
+          <strong>One action from the well:</strong> Return to the well and use{" "}
+          <em>[E] Pump water to the field</em> to water every thirsty crop on that farm.
         </li>
         <li>
           <strong>Permanent Efficiency:</strong> Saves valuable Work Capacity and time, allowing you to venture out
           to sea while your crops flourish.
         </li>
       </ul>
+    </div>
+
+    <div className="guide-card" style={{ marginTop: "14px" }}>
+      <h5 className="guide-card-title">
+        <IconTools size={18} aria-hidden="true" /> Mill, Compost & Workbench
+      </h5>
+      <p className="guide-body-copy" style={{ fontSize: "13px", margin: "0 0 8px" }}>
+        Processing stations show how long a job will take on the game clock before you start, and remaining time
+        plus the ready hour while they work. Compost takes a full morning; milling and chum finish in minutes.
+        You can keep farming or rest until morning while a job runs — it will not finish instantly.
+      </p>
     </div>
 
     <div className="guide-card-grid" style={{ marginTop: "14px" }}>

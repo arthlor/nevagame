@@ -313,22 +313,22 @@ describe("layout editor patcher", () => {
     const withTen = {
       ...sources,
       environment: sources.environment.replace(
-        /authoredPlacement\("authored\.fauna\.chicken\.farm-a\.copy\.1", \{[^}]+\}\),/,
-        (call) => `${call}\n  authoredPlacement("authored.fauna.chicken.farm-a.copy.10", { assetId: "fauna_chicken_a", x: 999, z: 888, rotationY: 0, scale: [1, 1, 1] }),`
+        /authoredPlacement\("authored\.fauna\.chicken\.farm-b", \{[^}]+\}\),/,
+        (call) => `${call}\n  authoredPlacement("authored.fauna.chicken.farm-b.copy.1", { assetId: "fauna_chicken_a", x: -60.2, z: -69.6, rotationY: 0.8, scale: [1.1, 1.1, 1.1] }),\n  authoredPlacement("authored.fauna.chicken.farm-b.copy.10", { assetId: "fauna_chicken_a", x: 999, z: 888, rotationY: 0, scale: [1, 1, 1] }),`
       )
     };
     const next = applyLayoutEditToSources(withTen, {
       kind: "authored-detail",
-      id: "authored.fauna.chicken.farm-a.copy.1",
+      id: "authored.fauna.chicken.farm-b.copy.1",
       x: -60,
       z: -70,
       rotationY: 0.5
     });
     expect(next.environment).toMatch(
-      /authoredPlacement\("authored\.fauna\.chicken\.farm-a\.copy\.1", \{[^}]*x: -60/
+      /authoredPlacement\("authored\.fauna\.chicken\.farm-b\.copy\.1", \{[^}]*x: -60/
     );
     expect(next.environment).toMatch(
-      /authoredPlacement\("authored\.fauna\.chicken\.farm-a\.copy\.10", \{[^}]*x: 999/
+      /authoredPlacement\("authored\.fauna\.chicken\.farm-b\.copy\.10", \{[^}]*x: 999/
     );
   });
 

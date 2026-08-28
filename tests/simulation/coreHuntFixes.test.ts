@@ -175,6 +175,8 @@ describe("Core hunt fixes", () => {
     expect(WorldLayout.isWalkable(apron.x, apron.z)).toBe(true);
     expect(WorldLayout.isWalkable(mid.x, mid.z)).toBe(true);
     expect(WorldLayout.isSailable(hull.x, hull.z)).toBe(true);
+    expect(WorldLayout.isSailable(hull.x, hull.z + 3)).toBe(true);
+    expect(WorldLayout.isSailable(hull.x + 2, hull.z)).toBe(true);
   });
 
   it("nulls a failed sport-fishing hydrate so planting and basic casts are not locked", () => {

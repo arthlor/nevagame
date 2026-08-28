@@ -2,10 +2,10 @@
 
 from .architecture import farmhouse, fish_market, lighthouse, log_bridge, stone_bridge, village_building, windmill, working_dock
 from .boats import fishing_skiff, rowboat
-from .characters import coastal_worker, fauna_butterfly, fauna_chicken, fauna_cow, fauna_gull, fauna_rabbit, npc_character
+from .characters import coastal_worker, fauna_butterfly, fauna_chicken, fauna_cow, fauna_donkey, fauna_gull, fauna_rabbit, npc_character
 
 from .clouds import faceted_cloud
-from .crops import potato_crop, tomato_crop, wheat_crop
+from .crops import potato_crop, pumpkin_crop, tomato_crop, turnip_crop, wheat_crop
 from .fish import stylized_fish
 from .interiors import cozy_armchair, cozy_bed, cupboard_shelves, dining_table, fireplace_hearth, interior_farmhouse_shell, rustic_chair, woven_rug
 from .polyfork import polyfork_architecture, polyfork_cloud, polyfork_crop, polyfork_prop, polyfork_rock, polyfork_vegetation
@@ -72,11 +72,14 @@ GENERATORS = {
     "wheat_crop": wheat_crop,
     "tomato_crop": tomato_crop,
     "potato_crop": potato_crop,
+    "turnip_crop": turnip_crop,
+    "pumpkin_crop": pumpkin_crop,
     "stylized_fish": stylized_fish,
     "faceted_cloud": faceted_cloud,
     "coastal_worker": coastal_worker,
     "npc_character": npc_character,
     "fauna_cow": fauna_cow,
+    "fauna_donkey": fauna_donkey,
     "fauna_chicken": fauna_chicken,
     "fauna_rabbit": fauna_rabbit,
     "fauna_gull": fauna_gull,

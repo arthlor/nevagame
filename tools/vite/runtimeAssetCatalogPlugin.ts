@@ -22,7 +22,8 @@ const OPTIONAL_RUNTIME_ASSET_FIELDS = [
   "collisionPrimitives",
   "rigNode",
   "socketNodes",
-  "animationClips"
+  "animationClips",
+  "additionalAnimationClips"
 ] as const;
 
 function readCatalog(catalogPath: string): { assets?: Array<Record<string, unknown>> } {

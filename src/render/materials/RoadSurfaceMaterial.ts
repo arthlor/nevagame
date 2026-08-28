@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
-import { GROUND_POLYGON_CELL_GLSL } from "./GroundPolygonCells";
 import {
   createSurfaceFallbackTexture,
   loadSurfaceTexture,
@@ -9,8 +8,13 @@ import {
 } from "./ExternalSurfaceTextures";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { PALETTE_HEX } from "./PaletteTokens";
+import {
+  SURFACE_FIELD_FRAGMENT_GLSL,
+  SURFACE_FIELD_VERTEX_ASSIGNMENTS,
+  SURFACE_FIELD_VERTEX_DECLARATIONS
+} from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v21";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v23";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -18,6 +22,10 @@ interface RoadSurfaceShaderSource {
   vertexShader: string;
   fragmentShader: string;
   uniforms: Record<string, { value: unknown }>;
+}
+
+function clamp01(value: number): number {
+  return Number.isFinite(value) ? THREE.MathUtils.clamp(value, 0, 1) : 0;
 }
 
 function replaceShaderChunk(
@@ -40,6 +48,7 @@ function patchRoadSurfaceShader(
   uniforms: RoadSurfaceShaderSource["uniforms"]
 ): void {
   const vertexCommon = "#include <common>";
+  const vertexBegin = "#include <begin_vertex>";
   const vertexColor = "#include <color_vertex>";
   const vertexWorldPosition = "#include <worldpos_vertex>";
   const fragmentCommon = "#include <common>";
@@ -51,8 +60,16 @@ function patchRoadSurfaceShader(
     shader.vertexShader,
     vertexCommon,
     `${vertexCommon}
+${SURFACE_FIELD_VERTEX_DECLARATIONS}
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;`,
+    "vertex"
+  );
+  shader.vertexShader = replaceShaderChunk(
+    shader.vertexShader,
+    vertexBegin,
+    `${vertexBegin}
+${SURFACE_FIELD_VERTEX_ASSIGNMENTS}`,
     "vertex"
   );
   shader.vertexShader = replaceShaderChunk(
@@ -91,17 +108,22 @@ uniform float roadExternalRoughnessStrength;
 uniform float roadPolygonVariationStrength;
 uniform float roadPolygonJaggedStrength;
 uniform float roadPolygonFacetLightingStrength;
+uniform float roadSharedCellScale;
 uniform float roadEdgeFadeStart;
 uniform float roadEdgeFadeFull;
 uniform float roadRoughness;
 uniform float roadRoughnessVariation;
+uniform float roadWetness;
+uniform float roadWetnessColorMix;
+uniform float roadWetnessRoughnessMix;
+uniform float roadSharedTransitionMix;
 uniform vec3 roadPackedColor;
 uniform vec3 roadDryColor;
 uniform vec3 roadLightColor;
 uniform vec3 roadShoulderGrassColor;
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;
-${GROUND_POLYGON_CELL_GLSL}
+${SURFACE_FIELD_FRAGMENT_GLSL}
 
 vec2 nevaRoadWorldUv(float sampleScale) {
   vec2 position = vRoadWorldPosition.xz / max(sampleScale, 0.001);
@@ -153,17 +175,23 @@ float roadWearSignal = clamp(
   0.0,
   1.0
 );
-float roadSourceLuma = mix(0.22, 0.88, smoothstep(0.1, 0.9, mix(roadMesoLuma, roadFineLuma, 0.28)));
+float roadFineDelta = clamp((roadFineLuma - roadMesoLuma) * 3.6, -0.24, 0.24);
+float roadLightFleck = smoothstep(0.035, 0.16, roadFineDelta);
+float roadDarkFleck = smoothstep(0.035, 0.16, -roadFineDelta);
+float roadSourceLuma = mix(0.38, 0.68, smoothstep(0.1, 0.9, mix(roadMesoLuma, roadFineLuma, 0.35)));
+float roadWarmSignal = clamp(roadWearSignal * 0.45 + roadSourceLuma * 0.55, 0.0, 1.0);
 float roadCoreMix = smoothstep(0.52, 0.88, vRoadOpacity);
 vec3 roadSourceColor = mix(
   roadPackedColor,
-  roadLightColor,
-  smoothstep(0.16, 0.78, roadWearSignal)
+  roadDryColor,
+  0.28 + (1.0 - roadWarmSignal) * 0.08
 );
-roadSourceColor = mix(roadSourceColor, roadDryColor, (1.0 - roadWearSignal) * 0.24);
-roadSourceColor = mix(roadSourceColor, roadPackedColor, roadCoreMix * 0.32);
-roadSourceColor = mix(roadSourceColor, roadLightColor, (1.0 - roadCoreMix) * 0.1);
-roadSourceColor *= mix(0.82, 1.16, roadSourceLuma);
+roadSourceColor = mix(roadSourceColor, roadLightColor, roadWarmSignal * 0.2);
+roadSourceColor = mix(roadSourceColor, roadLightColor, roadLightFleck * 0.25);
+roadSourceColor = mix(roadSourceColor, roadDryColor, roadDarkFleck * 0.2);
+roadSourceColor = mix(roadSourceColor, roadPackedColor, roadCoreMix * 0.18);
+roadSourceColor = mix(roadSourceColor, roadLightColor, (1.0 - roadCoreMix) * 0.04);
+roadSourceColor *= mix(0.95, 1.05, roadSourceLuma);
 vec3 roadGreenSample = mix(roadMesoSample, roadFineSample, 0.42);
 float roadGreenHint = clamp(
   (roadGreenSample.g - max(roadGreenSample.r, roadGreenSample.b)) * 5.5,
@@ -176,7 +204,7 @@ roadSourceColor = mix(
   roadShoulderGrassColor,
   max(roadGreenHint, 0.22) * roadShoulderMix * 0.46
 );
-roadSourceColor = mix(roadPolygonColor, roadSourceColor, 0.7);
+roadSourceColor = mix(roadPolygonColor, roadSourceColor, 0.94);
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   roadPolygonColor,
@@ -186,6 +214,50 @@ diffuseColor.rgb = mix(
   diffuseColor.rgb,
   roadSourceColor,
   roadCoverage * roadExternalColorStrength
+);
+float sharedRoadWetness = nevaSurfaceWeatherWetness(roadWetness);
+float sharedRoadBoundary = nevaSurfaceTransitionWeight(1.0, 0.72);
+float sharedRoadCellSignal = nevaGroundPolygonCellSignal(
+  vRoadWorldPosition.xz,
+  roadSharedCellScale
+);
+vec3 sharedRoadIdentity = mix(
+  roadLightColor,
+  roadPackedColor,
+  clamp(nevaSurfacePathWeight() + nevaSurfaceShoulderWeight() * 0.28, 0.0, 1.0)
+);
+sharedRoadIdentity = mix(
+  sharedRoadIdentity,
+  nevaSurfaceWeightedPalette(
+    roadLightColor,
+    roadLightColor,
+    roadDryColor,
+    roadDryColor,
+    roadPackedColor,
+    roadDryColor,
+    roadLightColor,
+    roadPackedColor,
+    roadDryColor,
+    roadPackedColor,
+    sharedRoadIdentity
+  ),
+  0.28
+);
+sharedRoadIdentity = mix(
+  sharedRoadIdentity,
+  roadDryColor,
+  nevaSurfaceShoulderWeight() * 0.22
+);
+sharedRoadIdentity *= mix(0.98, 1.02, sharedRoadCellSignal);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  sharedRoadIdentity,
+  roadCoverage * roadSharedTransitionMix * sharedRoadBoundary
+);
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  roadDryColor,
+  sharedRoadWetness * roadWetnessColorMix * roadSharedTransitionMix * sharedRoadBoundary
 );`,
     "fragment"
   );
@@ -207,6 +279,11 @@ roughnessFactor = clamp(
   ),
   0.88,
   0.98
+);
+roughnessFactor = mix(
+  roughnessFactor,
+  max(0.84, roughnessFactor - sharedRoadWetness * 0.08),
+  roadCoverage * roadWetnessRoughnessMix * roadSharedTransitionMix
 );`,
     "fragment"
   );
@@ -214,14 +291,11 @@ roughnessFactor = clamp(
     shader.fragmentShader,
     fragmentNormal,
     `${fragmentNormal}
-vec3 roadFacetAxis = abs(normal.y) > 0.92 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
-vec3 roadFacetTangent = normalize(cross(roadFacetAxis, normal));
-vec3 roadFacetBitangent = cross(normal, roadFacetTangent);
-normal = normalize(
-  normal + roadCoverage * roadPolygonFacetLightingStrength * (
-    roadFacetTangent * (roadPolygonCell.y - 0.5)
-    + roadFacetBitangent * (roadPolygonCell.z - 0.5)
-  ) * 2.4
+normal = nevaSurfaceFacetNormal(
+  normal,
+  roadPolygonCell,
+  roadPolygonFacetLightingStrength,
+  roadCoverage
 );`,
     "fragment"
   );
@@ -259,10 +333,15 @@ export class RoadSurfaceMaterial {
       roadPolygonVariationStrength: { value: config.polygonVariationStrength },
       roadPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       roadPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
+      roadSharedCellScale: { value: CANONICAL_RENDER_CONFIG.groundSurface.polygonCellScaleMeters },
       roadEdgeFadeStart: { value: config.edgeFadeStart },
       roadEdgeFadeFull: { value: config.edgeFadeFull },
       roadRoughness: { value: config.roughness },
       roadRoughnessVariation: { value: config.roughnessVariation },
+      roadWetness: { value: 0 },
+      roadWetnessColorMix: { value: CANONICAL_RENDER_CONFIG.groundSurface.wetness.colorMix },
+      roadWetnessRoughnessMix: { value: CANONICAL_RENDER_CONFIG.groundSurface.wetness.roughnessMix },
+      roadSharedTransitionMix: { value: CANONICAL_RENDER_CONFIG.groundSurface.roadWetnessMix },
       roadPackedColor: { value: new THREE.Color(PALETTE_HEX.path_dust_01) },
       roadDryColor: { value: new THREE.Color(PALETTE_HEX.soil_dry_01) },
       roadLightColor: { value: new THREE.Color(PALETTE_HEX.sand_warm_01) },
@@ -330,6 +409,14 @@ export class RoadSurfaceMaterial {
     });
 
     return this.externalTextureLoadPromise;
+  }
+
+  public get wetness(): number {
+    return this.shaderUniforms.roadWetness.value as number;
+  }
+
+  public setWetness(value: number): void {
+    this.shaderUniforms.roadWetness.value = clamp01(value);
   }
 
   public dispose(): void {

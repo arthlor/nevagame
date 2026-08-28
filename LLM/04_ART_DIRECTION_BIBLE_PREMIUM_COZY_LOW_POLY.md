@@ -125,6 +125,8 @@ Texture hierarchy:
 `geometry → base/vertex color/palette atlas → roughness → baked/vertex AO → optional low-frequency tiler → hero authored texture only if justified`.
 Recommended sizes: **128–256 tiny**, **256–512 normal props**, **512–1024 hero**, **2048 rare shared atlas/exception only**. Avoid unique high-res ordinary props and using texture resolution to fake broad modeled form. If another technical document mentions 1K–2K textures, treat that as a permissive ceiling for exceptional cases, **not** the normal production target; this Art Bible owns the default texture-resolution policy.
 
+Ground supporting maps, when used, occupy the **optional low-frequency tiler** slot only. They must be remapped into approved palette families and sampled in world space. They may not become the ground's photographic albedo, replace semantic grass/soil/path blending, or introduce a second lighting/grading stack. Exact scales, rotations, mip/lod policy, and blend strengths belong in `VisualRenderConfig`.
+
 Good surface detail: plank bands, large stone blocks, roof-plane color changes, one broad wear/moss/value zone, beam joints, board thickness. Avoid photographic grain, scratches, dense dirt, micro-normal breakup, speckle, high-frequency grunge.
 
 Starting roughness:
@@ -179,7 +181,7 @@ Sky: simple pale-blue gradient + warm horizon + few large faceted cloud masses; 
 
 ## 7.1 Canonical Renderer Baseline — `VisualRenderConfig`
 
-The project MUST have one renderer-level visual configuration owned by the render subsystem (currently `src/render/config/VisualRenderConfig.ts`). The gold-standard art slice calibrates it; after approval, changes are deliberate, benchmarked art-direction changes rather than per-scene fixes. The live object is richer than the compact interface below; treat this as the minimum ownership shape, not a copy of current numeric settings.
+The project MUST have one renderer-level visual configuration owned by the render subsystem (currently `src/render/config/VisualRenderConfig.ts`). The gold-standard art slice calibrates it; after approval, changes are deliberate, benchmarked art-direction changes rather than per-scene fixes. The live object is richer than the compact interface below; treat this as the minimum ownership shape, not a copy of current numeric settings. It also owns terrain/road supporting-map sampling, rotations, mip/lod policy, and blend strengths; keep those numbers in `VisualRenderConfig.ts`, not in this Bible.
 
 The config must centrally own at least:
 ```ts
@@ -232,6 +234,8 @@ Exact meter bands belong in `VisualRenderConfig`/the owning implementation brief
 
 One canonical ground-surface system resolves approved palette families such as grass/sage/olive, warm/damp soil, path dust, sand, wet shore, riverbed, and coastal stone. Blend from authored semantics plus terrain normal/slope, height where meaningful, route/farm/shore influence, bounded world-space variation, and system-owned weather. Do not create unrelated per-zone ground materials.
 
+Supporting maps may add meso/fine wear, value, and roughness only after they are converted into those palette families: sage/olive/grass for meadows, path dust/dry soil/warm sand for worked ground. Raw photographic RGB is not a legal final diffuse. A missing map must leave the deterministic palette/procedural path active rather than inventing a second material.
+
 The terrain material/shader is a specialization that consumes the canonical palette, renderer conditions, geometry, and derived surface fields. It must not own a second terrain vocabulary, route network, shoreline model, or gameplay state.
 
 Slope transitions expose earth/stone progressively on terrain that visually reads as a bank, cut, shelf, or cliff. Use broad filtered transitions with bounded deterministic irregularity; never visible contour bands or a universal angle table blindly applied to every district. Traversable slopes can remain grass-dominant while steep/exposed formations retain strong faceting and rock/soil identity.
@@ -248,7 +252,7 @@ grass → irregular shoulder/grass intrusion → compacted edge → worn core/ru
 
 They conform to and subtly grade the land, with crown/depression, wear, soft shoulders, occasional contextual stones, and controlled irregularity. Steep routes may form a small cut or bench instead of wrapping over every terrain fluctuation. A separate surface mesh is acceptable only when it shares the canonical route/profile owner, follows the terrain, feathers into it, avoids z-fighting/visible slab thickness, and cannot drift from terrain/cover/collision semantics. Any deformation that materially changes the walkable surface follows `01`'s canonical height/collision contract; cosmetic-only displacement must remain visually and physically negligible. Do not require a shader-only road solution when the existing shared route system satisfies the visual contract.
 
-The visible route edge must be owned once. Prefer a narrow world-space irregular coverage edge over stacking a coarse terrain tint beneath a wide transparent road feather; overlapping metre-scale blends create muddy halos and view-order instability. Pixel-scale anti-aliasing is allowed, but it must not turn the shoulder into a blurry ribbon. Terrain and road variation remains world-space and cannot change with camera orbit, pitch, or zoom.
+The visible route edge must be owned once. Prefer a narrow world-space irregular coverage edge over stacking a coarse terrain tint beneath a wide transparent road feather; overlapping metre-scale blends create muddy halos and view-order instability. Pixel-scale anti-aliasing, world-space dither, and shared Worley cells with the meadow mosaic are allowed when they keep the silhouette irregular and faceted. They must not turn the shoulder into a blurry ribbon, a binary triangle-edge fringe, or a several-metre brown halo. Terrain may contribute only a bounded path underlay inside that same shoulder. Terrain and road variation remains world-space and cannot change with camera orbit, pitch, or zoom. Supporting maps on the road drive packed-core wear and shoulder grass intrusion; they do not author a second route width.
 
 ## 7.2.4 Clustered Ground Cover
 
@@ -273,7 +277,7 @@ Precipitation wetness is a shared render response: palette-preserving darkening 
 
 For starter-farm environment graphics, `art/references/neva-ui-hud-on-foot.png` fixes the following construction language at the normal gameplay camera:
 
-- grass and worked ground separate through broad polygon regions with a narrow, filtered shoulder; the silhouette stays irregular and faceted, but it must merge without dark cutout holes, black seams, or an obvious floating overlay. Avoid both a blurry uniform ribbon and a binary cell-step fringe;
+- grass and worked ground separate through broad polygon regions with a narrow, filtered shoulder; the silhouette stays irregular and faceted, but it must merge without dark cutout holes, black seams, or an obvious floating overlay. Avoid both a blurry uniform ribbon and a binary cell-step fringe. Supporting maps may enrich wear inside those regions; they must not replace this construction language with a photographic dirt slab;
 - paths use warm sandy-ochre/tan cores with restrained value variation, occasional grass intrusion, and intermittent low flagstones/stepping stones rather than continuous cobble;
 - meadow coverage combines a continuous low, broad grass read with deterministic clustered chamomile/daisy drifts, chunky leafy bushes, and authored breathing room around routes, fields, buildings, and interactions. Flower heads sit within the meadow silhouette rather than reading as repeated tall bouquets; reeds/cattails stay on wet edges instead of ordinary dry path shoulders;
 - tree crowns read as several asymmetrical faceted masses rather than spheres or leaf-card noise;
@@ -453,9 +457,9 @@ Material budgets are also catalog-owned; current entries may use up to eight mat
 
 # 15. Runtime Export, Naming, Pivot & Collision
 
-When a real texture path is introduced, KTX2/BasisU is preferred for GLB/runtime textures; WebP/AVIF remains valid for suitable non-GLB use. The current successful geometry/vertex-color pipeline does not by itself prove KTX2 integration.
+When a real texture path is introduced, KTX2/BasisU is preferred for GLB-embedded textures; WebP/AVIF remains valid for suitable non-GLB use. Ground supporting maps currently use that non-GLB WebP path under `public/assets/textures/terrain/`. The current successful geometry/vertex-color pipeline does not by itself prove KTX2 integration.
 
-Runtime 3D: **GLB/glTF 2.0**, meters, Y-up, applied transforms, stable pivots/names, no Blender garbage/unused materials/duplicate textures. Generated files are published only through `tools/blender/cli.mjs`; do not copy Blender exports directly into `public/assets/models`.
+Runtime 3D: **GLB/glTF 2.0**, meters, Y-up, applied transforms, stable pivots/names, no Blender garbage/unused materials/duplicate textures. Generated files are published only through `tools/blender/cli.mjs`; do not copy Blender exports directly into `public/assets/models`. Supporting maps are not catalog GLBs and must not be published through that prefab path.
 
 Catalog IDs and filenames use lowercase snake case: `house_farmhouse_a`, `dock_straight_a`, `prop_crate_wood_a`, `tree_oak_a`, `crop_wheat_mature`, `boat_skiff_a`, `fish_trout_a`. Root/semantic node names are stable catalog-declared identifiers such as `house_farmhouse_a_root`, `boat_skiff_root`, and `boat_skiff_cargo_01`; collision nodes use the `COL_` prefix required by the catalog.
 

@@ -159,6 +159,8 @@ export class CropInstanceRenderer {
   private readonly scale = new THREE.Vector3();
   private readonly euler = new THREE.Euler(0, 0, 0, "YXZ");
   private readonly color = new THREE.Color();
+  private readonly pickMatrix = new THREE.Matrix4();
+  private readonly pickCenter = new THREE.Vector3();
 
   public constructor() {
     this.group.name = "crop_instance_renderer";
@@ -472,6 +474,33 @@ export class CropInstanceRenderer {
       if (cropId) return cropId;
     }
     return null;
+  }
+
+  /**
+   * Resolves a cursor against the authored ground footprint as well as the
+   * crop mesh. Seeded and early-stage crops can be smaller than a practical
+   * gameplay cursor, so mesh-only raycasts may select a neighboring instance
+   * even when the pointer is visibly over this crop's soil.
+   */
+  public pickByGroundPoint(
+    groundPoint: { x: number; z: number },
+    maxDistanceMeters: number = 0.72
+  ): string | null {
+    const batch = this.moistureBatch;
+    let nearestId: string | null = null;
+    let nearestDistance = maxDistanceMeters;
+    for (let index = 0; index < batch.mesh.count; index++) {
+      const cropId = batch.cropIds[index];
+      if (!cropId) continue;
+      batch.mesh.getMatrixAt(index, this.pickMatrix);
+      this.pickCenter.setFromMatrixPosition(this.pickMatrix).applyMatrix4(batch.mesh.matrixWorld);
+      const distance = Math.hypot(this.pickCenter.x - groundPoint.x, this.pickCenter.z - groundPoint.z);
+      if (distance <= nearestDistance) {
+        nearestDistance = distance;
+        nearestId = cropId;
+      }
+    }
+    return nearestId;
   }
 
   public dispose(): void {

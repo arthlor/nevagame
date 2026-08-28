@@ -74,6 +74,7 @@ function dynamicWorldAssets(): Set<AssetId> {
   return new Set<AssetId>([
     ASSET_IDS.CHAR_PLAYER_A,
     ASSET_IDS.CLOUD_LOWPOLY_A,
+    ASSET_IDS.CLOUD_TOWERING_A,
     ASSET_IDS.FAUNA_GULL_A,
     ASSET_IDS.FAUNA_BUTTERFLY_A,
     ...Array.from(ContentRegistry.npcs.values()).map((npc) => npc.assetId),
@@ -98,10 +99,10 @@ function sourceFor(
 ): Pick<AssetCoverageRecord, "placementSource" | "worldContext" | "freshSaveVisible" | "activationTrigger"> {
   if (progressionIds.has(id)) {
     return {
-      placementSource: "NavigationDomain.purchaseSkiff + HARBOR_SKIFF_MOORING",
+      placementSource: "WorldScene skiff mooring preview + NavigationDomain.purchaseSkiff",
       worldContext: "Harbor skiff mooring",
-      freshSaveVisible: false,
-      activationTrigger: "Fishing XP 15,000 and 850 G, then purchase at the skiff mooring"
+      freshSaveVisible: true,
+      activationTrigger: "Visible at the harbor skiff mooring; purchase requires 15,000 Fishing XP and 850 G"
     };
   }
   if (conditionalIds.has(id)) {

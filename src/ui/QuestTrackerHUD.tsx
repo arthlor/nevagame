@@ -59,7 +59,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
 
       {!collapsed && (
         <div className="quest-tracker-content">
-          {activeQuest.targetQuantity > 1 && (
+          {activeQuest.targetQuantity > 1 && !activeQuest.isQuestReadyToTurnIn && (
             <div className="quest-progress-wrap">
               <ChromeMeter
                 label="Objective Progress"

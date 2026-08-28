@@ -37,6 +37,34 @@ def _build_tree_lods(spec: dict, root, builder, reduce_parameters) -> None:
             consolidate_lod_level(lod_root, prefix)
 
 
+def _add_secondary_root_spokes(prefix: str, radius: float, height: float, token: str, parent, *, count: int, seed: int) -> None:
+    """Add a few low, tapered root spokes beneath the faceted root flare."""
+    rng = seeded_rng(seed)
+    for index in range(count):
+        angle = index * math.tau / count + rng.uniform(-0.14, 0.14)
+        root_length = radius * rng.uniform(0.76, 1.02)
+        start = (
+            math.cos(angle) * radius * 0.12,
+            math.sin(angle) * radius * 0.12,
+            height * 0.16,
+        )
+        end = (
+            math.cos(angle) * root_length,
+            math.sin(angle) * root_length,
+            height * 0.035,
+        )
+        add_tapered_beam(
+            f"{prefix}_{index:02d}",
+            start,
+            end,
+            radius * 0.095,
+            radius * 0.022,
+            token,
+            parent,
+            vertices=6,
+        )
+
+
 def _oak_tree(spec: dict, root) -> None:
     params = spec["parameters"]
     rng = seeded_rng(spec["seed"])
@@ -59,6 +87,10 @@ def _oak_tree(spec: dict, root) -> None:
     add_root_flare(
         "oak_root", (0, 0, 0), 1.08, 0.62, wood, root,
         count=params["rootCount"], seed=spec["seed"] + 1,
+    )
+    _add_secondary_root_spokes(
+        "oak_root_spoke", 1.08, 0.62, wood, root,
+        count=max(3, min(5, params["rootCount"] // 2)), seed=spec["seed"] + 11,
     )
     crown_center = (gesture * 0.82, 0.0, height * 0.78)
     branch_count = params["branchCount"]
@@ -105,23 +137,26 @@ def _oak_tree(spec: dict, root) -> None:
     major_count = min(4, cluster_count)
     for index in range(major_count):
         offset_x, offset_y, z_factor, scale_x, scale_y, scale_z = lobe_layout[index]
+        offset_x += rng.uniform(-0.11, 0.11)
+        offset_y += rng.uniform(-0.08, 0.08)
+        z_factor += rng.uniform(-0.026, 0.026)
         center = (
             crown_center[0] + offset_x * spread,
             offset_y * spread,
-            height * z_factor,
+            height * max(0.68, min(0.96, z_factor)),
         )
         major_centers.append(center)
         add_ico(
             f"oak_canopy_major_{index:02d}", center,
-            (spread * scale_x, spread * scale_y, height * scale_z),
+            (spread * scale_x * rng.uniform(0.95, 1.05), spread * scale_y * rng.uniform(0.94, 1.04), height * scale_z * rng.uniform(0.95, 1.04)),
             shadow if index == 0 else leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.16, 0.16), rng.uniform(-0.16, 0.16), rng.uniform(-0.28, 0.28)),
         )
     for index in range(cluster_count - major_count):
         lobe_index = index % major_count
         lobe = major_centers[lobe_index]
-        angle = index * 2.39996 + lobe_index * 0.47 + rng.uniform(-0.12, 0.12)
-        radial = spread * (0.26 + 0.07 * (index % 3))
+        angle = index * 2.39996 + lobe_index * 0.47 + rng.uniform(-0.18, 0.18)
+        radial = spread * (0.26 + 0.07 * (index % 3)) * rng.uniform(0.90, 1.10)
         center = (
             lobe[0] + math.cos(angle) * radial,
             lobe[1] + math.sin(angle) * radial * 0.82,
@@ -171,12 +206,17 @@ def _pine_tree(spec: dict, root) -> None:
     wood, pine, highlight = spec["palette"]
     add_cone("pine_trunk", (lean, 0, height * 0.43), 0.38, 0.16, height * 0.86, wood, root, vertices=8)
     add_root_flare("pine_root", (0, 0, 0), 0.72, 0.42, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
+    _add_secondary_root_spokes(
+        "pine_root_spoke", 0.72, 0.42, wood, root,
+        count=max(3, min(5, params["rootCount"] // 2)), seed=spec["seed"] + 11,
+    )
     tiers = params["tiers"]
+    tier_phase = rng.uniform(-0.20, 0.20)
     for index in range(tiers):
         progress = index / max(1, tiers - 1)
-        radius = spread * (1.0 - progress * 0.68)
+        radius = spread * (1.0 - progress * 0.68) * rng.uniform(0.92, 1.06)
         tier_height = 1.25 - progress * 0.28
-        z = 1.45 + index * (height - 1.75) / tiers
+        z = 1.45 + index * (height - 1.75) / tiers + rng.uniform(-0.035, 0.035)
         token = highlight if index >= tiers - 2 else pine
         add_cone(
             f"pine_crown_{index:02d}", (lean * z / height, 0, z),
@@ -185,7 +225,7 @@ def _pine_tree(spec: dict, root) -> None:
         )
         if index < tiers - 1 and lod_index == 0:
             for side in range(params["branchesPerTier"]):
-                angle = index * 0.8 + side * math.tau / params["branchesPerTier"]
+                angle = tier_phase + index * 0.8 + side * math.tau / params["branchesPerTier"] + rng.uniform(-0.12, 0.12)
                 branch_end = (math.cos(angle) * radius * 0.92, math.sin(angle) * radius * 0.92, z - 0.1)
                 add_beam(
                     f"pine_branch_{index:02d}_{side}",
@@ -222,9 +262,15 @@ def _apple_tree(spec: dict, root) -> None:
     blossom = spec["palette"][3] if len(spec["palette"]) > 3 else leaves
     add_cone("apple_trunk", (0, 0, height * 0.34), 0.42, 0.20, height * 0.68, wood, root, vertices=8)
     add_root_flare("apple_root", (0, 0, 0), 0.82, 0.48, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
+    _add_secondary_root_spokes(
+        "apple_root_spoke", 0.82, 0.48, wood, root,
+        count=max(3, min(5, params["rootCount"] // 2)), seed=spec["seed"] + 11,
+    )
+    crown_phase = rng.uniform(-0.28, 0.28)
     for index in range(params["branchCount"]):
-        angle = index * math.tau / params["branchCount"] + 0.4
-        end = (math.cos(angle) * spread * 0.55, math.sin(angle) * spread * 0.55, height * (0.68 + 0.06 * (index % 2)))
+        angle = index * math.tau / params["branchCount"] + 0.4 + crown_phase + rng.uniform(-0.12, 0.12)
+        branch_radius = spread * 0.55 * rng.uniform(0.92, 1.06)
+        end = (math.cos(angle) * branch_radius, math.sin(angle) * branch_radius, height * (0.68 + 0.06 * (index % 2) + rng.uniform(-0.018, 0.018)))
         add_beam(
             f"apple_branch_{index:02d}", (0, 0, height * 0.47),
             end,
@@ -238,12 +284,13 @@ def _apple_tree(spec: dict, root) -> None:
             )
     clusters = params["canopyClusters"]
     for index in range(clusters):
-        angle = index * 2.39996
-        radial = spread * (0.28 + 0.35 * (index % 3) / 2)
+        angle = index * 2.39996 + crown_phase + rng.uniform(-0.20, 0.20)
+        radial = spread * (0.28 + 0.35 * (index % 3) / 2) * rng.uniform(0.90, 1.10)
         size = spread * rng.uniform(0.48, 0.62)
+        center_z = height * (0.70 + 0.12 * (index % 2) + rng.uniform(-0.025, 0.025))
         add_ico(
             f"apple_canopy_{index:02d}",
-            (math.cos(angle) * radial, math.sin(angle) * radial * 0.8, height * (0.70 + 0.12 * (index % 2))),
+            (math.cos(angle) * radial, math.sin(angle) * radial * 0.8, center_z),
             (size, size * 0.86, size * 0.74), leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(0.1 * math.sin(index), 0.08 * math.cos(index), angle * 0.2),
         )
@@ -307,19 +354,21 @@ def bush(spec: dict, root) -> None:
     params = spec["parameters"]
     rng = seeded_rng(spec["seed"])
     leaves, shadow, flower = spec["palette"]
+    crown_phase = rng.uniform(-0.24, 0.24)
     for index in range(params["clusters"]):
-        angle = index * 2.39996
-        radius = 0.16 + 0.36 * (index % 3) / 2
+        angle = index * 2.39996 + crown_phase + rng.uniform(-0.18, 0.18)
+        radius = (0.16 + 0.36 * (index % 3) / 2) * rng.uniform(0.90, 1.10)
         add_ico(
             f"bush_cluster_{index:02d}",
-            (math.cos(angle) * radius, math.sin(angle) * radius * 0.75, 0.43 + 0.11 * (index % 2)),
-            (0.62 + rng.uniform(-0.08, 0.08), 0.52, 0.47),
+            (math.cos(angle) * radius, math.sin(angle) * radius * 0.75, 0.43 + 0.11 * (index % 2) + rng.uniform(-0.025, 0.025)),
+            (0.62 + rng.uniform(-0.08, 0.08), 0.52 * rng.uniform(0.94, 1.06), 0.47 * rng.uniform(0.94, 1.05)),
             shadow if index == 0 else leaves, root, subdivisions=2,
             rotation=(rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), angle),
         )
     for index in range(params["flowerCount"]):
-        angle = index * 2.39996
-        radius = 0.28 + 0.38 * ((index * 3) % 5) / 4
+        cluster_angle = crown_phase + (index % 2) * math.pi + rng.uniform(-0.26, 0.26)
+        angle = cluster_angle + rng.uniform(-0.30, 0.30)
+        radius = (0.26 + 0.30 * ((index * 3) % 5) / 4) * rng.uniform(0.90, 1.08)
         add_ico(
             f"bush_flower_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72, 0.68 + 0.12 * (index % 3)),
@@ -339,12 +388,15 @@ def reeds(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     stalk_token, tip_token = spec["palette"]
     count = params["stalks"]
+    clump_phase = rng.uniform(-0.24, 0.24)
     for index in range(count):
-        angle = index * 2.39996
-        radius = 0.08 + 0.34 * ((index * 5) % count) / max(1, count - 1)
+        angle = index * 2.39996 + clump_phase + rng.uniform(-0.14, 0.14)
+        radius = (0.08 + 0.34 * ((index * 5) % count) / max(1, count - 1)) * rng.uniform(0.92, 1.08)
         x, y = math.cos(angle) * radius, math.sin(angle) * radius * 0.72
         height = params["height"] * rng.uniform(0.72, 1.0)
-        lean_x, lean_y = rng.uniform(-0.08, 0.08), rng.uniform(-0.08, 0.08)
+        lean = rng.uniform(0.035, 0.105)
+        lean_angle = angle + rng.uniform(-0.46, 0.46)
+        lean_x, lean_y = math.cos(lean_angle) * lean, math.sin(lean_angle) * lean
         add_beam(f"reed_stalk_{index:02d}", (x, y, 0), (x + lean_x, y + lean_y, height), 0.018, stalk_token, root, vertices=5)
         add_cylinder(
             f"reed_tip_{index:02d}", (x + lean_x, y + lean_y, height - 0.09),
@@ -593,9 +645,13 @@ def flower_drift(spec: dict, root) -> None:
     foliage, flower, center = spec["palette"]
     gesture_angle = rng.uniform(-math.pi, math.pi)
     blossom_count = params["blossomCount"]
+    cluster_count = min(3, blossom_count)
     for index in range(blossom_count):
-        angle = index * 2.39996 + rng.uniform(-0.22, 0.22)
-        radius = params["spread"] * (0.12 + 0.82 * ((index * 5) % blossom_count) / max(1, blossom_count - 1))
+        cluster_index = index % cluster_count
+        local_index = index // cluster_count
+        cluster_angle = gesture_angle + cluster_index * math.tau / cluster_count + rng.uniform(-0.24, 0.24)
+        angle = cluster_angle + rng.uniform(-0.34, 0.34)
+        radius = params["spread"] * (0.16 + 0.19 * local_index) * rng.uniform(0.88, 1.12)
         height = params["height"] * rng.uniform(0.55, 1.0)
         x = math.cos(angle) * radius
         y = math.sin(angle) * radius * 0.78

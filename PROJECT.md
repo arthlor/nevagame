@@ -1,93 +1,144 @@
-# Project: Neva Clean Modern-Medieval UI Overhaul
+# Project: Neva Character Overhaul (Player & Village NPCs)
 
 ## Architecture
-- **Presentation-Only UI Layer**: React UI components in `src/ui/` consume immutable `GameState` snapshots and dispatch actions via typed callbacks (`GameApp.ts` -> `sim.execute(...)`). Zero simulation ownership or mutations in UI.
-- **Design Token System**: Defined in `src/ui/styles.css` `:root`, `src/ui/chrome/chrome.css`, and `src/ui/hud.css`. Implements the Clean Modern-Medieval Fantasy aesthetic (inspired by *The Witcher 3* and *Manor Lords*): dark slate glass translucency (`rgba(14, 20, 28, 0.90)`), fine dark timber trim (`#2a1c13`), crisp gold-leaf filigree borders (`#d4af37`), velvet recessed slot wells (`radial-gradient`), and ornate brass dividers.
-- **2D Atlas Sprite Integration**: 123 sprites across 19 families in `public/assets/ui/atlas/`, resolved via `uiAtlas.ts` and rendered via `AtlasImage.tsx` with metallic bezels and drop-shadows.
-- **Procedural SVG Elements**: Scalable vector flourishes in `src/ui/HudDecorations.tsx` (gold filigree corner brackets, ornate brass dividers, celestial time dial, gold purse medallion, embossed keycaps).
-- **UI Audio System**: Presentation-only sound helper in `src/ui/audio/uiAudio.ts` wiring `AudioManager.ts` cues (`ui-click`, `ui-confirm`, `ui-open`, `ui-cloth`, `coins`, `page-turn`, `quest-chime`) to interactive UI events.
+The Neva Character Overhaul unifies procedural 3D modeling, anatomical humanoid rigging, smooth vertex skinning, active Rapier ragdoll physics, and runtime animation control into a cohesive pipeline conforming to the Neva Art Bible (`LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md`) and Technical Architecture (`LLM/01_GAME_FOUNDATIONS_ARCHITECTURE.md`).
+
+### Data & Execution Flow
+```
+[Asset Catalog Specs (asset-catalog.json)]
+              │
+              ▼
+[Procedural Blender Generators (characters.py)]
+ ├── Low-Poly Faceted Modeling (LOD0 & LOD1)
+ ├── Humanoid Armature (15+ articulated joints)
+ ├── Smooth Distance-Falloff Skinning Weights
+ ├── 5 Bone-Parented Sockets (Tool, Carry, Hip, Hands)
+ └── Authored Keyframe Action Clips (32 Player / 6 NPC)
+              │
+              ▼ (npm run art:validate / art:generate)
+[Optimized GLB Assets with COLOR_0 & Meshopt]
+              │
+              ├──► [Runtime Animation Controller (AnimationController.ts)]
+              │     ├── 3-Layer Clip Masking (Base, Upper, Lower)
+              │     ├── Two-Bone Foot IK & Ground Adaptation
+              │     ├── Secondary Spring-Damper Dynamics
+              │     └── Socket Attachment (ToolSocketAttach.ts)
+              │
+              └──► [Dual-Mode Rapier Ragdoll Physics (src/physics/ragdoll/)]
+                    ├── 11 Rigid Bodies & 10 Constrained Joints
+                    ├── Active Mode: PD Motor Tracking of Animation Poses
+                    ├── Physical Mode: Unconstrained Impact / Fall Simulation
+                    └── Settle & Slerp Pose Recovery Blending
+```
+
+---
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | CSS Design Tokens & Base Theme | `--mm-*` surface translucencies, timber trim, gold filigree, velvet wells, brass rules, typography, shadows | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | Chrome Primitives Overhaul | Upgrade `ChromePanel`, `ChromeButton`, `ChromeSlot`, `ChromeMeter`, `ChromeDivider`, `ChromeKeycap`, `ChromeClose`, `ChromeQuality`, `ChromeAlert` | M1 | ORIGINAL_REQUEST §R1 |
-| 3 | Procedural SVG Flourish & Asset Kit | Scalable gold filigree corner brackets, ornate dividers, dials in `HudDecorations.tsx` | M1 | ORIGINAL_REQUEST §R1 |
-| 4 | UI Audio Helper & Primitives Wiring | `src/ui/audio/uiAudio.ts` helper and interactive click/hover/open sounds on chrome primitives | M1 | ORIGINAL_REQUEST §R5 |
-| 5 | HUD Top-Left Celestial Dial & Purse | Sun/Moon celestial dial, digital time, season/day, weather glyph, temperature readout (°C), gold coin purse medallion, forecast popover | M2 | ORIGINAL_REQUEST §R2 |
-| 6 | HUD Top-Right Pinned Quest Tracker | Parchment/ribbon header, collapsible objectives, progress bar, location pin, severe weather warning chips, menu button | M2 | ORIGINAL_REQUEST §R2 |
-| 7 | HUD Bottom-Left Vitals & Status Cluster | Labor meter (amber/gold fill + tooltips), Sprint stamina meter (emerald/cyan fill), low labor alerts, boat panel & carried cargo | M2 | ORIGINAL_REQUEST §R2 |
-| 8 | HUD Bottom-Center Tool Hotbar & Prompts | 5-slot tool quickbar with embossed brass numerals, active tool gold filigree glow, contextual interaction keycaps ([E], [Space], [F]) | M2 | ORIGINAL_REQUEST §R2 |
-| 9 | Inventory Modal (`InventoryModal.tsx`) | Velvet grid slots, item inspection pane with quantity/quality/value badges, capacity gauges, category filter ribbons | M3 | ORIGINAL_REQUEST §R3 |
-| 10 | Market Modal (`MarketModal.tsx`) | Shopkeeper dialogue header, tabbed buy/sell stalls, dynamic demand arrows (▲/▼), docked fish cargo cards, price arbitrage sidebar | M3 | ORIGINAL_REQUEST §R3 |
-| 11 | Journal & Bestiary (`JournalModal.tsx`) | 5 Folio bookmark tabs (Quests, Masteries, Bestiary, Field Notes, Guide), discovered fish wells, undiscovered mystery silhouettes | M3 | ORIGINAL_REQUEST §R3 |
-| 12 | World Map Modal (`WorldMapModal.tsx`) | Framed parchment cartography, 4 heraldic lens tabs, interactive POI landmarks with glowing rings, player beacon, compass rose | M3 | ORIGINAL_REQUEST §R3 |
-| 13 | Logistics Ledger (`LogisticsLedgerModal.tsx`) | Double-entry accounting ledger sheet, spatial vessel hold section with numbered velvet slot wells, freshness gradients | M4 | ORIGINAL_REQUEST §R3 |
-| 14 | Dialogue Modal (`DialogueModal.tsx`) | Character portrait plaque with gold filigree bevel, dark slate dialogue box, typewriter reveal, quest rewards ribbon | M4 | ORIGINAL_REQUEST §R3 |
-| 15 | Escape Menu & Settings (`EscapeMenuModal.tsx`) | Dark slate pause plaque, brass audio sliders, medieval keycaps, save/reset actions | M4 | ORIGINAL_REQUEST §R3 |
-| 16 | Start Screen (`StartScreen.tsx`) | Atmospheric fantasy title screen, brand lockup, Harbor Log save card, options dialog | M4 | ORIGINAL_REQUEST §R3 |
-| 17 | Expedition Board (`ExpeditionBoard.tsx`) | Departure readiness board with weather forecast, boat integrity %, supply checklist, market demand rates | M4 | ORIGINAL_REQUEST §R3 |
-| 18 | Basic Fishing Minigame Widget | 5-phase minigame: cast meter, bite alert banner, gilded water column reeling track, green catch bar, gold catch summary plaque | M5 | ORIGINAL_REQUEST §R4 |
-| 19 | Sport Fishing HUD (`FishingHUD.tsx`) | Dark slate plaque, illuminated 3-zone tension gauge, fish stamina bar, tactile action buttons (`[W] Reel`, `[Space] Brace`, `[S] Slack`) | M5 | ORIGINAL_REQUEST §R4 |
-| 20 | Boat Piloting HUD (`HUD.tsx`) | Speed in knots, sea condition, hull integrity meter, boat cargo hold grid with fresh-to-stale gradient indicators | M5 | ORIGINAL_REQUEST §R4 |
-| 21 | Farming & Seed Dock (`PlantingSeedBar.tsx`) | Docked velvet seed carousel, botanical framing, quantity counter badge, gold selection glow | M5 | ORIGINAL_REQUEST §R4 |
-| 22 | Farm GIS Legend & Crop Inspection | Soil moisture/growth status badges, herbalist inspection plaque with growth minutes, climate fit, fertility, yield | M5 | ORIGINAL_REQUEST §R4 |
-| 23 | Contextual Notifications & Toasts | Dark slate & gold toast banners, CatchSummaryToast, auto-dismiss hints | M5 | ORIGINAL_REQUEST §R4 |
-| 24 | Micro-Interaction Polish & Sound Wiring | Smooth CSS transitions, active glows, focus rings, complete audio cue integration across all modals and overlays | M5 | ORIGINAL_REQUEST §R5 |
-| 25 | Verification & Build Certification | `npm run typecheck`, `npm run assets:sync`, `npm run build` | M6 | ORIGINAL_REQUEST §Acceptance Criteria |
+| 1 | Player Visual Model (`char_player_a`) | Faceted cozy low-poly traveler/farmer model with straw hat, utility vest, quilted lapels, cargo pockets, trousers, boots | M1 | Survey §3.4 |
+| 2 | Gardener NPC Visual Model (`char_npc_elspeth_a`) | Faceted model with sun bonnet, hair bun, apron bib/skirt, gardening trowel holster | M1 | Survey §3.5 |
+| 3 | Handyman NPC Visual Model (`char_npc_barnaby_a`) | Faceted craftsman model with flat cap, ear pencil, work apron, tool belt, hammer holster | M1 | Survey §3.6 |
+| 4 | Dockmaster NPC Visual Model (`char_npc_silas_a`) | Faceted dockmaster model with sou'wester hat, deep sea coat, foam-white beard, brass watch chain | M1 | Survey §3.7 |
+| 5 | Merchant NPC Visual Model (`char_npc_maeve_a`) | Faceted fishmonger/shopkeeper model with braided hair bun, neck scarf, apron, scale pin | M1 | Survey §3.8 |
+| 6 | LOD0/LOD1 Representations & Budget Validation | Multi-level LODs adhering to triangle budgets (Player 12k/18k, NPCs 8k-8.5k/16k) and <=6 palette materials | M1 | Survey §3.2 |
+| 7 | Palette Token & Linear COLOR_0 Baking | Material assignment and vertex color baking strictly adhering to `neva.palette.json` tokens | M1 | Survey §3.13 |
+| 8 | Humanoid Skeletal Armature | 15+ joint articulated humanoid skeleton (Root, Pelvis, Spine, Chest, Neck, Head, Clavicles L/R, UpperArms L/R, Forearms L/R, Hands L/R, Thighs L/R, Shins L/R, Feet L/R) | M2 | Survey §3.9 |
+| 9 | Smooth Vertex Skinning Weights | Geometric distance-falloff skin weighting across articulated joints (elbows, knees, shoulders, waist, neck) | M2 | Survey §3.10 |
+| 10 | Standard Bone-Parented Sockets | 5 empty socket markers (`hand_socket_left`, `hand_socket_right`, `tool_socket`, `carry_socket`, `hip_socket`) parented to corresponding bones | M2 | Survey §3.3 |
+| 11 | Authored Keyframe Action Suite | Refined 32 player action clips and 6 NPC action clips utilizing full skeletal articulation | M2 | Survey §3.11, §3.12 |
+| 12 | Rapier Multi-Body Ragdoll Architecture | 11 dynamic/kinematic rigid bodies and 10 anatomical joint constraints matching humanoid armature | M3 | Survey §3.4 (Phys) |
+| 13 | Active Motorized Joint Tracking | Motorized joint tracking following animation poses with spring-damper compliance during locomotion | M3 | Survey §3.4 (Phys) |
+| 14 | Physical Ragdoll Transition & Impact Trigger | Unconstrained physical simulation triggered on high-speed impact (`>10m/s`), hard landing (`>=8.5m/s`), or knockback with velocity transfer | M3 | Survey §3.4 (Phys) |
+| 15 | Bi-Directional Pose Blending & Settle Recovery | Settle detection, prone/supine classification, kinematic root realignment, and 0.35s Slerp pose recovery blending | M3 | Survey §3.4 (Phys) |
+| 16 | Animation Controller Expanded Rig Support | Runtime node alias mapping and multi-layer track filtering supporting Chest, Neck, and Clavicle bones | M4 | Survey §3.16 |
+| 17 | Ground & Slope Adaptation (Foot IK) | Real-time terrain normal alignment, ground pitch/roll stance, and two-bone analytical foot IK | M4 | Survey §3.16 |
+| 18 | Secondary Spring-Damper Dynamics | Velocity and acceleration-driven 2nd-order damped oscillators for garments, hats, backpacks, and cargo | M4 | Survey §3.16 |
+| 19 | Socket Prop Mounting & Art Yard Integration | Seamless prop attachment (tools, cargo, rods, oars) across gameplay and interactive Art Yard visual inspection | M4 | Survey §3.17 |
+| 20 | 100% E2E Verification & Adversarial Hardening | Verification against all E2E test suites (Tiers 1-4) and white-box adversarial coverage hardening (Tier 5) | M5 | Survey §1.5 |
+
+---
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Visual Theme, Tokens & Chrome Primitives | CSS Tokens, `Chrome.tsx`, `chrome.css`, `styles.css`, `HudDecorations.tsx`, `uiAudio.ts` | none | DONE |
-| M2 | Classic RPG Split-Corners In-Game HUD | `HUD.tsx`, `QuestTrackerHUD.tsx`, `hud.css`, `FarmForecastPopover.tsx` | M1 | DONE |
-| M3 | Slate & Gold Ornate Modals (Part A) | `InventoryModal.tsx`, `MarketModal.tsx`, `JournalModal.tsx`, `WorldMapModal.tsx`, `HowToPlayGuide.tsx` | M1 | DONE |
-| M4 | Slate & Gold Ornate Modals (Part B) | `LogisticsLedgerModal.tsx`, `DialogueModal.tsx`, `EscapeMenuModal.tsx`, `StartScreen.tsx`, `ExpeditionBoard.tsx` | M1 | DONE |
-| M5 | Tactile Overlays, Minigames & Audio Polish | `BasicFishingMinigameWidget.tsx`, `BasicFishingMinigame.css`, `FishingHUD.tsx`, `PlantingSeedBar.tsx`, `FarmGISLegend.tsx`, `CatchInspectionModal.tsx`, `ContextualHintCard.tsx`, `GameUI.tsx` | M1, M2 | DONE |
-| M6 | Final Verification & Build Certification | Full test suite, typecheck, asset sync, production build | M1, M2, M3, M4, M5 | DONE |
+| M1 | Procedural 3D Visual Modeling & Catalog Validation | Visual modeling of Player & 4 NPCs in `characters.py`, occupational garments, LOD0/LOD1, palette tokens, `art:validate` | none | DONE |
+| M2 | Humanoid Skeletal Rigging, Vertex Skinning & Sockets | 15+ joint armature, distance-falloff skin weighting, 5 sockets, 32+6 animation clips | M1 | DONE |
+| M3 | Dual-Mode Active Rapier Ragdoll Physics System | `src/physics/ragdoll/`, 11 rigid bodies, 10 joints, active motorized tracking, impact transition, Slerp recovery blending | M2 | DONE |
+| M4 | Animation Controller, Foot IK & Secondary Dynamics | `AnimationController.ts` rig support, 2-bone foot IK, secondary spring dynamics, socket prop mounting, Art Yard integration | M2, M3 | PLANNED |
+| M5 | Final E2E Test Suite Validation & Hardening | Pass 100% of E2E test suite (Tiers 1-4) and complete Tier 5 adversarial coverage hardening | M1, M2, M3, M4, TEST_READY | PLANNED |
+
+---
 
 ## Interface Contracts
-### UI Chrome ↔ Components
-- `ChromePanel`: `<ChromePanel tone="slate" | "timber" | "scroll" | "dock" | "ghost" header={...} footer={...} rivets={true} corners={true}>`
-- `ChromeSlot`: `<ChromeSlot filled={boolean} quantity={number} selected={boolean} rarity={...} badge={...} onClick={...} onSelect={...}>`
-- `ChromeMeter`: `<ChromeMeter variant="labor" | "sprint" | "hull" | "fishing" | "danger" | "gold" value={number} max={number} showValue={boolean}>`
-- `ChromeButton`: `<ChromeButton variant="primary" | "secondary" | "gold" | "danger" | "ghost" size="sm" | "md" | "lg" onClick={...}>`
-- `ChromeKeycap`: `<ChromeKeycap keyName="E" | "Space" | "W" | "S" | "Esc" glow={boolean} />`
 
-### UI Audio Helper
-- `playUiSound(sound: "click" | "confirm" | "open" | "cloth" | "coins" | "page-turn" | "chime" | AudioCueId): void`
+### 1. Blender Generator ↔ Catalog Schema Contract
+- Generator signatures:
+  - `coastal_worker(spec: dict, context: dict) -> dict`
+  - `npc_character(spec: dict, context: dict) -> dict`
+- Required Nodes in exported GLB:
+  - `[asset_id]_root`: Root empty node.
+  - `lod0`: LOD0 empty parent node.
+  - `lod1`: LOD1 empty parent node.
+  - `[asset_id]_rig`: Armature object with 15+ primary bones and secondary bones.
+  - `[asset_id]_hand_socket_left`: Parented to `rig_hand_left`.
+  - `[asset_id]_hand_socket_right`: Parented to `rig_hand_right`.
+  - `[asset_id]_tool_socket`: Parented to `rig_hand_right`.
+  - `[asset_id]_carry_socket`: Parented to `rig_spine`.
+  - `[asset_id]_hip_socket`: Parented to `rig_pelvis`.
+- Bone Naming Standard:
+  - `rig_root`, `rig_pelvis`, `rig_spine`, `rig_chest`, `rig_neck`, `rig_head`
+  - `rig_clavicle_left`, `rig_upper_arm_left`, `rig_forearm_left`, `rig_hand_left`
+  - `rig_clavicle_right`, `rig_upper_arm_right`, `rig_forearm_right`, `rig_hand_right`
+  - `rig_thigh_left`, `rig_shin_left`, `rig_foot_left`
+  - `rig_thigh_right`, `rig_shin_right`, `rig_foot_right`
+  - `rig_hat_brim`, `rig_backpack`, `rig_canteen_left`, `rig_canteen_right`
 
-### Engine ↔ UI Presentation Boundary
-- `GameUI`: Receives `state: GameState`, `promptText: string | null`, `toastMessage?: string | null`, `activeModal: ActiveModal`, `activeQuest: ActiveQuestDto | null`, `inspectedCrop: CropInspectionDto | null`, and action callbacks.
-- All actions route via `GameApp.ts` to `sim.execute(...)`. Zero state mutation inside UI components.
+### 2. Physics Ragdoll ↔ Animation Controller Contract
+- Interface `HumanoidRagdoll`:
+  ```ts
+  export interface HumanoidRagdoll {
+    readonly mode: "kinematic-active" | "physical-ragdoll" | "recovering";
+    initialize(world: RAPIER.World, initialPose: CharacterPoseSnapshot): void;
+    updateActiveTracking(targetPose: CharacterPoseSnapshot, dt: number): void;
+    triggerPhysicalRagdoll(linearVelocity: RAPIER.Vector3, angularVelocity: RAPIER.Vector3): void;
+    updateRecovery(dt: number): RagdollRecoverySample | null;
+    getBoneTransforms(): Map<string, { position: [number, number, number]; quaternion: [number, number, number, number] }>;
+    dispose(world: RAPIER.World): void;
+  }
+  ```
+
+### 3. Socket Attachment Contract
+- `ToolSocketAttach.ts`:
+  - Rest orientation: `+X` right outward palm, `+Y` up along grip, `+Z` forward.
+  - Shaft tools apply `SHAFT_ALONG_FINGERS = [Math.PI, 0, 0]`.
+  - Non-shaft tools apply `IDENTITY_EULER = [0, 0, 0]`.
+
+---
 
 ## Code Layout
-- `src/ui/chrome/Chrome.tsx` — Chrome primitives implementation
-- `src/ui/chrome/chrome.css` — Chrome component styles
-- `src/ui/chrome/uiAtlas.ts` — Atlas sprite mapping resolvers
-- `src/ui/styles.css` — Global CSS tokens, modal layouts, tables
-- `src/ui/hud.css` — In-game HUD layout & overlays
-- `src/ui/modals.css` — M3+ slate-and-gold modal cascade
-- `src/ui/overlays.css` — M5 overlay cascade winner (imported last after `modals.css`)
-- `src/ui/HudDecorations.tsx` — Procedural SVG gold filigree corners, dividers, dials, keycaps
-- `src/ui/audio/uiAudio.ts` — UI sound effect dispatcher
-- `src/ui/HUD.tsx` — Main split-corners in-game HUD
-- `src/ui/QuestTrackerHUD.tsx` — Top-Right pinned quest tracker
-- `src/ui/InventoryModal.tsx` — Satchel modal
-- `src/ui/MarketModal.tsx` — Merchant stall & commodities modal
-- `src/ui/JournalModal.tsx` — Guild chronicle & bestiary modal
-- `src/ui/components/WorldMapModal.tsx` — Illuminated map modal
-- `src/ui/components/LogisticsLedgerModal.tsx` — Financial & cargo ledger modal
-- `src/ui/DialogueModal.tsx` — NPC dialogue modal
-- `src/ui/EscapeMenuModal.tsx` — Pause menu modal
-- `src/ui/StartScreen.tsx` — Game title & load screen
-- `src/ui/ExpeditionBoard.tsx` — Expedition planner modal
-- `src/ui/fishing/BasicFishingMinigameWidget.tsx` — Starter fishing minigame
-- `src/ui/fishing/BasicFishingMinigame.css` — Fishing minigame styles
-- `src/ui/FishingHUD.tsx` — Sport fishing encounter HUD
-- `src/ui/components/PlantingSeedBar.tsx` — Seed selection dock
-- `src/ui/components/FarmGISLegend.tsx` — GIS legend
-- `src/ui/components/FarmForecastPopover.tsx` — Weather forecast popover
-- `src/ui/components/CatchInspectionModal.tsx` — Landed catch toast
-- `src/ui/ContextualHintCard.tsx` — Mechanics toast
-- `src/ui/GameUI.tsx` — UI root composition container
+```
+tools/blender/
+├── generators/
+│   ├── characters.py             # Procedural character mesh, rig, skinning, and clip generator
+│   └── registry.py               # Generator mapping ("coastal_worker", "npc_character")
+├── common/
+│   ├── geometry.py               # Low-poly faceted primitives and COLOR_0 baking
+│   ├── lod.py                    # LOD0/LOD1 hierarchy
+│   ├── materials.py              # Palette BSDF materials
+│   └── pipeline.py               # Validation and glTF export pipeline
+└── cli.mjs                       # Catalog and GLB validation CLI
+
+src/
+├── physics/
+│   ├── PhysicsWorld.ts           # Master physics coordinator
+│   └── ragdoll/
+│       ├── HumanoidRagdoll.ts        # Rapier multi-body ragdoll lifecycle & bodies
+│       ├── RagdollBoneMapping.ts     # Bone-to-collider & joint definitions
+│       ├── RagdollMotorController.ts # PD motor tracking in active mode
+│       └── RagdollPoseBlender.ts     # Settle detection & Slerp recovery blending
+└── render/
+    └── animation/
+        ├── AnimationController.ts    # 3-layer animation controller, foot IK, springs
+        └── types.ts                  # Animation and motion data structures
+```

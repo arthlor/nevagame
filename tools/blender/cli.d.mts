@@ -43,6 +43,16 @@ export interface CatalogAsset {
     fallbackClip?: string;
     events?: Array<{ name: string; timeSeconds: number }>;
   }>;
+  additionalAnimationClips?: Array<{
+    name: string;
+    durationSeconds: number;
+    commitMarkerSeconds?: number;
+    loop: boolean;
+    referenceSpeedMetersPerSecond?: number;
+    optional?: boolean;
+    fallbackClip?: string;
+    events?: Array<{ name: string; timeSeconds: number }>;
+  }>;
   referenceAuthoring?: ReferenceAuthoring;
 }
 

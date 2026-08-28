@@ -24,9 +24,10 @@ import {
   worldToFarmLocal
 } from "../../src/world/FarmLayout";
 import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
-import { HARBOR_DOCK, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_PIER_DECK, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, ASSET_IDS, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { collisionPrimitivesForAsset } from "../../src/physics/CollisionCatalogAdapter";
+import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../../src/render/materials/SurfaceFieldAttributes";
 import {
   createWorldEnvironmentLayout,
   generateEnvironmentClusterPlacements,
@@ -199,6 +200,12 @@ describe("WorldLayout", () => {
     expect(WorldLayout.terrainNormal(farmhouse.x, farmhouse.z).length()).toBeCloseTo(1, 5);
     const geometry = WorldLayout.buildTerrainGeometry();
     expect(geometry.getAttribute("color").count).toBe(geometry.getAttribute("position").count);
+    for (const name of Object.values(SURFACE_FIELD_ATTRIBUTE_NAMES)) {
+      const attribute = geometry.getAttribute(name);
+      expect(attribute.count).toBe(geometry.getAttribute("position").count);
+      expect(attribute.itemSize).toBe(4);
+      expect(Array.from(attribute.array).every(Number.isFinite)).toBe(true);
+    }
     const terrainGreenMask = geometry.getAttribute("terrainGreenMask");
     expect(terrainGreenMask.array).toBeInstanceOf(Uint8Array);
     expect(terrainGreenMask.count).toBe(geometry.getAttribute("position").count);
@@ -375,6 +382,12 @@ describe("WorldLayout", () => {
     const path = WorldLayout.buildPathGeometry();
     expect(path.getAttribute("position").count).toBeGreaterThan(50);
     expect(path.getAttribute("color").count).toBe(path.getAttribute("position").count);
+    for (const name of Object.values(SURFACE_FIELD_ATTRIBUTE_NAMES)) {
+      const attribute = path.getAttribute(name);
+      expect(attribute.count).toBe(path.getAttribute("position").count);
+      expect(attribute.itemSize).toBe(4);
+      expect(Array.from(attribute.array).every(Number.isFinite)).toBe(true);
+    }
     expect(path.index?.count).toBeGreaterThan(100);
     path.dispose();
   });
@@ -1058,12 +1071,13 @@ describe("WorldLayout", () => {
     expect(Math.hypot(anchor.x - dock.x, anchor.z - dock.z)).toBeLessThan(7.2);
     expect(dock.rotationY).toBeCloseTo(Math.PI / 2, 3);
     expect(WorldLayout.isSailable(HARBOR_DOCK.boatPosition.x, HARBOR_DOCK.boatPosition.z)).toBe(true);
-    expect(WorldLayout.pierDeckSurfaceY()).toBeGreaterThan(1.6);
+    expect(WorldLayout.pierDeckSurfaceY()).toBeGreaterThan(1.45);
     expect(Math.hypot(
       HARBOR_DOCK.boatPosition.x - dock.x,
       HARBOR_DOCK.boatPosition.z - dock.z
-    )).toBeLessThan(6);
-    expect(Math.abs(HARBOR_DOCK.boatPosition.x - (dock.x + 2.6))).toBeLessThan(1.2);
+    )).toBeLessThan(8);
+    expect(HARBOR_DOCK.boatPosition.x).toBeGreaterThan(dock.x + HARBOR_PIER_DECK.halfWidthX + 1.4);
+    expect(HARBOR_DOCK.boatPosition.x).toBeLessThan(HARBOR_SKIFF_MOORING.boatPosition.x - 4);
   });
 
   it("provides stable low-frequency water samples for render and physics", () => {

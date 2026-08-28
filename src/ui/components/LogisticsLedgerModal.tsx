@@ -67,8 +67,8 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
         as="div"
         className="ledger-modal"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

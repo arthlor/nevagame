@@ -3,9 +3,29 @@ import { describe, expect, it } from "vitest";
 import {
   CAMERA_PROFILES,
   GameCamera,
-  INTERIOR_CAMERA_PROFILE
+  INTERIOR_CAMERA_PROFILE,
+  SPORT_TUNA_CAMERA_PROFILE
 } from "../../src/render/camera/GameCamera";
 import { FARMHOUSE_INTERIOR_ORIGIN, FARMHOUSE_INTERIOR_BOUNDS } from "../../src/world/FarmhouseInterior";
+import type { PlayerMotionSample } from "../../src/simulation/core/PhysicsAdapter";
+
+function stillPlayerMotion(): PlayerMotionSample {
+  return {
+    velocity: { x: 0, y: 0, z: 0 },
+    speedMetersPerSecond: 0,
+    accelerationMetersPerSecondSquared: 0,
+    turnRateRadiansPerSecond: 0,
+    isGrounded: true,
+    groundNormal: { x: 0, y: 1, z: 0 },
+    slopeRadians: 0,
+    airbornePhase: "grounded",
+    contactEvent: "none",
+    landingImpactStrength: 0,
+    contactSurface: "unknown",
+    isCollisionBlocked: false,
+    requestedGait: "idle"
+  };
+}
 
 describe("GameCamera", () => {
   it("maps on-foot movement to the horizontal camera basis", () => {
@@ -176,6 +196,26 @@ describe("GameCamera", () => {
       CAMERA_PROFILES["boat-driving"].pitchRadians,
       12
     );
+  });
+
+  it("tracks the presentation fish target and selects the longer tuna boom", () => {
+    const camera = new GameCamera();
+    camera.setReducedMotion(true);
+    const target = new THREE.Vector3(0, 0.5, 0);
+    const lookHint = new THREE.Vector3(18, 0.25, 24);
+    camera.update(target, "sport-fishing", 1 / 60, undefined, undefined, {
+      player: stillPlayerMotion(),
+      lookHint,
+      fightReachMeters: 45,
+      lineTension: 62,
+      snapTimerSeconds: 0,
+      fightBehavior: "run-right"
+    });
+
+    const toFish = lookHint.clone().sub(camera.camera.position).normalize();
+    expect(camera.camera.getWorldDirection(new THREE.Vector3()).dot(toFish)).toBeGreaterThan(0.92);
+    expect(camera.framingState().distance).toBe(SPORT_TUNA_CAMERA_PROFILE.distance);
+    expect(camera.framingState().fovDegrees).toBe(SPORT_TUNA_CAMERA_PROFILE.fovDegrees);
   });
 
   it("preserves normalized zoom preference across mode changes and holds it while paused", () => {

@@ -21,7 +21,7 @@ import {
   WEATHER_FRONT_MAX_MINUTES,
   WEATHER_FRONT_MIN_MINUTES
 } from "../../src/simulation/weather/updateWeather";
-import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
+import { STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN } from "../../src/world/FarmhouseInterior";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -158,6 +158,20 @@ describe("game loop cadence", () => {
     expect(active.some((contract) => contract.targetItemIdOrSpecies.startsWith("fish."))).toBe(false);
   });
 
+  it("publishes a reachable trout contract once the rowboat route is unlocked", () => {
+    const sim = new Simulation();
+    sim.state.contracts = [];
+    sim.state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    sim.state.player.equippedRodId = "rod.willow";
+
+    sim.advanceGameMinutes(1);
+
+    const active = sim.state.contracts.filter((contract) => contract.status === "active");
+    expect(active.some((contract) => {
+      return contract.type === "fresh-fish" && contract.targetItemIdOrSpecies === "fish.trout";
+    })).toBe(true);
+  });
+
   it("sells compost starter at the village and crushed ice at the harbor", () => {
     const sim = new Simulation();
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
@@ -191,7 +205,7 @@ describe("game loop cadence", () => {
     expect(InventoryManager.getItemCount(inventory, "item.crushed_ice")).toBe(1);
   });
 
-  it("installs irrigation once then waters every dry crop on the nearby farm", () => {
+  it("installs a field pump at the farm well then waters every dry crop on that farm", () => {
     const sim = new Simulation();
     sim.state.player.money = 200;
     commitPlayerPose(sim, STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z);
@@ -204,7 +218,11 @@ describe("game loop cadence", () => {
     const cropId = Object.keys(sim.state.crops)[0];
     sim.state.crops[cropId].moisture = 20;
 
+    expect(sim.execute({ type: "farm.buy-irrigation" })).toMatchObject({ success: false });
     expect(sim.execute({ type: "farm.irrigate", farmId: "farm.starter_garden" })).toMatchObject({ success: false });
+
+    const well = farmWellWorldAnchor("farm.starter_garden")!;
+    commitPlayerPose(sim, well.x, well.z);
     const purchase = sim.execute({ type: "farm.buy-irrigation" });
     expect(purchase).toMatchObject({ success: true, cost: IRRIGATION_COST });
     expect(sim.state.quests.unlockedFeatureIds).toContain(IRRIGATION_FEATURE_ID);

@@ -90,11 +90,13 @@ export class QuestDomain {
 
     const currentProgress = quests.stepProgress[objective.id] ?? 0;
     const isStepComplete = currentProgress >= objective.targetQuantity;
-    const isQuestReadyToTurnIn = (quests.activeStepIndex >= quest.objectives.length ||
-      (stepIndex === quest.objectives.length - 1 && isStepComplete)) &&
-      this.canPayQuestTurnIn(quest).success;
+    const isLastStep = stepIndex === quest.objectives.length - 1
+      || quests.activeStepIndex >= quest.objectives.length;
+    const awaitingTurnIn = isLastStep && isStepComplete;
+    const isQuestReadyToTurnIn = awaitingTurnIn && this.canPayQuestTurnIn(quest).success;
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
+    const speakerName = speaker?.name ?? "Townsperson";
 
     return {
       questId: quest.id,
@@ -102,15 +104,19 @@ export class QuestDomain {
       actTitle: quest.actTitle,
       questTitle: quest.questTitle,
       speakerId: quest.speakerId,
-      speakerName: speaker?.name ?? "Townsperson",
+      speakerName,
       currentStepIndex: stepIndex + 1,
       totalSteps: quest.objectives.length,
-      objectiveDescription: objective.description,
+      objectiveDescription: awaitingTurnIn
+        ? `Talk to ${speakerName} to continue`
+        : objective.description,
       currentProgress,
       targetQuantity: objective.targetQuantity,
       isStepComplete,
       isQuestReadyToTurnIn,
-      targetLocation: objective.locationAnchor,
+      targetLocation: awaitingTurnIn && speaker
+        ? { x: speaker.anchor.x, z: speaker.anchor.z, name: speaker.anchor.locationName }
+        : objective.locationAnchor,
       rewards: quest.rewards
     };
   }
@@ -178,6 +184,9 @@ export class QuestDomain {
     reason?: string;
   } {
     const { state, events } = this.context;
+    if (state.player.activeMountId) {
+      return { success: false, reason: "Dismount before talking to people" };
+    }
     const npc = ContentRegistry.npcs.get(npcId);
     if (!npc) {
       return { success: false, reason: `Unknown NPC: '${npcId}'` };

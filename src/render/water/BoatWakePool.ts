@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { WaterSurface, type WaterConditions } from "./WaterSurface";
@@ -69,12 +70,18 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
       uDaylight: { value: 1 },
       uKeyLightStrength: { value: 1 },
       uFoamColor: { value: new THREE.Color(PALETTE_HEX.foam_warm_01) },
-      uWaterColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) }
+      uWaterColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) },
+      uFogColor: { value: new THREE.Color(CANONICAL_RENDER_CONFIG.fog.colorHex) },
+      uFogNear: { value: CANONICAL_RENDER_CONFIG.fog.near },
+      uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far },
+      uFogDistanceDesaturation: { value: CANONICAL_RENDER_CONFIG.fog.distanceDesaturation }
     },
     vertexShader: `
       out vec2 vUv;
+      out vec3 vWorldPosition;
       void main() {
         vUv = uv;
+        vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
@@ -84,7 +91,12 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
       uniform float uKeyLightStrength;
       uniform vec3 uFoamColor;
       uniform vec3 uWaterColor;
+      uniform vec3 uFogColor;
+      uniform float uFogNear;
+      uniform float uFogFar;
+      uniform float uFogDistanceDesaturation;
       in vec2 vUv;
+      in vec3 vWorldPosition;
       out vec4 outColor;
       void main() {
         float tapered = smoothstep(0.0, 0.22, vUv.y) * (1.0 - smoothstep(0.72, 1.0, vUv.y));
@@ -92,7 +104,12 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
         float alpha = uOpacity * mix(0.46, 1.0, tapered) * mix(0.62, 1.0, crossFade);
         if (alpha < 0.012) discard;
         float lightResponse = clamp(mix(0.14, 0.92, uDaylight) + uKeyLightStrength * 0.08, 0.12, 1.0);
-        outColor = vec4(mix(uWaterColor, uFoamColor, 0.54) * lightResponse, alpha);
+        vec3 color = mix(uWaterColor, uFoamColor, 0.54) * lightResponse;
+        float fogFactor = smoothstep(uFogNear, uFogFar, distance(cameraPosition, vWorldPosition));
+        float wakeLuma = dot(color, vec3(0.299, 0.587, 0.114));
+        color = mix(color, vec3(wakeLuma), fogFactor * uFogDistanceDesaturation);
+        color = mix(color, uFogColor, fogFactor * 0.82);
+        outColor = vec4(color, alpha);
       }
     `
   });
@@ -223,6 +240,11 @@ export class BoatWakePool {
     for (const entry of this.entries) {
       entry.mesh.material.uniforms.uDaylight.value = frame.daylight;
       entry.mesh.material.uniforms.uKeyLightStrength.value = keyStrength;
+      (entry.mesh.material.uniforms.uFogColor.value as THREE.Color).copy(frame.fogColor);
+      entry.mesh.material.uniforms.uFogNear.value = frame.fogNear;
+      entry.mesh.material.uniforms.uFogFar.value = frame.fogFar;
+      entry.mesh.material.uniforms.uFogDistanceDesaturation.value =
+        CANONICAL_RENDER_CONFIG.fog.distanceDesaturation;
     }
   }
 

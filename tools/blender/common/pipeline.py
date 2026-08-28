@@ -92,7 +92,10 @@ def _validate_animation_contract(
     objects: list[bpy.types.Object],
     meshes: list[bpy.types.Object],
 ) -> list[dict]:
-    clips = spec.get("animationClips")
+    clips = [
+        *(spec.get("animationClips") or []),
+        *(spec.get("additionalAnimationClips") or []),
+    ]
     if not clips:
         return []
     asset_id = spec["id"]
@@ -274,22 +277,37 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         raise RuntimeError(f"{asset_id}: ground pivot is invalid; minimum Z is {minimum[2]:.3f}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(
-        filepath=str(output_path),
-        export_format="GLB",
-        use_selection=False,
-        export_apply=True,
-        export_yup=True,
-        export_attributes=True,
-        export_animation_mode=(
-            "NLA_TRACKS"
-            if spec.get("animationClips") and spec["family"] != "character"
-            else "ACTIONS"
-        ),
-        export_cameras=False,
-        export_lights=False,
-    )
+    export_object = meshes[0]
+    for selected in bpy.context.view_layer.objects:
+        selected.select_set(False)
+    export_object.select_set(True)
+    bpy.context.view_layer.objects.active = export_object
+    export_override = {
+        "object": export_object,
+        "active_object": export_object,
+        "selected_objects": [export_object],
+        "selected_editable_objects": [export_object],
+    }
+    window_manager = getattr(bpy.context, "window_manager", None)
+    window = next(iter(window_manager.windows), None) if window_manager else None
+    if window is not None:
+        export_override.update(window=window, screen=window.screen)
+    with bpy.context.temp_override(**export_override):
+        bpy.ops.export_scene.gltf(
+            filepath=str(output_path),
+            export_format="GLB",
+            use_selection=False,
+            export_apply=True,
+            export_yup=True,
+            export_attributes=True,
+            export_animation_mode=(
+                "NLA_TRACKS"
+                if (spec.get("animationClips") or spec.get("additionalAnimationClips")) and spec["family"] != "character"
+                else "ACTIONS"
+            ),
+            export_cameras=False,
+            export_lights=False,
+        )
     quality_status = "on_target" if triangle_count >= budget["trianglesTarget"] else "below_target"
     return {
         "id": asset_id,

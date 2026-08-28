@@ -50,7 +50,7 @@ const GAME_KEY_CODES = new Set([
   "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "KeyP",
   "Digit1", "Digit2", "Digit3", "Digit4", "Digit5"
 ]);
-const MOVEMENT_MODES = new Set<GameMode>(["on-foot", "farm-placement", "boat-driving"]);
+const MOVEMENT_MODES = new Set<GameMode>(["on-foot", "farm-placement", "boat-driving", "mounted"]);
 const EMPTY_KEYS: ReadonlySet<string> = new Set();
 const ORBIT_DRAG_THRESHOLD_PX = 4;
 const MAX_ACCUMULATED_POINTER_DELTA = 600;
@@ -87,7 +87,7 @@ export function deriveSemanticInput(
 
   return {
     moveVector: { x, z },
-    sprint: (mode === "on-foot" || mode === "farm-placement") && hasAny(keys, "ShiftLeft", "ShiftRight"),
+    sprint: (mode === "on-foot" || mode === "farm-placement" || mode === "mounted") && hasAny(keys, "ShiftLeft", "ShiftRight"),
     fishing: {
       isReeling:
         (mode === "sport-fishing" && hasAny(keys, "Mouse0", "KeyW")) ||

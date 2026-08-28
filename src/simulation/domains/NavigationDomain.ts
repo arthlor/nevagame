@@ -1,7 +1,7 @@
 import type { ResolvedPhysicsFrame } from "../core/PhysicsAdapter";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
-import type { BoatId, BoatState, FishCargoState, GameState, MarketId } from "../core/types";
+import type { BoatId, BoatState, FishCargoState, GameState, MarketId, MountId } from "../core/types";
 import {
   HARBOR_SKIFF_MOORING,
   harborMooringForBoatType,
@@ -14,6 +14,16 @@ import {
   createFullPlayerTraversalState,
   PLAYER_TRAVERSAL_TUNING
 } from "../navigation/PlayerTraversal";
+import {
+  isValidMountPose,
+  isValidPlayerMountGround,
+  isPlayerAtMountPose,
+  mountPoseFromPlayer,
+  playerPoseFromMount,
+  MOUNT_TUNING,
+  STARTER_DONKEY_ID,
+  STARTER_DONKEY_TYPE_ID
+} from "../mounts/Mounts";
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
 export function drainMotorFuel(state: GameState, minutes: number): void {
@@ -72,12 +82,29 @@ export class NavigationDomain {
       }
     }
     const activeBoatId = state.player.activeBoatId;
+    const activeMountId = state.player.activeMountId;
+    if (activeBoatId && activeMountId) {
+      return { success: false, reason: "Physics returned mutually exclusive boat and mount state" };
+    }
     const activeBoatPose = activeBoatId ? frame.boats[activeBoatId] : undefined;
     if (activeBoatPose && Math.hypot(frame.player.x - activeBoatPose.x, frame.player.z - activeBoatPose.z) > 0.01) {
       return { success: false, reason: "Physics detached the player from the active boat" };
     }
+    if (activeMountId) {
+      const mount = state.mounts[activeMountId];
+      if (
+        !mount ||
+        !isValidMountPose(mount) ||
+        frame.player.traversal.isGrounded !== true ||
+        !isValidPlayerMountGround(frame.player) ||
+        !isValidMountPose({ ...mount, ...mountPoseFromPlayer(frame.player) })
+      ) {
+        return { success: false, reason: "Physics returned an invalid mounted pose" };
+      }
+    }
     Object.assign(state.player, frame.player);
     for (const [boatId, pose] of Object.entries(frame.boats)) Object.assign(state.boats[boatId], pose);
+    if (activeMountId) Object.assign(state.mounts[activeMountId]!, mountPoseFromPlayer(state.player));
     this.refreshPlayerRegion();
     return { success: true };
   }
@@ -89,7 +116,19 @@ export class NavigationDomain {
 
   public setDebugPlayerPose(pose: { x: number; y: number; z: number; rotationY: number }): boolean {
     if (![pose.x, pose.y, pose.z, pose.rotationY].every(Number.isFinite)) return false;
-    Object.assign(this.context.state.player, pose);
+    const state = this.context.state;
+    if (state.player.activeMountId) {
+      const mount = state.mounts[state.player.activeMountId];
+      if (
+        !mount ||
+        !isValidMountPose(mount) ||
+        state.player.traversal.isGrounded !== true ||
+        !isValidPlayerMountGround(pose) ||
+        !isValidMountPose({ ...mount, ...mountPoseFromPlayer(pose) })
+      ) return false;
+    }
+    Object.assign(state.player, pose);
+    if (state.player.activeMountId) Object.assign(state.mounts[state.player.activeMountId]!, mountPoseFromPlayer(state.player));
     this.refreshPlayerRegion();
     return true;
   }
@@ -101,7 +140,7 @@ export class NavigationDomain {
     if (![pose.x, pose.z, pose.headingRadians].every(Number.isFinite)) return false;
     if (!WorldLayout.isSailable(pose.x, pose.z)) return false;
     const boat = this.context.state.boats[boatId];
-    if (!boat) return false;
+    if (!boat || this.context.state.player.activeMountId) return false;
     Object.assign(boat, {
       x: pose.x,
       y: 0,
@@ -136,6 +175,9 @@ export class NavigationDomain {
     if (player.activeBoatId) {
       return { success: false, reason: "Boat heading owns facing while aboard" };
     }
+    if (player.activeMountId) {
+      return { success: false, reason: "Dismount before changing direction" };
+    }
     const deltaX = x - player.x;
     const deltaZ = z - player.z;
     if (Math.hypot(deltaX, deltaZ) <= 0.0001) return { success: true };
@@ -145,6 +187,9 @@ export class NavigationDomain {
 
   public resetToSafeSpawn(): { success: boolean; reason?: string } {
     const { state } = this.context;
+    if (state.player.activeMountId) {
+      return { success: false, reason: "Dismount first before using Safe Return" };
+    }
     const activeBoatId = state.player.activeBoatId;
     if (activeBoatId) {
       const boat = state.boats[activeBoatId];
@@ -190,6 +235,7 @@ export class NavigationDomain {
       boat &&
         (boatId !== "boat.player_rowboat" || state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) &&
         !state.player.activeBoatId &&
+        !state.player.activeMountId &&
         boat.isDocked &&
         mooring &&
         boat.dockedMarketId === mooring.marketId &&
@@ -217,6 +263,75 @@ export class NavigationDomain {
     return { success: true };
   }
 
+  private mountBoardFailure(mountId: MountId): string | null {
+    const { state } = this.context;
+    const mount = state.mounts[mountId];
+    if (mountId !== STARTER_DONKEY_ID || !mount || mount.mountTypeId !== STARTER_DONKEY_TYPE_ID) {
+      return "That mount is unavailable";
+    }
+    if (state.player.activeMountId) return "You are already riding a mount";
+    if (state.player.activeBoatId) return "Disembark from the boat first";
+    if (state.basicFishing || state.sportFishing) return "Finish fishing first";
+    if (state.player.carriedFishCargoId) return "Stow physical fish cargo before riding";
+    if (state.player.traversal.isGrounded !== true) return "Land before mounting";
+    if (!isValidPlayerMountGround(state.player)) return "Move onto dry, walkable ground first";
+    if (!isValidMountPose(mount)) return "The donkey is not on stable ground";
+    if (distance2d(state.player, mount) > MOUNT_TUNING.boardRadiusMeters) return "Move closer to the donkey";
+    return null;
+  }
+
+  public canBoardMount(mountId: MountId = STARTER_DONKEY_ID): boolean {
+    return this.mountBoardFailure(mountId) === null;
+  }
+
+  public boardMount(mountId: MountId = STARTER_DONKEY_ID): { success: boolean; reason?: string } {
+    const failure = this.mountBoardFailure(mountId);
+    if (failure) return { success: false, reason: failure };
+    const { state, events } = this.context;
+    const mount = state.mounts[mountId]!;
+    const pose = playerPoseFromMount(mount);
+    Object.assign(state.player, {
+      ...pose,
+      activeMountId: mountId,
+      traversal: { ...state.player.traversal, isGrounded: true }
+    });
+    events.emit("MountBoarded", { mountId, minute: state.clock.currentMinute });
+    return { success: true };
+  }
+
+  public canDismountMount(): boolean {
+    const { state } = this.context;
+    const mountId = state.player.activeMountId;
+    const mount = mountId ? state.mounts[mountId] : undefined;
+    if (!mountId || !mount || !isValidMountPose(mount)) return false;
+    const pose = { ...mount, ...mountPoseFromPlayer(state.player) };
+    return state.player.traversal.isGrounded === true &&
+      isPlayerAtMountPose(state.player, mount, 0.24) &&
+      isValidPlayerMountGround(state.player) &&
+      isValidMountPose(pose);
+  }
+
+  public dismountMount(): { success: boolean; reason?: string } {
+    const { state, events } = this.context;
+    const mountId = state.player.activeMountId;
+    const mount = mountId ? state.mounts[mountId] : undefined;
+    if (!mountId || !mount || !isValidMountPose(mount)) {
+      return { success: false, reason: "You are not riding the donkey" };
+    }
+    const pose = { ...mount, ...mountPoseFromPlayer(state.player) };
+    if (state.player.traversal.isGrounded !== true ||
+      !isPlayerAtMountPose(state.player, mount, 0.24) ||
+      !isValidPlayerMountGround(state.player) ||
+      !isValidMountPose(pose)) {
+      return { success: false, reason: "There is no safe ground to dismount here" };
+    }
+    Object.assign(mount, mountPoseFromPlayer(state.player));
+    state.player.activeMountId = null;
+    state.player.traversal = { ...state.player.traversal, isGrounded: true };
+    events.emit("MountDisembarked", { mountId, minute: state.clock.currentMinute });
+    return { success: true };
+  }
+
   public canDockActiveBoat(): boolean {
     const { state } = this.context;
     const boatId = state.player.activeBoatId;
@@ -227,6 +342,7 @@ export class NavigationDomain {
 
   public dockActiveBoat(): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before docking a boat" };
     const boatId = state.player.activeBoatId;
     if (!boatId) return { success: false, reason: "You are not aboard a boat" };
     if (!this.canDockActiveBoat()) return { success: false, reason: "Return to the harbor dock to disembark" };

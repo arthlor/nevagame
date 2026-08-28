@@ -71,7 +71,7 @@ async function canvasPoint(page: Page, xRatio: number, yRatio: number) {
 async function enterWheatPlacement(page: Page): Promise<void> {
   await page.keyboard.press("KeyI");
   const inventory = page.locator(".modal-content");
-  await expect(inventory).toContainText("Backpack Inventory");
+  await expect(inventory).toContainText("Guild Satchel");
   await inventory.locator(".inventory-slot", { hasText: "Wheat Seeds" }).first().click();
   await page.getByRole("button", { name: "Plant Wheat" }).click();
 }
@@ -92,6 +92,29 @@ async function findValidPlacementPoint(page: Page, diagnostics: Locator) {
     if (await diagnostics.getAttribute("data-placement-valid") === "true") return point;
   }
   throw new Error("Could not find an on-screen valid starter-farm placement point");
+}
+
+async function findDifferentValidPlacementPoint(
+  page: Page,
+  diagnostics: Locator,
+  from: { x: number; y: number }
+): Promise<{ x: number; y: number }> {
+  const bounds = await page.locator("#game-canvas").boundingBox();
+  if (!bounds) throw new Error("Game canvas has no bounding box");
+  const samples = [0.35, 0.42, 0.5, 0.58, 0.65].flatMap((x) =>
+    [0.34, 0.42, 0.5, 0.58, 0.66].map((y) => [x, y] as const)
+  );
+  for (const [x, y] of samples) {
+    const point = {
+      x: bounds.x + bounds.width * x,
+      y: bounds.y + bounds.height * y
+    };
+    if (Math.hypot(point.x - from.x, point.y - from.y) < 30) continue;
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(80);
+    if (await diagnostics.getAttribute("data-placement-valid") === "true") return point;
+  }
+  throw new Error("Could not find a second on-screen valid starter-farm placement point");
 }
 
 test.describe("Neva control, physics, camera, and interaction foundation", () => {
@@ -172,7 +195,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await page.waitForTimeout(450);
     const beforeOverlay = await readPosition(diagnostics);
     await page.keyboard.press("KeyI");
-    await expect(page.locator(".modal-content")).toContainText("Backpack Inventory");
+    await expect(page.locator(".modal-content")).toContainText("Guild Satchel");
     await hold(page, "KeyW", 500);
     const duringOverlay = await readPosition(diagnostics);
     expect(Math.hypot(duringOverlay.x - beforeOverlay.x, duringOverlay.z - beforeOverlay.z)).toBeLessThan(0.12);
@@ -290,7 +313,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     expect(await pause.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
     await pause.getByRole("button", { name: /^Inventory/ }).click();
-    const inventory = page.getByRole("dialog", { name: "Backpack Inventory" });
+    const inventory = page.getByRole("dialog", { name: "Guild Satchel" });
     await expect(inventory).toBeVisible();
     await expect(inventory.locator(".inventory-slot").first()).toHaveAttribute("aria-pressed");
     await page.screenshot({ path: path.join(screenshotsDir, "inventory.png") });
@@ -576,6 +599,40 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await page.waitForTimeout(750);
     await expect(diagnostics).toHaveAttribute("data-crop-count", "1");
     await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
+  });
+
+  test("placement commits the point under the cursor when it moves between frames", async ({ page, browserName }) => {
+    test.setTimeout(90_000);
+    test.skip(browserName !== "chromium", "The action-edge race is covered once in Chromium");
+    const diagnostics = await loadScenario(page, "farm", { debugActionTimeScale: 10 });
+
+    await enterWheatPlacement(page);
+    const first = await findValidPlacementPoint(page, diagnostics);
+    const firstTarget = {
+      x: Number(await diagnostics.getAttribute("data-placement-target-x")),
+      z: Number(await diagnostics.getAttribute("data-placement-target-z"))
+    };
+    await findDifferentValidPlacementPoint(page, diagnostics, first);
+    const secondTarget = {
+      x: Number(await diagnostics.getAttribute("data-placement-target-x")),
+      z: Number(await diagnostics.getAttribute("data-placement-target-z"))
+    };
+    expect(Math.hypot(firstTarget.x - secondTarget.x, firstTarget.z - secondTarget.z)).toBeGreaterThan(0.2);
+
+    // Move back and click without yielding a render frame. The action target
+    // must be the new pointer hit, not the previous preview target.
+    await page.mouse.move(first.x, first.y);
+    await page.mouse.click(first.x, first.y);
+    await expect.poll(() => diagnostics.getAttribute("data-action-target-x"), { timeout: 5_000 }).toMatch(/^-?\d/);
+    await expect.poll(() => diagnostics.getAttribute("data-action-target-z"), { timeout: 5_000 }).toMatch(/^-?\d/);
+    const actionTarget = {
+      x: Number(await diagnostics.getAttribute("data-action-target-x")),
+      z: Number(await diagnostics.getAttribute("data-action-target-z"))
+    };
+    expect(actionTarget.x).toBeCloseTo(firstTarget.x, 2);
+    expect(actionTarget.z).toBeCloseTo(firstTarget.z, 2);
+    expect(Math.hypot(actionTarget.x - secondTarget.x, actionTarget.z - secondTarget.z)).toBeGreaterThan(0.2);
+    await expect.poll(() => diagnostics.getAttribute("data-crop-count"), { timeout: 5_000 }).toBe("1");
   });
 
   test("sport fishing supports held keyboard and mouse controls without camera-orbit conflict", async ({ page, browserName }) => {

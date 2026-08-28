@@ -4931,7 +4931,7 @@
       "dimensions": {
         "width": 8.6,
         "depth": 8.9,
-        "height": 9.0
+        "height": 9
       },
       "palette": [
         "stone_warm_01",
@@ -6350,7 +6350,7 @@
           "halfExtents": [
             0.32,
             1.32,
-            2.72
+            2.05
           ]
         },
         {
@@ -6363,7 +6363,7 @@
           "halfExtents": [
             0.32,
             1.32,
-            2.72
+            2.05
           ]
         },
         {
@@ -6376,7 +6376,7 @@
           "halfExtents": [
             0.32,
             1.32,
-            2.72
+            2.05
           ]
         },
         {
@@ -6389,7 +6389,7 @@
           "halfExtents": [
             0.32,
             1.32,
-            2.72
+            2.05
           ]
         },
         {
@@ -6402,7 +6402,7 @@
           "halfExtents": [
             0.32,
             1.32,
-            2.72
+            2.05
           ]
         },
         {
@@ -6703,12 +6703,12 @@
           "center": [
             0,
             2.45,
-            0.70
+            0.7
           ],
           "halfExtents": [
             3.95,
             2.45,
-            5.00
+            5
           ]
         }
       ],
@@ -10331,9 +10331,9 @@
         "wood_warm_01"
       ],
       "budget": {
-        "trianglesMin": 30,
-        "trianglesTarget": 100,
-        "trianglesMax": 700,
+        "trianglesMin": 40,
+        "trianglesTarget": 56,
+        "trianglesMax": 200,
         "materialsMax": 1
       },
       "pivot": "ground_center",
@@ -10366,8 +10366,8 @@
       ],
       "budget": {
         "trianglesMin": 180,
-        "trianglesTarget": 250,
-        "trianglesMax": 500,
+        "trianglesTarget": 640,
+        "trianglesMax": 1000,
         "materialsMax": 1
       },
       "pivot": "ground_center",
@@ -10401,8 +10401,8 @@
       ],
       "budget": {
         "trianglesMin": 450,
-        "trianglesTarget": 550,
-        "trianglesMax": 1000,
+        "trianglesTarget": 1100,
+        "trianglesMax": 1600,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -10437,8 +10437,8 @@
       ],
       "budget": {
         "trianglesMin": 800,
-        "trianglesTarget": 940,
-        "trianglesMax": 1400,
+        "trianglesTarget": 1400,
+        "trianglesMax": 1800,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -10452,7 +10452,7 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "stalks": 15
+        "stalks": 12
       }
     },
     {
@@ -10473,8 +10473,8 @@
       ],
       "budget": {
         "trianglesMin": 750,
-        "trianglesTarget": 970,
-        "trianglesMax": 1400,
+        "trianglesTarget": 1200,
+        "trianglesMax": 1800,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -10507,9 +10507,9 @@
         "wood_weathered_01"
       ],
       "budget": {
-        "trianglesMin": 550,
-        "trianglesTarget": 730,
-        "trianglesMax": 1100,
+        "trianglesMin": 400,
+        "trianglesTarget": 900,
+        "trianglesMax": 1400,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -10541,9 +10541,9 @@
         "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 80,
-        "trianglesTarget": 100,
-        "trianglesMax": 500,
+        "trianglesMin": 40,
+        "trianglesTarget": 48,
+        "trianglesMax": 200,
         "materialsMax": 1
       },
       "pivot": "ground_center",
@@ -10576,9 +10576,9 @@
         "foliage_sage_01"
       ],
       "budget": {
-        "trianglesMin": 100,
-        "trianglesTarget": 120,
-        "trianglesMax": 600,
+        "trianglesMin": 150,
+        "trianglesTarget": 250,
+        "trianglesMax": 700,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -10612,9 +10612,9 @@
         "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 300,
-        "trianglesTarget": 350,
-        "trianglesMax": 1100,
+        "trianglesMin": 400,
+        "trianglesTarget": 900,
+        "trianglesMax": 1400,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -10649,8 +10649,8 @@
         "roof_deep_red_01"
       ],
       "budget": {
-        "trianglesMin": 550,
-        "trianglesTarget": 650,
+        "trianglesMin": 700,
+        "trianglesTarget": 1260,
         "trianglesMax": 1800,
         "materialsMax": 4
       },
@@ -10665,7 +10665,7 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "plants": 5
+        "plants": 4
       }
     },
     {
@@ -10686,8 +10686,8 @@
         "roof_deep_red_01"
       ],
       "budget": {
-        "trianglesMin": 450,
-        "trianglesTarget": 520,
+        "trianglesMin": 500,
+        "trianglesTarget": 900,
         "trianglesMax": 1600,
         "materialsMax": 4
       },
@@ -10722,8 +10722,8 @@
         "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 170,
-        "trianglesTarget": 200,
+        "trianglesMin": 200,
+        "trianglesTarget": 450,
         "trianglesMax": 900,
         "materialsMax": 3
       },
@@ -10757,9 +10757,9 @@
         "foliage_highlight_01"
       ],
       "budget": {
-        "trianglesMin": 120,
-        "trianglesTarget": 140,
-        "trianglesMax": 600,
+        "trianglesMin": 40,
+        "trianglesTarget": 64,
+        "trianglesMax": 200,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -10791,9 +10791,9 @@
         "foliage_sage_01"
       ],
       "budget": {
-        "trianglesMin": 120,
-        "trianglesTarget": 140,
-        "trianglesMax": 650,
+        "trianglesMin": 150,
+        "trianglesTarget": 280,
+        "trianglesMax": 700,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -10826,9 +10826,9 @@
         "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 240,
-        "trianglesTarget": 280,
-        "trianglesMax": 1000,
+        "trianglesMin": 300,
+        "trianglesTarget": 480,
+        "trianglesMax": 1100,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -10862,8 +10862,8 @@
         "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 600,
-        "trianglesTarget": 680,
+        "trianglesMin": 500,
+        "trianglesTarget": 620,
         "trianglesMax": 1800,
         "materialsMax": 4
       },
@@ -10897,9 +10897,9 @@
         "wood_warm_01"
       ],
       "budget": {
-        "trianglesMin": 230,
-        "trianglesTarget": 260,
-        "trianglesMax": 1000,
+        "trianglesMin": 300,
+        "trianglesTarget": 460,
+        "trianglesMax": 1100,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -10931,8 +10931,8 @@
         "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 190,
-        "trianglesTarget": 220,
+        "trianglesMin": 200,
+        "trianglesTarget": 360,
         "trianglesMax": 900,
         "materialsMax": 2
       },
@@ -11088,19 +11088,18 @@
       "generator": "faceted_cloud",
       "seed": 701,
       "dimensions": {
-        "width": 7,
-        "depth": 2.4,
-        "height": 2.5
+        "width": 8.4,
+        "depth": 6.8,
+        "height": 5.4
       },
       "palette": [
-        "foam_warm_01",
-        "horizon_warm_01"
+        "foam_warm_01"
       ],
       "budget": {
-        "trianglesMin": 140,
-        "trianglesTarget": 300,
-        "trianglesMax": 900,
-        "materialsMax": 2
+        "trianglesMin": 200,
+        "trianglesTarget": 640,
+        "trianglesMax": 1400,
+        "materialsMax": 1
       },
       "pivot": "center",
       "collision": "none",
@@ -11112,8 +11111,11 @@
       ],
       "readDistanceMeters": 100,
       "parameters": {
-        "clusters": 7,
-        "width": 6.5
+        "variant": "bank",
+        "clusters": 8,
+        "width": 7.5,
+        "depth": 6.0,
+        "height": 4.8
       }
     },
     {
@@ -11132,7 +11134,8 @@
         "canvas_cream_01",
         "wood_dark_01",
         "wood_honey_01",
-        "foliage_sage_01"
+        "foliage_sage_01",
+        "fish_tuna_back_01"
       ],
       "budget": {
         "trianglesMin": 2500,
@@ -11181,7 +11184,7 @@
           "name": "walk",
           "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.2,
+          "referenceSpeedMetersPerSecond": 5,
           "events": [
             {
               "name": "footstep_left",
@@ -11202,7 +11205,7 @@
           "name": "run",
           "durationSeconds": 0.56,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5.6,
+          "referenceSpeedMetersPerSecond": 8.2,
           "events": [
             {
               "name": "footstep_left",
@@ -11324,7 +11327,7 @@
           "name": "carry_walk",
           "durationSeconds": 0.88,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.2,
+          "referenceSpeedMetersPerSecond": 5,
           "events": [
             {
               "name": "footstep_left",
@@ -11340,7 +11343,7 @@
           "name": "carry_run",
           "durationSeconds": 0.64,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5.6,
+          "referenceSpeedMetersPerSecond": 8.2,
           "events": [
             {
               "name": "footstep_left",
@@ -11459,11 +11462,40 @@
           "loop": true
         }
       ],
+      "additionalAnimationClips": [
+        {
+          "name": "mounted_idle",
+          "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "mounted_walk",
+          "durationSeconds": 0.8,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 5.5
+        },
+        {
+          "name": "mounted_trot",
+          "durationSeconds": 0.56,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 8.5
+        },
+        {
+          "name": "mount",
+          "durationSeconds": 0.8,
+          "loop": false
+        },
+        {
+          "name": "dismount",
+          "durationSeconds": 0.8,
+          "loop": false
+        }
+      ],
       "readDistanceMeters": 30,
       "parameters": {
-        "height": 1.98,
-        "headRatio": 4.8,
-        "handScale": 1.05
+        "height": 2.02,
+        "headRatio": 6.2,
+        "handScale": 1.12
       },
       "lodLevels": [
         {
@@ -11481,7 +11513,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Player adventurer with straw hat, vest, backpack, and joined skinned material groups",
+        "subject": "Player adventurer in A-pose with straw hat, utility vest, backpack, bedroll, and paired canteens",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -11497,14 +11529,14 @@
           {
             "id": "character_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/character_isolated_1787317045933.jpg",
+            "uri": "repo://tools/blender/references/isolated/character_isolated_1787930238180.png",
             "use": [
               "silhouette",
               "proportion",
               "structure",
               "detail_density"
             ],
-            "notes": "Eight-way turnaround locking hat, vest pockets, backpack roll, and boot silhouette."
+            "notes": "Eight-way A-pose turnaround locking hat, vest, backpack, bedroll, side canteens, cuffed pants, and boots."
           }
         ],
         "components": [
@@ -11549,11 +11581,11 @@
             "parent": "body",
             "importance": "primary",
             "role": "Breaks the rear silhouette",
-            "shape": "Framed pack with bedroll, straps, pouches, and canteen",
+            "shape": "Framed pack with bedroll, straps, pouches, and paired canteens",
             "count": "1 backpack",
             "cues": [
               "Bedroll sits on top",
-              "Canteen hangs on the right"
+              "Canteens hang on both sides"
             ]
           },
           {
@@ -11628,7 +11660,7 @@
               "hat",
               "body"
             ],
-            "purpose": "Keeps the slightly large but adult head under the hat."
+            "purpose": "Keeps an adult 6-head traveler under the hat."
           },
           {
             "parameter": "handScale",
@@ -11685,6 +11717,8 @@
       "rootNode": "char_npc_elspeth_a_root",
       "requiredNodes": [
         "char_npc_elspeth_a_root",
+        "char_npc_elspeth_a_LOD0",
+        "char_npc_elspeth_a_LOD1",
         "char_npc_elspeth_a_rig",
         "char_npc_elspeth_a_hand_left",
         "char_npc_elspeth_a_hand_right",
@@ -11717,7 +11751,7 @@
           "name": "walk",
           "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.2,
+          "referenceSpeedMetersPerSecond": 5,
           "events": [
             {
               "name": "footstep_left",
@@ -11749,9 +11783,23 @@
       "parameters": {
         "role": "gardener",
         "height": 1.88,
-        "headRatio": 4.6,
+        "headRatio": 6,
         "handScale": 0.98
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "char_npc_elspeth_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "char_npc_elspeth_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ]
     },
     {
       "id": "char_npc_barnaby_a",
@@ -11784,6 +11832,8 @@
       "rootNode": "char_npc_barnaby_a_root",
       "requiredNodes": [
         "char_npc_barnaby_a_root",
+        "char_npc_barnaby_a_LOD0",
+        "char_npc_barnaby_a_LOD1",
         "char_npc_barnaby_a_rig",
         "char_npc_barnaby_a_hand_left",
         "char_npc_barnaby_a_hand_right",
@@ -11816,7 +11866,7 @@
           "name": "walk",
           "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.2,
+          "referenceSpeedMetersPerSecond": 5,
           "events": [
             {
               "name": "footstep_left",
@@ -11848,9 +11898,23 @@
       "parameters": {
         "role": "handyman",
         "height": 1.98,
-        "headRatio": 4.8,
+        "headRatio": 6.2,
         "handScale": 1.08
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "char_npc_barnaby_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "char_npc_barnaby_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ]
     },
     {
       "id": "char_npc_silas_a",
@@ -11883,6 +11947,8 @@
       "rootNode": "char_npc_silas_a_root",
       "requiredNodes": [
         "char_npc_silas_a_root",
+        "char_npc_silas_a_LOD0",
+        "char_npc_silas_a_LOD1",
         "char_npc_silas_a_rig",
         "char_npc_silas_a_hand_left",
         "char_npc_silas_a_hand_right",
@@ -11915,7 +11981,7 @@
           "name": "walk",
           "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.2,
+          "referenceSpeedMetersPerSecond": 5,
           "events": [
             {
               "name": "footstep_left",
@@ -11947,9 +12013,23 @@
       "parameters": {
         "role": "dockmaster",
         "height": 1.95,
-        "headRatio": 4.7,
+        "headRatio": 6.1,
         "handScale": 1.12
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "char_npc_silas_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "char_npc_silas_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ]
     },
     {
       "id": "char_npc_maeve_a",
@@ -11982,6 +12062,8 @@
       "rootNode": "char_npc_maeve_a_root",
       "requiredNodes": [
         "char_npc_maeve_a_root",
+        "char_npc_maeve_a_LOD0",
+        "char_npc_maeve_a_LOD1",
         "char_npc_maeve_a_rig",
         "char_npc_maeve_a_hand_left",
         "char_npc_maeve_a_hand_right",
@@ -12014,7 +12096,7 @@
           "name": "walk",
           "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.2,
+          "referenceSpeedMetersPerSecond": 5,
           "events": [
             {
               "name": "footstep_left",
@@ -12046,9 +12128,23 @@
       "parameters": {
         "role": "merchant",
         "height": 1.94,
-        "headRatio": 4.8,
+        "headRatio": 6.2,
         "handScale": 1
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "char_npc_maeve_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "char_npc_maeve_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.52
+        }
+      ]
     },
     {
       "id": "fauna_cow_a",
@@ -12279,6 +12375,298 @@
           "gameplay_8m",
           "gameplay_15m",
           "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "fauna_donkey_a",
+      "file": "fauna_donkey_a.glb",
+      "family": "prop",
+      "generator": "fauna_donkey",
+      "seed": 839,
+      "dimensions": {
+        "width": 1.45,
+        "depth": 2.60,
+        "height": 2.35
+      },
+      "palette": [
+        "animal_hide_white_01",
+        "animal_hide_black_01",
+        "canvas_cream_01",
+        "leather_harness_01",
+        "accent_teal_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 600,
+        "trianglesTarget": 1600,
+        "trianglesMax": 5000,
+        "materialsMax": 6
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "fauna_donkey_a_root",
+      "requiredNodes": [
+        "fauna_donkey_a_root",
+        "fauna_donkey_a_LOD0",
+        "fauna_donkey_a_LOD1",
+        "fauna_donkey_a_motion_root",
+        "fauna_donkey_a_head_pivot",
+        "fauna_donkey_a_ear_left_pivot",
+        "fauna_donkey_a_ear_right_pivot",
+        "fauna_donkey_a_tail_pivot",
+        "fauna_donkey_a_leg_front_left_pivot",
+        "fauna_donkey_a_leg_front_left_lower_pivot",
+        "fauna_donkey_a_leg_front_right_pivot",
+        "fauna_donkey_a_leg_front_right_lower_pivot",
+        "fauna_donkey_a_leg_rear_left_pivot",
+        "fauna_donkey_a_leg_rear_left_lower_pivot",
+        "fauna_donkey_a_leg_rear_right_pivot",
+        "fauna_donkey_a_leg_rear_right_lower_pivot",
+        "fauna_donkey_a_rider_socket"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "graze",
+          "durationSeconds": 2.4,
+          "loop": true
+        },
+        {
+          "name": "look",
+          "durationSeconds": 1.8,
+          "loop": true
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 0.8,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 5.5,
+          "events": [
+            {
+              "name": "hoofstep_rear_left",
+              "timeSeconds": 0.08
+            },
+            {
+              "name": "hoofstep_front_left",
+              "timeSeconds": 0.28
+            },
+            {
+              "name": "hoofstep_rear_right",
+              "timeSeconds": 0.48
+            },
+            {
+              "name": "hoofstep_front_right",
+              "timeSeconds": 0.68
+            }
+          ]
+        },
+        {
+          "name": "trot",
+          "durationSeconds": 0.56,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 8.5,
+          "events": [
+            {
+              "name": "hoofstep_front_left_rear_right",
+              "timeSeconds": 0.12
+            },
+            {
+              "name": "hoofstep_front_right_rear_left",
+              "timeSeconds": 0.40
+            }
+          ]
+        },
+        {
+          "name": "mount",
+          "durationSeconds": 0.8,
+          "loop": false
+        },
+        {
+          "name": "dismount",
+          "durationSeconds": 0.8,
+          "loop": false
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "scale": 1,
+        "earLength": 1,
+        "legLength": 1
+      },
+      "lodLevels": [
+        {
+          "node": "fauna_donkey_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "fauna_donkey_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.10,
+          "triangleRatioMax": 0.72
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Warm faceted coastal-farm donkey with long ears, a readable saddle, and a friendly sturdy silhouette",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns the planar faceted geometry, warm tactile palette, and gameplay-camera readability target."
+          }
+        ],
+        "components": [
+          {
+            "id": "body",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the donkey's sturdy travel silhouette",
+            "shape": "Long barrel with distinct chest and rounded haunch",
+            "count": "1 connected body",
+            "cues": [
+              "Sturdy rather than horse-slim",
+              "Broad planar masses remain readable at distance"
+            ]
+          },
+          {
+            "id": "head",
+            "parent": "body",
+            "importance": "primary",
+            "role": "Identifies the donkey from the front and three-quarter views",
+            "shape": "Long muzzle, soft brow, bright eyes, and tall ears",
+            "count": "1 head with 2 ears",
+            "cues": [
+              "Ears are long and expressive",
+              "Muzzle stays lighter than the hide"
+            ]
+          },
+          {
+            "id": "legs",
+            "parent": "body",
+            "importance": "primary",
+            "role": "Grounds the mount with four articulated leg chains",
+            "shape": "Tapered upper and lower segments ending in blocky hooves",
+            "count": "4 legs with 8 articulated pivots",
+            "cues": [
+              "Hoof contacts remain distinct",
+              "Leg gaps preserve daylight under the belly"
+            ]
+          },
+          {
+            "id": "saddle",
+            "parent": "body",
+            "importance": "secondary",
+            "role": "Makes the mount socket and riding use legible",
+            "shape": "Cream blanket, teal trim, leather saddle, and simple reins",
+            "count": "1 saddle assembly",
+            "cues": [
+              "Socket sits above the saddle center",
+              "Materials stay matte and tactile"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A long low barrel, high rump, and four planted legs read as a donkey rather than a small horse.",
+          "Tall ears, a blunt pale muzzle, and a short mane carry the character at gameplay distance.",
+          "The saddle blanket and restrained teal accent distinguish the rideable mount without fantasy ornament."
+        ],
+        "negativeSpace": [
+          "Daylight remains visible between all four legs and beneath the belly.",
+          "The neck gap and ear separation keep the head silhouette open from the front.",
+          "The saddle does not merge into the rider socket or back contour."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "All four leg chains, hooves, reins, and the tail continue around the far side.",
+            "The saddle blanket and body masses remain closed enough for a rear three-quarter camera."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "donkey_head",
+            "componentIds": [
+              "head"
+            ],
+            "requirement": "Long ears and a pale muzzle must remain readable in the gameplay camera.",
+            "priority": "must"
+          },
+          {
+            "id": "articulated_grounding",
+            "componentIds": [
+              "legs"
+            ],
+            "requirement": "Each leg has an upper pivot, lower pivot, and separate hoof contact.",
+            "priority": "must"
+          },
+          {
+            "id": "rider_read",
+            "componentIds": [
+              "saddle"
+            ],
+            "requirement": "The saddle, reins, and rider socket read as a coherent riding seat.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "scale",
+            "componentIds": [
+              "body",
+              "head",
+              "legs",
+              "saddle"
+            ],
+            "purpose": "Scales the full mount while preserving the authored proportions."
+          },
+          {
+            "parameter": "earLength",
+            "componentIds": [
+              "head"
+            ],
+            "purpose": "Adjusts the expressive ear silhouette without changing the body mass."
+          },
+          {
+            "parameter": "legLength",
+            "componentIds": [
+              "legs"
+            ],
+            "purpose": "Adjusts leg reach while keeping hoof contacts grounded."
+          }
+        ],
+        "failureModes": [
+          "The donkey becomes a smooth horse, toy, or chibi mascot instead of a sturdy faceted farm animal.",
+          "Ears, muzzle, saddle socket, or hoof contacts disappear in the gameplay camera.",
+          "Leg pivots create visible foot sliding or collapse the daylight gaps beneath the body.",
+          "The saddle adds noisy ornament or glossy plastic materials outside the cozy coastal palette."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
         ]
       }
     },
@@ -13383,8 +13771,8 @@
       ],
       "budget": {
         "trianglesMin": 1200,
-        "trianglesTarget": 7000,
-        "trianglesMax": 12000,
+        "trianglesTarget": 9000,
+        "trianglesMax": 18000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -13441,7 +13829,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Small plank tool shed with thick gable and a single shuttered window",
+        "subject": "Small plank tool shed with lean-to roof and a single shuttered window",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -13497,11 +13885,11 @@
             "parent": "frame",
             "importance": "primary",
             "role": "Gives the silhouette overlapping roof planes",
-            "shape": "Thick gable with fascia and ridge beam",
+            "shape": "Lean-to with fascia and overlapping courses",
             "count": "1 roof",
             "cues": [
               "Planes have thickness",
-              "Ridge is a separate timber"
+              "High back drops to a low work edge"
             ]
           },
           {
@@ -13518,7 +13906,7 @@
           }
         ],
         "silhouette": [
-          "A small gabled shed sits in the barn yard, not a toy cube.",
+          "A small lean-to shed sits in the barn yard, not a toy cube.",
           "Plank walls and a stone plinth match farm-prop language.",
           "The roof keeps thickness at gameplay distance."
         ],
@@ -13552,11 +13940,11 @@
             "priority": "must"
           },
           {
-            "id": "thick_gable",
+            "id": "lean_to_roof",
             "componentIds": [
               "roof"
             ],
-            "requirement": "The gable has thickness, not a paper triangle.",
+            "requirement": "The lean-to has thickness, not a paper plane.",
             "priority": "must"
           }
         ],
@@ -13592,7 +13980,7 @@
             "componentIds": [
               "roof"
             ],
-            "purpose": "Sets the small gable pitch."
+            "purpose": "Sets the lean-to pitch."
           },
           {
             "parameter": "variant",
@@ -13691,7 +14079,7 @@
       "id": "crop_turnip_mature",
       "file": "crop_turnip_mature.glb",
       "family": "crop",
-      "generator": "polyfork_crop",
+      "generator": "turnip_crop",
       "seed": 118,
       "dimensions": {
         "width": 0.54,
@@ -13700,31 +14088,34 @@
       },
       "palette": [
         "foliage_leaf_01",
-        "soil_warm_01",
-        "accent_ochre_01"
+        "fish_trout_spot_01",
+        "animal_hide_white_01",
+        "soil_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
+        "trianglesMin": 180,
+        "trianglesTarget": 200,
         "trianglesMax": 650,
-        "materialsMax": 2
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
       "instancing": true,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "crop_turnip_mature_root",
       "requiredNodes": [
         "crop_turnip_mature_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {
+        "leafCount": 6
+      }
     },
     {
       "id": "crop_pumpkin_mature",
       "file": "crop_pumpkin_mature.glb",
       "family": "crop",
-      "generator": "polyfork_crop",
+      "generator": "pumpkin_crop",
       "seed": 119,
       "dimensions": {
         "width": 0.76,
@@ -13733,25 +14124,29 @@
       },
       "palette": [
         "foliage_leaf_01",
-        "soil_warm_01",
-        "accent_ochre_01"
+        "roof_warm_orange_01",
+        "foliage_olive_01",
+        "soil_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
+        "trianglesMin": 180,
+        "trianglesTarget": 216,
         "trianglesMax": 650,
-        "materialsMax": 2
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
       "instancing": true,
-      "lod": "none",
+      "lod": "small",
       "rootNode": "crop_pumpkin_mature_root",
       "requiredNodes": [
         "crop_pumpkin_mature_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {
+        "lobes": 6,
+        "leafCount": 4
+      }
     },
     {
       "id": "foliage_sunflower_a",
@@ -15486,22 +15881,21 @@
       "id": "cloud_towering_a",
       "file": "cloud_towering_a.glb",
       "family": "cloud",
-      "generator": "polyfork_cloud",
+      "generator": "faceted_cloud",
       "seed": 116,
       "dimensions": {
-        "width": 12.89,
-        "depth": 11.93,
-        "height": 12.27
+        "width": 14.5,
+        "depth": 10.2,
+        "height": 7.4
       },
       "palette": [
-        "sky_pale_01",
         "foam_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 200,
+        "trianglesTarget": 820,
+        "trianglesMax": 1800,
+        "materialsMax": 1
       },
       "pivot": "center",
       "collision": "none",
@@ -15511,8 +15905,14 @@
       "requiredNodes": [
         "cloud_towering_a_root"
       ],
-      "readDistanceMeters": 15,
-      "parameters": {}
+      "readDistanceMeters": 100,
+      "parameters": {
+        "variant": "tower",
+        "clusters": 12,
+        "width": 13.0,
+        "depth": 9.0,
+        "height": 6.4
+      }
     },
     {
       "id": "prop_smoke_plume_a",
@@ -16201,8 +16601,8 @@
       ],
       "budget": {
         "trianglesMin": 1800,
-        "trianglesTarget": 4500,
-        "trianglesMax": 6000,
+        "trianglesTarget": 5500,
+        "trianglesMax": 10000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -17135,8 +17535,8 @@
       ],
       "budget": {
         "trianglesMin": 6000,
-        "trianglesTarget": 10500,
-        "trianglesMax": 18000,
+        "trianglesTarget": 18000,
+        "trianglesMax": 32000,
         "materialsMax": 5
       },
       "pivot": "ground_center",
@@ -17155,12 +17555,12 @@
         "width": 5,
         "depth": 4.2,
         "wallHeight": 2.55,
-        "roofPitchDeg": 32,
+        "roofPitchDeg": 38,
         "foundationHeight": 0.7,
         "roofOverhang": 0.42,
         "roofCourses": 4,
-        "shingleRows": 6,
-        "shingleColumns": 7,
+        "shingleRows": 8,
+        "shingleColumns": 8,
         "masonryCourses": 3,
         "masonryBlocks": 5,
         "porchDepth": 0.72,
@@ -17407,8 +17807,8 @@
       ],
       "budget": {
         "trianglesMin": 6000,
-        "trianglesTarget": 10500,
-        "trianglesMax": 18000,
+        "trianglesTarget": 18000,
+        "trianglesMax": 32000,
         "materialsMax": 5
       },
       "pivot": "ground_center",
@@ -17427,12 +17827,12 @@
         "width": 4.6,
         "depth": 5,
         "wallHeight": 2.5,
-        "roofPitchDeg": 36,
+        "roofPitchDeg": 38,
         "foundationHeight": 0.68,
         "roofOverhang": 0.5,
         "roofCourses": 4,
-        "shingleRows": 6,
-        "shingleColumns": 7,
+        "shingleRows": 8,
+        "shingleColumns": 8,
         "masonryCourses": 3,
         "masonryBlocks": 5,
         "porchDepth": 0.45,
@@ -17481,7 +17881,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Northeast village cottage variant with offset gable and warm orange roof",
+        "subject": "Northeast village cottage with side-gable, working lean-to, and warm orange roof",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -17558,7 +17958,7 @@
           }
         ],
         "silhouette": [
-          "The second cottage uses a slightly taller gable and offset windows.",
+          "The second cottage uses a side-gable ridge and a grounded working lean-to.",
           "A stone plinth and timber posts keep it in the farmhouse family.",
           "Warm orange roof planes stay thick and overlapping."
         ],
@@ -17632,7 +18032,7 @@
             "componentIds": [
               "roof"
             ],
-            "purpose": "Sets the steeper cottage-b gable."
+            "purpose": "Sets the side-gable pitch."
           },
           {
             "parameter": "variant",
@@ -17681,8 +18081,8 @@
       ],
       "budget": {
         "trianglesMin": 9000,
-        "trianglesTarget": 15000,
-        "trianglesMax": 26000,
+        "trianglesTarget": 22000,
+        "trianglesMax": 40000,
         "materialsMax": 7
       },
       "pivot": "ground_center",
@@ -17701,12 +18101,12 @@
         "width": 7.6,
         "depth": 5.8,
         "wallHeight": 3.2,
-        "roofPitchDeg": 33,
+        "roofPitchDeg": 38,
         "foundationHeight": 0.8,
         "roofOverhang": 0.62,
         "roofCourses": 5,
-        "shingleRows": 7,
-        "shingleColumns": 9,
+        "shingleRows": 8,
+        "shingleColumns": 10,
         "masonryCourses": 4,
         "masonryBlocks": 7,
         "porchDepth": 1.45,
@@ -17954,8 +18354,8 @@
       ],
       "budget": {
         "trianglesMin": 9000,
-        "trianglesTarget": 12000,
-        "trianglesMax": 24000,
+        "trianglesTarget": 18000,
+        "trianglesMax": 36000,
         "materialsMax": 6
       },
       "pivot": "ground_center",
@@ -17974,12 +18374,12 @@
         "width": 8.4,
         "depth": 6,
         "wallHeight": 3.15,
-        "roofPitchDeg": 30,
+        "roofPitchDeg": 34,
         "foundationHeight": 0.72,
         "roofOverhang": 0.58,
         "roofCourses": 4,
-        "shingleRows": 6,
-        "shingleColumns": 9,
+        "shingleRows": 7,
+        "shingleColumns": 10,
         "masonryCourses": 4,
         "masonryBlocks": 7,
         "porchDepth": 1.1,
@@ -18225,8 +18625,8 @@
       ],
       "budget": {
         "trianglesMin": 6000,
-        "trianglesTarget": 9000,
-        "trianglesMax": 16000,
+        "trianglesTarget": 12000,
+        "trianglesMax": 24000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -18249,7 +18649,7 @@
         "foundationHeight": 0.55,
         "roofOverhang": 0.36,
         "roofCourses": 4,
-        "shingleRows": 5,
+        "shingleRows": 6,
         "shingleColumns": 8,
         "masonryCourses": 3,
         "masonryBlocks": 6,
@@ -18844,7 +19244,7 @@
       "seed": 429,
       "dimensions": {
         "width": 6.8,
-        "depth": 5.8,
+        "depth": 8.2,
         "height": 6.1
       },
       "palette": [
@@ -18856,8 +19256,8 @@
       ],
       "budget": {
         "trianglesMin": 6000,
-        "trianglesTarget": 12000,
-        "trianglesMax": 20000,
+        "trianglesTarget": 20000,
+        "trianglesMax": 36000,
         "materialsMax": 5
       },
       "pivot": "ground_center",
@@ -18876,12 +19276,12 @@
         "width": 5.4,
         "depth": 4.6,
         "wallHeight": 2.6,
-        "roofPitchDeg": 35,
+        "roofPitchDeg": 38,
         "foundationHeight": 0.74,
         "roofOverhang": 0.52,
         "roofCourses": 3,
-        "shingleRows": 6,
-        "shingleColumns": 7,
+        "shingleRows": 8,
+        "shingleColumns": 8,
         "masonryCourses": 3,
         "masonryBlocks": 4,
         "porchDepth": 1.15,
@@ -19148,8 +19548,8 @@
       ],
       "budget": {
         "trianglesMin": 10000,
-        "trianglesTarget": 33000,
-        "trianglesMax": 48000,
+        "trianglesTarget": 36000,
+        "trianglesMax": 56000,
         "materialsMax": 7
       },
       "pivot": "ground_center",
@@ -19168,12 +19568,12 @@
         "width": 8.4,
         "depth": 6.4,
         "wallHeight": 3.8,
-        "roofPitchDeg": 34,
+        "roofPitchDeg": 38,
         "foundationHeight": 0.82,
         "roofOverhang": 0.68,
         "roofCourses": 5,
-        "shingleRows": 8,
-        "shingleColumns": 10,
+        "shingleRows": 9,
+        "shingleColumns": 11,
         "masonryCourses": 4,
         "masonryBlocks": 8,
         "porchDepth": 1.7,
@@ -19456,8 +19856,8 @@
       ],
       "budget": {
         "trianglesMin": 10000,
-        "trianglesTarget": 18000,
-        "trianglesMax": 30000,
+        "trianglesTarget": 24000,
+        "trianglesMax": 42000,
         "materialsMax": 6
       },
       "pivot": "ground_center",
@@ -19476,12 +19876,12 @@
         "width": 9.2,
         "depth": 6.4,
         "wallHeight": 3.3,
-        "roofPitchDeg": 31,
+        "roofPitchDeg": 34,
         "foundationHeight": 0.74,
         "roofOverhang": 0.68,
         "roofCourses": 5,
-        "shingleRows": 7,
-        "shingleColumns": 10,
+        "shingleRows": 8,
+        "shingleColumns": 11,
         "masonryCourses": 4,
         "masonryBlocks": 8,
         "porchDepth": 1.4,
@@ -19758,8 +20158,8 @@
       ],
       "budget": {
         "trianglesMin": 7000,
-        "trianglesTarget": 11000,
-        "trianglesMax": 18000,
+        "trianglesTarget": 14000,
+        "trianglesMax": 28000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -19782,7 +20182,7 @@
         "foundationHeight": 0.58,
         "roofOverhang": 0.42,
         "roofCourses": 4,
-        "shingleRows": 6,
+        "shingleRows": 7,
         "shingleColumns": 9,
         "masonryCourses": 3,
         "masonryBlocks": 7,
@@ -20053,8 +20453,8 @@
       ],
       "budget": {
         "trianglesMin": 1200,
-        "trianglesTarget": 7500,
-        "trianglesMax": 15000,
+        "trianglesTarget": 10000,
+        "trianglesMax": 22000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -20310,8 +20710,8 @@
       ],
       "budget": {
         "trianglesMin": 1800,
-        "trianglesTarget": 4500,
-        "trianglesMax": 6000,
+        "trianglesTarget": 5500,
+        "trianglesMax": 10000,
         "materialsMax": 4
       },
       "pivot": "ground_center",

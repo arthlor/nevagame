@@ -16,6 +16,24 @@ def seeded_rng(seed: int) -> random.Random:
     return random.Random(seed)
 
 
+def _active_object() -> bpy.types.Object:
+    """Resolve the active object without relying on Blender's UI context."""
+    obj = bpy.context.view_layer.objects.active
+    if obj is None:
+        raise RuntimeError("Blender did not expose an active object after primitive creation")
+    return obj
+
+
+def _object_operator_context(obj: bpy.types.Object, selected=None):
+    selected_objects = list(selected) if selected is not None else [obj]
+    return bpy.context.temp_override(
+        object=obj,
+        active_object=obj,
+        selected_objects=selected_objects,
+        selected_editable_objects=selected_objects,
+    )
+
+
 def _finish_mesh(
     obj: bpy.types.Object,
     name: str,
@@ -30,10 +48,12 @@ def _finish_mesh(
     obj.data.name = f"{name}_mesh"
     obj.data.materials.append(get_or_create_material(token))
     obj.parent = parent
-    bpy.ops.object.select_all(action="DESELECT")
+    for selected in bpy.context.view_layer.objects:
+        selected.select_set(False)
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
-    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    with _object_operator_context(obj):
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
     if bevel > 0:
         modifier = obj.modifiers.new(name="NEVA_Chamfer", type="BEVEL")
@@ -41,7 +61,8 @@ def _finish_mesh(
         modifier.segments = 1
         modifier.limit_method = "ANGLE"
         bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.modifier_apply(modifier=modifier.name)
+        with _object_operator_context(obj):
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
 
     for polygon in obj.data.polygons:
         polygon.use_smooth = not flat
@@ -90,7 +111,7 @@ def apply_vertex_values(obj: bpy.types.Object) -> None:
 
 def add_box(name, location, dimensions, token, parent, *, rotation=(0.0, 0.0, 0.0), bevel=0.025, flat=True):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=location, rotation=rotation)
-    obj = bpy.context.active_object
+    obj = _active_object()
     obj.dimensions = dimensions
     return _finish_mesh(obj, name, token, parent, bevel=bevel, flat=flat)
 
@@ -99,7 +120,7 @@ def add_cylinder(name, location, radius, depth, token, parent, *, vertices=8, ro
     bpy.ops.mesh.primitive_cylinder_add(
         vertices=vertices, radius=radius, depth=depth, location=location, rotation=rotation
     )
-    return _finish_mesh(bpy.context.active_object, name, token, parent, bevel=bevel, flat=flat)
+    return _finish_mesh(_active_object(), name, token, parent, bevel=bevel, flat=flat)
 
 
 def add_cone(name, location, radius1, radius2, depth, token, parent, *, vertices=8, rotation=(0.0, 0.0, 0.0), flat=True):
@@ -107,14 +128,14 @@ def add_cone(name, location, radius1, radius2, depth, token, parent, *, vertices
         vertices=vertices, radius1=radius1, radius2=radius2, depth=depth,
         location=location, rotation=rotation
     )
-    return _finish_mesh(bpy.context.active_object, name, token, parent, flat=flat)
+    return _finish_mesh(_active_object(), name, token, parent, flat=flat)
 
 
 def add_ico(name, location, scale, token, parent, *, subdivisions=1, rotation=(0.0, 0.0, 0.0), flat=True):
     bpy.ops.mesh.primitive_ico_sphere_add(
         subdivisions=subdivisions, radius=1.0, location=location, rotation=rotation
     )
-    obj = bpy.context.active_object
+    obj = _active_object()
     obj.scale = scale
     return _finish_mesh(obj, name, token, parent, flat=flat)
 
@@ -127,7 +148,7 @@ def add_beam(name, start, end, radius, token, parent, *, vertices=6, flat=True):
     bpy.ops.mesh.primitive_cylinder_add(
         vertices=vertices, radius=radius, depth=direction.length, location=midpoint
     )
-    obj = bpy.context.active_object
+    obj = _active_object()
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
     return _finish_mesh(obj, name, token, parent, flat=flat)
@@ -159,7 +180,7 @@ def add_tapered_beam(
         depth=direction.length,
         location=midpoint,
     )
-    obj = bpy.context.active_object
+    obj = _active_object()
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
     return _finish_mesh(obj, name, token, parent, flat=flat)
@@ -186,7 +207,7 @@ def add_ring(name, location, major_radius, minor_radius, token, parent, *, major
         major_segments=major_segments, minor_segments=minor_segments,
         location=location, rotation=rotation
     )
-    return _finish_mesh(bpy.context.active_object, name, token, parent, flat=True)
+    return _finish_mesh(_active_object(), name, token, parent, flat=True)
 
 
 def add_marker(name, location, parent, *, marker_type="interaction"):
@@ -236,11 +257,13 @@ def join_meshes(objects: Iterable[bpy.types.Object], name: str):
     objects = [obj for obj in objects if obj is not None and obj.type == "MESH"]
     if not objects:
         return None
-    bpy.ops.object.select_all(action="DESELECT")
+    for selected in bpy.context.view_layer.objects:
+        selected.select_set(False)
     for obj in objects:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = objects[0]
-    bpy.ops.object.join()
+    with _object_operator_context(objects[0], objects):
+        bpy.ops.object.join()
     objects[0].name = name
     objects[0].data.name = f"{name}_mesh"
     return objects[0]

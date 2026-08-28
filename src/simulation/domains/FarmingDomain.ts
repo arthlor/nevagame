@@ -1,6 +1,7 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import {
   farmLocalToWorld,
+  farmWellWorldAnchor,
   farmWorldOrigin,
   getFarmLayout,
   isPlantableFarmSurface,
@@ -47,6 +48,8 @@ export const FARMING_ACTION_COST = {
 } as const;
 export const IRRIGATION_FEATURE_ID = "feature.irrigation_zone";
 export const IRRIGATION_COST = 120;
+/** Reach from the authored farm well. Farm AABBs and decorative village wells do not count. */
+export const IRRIGATION_WELL_REACH_METERS = 2.8;
 export const ANNUAL_PLANT_MATTER_ITEM_ID = "item.plant_matter";
 export const ANNUAL_PLANT_MATTER_YIELD = 1;
 
@@ -225,6 +228,7 @@ export class FarmingDomain {
       footprint: { ...emptyFootprint }
     });
 
+    if (state.player.activeMountId) return result(false, "mounted", "Dismount before planting");
     if (!farm) return result(false, "invalid-farm", "This farm is unavailable");
     if (!cropDef) return result(false, "unknown-crop", "This seed cannot be planted here");
     if (!Number.isFinite(request.x) || !Number.isFinite(request.z)) {
@@ -377,6 +381,7 @@ export class FarmingDomain {
 
   public water(placedCropId: PlacedCropId): InteractionResult {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
     const crop = state.crops[placedCropId];
     if (!crop) return { success: false, reason: "Crop not found" };
     if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
@@ -392,6 +397,7 @@ export class FarmingDomain {
 
   public harvest(placedCropId: PlacedCropId): InteractionResult & { quality?: CropQuality } {
     const { state, rng, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
     const crop = state.crops[placedCropId];
     if (!crop) return { success: false, reason: "Crop not found" };
     if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
@@ -468,6 +474,7 @@ export class FarmingDomain {
 
   public applyFertilizer(farmId: FarmId): InteractionResult {
     const { state } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
     const farm = state.farms[farmId];
     if (!farm) return { success: false, reason: "This farm is unavailable" };
     if (!this.isNearFarm(farmId)) return { success: false, reason: "Move closer to the farm" };
@@ -493,15 +500,23 @@ export class FarmingDomain {
     return null;
   }
 
+  public getNearbyIrrigationFarmId(): FarmId | null {
+    for (const farmId of Object.keys(this.context.state.farms) as FarmId[]) {
+      if (this.isNearIrrigationWell(farmId)) return farmId;
+    }
+    return null;
+  }
+
   public buyIrrigation(): InteractionResult {
     const { state } = this.context;
-    const farmId = this.getNearbyFarmId();
-    if (!farmId) return { success: false, reason: "Stand on a farm to install irrigation" };
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
+    const farmId = this.getNearbyIrrigationFarmId();
+    if (!farmId) return { success: false, reason: "Use the farm well to install a field pump" };
     if (state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) {
-      return { success: false, reason: "Irrigation is already installed" };
+      return { success: false, reason: "This well already has a field pump" };
     }
     if (state.player.money < IRRIGATION_COST) {
-      return { success: false, reason: `Irrigation costs ${IRRIGATION_COST} G` };
+      return { success: false, reason: `A field pump costs ${IRRIGATION_COST} G` };
     }
     state.player.money -= IRRIGATION_COST;
     state.quests.unlockedFeatureIds = [...state.quests.unlockedFeatureIds, IRRIGATION_FEATURE_ID];
@@ -510,12 +525,13 @@ export class FarmingDomain {
 
   public irrigate(farmId: FarmId): InteractionResult {
     const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
     if (!state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) {
-      return { success: false, reason: "Install irrigation first" };
+      return { success: false, reason: "Install a field pump at the well first" };
     }
     const farm = state.farms[farmId];
     if (!farm) return { success: false, reason: "This farm is unavailable" };
-    if (!this.isNearFarm(farmId)) return { success: false, reason: "Move closer to the farm" };
+    if (!this.isNearIrrigationWell(farmId)) return { success: false, reason: "Use the farm well to water the field" };
     let watered = 0;
     for (const placedCropId of farm.placedCropIds) {
       const crop = state.crops[placedCropId];
@@ -532,6 +548,7 @@ export class FarmingDomain {
 
   public inspect(placedCropId: PlacedCropId): CropInspectionDto | null {
     const { state } = this.context;
+    if (state.player.activeMountId) return null;
     const crop = state.crops[placedCropId];
     if (!crop) return null;
     const cropDef = ContentRegistry.crops.get(crop.cropId);
@@ -632,6 +649,13 @@ export class FarmingDomain {
     const local = worldToFarmLocal(farmId, this.context.state.player);
     const bounds = layout?.farmBounds ?? fallbackFarmRect(farm.widthMeters, farm.depthMeters);
     return isPointInsideRect(local, bounds, CROP_INTERACTION_RADIUS);
+  }
+
+  private isNearIrrigationWell(farmId: FarmId): boolean {
+    if (!this.context.state.farms[farmId]) return false;
+    const well = farmWellWorldAnchor(farmId);
+    if (!well) return false;
+    return distance2d(this.context.state.player, well) <= IRRIGATION_WELL_REACH_METERS;
   }
 
   private removePlacedCrop(placedCropId: PlacedCropId): void {

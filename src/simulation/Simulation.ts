@@ -20,7 +20,8 @@ import {
   PlacedCropId,
   ProcessingJobId,
   RecipeId,
-  SkillId
+  SkillId,
+  MountId
 } from "./core/types";
 import { createInitialGameState } from "./core/createInitialState";
 import { applyWeatherProfile } from "./weather/updateWeather";
@@ -39,13 +40,15 @@ import { QuestDomain } from "./domains/QuestDomain";
 import { InventoryManager } from "./inventory/InventoryManager";
 import { WorldLayout } from "../world/WorldLayout";
 import { HARBOR_DOCK } from "../world/WorldAnchors";
+import { STARTER_DONKEY_ID } from "./mounts/Mounts";
 import type {
   CropInspectionDto,
   CropPlacementResult,
   GameCommand,
   GameQuery,
   GameQueryResult,
-  InteractionResult
+  InteractionResult,
+  ProcessingJobInspectionDto
 } from "./core/contracts";
 
 export class Simulation {
@@ -125,6 +128,10 @@ export class Simulation {
         return this.boardBoat(command.boatId);
       case "boat.dock":
         return this.dockActiveBoat();
+      case "mount.board":
+        return this.boardMount(command.mountId);
+      case "mount.dismount":
+        return this.dismountMount();
       case "boat.purchase-skiff":
         return this.purchaseSkiff();
       case "crop.plant":
@@ -204,6 +211,8 @@ export class Simulation {
         return this.farmingDomain.validatePlacement(query.request);
       case "crop.inspect":
         return this.farmingDomain.inspect(query.placedCropId);
+      case "processing.inspect":
+        return this.processingDomain.inspect(query.stationId);
       case "crop.find-placement":
         return this.findPlantingPosition(query.farmId, query.cropId);
       case "quest.get-active":
@@ -262,6 +271,7 @@ export class Simulation {
 
   private restUntilDawn(): InteractionResult {
     const { player, clock } = this.state;
+    if (player.activeMountId) return { success: false, reason: "Dismount before resting" };
     if (!WorldLayout.isInterior(player.x, player.z)) {
       return { success: false, reason: "Rest in the farmhouse" };
     }
@@ -579,6 +589,22 @@ export class Simulation {
     return this.navigationDomain.boardBoat(boatId);
   }
 
+  public canBoardMount(mountId: MountId = STARTER_DONKEY_ID): boolean {
+    return this.navigationDomain.canBoardMount(mountId);
+  }
+
+  public boardMount(mountId: MountId = STARTER_DONKEY_ID): { success: boolean; reason?: string } {
+    return this.navigationDomain.boardMount(mountId);
+  }
+
+  public canDismountMount(): boolean {
+    return this.navigationDomain.canDismountMount();
+  }
+
+  public dismountMount(): { success: boolean; reason?: string } {
+    return this.navigationDomain.dismountMount();
+  }
+
   public canDockActiveBoat(): boolean {
     return this.navigationDomain.canDockActiveBoat();
   }
@@ -674,8 +700,16 @@ export class Simulation {
     return this.farmingDomain.getNearbyFarmId();
   }
 
+  public getNearbyIrrigationFarmId(): FarmId | null {
+    return this.farmingDomain.getNearbyIrrigationFarmId();
+  }
+
   public inspectCrop(placedCropId: PlacedCropId): CropInspectionDto | null {
     return this.farmingDomain.inspect(placedCropId);
+  }
+
+  public inspectProcessingJob(stationId: string): ProcessingJobInspectionDto | null {
+    return this.processingDomain.inspect(stationId);
   }
 
   // ==========================================

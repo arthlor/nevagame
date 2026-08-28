@@ -12,6 +12,10 @@ export const GROUND_COVER_WIND_AMPLITUDE: Readonly<Record<GroundCoverCategory, n
   driftwood: 0.04
 };
 
+/** Normalized model height where cover begins to release from its planted base. */
+export const GROUND_COVER_WIND_ROOT_LOCK = 0.03;
+export const GROUND_COVER_WIND_ROOT_RELEASE = 0.24;
+
 export function groundCoverSwaysInWind(category: GroundCoverCategory): boolean {
   return GROUND_COVER_WIND_AMPLITUDE[category] > 0;
 }
@@ -24,6 +28,14 @@ export function groundCoverWindPhase(id: string): number {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0) / 0xffffffff;
+}
+
+/** Smooth rooted response used by the shader and its deterministic unit contract. */
+export function groundCoverWindRootWeight(normalizedHeight: number): number {
+  if (!Number.isFinite(normalizedHeight)) return 0;
+  const span = GROUND_COVER_WIND_ROOT_RELEASE - GROUND_COVER_WIND_ROOT_LOCK;
+  const t = Math.max(0, Math.min(1, (normalizedHeight - GROUND_COVER_WIND_ROOT_LOCK) / span));
+  return t * t * (3 - 2 * t);
 }
 
 export function groundCoverWindStrength(signal: Readonly<WeatherMotionSignal>): number {

@@ -32,6 +32,8 @@ export interface LayoutEditTag {
   id: string;
   sourceFile: string;
   yOffset: number;
+  /** Absolute height for water-surface and elevated display props. */
+  fixedY?: number;
   indoor: boolean;
   space: LayoutEditSpace;
   rotationWriteMode: LayoutEditRotationWrite;
@@ -83,6 +85,13 @@ export const LAYOUT_EDITOR_SOURCE_FILES = {
 } as const;
 
 export const ARCHITECTURE_PLACEMENT_TO_PAD: Readonly<Record<string, string>> = {
+  "authored.village.approach-inn": "village.approach-inn",
+  "authored.village.cooperative-hall": "village.cooperative-hall",
+  "authored.orchard.barn": "orchard.barn",
+  "authored.orchard.farmhouse": "orchard.farmhouse",
+  "authored.orchard.tool-shed": "orchard.tool-shed",
+  "authored.orchard.outhouse": "orchard.outhouse",
+  "authored.village.roadside-stall": "village.roadside-stall",
   "authored.village.tool-shed": "village.tool-shed",
   "authored.village.outhouse": "village.outhouse",
   "authored.village.cottage-west": "village.cottage-west",
@@ -335,7 +344,7 @@ export function createWorldAnchorTag(
 export function createAuthoredDetailTag(
   id: string,
   catalogAssetId?: string,
-  features?: Pick<LayoutEditTag, "grounding" | "practicalLight">
+  features?: Pick<LayoutEditTag, "grounding" | "practicalLight" | "fixedY">
 ): LayoutEditTag {
   return {
     kind: "authored-detail",

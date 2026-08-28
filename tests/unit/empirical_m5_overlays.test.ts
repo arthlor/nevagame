@@ -113,7 +113,7 @@ describe("Milestone M5 tactile overlays", () => {
     expect(landed).toContain("Collect");
   });
 
-  it("renders the sport fishing HUD with a 3-zone tension gauge and stamina meter", () => {
+  it("renders the compact sport fishing vitals tray instead of a dashboard", () => {
     const html = renderToString(
       React.createElement(FishingHUD, {
         encounter: sportEncounter,
@@ -121,12 +121,18 @@ describe("Milestone M5 tactile overlays", () => {
       })
     );
     expect(html).toContain('data-testid="sport-fishing-hud"');
-    expect(html).toContain("Line Tension");
-    expect(html).toContain("Optimal Range");
+    expect(html).toContain("fishing-direction-arc");
     expect(html).toContain('data-testid="fish-stamina"');
-    expect(html).toContain("Reel");
-    expect(html).toContain("Brace");
-    expect(html).toContain("Slack");
+    expect(html).toContain('data-testid="fish-integrity"');
+    expect(html).toContain(">A<");
+    expect(html).toContain(">D<");
+    expect(html).not.toContain("Rainbow Trout");
+    expect(html).not.toContain("Line Tension");
+    expect(html).not.toContain("Tiring Out");
+    expect(html).not.toContain("Optimal Range");
+    expect(html).not.toContain("fishing-btn-reel");
+    expect(html).not.toContain("fishing-btn-brace");
+    expect(html).not.toContain("fishing-btn-slack");
   });
 
   it("renders the seed dock with wheat and a quantity badge", () => {

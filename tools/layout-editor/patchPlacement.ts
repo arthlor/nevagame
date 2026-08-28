@@ -463,6 +463,7 @@ function formatAuthoredPlacementSnippet(commit: LayoutEditCommit): string {
     `rotationY: ${formatRadians(commit.rotationY)}`,
     `scale: ${scale}`
   ];
+  if (commit.y !== undefined) fields.push(`y: ${formatWorldCoord(commit.y)}`);
   if (commit.grounding) {
     fields.push(
       `grounding: [${commit.grounding.map((value) => formatWorldCoord(value)).join(", ")}]`

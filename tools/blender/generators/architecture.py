@@ -3547,6 +3547,88 @@ def _village_required_param(params: dict, key: str):
     return value
 
 
+def _village_wing_side(wing_offset: float) -> int:
+    return -1 if wing_offset < 0 else 1
+
+
+def _village_signed_wing_x(
+    width: float,
+    wing_width: float,
+    wing_offset: float,
+    declared_half_width: float,
+    roof_overhang: float,
+) -> float:
+    """Place an attached wing on the signed side of wingOffset, clamped to the declared footprint."""
+    side = _village_wing_side(wing_offset)
+    wing_roof_overhang = min(roof_overhang * 0.65, 0.42)
+    reach = min(
+        width * 0.5,
+        max(wing_width * 0.45, declared_half_width - wing_width * 0.5 - wing_roof_overhang - abs(wing_offset) * 0.20),
+    )
+    return side * reach
+
+
+def _village_offset_framed_room(
+    prefix: str,
+    center_x: float,
+    center_y: float,
+    width: float,
+    depth: float,
+    foundation_h: float,
+    wall_base: float,
+    wall_height: float,
+    stone: str,
+    wall: str,
+    dark: str,
+    root,
+    *,
+    detail: bool,
+) -> None:
+    """Framed plaster room at an offset so a cross-gable sits on real wall mass."""
+    bevel = 0.025 if detail else 0.012
+    wall_cz = wall_base + wall_height * 0.5
+    add_box(
+        f"{prefix}_foundation",
+        (center_x, center_y, foundation_h * 0.5),
+        (width + 0.16, depth + 0.16, foundation_h),
+        stone,
+        root,
+        bevel=bevel,
+    )
+    if detail:
+        _village_aligned_plinth(
+            f"{prefix}_foundation_masonry",
+            width + 0.24,
+            depth + 0.24,
+            foundation_h,
+            2,
+            max(3, round(width * 1.5)),
+            (stone,),
+            root,
+            center_x=center_x,
+            center_y=center_y,
+        )
+    add_box(
+        f"{prefix}_inner_shell",
+        (center_x, center_y, wall_cz),
+        (width - 0.18, depth - 0.18, wall_height - 0.10),
+        wall,
+        root,
+        bevel=0.014 if detail else 0.008,
+    )
+    post_w = 0.20 if detail else 0.16
+    for x_index, x in enumerate((center_x - width * 0.5 + post_w * 0.45, center_x + width * 0.5 - post_w * 0.45)):
+        for y_index, y in enumerate((center_y - depth * 0.5 + post_w * 0.45, center_y + depth * 0.5 - post_w * 0.45)):
+            add_box(
+                f"{prefix}_corner_{x_index}_{y_index}",
+                (x, y, wall_cz),
+                (post_w, post_w, wall_height + 0.05),
+                dark,
+                root,
+                bevel=0.012 if detail else 0.006,
+            )
+
+
 def _side_shingled_gable_roof(
     prefix: str,
     width: float,
@@ -3852,19 +3934,17 @@ def _add_attached_working_wing(
         bevel=bevel,
     )
     if detail:
-        add_masonry_courses(
+        _village_aligned_plinth(
             f"{prefix}_foundation_masonry",
-            (center_x, center_y, foundation_h * 0.5),
             width + 0.28,
             depth + 0.28,
             foundation_h,
+            2,
+            max(3, round(width * 1.5)),
             (stone,),
             root,
-            courses=2,
-            blocks_per_long_side=max(3, round(width * 1.5)),
-            seed=seed,
-            block_depth=0.13,
-            bevel=0.012,
+            center_x=center_x,
+            center_y=center_y,
         )
     add_box(
         f"{prefix}_inner_shell",
@@ -3978,6 +4058,142 @@ def _add_attached_working_wing(
             add_beam(f"{prefix}_door_brace_b", (center_x + door_w * 0.38, front_y - 0.07, wall_base + 0.18), (center_x - door_w * 0.38, front_y - 0.07, wall_base + door_h - 0.18), 0.025, dark, root, vertices=5)
 
 
+def _village_aligned_plinth(
+    prefix: str,
+    width: float,
+    depth: float,
+    height: float,
+    courses: int,
+    long_blocks: int,
+    tokens: tuple[str, ...],
+    root,
+    *,
+    center_x: float = 0.0,
+    center_y: float = 0.0,
+) -> None:
+    """Flush stacked-bond masonry so village plinths sit on the shared ground plane."""
+    course_h = height / max(1, courses)
+    block_depth = 0.22
+    short_blocks = max(3, round(long_blocks * depth / max(width, 0.001)))
+    for course in range(courses):
+        z = course_h * (course + 0.5)
+        for face, axis, span, count, fixed in (
+            ("front", "x", width, long_blocks, center_y - depth * 0.5 - block_depth * 0.35),
+            ("back", "x", width, long_blocks, center_y + depth * 0.5 + block_depth * 0.35),
+            ("left", "y", depth, short_blocks, center_x - width * 0.5 - block_depth * 0.35),
+            ("right", "y", depth, short_blocks, center_x + width * 0.5 + block_depth * 0.35),
+        ):
+            block_span = span / count
+            for index in range(count):
+                along = -span * 0.5 + block_span * (index + 0.5)
+                token = tokens[(course + index) % len(tokens)]
+                if axis == "x":
+                    location = (center_x + along, fixed, z)
+                    dimensions = (block_span * 0.98, block_depth, course_h * 0.96)
+                else:
+                    location = (fixed, center_y + along, z)
+                    dimensions = (block_depth, block_span * 0.98, course_h * 0.96)
+                add_box(
+                    f"{prefix}_{face}_{course:02d}_{index:02d}",
+                    location,
+                    dimensions,
+                    token,
+                    root,
+                    bevel=0.012,
+                )
+
+
+def _village_glazed_window(
+    name: str,
+    location: tuple[float, float, float],
+    width: float,
+    height: float,
+    frame: str,
+    glass: str,
+    mullion: str,
+    root,
+    *,
+    shutter_token: str | None = None,
+) -> None:
+    """Hollow frame + proud emissive pane so village openings read as glass, not wood slabs."""
+    cx, cy, cz = location
+    add_box(f"{name}_glass", (cx, cy - 0.05, cz), (width * 0.90, 0.035, height * 0.90), glass, root, bevel=0.006)
+    add_box(f"{name}_mullion_v", (cx, cy - 0.07, cz), (0.04, 0.04, height * 0.88), mullion, root, bevel=0.005)
+    add_box(f"{name}_mullion_h", (cx, cy - 0.07, cz), (width * 0.88, 0.04, 0.04), mullion, root, bevel=0.005)
+    add_box(f"{name}_frame_l", (cx - width * 0.5, cy - 0.02, cz), (0.10, 0.12, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_r", (cx + width * 0.5, cy - 0.02, cz), (0.10, 0.12, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_t", (cx, cy - 0.02, cz + height * 0.5), (width + 0.16, 0.12, 0.10), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_b", (cx, cy - 0.02, cz - height * 0.5), (width + 0.16, 0.12, 0.10), frame, root, bevel=0.012)
+    if shutter_token:
+        shutter_w = width * 0.48
+        add_box(f"{name}_shutter_l", (cx - width * 0.5 - shutter_w * 0.45, cy - 0.01, cz), (shutter_w, 0.06, height), shutter_token, root, bevel=0.012)
+        add_box(f"{name}_shutter_r", (cx + width * 0.5 + shutter_w * 0.45, cy - 0.01, cz), (shutter_w, 0.06, height), shutter_token, root, bevel=0.012)
+
+
+def _village_glazed_side_window(
+    name: str,
+    x: float,
+    y: float,
+    z: float,
+    width: float,
+    height: float,
+    frame: str,
+    glass: str,
+    mullion: str,
+    root,
+    *,
+    side: int,
+    shutters: bool = False,
+) -> None:
+    add_box(f"{name}_glass", (x + side * 0.05, y, z), (0.035, width * 0.90, height * 0.90), glass, root, bevel=0.006)
+    add_box(f"{name}_mullion_v", (x + side * 0.07, y, z), (0.04, 0.04, height * 0.88), mullion, root, bevel=0.005)
+    add_box(f"{name}_mullion_h", (x + side * 0.07, y, z), (0.04, width * 0.88, 0.04), mullion, root, bevel=0.005)
+    add_box(f"{name}_frame_l", (x + side * 0.02, y - width * 0.5, z), (0.12, 0.10, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_r", (x + side * 0.02, y + width * 0.5, z), (0.12, 0.10, height + 0.16), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_t", (x + side * 0.02, y, z + height * 0.5), (0.12, width + 0.16, 0.10), frame, root, bevel=0.012)
+    add_box(f"{name}_frame_b", (x + side * 0.02, y, z - height * 0.5), (0.12, width + 0.16, 0.10), frame, root, bevel=0.012)
+    if shutters:
+        shutter_w = width * 0.40
+        for index, sy in enumerate((-1, 1)):
+            add_box(
+                f"{name}_shutter_{index}",
+                (x + side * 0.02, y + sy * (width * 0.5 + shutter_w * 0.45), z),
+                (0.06, shutter_w, height * 0.96),
+                mullion,
+                root,
+                bevel=0.008,
+            )
+
+
+def _village_ground_stairs(
+    prefix: str,
+    x: float,
+    start_y: float,
+    deck_z: float,
+    stair_w: float,
+    token: str,
+    root,
+    *,
+    detail: bool,
+) -> None:
+    """Equal-riser treads from a raised deck or door sill onto the shared ground plane (z=0)."""
+    tread_h = 0.16
+    tread_run = 0.22
+    z_high = deck_z - tread_h * 0.5
+    z_low = tread_h * 0.5
+    step_count = max(3, int(round(max(deck_z, tread_h) / tread_h)))
+    for step_idx in range(step_count):
+        t = step_idx / (step_count - 1)
+        add_box(
+            f"{prefix}_{step_idx}",
+            (x, start_y - step_idx * tread_run, z_high * (1.0 - t) + z_low * t),
+            (stair_w + step_idx * 0.12, 0.34, tread_h),
+            token,
+            root,
+            bevel=0.010 if detail else 0.004,
+        )
+
+
 def _build_village_building(spec: dict, root) -> None:
     """Role-profiled village architecture derived from the farmhouse construction grammar."""
     params = spec["parameters"]
@@ -4019,28 +4235,27 @@ def _build_village_building(spec: dict, root) -> None:
     is_plank = profile["wallStyle"] == "plank"
     bevel = 0.05 if detail else 0.02
     front_y = -depth * 0.5
-    wall_base = foundation_h + 0.10
+    wall_base = foundation_h + 0.08
     wall_cz = wall_base + wall_height * 0.5
     wall_top = wall_base + wall_height
     foundation_width = width + 0.28 * plinth_scale
     foundation_depth = depth + 0.28 * plinth_scale
+    window_glow = "emissive_window_01" if "emissive_window_01" in spec["palette"] else timber
+    glass = accent if profile["feature"].startswith("arcade") else window_glow
+    declared_half_width = float(spec["dimensions"]["width"]) * 0.5
 
-    # Shared farmhouse-derived plinth grammar.
+    # Shared farmhouse-derived plinth grammar: stacked-bond courses on z=0.
     add_box(f"{variant}_foundation", (0, 0, foundation_h * 0.5), (foundation_width, foundation_depth, foundation_h), stone, root, bevel=bevel)
-    if detail:
-        add_masonry_courses(
+    if detail and masonry_courses > 0:
+        _village_aligned_plinth(
             f"{variant}_foundation_masonry",
-            (0, 0, foundation_h * 0.5),
             width + 0.52 * plinth_scale,
             depth + 0.52 * plinth_scale,
             foundation_h,
+            masonry_courses,
+            masonry_blocks,
             (stone,),
             root,
-            courses=masonry_courses,
-            blocks_per_long_side=masonry_blocks,
-            seed=seed + 17,
-            block_depth=0.16 * plinth_scale,
-            bevel=0.016,
         )
     add_box(f"{variant}_water_table", (0, 0, foundation_h + 0.045), (width + 0.40 * plinth_scale, depth + 0.40 * plinth_scale, 0.09), stone, root, bevel=0.025 if detail else 0.012)
 
@@ -4126,6 +4341,7 @@ def _build_village_building(spec: dict, root) -> None:
             side_bays=max(3, round(depth / 1.35)),
             panel_rows=panel_rows,
             open_front=profile["feature"].startswith("arcade"),
+            daub_texture=detail,
         )
 
     # The roof form is explicit per catalog entry: cottages can turn their ridge, sheds can lean, and halls remain open-front gables.
@@ -4137,7 +4353,11 @@ def _build_village_building(spec: dict, root) -> None:
     elif profile["roofForm"] == "lean-to":
         roof_top = _lean_to_roof(variant, width, depth, wall_top, pitch_deg, roof, dark, root, overhang=roof_overhang, bevel=0.025 if detail else 0.012, courses=roof_detail_courses, detail=detail, seed=seed + 19)
     else:
-        roof_center_x = wing_offset * 0.45 if profile["roofForm"] == "offset-gable" else 0.0
+        if profile["roofForm"] == "offset-gable":
+            offset_side = _village_wing_side(wing_offset)
+            roof_center_x = offset_side * max(abs(wing_offset) * 1.35, width * 0.18)
+        else:
+            roof_center_x = 0.0
         roof_top = _shingled_gable_roof(variant, width, depth, wall_top, pitch_deg, roof, dark, root, overhang_front=roof_overhang, overhang_side=roof_overhang, courses=roof_detail_courses, course_thickness=0.16 if detail else 0.18, include_fascia=True, bevel=0.025 if detail else 0.012, gable_token=wall, center_x=roof_center_x)
         if detail:
             _architecture_shingle_rows(f"{variant}_shingles", width, depth, wall_top, pitch_deg, (roof,), root, rows=shingle_rows, columns=shingle_columns, seed=seed + 19, center_x=roof_center_x, overhang_front=roof_overhang, overhang_side=roof_overhang)
@@ -4146,6 +4366,21 @@ def _build_village_building(spec: dict, root) -> None:
     if profile["feature"] == "offset-cross-gable" and wing_width > 0 and wing_depth > 0:
         cross_y = front_y + wing_depth * 0.20
         cross_overhang = roof_overhang * 0.55
+        _village_offset_framed_room(
+            f"{variant}_cross_gable_room",
+            wing_offset,
+            cross_y,
+            wing_width,
+            wing_depth,
+            foundation_h,
+            wall_base,
+            wall_height,
+            stone,
+            wall,
+            dark,
+            root,
+            detail=detail,
+        )
         _shingled_gable_roof(
             f"{variant}_cross_gable",
             wing_width,
@@ -4181,25 +4416,51 @@ def _build_village_building(spec: dict, root) -> None:
                 overhang_front=cross_overhang,
                 overhang_side=cross_overhang,
             )
-        add_mullioned_window(
+        _village_glazed_window(
             f"{variant}_cross_gable_window",
             (wing_offset, cross_y - wing_depth * 0.5 - 0.12, wall_top + 0.62),
             0.54,
             0.54,
             dark,
-            timber,
+            glass,
             timber,
             root,
         )
 
     # Front door and opening hierarchy. Market halls stay open-front and do not
-    # hide a generic cottage door behind their service counter.
+    # hide a generic cottage door behind their service counter. Barns use split
+    # loading leaves instead of a single cottage door.
     door_x = wing_offset if profile["openingLayout"] == "cottage-side" else 0.0
     door_y = front_y - 0.06
+    is_barn = profile["feature"] == "loading-lean-to"
     if not profile["feature"].startswith("arcade"):
         add_box(f"{variant}_door_reveal", (door_x, door_y + 0.06, wall_base + door_h * 0.5), (door_w + 0.28, 0.24, door_h + 0.24), dark, root, bevel=0.014 if detail else 0.0)
         add_box(f"{variant}_door_frame", (door_x, door_y - 0.04, wall_base + door_h * 0.5), (door_w + 0.18, 0.16, door_h + 0.14), dark, root, bevel=0.014 if detail else 0.0)
-        if detail:
+        if is_barn:
+            leaf_w = door_w * 0.48
+            for leaf_index, leaf_side in enumerate((-1, 1)):
+                lx = door_x + leaf_side * door_w * 0.25
+                add_box(
+                    f"{variant}_loading_leaf_{leaf_index}",
+                    (lx, door_y - 0.105, wall_base + door_h * 0.5),
+                    (leaf_w, 0.07, door_h - 0.06),
+                    timber if leaf_index == 0 else dark,
+                    root,
+                    bevel=0.008 if detail else 0.0,
+                )
+                if detail:
+                    _add_rect_brace(
+                        f"{variant}_loading_leaf_brace_{leaf_index}",
+                        (lx - leaf_w * 0.36, door_y - 0.145, wall_base + 0.20),
+                        (lx + leaf_w * 0.36, door_y - 0.145, wall_base + door_h - 0.20),
+                        0.075,
+                        0.05,
+                        dark,
+                        root,
+                        plane="xz",
+                        bevel=0.006,
+                    )
+        elif detail:
             board_count = max(3, round(door_w / 0.24))
             board_w = door_w / board_count
             for board in range(board_count):
@@ -4237,22 +4498,44 @@ def _build_village_building(spec: dict, root) -> None:
         "cottage-garden": ((-width * 0.34, window_z), (width * 0.30, window_z)),
         "inn-veranda": ((-width * 0.34, window_z), (width * 0.34, window_z), (-width * 0.28, wall_base + wall_height * 0.84), (width * 0.28, wall_base + wall_height * 0.84)),
         "market-arcade": (),
-        "barn-loft": ((-width * 0.31, wall_base + wall_height * 0.76), (width * 0.31, wall_base + wall_height * 0.76)),
+        "barn-loft": (),
         "shed-tools": ((width * 0.25, wall_base + wall_height * 0.62),),
-        "outhouse-vent": ((wing_offset, window_z),),
+        "outhouse-vent": (),
     }.get(profile["openingLayout"], ())
     if not detail:
         front_windows = front_windows[:1]
-    window_glow = "emissive_window_01" if "emissive_window_01" in spec["palette"] else timber
-    glass = accent if profile["feature"].startswith("arcade") else window_glow
     for index, (wx, wz) in enumerate(front_windows):
         add_box(f"{variant}_front_window_reveal_{index}", (wx, front_y + 0.055, wz), (window_w + 0.24, 0.22, window_h + 0.24), dark, root, bevel=0.014 if detail else 0.0)
-        add_mullioned_window(f"{variant}_front_window_{index}", (wx, front_y + 0.02, wz), window_w, window_h, dark, glass, timber, root, shutter_token=timber if profile["openingLayout"] in ("cottage-front", "cottage-side", "cottage-garden", "inn-veranda", "shed-tools") and detail else None)
+        _village_glazed_window(
+            f"{variant}_front_window_{index}",
+            (wx, front_y + 0.02, wz),
+            window_w,
+            window_h,
+            dark,
+            glass,
+            timber,
+            root,
+            shutter_token=timber if profile["openingLayout"] in ("cottage-front", "cottage-side", "cottage-garden", "inn-veranda", "shed-tools") and detail else None,
+        )
 
     if profile["openingLayout"] in ("cottage-side", "cottage-garden"):
-        _add_side_window(f"{variant}_side_window", -width * 0.5 - 0.04, 0.0, wall_base + wall_height * 0.62, window_w, window_h, dark, glass, timber, root, side=-1, shutters=detail)
+        _village_glazed_side_window(f"{variant}_side_window", -width * 0.5 - 0.04, 0.0, wall_base + wall_height * 0.62, window_w, window_h, dark, glass, timber, root, side=-1, shutters=detail)
     if profile["openingLayout"] == "inn-veranda" and detail:
-        _add_side_window(f"{variant}_side_window", width * 0.5 + 0.04, -depth * 0.10, wall_base + wall_height * 0.84, 0.64, 0.72, dark, glass, timber, root, side=1, shutters=False)
+        inn_window_side = -_village_wing_side(wing_offset) if profile["feature"] == "veranda-wing" else 1
+        _village_glazed_side_window(
+            f"{variant}_side_window",
+            inn_window_side * (width * 0.5 + 0.04),
+            -depth * 0.10,
+            wall_base + wall_height * 0.84,
+            0.64,
+            0.72,
+            dark,
+            glass,
+            timber,
+            root,
+            side=inn_window_side,
+            shutters=False,
+        )
     if profile["openingLayout"] == "outhouse-vent":
         add_box(f"{variant}_vent_frame", (width * 0.28, depth * 0.5 + 0.04, window_z), (0.42, 0.08, 0.30), dark, root, bevel=0.008 if detail else 0.0)
         add_box(f"{variant}_vent_slit", (width * 0.28, depth * 0.5 + 0.085, window_z), (0.24, 0.025, 0.08), timber, root, bevel=0.004)
@@ -4266,9 +4549,12 @@ def _build_village_building(spec: dict, root) -> None:
             add_box(f"{variant}_chimney_crown", (chimney_x, chimney_y, wall_top + chimney_h * 0.82), (0.72, 0.64, 0.12), stone, root, bevel=0.012)
             add_box(f"{variant}_chimney_pot", (chimney_x, chimney_y, wall_top + chimney_h * 0.96), (0.22, 0.22, 0.28), dark, root, bevel=0.01)
 
+    added_entry_stairs = False
+
     # Cottages inherit the farmhouse entry hierarchy without becoming smaller
-    # copies: one uses a compact porch, the side-gable variant a working lean-to.
-    if profile["feature"] == "compact-porch" and porch_depth > 0:
+    # copies: one uses a compact porch, the garden cottage the same porch under
+    # an offset cross-gable, and the side-gable variant a working lean-to.
+    if profile["feature"] in ("compact-porch", "offset-cross-gable") and porch_depth > 0:
         porch_w = width * porch_width_ratio
         deck_z = wall_base + 0.09
         porch_center_y = front_y - porch_depth * 0.48
@@ -4294,22 +4580,63 @@ def _build_village_building(spec: dict, root) -> None:
             detail=detail,
             seed=seed + 61,
         )
-        for step in range(2):
-            add_box(f"{variant}_porch_step_{step}", (0, front_y - porch_depth - 0.10 - step * 0.16, deck_z - 0.06 - step * 0.12), (door_w + 0.42 + step * 0.16, 0.24, 0.12), timber, root, bevel=0.012 if detail else 0.004)
+        _village_ground_stairs(
+            f"{variant}_porch_step",
+            0.0,
+            front_y - porch_depth - 0.16,
+            deck_z,
+            max(1.40, door_w + 0.42),
+            timber,
+            root,
+            detail=detail,
+        )
+        added_entry_stairs = True
 
     if profile["feature"] == "lean-to" and wing_width > 0 and wing_depth > 0:
-        side = -1 if wing_offset < 0 else 1
+        side = _village_wing_side(wing_offset)
         lean_center_x = side * width * 0.5
         lean_outer_x = lean_center_x + side * wing_width * 0.44
         lean_pitch = math.radians(12)
         lean_slope = wing_width / math.cos(lean_pitch)
         lean_wall_z = wall_base + wall_height * 0.76
         lean_outer_z = lean_wall_z - math.sin(lean_pitch) * lean_slope
-        for index, py in enumerate((-wing_depth * 0.32, wing_depth * 0.32)):
-            add_box(f"{variant}_cottage_lean_post_{index}", (lean_outer_x, py, wall_base + wall_height * 0.32), (0.16, 0.16, wall_height * 0.62), dark, root, bevel=0.01 if detail else 0.004)
-        add_box(f"{variant}_cottage_lean_header", (lean_outer_x, 0, wall_base + wall_height * 0.63), (0.16, wing_depth + 0.12, 0.14), dark, root, bevel=0.01 if detail else 0.004)
+        platform_x = lean_center_x + side * wing_width * 0.5
         add_box(
-            f"{variant}_cottage_lean_deck",
+            f"{variant}_cottage_lean_platform",
+            (platform_x, 0, 0.07),
+            (wing_width + 0.18, wing_depth + 0.22, 0.14),
+            stone,
+            root,
+            bevel=0.016 if detail else 0.008,
+        )
+        if detail:
+            _village_aligned_plinth(
+                f"{variant}_cottage_lean_platform_masonry",
+                wing_width + 0.26,
+                wing_depth + 0.30,
+                0.14,
+                2,
+                max(3, round(wing_width * 2.0)),
+                (stone,),
+                root,
+                center_x=platform_x,
+                center_y=0.0,
+            )
+        post_bottom = 0.14
+        post_top = wall_base + wall_height * 0.63
+        post_h = max(0.40, post_top - post_bottom)
+        for index, py in enumerate((-wing_depth * 0.32, wing_depth * 0.32)):
+            add_box(
+                f"{variant}_cottage_lean_post_{index}",
+                (lean_outer_x, py, post_bottom + post_h * 0.5),
+                (0.16, 0.16, post_h),
+                dark,
+                root,
+                bevel=0.01 if detail else 0.004,
+            )
+        add_box(f"{variant}_cottage_lean_header", (lean_outer_x, 0, post_top), (0.16, wing_depth + 0.12, 0.14), dark, root, bevel=0.01 if detail else 0.004)
+        add_box(
+            f"{variant}_cottage_lean_roof",
             (lean_center_x + side * wing_width * 0.5, 0, (lean_wall_z + lean_outer_z) * 0.5 - 0.04),
             (lean_slope + 0.08, wing_depth + 0.28, 0.065),
             roof,
@@ -4339,12 +4666,39 @@ def _build_village_building(spec: dict, root) -> None:
                         rotation=(0, side * lean_pitch, lean_rng.uniform(-0.014, 0.014)),
                         bevel=0.008,
                     )
-        add_box(f"{variant}_cottage_lean_bench", (lean_center_x + side * wing_width * 0.42, 0, wall_base + 0.34), (wing_width * 0.72, wing_depth * 0.62, 0.12), timber, root, bevel=0.012 if detail else 0.006)
+        add_box(f"{variant}_cottage_lean_bench", (lean_center_x + side * wing_width * 0.42, 0, 0.28), (wing_width * 0.72, wing_depth * 0.62, 0.12), timber, root, bevel=0.012 if detail else 0.006)
 
     # Inn: a deep farmhouse porch becomes a two-storey veranda and a side lodging wing.
     if profile["feature"].startswith("veranda"):
         porch_w = width * porch_width_ratio
         deck_z = wall_base + 0.10
+        floor_z = wall_base + wall_height * 0.50
+        add_box(
+            f"{variant}_storey_band",
+            (0, 0, floor_z),
+            (width + 0.18, depth + 0.18, 0.14),
+            dark,
+            root,
+            bevel=0.016 if detail else 0.008,
+        )
+        if profile["feature"] == "veranda-wing":
+            add_box(
+                f"{variant}_jetty_front",
+                (0, front_y - 0.08, floor_z + 0.04),
+                (width + 0.12, 0.16, 0.10),
+                dark,
+                root,
+                bevel=0.012 if detail else 0.006,
+            )
+            for side_sign, name in ((-1, "left"), (1, "right")):
+                add_box(
+                    f"{variant}_jetty_{name}",
+                    (side_sign * (width * 0.5 + 0.06), 0, floor_z + 0.04),
+                    (0.14, depth + 0.08, 0.10),
+                    dark,
+                    root,
+                    bevel=0.012 if detail else 0.006,
+                )
         add_box(f"{variant}_veranda_deck", (0, front_y - porch_depth * 0.5, deck_z - 0.08), (porch_w, porch_depth, 0.16), dark, root, bevel=0.02 if detail else 0.0)
         if detail and porch_planks > 0:
             add_plank_field(f"{variant}_veranda_planks", (0, front_y - porch_depth * 0.5, deck_z + 0.04), porch_w - 0.08, porch_depth - 0.06, 0.07, (timber,), root, count=porch_planks, axis="x", seed=seed + 29, bevel=0.01)
@@ -4362,17 +4716,28 @@ def _build_village_building(spec: dict, root) -> None:
             detail=detail,
             seed=seed + 73,
         )
+        post_front_y = front_y - porch_depth + 0.16
         for p_idx, px in enumerate((-porch_w * 0.42, porch_w * 0.42)):
-            add_box(f"{variant}_veranda_post_{p_idx}", (px, front_y - porch_depth + 0.16, deck_z + wall_height * 0.30), (0.22, 0.22, wall_height * 0.60), dark, root, bevel=0.014 if detail else 0.008)
-        add_box(f"{variant}_inn_sign", (width * 0.16, front_y - 0.25, wall_base + wall_height * 0.58), (0.90, 0.08, 0.46), accent, root, bevel=0.01 if detail else 0.0)
-        add_box(f"{variant}_inn_sign_frame", (width * 0.16, front_y - 0.22, wall_base + wall_height * 0.58), (1.00, 0.05, 0.54), dark, root, bevel=0.008 if detail else 0.0)
+            add_box(f"{variant}_veranda_post_{p_idx}", (px, post_front_y, deck_z + wall_height * 0.30), (0.22, 0.22, wall_height * 0.60), dark, root, bevel=0.014 if detail else 0.008)
+        sign_x = porch_w * 0.42
+        sign_z = wall_base + wall_height * 0.52
+        add_box(f"{variant}_inn_sign_arm", (sign_x, post_front_y - 0.28, sign_z), (0.08, 0.58, 0.08), dark, root, bevel=0.008 if detail else 0.004)
+        add_box(f"{variant}_inn_sign_hanger", (sign_x, post_front_y - 0.54, sign_z - 0.04), (0.04, 0.04, 0.18), dark, root, bevel=0.004)
+        add_box(f"{variant}_inn_sign", (sign_x, post_front_y - 0.56, sign_z - 0.22), (0.90, 0.08, 0.46), accent, root, bevel=0.01 if detail else 0.0)
+        add_box(f"{variant}_inn_sign_frame", (sign_x, post_front_y - 0.53, sign_z - 0.22), (1.00, 0.05, 0.54), dark, root, bevel=0.008 if detail else 0.0)
+        _village_ground_stairs(
+            f"{variant}_veranda_step",
+            0.0,
+            front_y - porch_depth - 0.16,
+            deck_z,
+            max(1.80, door_w + 0.50),
+            timber,
+            root,
+            detail=detail,
+        )
+        added_entry_stairs = True
         if profile["feature"] == "veranda-wing" and wing_width > 0 and wing_depth > 0:
-            wing_roof_overhang = min(roof_overhang * 0.65, 0.42)
-            declared_half_width = float(spec["dimensions"]["width"]) * 0.5
-            wing_x = min(
-                width * 0.5,
-                declared_half_width - wing_width * 0.5 - wing_roof_overhang - abs(wing_offset) * 0.20,
-            )
+            wing_x = _village_signed_wing_x(width, wing_width, wing_offset, declared_half_width, roof_overhang)
             wing_y = depth * 0.12
             _add_attached_working_wing(
                 f"{variant}_lodging_wing",
@@ -4382,7 +4747,7 @@ def _build_village_building(spec: dict, root) -> None:
                 wing_depth,
                 foundation_h,
                 wall_base,
-                wall_height * 0.74,
+                wall_height * 0.88,
                 pitch_deg,
                 roof_overhang,
                 stone,
@@ -4423,17 +4788,42 @@ def _build_village_building(spec: dict, root) -> None:
         for index in range(post_count):
             px = -width * 0.43 + width * 0.86 * index / max(1, post_count - 1)
             add_box(f"{variant}_arcade_post_{index}", (px, front_y - awning_depth * 0.78, wall_base + wall_height * 0.34), (0.22, 0.22, wall_height * 0.68), dark, root, bevel=0.014 if detail else 0.008)
-        add_box(f"{variant}_service_opening", (0, front_y - 0.18, wall_base + wall_height * 0.48), (width * 0.58, 0.08, wall_height * 0.54), dark, root, bevel=0.018 if detail else 0.0)
-        add_box(f"{variant}_stall_counter", (0, front_y - awning_depth * 0.78, wall_base + wall_height * 0.18), (width * 0.70, 0.50, 0.16), timber, root, bevel=0.012 if detail else 0.006)
-        if detail and porch_planks > 0:
-            add_plank_field(f"{variant}_counter_planks", (0, front_y - awning_depth * 0.78, wall_base + wall_height * 0.27), width * 0.68, 0.40, 0.06, (timber, dark), root, count=min(porch_planks, 8), axis="x", seed=seed + 43, bevel=0.008)
-        if profile["feature"] == "arcade-storage" and wing_width > 0 and wing_depth > 0:
-            wing_roof_overhang = min(roof_overhang * 0.65, 0.42)
-            declared_half_width = float(spec["dimensions"]["width"]) * 0.5
-            wing_x = min(
-                width * 0.5,
-                declared_half_width - wing_width * 0.5 - wing_roof_overhang - abs(wing_offset) * 0.20,
+        mouth_w = width * 0.58
+        mouth_mid_z = wall_base + wall_height * 0.48
+        add_box(
+            f"{variant}_arcade_lintel",
+            (0, front_y - 0.06, mouth_mid_z + wall_height * 0.28),
+            (mouth_w + 0.28, 0.16, 0.18),
+            dark,
+            root,
+            bevel=0.016 if detail else 0.0,
+        )
+        for reveal_side, name in ((-1, "left"), (1, "right")):
+            add_box(
+                f"{variant}_arcade_reveal_{name}",
+                (reveal_side * mouth_w * 0.5, front_y - 0.06, mouth_mid_z),
+                (0.16, 0.14, wall_height * 0.54),
+                dark,
+                root,
+                bevel=0.012 if detail else 0.0,
             )
+        counter_z = wall_base + wall_height * 0.18
+        add_box(f"{variant}_stall_counter", (0, front_y - awning_depth * 0.78, counter_z), (width * 0.70, 0.50, 0.16), timber, root, bevel=0.012 if detail else 0.006)
+        if detail and porch_planks > 0:
+            add_plank_field(f"{variant}_counter_planks", (0, front_y - awning_depth * 0.78, counter_z + 0.09), width * 0.68, 0.40, 0.06, (timber, dark), root, count=min(porch_planks, 8), axis="x", seed=seed + 43, bevel=0.008)
+        _village_ground_stairs(
+            f"{variant}_arcade_step",
+            0.0,
+            front_y - awning_depth * 0.78 - 0.28,
+            counter_z + 0.08,
+            max(1.80, width * 0.42),
+            timber,
+            root,
+            detail=detail,
+        )
+        added_entry_stairs = True
+        if profile["feature"] == "arcade-storage" and wing_width > 0 and wing_depth > 0:
+            wing_x = _village_signed_wing_x(width, wing_width, wing_offset, declared_half_width, roof_overhang)
             _add_attached_working_wing(
                 f"{variant}_storage_wing",
                 wing_x,
@@ -4457,66 +4847,111 @@ def _build_village_building(spec: dict, root) -> None:
                 opening="door",
             )
 
-    # Barn: a tall agricultural volume, front double doors, loft vents, and a loading lean-to.
+    # Barn: a tall agricultural volume, front double doors, loft opening, and a loading lean-to.
     if profile["feature"] == "loading-lean-to":
-        brace_y = door_y - 0.09
-        brace_bottom = wall_base + 0.18
-        brace_top = wall_base + door_h - 0.18
-        for name, start, end in (("a", (-door_w * 0.36, brace_y, brace_bottom), (door_w * 0.36, brace_y, brace_top)), ("b", (door_w * 0.36, brace_y, brace_bottom), (-door_w * 0.36, brace_y, brace_top))):
-            add_beam(f"{variant}_door_brace_{name}", start, end, 0.028, dark, root, vertices=5)
-        add_box(f"{variant}_loft_vent_left", (-width * 0.22, front_y - 0.06, wall_base + wall_height * 0.78), (0.72, 0.08, 0.24), dark, root, bevel=0.01 if detail else 0.0)
-        add_box(f"{variant}_loft_vent_right", (width * 0.22, front_y - 0.06, wall_base + wall_height * 0.78), (0.72, 0.08, 0.24), dark, root, bevel=0.01 if detail else 0.0)
+        loft_z = wall_base + wall_height * 0.82
+        if variant.endswith("-b"):
+            add_box(f"{variant}_loft_vent_left", (-width * 0.22, front_y - 0.06, loft_z), (0.72, 0.08, 0.24), dark, root, bevel=0.01 if detail else 0.0)
+            add_box(f"{variant}_loft_vent_right", (width * 0.22, front_y - 0.06, loft_z), (0.72, 0.08, 0.24), dark, root, bevel=0.01 if detail else 0.0)
+        else:
+            add_box(f"{variant}_loft_door_frame", (0.0, front_y - 0.04, loft_z), (0.78, 0.12, 0.90), dark, root, bevel=0.012 if detail else 0.0)
+            add_box(f"{variant}_loft_door_panel", (0.0, front_y - 0.09, loft_z), (0.60, 0.06, 0.74), timber, root, bevel=0.008 if detail else 0.0)
+            if detail:
+                add_beam(
+                    f"{variant}_loft_door_brace",
+                    (-0.22, front_y - 0.12, loft_z - 0.28),
+                    (0.22, front_y - 0.12, loft_z + 0.28),
+                    0.022,
+                    dark,
+                    root,
+                    vertices=5,
+                )
         if wing_width > 0 and wing_depth > 0:
-            lean_x = width * 0.5 + wing_width * 0.5 + wing_offset
-            for index, py in enumerate((-wing_depth * 0.30, wing_depth * 0.30)):
-                add_box(f"{variant}_lean_post_{index}", (lean_x + wing_width * 0.42, py, wall_base + wall_height * 0.25), (0.20, 0.20, wall_height * 0.50), dark, root, bevel=0.012 if detail else 0.006)
+            side = _village_wing_side(wing_offset)
+            lean_x = side * (width * 0.5 + wing_width * 0.5 + abs(wing_offset))
+            lean_outer_x = lean_x + side * wing_width * 0.42
+            add_box(
+                f"{variant}_lean_deck",
+                (lean_x, 0.0, 0.08),
+                (wing_width + 0.16, wing_depth + 0.18, 0.14),
+                timber,
+                root,
+                bevel=0.012 if detail else 0.006,
+            )
+            if detail:
+                add_plank_field(
+                    f"{variant}_lean_deck_planks",
+                    (lean_x, 0.0, 0.16),
+                    wing_width + 0.08,
+                    wing_depth + 0.10,
+                    0.05,
+                    (timber, dark),
+                    root,
+                    count=max(4, round(wing_width / 0.28)),
+                    axis="x",
+                    seed=seed + 101,
+                    bevel=0.008,
+                )
             lean_pitch = 0.22
             lean_span = wing_width + 0.20
+            post_top = wall_top * 0.60
+            post_h = max(0.50, post_top - 0.14)
+            for index, py in enumerate((-wing_depth * 0.30, wing_depth * 0.30)):
+                add_box(
+                    f"{variant}_lean_post_{index}",
+                    (lean_outer_x, py, 0.14 + post_h * 0.5),
+                    (0.20, 0.20, post_h),
+                    dark,
+                    root,
+                    bevel=0.012 if detail else 0.006,
+                )
             lean_courses = 4 if detail else 2
             course_span = lean_span / lean_courses
             for course in range(lean_courses):
                 local_x = -lean_span * 0.5 + course_span * (course + 0.5)
                 add_box(
                     f"{variant}_lean_roof_course_{course:02d}",
-                    (lean_x + math.cos(lean_pitch) * local_x, 0.0, wall_top * 0.60 - math.sin(lean_pitch) * local_x + (lean_courses - course) * 0.012),
+                    (lean_x + side * math.cos(lean_pitch) * local_x, 0.0, wall_top * 0.60 - math.sin(lean_pitch) * local_x + (lean_courses - course) * 0.012),
                     (course_span * 1.18, wing_depth + 0.24, 0.12),
                     roof,
                     root,
-                    rotation=(0, lean_pitch, 0),
+                    rotation=(0, side * lean_pitch, 0),
                     bevel=0.010 if detail else 0.005,
                 )
             for rafter, py in enumerate((-wing_depth * 0.40, 0.0, wing_depth * 0.40)):
-                add_box(f"{variant}_lean_rafter_{rafter}", (lean_x, py, wall_top * 0.60 - 0.09), (lean_span, 0.10, 0.10), dark, root, rotation=(0, lean_pitch, 0), bevel=0.007)
+                add_box(f"{variant}_lean_rafter_{rafter}", (lean_x, py, wall_top * 0.60 - 0.09), (lean_span, 0.10, 0.10), dark, root, rotation=(0, side * lean_pitch, 0), bevel=0.007)
 
     # Shed: offset overhang and a functional tool rail break the miniature-cottage read.
     if profile["feature"] == "tool-overhang":
         overhang_x = width * 0.5 - wing_width * 0.15 + wing_offset * 0.20
-        canopy_depth = max(0.48, wing_depth)
+        canopy_depth = max(0.48, porch_depth)
+        canopy_w = max(0.86, wing_width + 0.20)
         _add_tiled_canopy(
             f"{variant}_tool_canopy",
             overhang_x,
             front_y,
-            max(0.86, wing_width + 0.20),
-            canopy_depth * 0.82,
+            canopy_w,
+            canopy_depth * 0.92,
             wall_base + wall_height * 0.78,
-            10.0,
+            14.0,
             roof,
             dark,
             root,
             detail=detail,
             seed=seed + 97,
         )
-        canopy_front_y = front_y - canopy_depth * 0.78
-        for index, px in enumerate((overhang_x - wing_width * 0.38, overhang_x + wing_width * 0.38)):
+        canopy_front_y = front_y - canopy_depth * 0.82
+        post_h = wall_height * 0.78
+        for index, px in enumerate((overhang_x - canopy_w * 0.38, overhang_x + canopy_w * 0.38)):
             add_box(
                 f"{variant}_tool_canopy_post_{index}",
-                (px, canopy_front_y, wall_base + wall_height * 0.40),
-                (0.14, 0.14, wall_height * 0.76),
+                (px, canopy_front_y, wall_base + post_h * 0.5),
+                (0.14, 0.14, post_h),
                 dark,
                 root,
                 bevel=0.01 if detail else 0.004,
             )
-        add_box(f"{variant}_tool_canopy_header", (overhang_x, canopy_front_y, wall_base + wall_height * 0.77), (max(0.86, wing_width + 0.14), 0.14, 0.14), dark, root, bevel=0.01 if detail else 0.004)
+        add_box(f"{variant}_tool_canopy_header", (overhang_x, canopy_front_y, wall_base + wall_height * 0.77), (canopy_w + 0.08, 0.14, 0.14), dark, root, bevel=0.01 if detail else 0.004)
         add_box(f"{variant}_tool_rail", (overhang_x, front_y - 0.10, wall_base + wall_height * 0.42), (max(0.55, wing_width * 0.78), 0.08, 0.10), dark, root, bevel=0.008 if detail else 0.004)
         for index in range(3 if detail else 2):
             add_box(f"{variant}_tool_hook_{index}", (overhang_x - 0.28 + index * 0.28, front_y - 0.14, wall_base + wall_height * 0.28), (0.06, 0.10, 0.24), timber, root, bevel=0.006)
@@ -4563,3 +4998,15 @@ def _build_village_building(spec: dict, root) -> None:
                     root,
                     bevel=0.003,
                 )
+
+    if not added_entry_stairs:
+        _village_ground_stairs(
+            f"{variant}_entry_step",
+            door_x,
+            front_y - 0.28,
+            wall_base,
+            max(1.10, door_w + 0.36),
+            timber,
+            root,
+            detail=detail,
+        )
