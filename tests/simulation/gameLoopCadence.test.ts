@@ -146,7 +146,7 @@ describe("game loop cadence", () => {
     sim.state.player.money = 80;
     commitPlayerPose(sim, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z);
     const compost = sim.execute({
-      type: "market.buy-item",
+      type: "market.buy-seed",
       marketId: "market.village",
       itemId: "item.compost_starter",
       quantity: 1

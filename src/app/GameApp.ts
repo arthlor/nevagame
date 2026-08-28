@@ -419,6 +419,10 @@ export class GameApp {
       return;
     }
     if (mode !== this.mode) this.cancelFarmingAction();
+    if (this.mode === "basic-fishing" && mode !== "basic-fishing") {
+      this.basicCastHoldLatched = false;
+      this.hudBasicHold = false;
+    }
     this.modeController.setGameplayMode(mode);
     this.inputRouter.setMode(mode);
     if (mode !== "farm-placement") this.clearPlacementPreview();
@@ -941,6 +945,8 @@ export class GameApp {
           if (this.mode === "basic-fishing" && this.sim.state.basicFishing?.phase === "charging-cast") {
             this.sim.execute({ type: "fishing.cancel-basic" });
             this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
+            this.basicCastHoldLatched = false;
+            this.hudBasicHold = false;
           }
           if (this.mode === "farm-placement") {
             if (this.activeModal) {
@@ -1014,6 +1020,12 @@ export class GameApp {
     this.inputRouter.onInterruption(() => {
       this.cancelFarmingAction();
       this.clearFarmGisHold();
+      if (this.sim.state.basicFishing?.phase === "charging-cast") {
+        this.sim.execute({ type: "fishing.cancel-basic" });
+        this.setGameplayMode(this.sim.state.player.activeBoatId ? "boat-driving" : "on-foot");
+      }
+      this.basicCastHoldLatched = false;
+      this.hudBasicHold = false;
     });
   }
 
@@ -1359,6 +1371,11 @@ export class GameApp {
       return;
     }
     if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
+      if (this.sim.state.basicFishing?.phase === "charging-cast") {
+        this.sim.execute({ type: "fishing.cancel-basic" });
+        this.basicCastHoldLatched = false;
+        this.hudBasicHold = false;
+      }
       return;
     }
     const input = this.inputRouter.getInputState();
@@ -1384,6 +1401,7 @@ export class GameApp {
   private cancelBasicFishingLine(): void {
     if (!this.sim.state.basicFishing) return;
     this.hudBasicHold = false;
+    this.basicCastHoldLatched = false;
     this.sim.execute({ type: "fishing.cancel-basic" });
     this.setToast("Line reeled in", 1600);
   }

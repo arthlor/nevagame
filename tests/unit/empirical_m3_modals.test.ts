@@ -98,6 +98,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     );
 
     expect(emptySell).toContain("Bait Worms");
+    expect(emptySell).not.toContain("Sell all produce");
     expect(emptySell).toContain('data-testid="market-sell-list"');
     expect(emptySell).toContain('data-testid="market-sell-ticket"');
     expect(emptySell).toContain("Sale ticket");

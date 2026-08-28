@@ -160,7 +160,7 @@ describe("QuestDomain & Storyline Progression", () => {
     sim.state.player.x = compostFront!.x;
     sim.state.player.z = compostFront!.z;
     expect(sim.startProcessingJob("recipe.compost_worms", "struct.starter_compost").success).toBe(true);
-    sim.setDebugMinute(sim.state.clock.currentMinute + 180);
+    sim.setDebugMinute(sim.state.clock.currentMinute + 360);
     sim.tick(1);
     const compostJobId = Object.keys(sim.state.processingJobs)[0];
     expect(sim.state.processingJobs[compostJobId]?.status).toBe("complete");

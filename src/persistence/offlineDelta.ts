@@ -9,7 +9,7 @@ import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness"
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
 import { regenerateWorkCapacity } from "../simulation/domains/ProgressionDomain";
-import { expireContracts } from "../simulation/domains/ContractDomain";
+import { expireContracts, refillContracts } from "../simulation/domains/ContractDomain";
 import { expireSpentSchools } from "../simulation/domains/FishingDomain";
 import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
 
@@ -104,6 +104,11 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
 
   const expiredBefore = state.contracts.filter((contract) => contract.status === "expired").length;
   expireContracts(state);
+  refillContracts(state, rng, (prefix) => {
+    const a = rng.intInclusive(1, 0x7fffffff).toString(36);
+    const b = rng.intInclusive(0, 0xffff).toString(36);
+    return `${prefix}_${a}_${b}`;
+  });
   summary.contractsExpiredCount = Math.max(
     0,
     state.contracts.filter((contract) => contract.status === "expired").length - expiredBefore

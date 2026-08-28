@@ -27,6 +27,15 @@ describe("Farmhouse Interior System", () => {
     expect(WorldLayout.isInterior(8, 0)).toBe(false);
   });
 
+  it("keeps the interior pocket on farm region and a flat heightfield", () => {
+    const origin = FARMHOUSE_INTERIOR_ORIGIN;
+    expect(WorldLayout.regionAt(origin.x, origin.z)).toBe("region.farm");
+    const floor = FARMHOUSE_INTERIOR_BOUNDS.floorY;
+    expect(WorldLayout.terrainBaseHeight(origin.x, origin.z)).toBeCloseTo(floor, 5);
+    expect(WorldLayout.terrainBaseHeight(FARMHOUSE_INTERIOR_BOUNDS.maxX, origin.z)).toBeCloseTo(floor, 5);
+    expect(WorldLayout.terrainHeight(origin.x, origin.z)).toBeCloseTo(floor, 5);
+  });
+
   it("places doorway anchors with valid interaction radiuses and safe spawn offsets", () => {
     // Outside door on porch
     expect(FARMHOUSE_OUTSIDE_DOOR.radiusMeters).toBeGreaterThan(1.5);

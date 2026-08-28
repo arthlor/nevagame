@@ -124,7 +124,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
       const qty = slot.quantity ?? 0;
       if (!slot.itemId || qty <= 0) continue;
       const comm = currentMarket.commodities[slot.itemId];
-      if (comm) {
+      if (comm && MarketDomain.isBulkSellProduceItem(slot.itemId)) {
         const unit = calculateCommodityUnitPrice(comm).unitPrice;
         sum += unit * qty;
       }
@@ -152,7 +152,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     for (const slot of playerInv.slots) {
       const qty = slot.quantity ?? 0;
       if (!slot.itemId || qty <= 0) continue;
-      if (currentMarket.commodities[slot.itemId]) {
+      if (currentMarket.commodities[slot.itemId] && MarketDomain.isBulkSellProduceItem(slot.itemId)) {
         onSellItem(activeMarketId, slot.itemId, qty);
       }
     }

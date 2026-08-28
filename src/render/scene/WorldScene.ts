@@ -3376,6 +3376,7 @@ export class WorldScene {
     this.farmVfx.group.removeFromParent();
     this.rainField.dispose();
     this.rainField.group.removeFromParent();
+    this.disposeBatchedMeshes();
     this.water.dispose();
     this.water.mesh.removeFromParent();
     this.shoreFoam.dispose();
@@ -3468,6 +3469,24 @@ export class WorldScene {
     this.lightingRig.sun.shadow.map?.dispose();
     this.lightingRig.moon.shadow.map?.dispose();
     this.renderer.dispose();
+  }
+
+  private disposeBatchedMeshes(): void {
+    const batches = new Set<THREE.BatchedMesh>();
+    for (const instance of this.staticLodBatchInstances) {
+      batches.add(instance.batch);
+    }
+    this.staticLodBatchInstances.length = 0;
+    this.staticPrefabGroup.traverse((object) => {
+      if (object instanceof THREE.BatchedMesh) batches.add(object);
+    });
+    this.playerMesh?.traverse((object) => {
+      if (object instanceof THREE.BatchedMesh) batches.add(object);
+    });
+    for (const batch of batches) {
+      batch.removeFromParent();
+      batch.dispose();
+    }
   }
 }
 

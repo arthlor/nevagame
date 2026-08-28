@@ -19,6 +19,12 @@ export class MarketDomain {
   ] as const;
 
   public static readonly VILLAGE_SUPPLIES = ["item.basic_fertilizer", "item.compost_starter"] as const;
+  public static readonly BULK_SELL_PRODUCE_CATEGORIES = ["produce", "grain"] as const;
+
+  public static isBulkSellProduceItem(itemId: ItemId): boolean {
+    const category = ContentRegistry.items.get(itemId)?.category;
+    return category === "produce" || category === "grain";
+  }
 
   constructor(
     private readonly context: DomainContext,

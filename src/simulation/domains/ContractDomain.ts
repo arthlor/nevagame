@@ -1,12 +1,17 @@
-import type { FishCargoId, GameState, ItemId } from "../core/types";
-import { InventoryManager } from "../inventory/InventoryManager";
+import type { ContractTemplateDefinition } from "../../content/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import type { FishCargoId, FishQuality, GameState, ItemId } from "../core/types";
+import type { SeededRng } from "../core/Rng";
+import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { qualityRank } from "./domainRules";
+
+const MAX_ACTIVE_CONTRACTS = 2;
+const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
 
 export function expireContracts(state: GameState): void {
   for (const contract of state.contracts) {
@@ -32,6 +37,74 @@ function refundAndExpireContract(state: GameState, contract: GameState["contract
   if (item) {
     state.player.money += item.baseValue * quantity;
     contract.quantityFulfilled = 0;
+  }
+}
+
+function contractTargetBaseValue(targetId: string): number | null {
+  const item = ContentRegistry.items.get(targetId);
+  if (item) return item.baseValue;
+  const fish = ContentRegistry.fishSpecies.get(targetId);
+  return fish ? fish.baseMarketValue : null;
+}
+
+function isValidContractTarget(targetId: string): boolean {
+  return ContentRegistry.items.has(targetId) || ContentRegistry.fishSpecies.has(targetId);
+}
+
+function asFishQuality(value: string | undefined): FishQuality | undefined {
+  return value && FISH_QUALITIES.includes(value as FishQuality) ? value as FishQuality : undefined;
+}
+
+function eligibleContractTemplates(state: GameState): ContractTemplateDefinition[] {
+  const activeTemplateIds = new Set(
+    state.contracts.filter((contract) => contract.status === "active").map((contract) => contract.templateId)
+  );
+  return [...ContentRegistry.contractTemplates.values()].filter((template) => {
+    if (activeTemplateIds.has(template.id)) return false;
+    if (state.player.proficiencies[template.rewardSkill] < (template.requiredXp ?? 0)) return false;
+    return template.itemOrSpeciesPool.some(isValidContractTarget);
+  });
+}
+
+export function refillContracts(
+  state: GameState,
+  rng: SeededRng,
+  nextEntityId: (prefix: string) => string
+): void {
+  const activeCount = () => state.contracts.filter((contract) => contract.status === "active").length;
+  while (activeCount() < MAX_ACTIVE_CONTRACTS) {
+    const eligible = eligibleContractTemplates(state);
+    if (eligible.length === 0) return;
+    const template = eligible[rng.intInclusive(0, eligible.length - 1)];
+    const pool = template.itemOrSpeciesPool.filter(isValidContractTarget);
+    if (pool.length === 0) return;
+    const targetId = pool[rng.intInclusive(0, pool.length - 1)];
+    const baseValue = contractTargetBaseValue(targetId);
+    if (baseValue === null) return;
+    const quantityRequired = rng.intInclusive(template.quantityRange[0], template.quantityRange[1]);
+    const rewardMoney = Math.max(1, Math.round(baseValue * quantityRequired * template.rewardBaseMultiplier));
+    const minWeightKg = template.minWeightKgRange
+      ? rng.range(template.minWeightKgRange[0], template.minWeightKgRange[1])
+      : undefined;
+    state.contracts.push({
+      id: nextEntityId("contract"),
+      templateId: template.id,
+      requesterId: template.id,
+      type: template.type,
+      targetItemIdOrSpecies: targetId,
+      quantityRequired,
+      quantityFulfilled: 0,
+      minQuality: asFishQuality(template.minQuality),
+      minFreshness: template.minFreshness,
+      minWeightKg,
+      rewardMoney,
+      rewardSkillXp: {
+        skill: template.rewardSkill,
+        xp: Math.max(50, quantityRequired * 25)
+      },
+      expiresAtMinute: state.clock.currentMinute + template.durationMinutes,
+      status: "active"
+    });
   }
 }
 
@@ -113,6 +186,8 @@ export class ContractDomain {
 
   public tick(): void {
     expireContracts(this.context.state);
+    refillContracts(this.context.state, this.context.rng, this.context.nextEntityId);
+    this.context.persistRng();
   }
 
   private getActive(contractId: string): GameState["contracts"][number] | null {

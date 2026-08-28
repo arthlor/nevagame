@@ -36,6 +36,18 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(deltaWet).toBeGreaterThan(deltaDry);
   });
 
+  it("treats storm like heavy rain for growth and moisture", () => {
+    const stormGrowth = calculateEffectiveGrowthDelta(60, wheat, "temperate", 80, 50, "storm");
+    const rainGrowth = calculateEffectiveGrowthDelta(60, wheat, "temperate", 80, 50, "heavy-rain");
+    const clearGrowth = calculateEffectiveGrowthDelta(60, wheat, "temperate", 80, 50, "clear");
+    expect(stormGrowth).toBeCloseTo(rainGrowth);
+    expect(stormGrowth).toBeGreaterThan(clearGrowth);
+
+    const crop = { moisture: 40, averageMoistureAccum: 0, moistureSampleCount: 0 };
+    applyCropMoistureOverMinutes(crop, 60, wheat.waterNeed, "storm");
+    expect(crop.moisture).toBeGreaterThan(40);
+  });
+
   it("determines correct lifecycle stages", () => {
     expect(determineCropStage(5, 60)).toBe("seeded");
     expect(determineCropStage(15, 60)).toBe("sprout");

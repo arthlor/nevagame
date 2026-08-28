@@ -182,6 +182,17 @@ describe("WorldLayout", () => {
     expect(WorldLayout.isSailable(WORLD_LAYOUT_V5.anchors.harborDock.x, WORLD_LAYOUT_V5.anchors.harborDock.z)).toBe(true);
   });
 
+  it("keeps the cliffside coastal trail on dry walkable ground", () => {
+    const trail = WorldLayout.compiledRouteNetwork().find((route) => route.route.id === "cliffside-coastal-walk");
+    expect(trail).toBeDefined();
+    for (const sample of trail!.samples) {
+      expect(
+        WorldLayout.isWalkable(sample.point.x, sample.point.z),
+        `${sample.point.x.toFixed(1)},${sample.point.z.toFixed(1)}`
+      ).toBe(true);
+    }
+  });
+
   it("keeps terrain geometry and landmarks on the same height owner", () => {
     const farmhouse = WorldLayout.landmark("farmhouse");
     expect(WorldLayout.terrainSurface(-65, -55)).toBe("dry-soil");

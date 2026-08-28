@@ -12,6 +12,7 @@ import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { pickUnlockedStationRecipe } from "../../src/simulation/domains/ProcessingDomain";
+import { MarketDomain } from "../../src/simulation/domains/MarketDomain";
 import type { FishingEncounterState } from "../../src/simulation/core/types";
 
 describe("Core hunt fixes", () => {
@@ -353,6 +354,29 @@ describe("Core hunt fixes", () => {
     sim.state.metadata.lastSavedUtcMs = 0;
     applyOfflineProgression(sim.state, 60_000);
     expect(sim.state.boats["boat.player_skiff"].fuel).toBeLessThan(100);
+  });
+
+  it("does not treat bait, fertilizer, ice, or fuel as bulk produce", () => {
+    expect(MarketDomain.isBulkSellProduceItem("produce.wheat")).toBe(true);
+    expect(MarketDomain.isBulkSellProduceItem("produce.barley")).toBe(true);
+    expect(MarketDomain.isBulkSellProduceItem("item.bait_worms")).toBe(false);
+    expect(MarketDomain.isBulkSellProduceItem("item.basic_fertilizer")).toBe(false);
+    expect(MarketDomain.isBulkSellProduceItem("item.crushed_ice")).toBe(false);
+    expect(MarketDomain.isBulkSellProduceItem("item.chum_bucket")).toBe(false);
+    expect(MarketDomain.isBulkSellProduceItem("item.boat_fuel")).toBe(false);
+  });
+
+  it("spawns lake and coast sport schools in default spring day clear weather", () => {
+    sim.state.world.storySchoolSpawned = true;
+    sim.state.world.activeSchools = {};
+    sim.state.world.lastSchoolSpawnMinute = sim.state.clock.currentMinute - 90;
+    sim.state.weather.type = "clear";
+    expect(sim.state.clock.season).toBe("spring");
+    expect(sim.state.clock.timeOfDay).toBe("day");
+    sim.advanceGameMinutes(1);
+    const habitats = new Set(Object.values(sim.state.world.activeSchools).map((school) => school.habitatId));
+    expect(habitats.has("lake")).toBe(true);
+    expect(habitats.has("coast")).toBe(true);
   });
 });
 
