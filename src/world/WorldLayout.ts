@@ -345,16 +345,27 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     scope: "regional",
     kind: "trail",
     widthMeters: 2.6,
+    // Stay on dry banks: the river mouth between the headland and harbor is not fordable,
+    // so the trail follows the west shore, crosses the stone bridge, then climbs the east bank.
     points: [
       { x: -92, z: 74 },
-      { x: -70, z: 58 },
-      { x: -42, z: 48 },
-      { x: -12, z: 44 },
-      { x: 20, z: 44 },
-      { x: 46, z: 52 },
+      { x: -68, z: 70 },
+      { x: -40, z: 68 },
+      { x: -16, z: 62 },
+      { x: -22, z: 34 },
+      { x: -20, z: 14 },
+      BRIDGE_WEST_APPROACH_START,
+      BRIDGE_WEST_DECK_EDGE,
+      BRIDGE_CENTER,
+      BRIDGE_EAST_DECK_EDGE,
+      BRIDGE_EAST_APPROACH_END,
+      { x: 18, z: 8 },
+      { x: 32, z: 28 },
+      { x: 48, z: 46 },
+      { x: 58, z: 54 },
       HARBOR_MARKET.position
     ],
-    linearSegmentIndices: [4, 5]
+    linearSegmentIndices: [6, 7, 8, 9]
   }
 ] as const;
 
