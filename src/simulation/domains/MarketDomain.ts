@@ -106,7 +106,11 @@ export class MarketDomain {
     if (starterCrop && state.player.proficiencies.farming < starterCrop.minimumFarmingXp) {
       return failure("locked", `Requires ${starterCrop.minimumFarmingXp} Farming XP`);
     }
-    const cost = item.baseValue * quantity;
+    const commodity = state.markets[marketId]?.commodities[itemId];
+    const unitPrice = commodity
+      ? calculateCommodityUnitPrice(commodity).unitPrice
+      : item.baseValue;
+    const cost = unitPrice * quantity;
     if (state.player.money < cost) return failure("insufficient-funds", "Not enough money");
     const inventory = state.inventories[state.player.inventoryId];
     const purchase = [{ itemId, quantity }];
@@ -116,6 +120,9 @@ export class MarketDomain {
 
     InventoryManager.addItemsAtomically(inventory, purchase);
     state.player.money -= cost;
+    if (commodity) {
+      commodity.localSupply = Math.max(1, commodity.localSupply - quantity);
+    }
     events.emit("SeedPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
     return { success: true, cost };
   }

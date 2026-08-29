@@ -351,6 +351,24 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.money).toBe(100);
   });
 
+  it("prices village fertilizer at the live stall rate so buy and sell cannot gold-loop", () => {
+    const sim = new Simulation();
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    const money = sim.state.player.money;
+    const catalog = ContentRegistry.items.get("item.basic_fertilizer")!.baseValue;
+    const buy = sim.buySeedAtMarket("market.village", "item.basic_fertilizer", 1);
+    expect(buy).toMatchObject({ success: true });
+    expect(buy.cost).toBeGreaterThan(catalog);
+    expect(sim.state.player.money).toBe(money - (buy.cost ?? 0));
+    expect(InventoryManager.getItemCount(inventory, "item.basic_fertilizer")).toBe(1);
+
+    const sell = sim.sellItemAtMarket("market.village", "item.basic_fertilizer", 1);
+    expect(sell).toMatchObject({ success: true, revenue: buy.cost });
+    expect(sim.state.player.money).toBe(money);
+  });
+
   it.each([1, 2, 3] as const)("migrates v%i saves to the current schema without changing unrelated truth", (version) => {
     const source = legacyEnvelope(version);
     const rngState = source.state.metadata.rngState;

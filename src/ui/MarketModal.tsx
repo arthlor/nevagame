@@ -294,6 +294,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     const supply = ContentRegistry.items.get(itemId);
                     if (!supply) return null;
                     const owned = InventoryManager.getItemCount(playerInv, supply.id);
+                    const commodity = currentMarket?.commodities[supply.id];
+                    const unitPrice = commodity
+                      ? calculateCommodityUnitPrice(commodity).unitPrice
+                      : supply.baseValue;
                     return (
                       <div className="seed-stall-card" key={supply.id} title={supply.description}>
                         <div className="seed-card-meta">
@@ -308,10 +312,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             size="sm"
                             className="seed-buy-btn"
                             soundCue="coins"
-                            disabled={state.player.money < supply.baseValue}
+                            disabled={state.player.money < unitPrice}
                             onClick={() => onBuySeed(activeMarketId, supply.id, 1)}
                           >
-                            Buy 1 · {supply.baseValue} G
+                            Buy 1 · {unitPrice} G
                           </ChromeButton>
                         </div>
                       </div>
