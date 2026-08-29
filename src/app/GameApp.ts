@@ -1018,13 +1018,12 @@ export class GameApp {
           if (this.farmingActions.isActive) {
             // Cancel only before commit. After commit, Escape still opens pause
             // without rolling the already-applied simulation mutation back.
-            if (this.cancelFarmingAction()) return;
+            if (this.cancelFarmingAction()) {
+              this.cancelChargingCastWithoutPause();
+              return;
+            }
           }
-          if (this.mode === "basic-fishing" && this.sim.state.basicFishing?.phase === "charging-cast") {
-            this.sim.execute({ type: "fishing.cancel-basic" });
-            this.basicCastSource = null;
-            this.restoreGameplayModeFromState();
-          }
+          if (this.cancelChargingCastWithoutPause()) return;
           if (this.mode === "farm-placement") {
             if (this.activeModal) {
               this.modeController.handleEscape();
@@ -1110,11 +1109,7 @@ export class GameApp {
     this.inputRouter.onInterruption(() => {
       this.cancelFarmingAction();
       this.clearFarmGisHold();
-      if (this.basicCastSource && this.sim.state.basicFishing?.phase === "charging-cast") {
-        this.sim.execute({ type: "fishing.cancel-basic" });
-        this.basicCastSource = null;
-        this.restoreGameplayModeFromState();
-      }
+      this.cancelChargingCastWithoutPause();
       this.basicCastSource = null;
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false };
     });
@@ -1533,6 +1528,16 @@ export class GameApp {
         isHolding
       });
     }
+  }
+
+  private cancelChargingCastWithoutPause(): boolean {
+    if (this.mode !== "basic-fishing" || this.sim.state.basicFishing?.phase !== "charging-cast") {
+      return false;
+    }
+    this.sim.execute({ type: "fishing.cancel-basic" });
+    this.basicCastSource = null;
+    this.restoreGameplayModeFromState();
+    return true;
   }
 
   private cancelBasicFishingLine(): void {
