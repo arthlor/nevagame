@@ -99,9 +99,11 @@ export const HUD: React.FC<HUDProps> = ({
     return null;
   }, [weather]);
 
-  const laborCurrent = Math.round(player.workCapacity.current);
+  const laborRaw = player.workCapacity.current;
+  const laborExhausted = laborRaw <= 0;
+  const laborCurrent = laborExhausted ? 0 : Math.max(1, Math.round(laborRaw));
   const laborMaximum = player.workCapacity.maximum;
-  const showLaborNote = laborCurrent < 20;
+  const showLaborNote = laborExhausted || laborCurrent < 20;
 
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDef = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
@@ -243,9 +245,9 @@ export const HUD: React.FC<HUDProps> = ({
           {(showLaborNote || carriedFish) && (
             <aside className="hud-context-statuses interactive" aria-label="Current field notes">
               {showLaborNote && (
-                <div className={`hud-context-note hud-labor-note${laborCurrent === 0 ? " hud-labor-exhausted" : ""}`} role="status">
+                <div className={`hud-context-note hud-labor-note${laborExhausted ? " hud-labor-exhausted" : ""}`} role="status">
                   <IconEnergy size={14} aria-hidden="true" />
-                  <span>{laborCurrent === 0 ? "Exhausted" : "Low Labor"}</span>
+                  <span>{laborExhausted ? "Exhausted" : "Low Labor"}</span>
                   <strong>{`${laborCurrent}/${laborMaximum}`}</strong>
                 </div>
               )}

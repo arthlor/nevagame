@@ -539,7 +539,7 @@ export const CropInspection: React.FC<{
 
       {inspection.work.current <= 0 && (
         <ChromeAlert tone="caution" className="crop-inspection-warning">
-          Labor depleted: reduced experience and rare-drop chance
+          Labor depleted: work is paused until it recovers
         </ChromeAlert>
       )}
     </ChromePanel>
