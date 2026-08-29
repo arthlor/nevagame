@@ -1033,7 +1033,7 @@ export class GameApp {
             this.exitCropPlacement();
             return;
           }
-          if (this.mode === "basic-fishing" && !this.activeModal) {
+          if (this.mode === "basic-fishing" && !this.activeModal && !this.farmingActions.isActive) {
             this.cancelBasicFishingLine();
             return;
           }
