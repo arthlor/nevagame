@@ -1260,6 +1260,7 @@ export class WorldScene {
         if (this.donkeyPresentation.mixer) {
           this.donkeyPresentation.mixer.uncacheRoot(this.donkeyPresentation.root);
         }
+        this.disposeDonkeyShadowPresentation(this.donkeyPresentation.root);
         this.donkeyPresentation = null;
       }
       const faunaIndex = this.faunaPresentations.findIndex((fauna) => fauna.id === placementId);
@@ -2012,6 +2013,13 @@ export class WorldScene {
     const assetId = root.userData.assetId as AssetId | undefined;
     const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
     if (!spec) return;
+    if (assetId === ASSET_IDS.FAUNA_DONKEY_A) {
+      // Catalog family stays "prop" for the mount contract, but the ridden
+      // donkey needs a character-scale sun silhouette instead of small-prop skip.
+      this.setShadowPolicy(root, false);
+      this.attachCharacterShadowProxy(root);
+      return;
+    }
     const isMinorFoliage = assetId === ASSET_IDS.FOLIAGE_BUSH_A || assetId === ASSET_IDS.FOLIAGE_REEDS_A;
     const withinVegetationShadowRange = isWithinVegetationCastRange(
       root.position.x,
@@ -2832,6 +2840,20 @@ export class WorldScene {
     });
   }
 
+  private disposeDonkeyShadowPresentation(root: THREE.Object3D): void {
+    for (const name of ["character_shadow_proxy", "donkey_contact_shadow"]) {
+      const mesh = root.getObjectByName(name);
+      if (!(mesh instanceof THREE.Mesh)) continue;
+      mesh.removeFromParent();
+      mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        for (const material of mesh.material) material.dispose();
+      } else {
+        mesh.material.dispose();
+      }
+    }
+  }
+
   private registerDonkeyPresentation(id: string, placementId: string, root: THREE.Group): void {
     if (this.donkeyPresentation) {
       throw new Error(`[WorldScene] Duplicate donkey presentation for ${id}`);
@@ -2874,6 +2896,16 @@ export class WorldScene {
       transitionUntilSeconds: 0,
       lastAnimationUpdateSeconds: 0
     };
+    if (this.lightingRig.contactShadowsEnabled() && !root.getObjectByName("donkey_contact_shadow")) {
+      const shadowMesh = createContactShadowMesh(
+        CANONICAL_RENDER_CONFIG.contact.playerRadius * 1.55,
+        CANONICAL_RENDER_CONFIG.contact.playerRadius * 0.72,
+        CANONICAL_RENDER_CONFIG.contact.opacity
+      );
+      shadowMesh.name = "donkey_contact_shadow";
+      shadowMesh.position.set(0, 0.02, 0);
+      root.add(shadowMesh);
+    }
   }
 
   private setDonkeyAnimation(donkey: DonkeyPresentation, clipName: DonkeyAnimationClip): void {
@@ -4081,6 +4113,7 @@ export class WorldScene {
   public dispose(): void {
     this.detachPlayerFromDonkey();
     this.donkeyPresentation?.mixer?.stopAllAction();
+    if (this.donkeyPresentation) this.disposeDonkeyShadowPresentation(this.donkeyPresentation.root);
     this.donkeyPresentation = null;
     this.fishingRodBend?.dispose();
     this.fishingRodBend = null;
