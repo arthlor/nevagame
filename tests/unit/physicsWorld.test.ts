@@ -9,6 +9,7 @@ import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import {
   BRIDGE_WORLD_PROFILE,
+  COMPILED_WORLD_ROUTES,
   WORLD_LAYOUT_V5,
   WORLD_REGIONAL_PATHS,
   WorldLayout
@@ -33,7 +34,7 @@ const landmarkCollision = (
 function placePlayer(sim: Simulation, x = 0, z = 0): void {
   Object.assign(sim.state.player, {
     x,
-    y: WorldLayout.terrainHeight(x, z) + 0.5,
+    y: WorldLayout.traversalSurfaceHeight(x, z) + 0.5,
     z
   });
 }
@@ -67,7 +68,7 @@ describe("PhysicsWorld", () => {
       expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
     }
     expect(state.player.z).toBeGreaterThan(startZ + 0.2);
-    expect(state.player.y).toBeGreaterThanOrEqual(WorldLayout.terrainHeight(state.player.x, state.player.z) + 0.49);
+    expect(state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(state.player.x, state.player.z) + 0.5, 5);
   });
 
   it("jumps from grounded Rapier contact, rejects an air jump, and lands cleanly", async () => {
@@ -129,8 +130,8 @@ describe("PhysicsWorld", () => {
     expect(frame.playerMotion.groundNormal.y).toBeGreaterThan(0.7);
     expect(frame.playerMotion.airbornePhase).toBe("grounded");
     expect(sim.state.player.y).toBeCloseTo(
-      WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.5,
-      2
+      WorldLayout.traversalSurfaceHeight(sim.state.player.x, sim.state.player.z) + 0.5,
+      5
     );
   });
 
@@ -517,7 +518,7 @@ describe("PhysicsWorld", () => {
       maxConsecutiveBlockedFrames = Math.max(maxConsecutiveBlockedFrames, consecutiveBlockedFrames);
       reachedBridgeDeck ||= WorldLayout.isBridgeDeck(sim.state.player.x, sim.state.player.z);
       expect(sim.state.player.y).toBeGreaterThanOrEqual(
-        WorldLayout.terrainHeight(sim.state.player.x, sim.state.player.z) + 0.49
+        WorldLayout.traversalSurfaceHeight(sim.state.player.x, sim.state.player.z) + 0.499
       );
       if (
         sim.state.player.x > WORLD_LAYOUT_V5.anchors.bridge.x
@@ -549,6 +550,61 @@ describe("PhysicsWorld", () => {
       WORLD_LAYOUT_V5.anchors.bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
     );
     expect(sim.state.player.traversal.isGrounded).toBe(true);
+  });
+
+  it("keeps exact stable support on every named regional and farm route in both directions", async () => {
+    const physics = await PhysicsWorld.create(
+      landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge")
+    );
+    const sim = new Simulation();
+    let timeSeconds = 0;
+    for (const route of COMPILED_WORLD_ROUTES) {
+      const sample = route.samples[Math.floor(route.samples.length * 0.5)];
+      for (const direction of [-1, 1] as const) {
+        const startX = sample.point.x - sample.tangent.x * direction * 0.2;
+        const startZ = sample.point.z - sample.tangent.z * direction * 0.2;
+        placePlayer(sim, startX, startZ);
+        sim.state.player.activeBoatId = null;
+        sim.state.player.activeMountId = null;
+        sim.state.player.traversal.isGrounded = true;
+        let previousY = sim.state.player.y;
+        for (let frameIndex = 0; frameIndex < 12; frameIndex++) {
+          const result = physics.step(
+            sim.state,
+            {
+              x: sample.tangent.x * direction,
+              z: sample.tangent.z * direction,
+              sprint: false
+            },
+            "on-foot",
+            1 / 60,
+            timeSeconds
+          );
+          timeSeconds += 1 / 60;
+          expect(sim.commitPhysicsFrame(result.frame).success, route.route.id).toBe(true);
+          expect([
+            sim.state.player.x,
+            sim.state.player.y,
+            sim.state.player.z,
+            result.playerMotion.groundNormal.x,
+            result.playerMotion.groundNormal.y,
+            result.playerMotion.groundNormal.z
+          ].every(Number.isFinite), route.route.id).toBe(true);
+          expect(result.playerMotion.isGrounded, route.route.id).toBe(true);
+          expect(Math.hypot(
+            result.playerMotion.groundNormal.x,
+            result.playerMotion.groundNormal.y,
+            result.playerMotion.groundNormal.z
+          ), route.route.id).toBeCloseTo(1, 5);
+          expect(sim.state.player.y, route.route.id).toBeCloseTo(
+            WorldLayout.traversalSurfaceHeight(sim.state.player.x, sim.state.player.z) + 0.5,
+            5
+          );
+          expect(Math.abs(sim.state.player.y - previousY), route.route.id).toBeLessThan(0.4);
+          previousY = sim.state.player.y;
+        }
+      }
+    }
   });
 
   it("steers with speed, reverses correctly, and sweeps the compound hull against docks", async () => {
@@ -703,6 +759,70 @@ describe("PhysicsWorld", () => {
       expect(sim.state.player.x).toBeCloseTo(boat.x, 4);
       expect(sim.state.player.z).toBeCloseTo(boat.z, 4);
     }
+  });
+
+  it("synchronizes the physics body atomically across boat, on-foot, and mount ownership", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    const boat = sim.state.boats["boat.player_rowboat"];
+    sim.state.player.activeBoatId = boat.id;
+    let frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false },
+      "sport-fishing",
+      1 / 60,
+      0
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    expect(sim.state.player.x).toBeCloseTo(boat.x, 5);
+
+    sim.state.player.activeBoatId = null;
+    placePlayer(sim, -120, -100);
+    sim.state.player.traversal.isGrounded = true;
+    frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false },
+      "on-foot",
+      1 / 60,
+      1 / 60
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    expect(sim.state.player.x).toBeCloseTo(-120, 5);
+    expect(sim.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(-120, -100) + 0.5, 5);
+
+    const mount = Object.values(sim.state.mounts)[0];
+    sim.state.player.activeMountId = mount.id;
+    Object.assign(sim.state.player, {
+      x: mount.x,
+      y: WorldLayout.traversalSurfaceHeight(mount.x, mount.z) + 0.5,
+      z: mount.z,
+      rotationY: mount.rotationY
+    });
+    frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false },
+      "mounted",
+      1 / 60,
+      2 / 60
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    expect(sim.state.player.y).toBeCloseTo(
+      WorldLayout.traversalSurfaceHeight(sim.state.player.x, sim.state.player.z) + 0.5,
+      5
+    );
+
+    sim.state.player.activeMountId = null;
+    placePlayer(sim, -118.75, -100);
+    frame = physics.step(
+      sim.state,
+      { x: 0, z: 0, sprint: false },
+      "on-foot",
+      1 / 60,
+      3 / 60
+    );
+    expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    expect(sim.state.player.x).toBeCloseTo(-118.75, 5);
+    expect(frame.playerMotion.isGrounded).toBe(true);
   });
 
   it("cleans up despawned boat bodies and disposes without memory leaks", async () => {

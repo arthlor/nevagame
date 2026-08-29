@@ -68,6 +68,13 @@ describe("semantic input mapping", () => {
     });
   });
 
+  it("keeps basic fishing on Space instead of aliasing every interaction key", () => {
+    expect(deriveSemanticInput(new Set(["Space"]), "basic-fishing").fishing.isReeling).toBe(true);
+    for (const binding of ["KeyE", "KeyC", "KeyW", "Mouse0"]) {
+      expect(deriveSemanticInput(new Set([binding]), "basic-fishing").fishing.isReeling).toBe(false);
+    }
+  });
+
   it("exposes farm GIS as a held Alt intent rather than a toggle", () => {
     expect(deriveSemanticInput(new Set(["AltLeft"]), "on-foot").farmGisHeld).toBe(true);
     expect(deriveSemanticInput(new Set(["AltRight"]), "farm-placement").farmGisHeld).toBe(true);

@@ -14,6 +14,7 @@ import {
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 
 const PRELOAD_ASSET_IDS: readonly AssetId[] = ASSET_CATALOG.map((asset) => asset.id);
+const DEFAULT_PRELOAD_CONCURRENCY = 6;
 
 export interface AssetPreloadProgress {
   assetId: AssetId;
@@ -59,7 +60,9 @@ export class AssetLoader {
   private static loadingPromises: Map<AssetId, Promise<THREE.Group>> = new Map();
 
   private static cloneModel(source: THREE.Group): THREE.Group {
-    const cloned = cloneSkeleton(source) as THREE.Group;
+    const cloned = source.userData.hasSkinnedMeshes
+      ? cloneSkeleton(source) as THREE.Group
+      : source.clone(true);
     cloned.userData.animationClips = source.userData.animationClips;
     cloned.userData.collisionNodes = source.userData.collisionNodes;
     cloned.userData.assetId = source.userData.assetId;
@@ -104,6 +107,7 @@ export class AssetLoader {
           try {
             const root = gltf.scene;
             const collisionNodes: string[] = [];
+            let hasSkinnedMeshes = false;
             root.traverse((child) => {
               if (child.name.startsWith("COL_")) {
                 collisionNodes.push(child.name);
@@ -112,6 +116,7 @@ export class AssetLoader {
               }
               if ((child as THREE.Mesh).isMesh) {
                 const mesh = child as THREE.Mesh;
+                hasSkinnedMeshes ||= (mesh as THREE.SkinnedMesh).isSkinnedMesh === true;
                 mesh.material = Array.isArray(mesh.material)
                   ? mesh.material.map((material) => PaletteMaterials.canonicalizeLoaded(material))
                   : PaletteMaterials.canonicalizeLoaded(mesh.material);
@@ -122,6 +127,7 @@ export class AssetLoader {
             root.userData.animationClips = gltf.animations;
             root.userData.collisionNodes = collisionNodes;
             root.userData.assetId = assetId;
+            root.userData.hasSkinnedMeshes = hasSkinnedMeshes;
             const spec = ASSET_BY_ID.get(assetId);
             if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
             const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];
@@ -157,13 +163,30 @@ export class AssetLoader {
   public static async preloadAll(
     onProgress?: (progress: AssetPreloadProgress) => void
   ): Promise<void> {
-    const total = PRELOAD_ASSET_IDS.length;
+    return this.preload(PRELOAD_ASSET_IDS, onProgress);
+  }
+
+  /** Keeps GLB decode/upload pressure bounded while preserving cache semantics. */
+  public static async preload(
+    assetIds: readonly AssetId[],
+    onProgress?: (progress: AssetPreloadProgress) => void,
+    concurrency = DEFAULT_PRELOAD_CONCURRENCY
+  ): Promise<void> {
+    const uniqueAssetIds = [...new Set(assetIds)];
+    const total = uniqueAssetIds.length;
     let completed = 0;
-    await Promise.all(PRELOAD_ASSET_IDS.map(async (assetId) => {
-      await this.loadCached(assetId);
-      completed += 1;
-      onProgress?.({ assetId, completed, total });
-    }));
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (cursor < total) {
+        const assetId = uniqueAssetIds[cursor];
+        cursor += 1;
+        await this.loadCached(assetId);
+        completed += 1;
+        onProgress?.({ assetId, completed, total });
+      }
+    };
+    const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), total);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
   }
 
   /** Declared `COL_*` proxy names remain available to physics without rendering them. */

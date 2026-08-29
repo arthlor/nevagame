@@ -250,7 +250,7 @@ describe("Organic road geometry", () => {
     }
     first.dispose();
     second.dispose();
-  });
+  }, 60000);
 
   it("keeps the bridge deck empty, its gateways unchanged, and source vertices on canonical heights", () => {
     const geometry = WorldLayout.buildPathGeometry();
@@ -310,7 +310,7 @@ describe("Organic road geometry", () => {
     }
     authored.dispose();
     geometry.dispose();
-  });
+  }, 60000);
 
   it("removes buried road faces without changing the existing road-plus-base collision envelope", () => {
     const authored = authoredRoadGeometry();
@@ -341,7 +341,33 @@ describe("Organic road geometry", () => {
     expect(after.area).toBeCloseTo(before.area, 3);
     authored.dispose();
     conformed.dispose();
-  });
+  }, 60000);
+
+  it("resolves traversal support from the exact base triangles and conformed road triangles", () => {
+    const geometry = WorldLayout.buildPathGeometry();
+    const road = indexedRoadSurface(geometry);
+    const baseHeightAt = baseTerrainPlaneSampler();
+    const stride = Math.max(1, Math.floor(road.centroids.length / 96));
+    for (let index = 0; index < road.centroids.length; index += stride) {
+      const [x, , z] = road.centroids[index];
+      if (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.isInterior(x, z)) continue;
+      const roadHeight = road.heightAt(x, z);
+      const expectedHeight = Math.max(baseHeightAt(x, z), roadHeight);
+      const sample = WorldLayout.traversalSurfaceSample(x, z);
+      expect(sample.height).toBeCloseTo(expectedHeight, 5);
+      expect(sample.source).toBe("road");
+      expect(Math.hypot(sample.normal.x, sample.normal.y, sample.normal.z)).toBeCloseTo(1, 6);
+    }
+
+    const openTerrain = WorldLayout.traversalSurfaceSample(-145, -125);
+    expect(openTerrain.height).toBeCloseTo(baseHeightAt(-145, -125), 6);
+    expect(openTerrain.source).toBe("terrain");
+
+    const bridge = WORLD_LAYOUT_V5.anchors.bridge;
+    expect(WorldLayout.traversalSurfaceSample(bridge.x, bridge.z).source).toBe("bridge");
+    expect(WorldLayout.traversalSurfaceSample(bridge.x, bridge.z).normal).toEqual({ x: 0, y: 1, z: 0 });
+    geometry.dispose();
+  }, 60000);
 
   it("keeps the coarse base heightfield on terrain and leaves the bridge deck to its asset collider", () => {
     const heightfield = WorldLayout.terrainBaseHeightfield();

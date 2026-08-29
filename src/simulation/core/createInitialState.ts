@@ -159,7 +159,10 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     },
     player: {
       x: WORLD_SPAWN.playerPosition.x,
-      y: WorldLayout.terrainHeight(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z) + 0.5,
+      y: WorldLayout.traversalSurfaceHeight(
+        WORLD_SPAWN.playerPosition.x,
+        WORLD_SPAWN.playerPosition.z
+      ) + 0.5,
       z: WORLD_SPAWN.playerPosition.z,
       rotationY: 0,
       currentRegionId: WORLD_SPAWN.regionId,

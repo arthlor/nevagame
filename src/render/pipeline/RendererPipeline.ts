@@ -3,6 +3,20 @@ import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectCom
 import type { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 
+interface GtaoPassRuntimeInternals {
+  output: number;
+  blendIntensity: number;
+  pdRenderTarget: THREE.WebGLRenderTarget;
+  copyMaterial: THREE.ShaderMaterial;
+  blendMaterial: THREE.ShaderMaterial;
+  renderToScreen: boolean;
+  renderPass(
+    renderer: THREE.WebGLRenderer,
+    material: THREE.Material,
+    target: THREE.WebGLRenderTarget | null
+  ): void;
+}
+
 /**
  * The only post-processing path. It lazy-loads GTAO on the high tier and
  * renders directly on lower tiers, keeping expensive contact effects out of
@@ -17,6 +31,12 @@ export class RendererPipeline {
   private width = 1;
   private height = 1;
   private qualityTier: QualityTier;
+  private gtaoRefreshThisFrame = true;
+  private gtaoHasReusableFrame = false;
+  private gtaoFramesSinceRefresh = 0;
+  private readonly lastGtaoCameraPosition = new THREE.Vector3();
+  private readonly lastGtaoCameraQuaternion = new THREE.Quaternion();
+  private hasGtaoCameraSample = false;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -47,6 +67,7 @@ export class RendererPipeline {
       Math.max(1, Math.floor(this.width * aoPixelRatio * CANONICAL_RENDER_CONFIG.gtao.resolutionScale)),
       Math.max(1, Math.floor(this.height * aoPixelRatio * CANONICAL_RENDER_CONFIG.gtao.resolutionScale))
     );
+    this.resetGtaoReuse();
   }
 
   public render(camera: THREE.Camera): void {
@@ -61,6 +82,7 @@ export class RendererPipeline {
       this.renderer.render(this.scene, camera);
       return;
     }
+    this.prepareGtaoFrame(camera);
     this.composer.render();
   }
 
@@ -106,6 +128,24 @@ export class RendererPipeline {
       screenSpaceRadius: false
     });
     gtaoPass.updatePdMaterial({ samples: config.denoiseSamples, radius: 6, rings: 2 });
+    // GTAOPass retains its denoised target but normally rebuilds it every
+    // frame. Reuse that target while still compositing the current diffuse
+    // frame, so motion never freezes when AO refreshes are skipped.
+    const renderFreshGtao = gtaoPass.render.bind(gtaoPass);
+    gtaoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      if (this.gtaoRefreshThisFrame || gtaoPass.output !== 0) {
+        renderFreshGtao(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+        return;
+      }
+      const retained = gtaoPass as unknown as GtaoPassRuntimeInternals;
+      const target = retained.renderToScreen ? null : writeBuffer;
+      retained.copyMaterial.uniforms.tDiffuse.value = readBuffer.texture;
+      retained.copyMaterial.blending = THREE.NoBlending;
+      retained.renderPass(renderer, retained.copyMaterial, target);
+      retained.blendMaterial.uniforms.intensity.value = retained.blendIntensity;
+      retained.blendMaterial.uniforms.tDiffuse.value = retained.pdRenderTarget.texture;
+      retained.renderPass(renderer, retained.blendMaterial, target);
+    };
     composer.addPass(renderPass);
     composer.addPass(gtaoPass);
     composer.addPass(new OutputPass());
@@ -115,11 +155,37 @@ export class RendererPipeline {
     this.resize(this.width, this.height);
   }
 
+  private prepareGtaoFrame(camera: THREE.Camera): void {
+    const moved = !this.hasGtaoCameraSample
+      || camera.position.distanceToSquared(this.lastGtaoCameraPosition) > 0.0004
+      || 1 - Math.abs(camera.quaternion.dot(this.lastGtaoCameraQuaternion)) > 0.000002;
+    const config = CANONICAL_RENDER_CONFIG.gtao;
+    const refreshFrames = moved ? config.movingRefreshFrames : config.settledRefreshFrames;
+    this.gtaoFramesSinceRefresh += 1;
+    this.gtaoRefreshThisFrame = !this.gtaoHasReusableFrame
+      || this.gtaoFramesSinceRefresh >= refreshFrames;
+    if (this.gtaoRefreshThisFrame) {
+      this.gtaoHasReusableFrame = true;
+      this.gtaoFramesSinceRefresh = 0;
+    }
+    this.lastGtaoCameraPosition.copy(camera.position);
+    this.lastGtaoCameraQuaternion.copy(camera.quaternion);
+    this.hasGtaoCameraSample = true;
+  }
+
+  private resetGtaoReuse(): void {
+    this.gtaoRefreshThisFrame = true;
+    this.gtaoHasReusableFrame = false;
+    this.gtaoFramesSinceRefresh = 0;
+    this.hasGtaoCameraSample = false;
+  }
+
   private disposeComposer(): void {
     this.gtaoPass?.dispose();
     this.composer?.dispose();
     this.gtaoPass = null;
     this.composer = null;
     this.activeCamera = null;
+    this.resetGtaoReuse();
   }
 }

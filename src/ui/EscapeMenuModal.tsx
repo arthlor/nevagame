@@ -14,6 +14,8 @@ import {
   IconLedger
 } from "./components/HudIcons";
 import { playUiSound } from "./audio/uiAudio";
+import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
+import type { QualityTier } from "../render/config/VisualRenderConfig";
 
 export interface EscapeMenuModalProps {
   state: GameState;
@@ -27,6 +29,9 @@ export interface EscapeMenuModalProps {
   onOpenLedger: () => void;
   onOpenExpedition: () => void;
   expeditionUnlocked?: boolean;
+  graphicsQuality: GraphicsQualityPreference;
+  effectiveGraphicsQuality: QualityTier;
+  onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
 }
 
 export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
@@ -40,7 +45,10 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   onOpenMap,
   onOpenLedger,
   onOpenExpedition,
-  expeditionUnlocked = false
+  expeditionUnlocked = false,
+  graphicsQuality,
+  effectiveGraphicsQuality,
+  onGraphicsQualityChange
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
@@ -143,12 +151,73 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
             </div>
 
             <div className="pause-audio-column">
+              <GraphicsControls
+                preference={graphicsQuality}
+                effectiveTier={effectiveGraphicsQuality}
+                onChange={onGraphicsQualityChange}
+              />
               <AudioControls />
             </div>
           </div>
         </div>
       </ChromePanel>
     </div>
+  );
+};
+
+const GRAPHICS_QUALITY_CHOICES: ReadonlyArray<{
+  value: GraphicsQualityPreference;
+  label: string;
+  description: string;
+}> = [
+  { value: "auto", label: "Auto", description: "Adapts while you play" },
+  { value: "low", label: "Low", description: "Fastest" },
+  { value: "medium", label: "Medium", description: "Balanced" },
+  { value: "high", label: "High", description: "Richest detail" }
+];
+
+const GraphicsControls: React.FC<{
+  preference: GraphicsQualityPreference;
+  effectiveTier: QualityTier;
+  onChange: (quality: GraphicsQualityPreference) => void;
+}> = ({ preference, effectiveTier, onChange }) => {
+  const effectiveLabel = effectiveTier[0].toUpperCase() + effectiveTier.slice(1);
+  return (
+    <section className="graphics-settings" aria-labelledby="graphics-settings-title">
+      <div className="graphics-settings__heading">
+        <h5 id="graphics-settings-title">Graphics quality</h5>
+        <span className="graphics-settings__active" aria-live="polite">
+          <span aria-hidden="true" /> Active: {effectiveLabel}
+        </span>
+      </div>
+      <p className="graphics-settings__hint">
+        Auto adjusts detail gradually to keep movement smooth.
+      </p>
+      <div className="graphics-quality-options" role="radiogroup" aria-label="Graphics quality">
+        {GRAPHICS_QUALITY_CHOICES.map((choice) => {
+          const selected = preference === choice.value;
+          return (
+            <button
+              key={choice.value}
+              type="button"
+              className={`graphics-quality-option${selected ? " is-selected" : ""}`}
+              role="radio"
+              aria-checked={selected}
+              onClick={() => {
+                if (!selected) {
+                  onChange(choice.value);
+                  playUiSound("click");
+                }
+              }}
+            >
+              <span className="graphics-quality-option__label">{choice.label}</span>
+              <span className="graphics-quality-option__description">{choice.description}</span>
+              {choice.value === "auto" && <span className="graphics-quality-option__mark">Recommended</span>}
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 

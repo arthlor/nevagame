@@ -35,6 +35,8 @@ import { atlasForAction, atlasForCrop, atlasForGrowth } from "./chrome/uiAtlas";
 import { StartScreen } from "./StartScreen";
 import { PlacementEditorHud } from "./PlacementEditorHud";
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
+import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
+import type { QualityTier } from "../render/config/VisualRenderConfig";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -92,10 +94,7 @@ export interface GameUIProps {
     rodDirectionAngle: number;
   }) => void;
   onHookBasicFishingBite?: () => void;
-  onSetBasicFishingInput?: (isHolding: boolean) => void;
-  onReleaseBasicFishingCast?: (power?: number) => void;
   onDismissBasicFishingModal?: () => void;
-  onCancelBasicFishing?: () => void;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
@@ -118,6 +117,9 @@ export interface GameUIProps {
   onStartNewGame?: () => void;
   onStartWithoutSaving?: () => void;
   onRetry?: () => void;
+  graphicsQuality: GraphicsQualityPreference;
+  effectiveGraphicsQuality: QualityTier;
+  onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
   bootReady?: boolean;
   screenFade?: boolean;
   layoutEditor?: {
@@ -161,10 +163,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   fishingEncounter,
   onSetFishingInput,
   onHookBasicFishingBite,
-  onSetBasicFishingInput,
-  onReleaseBasicFishingCast,
   onDismissBasicFishingModal,
-  onCancelBasicFishing,
   onSellItem,
   onBuySeed,
   onBuyItem,
@@ -187,6 +186,9 @@ export const GameUI: React.FC<GameUIProps> = ({
   onStartNewGame = () => {},
   onStartWithoutSaving = onStart,
   onRetry = () => {},
+  graphicsQuality,
+  effectiveGraphicsQuality,
+  onGraphicsQualityChange,
   bootReady = false,
   screenFade = false,
   layoutEditor = null
@@ -268,10 +270,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         <BasicFishingMinigameWidget
           fishingState={state.basicFishing}
           onHookBite={onHookBasicFishingBite}
-          onSetInput={onSetBasicFishingInput}
-          onReleaseCast={onReleaseBasicFishingCast}
           onDismissModal={onDismissBasicFishingModal}
-          onCancel={onCancelBasicFishing}
         />
       )}
 
@@ -415,6 +414,9 @@ export const GameUI: React.FC<GameUIProps> = ({
           onOpenLedger={() => onSetActiveModal("ledger")}
           onOpenExpedition={() => onSetActiveModal("expedition")}
           expeditionUnlocked={plannerUnlocked}
+          graphicsQuality={graphicsQuality}
+          effectiveGraphicsQuality={effectiveGraphicsQuality}
+          onGraphicsQualityChange={onGraphicsQualityChange}
         />
       )}
 
@@ -476,8 +478,9 @@ export const CropInspection: React.FC<{
       as="section"
       className="crop-inspection interactive"
       tone="slate"
-      flourish
-      corners
+      flourish={false}
+      corners={false}
+      rivets={false}
       role="region"
       aria-label={`${inspection.name} crop inspection`}
       tabIndex={0}

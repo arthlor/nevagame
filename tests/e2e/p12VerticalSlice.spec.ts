@@ -262,15 +262,17 @@ async function walkAcrossBridgeToWest(
   const eastEdge = route[bridgeIndex + 1];
   if (!westEdge || !center || !eastEdge) throw new Error("Bridge route corridor is incomplete");
 
-  // Rejoin the centerline at the east deck entry. The bridge's first reverse
-  // step is sensitive to a few centimetres of lateral offset, so resolve the
-  // same near-edge pose a player would use before the sustained crossing.
-  await walkTo(page, { x: eastEdge.x + 0.9, z: center.z }, { tolerance: 0.02, precision: true });
+  // Step onto the east deck before reversing across it. The near deck face has
+  // a narrow collision seam; a near-deck staging point lets the capsule settle
+  // onto the authored surface before sustained westward input begins.
+  const staging = await walkTo(page, { x: eastEdge.x + 1.0, z: center.z }, { tolerance: 0.12, precision: true });
+  console.info(`[p12] reverse bridge staging ${JSON.stringify(staging)}`);
   await holdBridgeAxis(page, westEdge.x - 1, -1);
 }
 
 async function holdBridgeAxis(page: Page, targetX: number, direction: -1 | 1): Promise<void> {
   const initial = await readDiagnostics(page);
+  console.info(`[p12] bridge crossing start ${JSON.stringify(initial)} targetX=${targetX.toFixed(2)}`);
   if (direction * (targetX - initial.x) <= 0) return;
 
   const held = new Set<string>();
@@ -340,9 +342,13 @@ async function walkToStarterWorkbench(page: Page): Promise<void> {
   // before processAtStation resolves the exact working face.
   const localTrailTolerance = 0.35;
   await walkTo(page, { x: -60.8, z: -62.2 }, { tolerance: localTrailTolerance });
-  await walkTo(page, { x: -65, z: -62 }, { tolerance: localTrailTolerance });
-  await walkTo(page, { x: -72.8, z: -62 }, { tolerance: localTrailTolerance });
-  await walkTo(page, { x: -75.4, z: -59.8 }, { tolerance: localTrailTolerance });
+  await walkTo(page, { x: -65, z: -63.2 }, { tolerance: localTrailTolerance });
+  await walkTo(page, { x: -72.8, z: -63.2 }, { tolerance: localTrailTolerance });
+  // Cross the west fence line before turning north. A diagonal approach can
+  // carry the player over the corner post and leave the workbench apron
+  // unreachable even though both axes are individually open.
+  await walkTo(page, { x: -75.4, z: -63.2 }, { tolerance: localTrailTolerance, precision: true });
+  await walkTo(page, { x: -75.4, z: -59.8 }, { tolerance: localTrailTolerance, precision: true });
   // The catalog workbench collider occupies its visual footprint through
   // z=-57.5. Stop on the south apron; processAtStation then resolves the
   // exact working-face contract with its 1.25 m endpoint tolerance.
@@ -369,6 +375,18 @@ async function walkToHarborDock(page: Page): Promise<void> {
   await walkTo(page, { x: 75.5, z: 62.4 }, { tolerance: 0.45 });
   await walkTo(page, { x: 75.5, z: 64.3 }, { tolerance: 0.45 });
   await walkTo(page, HARBOR_DOCK.playerPosition, { tolerance: 1.2 });
+}
+
+async function walkToHarborMarketTradeApproach(page: Page): Promise<void> {
+  // The fish-market anchor is the stall's collision center. Leave the dock
+  // through the south stairs, go around the east/north apron, and stop at the
+  // authored counter-facing trade point instead of walking into the shell.
+  await walkTo(page, { x: 75.5, z: 64.3 }, { tolerance: 0.45 });
+  await walkTo(page, { x: 77.4, z: 62.4 }, { tolerance: 0.45 });
+  await walkTo(page, { x: 82, z: 60 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 82, z: 54 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 76, z: 50 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 64, z: 53 }, { tolerance: 1.2 });
 }
 
 async function walkToMaeveDialogueApproach(page: Page): Promise<void> {
@@ -520,36 +538,6 @@ async function dismissCropInspection(page: Page): Promise<void> {
   }
 }
 
-async function pointAtCropAction(page: Page, target: CropTarget, action: "Water" | "Harvest"): Promise<void> {
-  const bounds = await page.locator("#game-canvas").boundingBox();
-  if (!bounds) throw new Error("Game canvas has no bounding box");
-  const prompt = page.getByTestId("context-prompt");
-  const projected = await page.evaluate((point) => window.__NEVA_DEBUG?.projectWorldPoint(point.x, point.z) ?? null, target);
-  if (!projected?.visible) throw new Error(`Crop target is not visible in the gameplay camera: ${JSON.stringify(target)}`);
-
-  // Seeded crops have a deliberately small silhouette. Probe a compact
-  // real-pointer neighborhood around the target's projected ground center so
-  // the test follows the same visible crop the player is meant to select.
-  const offsets = [-30, -20, -10, 0, 10, 20, 30].flatMap((x) =>
-    [-30, -20, -10, 0, 10, 20, 30].map((y) => [x, y] as const)
-  );
-  for (const [offsetX, offsetY] of offsets) {
-    const x = Math.min(bounds.x + bounds.width - 2, Math.max(bounds.x + 2, projected.x + offsetX));
-    const y = Math.min(bounds.y + bounds.height - 2, Math.max(bounds.y + 2, projected.y + offsetY));
-    await page.mouse.move(x, y);
-    await page.waitForTimeout(45);
-    const text = (await prompt.textContent().catch(() => "")) ?? "";
-    const interaction = (await snapshot(page)).interactionTarget;
-    if (new RegExp(action).test(text) && interaction?.entityId === target.id && interaction.action === action.toLowerCase()) {
-      return;
-    }
-  }
-  throw new Error(
-    `Could not point at the ${action.toLowerCase()} crop action for ${JSON.stringify(target)}; ` +
-    `projected=${JSON.stringify(projected)} prompt=${await prompt.textContent()}`
-  );
-}
-
 async function talkAtCurrentPosition(page: Page, npcId: string, expectedLine?: string): Promise<void> {
   const npcName = NPC_NAMES[npcId] ?? npcId;
   await waitForPrompt(page, new RegExp(`Talk to ${npcName}`));
@@ -613,7 +601,10 @@ async function findValidPlacementPoint(
       y: bounds.y + bounds.height * yRatio
     };
     await page.mouse.move(screen.x, screen.y);
-    await page.waitForTimeout(80);
+    // Debug attributes are published on the same 100 ms UI cadence as the
+    // player-facing placement prompt; wait past that cadence before accepting
+    // a preview so a previous sample cannot be mistaken for this pointer.
+    await page.waitForTimeout(160);
     if (await diagnostics.getAttribute("data-placement-valid") !== "true") continue;
     const world = {
       x: Number(await diagnostics.getAttribute("data-placement-target-x")),
@@ -634,7 +625,37 @@ async function plantThreeWheat(page: Page): Promise<CropTarget[]> {
   for (let index = 0; index < 3; index += 1) {
     await enterWheatPlacement(page);
     const placement = await findValidPlacementPoint(page, targets);
-    await page.mouse.click(placement.screen.x, placement.screen.y);
+    // The placement HUD's authored primary action is left-click. Keep the
+    // pointer on the selected soil point and commit through that real input
+    // edge; the preview has already been held for a rendered frame above.
+    await page.mouse.move(placement.screen.x, placement.screen.y);
+    await page.waitForTimeout(120);
+    console.info(`[p12] plant ${index} input ${JSON.stringify(await page.evaluate((point) => {
+      const diagnostics = document.querySelector<HTMLElement>("[data-testid='diagnostics']");
+      const element = document.elementFromPoint(point.x, point.y);
+      return {
+        point,
+        element: element instanceof HTMLElement ? element.id || element.className : element?.nodeName,
+        mode: diagnostics?.getAttribute("data-mode"),
+        valid: diagnostics?.getAttribute("data-placement-valid"),
+        targetX: diagnostics?.getAttribute("data-placement-target-x"),
+        targetZ: diagnostics?.getAttribute("data-placement-target-z"),
+        crops: diagnostics?.getAttribute("data-crop-count")
+      };
+    }, placement.screen))}`);
+    await page.mouse.down();
+    await page.waitForTimeout(80);
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    console.info(`[p12] plant ${index} after input ${JSON.stringify(await page.evaluate(() => {
+      const diagnostics = document.querySelector<HTMLElement>("[data-testid='diagnostics']");
+      return {
+        mode: diagnostics?.getAttribute("data-mode"),
+        actionX: diagnostics?.getAttribute("data-action-target-x"),
+        crops: diagnostics?.getAttribute("data-crop-count"),
+        valid: diagnostics?.getAttribute("data-placement-valid")
+      };
+    }))}`);
     await expect.poll(async () => {
       const state = await snapshot(page);
       return state.cropIds.find((cropId) => !targets.some((target) => target.id === cropId)) ?? null;
@@ -654,17 +675,9 @@ async function useCrop(
   enterField = false
 ): Promise<void> {
   console.info(`[p12] ${action.toLowerCase()} target ${target.id} (${target.x.toFixed(2)}, ${target.z.toFixed(2)})`);
-  // Crop actions are tool-gated in the live input path: watering can is slot
-  // 3, while the hand tools/hoe slot owns harvest interaction.
+  // Crop actions are tool-gated: watering can is slot 3, while hand tools own
+  // harvest. Use the same contextual E action the player sees in the prompt.
   await page.keyboard.press(action === "Water" ? "Digit3" : "Digit1");
-  // Placement leaves the pointer over the last crop. Clear that presentation
-  // ray before a proximity-based E interaction so a neighboring crop cannot
-  // steal the resolver's pointer rank.
-  const canvasBounds = await page.locator("#game-canvas").boundingBox();
-  if (!canvasBounds) throw new Error("Game canvas has no bounding box");
-  // InputRouter only updates NDC for pointer events whose target is the game
-  // canvas; moving to page coordinates (2, 2) leaves the prior crop selected.
-  await page.mouse.move(canvasBounds.x + 2, canvasBounds.y + 2);
   if (enterField) {
     // The starter field's south fence has one authored pedestrian opening at
     // local x=0. Enter through that gap instead of pressing a crop-facing
@@ -676,10 +689,9 @@ async function useCrop(
   // 2.5 m interaction radius, so the wider travel tolerance can legitimately
   // leave two neighboring crops in range and make the nearer one ambiguous.
   await walkTo(page, target, { tolerance: 0.5 });
-  // The camera can keep another nearby crop centered while this target is in
-  // range. Point at the actionable crop so the live resolver's pointer rank,
-  // rather than the centered inspection hint, selects the intended target.
-  await pointAtCropAction(page, target, action);
+  await waitForPrompt(page, new RegExp(action));
+  await expect.poll(() => snapshot(page).then((state) => state.interactionTarget), { timeout: 2_000 })
+    .toMatchObject({ entityId: target.id, action: action.toLowerCase() });
   await page.keyboard.press("KeyE");
   await waitForActionStartedAndSettled(page);
   // A successful water action opens the live crop inspection drawer as
@@ -742,10 +754,13 @@ async function castAndResolveBasicFishing(page: Page): Promise<void> {
     while (Date.now() - startedAt < 20_000) {
       const fishing = (await snapshot(page)).basicFishing;
       lastFishing = fishing;
-      if (!fishing) return;
+      if (!fishing) {
+        await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "on-foot", { timeout: 3_000 });
+        return;
+      }
       if (fishing.phase === "caught" || fishing.phase === "escaped") {
         await page.keyboard.press("Space");
-        await page.waitForTimeout(100);
+        await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "on-foot", { timeout: 3_000 });
         continue;
       }
       if (fishing.phase === "bite-reaction") {
@@ -797,13 +812,20 @@ async function catchTwoRiverFish(page: Page): Promise<void> {
 async function landSportFishWithKeyboard(page: Page): Promise<void> {
   const held = new Set<string>();
   const startedAt = Date.now();
+  // The authored trout encounter needs roughly 95 real seconds for the
+  // keyboard-equivalent policy to tire the fish. Keep this acceptance window
+  // above that deterministic floor without changing the fishing balance.
+  const maxDurationMs = 120_000;
+  let lastEncounter: NevaDebugSnapshot["sportFishing"] = null;
   try {
-    while (Date.now() - startedAt < 35_000) {
+    while (Date.now() - startedAt < maxDurationMs) {
       const encounter = (await snapshot(page)).sportFishing;
       if (!encounter) {
         expect((await snapshot(page)).cargoCount).toBeGreaterThan(0);
+        await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "boat-driving", { timeout: 3_000 });
         return;
       }
+      lastEncounter = encounter;
       const nextKeys: string[] = [];
       if (encounter.lineTension > 82) nextKeys.push("KeyS");
       else if (encounter.lineTension < 70) nextKeys.push("KeyW");
@@ -816,7 +838,7 @@ async function landSportFishWithKeyboard(page: Page): Promise<void> {
   } finally {
     await releaseHeldKeys(page, held);
   }
-  throw new Error("Sport fish was not landed through real keyboard controls");
+  throw new Error(`Sport fish was not landed through real keyboard controls: ${JSON.stringify(lastEncounter)}`);
 }
 
 async function sellVillageProduce(page: Page): Promise<void> {
@@ -968,6 +990,11 @@ test.describe("P12 Chrome continuous player route", () => {
 
     // The lake route stays on the authored sailable water corridor. School
     // spawning is simulation-owned and is observed after arriving there.
+    // The rowboat starts east of the dock, but the dock deck and pilings fill
+    // the direct line to the first lake waypoint. Leave the mooring northward
+    // and clear the dock's water-side footprint before turning west.
+    await boatTo(page, { x: 82.4, z: 84 }, { tolerance: 1.2 });
+    await boatTo(page, { x: 74, z: 84 }, { tolerance: 1.2 });
     await boatTo(page, { x: 70, z: 76 });
     await boatTo(page, { x: 48, z: 83 });
     await boatTo(page, { x: 28, z: 88 });
@@ -993,7 +1020,7 @@ test.describe("P12 Chrome continuous player route", () => {
     await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "on-foot");
     await capture(page, "08-docked-cargo.png");
 
-    await walkTo(page, HARBOR_MARKET.position, { tolerance: 1.2 });
+    await walkToHarborMarketTradeApproach(page);
     await sellDockedFish(page);
     await talkTo(page, "npc.silas", "Magnificent");
     expect((await snapshot(page)).activeQuestId).toBeNull();

@@ -1416,9 +1416,25 @@
       "collision": "none",
       "instancing": true,
       "lod": "small",
+      "lodLevels": [
+        {
+          "node": "foliage_bush_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_bush_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.12,
+          "triangleRatioMax": 0.45
+        }
+      ],
       "rootNode": "foliage_bush_a_root",
       "requiredNodes": [
-        "foliage_bush_a_root"
+        "foliage_bush_a_root",
+        "foliage_bush_a_LOD0",
+        "foliage_bush_a_LOD1"
       ],
       "readDistanceMeters": 15,
       "parameters": {
@@ -1601,9 +1617,25 @@
       "collision": "none",
       "instancing": true,
       "lod": "small",
+      "lodLevels": [
+        {
+          "node": "foliage_reeds_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_reeds_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.18,
+          "triangleRatioMax": 0.5
+        }
+      ],
       "rootNode": "foliage_reeds_a_root",
       "requiredNodes": [
-        "foliage_reeds_a_root"
+        "foliage_reeds_a_root",
+        "foliage_reeds_a_LOD0",
+        "foliage_reeds_a_LOD1"
       ],
       "readDistanceMeters": 15,
       "parameters": {
@@ -4006,9 +4038,25 @@
       "collision": "none",
       "instancing": true,
       "lod": "small",
+      "lodLevels": [
+        {
+          "node": "rock_field_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "rock_field_a_LOD1",
+          "distanceMeters": 20,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.35
+        }
+      ],
       "rootNode": "rock_field_a_root",
       "requiredNodes": [
-        "rock_field_a_root"
+        "rock_field_a_root",
+        "rock_field_a_LOD0",
+        "rock_field_a_LOD1"
       ],
       "readDistanceMeters": 15,
       "parameters": {
@@ -12390,16 +12438,16 @@
         "height": 2.35
       },
       "palette": [
-        "animal_hide_white_01",
-        "animal_hide_black_01",
+        "stone_cool_01",
         "canvas_cream_01",
+        "animal_hide_black_01",
         "leather_harness_01",
         "accent_teal_01",
-        "accent_ochre_01"
+        "metal_brass_01"
       ],
       "budget": {
         "trianglesMin": 600,
-        "trianglesTarget": 1600,
+        "trianglesTarget": 2000,
         "trianglesMax": 5000,
         "materialsMax": 6
       },

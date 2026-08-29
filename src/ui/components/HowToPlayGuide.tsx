@@ -180,9 +180,10 @@ const ControlsChapter: React.FC = () => (
       <div className="guide-callout-text">
         <h6>Work Capacity (Labor Energy)</h6>
         <p>
-          Actions that earn XP—planting, watering, fertilizing, harvesting, processing, trading, and landing fish—draw
-          from <strong>Labor</strong>. When Labor is empty, play continues with reduced XP and rare-outcome chances;
-          it recovers over time. Sprint stamina is a separate resource.
+          Manual physical actions—planting, watering, fertilizing, harvesting, processing, and fishing—draw
+          from <strong>Labor</strong>. When Labor is empty, physical work is paused until it recovers over time,
+          while traversal, trading, and dialogue continue freely. Higher proficiency ranks reduce your Labor costs.
+          Sprint stamina is a separate traversal resource.
         </p>
       </div>
     </div>
@@ -251,7 +252,7 @@ const FarmingChapter: React.FC = () => (
           <IconWateringCan size={24} aria-hidden="true" />
         </div>
         <h6>Water & Maintain</h6>
-        <p>Water thirsty crops with your Can <KeycapBadge keyName="3" />. Keep moisture in the ideal band to prevent withering.</p>
+        <p>Equip your Can <KeycapBadge keyName="3" />, then press <KeycapBadge keyName="E" /> or left-click a thirsty crop.</p>
       </div>
 
       <div className="guide-step-card">
@@ -260,7 +261,7 @@ const FarmingChapter: React.FC = () => (
           <IconCoin size={24} aria-hidden="true" />
         </div>
         <h6>Harvest & Profit</h6>
-        <p>Harvest mature crops with <KeycapBadge keyName="E" />. Regrowable crops will continue producing periodically!</p>
+        <p>Equip Hand Tools <KeycapBadge keyName="1" />, then press <KeycapBadge keyName="E" /> or left-click a mature crop.</p>
       </div>
     </div>
 

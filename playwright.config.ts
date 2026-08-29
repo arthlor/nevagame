@@ -25,9 +25,8 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      // The current P12 acceptance gate is intentionally Chrome-only. Use the
-      // installed desktop Chrome channel instead of requiring Playwright's
-      // separately downloaded Chromium/Firefox/WebKit bundles.
+      // The current P12 acceptance gate is intentionally Chrome-only and uses
+      // the installed desktop Chrome channel.
       use: { ...devices["Desktop Chrome"], channel: "chrome" }
     }
   ]

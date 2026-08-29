@@ -3,10 +3,18 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ContentRegistry } from "../content/ContentRegistry";
 import type { GameState } from "../simulation/core/types";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
-import { IconCoin } from "./components/HudIcons";
+import {
+  IconCoin,
+  IconSprout,
+  IconFish,
+  IconTools,
+  IconBoat,
+  IconCompass,
+  IconBasket
+} from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForPortrait } from "./chrome/uiAtlas";
+import { atlasForItem, atlasForPortrait } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeKeycap, ChromePanel } from "./chrome/Chrome";
 import { playUiSound } from "./audio/uiAudio";
 
@@ -30,6 +38,21 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function getSkillIcon(skill: string) {
+  switch (skill.toLowerCase()) {
+    case "farming":
+      return <IconSprout size={16} aria-hidden />;
+    case "fishing":
+      return <IconFish size={16} aria-hidden />;
+    case "processing":
+      return <IconTools size={16} aria-hidden />;
+    case "sailing":
+      return <IconBoat size={16} aria-hidden />;
+    default:
+      return <IconSprout size={16} aria-hidden />;
+  }
+}
+
 export const DialogueModal: React.FC<DialogueModalProps> = ({
   npcId,
   onClose,
@@ -46,6 +69,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const initializedNpcRef = useRef<string | null>(null);
   const chimePlayedRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const spaceHoldTimerRef = useRef<number | null>(null);
   useModalAccessibility(dialogRef, onClose);
 
   useEffect(() => {
@@ -75,6 +99,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const isTyping = revealedChars < currentPageText.length;
   const visibleText = currentPageText.slice(0, revealedChars);
 
+  // Typewriter effect with throttled soft audio chatter
   useEffect(() => {
     if (prefersReducedMotion()) {
       setRevealedChars(currentPageText.length);
@@ -82,13 +107,22 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     }
     setRevealedChars(0);
     let shown = 0;
+    let tickCounter = 0;
     const id = window.setInterval(() => {
       shown += 1;
       setRevealedChars(shown);
+      tickCounter += 1;
+      // Soft audio tick every 4 characters on non-whitespace
+      if (tickCounter % 4 === 0 && shown < currentPageText.length) {
+        const char = currentPageText[shown - 1];
+        if (char && char.trim().length > 0) {
+          playUiSound("click");
+        }
+      }
       if (shown >= currentPageText.length) {
         window.clearInterval(id);
       }
-    }, 16);
+    }, 18);
     return () => window.clearInterval(id);
   }, [currentPageText, dialogueIndex]);
 
@@ -101,10 +135,12 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 
   const handleNext = useCallback((playCue = false) => {
     if (isTyping) {
+      // Step 1: Instantly reveal full text
       setRevealedChars(currentPageText.length);
       if (playCue) playUiSound("click");
       return;
     }
+    // Step 2: Advance to next page or finish
     if (isLastPage) {
       if (playCue) playUiSound("confirm");
       onClose();
@@ -115,21 +151,58 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   }, [currentPageText.length, isLastPage, isTyping, onClose]);
 
   const handleSkipTalk = useCallback(() => {
+    playUiSound("confirm");
     onClose();
   }, [onClose]);
 
   const handleNextRef = useRef(handleNext);
   handleNextRef.current = handleNext;
+  const handleSkipTalkRef = useRef(handleSkipTalk);
+  handleSkipTalkRef.current = handleSkipTalk;
+
+  // Keyboard navigation: Space/Enter/E for 2-step reveal & hold-to-skip, Esc for instant skip
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSkipTalkRef.current();
+        return;
+      }
       if (e.key === "Enter" || e.key === " " || e.key === "e" || e.key === "E") {
         e.preventDefault();
         e.stopPropagation();
-        handleNextRef.current(true);
+        if (!e.repeat) {
+          handleNextRef.current(true);
+          if (e.key === " ") {
+            if (spaceHoldTimerRef.current) window.clearTimeout(spaceHoldTimerRef.current);
+            spaceHoldTimerRef.current = window.setTimeout(() => {
+              handleSkipTalkRef.current();
+            }, 350);
+          }
+        }
       }
     };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === " ") {
+        if (spaceHoldTimerRef.current) {
+          window.clearTimeout(spaceHoldTimerRef.current);
+          spaceHoldTimerRef.current = null;
+        }
+      }
+    };
+
     window.addEventListener("keydown", onKeyDown, { capture: true });
-    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+    window.addEventListener("keyup", onKeyUp, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+      window.removeEventListener("keyup", onKeyUp, { capture: true });
+      if (spaceHoldTimerRef.current) {
+        window.clearTimeout(spaceHoldTimerRef.current);
+        spaceHoldTimerRef.current = null;
+      }
+    };
   }, []);
 
   if (!npc) return null;
@@ -169,7 +242,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 
         <div className="dialogue-body" onClick={() => handleNext(true)}>
           <p className={`dialogue-text${isTyping ? " is-typing" : ""}`} data-testid="dialogue-text">
-            "{visibleText}"
+            {visibleText}
           </p>
           {totalPages > 1 && (
             <div className="dialogue-page-dots">
@@ -198,26 +271,54 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             </span>
             <div className="dialogue-rewards-list">
               {completionQuest.rewards.money && (
-                <span className="dialogue-reward-pill money">
-                  <IconCoin size={14} /> +{completionQuest.rewards.money} Coins
+                <span
+                  className="dialogue-reward-pill money dialogue-reward-pill-enter"
+                  style={{ animationDelay: "0ms" }}
+                >
+                  <IconCoin size={16} aria-hidden />
+                  <span className="dialogue-reward-qty">+{completionQuest.rewards.money}</span>
+                  <span className="dialogue-reward-label">Coins</span>
                 </span>
               )}
-              {completionQuest.rewards.items?.map((item) => {
+              {completionQuest.rewards.items?.map((item, idx) => {
                 const itemDef = ContentRegistry.items.get(item.itemId);
+                const sprite = atlasForItem(item.itemId);
                 return (
-                  <span key={item.itemId} className="dialogue-reward-pill item">
-                    +{item.quantity} {itemDef?.name || item.itemId}
+                  <span
+                    key={item.itemId}
+                    className="dialogue-reward-pill item dialogue-reward-pill-enter"
+                    style={{ animationDelay: `${(idx + 1) * 60}ms` }}
+                  >
+                    {sprite ? (
+                      <AtlasImage src={sprite} alt="" size={18} className="dialogue-reward-icon" />
+                    ) : (
+                      <IconBasket size={16} aria-hidden />
+                    )}
+                    <span className="dialogue-reward-qty">+{item.quantity}</span>
+                    <span className="dialogue-reward-label">{itemDef?.name || item.itemId}</span>
                   </span>
                 );
               })}
-              {completionQuest.rewards.skillXp?.map((xp) => (
-                <span key={xp.skill} className="dialogue-reward-pill xp">
-                  +{xp.xp} {xp.skill.toUpperCase()} XP
+              {completionQuest.rewards.skillXp?.map((xp, idx) => (
+                <span
+                  key={xp.skill}
+                  className="dialogue-reward-pill xp dialogue-reward-pill-enter"
+                  style={{ animationDelay: `${(idx + 2) * 60}ms` }}
+                >
+                  {getSkillIcon(xp.skill)}
+                  <span className="dialogue-reward-qty">+{xp.xp}</span>
+                  <span className="dialogue-reward-label">{xp.skill.toUpperCase()} XP</span>
                 </span>
               ))}
               {completionQuest.rewards.unlocksFeature && (
-                <span className="dialogue-reward-pill unlock">
-                  Unlocked: {completionQuest.rewards.unlocksFeature.replace("feature.", "").replace("_", " ")}
+                <span
+                  className="dialogue-reward-pill unlock dialogue-reward-pill-enter"
+                  style={{ animationDelay: "180ms" }}
+                >
+                  <IconCompass size={16} aria-hidden />
+                  <span className="dialogue-reward-label">
+                    Unlocked: {completionQuest.rewards.unlocksFeature.replace("feature.", "").replace("_", " ")}
+                  </span>
                 </span>
               )}
             </div>
@@ -225,29 +326,43 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         )}
 
         <footer className="dialogue-footer">
-          <span className="dialogue-key-hint">
-            <ChromeKeycap keyName="Space" glow={isTyping} /> {isCompletion && isLastPage && !isTyping ? "Complete" : "Continue"}
-            <span className="dialogue-skip-hint"> · Esc skip talk</span>
-          </span>
-          <ChromeButton
-            variant="ghost"
-            className="dialogue-skip-btn"
-            soundCue="click"
-            data-testid="dialogue-skip-talk"
-            onClick={handleSkipTalk}
-          >
-            Skip talk
-          </ChromeButton>
-          <ChromeButton
-            variant="primary"
-            className="dialogue-action-btn"
-            soundCue={isTyping ? "click" : isLastPage ? "confirm" : "page-turn"}
-            onClick={() => handleNext(false)}
-          >
-            {isTyping ? "Show all" : isLastPage ? (isCompletion ? "Complete" : "Continue") : "Next"}
-          </ChromeButton>
+          <div className="dialogue-footer-left">
+            <span className="dialogue-key-hint">
+              <ChromeKeycap keyName="Space" glow={isTyping} />{" "}
+              <span className="dialogue-hint-label">
+                {isCompletion && isLastPage && !isTyping ? "Complete" : "Continue"}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="dialogue-skip-link"
+              onClick={handleSkipTalk}
+              data-testid="dialogue-skip-talk"
+            >
+              <ChromeKeycap keyName="Esc" /> Skip talk
+            </button>
+          </div>
+
+          <div className="dialogue-footer-right">
+            <ChromeButton
+              variant="primary"
+              className={`dialogue-action-btn ${isCompletion && isLastPage && !isTyping ? "is-completion" : ""}`}
+              soundCue={isTyping ? "click" : isLastPage ? "confirm" : "page-turn"}
+              onClick={() => handleNext(false)}
+            >
+              <ChromeKeycap keyName="Space" glow={isTyping} />
+              <span>
+                {isTyping
+                  ? "Show all"
+                  : isLastPage
+                  ? (isCompletion ? "Claim & Finish" : "Complete")
+                  : "Next"}
+              </span>
+            </ChromeButton>
+          </div>
         </footer>
       </ChromePanel>
     </div>
   );
 };
+

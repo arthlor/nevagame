@@ -226,6 +226,8 @@ export interface VisualRenderConfig {
     samples: number;
     denoiseSamples: number;
     resolutionScale: number;
+    movingRefreshFrames: number;
+    settledRefreshFrames: number;
   };
   weather: {
     stormFogNear: number;
@@ -280,6 +282,9 @@ export interface VisualRenderConfig {
     locomotionPlaybackMaximum: number;
     groundingMaxFootOffsetMeters: number;
     groundingMaxTiltRadians: number;
+    groundingBodyTiltScale: number;
+    groundingWalkFootIkScale: number;
+    groundingRunFootIkScale: number;
     groundingResponse: number;
     cameraLookAheadSeconds: number;
     cameraLookAheadMaxMeters: number;
@@ -393,10 +398,12 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     high: {
       shadowMapSize: 2048,
       shadowCameraSize: 28,
-      pixelRatioCap: 2,
+      // High keeps the full material/lighting path while avoiding the steep
+      // fill-rate jump from a native 2x drawing buffer on dense displays.
+      pixelRatioCap: 1.75,
       dynamicContactShadows: false,
       ambientOcclusion: "gtao",
-      postProcessPixelRatioCap: 1.5,
+      postProcessPixelRatioCap: 1.35,
       practicalLightBudget: 4,
       lodDistanceScale: 0.95,
       groundCoverDrawDistanceMeters: 96,
@@ -525,9 +532,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     radius: 0.56,
     thickness: 0.55,
     distanceFallOff: 0.92,
-    samples: 8,
-    denoiseSamples: 6,
-    resolutionScale: 0.68
+    samples: 6,
+    denoiseSamples: 4,
+    resolutionScale: 0.6,
+    movingRefreshFrames: 2,
+    settledRefreshFrames: 4
   },
   weather: {
     stormFogNear: 28,
@@ -582,6 +591,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     locomotionPlaybackMaximum: 1.85,
     groundingMaxFootOffsetMeters: 0.16,
     groundingMaxTiltRadians: THREE.MathUtils.degToRad(14),
+    groundingBodyTiltScale: 0.25,
+    groundingWalkFootIkScale: 0.65,
+    groundingRunFootIkScale: 0.2,
     groundingResponse: 18,
     cameraLookAheadSeconds: 0.18,
     cameraLookAheadMaxMeters: 0.82,

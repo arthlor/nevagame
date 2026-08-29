@@ -13,8 +13,6 @@ export interface ResolvedInteractionTarget extends InteractionTarget {
 export interface InteractionResolutionContext {
   mode: GameMode;
   player: { x: number; y: number; z: number; rotationY: number };
-  pointerEntityId?: string | null;
-  centeredEntityId?: string | null;
   hasLineOfSight?: (
     from: { x: number; y: number; z: number },
     to: { x: number; y: number; z: number }
@@ -23,19 +21,8 @@ export interface InteractionResolutionContext {
 
 interface RankedTarget {
   target: ResolvedInteractionTarget;
-  pointerRank: number;
   facingPenalty: number;
 }
-
-const selectionRank = (
-  target: ResolvedInteractionTarget,
-  pointerEntityId?: string | null,
-  centeredEntityId?: string | null
-): number => {
-  if (target.entityId && target.entityId === pointerEntityId) return 0;
-  if (target.entityId && target.entityId === centeredEntityId) return 1;
-  return 2;
-};
 
 /**
  * Presentation selection only. Simulation commands still revalidate distance,
@@ -64,13 +51,11 @@ export class InteractionTargetResolver {
       }
       ranked.push({
         target,
-        pointerRank: selectionRank(target, context.pointerEntityId, context.centeredEntityId),
         facingPenalty
       });
     }
 
     ranked.sort((a, b) =>
-      a.pointerRank - b.pointerRank ||
       a.target.priority - b.target.priority ||
       a.facingPenalty - b.facingPenalty ||
       a.target.distanceMeters - b.target.distanceMeters ||

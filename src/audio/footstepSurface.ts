@@ -1,8 +1,15 @@
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
 
-export type FootstepSurface = "dirt" | "wood" | "dock" | "grass";
-export type FootstepBankId = "footstep-dirt" | "footstep-wood" | "footstep-dock" | "footstep-grass";
+export type FootstepSurface = "dirt" | "wood" | "dock" | "grass" | "sand" | "water";
+export type FootstepBankId =
+  | "footstep-dirt"
+  | "footstep-wood"
+  | "footstep-dock"
+  | "footstep-grass"
+  | "footstep-sand"
+  | "footstep-water"
+  | "donkey-trot";
 
 const DOCK_RADIUS_PADDING = 1.4;
 const PACKED_ROAD_CORE = 0.86;
@@ -40,6 +47,13 @@ export const footstepSurfaceAt = (x: number, z: number): FootstepSurface => {
   ) {
     return "dock";
   }
+  if (WorldLayout.isWater(x, z)) {
+    return "water";
+  }
+  const terrainSurf = WorldLayout.terrainSurface(x, z);
+  if (terrainSurf === "beach" || terrainSurf === "wet-shoreline") {
+    return "sand";
+  }
   const road = WorldLayout.roadSurfaceSample(x, z);
   if (road.normalizedCoreDistance < PACKED_ROAD_CORE) {
     return "dirt";
@@ -47,9 +61,12 @@ export const footstepSurfaceAt = (x: number, z: number): FootstepSurface => {
   return "grass";
 };
 
-export const footstepBankForSurface = (surface: FootstepSurface): FootstepBankId => {
+export const footstepBankForSurface = (surface: FootstepSurface, isMounted = false): FootstepBankId => {
+  if (isMounted) return "donkey-trot";
   if (surface === "wood") return "footstep-wood";
   if (surface === "dock") return "footstep-dock";
+  if (surface === "sand") return "footstep-sand";
+  if (surface === "water") return "footstep-water";
   if (surface === "grass") return "footstep-grass";
   return "footstep-dirt";
 };

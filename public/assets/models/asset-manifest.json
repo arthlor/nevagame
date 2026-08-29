@@ -1,29 +1,29 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-28T21:32:11.288Z",
-  "specHash": "268ce863cc0623c332acc882e36c75d805778728bae244cf550160baa56b528e",
+  "generatedAt": "2026-08-29T16:14:47.449Z",
+  "specHash": "1dc34a8c07d48586fa4e1beadf4688532f3e3c6942524610fb5c1174e98fe4c7",
   "paletteHash": "6a10a3bd88fb1360d5d98d1fd4405cefaa9f6fe81a07d631f111328cc291d111",
-  "toolchainHash": "cebe07dba088603f0d830c5a531f9dc00692d186413da07f8b45207e2f787104",
+  "toolchainHash": "147d5dc145a769ec60c66b0e50a7ae8cb8a10936c0b76bf9e84f1c8181ba5984",
   "blenderVersion": "Blender 5.2.0 LTS",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 5198,
-  "aggregateBytes": 21198456,
+  "durationMs": 265,
+  "aggregateBytes": 21282444,
   "summary": {
     "assetCount": 189,
     "referenceReady": 66,
     "referenceDraft": 0,
     "onTarget": 158,
     "belowTarget": 31,
-    "triangles": 596576,
-    "packagedTriangles": 677462,
+    "triangles": 597348,
+    "packagedTriangles": 678094,
     "productionMinimumTriangles": 153940,
-    "qualityTargetTriangles": 518884,
+    "qualityTargetTriangles": 519284,
     "hardMaximumTriangles": 1020420,
-    "fileSizeBytes": 21198456,
-    "trianglePrimitives": 743,
-    "nodes": 3407,
-    "cacheHits": 0,
-    "cacheMisses": 189,
+    "fileSizeBytes": 21282444,
+    "trianglePrimitives": 786,
+    "nodes": 3396,
+    "cacheHits": 1,
+    "cacheMisses": 188,
     "artContractPassed": true
   },
   "assets": [
@@ -2133,9 +2133,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 914,
-      "inputHash": "9898ba4450d17e1caa690801a5510b2ef0671bbb00842645c945262edffc6f49",
-      "cacheHit": false,
+      "durationMs": 2,
+      "inputHash": "a8e3b3a6faf9be9681c77ea5774ee4287607e5d9f86198e77c04679e550eaa1a",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 12000,
@@ -2179,9 +2179,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 1110056,
-      "fileHash": "1c4de2b0ca91f1c9b232663ab2ab5ffe5e7c07f1415de3dc66413512f74c3ac8",
-      "semanticHash": "3b05b8af9f1955531f777319c09b941a0218cbf09bc36767740cab80361463e4",
+      "bytes": 1109032,
+      "fileHash": "f527c575c02fbf98debbdfc7b67a1aed6c27195cb4999a62a7a060bae54607b1",
+      "semanticHash": "cee39bf5273834cce93afa790a7163e51b1fb6d32e21faaf5835ad688ef46e5c",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -4520,31 +4520,31 @@
       "generator": "fauna_donkey",
       "seed": 839,
       "dimensions": [
-        1.0994425415992737,
-        2.832063913345337,
-        2.321930170059204
+        0.7400000095367432,
+        2.4191079139709473,
+        2.1207814924418926
       ],
       "bounds": {
         "min": [
-          -0.5594425201416016,
-          -1.566999912261963,
-          0
+          -0.3700000047683716,
+          -1.3897713422775269,
+          0.0024999864399433136
         ],
         "max": [
-          0.5400000214576721,
-          1.265064001083374,
-          2.321930170059204
+          0.3700000047683716,
+          1.0293365716934204,
+          2.123281478881836
         ]
       },
       "paletteTokensUsed": [
-        "accent_ochre_01",
         "accent_teal_01",
         "animal_hide_black_01",
-        "animal_hide_white_01",
         "canvas_cream_01",
-        "leather_harness_01"
+        "leather_harness_01",
+        "metal_brass_01",
+        "stone_cool_01"
       ],
-      "vertexColorLoops": 6396,
+      "vertexColorLoops": 5950,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "fauna_donkey_a_root",
@@ -4568,12 +4568,12 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 128,
-      "inputHash": "218e7a0380714ae5028e57a56d33b867a2b0e525590dfc2f53287bb9d606ec19",
+      "durationMs": 329,
+      "inputHash": "95f8cd6f60563222cfda02d8cbc0445b72ad46385f50030f1f0e873c92c6b342",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 600,
-        "trianglesTarget": 1600,
+        "trianglesTarget": 2000,
         "trianglesMax": 5000,
         "materialsMax": 6
       },
@@ -4586,37 +4586,37 @@
         "reviewViews": 8
       },
       "warnings": [],
-      "nodes": 123,
-      "meshes": 46,
-      "triangles": 1612,
-      "packagedTriangles": 2720,
+      "nodes": 145,
+      "meshes": 85,
+      "triangles": 2384,
+      "packagedTriangles": 2824,
       "lodLevels": [
         {
           "node": "fauna_donkey_a_LOD0",
           "distanceMeters": 0,
-          "triangles": 1612,
+          "triangles": 2384,
           "ratio": 1
         },
         {
           "node": "fauna_donkey_a_LOD1",
           "distanceMeters": 18,
-          "triangles": 1108,
-          "ratio": 0.6873449131513648
+          "triangles": 440,
+          "ratio": 0.18456375838926176
         }
       ],
       "materials": 6,
-      "trianglePrimitives": 46,
-      "vertexColorPrimitives": 46,
-      "normalPrimitives": 46,
+      "trianglePrimitives": 85,
+      "vertexColorPrimitives": 85,
+      "normalPrimitives": 85,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 121448,
-      "fileHash": "6f8c54712e104b7ae7a495a8a881cb9b05c71174cb767893f7eeffba848658be",
-      "semanticHash": "ec7811ad3b2b07729fc013e53880915c9b73182757b4c274c5e539e64d4bb8d1",
+      "bytes": 182624,
+      "fileHash": "6f92e3984dd530e7951c17d2c699d72257d5d49967097ef019047055426d4fed",
+      "semanticHash": "8551610c4f91d33794d63d04be825e6b25ca03c622e92d630ed3361ea7c19ac0",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -5285,20 +5285,20 @@
       "generator": "bush",
       "seed": 91,
       "dimensions": [
-        1.7121400237083435,
-        1.7146605253219604,
-        1.0449101030826569
+        1.7549075484275818,
+        1.838015079498291,
+        1.082861602306366
       ],
       "bounds": {
         "min": [
-          -0.9411048889160156,
-          -1.021647572517395,
-          -0.03594043850898743
+          -0.9256211519241333,
+          -1.0270801782608032,
+          -0.06618374586105347
         ],
         "max": [
-          0.7710351347923279,
-          0.6930129528045654,
-          1.0089696645736694
+          0.8292863965034485,
+          0.8109349012374878,
+          1.0166778564453125
         ]
       },
       "paletteTokensUsed": [
@@ -5306,16 +5306,18 @@
         "foliage_sage_01",
         "foliage_shadow_01"
       ],
-      "vertexColorLoops": 1728,
+      "vertexColorLoops": 2142,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "foliage_bush_a_root"
+        "foliage_bush_a_root",
+        "foliage_bush_a_LOD0",
+        "foliage_bush_a_LOD1"
       ],
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 1,
-      "inputHash": "dcf34b45d3d8202a591ba3a768eb9c0ea7a4c0c4a2a7c634d03abf705e19ead6",
+      "durationMs": 69,
+      "inputHash": "a28f8997ca5d1cb55fa8baafbdfff1b486157dc6a420d6a90be4dfbd3ecc8233",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 120,
@@ -5332,24 +5334,37 @@
         "reviewViews": 7
       },
       "warnings": [],
-      "nodes": 19,
-      "meshes": 4,
+      "nodes": 9,
+      "meshes": 6,
       "triangles": 588,
-      "packagedTriangles": 588,
-      "lodLevels": [],
+      "packagedTriangles": 732,
+      "lodLevels": [
+        {
+          "node": "foliage_bush_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 588,
+          "ratio": 1
+        },
+        {
+          "node": "foliage_bush_a_LOD1",
+          "distanceMeters": 18,
+          "triangles": 144,
+          "ratio": 0.24489795918367346
+        }
+      ],
       "materials": 3,
-      "trianglePrimitives": 4,
-      "vertexColorPrimitives": 4,
-      "normalPrimitives": 4,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 35200,
-      "fileHash": "4a2d465507bda0974bac934e4c536dc7a1fd8f80e8117fb96e599b4f9287fe28",
-      "semanticHash": "55c1c4e4a5da788bb4fc7459e97697d30432671ed17904a103e6506e8ab62d98",
+      "bytes": 43824,
+      "fileHash": "0b2a57b86f9024b615edc936dc5844ea5521608e8b6b6feee4c4a763bdd3ed24",
+      "semanticHash": "1616914a2a9d824ab118f5f9c8d696d15589fe31a47f539161d13b4a8889b479",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -6286,19 +6301,19 @@
       "generator": "reeds",
       "seed": 101,
       "dimensions": [
-        0.8402458429336548,
-        0.6344539225101471,
-        1.5380455255508423
+        0.8013089597225189,
+        0.6543300747871399,
+        1.5382135510444641
       ],
       "bounds": {
         "min": [
-          -0.45948532223701477,
-          -0.3700787127017975,
-          -0.001039743423461914
+          -0.4475264847278595,
+          -0.34330427646636963,
+          -0.0012077689170837402
         ],
         "max": [
-          0.38076052069664,
-          0.2643752098083496,
+          0.3537824749946594,
+          0.31102579832077026,
           1.5370057821273804
         ]
       },
@@ -6306,16 +6321,18 @@
         "foliage_olive_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 834,
+      "vertexColorLoops": 1212,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "foliage_reeds_a_root"
+        "foliage_reeds_a_root",
+        "foliage_reeds_a_LOD0",
+        "foliage_reeds_a_LOD1"
       ],
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 21,
-      "inputHash": "3b98f229d1169d5c5a50ff2482d70954b43dca99347e95ea2948f6a097849140",
+      "durationMs": 61,
+      "inputHash": "9218591d688f074e0e88ff6e2af4d4c2b652bfca57595d2d4c76a56ef542460a",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 90,
@@ -6324,24 +6341,37 @@
         "materialsMax": 3
       },
       "warnings": [],
-      "nodes": 29,
-      "meshes": 3,
+      "nodes": 7,
+      "meshes": 4,
       "triangles": 444,
-      "packagedTriangles": 444,
-      "lodLevels": [],
+      "packagedTriangles": 636,
+      "lodLevels": [
+        {
+          "node": "foliage_reeds_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 444,
+          "ratio": 1
+        },
+        {
+          "node": "foliage_reeds_a_LOD1",
+          "distanceMeters": 16,
+          "triangles": 192,
+          "ratio": 0.43243243243243246
+        }
+      ],
       "materials": 2,
-      "trianglePrimitives": 3,
-      "vertexColorPrimitives": 3,
-      "normalPrimitives": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 19728,
-      "fileHash": "88e632b807eb26f1657f0cdf69295d41b0ec032d442b53e194fc1c1c322f0d1e",
-      "semanticHash": "95ca57aa40114bafe60fd378b8f94dfb2326fce2181b277dd456f3e1d5cbfe8d",
+      "bytes": 24448,
+      "fileHash": "0a956b258f2d16401148a84e089d547f1ac85e023293d48e7e0285cd09d74597",
+      "semanticHash": "42dc21a748f7f1654bd0725dec8a01d0ed5ca391cabb3ba8b6a90b3a7e670459",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -13157,36 +13187,38 @@
       "generator": "faceted_rock",
       "seed": 12,
       "dimensions": [
-        2.111199736595154,
-        1.9282499551773071,
-        1.3503684997558594
+        2.155639171600342,
+        1.9323533773422241,
+        1.3808988332748413
       ],
       "bounds": {
         "min": [
-          -1.0360877513885498,
+          -1.0593687295913696,
           -0.9630346894264221,
           0
         ],
         "max": [
-          1.075111985206604,
-          0.965215265750885,
-          1.3503684997558594
+          1.0962704420089722,
+          0.969318687915802,
+          1.3808988332748413
         ]
       },
       "paletteTokensUsed": [
         "stone_golden_01",
         "stone_warm_01"
       ],
-      "vertexColorLoops": 2934,
+      "vertexColorLoops": 3510,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "rock_field_a_root"
+        "rock_field_a_root",
+        "rock_field_a_LOD0",
+        "rock_field_a_LOD1"
       ],
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 19,
-      "inputHash": "75e825cbb25a99fddd82de78183697e858d16953b428dc8c52cb0d4f2c6489ef",
+      "durationMs": 73,
+      "inputHash": "d26bddbd5c1b39da1dec4e2a5191f0276bad63bd89021b59db37974ffb5e3e5b",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 100,
@@ -13195,24 +13227,37 @@
         "materialsMax": 2
       },
       "warnings": [],
-      "nodes": 7,
-      "meshes": 2,
+      "nodes": 6,
+      "meshes": 3,
       "triangles": 984,
-      "packagedTriangles": 984,
-      "lodLevels": [],
+      "packagedTriangles": 1176,
+      "lodLevels": [
+        {
+          "node": "rock_field_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 984,
+          "ratio": 1
+        },
+        {
+          "node": "rock_field_a_LOD1",
+          "distanceMeters": 20,
+          "triangles": 192,
+          "ratio": 0.1951219512195122
+        }
+      ],
       "materials": 1,
-      "trianglePrimitives": 2,
-      "vertexColorPrimitives": 2,
-      "normalPrimitives": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 46988,
-      "fileHash": "e85c5f951531b57775b3bb14b653473091271e16b6b03eb240e76b3435a50c99",
-      "semanticHash": "579efe9beb4257088811adb309843cfaacbdaab24830721f07ae08da6db0f416",
+      "bytes": 57480,
+      "fileHash": "275d123914db5208529f0a52c41bd4a7b39e566cd92865e671b5abcc34df3b3e",
+      "semanticHash": "e75f3d9cd9d511e9bad6df5500ab970fa282f23188bb065cae6e708613c42e9d",
       "qualityStatus": "on_target",
       "animationClips": []
     },

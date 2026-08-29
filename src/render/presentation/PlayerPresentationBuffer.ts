@@ -15,6 +15,7 @@ export type PresentationDiscontinuityReason =
   | "load"
   | "recovery"
   | "boarding"
+  | "dismounting"
   | "docking";
 
 export interface PresentationPushOptions {

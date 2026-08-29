@@ -159,7 +159,10 @@ export class AudioManager {
     this.playOneShot(variants[cursor % variants.length], position);
   }
 
+  private currentMusicCue: AudioCueId = "theme";
+
   setWorldContext(bedId: AudioBedId, weatherId: string): void {
+    const bedChanged = bedId !== this.bedId;
     this.bedId = bedId;
     const weatherChanged = weatherId !== this.weatherId;
     this.weatherId = weatherId;
@@ -172,6 +175,9 @@ export class AudioManager {
     }
     if (this.ambienceRequested) {
       this.syncBeds();
+    }
+    if (bedChanged) {
+      this.syncMusic();
     }
   }
 
@@ -194,14 +200,28 @@ export class AudioManager {
   startAmbience(): void {
     this.ambienceRequested = true;
     this.syncBeds();
+    this.syncMusic();
   }
 
-  /** Loop the project theme on the music bus; survives bed/weather swaps. */
+  /** Loop the active region theme on the music bus; crossfades dynamically. */
   private startTheme(): void {
-    if (!hasCue("theme")) {
+    this.syncMusic();
+  }
+
+  private syncMusic(): void {
+    if (!this.context || this.context.state !== "running" || document.visibilityState === "hidden") {
       return;
     }
-    void this.startLoopCue("theme");
+    const targetCue: AudioCueId = "theme";
+    if (this.currentMusicCue !== targetCue) {
+      this.stopLoopCue(this.currentMusicCue);
+      this.currentMusicCue = targetCue;
+      if (hasCue(this.currentMusicCue)) {
+        void this.startLoopCue(this.currentMusicCue);
+      }
+    } else if (hasCue(this.currentMusicCue) && !this.loops.has(this.currentMusicCue)) {
+      void this.startLoopCue(this.currentMusicCue);
+    }
   }
 
   stopAmbience(): void {
@@ -534,7 +554,7 @@ export class AudioManager {
       source.loopStart = Math.max(0, cue.offset);
       source.loopEnd = Math.min(buffer.duration, cue.offset + cue.duration);
       setAudioParamNow(gain.gain, 0, context.currentTime, 0);
-      const fadeSeconds = this.actionLoops.has(cueId) ? 0.12 : isMusic ? 2.6 : 1.2;
+      const fadeSeconds = this.actionLoops.has(cueId) ? 0.12 : isMusic ? 3.2 : 1.2;
       gain.gain.linearRampToValueAtTime(cue.gain, context.currentTime + fadeSeconds);
       source.connect(gain);
       if (panner) {
@@ -574,9 +594,10 @@ export class AudioManager {
     this.loops.delete(cueId);
     try {
       const now = this.context.currentTime;
+      const fadeSeconds = cues[cueId]?.bus === "music" ? 2.6 : 0.35;
       voice.gain.gain.cancelScheduledValues(now);
-      voice.gain.gain.linearRampToValueAtTime(0, now + 0.35);
-      voice.source.stop(now + 0.4);
+      voice.gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+      voice.source.stop(now + fadeSeconds + 0.05);
     } catch {
       // A source may have already ended while the page was hidden.
     }

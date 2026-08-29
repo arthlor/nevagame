@@ -72,7 +72,7 @@ async function enterWheatPlacement(page: Page): Promise<void> {
   await page.keyboard.press("KeyI");
   const inventory = page.locator(".modal-content");
   await expect(inventory).toContainText("Guild Satchel");
-  await inventory.locator(".inventory-slot", { hasText: "Wheat Seeds" }).first().click();
+  await inventory.locator("[aria-label^='Wheat Seeds, count']").click();
   await page.getByRole("button", { name: "Plant Wheat" }).click();
 }
 
@@ -126,7 +126,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     });
   });
 
-  test("view-aligned movement never rotates the mouse camera, with zoom, overlays, and resize cross-browser", async ({ page, browserName }) => {
+  test("view-aligned movement never rotates the mouse camera, with zoom, overlays, and resize", async ({ page, browserName }) => {
     test.setTimeout(120_000);
     const diagnostics = await loadScenario(page, "farm");
     const canvas = page.locator("#game-canvas");
@@ -451,7 +451,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
   });
 
   test("player and camera stay outside authored farmhouse collision", async ({ page, browserName }) => {
-    test.skip(browserName !== "chromium", "Deep collision flow is covered once; control smoke runs in every engine");
+    test.skip(browserName !== "chromium", "Deep collision flow is covered once in the Chrome project");
     const diagnostics = await loadScenario(page, "farmhouse-south");
     const start = await readPosition(diagnostics);
     await hold(page, "KeyA", 2400);
@@ -490,8 +490,8 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     expect(Math.hypot(cameraX - cameraPlayer.x, cameraZ - cameraPlayer.z)).toBeGreaterThan(0.5);
   });
 
-  test("E and LMB share the harbor target, and boat input returns cleanly to on-foot mode", async ({ page, browserName }) => {
-    test.skip(browserName !== "chromium", "Deep boat flow is covered once; control smoke runs in every engine");
+  test("E owns harbor interaction while LMB remains a direct tool action", async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium", "Deep boat flow is covered once in the Chrome project");
     const prompt = page.locator(".interaction-wood-banner");
     let diagnostics = await loadScenario(page, "harbor");
     await expect(prompt).toContainText("Board Wooden Rowboat");
@@ -516,6 +516,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await expect(prompt).toContainText("Board Wooden Rowboat");
     const clickPoint = await canvasPoint(page, 0.52, 0.46);
     await page.mouse.click(clickPoint.x, clickPoint.y);
+    await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
+    await expect(diagnostics).toHaveAttribute("data-active-boat", "none");
+    await page.keyboard.press("KeyE");
     await expect(diagnostics).toHaveAttribute("data-mode", "boat-driving");
     await page.waitForTimeout(350);
     await page.keyboard.press("KeyE");
@@ -542,7 +545,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
 
   test("mouse crop placement previews, cancels before commit, and commits exactly once after resize", async ({ page, browserName }) => {
     test.setTimeout(90_000);
-    test.skip(browserName !== "chromium", "Deep placement flow is covered once; resize smoke runs in every engine");
+    test.skip(browserName !== "chromium", "Deep placement flow is covered once in the Chrome project");
     const diagnostics = await loadScenario(page, "farm", { debugActionTimeScale: 10 });
     await page.setViewportSize({ width: 1180, height: 760 });
 
@@ -636,7 +639,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
   });
 
   test("sport fishing supports held keyboard and mouse controls without camera-orbit conflict", async ({ page, browserName }) => {
-    test.skip(browserName !== "chromium", "Deep fishing flow is covered once; control smoke runs in every engine");
+    test.skip(browserName !== "chromium", "Deep fishing flow is covered once in the Chrome project");
     const diagnostics = await loadScenario(page, "sport-fishing");
     await expect(diagnostics).toHaveAttribute("data-mode", "sport-fishing");
     await expect(page.getByRole("region", { name: "Fishing encounter" })).toBeVisible();

@@ -201,24 +201,30 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
   });
 
-  it("reduces sport-fish rare quality when Work Capacity is empty", () => {
-    const makeHook = (workCapacity: number): string => {
-      const state = structuredClone(sim.state);
-      state.worldSeed = 0;
-      state.metadata.rngState = undefined;
-      const candidate = new Simulation(state);
-      candidate.state.player.workCapacity.current = workCapacity;
-      const inventory = candidate.state.inventories[candidate.state.player.inventoryId];
-      InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
-      const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
-      const schoolId = candidate.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
-      candidate.state.player.x = lake.x;
-      candidate.state.player.z = lake.z;
-      expect(candidate.chumFishSchool(schoolId).success).toBe(true);
-      return candidate.hookSportFish(schoolId).encounter!.fish.quality;
-    };
+  it("blocks hooking sport-fish when Work Capacity is empty and allows it when Labor is available", () => {
+    const state = structuredClone(sim.state);
+    state.worldSeed = 0;
+    state.metadata.rngState = undefined;
+    const candidate = new Simulation(state);
+    candidate.state.player.workCapacity.current = 0;
+    const inventory = candidate.state.inventories[candidate.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = candidate.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    candidate.state.player.x = lake.x;
+    candidate.state.player.z = lake.z;
+    expect(candidate.chumFishSchool(schoolId).success).toBe(true);
 
-    expect(makeHook(1000)).toBe("trophy");
-    expect(makeHook(0)).toBe("common");
+    // Empty Labor blocks hooking
+    const emptyResult = candidate.hookSportFish(schoolId);
+    expect(emptyResult.success).toBe(false);
+    expect(emptyResult.reasonCode).toBe("no-labor");
+
+    // With Labor, hook succeeds
+    candidate.state.player.workCapacity.current = 1000;
+    const validResult = candidate.hookSportFish(schoolId);
+    expect(validResult.success).toBe(true);
+    expect(validResult.encounter!.fish.quality).toBe("trophy");
+    expect(candidate.state.player.workCapacity.current).toBe(960);
   });
 });

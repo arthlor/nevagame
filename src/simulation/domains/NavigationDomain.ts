@@ -20,6 +20,7 @@ import {
   isPlayerAtMountPose,
   mountPoseFromPlayer,
   playerPoseFromMount,
+  resolveMountDismountPose,
   MOUNT_TUNING,
   STARTER_DONKEY_ID,
   STARTER_DONKEY_TYPE_ID
@@ -218,7 +219,10 @@ export class NavigationDomain {
     }
     Object.assign(state.player, {
       x: WORLD_SPAWN.playerPosition.x,
-      y: WorldLayout.terrainHeight(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z) + 0.5,
+      y: WorldLayout.traversalSurfaceHeight(
+        WORLD_SPAWN.playerPosition.x,
+        WORLD_SPAWN.playerPosition.z
+      ) + 0.5,
       z: WORLD_SPAWN.playerPosition.z,
       rotationY: 0,
       currentRegionId: WORLD_SPAWN.regionId,
@@ -308,7 +312,8 @@ export class NavigationDomain {
     return state.player.traversal.isGrounded === true &&
       isPlayerAtMountPose(state.player, mount, 0.24) &&
       isValidPlayerMountGround(state.player) &&
-      isValidMountPose(pose);
+      isValidMountPose(pose) &&
+      resolveMountDismountPose(state.player) !== null;
   }
 
   public dismountMount(): { success: boolean; reason?: string } {
@@ -319,15 +324,20 @@ export class NavigationDomain {
       return { success: false, reason: "You are not riding the donkey" };
     }
     const pose = { ...mount, ...mountPoseFromPlayer(state.player) };
+    const dismountPose = resolveMountDismountPose(state.player);
     if (state.player.traversal.isGrounded !== true ||
       !isPlayerAtMountPose(state.player, mount, 0.24) ||
       !isValidPlayerMountGround(state.player) ||
-      !isValidMountPose(pose)) {
+      !isValidMountPose(pose) ||
+      !dismountPose) {
       return { success: false, reason: "There is no safe ground to dismount here" };
     }
     Object.assign(mount, mountPoseFromPlayer(state.player));
-    state.player.activeMountId = null;
-    state.player.traversal = { ...state.player.traversal, isGrounded: true };
+    Object.assign(state.player, dismountPose, {
+      activeMountId: null,
+      traversal: { ...state.player.traversal, isGrounded: true }
+    });
+    this.refreshPlayerRegion();
     events.emit("MountDisembarked", { mountId, minute: state.clock.currentMinute });
     return { success: true };
   }
@@ -359,9 +369,10 @@ export class NavigationDomain {
     state.player.activeBoatId = null;
     Object.assign(state.player, {
       x: mooring.playerPosition.x,
-      y: WorldLayout.isPierDeck(mooring.playerPosition.x, mooring.playerPosition.z)
-        ? WorldLayout.pierDeckSurfaceY() + 0.5
-        : WorldLayout.terrainHeight(mooring.playerPosition.x, mooring.playerPosition.z) + 0.5,
+      y: WorldLayout.traversalSurfaceHeight(
+        mooring.playerPosition.x,
+        mooring.playerPosition.z
+      ) + 0.5,
       z: mooring.playerPosition.z,
       traversal: { ...state.player.traversal, isGrounded: true }
     });

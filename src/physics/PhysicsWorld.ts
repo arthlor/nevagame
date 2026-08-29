@@ -19,7 +19,6 @@ import {
 } from "../simulation/navigation/PlayerTraversal";
 import type { StaticCollisionProxy } from "./StaticCollision";
 import { collisionPrimitivesForAsset } from "./CollisionCatalogAdapter";
-import { FARMHOUSE_INTERIOR_BOUNDS } from "../world/FarmhouseInterior";
 import {
   TERRAIN_RESOLUTION,
   TERRAIN_SIZE_METERS,
@@ -116,6 +115,39 @@ function moveToward(current: number, target: number, maximumDelta: number): numb
   return current + Math.sign(target - current) * maximumDelta;
 }
 
+/**
+ * The donkey's capsule reaches the next bridge box before its center does.
+ * Sample the leading edge on the authored bridge profile so Rapier receives
+ * the small upward step before that edge can catch the capsule.
+ */
+function mountedTraversalSurfaceHeightForMove(
+  currentX: number,
+  currentZ: number,
+  moveX: number,
+  moveZ: number
+): number {
+  const targetX = currentX + moveX;
+  const targetZ = currentZ + moveZ;
+  const targetHeight = WorldLayout.traversalSurfaceSample(targetX, targetZ).height;
+  const moveLength = Math.hypot(moveX, moveZ);
+  if (moveLength <= 0.000001) return targetHeight;
+
+  const leadingEdgeDistance = MOUNT_CAPSULE_RADIUS_METERS + CHARACTER_CONTROLLER_OFFSET_METERS;
+  const leadingX = targetX + (moveX / moveLength) * leadingEdgeDistance;
+  const leadingZ = targetZ + (moveZ / moveLength) * leadingEdgeDistance;
+  const bridgeSurfaceAhead =
+    WorldLayout.isBridgeDeck(targetX, targetZ) ||
+    WorldLayout.isBridgeApproach(targetX, targetZ) ||
+    WorldLayout.isBridgeDeck(leadingX, leadingZ) ||
+    WorldLayout.isBridgeApproach(leadingX, leadingZ);
+  if (!bridgeSurfaceAhead) return targetHeight;
+
+  return Math.max(
+    targetHeight,
+    WorldLayout.traversalSurfaceSample(leadingX, leadingZ).height
+  );
+}
+
 function groundEvidenceAt(
   x: number,
   z: number
@@ -123,15 +155,15 @@ function groundEvidenceAt(
   normal: { x: number; y: number; z: number };
   surface: PhysicsContactSurface;
 } {
-  if (WorldLayout.isInterior(x, z)) {
-    return { normal: { x: 0, y: 1, z: 0 }, surface: "interior-floor" };
+  const sample = WorldLayout.traversalSurfaceSample(x, z);
+  if (sample.source === "interior") {
+    return { normal: sample.normal, surface: "interior-floor" };
   }
-  if (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z) || WorldLayout.isPierDeck(x, z)) {
-    return { normal: { x: 0, y: 1, z: 0 }, surface: "bridge-deck" };
+  if (sample.source === "bridge" || sample.source === "pier") {
+    return { normal: sample.normal, surface: "bridge-deck" };
   }
-  const normal = WorldLayout.terrainNormal(x, z);
   return {
-    normal: { x: normal.x, y: normal.y, z: normal.z },
+    normal: sample.normal,
     surface: WorldLayout.terrainSurface(x, z)
   };
 }
@@ -226,6 +258,8 @@ export class PhysicsWorld implements PhysicsAdapter {
   private playerGrounded = true;
   private playerGroundNormal = { x: 0, y: 1, z: 0 };
   private playerContactSurface: PhysicsContactSurface = "unknown";
+  private lastResolvedPlayerPose: ResolvedPhysicsFrame["player"] | null = null;
+  private lastPlayerAttachmentKey: string | null = null;
   private jumpBufferRemainingSeconds = 0;
   private coyoteTimeRemainingSeconds: number = PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds;
   private readonly staticPropBodies: RAPIER.RigidBody[] = [];
@@ -516,43 +550,54 @@ export class PhysicsWorld implements PhysicsAdapter {
     return { x, z };
   }
 
+  private playerAttachmentKey(state: Readonly<GameState>): string {
+    if (state.player.activeBoatId) return `boat:${state.player.activeBoatId}`;
+    if (state.player.activeMountId) return `mount:${state.player.activeMountId}`;
+    return "on-foot";
+  }
+
+  private shouldSynchronizePlayerBody(
+    state: Readonly<GameState>,
+    attachmentKey: string
+  ): boolean {
+    const previous = this.lastResolvedPlayerPose;
+    if (!previous || this.lastPlayerAttachmentKey !== attachmentKey) return true;
+    const player = state.player;
+    return (
+      Math.hypot(player.x - previous.x, player.y - previous.y, player.z - previous.z) > 0.0005 ||
+      Math.abs(normalizeAngle(player.rotationY - previous.rotationY)) > 0.0005 ||
+      player.traversal.isGrounded !== previous.traversal.isGrounded
+    );
+  }
+
   private resolvePlayer(
     state: Readonly<GameState>,
     input: PhysicsIntent,
-    dt: number
+    dt: number,
+    synchronizeBody: boolean
   ): { player: ResolvedPhysicsFrame["player"]; motion: PlayerMotionSample } {
     const safeDt = Number.isFinite(dt) && dt > 0 ? Math.min(0.2, dt) : 1 / 60;
     const player = state.player;
     const isMounted = player.activeMountId !== null;
     this.ensurePlayerColliderProfile(isMounted);
-    const isInterior = !isMounted && WorldLayout.isInterior(player.x, player.z);
-    const groundHeight = isInterior
-      ? FARMHOUSE_INTERIOR_BOUNDS.floorY - PLAYER_POSE_GROUND_OFFSET_METERS
-      : WorldLayout.traversalSurfaceHeight(player.x, player.z);
+    const groundHeight = WorldLayout.traversalSurfaceSample(player.x, player.z).height;
     const footAnchorY = isMounted
       ? groundHeight + MOUNT_TUNING.playerPoseGroundOffsetMeters
-      : Math.max(player.y, groundHeight + PLAYER_POSE_GROUND_OFFSET_METERS);
+      : player.traversal.isGrounded
+        ? groundHeight + PLAYER_POSE_GROUND_OFFSET_METERS
+        : player.y;
     const expectedCenter = {
       x: player.x,
       y: footAnchorY + (isMounted ? MOUNT_COLLIDER_CENTER_FROM_POSE_METERS : PLAYER_COLLIDER_CENTER_FROM_POSE_METERS),
       z: player.z
     };
-    const bodyPosition = this.playerBody.translation();
-    if (
-      Math.hypot(
-        bodyPosition.x - expectedCenter.x,
-        bodyPosition.y - expectedCenter.y,
-        bodyPosition.z - expectedCenter.z
-      ) > 0.08
-    ) {
+    if (synchronizeBody) {
       this.playerBody.setTranslation(expectedCenter, true);
       this.playerVelocityX = 0;
       this.playerVelocityZ = 0;
       this.playerVerticalVelocity = 0;
       this.playerRotationY = player.rotationY;
-      this.playerGrounded = isMounted ||
-        player.traversal.isGrounded === true ||
-        Math.abs(footAnchorY - (groundHeight + PLAYER_POSE_GROUND_OFFSET_METERS)) <= 0.08;
+      this.playerGrounded = isMounted || player.traversal.isGrounded === true;
       this.jumpBufferRemainingSeconds = 0;
       this.coyoteTimeRemainingSeconds = this.playerGrounded
         ? PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds
@@ -653,8 +698,15 @@ export class PhysicsWorld implements PhysicsAdapter {
       );
     }
     const verticalVelocityBeforeCollision = this.playerVerticalVelocity;
+    const mountedTargetSurfaceY = isMounted
+      ? mountedTraversalSurfaceHeightForMove(current.x, current.z, moveX, moveZ)
+      : 0;
+    const mountedCenterSurfaceY = isMounted
+      ? WorldLayout.traversalSurfaceSample(current.x + moveX, current.z + moveZ).height
+      : 0;
+    const mountedLeadRaisesSurface = isMounted && mountedTargetSurfaceY > mountedCenterSurfaceY + 0.0001;
     const mountedTargetCenterY = isMounted
-      ? WorldLayout.traversalSurfaceHeight(current.x + moveX, current.z + moveZ)
+      ? mountedTargetSurfaceY
         + MOUNT_TUNING.playerPoseGroundOffsetMeters
         + MOUNT_COLLIDER_CENTER_FROM_POSE_METERS
       : 0;
@@ -681,25 +733,11 @@ export class PhysicsWorld implements PhysicsAdapter {
       movement.z *= scale;
     }
     let hitBlockingSurface = false;
-    let collisionGroundNormal: { x: number; y: number; z: number } | null = null;
     for (let index = 0; index < this.controller.numComputedCollisions(); index++) {
       const collision = this.controller.computedCollision(index);
       if (!collision) continue;
       if (Math.abs(collision.normal1.y) < 0.65) {
         hitBlockingSurface = true;
-      }
-      if (
-        collision.normal1.y > 0.55 &&
-        (!collisionGroundNormal || collision.normal1.y > collisionGroundNormal.y)
-      ) {
-        const length = Math.hypot(collision.normal1.x, collision.normal1.y, collision.normal1.z);
-        if (length > 0.0001) {
-          collisionGroundNormal = {
-            x: collision.normal1.x / length,
-            y: collision.normal1.y / length,
-            z: collision.normal1.z / length
-          };
-        }
       }
     }
 
@@ -708,7 +746,23 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.playerVerticalVelocity = 0;
     }
 
-    this.playerGrounded = isMounted ? true : this.controller.computedGrounded();
+    const resolvedSupport = !isMounted
+      ? WorldLayout.traversalSurfaceSample(current.x + movement.x, current.z + movement.z).height
+      : mountedCenterSurfaceY;
+    const resolvedFootFromBody = current.y + movement.y - (
+      isMounted ? MOUNT_COLLIDER_CENTER_FROM_POSE_METERS : PLAYER_COLLIDER_CENTER_FROM_POSE_METERS
+    );
+    const supportGap = resolvedFootFromBody - (
+      resolvedSupport + (isMounted
+        ? MOUNT_TUNING.playerPoseGroundOffsetMeters
+        : PLAYER_POSE_GROUND_OFFSET_METERS)
+    );
+    this.playerGrounded = isMounted || this.controller.computedGrounded() || (
+      !jumpStarted &&
+      this.playerVerticalVelocity <= 0 &&
+      supportGap >= -0.08 &&
+      supportGap <= PLAYER_GROUND_SNAP_METERS + CHARACTER_CONTROLLER_OFFSET_METERS
+    );
     const landed = !isMounted && !wasGrounded && this.playerGrounded && verticalVelocityBeforeCollision < -0.5;
     const landingSpeed = landed ? Math.max(0, -verticalVelocityBeforeCollision) : 0;
     if (isMounted) {
@@ -765,19 +819,12 @@ export class PhysicsWorld implements PhysicsAdapter {
       resolvedVelocityZ = 0;
     }
 
-    const isResolvedInterior = !isMounted && WorldLayout.isInterior(resolved.x, resolved.z);
-    const groundY = isResolvedInterior
-      ? FARMHOUSE_INTERIOR_BOUNDS.floorY - PLAYER_POSE_GROUND_OFFSET_METERS
-      : WorldLayout.traversalSurfaceHeight(resolved.x, resolved.z);
+    const groundY = WorldLayout.traversalSurfaceSample(resolved.x, resolved.z).height;
 
     if (this.playerGrounded) {
       const evidence = groundEvidenceAt(resolved.x, resolved.z);
       this.playerContactSurface = evidence.surface;
-      const terrainContact =
-        evidence.surface !== "bridge-deck" && evidence.surface !== "interior-floor";
-      this.playerGroundNormal = terrainContact
-        ? evidence.normal
-        : collisionGroundNormal ?? evidence.normal;
+      this.playerGroundNormal = evidence.normal;
     }
     const resolvedVerticalVelocity = isMounted ? 0 : movement.y / safeDt;
     const airbornePhase = isMounted || this.playerGrounded
@@ -810,13 +857,12 @@ export class PhysicsWorld implements PhysicsAdapter {
       x: resolved.x,
       // Rapier keeps a small collision skin; the canonical/visual foot anchor remains on the terrain or floor.
       y: isMounted
-        ? groundY + MOUNT_TUNING.playerPoseGroundOffsetMeters
-        : isResolvedInterior
-        ? FARMHOUSE_INTERIOR_BOUNDS.floorY + PLAYER_POSE_GROUND_OFFSET_METERS
-        : Math.max(
-            groundY + PLAYER_POSE_GROUND_OFFSET_METERS,
-            resolved.y - PLAYER_COLLIDER_CENTER_FROM_POSE_METERS - CHARACTER_CONTROLLER_OFFSET_METERS
-          ),
+        ? (mountedLeadRaisesSurface
+          ? Math.max(groundY, mountedTargetSurfaceY) + MOUNT_TUNING.playerPoseGroundOffsetMeters
+          : groundY + MOUNT_TUNING.playerPoseGroundOffsetMeters)
+        : this.playerGrounded
+          ? groundY + PLAYER_POSE_GROUND_OFFSET_METERS
+          : resolved.y - PLAYER_COLLIDER_CENTER_FROM_POSE_METERS,
       z: resolved.z,
       rotationY: this.playerRotationY,
       traversal: {
@@ -1340,6 +1386,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       requestedGait: "idle"
     };
 
+    const attachmentKey = this.playerAttachmentKey(state);
     if (state.player.activeBoatId && boats[state.player.activeBoatId]) {
       // Player is aboard the boat across all modes (driving, fishing, menu, modal, paused)
       const activeBoat = boats[state.player.activeBoatId];
@@ -1381,12 +1428,22 @@ export class PhysicsWorld implements PhysicsAdapter {
       (mode === "on-foot" || mode === "farm-placement") ||
       (mode === "mounted" && state.player.activeMountId !== null)
     ) {
-      const resolvedPlayer = this.resolvePlayer(state, input, dt);
+      const resolvedPlayer = this.resolvePlayer(
+        state,
+        input,
+        dt,
+        this.shouldSynchronizePlayerBody(state, attachmentKey)
+      );
       player = resolvedPlayer.player;
       playerMotion = resolvedPlayer.motion;
     }
 
     this.world.step();
+    this.lastResolvedPlayerPose = {
+      ...player,
+      traversal: { ...player.traversal }
+    };
+    this.lastPlayerAttachmentKey = attachmentKey;
     return { frame: { player, boats }, playerMotion, boatMotion };
   }
 }

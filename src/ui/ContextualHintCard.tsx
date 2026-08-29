@@ -2,7 +2,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { IconCompass } from "./components/HudIcons";
 import { ChromeClose, ChromePanel } from "./chrome/Chrome";
-import { playUiSound } from "./audio/uiAudio";
 
 export interface ContextualHintCardProps {
   hintId: string;
@@ -28,7 +27,6 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
 
   useEffect(() => {
     setVisible(true);
-    playUiSound("open");
     // GameApp renders once per frame, so the callback must not be a timer dependency.
     const timer = window.setTimeout(() => {
       setVisible(false);

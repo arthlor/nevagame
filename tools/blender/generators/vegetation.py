@@ -350,9 +350,10 @@ def apple_tree(spec: dict, root) -> None:
     _build_tree_lods(spec, root, _apple_tree, reduce)
 
 
-def bush(spec: dict, root) -> None:
+def _bush(spec: dict, root) -> None:
     params = spec["parameters"]
     rng = seeded_rng(spec["seed"])
+    lod_index = spec.get("_lodIndex", 0)
     leaves, shadow, flower = spec["palette"]
     crown_phase = rng.uniform(-0.24, 0.24)
     for index in range(params["clusters"]):
@@ -362,7 +363,7 @@ def bush(spec: dict, root) -> None:
             f"bush_cluster_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.75, 0.43 + 0.11 * (index % 2) + rng.uniform(-0.025, 0.025)),
             (0.62 + rng.uniform(-0.08, 0.08), 0.52 * rng.uniform(0.94, 1.06), 0.47 * rng.uniform(0.94, 1.05)),
-            shadow if index == 0 else leaves, root, subdivisions=2,
+            shadow if index == 0 else leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), angle),
         )
     for index in range(params["flowerCount"]):
@@ -383,9 +384,19 @@ def bush(spec: dict, root) -> None:
         )
 
 
-def reeds(spec: dict, root) -> None:
+def bush(spec: dict, root) -> None:
+    def reduce(parameters: dict) -> None:
+        parameters["clusters"] = max(3, round(parameters["clusters"] * 0.60))
+        parameters["flowerCount"] = max(3, round(parameters["flowerCount"] * 0.45))
+        parameters["leafTips"] = max(3, round(parameters["leafTips"] * 0.50))
+
+    _build_tree_lods(spec, root, _bush, reduce)
+
+
+def _reeds(spec: dict, root) -> None:
     params = spec["parameters"]
     rng = seeded_rng(spec["seed"])
+    lod_index = spec.get("_lodIndex", 0)
     stalk_token, tip_token = spec["palette"]
     count = params["stalks"]
     clump_phase = rng.uniform(-0.24, 0.24)
@@ -397,10 +408,13 @@ def reeds(spec: dict, root) -> None:
         lean = rng.uniform(0.035, 0.105)
         lean_angle = angle + rng.uniform(-0.46, 0.46)
         lean_x, lean_y = math.cos(lean_angle) * lean, math.sin(lean_angle) * lean
-        add_beam(f"reed_stalk_{index:02d}", (x, y, 0), (x + lean_x, y + lean_y, height), 0.018, stalk_token, root, vertices=5)
+        add_beam(
+            f"reed_stalk_{index:02d}", (x, y, 0), (x + lean_x, y + lean_y, height),
+            0.018, stalk_token, root, vertices=4 if lod_index else 5,
+        )
         add_cylinder(
             f"reed_tip_{index:02d}", (x + lean_x, y + lean_y, height - 0.09),
-            0.035, 0.22, tip_token, root, vertices=6,
+            0.035, 0.22, tip_token, root, vertices=5 if lod_index else 6,
         )
     for index in range(params["bladeCount"]):
         angle = index * math.tau / params["bladeCount"] + rng.uniform(-0.18, 0.18)
@@ -411,6 +425,14 @@ def reeds(spec: dict, root) -> None:
             (0.09, 0.04, params["height"] * (0.48 + 0.06 * (index % 3))),
             stalk_token, root, rotation=(rng.uniform(-0.24, 0.24), 0, angle),
         )
+
+
+def reeds(spec: dict, root) -> None:
+    def reduce(parameters: dict) -> None:
+        parameters["stalks"] = max(6, round(parameters["stalks"] * 0.55))
+        parameters["bladeCount"] = max(3, round(parameters["bladeCount"] * 0.50))
+
+    _build_tree_lods(spec, root, _reeds, reduce)
 
 
 def kelp_clump(spec: dict, root) -> None:

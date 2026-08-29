@@ -321,6 +321,7 @@ export class HumanoidAnimator {
   private groundRoll = 0;
   private leftFootOffsetY = 0;
   private rightFootOffsetY = 0;
+  private groundingFootIkScale = 1;
 
   public constructor(root: THREE.Object3D) {
     this.mixer = new THREE.AnimationMixer(root);
@@ -530,6 +531,8 @@ export class HumanoidAnimator {
     this.updateGrounding(dt, context, reducedMotion);
     this.applyLocomotionIk(context, reducedMotion);
     this.applySecondarySprings(dt, context, reducedMotion);
+    const bodyGroundPitch = this.groundPitch * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
+    const bodyGroundRoll = this.groundRoll * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
 
     const rodLean = (context.fishingInput?.rodDirectionAngle ?? 0) * 0.1;
     const fishingLean = -Math.min(1, context.fishingInput?.loadRatio ?? 0) * 0.09;
@@ -537,10 +540,10 @@ export class HumanoidAnimator {
     if (proceduralFrame) {
       return {
         ...proceduralFrame,
-        leanZ: rodLean,
-        leanX: fishingLean,
-        groundPitch: this.groundPitch,
-        groundRoll: this.groundRoll,
+        leanZ: proceduralFrame.leanZ + rodLean,
+        leanX: proceduralFrame.leanX + fishingLean,
+        groundPitch: bodyGroundPitch,
+        groundRoll: bodyGroundRoll,
         leftFootOffsetY: this.leftFootOffsetY,
         rightFootOffsetY: this.rightFootOffsetY
       };
@@ -550,8 +553,8 @@ export class HumanoidAnimator {
       bobY: reducedMotion ? 0 : this.additiveBob(context),
       leanX: (reducedMotion ? 0 : this.additiveLeanX(context)) + fishingLean,
       leanZ: reducedMotion ? 0 : this.additiveLeanZ(context) + rodLean,
-      groundPitch: this.groundPitch,
-      groundRoll: this.groundRoll,
+      groundPitch: bodyGroundPitch,
+      groundRoll: bodyGroundRoll,
       leftFootOffsetY: this.leftFootOffsetY,
       rightFootOffsetY: this.rightFootOffsetY,
       clip: this.displayClip(),
@@ -919,6 +922,15 @@ export class HumanoidAnimator {
     let desiredRoll = 0;
     let desiredLeftFoot = 0;
     let desiredRightFoot = 0;
+    this.groundingFootIkScale = this.activeBaseClip === "run" ||
+      this.activeBaseClip === "run_start" ||
+      this.activeBaseClip === "carry_run"
+      ? CANONICAL_RENDER_CONFIG.motion.groundingRunFootIkScale
+      : this.activeBaseClip === "walk" ||
+        this.activeBaseClip === "walk_start" ||
+        this.activeBaseClip === "carry_walk"
+        ? CANONICAL_RENDER_CONFIG.motion.groundingWalkFootIkScale
+        : 1;
     if (canGround) {
       const yaw = context.facingRadians ?? 0;
       const normal = context.motion.groundNormal;
@@ -948,6 +960,8 @@ export class HumanoidAnimator {
         -maxFootOffset,
         maxFootOffset
       );
+      desiredLeftFoot *= this.groundingFootIkScale;
+      desiredRightFoot *= this.groundingFootIkScale;
     }
     if (reducedMotion) {
       desiredPitch = 0;
@@ -965,8 +979,8 @@ export class HumanoidAnimator {
   private applyFootGrounding(): void {
     const left = this.rigParts.get("boot_left");
     const right = this.rigParts.get("boot_right");
-    if (left) left.object.position.y += this.leftFootOffsetY;
-    if (right) right.object.position.y += this.rightFootOffsetY;
+    if (left) left.object.position.y = left.position.y + this.leftFootOffsetY;
+    if (right) right.object.position.y = right.position.y + this.rightFootOffsetY;
   }
 
   private applyLocomotionIk(
@@ -988,6 +1002,7 @@ export class HumanoidAnimator {
 
   private applyTwoBoneFootIk(): void {
     const maxBend = CANONICAL_RENDER_CONFIG.motion.footIkMaxBendRadians;
+    const groundPitch = this.groundPitch * this.groundingFootIkScale;
     for (const side of ["left", "right"] as const) {
       const thigh = this.rigParts.get(`thigh_${side}`);
       const shin = this.rigParts.get(`shin_${side}`);
@@ -995,17 +1010,17 @@ export class HumanoidAnimator {
       if (!thigh || !shin || !foot) continue;
       const offsetY = side === "left" ? this.leftFootOffsetY : this.rightFootOffsetY;
       const hip = THREE.MathUtils.clamp(
-        this.groundPitch * 0.5 + offsetY * 2.2,
+        groundPitch * 0.5 + offsetY * 2.2,
         -maxBend,
         maxBend
       );
       const knee = THREE.MathUtils.clamp(
-        -this.groundPitch * 0.65 - offsetY * 3.1,
+        -groundPitch * 0.65 - offsetY * 3.1,
         -maxBend * 1.2,
         maxBend * 0.4
       );
       const ankle = THREE.MathUtils.clamp(
-        this.groundPitch * 0.4 - offsetY * 0.8,
+        groundPitch * 0.4 - offsetY * 0.8,
         -maxBend,
         maxBend
       );
@@ -1102,13 +1117,10 @@ export class HumanoidAnimator {
     if (this.activeUpperClip) this.upperActions.get(this.activeUpperClip)?.fadeOut(blend);
   }
 
-  private restoreProceduralRig(deltaSeconds: number): void {
-    const smoothing = 1 - Math.exp(-18 * Math.max(0, deltaSeconds));
+  private restoreProceduralRig(_deltaSeconds: number): void {
     for (const part of this.rigParts.values()) {
-      part.object.position.lerp(part.position, smoothing);
-      part.object.rotation.x = THREE.MathUtils.lerp(part.object.rotation.x, part.rotation.x, smoothing);
-      part.object.rotation.y = THREE.MathUtils.lerp(part.object.rotation.y, part.rotation.y, smoothing);
-      part.object.rotation.z = THREE.MathUtils.lerp(part.object.rotation.z, part.rotation.z, smoothing);
+      part.object.position.copy(part.position);
+      part.object.rotation.copy(part.rotation);
     }
   }
 

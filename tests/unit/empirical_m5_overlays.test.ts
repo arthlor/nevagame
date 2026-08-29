@@ -220,8 +220,7 @@ describe("Milestone M5 tactile overlays", () => {
     playUiSound("open");
     playUiSound("cloth");
     expect(playOneShotSpy).toHaveBeenCalledWith("quest-chime");
-    expect(playBankSpy).toHaveBeenCalledWith("ui-open");
-    expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
     playOneShotSpy.mockRestore();
     playBankSpy.mockRestore();
   });

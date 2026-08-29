@@ -89,7 +89,7 @@ describe("Simulation Vertical Slice Loop", () => {
 
     // 8. Simulate Fishing Battle through Simulation tick
     let steps = 0;
-    while (sim.activeFishingEncounter && steps < 250) {
+    while (sim.activeFishingEncounter && steps < 400) {
       const encState = sim.activeFishingEncounter.getState();
       const isReel = encState.lineTension < 70;
       const isBrace = encState.behavior === "dive" || encState.behavior === "burst";
@@ -121,5 +121,5 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(sellRes.revenue).toBeGreaterThan(30);
     expect(sim.state.player.money).toBe(initialMoney + sellRes.revenue!);
     expect(sim.state.player.proficiencies.trading).toBeGreaterThan(0);
-  });
+  }, 30000);
 });

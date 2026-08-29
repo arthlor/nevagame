@@ -590,9 +590,7 @@
 /* ==========================================================================
    4. BOTTOM-LEFT CLUSTER: Vitals, Context Statuses & Boat Panel
    ========================================================================== */
-#ui-container .hud-bottom-left-container,
-#ui-container .hud-bottom-left,
-#ui-container .hud-vitals {
+#ui-container .hud-bottom-left-container {
   position: absolute;
   right: auto;
   bottom: var(--ui-safe-bottom);
@@ -603,6 +601,21 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+  pointer-events: none;
+}
+
+#ui-container .hud-bottom-left {
+  display: flex;
+  width: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+#ui-container .hud-vitals {
+  display: flex;
+  align-items: flex-start;
   pointer-events: none;
 }
 
@@ -662,25 +675,30 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: min(240px, calc(100vw - 28px));
+  width: min(230px, calc(100vw - 28px));
+  pointer-events: auto;
 }
 
 #ui-container .hud-context-note {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 10px;
   font-size: 12px;
+  border-radius: 6px;
+  background: var(--mm-slate-glass) !important;
+  background-image: linear-gradient(180deg, rgba(22, 30, 42, 0.94) 0%, rgba(12, 16, 23, 0.94) 100%) !important;
+  border: 1px solid rgba(212, 175, 55, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 #ui-container .hud-labor-note {
-  border-color: rgba(245, 158, 11, 0.4) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
   color: var(--mm-text-gold);
 }
 
 #ui-container .hud-cargo-note {
-  border-color: rgba(56, 189, 248, 0.4) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
 }
 
 #ui-container .hud-context-note-detail {
@@ -689,36 +707,136 @@
 }
 
 #ui-container .hud-boat-panel {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
   display: flex;
-  width: min(250px, calc(100vw - 28px));
+  width: min(230px, calc(100vw - 28px));
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--mm-slate-glass) !important;
+  background-image: linear-gradient(180deg, rgba(22, 30, 42, 0.94) 0%, rgba(12, 16, 23, 0.94) 100%) !important;
+  border: 1.5px solid var(--mm-timber-mid) !important;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
 #ui-container .boat-panel-header {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.1);
+}
+
+#ui-container .boat-panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+#ui-container .boat-panel-name-group {
+  display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: var(--mm-text-gold);
-  font-family: var(--font-serif);
+}
+
+#ui-container .boat-panel-name {
+  font-size: 13px;
   font-weight: 700;
+  font-family: var(--font-serif);
+  color: var(--mm-text-gold);
+  letter-spacing: 0.02em;
+}
+
+#ui-container .boat-night-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1.5px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+#ui-container .boat-speed-label {
+  font-size: 11px;
+  color: var(--mm-text-muted);
+}
+
+#ui-container .boat-hull-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#ui-container .boat-hull-label-row,
+#ui-container .boat-cargo-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#ui-container .boat-section-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mm-text-muted);
+}
+
+#ui-container .boat-hull-value,
+#ui-container .boat-cargo-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--mm-text-ivory);
+}
+
+#ui-container .hud-boat-hull.chrome-meter .chrome-meter-track {
+  height: 6px !important;
+  background: #0a0d13 !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#ui-container .hud-boat-hull.chrome-meter .chrome-meter-track span {
+  border-radius: 2px;
+}
+
+#ui-container .boat-cargo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 #ui-container .boat-cargo-grid {
   display: flex;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
 
 #ui-container .boat-cargo-slot {
-  width: 44px;
-  height: 44px;
-  padding: 3px;
+  width: 42px;
+  height: 42px;
+  padding: 2px;
   background: var(--mm-well-slate) !important;
   border: 1.5px solid rgba(212, 175, 55, 0.3) !important;
   border-radius: 4px;
   box-shadow: var(--mm-well-shadow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
 #ui-container .boat-cargo-slot .chrome-quality span,
@@ -1821,12 +1939,15 @@
   min-width: 32px;
 }
 
-.crop-inspection.chrome-panel--plaque {
+.crop-inspection.chrome-panel--plaque,
+.crop-inspection.chrome-panel--slate {
   position: absolute;
   top: 50%;
   right: var(--ui-safe-right);
+  bottom: auto;
   z-index: 30;
-  width: min(320px, calc(100vw - 28px));
+  width: min(300px, calc(100vw - 24px));
+  height: auto;
   transform: translateY(-50%);
 }
 
@@ -1874,9 +1995,6 @@
 
   #ui-container .hud-context-statuses,
   #ui-container .hud-boat-panel {
-    bottom: calc(84px + env(safe-area-inset-bottom));
-    left: var(--ui-safe-left);
-    right: auto;
     width: min(220px, calc(100vw - 140px));
   }
 }

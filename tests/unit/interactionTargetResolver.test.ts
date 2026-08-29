@@ -28,14 +28,12 @@ const context = {
 };
 
 describe("InteractionTargetResolver", () => {
-  it("gives pointer and centered targets stable precedence for both E and LMB callers", () => {
+  it("keeps contextual selection independent from pointer position", () => {
     const resolver = new InteractionTargetResolver();
     const front = target("front", 0, 1);
     const pointed = target("pointed", 1.5, 0, { priority: 2 });
-    expect(resolver.resolve([front, pointed], { ...context, pointerEntityId: "pointed" })?.id)
-      .toBe("pointed");
-    expect(resolver.resolve([pointed, front], { ...context, centeredEntityId: "front" })?.id)
-      .toBe("front");
+    expect(resolver.resolve([front, pointed], context)?.id).toBe("front");
+    expect(resolver.resolve([pointed, front], context)?.id).toBe("front");
   });
 
   it("combines mode validity, facing, obstruction, distance, and stable ids", () => {

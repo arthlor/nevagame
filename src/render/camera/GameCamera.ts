@@ -8,6 +8,7 @@ import type { GameMode } from "../../simulation/core/types";
 import { WorldLayout } from "../../world/WorldLayout";
 import { FARMHOUSE_INTERIOR_BOUNDS } from "../../world/FarmhouseInterior";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import type { PresentationDiscontinuityReason } from "../presentation/PlayerPresentationBuffer";
 
 export interface CameraCollisionResolver {
   resolveCameraPosition(
@@ -20,7 +21,7 @@ export interface CameraCollisionResolver {
 export interface CameraMotionInput {
   player: PlayerMotionSample;
   boat?: BoatMotionSample;
-  discontinuityReason?: "none" | "teleport" | "load" | "recovery" | "boarding" | "docking";
+  discontinuityReason?: PresentationDiscontinuityReason;
   discontinuitySequence?: number;
   lookHint?: { x: number; y: number; z: number };
   fightReachMeters?: number;

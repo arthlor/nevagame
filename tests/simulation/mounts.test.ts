@@ -7,7 +7,13 @@ import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { Simulation } from "../../src/simulation/Simulation";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
-import { playerPoseFromMount, STARTER_DONKEY_ID } from "../../src/simulation/mounts/Mounts";
+import {
+  isValidPlayerMountGround,
+  mountDismountPoseCandidates,
+  MOUNT_TUNING,
+  playerPoseFromMount,
+  STARTER_DONKEY_ID
+} from "../../src/simulation/mounts/Mounts";
 import { BRIDGE_WORLD_PROFILE, WORLD_LAYOUT_V5, WorldLayout } from "../../src/world/WorldLayout";
 
 function placePlayerAtMount(simulation: Simulation, mountId = STARTER_DONKEY_ID): void {
@@ -61,8 +67,8 @@ describe("starter donkey mount", () => {
     delete (legacy.player as Partial<typeof legacy.player>).activeMountId;
 
     const migrated = migrateSaveData({ schemaVersion: 17, savedAtUtcMs: 1, state: legacy });
-    expect(migrated.schemaVersion).toBe(18);
-    expect(migrated.state.schemaVersion).toBe(18);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.player.money).toBe(731);
     expect(migrated.state.player).toMatchObject(preservedPosition);
     expect(migrated.state.player.activeMountId).toBeNull();
@@ -116,12 +122,77 @@ describe("starter donkey mount", () => {
       reason: "Dismount first before using Safe Return"
     });
 
+    const mountedPlayer = { ...simulation.state.player };
+    const [leftDismount] = mountDismountPoseCandidates(mountedPlayer);
+    expect(isValidPlayerMountGround(leftDismount)).toBe(true);
     expect(simulation.execute({ type: "mount.dismount" }).success).toBe(true);
     expect(simulation.state.player.activeMountId).toBeNull();
+    expect(simulation.state.player).toMatchObject(leftDismount);
+    expect(Math.hypot(
+      simulation.state.player.x - simulation.state.mounts[STARTER_DONKEY_ID]!.x,
+      simulation.state.player.z - simulation.state.mounts[STARTER_DONKEY_ID]!.z
+    )).toBeCloseTo(MOUNT_TUNING.dismountClearanceMeters, 8);
+    expect(simulation.state.mounts[STARTER_DONKEY_ID]).toMatchObject({
+      x: mountedPlayer.x,
+      z: mountedPlayer.z,
+      rotationY: mountedPlayer.rotationY
+    });
     expect(simulation.execute({ type: "mount.dismount" })).toMatchObject({
       success: false,
       reason: "You are not riding the donkey"
     });
+  });
+
+  it("falls back to the right side when the left dismount position is unsafe", () => {
+    const simulation = new Simulation();
+    setMountedPose(simulation, -32, -100, Math.PI);
+    const [left, right] = mountDismountPoseCandidates(simulation.state.player);
+    expect(isValidPlayerMountGround(left)).toBe(false);
+    expect(isValidPlayerMountGround(right)).toBe(true);
+
+    expect(simulation.dismountMount().success).toBe(true);
+    expect(simulation.state.player).toMatchObject(right);
+    expect(simulation.state.mounts[STARTER_DONKEY_ID]).toMatchObject({
+      x: -32,
+      z: -100,
+      rotationY: Math.PI
+    });
+  });
+
+  it("rejects a dismount atomically when neither lateral side is safe", () => {
+    const simulation = new Simulation();
+    let blockedPose: { x: number; z: number; rotationY: number } | null = null;
+    for (let z = 52; z <= 88 && !blockedPose; z += 0.5) {
+      for (let x = 48; x <= 112 && !blockedPose; x += 0.5) {
+        for (const rotationY of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+          const center = {
+            x,
+            y: WorldLayout.traversalSurfaceHeight(x, z) + MOUNT_TUNING.playerPoseGroundOffsetMeters,
+            z,
+            rotationY
+          };
+          if (!isValidPlayerMountGround(center)) continue;
+          const [left, right] = mountDismountPoseCandidates(center);
+          if (!isValidPlayerMountGround(left) && !isValidPlayerMountGround(right)) {
+            blockedPose = { x, z, rotationY };
+            break;
+          }
+        }
+      }
+    }
+    expect(blockedPose).not.toBeNull();
+    setMountedPose(simulation, blockedPose!.x, blockedPose!.z, blockedPose!.rotationY);
+    const [left, right] = mountDismountPoseCandidates(simulation.state.player);
+    expect(isValidPlayerMountGround(left)).toBe(false);
+    expect(isValidPlayerMountGround(right)).toBe(false);
+    const before = structuredClone(simulation.state);
+
+    expect(simulation.canDismountMount()).toBe(false);
+    expect(simulation.dismountMount()).toMatchObject({
+      success: false,
+      reason: "There is no safe ground to dismount here"
+    });
+    expect(simulation.state).toEqual(before);
   });
 
   it("rejects a mounted water pose and an unsafe dismount", () => {
@@ -186,8 +257,8 @@ describe("starter donkey mount", () => {
         mount: simulation.state.mounts[STARTER_DONKEY_ID]
       })).toBe(true);
       expect(simulation.state.player.y).toBeCloseTo(
-        WorldLayout.terrainHeight(simulation.state.player.x, simulation.state.player.z) + 0.5,
-        2
+        WorldLayout.traversalSurfaceHeight(simulation.state.player.x, simulation.state.player.z) + 0.5,
+        5
       );
       expect(WorldLayout.isWater(simulation.state.player.x, simulation.state.player.z)).toBe(false);
     }
@@ -239,6 +310,42 @@ describe("starter donkey mount", () => {
     expect(simulation.state.player.traversal.isGrounded).toBe(true);
   });
 
+  it("climbs the next bridge box before the donkey capsule catches its vertical edge", async () => {
+    const layout = WorldLayout.landmark("bridge");
+    const bridgeRoot = new THREE.Object3D();
+    bridgeRoot.position.set(
+      layout.x,
+      WorldLayout.terrainHeight(layout.x, layout.z) + layout.yOffset,
+      layout.z
+    );
+    bridgeRoot.rotation.y = layout.rotationY;
+    bridgeRoot.scale.setScalar(layout.scale);
+    const physics = await PhysicsWorld.create(
+      projectAssetCollision(ASSET_IDS.BRIDGE_STONE_A, bridgeRoot, "bridge")
+    );
+    const simulation = new Simulation();
+    const bridge = WORLD_LAYOUT_V5.anchors.bridge;
+    const startX = bridge.x - 6.12;
+    setMountedPose(simulation, startX, bridge.z, Math.PI / 2);
+    const start = simulation.state.player.x;
+
+    for (let index = 0; index < 30; index++) {
+      const frame = physics.step(
+        simulation.state,
+        { x: 1, z: 0, sprint: true },
+        "mounted",
+        1 / 60,
+        index / 60
+      );
+      expect(simulation.commitPhysicsFrame(frame.frame).success).toBe(true);
+      expect(WorldLayout.isWater(simulation.state.player.x, simulation.state.player.z)).toBe(false);
+      expect(simulation.state.player.traversal.isGrounded).toBe(true);
+    }
+
+    expect(simulation.state.player.x).toBeGreaterThan(start + 1);
+    physics.dispose();
+  });
+
   it("keeps the mounted collider on the bridge when crossing at playable lane offsets", async () => {
     const layout = WorldLayout.landmark("bridge");
     const bridgeRoot = new THREE.Object3D();
@@ -275,7 +382,9 @@ describe("starter donkey mount", () => {
         expect(WorldLayout.isWater(simulation.state.player.x, simulation.state.player.z)).toBe(false);
         expect(simulation.state.player.traversal.isGrounded).toBe(true);
       }
-      expect(farthestX).toBeGreaterThan(bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5);
+      expect(farthestX, JSON.stringify({ laneOffset, farthestX })).toBeGreaterThan(
+        bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
+      );
       physics.dispose();
     }
   });

@@ -14,10 +14,10 @@ describe("uiAudio dispatcher", () => {
     expect(playOneShotSpy).toHaveBeenCalledWith("ui-confirm");
 
     playUiSound("open");
-    expect(playBankSpy).toHaveBeenCalledWith("ui-open");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
 
     playUiSound("cloth");
-    expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
 
     playUiSound("coins");
     expect(playOneShotSpy).toHaveBeenCalledWith("coins");
@@ -27,6 +27,21 @@ describe("uiAudio dispatcher", () => {
 
     playUiSound("chime");
     expect(playOneShotSpy).toHaveBeenCalledWith("quest-chime");
+
+    playUiSound("error");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-error");
+
+    playUiSound("stamp");
+    expect(playOneShotSpy).toHaveBeenCalledWith("contract-stamp");
+
+    playUiSound("sketch");
+    expect(playOneShotSpy).toHaveBeenCalledWith("journal-sketch");
+
+    playUiSound("treasure");
+    expect(playOneShotSpy).toHaveBeenCalledWith("treasure-chime");
+
+    playUiSound("perfect");
+    expect(playOneShotSpy).toHaveBeenCalledWith("perfect-catch");
 
     playOneShotSpy.mockRestore();
     playBankSpy.mockRestore();

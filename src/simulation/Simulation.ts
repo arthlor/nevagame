@@ -537,7 +537,7 @@ export class Simulation {
     // the same valid review point before the school events are committed.
     this.setDebugPlayerPose({
       x,
-      y: WorldLayout.isWater(x, z) ? 0.5 : WorldLayout.terrainHeight(x, z) + 0.5,
+      y: WorldLayout.isWater(x, z) ? 0.5 : WorldLayout.traversalSurfaceHeight(x, z) + 0.5,
       z,
       rotationY: 0
     });
@@ -623,7 +623,7 @@ export class Simulation {
     this.state.player.money = Math.max(this.state.player.money, 1200);
     this.setDebugPlayerPose({
       x: 86,
-      y: WorldLayout.terrainHeight(86, 69) + 0.5,
+      y: WorldLayout.traversalSurfaceHeight(86, 69) + 0.5,
       z: 69,
       rotationY: 0
     });
@@ -645,9 +645,10 @@ export class Simulation {
     });
     this.setDebugPlayerPose({
       x: HARBOR_DOCK.playerPosition.x,
-      y: WorldLayout.isPierDeck(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z)
-        ? WorldLayout.pierDeckSurfaceY() + 0.5
-        : WorldLayout.terrainHeight(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z) + 0.5,
+      y: WorldLayout.traversalSurfaceHeight(
+        HARBOR_DOCK.playerPosition.x,
+        HARBOR_DOCK.playerPosition.z
+      ) + 0.5,
       z: HARBOR_DOCK.playerPosition.z,
       rotationY: 0
     });
@@ -676,11 +677,15 @@ export class Simulation {
     return this.farmingDomain.findPlantingPosition(farmId, cropId);
   }
 
-  public plantCropNearPlayer(farmId: FarmId, cropId: string): { success: boolean; reason?: string } {
+  public get progression(): ProgressionDomain {
+    return this.progressionDomain;
+  }
+
+  public plantCropNearPlayer(farmId: FarmId, cropId: string): { success: boolean; placedCropId?: PlacedCropId; reason?: string; reasonCode?: string } {
     return this.farmingDomain.plantNearPlayer(farmId, cropId);
   }
 
-  public plantCrop(farmId: FarmId, cropId: string, x: number, z: number): { success: boolean; reason?: string } {
+  public plantCrop(farmId: FarmId, cropId: string, x: number, z: number): { success: boolean; placedCropId?: PlacedCropId; reason?: string; reasonCode?: string } {
     return this.farmingDomain.plant({ farmId, cropId, x, z });
   }
 
@@ -688,7 +693,7 @@ export class Simulation {
     return this.farmingDomain.water(placedCropId);
   }
 
-  public harvestCrop(placedCropId: PlacedCropId): { success: boolean; yield?: number; quality?: CropQuality; reason?: string } {
+  public harvestCrop(placedCropId: PlacedCropId): { success: boolean; yield?: number; quality?: CropQuality; reason?: string; reasonCode?: string } {
     return this.farmingDomain.harvest(placedCropId);
   }
 
@@ -715,7 +720,7 @@ export class Simulation {
   // ==========================================
   // PROCESSING ACTIONS
   // ==========================================
-  public startProcessingJob(recipeId: RecipeId, stationId: string): { success: boolean; reason?: string } {
+  public startProcessingJob(recipeId: RecipeId, stationId: string): { success: boolean; reason?: string; reasonCode?: string } {
     return this.processingDomain.start(recipeId, stationId);
   }
 
@@ -726,15 +731,15 @@ export class Simulation {
   // ==========================================
   // FISHING & ENCOUNTERS
   // ==========================================
-  public castBasicFishing(castPower?: number): { success: boolean; reason?: string } {
+  public castBasicFishing(castPower?: number): { success: boolean; reason?: string; reasonCode?: string } {
     return this.fishingDomain.castBasic(castPower);
   }
 
-  public startChargingBasicFishing(): { success: boolean; reason?: string } {
+  public startChargingBasicFishing(): { success: boolean; reason?: string; reasonCode?: string } {
     return this.fishingDomain.startChargingCastBasic();
   }
 
-  public releaseCastBasicFishing(castPower?: number): { success: boolean; reason?: string } {
+  public releaseCastBasicFishing(castPower?: number): { success: boolean; reason?: string; reasonCode?: string } {
     return this.fishingDomain.releaseCastBasic(castPower);
   }
 
@@ -758,7 +763,7 @@ export class Simulation {
     return this.fishingDomain.chumSchool(schoolId);
   }
 
-  public hookSportFish(schoolId: FishSchoolId): { success: boolean; encounter?: FishingEncounterState; reason?: string } {
+  public hookSportFish(schoolId: FishSchoolId): { success: boolean; encounter?: FishingEncounterState; reason?: string; reasonCode?: string } {
     return this.fishingDomain.hookSportFish(schoolId);
   }
 

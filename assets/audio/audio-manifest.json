@@ -28,15 +28,15 @@
     },
     {
       "id": "watering-can",
-      "title": "Fill plastic watering can with water sound effect",
-      "creator": "Garuda1982",
-      "sourceUrl": "https://freesound.org/people/Garuda1982/sounds/576579/",
-      "previewUrl": "https://cdn.freesound.org/previews/576/576579_2061858-hq.mp3",
+      "title": "Watering Can in a Potted Plant",
+      "creator": "Melon11",
+      "sourceUrl": "https://freesound.org/people/Melon11/sounds/810382/",
+      "previewUrl": "https://cdn.freesound.org/previews/810/810382_17446223-hq.mp3",
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-      "licenseSnapshot": "assets/audio/licenses/freesound-576579.html",
+      "licenseSnapshot": "assets/audio/licenses/freesound-810382.html",
       "runtimeUrl": "/assets/audio/watering-can.mp3",
-      "sha256": "c1520ee6caaf0e70830881cf6a74ca55ab05b15681e4d90b4ca8035df07a17bf",
-      "durationSeconds": 28.694208
+      "sha256": "333655d1685163b9119ca09b5caa88fc065786b7f6d5a2a090caa5fb4cc6b371",
+      "durationSeconds": 33.1
     },
     {
       "id": "crop-rustle",
@@ -508,15 +508,267 @@
     },
     {
       "id": "ui-cloth",
-      "title": "Inventory Open",
-      "creator": "Fission9",
-      "sourceUrl": "https://freesound.org/people/Fission9/sounds/568992/",
-      "previewUrl": "https://cdn.freesound.org/previews/568/568992_9395330-hq.mp3",
+      "title": "Soft Fabric Rustle",
+      "creator": "IENBA",
+      "sourceUrl": "https://freesound.org/people/IENBA/sounds/850705/",
+      "previewUrl": "https://cdn.freesound.org/previews/850/850705_9616576-hq.mp3",
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-      "licenseSnapshot": "assets/audio/licenses/freesound-568992.html",
+      "licenseSnapshot": "assets/audio/licenses/freesound-850705.html",
       "runtimeUrl": "/assets/audio/ui-cloth.mp3",
-      "sha256": "43672f9a82619c2af0c6f8294f4df2186cd4c10e8ce825ebb103272c53be64f9",
-      "durationSeconds": 1.07102
+      "sha256": "0aa23388a869d45de3b7986d5306d9ce7930e598f2e0fc00b9121f955c48f772",
+      "durationSeconds": 12.512653
+    },
+    {
+      "id": "footsteps-sand",
+      "title": "Footsteps_Mountain_Boots_Wet_Sand_Sequence_Mono.wav",
+      "creator": "Nox_Sound",
+      "sourceUrl": "https://freesound.org/people/Nox_Sound/sounds/564893/",
+      "previewUrl": "https://cdn.freesound.org/previews/564/564893_9250976-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-564893.html",
+      "runtimeUrl": "/assets/audio/footsteps-sand.mp3",
+      "sha256": "da9cb13fc63f9cc19842dbd0e32d97ba4e95b64eceaf15c717c678f2f656e7d8",
+      "durationSeconds": 64.512
+    },
+    {
+      "id": "footsteps-water",
+      "title": "footsteps winter puddle bird call .wav",
+      "creator": "lwdickens",
+      "sourceUrl": "https://freesound.org/people/lwdickens/sounds/263495/",
+      "previewUrl": "https://cdn.freesound.org/previews/263/263495_2663250-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-263495.html",
+      "runtimeUrl": "/assets/audio/footsteps-water.mp3",
+      "sha256": "69cb682f2b2f915c8d65b0ee4f833ac14029656b710436d188f97d25d95f02fc",
+      "durationSeconds": 95.256
+    },
+    {
+      "id": "donkey-trot",
+      "title": "clatter of hooves 2.wav",
+      "creator": "maciejadach",
+      "sourceUrl": "https://freesound.org/people/maciejadach/sounds/571312/",
+      "previewUrl": "https://cdn.freesound.org/previews/571/571312_12894506-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-571312.html",
+      "runtimeUrl": "/assets/audio/donkey-trot.mp3",
+      "sha256": "2f17adda77a9b18bfed4fd6533362a0c71e74d5c4e970af66fb7d4e6ca2adbfe",
+      "durationSeconds": 11.180408
+    },
+    {
+      "id": "donkey-snort",
+      "title": "Horse(snort)_3.wav",
+      "creator": "o_ciz",
+      "sourceUrl": "https://freesound.org/people/o_ciz/sounds/475483/",
+      "previewUrl": "https://cdn.freesound.org/previews/475/475483_7009965-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-475483.html",
+      "runtimeUrl": "/assets/audio/donkey-snort.mp3",
+      "sha256": "a104c79024b41b3825c533ef1c31bd72cd7ad7b92777df7d27e1e893d541bc49",
+      "durationSeconds": 2.544
+    },
+    {
+      "id": "hoe-till",
+      "title": "Digging Into Soft Soil with Small Trowell.wav",
+      "creator": "dhallcomposer",
+      "sourceUrl": "https://freesound.org/people/dhallcomposer/sounds/696531/",
+      "previewUrl": "https://cdn.freesound.org/previews/696/696531_7678208-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-696531.html",
+      "runtimeUrl": "/assets/audio/hoe-till.mp3",
+      "sha256": "e3b67f4373eefe27137563966feafa2ce94cd061dce2dbd999ee5f226a63e4c0",
+      "durationSeconds": 18.528
+    },
+    {
+      "id": "fertilizer-dust",
+      "title": "GlassDust.wav",
+      "creator": "zatar",
+      "sourceUrl": "https://freesound.org/people/zatar/sounds/514382/",
+      "previewUrl": "https://cdn.freesound.org/previews/514/514382_5338586-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-514382.html",
+      "runtimeUrl": "/assets/audio/fertilizer-dust.mp3",
+      "sha256": "b485eaa9c3c95f4774a18ee9160d2b8e979af99684fd8c729f7d980eb4677901",
+      "durationSeconds": 24.476735
+    },
+    {
+      "id": "apple-drop",
+      "title": "ApplesDroppingThudinaForest.wav",
+      "creator": "kvgarlic",
+      "sourceUrl": "https://freesound.org/people/kvgarlic/sounds/149418/",
+      "previewUrl": "https://cdn.freesound.org/previews/149/149418_1050391-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-149418.html",
+      "runtimeUrl": "/assets/audio/apple-drop.mp3",
+      "sha256": "cadff97e47f2aaf103aa6b3ebc9bda6c20bb8bf1d16aab6e69099723872a5e3a",
+      "durationSeconds": 3.578776
+    },
+    {
+      "id": "fish-scale-scrape",
+      "title": "knife sharpen 03.wav",
+      "creator": "Anthousai",
+      "sourceUrl": "https://freesound.org/people/Anthousai/sounds/336592/",
+      "previewUrl": "https://cdn.freesound.org/previews/336/336592_5923045-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-336592.html",
+      "runtimeUrl": "/assets/audio/fish-scale-scrape.mp3",
+      "sha256": "aa8b32d0f3427ba5e47f54b6b6a82644dd0c3bed825335d859c9b4d8b4aee7ca",
+      "durationSeconds": 0.84
+    },
+    {
+      "id": "wood-saw",
+      "title": "sawing of wood sound effect.wav",
+      "creator": "greggace",
+      "sourceUrl": "https://freesound.org/people/greggace/sounds/118031/",
+      "previewUrl": "https://cdn.freesound.org/previews/118/118031_2122986-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-118031.html",
+      "runtimeUrl": "/assets/audio/wood-saw.mp3",
+      "sha256": "e50d0270cb858ebe6ae5e3e6770ccb7ee0332bdc844eccab122b2c214f26f628",
+      "durationSeconds": 16.2
+    },
+    {
+      "id": "skiff-engine",
+      "title": "boat outboard motor real modern throaty start false starts take off ride various speeds accelerate decelerate slow and stop engine shut off.flac",
+      "creator": "kyles",
+      "sourceUrl": "https://freesound.org/people/kyles/sounds/637202/",
+      "previewUrl": "https://cdn.freesound.org/previews/637/637202_612689-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-637202.html",
+      "runtimeUrl": "/assets/audio/skiff-engine.mp3",
+      "sha256": "3239258a4917b29817a66fe41a238f5f888b78fdf6024ec7f0876d546aab33fc",
+      "durationSeconds": 210.12
+    },
+    {
+      "id": "ice-shovel",
+      "title": "Freezer Ice Bucket",
+      "creator": "AlfredHitch",
+      "sourceUrl": "https://freesound.org/people/AlfredHitch/sounds/320722/",
+      "previewUrl": "https://cdn.freesound.org/previews/320/320722_575561-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-320722.html",
+      "runtimeUrl": "/assets/audio/ice-shovel.mp3",
+      "sha256": "57eb9ce1d04dbfb4669a80d99f6df9898d91b599a4ab978ed0de492eb4c7efc4",
+      "durationSeconds": 10.004898
+    },
+    {
+      "id": "journal-sketch",
+      "title": "Pencil Scratch",
+      "creator": "Steven_Core",
+      "sourceUrl": "https://freesound.org/people/Steven_Core/sounds/867719/",
+      "previewUrl": "https://cdn.freesound.org/previews/867/867719_11424737-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-867719.html",
+      "runtimeUrl": "/assets/audio/journal-sketch.mp3",
+      "sha256": "38a706e77d4ad6a42ba8b89b3d581b408ffd2b9dc235e67a121d476a77a6146a",
+      "durationSeconds": 39.68
+    },
+    {
+      "id": "contract-stamp",
+      "title": "es-stamp.wav",
+      "creator": "eddies2000",
+      "sourceUrl": "https://freesound.org/people/eddies2000/sounds/448474/",
+      "previewUrl": "https://cdn.freesound.org/previews/448/448474_9090982-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-448474.html",
+      "runtimeUrl": "/assets/audio/contract-stamp.mp3",
+      "sha256": "5fadc9962b8fbc81f63551baffa5734ecaefb2f97780c761daba524faae35ae2",
+      "durationSeconds": 5.28
+    },
+    {
+      "id": "ui-error",
+      "title": "Knock on Door/Wood | Knocking 3 Times on Wood.mp3",
+      "creator": "sukondi",
+      "sourceUrl": "https://freesound.org/people/sukondi/sounds/553297/",
+      "previewUrl": "https://cdn.freesound.org/previews/553/553297_12361046-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-553297.html",
+      "runtimeUrl": "/assets/audio/ui-error.mp3",
+      "sha256": "5552ae514d7c3ea5b41dae3253e97772133a6a02ca3092d7150c85d1d3236540",
+      "durationSeconds": 1.645714
+    },
+    {
+      "id": "dawn-birds",
+      "title": "Birds singing, Dawn chorus",
+      "creator": "SamsterBirdies",
+      "sourceUrl": "https://freesound.org/people/SamsterBirdies/sounds/578523/",
+      "previewUrl": "https://cdn.freesound.org/previews/578/578523_5487341-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-578523.html",
+      "runtimeUrl": "/assets/audio/dawn-birds.mp3",
+      "sha256": "7b19924a740834c1b34f74a1cc2347f7931116fa68b51859a6a94f9d2fbff90e",
+      "durationSeconds": 241.272
+    },
+    {
+      "id": "treasure-chime",
+      "title": "wind chimes - single 04.wav",
+      "creator": "Anthousai",
+      "sourceUrl": "https://freesound.org/people/Anthousai/sounds/398496/",
+      "previewUrl": "https://cdn.freesound.org/previews/398/398496_5923045-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-398496.html",
+      "runtimeUrl": "/assets/audio/treasure-chime.mp3",
+      "sha256": "f3654772f54f60fcddfb6b57cca3b6047490506427f4cb59dc653f03103520b9",
+      "durationSeconds": 4.08
+    },
+    {
+      "id": "perfect-catch",
+      "title": "Mystical/fantasy loop",
+      "creator": "nicorico_120",
+      "sourceUrl": "https://freesound.org/people/nicorico_120/sounds/858160/",
+      "previewUrl": "https://cdn.freesound.org/previews/858/858160_11548422-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-858160.html",
+      "runtimeUrl": "/assets/audio/perfect-catch.mp3",
+      "sha256": "6d14c78fccc264b1b9153f626efd42e2161479fdb217b1d5c9419cbef2a988a1",
+      "durationSeconds": 54.576
+    },
+    {
+      "id": "music-village",
+      "title": "Acoustic guitar duet 120bpm Bmajor",
+      "creator": "BeaconStudio",
+      "sourceUrl": "https://freesound.org/people/BeaconStudio/sounds/860778/",
+      "previewUrl": "https://cdn.freesound.org/previews/860/860778_18689440-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-860778.html",
+      "runtimeUrl": "/assets/audio/music-village.mp3",
+      "sha256": "acfbc2675d12275a9935d73d2f84b1e17d240dadb350d0bbd7af01dede34424b",
+      "durationSeconds": 18.050612
+    },
+    {
+      "id": "music-piano",
+      "title": "Sleepy Upright Piano Seamless Loop",
+      "creator": "blankie.rest",
+      "sourceUrl": "https://freesound.org/people/blankie.rest/sounds/859607/",
+      "previewUrl": "https://cdn.freesound.org/previews/859/859607_15820073-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-859607.html",
+      "runtimeUrl": "/assets/audio/music-piano.mp3",
+      "sha256": "853640ecc0f906d18b4b07cb66d36e47015f94d5435cd2a4e725c034c9d36d49",
+      "durationSeconds": 115.776
+    },
+    {
+      "id": "music-folk-calm",
+      "title": "Back Home.wav",
+      "creator": "BaDoink",
+      "sourceUrl": "https://freesound.org/people/BaDoink/sounds/576081/",
+      "previewUrl": "https://cdn.freesound.org/previews/576/576081_2019171-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-576081.html",
+      "runtimeUrl": "/assets/audio/music-folk-calm.mp3",
+      "sha256": "fef1d7797e538be56df1a9cad3e51b5685a2b81d175287b23c0826b11f5f4cb9",
+      "durationSeconds": 88.555102
+    },
+    {
+      "id": "music-guitar-arpeggio",
+      "title": "Guitar Arpeggios Bm",
+      "creator": "oliche_",
+      "sourceUrl": "https://freesound.org/people/oliche_/sounds/330945/",
+      "previewUrl": "https://cdn.freesound.org/previews/330/330945_5529205-hq.mp3",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenseSnapshot": "assets/audio/licenses/freesound-330945.html",
+      "runtimeUrl": "/assets/audio/music-guitar-arpeggio.mp3",
+      "sha256": "d9445ca1d33a2e0f9cf4ef1bf2b831a48297f961afa79ccdcbd04360ad6da4e3",
+      "durationSeconds": 23.170612
     }
   ],
   "cues": {
@@ -598,9 +850,9 @@
     "watering": {
       "sourceId": "watering-can",
       "bus": "sfx",
-      "offset": 3.6,
-      "duration": 3.4,
-      "gain": 0.36,
+      "offset": 0.5,
+      "duration": 2.6,
+      "gain": 0.38,
       "spatial": true,
       "poolSize": 3
     },
@@ -1040,15 +1292,255 @@
       "pitchMax": 1.08
     },
     "ui-cloth": {
-      "sourceId": "ui-cloth",
+      "sourceId": "ui-click",
       "bus": "ui",
       "offset": 0,
-      "duration": 1.07,
+      "duration": 0.25,
       "gain": 0.32,
       "spatial": false,
-      "poolSize": 2,
-      "pitchMin": 0.96,
+      "poolSize": 3,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02
+    },
+    "footstep-sand-a": {
+      "sourceId": "footsteps-sand",
+      "bus": "sfx",
+      "offset": 0.25,
+      "duration": 0.42,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "footstep-sand-b": {
+      "sourceId": "footsteps-sand",
+      "bus": "sfx",
+      "offset": 1.15,
+      "duration": 0.4,
+      "gain": 0.34,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "footstep-water-a": {
+      "sourceId": "footsteps-water",
+      "bus": "sfx",
+      "offset": 0.15,
+      "duration": 0.45,
+      "gain": 0.38,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.92,
+      "pitchMax": 1.08
+    },
+    "footstep-water-b": {
+      "sourceId": "footsteps-water",
+      "bus": "sfx",
+      "offset": 1.1,
+      "duration": 0.42,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.92,
+      "pitchMax": 1.08
+    },
+    "donkey-trot-a": {
+      "sourceId": "donkey-trot",
+      "bus": "sfx",
+      "offset": 0.1,
+      "duration": 0.45,
+      "gain": 0.42,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "donkey-trot-b": {
+      "sourceId": "donkey-trot",
+      "bus": "sfx",
+      "offset": 0.8,
+      "duration": 0.45,
+      "gain": 0.4,
+      "spatial": true,
+      "poolSize": 4,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "donkey-snort": {
+      "sourceId": "donkey-snort",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 2.2,
+      "gain": 0.44,
+      "spatial": true,
+      "poolSize": 2
+    },
+    "hoe-till": {
+      "sourceId": "hoe-till",
+      "bus": "sfx",
+      "offset": 0.1,
+      "duration": 1.2,
+      "gain": 0.46,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.92,
+      "pitchMax": 1.08
+    },
+    "fertilizer-dust": {
+      "sourceId": "fertilizer-dust",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 1.4,
+      "gain": 0.38,
+      "spatial": true,
+      "poolSize": 3
+    },
+    "apple-drop": {
+      "sourceId": "apple-drop",
+      "bus": "sfx",
+      "offset": 0.05,
+      "duration": 1.5,
+      "gain": 0.45,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06
+    },
+    "fish-scale-scrape": {
+      "sourceId": "fish-scale-scrape",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 0.8,
+      "gain": 0.42,
+      "spatial": true,
+      "poolSize": 3,
+      "pitchMin": 0.95,
       "pitchMax": 1.05
+    },
+    "wood-saw": {
+      "sourceId": "wood-saw",
+      "bus": "sfx",
+      "offset": 0.2,
+      "duration": 2.2,
+      "gain": 0.4,
+      "spatial": true,
+      "poolSize": 2
+    },
+    "skiff-engine": {
+      "sourceId": "skiff-engine",
+      "bus": "boat",
+      "offset": 12,
+      "duration": 24,
+      "gain": 0.22,
+      "loop": true,
+      "spatial": true,
+      "poolSize": 1
+    },
+    "ice-shovel": {
+      "sourceId": "ice-shovel",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 1.6,
+      "gain": 0.42,
+      "spatial": false,
+      "poolSize": 3
+    },
+    "journal-sketch": {
+      "sourceId": "journal-sketch",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 1.2,
+      "gain": 0.38,
+      "spatial": false,
+      "poolSize": 3
+    },
+    "contract-stamp": {
+      "sourceId": "contract-stamp",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 1.1,
+      "gain": 0.44,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "ui-error": {
+      "sourceId": "ui-error",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.7,
+      "gain": 0.42,
+      "spatial": false,
+      "poolSize": 3
+    },
+    "ambience-dawn": {
+      "sourceId": "dawn-birds",
+      "bus": "ambience",
+      "offset": 0,
+      "duration": 60,
+      "gain": 0.16,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "treasure-chime": {
+      "sourceId": "treasure-chime",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 2.2,
+      "gain": 0.42,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "perfect-catch": {
+      "sourceId": "perfect-catch",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 3.2,
+      "gain": 0.45,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "theme-village": {
+      "sourceId": "music-village",
+      "bus": "music",
+      "offset": 0,
+      "duration": 18.05,
+      "gain": 0.22,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "theme-piano": {
+      "sourceId": "music-piano",
+      "bus": "music",
+      "offset": 0,
+      "duration": 115.7,
+      "gain": 0.18,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "theme-folk-calm": {
+      "sourceId": "music-folk-calm",
+      "bus": "music",
+      "offset": 0,
+      "duration": 88.5,
+      "gain": 0.2,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
+    "theme-guitar-arpeggio": {
+      "sourceId": "music-guitar-arpeggio",
+      "bus": "music",
+      "offset": 0,
+      "duration": 23.1,
+      "gain": 0.18,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
     }
   },
   "banks": {
@@ -1068,6 +1560,18 @@
       "footstep-grass-a",
       "footstep-grass-b"
     ],
+    "footstep-sand": [
+      "footstep-sand-a",
+      "footstep-sand-b"
+    ],
+    "footstep-water": [
+      "footstep-water-a",
+      "footstep-water-b"
+    ],
+    "donkey-trot": [
+      "donkey-trot-a",
+      "donkey-trot-b"
+    ],
     "splash": [
       "splash-a",
       "splash-b",
@@ -1078,8 +1582,7 @@
       "ui-click"
     ],
     "ui-open": [
-      "ui-open",
-      "ui-cloth"
+      "ui-click"
     ]
   },
   "beds": {

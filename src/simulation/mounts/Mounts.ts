@@ -12,18 +12,14 @@ export const MOUNT_TUNING = Object.freeze({
   accelerationMetersPerSecondSquared: 18,
   decelerationMetersPerSecondSquared: 24,
   playerPoseGroundOffsetMeters: 0.5,
+  dismountClearanceMeters: 1.25,
   boardRadiusMeters: 2.75,
   terrainHeightToleranceMeters: 0.32,
   maximumSlopeNormalY: Math.cos((46 * Math.PI) / 180)
 });
 
 function hasMountableGroundNormal(x: number, z: number): boolean {
-  // The authored bridge approaches are raised traversal surfaces. Their
-  // terrain feather deliberately contains a steep blend into the riverbank,
-  // but the mounted actor should evaluate the finished route surface rather
-  // than reject that visual transition as an unrideable hillside.
-  return (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z)) ||
-    WorldLayout.terrainNormalY(x, z) >= MOUNT_TUNING.maximumSlopeNormalY;
+  return WorldLayout.traversalSurfaceSample(x, z).normal.y >= MOUNT_TUNING.maximumSlopeNormalY;
 }
 
 export function createStarterDonkeyState(): MountState {
@@ -92,4 +88,33 @@ export function isValidPlayerMountGround(player: Pick<PlayerState, "x" | "y" | "
   if (!hasMountableGroundNormal(player.x, player.z)) return false;
   return Math.abs(player.y - (WorldLayout.traversalSurfaceHeight(player.x, player.z) + MOUNT_TUNING.playerPoseGroundOffsetMeters)) <=
     MOUNT_TUNING.terrainHeightToleranceMeters;
+}
+
+export function mountDismountPoseCandidates(
+  player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">
+): readonly [
+  Pick<PlayerState, "x" | "y" | "z" | "rotationY">,
+  Pick<PlayerState, "x" | "y" | "z" | "rotationY">
+] {
+  const lateralX = Math.cos(player.rotationY) * MOUNT_TUNING.dismountClearanceMeters;
+  const lateralZ = -Math.sin(player.rotationY) * MOUNT_TUNING.dismountClearanceMeters;
+  const poseAt = (x: number, z: number) => ({
+    x,
+    y: WorldLayout.traversalSurfaceHeight(x, z) + MOUNT_TUNING.playerPoseGroundOffsetMeters,
+    z,
+    rotationY: player.rotationY
+  });
+  return [
+    poseAt(player.x - lateralX, player.z - lateralZ),
+    poseAt(player.x + lateralX, player.z + lateralZ)
+  ];
+}
+
+export function resolveMountDismountPose(
+  player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">
+): Pick<PlayerState, "x" | "y" | "z" | "rotationY"> | null {
+  const [left, right] = mountDismountPoseCandidates(player);
+  if (isValidPlayerMountGround(left)) return left;
+  if (isValidPlayerMountGround(right)) return right;
+  return null;
 }

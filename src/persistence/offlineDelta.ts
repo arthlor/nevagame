@@ -8,7 +8,7 @@ import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBound
 import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
-import { regenerateWorkCapacity } from "../simulation/domains/ProgressionDomain";
+import { regenerateWorkCapacity, OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR } from "../simulation/domains/ProgressionDomain";
 import { expireContracts, refillContracts } from "../simulation/domains/ContractDomain";
 import { expireSpentSchools } from "../simulation/domains/FishingDomain";
 import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
@@ -88,7 +88,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   clock.advanceMinutes(gameMinutesToSimulate);
   state.clock = { ...clock.getState() };
   for (const cropState of Object.values(state.crops)) cropState.lastUpdatedMinute = state.clock.currentMinute;
-  regenerateWorkCapacity(state.player.workCapacity, gameMinutesToSimulate, state.clock.currentMinute);
+  regenerateWorkCapacity(state.player.workCapacity, gameMinutesToSimulate, state.clock.currentMinute, OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR);
   drainMotorFuel(state, gameMinutesToSimulate);
   expireSpentSchools(state);
 

@@ -348,6 +348,9 @@ export class FarmingDomain {
       return { success: false, reason: placement.reason, reasonCode: placement.reasonCode };
     }
     const { state, events } = this.context;
+    if (state.player.workCapacity.current <= 0) {
+      return { success: false, reason: "You need Labor to plant seeds", reasonCode: "no-labor" };
+    }
     const farm = state.farms[request.farmId]!;
     const cropDef = ContentRegistry.crops.get(request.cropId)!;
     const playerInventory = state.inventories[state.player.inventoryId];
@@ -373,6 +376,7 @@ export class FarmingDomain {
       moistureSampleCount: 1
     };
     farm.placedCropIds.push(placedCropId);
+    this.progression.consumeWorkCapacity(FARMING_ACTION_COST.plant, "farming");
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.plant);
     this.context.persistRng();
     events.emit("CropPlanted", { placedCropId, cropId: cropDef.id, farmId: farm.id, minute: state.clock.currentMinute });
@@ -386,10 +390,14 @@ export class FarmingDomain {
     if (!crop) return { success: false, reason: "Crop not found" };
     if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
     if (crop.stage === "withered") return { success: false, reason: "This crop has withered" };
+    if (state.player.workCapacity.current <= 0) {
+      return { success: false, reason: "You need Labor to water crops", reasonCode: "no-labor" };
+    }
     if (crop.moisture >= WET_MOISTURE_THRESHOLD) {
       return { success: false, reason: "The soil is already wet", reasonCode: "already-wet" };
     }
     crop.moisture = 100;
+    this.progression.consumeWorkCapacity(FARMING_ACTION_COST.water, "farming");
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.water);
     events.emit("CropWatered", { placedCropId, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
     return { success: true };
@@ -412,6 +420,9 @@ export class FarmingDomain {
     }
     if (crop.stage !== "mature" && crop.stage !== "overripe") {
       return { success: false, reason: "This crop is not ready" };
+    }
+    if (state.player.workCapacity.current <= 0) {
+      return { success: false, reason: "You need Labor to harvest crops", reasonCode: "no-labor" };
     }
     const farm = state.farms[crop.farmId]!;
     const playerInventory = state.inventories[state.player.inventoryId];
@@ -445,6 +456,7 @@ export class FarmingDomain {
 
     InventoryManager.addItemsAtomically(playerInventory, harvestStacks);
     farm.soil.fertility = Math.max(FERTILITY_MIN, farm.soil.fertility - cropDef.fertilityCost);
+    this.progression.consumeWorkCapacity(FARMING_ACTION_COST.harvest, "farming");
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.harvest);
     state.journal.cropRecords[crop.cropId] ??= { harvestedCount: 0 };
     const record = state.journal.cropRecords[crop.cropId];
@@ -459,15 +471,18 @@ export class FarmingDomain {
       minute: state.clock.currentMinute
     });
 
-    if (cropDef.regrows && cropDef.regrowMinutes) {
+    if (cropDef.regrows) {
+      crop.effectiveGrowthMinutes = cropDef.baseGrowthMinutes * 0.5;
       crop.stage = "growing";
-      crop.effectiveGrowthMinutes = cropDef.baseGrowthMinutes - cropDef.regrowMinutes;
+      crop.plantedAtMinute = state.clock.currentMinute;
+      crop.lastUpdatedMinute = state.clock.currentMinute;
       crop.averageMoistureAccum = crop.moisture;
       crop.moistureSampleCount = 1;
-    } else {
-      this.removePlacedCrop(placedCropId);
+      this.context.persistRng();
+      return { success: true, yield: quantity, quality };
     }
-    rng.setState(draftRng.getState());
+
+    this.removePlacedCrop(placedCropId);
     this.context.persistRng();
     return { success: true, yield: quantity, quality };
   }
@@ -476,10 +491,13 @@ export class FarmingDomain {
     const { state } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
     const farm = state.farms[farmId];
-    if (!farm) return { success: false, reason: "This farm is unavailable" };
+    if (!farm) return { success: false, reason: "Farm not found" };
     if (!this.isNearFarm(farmId)) return { success: false, reason: "Move closer to the farm" };
     if (farm.soil.fertility >= FERTILITY_MAX) {
       return { success: false, reason: "The soil is already fully fertile" };
+    }
+    if (state.player.workCapacity.current <= 0) {
+      return { success: false, reason: "You need Labor to fertilize soil", reasonCode: "no-labor" };
     }
     const playerInventory = state.inventories[state.player.inventoryId];
     if (!InventoryManager.hasItems(playerInventory, [{ itemId: FERTILIZER_ITEM_ID, quantity: 1 }])) {
@@ -489,8 +507,13 @@ export class FarmingDomain {
       return { success: false, reason: "No fertilizer in your backpack" };
     }
     farm.soil.fertility = Math.min(FERTILITY_MAX, farm.soil.fertility + FERTILITY_RESTORE);
+    this.progression.consumeWorkCapacity(FARMING_ACTION_COST.fertilize, "farming");
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.fertilize);
     return { success: true };
+  }
+
+  public fertilize(farmId: FarmId): InteractionResult {
+    return this.applyFertilizer(farmId);
   }
 
   public getNearbyFarmId(): FarmId | null {
@@ -532,6 +555,9 @@ export class FarmingDomain {
     const farm = state.farms[farmId];
     if (!farm) return { success: false, reason: "This farm is unavailable" };
     if (!this.isNearIrrigationWell(farmId)) return { success: false, reason: "Use the farm well to water the field" };
+    if (state.player.workCapacity.current <= 0) {
+      return { success: false, reason: "You need Labor to irrigate", reasonCode: "no-labor" };
+    }
     let watered = 0;
     for (const placedCropId of farm.placedCropIds) {
       const crop = state.crops[placedCropId];
@@ -542,6 +568,7 @@ export class FarmingDomain {
       events.emit("CropWatered", { placedCropId, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
     }
     if (watered <= 0) return { success: false, reason: "The soil is already wet", reasonCode: "already-wet" };
+    this.progression.consumeWorkCapacity(FARMING_ACTION_COST.irrigate, "farming");
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.irrigate);
     return { success: true };
   }
@@ -567,9 +594,14 @@ export class FarmingDomain {
       ? null
       : Math.max(5, Math.ceil(remainingEffective / Math.max(0.01, currentRate) / 5) * 5);
     const near = this.isNearCrop(crop);
-    const canWater = near && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD;
-    const canHarvest = near && (crop.stage === "mature" || crop.stage === "overripe" || crop.stage === "withered");
+    const hasLabor = state.player.workCapacity.current > 0;
+    const canWater = near && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD && hasLabor;
+    const canHarvest = near && (crop.stage === "mature" || crop.stage === "overripe" || crop.stage === "withered") && (crop.stage === "withered" || hasLabor);
     const workOutcome = this.progression.getWorkOutcome();
+    const baseActionCost = crop.stage === "mature" || crop.stage === "overripe"
+      ? FARMING_ACTION_COST.harvest
+      : FARMING_ACTION_COST.water;
+    const actionCost = this.progression.getDiscountedActionCost(baseActionCost, "farming");
     return {
       placedCropId,
       cropId: crop.cropId,
@@ -586,9 +618,7 @@ export class FarmingDomain {
       expectedYield: { ...cropDef.baseYield },
       work: {
         current: state.player.workCapacity.current,
-        actionCost: crop.stage === "mature" || crop.stage === "overripe"
-          ? FARMING_ACTION_COST.harvest
-          : FARMING_ACTION_COST.water,
+        actionCost,
         xpMultiplier: workOutcome.xpMultiplier,
         rareChanceMultiplier: workOutcome.rareChanceMultiplier
       },
@@ -599,14 +629,18 @@ export class FarmingDomain {
           ? undefined
           : !near
             ? "Move closer"
-            : crop.stage === "withered"
-              ? "Crop withered"
-              : "Soil already wet",
+            : !hasLabor
+              ? "Out of Labor"
+              : crop.stage === "withered"
+                ? "Crop withered"
+                : "Soil already wet",
         harvestReason: canHarvest
           ? undefined
           : !near
             ? "Move closer"
-            : "Not ready"
+            : !hasLabor && (crop.stage === "mature" || crop.stage === "overripe")
+              ? "Out of Labor"
+              : "Not ready"
       }
     };
   }

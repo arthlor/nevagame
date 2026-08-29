@@ -8,13 +8,12 @@ import { CURRENT_SCHEMA_VERSION, type SaveEnvelope, validateSaveEnvelope } from 
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { Simulation } from "../../src/simulation/Simulation";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
-import { determineCropStage, calculateCropQuality } from "../../src/simulation/farming/calculateCropGrowth";
+import { determineCropStage } from "../../src/simulation/farming/calculateCropGrowth";
 import {
   cropMoistureBand,
   orientedCropFootprintsOverlap
 } from "../../src/simulation/domains/FarmingDomain";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
-import { SeededRng } from "../../src/simulation/core/Rng";
 import {
   STARTER_FARM_LAYOUT,
   farmLocalToWorld,
@@ -260,28 +259,24 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.workCapacity.current).toBe(work);
   });
 
-  it("at zero Work grants forty-percent XP and scales only crop rarity contribution", () => {
+  it("at zero Work blocks harvest and requires Labor to tend crops", () => {
     const sim = new Simulation();
     const placedCropId = matureCrop(sim);
     sim.state.player.proficiencies.farming = 0;
     sim.state.player.workCapacity.current = 0;
     const result = sim.harvestCrop(placedCropId);
-    expect(result.success).toBe(true);
-    expect(result.yield).toBeGreaterThanOrEqual(3);
-    expect(sim.state.player.proficiencies.farming).toBe(18);
+    expect(result.success).toBe(false);
+    expect(result.reasonCode).toBe("no-labor");
+    expect(sim.state.player.proficiencies.farming).toBe(0);
 
-    const inputs = {
-      climateMatchScore: 1,
-      averageMoisture: 100,
-      soilFertility: 100,
-      farmingProficiency: 33333,
-      rngRoll: 1
-    };
-    const normal = calculateCropQuality(inputs, new SeededRng(1));
-    const depleted = calculateCropQuality({ ...inputs, rareChanceMultiplier: 0.4 }, new SeededRng(1));
-    expect(normal.score - depleted.score).toBe(6);
-    expect(normal.quality).toBe("prize");
-    expect(depleted.quality).toBe("exceptional");
+    // With Labor available, harvest succeeds and awards full XP
+    sim.state.player.workCapacity.current = 50;
+    sim.state.player.proficiencies.farming = 0;
+    const successResult = sim.harvestCrop(placedCropId);
+    expect(successResult.success).toBe(true);
+    expect(successResult.yield).toBeGreaterThanOrEqual(3);
+    expect(sim.state.player.proficiencies.farming).toBe(45);
+    expect(sim.state.player.workCapacity.current).toBe(5);
   });
 
   it("does not advance RNG or mutate a mature crop when harvest output cannot fit", () => {

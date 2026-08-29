@@ -415,7 +415,10 @@ export const StartScreen: FC<StartScreenProps> = ({
                 <div className="start-screen__controls-grid">
                   <span><ChromeKeycap keyName="W A S D" /><span>Move / steer boat</span></span>
                   <span><ChromeKeycap keyName="Shift" /><span>Sprint on foot</span></span>
-                  <span><ChromeKeycap keyName="E" /><span>Interact / harvest</span></span>
+                  <span><ChromeKeycap keyName="E" /><span>Contextual interaction</span></span>
+                  <span><ChromeKeycap keyName="LMB" /><span>Use equipped tool</span></span>
+                  <span><ChromeKeycap keyName="RMB" /><span>Inspect / orbit camera</span></span>
+                  <span><ChromeKeycap keyName="Space" /><span>Jump / fishing action</span></span>
                   <span><ChromeKeycap keyName="I" /><span>Open inventory</span></span>
                   <span><ChromeKeycap keyName="M" /><span>Open world map</span></span>
                   <span><ChromeKeycap keyName="Esc" /><span>Pause</span></span>
@@ -494,5 +497,4 @@ export const StartScreen: FC<StartScreenProps> = ({
     </main>
   );
 };
-
 

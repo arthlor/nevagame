@@ -86,7 +86,7 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Morning Dew & Moisture",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Approach your freshly seeded crops and press [E] or left-click to water them with your watering can.",
+      "Equip your watering can with [3], then approach a thirsty crop and press [E] or left-click it to water.",
       "Keeping soil moisture in the ideal green band supports healthy growth and better harvest grades!"
     ],
     completionDialogue: [

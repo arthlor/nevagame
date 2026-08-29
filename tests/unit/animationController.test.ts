@@ -7,6 +7,7 @@ import {
 import type { PlayerMotionSample } from "../../src/simulation/core/PhysicsAdapter";
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { socketAttachFor } from "../../src/render/assets/ToolSocketAttach";
+import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 
 function motion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample {
   return {
@@ -506,8 +507,93 @@ describe("AnimationController", () => {
     }
 
     expect(frame.groundRoll).toBeLessThan(0);
+    expect(Math.abs(frame.groundRoll)).toBeLessThanOrEqual(
+      CANONICAL_RENDER_CONFIG.motion.groundingMaxTiltRadians *
+        CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale
+    );
     expect(frame.leftFootOffsetY).toBeGreaterThan(0);
     expect(frame.rightFootOffsetY).toBeLessThan(0);
+
+    const flatGroundMotion = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion()
+    };
+    for (let index = 0; index < 30; index++) {
+      frame = controller.update(1 / 60, flatGroundMotion);
+    }
+    expect(frame.groundPitch).toBeCloseTo(0, 4);
+    expect(frame.groundRoll).toBeCloseTo(0, 4);
+  });
+
+  it("scales foot grounding by gait without reducing the established body-tilt rule", () => {
+    const slopedMotion = (requestedGait: "idle" | "walk" | "run", speedMetersPerSecond: number) => ({
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({
+        velocity: { x: 0, y: 0, z: speedMetersPerSecond },
+        speedMetersPerSecond,
+        requestedGait,
+        groundNormal: { x: 0.35, y: 0.936, z: 0 },
+        slopeRadians: 0.36
+      })
+    });
+    const settle = (controller: AnimationController, gait: "idle" | "walk" | "run", speed: number) => {
+      let frame!: ReturnType<typeof controller.update>;
+      for (let index = 0; index < 60; index++) frame = controller.update(1 / 60, slopedMotion(gait, speed));
+      return frame;
+    };
+
+    const idle = settle(new AnimationController(makeClippedCharacter()), "idle", 0);
+    const walk = settle(new AnimationController(makeClippedCharacter()), "walk", 5);
+    const run = settle(new AnimationController(makeClippedCharacter()), "run", 8.2);
+    expect(walk.leftFootOffsetY / idle.leftFootOffsetY).toBeCloseTo(
+      CANONICAL_RENDER_CONFIG.motion.groundingWalkFootIkScale,
+      2
+    );
+    expect(run.leftFootOffsetY / idle.leftFootOffsetY).toBeCloseTo(
+      CANONICAL_RENDER_CONFIG.motion.groundingRunFootIkScale,
+      2
+    );
+    expect(walk.groundRoll).toBeCloseTo(idle.groundRoll, 4);
+    expect(run.groundRoll).toBeCloseTo(idle.groundRoll, 4);
+  });
+
+  it("maintains stable, non-accumulating foot and leg bone transforms during idle across variable delta times", () => {
+    const character = makeHumanoidCharacter();
+    const controller = new AnimationController(character);
+    const slopedIdle = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({
+        velocity: { x: 0, y: 0, z: 0 },
+        speedMetersPerSecond: 0,
+        requestedGait: "idle",
+        groundNormal: { x: 0.2, y: 0.95, z: 0.2 },
+        slopeRadians: 0.3
+      })
+    };
+
+    // Settle the grounding smoothing filter
+    for (let index = 0; index < 30; index++) {
+      controller.update(1 / 60, slopedIdle);
+    }
+
+    const thighLeft = character.getObjectByName("rig_thigh_left")!;
+    const shinLeft = character.getObjectByName("rig_shin_left")!;
+    const footLeft = character.getObjectByName("rig_foot_left")!;
+    const settledThighX = thighLeft.rotation.x;
+    const settledShinX = shinLeft.rotation.x;
+    const settledFootX = footLeft.rotation.x;
+
+    // Advance across fluctuating browser frame rates (45fps to 75fps deltas)
+    const deltas = [1 / 58, 1 / 62, 1 / 48, 1 / 72, 1 / 60, 1 / 55, 1 / 65];
+    for (const dt of deltas) {
+      controller.update(dt, slopedIdle);
+      expect(thighLeft.rotation.x).toBeCloseTo(settledThighX, 3);
+      expect(shinLeft.rotation.x).toBeCloseTo(settledShinX, 3);
+      expect(footLeft.rotation.x).toBeCloseTo(settledFootX, 3);
+    }
   });
 
   it("mounts prop sockets with correct rest orientations and rotation transforms", () => {

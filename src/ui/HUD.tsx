@@ -1,5 +1,5 @@
 // src/ui/HUD.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { GameState, FishCargoState } from "../simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -68,10 +68,6 @@ export const HUD: React.FC<HUDProps> = ({
 }) => {
   const [showForecast, setShowForecast] = useState(false);
   const { clock, player, weather } = state;
-
-  useEffect(() => {
-    if (toastMessage) playUiSound("open");
-  }, [toastMessage]);
 
   const sprintStamina = player.traversal.sprintStamina;
   const sprintMaximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;
@@ -247,15 +243,15 @@ export const HUD: React.FC<HUDProps> = ({
           {(showLaborNote || carriedFish) && (
             <aside className="hud-context-statuses interactive" aria-label="Current field notes">
               {showLaborNote && (
-                <div className="hud-context-note hud-labor-note" role="status">
+                <div className={`hud-context-note hud-labor-note${laborCurrent === 0 ? " hud-labor-exhausted" : ""}`} role="status">
                   <IconEnergy size={14} aria-hidden="true" />
-                  <span>Low Labor</span>
+                  <span>{laborCurrent === 0 ? "Exhausted" : "Low Labor"}</span>
                   <strong>{`${laborCurrent}/${laborMaximum}`}</strong>
                 </div>
               )}
               {carriedFish && carriedDef && (
                 <div className="hud-context-note hud-cargo-note" role="status">
-                  <AtlasImage src={atlasForFish(carriedFish.speciesId)} alt="" size={28} />
+                  <AtlasImage src={atlasForFish(carriedFish.speciesId)} alt="" size={24} />
                   <span>{carriedDef.name}</span>
                   <strong>{`${carriedFish.weightKg.toFixed(1)} kg`}</strong>
                   <span className="hud-context-note-detail">
@@ -269,55 +265,86 @@ export const HUD: React.FC<HUDProps> = ({
           {activeBoat && boatDef && (
             <section className="hud-boat-panel interactive" aria-label="Boat driving status">
               <header className="boat-panel-header">
-                <IconBoat size={18} className="boat-header-icon" aria-hidden="true" />
-                <strong>{boatDef.name}</strong>
-                <span>{`${Math.round(activeBoat.speed * 1.944)} kn · ${seaStateLabel(weather.seaRoughness)}`}</span>
-                {(clock.timeOfDay === "night" || clock.timeOfDay === "dusk") && (
-                  <span className="hud-weather-chip hud-weather-chip--caution" role="status">
-                    Night waters
+                <div className="boat-panel-title-row">
+                  <div className="boat-panel-name-group">
+                    <IconBoat size={16} className="boat-header-icon" aria-hidden="true" />
+                    <strong className="boat-panel-name">{boatDef.name}</strong>
+                  </div>
+                  {(clock.timeOfDay === "night" || clock.timeOfDay === "dusk") && (
+                    <span className="boat-night-chip" role="status">
+                      Night waters
+                    </span>
+                  )}
+                </div>
+                <div className="boat-panel-sub-row">
+                  <span className="boat-speed-label">
+                    {`${Math.round(activeBoat.speed * 1.944)} kn · ${seaStateLabel(weather.seaRoughness)}`}
                   </span>
-                )}
+                </div>
               </header>
-              <ChromeMeter
-                className="hud-boat-hull"
-                label="Hull"
-                value={activeBoat.durability}
-                max={100}
-                showLabel={false}
-                valueText={`${Math.round(activeBoat.durability)}%`}
-                fill={activeBoat.durability < 30 ? "danger" : "hull"}
-              />
-              <div className="boat-cargo-grid" aria-label="Hold">
-                {boatCargoSlots.map((cargo: FishCargoState | null, index: number) => {
-                  if (!cargo) {
-                    return <ChromeSlot key={`cargo-slot-${index}`} className="boat-cargo-slot" slotNumber={index + 1} label="Empty hold slot" />;
-                  }
-                  const fishDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-                  const freshnessTone = cargo.freshness > 65 ? "fresh" : cargo.freshness > 35 ? "medium" : "stale";
-                  return (
-                    <ChromeSlot
-                      key={cargo.id || `cargo-${index}`}
-                      filled
-                      slotNumber={index + 1}
-                      className="boat-cargo-slot"
-                      label={fishDef?.name ?? "Sport fish"}
-                    >
-                      <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={28} />
-                      {!atlasForFish(cargo.speciesId) && <IconFish size={14} aria-hidden="true" />}
-                      <ChromeQuality quality={cargo.quality} />
-                      <div
-                        className="cargo-freshness-track"
-                        title={`Freshness: ${Math.round(cargo.freshness)}%`}
-                        aria-hidden="true"
-                      >
-                        <div
-                          className={`cargo-freshness-fill freshness-${freshnessTone}`}
-                          style={{ width: `${Math.round(cargo.freshness)}%` }}
+
+              <div className="boat-hull-section">
+                <div className="boat-hull-label-row">
+                  <span className="boat-section-title">Hull Durability</span>
+                  <span className="boat-hull-value">{`${Math.round(activeBoat.durability)}%`}</span>
+                </div>
+                <ChromeMeter
+                  className="hud-boat-hull"
+                  label="Hull"
+                  value={activeBoat.durability}
+                  max={100}
+                  showLabel={false}
+                  showValue={false}
+                  fill={activeBoat.durability < 30 ? "danger" : "hull"}
+                />
+              </div>
+
+              <div className="boat-cargo-section">
+                <div className="boat-cargo-label-row">
+                  <span className="boat-section-title">Cargo Hold</span>
+                  <span className="boat-cargo-count-badge">
+                    {`${boatCargoSlots.filter(Boolean).length}/${boatCargoSlots.length}`}
+                  </span>
+                </div>
+                <div className="boat-cargo-grid" aria-label="Hold">
+                  {boatCargoSlots.map((cargo: FishCargoState | null, index: number) => {
+                    if (!cargo) {
+                      return (
+                        <ChromeSlot
+                          key={`cargo-slot-${index}`}
+                          className="boat-cargo-slot"
+                          slotNumber={index + 1}
+                          label="Empty hold slot"
                         />
-                      </div>
-                    </ChromeSlot>
-                  );
-                })}
+                      );
+                    }
+                    const fishDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
+                    const freshnessTone = cargo.freshness > 65 ? "fresh" : cargo.freshness > 35 ? "medium" : "stale";
+                    return (
+                      <ChromeSlot
+                        key={cargo.id || `cargo-${index}`}
+                        filled
+                        slotNumber={index + 1}
+                        className="boat-cargo-slot"
+                        label={fishDef?.name ?? "Sport fish"}
+                      >
+                        <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={28} />
+                        {!atlasForFish(cargo.speciesId) && <IconFish size={14} aria-hidden="true" />}
+                        <ChromeQuality quality={cargo.quality} />
+                        <div
+                          className="cargo-freshness-track"
+                          title={`Freshness: ${Math.round(cargo.freshness)}%`}
+                          aria-hidden="true"
+                        >
+                          <div
+                            className={`cargo-freshness-fill freshness-${freshnessTone}`}
+                            style={{ width: `${Math.round(cargo.freshness)}%` }}
+                          />
+                        </div>
+                      </ChromeSlot>
+                    );
+                  })}
+                </div>
               </div>
             </section>
           )}
@@ -368,7 +395,7 @@ export const HUD: React.FC<HUDProps> = ({
                 data-testid="context-prompt"
               >
                 {state.basicFishing.phase === "charging-cast" ? (
-                  <span className="banner-text">Release to cast</span>
+                  <span className="banner-text">Release E or LMB to cast</span>
                 ) : state.basicFishing.phase === "bite-reaction" || (state.basicFishing.phase as string) === "bite" ? (
                   <div className="banner-content-row">
                     <KeycapBadge keyName="Space" />

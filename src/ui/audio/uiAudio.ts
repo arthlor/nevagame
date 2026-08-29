@@ -8,7 +8,12 @@ export type UiSoundCue =
   | "cloth"
   | "coins"
   | "page-turn"
-  | "chime";
+  | "chime"
+  | "error"
+  | "stamp"
+  | "sketch"
+  | "treasure"
+  | "perfect";
 
 /**
  * Presentation-only UI sound dispatcher.
@@ -24,10 +29,8 @@ export function playUiSound(cue: UiSoundCue | string): void {
         gameAudio.playOneShot("ui-confirm");
         break;
       case "open":
-        gameAudio.playBank("ui-open");
-        break;
       case "cloth":
-        gameAudio.playOneShot("ui-cloth");
+        gameAudio.playOneShot("ui-click");
         break;
       case "coins":
         gameAudio.playOneShot("coins");
@@ -37,6 +40,21 @@ export function playUiSound(cue: UiSoundCue | string): void {
         break;
       case "chime":
         gameAudio.playOneShot("quest-chime");
+        break;
+      case "error":
+        gameAudio.playOneShot("ui-error");
+        break;
+      case "stamp":
+        gameAudio.playOneShot("contract-stamp");
+        break;
+      case "sketch":
+        gameAudio.playOneShot("journal-sketch");
+        break;
+      case "treasure":
+        gameAudio.playOneShot("treasure-chime");
+        break;
+      case "perfect":
+        gameAudio.playOneShot("perfect-catch");
         break;
       default:
         // Attempt one-shot or bank if custom key passed

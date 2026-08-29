@@ -85,7 +85,10 @@ describe("Milestone M4 ornate modal presentation", () => {
         onOpenGuide: () => {},
         onOpenMap: () => {},
         onOpenLedger: () => {},
-        onOpenExpedition: () => {}
+        onOpenExpedition: () => {},
+        graphicsQuality: "high",
+        effectiveGraphicsQuality: "high",
+        onGraphicsQualityChange: () => {}
       })
     );
 

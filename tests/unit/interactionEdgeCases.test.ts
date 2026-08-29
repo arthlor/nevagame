@@ -35,7 +35,7 @@ describe("Interaction & Modal Routing Edge Cases", () => {
     const targetA = makeTarget("crop_alpha", 1, 1);
     const targetB = makeTarget("crop_beta", 1, 1);
 
-    // Both at identical distance, priority, facing, pointer rank
+    // Both at identical distance, priority, and facing
     const result1 = resolver.resolve([targetB, targetA], defaultContext);
     const result2 = resolver.resolve([targetA, targetB], defaultContext);
 

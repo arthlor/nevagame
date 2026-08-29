@@ -60,6 +60,36 @@ const GROUND_NIGHT = new THREE.Color(
 ).multiplyScalar(CANONICAL_RENDER_CONFIG.skyFill.nightGroundColorStrength);
 const STORM_SKY = new THREE.Color(PALETTE_HEX.rock_coastal_dark_01);
 const STORM_HORIZON = new THREE.Color(PALETTE_HEX.stone_cool_01);
+const SUN_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.sun.colorHex);
+
+function createLightingFrame(): LightingFrame {
+  return {
+    sunDirection: new THREE.Vector3(),
+    moonDirection: new THREE.Vector3(),
+    sunColor: new THREE.Color(),
+    moonColor: new THREE.Color(),
+    sunIntensity: 0,
+    moonIntensity: 0,
+    sunVisibility: 0,
+    moonVisibility: 0,
+    starVisibility: 0,
+    practicalLightIntensity: 0,
+    daylight: 0,
+    skyFillIntensity: 0,
+    skyFillColor: new THREE.Color(),
+    skyTopColor: new THREE.Color(),
+    skyHorizonColor: new THREE.Color(),
+    groundFillColor: new THREE.Color(),
+    fogColor: new THREE.Color(),
+    fogNear: 0,
+    fogFar: 0,
+    lightning: 0,
+    lightningDirection: new THREE.Vector3(),
+    lightningColor: new THREE.Color(),
+    exposure: 1,
+    ambientDaylight: 0
+  };
+}
 
 function clamp01(value: number): number {
   return THREE.MathUtils.clamp(value, 0, 1);
@@ -84,17 +114,20 @@ export function snapShadowFocus(
   focus: THREE.Vector3,
   lightDirection: THREE.Vector3,
   texelSize: number,
-  out = new THREE.Vector3()
+  out = new THREE.Vector3(),
+  direction = new THREE.Vector3(),
+  right = new THREE.Vector3(),
+  up = new THREE.Vector3()
 ): THREE.Vector3 {
   if (!Number.isFinite(texelSize) || texelSize <= 0 || lightDirection.lengthSq() < 0.000001) {
     return out.copy(focus);
   }
 
-  const direction = lightDirection.clone().normalize();
-  const right = new THREE.Vector3(0, 1, 0).cross(direction);
+  direction.copy(lightDirection).normalize();
+  right.set(0, 1, 0).cross(direction);
   if (right.lengthSq() < 0.000001) return out.copy(focus);
   right.normalize();
-  const up = direction.clone().cross(right).normalize();
+  up.copy(direction).cross(right).normalize();
   const lightX = focus.dot(right);
   const lightY = focus.dot(up);
   return out.copy(focus)
@@ -125,7 +158,11 @@ export function clockWindowAmbient(minuteOfDay: number, edgeAmbient: number): nu
   return 0;
 }
 
-export function deriveCelestialDirections(minuteOfDay: number): {
+export function deriveCelestialDirections(
+  minuteOfDay: number,
+  sunDirection = new THREE.Vector3(),
+  moonDirection = new THREE.Vector3()
+): {
   sunDirection: THREE.Vector3;
   moonDirection: THREE.Vector3;
 } {
@@ -136,17 +173,15 @@ export function deriveCelestialDirections(minuteOfDay: number): {
 
   // Two orthogonal axes define one coherent sky orbit: east at sunrise,
   // the configured elevation/azimuth at noon, west at sunset.
-  const eastAxis = new THREE.Vector3(Math.cos(noonAzimuth), 0, -Math.sin(noonAzimuth));
-  const noonAxis = new THREE.Vector3(
-    Math.sin(noonAzimuth) * Math.cos(maxElevation),
-    Math.sin(maxElevation),
-    Math.cos(noonAzimuth) * Math.cos(maxElevation)
-  );
-  const sunDirection = eastAxis
-    .multiplyScalar(Math.cos(solarAngle))
-    .addScaledVector(noonAxis, Math.sin(solarAngle))
-    .normalize();
-  return { sunDirection, moonDirection: sunDirection.clone().multiplyScalar(-1) };
+  const eastScale = Math.cos(solarAngle);
+  const noonScale = Math.sin(solarAngle);
+  sunDirection.set(
+    Math.cos(noonAzimuth) * eastScale + Math.sin(noonAzimuth) * Math.cos(maxElevation) * noonScale,
+    Math.sin(maxElevation) * noonScale,
+    -Math.sin(noonAzimuth) * eastScale + Math.cos(noonAzimuth) * Math.cos(maxElevation) * noonScale
+  ).normalize();
+  moonDirection.copy(sunDirection).multiplyScalar(-1);
+  return { sunDirection, moonDirection };
 }
 
 /** Deterministic multi-stroke flash used only for storm presentation. */
@@ -167,11 +202,17 @@ export function lightningEnvelope(worldSeed: number, timeSeconds: number): numbe
 
 export function deriveLightingFrame(
   state: Pick<GameState, "clock" | "weather" | "worldSeed">,
-  timeSeconds: number
+  timeSeconds: number,
+  target?: LightingFrame
 ): LightingFrame {
+  const frame = target ?? createLightingFrame();
   const config = CANONICAL_RENDER_CONFIG;
   const minuteOfDay = ((state.clock.currentMinute % 1440) + 1440) % 1440;
-  const { sunDirection, moonDirection } = deriveCelestialDirections(minuteOfDay);
+  const { sunDirection, moonDirection } = deriveCelestialDirections(
+    minuteOfDay,
+    frame.sunDirection,
+    frame.moonDirection
+  );
   const solarHeight = sunDirection.y;
   const daylight = smooth01((solarHeight + 0.08) / 0.28);
   const twilight = 1 - smooth01(Math.abs(solarHeight) / 0.24);
@@ -188,12 +229,12 @@ export function deriveLightingFrame(
   const lightning = storm ? lightningEnvelope(state.worldSeed, timeSeconds) : 0;
   const lightningCycle = Math.floor(timeSeconds / config.weather.lightningCycleSeconds);
   const lightningAngle = hash01(state.worldSeed + lightningCycle * 19.31) * Math.PI * 2;
-  const lightningDirection = new THREE.Vector3(
+  const lightningDirection = frame.lightningDirection.set(
     Math.cos(lightningAngle) * 0.72,
     0.62,
     Math.sin(lightningAngle) * 0.72
   ).normalize();
-  const lightningColor = new THREE.Color(config.weather.lightningColorHex);
+  const lightningColor = frame.lightningColor.set(config.weather.lightningColorHex);
 
   // Sparse fair-weather clouds leave the direct key intact; keep the existing
   // overcast response and ease back to it as the sun approaches the horizon.
@@ -222,20 +263,20 @@ export function deriveLightingFrame(
     + twilight * config.skyFill.twilightFillLift * (1 - ambientDaylight)
     + lightning * 0.48;
 
-  const sunColor = new THREE.Color(config.sun.horizonColorHex).lerp(
-    new THREE.Color(config.sun.colorHex),
+  const sunColor = frame.sunColor.set(config.sun.horizonColorHex).lerp(
+    SUN_DAY,
     smooth01(Math.max(0, solarHeight) * 1.7)
   );
-  const moonColor = new THREE.Color(config.moon.colorHex);
-  const skyFillColor = SKY_FILL_NIGHT.clone().lerp(SKY_DAY, ambientDaylight);
-  const skyTopColor = SKY_NIGHT.clone()
+  const moonColor = frame.moonColor.set(config.moon.colorHex);
+  const skyFillColor = frame.skyFillColor.copy(SKY_FILL_NIGHT).lerp(SKY_DAY, ambientDaylight);
+  const skyTopColor = frame.skyTopColor.copy(SKY_NIGHT)
     .lerp(SKY_DAY, ambientDaylight)
     .lerp(HORIZON_DAY, twilight * config.skyFill.twilightZenithHorizonMix);
   const horizonStrength = clamp01(ambientDaylight * 0.76 + twilight * 0.72);
-  const skyHorizonColor = HORIZON_NIGHT.clone()
+  const skyHorizonColor = frame.skyHorizonColor.copy(HORIZON_NIGHT)
     .lerp(HORIZON_DAY, horizonStrength)
     .lerp(skyTopColor, ambientDaylight * 0.22);
-  const groundFillColor = GROUND_NIGHT.clone().lerp(GROUND_DAY, ambientDaylight);
+  const groundFillColor = frame.groundFillColor.copy(GROUND_NIGHT).lerp(GROUND_DAY, ambientDaylight);
   // Clear weather has its own clean-sky radiance instead of inheriting the
   // pale overcast color used by cloudy and rainy states. Keep this coupled to
   // the same daylight envelope, sun direction, fog, and hemisphere fill.
@@ -255,7 +296,7 @@ export function deriveLightingFrame(
     groundFillColor.lerp(lightningColor, lightning * 0.18);
   }
 
-  const fogColor = skyTopColor.clone().lerp(
+  const fogColor = frame.fogColor.copy(skyTopColor).lerp(
     skyHorizonColor,
     storm ? 0.3 : THREE.MathUtils.lerp(0.42, 0.24, clearDaylight)
   );
@@ -286,7 +327,7 @@ export function deriveLightingFrame(
   const moonVisibility =
     smooth01((-solarHeight + 0.025) / 0.1) * THREE.MathUtils.lerp(1, 0.3, cloudCover);
 
-  return {
+  Object.assign(frame, {
     sunDirection,
     moonDirection,
     sunColor,
@@ -311,7 +352,8 @@ export function deriveLightingFrame(
     lightningColor,
     exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, twilightExposure),
     ambientDaylight
-  };
+  });
+  return frame;
 }
 
 export class LightingRig {
@@ -323,10 +365,16 @@ export class LightingRig {
   private readonly renderer: THREE.WebGLRenderer;
   private qualityTier: QualityTier;
   private readonly snappedFocus = new THREE.Vector3();
+  private readonly shadowDirection = new THREE.Vector3();
+  private readonly shadowRight = new THREE.Vector3();
+  private readonly shadowUp = new THREE.Vector3();
+  private readonly frame = createLightingFrame();
+  private lastShadowUpdateSeconds = Number.NEGATIVE_INFINITY;
 
   public constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
     this.renderer = renderer;
+    this.renderer.shadowMap.autoUpdate = false;
     this.qualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
 
     this.sun = new THREE.DirectionalLight(
@@ -373,6 +421,8 @@ export class LightingRig {
     const quality = CANONICAL_RENDER_CONFIG.quality[tier];
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type;
+    this.renderer.shadowMap.needsUpdate = true;
+    this.lastShadowUpdateSeconds = Number.NEGATIVE_INFINITY;
     for (const light of [this.sun, this.moon]) {
       light.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
       const camera = light.shadow.camera;
@@ -403,14 +453,22 @@ export class LightingRig {
     timeSeconds: number,
     focus: THREE.Vector3
   ): LightingFrame {
-    const frame = deriveLightingFrame(state, timeSeconds);
+    const frame = deriveLightingFrame(state, timeSeconds, this.frame);
     const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
     const texelSize = (quality.shadowCameraSize * 2) / quality.shadowMapSize;
     const shadowDirection = frame.moonIntensity > frame.sunIntensity
       ? frame.moonDirection
       : frame.sunDirection;
     if (CANONICAL_RENDER_CONFIG.shadows.followSnap) {
-      snapShadowFocus(focus, shadowDirection, texelSize, this.snappedFocus);
+      snapShadowFocus(
+        focus,
+        shadowDirection,
+        texelSize,
+        this.snappedFocus,
+        this.shadowDirection,
+        this.shadowRight,
+        this.shadowUp
+      );
     } else {
       this.snappedFocus.copy(focus);
     }
@@ -420,6 +478,10 @@ export class LightingRig {
     const moonOwnsShadows = frame.moonIntensity > frame.sunIntensity;
     this.sun.castShadow = !moonOwnsShadows && frame.sunIntensity > 0.01;
     this.moon.castShadow = moonOwnsShadows && frame.moonIntensity > 0.01;
+    if (timeSeconds - this.lastShadowUpdateSeconds >= 0.12) {
+      this.renderer.shadowMap.needsUpdate = true;
+      this.lastShadowUpdateSeconds = timeSeconds;
+    }
 
     this.skyFill.color.copy(frame.skyFillColor);
     this.skyFill.groundColor.copy(frame.groundFillColor);

@@ -46,8 +46,8 @@ describe("Milestone M1 Empirical Stress & Boundary Verification", () => {
       const expectedMappings: Record<string, { type: "oneShot" | "bank"; arg: string }> = {
         click: { type: "oneShot", arg: "ui-click" },
         confirm: { type: "oneShot", arg: "ui-confirm" },
-        open: { type: "bank", arg: "ui-open" },
-        cloth: { type: "oneShot", arg: "ui-cloth" },
+        open: { type: "oneShot", arg: "ui-click" },
+        cloth: { type: "oneShot", arg: "ui-click" },
         coins: { type: "oneShot", arg: "coins" },
         "page-turn": { type: "oneShot", arg: "page-turn" },
         chime: { type: "oneShot", arg: "quest-chime" }
@@ -314,7 +314,7 @@ describe("Milestone M1 Empirical Stress & Boundary Verification", () => {
       rendered.props.onClick({} as any);
       expect(clicked).toBe(true);
       expect(selected).toBe(true);
-      expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
+      expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
 
       playOneShotSpy.mockRestore();
     });
@@ -587,7 +587,6 @@ describe("Milestone M1 Empirical Stress & Boundary Verification", () => {
       await Promise.all(tasks);
 
       expect(playOneShotSpy).toHaveBeenCalled();
-      expect(playBankSpy).toHaveBeenCalled();
 
       playOneShotSpy.mockRestore();
       playBankSpy.mockRestore();

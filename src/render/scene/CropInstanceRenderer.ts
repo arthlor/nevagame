@@ -76,6 +76,8 @@ export function cropStageAsset(cropId: string, stage: CropStage): AssetId | null
 interface TemplateBatch {
   mesh: THREE.InstancedMesh;
   cropIds: string[];
+  phaseAttribute?: THREE.InstancedBufferAttribute;
+  windResponseAttribute?: THREE.InstancedBufferAttribute;
 }
 
 interface CropTemplate {
@@ -93,6 +95,48 @@ interface RenderEntry {
   weight: number;
   isIncoming: boolean;
   cutProgress?: number;
+}
+
+interface CropWindUniforms {
+  uTime: { value: number };
+  uWindDir: { value: THREE.Vector2 };
+  uWindStrength: { value: number };
+}
+
+function patchCropWind(material: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+  material.customProgramCacheKey = () => "neva-crop-instanced-wind-v1";
+  material.onBeforeCompile = (shader) => {
+    const uniforms: CropWindUniforms = {
+      uTime: { value: 0 },
+      uWindDir: { value: new THREE.Vector2(0.7, 0.7).normalize() },
+      uWindStrength: { value: 0 }
+    };
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+attribute float instanceWindPhase;
+attribute float instanceWindResponse;
+uniform float uTime;
+uniform vec2 uWindDir;
+uniform float uWindStrength;`
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+{
+  float rootedHeight = smoothstep(0.04, 0.86, max(position.y, 0.0));
+  float wave = sin(uTime * (1.05 + instanceWindPhase * 0.09) + instanceWindPhase);
+  float gust = sin(uTime * 0.41 + instanceWindPhase * 1.73);
+  float bend = instanceWindResponse * uWindStrength * rootedHeight * (wave * 0.78 + gust * 0.22);
+  vec2 windDirection = normalize(uWindDir + vec2(0.0001));
+  transformed.xz += windDirection * bend;
+}`
+      );
+    material.userData.nevaCropWindShader = shader;
+  };
+  return material;
 }
 
 const STAGE_RANGE: Record<CropStage, { start: number; end: number }> = {
@@ -136,7 +180,7 @@ function makeDisturbedSoilGeometry(): THREE.BufferGeometry {
 
 /**
  * Presentation-only crop batching. Canonical IDs, stages, moisture and transforms
- * remain in simulation; instance indices are rebuilt from that truth every frame.
+ * remain in simulation; instance data rebuilds only when that truth changes.
  */
 export class CropInstanceRenderer {
   public readonly group = new THREE.Group();
@@ -147,12 +191,15 @@ export class CropInstanceRenderer {
   private readonly transitions = new Map<string, CropTransition>();
   private readonly harvestTransitions = new Map<string, { crop: PlacedCropState; startedAtSeconds: number }>();
   private readonly moistureBatch: TemplateBatch;
-  private readonly cropMaterial = PaletteMaterials.standard("foliage_sage_01", {
+  private readonly cropMaterial = patchCropWind(PaletteMaterials.standard("foliage_sage_01", {
     vertexColors: true,
     vertexColorMode: "replace",
     flatShading: true,
     roughness: 0.94
-  });
+  }).clone());
+  private cropSignature = Number.NaN;
+  private templateRevision = 0;
+  private renderedTemplateRevision = -1;
   private readonly matrix = new THREE.Matrix4();
   private readonly position = new THREE.Vector3();
   private readonly quaternion = new THREE.Quaternion();
@@ -161,6 +208,10 @@ export class CropInstanceRenderer {
   private readonly color = new THREE.Color();
   private readonly pickMatrix = new THREE.Matrix4();
   private readonly pickCenter = new THREE.Vector3();
+  private readonly pickRaycaster = new THREE.Raycaster();
+  private readonly pickPointer = new THREE.Vector2();
+  private readonly pickMeshes: THREE.Object3D[] = [];
+  private readonly pickHits: THREE.Intersection[] = [];
 
   public constructor() {
     this.group.name = "crop_instance_renderer";
@@ -180,6 +231,8 @@ export class CropInstanceRenderer {
     moistureMesh.receiveShadow = true;
     moistureMesh.frustumCulled = false;
     this.moistureBatch = { mesh: moistureMesh, cropIds: [] };
+    moistureMesh.userData.cropBatch = this.moistureBatch;
+    this.pickMeshes.push(moistureMesh);
     this.group.add(moistureMesh);
   }
 
@@ -255,13 +308,20 @@ export class CropInstanceRenderer {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
-    const batch = { mesh, cropIds: [] };
+    const phaseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
+    const windResponseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
+    merged.setAttribute("instanceWindPhase", phaseAttribute);
+    merged.setAttribute("instanceWindResponse", windResponseAttribute);
+    const batch = { mesh, cropIds: [], phaseAttribute, windResponseAttribute };
+    mesh.userData.cropBatch = batch;
+    this.pickMeshes.push(mesh);
     batches.push(batch);
     this.group.add(mesh);
     for (const geometry of geometries) {
       if (geometry !== merged) geometry.dispose();
     }
     this.templates.set(assetId, { batches });
+    this.templateRevision += 1;
   }
 
   public sync(
@@ -269,8 +329,20 @@ export class CropInstanceRenderer {
     timeSeconds: number,
     weatherMotion?: Readonly<WeatherMotionSignal>
   ): void {
+    this.updateWind(timeSeconds, state, weatherMotion);
+    const crops = Object.values(state.crops);
+    const signature = this.computeCropSignature(crops);
+    const animationActive = this.transitions.size > 0 || this.harvestTransitions.size > 0;
+    if (
+      signature === this.cropSignature
+      && !animationActive
+      && this.renderedTemplateRevision === this.templateRevision
+    ) return;
+    this.cropSignature = signature;
+    this.renderedTemplateRevision = this.templateRevision;
+
     const entriesByAsset = new Map<AssetId, RenderEntry[]>();
-    const activeIds = new Set(Object.keys(state.crops));
+    const activeIds = new Set(crops.map((crop) => crop.id));
     for (const id of [...this.lastStages.keys()]) {
       if (!activeIds.has(id)) {
         const previousCrop = this.lastCrops.get(id);
@@ -286,7 +358,7 @@ export class CropInstanceRenderer {
       }
     }
 
-    for (const crop of Object.values(state.crops)) {
+    for (const crop of crops) {
       const previous = this.lastStages.get(crop.id);
       if (previous && previous !== crop.stage) {
         this.transitions.set(crop.id, { from: previous, to: crop.stage, startedAtSeconds: timeSeconds });
@@ -339,18 +411,45 @@ export class CropInstanceRenderer {
     for (const [assetId, template] of this.templates) {
       const entries = entriesByAsset.get(assetId) ?? [];
       for (const batch of template.batches) {
-        this.updateBatch(batch, entries, state, timeSeconds, weatherMotion);
+        this.updateBatch(batch, entries);
       }
     }
-    this.updateMoistureBatch(Object.values(state.crops));
+    this.updateMoistureBatch(crops);
+  }
+
+  private updateWind(
+    timeSeconds: number,
+    state: Readonly<GameState>,
+    weatherMotion?: Readonly<WeatherMotionSignal>
+  ): void {
+    const shader = this.cropMaterial.userData.nevaCropWindShader as
+      { uniforms: CropWindUniforms } | undefined;
+    if (!shader) return;
+    shader.uniforms.uTime.value = timeSeconds;
+    shader.uniforms.uWindDir.value.set(
+      weatherMotion?.directionX ?? 0.7,
+      weatherMotion?.directionZ ?? 0.7
+    ).normalize();
+    shader.uniforms.uWindStrength.value = weatherMotion
+      ? 0.5 + weatherMotion.normalizedStrength * 1.05 + weatherMotion.gust * 0.08
+      : Math.min(1.6, 0.55 + state.weather.windSpeed * 0.12);
+  }
+
+  private computeCropSignature(crops: readonly PlacedCropState[]): number {
+    let hash = crops.length ^ 0x811c9dc5;
+    for (const crop of crops) {
+      const values = `${crop.id}|${crop.cropId}|${crop.stage}|${crop.farmId}|${crop.x}|${crop.z}|${crop.rotationRadians}|${crop.effectiveGrowthMinutes}|${cropMoistureBand(crop.moisture)}`;
+      for (let index = 0; index < values.length; index += 1) {
+        hash ^= values.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+      }
+    }
+    return hash >>> 0;
   }
 
   private updateBatch(
     batch: TemplateBatch,
-    entries: readonly RenderEntry[],
-    state: Readonly<GameState>,
-    timeSeconds: number,
-    weatherMotion?: Readonly<WeatherMotionSignal>
+    entries: readonly RenderEntry[]
   ): void {
     this.ensureBatchCapacity(batch, entries.length, `${batch.mesh.name}_dynamic`);
     batch.cropIds.length = 0;
@@ -369,21 +468,13 @@ export class CropInstanceRenderer {
         ? THREE.MathUtils.lerp(0.82, 1, entry.weight)
         : THREE.MathUtils.lerp(0.82, 1, entry.weight);
       const windResponse = crop.stage === "seeded" ? 0 : crop.stage === "sprout" ? 0.015 : 0.035;
-      const phase = hashUnit(`${crop.id}:wind`) * Math.PI * 2;
-      const windStrength = weatherMotion
-        ? 0.5 + weatherMotion.normalizedStrength * 1.05 + weatherMotion.gust * 0.08
-        : Math.min(1.6, 0.55 + state.weather.windSpeed * 0.12);
-      const sway = Math.sin(timeSeconds * (1.05 + hashUnit(`${crop.id}:rate`) * 0.45) + phase) *
-        windResponse * windStrength;
-      const windX = weatherMotion?.directionX ?? 0.7;
-      const windZ = weatherMotion?.directionZ ?? 0.7;
       this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
       const cut = entry.cutProgress ?? 0;
       const cutLean = smoothstep(cut) * (0.82 + hashUnit(`${crop.id}:cut`) * 0.24);
       this.euler.set(
-        sway * windZ + cutLean,
+        cutLean,
         crop.rotationRadians,
-        sway * windX + cutLean * 0.28,
+        cutLean * 0.28,
         "YXZ"
       );
       this.quaternion.setFromEuler(this.euler);
@@ -397,11 +488,15 @@ export class CropInstanceRenderer {
       batch.mesh.setMatrixAt(index, this.matrix);
       this.instanceTint(crop, entry.weight, this.color);
       batch.mesh.setColorAt(index, this.color);
+      batch.phaseAttribute?.setX(index, hashUnit(`${crop.id}:wind`) * Math.PI * 2);
+      batch.windResponseAttribute?.setX(index, windResponse);
       batch.cropIds.push(entry.cutProgress == null ? crop.id : "");
     }
     batch.mesh.count = count;
     batch.mesh.instanceMatrix.needsUpdate = count > 0;
     if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = count > 0;
+    if (batch.phaseAttribute) batch.phaseAttribute.needsUpdate = count > 0;
+    if (batch.windResponseAttribute) batch.windResponseAttribute.needsUpdate = count > 0;
   }
 
   private instanceTint(crop: PlacedCropState, transitionWeight: number, target: THREE.Color): void {
@@ -457,19 +552,26 @@ export class CropInstanceRenderer {
     this.group.remove(previous);
     this.group.add(replacement);
     batch.mesh = replacement;
+    replacement.userData.cropBatch = batch;
+    const pickIndex = this.pickMeshes.indexOf(previous);
+    if (pickIndex >= 0) this.pickMeshes[pickIndex] = replacement;
+    if (batch.phaseAttribute) {
+      batch.phaseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+      previous.geometry.setAttribute("instanceWindPhase", batch.phaseAttribute);
+    }
+    if (batch.windResponseAttribute) {
+      batch.windResponseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+      previous.geometry.setAttribute("instanceWindResponse", batch.windResponseAttribute);
+    }
   }
 
   public pick(camera: THREE.Camera, pointerNdc: { x: number; y: number }): string | null {
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(pointerNdc.x, pointerNdc.y), camera);
-    const batches = [
-      this.moistureBatch,
-      ...[...this.templates.values()].flatMap((template) => template.batches)
-    ].filter((batch) => batch.mesh.count > 0);
-    const hits = raycaster.intersectObjects(batches.map((batch) => batch.mesh), false);
-    for (const hit of hits) {
+    this.pickRaycaster.setFromCamera(this.pickPointer.set(pointerNdc.x, pointerNdc.y), camera);
+    this.pickHits.length = 0;
+    this.pickRaycaster.intersectObjects(this.pickMeshes, false, this.pickHits);
+    for (const hit of this.pickHits) {
       if (hit.instanceId == null) continue;
-      const batch = batches.find((entry) => entry.mesh === hit.object);
+      const batch = hit.object.userData.cropBatch as TemplateBatch | undefined;
       const cropId = batch?.cropIds[hit.instanceId];
       if (cropId) return cropId;
     }
@@ -512,7 +614,10 @@ export class CropInstanceRenderer {
     }
     this.templates.clear();
     this.loading.clear();
+    this.pickMeshes.length = 0;
+    this.pickHits.length = 0;
     this.moistureBatch.mesh.removeFromParent();
     this.moistureBatch.mesh.geometry.dispose();
+    this.cropMaterial.dispose();
   }
 }

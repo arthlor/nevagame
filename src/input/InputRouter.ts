@@ -91,7 +91,7 @@ export function deriveSemanticInput(
     fishing: {
       isReeling:
         (mode === "sport-fishing" && hasAny(keys, "Mouse0", "KeyW")) ||
-        (mode === "basic-fishing" && hasAny(keys, "Mouse0", "Space", "KeyE", "KeyC", "KeyW")),
+        (mode === "basic-fishing" && keys.has("Space")),
       isSlacking: mode === "sport-fishing" && hasAny(keys, "Mouse2", "KeyS"),
       isBracing: mode === "sport-fishing" && keys.has("Space"),
       rodDirectionAngle
@@ -292,6 +292,8 @@ export class InputRouter {
       case "Space":
         if (!this.worldInputSuspended && this.currentMode === "sport-fishing") {
           this.dispatch("fish-brace");
+        } else if (!this.worldInputSuspended && this.currentMode === "basic-fishing") {
+          this.dispatch("fish-reel");
         } else if (
           !this.jumpBlocked &&
           !this.worldInputSuspended &&
@@ -319,6 +321,9 @@ export class InputRouter {
 
   private onKeyUp = (event: KeyboardEvent): void => {
     this.heldInput.release(event.code);
+    if (!this.worldInputSuspended && this.currentMode === "basic-fishing" && event.code === "KeyE") {
+      this.dispatch("interact-release");
+    }
   };
 
   private onPointerDown = (event: PointerEvent): void => {
@@ -380,6 +385,9 @@ export class InputRouter {
     if (event.button === 0) {
       this.heldInput.release("Mouse0");
       if (this.layoutPointer?.id === event.pointerId) this.releaseLayoutPointer();
+      if (!this.worldInputSuspended && this.currentMode === "basic-fishing") {
+        this.dispatch("use-primary-release");
+      }
     }
     if (event.button !== 2) return;
     this.heldInput.release("Mouse2");
@@ -423,7 +431,10 @@ export class InputRouter {
   }
 
   private onContextMenu = (event: Event): void => {
-    if (this.isCanvasTarget(event.target)) event.preventDefault();
+    if (
+      this.isCanvasTarget(event.target) ||
+      (event.target instanceof HTMLElement && event.target.closest(".basic-fishing-container"))
+    ) event.preventDefault();
   };
 
   private onBlur = (): void => this.interrupt();

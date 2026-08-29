@@ -30,6 +30,27 @@
     { "id": "page-turn", "freesoundId": 318615, "user": "jephwallace" },
     { "id": "rope-creak", "freesoundId": 557378, "user": "Patrick_Corra" },
     { "id": "market-murmur", "freesoundId": 864846, "user": "IENBA" },
-    { "id": "ui-cloth", "freesoundId": 568992, "user": "Fission9" }
+    { "id": "ui-cloth", "freesoundId": 850705, "user": "IENBA" },
+    { "id": "footsteps-sand", "freesoundId": 564893, "user": "Nox_Sound" },
+    { "id": "footsteps-water", "freesoundId": 263495, "user": "lwdickens" },
+    { "id": "donkey-trot", "freesoundId": 571312, "user": "maciejadach" },
+    { "id": "donkey-snort", "freesoundId": 475483, "user": "o_ciz" },
+    { "id": "hoe-till", "freesoundId": 696531, "user": "dhallcomposer" },
+    { "id": "fertilizer-dust", "freesoundId": 514382, "user": "zatar" },
+    { "id": "apple-drop", "freesoundId": 149418, "user": "kvgarlic" },
+    { "id": "fish-scale-scrape", "freesoundId": 336592, "user": "Anthousai" },
+    { "id": "wood-saw", "freesoundId": 118031, "user": "greggace" },
+    { "id": "skiff-engine", "freesoundId": 637202, "user": "kyles" },
+    { "id": "ice-shovel", "freesoundId": 320722, "user": "AlfredHitch" },
+    { "id": "journal-sketch", "freesoundId": 867719, "user": "Steven_Core" },
+    { "id": "contract-stamp", "freesoundId": 448474, "user": "eddies2000" },
+    { "id": "ui-error", "freesoundId": 553297, "user": "sukondi" },
+    { "id": "dawn-birds", "freesoundId": 578523, "user": "SamsterBirdies" },
+    { "id": "treasure-chime", "freesoundId": 398496, "user": "Anthousai" },
+    { "id": "music-village", "freesoundId": 860778, "user": "BeaconStudio" },
+    { "id": "music-piano", "freesoundId": 859607, "user": "blankie.rest" },
+    { "id": "music-folk-calm", "freesoundId": 576081, "user": "BaDoink" },
+    { "id": "music-guitar-arpeggio", "freesoundId": 330945, "user": "oliche_" },
+    { "id": "watering-can", "freesoundId": 810382, "user": "Melon11" }
   ]
 }

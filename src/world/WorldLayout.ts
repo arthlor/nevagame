@@ -82,6 +82,15 @@ export interface TerrainSurfaceSample {
   shorelineWetness: number;
 }
 
+export type TraversalSurfaceSource = "terrain" | "road" | "bridge" | "pier" | "interior";
+
+/** Exact walkable support shared by canonical traversal and presentation grounding. */
+export interface TraversalSurfaceSample {
+  height: number;
+  normal: Readonly<{ x: number; y: number; z: number }>;
+  source: TraversalSurfaceSource;
+}
+
 export interface CoastProfile {
   beach: number;
   rockShelf: number;
@@ -171,6 +180,9 @@ export const WORLD_BOUNDS: WorldBounds = { minX: -180, maxX: 180, minZ: -160, ma
 export const SAILABLE_BOUNDS: WorldBounds = { minX: -260, maxX: 260, minZ: -240, maxZ: 280 };
 export const TERRAIN_RESOLUTION = 256;
 export const TERRAIN_SIZE_METERS = 600;
+const TERRAIN_GRID_STEP_METERS = TERRAIN_SIZE_METERS / TERRAIN_RESOLUTION;
+const TERRAIN_GRID_MINIMUM = -TERRAIN_SIZE_METERS * 0.5;
+const TRAVERSAL_TRIANGLE_EPSILON = 1e-6;
 export const WATER_SURFACE = Object.freeze({
   width: 750,
   depth: 750,
@@ -274,6 +286,108 @@ const BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y = Object.freeze([
   2.708
 ]);
 const BRIDGE_BOUNDARY_EPSILON = 0.001;
+
+interface TraversalRoadTriangle {
+  a: readonly [number, number, number];
+  b: readonly [number, number, number];
+  c: readonly [number, number, number];
+}
+
+interface RawTraversalSurfaceSample {
+  height: number;
+  source: TraversalSurfaceSource;
+}
+
+let traversalBaseHeightfieldCache: Float32Array | null = null;
+let traversalRoadTriangleIndexCache: Map<string, TraversalRoadTriangle[]> | null = null;
+let cachedTraversalSurfaceQuery: {
+  x: number;
+  z: number;
+  sampleDistance: number;
+  result: TraversalSurfaceSample;
+} | null = null;
+
+function traversalCellKey(x: number, z: number): string {
+  return `${Math.floor(x / TERRAIN_GRID_STEP_METERS)}:${Math.floor(z / TERRAIN_GRID_STEP_METERS)}`;
+}
+
+function sampleTraversalBasePlane(x: number, z: number): number {
+  traversalBaseHeightfieldCache ??= WorldLayout.terrainBaseHeightfield();
+  const maximumIndex = TERRAIN_RESOLUTION - 1;
+  const column = THREE.MathUtils.clamp(
+    Math.floor((x - TERRAIN_GRID_MINIMUM) / TERRAIN_GRID_STEP_METERS),
+    0,
+    maximumIndex
+  );
+  const row = THREE.MathUtils.clamp(
+    Math.floor((z - TERRAIN_GRID_MINIMUM) / TERRAIN_GRID_STEP_METERS),
+    0,
+    maximumIndex
+  );
+  const cellX = TERRAIN_GRID_MINIMUM + column * TERRAIN_GRID_STEP_METERS;
+  const cellZ = TERRAIN_GRID_MINIMUM + row * TERRAIN_GRID_STEP_METERS;
+  const u = THREE.MathUtils.clamp((x - cellX) / TERRAIN_GRID_STEP_METERS, 0, 1);
+  const v = THREE.MathUtils.clamp((z - cellZ) / TERRAIN_GRID_STEP_METERS, 0, 1);
+  const stride = TERRAIN_RESOLUTION + 1;
+  const height = (gridX: number, gridZ: number): number =>
+    traversalBaseHeightfieldCache![gridX * stride + gridZ];
+  const a = height(column, row);
+  const b = height(column, row + 1);
+  const c = height(column + 1, row + 1);
+  const d = height(column + 1, row);
+  return u + v <= 1
+    ? a + u * (d - a) + v * (b - a)
+    : c + (1 - u) * (b - c) + (1 - v) * (d - c);
+}
+
+function sharedTraversalRoadTriangleIndex(): Map<string, TraversalRoadTriangle[]> {
+  if (traversalRoadTriangleIndexCache) return traversalRoadTriangleIndexCache;
+  const geometry = WorldLayout.buildPathGeometry();
+  const positions = geometry.getAttribute("position");
+  const indices = geometry.getIndex();
+  if (!indices) {
+    geometry.dispose();
+    throw new Error("[WorldLayout] Canonical traversal road geometry must be indexed");
+  }
+  const cells = new Map<string, TraversalRoadTriangle[]>();
+  for (let offset = 0; offset < indices.count; offset += 3) {
+    const triangle: TraversalRoadTriangle = {
+      a: [positions.getX(indices.getX(offset)), positions.getY(indices.getX(offset)), positions.getZ(indices.getX(offset))],
+      b: [positions.getX(indices.getX(offset + 1)), positions.getY(indices.getX(offset + 1)), positions.getZ(indices.getX(offset + 1))],
+      c: [positions.getX(indices.getX(offset + 2)), positions.getY(indices.getX(offset + 2)), positions.getZ(indices.getX(offset + 2))]
+    };
+    const minimumX = Math.floor(Math.min(triangle.a[0], triangle.b[0], triangle.c[0]) / TERRAIN_GRID_STEP_METERS);
+    const maximumX = Math.floor(Math.max(triangle.a[0], triangle.b[0], triangle.c[0]) / TERRAIN_GRID_STEP_METERS);
+    const minimumZ = Math.floor(Math.min(triangle.a[2], triangle.b[2], triangle.c[2]) / TERRAIN_GRID_STEP_METERS);
+    const maximumZ = Math.floor(Math.max(triangle.a[2], triangle.b[2], triangle.c[2]) / TERRAIN_GRID_STEP_METERS);
+    for (let cellX = minimumX; cellX <= maximumX; cellX++) {
+      for (let cellZ = minimumZ; cellZ <= maximumZ; cellZ++) {
+        const key = `${cellX}:${cellZ}`;
+        const bucket = cells.get(key) ?? [];
+        bucket.push(triangle);
+        cells.set(key, bucket);
+      }
+    }
+  }
+  geometry.dispose();
+  traversalRoadTriangleIndexCache = cells;
+  return cells;
+}
+
+function sampleTraversalRoadPlane(x: number, z: number): number | null {
+  let highest = Number.NEGATIVE_INFINITY;
+  for (const triangle of sharedTraversalRoadTriangleIndex().get(traversalCellKey(x, z)) ?? []) {
+    const { a, b, c } = triangle;
+    const determinant = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+    if (Math.abs(determinant) <= 1e-12) continue;
+    const weightA = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / determinant;
+    const weightB = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / determinant;
+    const weightC = 1 - weightA - weightB;
+    if (Math.min(weightA, weightB, weightC) < -TRAVERSAL_TRIANGLE_EPSILON) continue;
+    highest = Math.max(highest, a[1] * weightA + b[1] * weightB + c[1] * weightC);
+  }
+  return Number.isFinite(highest) ? highest : null;
+}
 const roundBridgeCoordinate = (value: number): number => Math.round(value * 10) / 10;
 const BRIDGE_WEST_DECK_EDGE = Object.freeze({
   x: BRIDGE_CENTER.x - BRIDGE_HALF_SPAN,
@@ -492,7 +606,7 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   { id: "orchard.farmhouse", center: { x: 134, z: -32 }, rotationY: -1.172274, envelope: [4.5, 4.75], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
   { id: "orchard.tool-shed", center: { x: 105, z: -49 }, rotationY: -0.764568, envelope: [1.55, 1.4], frontageClearanceMeters: 3, frontApproachMeters: 2.5 },
   { id: "orchard.outhouse", center: { x: 129, z: -50 }, rotationY: -0.95724, envelope: [1.1, 1.5], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
-  { id: "village.roadside-stall", center: { x: 44, z: -18 }, rotationY: 0.661043, envelope: [1.25, 0.85], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
+  { id: "village.roadside-stall", center: { x: 52.7, z: -14}, rotationY: 1.5708, envelope: [1.25, 0.85], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
   {
     id: "village.tool-shed",
     center: { x: 25.3, z: -71.5},
@@ -1581,12 +1695,10 @@ export class WorldLayout {
     return this.terrainBaseHeight(x, z) + this.roadSurfaceSample(x, z).surfaceOffsetMeters;
   }
 
-  /**
-   * Final height of a walkable traversal surface. Bridge deck collision is
-   * intentionally excluded from terrainHeight(), so actors crossing it must
-   * resolve against the authored deck boxes rather than the riverbed.
-   */
-  public static traversalSurfaceHeight(x: number, z: number): number {
+  private static rawTraversalSurfaceSample(x: number, z: number): RawTraversalSurfaceSample {
+    if (this.isInterior(x, z)) {
+      return { height: FARMHOUSE_INTERIOR_BOUNDS.floorY, source: "interior" };
+    }
     if (this.isBridgeDeck(x, z)) {
       const localX = THREE.MathUtils.clamp(
         x - BRIDGE_CENTER.x,
@@ -1598,12 +1710,70 @@ export class WorldLayout {
         0,
         BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y.length - 1
       );
-      return this.terrainHeight(BRIDGE_CENTER.x, BRIDGE_CENTER.z)
-        + BRIDGE_ROOT_Y_OFFSET
-        + BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y[segmentIndex];
+      return {
+        height: this.terrainHeight(BRIDGE_CENTER.x, BRIDGE_CENTER.z)
+          + BRIDGE_ROOT_Y_OFFSET
+          + BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y[segmentIndex],
+        source: "bridge"
+      };
     }
-    if (this.isPierDeck(x, z)) return this.pierDeckSurfaceY();
-    return this.terrainHeight(x, z);
+    if (this.isPierDeck(x, z)) {
+      return { height: this.pierDeckSurfaceY(), source: "pier" };
+    }
+
+    const terrainHeight = sampleTraversalBasePlane(x, z);
+    const roadHeight = sampleTraversalRoadPlane(x, z);
+    if (roadHeight !== null && roadHeight >= terrainHeight - TRAVERSAL_TRIANGLE_EPSILON) {
+      return { height: Math.max(terrainHeight, roadHeight), source: "road" };
+    }
+    return { height: terrainHeight, source: "terrain" };
+  }
+
+  /**
+   * Exact deterministic support represented by the rendered/Rapier terrain
+   * grid, conformed indexed road triangles, and authored traversal overrides.
+   */
+  public static traversalSurfaceSample(
+    x: number,
+    z: number,
+    sampleDistance: number = 0.45
+  ): TraversalSurfaceSample {
+    if (
+      cachedTraversalSurfaceQuery &&
+      cachedTraversalSurfaceQuery.x === x &&
+      cachedTraversalSurfaceQuery.z === z &&
+      cachedTraversalSurfaceQuery.sampleDistance === sampleDistance
+    ) {
+      return cachedTraversalSurfaceQuery.result;
+    }
+
+    const center = this.rawTraversalSurfaceSample(x, z);
+    let normal: TraversalSurfaceSample["normal"] = { x: 0, y: 1, z: 0 };
+    if (center.source === "terrain" || center.source === "road") {
+      const safeDistance = Math.max(0.01, sampleDistance);
+      const left = this.rawTraversalSurfaceSample(x - safeDistance, z).height;
+      const right = this.rawTraversalSurfaceSample(x + safeDistance, z).height;
+      const back = this.rawTraversalSurfaceSample(x, z - safeDistance).height;
+      const front = this.rawTraversalSurfaceSample(x, z + safeDistance).height;
+      const normalX = left - right;
+      const normalY = safeDistance * 2;
+      const normalZ = back - front;
+      const length = Math.hypot(normalX, normalY, normalZ);
+      normal = length > 1e-8
+        ? { x: normalX / length, y: normalY / length, z: normalZ / length }
+        : { x: 0, y: 1, z: 0 };
+    }
+    const result: TraversalSurfaceSample = {
+      height: center.height,
+      normal,
+      source: center.source
+    };
+    cachedTraversalSurfaceQuery = { x, z, sampleDistance, result };
+    return result;
+  }
+
+  public static traversalSurfaceHeight(x: number, z: number): number {
+    return this.traversalSurfaceSample(x, z).height;
   }
 
   /** Y component of the terrain normal without allocating a Vector3. */

@@ -7,6 +7,52 @@
  * look direction. Sticky keep-distance holds already-drawn clumps while that
  * anchor moves, then fills remaining slots with nearest in-range placements.
  */
+export interface GroundCoverSpatialIndex {
+  readonly cellSize: number;
+  readonly cells: ReadonlyMap<string, readonly number[]>;
+}
+
+function groundCoverCellKey(x: number, z: number): string {
+  return `${x}:${z}`;
+}
+
+export function buildGroundCoverSpatialIndex(
+  instances: readonly Readonly<{ x: number; z: number }>[],
+  cellSize = 20
+): GroundCoverSpatialIndex {
+  const cells = new Map<string, number[]>();
+  for (let index = 0; index < instances.length; index += 1) {
+    const instance = instances[index];
+    const cellX = Math.floor(instance.x / cellSize);
+    const cellZ = Math.floor(instance.z / cellSize);
+    const key = groundCoverCellKey(cellX, cellZ);
+    const entries = cells.get(key) ?? [];
+    entries.push(index);
+    cells.set(key, entries);
+  }
+  return { cellSize, cells };
+}
+
+export function queryGroundCoverSpatialIndex(
+  index: GroundCoverSpatialIndex,
+  focusX: number,
+  focusZ: number,
+  radius: number
+): number[] {
+  const minX = Math.floor((focusX - radius) / index.cellSize);
+  const maxX = Math.floor((focusX + radius) / index.cellSize);
+  const minZ = Math.floor((focusZ - radius) / index.cellSize);
+  const maxZ = Math.floor((focusZ + radius) / index.cellSize);
+  const candidates: number[] = [];
+  for (let cellZ = minZ; cellZ <= maxZ; cellZ += 1) {
+    for (let cellX = minX; cellX <= maxX; cellX += 1) {
+      const entries = index.cells.get(groundCoverCellKey(cellX, cellZ));
+      if (entries) candidates.push(...entries);
+    }
+  }
+  return candidates;
+}
+
 export function selectStableGroundCoverIndices(
   instances: readonly Readonly<{ x: number; z: number }>[],
   focusX: number,
@@ -14,7 +60,8 @@ export function selectStableGroundCoverIndices(
   drawDistanceMeters: number,
   maxVisible: number,
   previousIndices: readonly number[] = [],
-  keepDistanceMeters: number = drawDistanceMeters
+  keepDistanceMeters: number = drawDistanceMeters,
+  candidateIndices?: readonly number[]
 ): number[] {
   if (maxVisible <= 0 || instances.length === 0 || drawDistanceMeters <= 0) {
     return [];
@@ -46,7 +93,8 @@ export function selectStableGroundCoverIndices(
   if (selected.length === maxVisible) return selected;
 
   const newcomers: Array<{ index: number; distSq: number }> = [];
-  for (let index = 0; index < instances.length; index += 1) {
+  const candidates = candidateIndices ?? instances.keys();
+  for (const index of candidates) {
     if (previous.has(index)) continue;
     const dx = instances[index].x - focusX;
     const dz = instances[index].z - focusZ;

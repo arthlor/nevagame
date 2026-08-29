@@ -144,10 +144,11 @@ export class FishingDomain {
     this.tickBasicFishing(realDeltaSeconds);
   }
 
-  public startChargingCastBasic(): { success: boolean; reason?: string } {
+  public startChargingCastBasic(): { success: boolean; reason?: string; reasonCode?: string } {
     const { state } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
+    if (state.player.workCapacity.current <= 0) return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -178,11 +179,15 @@ export class FishingDomain {
     return { success: true };
   }
 
-  public releaseCastBasic(castPower?: number): { success: boolean; reason?: string } {
+  public releaseCastBasic(castPower?: number): { success: boolean; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
     if (!state.basicFishing) return { success: false, reason: "Not casting" };
     if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
       return { success: false, reason: "Not charging a cast" };
+    }
+    if (state.player.workCapacity.current <= 0) {
+      state.basicFishing = null;
+      return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
     }
     const power = Math.max(0.05, Math.min(1.0, castPower ?? state.basicFishing.castPower ?? 0.75));
     const habitatId = state.basicFishing.habitatId;
@@ -199,6 +204,7 @@ export class FishingDomain {
       hasBait = this.consumeBaitIfPresent();
     }
 
+    this.progression.consumeWorkCapacity(15, "fishing");
     const catchItemId = rng.weighted(eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight })));
 
     const newState = BasicFishingMinigame.createInitialState(
@@ -265,10 +271,11 @@ export class FishingDomain {
     return { success: true };
   }
 
-  public castBasic(castPower: number = 0.75): { success: boolean; reason?: string } {
+  public castBasic(castPower: number = 0.75): { success: boolean; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
+    if (state.player.workCapacity.current <= 0) return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -284,6 +291,7 @@ export class FishingDomain {
     }
 
     const hasBait = this.consumeBaitIfPresent();
+    this.progression.consumeWorkCapacity(15, "fishing");
 
     const catchItemId = rng.weighted(
       eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight }))
@@ -364,10 +372,14 @@ export class FishingDomain {
 
   public hookSportFish(
     schoolId: FishSchoolId
-  ): { success: boolean; encounter?: FishingEncounterState; reason?: string } {
+  ): { success: boolean; encounter?: FishingEncounterState; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
+    if (state.player.workCapacity.current <= 0) {
+      this.context.persistRng();
+      return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
+    }
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
     if (state.clock.currentMinute >= school.expiresAtMinute || school.remainingCatchPotential <= 0) {
@@ -422,6 +434,7 @@ export class FishingDomain {
       { originX: state.player.x, originZ: state.player.z, bearingRadians: water.bearing,
         isWater: (x, z) => WorldLayout.isSailable(x, z) }
     );
+    this.progression.consumeWorkCapacity(40, "fishing");
     state.sportFishing = this.encounter.getState() as FishingEncounterState;
     this.pendingLandSchoolId = schoolId;
     state.sportFishing.schoolId = schoolId;

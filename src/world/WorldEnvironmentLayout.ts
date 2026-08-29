@@ -536,15 +536,14 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.orchard.garden-step-slab", { assetId: "prop_path_stone_slab_a", x: 126.2, z: -34, rotationY: 0.4, scale: [1, 1, 1] }),
 
   // Dry-land repair stock: these spare spans are not a second navigable dock or crossing.
-  authoredPlacement("authored.harbor.repair-span", { assetId: "bridge_log_plank_a", x: 91, z: 49, rotationY: 0.25, scale: [1, 1, 1], grounding: [2, 0.86], clearanceRadiusMeters: 3 }),
+  
   authoredPlacement("authored.harbor.repair-platform", { assetId: "prop_dock_platform_a", x: 91, z: 53.5, rotationY: 0.25, scale: [1, 1, 1], clearanceRadiusMeters: 1.6 }),
-  authoredPlacement("authored.harbor.spare-gangplank", { assetId: "prop_gangplank_a", x: 94, z: 51.5, rotationY: 0.25, scale: [1, 1, 1] }),
-  authoredPlacement("authored.harbor.spare-railing", { assetId: "prop_pier_railing_a", x: 91, z: 56, rotationY: 0.25, scale: [1, 1, 1] }),
-  authoredPlacement("authored.harbor.anchor-store", { assetId: "prop_anchor_admiralty_a", x: 95, z: 55, rotationY: -0.2, scale: [1, 1, 1] }),
+  
+  authoredPlacement("authored.harbor.spare-railing", { assetId: "prop_pier_railing_a", x: 68.4, z: 60.5, rotationY: -1.8326, scale: [1, 1, 1] }),
+  authoredPlacement("authored.harbor.anchor-store", { assetId: "prop_anchor_admiralty_a", x: 97, z: 56, rotationY: -0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.harbor.drying-rack", { assetId: "prop_fish_drying_rack_a", x: 85, z: 59, rotationY: 0.25, scale: [1, 1, 1], grounding: [1.1, 0.41], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.harbor.mooring-post", { assetId: "prop_mooring_post_a", x: 85, z: 68, rotationY: 0.3, scale: [1, 1, 1] }),
   authoredPlacement("authored.harbor.yard-lantern", { assetId: "prop_dock_lantern_a", x: 88, z: 57.5, rotationY: 0.25, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.village.stall-sign", { assetId: "prop_signboard_hanging_a", x: 46, z: -17, rotationY: 0.66, scale: [1, 1, 1] }),
 
   // A maintained stopping place on the lighthouse walk; no new fire/camping mechanic.
   authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -60, z: 65, rotationY: 2.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -652,7 +651,6 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   // Dock lantern at the pier entrance, aligned with the walkway
 
   // Mooring post at the dock edge near the rowboat
-
 
   // Village plaza: open packed courtyard. Buildings sit on a wide ring with
   // published +Z doors facing the market. The mill pad stays southwest, off-court.

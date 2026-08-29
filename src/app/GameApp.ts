@@ -13,8 +13,11 @@ import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { GameUI } from "../ui/GameUI";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
-import { ASSET_CATALOG } from "../render/assets/AssetCatalog";
 import { AssetLoader } from "../render/loaders/AssetLoader";
+import {
+  GraphicsQualitySettings,
+  type GraphicsQualityPreference
+} from "../render/config/GraphicsQualitySettings";
 import { applyOfflineProgression } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
@@ -166,12 +169,6 @@ export interface NevaDebugApi {
   moveToStation: (stationId: string) => boolean;
   /** Read-only camera projection used by the Chrome input acceptance harness. */
   projectWorldPoint: (x: number, z: number) => { x: number; y: number; visible: boolean };
-  /** DEV-only collision inspection used by focused traversal probes. */
-  staticCollisionSummary: () => Array<{
-    id: string;
-    center: { x: number; y: number; z: number };
-    halfExtents: { x: number; y: number; z: number };
-  }>;
   snapshot: () => NevaDebugSnapshot;
   saveNow: () => Promise<boolean>;
 }
@@ -198,8 +195,7 @@ type DebugStartScenario =
   | "harbor"
   | "harbor-skiff"
   | "boat-driving"
-  | "sport-fishing"
-  | "donkey-bridge";
+  | "sport-fishing";
 
 type StartupIntent = "continue" | "new-game" | "without-saving";
 
@@ -212,8 +208,7 @@ const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "harbor",
   "harbor-skiff",
   "boat-driving",
-  "sport-fishing",
-  "donkey-bridge"
+  "sport-fishing"
 ]);
 
 const EMPTY_ASSET_COVERAGE_SUMMARY: AssetCoverageSummary = {
@@ -346,13 +341,33 @@ export class GameApp {
   private readonly interactionResolver = new InteractionTargetResolver();
   private farmingActionSnapshot: FarmingActionSnapshot | null = null;
   private hudFishingHold: FishingHoldInput = { isReeling: false, isSlacking: false, isBracing: false };
-  private hudBasicHold = false;
-  private basicCastHoldLatched = false;
+  private basicCastSource: "interact" | "primary" | null = null;
   private isRunning: boolean = false;
   private lastTimeMs: number = 0;
   private fps: number = 60;
   private frameCount: number = 0;
   private fpsTimer: number = 0;
+  private lastUiFrameMs = Number.NEGATIVE_INFINITY;
+  private lastDiagnosticsFrameMs = Number.NEGATIVE_INFINITY;
+  private lastInteractionEvaluationMs = Number.NEGATIVE_INFINITY;
+  private lastInteractionX = Number.POSITIVE_INFINITY;
+  private lastInteractionZ = Number.POSITIVE_INFINITY;
+  private lastInteractionPointerX = Number.POSITIVE_INFINITY;
+  private lastInteractionPointerY = Number.POSITIVE_INFINITY;
+  private lastInteractionMode: GameplayMode | null = null;
+  private readonly diagnosticsEnabled = new URLSearchParams(window.location.search).has("debug");
+  private readonly graphicsQuality = new GraphicsQualitySettings();
+  private readonly presentationPlayerPosition = new THREE.Vector3();
+  private renderStats = {
+    calls: 0,
+    triangles: 0,
+    points: 0,
+    lines: 0,
+    visibleMeshes: 0,
+    shadowCasters: 0,
+    batchedMeshes: 0,
+    instancedMeshes: 0
+  };
   private simulationFeedbackDisposers: Array<() => void> = [];
   private lastAutosaveMs: number = 0;
   private physicsAccumulatorSeconds: number = 0;
@@ -364,7 +379,7 @@ export class GameApp {
   private benchmarkPresentationTimeSeconds: number | null = null;
   private persistenceDisabled: boolean = false;
   private bootReady: boolean = false;
-  private startupState: StartupState = createStartupState(ASSET_CATALOG.length);
+  private startupState: StartupState = createStartupState(0);
   private startupPromise: Promise<void> | null = null;
   private savePreflightPromise: Promise<LoadGameResult> | null = null;
   private startupIntent: StartupIntent = "continue";
@@ -415,6 +430,7 @@ export class GameApp {
     this.resizeObserver = new ResizeObserver(() => this.onResize());
     this.sim = new Simulation();
     this.worldScene = new WorldScene(canvas);
+    this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
     this.gameCamera = new GameCamera(window.innerWidth / window.innerHeight);
     this.inputRouter = new InputRouter();
     this.saveRepo = new IndexedDbSaveRepository();
@@ -454,8 +470,7 @@ export class GameApp {
     }
     if (mode !== this.mode) this.cancelFarmingAction();
     if (this.mode === "basic-fishing" && mode !== "basic-fishing") {
-      this.basicCastHoldLatched = false;
-      this.hudBasicHold = false;
+      this.basicCastSource = null;
     }
     this.modeController.setGameplayMode(mode);
     this.inputRouter.setMode(mode);
@@ -576,7 +591,7 @@ export class GameApp {
       if (next === "journal") {
         gameAudio.playOneShot("page-turn");
       } else {
-        gameAudio.playBank("ui-open");
+        gameAudio.playOneShot("ui-click");
       }
       return;
     }
@@ -594,7 +609,7 @@ export class GameApp {
     ) {
       this.sim.execute({ type: "fishing.cancel-basic" });
       this.restoreGameplayModeFromState();
-      this.basicCastHoldLatched = false;
+      this.basicCastSource = null;
     }
     if (modal !== "dialogue") {
       this.activeDialogueNpcId = null;
@@ -618,7 +633,7 @@ export class GameApp {
     );
 
     this.persistenceDisabled = Boolean(benchmarkPreset || debugStart);
-    this.startupState = createStartupState(ASSET_CATALOG.length);
+    this.startupState = createStartupState(0);
     this.bootReady = false;
     this.startupIntent = "continue";
     this.startupPromise = null;
@@ -818,8 +833,10 @@ export class GameApp {
       loadedAssets: 0,
       message: "Unpacking the shoreline"
     });
+    const startupAssetIds = WorldScene.startupAssetIds(this.sim.state);
+    this.updateStartupState({ totalAssets: startupAssetIds.length });
     await withTimeout(
-      AssetLoader.preloadAll((progress) => {
+      AssetLoader.preload(startupAssetIds, (progress) => {
         this.updateStartupState({
           phase: "assets",
           loadedAssets: progress.completed,
@@ -897,7 +914,7 @@ export class GameApp {
   private applyDebugStartScenario(scenario: DebugStartScenario): void {
     const poseFor = (x: number, z: number, rotationY: number = 0) => ({
       x,
-      y: WorldLayout.terrainHeight(x, z) + 0.5,
+      y: WorldLayout.traversalSurfaceHeight(x, z) + 0.5,
       z,
       rotationY
     });
@@ -950,26 +967,6 @@ export class GameApp {
           throw new Error("Could not prepare deterministic sport-fishing debug start");
         }
         break;
-      case "donkey-bridge": {
-        const donkey = this.sim.state.mounts[STARTER_DONKEY_ID];
-        if (!donkey || !this.sim.setDebugPlayerPose({
-          x: donkey.x,
-          y: donkey.y + 0.5,
-          z: donkey.z,
-          rotationY: donkey.rotationY
-        }) || !this.sim.boardMount(STARTER_DONKEY_ID).success) {
-          throw new Error("Could not prepare deterministic donkey bridge debug start");
-        }
-        const bridgeStart = { x: -30, z: -6.03 };
-        if (!this.sim.setDebugPlayerPose({
-          ...bridgeStart,
-          y: WorldLayout.traversalSurfaceHeight(bridgeStart.x, bridgeStart.z) + 0.5,
-          rotationY: Math.PI / 2
-        })) {
-          throw new Error("Could not place the donkey at the bridge approach");
-        }
-        break;
-      }
     }
     this.modeController.restoreFromState(this.sim.state);
     this.inputRouter.setMode(this.mode);
@@ -979,17 +976,33 @@ export class GameApp {
   private setupInputHandlers(): void {
     this.inputRouter.onAction((action: GameAction) => {
       if (this.startupState.status !== "ready") return;
-      if (this.modeController.blocksHudOverlaysAndTools && action !== "pause") return;
+      const isHudOverlayOrToolAction =
+        action.startsWith("open-") ||
+        action.startsWith("select-tool-") ||
+        action === "toggle-farm-gis";
+      if (this.modeController.blocksHudOverlaysAndTools && isHudOverlayOrToolAction) return;
       switch (action) {
         case "interact":
           if (this.mode === "sport-fishing" || this.mode === "basic-fishing" || this.activeModal) return;
           if (this.mode === "farm-placement") this.confirmCropPlacement();
           else this.handleContextInteract();
           break;
+        case "interact-release":
+          if (this.mode === "basic-fishing" && this.basicCastSource === "interact") {
+            this.basicCastSource = null;
+            this.releaseBasicFishingCast();
+          }
+          break;
         case "use-primary":
           if (this.activeModal) return;
           if (this.mode === "farm-placement") this.confirmCropPlacement();
-          else if (this.mode === "on-foot" || this.mode === "boat-driving" || this.mode === "mounted") this.handleContextInteract();
+          else if (this.mode === "on-foot" || this.mode === "boat-driving") this.handlePrimaryUse();
+          break;
+        case "use-primary-release":
+          if (this.mode === "basic-fishing" && this.basicCastSource === "primary") {
+            this.basicCastSource = null;
+            this.releaseBasicFishingCast();
+          }
           break;
         case "use-secondary":
           if (this.activeModal) return;
@@ -1009,8 +1022,7 @@ export class GameApp {
           }
           if (this.mode === "basic-fishing" && this.sim.state.basicFishing?.phase === "charging-cast") {
             this.sim.execute({ type: "fishing.cancel-basic" });
-            this.basicCastHoldLatched = false;
-            this.hudBasicHold = false;
+            this.basicCastSource = null;
             this.restoreGameplayModeFromState();
           }
           if (this.mode === "farm-placement") {
@@ -1072,6 +1084,19 @@ export class GameApp {
           this.selectToolSlot(5);
           break;
         case "fish-reel":
+          if (this.mode === "basic-fishing") {
+            const attempt = this.sim.state.basicFishing;
+            if (attempt?.phase === "bite-reaction") {
+              const result = this.sim.execute({ type: "fishing.hook-bite-basic" });
+              if (!result.success) this.setToast(result.reason ?? "The fish slipped the hook");
+            } else if (attempt?.phase === "caught" || attempt?.phase === "escaped") {
+              const result = this.sim.execute({ type: "fishing.cancel-basic" });
+              if (!result.success) this.setToast(result.reason ?? "Your backpack is full");
+            }
+            break;
+          }
+          this.applySportFishingInput();
+          break;
         case "fish-slack":
         case "fish-brace":
         case "fish-left":
@@ -1085,10 +1110,12 @@ export class GameApp {
     this.inputRouter.onInterruption(() => {
       this.cancelFarmingAction();
       this.clearFarmGisHold();
-      // setMode/pause also interrupt. Do not cancel a charge here — entering
-      // basic-fishing calls setMode, which would otherwise abort the new cast.
-      this.basicCastHoldLatched = false;
-      this.hudBasicHold = false;
+      if (this.basicCastSource && this.sim.state.basicFishing?.phase === "charging-cast") {
+        this.sim.execute({ type: "fishing.cancel-basic" });
+        this.basicCastSource = null;
+        this.restoreGameplayModeFromState();
+      }
+      this.basicCastSource = null;
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false };
     });
   }
@@ -1234,9 +1261,13 @@ export class GameApp {
     // the authoritative runtime is ready; no simulation time advances.
     if (!this.bootReady) {
       this.worldScene.render(this.gameCamera.camera);
-      this.renderUI();
+      this.renderUiForFrame(nowMs);
       requestAnimationFrame(this.loop);
       return;
+    }
+
+    if (this.graphicsQuality.sampleFrame(deltaSeconds, nowMs)) {
+      this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
     }
 
     // Apply mouse orbit before fixed-step movement so simultaneous WASD uses
@@ -1286,7 +1317,11 @@ export class GameApp {
       discontinuityReason: "none" as const,
       discontinuitySequence: 0
     };
-    const playerPos = new THREE.Vector3(presentedPlayer.x, presentedPlayer.y, presentedPlayer.z);
+    const playerPos = this.presentationPlayerPosition.set(
+      presentedPlayer.x,
+      presentedPlayer.y,
+      presentedPlayer.z
+    );
     this.lastPresentedPlayer = presentedPlayer;
     const activeBoat = state.player.activeBoatId
       ? state.boats[state.player.activeBoatId]
@@ -1311,7 +1346,10 @@ export class GameApp {
     for (const event of this.worldScene.drainPlayerAnimationEvents()) {
       if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
       gameAudio.playBank(
-        footstepBankForSurface(footstepSurfaceAt(presentedPlayer.x, presentedPlayer.z)),
+        footstepBankForSurface(
+          footstepSurfaceAt(presentedPlayer.x, presentedPlayer.z),
+          Boolean(this.sim.state.player.activeMountId)
+        ),
         {
           x: presentedPlayer.x,
           y: presentedPlayer.y,
@@ -1369,7 +1407,8 @@ export class GameApp {
             throttle: boatMotion.throttle,
             x: activeBoat.x,
             y: activeBoat.y,
-            z: activeBoat.z
+            z: activeBoat.z,
+            isSkiff: activeBoat.boatTypeId.includes("skiff")
           }
         : undefined,
       fishing: encounter
@@ -1396,14 +1435,14 @@ export class GameApp {
       this.worldScene.setQuestWaypoint(null);
       this.syncLayoutEditor();
     } else {
-      this.evaluateInteractionTarget();
+      this.evaluateInteractionTarget(nowMs, false);
     }
 
     // 6. Render 3D Scene
     this.worldScene.render(this.gameCamera.camera);
 
     // 7. Render 2D UI Overlay
-    this.renderUI();
+    this.renderUiForFrame(nowMs);
 
     requestAnimationFrame(this.loop);
   };
@@ -1475,29 +1514,19 @@ export class GameApp {
 
   private applyBasicFishingInput(): void {
     if (this.mode !== "basic-fishing" || !this.sim.state.basicFishing) {
-      this.basicCastHoldLatched = false;
+      this.basicCastSource = null;
       return;
     }
     if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
       if (this.sim.state.basicFishing?.phase === "charging-cast") {
         this.sim.execute({ type: "fishing.cancel-basic" });
-        this.basicCastHoldLatched = false;
-        this.hudBasicHold = false;
+        this.basicCastSource = null;
       }
       return;
     }
     const input = this.inputRouter.getInputState();
     const attempt = this.sim.state.basicFishing;
-    if (attempt.phase === "charging-cast") {
-      if (input.fishing.isReeling) this.basicCastHoldLatched = true;
-      else if (this.basicCastHoldLatched) {
-        this.basicCastHoldLatched = false;
-        this.releaseBasicFishingCast();
-      }
-    } else {
-      this.basicCastHoldLatched = false;
-    }
-    const isHolding = input.fishing.isReeling || this.hudBasicHold;
+    const isHolding = attempt.phase === "minigame" && input.fishing.isReeling;
     if (isHolding !== Boolean(attempt.isHolding)) {
       this.sim.execute({
         type: "fishing.control-basic",
@@ -1508,8 +1537,7 @@ export class GameApp {
 
   private cancelBasicFishingLine(): void {
     if (!this.sim.state.basicFishing) return;
-    this.hudBasicHold = false;
-    this.basicCastHoldLatched = false;
+    this.basicCastSource = null;
     this.sim.execute({ type: "fishing.cancel-basic" });
     this.setToast("Line reeled in", 1600);
   }
@@ -1581,15 +1609,15 @@ export class GameApp {
     const distanceMeters = Math.hypot(player.x - world.x, player.z - world.z);
     if (distanceMeters > 2.5) return null;
 
-    const workWarning = inspection.work.current <= 0 ? " · Reduced XP and rare chance" : "";
     const farm = this.sim.state.farms[crop.farmId];
     const inventory = this.sim.state.inventories[this.sim.state.player.inventoryId];
     const canFertilize = Boolean(
       farm &&
       farm.soil.fertility < 100 &&
+      inspection.work.current > 0 &&
       InventoryManager.hasItems(inventory, [{ itemId: "item.basic_fertilizer", quantity: 1 }])
     );
-    if (inspection.actions.canHarvest) {
+    if (inspection.actions.canHarvest && this.activeToolSlot === 1) {
       return {
         id: `crop:${crop.id}:harvest`,
         entityId: crop.id,
@@ -1600,10 +1628,24 @@ export class GameApp {
         worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
         modes: ["on-foot"],
         requiresLineOfSight: true,
-        prompt: `[E] Harvest ${inspection.name} · Right-click inspect${workWarning}`
+        prompt: `[E] Harvest ${inspection.name} · Right-click inspect`
       };
     }
-    if (inspection.actions.canWater) {
+    if (inspection.actions.canHarvest) {
+      return {
+        id: `crop:${crop.id}:equip-harvest`,
+        entityId: crop.id,
+        kind: "crop",
+        action: "inspect",
+        distanceMeters,
+        priority: 4,
+        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: `[1] Equip Hand Tools to harvest ${inspection.name} · Right-click inspect`
+      };
+    }
+    if (inspection.actions.canWater && this.activeToolSlot === 3) {
       return {
         id: `crop:${crop.id}:water`,
         entityId: crop.id,
@@ -1614,7 +1656,21 @@ export class GameApp {
         worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
         modes: ["on-foot"],
         requiresLineOfSight: true,
-        prompt: `[E] Water ${inspection.name} · Right-click inspect${workWarning}`
+        prompt: `[E] Water ${inspection.name} · Right-click inspect`
+      };
+    }
+    if (inspection.actions.canWater) {
+      return {
+        id: `crop:${crop.id}:equip-water`,
+        entityId: crop.id,
+        kind: "crop",
+        action: "inspect",
+        distanceMeters,
+        priority: 4,
+        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: `[3] Equip Watering Can to water ${inspection.name} · Right-click inspect`
       };
     }
     if (canFertilize) {
@@ -1628,7 +1684,21 @@ export class GameApp {
         worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
         modes: ["on-foot"],
         requiresLineOfSight: true,
-        prompt: `[E] Fertilize soil · Right-click inspect${workWarning}`
+        prompt: `[E] Fertilize soil · Right-click inspect`
+      };
+    }
+    if (inspection.actions.harvestReason === "Out of Labor" || inspection.actions.waterReason === "Out of Labor") {
+      return {
+        id: `crop:${crop.id}:out-of-labor`,
+        entityId: crop.id,
+        kind: "crop",
+        action: "inspect",
+        distanceMeters,
+        priority: 0,
+        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: `${inspection.name} (Need Labor) · Right-click inspect`
       };
     }
     return {
@@ -1637,7 +1707,7 @@ export class GameApp {
       kind: "crop",
       action: "inspect",
       distanceMeters,
-      priority: 0,
+      priority: 4,
       worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
       modes: ["on-foot"],
       requiresLineOfSight: true,
@@ -1691,11 +1761,6 @@ export class GameApp {
         });
       }
     }
-
-    // Pointer and center hints feed the same stable proximity/facing resolver used by E and LMB.
-    const pointer = this.inputRouter.getInputState().pointerNdc;
-    const pointedCropId = this.worldScene.pickCrop(this.gameCamera.camera, pointer);
-    const centeredCropId = this.worldScene.pickCrop(this.gameCamera.camera, { x: 0, y: 0 });
 
     for (const crop of Object.values(this.sim.state.crops)) {
       const candidate = this.resolveCropTarget(crop.id);
@@ -2037,15 +2102,31 @@ export class GameApp {
     return this.interactionResolver.resolve(candidates, {
       mode: this.mode,
       player: p,
-      pointerEntityId: pointedCropId,
-      centeredEntityId: centeredCropId,
       hasLineOfSight: this.physicsWorld
         ? (from, to) => this.physicsWorld!.hasLineOfSight(from, to)
         : undefined
     });
   }
 
-  private evaluateInteractionTarget(): void {
+  private evaluateInteractionTarget(nowMs: number = performance.now(), force: boolean = true): void {
+    const player = this.sim.state.player;
+    const pointer = this.inputRouter.getInputState().pointerNdc;
+    if (!force) {
+      const elapsed = nowMs - this.lastInteractionEvaluationMs;
+      if (elapsed < 66) return;
+      const playerMoved = Math.hypot(player.x - this.lastInteractionX, player.z - this.lastInteractionZ) >= 0.2;
+      const pointerMoved = Math.hypot(
+        pointer.x - this.lastInteractionPointerX,
+        pointer.y - this.lastInteractionPointerY
+      ) >= 0.012;
+      if (!playerMoved && !pointerMoved && this.mode === this.lastInteractionMode && elapsed < 250) return;
+    }
+    this.lastInteractionEvaluationMs = nowMs;
+    this.lastInteractionX = player.x;
+    this.lastInteractionZ = player.z;
+    this.lastInteractionPointerX = pointer.x;
+    this.lastInteractionPointerY = pointer.y;
+    this.lastInteractionMode = this.mode;
     if (this.activeModal || this.benchmarkView) {
       this.worldScene.setInteractionTargetFeedback(null);
       this.promptText = null;
@@ -2099,6 +2180,39 @@ export class GameApp {
       }
     }
     this.promptText = picked ? picked.prompt : null;
+  }
+
+  private pickPointedCropInteraction(): ResolvedInteractionTarget | null {
+    if (this.mode !== "on-foot") return null;
+    const pointer = this.inputRouter.getInputState().pointerNdc;
+    const cropId = this.worldScene.pickCrop(this.gameCamera.camera, pointer);
+    return cropId ? this.resolveCropTarget(cropId) : null;
+  }
+
+  private handlePrimaryUse(): void {
+    if (this.mode === "sport-fishing" || this.mode === "basic-fishing" || this.farmingActions.isActive) return;
+
+    if (this.mode === "on-foot") {
+      const crop = this.pickPointedCropInteraction();
+      if (crop) {
+        this.lockedInteractionTarget = crop;
+        if (crop.worldPosition) this.facePlayerToward(crop.worldPosition.x, crop.worldPosition.z);
+        if (crop.action === "harvest" && crop.entityId) this.startCropAction("harvest", crop.entityId);
+        else if (crop.action === "water" && crop.entityId) this.startCropAction("water", crop.entityId);
+        else if (crop.action === "fertilize" && crop.entityId) this.startFertilizeAction(crop.entityId, crop.worldPosition);
+        else this.setToast(crop.prompt.split(" · ")[0].replace(/^\[[^\]]+\]\s*/, ""), 1800);
+        if (!this.farmingActions.isActive) this.lockedInteractionTarget = null;
+        return;
+      }
+    }
+
+    if (
+      this.activeToolSlot === FISHING_ROD_TOOL_SLOT &&
+      (this.mode === "on-foot" || this.mode === "boat-driving") &&
+      WorldLayout.nearbyFishingHabitat(this.sim.state.player.x, this.sim.state.player.z)
+    ) {
+      this.handleCastFishing("primary");
+    }
   }
 
   private handleContextInteract(): void {
@@ -2173,13 +2287,13 @@ export class GameApp {
         if (picked.id.startsWith("npc:") && picked.entityId) {
           this.openDialogueModal(picked.entityId);
         } else if (picked.kind === "crop" && picked.entityId) {
-          this.inspectedCrop = this.sim.inspectCrop(picked.entityId);
+          this.setToast(picked.prompt.split(" · ")[0].replace(/^\[[^\]]+\]\s*/, ""), 1800);
         } else if (picked.stationId && picked.recipeId) {
           this.interactWithStation(picked);
         }
         break;
       case "cast":
-        this.handleCastFishing();
+        this.handleCastFishing("interact");
         break;
       case "trade": {
         const nearbyMarket = this.sim.getNearbyMarketId();
@@ -2234,14 +2348,14 @@ export class GameApp {
   }
 
   private attachDebugHarness(): void {
-    console.info("[GameApp] debug harness attached");
+    if (!import.meta.env.DEV) return;
     window.__NEVA_DEBUG = {
       execute: (command) => this.sim.execute(command),
       advanceGameMinutes: (minutes) => this.sim.advanceGameMinutes(minutes),
       tickRealSeconds: (seconds) => this.sim.tick(seconds),
       teleport: (x, z) => {
-        const y = WorldLayout.isWater(x, z) || WorldLayout.isInterior(x, z)
-          ? (WorldLayout.isInterior(x, z) ? 0.67 : 0.5)
+        const y = WorldLayout.isWater(x, z)
+          ? 0.5
           : WorldLayout.traversalSurfaceHeight(x, z) + 0.5;
         this.teleportPlayer({ x, y, z, rotationY: this.sim.state.player.rotationY });
       },
@@ -2295,11 +2409,6 @@ export class GameApp {
           visible: projected.z >= -1 && projected.z <= 1
         };
       },
-      staticCollisionSummary: () => this.worldScene.staticCollisionProxies().map((proxy) => ({
-        id: proxy.id,
-        center: { ...proxy.center },
-        halfExtents: { ...proxy.halfExtents }
-      })),
       snapshot: () => {
         const fishing = this.sim.state.basicFishing;
         const encounter = this.sim.activeFishingEncounter?.getState();
@@ -2600,9 +2709,14 @@ export class GameApp {
   }
 
   private inspectPointedCrop(): void {
-    const target = this.pickInteraction();
-    const cropId = target?.kind === "crop" ? target.entityId : undefined;
-    this.inspectedCrop = cropId ? this.sim.inspectCrop(cropId) : null;
+    const pointer = this.inputRouter.getInputState().pointerNdc;
+    const cropId = this.worldScene.pickCrop(this.gameCamera.camera, pointer);
+    const target = cropId ? this.resolveCropTarget(cropId) : null;
+    if (!cropId || !target) {
+      this.inspectedCrop = null;
+      return;
+    }
+    this.inspectedCrop = this.sim.inspectCrop(cropId);
   }
 
   private cancelFarmingAction(): boolean {
@@ -2670,8 +2784,8 @@ export class GameApp {
           play("watering");
           break;
         case "fertilize":
+          play("fertilizer-dust");
           play("place");
-          play("plant-dirt");
           break;
         case "harvest":
           play("harvest-cut");
@@ -2960,7 +3074,7 @@ export class GameApp {
     }
     this.restoreGameplayModeFromState();
     this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
-      discontinuity: "docking"
+      discontinuity: "dismounting"
     });
     this.requestAutosave();
   }
@@ -3070,7 +3184,7 @@ export class GameApp {
     }
   }
 
-  private handleCastFishing(): void {
+  private handleCastFishing(source: "interact" | "primary" = "interact"): void {
     if (this.mode === "sport-fishing") return;
     if (this.sim.state.player.activeMountId) {
       this.setToast("Dismount before fishing");
@@ -3088,6 +3202,7 @@ export class GameApp {
     const res = this.sim.execute({ type: "fishing.start-charge-basic" });
     if (res.success) {
       this.setGameplayMode("basic-fishing");
+      this.basicCastSource = source;
       this.setToast("Hold to charge cast power…", 1800);
       this.showContextualHint(
         "hint.fishing_basic",
@@ -3158,7 +3273,6 @@ export class GameApp {
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false };
     }
     if (this.mode === "basic-fishing" && !this.sim.state.basicFishing) {
-      this.hudBasicHold = false;
       this.restoreGameplayModeFromState();
     }
 
@@ -3166,19 +3280,24 @@ export class GameApp {
     const cameraPosition = this.gameCamera.camera.position;
     const cameraFraming = this.gameCamera.framingState();
     const placementTarget = this.frozenPlacementResult ?? this.placementResult;
+    const nowMs = performance.now();
+    if (this.diagnosticsEnabled && nowMs - this.lastDiagnosticsFrameMs >= 250) {
+      this.lastDiagnosticsFrameMs = nowMs;
+      this.renderStats = {
+        calls: this.worldScene.renderer.info.render.calls,
+        triangles: this.worldScene.renderer.info.render.triangles,
+        points: this.worldScene.renderer.info.render.points,
+        lines: this.worldScene.renderer.info.render.lines,
+        ...this.worldScene.renderObjectStats()
+      };
+    }
 
     this.uiRoot.render(
       React.createElement(GameUI, {
         state,
         mode: this.mode,
         fps: this.fps,
-        renderStats: {
-          calls: this.worldScene.renderer.info.render.calls,
-          triangles: this.worldScene.renderer.info.render.triangles,
-          points: this.worldScene.renderer.info.render.points,
-          lines: this.worldScene.renderer.info.render.lines,
-          ...this.worldScene.renderObjectStats()
-        },
+        renderStats: this.renderStats,
         cameraDiagnostics: {
           x: cameraPosition.x,
           y: cameraPosition.y,
@@ -3254,19 +3373,6 @@ export class GameApp {
           if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
           this.sim.execute({ type: "fishing.hook-bite-basic" });
         },
-        onSetBasicFishingInput: (isHolding: boolean) => {
-          this.hudBasicHold = isHolding;
-          if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
-          const routerHolding = this.inputRouter.getInputState().fishing.isReeling;
-          this.sim.execute({ type: "fishing.control-basic", isHolding: isHolding || routerHolding });
-        },
-        onCancelBasicFishing: () => {
-          if (this.modeController.pausesSimulation) return;
-          this.cancelBasicFishingLine();
-        },
-        onReleaseBasicFishingCast: (power?: number) => {
-          this.releaseBasicFishingCast(power);
-        },
         onDismissBasicFishingModal: () => {
           if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
           if (this.sim.state.basicFishing?.phase === "caught" || this.sim.state.basicFishing?.phase === "escaped") {
@@ -3338,6 +3444,14 @@ export class GameApp {
         onStartNewGame: () => this.beginLoading(true, "new-game"),
         onStartWithoutSaving: () => this.beginLoading(true, "without-saving"),
         onRetry: this.retryStartup,
+        graphicsQuality: this.graphicsQuality.preference,
+        effectiveGraphicsQuality: this.graphicsQuality.effectiveTier,
+        onGraphicsQualityChange: (preference: GraphicsQualityPreference) => {
+          if (this.graphicsQuality.setPreference(preference)) {
+            this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
+          }
+          this.renderUI();
+        },
         bootReady: this.bootReady,
         screenFade: this.doorTransitionFade,
         layoutEditor: this.layoutEditor
@@ -3348,6 +3462,16 @@ export class GameApp {
           : null
       })
     );
+  }
+
+  private renderUiForFrame(nowMs: number): void {
+    const animationCritical = this.mode === "sport-fishing"
+      || this.mode === "basic-fishing"
+      || this.farmingActions.isActive;
+    const intervalMs = animationCritical ? 1000 / 30 : 100;
+    if (nowMs - this.lastUiFrameMs < intervalMs) return;
+    this.lastUiFrameMs = nowMs;
+    this.renderUI();
   }
 
   private syncFarmGisHold(): void {

@@ -21,7 +21,10 @@ import {
   GROUND_COVER_WIND_ROOT_RELEASE
 } from "./groundCoverWind";
 import {
+  buildGroundCoverSpatialIndex,
   groundCoverIndexListsEqual,
+  queryGroundCoverSpatialIndex,
+  type GroundCoverSpatialIndex,
   selectStableGroundCoverIndices
 } from "./groundCoverVisibility";
 
@@ -43,6 +46,7 @@ interface InstancedAssetRecord {
   highCount: number;
   activeCount: number;
   instances: GroundCoverInstance[];
+  spatialIndex: GroundCoverSpatialIndex;
   meshes: InstancedSourceMesh[];
   visibleIndices: number[];
 }
@@ -269,6 +273,7 @@ export class GroundCoverRenderer {
         highCount: orderedPlacements.length,
         activeCount: orderedPlacements.length,
         instances,
+        spatialIndex: buildGroundCoverSpatialIndex(instances),
         meshes,
         visibleIndices: []
       });
@@ -328,6 +333,12 @@ export class GroundCoverRenderer {
     for (const record of this.records) {
       const drawDistance = baseDrawDistance * CATEGORY_DRAW_DISTANCE_SCALE[record.category];
       const keepDistance = drawDistance * KEEP_DISTANCE_SCALE;
+      const candidates = queryGroundCoverSpatialIndex(
+        record.spatialIndex,
+        anchorX,
+        anchorZ,
+        drawDistance
+      );
       const visibleIndices = selectStableGroundCoverIndices(
         record.instances,
         anchorX,
@@ -335,7 +346,8 @@ export class GroundCoverRenderer {
         drawDistance,
         record.activeCount,
         record.visibleIndices,
-        keepDistance
+        keepDistance,
+        candidates
       );
       if (groundCoverIndexListsEqual(record.visibleIndices, visibleIndices)) continue;
       record.visibleIndices = visibleIndices;
