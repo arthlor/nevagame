@@ -108,6 +108,7 @@ export class AudioManager {
   private readonly bufferPromises = new Map<string, Promise<AudioBuffer>>();
   private readonly voicePools = new Map<AudioCueId, Voice[]>();
   private readonly loops = new Map<AudioCueId, LoopVoice>();
+  private readonly loopStartGenerations = new Map<AudioCueId, number>();
   private readonly actionLoops = new Map<AudioCueId, AudioPosition | true>();
   private readonly bankCursors = new Map<AudioBankId, number>();
   private unlockPromise: Promise<void> | null = null;
@@ -537,9 +538,16 @@ export class AudioManager {
       }
       return;
     }
+    const generation = (this.loopStartGenerations.get(cueId) ?? 0) + 1;
+    this.loopStartGenerations.set(cueId, generation);
     try {
       const buffer = await this.loadBuffer(cue.sourceId);
-      if (this.loops.has(cueId) || context.state !== "running") {
+      if (
+        this.loopStartGenerations.get(cueId) !== generation
+        || this.disposed
+        || this.loops.has(cueId)
+        || context.state !== "running"
+      ) {
         return;
       }
       const isMusic = cue.bus === "music";
@@ -587,6 +595,7 @@ export class AudioManager {
   }
 
   private stopLoopCue(cueId: AudioCueId): void {
+    this.loopStartGenerations.set(cueId, (this.loopStartGenerations.get(cueId) ?? 0) + 1);
     const voice = this.loops.get(cueId);
     if (!voice || !this.context) {
       return;
