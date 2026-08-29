@@ -2123,6 +2123,7 @@ export class WorldScene {
         sources: StaticBatchSource[];
       }
     >();
+    const uvStrippedGeometries = new Set<THREE.BufferGeometry>();
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || !object.visible) return;
       if (Array.isArray(object.material)) return;
@@ -2175,6 +2176,7 @@ export class WorldScene {
         const geometry = object.geometry.clone();
         geometry.deleteAttribute("uv");
         object.geometry = geometry;
+        uvStrippedGeometries.add(geometry);
       }
       const attributes = (Object.entries(object.geometry.attributes) as Array<
         [string, THREE.BufferAttribute]
@@ -2218,6 +2220,7 @@ export class WorldScene {
       const geometryIds = new Map<string, number>();
       for (const geometry of uniqueGeometries.values()) {
         geometryIds.set(geometry.uuid, batched.addGeometry(geometry));
+        if (uvStrippedGeometries.has(geometry)) geometry.dispose();
       }
       for (const { mesh, lod } of sources) {
         const geometryId = geometryIds.get(mesh.geometry.uuid);
@@ -2840,6 +2843,14 @@ export class WorldScene {
     });
   }
 
+  private disposeSchoolEffect(group: THREE.Group): void {
+    group.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || object.name !== "school_ripple") return;
+      object.geometry.dispose();
+    });
+    group.removeFromParent();
+  }
+
   private disposeDonkeyShadowPresentation(root: THREE.Object3D): void {
     for (const name of ["character_shadow_proxy", "donkey_contact_shadow"]) {
       const mesh = root.getObjectByName(name);
@@ -3413,7 +3424,7 @@ export class WorldScene {
     // Despawn school VFX whose school is gone
     for (const [schoolId, sGroup] of this.schoolEffects.entries()) {
       if (!state.world.activeSchools[schoolId]) {
-        this.scene.remove(sGroup);
+        this.disposeSchoolEffect(sGroup);
         this.schoolEffects.delete(schoolId);
       }
     }
@@ -4010,28 +4021,38 @@ export class WorldScene {
       ringGeo.rotateX(-Math.PI / 2);
       const ringMat = PaletteMaterials.standard("foam_warm_01", { transparent: true, opacity: 0.65 });
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.name = "school_ripple";
       sGroup.add(ringMesh);
-      const fishAssetId = fishSchoolAsset(school);
-      if (fishAssetId) {
-        const fishMembers: FishPresentationMember[] = [];
-        for (let index = 0; index < 3; index++) {
-          const fish = await AssetLoader.loadModel(fishAssetId);
-          fish.scale.setScalar(0.55);
-          fish.userData.dynamicPresentation = true;
-          this.setShadowPolicy(fish, false);
-          sGroup.add(fish);
-          fishMembers.push(this.createFishPresentationMember(
-            fish,
-            fishAssetId,
-            stablePresentationPhase(`${schoolId}:${index}`)
-          ));
+      try {
+        const fishAssetId = fishSchoolAsset(school);
+        if (fishAssetId) {
+          const fishMembers: FishPresentationMember[] = [];
+          for (let index = 0; index < 3; index++) {
+            const fish = await AssetLoader.loadModel(fishAssetId);
+            fish.scale.setScalar(0.55);
+            fish.userData.dynamicPresentation = true;
+            this.setShadowPolicy(fish, false);
+            sGroup.add(fish);
+            fishMembers.push(this.createFishPresentationMember(
+              fish,
+              fishAssetId,
+              stablePresentationPhase(`${schoolId}:${index}`)
+            ));
+          }
+          sGroup.userData.fishMembers = fishMembers;
         }
-        sGroup.userData.fishMembers = fishMembers;
+        if (!sim.getState().world.activeSchools[schoolId]) {
+          this.disposeSchoolEffect(sGroup);
+          continue;
+        }
+        this.scene.add(sGroup);
+        this.schoolEffects.set(schoolId, sGroup);
+        loadedNewMesh = true;
+        sGroup.position.set(school.x, 0.05, school.z);
+      } catch (error) {
+        this.disposeSchoolEffect(sGroup);
+        console.warn(`[WorldScene] Failed to load fish school ${schoolId}:`, error);
       }
-      this.scene.add(sGroup);
-      this.schoolEffects.set(schoolId, sGroup);
-      loadedNewMesh = true;
-      sGroup.position.set(school.x, 0.05, school.z);
     }
 
     if (loadedNewMesh) {
@@ -4136,7 +4157,7 @@ export class WorldScene {
     this.cultivatedSurfaceMaterial.dispose();
 
     for (const group of this.schoolEffects.values()) {
-      group.removeFromParent();
+      this.disposeSchoolEffect(group);
     }
     this.schoolEffects.clear();
     this.cloudMeshes.length = 0;
