@@ -48,6 +48,7 @@ import {
 } from "../../world/FarmLayout";
 import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
 import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING } from "../../world/WorldAnchors";
+import { isWithinVegetationCastRange } from "./vegetationShadowRange";
 import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
 import {
   ARCHITECTURE_PLACEMENT_TO_PAD,
@@ -2012,8 +2013,12 @@ export class WorldScene {
     const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
     if (!spec) return;
     const isMinorFoliage = assetId === ASSET_IDS.FOLIAGE_BUSH_A || assetId === ASSET_IDS.FOLIAGE_REEDS_A;
-    const withinVegetationShadowRange = Math.hypot(root.position.x, root.position.z) <=
-      CANONICAL_RENDER_CONFIG.shadows.vegetationCastDistanceMeters;
+    const withinVegetationShadowRange = isWithinVegetationCastRange(
+      root.position.x,
+      root.position.z,
+      this.visibilityAnchor.x,
+      this.visibilityAnchor.z
+    );
     const castShadow = spec.family === "prop"
       ? CANONICAL_RENDER_CONFIG.shadows.castSmallProps
       : spec.family === "rock"
