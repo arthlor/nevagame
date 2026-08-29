@@ -455,6 +455,7 @@ export class FarmingDomain {
     }
 
     InventoryManager.addItemsAtomically(playerInventory, harvestStacks);
+    rng.setState(draftRng.getState());
     farm.soil.fertility = Math.max(FERTILITY_MIN, farm.soil.fertility - cropDef.fertilityCost);
     this.progression.consumeWorkCapacity(FARMING_ACTION_COST.harvest, "farming");
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.harvest);

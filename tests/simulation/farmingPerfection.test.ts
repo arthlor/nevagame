@@ -297,6 +297,21 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.workCapacity.current).toBe(work);
   });
 
+  it("commits harvest RNG so consecutive harvests do not replay the same roll", () => {
+    const sim = new Simulation();
+    const firstId = matureCrop(sim, "crop.wheat", 0, 0);
+    const secondId = matureCrop(sim, "crop.wheat", 2, 0);
+    sim.state.player.workCapacity.current = 100;
+    const rngBefore = sim.rng.getState();
+    expect(sim.harvestCrop(firstId).success).toBe(true);
+    const rngAfterFirst = sim.rng.getState();
+    expect(rngAfterFirst).not.toBe(rngBefore);
+    expect(sim.state.metadata.rngState).toBe(rngAfterFirst);
+    expect(sim.harvestCrop(secondId).success).toBe(true);
+    expect(sim.rng.getState()).not.toBe(rngAfterFirst);
+    expect(sim.state.metadata.rngState).toBe(sim.rng.getState());
+  });
+
   it("starts with the trio and buys only starter seeds atomically at the produce stall", () => {
     const sim = new Simulation();
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
