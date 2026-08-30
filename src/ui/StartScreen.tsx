@@ -236,7 +236,11 @@ export const StartScreen: FC<StartScreenProps> = ({
 
 
         {startup.status === "error" ? (
-          <div className="start-screen__state start-screen__state--error">
+          <div
+            className="start-screen__state start-screen__state--error"
+            data-startup-error-code={startup.errorCode ?? undefined}
+            data-startup-error-phase={startup.errorPhase ?? undefined}
+          >
             <ChromePanel className="start-screen__tray" tone="plaque" flourish corners>
               <p className="start-screen__error" role="alert">
                 <span className="start-screen__icon-well" aria-hidden="true">
@@ -497,4 +501,3 @@ export const StartScreen: FC<StartScreenProps> = ({
     </main>
   );
 };
-

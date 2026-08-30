@@ -140,10 +140,13 @@ export class InputRouter {
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
-  public setMode(mode: GameMode): void {
+  public setMode(mode: GameMode, options: { interrupt?: boolean } = {}): void {
     if (mode === this.currentMode) return;
     this.currentMode = mode;
-    this.interrupt();
+    this.clearTransientState();
+    if (options.interrupt !== false) {
+      for (const listener of this.interruptionListeners) listener();
+    }
   }
 
   public setWorldInputSuspended(suspended: boolean): void {

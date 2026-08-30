@@ -166,3 +166,46 @@ test("probe three sequential placement commits", async ({ page }) => {
       .toBe("none");
   }
 });
+
+test("map stable placement samples", async ({ page }) => {
+  test.setTimeout(120_000);
+  await boot(page);
+  const bounds = await page.locator("#game-canvas").boundingBox();
+  if (!bounds) throw new Error("Missing game canvas bounds");
+  const diagnostics = page.getByTestId("diagnostics");
+  for (const xRatio of [0.30, 0.37, 0.44, 0.50, 0.56, 0.63, 0.70]) {
+    for (const yRatio of [0.35, 0.42, 0.50, 0.58, 0.66, 0.73]) {
+      const point = {
+        x: bounds.x + bounds.width * xRatio,
+        y: bounds.y + bounds.height * yRatio
+      };
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(160);
+      const valid = await diagnostics.getAttribute("data-placement-valid");
+      if (valid !== "true") continue;
+      console.log(`[placement sample] ${xRatio},${yRatio} => ${await diagnostics.getAttribute("data-placement-target-x")},${await diagnostics.getAttribute("data-placement-target-z")}`);
+    }
+  }
+});
+
+test("probe river cast mode handoff", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/?debug=1");
+  await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-boot-ready", "true", { timeout: 450_000 });
+  await page.evaluate(() => window.__NEVA_DEBUG?.teleport(-6.222, -5.963));
+  await page.keyboard.press("Digit5");
+  await expect.poll(() => page.getByTestId("context-prompt").textContent().catch(() => ""), { timeout: 8_000 })
+    .toContain("Cast line");
+  const before = await page.evaluate(() => window.__NEVA_DEBUG?.snapshot());
+  console.log(`[river cast] before ${JSON.stringify(before)}`);
+  await page.keyboard.press("KeyE");
+  await page.waitForTimeout(250);
+  const after = await page.evaluate(() => ({
+    snapshot: window.__NEVA_DEBUG?.snapshot(),
+    mode: document.querySelector<HTMLElement>("[data-testid='diagnostics']")?.getAttribute("data-mode"),
+    actionX: document.querySelector<HTMLElement>("[data-testid='diagnostics']")?.getAttribute("data-action-target-x")
+  }));
+  console.log(`[river cast] after ${JSON.stringify(after)}`);
+  expect(after.mode).toBe("basic-fishing");
+  expect(after.snapshot?.basicFishing).not.toBeNull();
+});

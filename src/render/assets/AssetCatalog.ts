@@ -43,6 +43,7 @@ export interface RuntimeAnimationEventSpec {
 export interface RuntimeAssetSpec {
   id: AssetId;
   file: string;
+  contentHash: string;
   family: AssetFamily;
   collision: "none" | "box" | "compound";
   instancing: boolean;
@@ -90,5 +91,5 @@ export function assetUrl(assetId: AssetId): string {
       return `/__neva_art_stage/${stage}/${asset.file}`;
     }
   }
-  return `/assets/models/${asset.file}`;
+  return `/assets/models/${asset.file}?v=${asset.contentHash.slice(0, 16)}`;
 }

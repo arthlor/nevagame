@@ -4,6 +4,7 @@ declare module "virtual:neva-runtime-asset-catalog" {
   const assets: ReadonlyArray<{
     id: string;
     file: string;
+    contentHash: string;
     family: import("./render/assets/AssetCatalog.generated").AssetFamily;
     collision: "none" | "box" | "compound";
     instancing: boolean;

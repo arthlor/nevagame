@@ -70,9 +70,9 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(clockTime).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole("heading", { name: "Neva", exact: true })).not.toBeVisible();
 
-    const goldBox = page.locator(".hud-top-right");
-    await expect(goldBox).toBeVisible();
-    await expect(goldBox).toContainText("100 G");
+    const purse = page.getByLabel("Purse: 100 gold");
+    await expect(purse).toBeVisible();
+    await expect(purse).toContainText("100 G");
     await expect(page.locator(".hud-hotkey-ribbon-wood")).toHaveCount(0);
     await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Fishing rod/);
 
@@ -80,11 +80,11 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.keyboard.press("KeyI");
     const invModal = page.locator(".modal-content");
     await expect(invModal).toBeVisible();
-    await expect(invModal).toContainText("Backpack Inventory");
+    await expect(invModal).toContainText("Guild Satchel");
     await expect(invModal).toContainText("Wheat Seeds");
 
     // Close Inventory
-    const closeBtn = page.getByRole("button", { name: "Close" });
+    const closeBtn = invModal.getByRole("button").filter({ hasText: "Close Satchel" });
     await closeBtn.click();
     await expect(invModal).not.toBeVisible();
 
@@ -93,10 +93,10 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.keyboard.press("KeyJ");
     const journalModal = page.locator(".modal-content");
     await expect(journalModal).toBeVisible();
-    await expect(journalModal).toContainText("Captain's journal");
-    await expect(journalModal).toContainText("Skills");
+    await expect(journalModal).toContainText("Guild Chronicle & Bestiary");
+    await expect(journalModal).toContainText("Guild Masteries");
 
-    const closeJournalBtn = page.getByRole("button", { name: /Close Journal/i });
+    const closeJournalBtn = journalModal.getByRole("button").filter({ hasText: "Close Chronicle" });
     await closeJournalBtn.click();
 
     // 7. Wait 2 seconds for 3D world render stability and capture benchmark screenshot
@@ -118,7 +118,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
 
     const invModal = page.locator(".modal-content");
     await expect(invModal).toBeVisible();
-    await expect(invModal).toContainText("Backpack Inventory");
+    await expect(invModal).toContainText("Guild Satchel");
   });
 
   test("offers Continue and guarded New Game actions for an existing save", async ({ page }) => {
@@ -208,7 +208,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
 
   test("shows an in-screen retry state when a catalog asset fails", async ({ page }) => {
     let blocked = false;
-    await page.route("**/assets/models/*.glb", async (route) => {
+    await page.route("**/assets/models/*.glb*", async (route) => {
       if (!blocked) {
         blocked = true;
         await route.abort("failed");
@@ -220,7 +220,29 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.goto("/");
     await page.getByTestId("startup-start-button").click();
     await expect(page.getByTestId("startup-retry-button")).toBeVisible({ timeout: 120_000 });
-    await expect(page.getByRole("alert")).toContainText("couldn’t prepare the world");
+    await expect(page.getByRole("alert")).toContainText("couldn’t finish loading the shoreline");
+    await expect(page.locator("[data-startup-error-phase='assets']")).toBeVisible();
+    await expect(page.locator("[data-startup-error-code='assets-failed']")).toBeVisible();
+  });
+
+  test("keeps loading past 30 seconds while cold model requests make progress", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.route("**/assets/models/*.glb*", async (route) => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1_250));
+      await route.continue();
+    });
+
+    await page.goto("/");
+    await page.getByTestId("startup-start-button").click();
+    const progress = page.getByTestId("startup-progress");
+    await expect(progress).toBeVisible();
+
+    await page.waitForTimeout(31_000);
+    await expect(page.getByTestId("startup-retry-button")).not.toBeVisible();
+    await expect.poll(async () => Number(await progress.getAttribute("value")))
+      .toBeGreaterThan(0);
+
+    await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 180_000 });
   });
 
   test("debug diagnostics stay within the representative render budget", async ({ page, browserName }) => {

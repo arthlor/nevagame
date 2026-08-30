@@ -7,7 +7,12 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import { describe, expect, it } from "vitest";
 
-import { ASSET_BY_ID, ASSET_CATALOG, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import {
+  ASSET_BY_ID,
+  ASSET_CATALOG,
+  ASSET_IDS,
+  assetUrl
+} from "../../src/render/assets/AssetCatalog";
 import { resolveArtYardAssetId, syncArtYardAssetUrl } from "../../src/art-yard/urlState";
 import {
   artYardUrl,
@@ -50,12 +55,16 @@ describe("Neva art catalog", () => {
       new Set(Object.values(ASSET_IDS))
     );
     const runtimeFields = [
-      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "family", "file", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
+      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "contentHash", "family", "file", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
     ];
     for (const asset of ASSET_CATALOG) {
       expect(Object.keys(asset).sort()).toEqual(runtimeFields);
       expect("referenceAuthoring" in asset).toBe(false);
       expect("parameters" in asset).toBe(false);
+      expect(asset.contentHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(assetUrl(asset.id)).toBe(
+        `/assets/models/${asset.file}?v=${asset.contentHash.slice(0, 16)}`
+      );
       if (asset.collision === "none") {
         expect(asset.collisionPrimitives).toBeNull();
       } else {

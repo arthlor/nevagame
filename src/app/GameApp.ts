@@ -26,25 +26,15 @@ import { WorldLayout } from "../world/WorldLayout";
 import { pickUnlockedStationRecipe } from "../simulation/domains/ProcessingDomain";
 import { formatGameDuration } from "../simulation/core/GameClock";
 import { STARTER_DONKEY_ID } from "../simulation/mounts/Mounts";
+import {
+  StartupTimeoutError,
+  withProgressStallTimeout,
+  withTimeout
+} from "./StartupLoading";
 
-const STARTUP_STAGE_TIMEOUT_MS = 30_000;
+const ASSET_PROGRESS_STALL_TIMEOUT_MS = 90_000;
+const PHYSICS_STARTUP_TIMEOUT_MS = 30_000;
 const FISHING_ROD_TOOL_SLOT = 5;
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        window.clearTimeout(timer);
-        reject(error);
-      }
-    );
-  });
-}
 import {
   HARBOR_DOCK,
   HARBOR_FISH_TABLE,
@@ -473,7 +463,10 @@ export class GameApp {
       this.basicCastSource = null;
     }
     this.modeController.setGameplayMode(mode);
-    this.inputRouter.setMode(mode);
+    // Mode transitions already cancel interruptible authored actions above.
+    // Do not treat the transition into basic fishing as a blur: that would
+    // cancel the charging state immediately after it is created.
+    this.inputRouter.setMode(mode, { interrupt: false });
     if (mode !== "farm-placement") this.clearPlacementPreview();
   }
 
@@ -674,7 +667,9 @@ export class GameApp {
       phase: "save",
       loadedAssets: 0,
       message: "Reading your harbor log",
-      errorMessage: null
+      errorMessage: null,
+      errorCode: null,
+      errorPhase: null
     };
     this.syncOverlayState();
     this.renderUI();
@@ -835,8 +830,9 @@ export class GameApp {
     });
     const startupAssetIds = WorldScene.startupAssetIds(this.sim.state);
     this.updateStartupState({ totalAssets: startupAssetIds.length });
-    await withTimeout(
-      AssetLoader.preload(startupAssetIds, (progress) => {
+    await withProgressStallTimeout(
+      (reportProgress) => AssetLoader.preload(startupAssetIds, (progress) => {
+        reportProgress();
         this.updateStartupState({
           phase: "assets",
           loadedAssets: progress.completed,
@@ -844,8 +840,11 @@ export class GameApp {
           message: `Unpacking the shoreline · ${progress.completed} of ${progress.total}`
         });
       }),
-      STARTUP_STAGE_TIMEOUT_MS,
-      "Asset preload timed out"
+      ASSET_PROGRESS_STALL_TIMEOUT_MS,
+      new StartupTimeoutError(
+        "asset-loading-stalled",
+        `Asset loading made no progress for ${ASSET_PROGRESS_STALL_TIMEOUT_MS / 1_000} seconds`
+      )
     );
 
     this.updateStartupState({ phase: "world", message: "Waking the harbor" });
@@ -854,8 +853,11 @@ export class GameApp {
     this.updateStartupState({ phase: "physics", message: "Setting the paths" });
     this.physicsWorld = await withTimeout(
       PhysicsWorld.create(this.worldScene.staticCollisionProxies()),
-      STARTUP_STAGE_TIMEOUT_MS,
-      "Physics startup timed out"
+      PHYSICS_STARTUP_TIMEOUT_MS,
+      new StartupTimeoutError(
+        "physics-startup-timeout",
+        `Physics startup exceeded ${PHYSICS_STARTUP_TIMEOUT_MS / 1_000} seconds`
+      )
     );
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
     this.assetCoverage = getAssetCoverageSummary(this.sim.state.worldSeed);
@@ -892,15 +894,41 @@ export class GameApp {
 
   private handleStartupFailure(error: unknown): void {
     if (!this.isRunning) return;
-    console.error("[GameApp] Deferred startup failed:", error);
     this.bootReady = false;
+    const errorPhase = this.startupState.phase;
     const detail = error instanceof Error ? error.message : String(error);
-    const message = "We couldn’t prepare the world. Try again.";
+    const errorCode = error instanceof StartupTimeoutError
+      ? error.code
+      : errorPhase === "save"
+        ? "save-failed"
+        : errorPhase === "assets"
+          ? "assets-failed"
+          : errorPhase === "world"
+            ? "world-failed"
+            : errorPhase === "physics"
+              ? "physics-failed"
+              : "startup-failed";
+    const message = errorPhase === "assets"
+      ? "We couldn’t finish loading the shoreline. Check your connection and try again."
+      : errorPhase === "save"
+        ? "We couldn’t read your harbor log. Try again."
+        : errorPhase === "physics"
+          ? "We couldn’t finish preparing the paths. Try again."
+          : "We couldn’t prepare the world. Try again.";
+    console.error("[GameApp] Deferred startup failed", {
+      phase: errorPhase,
+      code: errorCode,
+      loadedAssets: this.startupState.loadedAssets,
+      totalAssets: this.startupState.totalAssets,
+      detail
+    }, error);
     this.startupState = {
       ...this.startupState,
       status: "error",
       message,
-      errorMessage: import.meta.env.DEV && detail ? `${message}\n${detail}` : message
+      errorMessage: import.meta.env.DEV && detail ? `${message}\n${detail}` : message,
+      errorCode,
+      errorPhase
     };
     this.syncOverlayState();
     this.renderUI();

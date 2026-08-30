@@ -25,11 +25,7 @@ import {
   type AssetId
 } from "../assets/AssetCatalog";
 import { socketAttachFor } from "../assets/ToolSocketAttach";
-import {
-  FARMING_PROP_ASSET_IDS,
-  STATIC_FARM_PROP_ASSETS,
-  STATIC_LANDMARK_ASSETS
-} from "../assets/RuntimeAssetOwners";
+import { STATIC_FARM_PROP_ASSETS, STATIC_LANDMARK_ASSETS } from "../assets/RuntimeAssetOwners";
 import type { StaticCollisionProxy } from "../../physics/StaticCollision";
 import { projectAssetCollision } from "../../physics/CollisionCatalogAdapter";
 import type { BasicFishingPhase, FishingEncounterState, GameState } from "../../simulation/core/types";
@@ -657,7 +653,6 @@ export class WorldScene {
     const assetIds = new Set<AssetId>([
       ...Object.values(STATIC_LANDMARK_ASSETS),
       ...Object.values(STATIC_FARM_PROP_ASSETS),
-      ...FARMING_PROP_ASSET_IDS,
       ASSET_IDS.CHAR_PLAYER_A,
       ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId),
       ...layout.staticPlacements.map((placement) => placement.assetId as AssetId),

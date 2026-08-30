@@ -45,6 +45,8 @@ const READY_STARTUP_STATE: StartupState = {
   totalAssets: 0,
   message: "",
   errorMessage: null,
+  errorCode: null,
+  errorPhase: null,
   saveStatus: "empty",
   saveSummary: null
 };

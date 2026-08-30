@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -113,9 +114,25 @@ export function runtimeAssetCatalogPlugin(rootDirectory: string): Plugin {
         if (missing.length) {
           throw new Error(`Asset catalog entry ${index} is missing runtime fields: ${missing.join(", ")}`);
         }
+        const file = asset.file;
+        if (typeof file !== "string") {
+          throw new Error(`Asset catalog entry ${index} has an invalid runtime file`);
+        }
+        const publishedPath = path.resolve(rootDirectory, "public/assets/models", file);
+        if (!fs.existsSync(publishedPath)) {
+          throw new Error(`Published runtime asset is missing: ${publishedPath}`);
+        }
+        this.addWatchFile(publishedPath);
+        // Published GLB filenames are stable, so the byte hash versions their
+        // browser URL without creating a second asset-catalog authority.
+        const contentHash = crypto
+          .createHash("sha256")
+          .update(fs.readFileSync(publishedPath))
+          .digest("hex");
         return Object.fromEntries([
           ...REQUIRED_RUNTIME_ASSET_FIELDS.map((field) => [field, asset[field]]),
-          ...OPTIONAL_RUNTIME_ASSET_FIELDS.map((field) => [field, asset[field] ?? null])
+          ...OPTIONAL_RUNTIME_ASSET_FIELDS.map((field) => [field, asset[field] ?? null]),
+          ["contentHash", contentHash]
         ]);
       });
       return `export default ${JSON.stringify(runtimeAssets)};`;

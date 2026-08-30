@@ -386,7 +386,11 @@ async function walkToHarborMarketTradeApproach(page: Page): Promise<void> {
   await walkTo(page, { x: 82, z: 60 }, { tolerance: 0.8 });
   await walkTo(page, { x: 82, z: 54 }, { tolerance: 0.8 });
   await walkTo(page, { x: 76, z: 50 }, { tolerance: 0.8 });
-  await walkTo(page, { x: 64, z: 53 }, { tolerance: 1.2 });
+  await walkTo(page, { x: 70, z: 50 }, { tolerance: 0.8 });
+  // The north-facing counter edge is shared with Maeve's talk radius. Use the
+  // east-side trade point, which stays inside the market radius without
+  // allowing the NPC dialogue target to outrank the fish trade action.
+  await walkTo(page, { x: 70, z: 57 }, { tolerance: 0.45 });
 }
 
 async function walkToMaeveDialogueApproach(page: Page): Promise<void> {
@@ -592,7 +596,7 @@ async function findValidPlacementPoint(
   const bounds = await page.locator("#game-canvas").boundingBox();
   if (!bounds) throw new Error("Game canvas has no bounding box");
   const samples = [0.30, 0.37, 0.44, 0.50, 0.56, 0.63, 0.70].flatMap((x) =>
-    [0.35, 0.42, 0.50, 0.58, 0.66, 0.73].map((y) => [x, y] as const)
+    [0.42, 0.35, 0.50, 0.58, 0.66, 0.73].map((y) => [x, y] as const)
   );
   const diagnostics = page.getByTestId("diagnostics");
   for (const [xRatio, yRatio] of samples) {
@@ -889,6 +893,9 @@ test.describe("P12 Chrome continuous player route", () => {
     page.on("pageerror", (error) => console.error(`[browser pageerror] ${error.stack ?? error.message}`));
     page.on("console", (message) => {
       if (message.type() === "error") console.error(`[browser console] ${message.text()}`);
+    });
+    page.on("response", (response) => {
+      if (response.status() === 404) console.error(`[browser 404] ${response.url()}`);
     });
   });
 
