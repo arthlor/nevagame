@@ -116,15 +116,16 @@ function moveToward(current: number, target: number, maximumDelta: number): numb
 }
 
 /**
- * The donkey's capsule reaches the next bridge box before its center does.
- * Sample the leading edge on the authored bridge profile so Rapier receives
- * the small upward step before that edge can catch the capsule.
+ * A capsule reaches the next bridge box before its center does. Sample the
+ * leading edge on the authored bridge profile so Rapier receives the small
+ * upward step before that edge can catch the capsule.
  */
-function mountedTraversalSurfaceHeightForMove(
+function bridgeAwareTraversalSurfaceHeightForMove(
   currentX: number,
   currentZ: number,
   moveX: number,
-  moveZ: number
+  moveZ: number,
+  leadingEdgeDistance: number
 ): number {
   const targetX = currentX + moveX;
   const targetZ = currentZ + moveZ;
@@ -132,7 +133,6 @@ function mountedTraversalSurfaceHeightForMove(
   const moveLength = Math.hypot(moveX, moveZ);
   if (moveLength <= 0.000001) return targetHeight;
 
-  const leadingEdgeDistance = MOUNT_CAPSULE_RADIUS_METERS + CHARACTER_CONTROLLER_OFFSET_METERS;
   const leadingX = targetX + (moveX / moveLength) * leadingEdgeDistance;
   const leadingZ = targetZ + (moveZ / moveLength) * leadingEdgeDistance;
   const bridgeSurfaceAhead =
@@ -145,6 +145,36 @@ function mountedTraversalSurfaceHeightForMove(
   return Math.max(
     targetHeight,
     WorldLayout.traversalSurfaceSample(leadingX, leadingZ).height
+  );
+}
+
+function mountedTraversalSurfaceHeightForMove(
+  currentX: number,
+  currentZ: number,
+  moveX: number,
+  moveZ: number
+): number {
+  return bridgeAwareTraversalSurfaceHeightForMove(
+    currentX,
+    currentZ,
+    moveX,
+    moveZ,
+    MOUNT_CAPSULE_RADIUS_METERS + CHARACTER_CONTROLLER_OFFSET_METERS
+  );
+}
+
+function playerTraversalSurfaceHeightForMove(
+  currentX: number,
+  currentZ: number,
+  moveX: number,
+  moveZ: number
+): number {
+  return bridgeAwareTraversalSurfaceHeightForMove(
+    currentX,
+    currentZ,
+    moveX,
+    moveZ,
+    PLAYER_CAPSULE_RADIUS_METERS + CHARACTER_CONTROLLER_OFFSET_METERS
   );
 }
 
@@ -698,21 +728,21 @@ export class PhysicsWorld implements PhysicsAdapter {
       );
     }
     const verticalVelocityBeforeCollision = this.playerVerticalVelocity;
-    const mountedTargetSurfaceY = isMounted
+    const centerSurfaceY = WorldLayout.traversalSurfaceSample(current.x + moveX, current.z + moveZ).height;
+    const targetSurfaceY = isMounted
       ? mountedTraversalSurfaceHeightForMove(current.x, current.z, moveX, moveZ)
-      : 0;
-    const mountedCenterSurfaceY = isMounted
-      ? WorldLayout.traversalSurfaceSample(current.x + moveX, current.z + moveZ).height
-      : 0;
-    const mountedLeadRaisesSurface = isMounted && mountedTargetSurfaceY > mountedCenterSurfaceY + 0.0001;
-    const mountedTargetCenterY = isMounted
-      ? mountedTargetSurfaceY
+      : this.playerGrounded
+        ? playerTraversalSurfaceHeightForMove(current.x, current.z, moveX, moveZ)
+        : 0;
+    const leadRaisesSurface = (isMounted || this.playerGrounded) && targetSurfaceY > centerSurfaceY + 0.0001;
+    const targetCenterY = isMounted
+      ? targetSurfaceY
         + MOUNT_TUNING.playerPoseGroundOffsetMeters
         + MOUNT_COLLIDER_CENTER_FROM_POSE_METERS
-      : 0;
+      : targetSurfaceY + PLAYER_POSE_GROUND_OFFSET_METERS + PLAYER_COLLIDER_CENTER_FROM_POSE_METERS;
     this.controller.computeColliderMovement(this.playerCollider, {
       x: moveX,
-      y: isMounted ? mountedTargetCenterY - current.y : this.playerVerticalVelocity * safeDt,
+      y: isMounted || leadRaisesSurface ? targetCenterY - current.y : this.playerVerticalVelocity * safeDt,
       z: moveZ
     });
     const computedMovement = this.controller.computedMovement();
@@ -748,7 +778,7 @@ export class PhysicsWorld implements PhysicsAdapter {
 
     const resolvedSupport = !isMounted
       ? WorldLayout.traversalSurfaceSample(current.x + movement.x, current.z + movement.z).height
-      : mountedCenterSurfaceY;
+      : centerSurfaceY;
     const resolvedFootFromBody = current.y + movement.y - (
       isMounted ? MOUNT_COLLIDER_CENTER_FROM_POSE_METERS : PLAYER_COLLIDER_CENTER_FROM_POSE_METERS
     );
@@ -857,8 +887,8 @@ export class PhysicsWorld implements PhysicsAdapter {
       x: resolved.x,
       // Rapier keeps a small collision skin; the canonical/visual foot anchor remains on the terrain or floor.
       y: isMounted
-        ? (mountedLeadRaisesSurface
-          ? Math.max(groundY, mountedTargetSurfaceY) + MOUNT_TUNING.playerPoseGroundOffsetMeters
+        ? (leadRaisesSurface
+          ? Math.max(groundY, targetSurfaceY) + MOUNT_TUNING.playerPoseGroundOffsetMeters
           : groundY + MOUNT_TUNING.playerPoseGroundOffsetMeters)
         : this.playerGrounded
           ? groundY + PLAYER_POSE_GROUND_OFFSET_METERS

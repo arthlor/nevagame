@@ -463,6 +463,38 @@ describe("PhysicsWorld", () => {
     expect(sim.state.player.traversal.isGrounded).toBe(true);
   });
 
+  it("steps onto the crowned bridge from the near east approach", async () => {
+    const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
+    const physics = await PhysicsWorld.create(bridgeCollision);
+    const sim = new Simulation();
+    const bridge = WORLD_LAYOUT_V5.anchors.bridge;
+    placePlayer(sim, bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5 + 1.0, bridge.z - 0.04);
+
+    let maxConsecutiveBlocked = 0;
+    let consecutiveBlocked = 0;
+    for (let index = 0; index < 360; index++) {
+      const result = physics.step(
+        sim.state,
+        { x: -1, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        index / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      consecutiveBlocked = result.playerMotion.isCollisionBlocked ? consecutiveBlocked + 1 : 0;
+      maxConsecutiveBlocked = Math.max(maxConsecutiveBlocked, consecutiveBlocked);
+    }
+
+    expect(maxConsecutiveBlocked).toBeLessThan(8);
+    expect(sim.state.player.x).toBeLessThan(bridge.x - BRIDGE_WORLD_PROFILE.spanLength * 0.5 - 0.5);
+    expect(sim.state.player.traversal.isGrounded).toBe(true);
+    expect(sim.state.player.y).toBeCloseTo(
+      WorldLayout.traversalSurfaceHeight(sim.state.player.x, sim.state.player.z) + 0.5,
+      5
+    );
+    physics.dispose();
+  });
+
   it("follows the farm gateway route across the bridge into the village approach", async () => {
     const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
     const physics = await PhysicsWorld.create(bridgeCollision);
