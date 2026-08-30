@@ -4,6 +4,7 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { QUESTS } from "../../src/content/quests";
+import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 
 describe("Fishing, cargo, quest, and habitat fixes", () => {
   let sim: Simulation;
@@ -118,6 +119,33 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
   });
 
+  it("keeps the save envelope valid while FishLanded listeners run", () => {
+    const inv = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inv, [{ itemId: "item.chum_bucket", quantity: 1 }]);
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = sim.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    sim.state.player.x = lake.x;
+    sim.state.player.z = lake.z;
+    expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    expect(sim.hookSportFish(schoolId).success).toBe(true);
+
+    let validDuringEvent = false;
+    sim.events.on("FishLanded", () => {
+      validDuringEvent = validateSaveEnvelope({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 1,
+        state: sim.state
+      });
+    });
+    sim.state.sportFishing!.stamina = 0;
+    sim.state.sportFishing!.distanceMeters = 0.5;
+    sim.state.sportFishing!.lineTension = 35;
+    sim.tick(0.1);
+
+    expect(validDuringEvent).toBe(true);
+    expect(sim.state.sportFishing).toBeNull();
+  });
+
   it("nulls unrestorable sport fishing so the encounter cannot lock other actions", () => {
     const clone = structuredClone(sim.state);
     clone.sportFishing = {
@@ -188,7 +216,9 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     seeded.state.player.carriedFishCargoId = blockingCargoId;
     seeded.state.sportFishing!.stamina = 0;
     seeded.state.sportFishing!.distanceMeters = 0;
-    seeded.state.sportFishing!.lineTension = 0;
+    // Keep the forced landing inside the authored tension window; zero
+    // tension is a valid slack state but cannot satisfy canLand().
+    seeded.state.sportFishing!.lineTension = 35;
 
     const reloaded = new Simulation(structuredClone(seeded.state));
     expect(reloaded.state.sportFishing?.schoolId).toBe(schoolId);

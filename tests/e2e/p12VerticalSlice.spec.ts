@@ -390,7 +390,7 @@ async function walkToHarborMarketTradeApproach(page: Page): Promise<void> {
   // The north-facing counter edge is shared with Maeve's talk radius. Use the
   // east-side trade point, which stays inside the market radius without
   // allowing the NPC dialogue target to outrank the fish trade action.
-  await walkTo(page, { x: 70, z: 57 }, { tolerance: 0.45 });
+  await walkTo(page, { x: 70, z: 57 }, { tolerance: 0.85 });
 }
 
 async function walkToMaeveDialogueApproach(page: Page): Promise<void> {

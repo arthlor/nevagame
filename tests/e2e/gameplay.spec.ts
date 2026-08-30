@@ -45,7 +45,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     // gameplay catalog remain untouched.
     const canvas = page.locator("#game-canvas");
     await expect(canvas).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Neva", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Neva Land", exact: true })).toBeVisible();
     const startButton = page.getByTestId("startup-start-button");
     await expect(startButton).toBeEnabled();
     await expect(page.getByTestId("game-clock")).not.toBeVisible();
@@ -57,7 +57,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(startButton).toBeDisabled();
     const progress = page.getByTestId("startup-progress");
     await expect(progress).toBeVisible();
-    await expect(page.getByRole("progressbar", { name: "Preparing the Neva world" })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "Preparing the Neva Land world" })).toBeVisible();
     const totalAssets = Number(await progress.getAttribute("max"));
     expect(totalAssets).toBeGreaterThan(0);
     await expect.poll(async () => Number(await progress.getAttribute("value")), {
@@ -68,7 +68,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     // 4. Verify HUD components (clock text depends on leftover save / offline progression)
     const clockTime = page.getByTestId("game-clock");
     await expect(clockTime).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: "Neva", exact: true })).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "Neva Land", exact: true })).not.toBeVisible();
 
     const purse = page.getByLabel("Purse: 100 gold");
     await expect(purse).toBeVisible();
@@ -159,7 +159,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
 
     await page.reload();
     const continueButton = page.getByTestId("startup-start-button");
-    await expect(continueButton).toContainText("Continue Neva", { timeout: 30_000 });
+    await expect(continueButton).toContainText("Continue Neva Land", { timeout: 30_000 });
     await expect(page.getByLabel("Existing save summary")).toContainText(`Day ${rawSaveEnvelope.state.clock.dayCount}`);
     await expect(page.getByTestId("startup-new-game-button")).toBeVisible();
 
@@ -168,7 +168,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(page.getByTestId("startup-new-game-confirm")).toBeVisible();
     await page.getByTestId("startup-new-game-cancel").click();
     await expect(page.getByRole("dialog", { name: "Start a new game?" })).not.toBeVisible();
-    await expect(continueButton).toContainText("Continue Neva");
+    await expect(continueButton).toContainText("Continue Neva Land");
 
     await page.getByTestId("startup-options-button").click();
     await expect(page.getByRole("dialog", { name: "Options" })).toBeVisible();
@@ -185,7 +185,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
   test("keeps the title layout readable at desktop and narrow sizes", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Neva", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Neva Land", exact: true })).toBeVisible();
     await expect(page.getByTestId("startup-start-button")).toBeVisible();
     await page.keyboard.press("Tab");
     const focusedUtility = page.getByTestId("startup-options-button");
@@ -199,7 +199,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.screenshot({ path: path.join(screenshotsDir, "start-screen-desktop.png") });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole("heading", { name: "Neva", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Neva Land", exact: true })).toBeVisible();
     await expect(page.getByTestId("startup-start-button")).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth))
       .toBeLessThanOrEqual(390);
@@ -277,7 +277,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
 
 async function startFromTitle(page: Page): Promise<void> {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Neva", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Neva Land", exact: true })).toBeVisible();
   await page.getByTestId("startup-start-button").click();
   await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 450_000 });
 }

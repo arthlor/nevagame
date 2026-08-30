@@ -111,6 +111,11 @@ export class FishingDomain {
       const outcome = this.encounter.tick(realDeltaSeconds);
       if (outcome === "landed") {
         const encounterState = this.encounter.getState();
+        // Cargo and quest listeners are synchronous. Clear the resolved fight
+        // before landCaughtFish emits FishLanded so an autosave triggered by
+        // that event can only observe a valid, non-active sport-fishing state.
+        this.encounter = null;
+        state.sportFishing = null;
         const landing = this.cargo.landCaughtFish(encounterState.fish);
         if (!landing.success) {
           // A won fight still has to resolve immediately. Valuable fish are
@@ -122,12 +127,8 @@ export class FishingDomain {
             reason: "no-cargo-space",
             minute: state.clock.currentMinute
           });
-          this.encounter = null;
-          state.sportFishing = null;
         } else {
           this.commitSchoolCatch();
-          this.encounter = null;
-          state.sportFishing = null;
         }
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();

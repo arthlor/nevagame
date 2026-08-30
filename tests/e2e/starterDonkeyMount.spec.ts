@@ -93,7 +93,7 @@ test.describe("starter-farm donkey mount", () => {
     await clearSave(page);
     await page.reload();
     const startButton = page.getByTestId("startup-start-button");
-    await expect(startButton).toContainText("Enter Neva", { timeout: 30_000 });
+    await expect(startButton).toContainText("Enter Neva Land", { timeout: 30_000 });
     await startButton.click();
     await waitForRuntime(page);
 
@@ -146,7 +146,7 @@ test.describe("starter-farm donkey mount", () => {
     expect(await page.evaluate(() => window.__NEVA_DEBUG?.saveNow() ?? false)).toBe(true);
     const savedDonkey = dismounted.starterDonkeyPosition;
     await page.reload();
-    await expect(page.getByTestId("startup-start-button")).toContainText("Continue Neva", { timeout: 30_000 });
+    await expect(page.getByTestId("startup-start-button")).toContainText("Continue Neva Land", { timeout: 30_000 });
     await page.getByTestId("startup-start-button").click();
     await waitForRuntime(page);
     const restored = await snapshot(page);

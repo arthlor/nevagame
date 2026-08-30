@@ -120,7 +120,7 @@ describe("Milestone M4 ornate modal presentation", () => {
     expect(html).toContain("start-screen");
     expect(html).toContain("Grow a home. Follow the tide.");
     expect(html).toContain('data-testid="startup-start-button"');
-    expect(html).toContain("Enter Neva");
+    expect(html).toContain("Enter Neva Land");
     expect(html).toContain('data-testid="startup-options-button"');
   });
 

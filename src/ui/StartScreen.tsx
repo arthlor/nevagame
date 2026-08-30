@@ -179,16 +179,16 @@ export const StartScreen: FC<StartScreenProps> = ({
   };
 
   const primaryLabel = startup.status !== "title"
-    ? startup.status === "revealing" ? "Entering Neva…" : "Preparing Neva…"
+    ? startup.status === "revealing" ? "Entering Neva Land…" : "Preparing Neva Land…"
     : startup.saveStatus === "checking"
       ? "Checking your harbor log…"
       : startup.saveStatus === "available"
-        ? "Continue Neva"
+        ? "Continue Neva Land"
         : startup.saveStatus === "corrupt" || startup.saveStatus === "incompatible"
           ? "Start a new game"
           : startup.saveStatus === "unavailable"
             ? "Continue without saving"
-            : "Enter Neva";
+            : "Enter Neva Land";
 
   const primaryDisabled = isLoading || isCheckingSave;
   const showUtilities = startup.status === "title" || startup.status === "error";
@@ -227,7 +227,7 @@ export const StartScreen: FC<StartScreenProps> = ({
       <div className="start-screen__content">
         <div className="start-screen__brand-lockup">
           <span className="start-screen__brand-rule" aria-hidden="true" />
-          <h1 id="start-screen-title">Neva</h1>
+          <h1 id="start-screen-title">Neva Land</h1>
           <p className="start-screen__tagline">Grow a home. Follow the tide.</p>
           <p id="start-screen-description" className="start-screen__description">
             A coastal life of soil, craft, and open water.
@@ -285,7 +285,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                       data-testid="startup-progress"
                       value={loadedAssets}
                       max={progressMax}
-                      aria-label="Preparing the Neva world"
+                      aria-label="Preparing the Neva Land world"
                     />
                   </div>
                 </div>
@@ -380,7 +380,7 @@ export const StartScreen: FC<StartScreenProps> = ({
           >
             <div className="start-screen__dialog-header">
               <div>
-                <span className="start-screen__dialog-kicker">Neva</span>
+                <span className="start-screen__dialog-kicker">Neva Land</span>
                 <h2 id="start-screen-options-title">Options</h2>
               </div>
               <ChromeClose

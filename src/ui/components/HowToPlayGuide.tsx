@@ -85,9 +85,9 @@ export const HowToPlayGuide: React.FC = () => {
 const ControlsChapter: React.FC = () => (
   <div className="guide-chapter">
     <div className="guide-section-intro">
-      <h4>Welcome to the Coastal Valley of Neva</h4>
+      <h4>Welcome to the Coastal Valley of Neva Land</h4>
       <p>
-        Neva is a peaceful, no-combat coastal simulation where you cultivate fertile farmland, pilot vessels across
+        Neva Land is a peaceful, no-combat coastal simulation where you cultivate fertile farmland, pilot vessels across
         tidal bays, hook prized fish, manage physical cargo logistics, and fulfill regional trade contracts.
       </p>
     </div>
@@ -340,7 +340,7 @@ const FishingChapter: React.FC = () => (
     <div className="guide-section-intro">
         <h4>Coastal Fishing, Boats & Cargo</h4>
       <p>
-        From coastal piers to stormy offshore banks, the waters of Neva teem with distinct fish species.
+        From coastal piers to stormy offshore banks, the waters of Neva Land teem with distinct fish species.
         Pilot seaworthy vessels, balance physical cargo, and protect your catch's freshness.
       </p>
     </div>
@@ -436,7 +436,7 @@ const MarketsChapter: React.FC = () => (
     <div className="guide-section-intro">
         <h4>Markets, Fish Value & Trade Orders</h4>
       <p>
-        Neva's village economy rewards quality, freshness, and reliable supply chains. Trade directly with merchants
+        Neva Land's village economy rewards quality, freshness, and reliable supply chains. Trade directly with merchants
         or fulfill high-paying regional logistics contracts.
       </p>
     </div>
