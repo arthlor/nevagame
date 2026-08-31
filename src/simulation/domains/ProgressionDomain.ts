@@ -1,11 +1,15 @@
 import { getRankForXp } from "../../content/progression";
 import type { GameMinute, SkillId, WorkCapacityState } from "../core/types";
+import type { WorkCostQuote } from "../core/contracts";
+import { formatClockTime } from "../core/GameClock";
 import type { DomainContext } from "./DomainContext";
 
 export const LIVE_WORK_CAPACITY_REGEN_PER_HOUR = 200;
 export const OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR = 100;
+/** Canonical Work pool ceiling. Legacy saves with a smaller pool are rescaled to this on load. */
+export const WORK_CAPACITY_MAXIMUM = 1000;
 
-export function getProficiencyLaborDiscount(rankIndex: number): number {
+export function getProficiencyWorkDiscount(rankIndex: number): number {
   return Math.round(Math.min(0.35, Math.max(0, rankIndex * 0.05)) * 100) / 100;
 }
 
@@ -24,14 +28,6 @@ export function regenerateWorkCapacity(
 export class ProgressionDomain {
   constructor(private readonly context: DomainContext) {}
 
-  public getWorkOutcome(): { xpMultiplier: number; rareChanceMultiplier: number } {
-    const available = this.context.state.player.workCapacity.current > 0;
-    return {
-      xpMultiplier: available ? 1 : 0.4,
-      rareChanceMultiplier: available ? 1 : 0.4
-    };
-  }
-
   public getProficiencyLevel(skill: SkillId): number {
     const xp = this.context.state.player.proficiencies[skill] ?? 0;
     return getRankForXp(xp).rankIndex;
@@ -41,26 +37,73 @@ export class ProgressionDomain {
     if (!Number.isFinite(baseCost) || baseCost <= 0) return 0;
     if (!skill) return Math.round(baseCost);
     const rankIndex = this.getProficiencyLevel(skill);
-    const discount = getProficiencyLaborDiscount(rankIndex);
+    const discount = getProficiencyWorkDiscount(rankIndex);
     return Math.max(1, Math.round(baseCost * (1 - discount)));
   }
 
-  public canPerformWork(): boolean {
-    return this.context.state.player.workCapacity.current > 0;
+  public quoteWorkCost(baseCost: number, skill?: SkillId): WorkCostQuote {
+    const { state } = this.context;
+    const cost = this.getDiscountedActionCost(baseCost, skill);
+    const current = state.player.workCapacity.current;
+    const affordable = current >= cost;
+    const shortage = Math.max(0, cost - current);
+    const recoveryMinutes = affordable
+      ? 0
+      : Math.max(1, Math.ceil((shortage / LIVE_WORK_CAPACITY_REGEN_PER_HOUR) * 60));
+    return {
+      baseCost,
+      cost,
+      availableWork: Math.max(0, Math.floor(current)),
+      affordable,
+      shortage,
+      readyAtMinute: affordable ? null : state.clock.currentMinute + recoveryMinutes
+    };
   }
 
-  public consumeWorkCapacity(
+  public trySpendWork(
     baseCost: number,
-    skill?: SkillId
-  ): { success: boolean; drained: number; remaining: number } {
+    skill: SkillId,
+    actionLabel: string
+  ): WorkCostQuote & {
+    success: boolean;
+    remaining: number;
+    reason?: string;
+    reasonCode?: "insufficient-work";
+    requiredWork?: number;
+  } {
+    const quote = this.quoteWorkCost(baseCost, skill);
     const { state } = this.context;
-    if (state.player.workCapacity.current <= 0) {
-      return { success: false, drained: 0, remaining: 0 };
+    if (!quote.affordable) {
+      return this.insufficientWorkResult(quote, actionLabel);
     }
-    const cost = this.getDiscountedActionCost(baseCost, skill);
-    const drained = Math.min(state.player.workCapacity.current, cost);
-    state.player.workCapacity.current = Math.max(0, state.player.workCapacity.current - drained);
-    return { success: true, drained, remaining: state.player.workCapacity.current };
+    state.player.workCapacity.current = Math.max(0, state.player.workCapacity.current - quote.cost);
+    return {
+      ...quote,
+      success: true,
+      remaining: state.player.workCapacity.current,
+      requiredWork: quote.cost
+    };
+  }
+
+  public insufficientWorkResult(
+    quote: WorkCostQuote,
+    actionLabel: string
+  ): WorkCostQuote & {
+    success: false;
+    remaining: number;
+    reason: string;
+    reasonCode: "insufficient-work";
+    requiredWork: number;
+  } {
+    const ready = quote.readyAtMinute == null ? "later" : formatClockTime(quote.readyAtMinute);
+    return {
+      ...quote,
+      success: false,
+      remaining: this.context.state.player.workCapacity.current,
+      reasonCode: "insufficient-work",
+      requiredWork: quote.cost,
+      reason: `${actionLabel} needs ${quote.cost} Work · ${quote.availableWork} available · ready ${ready}`
+    };
   }
 
   public addProficiencyXp(skill: SkillId, xpAmount: number): void {
@@ -88,4 +131,3 @@ export class ProgressionDomain {
     regenerateWorkCapacity(state.player.workCapacity, minutes, state.clock.currentMinute, LIVE_WORK_CAPACITY_REGEN_PER_HOUR);
   }
 }
-

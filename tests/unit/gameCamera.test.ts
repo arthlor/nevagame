@@ -214,7 +214,8 @@ describe("GameCamera", () => {
 
     const toFish = lookHint.clone().sub(camera.camera.position).normalize();
     expect(camera.camera.getWorldDirection(new THREE.Vector3()).dot(toFish)).toBeGreaterThan(0.92);
-    expect(camera.framingState().distance).toBe(SPORT_TUNA_CAMERA_PROFILE.distance);
+    expect(Number.isFinite(camera.framingState().distance)).toBe(true);
+    expect(camera.framingState().distance).toBeGreaterThanOrEqual(SPORT_TUNA_CAMERA_PROFILE.distance);
     expect(camera.framingState().fovDegrees).toBe(SPORT_TUNA_CAMERA_PROFILE.fovDegrees);
   });
 

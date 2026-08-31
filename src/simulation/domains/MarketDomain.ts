@@ -3,6 +3,7 @@ import { calculateCommodityUnitPrice } from "../economy/calculateCommodityValue"
 import { calculateFishPrice } from "../economy/calculateFishValue";
 import { recordMarketSale, tickMarket } from "../economy/updateMarket";
 import type { FishCargoId, ItemId, MarketId } from "../core/types";
+import type { RodId } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
@@ -10,6 +11,7 @@ import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import type { BuySeedReasonCode, InteractionResult } from "../core/contracts";
 import { isVillageSeedCrop } from "../../content/markets";
+import { previousRodId, rodFishingXpRequirement } from "../../content/rods";
 
 export class MarketDomain {
   public static readonly HARBOR_BUYABLE = [
@@ -163,6 +165,63 @@ export class MarketDomain {
     commodity.localSupply = Math.max(1, commodity.localSupply - quantity);
     events.emit("ItemPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
     return { success: true, cost };
+  }
+
+  public buyRod(marketId: MarketId, rodId: RodId): InteractionResult {
+    const { state, events } = this.context;
+    if (marketId !== "market.harbor" || !state.markets[marketId]) {
+      return { success: false, reason: "Fishing tackle is sold at the harbor" };
+    }
+    if (this.getNearbyMarketId() !== marketId) {
+      return { success: false, reason: "Move closer to the harbor stall" };
+    }
+    if (state.basicFishing || state.sportFishing) {
+      return { success: false, reason: "Finish fishing before changing tackle" };
+    }
+    const rod = ContentRegistry.rods.get(rodId);
+    const prerequisite = previousRodId(rodId);
+    const requiredXp = rodFishingXpRequirement(rodId);
+    if (!rod || !prerequisite || requiredXp == null) {
+      return { success: false, reason: "That rod is not for sale" };
+    }
+    if (state.player.ownedRodIds.includes(rodId)) {
+      return { success: false, reason: "You already own this rod" };
+    }
+    if (!state.player.ownedRodIds.includes(prerequisite)) {
+      return { success: false, reason: "Buy the previous rod first" };
+    }
+    if (state.player.proficiencies.fishing < requiredXp) {
+      return { success: false, reason: `Requires ${requiredXp.toLocaleString()} Fishing XP` };
+    }
+    if (state.player.money < rod.costMoney) {
+      return { success: false, reason: `Not enough money · ${rod.costMoney} G required` };
+    }
+
+    state.player.money -= rod.costMoney;
+    state.player.ownedRodIds = [...state.player.ownedRodIds, rodId];
+    state.player.equippedRodId = rodId;
+    events.emit("RodPurchased", { marketId, rodId, cost: rod.costMoney, minute: state.clock.currentMinute });
+    events.emit("RodEquipped", { marketId, rodId, minute: state.clock.currentMinute });
+    return { success: true, cost: rod.costMoney };
+  }
+
+  public equipRod(marketId: MarketId, rodId: RodId): InteractionResult {
+    const { state, events } = this.context;
+    if (marketId !== "market.harbor" || this.getNearbyMarketId() !== marketId) {
+      return { success: false, reason: "Change tackle at the harbor stall" };
+    }
+    if (state.basicFishing || state.sportFishing) {
+      return { success: false, reason: "Finish fishing before changing tackle" };
+    }
+    if (!state.player.ownedRodIds.includes(rodId) || !ContentRegistry.rods.has(rodId)) {
+      return { success: false, reason: "You do not own this rod" };
+    }
+    if (state.player.equippedRodId === rodId) {
+      return { success: true };
+    }
+    state.player.equippedRodId = rodId;
+    events.emit("RodEquipped", { marketId, rodId, minute: state.clock.currentMinute });
+    return { success: true };
   }
 
   public sellFish(

@@ -4,8 +4,11 @@ import { SeededRng, type Rng } from "../core/Rng";
 import type { FishBehaviorProfile, RodDefinition } from "../../content/types";
 import {
   FISHING_TUNING as T, FISH_BEHAVIOR_EFFORT, createFishingDynamics,
-  fishingEndpoint, fishingAngleDelta, clampFishing as clamp, approachFishing as approach
+  fishingEndpoint, fishingAngleDelta, fishingBehaviorReadout,
+  clampFishing as clamp, approachFishing as approach
 } from "./FishingTuning";
+
+const TAU = Math.PI * 2;
 
 export function sportFishingStartDistanceMeters(cargoClass: CargoClass): number {
   return { small: 30, medium: 45, large: 50, gargantuan: 55 }[cargoClass];
@@ -26,6 +29,7 @@ export class FishingEncounter {
   private pendingLand = false;
   private water?: FishingWaterConstraint;
   private weightScale: number;
+  private inertia: number;
 
   constructor(fish: FishInstance, rodId: string, rng: Rng, startDistanceMeters = 30, water?: FishingWaterConstraint) {
     const species = ContentRegistry.fishSpecies.get(fish.speciesId);
@@ -37,11 +41,12 @@ export class FishingEncounter {
     this.rod = rod;
     this.water = water;
     this.weightScale = clamp(fish.weightKg / Math.max(0.1, species.weightKg.average), 0.35, 2.5);
+    this.inertia = clamp((profile.inertia ?? 0.35) + (this.weightScale - 1) * 0.08, 0.08, 1.1);
     const maxStamina = profile.baseStamina * Math.pow(this.weightScale, 0.75);
     this.state = {
       fish, rodId, stamina: maxStamina, maxStamina, distanceMeters: startDistanceMeters,
       lineTension: 35, lineIntegrity: 100, fishDirection: 0,
-      behavior: "rest", behaviorUntilSeconds: 1.4, elapsedSeconds: 0,
+      behavior: "rest", behaviorUntilSeconds: 2.4, elapsedSeconds: 0,
       rodDirectionAngle: 0, isReeling: false, isSlacking: false, isBracing: false,
       slackTimerSeconds: 0, snapTimerSeconds: 0, result: "active"
     };
@@ -61,8 +66,22 @@ export class FishingEncounter {
     encounter.profile = profile;
     encounter.water = water;
     encounter.weightScale = clamp(state.fish.weightKg / Math.max(0.1, species.weightKg.average), 0.35, 2.5);
-    state.dynamics ??= createFishingDynamics(state, water?.originX, water?.originZ, water?.bearingRadians, rng.getState());
+    encounter.inertia = clamp((profile.inertia ?? 0.35) + (encounter.weightScale - 1) * 0.08, 0.08, 1.1);
+    // Backfill any dynamics field a pre-rebuild save predates (rodLoad, fishSpeed,
+    // shake oscillator, landReadySeconds) while keeping every persisted value.
+    state.dynamics = {
+      ...createFishingDynamics(
+        state, water?.originX, water?.originZ, water?.bearingRadians,
+        state.dynamics?.rngState ?? rng.getState()
+      ),
+      ...(state.dynamics ?? {})
+    };
     encounter.rng = new SeededRng(1, state.dynamics.rngState);
+    // A fight saved already sitting in the landing window resolves on resume
+    // rather than forcing the player to re-earn the sustained hold.
+    if (encounter.landingWindowOpen()) {
+      state.dynamics.landReadySeconds = Math.max(state.dynamics.landReadySeconds, T.landReadySeconds);
+    }
     encounter.pendingLand = encounter.canLand();
     return encounter;
   }
@@ -107,11 +126,38 @@ export class FishingEncounter {
     return this.state.result;
   }
 
-  private canLand(): boolean {
+  /** Instantaneous check: a beaten fish, in range, held in the green tension band. */
+  private landingWindowOpen(): boolean {
     const s = this.state;
-    return s.lineIntegrity > 0 && s.stamina <= s.maxStamina * T.landingStaminaRatio
+    return s.lineIntegrity > 0
+      && s.stamina <= s.maxStamina * T.landingStaminaRatio
       && s.distanceMeters <= T.landingDistance
-      && s.lineTension >= T.minimumLandingTension && s.lineTension < this.rod.maxSafeTension;
+      && s.lineTension >= T.minimumLandingTension
+      && s.lineTension < this.rod.maxSafeTension * T.landingTensionCeilRatio;
+  }
+
+  /** The fish is only truly landed once the window has been held for landReadySeconds. */
+  private canLand(): boolean {
+    return this.state.dynamics!.landReadySeconds >= T.landReadySeconds && this.landingWindowOpen();
+  }
+
+  /** Keep both the fish and the taut line on one continuous reach of water. */
+  private waterPathIsClear(point: Readonly<{ x: number; z: number }>): boolean {
+    if (!this.water || !this.water.isWater(point.x, point.z)) return this.water === undefined;
+    const m = this.state.dynamics!;
+    const dx = point.x - m.originX;
+    const dz = point.z - m.originZ;
+    const distance = Math.hypot(dx, dz);
+    let enteredWater = false;
+    for (let along = 0.5; along <= distance; along += 2) {
+      const t = Math.min(1, along / Math.max(0.001, distance));
+      const wet = this.water.isWater(m.originX + dx * t, m.originZ + dz * t);
+      // A short dry bank below an on-foot angler is allowed. Once the line has
+      // entered water it cannot pass through an island and reappear offshore.
+      if ((!wet && enteredWater) || (!wet && along > 12)) return false;
+      enteredWater ||= wet;
+    }
+    return true;
   }
 
   private step(dt: number): void {
@@ -123,27 +169,59 @@ export class FishingEncounter {
     if (s.behaviorUntilSeconds <= 0) this.pickNextBehavior();
     const age = m.behaviorDurationSeconds - s.behaviorUntilSeconds;
     const progress = clamp(age / m.behaviorDurationSeconds, 0, 1);
-    const heavy = p.id === "profile.tuna";
-    const anticipation = clamp(age / (heavy ? 0.85 : 0.45), 0, 1);
-    const recovery = clamp(s.behaviorUntilSeconds / 0.45, 0, 1);
-    const envelope = anticipation * anticipation * (3 - 2 * anticipation) * recovery;
+    const phase = fishingBehaviorReadout(s, p);
+    const phaseEnvelope = phase.phase === "tell"
+      ? phase.progress * phase.progress * (3 - 2 * phase.progress)
+      : phase.phase === "recovery"
+        ? 1 - phase.progress * phase.progress * (3 - 2 * phase.progress)
+        : 1;
     const tired = clamp(s.stamina / Math.max(1, s.maxStamina), 0, 1);
     const vitality = 0.18 + tired * 0.82;
     const direction = s.behavior === "run-left" ? -1 : s.behavior === "run-right" ? 1 : 0;
-    m.rodDirection = approach(m.rodDirection, s.rodDirectionAngle, this.rod.controlResponsiveness * 2.4 * dt);
-    s.fishDirection = approach(s.fishDirection, direction, (heavy ? 1.2 : 2.8) * dt);
+    m.rodDirection = approach(m.rodDirection, s.rodDirectionAngle,
+      this.rod.controlResponsiveness * (2.7 - this.inertia * 0.45) * dt);
+    s.fishDirection = approach(s.fishDirection, direction,
+      (1.05 + (p.turnRate ?? 1) * 1.55) * (1.15 - this.inertia * 0.35) * dt);
     const counter = clamp(-m.rodDirection * s.fishDirection, -1, 1);
-    const effortTarget = FISH_BEHAVIOR_EFFORT[s.behavior] * (0.16 + envelope * 0.84) * vitality;
-    m.effort = approach(m.effort, effortTarget, (heavy ? 1.5 : 2.8) * dt);
-    const shakeLoad = s.behavior === "shake" ? 1 + Math.sin(age * 18) * 0.14 : 1;
+    const effortTarget = FISH_BEHAVIOR_EFFORT[s.behavior] * (0.12 + phaseEnvelope * 0.88) * vitality;
+    m.effort = approach(m.effort, effortTarget, (2.9 - this.inertia * 1.45) * dt);
+    // Persistent head-shake oscillator: a shaking fish rings the line, and the
+    // amplitude also drives rod-tip jitter and camera trauma via presentation.
+    const shakeTarget = s.behavior === "shake" ? (p.shakeAmplitude ?? 0.55) : 0;
+    m.shakeAmplitude = approach(m.shakeAmplitude, shakeTarget, 4 * dt);
+    m.shakePhase = (m.shakePhase + (p.shakeHz ?? 2.7) * TAU * dt) % TAU;
+    const shakeWave = Math.sin(m.shakePhase) * m.shakeAmplitude;
+    const shakeLoad = 1 + shakeWave * 0.2;
     const drive = m.effort * (p.burstStrength * 0.065 + p.directionalForce * 0.025)
       * p.tensionSensitivity * Math.pow(this.weightScale, 0.25) * (1 - counter * 0.22) * shakeLoad;
     const tensionRatio = s.lineTension / 100;
     const resistance = tensionRatio * this.rod.reelPower * T.resistancePerPower
-      * (s.isBracing ? 1.28 : 1) * (1 + Math.max(0, counter) * 0.15);
+      * (s.isBracing ? 1 + (p.pumpResistance ?? 1) * 0.34 : 1)
+      * (1 + Math.max(0, counter) * 0.18);
     const stall = clamp((this.rod.maxSafeTension * 0.98 - s.lineTension) / (this.rod.maxSafeTension * 0.4), 0, 1);
+    // Reeling straight across a running fish loses purchase; countering the run
+    // with the rod (A/D) restores it. The same cross-load surges tension below.
+    const crossRun = clamp(Math.abs(s.fishDirection) * (1 - Math.max(0, counter)), 0, 1);
+    const reelEfficiency = 1 - crossRun * T.pumpCrossPenalty;
+    // A loaded rod blank returns stored energy as you wind it down: the gap
+    // between last step's rod load and the eased tension becomes free retrieval.
+    if (s.isBracing && !s.isSlacking) {
+      const pumpHeadroom = clamp(1 - Math.max(0, tensionRatio - 0.82) / 0.18, 0.12, 1);
+      const counterGain = 0.72 + Math.max(0, counter) * 0.28;
+      m.rodLoad = clamp(m.rodLoad + T.pumpLoadPerSecond * pumpHeadroom * counterGain * dt,
+        0, T.pumpMaximumLoad);
+    } else {
+      m.rodLoad = approach(m.rodLoad, tensionRatio, T.rodLoadResponse * dt);
+    }
+    const rodAssist = s.isReeling && !s.isSlacking && !s.isBracing
+      ? Math.max(0, m.rodLoad - tensionRatio) * T.rodAssistPerLoad
+      : 0;
+    const recoveryMultiplier = phase.phase === "recovery" ? T.recoveryReelMultiplier : 1;
     m.retrievalMetersPerSecond = s.isReeling && !s.isSlacking
-      ? this.rod.reelPower * T.reelMetersPerPower * (0.35 + (1 - tired) * 0.65) * stall : 0;
+      ? (this.rod.reelPower * T.reelMetersPerPower * (0.35 + (1 - tired) * 0.65)
+        * stall * reelEfficiency * recoveryMultiplier + rodAssist)
+        * (s.isBracing ? T.pumpingReelScale : 1)
+      : 0;
     m.payoutMetersPerSecond = s.isSlacking
       ? 1.8 + drive * 1.25
       : Math.max(0, s.lineTension - this.rod.maxSafeTension * T.dragThresholdRatio)
@@ -160,20 +238,21 @@ export class FishingEncounter {
     const oldDistance = s.distanceMeters;
     const oldBearing = m.bearingRadians;
     const oldDepth = m.depthMeters;
-    m.radialVelocity = approach(m.radialVelocity, drive - resistance, (heavy ? 2.0 : 4.2) * dt);
-    const turnSpeed = (heavy ? 1.6 : 2.8) * m.effort * (1 - Math.max(0, counter) * 0.55);
-    m.angularVelocity = approach(m.angularVelocity, s.fishDirection * turnSpeed / Math.max(3, s.distanceMeters), (heavy ? 0.35 : 0.85) * dt);
+    m.radialVelocity = approach(m.radialVelocity, drive - resistance, (4.4 - this.inertia * 2.2) * dt);
+    const turnSpeed = (1.5 + (p.turnRate ?? 1) * 1.45) * m.effort * (1 - Math.max(0, counter) * 0.58);
+    m.angularVelocity = approach(m.angularVelocity, s.fishDirection * turnSpeed / Math.max(3, s.distanceMeters),
+      (0.92 - this.inertia * 0.5) * dt);
     m.bearingRadians += m.angularVelocity * dt;
     s.distanceMeters = clamp(s.distanceMeters + m.radialVelocity * dt, T.minimumDistance, T.maximumDistance);
-    const depthTarget = s.behavior === "dive" ? (heavy ? 3.5 : 1.4) * envelope
-      : s.behavior === "surface" ? 0.25 - Math.sin(progress * Math.PI) * (heavy ? 0.75 : 1.05)
-      : heavy ? 0.65 : 0.25;
+    const depthTarget = s.behavior === "dive" ? (p.diveDepthMeters ?? 1.8) * phaseEnvelope
+      : s.behavior === "surface" ? 0.18 - Math.sin(progress * Math.PI) * (p.surfaceLeapMeters ?? 0.7) * phaseEnvelope
+      : 0.2 + this.inertia * 0.62;
     m.verticalVelocity = approach(m.verticalVelocity, clamp((depthTarget - m.depthMeters) * 5, -2, 2), 7 * dt);
     m.depthMeters = clamp(m.depthMeters + m.verticalVelocity * dt,
-      -Math.min(0.9, s.distanceMeters * 0.6), Math.min(4, s.distanceMeters * 0.6));
+      -Math.min(p.surfaceLeapMeters ?? 0.9, s.distanceMeters * 0.6),
+      Math.min(Math.max(4, p.diveDepthMeters ?? 4), s.distanceMeters * 0.6));
     const nextPoint = fishingEndpoint(s);
-    if (this.water && (!this.water.isWater(nextPoint.x, nextPoint.z)
-      || !this.water.isWater((nextPoint.x + oldPoint.x) / 2, (nextPoint.z + oldPoint.z) / 2))) {
+    if (this.water && !this.waterPathIsClear(nextPoint)) {
       // Slide along the bank if turning is possible; otherwise allow inward retrieval.
       const proposedDistance = s.distanceMeters;
       s.distanceMeters = oldDistance;
@@ -193,26 +272,35 @@ export class FishingEncounter {
     const dx = point.x - oldPoint.x;
     const dz = point.z - oldPoint.z;
     if (Math.hypot(dx, dz) > 0.0001) {
-      m.headingRadians += clamp(fishingAngleDelta(m.headingRadians, Math.atan2(dx, dz)), -(heavy ? 1.5 : 3.8) * dt, (heavy ? 1.5 : 3.8) * dt);
+      const headingRate = (1.35 + (p.turnRate ?? 1) * 2.2) * (1.05 - this.inertia * 0.38);
+      m.headingRadians += clamp(fishingAngleDelta(m.headingRadians, Math.atan2(dx, dz)), -headingRate * dt, headingRate * dt);
     }
     if ((oldDepth > 0) !== (m.depthMeters > 0)) m.surfaceCrossings++;
 
     const extension = Math.max(0, s.distanceMeters - m.lineLengthMeters);
     const targetTension = extension * T.lineStiffness + Math.max(0, m.radialVelocity) * T.lineDamping
-      + (s.isReeling ? m.effort * 9 : 0);
+      + (s.isReeling ? m.effort * 9 : 0) + crossRun * m.effort * 6
+      + (s.isBracing && !s.isSlacking ? T.pumpTensionGain * (0.3 + m.effort * 0.7) : 0);
     s.lineTension = clamp(approach(s.lineTension, targetTension,
       (targetTension > s.lineTension ? T.tensionRisePerSecond : T.tensionFallPerSecond) * dt), 0, 100);
+    // A smoothed world-speed read feeds fish animation and camera presentation.
+    m.fishSpeed = approach(m.fishSpeed,
+      Math.hypot(m.radialVelocity, m.angularVelocity * s.distanceMeters), T.fishAccelResponse * dt);
     const fatigue = m.effort * (0.45 + tensionRatio * 3.2) * (1 + Math.max(0, counter) * 0.25)
       + m.retrievalMetersPerSecond * 0.4;
     const recoveryStamina = s.behavior === "rest" && !s.isReeling && !s.isBracing && tensionRatio < 0.3
       ? T.restRecoveryPerSecond : 0;
     s.stamina = clamp(s.stamina + (recoveryStamina - fatigue) * dt, 0, s.maxStamina);
     const excess = Math.max(0, s.lineTension - this.rod.maxSafeTension);
-    s.lineIntegrity = Math.max(0, s.lineIntegrity - excess * T.overloadDamageRate * dt);
+    const shakeBite = m.shakeAmplitude * Math.abs(shakeWave) * T.shakeDamageScale;
+    s.lineIntegrity = Math.max(0, s.lineIntegrity - (excess * T.overloadDamageRate + shakeBite) * dt);
     s.snapTimerSeconds = s.lineTension >= 99 ? s.snapTimerSeconds + dt : Math.max(0, s.snapTimerSeconds - dt * 2);
     s.slackTimerSeconds = s.lineTension <= T.slackTension ? s.slackTimerSeconds + dt : Math.max(0, s.slackTimerSeconds - dt * 2);
+    m.landReadySeconds = this.landingWindowOpen()
+      ? m.landReadySeconds + dt
+      : Math.max(0, m.landReadySeconds - dt * 2);
     if (s.lineIntegrity <= 0 || s.snapTimerSeconds >= T.snapGraceSeconds) s.result = "line-snapped";
-    else if (s.slackTimerSeconds >= p.escapeSlackSeconds) s.result = "escaped";
+    else if (s.slackTimerSeconds >= Math.max(p.escapeSlackSeconds, T.minimumSlackEscapeSeconds)) s.result = "escaped";
     else if (this.canLand()) s.result = "landed";
   }
 
@@ -232,11 +320,11 @@ export class FishingEncounter {
       return { value: behavior, weight };
     });
     s.behavior = this.rng.weighted(entries);
-    const heavy = p.id === "profile.tuna";
+    const heavy = this.inertia >= 0.58;
     const running = s.behavior === "run-left" || s.behavior === "run-right" || s.behavior === "dive";
     const duration = this.rng.range(p.minBehaviorDurationSeconds, p.maxBehaviorDurationSeconds)
-      * (heavy && running ? 1.55 : s.behavior === "rest" ? (heavy ? 0.75 : 1.15) : 1);
-    s.behaviorUntilSeconds = Math.max(1.2, duration);
+      * (heavy && running ? 1.2 + this.inertia * 0.5 : s.behavior === "rest" ? (heavy ? 0.82 : 1.15) : 1);
+    s.behaviorUntilSeconds = Math.max(T.minimumBehaviorSeconds, duration);
     s.dynamics!.behaviorDurationSeconds = s.behaviorUntilSeconds;
   }
 }

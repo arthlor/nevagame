@@ -14,6 +14,7 @@ import {
   IconLedger
 } from "./components/HudIcons";
 import { playUiSound } from "./audio/uiAudio";
+import { InterfaceSettings } from "./components/InterfaceSettings";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
 
@@ -51,6 +52,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   onGraphicsQualityChange
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const [confirmingReturn, setConfirmingReturn] = useState(false);
   useModalAccessibility(modalRef, onClose);
 
   const clock = state.clock;
@@ -108,9 +110,9 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               </div>
               <ChromeMeter
                 className="pause-labor-meter"
-                label="Labor"
+                label="Work"
                 icon={<IconEnergy size={16} aria-hidden="true" />}
-                value={player.workCapacity.current}
+                value={Math.floor(player.workCapacity.current)}
                 max={player.workCapacity.maximum}
                 variant="gold"
               />
@@ -146,7 +148,32 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                   </ChromeButton>
                 )}
                 <ChromeButton onClick={onQuickSave}>Save game</ChromeButton>
-                <ChromeButton onClick={onResetPlayerToSafePlace}>Return to garden</ChromeButton>
+                {/* Teleporting across the map is not something to trigger on a
+                    stray click while looking for Resume. */}
+                {confirmingReturn ? (
+                  <div className="pause-confirm-row" role="group" aria-label="Confirm return to garden">
+                    <span className="pause-confirm-copy">Teleport back to the Starter Garden?</span>
+                    <div className="pause-confirm-actions">
+                      <ChromeButton size="sm" onClick={() => setConfirmingReturn(false)}>
+                        Stay here
+                      </ChromeButton>
+                      <ChromeButton
+                        size="sm"
+                        variant="danger"
+                        soundCue="confirm"
+                        data-testid="pause-confirm-return"
+                        onClick={() => {
+                          setConfirmingReturn(false);
+                          onResetPlayerToSafePlace();
+                        }}
+                      >
+                        Return
+                      </ChromeButton>
+                    </div>
+                  </div>
+                ) : (
+                  <ChromeButton onClick={() => setConfirmingReturn(true)}>Return to garden</ChromeButton>
+                )}
               </div>
             </div>
 
@@ -156,6 +183,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                 effectiveTier={effectiveGraphicsQuality}
                 onChange={onGraphicsQualityChange}
               />
+              <InterfaceSettings />
               <AudioControls />
             </div>
           </div>

@@ -39,7 +39,16 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 18,
     directionalForce: 18,
     tensionSensitivity: 1.1,
-    escapeSlackSeconds: 2.5
+    escapeSlackSeconds: 2.5,
+    shakeHz: 2.9,
+    shakeAmplitude: 0.55,
+    inertia: 0.18,
+    turnRate: 1.45,
+    diveDepthMeters: 1.2,
+    surfaceLeapMeters: 0.85,
+    tellSeconds: 0.28,
+    recoverySeconds: 0.46,
+    pumpResistance: 0.82
   },
   "profile.perch": {
     id: "profile.perch",
@@ -77,7 +86,14 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 12,
     directionalForce: 25,
     tensionSensitivity: 1.3,
-    escapeSlackSeconds: 3.5
+    escapeSlackSeconds: 3.5,
+    inertia: 0.58,
+    turnRate: 0.72,
+    diveDepthMeters: 2.8,
+    surfaceLeapMeters: 0.2,
+    tellSeconds: 0.62,
+    recoverySeconds: 0.75,
+    pumpResistance: 1.08
   },
   "profile.pike": {
     id: "profile.pike",
@@ -96,7 +112,16 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 28,
     directionalForce: 22,
     tensionSensitivity: 1.4,
-    escapeSlackSeconds: 2.0
+    escapeSlackSeconds: 2.0,
+    shakeHz: 3.6,
+    shakeAmplitude: 0.9,
+    inertia: 0.3,
+    turnRate: 1.55,
+    diveDepthMeters: 1.4,
+    surfaceLeapMeters: 0.45,
+    tellSeconds: 0.24,
+    recoverySeconds: 0.4,
+    pumpResistance: 0.9
   },
   "profile.arowana": {
     id: "profile.arowana",
@@ -115,7 +140,14 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 32,
     directionalForce: 26,
     tensionSensitivity: 1.6,
-    escapeSlackSeconds: 1.8
+    escapeSlackSeconds: 1.8,
+    inertia: 0.32,
+    turnRate: 1.25,
+    diveDepthMeters: 1.1,
+    surfaceLeapMeters: 1.25,
+    tellSeconds: 0.3,
+    recoverySeconds: 0.5,
+    pumpResistance: 0.9
   },
   "profile.mackerel": {
     id: "profile.mackerel",
@@ -153,7 +185,16 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 30,
     directionalForce: 32,
     tensionSensitivity: 1.5,
-    escapeSlackSeconds: 2.0
+    escapeSlackSeconds: 2.0,
+    shakeHz: 2.2,
+    shakeAmplitude: 0.3,
+    inertia: 0.62,
+    turnRate: 0.82,
+    diveDepthMeters: 3.6,
+    surfaceLeapMeters: 0.25,
+    tellSeconds: 0.68,
+    recoverySeconds: 0.72,
+    pumpResistance: 1.12
   },
   "profile.sturgeon": {
     id: "profile.sturgeon",
@@ -172,7 +213,14 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 20,
     directionalForce: 38,
     tensionSensitivity: 1.6,
-    escapeSlackSeconds: 3.0
+    escapeSlackSeconds: 3.0,
+    inertia: 0.82,
+    turnRate: 0.58,
+    diveDepthMeters: 3.9,
+    surfaceLeapMeters: 0.15,
+    tellSeconds: 0.78,
+    recoverySeconds: 0.92,
+    pumpResistance: 1.22
   },
   "profile.sailfish": {
     id: "profile.sailfish",
@@ -191,7 +239,14 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 38,
     directionalForce: 36,
     tensionSensitivity: 1.8,
-    escapeSlackSeconds: 1.5
+    escapeSlackSeconds: 1.5,
+    inertia: 0.5,
+    turnRate: 1.4,
+    diveDepthMeters: 1.8,
+    surfaceLeapMeters: 1.5,
+    tellSeconds: 0.3,
+    recoverySeconds: 0.46,
+    pumpResistance: 1.02
   },
   "profile.swordfish": {
     id: "profile.swordfish",
@@ -210,7 +265,14 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 42,
     directionalForce: 40,
     tensionSensitivity: 1.9,
-    escapeSlackSeconds: 1.5
+    escapeSlackSeconds: 1.5,
+    inertia: 0.67,
+    turnRate: 1.16,
+    diveDepthMeters: 4.0,
+    surfaceLeapMeters: 0.75,
+    tellSeconds: 0.38,
+    recoverySeconds: 0.5,
+    pumpResistance: 1.14
   },
   "profile.blue_marlin": {
     id: "profile.blue_marlin",
@@ -229,7 +291,16 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     burstStrength: 48,
     directionalForce: 45,
     tensionSensitivity: 2.2,
-    escapeSlackSeconds: 1.2
+    escapeSlackSeconds: 1.2,
+    shakeHz: 3.2,
+    shakeAmplitude: 0.8,
+    inertia: 0.9,
+    turnRate: 1.08,
+    diveDepthMeters: 4.2,
+    surfaceLeapMeters: 1.7,
+    tellSeconds: 0.44,
+    recoverySeconds: 0.62,
+    pumpResistance: 1.28
   }
 };
 

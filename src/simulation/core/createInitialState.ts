@@ -10,6 +10,7 @@ import { PLAYER_HOMESTEAD_LAYOUT, STARTER_FARM_LAYOUT, starterStructureAnchor } 
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION, WORLD_SPAWN } from "../../world/WorldAnchors";
 import { WorldLayout } from "../../world/WorldLayout";
 import { DEFAULT_MINUTES_PER_REAL_SECOND } from "./GameClock";
+import { WORK_CAPACITY_MAXIMUM } from "../domains/ProgressionDomain";
 import { SeededRng } from "./Rng";
 import { applyWeatherProfile, rollWeatherType, WEATHER_FRONT_MIN_MINUTES } from "../weather/updateWeather";
 import { createStarterDonkeyState } from "../mounts/Mounts";
@@ -168,14 +169,15 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       currentRegionId: WORLD_SPAWN.regionId,
       inventoryId: "inv.player",
       equippedRodId: "rod.willow",
+      ownedRodIds: ["rod.willow"],
       carriedFishCargoId: null,
       activeBoatId: null,
       activeMountId: null,
       money: 100,
       traversal: createFullPlayerTraversalState(),
       workCapacity: {
-        current: 1000,
-        maximum: 1000,
+        current: WORK_CAPACITY_MAXIMUM,
+        maximum: WORK_CAPACITY_MAXIMUM,
         regeneratedAtMinute: 8 * 60
       },
       proficiencies: {

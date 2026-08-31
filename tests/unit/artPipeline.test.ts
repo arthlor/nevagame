@@ -171,10 +171,12 @@ describe("Neva art catalog", () => {
     const { catalog } = validateCatalog();
     const parsed = parseArgs(["generate", "--asset", "tree_oak_a", "--family", "fish", "--no-publish"]);
     expect(parsed.publish).toBe(false);
+    const fishFamily = catalog.assets
+      .filter((asset) => asset.family === "fish")
+      .map((asset) => asset.id);
     expect(selectAssets(catalog, parsed).map((asset) => asset.id)).toEqual([
       "tree_oak_a",
-      "fish_trout_a",
-      "fish_tuna_a"
+      ...fishFamily,
     ]);
     expect(safeFilename("../tree_oak_a.glb")).toBe(false);
     expect(() => selectAssets(catalog, parseArgs(["generate", "--asset", "missing_asset"]))).toThrow(

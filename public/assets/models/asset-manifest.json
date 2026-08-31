@@ -1,29 +1,29 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-29T16:14:47.449Z",
-  "specHash": "1dc34a8c07d48586fa4e1beadf4688532f3e3c6942524610fb5c1174e98fe4c7",
+  "generatedAt": "2026-08-30T19:44:14.742Z",
+  "specHash": "895d7efc8c1181bc2e7a98668eb5c99fda9a6d264b9a0351583596e236fc7ee0",
   "paletteHash": "6a10a3bd88fb1360d5d98d1fd4405cefaa9f6fe81a07d631f111328cc291d111",
-  "toolchainHash": "147d5dc145a769ec60c66b0e50a7ae8cb8a10936c0b76bf9e84f1c8181ba5984",
+  "toolchainHash": "56acbed4c4fac2a9a070e89032fcec47f9906bf8457d3a65b34cb9c41690d4ec",
   "blenderVersion": "Blender 5.2.0 LTS",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 265,
-  "aggregateBytes": 21282444,
+  "durationMs": 54,
+  "aggregateBytes": 21601864,
   "summary": {
-    "assetCount": 189,
+    "assetCount": 196,
     "referenceReady": 66,
     "referenceDraft": 0,
-    "onTarget": 158,
-    "belowTarget": 31,
-    "triangles": 597348,
-    "packagedTriangles": 678094,
-    "productionMinimumTriangles": 153940,
-    "qualityTargetTriangles": 519284,
-    "hardMaximumTriangles": 1020420,
-    "fileSizeBytes": 21282444,
-    "trianglePrimitives": 786,
-    "nodes": 3396,
-    "cacheHits": 1,
-    "cacheMisses": 188,
+    "onTarget": 161,
+    "belowTarget": 35,
+    "triangles": 604468,
+    "packagedTriangles": 685214,
+    "productionMinimumTriangles": 157440,
+    "qualityTargetTriangles": 526534,
+    "hardMaximumTriangles": 1037920,
+    "fileSizeBytes": 21601864,
+    "trianglePrimitives": 833,
+    "nodes": 3591,
+    "cacheHits": 9,
+    "cacheMisses": 187,
     "artContractPassed": true
   },
   "assets": [
@@ -1524,7 +1524,7 @@
       ],
       "bytes": 521488,
       "fileHash": "528dbed123aaafdc07f1a013edeff85a405a8e5aa33a156a9c1abd5b19b04a9b",
-      "semanticHash": "7c2f0552a833d738ce081d30ecdff1991d1bfc4b8d14b645b591329cc020010d",
+      "semanticHash": "32c6553f94418d4fdbf3fa18f48043f1ff2a0a018a1b0d1ec0978adcb02926c8",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -1686,7 +1686,7 @@
       ],
       "bytes": 543872,
       "fileHash": "88d9a7fc2e4361a9d4953835b55394abde5bb587e50a81cb6e13756ee2e27e35",
-      "semanticHash": "2eaee34661f1d0500a4f0fc75ff5688da162e3b1c83eea40fcda5cb3232a1b12",
+      "semanticHash": "00e7d90b2a1ee6a164d505233abeed758b5cc200c9071808e0fe7c1a8307909a",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -1848,7 +1848,7 @@
       ],
       "bytes": 528864,
       "fileHash": "86a490b2035a9448cd0f6da6e55897a1d60e30681fd82434d08be1040eaee45b",
-      "semanticHash": "33f52a44c0dbe8f704fb8abb438bca35df5fcf8db7f9185df93f05ceea5dc0bb",
+      "semanticHash": "524ce3482fd9535492961065e230676861fd625b69fe3b5b55b29bc6497ce435",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -2010,7 +2010,7 @@
       ],
       "bytes": 573084,
       "fileHash": "38e393e23a3cfed6b54a5a7f2684513e8a8dd86fb6ebdf4fadce2df3405f0c7b",
-      "semanticHash": "2648eb3cf38ff207907ee7b6c8053da824d0db56a83ae10cdccf05a246f5e21c",
+      "semanticHash": "98afa45750a1f6deab6bb562e7e638e3b755de8e4d55228c292db03a6ae5ddf6",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -2135,7 +2135,7 @@
       "readDistanceMeters": 30,
       "durationMs": 2,
       "inputHash": "a8e3b3a6faf9be9681c77ea5774ee4287607e5d9f86198e77c04679e550eaa1a",
-      "cacheHit": true,
+      "cacheHit": false,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 12000,
@@ -2181,7 +2181,7 @@
       ],
       "bytes": 1109032,
       "fileHash": "f527c575c02fbf98debbdfc7b67a1aed6c27195cb4999a62a7a060bae54607b1",
-      "semanticHash": "cee39bf5273834cce93afa790a7163e51b1fb6d32e21faaf5835ad688ef46e5c",
+      "semanticHash": "0d6036b93da3fd873035631eb5f81ae6ccf898ac13eb1a53de1931534a4c524f",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -4616,7 +4616,7 @@
       ],
       "bytes": 182624,
       "fileHash": "6f92e3984dd530e7951c17d2c699d72257d5d49967097ef019047055426d4fed",
-      "semanticHash": "8551610c4f91d33794d63d04be825e6b25ca03c622e92d630ed3361ea7c19ac0",
+      "semanticHash": "6352c02a6b3a532050b44767e068a1fbfc8cf0c7ce33b5a3dbbc9d780c08259a",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -4929,6 +4929,791 @@
       ]
     },
     {
+      "id": "fish_arowana_a",
+      "file": "fish_arowana_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 604,
+      "dimensions": [
+        0.5619999766349792,
+        1.5719707608222961,
+        0.4900150001049042
+      ],
+      "bounds": {
+        "min": [
+          -0.2809999883174896,
+          -0.7559707760810852,
+          -0.23690000176429749
+        ],
+        "max": [
+          0.2809999883174896,
+          0.8159999847412109,
+          0.2531149983406067
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "accent_red_01",
+        "fish_belly_01"
+      ],
+      "vertexColorLoops": 2916,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_arowana_a_root",
+        "fish_arowana_a_motion_root",
+        "fish_arowana_a_tail_pivot",
+        "fish_arowana_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 22,
+      "durationMs": 0,
+      "inputHash": "70bdcb24de7ca31c550016d961636b0bb25c4939db9583d9131160564a8d6d64",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1100,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 32,
+      "meshes": 5,
+      "triangles": 1156,
+      "packagedTriangles": 1156,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 50472,
+      "fileHash": "e2625fbe9a5506a7f56dce06ec4d8951ec2ba96eff519b52c7a9af0b0f863ad7",
+      "semanticHash": "791228031756db888d19813a4a077b107e77e1adb09f66bf8ba2dda92a6614f1",
+      "qualityStatus": "on_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "fish_blue_marlin_a",
+      "file": "fish_blue_marlin_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 611,
+      "dimensions": [
+        1.1779999732971191,
+        3.7890604734420776,
+        1.1150036454200745
+      ],
+      "bounds": {
+        "min": [
+          -0.5889999866485596,
+          -2.22506046295166,
+          -0.4540240168571472
+        ],
+        "max": [
+          0.5889999866485596,
+          1.5640000104904175,
+          0.6609796285629272
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_teal_01",
+        "fish_belly_01",
+        "fish_tuna_back_01"
+      ],
+      "vertexColorLoops": 2428,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_blue_marlin_a_root",
+        "fish_blue_marlin_a_motion_root",
+        "fish_blue_marlin_a_tail_pivot",
+        "fish_blue_marlin_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 42,
+      "durationMs": 0,
+      "inputHash": "d073b30827e39fad39ec408f18f7376745641eb46b99c0923ab47a4446084a7e",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1050,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "1032 triangles are below quality target 1050"
+      ],
+      "nodes": 29,
+      "meshes": 6,
+      "triangles": 1032,
+      "packagedTriangles": 1032,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 44708,
+      "fileHash": "d4439f6e15800ff4b085abe422e10d4ca9ba515fa4d794f3c5ba64eae35afa8e",
+      "semanticHash": "0f9da694b1748bf86f79e05edb5ce3c618dc1e3b5e2561205c2caec9b0c642f8",
+      "qualityStatus": "below_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "fish_catfish_a",
+      "file": "fish_catfish_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 602,
+      "dimensions": [
+        0.6191999912261963,
+        1.4604719877243042,
+        0.3902745693922043
+      ],
+      "bounds": {
+        "min": [
+          -0.30959999561309814,
+          -0.7072219848632812,
+          -0.19281600415706635
+        ],
+        "max": [
+          0.30959999561309814,
+          0.753250002861023,
+          0.19745856523513794
+        ]
+      },
+      "paletteTokensUsed": [
+        "fish_belly_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 2036,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_catfish_a_root",
+        "fish_catfish_a_motion_root",
+        "fish_catfish_a_tail_pivot",
+        "fish_catfish_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 18,
+      "durationMs": 0,
+      "inputHash": "899ef0dd5d22aeb22933c1b2a474301d66f9299ddd394f0aeff571b858299439",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "852 triangles are below quality target 1000"
+      ],
+      "nodes": 22,
+      "meshes": 6,
+      "triangles": 852,
+      "packagedTriangles": 852,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 40576,
+      "fileHash": "802d0770efae8ac22a3067a3a8c13e7c579886a46382b0603ebe910f00a8f7dd",
+      "semanticHash": "d8addaef1adbdc376878eec39999be6074ae3cc9699131e62f6ed09ef7b89c23",
+      "qualityStatus": "below_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "fish_pike_a",
+      "file": "fish_pike_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 603,
+      "dimensions": [
+        0.4495999813079834,
+        1.6624656915664673,
+        0.2507673501968384
+      ],
+      "bounds": {
+        "min": [
+          -0.2247999906539917,
+          -0.8124656677246094,
+          -0.11865599453449249
+        ],
+        "max": [
+          0.2247999906539917,
+          0.8500000238418579,
+          0.1321113556623459
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "fish_belly_01",
+        "fish_trout_back_01"
+      ],
+      "vertexColorLoops": 2676,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_pike_a_root",
+        "fish_pike_a_motion_root",
+        "fish_pike_a_tail_pivot",
+        "fish_pike_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 20,
+      "durationMs": 0,
+      "inputHash": "7e883ebef0c499b56ae6ec69e3326b98688339d200005815c91eb58bd903efff",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1050,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 28,
+      "meshes": 6,
+      "triangles": 1076,
+      "packagedTriangles": 1076,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 49580,
+      "fileHash": "0d42e56cc1beefac11c3ac60e2b92b12349ce4499c1ba4354ef54ef57f804c24",
+      "semanticHash": "ac956a90666c8b171831e908815942f9ecc709e74e42fb6cefb58622fa8b6301",
+      "qualityStatus": "on_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "fish_sailfish_a",
+      "file": "fish_sailfish_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 609,
+      "dimensions": [
+        0.8370000123977661,
+        2.1929638385772705,
+        1.0217339992523193
+      ],
+      "bounds": {
+        "min": [
+          -0.41850000619888306,
+          -1.0369638204574585,
+          -0.31147199869155884
+        ],
+        "max": [
+          0.41850000619888306,
+          1.156000018119812,
+          0.7102620005607605
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "fish_belly_01",
+        "fish_tuna_back_01"
+      ],
+      "vertexColorLoops": 2256,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_sailfish_a_root",
+        "fish_sailfish_a_motion_root",
+        "fish_sailfish_a_tail_pivot",
+        "fish_sailfish_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 34,
+      "durationMs": 0,
+      "inputHash": "ce767b457a8385509eb811ab6532c68ded307b10ca2f459987970bf276fd8181",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "956 triangles are below quality target 1000"
+      ],
+      "nodes": 28,
+      "meshes": 6,
+      "triangles": 956,
+      "packagedTriangles": 956,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 43124,
+      "fileHash": "2aa4b55ac349faea4b96d48cf5898135789d8d7a887e428f2a121bd467ddc6a6",
+      "semanticHash": "9187131b733a42988e9b30a5f1fd37dbc5e5746270a3c5b3e6d950d8f3f27ce1",
+      "qualityStatus": "below_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "fish_sturgeon_a",
+      "file": "fish_sturgeon_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 608,
+      "dimensions": [
+        0.7739999890327454,
+        2.2859671115875244,
+        0.45506879687309265
+      ],
+      "bounds": {
+        "min": [
+          -0.3869999945163727,
+          -1.061967134475708,
+          -0.22247999906539917
+        ],
+        "max": [
+          0.3869999945163727,
+          1.2239999771118164,
+          0.23258879780769348
+        ]
+      },
+      "paletteTokensUsed": [
+        "fish_belly_01",
+        "rock_coastal_dark_01",
+        "stone_cool_01"
+      ],
+      "vertexColorLoops": 2496,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_sturgeon_a_root",
+        "fish_sturgeon_a_motion_root",
+        "fish_sturgeon_a_tail_pivot",
+        "fish_sturgeon_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 26,
+      "durationMs": 0,
+      "inputHash": "71f078b6b9d586a656b966432e9243aab556d7bf81c48bc8c5d1089d397d617b",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1050,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "1016 triangles are below quality target 1050"
+      ],
+      "nodes": 25,
+      "meshes": 6,
+      "triangles": 1016,
+      "packagedTriangles": 1016,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 46524,
+      "fileHash": "664713b372eb666b74e39d0f28097347e0d9dc5a9196458564f70a106466fd70",
+      "semanticHash": "12776a68b5cc7b2a2ee953fc0bee90f000bbc88d7c02c3056c8a2281a7239f90",
+      "qualityStatus": "below_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "fish_swordfish_a",
+      "file": "fish_swordfish_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 610,
+      "dimensions": [
+        0.8991999626159668,
+        3.683124542236328,
+        0.8016191720962524
+      ],
+      "bounds": {
+        "min": [
+          -0.4495999813079834,
+          -2.255124568939209,
+          -0.35596799850463867
+        ],
+        "max": [
+          0.4495999813079834,
+          1.4279999732971191,
+          0.44565117359161377
+        ]
+      },
+      "paletteTokensUsed": [
+        "fish_belly_01",
+        "fish_tuna_back_01",
+        "stone_cool_01"
+      ],
+      "vertexColorLoops": 2428,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "fish_swordfish_a_root",
+        "fish_swordfish_a_motion_root",
+        "fish_swordfish_a_tail_pivot",
+        "fish_swordfish_a_mouth_hook"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 38,
+      "durationMs": 0,
+      "inputHash": "3b5575e27bd4f6fac7f0c4ab8a91c34c0a92b6b48efcb654506443ab550d32c2",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 29,
+      "meshes": 6,
+      "triangles": 1032,
+      "packagedTriangles": 1032,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 44244,
+      "fileHash": "f91d9cc2f564b2621b1f1948e8764c64a22d7074e46e5859bbf0cda6deab6254",
+      "semanticHash": "f1bb2faeedeb826ec2fcf3cb60ff3a6f729dccf10381790c97f063fc265404c5",
+      "qualityStatus": "on_target",
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.800000011920929,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.47999998927116394,
+          "commitMarkerSeconds": null,
+          "loop": false,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4000000059604645,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6000000238418579,
+          "commitMarkerSeconds": null,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": null,
+          "optional": false,
+          "fallbackClip": null,
+          "events": []
+        }
+      ]
+    },
+    {
       "id": "fish_trout_a",
       "file": "fish_trout_a.glb",
       "family": "fish",
@@ -4961,14 +5746,15 @@
       "requiredNodes": [
         "fish_trout_a_root",
         "fish_trout_a_motion_root",
-        "fish_trout_a_tail_pivot"
+        "fish_trout_a_tail_pivot",
+        "fish_trout_a_mouth_hook"
       ],
       "collision": "none",
       "lod": "medium",
       "readDistanceMeters": 15,
-      "durationMs": 4,
-      "inputHash": "cac73aca88e007ba604d1f26dd9434ba65d514d68068db1d990ce1e515ed730e",
-      "cacheHit": false,
+      "durationMs": 0,
+      "inputHash": "9d9afcea933a688034be1c86736962f4c2acdc6a641d994e4f119d4afd99cf01",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 500,
         "trianglesTarget": 900,
@@ -4976,7 +5762,7 @@
         "materialsMax": 3
       },
       "warnings": [],
-      "nodes": 25,
+      "nodes": 26,
       "meshes": 5,
       "triangles": 968,
       "packagedTriangles": 968,
@@ -4991,9 +5777,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 43300,
-      "fileHash": "0f75bc563c1984567b3d535643152980883a2955a23891767158141b0bbe1f4a",
-      "semanticHash": "2c5954f5bf6ba64eabf407c0a3c76ce5c8f695925c84d0d73917d4ee8e5d7385",
+      "bytes": 43396,
+      "fileHash": "d3644b0b93219359ff3bb29b23fce2f62da3c6ae973bcfc5afd20dbd0b0b3b8b",
+      "semanticHash": "22bd20c267b56e53f86cd052ad7fbe39b138d8b34ad81bf848ffd52aa5ee6c9d",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -5071,14 +5857,15 @@
       "requiredNodes": [
         "fish_tuna_a_root",
         "fish_tuna_a_motion_root",
-        "fish_tuna_a_tail_pivot"
+        "fish_tuna_a_tail_pivot",
+        "fish_tuna_a_mouth_hook"
       ],
       "collision": "none",
       "lod": "medium",
       "readDistanceMeters": 30,
       "durationMs": 1,
-      "inputHash": "1585d3c44783105003143d77d9220774969d8dcbeeb8f4ffbdcc14760d5c2e37",
-      "cacheHit": false,
+      "inputHash": "57729033a04364c6a7df38d572fd2bbc672024a07855369194a4f2223ca65b67",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 500,
         "trianglesTarget": 900,
@@ -5086,7 +5873,7 @@
         "materialsMax": 3
       },
       "warnings": [],
-      "nodes": 27,
+      "nodes": 28,
       "meshes": 6,
       "triangles": 900,
       "packagedTriangles": 900,
@@ -5101,9 +5888,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 42352,
-      "fileHash": "1ed7b96a66bc92c7b5590d6aed1a9db13ea648ea3395a9202ba22b70c2d975d6",
-      "semanticHash": "6869dc98e71988135546a32d889815c2960746e7202b68b23167705e8a4e445b",
+      "bytes": 42448,
+      "fileHash": "c1cc5846fed1ef5a0d45861c003cc953240e51b5af51fd5f7995e2ed4a6eeb02",
+      "semanticHash": "ae5ce8ede90b8bd70e3895467219818ec39070fb5cb3cdfa9495a22cfb919c63",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -5364,7 +6151,7 @@
       ],
       "bytes": 43824,
       "fileHash": "0b2a57b86f9024b615edc936dc5844ea5521608e8b6b6feee4c4a763bdd3ed24",
-      "semanticHash": "1616914a2a9d824ab118f5f9c8d696d15589fe31a47f539161d13b4a8889b479",
+      "semanticHash": "9bc94a8d38a7690321b729f59f8a0b105c1f8ef6db7289d3aae4cb6f97bc0a44",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -6371,7 +7158,7 @@
       ],
       "bytes": 24448,
       "fileHash": "0a956b258f2d16401148a84e089d547f1ac85e023293d48e7e0285cd09d74597",
-      "semanticHash": "42dc21a748f7f1654bd0725dec8a01d0ed5ca391cabb3ba8b6a90b3a7e670459",
+      "semanticHash": "f65ec92c2d22fd4293af52f3ee7c5896bb7943ea2d81a7b10a38b21e336dfb48",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -13257,7 +14044,7 @@
       ],
       "bytes": 57480,
       "fileHash": "275d123914db5208529f0a52c41bd4a7b39e566cd92865e671b5abcc34df3b3e",
-      "semanticHash": "e75f3d9cd9d511e9bad6df5500ab970fa282f23188bb065cae6e708613c42e9d",
+      "semanticHash": "a60f39769234908b57f7e70610709ac1953cf0bd9340f4a1fbec79427e2407df",
       "qualityStatus": "on_target",
       "animationClips": []
     },

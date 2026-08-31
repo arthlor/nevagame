@@ -11,8 +11,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-750794.html",
       "runtimeUrl": "/assets/audio/footsteps-dirt.mp3",
-      "sha256": "b9137a29bb95cc2a71e35d5a54685689d57407deab08c2073acf0bb45dbb3112",
-      "durationSeconds": 22.4
+      "sha256": "32554ff59211a3399774a87bb3d1c63036ec522de30ccab8c031fca405c5951f",
+      "durationSeconds": 22.4,
+      "channels": 1
     },
     {
       "id": "plant-dirt",
@@ -23,8 +24,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-353907.html",
       "runtimeUrl": "/assets/audio/plant-dirt.mp3",
-      "sha256": "9c34566e583e9aa94e6aa69140ab6b7e62fc538e8a27ac310bfd747959bfb57f",
-      "durationSeconds": 9.053417
+      "sha256": "1f74f2bf072be9fda20b23d3974398a6e48b40819c42d31f7bc0aa72f4585d10",
+      "durationSeconds": 9.053417,
+      "channels": 1
     },
     {
       "id": "watering-can",
@@ -35,8 +37,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-810382.html",
       "runtimeUrl": "/assets/audio/watering-can.mp3",
-      "sha256": "333655d1685163b9119ca09b5caa88fc065786b7f6d5a2a090caa5fb4cc6b371",
-      "durationSeconds": 33.1
+      "sha256": "932c379eba61c4e708098f82b30f02fe7588eb9c7cf9383a50c78db07f4a25da",
+      "durationSeconds": 24.566708,
+      "channels": 1
     },
     {
       "id": "crop-rustle",
@@ -47,8 +50,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-593472.html",
       "runtimeUrl": "/assets/audio/crop-rustle.mp3",
-      "sha256": "e69eb5d6289cbf5e8d9b4616b419a7490cd72aa73120b2d45f356330cb703dc5",
-      "durationSeconds": 1.002667
+      "sha256": "ca1e6c99095d188d7534528ab20738f95e79dba11f8bc4fb6796ce3c65a89c46",
+      "durationSeconds": 1.002667,
+      "channels": 1
     },
     {
       "id": "sickle-swish",
@@ -59,8 +63,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-344403.html",
       "runtimeUrl": "/assets/audio/sickle-swish.mp3",
-      "sha256": "03d423d98e8abc0a687b0cc0fc60b77b395b952b7844adb542622c15db2830ee",
-      "durationSeconds": 1.292958
+      "sha256": "fd01ba6c4017bf3e15d102d3c7515c34379ba194359e6e0ca07c6e3ed2d6b7b8",
+      "durationSeconds": 1.292958,
+      "channels": 1
     },
     {
       "id": "harvest-cut",
@@ -71,8 +76,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-400641.html",
       "runtimeUrl": "/assets/audio/harvest-cut.mp3",
-      "sha256": "61705fcf533a0eacf03340e34054313eb2356b76f2cd9313bdfcfd901890ae0a",
-      "durationSeconds": 35.187063
+      "sha256": "5689261ca5e90f3bfb6aab43d4ac9e86077c9bb417df15eba2e4a3850f156c2d",
+      "durationSeconds": 35.187063,
+      "channels": 1
     },
     {
       "id": "basket-pick-place",
@@ -83,8 +89,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-288926.html",
       "runtimeUrl": "/assets/audio/basket-pick-place.mp3",
-      "sha256": "dc7457ab17449f9405d1adbcd1ae5de63f79e297a1d3eb58316fe1081c837a68",
-      "durationSeconds": 14.591338
+      "sha256": "4edcd435a799304291896c6a77ddaebe5b4e8f09ceb858237eac7f570880448a",
+      "durationSeconds": 14.591333,
+      "channels": 1
     },
     {
       "id": "windmill-mechanism",
@@ -95,8 +102,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-535013.html",
       "runtimeUrl": "/assets/audio/windmill-mechanism.mp3",
-      "sha256": "a0370ca0e2d0cf614a00e90aeef70f8aa25c9d6791081d2897ba81b347088a0a",
-      "durationSeconds": 38
+      "sha256": "c0570fae4567ebbf668850992e95de9ccb1daa029c614d61e7cc04dcb28cecc8",
+      "durationSeconds": 38,
+      "channels": 1
     },
     {
       "id": "workstation-grind",
@@ -107,8 +115,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-337619.html",
       "runtimeUrl": "/assets/audio/workstation-grind.mp3",
-      "sha256": "4401a35031a624ff86ae1b2b783346745ef3a0870064f47186bac1cd640fd064",
-      "durationSeconds": 10.601905
+      "sha256": "c5ecefc10afaa158a88d55688af0d1c70f0bdbc92a3c71a5a5af26d01aa0b8c1",
+      "durationSeconds": 10.601917,
+      "channels": 1
     },
     {
       "id": "ambience-wind",
@@ -119,8 +128,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-459977.html",
       "runtimeUrl": "/assets/audio/ambience-wind.mp3",
-      "sha256": "e1cf29f5305a79edb5e57fb658c35e307078c392fb6bb6e8e8941e1ea7f67423",
-      "durationSeconds": 35.67127
+      "sha256": "6d8c3cf1b3c7d5c1875f1090ae2f268ec0eceed4fda7996c86932864482c6b58",
+      "durationSeconds": 35.671271,
+      "channels": 2
     },
     {
       "id": "ambience-insects",
@@ -131,8 +141,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-320145.html",
       "runtimeUrl": "/assets/audio/ambience-insects.mp3",
-      "sha256": "0c9e5a14c7a5ff20de0bbecfa85fb93fe5d53a79917c5370163a391ae171a74e",
-      "durationSeconds": 82.517528
+      "sha256": "8ce12570398de922cbc8e57e9e72e684f6453f9005f3873e3e359f37855efd85",
+      "durationSeconds": 82.517542,
+      "channels": 2
     },
     {
       "id": "ambience-birds",
@@ -143,8 +154,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-723913.html",
       "runtimeUrl": "/assets/audio/ambience-birds.mp3",
-      "sha256": "9aebcb869cf37040c4588fc05d72bed197951aaa1beacb6874b379c69e379dbb",
-      "durationSeconds": 27.051667
+      "sha256": "237e6b1c7948d0093bc59c04406b287be65a32bd524da2e497ec73038dd363e0",
+      "durationSeconds": 27.051667,
+      "channels": 2
     },
     {
       "id": "rain-light",
@@ -155,8 +167,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-595717.html",
       "runtimeUrl": "/assets/audio/rain-light.mp3",
-      "sha256": "c42458d0383b82d5b03e09650ae3db75368d14f51702acf28c8125a23eadfa73",
-      "durationSeconds": 22.543673
+      "sha256": "22a6e1b16d310084ca8f240fcbd0ef757ce2afc663eb152c5b1557924304137e",
+      "durationSeconds": 22.5065,
+      "channels": 2
     },
     {
       "id": "rain-heavy",
@@ -167,8 +180,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-624645.html",
       "runtimeUrl": "/assets/audio/rain-heavy.mp3",
-      "sha256": "c4a04f677ad4d601ac7fdd416cc189b2c4320d37d01e23ba46a543aceaee6fb6",
-      "durationSeconds": 15.542857
+      "sha256": "ca9ee0ae25b543739fc51ad77918b95fbf376a0be5434b85104a4c6ad62d1e76",
+      "durationSeconds": 15.5,
+      "channels": 2
     },
     {
       "id": "water-splash",
@@ -179,8 +193,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-50623.html",
       "runtimeUrl": "/assets/audio/water-splash.mp3",
-      "sha256": "f6479f6b80d298abfcb37f1aad8f25db27cf57e01c9410d0c8439e0fd4af9100",
-      "durationSeconds": 15.751837
+      "sha256": "838a811900052c8f31930f7d878004f95a3a3f6f5c8cff7787572ddc44ecf750",
+      "durationSeconds": 15.710563,
+      "channels": 1
     },
     {
       "id": "fishing-cast",
@@ -191,8 +206,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-853287.html",
       "runtimeUrl": "/assets/audio/fishing-cast.mp3",
-      "sha256": "5d43cd095f3f0db63b03044960f61e34b0e73874c020a9f6d5d3225b9b466af8",
-      "durationSeconds": 2.904
+      "sha256": "16fb82cec3e2e44df81d33ac45123dfe913fb929ae2bd1cd9e2be77705277df9",
+      "durationSeconds": 2.857667,
+      "channels": 1
     },
     {
       "id": "fishing-reel-slow",
@@ -203,8 +219,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-507078.html",
       "runtimeUrl": "/assets/audio/fishing-reel-slow.mp3",
-      "sha256": "39cd7b25ed93da4e1661b60baeab0ccc90ac73b953f219e684dae3b3a39989ac",
-      "durationSeconds": 6.936
+      "sha256": "6cffc6811bf9a962ab0b94ea0a0de55d191d6c9e6a1a13eb4b2b9949ee7ff9a6",
+      "durationSeconds": 6.896354,
+      "channels": 1
     },
     {
       "id": "fishing-reel-fast",
@@ -215,8 +232,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-507099.html",
       "runtimeUrl": "/assets/audio/fishing-reel-fast.mp3",
-      "sha256": "d537af7910ee9e41142e2d1ab7df5995b6677682d4cd40d8ddd512f3950a0595",
-      "durationSeconds": 9.144
+      "sha256": "02de0a043c7efaabcfbe129dfa013e76846df61d90cc9d04397ab51fec23cc6e",
+      "durationSeconds": 9.113208,
+      "channels": 1
     },
     {
       "id": "fishing-reel-click",
@@ -227,8 +245,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-725424.html",
       "runtimeUrl": "/assets/audio/fishing-reel-click.mp3",
-      "sha256": "074981efc743288e5ab0d7d155dd791fc51ce64068bcca00bd11b894d40cbf3b",
-      "durationSeconds": 2.742857
+      "sha256": "1f4a41eb2f84cb17c83be4c5561f5bfade440591f7de1de49e8a7a3c07d22360",
+      "durationSeconds": 2.701313,
+      "channels": 1
     },
     {
       "id": "coins",
@@ -239,8 +258,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-211447.html",
       "runtimeUrl": "/assets/audio/coins.mp3",
-      "sha256": "5ceb5a1986bcffd07d26cadf360ee341fd96a740ae865240f86ef2c46f05e54d",
-      "durationSeconds": 3.186939
+      "sha256": "ab13098964bd2ec3927a3e35bb3034a76d0615b11eac438e2f28e0cdc437dafa",
+      "durationSeconds": 3.143417,
+      "channels": 2
     },
     {
       "id": "ui-click",
@@ -251,8 +271,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-528561.html",
       "runtimeUrl": "/assets/audio/ui-click.mp3",
-      "sha256": "6f7f5551bf02803ca25eccb134388281a1e00e2756faf412082f7dffc5abf22e",
-      "durationSeconds": 0.287347
+      "sha256": "81d55f356e019fffa766c529eb17b2101ef6fad1e4bb26b014889561b88b2051",
+      "durationSeconds": 0.28,
+      "channels": 2
     },
     {
       "id": "ui-confirm",
@@ -263,8 +284,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-702806.html",
       "runtimeUrl": "/assets/audio/ui-confirm.mp3",
-      "sha256": "3f0f9a3278d237a7da20faf23ef0255ff11f5635c20c7b1528f3b389d5df4650",
-      "durationSeconds": 0.624
+      "sha256": "616b5029cea5b7668063dde3a83058acbd489fd6318a97dd554f069eed991d44",
+      "durationSeconds": 0.6,
+      "channels": 2
     },
     {
       "id": "ui-inventory",
@@ -275,8 +297,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-568991.html",
       "runtimeUrl": "/assets/audio/ui-inventory.mp3",
-      "sha256": "fa0f58557d69b73e58b987047ca899b14ce8388b72a8ce2edd63fd985f7974b2",
-      "durationSeconds": 0.835918
+      "sha256": "7ed6353991548466c848158c8e6d554e0b0b5780ec2e2ecfdadb89a8a8463ba4",
+      "durationSeconds": 0.8,
+      "channels": 2
     },
     {
       "id": "ocean-waves",
@@ -287,8 +310,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-852826.html",
       "runtimeUrl": "/assets/audio/ocean-waves.mp3",
-      "sha256": "68cd94cdf360945f187e59ce583e45f7cd24dbf70e1cefac30b02e23a36035ed",
-      "durationSeconds": 21.816
+      "sha256": "54096c2e48d4c417c03082b02a61b32e7b7b5d0d67179b439bc27bce6db53c42",
+      "durationSeconds": 21.769917,
+      "channels": 2
     },
     {
       "id": "boat-row",
@@ -299,8 +323,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-249707.html",
       "runtimeUrl": "/assets/audio/boat-row.mp3",
-      "sha256": "73cd2f6de9e107cab5d2df48239e66763e644cf6e58724c73b8b2953a0b03af7",
-      "durationSeconds": 38.713469
+      "sha256": "7a2f9d2dbf6b61877592440755e4c3a35a020bdb1e447d3bf91c9c6e2ddf725f",
+      "durationSeconds": 38.674271,
+      "channels": 1
     },
     {
       "id": "boat-wake",
@@ -311,8 +336,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-588308.html",
       "runtimeUrl": "/assets/audio/boat-wake.mp3",
-      "sha256": "a670931fad725dc7d89447e2df863645ce572b60c9e3854a3fdeaf823126593a",
-      "durationSeconds": 34.272
+      "sha256": "c8caa773d7926d6a1c0b64cb6efb1e8ebcdd7edb23b667b44b444b2257f56666",
+      "durationSeconds": 34.232,
+      "channels": 1
     },
     {
       "id": "wood-creak",
@@ -323,8 +349,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-504137.html",
       "runtimeUrl": "/assets/audio/wood-creak.mp3",
-      "sha256": "4ca390cc0f48ebb41ba0f677c57be8ad45d4ebbd080417a142e20e7feba8b019",
-      "durationSeconds": 0.576
+      "sha256": "6c0ae05c4c252c8fa5b75b90960b28408d7b67b41b75d975e36d9c25b4c42375",
+      "durationSeconds": 0.55,
+      "channels": 1
     },
     {
       "id": "thunder",
@@ -335,8 +362,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-238743.html",
       "runtimeUrl": "/assets/audio/thunder.mp3",
-      "sha256": "1e89447ae176b80869f8d71743d2e6374ceaf0a06d75282468efb054448ec47d",
-      "durationSeconds": 34.76898
+      "sha256": "8b4ba3a7f08695cd6fb29c8ad5c57dc2535c55762721154ce9b40916c3e38672",
+      "durationSeconds": 34.741,
+      "channels": 2
     },
     {
       "id": "quest-bell",
@@ -347,8 +375,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-583947.html",
       "runtimeUrl": "/assets/audio/quest-bell.mp3",
-      "sha256": "418dd2a73f5cac030d9ae8e8dd1250a6c5c215e4614b130dbb9d9ad11ec1f57d",
-      "durationSeconds": 11.328
+      "sha256": "ff388c96dbc0232a2e068ca7098319c4a4fb661a6ccbe2a9534e4279de98434b",
+      "durationSeconds": 11.301438,
+      "channels": 2
     },
     {
       "id": "line-snap",
@@ -359,8 +388,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-537084.html",
       "runtimeUrl": "/assets/audio/line-snap.mp3",
-      "sha256": "b27703e3f933ea2588d9b6384148fcf278097247800391b236291a359950f252",
-      "durationSeconds": 36.024
+      "sha256": "f51082ed070de02ab823965fe7b53e68e34a113cfdef1dbf27d9c2480e85a43a",
+      "durationSeconds": 35.988188,
+      "channels": 1
     },
     {
       "id": "footsteps-wood",
@@ -371,8 +401,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-459970.html",
       "runtimeUrl": "/assets/audio/footsteps-wood.mp3",
-      "sha256": "bebd4a237688386a1fdc54c2c2095dcf98ea15937091848d9dfb831672a3416b",
-      "durationSeconds": 27.010612
+      "sha256": "de510715ea361759e33df26b7a4dcc34eb609b1c136af67c58d7fb46b3c769fc",
+      "durationSeconds": 26.9725,
+      "channels": 1
     },
     {
       "id": "footsteps-dock",
@@ -383,8 +414,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-636080.html",
       "runtimeUrl": "/assets/audio/footsteps-dock.mp3",
-      "sha256": "374a837c56c1f966404794ee896a7b743a21ca156dd431ae3e84a8862001b7be",
-      "durationSeconds": 14.28898
+      "sha256": "bd963bdfc7f50dffafb218db1230f259516f854d998b9d37b2a5eac41d3405ad",
+      "durationSeconds": 14.250688,
+      "channels": 1
     },
     {
       "id": "water-drop",
@@ -395,8 +427,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-683102.html",
       "runtimeUrl": "/assets/audio/water-drop.mp3",
-      "sha256": "133935bde028f4c6b3f10c22e057b092e065f9d8ddbfed6aedccbcc0e7b28a34",
-      "durationSeconds": 1.704
+      "sha256": "8487eb82f4bd6b6e693d2f472607a123579d6642522aae67326ab678cef716df",
+      "durationSeconds": 1.668979,
+      "channels": 1
     },
     {
       "id": "theme",
@@ -407,8 +440,9 @@
       "licenseUrl": "project",
       "licenseSnapshot": null,
       "runtimeUrl": "/assets/audio/theme.mp3",
-      "sha256": "37d2cf4d800dc917be1cee1fb2653602879d6ef2c84f293acb735822666a8f19",
-      "durationSeconds": 230.016
+      "sha256": "b0f2f62572161fb8bf6cc8d3bbdb406c156dc417a28a416e0427388177d4c719",
+      "durationSeconds": 230.016,
+      "channels": 2
     },
     {
       "id": "seagulls",
@@ -419,8 +453,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-853455.html",
       "runtimeUrl": "/assets/audio/seagulls.mp3",
-      "sha256": "5ab554a88645d068aad423bb8fb2d013cb76c127df880e47b3c1399f63cf2a9d",
-      "durationSeconds": 268.824
+      "sha256": "b133db5c7260aedf7315c5ee7a4c5b1bdc4d868b136a28cd9856e09cf7c02f76",
+      "durationSeconds": 268.797208,
+      "channels": 2
     },
     {
       "id": "fireplace",
@@ -431,8 +466,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-564621.html",
       "runtimeUrl": "/assets/audio/fireplace.mp3",
-      "sha256": "add3756dec5cd84809e0e152675f83fe497cb5e5690886212b788b4a80fb070d",
-      "durationSeconds": 11.04
+      "sha256": "dbbbe2a41d510093b286ccdd6b211b112c594b39972a7cb8045f8a3084afa1f4",
+      "durationSeconds": 11,
+      "channels": 2
     },
     {
       "id": "wooden-door",
@@ -443,8 +479,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-125958.html",
       "runtimeUrl": "/assets/audio/wooden-door.mp3",
-      "sha256": "5607b7f609c9e3f817a7bf82113c2915105409c37ef6a7d29b9363aa0e0a245c",
-      "durationSeconds": 2.904
+      "sha256": "75d87a453d53986bc049741c39b00559090a7658c2bf2512c5fa4f2558c65dc6",
+      "durationSeconds": 2.870771,
+      "channels": 1
     },
     {
       "id": "footsteps-grass",
@@ -455,8 +492,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-521587.html",
       "runtimeUrl": "/assets/audio/footsteps-grass.mp3",
-      "sha256": "13657d6ebcce7616163ff2aae46c8f55bf337ea92e7ce8f1d710a5b2c4a96f36",
-      "durationSeconds": 4.392
+      "sha256": "242c06ff40f6a609b70208fed62b798cfcc4ff9216360127727f5bd955e4c705",
+      "durationSeconds": 4.352417,
+      "channels": 1
     },
     {
       "id": "fish-flop",
@@ -467,8 +505,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-570208.html",
       "runtimeUrl": "/assets/audio/fish-flop.mp3",
-      "sha256": "1cb05f833c2bd0a0b13dbd555c71fbbb83f428271c7e4ca5656fff19983323fc",
-      "durationSeconds": 4.056
+      "sha256": "e43cf599946ff3191e7cbba1fda9e977b96e86c4522611cadcac1e4cb5499143",
+      "durationSeconds": 4.028063,
+      "channels": 1
     },
     {
       "id": "page-turn",
@@ -479,8 +518,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-318615.html",
       "runtimeUrl": "/assets/audio/page-turn.mp3",
-      "sha256": "c79cfc2720aa15f0333b0264bfc6cd0430f72b215cd51e1e3db1d5d3e5d396cb",
-      "durationSeconds": 30.92898
+      "sha256": "51c24462c83be5f08cf732ce3d39f3b8ba3eff9472ca0c43cca8b5f001cecd58",
+      "durationSeconds": 30.902854,
+      "channels": 2
     },
     {
       "id": "rope-creak",
@@ -491,8 +531,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-557378.html",
       "runtimeUrl": "/assets/audio/rope-creak.mp3",
-      "sha256": "885a38a6253174695cfa1b0b2ba18267ef46d094ba4697ed14cc9e8ec85a7807",
-      "durationSeconds": 18.288
+      "sha256": "9a8a543a30c44ef4dc59a46068bb4bf69735189400e5db09caa962c64246c1b3",
+      "durationSeconds": 18.261917,
+      "channels": 1
     },
     {
       "id": "market-murmur",
@@ -503,8 +544,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-864846.html",
       "runtimeUrl": "/assets/audio/market-murmur.mp3",
-      "sha256": "63c78001f105300c4d63f77242e94e0634372ade94441b16d91d1f7bb1d4b649",
-      "durationSeconds": 32.026122
+      "sha256": "ffd709eac7e886f7cd380ca14c3100bf1fb56cae3342a3ea2ca9a055bf7f85ac",
+      "durationSeconds": 32,
+      "channels": 2
     },
     {
       "id": "ui-cloth",
@@ -515,8 +557,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-850705.html",
       "runtimeUrl": "/assets/audio/ui-cloth.mp3",
-      "sha256": "0aa23388a869d45de3b7986d5306d9ce7930e598f2e0fc00b9121f955c48f772",
-      "durationSeconds": 12.512653
+      "sha256": "665d4300990c1d880275debe07bfcce5867c72bf66ce08f794d5471a1ada174c",
+      "durationSeconds": 12.476333,
+      "channels": 2
     },
     {
       "id": "footsteps-sand",
@@ -527,8 +570,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-564893.html",
       "runtimeUrl": "/assets/audio/footsteps-sand.mp3",
-      "sha256": "da9cb13fc63f9cc19842dbd0e32d97ba4e95b64eceaf15c717c678f2f656e7d8",
-      "durationSeconds": 64.512
+      "sha256": "87f88bcf52f287dbbb1ec2bb7078859b537bd2abaad29fba502e29b7c9efd704",
+      "durationSeconds": 64.484063,
+      "channels": 1
     },
     {
       "id": "footsteps-water",
@@ -539,8 +583,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-263495.html",
       "runtimeUrl": "/assets/audio/footsteps-water.mp3",
-      "sha256": "69cb682f2b2f915c8d65b0ee4f833ac14029656b710436d188f97d25d95f02fc",
-      "durationSeconds": 95.256
+      "sha256": "cbfed886623372599aa4e088f83a6754301aacbd3ca1c6f57fc476cf5b752118",
+      "durationSeconds": 95.232,
+      "channels": 1
     },
     {
       "id": "donkey-trot",
@@ -551,8 +596,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-571312.html",
       "runtimeUrl": "/assets/audio/donkey-trot.mp3",
-      "sha256": "2f17adda77a9b18bfed4fd6533362a0c71e74d5c4e970af66fb7d4e6ca2adbfe",
-      "durationSeconds": 11.180408
+      "sha256": "0af9ad3bd9420868565c652114494b5789c3200b9aa79ade2c5e2955bf67a14a",
+      "durationSeconds": 11.133521,
+      "channels": 1
     },
     {
       "id": "donkey-snort",
@@ -563,8 +609,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-475483.html",
       "runtimeUrl": "/assets/audio/donkey-snort.mp3",
-      "sha256": "a104c79024b41b3825c533ef1c31bd72cd7ad7b92777df7d27e1e893d541bc49",
-      "durationSeconds": 2.544
+      "sha256": "9678c03ef0530eddc076b915d1eb5ea8600e1a0a25e1d64f450c2d7d97870af8",
+      "durationSeconds": 2.5,
+      "channels": 1
     },
     {
       "id": "hoe-till",
@@ -575,8 +622,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-696531.html",
       "runtimeUrl": "/assets/audio/hoe-till.mp3",
-      "sha256": "e3b67f4373eefe27137563966feafa2ce94cd061dce2dbd999ee5f226a63e4c0",
-      "durationSeconds": 18.528
+      "sha256": "6da7538512c86d517cce6b2a73ce7b23e207bae2f460840836fcd875cd7f45a4",
+      "durationSeconds": 18.499083,
+      "channels": 1
     },
     {
       "id": "fertilizer-dust",
@@ -587,8 +635,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-514382.html",
       "runtimeUrl": "/assets/audio/fertilizer-dust.mp3",
-      "sha256": "b485eaa9c3c95f4774a18ee9160d2b8e979af99684fd8c729f7d980eb4677901",
-      "durationSeconds": 24.476735
+      "sha256": "623f341a2b6ab3fd1e9b88ea58e5ffa7459534f63f9aa0120c9e88b7b02e0c40",
+      "durationSeconds": 24.424833,
+      "channels": 1
     },
     {
       "id": "apple-drop",
@@ -599,8 +648,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-149418.html",
       "runtimeUrl": "/assets/audio/apple-drop.mp3",
-      "sha256": "cadff97e47f2aaf103aa6b3ebc9bda6c20bb8bf1d16aab6e69099723872a5e3a",
-      "durationSeconds": 3.578776
+      "sha256": "02312ac4681044e59db72a19cd2106ce220635aa68497c5dffac786b26e8076b",
+      "durationSeconds": 3.544458,
+      "channels": 1
     },
     {
       "id": "fish-scale-scrape",
@@ -611,8 +661,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-336592.html",
       "runtimeUrl": "/assets/audio/fish-scale-scrape.mp3",
-      "sha256": "aa8b32d0f3427ba5e47f54b6b6a82644dd0c3bed825335d859c9b4d8b4aee7ca",
-      "durationSeconds": 0.84
+      "sha256": "e039e632e3aade089f9af06d72f9eda5c1265cd00163e97784118186a77638fe",
+      "durationSeconds": 0.8,
+      "channels": 1
     },
     {
       "id": "wood-saw",
@@ -623,8 +674,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-118031.html",
       "runtimeUrl": "/assets/audio/wood-saw.mp3",
-      "sha256": "e50d0270cb858ebe6ae5e3e6770ccb7ee0332bdc844eccab122b2c214f26f628",
-      "durationSeconds": 16.2
+      "sha256": "0d982b5d37764d50d2e938232adb997f51e4814daa75277bca8b38e2cd59d68a",
+      "durationSeconds": 15.988625,
+      "channels": 1
     },
     {
       "id": "skiff-engine",
@@ -635,8 +687,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-637202.html",
       "runtimeUrl": "/assets/audio/skiff-engine.mp3",
-      "sha256": "3239258a4917b29817a66fe41a238f5f888b78fdf6024ec7f0876d546aab33fc",
-      "durationSeconds": 210.12
+      "sha256": "78a6b0277806db967f966912e21941e5eb1a0a55ca20fee070e1e63d826ff69e",
+      "durationSeconds": 210.088458,
+      "channels": 1
     },
     {
       "id": "ice-shovel",
@@ -647,8 +700,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-320722.html",
       "runtimeUrl": "/assets/audio/ice-shovel.mp3",
-      "sha256": "57eb9ce1d04dbfb4669a80d99f6df9898d91b599a4ab978ed0de492eb4c7efc4",
-      "durationSeconds": 10.004898
+      "sha256": "4f62bda22f7bca2103cfa85612a525a34cac980ffdd2759a7515789a68142efb",
+      "durationSeconds": 9.959917,
+      "channels": 2
     },
     {
       "id": "journal-sketch",
@@ -659,8 +713,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-867719.html",
       "runtimeUrl": "/assets/audio/journal-sketch.mp3",
-      "sha256": "38a706e77d4ad6a42ba8b89b3d581b408ffd2b9dc235e67a121d476a77a6146a",
-      "durationSeconds": 39.68
+      "sha256": "6d444bd0608ed26d87fd3e22e8705f079debbd6729e32bdd93c1aa44cc8a4192",
+      "durationSeconds": 39.648979,
+      "channels": 2
     },
     {
       "id": "contract-stamp",
@@ -671,8 +726,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-448474.html",
       "runtimeUrl": "/assets/audio/contract-stamp.mp3",
-      "sha256": "5fadc9962b8fbc81f63551baffa5734ecaefb2f97780c761daba524faae35ae2",
-      "durationSeconds": 5.28
+      "sha256": "d7330e926d04017cda2019649b26701bb7486573241d7ba2e891ba88df088ade",
+      "durationSeconds": 5.234771,
+      "channels": 2
     },
     {
       "id": "ui-error",
@@ -683,8 +739,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-553297.html",
       "runtimeUrl": "/assets/audio/ui-error.mp3",
-      "sha256": "5552ae514d7c3ea5b41dae3253e97772133a6a02ca3092d7150c85d1d3236540",
-      "durationSeconds": 1.645714
+      "sha256": "68e73692cbd98914ab323a5d34f4d798b241748090f7422d0defd8c739872795",
+      "durationSeconds": 1.607604,
+      "channels": 2
     },
     {
       "id": "dawn-birds",
@@ -695,8 +752,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-578523.html",
       "runtimeUrl": "/assets/audio/dawn-birds.mp3",
-      "sha256": "7b19924a740834c1b34f74a1cc2347f7931116fa68b51859a6a94f9d2fbff90e",
-      "durationSeconds": 241.272
+      "sha256": "bf42192d5b639335c2302c2ec3934ef0d324ae86f8d692397feb0ffa6a4b67c1",
+      "durationSeconds": 241.231042,
+      "channels": 2
     },
     {
       "id": "treasure-chime",
@@ -707,8 +765,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-398496.html",
       "runtimeUrl": "/assets/audio/treasure-chime.mp3",
-      "sha256": "f3654772f54f60fcddfb6b57cca3b6047490506427f4cb59dc653f03103520b9",
-      "durationSeconds": 4.08
+      "sha256": "d10a58baeb4102f127c4c6284722db241e06923466c852caf301a1d860f1b438",
+      "durationSeconds": 4.040292,
+      "channels": 2
     },
     {
       "id": "perfect-catch",
@@ -719,8 +778,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-858160.html",
       "runtimeUrl": "/assets/audio/perfect-catch.mp3",
-      "sha256": "6d14c78fccc264b1b9153f626efd42e2161479fdb217b1d5c9419cbef2a988a1",
-      "durationSeconds": 54.576
+      "sha256": "25c997023fd0d1365d0a0372623ba3f9747d673e85232c2aceae875c6d9554d0",
+      "durationSeconds": 54.545458,
+      "channels": 2
     },
     {
       "id": "music-village",
@@ -731,8 +791,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-860778.html",
       "runtimeUrl": "/assets/audio/music-village.mp3",
-      "sha256": "acfbc2675d12275a9935d73d2f84b1e17d240dadb350d0bbd7af01dede34424b",
-      "durationSeconds": 18.050612
+      "sha256": "28e7e161ba6dca5f64aed61f72707af36d1b0b6b9c5f03de90559b03f704eb6c",
+      "durationSeconds": 18.05,
+      "channels": 2
     },
     {
       "id": "music-piano",
@@ -743,8 +804,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-859607.html",
       "runtimeUrl": "/assets/audio/music-piano.mp3",
-      "sha256": "853640ecc0f906d18b4b07cb66d36e47015f94d5435cd2a4e725c034c9d36d49",
-      "durationSeconds": 115.776
+      "sha256": "859ff6d45ab527a9be64ebdaac57f8189f1c82395e3e6b2e1552029aa9078320",
+      "durationSeconds": 115.751,
+      "channels": 2
     },
     {
       "id": "music-folk-calm",
@@ -755,8 +817,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-576081.html",
       "runtimeUrl": "/assets/audio/music-folk-calm.mp3",
-      "sha256": "fef1d7797e538be56df1a9cad3e51b5685a2b81d175287b23c0826b11f5f4cb9",
-      "durationSeconds": 88.555102
+      "sha256": "1f4f4da112a0eeb67f2a1a17e5d2d4868186ff4b04da885f038d888cc5e64fce",
+      "durationSeconds": 88.511995,
+      "channels": 2
     },
     {
       "id": "music-guitar-arpeggio",
@@ -767,8 +830,9 @@
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "licenseSnapshot": "assets/audio/licenses/freesound-330945.html",
       "runtimeUrl": "/assets/audio/music-guitar-arpeggio.mp3",
-      "sha256": "d9445ca1d33a2e0f9cf4ef1bf2b831a48297f961afa79ccdcbd04360ad6da4e3",
-      "durationSeconds": 23.170612
+      "sha256": "739354f0c2b6e3aa5d5cb7689170e858539647f17fb8e432b7c86f82ca49926f",
+      "durationSeconds": 23.1445,
+      "channels": 2
     }
   ],
   "cues": {

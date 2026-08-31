@@ -11,6 +11,8 @@ import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
 import { DEFAULT_MINUTES_PER_REAL_SECOND, seasonAtMinute } from "../simulation/core/GameClock";
 import { createStarterDonkeyState, STARTER_DONKEY_ID } from "../simulation/mounts/Mounts";
+import { ownedRodsThrough } from "../content/rods";
+import { WORK_CAPACITY_MAXIMUM } from "../simulation/domains/ProgressionDomain";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -719,6 +721,41 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       sportFishing = fish;
     }
     return { ...previous, schemaVersion: 19, sportFishing };
+  },
+  20: (state: unknown) => {
+    const previous = state as GameState;
+    return {
+      ...previous,
+      schemaVersion: 20,
+      player: {
+        ...previous.player,
+        ownedRodIds: ownedRodsThrough(previous.player.equippedRodId)
+      }
+    };
+  },
+  21: (state: unknown) => {
+    // Legacy saves carried a smaller Work pool forward verbatim, which made a
+    // single sport-fishing hook drain the whole meter. Rescale any non-canonical
+    // pool to the 1,000 ceiling, preserving how full it was.
+    const previous = state as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const work = { ...((player.workCapacity ?? {}) as Record<string, unknown>) };
+    const oldMax = finite(work.maximum, 0);
+    const oldCurrent = finite(work.current, oldMax);
+    const maximum = WORK_CAPACITY_MAXIMUM;
+    let current: number;
+    if (oldMax === maximum) {
+      current = Math.max(0, Math.min(maximum, oldCurrent));
+    } else if (oldMax > 0) {
+      current = Math.max(0, Math.min(maximum, Math.round((oldCurrent / oldMax) * maximum)));
+    } else {
+      current = maximum;
+    }
+    return {
+      ...previous,
+      schemaVersion: 21,
+      player: { ...player, workCapacity: { ...work, current, maximum } }
+    };
   }
 };
 

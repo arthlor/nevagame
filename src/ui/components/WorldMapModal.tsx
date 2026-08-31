@@ -13,6 +13,7 @@ import {
 import { worldPointToMapSvg, worldRouteToMapSvgPath } from "../../world/WorldMapProjection";
 import { IconCoin, IconCompass, IconFish, IconSprout, IconWarning } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
+import { handleTabListKeyDown } from "../useTabListKeyboard";
 import { ChromeClose, ChromePanel } from "../chrome/Chrome";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForMapNode } from "../chrome/uiAtlas";
@@ -221,7 +222,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ state, onClose }) 
             </div>
           </div>
 
-          <div className="map-lenses-bar mm-ribbon-tabs" role="tablist" aria-label="Map lenses" data-testid="map-lenses">
+          <div className="map-lenses-bar mm-ribbon-tabs" role="tablist" aria-label="Map lenses" data-testid="map-lenses" onKeyDown={handleTabListKeyDown}>
             {(["geography", "markets", "fishing", "farmland"] as MapLens[]).map((lens) => (
               <button
                 key={lens}

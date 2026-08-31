@@ -5,6 +5,8 @@ import { applyWeatherProfile } from "../../src/simulation/weather/updateWeather"
 import { PALETTE_HEX } from "../../src/render/materials/PaletteTokens";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import {
+  advanceWrappedMinute,
+  clockWindowAmbient,
   deriveCelestialDirections,
   deriveLightingFrame,
   lightningEnvelope,
@@ -12,6 +14,26 @@ import {
 } from "../../src/render/lighting/LightingRig";
 
 describe("LightingRig", () => {
+  it("keeps dawn and dusk ambient continuous across every label boundary", () => {
+    const edge = CANONICAL_RENDER_CONFIG.skyFill.dawnDuskEdgeAmbient;
+    const shoulder = CANONICAL_RENDER_CONFIG.twilight.ambientShoulderMinutes;
+    for (const boundary of [4 * 60, 8 * 60, 18 * 60, 22 * 60]) {
+      const before = clockWindowAmbient(boundary - 0.01, edge, shoulder);
+      const after = clockWindowAmbient(boundary + 0.01, edge, shoulder);
+      expect(Math.abs(after - before)).toBeLessThan(0.001);
+    }
+  });
+
+  it("smooths integer clock steps and takes the short path across midnight", () => {
+    const stepped = advanceWrappedMinute(239, 240, 0.375, 0.75);
+    expect(stepped).toBeGreaterThan(239);
+    expect(stepped).toBeLessThan(240);
+
+    const wrapped = advanceWrappedMinute(1439, 1, 0.375, 0.75);
+    expect(wrapped).toBeGreaterThan(1439);
+    expect(wrapped).toBeLessThan(1440);
+  });
+
   it("snaps shadow centers on the directional light's projected texel grid", () => {
     const focus = new THREE.Vector3(17.13, 0.47, -23.82);
     const lightDirection = new THREE.Vector3(0.58, 0.62, 0.53).normalize();
@@ -155,8 +177,9 @@ describe("LightingRig", () => {
     expect(day.exposure).toBeCloseTo(1.04, 5);
     for (const frame of [night, dawn, dusk]) {
       expect(frame.fogNear).toBe(CANONICAL_RENDER_CONFIG.fog.near);
-      expect(frame.fogFar).toBeLessThan(CANONICAL_RENDER_CONFIG.fog.far);
+      expect(frame.fogFar).toBeLessThanOrEqual(CANONICAL_RENDER_CONFIG.fog.far);
     }
+    expect(night.fogFar).toBeLessThan(CANONICAL_RENDER_CONFIG.fog.far);
   });
 
   it("keeps dawn and dusk progressively lighter than night", () => {
@@ -202,7 +225,7 @@ describe("LightingRig", () => {
     expect(noon.key).toBeGreaterThan(sunrise.key);
     expect(sunset.key).toBeGreaterThan(dusk.key);
     expect(dusk.key).toBeGreaterThan(lateDusk.key);
-    expect(sunset.key).toBeCloseTo(sunrise.key, 5);
+    expect(sunset.key).toBeGreaterThan(sunrise.key);
     expect(dawnStart.practicals).toBeGreaterThan(0.7);
     expect(noon.practicals).toBe(0);
   });

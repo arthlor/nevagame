@@ -1,6 +1,7 @@
 # Farm & Fishing Browser Game — Game Foundations & Technical Architecture (Compact)
 
-> **Role:** Primary technical source of truth. Read it for architecture, simulation ownership, renderer contracts, persistence, cross-system work, and release/gold-slice gates. Routine existing-asset work follows the scoped route in root `AGENTS.md` and `BLENDER.md` without loading this file by default. If guidance conflicts, follow §41.
+> **Role:** Primary technical source of truth. Read it for architecture, simulation ownership, renderer contracts, persistence, cross-system work, and release/gold-slice gates. Routine existing-asset work follows the scoped route in root `AGENTS.md` and `BLENDER.md` without loading this file by default. If guidance conflicts, follow §19.
+> **Migration ledger:** §6 and §7 of this file are the single owner of the schema/layout migration history. `02` and `03` reference it and must not restate it.
 > **Audience:** LLM coding agents, technical leads, gameplay programmers, technical artists.
 
 # 0. Project Definition
@@ -138,7 +139,7 @@ tests/ unit/ simulation/ integration/ fixtures/ e2e/
 
 # 6. Canonical State, IDs, RNG & Time
 
-Representative state (`CURRENT_SCHEMA_VERSION = 19`, `world.layoutRevision = 8`):
+Representative state (`CURRENT_SCHEMA_VERSION = 21`, `world.layoutRevision = 8`):
 ```ts
 interface GameState {
   schemaVersion: number;
@@ -162,15 +163,40 @@ interface GameState {
   metadata: GameMetadata;
 }
 ```
-All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. Schema v10 inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`) and lifts y=0 stations onto terrain. Schema v11 converts illegal `fish.trout` item stacks to cargo. Schema v12 advances layout revision 3 → 4 for physical worked-road relief: it preserves X/Z, rotations, crops, inventory, cargo, markets, progression, quests, and boat truth; re-grounds an on-foot player and placed structures through the final canonical terrain height; and leaves an active boat plus its player waterline unchanged. Schema v13 advances layout revision 4 → 5 for the northeast village hub: it moves `struct.starter_mill` off the homestead plantable onto the mill pad, relocates `market.village` and the arterial road hub to the northeast plaza, keeps the former stall site as a river-crossing gateway, preserves crops, Work Capacity, boats, quests, and the fish-table, and re-grounds on-foot player plus structures through final terrain height. Schema v14 advances layout revision 5 → 6: it moves `struct.starter_mill` off the packed plaza onto a southwest mill pad, keeps `market.village` at the northeast hub, enlarges the village courtyard, preserves other structure/player/boat/crop/quest truth, and re-grounds on-foot player plus structures through final terrain height. Schema v15 advances layout revision 6 → 7 for the current authored composition: it relocates the mill, starter workbench, compost bin, and harbor fish table to their canonical anchors; adopts the revised bridge/road/terrain topology; preserves crops, inventory, cargo, boats, markets, quests, progression, and unrelated structures; re-grounds an on-foot player and all structures; and leaves an active boat plus its player waterline unchanged. Schema v16 does not move the world: it retunes the live/offline clock from `1` to `0.4` game minutes per real second when a save still stores the old stopwatch ratio, and it fills `weather.nextWeatherType` so the Now / +2h / +5h forecast can persist. New-game station `y` is `terrainHeight(x, z)`.
+All state MUST be JSON-serializable. Proficiency XP lives on `player.proficiencies`; do not invent a parallel top-level `progression` blob. New-game station `y` is `terrainHeight(x, z)`.
 
-Schema v18 adds the persisted starter mount state and player mount ownership. Schema v19 preserves that state and adds sport-fishing dynamics: continuous fish bearing/depth/velocity, line length, rod response, behavior duration, a private RNG stream, and fixed-step remainder. It preserves the active catch, stamina, line condition, school association, cargo and progression; a legacy line may be shortened only when its old presentation distance cannot fit reachable water. Fishing uses a 60 Hz encounter step independently of render frames. No offline fight advancement is introduced.
+## 6.1 Migration Ledger (canonical)
+
+This table is the **single owner** of the schema/layout migration history. `02`,
+`03`, and the status checklist reference it; they must not restate it. Append a
+row here in the same change that adds the migration, and follow the
+save-sensitive protocol in `03` §25.
+
+| Schema | Layout | What it changes | Preservation boundary |
+|---|---|---|---|
+| v10 | — | Inserts the harbor fish-table (`HARBOR_FISH_TABLE` / `struct.harbor_fish_table`); lifts `y = 0` stations onto terrain. | Unrelated state untouched. |
+| v11 | — | Converts illegal `fish.trout` item stacks to cargo. | Keyed `boats` record preserved. |
+| v12 | 3 → 4 | Physical worked-road relief. Re-grounds an on-foot player and placed structures through final canonical terrain height. | Preserves X/Z, rotations, crops, inventory, cargo, markets, progression, quests, boat truth; active boat plus its player waterline unchanged. |
+| v13 | 4 → 5 | Northeast village hub: moves `struct.starter_mill` off the homestead plantable onto the mill pad; relocates `market.village` and the arterial road hub to the northeast plaza; keeps the former stall site as a river-crossing gateway. | Preserves crops, Work Capacity, boats, quests, fish-table; re-grounds land truth. |
+| v14 | 5 → 6 | Moves `struct.starter_mill` off the packed plaza onto a southwest mill pad; keeps `market.village` at the northeast hub; enlarges the village courtyard. | Preserves other structure/player/boat/crop/quest truth; re-grounds land truth. |
+| v15 | 6 → 7 | Relocates the mill, starter workbench, compost bin, and harbor fish table to canonical anchors; adopts the revised bridge/road/terrain topology. | Preserves crops, inventory, cargo, boats, markets, quests, progression, unrelated structures; active boat plus its player waterline unchanged. |
+| v16 | 7 | No world move. Retunes the live/offline clock from `1` to `0.4` game minutes per real second when a save still stores the old stopwatch ratio; fills `weather.nextWeatherType` so the Now / +2h / +5h forecast can persist. | World anchors and narrative state unchanged. |
+| v17 | 7 → 8 | Authored beach, rock-toe, and recessed-cliff coast topology. | Same preservation and land re-grounding boundary as v15; X/Z unchanged. |
+| v18 | 8 | Adds persisted starter mount state and player mount ownership. | Unrelated state untouched. |
+| v19 | 8 | Adds sport-fishing dynamics: continuous fish bearing/depth/velocity, line length, rod response, behavior duration, a private RNG stream, and the fixed-step remainder. | Preserves the active catch, stamina, line condition, school association, cargo, and progression. A legacy line may be shortened only when its old presentation distance cannot fit reachable water. |
+| v20 | 8 | Adds `player.ownedRodIds`; grants every rod through the equipped tier. | Legacy saves retain current capability and can switch back to earlier habitat coverage. |
+| v21 | 8 | Rescales a legacy non-canonical `player.workCapacity` pool to the `WORK_CAPACITY_MAXIMUM` (1,000) ceiling, preserving how full it was. A zero/absent old maximum fills to full. | No world move. Preserves `regeneratedAtMinute` and all other player truth. Covered by `tests/simulation/persistence.test.ts`. |
+
+Fishing uses a 60 Hz encounter step independently of render frames. No offline
+fight advancement is introduced.
 
 `WorldState` owns the current world seed, `activeSchools`, authored
 `structures`, and the last school-spawn minute. Do not add fish schools or
 structures as parallel top-level `GameState` fields.
 
-`PlayerState` includes serializable traversal state (`sprintStamina`, recovery delay, exhaustion, grounded state) when the current schema requires it. Traversal is simulation-owned and fixed-step; Work Capacity is a separate economy resource and must not be reused as movement stamina.
+`PlayerState` includes serializable traversal state (`sprintStamina`, recovery delay, exhaustion, grounded state), `equippedRodId`, and the unique known `ownedRodIds` set required by schema v20. Traversal is simulation-owned and fixed-step; Work Capacity is a separate economy resource and must not be reused as movement stamina.
+
+Manual production affordability and spending are simulation-owned by `ProgressionDomain`. Callers validate capability, inputs, and output capacity first, then quote and spend the full discounted Work cost as one transaction boundary. An insufficient quote cannot partially drain Work, consume items, advance canonical RNG, create gameplay state, award XP, or emit a success event; presentation may only display the structured quote/result.
 
 Use stable typed/string IDs (`CropId`, `FishSpeciesId`, `FarmId`, `BoatId`, `MarketId`, `InventoryId`). Persistent content IDs use stable machine names such as `crop.wheat`, `fish.blue_marlin`, `boat.rowboat`, `market.harbor`. Never use display names; never rename persistent IDs without migration.
 
@@ -247,7 +273,7 @@ Modal rules: inventory may pause movement; **basic-fishing and sport-fishing blo
 
 Explicit gameplay modes (`GameplayMode`; excludes overlay-only `"menu"` / `"paused"`):
 ```ts
-type GameplayMode = "on-foot" | "farm-placement" | "basic-fishing" | "sport-fishing" | "boat-driving";
+type GameplayMode = "on-foot" | "farm-placement" | "basic-fishing" | "sport-fishing" | "boat-driving" | "mounted";
 ```
 Never infer mode from mesh/UI state.
 
@@ -339,7 +365,7 @@ These are scene envelopes, not instructions to spend triangles uniformly. `tools
 
 WebGL renders world; DOM renders inventory, market, journal, farm selection, boat management, contracts, settings, tooltips.
 
-Normal HUD: compact clock + gold top-right; slim quest (and weather warnings) top-left; Labor/Sprint bottom-left; bottom-center context prompt and 5-slot tool hotbar; temporary fishing/boat status. Dialogue is a contextual DOM overlay opened only from an authoritative nearby NPC interaction; the journal exposes the current story title/objective and completed quest history without becoming a permanent dashboard. Persistent HUD target: **<20–25%** desktop viewport.
+Normal HUD: compact clock + gold top-right; slim quest (and weather warnings) top-left; Work/Sprint bottom-left; bottom-center context prompt and 5-slot tool hotbar; temporary fishing/boat status. Dialogue is a contextual DOM overlay opened only from an authoritative nearby NPC interaction; the journal exposes the current story title/objective and completed quest history without becoming a permanent dashboard. Persistent HUD target: **<20–25%** desktop viewport.
 
 UI style should use centralized CSS variables, not scattered hardcoded colors. Visual details remain under `04`.
 
@@ -369,7 +395,7 @@ Dev commands: advance time, force weather, spawn school, set demand, grant item/
 
 Representative performance states: empty starter area; full farm; harbor + boat; offshore + gulls/weather; sport-fishing HUD; rain/storm; inventory/market UI. Measure FPS, frame time, memory, draw calls, loading stalls. **Profile; do not optimize by intuition.**
 
-Visual production is not deferred until late polish. P0.75 has explicit sub-gates: the human visual decision for the four gameplay-camera slices, current 188-asset published-manifest validation, and the measured benchmark contract. The recorded human visual decision unlocks further authored-world expansion; the benchmark and clean-source strict/determinism evidence remain technical-art/release certification gates. DEV layout-editor measurements are intentionally unbatched and are diagnostic, not production-equivalent proof. No sub-gate waives production minimums, hard maximums, material/node/palette contracts, or runtime validation.
+Visual production is not deferred until late polish. P0.75 has explicit sub-gates: the human visual decision for the four gameplay-camera slices, current 189-asset published-manifest validation, and the measured benchmark contract. The recorded human visual decision unlocks further authored-world expansion; the benchmark and clean-source strict/determinism evidence remain technical-art/release certification gates. DEV layout-editor measurements are intentionally unbatched and are diagnostic, not production-equivalent proof. No sub-gate waives production minimums, hard maximums, material/node/palette contracts, or runtime validation.
 
 Testing layers:
 - **Unit:** pure growth/yield/quality/pricing/freshness/demand/capacity/rank rules.
@@ -428,6 +454,7 @@ Any technical feature requires:
 - [ ] failure state handled
 - [ ] tests/typecheck/lint/build pass
 - [ ] browser behavior verified manually or automatically
+- [ ] every canonical document the change makes stale is updated in the same change (see the documentation contract in root `AGENTS.md`); save/layout changes add their §6.1 ledger row
 
 Any story-bearing feature additionally requires:
 - [ ] a stable content owner and persistent IDs where progression can be saved

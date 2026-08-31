@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { GameState, InventorySlot } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { useModalAccessibility } from "./useModalAccessibility";
+import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
 import {
@@ -33,6 +34,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
   });
 
   const modalRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
   const allSlots = playerInv?.slots ?? [];
@@ -48,21 +50,59 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
   const selectedFishDef =
     selectedSlot && selectedSlot.itemId ? ContentRegistry.fishSpecies.get(selectedSlot.itemId) : null;
   const selectedName = selectedItemDef?.name ?? selectedFishDef?.name ?? selectedSlot?.itemId ?? "";
-  const selectedBaseValue = selectedItemDef?.baseValue ?? 10;
-  const totalStackValue = selectedBaseValue * (selectedSlot?.quantity ?? 0);
+  // Landed fish sit in the satchel as their own species entries. Falling back
+  // to a flat 10 G quoted an invented price for every one of them.
+  const selectedBaseValue = selectedItemDef?.baseValue ?? selectedFishDef?.baseMarketValue ?? null;
+  const totalStackValue =
+    selectedBaseValue == null ? null : selectedBaseValue * (selectedSlot?.quantity ?? 0);
 
   const selectedCrop = selectedSlot?.itemId
     ? Array.from(ContentRegistry.crops.values()).find((crop) => crop.seedItemId === selectedSlot.itemId)
     : undefined;
-  const isStarterCrop = selectedCrop
-    ? ["crop.wheat", "crop.tomato", "crop.potato"].includes(selectedCrop.id)
-    : false;
 
   const handlePlantSelected = (): void => {
     if (selectedCrop) {
       onSelectPlantCrop(selectedCrop.id);
       onClose();
     }
+  };
+
+  /**
+   * The grid wraps, so the column count has to come from the rendered layout
+   * rather than a hard-coded constant that would desync from the CSS.
+   */
+  const columnsInGrid = (): number => {
+    const grid = gridRef.current;
+    if (!grid) return 1;
+    const cells = Array.from(grid.children) as HTMLElement[];
+    if (cells.length === 0) return 1;
+    const firstTop = cells[0].offsetTop;
+    const columns = cells.filter((cell) => cell.offsetTop === firstTop).length;
+    return Math.max(1, columns);
+  };
+
+  const handleGridKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    const total = allSlots.length;
+    if (total === 0) return;
+    const columns = columnsInGrid();
+    const current = selectedSlotIndex ?? 0;
+    let next = current;
+
+    switch (event.key) {
+      case "ArrowRight": next = Math.min(total - 1, current + 1); break;
+      case "ArrowLeft": next = Math.max(0, current - 1); break;
+      case "ArrowDown": next = Math.min(total - 1, current + columns); break;
+      case "ArrowUp": next = Math.max(0, current - columns); break;
+      case "Home": next = 0; break;
+      case "End": next = total - 1; break;
+      default: return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (next === selectedSlotIndex) return;
+    setSelectedSlotIndex(next);
+    (gridRef.current?.children[next] as HTMLElement | undefined)?.focus();
   };
 
   const selectCategory = (category: InventoryCategory): void => {
@@ -126,7 +166,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
           <ChromeClose onClick={onClose} label="Close satchel" />
         </header>
 
-        <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label="Item categories">
+        <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label="Item categories" onKeyDown={handleTabListKeyDown}>
           <button
             type="button"
             role="tab"
@@ -169,7 +209,15 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
 
         <div className="modal-body inventory-body">
           <div className="inventory-grid-wrap">
-            <div className="inventory-grid" role="grid" aria-label="Backpack items">
+            {/* A flat list of cells is a listbox, not a grid: role="grid"
+                without rows is an incomplete structure for screen readers. */}
+            <div
+              className="inventory-grid"
+              ref={gridRef}
+              role="listbox"
+              aria-label="Backpack items"
+              onKeyDown={handleGridKeyDown}
+            >
               {allSlots.map((slot, index) => {
                 const isSelected = selectedSlotIndex === index;
                 const isMatching = isSlotMatchingCategory(slot);
@@ -177,7 +225,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                   return (
                     <ChromeSlot
                       key={`empty-${index}`}
+                      id={`inventory-slot-${index}`}
                       className="inventory-slot"
+                      role="option"
+                      aria-selected={false}
+                      // Roving tabindex: one stop into the grid, arrows inside.
+                      tabIndex={selectedSlotIndex === index ? 0 : -1}
                       label="Empty slot"
                     />
                   );
@@ -191,13 +244,17 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                 return (
                   <ChromeSlot
                     key={`${slot.itemId}-${index}`}
+                    id={`inventory-slot-${index}`}
                     className={`inventory-slot ${!isMatching ? "is-dimmed" : ""}`}
                     filled
                     selected={isSelected}
                     quantity={qty > 1 ? qty : undefined}
                     onSelect={() => setSelectedSlotIndex(index)}
                     label={`${name}, count ${qty}`}
-                    role="gridcell"
+                    title={`${name} — ${qty}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    tabIndex={isSelected ? 0 : -1}
                   >
                     <AtlasImage
                       src={atlasForItem(slot.itemId) ?? atlasForFish(slot.itemId)}
@@ -232,10 +289,14 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
 
                 <div className="inventory-inspection-badges" aria-label="Item value">
                   <span className="inventory-value-badge">Qty {selectedSlot.quantity}</span>
-                  <span className="inventory-value-badge">
-                    <IconCoin size={12} aria-hidden="true" /> {selectedBaseValue} G
-                  </span>
-                  <span className="inventory-value-badge">Stack {totalStackValue} G</span>
+                  {selectedBaseValue != null && (
+                    <span className="inventory-value-badge">
+                      <IconCoin size={12} aria-hidden="true" /> {selectedBaseValue} G
+                    </span>
+                  )}
+                  {totalStackValue != null && (
+                    <span className="inventory-value-badge">Stack {totalStackValue} G</span>
+                  )}
                 </div>
 
                 <div className="details-stats-list">
@@ -245,32 +306,36 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                   </div>
                   <div className="details-stat-row">
                     <span>Base Value:</span>
-                    <span>{selectedBaseValue} G</span>
+                    <span>{selectedBaseValue == null ? "Not traded" : `${selectedBaseValue} G`}</span>
                   </div>
                   <div className="details-stat-row">
                     <span>Total Stack Worth:</span>
-                    <strong className="details-gold-value">{totalStackValue} G</strong>
+                    <strong className="details-gold-value">
+                      {totalStackValue == null ? "—" : `${totalStackValue} G`}
+                    </strong>
                   </div>
+                  {selectedFishDef && (
+                    <div className="details-stat-row">
+                      <span>Market note:</span>
+                      <span>Sells for more by weight, quality and freshness</span>
+                    </div>
+                  )}
                 </div>
 
                 {selectedItemDef && <p className="details-description">{selectedItemDef.description}</p>}
 
-                {selectedCrop && isStarterCrop && (
+                {selectedCrop && (
                   <div className="inventory-action-block">
                     <ChromeButton
                       variant="gold"
                       soundCue="confirm"
                       className="inventory-plant-action-btn"
+                      data-testid="inventory-plant-action"
                       onClick={handlePlantSelected}
                     >
                       <IconSprout size={16} aria-hidden="true" /> Plant {selectedCrop.name}
                     </ChromeButton>
-                  </div>
-                )}
-
-                {selectedCrop && !isStarterCrop && (
-                  <div className="inventory-unavailable-note">
-                    Not currently stocked for the starter farm.
+                    <span className="inventory-action-hint">Arms tool slot 2 and closes the satchel</span>
                   </div>
                 )}
               </>

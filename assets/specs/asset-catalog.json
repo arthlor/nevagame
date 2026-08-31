@@ -11027,7 +11027,8 @@
       "requiredNodes": [
         "fish_trout_a_root",
         "fish_trout_a_motion_root",
-        "fish_trout_a_tail_pivot"
+        "fish_trout_a_tail_pivot",
+        "fish_trout_a_mouth_hook"
       ],
       "animationClips": [
         {
@@ -11064,6 +11065,110 @@
       }
     },
     {
+      "id": "fish_catfish_a",
+      "file": "fish_catfish_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 602,
+      "dimensions": { "width": 0.7, "depth": 1.45, "height": 0.65 },
+      "palette": ["wood_weathered_01", "fish_belly_01", "wood_dark_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_catfish_a_root",
+      "requiredNodes": [
+        "fish_catfish_a_root",
+        "fish_catfish_a_motion_root",
+        "fish_catfish_a_tail_pivot",
+        "fish_catfish_a_mouth_hook"
+      ],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "species": "catfish",
+        "length": 1.15,
+        "girth": 0.24,
+        "finScale": 0.76,
+        "bodyDepth": 0.78,
+        "bodySegments": 16,
+        "radialSegments": 14,
+        "tailPeduncle": 0.22
+      }
+    },
+    {
+      "id": "fish_pike_a",
+      "file": "fish_pike_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 603,
+      "dimensions": { "width": 0.55, "depth": 1.65, "height": 0.55 },
+      "palette": ["fish_trout_back_01", "fish_belly_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1050, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_pike_a_root",
+      "requiredNodes": ["fish_pike_a_root", "fish_pike_a_motion_root", "fish_pike_a_tail_pivot", "fish_pike_a_mouth_hook"],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {
+        "species": "pike",
+        "length": 1.25,
+        "girth": 0.16,
+        "finScale": 0.92,
+        "bodyDepth": 0.72,
+        "bodySegments": 18,
+        "radialSegments": 14,
+        "tailPeduncle": 0.17
+      }
+    },
+    {
+      "id": "fish_arowana_a",
+      "file": "fish_arowana_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 604,
+      "dimensions": { "width": 0.65, "depth": 1.6, "height": 0.75 },
+      "palette": ["accent_ochre_01", "fish_belly_01", "accent_red_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1100, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_arowana_a_root",
+      "requiredNodes": ["fish_arowana_a_root", "fish_arowana_a_motion_root", "fish_arowana_a_tail_pivot", "fish_arowana_a_mouth_hook"],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 22,
+      "parameters": {
+        "species": "arowana",
+        "length": 1.2,
+        "girth": 0.2,
+        "finScale": 1.05,
+        "bodyDepth": 1.15,
+        "bodySegments": 18,
+        "radialSegments": 14,
+        "tailPeduncle": 0.2
+      }
+    },
+    {
       "id": "fish_tuna_a",
       "file": "fish_tuna_a.glb",
       "family": "fish",
@@ -11093,7 +11198,8 @@
       "requiredNodes": [
         "fish_tuna_a_root",
         "fish_tuna_a_motion_root",
-        "fish_tuna_a_tail_pivot"
+        "fish_tuna_a_tail_pivot",
+        "fish_tuna_a_mouth_hook"
       ],
       "animationClips": [
         {
@@ -11127,6 +11233,138 @@
         "bodySegments": 16,
         "radialSegments": 14,
         "tailPeduncle": 0.16
+      }
+    },
+    {
+      "id": "fish_sturgeon_a",
+      "file": "fish_sturgeon_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 608,
+      "dimensions": { "width": 0.85, "depth": 2.35, "height": 0.75 },
+      "palette": ["stone_cool_01", "fish_belly_01", "rock_coastal_dark_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1050, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_sturgeon_a_root",
+      "requiredNodes": ["fish_sturgeon_a_root", "fish_sturgeon_a_motion_root", "fish_sturgeon_a_tail_pivot", "fish_sturgeon_a_mouth_hook"],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 26,
+      "parameters": {
+        "species": "sturgeon",
+        "length": 1.8,
+        "girth": 0.3,
+        "finScale": 0.82,
+        "bodyDepth": 0.72,
+        "bodySegments": 18,
+        "radialSegments": 14,
+        "tailPeduncle": 0.14
+      }
+    },
+    {
+      "id": "fish_sailfish_a",
+      "file": "fish_sailfish_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 609,
+      "dimensions": { "width": 1, "depth": 2.2, "height": 1.45 },
+      "palette": ["fish_tuna_back_01", "fish_belly_01", "accent_ochre_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_sailfish_a_root",
+      "requiredNodes": ["fish_sailfish_a_root", "fish_sailfish_a_motion_root", "fish_sailfish_a_tail_pivot", "fish_sailfish_a_mouth_hook"],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 34,
+      "parameters": {
+        "species": "sailfish",
+        "length": 1.7,
+        "girth": 0.27,
+        "finScale": 1.25,
+        "bodyDepth": 1.12,
+        "bodySegments": 18,
+        "radialSegments": 14,
+        "tailPeduncle": 0.14
+      }
+    },
+    {
+      "id": "fish_swordfish_a",
+      "file": "fish_swordfish_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 610,
+      "dimensions": { "width": 1.05, "depth": 3.5, "height": 1.1 },
+      "palette": ["stone_cool_01", "fish_belly_01", "fish_tuna_back_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_swordfish_a_root",
+      "requiredNodes": ["fish_swordfish_a_root", "fish_swordfish_a_motion_root", "fish_swordfish_a_tail_pivot", "fish_swordfish_a_mouth_hook"],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 38,
+      "parameters": {
+        "species": "swordfish",
+        "length": 2.1,
+        "girth": 0.32,
+        "finScale": 1.05,
+        "bodyDepth": 1.08,
+        "bodySegments": 20,
+        "radialSegments": 14,
+        "tailPeduncle": 0.12
+      }
+    },
+    {
+      "id": "fish_blue_marlin_a",
+      "file": "fish_blue_marlin_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 611,
+      "dimensions": { "width": 1.25, "depth": 3.7, "height": 1.35 },
+      "palette": ["fish_tuna_back_01", "fish_belly_01", "accent_teal_01"],
+      "budget": { "trianglesMin": 500, "trianglesTarget": 1050, "trianglesMax": 2500, "materialsMax": 3 },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_blue_marlin_a_root",
+      "requiredNodes": ["fish_blue_marlin_a_root", "fish_blue_marlin_a_motion_root", "fish_blue_marlin_a_tail_pivot", "fish_blue_marlin_a_mouth_hook"],
+      "animationClips": [
+        { "name": "swim", "durationSeconds": 0.8, "loop": true },
+        { "name": "turn", "durationSeconds": 0.48, "loop": false },
+        { "name": "burst", "durationSeconds": 0.4, "loop": true },
+        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+      ],
+      "readDistanceMeters": 42,
+      "parameters": {
+        "species": "blue_marlin",
+        "length": 2.3,
+        "girth": 0.38,
+        "finScale": 1.18,
+        "bodyDepth": 1.16,
+        "bodySegments": 20,
+        "radialSegments": 14,
+        "tailPeduncle": 0.11
       }
     },
     {

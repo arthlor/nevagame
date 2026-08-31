@@ -58,6 +58,17 @@ export class ModeController {
     return modal === "pause" || modal === null;
   }
 
+  /**
+   * A market or a conversation is a place the player is standing in, not a
+   * panel they flipped open. Letting a stray `I` replace it dropped them back
+   * into the world on the next Escape with no way back, so contextual overlays
+   * hold the HUD hotkeys until they are closed.
+   */
+  public get blocksOverlayHotkeys(): boolean {
+    const active = this.activeModal;
+    return active === "market" || active === "dialogue" || active === "new-game-confirm";
+  }
+
   public restoreFromState(state: Readonly<GameState>): void {
     this.gameplayMode = modeFromState(state);
     this.overlays.clear();

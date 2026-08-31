@@ -1,5 +1,10 @@
 import * as THREE from "three";
-import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
+import {
+  CANONICAL_RENDER_CONFIG,
+  qualityTierLevel,
+  qualityValueAtLevel,
+  type QualityTier
+} from "../config/VisualRenderConfig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { WorldLayout } from "../../world/WorldLayout";
 import type { WaterConditions } from "../water/WaterSurface";
@@ -7,7 +12,7 @@ import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
 import {
   activateRainSplash,
   createRainDrop,
-  rainActiveDropCount,
+  rainActiveDropCountAtLevel,
   rainPhysicsConfig,
   rainVisualIntensity,
   respawnRainDrop,
@@ -69,14 +74,14 @@ export class RainField {
   private readonly dummy = new THREE.Object3D();
   private readonly up = new THREE.Vector3(0, 1, 0);
   private readonly velocity = new THREE.Vector3();
-  private qualityTier: QualityTier;
+  private qualityLevel: number;
   private splashCursor = 0;
   private lastTimeSeconds = Number.NEGATIVE_INFINITY;
 
   constructor(qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier) {
     const config = rainPhysicsConfig();
     const high = CANONICAL_RENDER_CONFIG.quality.high;
-    this.qualityTier = qualityTier;
+    this.qualityLevel = qualityTierLevel(qualityTier);
     this.group.name = "weather_rain_field";
     this.drops = Array.from({ length: high.rainDropCount }, () => createRainDrop());
     this.splashes = Array.from({ length: high.rainSplashCount }, () => ({
@@ -122,7 +127,11 @@ export class RainField {
   }
 
   public setQuality(tier: QualityTier): void {
-    this.qualityTier = tier;
+    this.setQualityLevel(qualityTierLevel(tier));
+  }
+
+  public setQualityLevel(level: number): void {
+    this.qualityLevel = THREE.MathUtils.clamp(level, 0, 2);
   }
 
   public update(input: RainFieldUpdate): void {
@@ -132,7 +141,7 @@ export class RainField {
     const reducedMotionScale = input.reducedMotion
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
       : CANONICAL_RENDER_CONFIG.motion.ambientScale;
-    const desiredCount = rainActiveDropCount(this.qualityTier, intensity, reducedMotionScale);
+    const desiredCount = rainActiveDropCountAtLevel(this.qualityLevel, intensity, reducedMotionScale);
     const dt = this.lastTimeSeconds === Number.NEGATIVE_INFINITY
       ? 1 / 60
       : THREE.MathUtils.clamp(input.timeSeconds - this.lastTimeSeconds, 0, 0.1);
@@ -176,7 +185,9 @@ export class RainField {
     }
 
     let visibleSplashes = 0;
-    const splashBudget = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].rainSplashCount;
+    const splashBudget = Math.round(
+      qualityValueAtLevel(this.qualityLevel, (quality) => quality.rainSplashCount)
+    );
     for (const splash of this.splashes) {
       if (!splash.active) continue;
       const progress = splashProgress(splash, input.timeSeconds);

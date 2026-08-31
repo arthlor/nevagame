@@ -1,5 +1,5 @@
 // src/ui/HudDecorations.tsx
-import React from "react";
+import React, { useId } from "react";
 import { ChromeKeycap } from "./chrome/Chrome";
 
 /**
@@ -9,7 +9,14 @@ export const FiligreeCornerTL: React.FC<{ className?: string; size?: number; col
   className = "hud-filigree-tl",
   size = 32,
   color = "#d4af37"
-}) => (
+}) => {
+  // These SVGs render once per flourished panel. Shared literal ids made every
+  // copy point at whichever instance mounted first, so unmounting that one left
+  // the rest with dangling paint references and invisible filigree.
+  const uid = useId();
+  const gradientId = `mm-gold-grad-tl-${uid}`;
+  const glowId = `mm-glow-tl-${uid}`;
+  return (
   <svg
     width={size}
     height={size}
@@ -20,27 +27,27 @@ export const FiligreeCornerTL: React.FC<{ className?: string; size?: number; col
     aria-hidden="true"
   >
     <defs>
-      <linearGradient id="mm-gold-grad-tl" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#fff2be" />
         <stop offset="45%" stopColor={color} />
         <stop offset="100%" stopColor="#8a6714" />
       </linearGradient>
-      <filter id="mm-glow-tl" x="-20%" y="-20%" width="140%" height="140%">
+      <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.6" />
       </filter>
     </defs>
-    <g filter="url(#mm-glow-tl)">
+    <g filter={`url(#${glowId})`}>
       {/* Outer corner frame bracket */}
       <path
         d="M2 22V5C2 3.34315 3.34315 2 5 2H22"
-        stroke="url(#mm-gold-grad-tl)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="2"
         strokeLinecap="round"
       />
       {/* Inner fine accent bracket */}
       <path
         d="M6 16V8C6 6.89543 6.89543 6 8 6H16"
-        stroke="url(#mm-gold-grad-tl)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="1.2"
         strokeLinecap="round"
         strokeOpacity="0.85"
@@ -48,7 +55,7 @@ export const FiligreeCornerTL: React.FC<{ className?: string; size?: number; col
       {/* Acanthus / Vine scrollwork */}
       <path
         d="M2 2C7 7 10 12 9 19C8.5 22.5 5 24 3 21C1.5 18.5 4 15 8 15C13 15 15 9 15 3C15 1 12 1 10 3"
-        stroke="url(#mm-gold-grad-tl)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="1.3"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -56,7 +63,7 @@ export const FiligreeCornerTL: React.FC<{ className?: string; size?: number; col
       {/* Central flourish leaf */}
       <path
         d="M4 4C8 8 14 10 19 9C22.5 8.5 24 5 21 3C18.5 1.5 15 4 15 8"
-        stroke="url(#mm-gold-grad-tl)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="1.3"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -65,7 +72,8 @@ export const FiligreeCornerTL: React.FC<{ className?: string; size?: number; col
       <polygon points="5,2 7,4 5,6 3,4" fill="#fff5cc" stroke="#6a4c10" strokeWidth="0.8" />
     </g>
   </svg>
-);
+  );
+};
 
 /**
  * Ornate Gold Filigree Corner - Top Right

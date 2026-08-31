@@ -71,7 +71,10 @@ export interface CharacterAnimationContext {
     isBracing: boolean;
     rodDirectionAngle?: number;
     loadRatio?: number;
+    pumpLoadRatio?: number;
+    behaviorPhase?: "tell" | "drive" | "recovery";
     retrievalMetersPerSecond?: number;
+    shakeAmplitude?: number;
   };
   boatInput?: BoatAnimationInput;
 }
@@ -534,8 +537,16 @@ export class HumanoidAnimator {
     const bodyGroundPitch = this.groundPitch * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
     const bodyGroundRoll = this.groundRoll * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
 
-    const rodLean = (context.fishingInput?.rodDirectionAngle ?? 0) * 0.1;
-    const fishingLean = -Math.min(1, context.fishingInput?.loadRatio ?? 0) * 0.09;
+    // Steer the torso toward the rod, dig in against the load, and let a
+    // head-shaking fish buzz a fine tremor through the stance.
+    const fishShake = context.fishingInput?.shakeAmplitude ?? 0;
+    const rodLean = (context.fishingInput?.rodDirectionAngle ?? 0) * 0.16
+      + (reducedMotion ? 0 : Math.sin(this.elapsed * 26) * fishShake * 0.02);
+    const pumpLoad = context.fishingInput?.pumpLoadRatio ?? 0;
+    const recoverySet = context.fishingInput?.behaviorPhase === "recovery" ? 0.025 : 0;
+    const fishingLean = -Math.min(1.2, context.fishingInput?.loadRatio ?? 0) * 0.14
+      - (context.fishingInput?.isBracing ? 0.055 + pumpLoad * 0.055 : 0)
+      - recoverySet;
 
     if (proceduralFrame) {
       return {

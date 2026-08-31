@@ -91,7 +91,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       const playBankSpy = vi.spyOn(gameAudio, "playBank").mockImplementation(() => {});
 
       playUiSound("open");
-      expect(playBankSpy).toHaveBeenCalledWith("ui-open");
+      expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
 
       playOneShotSpy.mockRestore();
       playBankSpy.mockRestore();
@@ -203,7 +203,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
   });
 
   describe("5. Bottom-Left Vitals, Context Statuses & Boat HUD", () => {
-    it("renders vertical Labor meter with amber-gold fill", () => {
+    it("renders vertical Work meter with amber-gold fill", () => {
       const state = createInitialGameState();
       state.player.workCapacity.current = 750;
       state.player.workCapacity.maximum = 1000;
@@ -252,7 +252,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
 
       expect(html).toContain("hud-context-statuses");
       expect(html).toContain("hud-labor-note");
-      expect(html).toContain("Low Labor");
+      expect(html).toContain("Low Work");
       expect(html).toContain("12/1000");
     });
 

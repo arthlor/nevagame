@@ -49,6 +49,13 @@ describe("InteractionTargetResolver", () => {
     expect(result?.id).toBe("clear-side");
   });
 
+  it("prefers the nearest adjacent crop for an actionable harvest", () => {
+    const resolver = new InteractionTargetResolver();
+    const near = target("near", 0, 1.1, { action: "harvest", prompt: "near" });
+    const fartherButFacing = target("farther", 0.6, 1.8, { action: "harvest", prompt: "farther" });
+    expect(resolver.resolve([fartherButFacing, near], context)?.id).toBe("near");
+  });
+
   it("asks line of sight against the candidate world position so physics can ignore self-colliders", () => {
     const resolver = new InteractionTargetResolver();
     const mill = target("mill", 0, 2, {

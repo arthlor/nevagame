@@ -62,6 +62,21 @@ export interface FishBehaviorProfile {
   directionalForce: number; // pull strength
   tensionSensitivity: number; // how quickly tension rises when reeling against fish
   escapeSlackSeconds: number; // time fish can be at slack tension before escaping
+  shakeHz?: number; // head-shake oscillation frequency, Hz (default 2.7)
+  shakeAmplitude?: number; // peak head-shake amplitude, 0..1 (default 0.55)
+  /** Normalized body inertia. Heavy fish commit longer and answer the rod more slowly. */
+  inertia?: number;
+  /** Relative turn authority used by the continuous encounter, 0.5..1.6. */
+  turnRate?: number;
+  /** Species-authored depth reached during a committed dive. */
+  diveDepthMeters?: number;
+  /** Height the body can clear above the surface during a surface drive. */
+  surfaceLeapMeters?: number;
+  /** Readable anticipation and recovery windows around each committed behavior. */
+  tellSeconds?: number;
+  recoverySeconds?: number;
+  /** How effectively a lifted rod resists outward fish drive. */
+  pumpResistance?: number;
 }
 
 export type MinigameFishBehavior = "mixed" | "smooth" | "sinker" | "floater" | "dart";
@@ -170,4 +185,3 @@ export interface ContractTemplateDefinition {
 
 export type { NpcDefinition } from "./npcs";
 export type { QuestDefinition, QuestObjectiveDefinition, QuestRewardDefinition } from "../simulation/core/QuestTypes";
-

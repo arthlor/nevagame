@@ -136,26 +136,57 @@ export function snapShadowFocus(
 }
 
 /**
- * Ambient above night during the HUD dawn/dusk windows. 04:00 starts at
- * `edgeAmbient`; 08:00 reaches day; 18:00 matches sunrise; 22:00 returns to night.
+ * Continuous ambient support around the HUD dawn/dusk windows. The shoulder
+ * reaches `edgeAmbient` at the label boundary, avoiding a one-minute pop.
  */
-export function clockWindowAmbient(minuteOfDay: number, edgeAmbient: number): number {
+export function clockWindowAmbient(
+  minuteOfDay: number,
+  edgeAmbient: number,
+  shoulderMinutes: number = CANONICAL_RENDER_CONFIG.twilight.ambientShoulderMinutes
+): number {
   const minute = ((minuteOfDay % 1440) + 1440) % 1440;
   const dawn0 = DAWN_START_HOUR * MINUTES_PER_HOUR;
   const dawn1 = DAY_START_HOUR * MINUTES_PER_HOUR;
   const dusk0 = DUSK_START_HOUR * MINUTES_PER_HOUR;
   const dusk1 = NIGHT_START_HOUR * MINUTES_PER_HOUR;
   const edge = clamp01(edgeAmbient);
+  const shoulder = THREE.MathUtils.clamp(shoulderMinutes, 1, 180);
+  // Sunset keeps a hair more ambient warmth than the mirrored sunrise sample.
+  const duskStartAmbient = edge + (1 - edge) * smooth01(0.52);
+  if (minute >= dawn0 - shoulder && minute < dawn0) {
+    return edge * smooth01((minute - (dawn0 - shoulder)) / shoulder);
+  }
   if (minute >= dawn0 && minute < dawn1) {
     const t = (minute - dawn0) / (dawn1 - dawn0);
     return edge + (1 - edge) * smooth01(t);
   }
+  if (minute >= dawn1 && minute < dusk0 - shoulder) return 1;
+  if (minute >= dusk0 - shoulder && minute < dusk0) {
+    return THREE.MathUtils.lerp(
+      1,
+      duskStartAmbient,
+      smooth01((minute - (dusk0 - shoulder)) / shoulder)
+    );
+  }
   if (minute >= dusk0 && minute < dusk1) {
     const t = (minute - dusk0) / (dusk1 - dusk0);
-    const sunsetAmbient = edge + (1 - edge) * smooth01(0.5);
-    return sunsetAmbient * (1 - t) ** 0.7;
+    return duskStartAmbient * (1 - smooth01(t));
   }
   return 0;
+}
+
+export function advanceWrappedMinute(
+  currentMinute: number,
+  targetMinute: number,
+  deltaSeconds: number,
+  responseSeconds: number = CANONICAL_RENDER_CONFIG.transitions.timeOfDayResponseSeconds
+): number {
+  const current = ((currentMinute % 1440) + 1440) % 1440;
+  const target = ((targetMinute % 1440) + 1440) % 1440;
+  const wrappedDelta = ((target - current + 720) % 1440 + 1440) % 1440 - 720;
+  if (Math.abs(wrappedDelta) <= 0.0001) return target;
+  const alpha = 1 - Math.exp(-Math.max(0, deltaSeconds) / Math.max(0.001, responseSeconds));
+  return ((current + wrappedDelta * alpha) % 1440 + 1440) % 1440;
 }
 
 export function deriveCelestialDirections(
@@ -203,11 +234,13 @@ export function lightningEnvelope(worldSeed: number, timeSeconds: number): numbe
 export function deriveLightingFrame(
   state: Pick<GameState, "clock" | "weather" | "worldSeed">,
   timeSeconds: number,
-  target?: LightingFrame
+  target?: LightingFrame,
+  presentedMinuteOfDay?: number
 ): LightingFrame {
   const frame = target ?? createLightingFrame();
   const config = CANONICAL_RENDER_CONFIG;
-  const minuteOfDay = ((state.clock.currentMinute % 1440) + 1440) % 1440;
+  const clockMinute = presentedMinuteOfDay ?? state.clock.currentMinute;
+  const minuteOfDay = ((clockMinute % 1440) + 1440) % 1440;
   const { sunDirection, moonDirection } = deriveCelestialDirections(
     minuteOfDay,
     frame.sunDirection,
@@ -370,6 +403,8 @@ export class LightingRig {
   private readonly shadowUp = new THREE.Vector3();
   private readonly frame = createLightingFrame();
   private lastShadowUpdateSeconds = Number.NEGATIVE_INFINITY;
+  private presentedMinuteOfDay: number | null = null;
+  private lastPresentationUpdateSeconds = Number.NEGATIVE_INFINITY;
 
   public constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -453,7 +488,23 @@ export class LightingRig {
     timeSeconds: number,
     focus: THREE.Vector3
   ): LightingFrame {
-    const frame = deriveLightingFrame(state, timeSeconds, this.frame);
+    const targetMinute = ((state.clock.currentMinute % 1440) + 1440) % 1440;
+    if (this.presentedMinuteOfDay === null || !Number.isFinite(this.lastPresentationUpdateSeconds)) {
+      this.presentedMinuteOfDay = targetMinute;
+    } else {
+      const deltaSeconds = THREE.MathUtils.clamp(
+        timeSeconds - this.lastPresentationUpdateSeconds,
+        0,
+        0.1
+      );
+      this.presentedMinuteOfDay = advanceWrappedMinute(
+        this.presentedMinuteOfDay,
+        targetMinute,
+        deltaSeconds
+      );
+    }
+    this.lastPresentationUpdateSeconds = timeSeconds;
+    const frame = deriveLightingFrame(state, timeSeconds, this.frame, this.presentedMinuteOfDay);
     const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
     const texelSize = (quality.shadowCameraSize * 2) / quality.shadowMapSize;
     const shadowDirection = frame.moonIntensity > frame.sunIntensity

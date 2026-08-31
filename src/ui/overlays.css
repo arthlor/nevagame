@@ -722,7 +722,7 @@
 
 #ui-container .fishing-touch-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 34px repeat(3, minmax(0, 1fr)) 34px;
   gap: 5px;
   pointer-events: auto;
 }
@@ -753,10 +753,617 @@
   }
 }
 
+/* ---- Rebuilt fight panel: header meta, tension readout, landing, action rail ---- */
+#ui-container .fishing-hud-container {
+  width: min(286px, calc(100vw - 24px));
+}
+
+#ui-container .fishing-guidance {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 5px 6px;
+  background: rgba(5, 8, 12, 0.58);
+  border-left: 3px solid rgba(212, 175, 55, 0.55);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-guidance-warning { border-left-color: #e2a84c; }
+#ui-container .fishing-guidance-danger { border-left-color: #f87171; }
+#ui-container .fishing-guidance-opportunity { border-left-color: #6ee7b7; }
+
+#ui-container .fishing-guidance-key {
+  display: flex;
+  justify-content: center;
+}
+
+#ui-container .fishing-guidance-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#ui-container .fishing-guidance-copy strong {
+  color: var(--mm-text-ivory);
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+#ui-container .fishing-guidance-copy span {
+  overflow: hidden;
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-phase {
+  padding: 2px 4px;
+  color: var(--mm-text-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+#ui-container .fishing-phase-tell { color: #f6c66d; }
+#ui-container .fishing-phase-drive { color: #fca5a5; }
+#ui-container .fishing-phase-recovery { color: #6ee7b7; }
+
+#ui-container .fishing-hud-header-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+#ui-container .fishing-species-name {
+  overflow: hidden;
+  color: var(--mm-text-ivory);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-species-weight {
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+#ui-container .fishing-hud-top-right {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-fight-timer {
+  color: var(--mm-gold-bright);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+#ui-container .fishing-tension-word {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+#ui-container .fishing-tension-word-slack { color: #7dd3fc; }
+#ui-container .fishing-tension-word-safe { color: #6ee7b7; }
+#ui-container .fishing-tension-word-danger { color: #fca5a5; }
+
+#ui-container .fishing-tension-readout {
+  margin-left: auto;
+  color: var(--mm-text-ivory);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+#ui-container .fishing-tension-ghost {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1px;
+}
+
+#ui-container .fishing-tension-danger {
+  animation: fishing-danger-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes fishing-danger-pulse {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.7)); }
+}
+
+#ui-container .fishing-status-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 16px;
+  color: var(--mm-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+#ui-container .fishing-status-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-resource-stack {
+  display: flex;
+  width: 74px;
+  flex: 0 0 74px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#ui-container .fishing-resource {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#ui-container .fishing-resource-head {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--mm-text-muted);
+  font-size: 8px;
+  line-height: 1;
+}
+
+#ui-container .fishing-resource-head strong {
+  margin-left: auto;
+  color: var(--mm-text-ivory);
+  font-variant-numeric: tabular-nums;
+}
+
+#ui-container .fishing-resource-track,
+#ui-container .fishing-pump-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(5, 8, 12, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-resource-fill,
+#ui-container .fishing-pump-fill {
+  display: block;
+  height: 100%;
+  transition: width 90ms linear;
+}
+
+#ui-container .fishing-resource-fill-stamina { background: #48b6d2; }
+#ui-container .fishing-resource-fill-safe { background: #72cc8e; }
+#ui-container .fishing-resource-fill-danger { background: #e06b6b; }
+
+#ui-container .fishing-integrity-resource.integrity-healthy {
+  opacity: 0.45;
+}
+
+#ui-container .fishing-pump-cycle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#ui-container .fishing-pump-copy {
+  display: flex;
+  justify-content: space-between;
+  color: var(--mm-text-muted);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#ui-container .fishing-pump-copy strong {
+  color: var(--mm-gold-bright);
+  font-size: 8px;
+}
+
+#ui-container .fishing-pump-fill {
+  background: linear-gradient(90deg, #4d91a3, #f0dd9a);
+}
+
+#ui-container .fishing-pump-live {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+#ui-container .fishing-landing {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#ui-container .fishing-landing-callout {
+  color: #6ee7b7;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+#ui-container .fishing-landing-hint .fishing-landing-callout {
+  color: var(--mm-text-muted);
+}
+
+#ui-container .fishing-landing-bar {
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(5, 8, 12, 0.86);
+  border: 1px solid rgba(110, 231, 183, 0.45);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-landing-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #34d399, #a7f3d0);
+  box-shadow: 0 0 8px rgba(110, 231, 183, 0.7);
+  transition: width 90ms linear;
+}
+
+#ui-container .fishing-action-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 1px;
+}
+
+#ui-container .fishing-rail-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 2px;
+  background: rgba(5, 8, 12, 0.5);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 3px;
+  color: var(--mm-text-muted);
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+#ui-container .fishing-rail-chip.is-active {
+  background: rgba(212, 175, 55, 0.16);
+  border-color: rgba(240, 221, 154, 0.6);
+  color: var(--mm-text-ivory);
+}
+
+#ui-container .fishing-rail-chip.is-glow {
+  border-color: #fca5a5;
+  color: #fecaca;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+}
+
+#ui-container .fishing-rail-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+#ui-container .fishing-integrity-meter.integrity-healthy {
+  opacity: 0.62;
+}
+
+/* Sport-fishing decision layer: one fish read, one response, one safety gauge. */
+#ui-container .fishing-hud-container.fishing-hud-simple {
+  width: min(260px, calc(100vw - 24px));
+  gap: 6px;
+}
+
+#ui-container .fishing-target-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+#ui-container .fishing-target-row > .atlas-image {
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+#ui-container .fishing-target-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+#ui-container .fishing-target-name {
+  overflow: hidden;
+  color: var(--mm-text-ivory);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-target-copy span,
+#ui-container .fishing-energy-value {
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+#ui-container .fishing-energy-value {
+  color: #8ed9e8;
+  font-weight: 800;
+}
+
+#ui-container .fishing-energy-track {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  background: rgba(5, 8, 12, 0.88);
+  border: 1px solid rgba(72, 182, 210, 0.34);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-energy-fill {
+  display: block;
+  height: 100%;
+  background: #48b6d2;
+  transition: width 120ms linear;
+}
+
+#ui-container .fishing-first-tip {
+  margin: 0;
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+#ui-container .fishing-decision {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px;
+  background: rgba(5, 8, 12, 0.62);
+  border-left: 3px solid rgba(212, 175, 55, 0.58);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-decision-warning { border-left-color: #e2a84c; }
+#ui-container .fishing-decision-danger { border-left-color: #f87171; }
+#ui-container .fishing-decision-opportunity { border-left-color: #6ee7b7; }
+
+#ui-container .fishing-decision-icon {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+#ui-container .fishing-decision-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#ui-container .fishing-decision-copy span {
+  overflow: hidden;
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-decision-copy strong {
+  color: var(--mm-text-ivory);
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+#ui-container .fishing-decision > .chrome-keycap {
+  min-width: 34px;
+  padding: 4px 6px;
+  font-size: 10px;
+  text-align: center;
+}
+
+#ui-container .fishing-tension-head > strong {
+  margin-left: auto;
+}
+
+#ui-container .fishing-line-warning {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #f6c66d;
+  font-size: 9px;
+}
+
+#ui-container .fishing-line-warning strong {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+#ui-container .fishing-line-warning.is-critical {
+  color: #fca5a5;
+}
+
+#ui-container .fishing-landing-label {
+  color: #6ee7b7;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+#ui-container .fishing-landing-track {
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(5, 8, 12, 0.86);
+  border: 1px solid rgba(110, 231, 183, 0.45);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-touch-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+#ui-container .fishing-touch-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+#ui-container .fishing-touch-row:last-child {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 @media (max-width: 760px) {
-  #ui-container .fishing-hud-container {
+  #ui-container .fishing-hud-container.fishing-hud-simple {
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    width: min(224px, calc(100vw - 20px));
+    width: min(266px, calc(100vw - 20px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui-container .fishing-tension-danger {
+    animation: none;
+  }
+
+  #ui-container .fishing-resource-fill,
+  #ui-container .fishing-pump-fill,
+  #ui-container .fishing-energy-fill,
+  #ui-container .fishing-landing-fill {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   NOTIFICATION STACK
+   Replaces the single overwritten toast. Up to three concurrent notices,
+   newest nearest the play area, each carrying its own tone.
+   ========================================================================== */
+#ui-container .hud-toast-container {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 6px;
+  max-width: min(520px, 78vw);
+}
+
+/* The container keeps `pointer-events: none` from hud.css, so an empty live
+   region cannot swallow world clicks. It must stay displayed: `display: none`
+   would drop it out of the accessibility tree and defeat the point of mounting
+   it before there is anything to announce. */
+
+#ui-container .hud-toast-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  /* Tone is carried on a left rule so the pill silhouette stays consistent. */
+  border-left-width: 4px !important;
+  animation: mm-notice-enter 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+#ui-container .hud-toast-pill .toast-message-text {
+  color: var(--mm-text-ivory) !important;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  text-align: center;
+}
+
+#ui-container .hud-toast-pill .toast-tone-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+#ui-container .hud-toast-pill .toast-repeat-badge {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--mm-text-gold);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+#ui-container .hud-toast-pill--info {
+  border-left-color: var(--mm-gold-leaf) !important;
+}
+
+#ui-container .hud-toast-pill--success {
+  border-color: rgba(114, 204, 142, 0.55) !important;
+  border-left-color: var(--mm-text-emerald) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), var(--mm-glow-emerald) !important;
+}
+
+#ui-container .hud-toast-pill--reward {
+  border-color: rgba(212, 175, 55, 0.75) !important;
+  border-left-color: var(--mm-gold-bright) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), var(--mm-glow-active) !important;
+}
+
+#ui-container .hud-toast-pill--warning {
+  border-color: rgba(226, 168, 76, 0.6) !important;
+  border-left-color: #e2a84c !important;
+}
+
+#ui-container .hud-toast-pill--danger {
+  border-color: rgba(224, 107, 107, 0.65) !important;
+  border-left-color: var(--mm-text-crimson) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), var(--mm-glow-ruby) !important;
+}
+
+#ui-container .hud-toast-pill--danger .toast-message-text {
+  color: #ffe2e2 !important;
+}
+
+@keyframes mm-notice-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui-container .hud-toast-pill {
+    animation: none !important;
   }
 }

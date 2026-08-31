@@ -73,7 +73,15 @@ const cropInspection: CropInspectionDto = {
   },
   soil: { fertility: 85, band: "good" },
   expectedYield: { min: 3, max: 5 },
-  work: { current: 800, actionCost: 12, xpMultiplier: 1, rareChanceMultiplier: 1 },
+  work: {
+    current: 800,
+    baseCost: 12,
+    cost: 12,
+    availableWork: 800,
+    affordable: true,
+    shortage: 0,
+    readyAtMinute: null
+  },
   actions: { canWater: true, canHarvest: false }
 };
 
@@ -113,7 +121,7 @@ describe("Milestone M5 tactile overlays", () => {
     expect(landed).toContain("Collect");
   });
 
-  it("renders the compact sport fishing vitals tray instead of a dashboard", () => {
+  it("renders one clear sport-fishing decision and progressively discloses damage", () => {
     const html = renderToString(
       React.createElement(FishingHUD, {
         encounter: sportEncounter,
@@ -121,18 +129,37 @@ describe("Milestone M5 tactile overlays", () => {
       })
     );
     expect(html).toContain('data-testid="sport-fishing-hud"');
-    expect(html).toContain("fishing-direction-arc");
     expect(html).toContain('data-testid="fish-stamina"');
-    expect(html).toContain('data-testid="fish-integrity"');
-    expect(html).toContain(">A<");
-    expect(html).toContain(">D<");
-    expect(html).not.toContain("Rainbow Trout");
-    expect(html).not.toContain("Line Tension");
-    expect(html).not.toContain("Tiring Out");
-    expect(html).not.toContain("Optimal Range");
-    expect(html).not.toContain("fishing-btn-reel");
-    expect(html).not.toContain("fishing-btn-brace");
-    expect(html).not.toContain("fishing-btn-slack");
+    expect(html).toContain("Rainbow Trout");
+    expect(html).toContain("70%");
+    expect(html).toContain("Match the highlighted key to the fish");
+    expect(html).toContain("Fish is easing off");
+    expect(html).toContain("Reel now");
+    expect(html).toContain(">W<");
+    expect(html).toContain("fishing-action-rail");
+    expect(html).toContain("GOOD");
+    expect(html).not.toContain('data-testid="fish-integrity"');
+    expect(html).not.toContain("fishing-direction-arc");
+    expect(html).not.toContain("2.4 kg");
+    expect(html).not.toContain("0:03");
+    expect(html).not.toContain("Rod load");
+
+    const damagedRun = renderToString(
+      React.createElement(FishingHUD, {
+        encounter: {
+          ...sportEncounter,
+          elapsedSeconds: 12,
+          behavior: "run-left",
+          behaviorUntilSeconds: 2,
+          lineIntegrity: 40
+        },
+        onSetInput: () => {}
+      })
+    );
+    expect(damagedRun).toContain('data-testid="fish-integrity"');
+    expect(damagedRun).toContain("Running left");
+    expect(damagedRun).toContain("Pull right");
+    expect(damagedRun).toContain(">D<");
   });
 
   it("renders the seed dock with wheat and a quantity badge", () => {
@@ -182,6 +209,17 @@ describe("Milestone M5 tactile overlays", () => {
     expect(hud).toContain("hud-boat-panel");
     expect(hud).toContain("kn");
     expect(hud).toContain("chrome-slot");
+
+    sim.state.sportFishing = sportEncounter;
+    const fightHud = renderToString(
+      React.createElement(HUD, {
+        state: sim.state,
+        promptText: null,
+        toastMessage: null
+      })
+    );
+    expect(fightHud).not.toContain("hud-boat-panel");
+    expect(fightHud).not.toContain("hud-vitals");
 
     const hint = renderToString(
       React.createElement(ContextualHintCard, {

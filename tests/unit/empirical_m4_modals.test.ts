@@ -95,7 +95,7 @@ describe("Milestone M4 ornate modal presentation", () => {
     expect(html).toContain("pause-modal");
     expect(html).toContain("Pause");
     expect(html).toContain("Resume");
-    expect(html).toContain("Labor");
+    expect(html).toContain("Work");
     expect(html).toContain("chrome-meter");
     expect(html).toContain("chrome-keycap");
     expect(html).toContain("Sound");

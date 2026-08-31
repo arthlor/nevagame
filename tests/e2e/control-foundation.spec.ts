@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { starterFarmsteadAnchor } from "../../src/world/FarmLayout";
 
-const e2eBaseUrl = process.env.NEVA_E2E_BASE_URL ?? "http://127.0.0.1:3000";
+const e2eBaseUrl = process.env.NEVA_E2E_BASE_URL
+  ?? `http://127.0.0.1:${process.env.NEVA_E2E_PORT ?? "3000"}`;
 
 interface PlayerPosition {
   x: number;
@@ -201,7 +202,8 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     expect(Math.hypot(duringOverlay.x - beforeOverlay.x, duringOverlay.z - beforeOverlay.z)).toBeLessThan(0.12);
     await page.locator(".inventory-slot").first().click();
     expect(await diagnostics.getAttribute("data-mode")).toBe("on-foot");
-    const closeInventory = page.getByRole("button", { name: "Close" });
+    const closeInventory = page.locator(".inventory-satchel-modal")
+      .getByRole("button", { name: "Close satchel", exact: true });
     if (await closeInventory.isVisible()) await closeInventory.click();
     await expect(page.locator(".modal-content")).not.toBeVisible();
 
@@ -492,7 +494,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
 
   test("E owns harbor interaction while LMB remains a direct tool action", async ({ page, browserName }) => {
     test.skip(browserName !== "chromium", "Deep boat flow is covered once in the Chrome project");
-    const prompt = page.locator(".interaction-wood-banner");
+    // The prompt's skin is presentation-only; assert the stable semantic hook
+    // so HUD styling/atlas changes cannot break the interaction contract.
+    const prompt = page.getByTestId("context-prompt");
     let diagnostics = await loadScenario(page, "harbor");
     await expect(prompt).toContainText("Board Wooden Rowboat");
 
@@ -502,7 +506,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await page.mouse.click(coveredCanvasPoint.x, coveredCanvasPoint.y);
     await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
     await expect(diagnostics).toHaveAttribute("data-active-boat", "none");
-    await page.getByRole("button", { name: "Close" }).click();
+    await page.locator(".inventory-satchel-modal")
+      .getByRole("button", { name: "Close satchel", exact: true })
+      .click();
     await expect(prompt).toContainText("Board Wooden Rowboat");
 
     await page.keyboard.press("KeyE");

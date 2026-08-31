@@ -120,6 +120,8 @@ Implement one render-subsystem-owned `VisualRenderConfig` (name may differ) that
 
 Semantic systems may modify it through controlled inputs (time of day, season, weather, quality mode). Zone/asset code may NOT independently override global exposure/tone mapping/saturation or create a different world-lighting stack to rescue one scene. Fix the asset/composition/local practical lighting, or deliberately revise the canonical config and re-run all gold slices.
 
+The runtime presentation layer smooths integer clock advancement and explicit time skips over a continuous wrapped day-cycle envelope; canonical `GameMinute` remains unchanged. Quality selection and Auto adaptation similarly target a continuous low→medium→high level: blend density/distance and effect strength, rate-limit repeated population/LOD rebuilds, and stage discrete DPR/shadow/post ownership at adjacent-tier crossings. Do not allocate every quality-dependent render target or repopulate every repeated system in the input/UI callback.
+
 Do **not** use normal-world toon/ink edge rendering: inverted-hull outlines, Sobel/post edge outlines, black mesh edges and comic contours are prohibited. Selection/debug/context highlights may use temporary outlines if they are clearly UI feedback rather than the base art style.
 
 Bake static information where useful: lightmaps, AO, vertex AO, static shadow gradients, emissive masks. Real-time lighting focuses on sun, moving actors/props, weather/time, gameplay lanterns, temporary effects. Do not spend runtime budget on static detail that can be baked safely.
@@ -419,7 +421,7 @@ Before full-world production, validate in order:
 3. **Harbor:** docks, boats, ropes, crates, ocean water, coastal architecture.
 4. **Coast/lighthouse:** cliffs, rocks, foam, atmospheric perspective, sunset.
 
-Do not mass-produce assets until these meet the visual-gold target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. The current four slices in `tests/visual/reference/approved-baselines.json` are human-approved and the 2026-08-27 visual-gold decision allows world expansion to reuse those generators/palettes/materials/rendering rules without another candidate-selection pass. This does not close technical-art certification: strict generation and determinism remain separate release gates, and the 33 below-target records are not reauthored by this policy change. P14 is final coverage/polish, not the first real art pass.
+Do not mass-produce assets until these meet the visual-gold target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. The current four slices in `tests/visual/reference/approved-baselines.json` are human-approved and the 2026-08-27 visual-gold decision allows world expansion to reuse those generators/palettes/materials/rendering rules without another candidate-selection pass. This does not close technical-art certification: strict generation and determinism remain separate release gates, and the below-target records reported by `generated/reports/asset_budget_report.json` are not reauthored by this policy change. P14 is final coverage/polish, not the first real art pass.
 
 # 18. Definition of Done — Asset
 

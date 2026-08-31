@@ -1,0 +1,581 @@
+/*
+ * Additive touch/viewport layer. Desktop selectors stay in their existing
+ * files; this file is imported last so mobile fit is centralized without
+ * changing the established field-journal chrome.
+ */
+
+:root {
+  --mobile-control-bottom: max(12px, env(safe-area-inset-bottom));
+  --mobile-control-left: max(12px, env(safe-area-inset-left));
+  --mobile-control-right: max(12px, env(safe-area-inset-right));
+  --mobile-control-size: clamp(52px, 13vw, 66px);
+}
+
+html,
+body,
+#canvas-container,
+#ui-root,
+#game-canvas,
+#ui-container {
+  min-height: 100svh;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #canvas-container,
+  #ui-root,
+  #game-canvas,
+  #ui-container {
+    min-height: 100dvh;
+    height: 100dvh;
+  }
+}
+
+#canvas-container,
+#ui-root {
+  inset: 0;
+  width: 100%;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+#ui-container {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* A coarse-pointer device may start in portrait so the title button can
+   provide the user gesture required by fullscreen/orientation APIs. */
+#ui-container[data-mobile-device="true"] .start-screen {
+  min-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__content {
+  min-height: 100%;
+  padding-top: max(32px, env(safe-area-inset-top));
+  padding-right: max(22px, env(safe-area-inset-right));
+  padding-bottom: max(86px, calc(64px + env(safe-area-inset-bottom)));
+  padding-left: max(22px, env(safe-area-inset-left));
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__button,
+#ui-container[data-mobile-device="true"] .start-screen__secondary-button,
+#ui-container[data-mobile-device="true"] .start-screen__utility-button,
+#ui-container[data-mobile-device="true"] .start-screen__option-button {
+  min-height: 48px;
+}
+
+/* Portrait is an explicit product state after the world is ready. */
+.mobile-orientation-gate {
+  position: absolute;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: rgba(8, 11, 16, 0.92);
+  color: var(--mm-text-ivory, #fffaf0);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mobile-orientation-panel {
+  display: grid;
+  justify-items: center;
+  width: min(420px, 100%);
+  gap: 12px;
+  padding: clamp(24px, 6vw, 42px);
+  border: 1px solid rgba(212, 175, 55, 0.48);
+  border-radius: 6px;
+  background: rgba(22, 30, 42, 0.96);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.mobile-orientation-mark {
+  color: var(--mm-gold-bright, #f3d484);
+  font-size: clamp(34px, 10vw, 58px);
+  line-height: 1;
+}
+
+.mobile-orientation-panel h2 {
+  color: var(--mm-text-gold, #f3d484);
+  font-family: var(--font-serif);
+  font-size: clamp(22px, 5vw, 30px);
+  font-weight: 650;
+}
+
+.mobile-orientation-panel p {
+  max-width: 32rem;
+  color: var(--mm-text-muted, #c9c0b4);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mobile-orientation-button {
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid var(--mm-gold-leaf, #d4af37);
+  border-radius: 3px;
+  background: var(--mm-gold-leaf, #d4af37);
+  color: #241404;
+  cursor: pointer;
+  font: 700 13px/1 var(--font-sans);
+}
+
+.mobile-orientation-button:focus-visible,
+.mobile-action-button:focus-visible,
+.mobile-joystick:focus-visible {
+  outline: 3px solid rgba(255, 249, 211, 0.92);
+  outline-offset: 3px;
+}
+
+/* Touch controls use a transparent full-screen layer with only the controls
+   themselves interactive, leaving the world camera tappable everywhere else. */
+.mobile-controls {
+  position: absolute;
+  z-index: 45;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.mobile-joystick {
+  position: absolute;
+  bottom: var(--mobile-control-bottom);
+  left: var(--mobile-control-left);
+  display: grid;
+  width: clamp(116px, 19vw, 150px);
+  height: clamp(116px, 19vw, 150px);
+  place-items: center;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-joystick-ring,
+.mobile-joystick-knob {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.mobile-joystick-ring {
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(240, 221, 154, 0.58);
+  background: rgba(12, 20, 27, 0.48);
+  box-shadow: inset 0 0 0 8px rgba(20, 29, 41, 0.22), 0 6px 22px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-joystick-knob {
+  width: 42%;
+  height: 42%;
+  border: 1px solid rgba(255, 250, 231, 0.76);
+  background: rgba(212, 175, 55, 0.76);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-action-cluster {
+  position: absolute;
+  right: var(--mobile-control-right);
+  bottom: var(--mobile-control-bottom);
+  display: flex;
+  max-width: min(48vw, 360px);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mobile-action-row,
+.mobile-fishing-actions,
+.mobile-fishing-direction-actions {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mobile-action-button {
+  display: inline-flex;
+  min-width: var(--mobile-control-size);
+  min-height: var(--mobile-control-size);
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(212, 175, 55, 0.62);
+  border-radius: 4px;
+  background: rgba(18, 27, 38, 0.92);
+  color: var(--mm-text-ivory, #fffaf0);
+  cursor: pointer;
+  font: 700 11px/1.05 var(--font-sans);
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-action-button--hold {
+  border-color: rgba(56, 189, 248, 0.54);
+}
+
+.mobile-action-button.is-primary {
+  border-color: rgba(240, 221, 154, 0.9);
+  background: rgba(78, 60, 22, 0.94);
+}
+
+.mobile-action-button:active {
+  background: rgba(212, 175, 55, 0.78);
+  color: #241404;
+}
+
+.mobile-action-label {
+  max-width: 8ch;
+}
+
+.mobile-action-hint {
+  color: var(--mm-text-gold, #f3d484);
+  font-size: 9px;
+  opacity: 0.78;
+}
+
+.mobile-controls-safe-label {
+  position: absolute;
+  right: var(--mobile-control-right);
+  bottom: calc(var(--mobile-control-bottom) + var(--mobile-control-size) + 8px);
+  color: rgba(255, 250, 231, 0.46);
+  font: 600 9px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-controls--fishing .mobile-fishing-actions,
+.mobile-controls--fishing .mobile-fishing-direction-actions {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mobile-controls--basic .mobile-fishing-actions {
+  right: var(--mobile-control-right);
+  bottom: var(--mobile-control-bottom);
+}
+
+.mobile-controls--sport .mobile-fishing-direction-actions {
+  bottom: var(--mobile-control-bottom);
+  left: var(--mobile-control-left);
+}
+
+/* The existing sport HUD stays visible, but moves into the upper-right safe
+   zone so its three hold controls do not collide with the action cluster. */
+#ui-container[data-mobile-device="true"] .fishing-hud-container {
+  top: max(72px, calc(54px + env(safe-area-inset-top)));
+  right: var(--mobile-control-right);
+  bottom: auto;
+  width: min(286px, calc(46vw - var(--mobile-control-right)));
+}
+
+#ui-container[data-mobile-device="true"] .fishing-touch-control {
+  min-height: 48px;
+  min-width: 0;
+  padding: 7px 5px;
+}
+
+/* The basic widget remains a world-facing card while giving the explicit
+   release/reel affordance its own safe corner. */
+#ui-container[data-mobile-device="true"] .basic-fishing-container {
+  right: clamp(148px, 27vw, 310px);
+  width: min(320px, calc(100vw - 180px));
+  max-width: calc(100vw - 190px);
+}
+
+#ui-container[data-mobile-device="true"] .minigame-board {
+  height: clamp(190px, 48dvh, 280px);
+}
+
+#ui-container[data-mobile-device="true"] .minigame-footer-hint,
+#ui-container[data-mobile-device="true"] .cast-hint {
+  max-width: 100%;
+  white-space: normal;
+}
+
+/* HUD safe-area and control reservation. */
+#ui-container[data-mobile-device="true"] .hud-top-left-container {
+  top: max(10px, env(safe-area-inset-top));
+  left: var(--mobile-control-left);
+  max-width: min(42vw, 300px);
+}
+
+#ui-container[data-mobile-device="true"] .hud-top-left {
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 9px;
+}
+
+#ui-container[data-mobile-device="true"] .hud-top-right-cluster {
+  top: max(10px, env(safe-area-inset-top));
+  right: var(--mobile-control-right);
+  left: auto;
+  max-width: min(48vw, 360px);
+}
+
+#ui-container[data-mobile-device="true"] .hud-top-right {
+  max-width: 100%;
+}
+
+#ui-container[data-mobile-device="true"] .hud-menu-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+#ui-container[data-mobile-device="true"] .hud-bottom-left-container {
+  bottom: calc(var(--mobile-control-bottom) + var(--mobile-control-size) + 12px);
+  max-width: min(34vw, 250px);
+}
+
+#ui-container[data-mobile-device="true"] .hud-context-statuses,
+#ui-container[data-mobile-device="true"] .hud-boat-panel {
+  width: min(250px, 34vw);
+  max-width: 100%;
+}
+
+#ui-container[data-mobile-device="true"] .hud-bottom-center {
+  bottom: calc(var(--mobile-control-bottom) + var(--mobile-control-size) + 12px);
+  max-width: min(54vw, 440px);
+}
+
+#ui-container[data-mobile-device="true"] .hud-toast-container {
+  top: max(62px, calc(44px + env(safe-area-inset-top)));
+  max-width: min(70vw, 520px);
+}
+
+#ui-container[data-mobile-device="true"] .hud-hotbar {
+  max-width: min(56vw, 440px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#ui-container[data-mobile-device="true"] .hud-hotbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* All existing modal families share a bounded flex column. Their body is the
+   only scrolling region, so a short landscape viewport never loses actions. */
+#ui-container[data-mobile-device="true"] .modal-overlay,
+#ui-container[data-mobile-device="true"] .dialogue-backdrop {
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-height: 100%;
+  align-items: center;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+
+#ui-container[data-mobile-device="true"] .inventory-satchel-modal,
+#ui-container[data-mobile-device="true"] .journal-chronicle-modal,
+#ui-container[data-mobile-device="true"] .market-trading-modal,
+#ui-container[data-mobile-device="true"] .world-map-modal,
+#ui-container[data-mobile-device="true"] .ledger-modal,
+#ui-container[data-mobile-device="true"] .pause-modal,
+#ui-container[data-mobile-device="true"] .expedition-modal,
+#ui-container[data-mobile-device="true"] .dialogue-card,
+#ui-container[data-mobile-device="true"] .modal-content {
+  width: min(100%, 960px);
+  max-width: 100%;
+  min-height: 0;
+  max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)));
+}
+
+#ui-container[data-mobile-device="true"] .modal-header,
+#ui-container[data-mobile-device="true"] .market-modal-header,
+#ui-container[data-mobile-device="true"] .map-modal-header,
+#ui-container[data-mobile-device="true"] .ledger-header {
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 54px;
+  padding: 9px 12px;
+}
+
+#ui-container[data-mobile-device="true"] .modal-body,
+#ui-container[data-mobile-device="true"] .inventory-body,
+#ui-container[data-mobile-device="true"] .journal-body,
+#ui-container[data-mobile-device="true"] .market-modal-grid,
+#ui-container[data-mobile-device="true"] .ledger-body,
+#ui-container[data-mobile-device="true"] .pause-body,
+#ui-container[data-mobile-device="true"] .expedition-body,
+#ui-container[data-mobile-device="true"] .dialogue-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+#ui-container[data-mobile-device="true"] .modal-footer,
+#ui-container[data-mobile-device="true"] .market-modal-footer,
+#ui-container[data-mobile-device="true"] .dialogue-footer {
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 9px 12px max(9px, env(safe-area-inset-bottom));
+}
+
+#ui-container[data-mobile-device="true"] .modal-footer > *,
+#ui-container[data-mobile-device="true"] .market-modal-footer > *,
+#ui-container[data-mobile-device="true"] .dialogue-footer > *,
+#ui-container[data-mobile-device="true"] .modal-content button,
+#ui-container[data-mobile-device="true"] .market-trading-modal button,
+#ui-container[data-mobile-device="true"] .inventory-satchel-modal button,
+#ui-container[data-mobile-device="true"] .journal-chronicle-modal button {
+  min-height: 44px;
+}
+
+#ui-container[data-mobile-device="true"] .chrome-close {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+#ui-container[data-mobile-device="true"] .inventory-body,
+#ui-container[data-mobile-device="true"] .market-modal-grid,
+#ui-container[data-mobile-device="true"] .map-modal-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#ui-container[data-mobile-device="true"] .inventory-satchel-modal .inventory-grid {
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  width: 100%;
+}
+
+#ui-container[data-mobile-device="true"] .inventory-satchel-modal .inventory-slot {
+  width: 100%;
+  min-width: 64px;
+  max-width: 88px;
+  justify-self: center;
+}
+
+#ui-container[data-mobile-device="true"] .inventory-satchel-modal .inventory-details-card {
+  border-top: 1px solid rgba(245, 240, 230, 0.12) !important;
+  border-left: 0 !important;
+  padding: 12px 0 0;
+}
+
+#ui-container[data-mobile-device="true"] .map-modal-content {
+  grid-template-rows: minmax(190px, 1fr) minmax(0, auto);
+}
+
+#ui-container[data-mobile-device="true"] .map-canvas-container {
+  min-height: 190px;
+}
+
+#ui-container[data-mobile-device="true"] .map-sidebar-details {
+  display: flex;
+  max-height: 30dvh;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+  border-left: 0;
+  padding: 10px 12px;
+  touch-action: pan-y;
+}
+
+#ui-container[data-mobile-device="true"] .market-header-title-group,
+#ui-container[data-mobile-device="true"] .map-title-group,
+#ui-container[data-mobile-device="true"] .ledger-title-group {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+#ui-container[data-mobile-device="true"] .market-header-title-group > div,
+#ui-container[data-mobile-device="true"] .map-title-group > div,
+#ui-container[data-mobile-device="true"] .ledger-title-group > div {
+  min-width: 0;
+}
+
+#ui-container[data-mobile-device="true"] .market-modal-title,
+#ui-container[data-mobile-device="true"] .map-title,
+#ui-container[data-mobile-device="true"] .ledger-title,
+#ui-container[data-mobile-device="true"] .modal-heading-with-mark {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+#ui-container[data-mobile-device="true"] .market-purse-badge {
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+#ui-container[data-mobile-device="true"] .market-trading-modal .seed-stall-card,
+#ui-container[data-mobile-device="true"] .market-trading-modal .fish-cargo-card,
+#ui-container[data-mobile-device="true"] .market-trading-modal .commodity-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+#ui-container[data-mobile-device="true"] .market-trading-modal .seed-buy-btn,
+#ui-container[data-mobile-device="true"] .market-trading-modal .commodity-select-button,
+#ui-container[data-mobile-device="true"] .market-trading-modal .market-sell-ticket button {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+#ui-container[data-mobile-device="true"] .journal-folio-tabs,
+#ui-container[data-mobile-device="true"] .market-stall-tabs,
+#ui-container[data-mobile-device="true"] .inventory-category-tabs,
+#ui-container[data-mobile-device="true"] .map-lenses-bar,
+#ui-container[data-mobile-device="true"] .ledger-tabs-bar {
+  width: 100%;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+#ui-container[data-mobile-device="true"] .journal-folio-tabs::-webkit-scrollbar,
+#ui-container[data-mobile-device="true"] .market-stall-tabs::-webkit-scrollbar,
+#ui-container[data-mobile-device="true"] .inventory-category-tabs::-webkit-scrollbar,
+#ui-container[data-mobile-device="true"] .map-lenses-bar::-webkit-scrollbar,
+#ui-container[data-mobile-device="true"] .ledger-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+#ui-container[data-mobile-device="true"] .journal-folio-btn,
+#ui-container[data-mobile-device="true"] .market-stall-tab,
+#ui-container[data-mobile-device="true"] .inventory-tab-btn,
+#ui-container[data-mobile-device="true"] .map-lens-btn,
+#ui-container[data-mobile-device="true"] .ledger-tab-btn {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) and (orientation: portrait) {
+  #ui-container[data-mobile-device="true"] .mobile-controls {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-action-button,
+  .mobile-orientation-button {
+    transition: none;
+  }
+}

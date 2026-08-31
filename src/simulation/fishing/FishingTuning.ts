@@ -1,4 +1,7 @@
 import type { FishBehavior, FishingDynamicsState, FishingEncounterState } from "../core/types";
+import type { FishBehaviorProfile } from "../../content/types";
+
+export type FishingBehaviorPhase = "tell" | "drive" | "recovery";
 
 /** Metres, seconds and normalized gameplay load (not Newtons). */
 export const FISHING_TUNING = Object.freeze({
@@ -10,18 +13,83 @@ export const FISHING_TUNING = Object.freeze({
   landingStaminaRatio: 0.15,
   minimumLandingTension: 12,
   slackTension: 8,
+  /** A tired fish inside landing range must be held in the green band this long before it beaches. */
+  landReadySeconds: 0.55,
+  /** Upper edge of the "green" landing band, as a fraction of the rod's max safe tension. */
+  landingTensionCeilRatio: 0.86,
   lineStiffness: 28,
   lineDamping: 4,
-  tensionRisePerSecond: 42,
-  tensionFallPerSecond: 55,
+  tensionRisePerSecond: 32,
+  tensionFallPerSecond: 44,
   reelMetersPerPower: 0.1,
   resistancePerPower: 0.14,
   dragThresholdRatio: 0.72,
   dragPayoutRate: 0.11,
   overloadDamageRate: 0.45,
-  snapGraceSeconds: 0.85,
-  restRecoveryPerSecond: 0.45
+  snapGraceSeconds: 1.1,
+  /** Fast species still hold one readable command long enough for a player to react. */
+  minimumBehaviorSeconds: 3.2,
+  minimumTellSeconds: 0.85,
+  minimumRecoverySeconds: 0.75,
+  /** A brief dip into slack warns first; it is not an instant loss on strong fish. */
+  minimumSlackEscapeSeconds: 2.2,
+  restRecoveryPerSecond: 0.45,
+  /** How fast the rod blank loads and unloads toward the current line tension. */
+  rodLoadResponse: 7,
+  /** Maximum load stored in the blank by a deliberate Space lift. */
+  pumpMaximumLoad: 1.25,
+  /** Load added per second while the player lifts against a live fish. */
+  pumpLoadPerSecond: 0.72,
+  /** Additional normalized tension created by lifting the rod. */
+  pumpTensionGain: 10,
+  /** Direct winding is deliberately weak while the rod is still being lifted. */
+  pumpingReelScale: 0.12,
+  /** Extra retrieval (m/s) the rod feeds back as it unloads while you reel a pumped rod down. */
+  rodAssistPerLoad: 3.1,
+  /** Recovery is the high-value wind-down window after a fish commits. */
+  recoveryReelMultiplier: 1.32,
+  /** Retrieval efficiency lost, at worst, when reeling straight across a running fish. */
+  pumpCrossPenalty: 0.5,
+  /** Fish forward-speed and heading responsiveness toward their behaviour targets. */
+  fishAccelResponse: 2.4,
+  fishTurnResponse: 2.4,
+  /** Line-integrity damage multiplier contributed by a hard head-shake. */
+  shakeDamageScale: 4
 });
+
+export interface FishingBehaviorReadout {
+  phase: FishingBehaviorPhase;
+  progress: number;
+}
+
+/** Shared behavior clock interpretation for simulation-adjacent presentation and UI. */
+export function fishingBehaviorReadout(
+  state: Readonly<FishingEncounterState>,
+  profile?: Readonly<FishBehaviorProfile>
+): FishingBehaviorReadout {
+  if (state.behavior === "rest") return { phase: "recovery", progress: 1 };
+  const duration = Math.max(0.1, state.dynamics?.behaviorDurationSeconds ?? state.behaviorUntilSeconds);
+  const age = Math.max(0, duration - state.behaviorUntilSeconds);
+  const tell = Math.min(
+    duration * 0.42,
+    Math.max(FISHING_TUNING.minimumTellSeconds, profile?.tellSeconds ?? 0)
+  );
+  const recovery = Math.min(
+    duration * 0.38,
+    Math.max(FISHING_TUNING.minimumRecoverySeconds, profile?.recoverySeconds ?? 0)
+  );
+  if (age < tell) return { phase: "tell", progress: clampFishing(age / Math.max(0.05, tell), 0, 1) };
+  if (state.behaviorUntilSeconds <= recovery) {
+    return {
+      phase: "recovery",
+      progress: clampFishing(1 - state.behaviorUntilSeconds / Math.max(0.05, recovery), 0, 1)
+    };
+  }
+  return {
+    phase: "drive",
+    progress: clampFishing((age - tell) / Math.max(0.05, duration - tell - recovery), 0, 1)
+  };
+}
 
 export const FISH_BEHAVIOR_EFFORT: Record<FishBehavior, number> = {
   rest: 0.06, "run-left": 0.78, "run-right": 0.78,
@@ -50,7 +118,9 @@ export function createFishingDynamics(
     rodDirection: clampFishing(state.rodDirectionAngle, -1, 1), effort: 0.06,
     retrievalMetersPerSecond: 0, payoutMetersPerSecond: 0,
     behaviorDurationSeconds: Math.max(0.1, state.behaviorUntilSeconds),
-    surfaceCrossings: 0, stepRemainderSeconds: 0, rngState
+    surfaceCrossings: 0, stepRemainderSeconds: 0, rngState,
+    rodLoad: clampFishing(state.lineTension / 100, 0, 1), fishSpeed: 0,
+    shakePhase: 0, shakeAmplitude: 0, landReadySeconds: 0
   };
 }
 

@@ -24,6 +24,14 @@ interface RankedTarget {
   facingPenalty: number;
 }
 
+function isProximityFirstCrop(target: ResolvedInteractionTarget): boolean {
+  return target.kind === "crop" && (
+    target.action === "harvest" ||
+    target.action === "water" ||
+    target.action === "fertilize"
+  );
+}
+
 /**
  * Presentation selection only. Simulation commands still revalidate distance,
  * mode, inventory and authoritative state at commit time.
@@ -55,12 +63,24 @@ export class InteractionTargetResolver {
       });
     }
 
-    ranked.sort((a, b) =>
-      a.target.priority - b.target.priority ||
-      a.facingPenalty - b.facingPenalty ||
-      a.target.distanceMeters - b.target.distanceMeters ||
-      a.target.id.localeCompare(b.target.id)
-    );
+    ranked.sort((a, b) => {
+      const priority = a.target.priority - b.target.priority;
+      if (priority !== 0) return priority;
+
+      // Adjacent crops are authored as separate interaction lots. Once a
+      // harvest/water/fertilize action is available, the closest lot is the
+      // least surprising target; facing should not steal a prompt from the
+      // crop the player deliberately walked to.
+      if (isProximityFirstCrop(a.target) && isProximityFirstCrop(b.target)) {
+        return a.target.distanceMeters - b.target.distanceMeters ||
+          a.facingPenalty - b.facingPenalty ||
+          a.target.id.localeCompare(b.target.id);
+      }
+
+      return a.facingPenalty - b.facingPenalty ||
+        a.target.distanceMeters - b.target.distanceMeters ||
+        a.target.id.localeCompare(b.target.id);
+    });
 
     for (const { target } of ranked) {
       if (

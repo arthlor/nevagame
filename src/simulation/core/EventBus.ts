@@ -17,6 +17,7 @@ import {
   MarketId,
   PlacedCropId,
   RecipeId,
+  RodId,
   SkillId,
   WeatherTag
 } from "./types";
@@ -25,7 +26,7 @@ export interface DomainEvents {
   CropPlanted: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; minute: GameMinute };
   CropWatered: { placedCropId: PlacedCropId; farmId: FarmId; newMoisture: number; minute: GameMinute };
   CropStageChanged: { placedCropId: PlacedCropId; cropId: CropId; stage: CropStage; minute: GameMinute };
-  CropHarvested: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; quantity: number; quality: CropQuality; minute: GameMinute };
+  CropHarvested: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; quantity: number; quality: CropQuality; xpGained: number; minute: GameMinute };
   SeedPurchased: { marketId: MarketId; itemId: ItemId; quantity: number; cost: number; minute: GameMinute };
   RecipeStarted: { jobId: string; recipeId: RecipeId; minute: GameMinute };
   RecipeCompleted: { jobId: string; recipeId: RecipeId; stationId: string; minute: GameMinute };
@@ -58,6 +59,8 @@ export interface DomainEvents {
   BoatPurchased: { boatId: BoatId; boatTypeId: string; cost: number; minute: GameMinute };
   ItemSold: { marketId: MarketId; itemId: ItemId; quantity: number; revenue: number; minute: GameMinute };
   ItemPurchased: { marketId: MarketId; itemId: ItemId; quantity: number; cost: number; minute: GameMinute };
+  RodPurchased: { marketId: MarketId; rodId: RodId; cost: number; minute: GameMinute };
+  RodEquipped: { marketId: MarketId; rodId: RodId; minute: GameMinute };
   FishSold: { marketId: MarketId; cargoId: FishCargoId; speciesId: FishSpeciesId; revenue: number; minute: GameMinute };
   MarketTicked: { marketId: MarketId; minute: GameMinute };
   WeatherChanged: { weather: WeatherTag; minute: GameMinute };

@@ -1,12 +1,11 @@
-// src/ui/FishingHUD.tsx
 import React, { useEffect, useRef, useState } from "react";
 import { ContentRegistry } from "../content/ContentRegistry";
-import { FISHING_TUNING } from "../simulation/fishing/FishingTuning";
+import { FISHING_TUNING, fishingBehaviorReadout } from "../simulation/fishing/FishingTuning";
 import type { FishingEncounterState } from "../simulation/core/types";
-import { IconEnergy, IconFish, IconRod, IconWarning } from "./components/HudIcons";
+import { IconFish, IconRod, IconWarning } from "./components/HudIcons";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForBehavior, atlasForFish } from "./chrome/uiAtlas";
-import { ChromeButton, ChromeKeycap, ChromeMeter, ChromePanel, ChromeQuality } from "./chrome/Chrome";
+import { ChromeButton, ChromeKeycap, ChromePanel } from "./chrome/Chrome";
 
 interface FishingHUDProps {
   encounter: FishingEncounterState;
@@ -24,10 +23,12 @@ interface FishingHoldState {
   isBracing: boolean;
 }
 
-interface FishingCue {
-  behavior: string;
-  key: string | null;
-  label: string;
+interface FishingDecision {
+  fishAction: string;
+  response: string;
+  key: "W" | "S" | "A" | "D" | "Spc";
+  icon: "run" | "dive" | "burst" | "shake" | "surface" | "tiring";
+  tone: "steady" | "warning" | "danger" | "opportunity";
 }
 
 const EMPTY_HOLD: FishingHoldState = {
@@ -36,22 +37,39 @@ const EMPTY_HOLD: FishingHoldState = {
   isBracing: false
 };
 
-function cueForEncounter(encounter: FishingEncounterState): FishingCue {
+function decisionForEncounter(
+  encounter: FishingEncounterState,
+  phase: ReturnType<typeof fishingBehaviorReadout>["phase"],
+  maxSafeTension: number,
+  landingWindow: boolean
+): FishingDecision {
+  if (landingWindow) {
+    return { fishAction: "Fish is at the boat", response: "Hold steady", key: "W", icon: "tiring", tone: "opportunity" };
+  }
+  if (encounter.lineTension >= maxSafeTension * 0.95) {
+    return { fishAction: "Line is overloaded", response: "Give line", key: "S", icon: "burst", tone: "danger" };
+  }
+  if (encounter.lineTension < FISHING_TUNING.minimumLandingTension && encounter.slackTimerSeconds > 0.2) {
+    return { fishAction: "Hook is going loose", response: "Reel in", key: "W", icon: "tiring", tone: "danger" };
+  }
+  if (phase === "recovery" || encounter.behavior === "rest") {
+    return { fishAction: "Fish is easing off", response: "Reel now", key: "W", icon: "tiring", tone: "opportunity" };
+  }
   switch (encounter.behavior) {
     case "run-left":
-      return { behavior: "run", key: null, label: "Running left" };
+      return { fishAction: "Running left", response: "Pull right", key: "D", icon: "run", tone: "warning" };
     case "run-right":
-      return { behavior: "run", key: null, label: "Running right" };
-    case "dive":
-      return { behavior: "dive", key: null, label: "Diving" };
-    case "burst":
-      return { behavior: "burst", key: null, label: "Surging" };
-    case "shake":
-      return { behavior: "shake", key: null, label: "Shaking the hook" };
+      return { fishAction: "Running right", response: "Pull left", key: "A", icon: "run", tone: "warning" };
     case "surface":
-      return { behavior: "surface", key: null, label: "Fish is breaking the surface" };
+      return { fishAction: "Breaking the surface", response: "Reel down", key: "W", icon: "surface", tone: "warning" };
+    case "dive":
+      return { fishAction: "Diving deep", response: "Brace", key: "Spc", icon: "dive", tone: "warning" };
+    case "shake":
+      return { fishAction: "Shaking the hook", response: "Hold firm", key: "Spc", icon: "shake", tone: "warning" };
+    case "burst":
+      return { fishAction: "Power surge", response: "Brace", key: "Spc", icon: "burst", tone: "warning" };
     default:
-      return { behavior: "tiring", key: null, label: "Recovering" };
+      return { fishAction: "Fish is tiring", response: "Reel now", key: "W", icon: "tiring", tone: "opportunity" };
   }
 }
 
@@ -77,7 +95,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
     setHeldActions(holdRef.current);
     onSetInput({
       ...holdRef.current,
-      rodDirectionAngle: encounter.rodDirectionAngle
+      rodDirectionAngle: encounterRef.current.rodDirectionAngle
     });
   };
 
@@ -106,26 +124,30 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
   }, []);
 
   const releaseAction = (action: keyof FishingHoldState) => emitHold({ [action]: false });
+  const species = ContentRegistry.fishSpecies.get(encounter.fish.speciesId);
+  const profile = species ? ContentRegistry.fishBehaviors.get(species.behaviorProfileId) : undefined;
+  const rod = ContentRegistry.rods.get(encounter.rodId);
+  const maxSafeTension = rod?.maxSafeTension ?? 80;
   const staminaPercent = encounter.maxStamina <= 0
     ? 0
     : Math.round((encounter.stamina / encounter.maxStamina) * 100);
   const tensionPercent = Math.min(100, Math.max(0, encounter.lineTension));
   const integrityPercent = Math.min(100, Math.max(0, encounter.lineIntegrity));
-  const maxSafeTension = ContentRegistry.rods.get(encounter.rodId)?.maxSafeTension ?? 80;
-  const minimumTension = FISHING_TUNING.minimumLandingTension;
-  const tensionTone = tensionPercent < minimumTension ? "slack" : tensionPercent >= maxSafeTension ? "danger" : "safe";
-  const integrityTone = integrityPercent <= 20 ? "danger" : "safe";
-  const cue = cueForEncounter(encounter);
-  const direction = Math.max(-1, Math.min(1, encounter.fishDirection));
-  const directionMarker = 50 + direction * 35;
-  const rodMarker = 50 + (encounter.dynamics?.rodDirection ?? encounter.rodDirectionAngle) * 35;
-  const dangerCopy = tensionPercent < minimumTension
-    ? "Take up slack"
-    : tensionPercent >= maxSafeTension * 0.95 ? "Let line out" : null;
-  if (dangerCopy) {
-    cue.key = tensionPercent < minimumTension ? "W" : "S";
-    cue.label = dangerCopy;
-  }
+  const tensionTone = tensionPercent < FISHING_TUNING.minimumLandingTension
+    ? "slack"
+    : tensionPercent >= maxSafeTension
+      ? "danger"
+      : "safe";
+  const tensionWord = tensionTone === "slack" ? "LOOSE" : tensionTone === "danger" ? "EASE" : "GOOD";
+  const tired = encounter.stamina <= encounter.maxStamina * FISHING_TUNING.landingStaminaRatio;
+  const inRange = encounter.distanceMeters <= FISHING_TUNING.landingDistance;
+  const landingWindow = tired && inRange;
+  const landingProgress = Math.max(0, Math.min(1,
+    (encounter.dynamics?.landReadySeconds ?? 0) / FISHING_TUNING.landReadySeconds));
+  const behaviorReadout = fishingBehaviorReadout(encounter, profile);
+  const decision = decisionForEncounter(encounter, behaviorReadout.phase, maxSafeTension, landingWindow);
+  const showFirstTip = encounter.elapsedSeconds < 8;
+  const showLineWarning = integrityPercent <= 55;
   const activeActions = {
     isReeling: !encounter.isSlacking && !heldActions.isSlacking && (encounter.isReeling || heldActions.isReeling),
     isSlacking: encounter.isSlacking || heldActions.isSlacking,
@@ -134,145 +156,116 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ encounter, onSetInput })
 
   const holdButtonProps = (action: keyof FishingHoldState) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       emitHold({ [action]: true });
     },
     onPointerUp: () => releaseAction(action),
     onPointerCancel: () => releaseAction(action),
-    onPointerLeave: () => releaseAction(action),
     onLostPointerCapture: () => releaseAction(action)
   });
 
+  const directionButtonProps = (value: -1 | 1) => ({
+    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      onSetInput({ ...holdRef.current, rodDirectionAngle: value });
+    },
+    onPointerUp: () => onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }),
+    onPointerCancel: () => onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }),
+    onLostPointerCapture: () => onSetInput({ ...holdRef.current, rodDirectionAngle: 0 })
+  });
+
+  const railChip = (label: string, keyName: string, on: boolean, glow: boolean) => (
+    <span className={`fishing-rail-chip${on ? " is-active" : ""}${glow ? " is-glow" : ""}`}>
+      <ChromeKeycap keyName={keyName} glow={glow} />
+      <span className="fishing-rail-label">{label}</span>
+    </span>
+  );
+
   return (
     <ChromePanel
-      as="section"
-      tone="dock"
-      className="fishing-hud-container interactive"
-      aria-label="Sport fishing controls"
+      className={`fishing-hud-container fishing-hud-simple interactive${tensionTone === "danger" ? " fishing-tension-danger" : ""}`}
+      role="region"
+      aria-label="Sport fishing fight"
       data-testid="sport-fishing-hud"
-      data-fishing-behavior={encounter.behavior}
     >
-      <div className="fishing-hud-top">
-        <div className="fishing-species-badge" aria-label="Hooked fish and quality">
-          <AtlasImage src={atlasForFish(encounter.fish.speciesId)} alt="" size={26} />
-          {!atlasForFish(encounter.fish.speciesId) && <IconFish size={20} aria-hidden="true" />}
-          <ChromeQuality quality={encounter.fish.quality} showLabel={false} />
+      <header className="fishing-target-row">
+        <AtlasImage src={atlasForFish(encounter.fish.speciesId)} alt="" size={28} />
+        {!atlasForFish(encounter.fish.speciesId) && <IconFish size={20} aria-hidden="true" />}
+        <div className="fishing-target-copy">
+          <strong className="fishing-target-name">{species?.name ?? "Sport fish"}</strong>
+          <span>Fish energy</span>
         </div>
-        <span
-          className="fishing-distance"
-          aria-label={`${encounter.distanceMeters.toFixed(1)} metres of line remain`}
-        >
-          {`${encounter.distanceMeters.toFixed(1)}m`}
-        </span>
+        <strong className="fishing-energy-value">{staminaPercent}%</strong>
+      </header>
+
+      <div className="fishing-energy-track" data-testid="fish-stamina" aria-label={`Fish energy ${staminaPercent}%`}>
+        <div className="fishing-energy-fill" style={{ width: `${staminaPercent}%` }} />
       </div>
 
-      <div
-        className={`fishing-tension fishing-tension-${tensionTone}`}
-        role="progressbar"
-        aria-label="Line tension"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(tensionPercent)}
-        aria-valuetext={`${Math.round(tensionPercent)} percent`}
-      >
-        <div className="fishing-tension-head">
-          <IconRod size={15} aria-hidden="true" />
-          {dangerCopy && (
-            <span className="fishing-danger-copy" role="status" aria-live="polite">
-              <IconWarning size={12} aria-hidden="true" />
-              {dangerCopy}
-            </span>
-          )}
+      {showFirstTip && <p className="fishing-first-tip">Match the highlighted key to the fish.</p>}
+
+      <section className={`fishing-decision fishing-decision-${decision.tone}`} aria-live="polite">
+        <AtlasImage className="fishing-decision-icon" src={atlasForBehavior(decision.icon)} alt="" size={30} />
+        <div className="fishing-decision-copy">
+          <span>{decision.fishAction}</span>
+          <strong>{decision.response}</strong>
         </div>
-        <div className="fishing-tension-track" aria-hidden="true" style={{ gridTemplateColumns: `${minimumTension}% ${maxSafeTension - minimumTension}% ${100 - maxSafeTension}%` }}>
+        <ChromeKeycap keyName={decision.key} glow />
+      </section>
+
+      <section className="fishing-tension" aria-label={`Line tension ${tensionWord.toLowerCase()}`}>
+        <div className="fishing-tension-head">
+          <IconRod size={13} aria-hidden="true" />
+          <span>Line tension</span>
+          <strong className={`fishing-tension-word fishing-tension-word-${tensionTone}`}>{tensionWord}</strong>
+        </div>
+        <div className="fishing-tension-track" aria-hidden="true">
           <span className="fishing-tension-zone fishing-tension-zone-slack" />
           <span className="fishing-tension-zone fishing-tension-zone-safe" />
           <span className="fishing-tension-zone fishing-tension-zone-danger" />
           <span className="fishing-tension-needle" style={{ left: `${tensionPercent}%` }} />
         </div>
-      </div>
+      </section>
 
-      <div className="fishing-hud-lower">
-        <div className="fishing-hud-meters" aria-label="Fish stamina and line integrity">
-          <ChromeMeter
-            className="fishing-hud-meter fishing-stamina-meter"
-            label="Fish stamina"
-            value={encounter.stamina}
-            max={encounter.maxStamina}
-            valueText={`${staminaPercent}% remaining`}
-            variant="stamina"
-            orientation="vertical"
-            showLabel={false}
-            showValue={false}
-            icon={<IconEnergy size={15} aria-hidden="true" />}
-            data-testid="fish-stamina"
-          />
-          <ChromeMeter
-            className={`fishing-hud-meter fishing-integrity-meter integrity-${integrityTone}`}
-            label="Line integrity"
-            value={encounter.lineIntegrity}
-            max={100}
-            valueText={`${Math.round(integrityPercent)}% remaining`}
-            variant={integrityTone === "danger" ? "danger" : "fishing"}
-            orientation="vertical"
-            showLabel={false}
-            showValue={false}
-            icon={<IconWarning size={15} aria-hidden="true" />}
-            data-testid="fish-integrity"
-          />
+      {showLineWarning && (
+        <div className={`fishing-line-warning${integrityPercent <= 20 ? " is-critical" : ""}`} data-testid="fish-integrity">
+          <IconWarning size={13} aria-hidden="true" />
+          <span>Line damaged</span>
+          <strong>{integrityPercent}%</strong>
         </div>
+      )}
 
-        <div className="fishing-direction-block">
-          <div
-            className="fishing-direction-arc-row"
-            role="img"
-            aria-label={`${direction < -0.1 ? "Fish pulling left" : direction > 0.1 ? "Fish pulling right" : "Fish holding center"}; rod ${rodMarker < 45 ? "left" : rodMarker > 55 ? "right" : "center"}`}
-          >
-            <ChromeKeycap keyName="A" />
-            <span className="fishing-direction-arc" aria-hidden="true">
-              <span className="fishing-direction-marker" style={{ left: `${directionMarker}%` }} />
-              <span className="fishing-rod-marker" style={{ left: `${rodMarker}%` }} />
-            </span>
-            <ChromeKeycap keyName="D" />
+      {landingWindow && (
+        <section className="fishing-landing" aria-label="Landing progress">
+          <div className="fishing-landing-label">
+            <strong>{landingProgress > 0 ? "LANDING" : "REEL — HOLD IT"}</strong>
           </div>
-          <div className="fishing-action-cue" role="status" aria-label={cue.label} aria-live="polite">
-            <AtlasImage src={atlasForBehavior(cue.behavior)} alt="" size={18} />
-            {!atlasForBehavior(cue.behavior) && <IconFish size={16} aria-hidden="true" />}
-            {cue.key && <ChromeKeycap keyName={cue.key} glow={tensionTone === "danger"} />}
+          <div className="fishing-landing-track">
+            <div className="fishing-landing-fill" style={{ width: `${landingProgress * 100}%` }} />
           </div>
-        </div>
+        </section>
+      )}
 
+      <div className="fishing-action-rail" aria-label="Fishing controls">
+        {railChip("Reel", "W", activeActions.isReeling, decision.key === "W")}
+        {railChip("Give", "S", activeActions.isSlacking, decision.key === "S")}
+        {railChip("Brace", "Spc", activeActions.isBracing, decision.key === "Spc")}
+        {railChip("Pull", "A/D", Math.abs(encounter.rodDirectionAngle) > 0.1, decision.key === "A" || decision.key === "D")}
       </div>
 
       {isCoarsePointer && (
-        <div className="fishing-touch-controls" aria-label="Touch fishing controls">
-          <ChromeButton
-            className={`fishing-touch-control fishing-touch-control-reel ${activeActions.isReeling ? "is-active" : ""}`}
-            aria-label="Hold reel"
-            aria-pressed={activeActions.isReeling}
-            {...holdButtonProps("isReeling")}
-          >
-            <span className="fishing-touch-label">Reel</span>
-            <ChromeKeycap keyName="W" glow={activeActions.isReeling} />
-          </ChromeButton>
-          <ChromeButton
-            className={`fishing-touch-control fishing-touch-control-brace ${activeActions.isBracing ? "is-active" : ""}`}
-            aria-label="Hold brace"
-            aria-pressed={activeActions.isBracing}
-            {...holdButtonProps("isBracing")}
-          >
-            <span className="fishing-touch-label">Brace</span>
-            <ChromeKeycap keyName="Space" glow={activeActions.isBracing} />
-          </ChromeButton>
-          <ChromeButton
-            className={`fishing-touch-control fishing-touch-control-slack ${activeActions.isSlacking ? "is-active" : ""}`}
-            aria-label="Hold slack"
-            aria-pressed={activeActions.isSlacking}
-            {...holdButtonProps("isSlacking")}
-          >
-            <span className="fishing-touch-label">Slack</span>
-            <ChromeKeycap keyName="S" glow={activeActions.isSlacking} />
-          </ChromeButton>
+        <div className="fishing-touch-controls" aria-label="Fishing touch controls">
+          <div className="fishing-touch-row">
+            <ChromeButton className="fishing-touch-control" {...directionButtonProps(-1)}>Left</ChromeButton>
+            <ChromeButton className="fishing-touch-control" {...holdButtonProps("isReeling")}>Reel</ChromeButton>
+            <ChromeButton className="fishing-touch-control" {...directionButtonProps(1)}>Right</ChromeButton>
+          </div>
+          <div className="fishing-touch-row">
+            <ChromeButton className="fishing-touch-control" {...holdButtonProps("isSlacking")}>Give line</ChromeButton>
+            <ChromeButton className="fishing-touch-control" {...holdButtonProps("isBracing")}>Brace</ChromeButton>
+          </div>
         </div>
       )}
     </ChromePanel>

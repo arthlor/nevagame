@@ -333,14 +333,14 @@ describe("Milestone M1 Empirical Stress & Boundary Verification", () => {
     it("handles normal percentages correctly", () => {
       const html = renderToString(
         React.createElement(ChromeMeter, {
-          label: "Labor",
+          label: "Work",
           value: 400,
           max: 1000,
           fill: "labor"
         })
       );
       expect(html).toContain('role="meter"');
-      expect(html).toContain('aria-label="Labor"');
+      expect(html).toContain('aria-label="Work"');
       expect(html).toContain('aria-valuenow="400"');
       expect(html).toContain('aria-valuemax="1000"');
       expect(html).toContain("width:40%");

@@ -15,7 +15,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 19;
+export const CURRENT_SCHEMA_VERSION = 21;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -159,6 +159,15 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (!isRecord(inventory) || typeof inventory.id !== "string" || !Array.isArray(inventory.slots) || !InventoryManager.isValidInventory(inventory as GameState["inventories"][string])) return false;
   }
   if (!ContentRegistry.rods.has(state.player.equippedRodId)) return false;
+  if (schemaVersion >= 20) {
+    if (
+      !Array.isArray(state.player.ownedRodIds) ||
+      state.player.ownedRodIds.length === 0 ||
+      new Set(state.player.ownedRodIds).size !== state.player.ownedRodIds.length ||
+      !state.player.ownedRodIds.every((rodId) => typeof rodId === "string" && ContentRegistry.rods.has(rodId)) ||
+      !state.player.ownedRodIds.includes(state.player.equippedRodId)
+    ) return false;
+  }
   if (state.player.activeBoatId !== null && state.player.activeBoatId !== undefined && !state.boats[state.player.activeBoatId]) return false;
   if (state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined) {
     const carriedCargo = state.fishCargo[state.player.carriedFishCargoId];

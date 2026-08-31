@@ -22,6 +22,6 @@ export default [
     }
   },
   {
-    ignores: ["dist/**", "node_modules/**", "generated/**", "public/**"]
+    ignores: [".agents/**", "dist/**", "node_modules/**", "generated/**", "public/**"]
   }
 ];

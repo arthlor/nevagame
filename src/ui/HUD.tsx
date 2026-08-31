@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { GameState, FishCargoState } from "../simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { ContentRegistry } from "../content/ContentRegistry";
+import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import {
   IconEnergy,
   IconHoe,
@@ -21,6 +22,9 @@ import { formatWeatherLabel, WeatherIcon } from "./weatherPresentation";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import { QuestTrackerHUD } from "./QuestTrackerHUD";
 import { ChromeMeter, ChromeQuality, ChromeSlot } from "./chrome/Chrome";
+import { NoticeStack } from "./components/NoticeStack";
+import type { Notice } from "./notifications";
+import { TOOL_SLOT_NAMES } from "./keybindings";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish, atlasForTime } from "./chrome/uiAtlas";
 import { playUiSound } from "./audio/uiAudio";
@@ -28,12 +32,16 @@ import { playUiSound } from "./audio/uiAudio";
 export interface HUDProps {
   state: GameState;
   promptText: string | null;
+  /** Legacy single-message form. `notices` supersedes it when supplied. */
   toastMessage?: string | null;
+  notices?: readonly Notice[];
   activeQuest?: ActiveQuestDto | null;
   activeToolSlot?: number;
   onSelectToolSlot?: (slot: number) => void;
   onOpenMenu?: () => void;
   isPlacementActive?: boolean;
+  /** Crop currently armed for planting, so slot 2 can name it. */
+  selectedCropId?: string | null;
 }
 
 function parsePrompt(promptText: string | null, toastMessage: string | null | undefined) {
@@ -50,6 +58,72 @@ function parsePrompt(promptText: string | null, toastMessage: string | null | un
   return { key: "E", label: promptText };
 }
 
+const EMPTY_NOTICES: readonly Notice[] = [];
+
+const BAIT_ITEM_ID = "item.bait_worms";
+
+interface HotbarSlotModel {
+  slot: number;
+  name: string;
+  /** Secondary line: what is actually loaded in the slot right now. */
+  detail: string;
+  quantity: number | null;
+  /** False when using the slot cannot currently do anything. */
+  ready: boolean;
+}
+
+/**
+ * The tool belt used to be five identical icons with no state, so a player
+ * could not tell which seed was armed, whether any bait was left, or which rod
+ * was equipped without opening the satchel. Each slot now reports its own
+ * contents and readiness.
+ */
+function describeHotbar(state: GameState, selectedCropId: string | null): HotbarSlotModel[] {
+  const inventory = state.inventories[state.player.inventoryId] ?? null;
+  const countOf = (itemId: string): number =>
+    inventory ? InventoryManager.getItemCount(inventory, itemId) : 0;
+
+  const armedCrop = selectedCropId ? ContentRegistry.crops.get(selectedCropId) : undefined;
+  const armedSeeds = armedCrop ? countOf(armedCrop.seedItemId) : 0;
+  let seedTotal = 0;
+  let fallbackCropName: string | null = null;
+  for (const crop of ContentRegistry.crops.values()) {
+    const held = countOf(crop.seedItemId);
+    seedTotal += held;
+    if (held > 0 && !fallbackCropName) fallbackCropName = crop.name;
+  }
+  const seedName = armedCrop && armedSeeds > 0 ? armedCrop.name : fallbackCropName;
+
+  const bait = countOf(BAIT_ITEM_ID);
+  const rod = ContentRegistry.rods.get(state.player.equippedRodId);
+
+  return [
+    { slot: 1, name: TOOL_SLOT_NAMES[0], detail: "Till and harvest", quantity: null, ready: true },
+    {
+      slot: 2,
+      name: TOOL_SLOT_NAMES[1],
+      detail: seedName ?? "No seeds",
+      quantity: seedTotal > 0 ? seedTotal : null,
+      ready: seedTotal > 0
+    },
+    { slot: 3, name: TOOL_SLOT_NAMES[2], detail: "Water crops", quantity: null, ready: true },
+    {
+      slot: 4,
+      name: TOOL_SLOT_NAMES[3],
+      detail: bait > 0 ? "Earthworms" : "Empty",
+      quantity: bait > 0 ? bait : null,
+      ready: bait > 0
+    },
+    {
+      slot: 5,
+      name: TOOL_SLOT_NAMES[4],
+      detail: rod?.name ?? "No rod",
+      quantity: null,
+      ready: Boolean(rod)
+    }
+  ];
+}
+
 function seaStateLabel(roughness: number): string {
   if (roughness < 0.35) return "Calm";
   if (roughness < 0.7) return "Swell";
@@ -60,11 +134,13 @@ export const HUD: React.FC<HUDProps> = ({
   state,
   promptText,
   toastMessage,
+  notices,
   activeQuest = null,
   activeToolSlot = 1,
   onSelectToolSlot,
   onOpenMenu,
-  isPlacementActive = false
+  isPlacementActive = false,
+  selectedCropId = null
 }) => {
   const [showForecast, setShowForecast] = useState(false);
   const { clock, player, weather } = state;
@@ -99,11 +175,11 @@ export const HUD: React.FC<HUDProps> = ({
     return null;
   }, [weather]);
 
-  const laborRaw = player.workCapacity.current;
-  const laborExhausted = laborRaw <= 0;
-  const laborCurrent = laborExhausted ? 0 : Math.max(1, Math.round(laborRaw));
-  const laborMaximum = player.workCapacity.maximum;
-  const showLaborNote = laborExhausted || laborCurrent < 20;
+  const workRaw = player.workCapacity.current;
+  const workExhausted = workRaw < 1;
+  const workCurrent = Math.max(0, Math.floor(workRaw));
+  const workMaximum = player.workCapacity.maximum;
+  const showWorkNote = workExhausted || workCurrent < 20;
 
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDef = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
@@ -113,9 +189,31 @@ export const HUD: React.FC<HUDProps> = ({
 
   const carriedFish = player.carriedFishCargoId ? state.fishCargo[player.carriedFishCargoId] : null;
   const carriedDef = carriedFish ? ContentRegistry.fishSpecies.get(carriedFish.speciesId) : null;
-  const parsedPrompt = useMemo(() => parsePrompt(promptText, toastMessage), [promptText, toastMessage]);
+  const latestNoticeText = notices?.at(-1)?.text ?? toastMessage ?? null;
+  const parsedPrompt = useMemo(
+    () => parsePrompt(promptText, latestNoticeText),
+    [promptText, latestNoticeText]
+  );
+  // Callers that still pass a bare string get one synthesised info notice so
+  // both entry points render through the same stack.
+  const visibleNotices = useMemo<readonly Notice[]>(() => {
+    if (notices) return notices;
+    if (!toastMessage) return EMPTY_NOTICES;
+    return [
+      {
+        id: 0,
+        text: toastMessage,
+        tone: "info",
+        count: 1,
+        createdMs: 0,
+        expiresMs: Number.POSITIVE_INFINITY
+      }
+    ];
+  }, [notices, toastMessage]);
   const showQuest =
     Boolean(activeQuest) || state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
+  const hotbar = useMemo(() => describeHotbar(state, selectedCropId), [state, selectedCropId]);
+  const activeHotbarSlot = hotbar[Math.min(Math.max(activeToolSlot, 1), hotbar.length) - 1];
 
   const handleToolClick = (slot: number) => {
     playUiSound("click");
@@ -132,18 +230,31 @@ export const HUD: React.FC<HUDProps> = ({
     onOpenMenu?.();
   };
 
-  const toolButton = (slot: number, label: string, icon: React.ReactNode) => (
+  const toolButton = (model: HotbarSlotModel, icon: React.ReactNode) => (
     <ChromeSlot
-      className={`hud-hotbar-slot ${activeToolSlot === slot ? "is-active" : ""}`}
-      selected={activeToolSlot === slot}
-      onClick={() => handleToolClick(slot)}
-      label={`${label}, tool slot ${slot}`}
-      data-testid={`tool-slot-${slot}`}
+      key={model.slot}
+      className={`hud-hotbar-slot ${activeToolSlot === model.slot ? "is-active" : ""}${
+        model.ready ? "" : " is-unavailable"
+      }`}
+      // Tool slots always hold a tool; leaving them "empty" made every icon
+      // render with the dimmed empty-well treatment.
+      filled
+      selected={activeToolSlot === model.slot}
+      onClick={() => handleToolClick(model.slot)}
+      label={`${model.name}, ${model.detail}, tool slot ${model.slot}`}
+      title={`${model.name} — ${model.detail}  (${model.slot})`}
+      data-testid={`tool-slot-${model.slot}`}
+      data-ready={model.ready ? "true" : "false"}
     >
       <span className="slot-num-badge" aria-hidden="true">
-        {slot}
+        {model.slot}
       </span>
       {icon}
+      {model.quantity != null && (
+        <span className="hud-hotbar-count" aria-hidden="true">
+          {model.quantity > 99 ? "99+" : model.quantity}
+        </span>
+      )}
     </ChromeSlot>
   );
 
@@ -199,15 +310,9 @@ export const HUD: React.FC<HUDProps> = ({
       </aside>
 
       {/* =========================================================================
-          2. TOAST NOTIFICATIONS (Centered Top)
+          2. NOTIFICATIONS (Centered Top)
           ========================================================================= */}
-      {toastMessage && (
-        <aside className="hud-toast-container" role="status" aria-live="polite">
-          <div className="hud-toast-pill">
-            <span className="toast-message-text">{toastMessage}</span>
-          </div>
-        </aside>
-      )}
+      <NoticeStack notices={visibleNotices} />
 
       {/* =========================================================================
           3. TOP-RIGHT HUD CLUSTER: Weather Alerts, Quest Tracker & Menu Button
@@ -238,17 +343,17 @@ export const HUD: React.FC<HUDProps> = ({
       </aside>
 
       {/* =========================================================================
-          4. BOTTOM-LEFT HUD CLUSTER: Vitals (Labor/Sprint), Statuses & Boat Panel
+          4. BOTTOM-LEFT HUD CLUSTER: Vitals (Work/Sprint), Statuses & Boat Panel
           ========================================================================= */}
       <div className="hud-bottom-left-container">
         <div className="hud-bottom-left">
-          {(showLaborNote || carriedFish) && (
+          {!state.sportFishing && (showWorkNote || carriedFish) && (
             <aside className="hud-context-statuses interactive" aria-label="Current field notes">
-              {showLaborNote && (
-                <div className={`hud-context-note hud-labor-note${laborExhausted ? " hud-labor-exhausted" : ""}`} role="status">
+              {showWorkNote && (
+                <div className={`hud-context-note hud-labor-note${workExhausted ? " hud-labor-exhausted" : ""}`} role="status">
                   <IconEnergy size={14} aria-hidden="true" />
-                  <span>{laborExhausted ? "Exhausted" : "Low Labor"}</span>
-                  <strong>{`${laborCurrent}/${laborMaximum}`}</strong>
+                  <span>{workExhausted ? "Exhausted" : "Low Work"}</span>
+                  <strong>{`${workCurrent}/${workMaximum}`}</strong>
                 </div>
               )}
               {carriedFish && carriedDef && (
@@ -264,7 +369,7 @@ export const HUD: React.FC<HUDProps> = ({
             </aside>
           )}
 
-          {activeBoat && boatDef && (
+          {!state.sportFishing && activeBoat && boatDef && (
             <section className="hud-boat-panel interactive" aria-label="Boat driving status">
               <header className="boat-panel-header">
                 <div className="boat-panel-title-row">
@@ -351,18 +456,27 @@ export const HUD: React.FC<HUDProps> = ({
             </section>
           )}
 
-          <aside className="hud-vitals interactive" aria-label="Labor and sprint">
+          {!state.sportFishing && <aside className="hud-vitals interactive" aria-label="Work and sprint">
+            {/* An unlabelled gold bar told the player nothing. The tray now
+                names the resource and shows the number it is counting down. */}
+            <div className="hud-vitals-readout" aria-hidden="true">
+              <span className="hud-vitals-caption">Work</span>
+              <span className={`hud-vitals-value${workExhausted ? " is-exhausted" : ""}`}>
+                {`${workCurrent}/${workMaximum}`}
+              </span>
+            </div>
             <div className="hud-vitals-tray">
               <ChromeMeter
                 className="hud-labor-meter"
-                label="Labor"
-                value={laborCurrent}
-                max={laborMaximum}
+                label="Work"
+                title={`Work ${workCurrent} of ${workMaximum} — spent by planting, watering, harvesting and fishing`}
+                value={workCurrent}
+                max={workMaximum}
                 orientation="vertical"
                 showLabel={false}
                 showValue={false}
                 variant="labor"
-                fill="gold"
+                fill={workExhausted ? "danger" : "gold"}
                 icon={<IconEnergy size={16} aria-hidden="true" />}
               />
               {showSprintStamina && (
@@ -375,12 +489,13 @@ export const HUD: React.FC<HUDProps> = ({
                   showLabel={false}
                   showValue={false}
                   valueText={player.traversal.sprintExhausted ? "Winded" : undefined}
+                  title={player.traversal.sprintExhausted ? "Winded — sprint is recovering" : "Sprint stamina"}
                   fill={player.traversal.sprintExhausted ? "danger" : "sprint"}
                   data-testid="sprint-stamina"
                 />
               )}
             </div>
-          </aside>
+          </aside>}
         </div>
       </div>
 
@@ -431,12 +546,18 @@ export const HUD: React.FC<HUDProps> = ({
           <aside className="hud-hotbar interactive">
             <div className="hud-tool-belt" role="toolbar" aria-label="Tool belt">
               <div className="hud-tool-slots">
-                {toolButton(1, "Hand tools and hoe", <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-                {toolButton(2, "Seeds", <IconSprout size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-                {toolButton(3, "Watering can", <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-                {toolButton(4, "Fishing bait", <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
-                {toolButton(5, "Fishing rod", <IconRod size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(hotbar[0], <IconHoe size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(hotbar[1], <IconSprout size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(hotbar[2], <IconWateringCan size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(hotbar[3], <IconBait size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
+                {toolButton(hotbar[4], <IconRod size={26} className="quickbar-slot-icon" aria-hidden="true" />)}
               </div>
+              {/* Naming the armed slot removes the guesswork about which seed
+                  or rod a click is about to use. */}
+              <p className="hud-tool-belt-readout" aria-live="polite">
+                <span className="hud-tool-belt-name">{activeHotbarSlot.name}</span>
+                <span className="hud-tool-belt-detail">{activeHotbarSlot.detail}</span>
+              </p>
             </div>
           </aside>
         )}

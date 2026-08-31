@@ -1,24 +1,28 @@
 # Neva Implementation Status Checklist
 
-> Evidence snapshot: 2026-08-28 (Europe/Istanbul)
+> Evidence snapshot: 2026-08-30 (Europe/Istanbul)
 >
-> This file is a status snapshot and working checklist, not a new design or technical authority. The authority order remains `LLM/AGENTS.md`. Update this file in place when evidence changes; do not treat checked source presence as proof that a roadmap gate passed.
+> This file is a status snapshot and working checklist, not a new design or technical authority. The authority order is owned by the repository-root `AGENTS.md`. Update this file in place when evidence changes; do not treat checked source presence as proof that a roadmap gate passed. Attach the narrowest current evidence and never carry a stale count, date, hash, or git state forward.
 
 ## 1. Audit basis
 
 Canonical Markdown currently in `LLM/` (do not list deleted files):
 
-- `LLM/AGENTS.md`
+- `AGENTS.md` (repository root — the routing authority)
+- `LLM/AGENTS.md` (pointer to the root file; holds no independent rules)
 - `LLM/01_GAME_FOUNDATIONS_ARCHITECTURE.md`
 - `LLM/02_GAMEPLAY_SYSTEMS_IMPLEMENTATION.md`
 - `LLM/03_PRODUCTION_ROADMAP_LLM_AGENT_PLAYBOOK.md`
 - `LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md`
+- `LLM/06_AUDIO_AND_MUSIC_DESIGN_MASTER.md`
 - `LLM/LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md`
 - `LLM/ARCHEAGE_FARMING_SYSTEM.md`
 - `LLM/BLENDER.md`
+- `LLM/LAYOUT_EDITOR.md`
 - `LLM/IMPLEMENTATION_STATUS_CHECKLIST.md`
 
-`LLM/GAME_IMPROVEMENT_RECOMMENDATIONS.md` is **deleted** and is not an authority. `LLM/.DS_Store` is macOS metadata, not a project document.
+There is no `05_` document; the numbering gap is historical and does not imply a
+missing authority. `LLM/GAME_IMPROVEMENT_RECOMMENDATIONS.md` is **deleted** and is not an authority. `LLM/.DS_Store` is macOS metadata, not a project document.
 
 Evidence labels used below:
 
@@ -28,33 +32,52 @@ Evidence labels used below:
 - **Not reached** — sequencing or prerequisite gates prevent a completion claim.
 - **Recorded human evidence** — the repository records a human decision; this audit does not recreate or reinterpret it.
 
+## Current product and implementation update — 2026-08-30
+
+- The human accepted the P12 product gate after manually playing the continuous authored quest chain through its end. This permits post-P12 progression/playability work. The automated continuous save/reload proof and Chromium/Firefox/WebKit release matrix remain open P15/P16 certification evidence.
+- Current persistence is schema **v21**, layout revision 8. `01` §6.1 owns the per-version ledger; v18 adds mount state, v19 adds sport-fishing dynamics, v20 persists `player.ownedRodIds`, and v21 rescales a legacy `player.workCapacity` pool to the 1,000 ceiling while preserving its fill ratio (covered by `tests/simulation/persistence.test.ts`).
+- Work is a hard, fully funded manual-production resource. Plant, water, harvest, fertilize, irrigate, processing start, basic cast, and sport hook spend their full discounted Work cost or make no gameplay mutation. Movement, boats, cargo, trade, quests, and dialogue are free.
+- Harbor tackle progression is live: Willow → River → Heavy Sport → Offshore → Master. Purchases require the preceding rod plus the existing Fishing XP gate, auto-equip, persist, and are unavailable during active fishing; owned rods can be switched at the harbor.
+- Harvest quality now scales awarded Farming XP at Common 1.0, Fine 1.1, Exceptional 1.25, and Prize 1.5. Produce-quality pricing remains deferred until inventory preserves quality lots.
+- The live catalog/public manifest is synchronized; `generated/reports/asset_budget_report.json` owns its current counts and budget disposition. Catalog parity does not close the separate technical-art benchmark, strict-generation, determinism, or human gameplay-camera gates.
+
+### Tools upgrade evidence — 2026-08-30
+
+- The unified `npm run tools --` entrypoint routes catalog art, the DEV layout editor, UI atlas publication, audio preparation, tests, CI, and allowlisted generated-output cleanup.
+- The F2 editor now uses BVH-backed terrain snapping with slope rejection and a 100-item transactional undo/redo history. Drag/rotate is coalesced at drop; paste/delete retain stable IDs and reversible source/live-scene operations. Save impact: **no**. Migration required: **no**.
+- The UI atlas publishes lossless PNG/WebP pages plus generated frame metadata; `AtlasImage` consumes those frames while preserving an ordinary-image fallback.
+- The bundled runtime audio has been prepared through the canonical seven semantic roles. Spatial sources are mono, other sources are stereo, cue ranges are preserved, and manifest hash/duration/channel parity is checked mechanically. Human in-game listening/mix review remains open.
+- The deterministic Playwright harness compares bridge, starter-farm, harbor, and coast gameplay-camera captures after a render-ready handshake. Passing pixels are regression evidence only; they do not supersede the recorded human gold decision or approve later visual changes.
+- Current full-suite evidence: asset/UI codegen is synchronized against the catalog/public manifest; typecheck passes; lint has 0 errors and 45 warnings; 100 Vitest files / 969 tests pass; the production bundle builds; all 64 runtime audio sources pass hash/duration/channel parity; and all four deterministic Chromium visual scenes match their current baselines without page/console errors. The generated asset report owns the catalog count and disposition. The build retains its journal-panel runtime-resolution and large Rapier chunk warnings.
+- Local production-preview smoke evidence: HTTP 200, fresh `Enter Neva Land`, 1440×900 canvas, and no page/console errors after entry. This is local runtime evidence, not hosting or deployment evidence.
+
 ## Guidance update — 2026-08-26
 
 The canonical ground guidance now distinguishes selectively smoothed traversable grass/soil/path surfaces from strongly faceted cliffs, cuts, exposed banks, rocks, and hero landforms. It also requires terrain materials, authored routes/road presentation, shoreline dressing, and ground-cover density to derive from the same world-layout semantics.
 
 The guidance is now implemented in the working tree. `WORLD_LAYOUT_V5` is the current single layout authority symbol, its live layout revision is 8, and the authored runtime world uses a finite 600 m terrain field with no chunk-streaming system. Layout 4 is the physical-road step, and layout 5 is the northeast village hub (mill pad, plaza/market, arterial terminus) with `(0, -5)` remaining a river-crossing gateway. `terrainBaseHeight()` owns the graded landform, while final `terrainHeight()` adds deterministic nonnegative road crown/rut/shoulder/feather relief and remains the placement/anchor/normal/save-grounding authority. Three.js renders indexed road geometry at that exact final height; Rapier combines `terrainBaseHeightfield()` with a static trimesh from the same road geometry, while catalog bridge collision continues to own the bridge deck. Terrain uses smooth indexed normals/colors on continuous ground and blends toward face normals/colors for steep or cliff-heavy samples; `TerrainSurfaceMaterial` is non-flat with the r174-v3 cache contract. After the first integrated human review rejected opaque olive road bands and evenly scattered dark grass, the unchanged shared road mesh now alpha-feathers its vertex-colored shoulder into the canonical terrain and uses softer rut contrast. Existing grass GLBs now form stronger deterministic density pockets with variant-specific broad, lower silhouettes, retained semantic exclusions, no grass shadow-map casting or receiving, and centralized low/medium/high density scales of 0.24/0.48/0.60.
 
-The original physical-road change has save impact **yes** and migration **yes**. The subsequent 2026-08-26 human-review correction changes only road blending, rut color contrast, and ground-cover presentation: save impact **no**, migration **no**. The later authored station, walkable-topology, and coast-topology changes have save impact **yes** and migration **yes**. `CURRENT_SCHEMA_VERSION` is 17 and layout revision is 8; schema 14 remains the frozen layout-6 boundary, schema 15 relocates the canonical starter stations plus harbor fish table, adopts the bridge/road/terrain topology, and re-grounds land truth without changing active-boat waterlines, schema 16 preserves layout 7 while normalizing legacy clock speed and persisting the forecast successor, and schema 17 adopts the beach/rock-toe/recessed-cliff topology while re-grounding land truth at unchanged X/Z and preserving active-boat waterlines. The repository `save_v11_layout3.json`, `save_v12_layout4.json`, `save_v13_layout5.json`, `save_v14_layout6.json`, and `save_v16_layout7.json` fixtures cover the historical layout migration steps. The live catalog and public manifest contain 188 asset records and the corresponding public GLBs are present; canonical sync refreshed the manifest provenance and `art:validate -- --all` passes. The 2026-08-27 human visual-gold decision predates the coast topology pass and must be re-reviewed for the affected harbor/coast scenes. Technical-art certification and the current-tree benchmark gate remain open.
+The original physical-road change has save impact **yes** and migration **yes**. The subsequent 2026-08-26 human-review correction changes only road blending, rut color contrast, and ground-cover presentation: save impact **no**, migration **no**. The later authored station, walkable-topology, and coast-topology changes have save impact **yes** and migration **yes**. `CURRENT_SCHEMA_VERSION` is 21 and layout revision is 8; the per-version history is owned by `01` §6.1 and is not restated here. The repository fixtures cover the historical topology migrations, while focused migration tests cover v19 → v20 rod ownership and the v20 → v21 Work-pool rescale. The live catalog/public manifest and corresponding public GLBs are synchronized; the generated asset-budget report owns the current counts. The 2026-08-27 human visual-gold decision predates the coast topology pass and must be re-reviewed for the affected harbor/coast scenes. Technical-art certification and the current-tree benchmark gate remain open.
 
 Catalog `repo://` isolated studio sheets under `tools/blender/references/isolated/` are present on disk and git-tracked. Numbered crop PNGs listed in `tools/blender/references/README.md` (`01_hero_farmhouse.png` and siblings) were never checked in; treat that as graphics-extract debt, not a second reference authority.
 
-## Current implementation update — 2026-08-27
+## Historical implementation update — 2026-08-27
 
-The asset and quest audit has now been implemented in the working tree. This section is the current code/catalog baseline; the older broad-gate snapshot below remains useful as historical evidence, but its pre-change counts and quest findings should not be read as current behavior.
+The asset and quest audit described here was implemented in the working tree at that date. The 2026-08-30 update above supersedes its pre-change counts, persistence status, Work rules, rod gate, and P12 status.
 
 ### Current asset baseline
 
-- The live source catalog and public manifest contain **188 assets**. The public manifest was synchronized at `2026-08-27T12:10:03.113Z`; record/GLB coverage, generated/public byte identity, and `npm run art:validate -- --all` pass against the current catalog/palette/toolchain provenance.
-- Current public-manifest summary: **155 on target**, **33 below target**, `artContractPassed: true`; the 2026-08-27 four-scene human visual-gold decision is recorded, while technical-art certification and the current-tree benchmark rerun remain open.
+- The live source catalog and public manifest now contain **189 assets**. Report provenance, counts, and `artContractPassed` are owned by `generated/reports/asset_budget_report.json` (last read: `generatedAt 2026-08-30T10:06:28.447Z`).
+- Report summary at that read: **158 on target**, **31 below target**; the 2026-08-27 four-scene human visual-gold decision is recorded, while technical-art certification and the current-tree benchmark rerun remain open.
 - Authored world placement now includes the previously unplaced `prop_wagon_cart_a` and `fauna_cow_a`.
 - `fish_trout_a` and `fish_tuna_a` are now presented as animated school members when their corresponding sport-fish school is active.
 - Tomato/potato stages remain conditional crop presentation. `boat_skiff_a` is a progression-world asset: it is not created by a fresh save, but is now materialized by the live skiff purchase contract after the Fishing XP and money requirements are met.
 
 ### Complete asset coverage contract
 
-- `src/render/assets/AssetCoverage.ts` derives a one-record-per-catalog-asset contract from the catalog, the authored environment layout, runtime landmark owners, NPC/crop/fish/boat definitions, and action attachment bindings. It does not maintain a second filename registry. The live catalog and public manifest each contain 188 records, with publication identity synchronized through the owning art workflow.
+- `src/render/assets/AssetCoverage.ts` derives a one-record-per-catalog-asset contract from the catalog, the authored environment layout, runtime landmark owners, NPC/crop/fish/boat definitions, and action attachment bindings. It does not maintain a second filename registry. The live catalog and public manifest each contain 189 records, with publication identity synchronized through the owning art workflow.
 - Current disposition counts are **90 static-world**, **15 dynamic-world**, **18 conditional-world**, and **1 progression-world**; **144** assets are visible in a fresh save. Every record includes its placement source, world context, fresh-save visibility, and activation trigger.
-- `tests/unit/assetPlacementAudit.test.ts` fails on catalog/public manifest mismatch, duplicate or unclassified IDs, missing GLBs, invalid grounding, unusable boat moorings, or missing crop/fish/tool bindings. Current record, GLB, coverage, generated/public byte-parity, and synchronized publication identity checks pass at 188 assets.
+- `tests/unit/assetPlacementAudit.test.ts` fails on catalog/public manifest mismatch, duplicate or unclassified IDs, missing GLBs, invalid grounding, unusable boat moorings, or missing crop/fish/tool bindings. Current record, GLB, coverage, generated/public byte-parity, and synchronized publication identity checks cover 189 assets.
 - Static farm, village, bridge, harbor, and coast landmarks are loaded by `WorldScene`/`WorldEnvironmentLayout`; crop stages are reachable through planting and growth; trout/tuna meshes are reachable through active sport-fishing schools; action tools/props are reachable through their simulation-owned presentation sockets; the skiff is reachable at `HARBOR_SKIFF_MOORING` after purchase.
 
 ### Current quest and persistence implementation
@@ -90,7 +113,7 @@ The asset and quest audit has now been implemented in the working tree. This sec
 
 - The human-review correction for road blending and grass presentation passes **62/62** focused terrain, road-geometry, road-environment, physics, and terrain-material tests. Typecheck, lint, codegen parity, and the production build pass. The Playwright CLI wrapper could not resolve its `playwright-cli` binary; the direct-library browser evidence for the P12 work is recorded below and is separate from the corrective art pass.
 - The 2026-08-26 terrain/road focused suites are recorded as green, including **74/74** current world-layout/road/physics/persistence tests and **11/11** road/material tests. The prior **364/364** Vitest result and the later in-flight **48-file / 372-test** result are historical snapshots, not current full-suite proof; do not promote either to a new phase claim without rerunning the affected suite against this tree.
-- A fresh direct `tsc --noEmit`, lint, and production build pass against the 188-asset snapshot. Lint reports one pre-existing `console` warning in the gameplay-systems skill template. The build also reports a missing `/assets/ui/neva-field-journal/journal-panel.png` reference and the known large Rapier chunk. `tests/unit/artPipeline.test.ts` now passes after the canonical manifest sync, and `npm run art:validate -- --all` validates all 188 published assets.
+- The 2026-08-27 direct `tsc --noEmit`, lint, and production build evidence predates the current 189-asset snapshot. Lint then reported one pre-existing `console` warning in the gameplay-systems skill template; the build also reported a missing journal panel reference and the known large Rapier chunk. Current validation claims must come from current-tree checks.
 - `npm run art:test-builders` currently fails before the Python builder suite starts: Blender 5.2.0 LTS exits with SIGSEGV during Metal backend initialization. Earlier semantic determinism evidence exists for 10 living-world assets (`foliage_flower_drift_a/b/c`, `foliage_meadow_tall_a/b`, `prop_path_slab_a/b`, `fauna_gull_a`, `fauna_butterfly_a`, `fauna_rabbit_a`), but full-family clean-source determinism and selected-publication identity hashes remain open.
 - A separate 0.60-density high-tier debug view measured **103 draw calls and 887,487 visible triangles**. The fresh standard P0.75 benchmark recorded zero browser errors but, on the intentionally unmerged DEV path, measured farm **723 / 1,238,709**, bridge **9 / 185,286**, harbor **9 / 185,286**, and coast **261 / 911,948** draws/triangles. The representative debug view and the unbatched DEV benchmark are diagnostic evidence, not interchangeable production-equivalent proof.
 - Chromium local review matrix now boots farm, crop stages, farmhouse interior, village market, bridge, harbor/rowboat/skiff, coast, trout, and tuna views with a canvas, coverage diagnostics, zero console errors/warnings, and no repeated `toNonIndexed()` warnings. The earlier focused matrix remains mechanical evidence only; the current isolated P0.75 benchmark exposes DEV static-prefab budget failures documented in the roadmap table. Human integrated gameplay-camera approval is recorded only for the four visual-gold scenes; full cross-browser coverage and complete quest-flow E2E proof remain outstanding.
@@ -128,12 +151,14 @@ Focused verification: the shared-field/material/environment Vitest run passes **
 
 ### Git
 
+> Regenerate this block with `git` before citing it. A stale git snapshot is
+> worse than none; do not carry old hashes forward.
+
 - Branch: `main`
-- HEAD: `7293da6fb0ad3ba0d377f803b10cb227b90eab44` (`Initial Neva game source and remediation`, 2026-08-24 09:52:30 +0300)
-- Repository history: one commit.
-- Before adding this checklist, the working tree had 238 changed paths: 123 tracked modifications, 2 tracked deletions, and 113 untracked paths.
-- The tracked diff covered 125 files with 23,857 insertions and 7,032 deletions, plus binary GLB/image changes.
-- This snapshot therefore describes `main` **plus a very large uncommitted working tree**, not a clean commit or release candidate.
+- HEAD: `643d35b4279e7b0be7344d8224aa1624b02522e5` (`fix(physics): apply bridge-aware leading edge height to grounded player traversal`, 2026-08-30 12:29:31 +0300)
+- Repository history: 34 commits.
+- Working tree at this snapshot: 209 changed paths — 138 tracked modifications and 71 untracked paths.
+- This snapshot therefore describes `main` **plus a large uncommitted working tree**, not a clean commit or release candidate.
 - No save migration or deployment was performed by this audit.
 
 ### Checks run for this audit
@@ -142,7 +167,7 @@ The table below is retained only as the historical pre-change gate snapshot. Use
 
 | Check | Result | What it proves |
 |---|---|---|
-| `npm run art:codegen:check` | Historical pass; 92 catalog assets | The generated TypeScript projection matched the then-current catalog; this row is not current 188-asset evidence. |
+| `npm run art:codegen:check` | Historical pass; 92 catalog assets | The generated TypeScript projection matched the then-current catalog; this row is not current 189-asset evidence. |
 | TypeScript `tsc --noEmit` | Pass | Current TypeScript sources type-check. |
 | `eslint .` | Pass with 3 `console.log` warnings in `neva-world-check.ts` | No lint errors; warnings remain. |
 | `npm run build` | Pass | Production bundle builds. Output was 14.79 MiB, under the documented 20 MiB initial-load target. Vite warned that the Rapier chunk is about 2.06 MB minified. |
@@ -168,27 +193,27 @@ Observed Chromium failures included insufficient movement after camera rotation,
 
 ## 3. Roadmap gate status
 
-Mechanical systems through P11 exist in src. P0.75 visual-gold acceptance is recorded; its separate technical-art certification remains open. P12 browser-loop is not proven. The table separates code presence from completion evidence; do not mark P0–P11 empty/Red from the old 212-case Vitest snapshot.
+Mechanical systems through P11 exist in src. P0.75 visual-gold acceptance is recorded; its separate technical-art certification remains open. P12 is human product-accepted, while automated browser save/reload and browser-matrix release proof remain open. The table separates code presence, product acceptance, and release evidence.
 
 | Phase | Status | Current repository evidence | Missing or failing gate evidence |
 |---|---|---|---|
-| P0 — Repository & Architecture | **Partial** | Deterministic simulation structure, content registry, input/mode separation, Three.js presentation, debug HUD, schema 17 / layout 8 with v11/layout-3, v12/layout-4, v13/layout-5, v14/layout-6, and v16/layout-7 fixtures, 188-asset record/GLB coverage, synchronized publication provenance, terrain-focused tests, lint, and focused browser input checks are green. | The complete P0/P12 gameplay loop remains open. |
+| P0 — Repository & Architecture | **Partial** | Deterministic simulation structure, content registry, input/mode separation, Three.js presentation, debug HUD, schema 21 / layout 8 with historical topology fixtures plus v19 → v20 rod and v20 → v21 Work-pool migration coverage, synchronized catalog/GLB publication provenance, terrain-focused tests, lint, and focused browser input checks. | Release-wide browser and technical-art certification remain open. |
 | P0.5 — Visual Rendering Foundation | **Partial** | `VisualRenderConfig`, palette materials/tokens, lighting, water, asset loader, generated catalog adapter, batching/instancing support, Art Yard, and diagnostics exist. The shared physical-road surface, base-heightfield + exact road trimesh, selective normals/colors, r174-v3 terrain material, and monotonic clustered ground cover are implemented with focused tests. Processed CC0 supporting maps load through `ExternalSurfaceTextures` and remap into palette families; they are presentation-only. Chromium measures 103 draw calls / 887,487 triangles at the definitive 0.60-density high-tier view. | Human gameplay-camera review remains pending for the supporting-map/road-meadow merge; do not infer visual approval from automated geometry or budget evidence. |
-| P0.75 — Gold-Standard Art Slice | **Visual Gold Accepted / Technical Certification Open** | `approved-baselines.json` retains the four reference images and records the 2026-08-27 human visual-gold decision for bridge/farm/harbor/coast. The current 188 published GLBs and manifest validate against the catalog. The 33 per-asset below-target floors are advisory for this visual lane; production contracts remain enforced. A fresh `art:benchmark` attempt found no browser errors but exposed current-tree DEV measurements: farm **723 draws / 1,238,709 triangles**, bridge **9 / 185,286**, harbor **9 / 185,286**, and coast **261 / 911,948**. | The current benchmark is not green because the existing DEV layout-editor path keeps static prefabs unbatched; resolving that render-path conflict is outside this no-renderer-change plan. `art:generate:strict` and clean-source determinism remain open technical-art/release gates, including the known `prop_beehive_a` no-mesh generation blocker. P12 and P16 remain unchanged; do not claim the full release gate passed. |
+| P0.75 — Gold-Standard Art Slice | **Visual Gold Accepted / Technical Certification Open** | `approved-baselines.json` retains the four reference images and records the 2026-08-27 human visual-gold decision for bridge/farm/harbor/coast. The current published GLBs and manifest validate against the catalog; `generated/reports/asset_budget_report.json` owns the counts and budget disposition. The deterministic four-scene browser comparison is wired as a current-tree regression gate. | The current-tree benchmark, strict generation, clean-source determinism, and affected-scene human re-review remain open technical-art/release gates. Pixel comparison is not human approval. |
 | P1 — Walkable World | **Partial** | Large authored multi-district world with the northeast village as the market/mill/road hub, movement, mouse camera, input modes (pause is overlay, not GameplayMode), interactions, collision adapters, and contextual prompts exist. Current physics/world suites pass; direct movement plus inventory input passes in Chromium, Firefox, and WebKit. | Continuous browser traversal through the full authored world, including deep jump/sprint/camera/boat cases, is not proven. |
-| P2 — Persistence & Time | **Partial** | IndexedDB repository, schema 17 / layout 8, migrate-then-validate, **primary + backup keys only** (quick-save writes primary, no third manual slot). The v11/layout-3, v12/layout-4, v13/layout-5, v14/layout-6, and v16/layout-7 fixtures cover the historical layout chain into v17/layout 8; schema 16 normalizes legacy clock speed and persists `weather.nextWeatherType`; schema 17 advances the coast topology while preserving X/Z, unrelated truth, and active-boat waterlines; IDB fail returns false (no RAM promotion). Weather-bounded offline progression and quest `nextQuestId` remain intact. | Durable save/reload passes in the deterministic P12 simulation; full browser save/reload proof is still open. Overlay pause is not a serializable sim mode. |
+| P2 — Persistence & Time | **Partial** | IndexedDB repository, schema 21 / layout 8, migrate-then-validate, **primary + backup keys only**. Historical topology fixtures remain; the per-version ledger is owned by `01` §6.1. Weather-bounded offline progression and quest `nextQuestId` remain intact. | Durable simulation coverage exists; full browser save/reload release proof is still open. Overlay pause is not a serializable sim mode. |
 | P3 — Farming Vertical Slice | **Partial** | Placement/actions, moisture/fertility/growth/harvest (`farm.apply-fertilizer` +20, clamp 10–100), journals, starter plots, crop rendering, and the new-save plant/water/offline-growth/harvest simulation path pass. | Continuous browser plant-save-advance-load-harvest proof remains open. Orchard persist+regrow on successful harvest is LIVE; wither-delete of regrow crops is a parallel fix. |
-| P4 — Inventory & Processing | **Partial** | Finite inventories, atomic operations, processing jobs, compost, **8 recipes**, and the P12 compost/mill/chum command path pass. Harbor fish-table remains at `HARBOR_FISH_TABLE`; fish-table recipes stay station-scoped. | Full-inventory plus cancel/reload and the complete three-recipe browser loop were not proven together. |
+| P4 — Inventory & Processing | **Partial** | Finite inventories, atomic operations, processing jobs, compost, **9 recipes**, and the P12 compost/mill/chum command path pass. Harbor fish-table remains at `HARBOR_FISH_TABLE`; fish-table recipes stay station-scoped. | Full-inventory plus cancel/reload and the complete three-recipe browser loop were not proven together. |
 | P5 — Basic Fishing | **Partial** | Deterministic five-phase minigame and the P12 river-fish command path pass. Held-state `fishing` input and basic-fishing modal are covered by the existing implementation. | Sport-fishing held controls pass in Chromium debug input, but continuous new-save browser fishing proof remains open. |
 | P6 — Boats | **Partial** | Rowboat/skiff definitions, atomic skiff purchase, boarding/driving/docking, two-boat persistence, Act 4 commission, and the P12 boat boundary pass. Chromium debug input proves board/drive/exit. | Emergency Tow / hook-class are not live. Continuous browser dock/board/sail and save/reload proof is not complete. |
 | P7 — Sport Fishing | **Partial** | Deterministic schools, encounter state machine, held-state reel/slack/brace plus fish-left/right, species profiles, HUD, and the P12 landing path pass. | Human species-behavior identification and continuous new-save browser sport-fishing proof are not complete. |
 | P8 — Physical Cargo & Freshness | **Partial** | Finite physical fish cargo, one-location modeling, freshness decay, transfer/sale logic, cargo UI, and P12 cargo/freshness/reload assertions pass. | Empty/partial/external-hook boat screenshots and a current browser transfer/no-clone proof were not completed. |
 | P9 — Market Economy | **Partial** | Village/harbor markets, deterministic demand/trend/season/freshness pricing, atomic sale, price-breakdown UI. LIVE stall **sells wheat/tomato/potato seed only**; produce quality does not affect sale price (journal only). | Full 8-seed shop is Deferred. No current browser proof of repeated tuna demand decay/recovery. |
-| P10 — Progression & Contracts | **Partial** | Five rods, proficiency XP/ranks, five contract templates, journal, gated expedition board, explicit quest `nextQuestId` chain, feature unlocks, live skiff purchase, and the P12 rowboat capability step pass in simulation. Rank unlock tables (`farmingUnlocks` etc.) are unused; LIVE gates are `crop.minimumFarmingXp`, a few `recipe.minimumSkill`, and the skiff XP/money contract. Buy-rod remains deferred. | Three capability-changing milestones are not proven in a continuous new-save browser run. |
+| P10 — Progression & Contracts | **Partial** | Five persisted rods, ordered harbor purchase/equip, proficiency XP/ranks, quality-scaled harvest XP, hard discounted Work costs, five contract templates, journal, gated expedition board, explicit quest `nextQuestId` chain, feature unlocks, and live skiff purchase. | Broader balance and long-session progression proof remain open. |
 | P11 — Weather & Seasons | **Partial** | Seeded weather schedule, seasons, crop/market modifiers, renderer response, forecast/UI. Weather enum has **no drought**; growth buffs `light-rain` and `heavy-rain` at 1.05. | No current real-play proof that weather/season changes the correct player decision. |
-| P12 — Full Vertical-Slice QA | **Partial / not complete** | `tests/simulation/p12VerticalSlice.test.ts` now passes the new-save wheat-through-quest-through-reload command loop, including the authored ten-quest state chain; direct Playwright evidence reaches the fresh title and real movement/inventory controls in Chromium/Firefox/WebKit, with deeper placement/boat/sport-input checks in Chromium. | A continuous new-save browser walk/sail/transaction loop with the actual narrative dialogue handoffs and browser save/reload proof is still missing. **Do not** mark P12 complete. |
-| P13 — MVP Content Expansion | **Not reached / content tables exist** | Definitions already contain **8 crops, 12 fish, 2 boats, 8 recipes**, 5 contract templates, and 5 rods. Shop LIVE-sells wheat/tomato/potato only. | P13 is sequenced only after P12. Do not call P13 complete. Runtime art covers wheat/tomato/potato stages and trout/tuna fish models only. |
-| P14 — Final Art, Audio & UX Polish | **Not reached / partial polish exists** | 188 catalog assets, complete contextual coverage classification, character/crop presentation, fish-school presentation, VFX, UI polish, accessibility/reduced-motion work, ambient/farming audio, interiors, vegetation, boats, and world dressing exist. | P12 is not green; 33 assets are below target (advisory for the visual-gold lane); audio covers ambience/farming/processing but not the complete fishing/boat/market loop; no P14 completion claim. |
+| P12 — Full Vertical-Slice QA | **Human product gate accepted** | The user completed a continuous manual playthrough through the authored quest ending on 2026-08-30; deterministic simulation coverage also exists. | Automated continuous browser save/reload proof and the Chromium/Firefox/WebKit matrix remain separate P15/P16 release-certification work. |
+| P13 — MVP Content Expansion | **Reached / partial content exists** | Definitions already contain **8 crops, 12 fish, 2 boats, 9 recipes**, 5 contract templates, and 5 rods. Shop LIVE-sells wheat/tomato/potato only. | The accepted P12 gate permits this phase, but existing content-table presence does not prove full runtime coverage or balance. |
+| P14 — Final Art, Audio & UX Polish | **Reached / partial polish exists** | Catalog-driven art with complete contextual coverage classification, character/crop presentation, fish-school presentation, VFX, UI polish, accessibility/reduced-motion work, ambient/farming audio, interiors, vegetation, boats, and world dressing exist. The bundled runtime audio is normalized with manifest parity under the canonical seven-role policy. | The generated asset report still owns advisory budget disposition; audio listening/mix approval and affected-scene human review remain incomplete; no P14 completion claim. |
 | P15 — Performance & Browsers | **Partial** | Build size is under the initial-load target; Meshopt, batching, camera-distance character detail LOD, instancing, and performance diagnostics exist. The fresh 11-view Chromium matrix stayed below 220 draws / 900k triangles, and direct fresh-title boot plus movement/inventory input passed in Chromium/Firefox/WebKit. | Complete cross-browser gameplay coverage and hardware-FPS proof remain open; the local review matrix is mechanical evidence only. |
 | P16 — Release Candidate | **Not reached** | No valid completion claim. | Huge uncommitted tree, incomplete continuous P12 browser matrix, unresolved art validation/strict/determinism gates, exposed debug tools, and no full-loop release proof. |
 
@@ -200,7 +225,7 @@ Mechanical systems through P11 exist in src. P0.75 visual-gold acceptance is rec
 - [ ] P0.75 current-tree benchmark gate is green; the isolated run had no browser errors but exceeded the unchanged upper budgets because DEV static prefabs were not batched.
 - [ ] P0.75 technical-art certification passes through strict generation and clean-source determinism; this remains a release/P16 gate.
 - [ ] P1 walkable-world movement/camera/collision/input gate passes.
-- [ ] P2 persistence/time gate passes with the schema-11 through schema-16 migration chain and historical layout fixtures.
+- [ ] P2 persistence/time release gate passes with the schema-11 through schema-21 migration chain and historical layout fixtures.
 - [ ] P3 farming save/load/harvest-once gate passes.
 - [ ] P4 inventory/processing/full-inventory/cancel-reload gate passes.
 - [ ] P5 deterministic basic-fishing habitat gate passes.
@@ -210,16 +235,16 @@ Mechanical systems through P11 exist in src. P0.75 visual-gold acceptance is rec
 - [ ] P9 market demand/freshness/single-formula gate passes.
 - [ ] P10 three capability-changing milestones pass.
 - [ ] P11 weather/season decision gate passes in real play.
-- [ ] P12 entire new-save vertical slice passes in simulation, integration, E2E, and Chromium/Firefox/WebKit.
-- [ ] P12 narrative proof passes: all required NPC handoffs, dialogue payloads/modal presentation, completion rewards, close/reopen behavior, and quest-history reload assertions.
-- [ ] P13 content expansion is reconciled with the required P12-first sequence and receives complete runtime coverage.
+- [x] P12 human product gate is accepted after the continuous manual quest-ending playthrough.
+- [ ] P12/P15/P16 automated release proof passes the continuous save/reload flow and Chromium/Firefox/WebKit matrix.
+- [ ] P13 content expansion receives complete runtime coverage and balance proof after the accepted P12 gate.
 - [ ] P14 final art/audio/UX coverage passes current mechanical and human in-game review gates.
 - [ ] P15 target performance and browser compatibility pass on representative hardware/browsers.
 - [ ] P16 release-candidate gate passes from a clean, reviewable commit.
 
 ## 4. Vertical-slice acceptance checklist
 
-The canonical list below comes from `02` section 19. A box remains open unless the complete new-save behavior is currently proven; partial implementation is stated explicitly.
+The canonical list below comes from `02` section 19. Open boxes track missing automated or release evidence; they do not override the recorded human P12 product acceptance.
 
 - [x] Move through starter world — current physics/world suites pass; direct Chromium/Firefox/WebKit movement input moved the player and returned to the inventory overlay.
 - [ ] Sprint drains/recovers without affecting Work Capacity — unit mechanics exist; Chromium jump/sprint flow is red.
@@ -246,7 +271,7 @@ The canonical list below comes from `02` section 19. A box remains open unless t
 - [ ] Reload with all progression intact — durable simulation save/reload passes; the continuous browser save/reload matrix remains open.
 - [ ] Hear and understand the authored story spine — simulation dialogue payloads and quest chaining exist; browser proof of Elspeth → Barnaby → Silas → Maeve handoffs, completion lines, final report, and player comprehension remains open.
 
-**Conclusion:** P12 is incomplete under the canonical rule “any missing step = incomplete vertical slice.”
+**Conclusion:** P12 is human product-accepted. The unchecked browser/save-reload items remain P15/P16 release-certification work and must not be represented as passed.
 
 ## 5. Art and asset pipeline state
 
@@ -257,58 +282,41 @@ The canonical list below comes from `02` section 19. A box remains open unless t
 - [x] Catalog commands require an explicit asset/family or explicit release `--all` path.
 - [x] Art Yard deep-link implementation and focused plugin tests exist.
 - [x] Staging currently contains exactly three run directories.
-- [x] The 188 generated/public asset copies are byte-identical and the published manifests are synchronized to the current catalog/palette/toolchain provenance; no GLBs were regenerated or reauthored by the P0.75 split.
+- [x] The 189 generated/public asset copies and published manifests are synchronized to the current catalog/palette/toolchain provenance; no GLBs were regenerated or reauthored by this gameplay pass.
 - [x] Normal generation keeps the published mechanical GLB contract intact and reports target debt separately.
 - [x] `LLM/AGENTS.md` no longer says `BLENDER.md` covers previews; static previews are forbidden and `preview.py` is gone.
 
 ### Current asset acceptance debt
 
-Latest report: `generated/reports/asset_budget_report.json`, generated 2026-08-27T12:10:03.113Z.
+**`generated/reports/asset_budget_report.json` is the owner of this data. Do
+not copy the below-target ID list into this file** — a hand-maintained copy
+drifted to a wrong count and a wrong membership set before, and the report is
+one command away:
 
-- Assets: 188
-- On target: 155
-- Below target: 33
+```bash
+node -e "const r=require('./generated/reports/asset_budget_report.json');console.log(r.summary);console.log(r.assets.filter(a=>a.qualityStatus==='below_target').map(a=>a.id).sort().join('\n'))"
+```
+
+Last read of that report (`generatedAt: 2026-08-30T10:06:28.447Z`):
+
+- Assets: 189
+- On target: 158
+- Below target: 31 (`qualityStatus: "below_target"`; the report enumerates them)
 - Hard contract failures: 0 (`artContractPassed: true`)
 - Visual status: `candidate`, not human-approved by generation alone
 - Strict report flag: `false`
 
-Below-target IDs:
-
-- `building_barn_a`
-- `char_npc_barnaby_a`
-- `char_npc_elspeth_a`
-- `char_npc_maeve_a`
-- `char_npc_silas_a`
-- `interior_farmhouse_shell`
-- `item_apple_a`
-- `item_bread_loaf_a`
-- `item_coin_pouch_a`
-- `item_compass_a`
-- `item_corn_cob_a`
-- `item_pie_a`
-- `prop_armchair_cozy_a`
-- `prop_bed_cozy_a`
-- `prop_chair_rustic_a`
-- `prop_cupboard_shelves_a`
-- `prop_dock_lantern_a`
-- `prop_farm_gate_a`
-- `prop_farm_workbench_a`
-- `prop_fence_section_a`
-- `prop_lobster_trap_a`
-- `prop_path_stone_round_a`
-- `prop_path_stone_slab_a`
-- `prop_produce_stall_a`
-- `prop_table_dining_a`
-- `prop_water_well_a`
-- `rock_boulder_large_a`
-- `rock_coastal_boulder_a`
+The below-target set is churn-prone: it skews toward small props, items,
+fauna, path slabs, tool sheds, and meadow foliage whose triangle targets exceed
+what their silhouettes justify. Treat individual membership as report output,
+never as a checked-in list.
 
 Recorded human evidence: `tests/visual/reference/approved-baselines.json` retains the farm, bridge, harbor, and coast reference images approved by `human-art-director` on 2026-08-24 and records the 2026-08-27 human visual-gold decision for that four-scene scope without numeric scores. This decision is not approval of every individual asset and does not close technical-art certification; strict mechanical debt and clean-source determinism remain unresolved.
 
 ## 6. Documentation/code drift to resolve
 
 - [x] Implement the revised shared ground contract: class-aware/selective normals and colors, physical canonical road relief, exact shared render/Rapier road geometry, and clustered monotonic ground cover. Human gameplay-camera proof remains pending.
-- [x] Update canonical save guidance through schema 17 / layout 8 while retaining v10 fish-table, v11 trout-stack, v12 physical-road, v13 northeast village-hub, and v14 layout-6 migration history; schema 16 adds clock/forecast normalization and schema 17 re-grounds land truth for the revised coast without moving X/Z.
+- [x] Update canonical save guidance through schema 21 / layout 8 while retaining historical topology migrations. `01` §6.1 is now the single migration ledger; `02` and `03` reference it instead of restating it.
 - [x] Add `tests/fixtures/save_v14_layout6.json` and `tests/fixtures/save_v16_layout7.json` with coverage proving the station and coast topology migrations re-ground land truth without discarding unrelated simulation state; schema-16 normalization is recorded in the migration owner; a dedicated fallback assertion remains open.
 - [x] Add `tests/fixtures/save_v11_layout3.json` and focused migration coverage for player, structures, active boats, and unrelated persisted state.
 - [x] Preserve the physical-road upgrade as the schema-12/layout-4 migration, then reconcile the concurrent schema-13/layout-5 authority without dropping either fixture or migration.
@@ -317,9 +325,29 @@ Recorded human evidence: `tests/visual/reference/approved-baselines.json` retain
 - [x] Reconcile the created-asset placement audit: wagon/cow are authored into the world and sport-fish GLBs are presentation-bound; conditional crops and the fresh-save-absent skiff are explicitly classified, with no audited asset left Art Yard-only.
 - [x] Split P0.75 into the accepted four-scene visual-gold gate and the separate open technical-art/release certification gate; preserve current GLBs, target values, baseline images, and strict/determinism semantics.
 - [x] Establish one canonical narrative contract across architecture, gameplay, roadmap, art direction, and art-production guidance; keep the live ten-quest spine separate from deferred branching/transcript/codex systems.
-- [ ] Reconcile P13's “only after P12” rule with already-added 8-crop/12-fish definitions and partial P14 world/art/audio work. Preserve useful work, but do not call these phases complete ahead of P12.
-- [x] HUD Work Capacity is labeled **Labor** and is not a hard block (empty Labor = reduced XP/rare chance).
+- [x] Reconcile P13's sequence with the accepted P12 product gate while preserving separate release evidence and not calling P13 complete from content-table presence alone.
+- [x] Player-facing copy calls the mechanic **Work**. Full discounted Work is a hard atomic requirement for manual production; empty Work blocks without partial spending or reduced rewards.
 - [x] Residual “previews” wording removed from `LLM/AGENTS.md`; remaining mention is that static previews are forbidden.
+
+### Documentation audit — 2026-08-30
+
+A full read of `LLM/` against the code, catalog, generated reports, and git
+resolved the following drift. Every item below was verified against its owner,
+not against another document.
+
+- [x] Schema version corrected to **21** in `01`, `02`, `03`, and this file. Code is `CURRENT_SCHEMA_VERSION = 21` (`src/persistence/SaveSchema.ts`); the docs had said 20 and schema v21 (legacy Work-pool rescale) was undocumented everywhere.
+- [x] `01` §6.1 created as the **single migration ledger**, in table form. It also recovers schema **v17**, which `01` had omitted entirely. `02` §18 and `03` §8 now reference it instead of restating the history in prose — that fourfold duplication is what caused the drift.
+- [x] Below-target asset list removed from this file. The hand-copied list claimed 31 but enumerated 28 IDs, of which 6 were no longer below target and 9 current ones were missing. `generated/reports/asset_budget_report.json` is now cited as the owner, with the command to read it.
+- [x] `LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md` said “33 below-target records”; corrected to cite the report rather than a number.
+- [x] Recipe count corrected to **9** in `02` §5 and in the P4/P13 rows here. `recipe.carp_to_scraps` was live but undocumented.
+- [x] Asset count corrected to **189** in the routing authority (it said 188; catalog and public manifest both hold 189).
+- [x] `02` §11B added: mounts were a live `GameplayMode` with persisted state (schema v18) and no gameplay authority section. `MOUNT_TUNING` is named as the tuning owner and the dismount-before-work boundary is documented.
+- [x] `02` §6 no longer implies a `Normal → Silver → Gold → Iridium` quality enum; those are UI atlas skin names. The canonical `FishQuality` ladder is restated inline.
+- [x] `01`'s dangling “follow §41” corrected to §19 (the document ends at §19).
+- [x] Git snapshot in section 2 regenerated. It had claimed a one-commit repository at a 2026-08-24 HEAD; the repository has 34 commits.
+- [x] Duplicate routing authority resolved: repository-root `AGENTS.md` is now the single routing document, and `LLM/AGENTS.md` is a pointer retaining only the Three.js-skills routing table. The duplicate pair violated the projects' own “do not create parallel authority names” rule and had already diverged.
+- [x] `06_AUDIO_AND_MUSIC_DESIGN_MASTER.md` registered in the canonical-authority list and in this file's audit basis; it was referenced by no canonical document. Its `Spec Ready` matrix is now explicitly labelled as “specified”, not “shipped”. `LAYOUT_EDITOR.md` likewise added to the authority list.
+- [x] A **documentation-update contract** added to root `AGENTS.md`, with a fact-to-owner table, and propagated into the `01`/`02` Definitions of Done, the `03` task contract, save-sensitive protocol, and completion report, and the `BLENDER.md`/`LAYOUT_EDITOR.md` handoffs.
 
 ## 7. Next evidence-driven work order
 
@@ -330,12 +358,16 @@ These are the shortest blocking steps implied by the canonical phase order; they
 3. [x] Restore deterministic basic/sport fishing setup against the current habitats and world coordinates; the P12 simulation and Chromium held-input checks pass.
 4. [ ] Diagnose Playwright's isolated locator mismatch using a fresh non-reused dev server, then rerun only the affected Chromium smoke/control tests. The wrapper is unavailable in this environment; direct Playwright library fallback passed the current browser checks.
 5. [x] Make the deterministic P12 simulation loop pass from a new save, including the real rowboat acquisition/capability step; `tests/simulation/p12VerticalSlice.test.ts` passes.
-6. [ ] Add/finish the continuous P12 browser narrative route: assert each named NPC handoff, contextual dialogue, completion/reward payload, close/reopen safety, and final story state; do not treat simulation-only dialogue assertions as browser proof.
-7. [ ] Rerun the complete P12 browser matrix only after the narrow failures are green.
-8. [ ] Continue the separate technical-art/release track: repair clean-source `prop_beehive_a` no-mesh generation, then run unchanged strict/determinism semantics. The 33 below-target records remain visible technical debt and are not reauthored by this visual-gate split; they do not block the accepted four-scene visual lane.
-9. [ ] Reconcile content/art/audio coverage for all 8 crops and 12 fish only after P12 is green.
+6. [ ] Preserve the accepted P12 product decision while completing the continuous browser narrative/save-reload route as P15/P16 release evidence.
+7. [ ] Rerun the complete browser matrix only after the narrow Chromium failures are green.
+8. [ ] Continue the separate technical-art/release track with unchanged strict/determinism semantics. The below-target records in `generated/reports/asset_budget_report.json` remain visible technical debt and do not block the accepted four-scene visual lane.
+9. [ ] Reconcile content/art/audio coverage for all 8 crops and 12 fish during the reached but incomplete P13/P14 work.
 10. [ ] Profile representative hardware and Safari/WebKit for P15; do not treat SwiftShader FPS as hardware performance proof.
 11. [ ] Split the large dirty tree into reviewable, intentional commits before any P16 claim.
+12. [ ] Keep this checklist honest by construction: regenerate the git block and re-read
+    `generated/reports/asset_budget_report.json` before citing either, and follow the
+    documentation-update contract in root `AGENTS.md` on every change so status facts
+    stop drifting between documents.
 
 ## 8. Completion definition for this checklist
 

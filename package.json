@@ -29,12 +29,21 @@
     "art:benchmark": "playwright test tests/e2e/art-pipeline.spec.ts --project=chromium",
     "art:benchmark:extended": "NEVA_ART_EXTENDED=1 playwright test tests/e2e/art-pipeline.spec.ts --project=chromium",
     "audio:ingest": "node tools/audio/ingest-freesound.mjs",
-    "assets:sync": "npm run art:codegen && npm run ui:codegen && npm run ui:publish",
+    "audio:normalize": "node tools/audio/normalizeBus.mjs",
+    "audio:normalize:check": "node tools/audio/normalizeBus.mjs --check",
+    "visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots",
+    "visual:test": "playwright test --config=playwright.visual.config.ts",
+    "tools": "node tools/cli.mjs",
+    "tools:ci": "node tools/cli.mjs ci",
+    "assets:sync": "npm run art:codegen && npm run ui:codegen && npm run ui:publish && npm run ui:atlas",
     "ui:slice": "node tools/ui/slice-sheet.mjs",
     "ui:publish": "node tools/ui/publish-atlas.mjs",
     "ui:publish:check": "node tools/ui/publish-atlas.mjs --check",
     "ui:codegen": "node tools/ui/codegen.mjs",
-    "ui:codegen:check": "node tools/ui/codegen.mjs --check"
+    "ui:codegen:check": "node tools/ui/codegen.mjs --check",
+    "ui:atlas": "node tools/ui/extrudeAndPack.mjs",
+    "ui:pack": "node tools/ui/extrudeAndPack.mjs",
+    "ui:pack:check": "node tools/ui/extrudeAndPack.mjs --check"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
@@ -44,6 +53,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@babel/parser": "^8.0.4",
     "@gltf-transform/core": "^4.4.2",
     "@gltf-transform/extensions": "^4.4.2",
     "@gltf-transform/functions": "^4.4.2",
@@ -58,8 +68,11 @@
     "ajv": "^8.20.0",
     "eslint": "^9.20.1",
     "gltf-validator": "^2.0.0-dev.3.10",
+    "maxrects-packer": "^2.7.3",
     "meshoptimizer": "^1.2.0",
+    "recast": "^0.24.0",
     "sharp": "^0.35.4",
+    "three-mesh-bvh": "^0.9.14",
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
     "vitest": "^3.0.5"

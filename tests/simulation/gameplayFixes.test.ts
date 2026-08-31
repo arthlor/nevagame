@@ -946,7 +946,7 @@ describe("Gameplay simulation fixes", () => {
 
     expect(sim.state.player.x).toBe(WORLD_SPAWN.playerPosition.x);
     expect(sim.state.player.y).toBeCloseTo(
-      WorldLayout.terrainHeight(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z) + 0.5,
+      WorldLayout.traversalSurfaceHeight(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z) + 0.5,
       6
     );
     expect(sim.state.player.z).toBe(WORLD_SPAWN.playerPosition.z);

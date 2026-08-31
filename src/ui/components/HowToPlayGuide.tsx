@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import { ChromeQuality } from "../chrome/Chrome";
 import { KeycapBadge } from "./HudDecorations";
+import { ControlsReference } from "./ControlsReference";
+import { handleTabListKeyDown } from "../useTabListKeyboard";
 import { playUiSound } from "../audio/uiAudio";
 import {
   IconBoat,
@@ -12,7 +14,6 @@ import {
   IconEnergy,
   IconExpedition,
   IconFish,
-  IconJournal,
   IconLedger,
   IconMoon,
   IconRod,
@@ -49,11 +50,21 @@ export const HowToPlayGuide: React.FC = () => {
   return (
     <div className="guidebook-container" role="region" aria-label="How to play guide">
       {/* Chapter Sub-Tabs */}
-      <nav className="guidebook-subtabs" aria-label="Guidebook chapters">
+      {/* aria-selected is only meaningful inside a tablist; these were plain
+          buttons carrying an attribute assistive technology had to ignore. */}
+      <div
+        className="guidebook-subtabs"
+        role="tablist"
+        aria-label="Guidebook chapters"
+        onKeyDown={handleTabListKeyDown}
+      >
         {CHAPTERS.map((tab) => (
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            id={`guidebook-tab-${tab.id}`}
+            aria-controls="guidebook-panel"
             className={`guidebook-subtab-btn ${chapter === tab.id ? "is-active" : ""}`}
             onClick={() => {
               playUiSound("page-turn");
@@ -65,9 +76,15 @@ export const HowToPlayGuide: React.FC = () => {
             <span>{tab.label}</span>
           </button>
         ))}
-      </nav>
+      </div>
 
-      <div className="guidebook-content">
+      <div
+        className="guidebook-content"
+        id="guidebook-panel"
+        role="tabpanel"
+        aria-labelledby={`guidebook-tab-${chapter}`}
+        tabIndex={0}
+      >
         {chapter === "controls" && <ControlsChapter />}
         {chapter === "farming" && <FarmingChapter />}
         {chapter === "fishing" && <FishingChapter />}
@@ -92,97 +109,20 @@ const ControlsChapter: React.FC = () => (
       </p>
     </div>
 
-    <div className="guide-card-grid">
-      <div className="guide-card">
-        <h5 className="guide-card-title">
-          <IconCompass size={18} aria-hidden="true" /> Traversal & Movement
-        </h5>
-        <div className="guide-table">
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="W" />
-              <KeycapBadge keyName="A" />
-              <KeycapBadge keyName="S" />
-              <KeycapBadge keyName="D" />
-            </span>
-            <span className="guide-key-desc">Walk / Run in 8 directions (or boat steering)</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="Shift" />
-            </span>
-            <span className="guide-key-desc">Hold to Sprint (consumes sprint stamina)</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="Space" />
-            </span>
-            <span className="guide-key-desc">Jump over obstacles / Boat reverse brake</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="E" />
-            </span>
-            <span className="guide-key-desc">Interact with crops, villagers, boats, and markets</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="guide-card">
-        <h5 className="guide-card-title">
-          <IconJournal size={18} aria-hidden="true" /> Equipment & Menus
-        </h5>
-        <div className="guide-table">
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="1" /> - <KeycapBadge keyName="5" />
-            </span>
-            <span className="guide-key-desc">Select Tool Slot (Hoe, Seeds, Watering Can, Bait, Rod)</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="I" />
-            </span>
-            <span className="guide-key-desc">Open Satchel / Inventory</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="J" />
-            </span>
-            <span className="guide-key-desc">Guild Chronicle (Quests, Skills, Bestiary, Field Notes, Guide)</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="M" />
-            </span>
-            <span className="guide-key-desc">Coastal Region Map & Points of Interest</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="L" />
-            </span>
-            <span className="guide-key-desc">Logistics Ledger & Active Commercial Contracts</span>
-          </div>
-          <div className="guide-keybind-row">
-            <span className="guide-keys">
-              <KeycapBadge keyName="Esc" />
-            </span>
-            <span className="guide-key-desc">Pause Menu, Settings, Quick Save & Safe Return</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    {/* Rendered from src/ui/keybindings.ts so the guide cannot drift from the
+        keys the input router actually listens for. */}
+    <ControlsReference className="guide-controls-reference" />
 
     <div className="guide-callout-tip">
       <div className="guide-callout-icon">
         <IconEnergy size={20} aria-hidden="true" />
       </div>
       <div className="guide-callout-text">
-        <h6>Work Capacity (Labor Energy)</h6>
+        <h6>Work Capacity</h6>
         <p>
           Manual physical actions—planting, watering, fertilizing, harvesting, processing, and fishing—draw
-          from <strong>Labor</strong>. When Labor is empty, physical work is paused until it recovers over time,
-          while traversal, trading, and dialogue continue freely. Higher proficiency ranks reduce your Labor costs.
+          from <strong>Work</strong>. Each action needs its full Work cost. Work recovers over time,
+          while traversal, trading, cargo handling, and dialogue remain free. Higher proficiency ranks reduce Work costs.
           Sprint stamina is a separate traversal resource.
         </p>
       </div>

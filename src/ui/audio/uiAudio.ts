@@ -1,5 +1,6 @@
 // src/ui/audio/uiAudio.ts
 import { gameAudio } from "../../audio/AudioManager";
+import type { NoticeTone } from "../notifications";
 
 export type UiSoundCue =
   | "click"
@@ -64,4 +65,19 @@ export function playUiSound(cue: UiSoundCue | string): void {
   } catch {
     // Audio failures should never break UI interaction
   }
+}
+
+const NOTICE_TONE_CUES: Record<NoticeTone, UiSoundCue | null> = {
+  // Routine status lines stay silent; a cue on every prompt turns into noise.
+  info: null,
+  success: "confirm",
+  warning: "click",
+  danger: "error",
+  reward: "coins"
+};
+
+/** Plays the cue that matches a notification's tone, if that tone has one. */
+export function playNoticeSound(tone: NoticeTone): void {
+  const cue = NOTICE_TONE_CUES[tone];
+  if (cue) playUiSound(cue);
 }

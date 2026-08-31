@@ -37,6 +37,8 @@ Requires `npm run dev` (the Vite plugin is `apply: "serve"` only). Production bu
 | Fine move / rotate | **Shift** while dragging or rotating |
 | Rotate | **Q** / **E** (15°, or 5° with Shift) |
 | Copy / paste / duplicate | **⌘/Ctrl+C**, **⌘/Ctrl+V**, **⌘/Ctrl+D** |
+| Undo | **⌘/Ctrl+Z** |
+| Redo | **Shift+⌘/Ctrl+Z** or **⌘/Ctrl+Y** |
 | Delete | **Delete** or **Backspace** |
 | Deselect | **Escape** (first Escape deselects; it does not exit) |
 | Exit | **F2** or Place chip again |
@@ -110,6 +112,12 @@ Processing stations (mill, workbench, compost, harbor fish table) write yaw as `
 
 Objects with catalog `grounding` half-extents refuse a write if the footprint is unstable (`isPlacementFootprintStable`). The banner says so; move onto flatter ground.
 
+Outdoor drag and paste resolve the registered terrain through
+`TerrainSnapping`: its BVH raycast supplies height and world-space normal, with
+the canonical terrain sampler as the fallback. A surface beyond the configured
+slope limit is rejected before source is written. Indoor props keep their
+authored Y plane.
+
 ---
 
 # 5. Copy, paste, delete
@@ -135,6 +143,14 @@ Delete:
 - Generated fence posts that are not in `FARM_FENCE_EXTRAS` are listed in `FARM_FENCE_REMOVED`.
 - Seeded instances are listed in `PLACEMENT_REMOVED` (and dropped from `PLACEMENT_OVERRIDES`).
 - Runtime unbind disposes parented PointLights and stops fauna mixers for that instance.
+
+Move/rotate pointer activity is coalesced into one history item at drop. Paste
+and delete record reversible source plus live-scene operations, including the
+stable allocated ID needed to restore a removed copy. Undo/redo is serialized
+with layout writes, preserves the stack when a commit fails, clears redo after
+a new edit, and retains the latest 100 items. History is session-only; its
+commands rewrite the allowlisted source just like the original operation and
+never enter `GameState`.
 
 ---
 
@@ -195,6 +211,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 9. **Live collision, grounding, parented lights, fauna mixers, and unique-object interact** so a moved stall or pasted lamp is not a hollow shadow + dark copy.
 10. **Place chip in the normal DEV HUD** (`http://localhost:3000/` without `?debug`), not hidden behind a chrome rule.
 11. **DEV unmerged meshes + pointerdown pick queue** so the chip being green actually means you can click the well.
+12. **Terrain-aware placement + transactional history** so drag/paste reject unsafe slopes and move/rotate/paste/delete can be undone without partial source/live-scene divergence.
 
 ---
 
@@ -241,10 +258,18 @@ the simulation predicate and the visual cue must agree.
 # 10. Tests
 
 ```bash
-npx vitest run tests/unit/layoutEditorPatch.test.ts tests/unit/physicsWorld.test.ts
+npx vitest run tests/unit/layoutEditorPatch.test.ts tests/unit/terrainSnapping.test.ts tests/unit/historyManager.test.ts tests/unit/empirical_r2_terrain_history_stress.test.ts tests/unit/physicsWorld.test.ts
 ```
 
-Patcher tests cover math (door follow / yaw), source edits (move, copy, delete, overrides), duplicate extras (`practicalLight`, `grounding`, seeded→authored pins, interior y/assetId), duplicate array commas after consecutive pastes, copy.1 vs copy.10 id lookup, paste after the original was removed, live interact session restore, and the Vite plugin `apply: "serve"` + localhost host check. Physics tests cover replacing static colliders after a layout move.
+Patcher tests cover math (door follow / yaw), source edits (move, copy, delete,
+restore, overrides), duplicate extras (`practicalLight`, `grounding`,
+seeded→authored pins, interior y/assetId), duplicate array commas after
+consecutive pastes, copy.1 vs copy.10 id lookup, paste after the original was
+removed, live interact session restore, and the Vite plugin `apply: "serve"` +
+localhost host check. Terrain/history suites cover BVH/fallback snapping,
+world-normal alignment, slope boundaries, stack limits, drag coalescing,
+transaction rollback, failed undo/redo, and re-entrancy. Physics tests cover
+replacing static colliders after a layout move.
 
 Do not claim the editor is visually approved; the human confirms picks and drops in the actual game.
 
@@ -263,4 +288,4 @@ Do not claim the editor is visually approved; the human confirms picks and drops
 - Unstable architecture footprints refuse a write.
 - Commit endpoint stays POST + localhost + allowlisted files.
 
-When adding a new movable object: tag it in `WorldScene`, add a kind (or reuse one), teach the patcher the exact source shape, add a fixture-style unit test, and decide copy/delete. Do not special-case presentation in `userData` to paper over a missing layout field.
+When adding a new movable object: tag it in `WorldScene`, add a kind (or reuse one), teach the patcher the exact source shape, add a fixture-style unit test, decide copy/delete, and update §4 and §9 of this file in the same change. Do not special-case presentation in `userData` to paper over a missing layout field.

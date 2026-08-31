@@ -17,6 +17,9 @@ export class FishingRodBend {
   private readonly reelRotation = new THREE.Matrix4();
   private reelAngle = 0;
   private lastElapsed = 0;
+  /** Sprung bend so a sudden slack release lets the blank whip back past straight. */
+  private bendValue = 0;
+  private bendVelocity = 0;
 
   constructor(private readonly root: THREE.Group) {
     root.updateWorldMatrix(true, true);
@@ -50,35 +53,50 @@ export class FishingRodBend {
     this.bentTip.copy(this.tip);
   }
 
-  public update(bend: number, endpoint: THREE.Vector3, retrieval = 0, elapsed = 0): void {
+  public update(
+    bend: number, endpoint: THREE.Vector3, retrieval = 0, elapsed = 0,
+    rodDirection = 0, shakeAmplitude = 0
+  ): void {
     const dt = THREE.MathUtils.clamp(elapsed - this.lastElapsed, 0, 0.1);
     this.lastElapsed = elapsed;
     this.reelAngle = (this.reelAngle + retrieval * dt * 5) % (Math.PI * 2);
     this.reelRotation.makeRotationX(this.reelAngle);
-    if (bend === 0 && this.lastBend === 0) return;
-    this.lastBend = bend;
+
+    // Damped spring toward the target load: releasing the fish whips the tip back.
+    this.bendVelocity += (90 * (bend - this.bendValue) - 15 * this.bendVelocity) * dt;
+    this.bendValue += this.bendVelocity * dt;
+    const effectiveBend = THREE.MathUtils.clamp(
+      this.bendValue + Math.sin(elapsed * 34) * shakeAmplitude * 0.05,
+      -0.12,
+      1.35
+    );
+    if (Math.abs(effectiveBend) < 0.0006 && Math.abs(this.bendVelocity) < 0.02 && this.lastBend === 0) return;
+    this.lastBend = Math.abs(effectiveBend) < 0.0006 ? 0 : effectiveBend;
+
     this.root.updateWorldMatrix(true, false);
     this.pull.copy(endpoint);
     this.root.worldToLocal(this.pull).sub(this.base);
     this.pull.addScaledVector(this.axis, -this.pull.dot(this.axis)).normalize();
+    // Steering the rod loads it sideways: swing the bend plane toward the input.
+    if (Math.abs(rodDirection) > 0.001) this.pull.applyAxisAngle(this.axis, rodDirection * 0.5).normalize();
     for (const part of this.parts) {
       const position = part.mesh.geometry.getAttribute("position");
       for (let i = 0; i < position.count; i++) {
         this.point.fromArray(part.points, i * 3);
         if (part.reel) this.rotateReelPoint(this.point);
-        this.deform(this.point, bend).applyMatrix4(part.toLocal);
+        this.deform(this.point, effectiveBend).applyMatrix4(part.toLocal);
         position.setXYZ(i, this.point.x, this.point.y, this.point.z);
       }
       position.needsUpdate = true;
       part.mesh.geometry.computeVertexNormals();
     }
-    this.deform(this.bentTip.copy(this.tip), bend);
+    this.deform(this.bentTip.copy(this.tip), effectiveBend);
   }
 
   private deform(point: THREE.Vector3, bend: number): THREE.Vector3 {
     const along = (point.x - this.base.x) * this.axis.x
       + (point.y - this.base.y) * this.axis.y + (point.z - this.base.z) * this.axis.z;
-    if (along <= 0 || bend < 0.0001) return point;
+    if (along <= 0 || Math.abs(bend) < 0.0001) return point;
     const t = Math.min(1, along / Math.max(0.01, this.length));
     const radius = this.length / bend;
     return point.addScaledVector(this.axis, Math.sin(bend * t) * radius - this.length * t)

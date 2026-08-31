@@ -2,7 +2,9 @@ import * as THREE from "three";
 import { ASSET_BY_ID, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
 import {
-  groundCoverActiveCount,
+  groundCoverActiveCountAtLevel,
+  qualityTierLevel,
+  qualityValueAtLevel,
   type QualityTier
 } from "../config/VisualRenderConfig";
 import {
@@ -10,7 +12,6 @@ import {
   type GroundCoverPlacement
 } from "../../world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../world/WorldLayout";
-import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
 import {
   groundCoverSwaysInWind,
@@ -180,10 +181,10 @@ export class GroundCoverRenderer {
   private readonly lastRebuildFocus = new THREE.Vector2(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
   private readonly composedMatrix = new THREE.Matrix4();
   private visibilityDirty = true;
-  private tier: QualityTier;
+  private qualityLevel: number;
 
   constructor(tier: QualityTier) {
-    this.tier = tier;
+    this.qualityLevel = qualityTierLevel(tier);
     this.group.name = "instanced_world_ground_cover";
   }
 
@@ -278,18 +279,29 @@ export class GroundCoverRenderer {
         visibleIndices: []
       });
     }
-    this.setQuality(this.tier);
+    this.setQualityLevel(this.qualityLevel);
   }
 
   public setQuality(tier: QualityTier): void {
-    this.tier = tier;
+    this.setQualityLevel(qualityTierLevel(tier));
+  }
+
+  public setQualityLevel(level: number): void {
+    this.qualityLevel = THREE.MathUtils.clamp(level, 0, 2);
+    let changed = false;
     for (const record of this.records) {
-      record.activeCount = Math.max(
+      const activeCount = Math.max(
         0,
-        Math.floor(groundCoverActiveCount(record.highCount, tier) * CATEGORY_DENSITY_SCALE[record.category])
+        Math.floor(
+          groundCoverActiveCountAtLevel(record.highCount, this.qualityLevel)
+            * CATEGORY_DENSITY_SCALE[record.category]
+        )
       );
+      if (activeCount === record.activeCount) continue;
+      record.activeCount = activeCount;
+      changed = true;
     }
-    this.visibilityDirty = true;
+    if (changed) this.visibilityDirty = true;
   }
 
   public updateWind(signal: Readonly<WeatherMotionSignal>, timeSeconds: number, motionScale: number): void {
@@ -328,7 +340,10 @@ export class GroundCoverRenderer {
 
     this.lastRebuildFocus.set(anchorX, anchorZ);
     this.visibilityDirty = false;
-    const baseDrawDistance = CANONICAL_RENDER_CONFIG.quality[this.tier].groundCoverDrawDistanceMeters;
+    const baseDrawDistance = qualityValueAtLevel(
+      this.qualityLevel,
+      (quality) => quality.groundCoverDrawDistanceMeters
+    );
 
     for (const record of this.records) {
       const drawDistance = baseDrawDistance * CATEGORY_DRAW_DISTANCE_SCALE[record.category];

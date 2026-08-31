@@ -1,6 +1,6 @@
 // src/ui/GameUI.tsx
 import React, { useState } from "react";
-import { FishCargoState, FishingEncounterState, GameMode, GameState, MarketId } from "../simulation/core/types";
+import { FishCargoState, FishingEncounterState, GameAction, GameMode, GameState, MarketId } from "../simulation/core/types";
 import { HUD } from "./HUD";
 import { InventoryModal } from "./InventoryModal";
 import { MarketModal } from "./MarketModal";
@@ -28,12 +28,15 @@ import type { ActiveModal } from "../app/ModeController";
 import type { FarmingActionSnapshot } from "../app/FarmingActionController";
 import type { StartupState } from "../app/StartupState";
 import type { CropInspectionDto } from "../simulation/core/contracts";
+import type { Notice } from "./notifications";
 import { IconSprout } from "./components/HudIcons";
 import { ChromeAlert, ChromeButton, ChromeClose, ChromeMeter, ChromePanel } from "./chrome/Chrome";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForAction, atlasForCrop, atlasForGrowth } from "./chrome/uiAtlas";
 import { StartScreen } from "./StartScreen";
 import { PlacementEditorHud } from "./PlacementEditorHud";
+import { MobileControls, MobileOrientationGate } from "./MobileControls";
+import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter";
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
@@ -62,6 +65,7 @@ export interface GameUIProps {
   placementTarget: { x: number; z: number } | null;
   promptText: string | null;
   toastMessage?: string | null;
+  notices?: readonly Notice[];
   inspectedCrop: CropInspectionDto | null;
   onDismissCropInspection?: () => void;
   farmingAction: FarmingActionSnapshot | null;
@@ -100,6 +104,8 @@ export interface GameUIProps {
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuyRod: (marketId: MarketId, rodId: string) => void;
+  onEquipRod: (marketId: MarketId, rodId: string) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDiscardFishCargo: (cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
@@ -124,6 +130,17 @@ export interface GameUIProps {
   onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
   bootReady?: boolean;
   screenFade?: boolean;
+  mobileTouchDevice?: boolean;
+  mobileLandscape?: boolean;
+  mobileOrientationBlocked?: boolean;
+  onRequestMobileLandscape?: () => void;
+  onSetVirtualMoveVector?: (vector: VirtualMoveVector) => void;
+  onSetVirtualSprint?: (held: boolean) => void;
+  onQueueVirtualJump?: () => void;
+  onDispatchVirtualAction?: (action: GameAction) => void;
+  onSetVirtualFishingInput?: (input: Partial<FishingInputState>) => void;
+  onReleaseBasicFishingCast?: () => void;
+  onClearVirtualInput?: () => void;
   layoutEditor?: {
     active: boolean;
     selected: LayoutEditHudSelection | null;
@@ -143,6 +160,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   placementTarget,
   promptText,
   toastMessage,
+  notices,
   inspectedCrop,
   onDismissCropInspection,
   farmingAction,
@@ -169,6 +187,8 @@ export const GameUI: React.FC<GameUIProps> = ({
   onSellItem,
   onBuySeed,
   onBuyItem,
+  onBuyRod,
+  onEquipRod,
   onSellFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
@@ -193,6 +213,17 @@ export const GameUI: React.FC<GameUIProps> = ({
   onGraphicsQualityChange,
   bootReady = false,
   screenFade = false,
+  mobileTouchDevice = false,
+  mobileLandscape = true,
+  mobileOrientationBlocked = false,
+  onRequestMobileLandscape = () => {},
+  onSetVirtualMoveVector = () => {},
+  onSetVirtualSprint = () => {},
+  onQueueVirtualJump = () => {},
+  onDispatchVirtualAction = () => {},
+  onSetVirtualFishingInput = () => {},
+  onReleaseBasicFishingCast = () => {},
+  onClearVirtualInput = () => {},
   layoutEditor = null
 }) => {
   const showDiagnostics =
@@ -203,7 +234,12 @@ export const GameUI: React.FC<GameUIProps> = ({
   // the boot-ready attribute is the synchronization point for browser checks.
   if (startup.status !== "ready" && !showDiagnostics) {
     return (
-      <div id="ui-container" style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div
+        id="ui-container"
+        data-mobile-device={mobileTouchDevice ? "true" : "false"}
+        data-mobile-landscape={mobileLandscape ? "true" : "false"}
+        style={{ width: "100%", height: "100%", position: "relative" }}
+      >
         <StartScreen
           startup={startup}
           onStart={onStart}
@@ -218,19 +254,50 @@ export const GameUI: React.FC<GameUIProps> = ({
   const plannerUnlocked = state.quests.unlockedFeatureIds.includes("feature.expedition_planner");
 
   return (
-    <div id="ui-container" tabIndex={-1} style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div
+      id="ui-container"
+      tabIndex={-1}
+      data-mobile-device={mobileTouchDevice ? "true" : "false"}
+      data-mobile-landscape={mobileLandscape ? "true" : "false"}
+      style={{ width: "100%", height: "100%", position: "relative" }}
+    >
       <div className={`screen-transition-overlay ${screenFade ? "active" : ""}`} />
+
+      <MobileOrientationGate
+        touchDevice={mobileTouchDevice}
+        orientationBlocked={mobileOrientationBlocked}
+        onRequestLandscape={onRequestMobileLandscape}
+      />
 
       {/* 1. Main Head-Up Display */}
       <HUD
         state={state}
         promptText={promptText}
         toastMessage={toastMessage}
+        notices={notices}
         activeQuest={activeQuest}
         activeToolSlot={activeToolSlot}
         onSelectToolSlot={onSelectToolSlot}
         onOpenMenu={() => onSetActiveModal("pause")}
         isPlacementActive={mode === "farm-placement"}
+        selectedCropId={selectedPlantCropId}
+      />
+
+      <MobileControls
+        touchDevice={mobileTouchDevice}
+        landscape={mobileLandscape}
+        orientationBlocked={mobileOrientationBlocked}
+        bootReady={bootReady}
+        mode={mode}
+        activeModal={activeModal}
+        basicFishingPhase={state.basicFishing?.phase ?? null}
+        onSetMoveVector={onSetVirtualMoveVector}
+        onSetSprint={onSetVirtualSprint}
+        onQueueJump={onQueueVirtualJump}
+        onVirtualAction={onDispatchVirtualAction}
+        onSetFishingInput={onSetVirtualFishingInput}
+        onReleaseBasicCast={onReleaseBasicFishingCast}
+        onClearVirtualInput={onClearVirtualInput}
       />
 
       {/* 2. Contextual Overlays */}
@@ -316,6 +383,8 @@ export const GameUI: React.FC<GameUIProps> = ({
           onSellItem={onSellItem}
           onBuySeed={onBuySeed}
           onBuyItem={onBuyItem}
+          onBuyRod={onBuyRod}
+          onEquipRod={onEquipRod}
           onSellFishCargo={onSellFishCargo}
           onDiscardFishCargo={onDiscardFishCargo}
           onDeliverContractItems={onDeliverContractItems}
@@ -533,15 +602,15 @@ export const CropInspection: React.FC<{
           <dd className="crop-yield-text">{inspection.expectedYield.min}–{inspection.expectedYield.max} units</dd>
         </div>
         <div className="crop-meta-item">
-          <dt>Labor</dt>
-          <dd>{Math.round(inspection.work.current)} · Action costs {inspection.work.actionCost}</dd>
+          <dt>Work</dt>
+          <dd>{Math.floor(inspection.work.current)} · Action costs {inspection.work.cost}</dd>
         </div>
       </dl>
       </div>
 
-      {inspection.work.current <= 0 && (
+      {!inspection.work.affordable && (
         <ChromeAlert tone="caution" className="crop-inspection-warning">
-          Labor depleted: work is paused until it recovers
+          Needs {inspection.work.cost} Work · {inspection.work.availableWork} available
         </ChromeAlert>
       )}
     </ChromePanel>

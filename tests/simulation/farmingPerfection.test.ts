@@ -259,23 +259,24 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.workCapacity.current).toBe(work);
   });
 
-  it("at zero Work blocks harvest and requires Labor to tend crops", () => {
+  it("requires the full Work cost to harvest and awards quality-adjusted XP", () => {
     const sim = new Simulation();
     const placedCropId = matureCrop(sim);
     sim.state.player.proficiencies.farming = 0;
     sim.state.player.workCapacity.current = 0;
     const result = sim.harvestCrop(placedCropId);
     expect(result.success).toBe(false);
-    expect(result.reasonCode).toBe("no-labor");
+    expect(result.reasonCode).toBe("insufficient-work");
     expect(sim.state.player.proficiencies.farming).toBe(0);
 
-    // With Labor available, harvest succeeds and awards full XP
+    // With the full Work cost available, harvest succeeds and reports its XP.
     sim.state.player.workCapacity.current = 50;
     sim.state.player.proficiencies.farming = 0;
     const successResult = sim.harvestCrop(placedCropId);
     expect(successResult.success).toBe(true);
     expect(successResult.yield).toBeGreaterThanOrEqual(3);
-    expect(sim.state.player.proficiencies.farming).toBe(45);
+    expect(sim.state.player.proficiencies.farming).toBe(successResult.xpGained);
+    expect(successResult.xpGained).toBeGreaterThanOrEqual(45);
     expect(sim.state.player.workCapacity.current).toBe(5);
   });
 

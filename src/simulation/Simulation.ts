@@ -21,7 +21,8 @@ import {
   ProcessingJobId,
   RecipeId,
   SkillId,
-  MountId
+  MountId,
+  RodId
 } from "./core/types";
 import { createInitialGameState } from "./core/createInitialState";
 import { applyWeatherProfile } from "./weather/updateWeather";
@@ -48,7 +49,8 @@ import type {
   GameQuery,
   GameQueryResult,
   InteractionResult,
-  ProcessingJobInspectionDto
+  ProcessingJobInspectionDto,
+  WorkCostQuote
 } from "./core/contracts";
 
 export class Simulation {
@@ -183,6 +185,10 @@ export class Simulation {
         return this.buySeedAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.buy-item":
         return this.buyItemAtMarket(command.marketId, command.itemId, command.quantity);
+      case "market.buy-rod":
+        return this.buyRodAtMarket(command.marketId, command.rodId);
+      case "market.equip-rod":
+        return this.equipRodAtMarket(command.marketId, command.rodId);
       case "market.sell-fish":
         return this.sellFishCargoAtMarket(command.marketId, command.cargoId);
       case "contract.deliver-items":
@@ -541,7 +547,10 @@ export class Simulation {
       z,
       rotationY: 0
     });
-    if (speciesId === "fish.tuna") this.state.player.equippedRodId = "rod.heavy_sport";
+    if (speciesId === "fish.tuna") {
+      this.state.player.equippedRodId = "rod.heavy_sport";
+      this.state.player.ownedRodIds = ["rod.willow", "rod.river", "rod.heavy_sport"];
+    }
     const inventory = this.state.inventories[this.state.player.inventoryId];
     if (!InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }])) {
       return false;
@@ -693,7 +702,7 @@ export class Simulation {
     return this.farmingDomain.water(placedCropId);
   }
 
-  public harvestCrop(placedCropId: PlacedCropId): { success: boolean; yield?: number; quality?: CropQuality; reason?: string; reasonCode?: string } {
+  public harvestCrop(placedCropId: PlacedCropId): InteractionResult & { quality?: CropQuality } {
     return this.farmingDomain.harvest(placedCropId);
   }
 
@@ -804,6 +813,14 @@ export class Simulation {
     return this.marketDomain.buyItem(marketId, itemId, quantity);
   }
 
+  public buyRodAtMarket(marketId: MarketId, rodId: RodId): InteractionResult {
+    return this.marketDomain.buyRod(marketId, rodId);
+  }
+
+  public equipRodAtMarket(marketId: MarketId, rodId: RodId): InteractionResult {
+    return this.marketDomain.equipRod(marketId, rodId);
+  }
+
   public sellFishCargoAtMarket(marketId: MarketId, cargoId: FishCargoId): { success: boolean; revenue?: number; reason?: string } {
     return this.marketDomain.sellFish(marketId, cargoId);
   }
@@ -813,6 +830,10 @@ export class Simulation {
   // ==========================================
   public addProficiencyXp(skill: SkillId, xpAmount: number): void {
     this.progressionDomain.addProficiencyXp(skill, xpAmount);
+  }
+
+  public quoteWorkCost(baseCost: number, skill: SkillId): WorkCostQuote {
+    return this.progressionDomain.quoteWorkCost(baseCost, skill);
   }
 
   // ==========================================

@@ -2,7 +2,7 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { LIVE_RECIPE_IDS } from "../../content/recipes";
 import type { RecipeDefinition } from "../../content/types";
 import type { InventoryState, ProcessingJobId, RecipeId, StationType } from "../core/types";
-import type { ProcessingJobInspectionDto } from "../core/contracts";
+import type { InteractionResult, ProcessingJobInspectionDto } from "../core/contracts";
 import { formatClockTime, formatGameDuration } from "../core/GameClock";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
@@ -32,7 +32,7 @@ export class ProcessingDomain {
     private readonly progression: ProgressionDomain
   ) {}
 
-  public start(recipeId: RecipeId, stationId: string): { success: boolean; reason?: string; reasonCode?: string } {
+  public start(recipeId: RecipeId, stationId: string): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
     const recipe = ContentRegistry.recipes.get(recipeId);
@@ -53,10 +53,6 @@ export class ProcessingDomain {
     if (Object.values(state.processingJobs).some((job) => job.stationId === stationId && job.status !== "collected")) {
       return { success: false, reason: "Station is already in use" };
     }
-    if (state.player.workCapacity.current <= 0) {
-      return { success: false, reason: "You need Labor to craft", reasonCode: "no-labor" };
-    }
-
     const inventory = state.inventories[state.player.inventoryId];
     if (!InventoryManager.hasItems(inventory, recipe.inputs)) {
       return { success: false, reason: "Missing required ingredients" };
@@ -64,8 +60,9 @@ export class ProcessingDomain {
     if (!InventoryManager.canAddItemsAfterRemoving(inventory, recipe.inputs, recipe.outputs)) {
       return { success: false, reason: "inventory-full" };
     }
+    const work = this.progression.trySpendWork(35, "processing", "Processing");
+    if (!work.success) return work;
     InventoryManager.removeItemsAtomically(inventory, recipe.inputs);
-    this.progression.consumeWorkCapacity(35, "processing");
     const jobId = this.context.nextEntityId("job");
     state.processingJobs[jobId] = {
       id: jobId,

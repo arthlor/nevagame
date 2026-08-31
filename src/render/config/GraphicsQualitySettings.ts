@@ -18,9 +18,12 @@ function storedPreference(): GraphicsQualityPreference {
 function initialAutoTier(): QualityTier {
   const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
   const cores = navigator.hardwareConcurrency || 8;
-  const pixelLoad = window.innerWidth * window.innerHeight * Math.min(window.devicePixelRatio, 2) ** 2;
+  const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches === true
+    || (navigator.maxTouchPoints ?? 0) > 0;
+  const pixelRatioCap = coarsePointer ? 1.5 : 2;
+  const pixelLoad = window.innerWidth * window.innerHeight * Math.min(window.devicePixelRatio, pixelRatioCap) ** 2;
   if (memory <= 4 || cores <= 4 || pixelLoad >= 9_000_000) return "low";
-  if (memory <= 8 || cores <= 6 || pixelLoad >= 5_000_000) return "medium";
+  if (memory <= 8 || cores <= 6 || pixelLoad >= 5_000_000 || coarsePointer) return "medium";
   return "high";
 }
 

@@ -1,6 +1,6 @@
 // src/ui/MarketModal.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FishCargoState, GameState, MarketCommodityState, MarketId } from "../simulation/core/types";
+import { FishCargoState, GameState, MarketCommodityState, MarketId, RodId } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { isVillageSeedCrop } from "../content/markets";
 import { calculateFishPrice } from "../simulation/economy/calculateFishValue";
@@ -8,12 +8,14 @@ import { calculateCommodityUnitPrice } from "../simulation/economy/calculateComm
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { IconCoin, IconFish, IconJournal, IconSprout } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
+import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeDivider, ChromePanel, ChromeQuality } from "./chrome/Chrome";
 import { playUiSound } from "./audio/uiAudio";
 import { MarketDomain } from "../simulation/domains/MarketDomain";
 import { contractDeliveryMarketId } from "../content/contracts";
+import { previousRodId, ROD_PROGRESSION, rodFishingXpRequirement } from "../content/rods";
 
 type MarketStallTab = "buy" | "sell" | "hold";
 
@@ -23,6 +25,8 @@ interface MarketModalProps {
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuyRod: (marketId: MarketId, rodId: RodId) => void;
+  onEquipRod: (marketId: MarketId, rodId: RodId) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDiscardFishCargo: (cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
@@ -41,6 +45,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   onSellItem,
   onBuySeed,
   onBuyItem,
+  onBuyRod,
+  onEquipRod,
   onSellFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
@@ -210,7 +216,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           <ChromeClose onClick={onClose} label="Close trading post" className="market-close-btn" />
         </header>
 
-        <div className="market-stall-tabs mm-ribbon-tabs" role="tablist" aria-label="Stall views" data-testid="market-stall-tabs">
+        <div className="market-stall-tabs mm-ribbon-tabs" role="tablist" aria-label="Stall views" data-testid="market-stall-tabs" onKeyDown={handleTabListKeyDown}>
           <button
             type="button"
             role="tab"
@@ -263,6 +269,15 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       if (!seed) return null;
                       const owned = InventoryManager.getItemCount(playerInv, seed.id);
                       const locked = state.player.proficiencies.farming < crop.minimumFarmingXp;
+                      // The stall charges the live commodity price and only
+                      // falls back to the flat base value when the market does
+                      // not trade the seed. Quoting baseValue unconditionally
+                      // showed the wrong number and mis-judged affordability.
+                      const seedCommodity = currentMarket?.commodities[seed.id];
+                      const seedPrice = seedCommodity
+                        ? calculateCommodityUnitPrice(seedCommodity).unitPrice
+                        : seed.baseValue;
+                      const unaffordable = state.player.money < seedPrice;
                       return (
                         <div className="seed-stall-card" key={crop.id}>
                           <div className="seed-card-meta">
@@ -281,10 +296,17 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                               size="sm"
                               className="seed-buy-btn"
                               soundCue="coins"
-                              disabled={locked || state.player.money < seed.baseValue}
+                              disabled={locked || unaffordable}
+                              title={
+                                locked
+                                  ? `Requires ${crop.minimumFarmingXp} Farming XP`
+                                  : unaffordable
+                                    ? `Needs ${seedPrice} G`
+                                    : undefined
+                              }
                               onClick={() => onBuySeed(activeMarketId, seed.id, 1)}
                             >
-                              {locked ? "Locked" : `Buy 1 · ${seed.baseValue} G`}
+                              {locked ? "Locked" : `Buy 1 · ${seedPrice} G`}
                             </ChromeButton>
                           </div>
                         </div>
@@ -326,6 +348,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             )}
 
             {stallTab === "buy" && activeMarketId === "market.harbor" && (
+              <>
               <div className="market-seeds-section">
                 <h3 className="section-title">Harbor Supplies</h3>
                 <div className="seed-stall-list">
@@ -360,6 +383,72 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   })}
                 </div>
               </div>
+              <div className="market-seeds-section" data-testid="harbor-tackle-shop">
+                <h3 className="section-title"><IconFish size={15} aria-hidden="true" /> Tackle</h3>
+                <div className="seed-stall-list">
+                  {ROD_PROGRESSION.map((rodId) => {
+                    const rod = ContentRegistry.rods.get(rodId);
+                    if (!rod) return null;
+                    const fishingActive = Boolean(state.basicFishing || state.sportFishing);
+                    const owned = state.player.ownedRodIds.includes(rodId);
+                    const equipped = state.player.equippedRodId === rodId;
+                    const prerequisite = previousRodId(rodId);
+                    const prerequisiteOwned = prerequisite == null || state.player.ownedRodIds.includes(prerequisite);
+                    const requiredXp = rodFishingXpRequirement(rodId) ?? 0;
+                    const xpLocked = state.player.proficiencies.fishing < requiredXp;
+                    const purchasable = prerequisite != null && !fishingActive && prerequisiteOwned && !xpLocked && state.player.money >= rod.costMoney;
+                    const lockLabel = fishingActive
+                      ? "Finish fishing first"
+                      : !prerequisiteOwned
+                      ? "Previous rod required"
+                      : xpLocked
+                        ? `${requiredXp.toLocaleString()} Fishing XP`
+                        : state.player.money < rod.costMoney
+                          ? `${rod.costMoney} G required`
+                          : null;
+                    return (
+                      <div className="seed-stall-card" key={rodId}>
+                        <div className="seed-card-meta">
+                          <IconFish size={28} aria-hidden="true" />
+                          <div>
+                            <strong>{rod.name}</strong>
+                            <span className="seed-meta-sub">
+                              {rod.allowedHabitats.join(" · ")} · up to {rod.maximumCargoClass}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="seed-card-actions">
+                          {equipped ? (
+                            <ChromeButton size="sm" disabled>Equipped</ChromeButton>
+                          ) : owned ? (
+                            <ChromeButton
+                              size="sm"
+                              disabled={fishingActive}
+                              title={fishingActive ? "Finish fishing first" : undefined}
+                              onClick={() => onEquipRod(activeMarketId, rodId)}
+                            >
+                              {fishingActive ? "Fishing active" : "Equip"}
+                            </ChromeButton>
+                          ) : prerequisite == null ? (
+                            <ChromeButton size="sm" disabled>Starter rod</ChromeButton>
+                          ) : (
+                            <ChromeButton
+                              size="sm"
+                              soundCue="coins"
+                              disabled={!purchasable}
+                              title={lockLabel ?? undefined}
+                              onClick={() => onBuyRod(activeMarketId, rodId)}
+                            >
+                              {lockLabel ?? `Buy & equip · ${rod.costMoney} G`}
+                            </ChromeButton>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              </>
             )}
 
             {stallTab === "sell" && (
@@ -604,6 +693,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     const targetName = itemDef?.name ?? fishDef?.name ?? contract.targetItemIdOrSpecies;
                     const ownedForContract = itemDef ? InventoryManager.getItemCount(playerInv, itemDef.id) : 0;
                     const eligibleCargo = fishCargoList.filter((cargo) => cargo.speciesId === contract.targetItemIdOrSpecies);
+                    // A twenty-unit contract used to mean twenty clicks.
+                    const remainingForContract = Math.max(
+                      0,
+                      contract.quantityRequired - contract.quantityFulfilled
+                    );
+                    const deliverableNow = Math.min(ownedForContract, remainingForContract);
 
                     return (
                       <div key={contract.id} className="contract-mini-card">
@@ -618,12 +713,26 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         </span>
                         <div className="contract-actions-row" style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
                           {itemDef && ownedForContract > 0 && (
-                            <ChromeButton
-                              className="comm-sell-btn"
-                              onClick={() => onDeliverContractItems(contract.id, itemDef.id, 1)}
-                            >
-                              Deliver 1 ({ownedForContract} in bag)
-                            </ChromeButton>
+                            <>
+                              <ChromeButton
+                                className="comm-sell-btn"
+                                onClick={() => onDeliverContractItems(contract.id, itemDef.id, 1)}
+                              >
+                                Deliver 1 ({ownedForContract} in bag)
+                              </ChromeButton>
+                              {deliverableNow > 1 && (
+                                <ChromeButton
+                                  variant="gold"
+                                  soundCue="stamp"
+                                  className="comm-sell-btn"
+                                  onClick={() =>
+                                    onDeliverContractItems(contract.id, itemDef.id, deliverableNow)
+                                  }
+                                >
+                                  {`Deliver ${deliverableNow}`}
+                                </ChromeButton>
+                              )}
+                            </>
                           )}
                           {eligibleCargo.length > 0 && (
                             <ChromeButton

@@ -6,13 +6,18 @@ const FOCUSABLE_SELECTOR = [
   "input:not([disabled])",
   "select:not([disabled])",
   "textarea:not([disabled])",
-  "[tabindex]:not([tabindex=\"-1\"])"
+  "[tabindex]"
 ].join(",");
 
 function focusableElements(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (element) => element.getAttribute("aria-hidden") !== "true"
-  );
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => {
+    if (element.getAttribute("aria-hidden") === "true") return false;
+    // Roving-tabindex groups (the satchel grid, tab strips) park their inactive
+    // members at -1. Counting them made the wrap-around land on a control the
+    // browser would never tab to.
+    if (element.getAttribute("tabindex") === "-1") return false;
+    return element.offsetParent !== null || element === root;
+  });
 }
 
 /**

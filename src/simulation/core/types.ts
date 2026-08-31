@@ -110,6 +110,7 @@ export interface PlayerState {
   currentRegionId: RegionId;
   inventoryId: InventoryId;
   equippedRodId: RodId;
+  ownedRodIds: RodId[];
   carriedFishCargoId?: FishCargoId | null;
   activeBoatId?: BoatId | null;
   activeMountId: MountId | null;
@@ -285,6 +286,16 @@ export interface FishingDynamicsState {
   surfaceCrossings: number;
   stepRemainderSeconds: number;
   rngState: number;
+  /** Rod-blank spring load, 0..1.25. Pumping can store reserve above live tension for the wind-down. */
+  rodLoad: number;
+  /** Fish forward speed along its heading, m/s (signed by run direction). */
+  fishSpeed: number;
+  /** Persistent head-shake oscillator phase, radians. */
+  shakePhase: number;
+  /** Current head-shake amplitude, 0..1 — drives integrity damage, rod jitter and camera trauma. */
+  shakeAmplitude: number;
+  /** Accumulated time the fight has held the landing window, seconds. */
+  landReadySeconds: number;
 }
 
 export interface FishingEncounterState {

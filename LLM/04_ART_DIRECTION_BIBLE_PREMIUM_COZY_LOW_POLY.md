@@ -203,6 +203,8 @@ interface VisualRenderConfig {
 
 Allowed variation is semantic and system-driven: time of day, season, weather, interior/exterior transition, quality mode. Zone scripts MUST NOT locally alter exposure, tone mapping, global saturation, or invent a second sun/fill scheme merely to make one screenshot attractive. If a zone looks weak under the shared baseline, fix geometry, material, placement, local practical lights, atmosphere parameters allowed by the system, or the global baseline through an explicit art-direction review.
 
+Time-of-day presentation must interpolate the simulation clock through one continuous cyclic envelope: dawn/day/dusk/night labels may describe gameplay time, but they must not cause a one-frame lighting, sky, fog, celestial, practical-light, or exposure step. Graphics-quality changes likewise travel through adjacent tiers over the centrally configured handoff window. Density/distance/effect contribution may blend continuously; discrete framebuffer, shadow-map, and pass ownership changes are staged at tier boundaries so they do not all rebuild in one frame. Simulation time, route/shore truth, and core silhouette/palette never blend or change with this presentation handoff.
+
 **Outlines are prohibited in normal world rendering:** no inverted-hull outlines, toon/ink contours, Sobel edge outlines, or black polygon-edge rendering. Shape separation comes from geometry, value/color blocks, lighting, AO/contact, and silhouette. Debug selection/highlight outlines are allowed only as temporary/contextual UI feedback.
 
 # 7.2 Ground Surface, Roads, Cover & Contact
@@ -327,7 +329,7 @@ Priority farm props: crates, baskets, watering can, bucket, hand plow, wheelbarr
 
 **Fishing identity:** nets, hooks, rope, floats/buoys, fish/ice crates, fillet/drying/rod racks, chum barrels, bait boxes, coolers, scale, cleats.
 
-Fish: species-readable major body proportions + simplified fins + controlled color blocks + faceting; no cartoon faces/hyperreal scales/plastic. Preserve small/medium/large/gargantuan size contrast. Material: high-ish roughness, subtle specular edge, lighter belly, darker dorsal region.
+Fish: species-readable major body proportions + simplified fins + controlled color blocks + faceting; no cartoon faces/hyperreal scales/plastic. Preserve small/medium/large/gargantuan size contrast. Material: high-ish roughness, subtle specular edge, lighter belly, darker dorsal region. Every live sport species uses its own catalog-generated silhouette and an authored mouth-hook node; stand-in trout/tuna swaps are not acceptable. During a fight the simulation-owned depth remains unchanged, while the opaque-water presentation may show a restrained teal-tinted translucent silhouette and distance-only presentation scale so the actual hooked fish stays trackable without outlines or magical glow. The fishing line is a continuous screen-space-width stroke from the bent rod tip to that mouth hook, with tension color and subdued submerged segments; its bend is constructed in the line's local frame so camera orbit cannot slide it sideways, and it must not billboard-twist, detach, or become a dotted world-space ribbon. The two-subject fight camera keeps angler and fish readable with slow focus/yaw settling and restrained behavior offsets; fish behavior must read primarily from the fish, rod and water, not rapid camera motion. School disturbance is a small translucent surface ripple plus directly readable fish, never a large opaque target ring.
 
 Boats are progression silhouettes: rowboat → fishing skiff → future larger vessel. Rowboat: simple worn timber, two benches/oars/storage, with the current catalog target/hard maximum at **5.5k / 6k triangles**. Skiff: compact working boat, optional small console/cabin, visible hold/hooks/rope/buoys/crates/ice/nav lamp, with the current catalog target/hard maximum at **8.5k / 16k triangles**. The catalog remains the authority for all floors, targets, materials, nodes, and future variants.
 
@@ -592,6 +594,8 @@ Quality modes:
 - Medium: reduced cover draw distance/density and shadows, standard water; retain semantic patches/route/shore transitions.
 - Low: few shadows, simplified water, lower cover density/shorter LOD; retain landform silhouette, surface ownership, road shoulders, and shoreline continuity.
 Core silhouette/palette remain unchanged.
+
+Switching modes, including an Auto decision, must ramp density, draw distance, precipitation budgets, contact/AO contribution, and LOD distance through the shared transition owner. Expensive discrete DPR, shadow, and post-path changes are crossed one adjacent tier at a time; do not synchronously rebuild every quality subsystem on the selection frame.
 
 Lighting fails if bases float, facets disappear, roof/wall merge, wood crushes black, plaster/foam clips, materials share one highlight response, shadows are unintentionally razor-hard, AO dirties edges, water over-glosses, or warm/cool separation disappears.
 

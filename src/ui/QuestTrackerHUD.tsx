@@ -35,7 +35,9 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
     <ChromePanel
       as="aside"
       tone="dock"
-      className={`quest-tracker-hud-wood ${collapsed ? "collapsed" : ""}`}
+      className={`quest-tracker-hud-wood ${collapsed ? "collapsed" : ""}${
+        activeQuest.isQuestReadyToTurnIn ? " is-ready" : ""
+      }`}
       aria-label="Active Quest Objective"
     >
       <header className="quest-tracker-header">
@@ -48,7 +50,16 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({ activeQuest })
         >
           <IconJournal size={18} aria-hidden="true" className="quest-tracker-icon" />
           <span className="quest-tracker-copy">
-            <h3 className="quest-title">{activeQuest.questTitle}</h3>
+            <h3 className="quest-title">
+              {activeQuest.questTitle}
+              {/* The turn-in step was previously signalled only by the progress
+                  bar disappearing, which reads as an error rather than done. */}
+              {activeQuest.isQuestReadyToTurnIn && (
+                <span className="quest-turnin-chip" data-testid="quest-ready">
+                  Ready
+                </span>
+              )}
+            </h3>
             <span className="quest-objective-text">{activeQuest.objectiveDescription}</span>
           </span>
           <span className={`quest-collapse-chevron ${collapsed ? "is-collapsed" : ""}`} aria-hidden="true">

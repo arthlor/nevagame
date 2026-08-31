@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import type { FC, KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { StartupState } from "../app/StartupState";
 import { AudioControls } from "./EscapeMenuModal";
-import { ChromeButton, ChromeClose, ChromeKeycap, ChromePanel } from "./chrome/Chrome";
+import { ChromeButton, ChromeClose, ChromePanel } from "./chrome/Chrome";
+import { ControlsReference } from "./components/ControlsReference";
+import { InterfaceSettings } from "./components/InterfaceSettings";
 
 import { AtlasImage } from "./chrome/AtlasImage";
 import { UI_MENU, UI_STATUS, UI_WORLD } from "./chrome/uiAtlas";
@@ -39,10 +41,27 @@ const clamp = (value: number, min: number, max: number): number =>
 const titleCase = (value: string): string =>
   value.length > 0 ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 
-const formatSavedDate = (savedAtUtcMs: number): string | null => {
+/**
+ * A bare medium date could not tell two saves from the same day apart, which
+ * is the case that matters most when deciding whether to continue. Recent
+ * saves get a relative day plus the clock time.
+ */
+const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now()): string | null => {
   if (!Number.isFinite(savedAtUtcMs) || savedAtUtcMs <= 0) return null;
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(savedAtUtcMs));
+    const saved = new Date(savedAtUtcMs);
+    const time = new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(saved);
+
+    const startOfDay = (value: Date): number =>
+      new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+    const dayGap = Math.round((startOfDay(new Date(now)) - startOfDay(saved)) / 86_400_000);
+
+    if (dayGap === 0) return `today at ${time}`;
+    if (dayGap === 1) return `yesterday at ${time}`;
+    if (dayGap > 1 && dayGap < 7) return `${dayGap} days ago at ${time}`;
+
+    const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(saved);
+    return `${date} at ${time}`;
   } catch {
     return null;
   }
@@ -318,12 +337,9 @@ export const StartScreen: FC<StartScreenProps> = ({
                     <span>Day {startup.saveSummary.dayCount} of {titleCase(startup.saveSummary.season)}</span>
                     <span className="save-scroll-sep">·</span>
                     <span>{REGION_LABELS[startup.saveSummary.regionId] ?? "The coast"}</span>
-                    {savedDate && (
-                      <>
-                        <span className="save-scroll-sep">·</span>
-                        <span className="save-scroll-date">Saved {savedDate}</span>
-                      </>
-                    )}
+                    {/* Own row: the inline separator dangled at the end of the
+                        first line once the summary wrapped. */}
+                    {savedDate && <span className="save-scroll-date">Saved {savedDate}</span>}
                   </div>
                 </div>
               )}
@@ -414,19 +430,11 @@ export const StartScreen: FC<StartScreenProps> = ({
                 )}
               </section>
 
+              <InterfaceSettings />
+
               <section className="start-screen__options-section" aria-labelledby="start-screen-controls-title">
                 <h3 id="start-screen-controls-title">Controls</h3>
-                <div className="start-screen__controls-grid">
-                  <span><ChromeKeycap keyName="W A S D" /><span>Move / steer boat</span></span>
-                  <span><ChromeKeycap keyName="Shift" /><span>Sprint on foot</span></span>
-                  <span><ChromeKeycap keyName="E" /><span>Contextual interaction</span></span>
-                  <span><ChromeKeycap keyName="LMB" /><span>Use equipped tool</span></span>
-                  <span><ChromeKeycap keyName="RMB" /><span>Inspect / orbit camera</span></span>
-                  <span><ChromeKeycap keyName="Space" /><span>Jump / fishing action</span></span>
-                  <span><ChromeKeycap keyName="I" /><span>Open inventory</span></span>
-                  <span><ChromeKeycap keyName="M" /><span>Open world map</span></span>
-                  <span><ChromeKeycap keyName="Esc" /><span>Pause</span></span>
-                </div>
+                <ControlsReference className="start-screen__controls" />
               </section>
             </div>
           </ChromePanel>

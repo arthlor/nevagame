@@ -148,6 +148,8 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
     events.on("ItemSold", () => play("coins")),
     events.on("ItemPurchased", () => play("coins")),
     events.on("SeedPurchased", () => play("coins")),
+    events.on("RodPurchased", () => play("coins")),
+    events.on("RodEquipped", () => play("ui-confirm")),
     events.on("FishSold", () => play("coins")),
     events.on("BoatPurchased", () => play("coins")),
     events.on("NpcTalked", () => play("page-turn")),

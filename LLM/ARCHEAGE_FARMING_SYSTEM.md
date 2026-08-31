@@ -7,7 +7,7 @@
 ArcheAge farming works because agriculture is a **physical economic foundation**, not an isolated minigame. Preserve four ideas:
 1. **Spatial footprints:** free-form world placement rewards packing/land planning.
 2. **Climate affinity:** region/climate changes growth/moisture decisions.
-3. **Paced energy:** Neva replaces Labor Points with canonical `WorkCapacityState` (`02`): available = 100% XP/normal rare chance; depleted = 40% XP/reduced rare chance; core play never blocked.
+3. **Paced energy:** Neva replaces Labor Points with canonical `WorkCapacityState` (`02`). Manual production requires the full discounted Work cost and blocks atomically when Work is insufficient; traversal, logistics, trade, quests, and dialogue remain free.
 4. **Circularity:** farming feeds bait/chum, processing, fertilizer, lumber/boats, and later trade/logistics.
 
 # 1. Land & Property Inspiration
@@ -112,7 +112,7 @@ Farming interactions may use a short cast/progress bar. Movement/ESC/environment
 | Circular/free placement | simulation-defined footprint collision on ground plane; flexible packing |
 | Growth tick | canonical game-minute deterministic growth with climate/moisture/fertility/weather |
 | Single vs bundle scaling | early single seeds; later seed bundles to reduce labor and connect to bait |
-| Labor Points | non-blocking Work Capacity from `02` |
+| Labor Points | hard, fully funded manual-production Work from `02` |
 | Thunderstruck Trees | optional later deterministic rare proc + lightning VFX + rare timber |
 | Farmhouse processing | farm output → canonical processing/chum; later physical trade cargo |
 | Aquafarms | cleanly separable post-MVP marine cultivation system |

@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { useModalAccessibility } from "./useModalAccessibility";
+import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeDivider, ChromeMeter, ChromePanel } from "./chrome/Chrome";
@@ -35,13 +36,17 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
   const totalFishSpecies = ContentRegistry.fishSpecies.size;
   const discoveredFishCount = Object.keys(journal.fishRecords).length;
 
-  const getRankName = (xp: number): { title: string; nextXp: number; progress: number } => {
+  const getRankName = (
+    xp: number
+  ): { title: string; nextXp: number | null; progress: number; isMax: boolean } => {
     const current = getRankForXp(xp);
     const next = getNextRank(xp);
-    if (!next) return { title: current.rankName, nextXp: current.xpRequired, progress: 100 };
+    // At the top rank there is no next tier, so quoting the current rank's own
+    // requirement as "Next" read like the player had regressed.
+    if (!next) return { title: current.rankName, nextXp: null, progress: 100, isMax: true };
     const span = Math.max(1, next.xpRequired - current.xpRequired);
     const progress = Math.round(Math.min(1, Math.max(0, (xp - current.xpRequired) / span)) * 100);
-    return { title: current.rankName, nextXp: next.xpRequired, progress };
+    return { title: current.rankName, nextXp: next.xpRequired, progress, isMax: false };
   };
 
   return (
@@ -66,7 +71,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
             </span>
           </div>
 
-          <div className="journal-folio-tabs mm-ribbon-tabs" role="tablist" aria-label="Chronicle sections" data-testid="journal-folio-tabs">
+          <div className="journal-folio-tabs mm-ribbon-tabs" role="tablist" aria-label="Chronicle sections" data-testid="journal-folio-tabs" onKeyDown={handleTabListKeyDown}>
             <button
               type="button"
               role="tab"
@@ -233,8 +238,17 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
                           variant="gold"
                         />
                         <div className="mastery-footer">
-                          <span>{rank.progress}% to next tier</span>
-                          <span>Next: {rank.nextXp} XP</span>
+                          {rank.isMax ? (
+                            <>
+                              <span>Highest rank reached</span>
+                              <span>Mastered</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{rank.progress}% to next tier</span>
+                              <span>Next: {rank.nextXp} XP</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -283,7 +297,14 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
                               </span>
                               <div className="bestiary-stats-row">
                                 <span>Caught: <b>{record.catchCount}</b></span>
-                                <span>Record: <b className="record-weight">{record.largestWeightKg?.toFixed(1)} kg</b></span>
+                                <span>
+                                  Record:{" "}
+                                  <b className="record-weight">
+                                    {typeof record.largestWeightKg === "number"
+                                      ? `${record.largestWeightKg.toFixed(1)} kg`
+                                      : "not weighed"}
+                                  </b>
+                                </span>
                               </div>
                             </>
                           ) : (

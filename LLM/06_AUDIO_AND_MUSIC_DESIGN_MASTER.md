@@ -1,7 +1,20 @@
 # Farm & Fishing Browser Game — Audio & Music Design Master Specification
 
-> **Role:** Canonical audio, sound effects, foley, acoustics, and dynamic music authority for Neva. This document establishes the master audio architecture, mixing hierarchy, cue-by-cue sound inventory across all gameplay dynamics, adaptive music system, and asset production standards.
+> **Role:** Canonical audio, sound effects, foley, acoustics, and dynamic music authority for Neva. This document establishes the master audio architecture, mixing hierarchy, cue-by-cue sound inventory across all gameplay dynamics, adaptive music system, and asset production standards. It is registered in the root `AGENTS.md` canonical-authority list and wins inside the audio domain; it loses to `01` on state ownership and to `02` on gameplay truth.
 > **Audience:** Sound designers, composers, audio engineers, technical leads, and gameplay agents.
+>
+> **⚠ Status: design-stage specification.** This document describes the target
+> audio system. It is **not** an implementation status report. `src/audio/` and
+> the audio manifest own what actually plays today, and
+> `LLM/IMPLEMENTATION_STATUS_CHECKLIST.md` owns gate evidence. A cue listed
+> here is a specification, not a shipped sound — never cite this file as proof
+> that audio works.
+>
+> **Boundaries this file must not cross:** audio never owns gameplay truth.
+> Cues are triggered by the domain events in `01` §14 and must reinforce a real
+> state transition, never invent one. Adding a cue for a state that does not
+> exist is a request to change `02`, not a sound-design decision. Bus names,
+> cue IDs, and manifest fields are persistent contracts once shipped.
 
 ---
 
@@ -536,10 +549,7 @@ To guarantee flawless cross-browser performance, fast loading, and strict legal 
 1. **Mono for 3D Spatial Sources:** All spatialized world sounds (splashes, footstep impacts, tool chops, animal calls, workstation gears) MUST be authored in **Mono**. WebAudio PannerNodes require mono buffers to accurately compute spatial azimuth, elevation, and Doppler shifts.
 2. **Stereo for Beds and UI:** Environmental ambient loops, weather beds, UI clicks, and music stems MUST be authored in **Stereo**.
 3. **Seamless Looping:** Ambient beds and machine loops must have zero-crossing loop boundaries with baked-in crossfades (minimum 100ms) to eliminate audio clicks or pops.
-4. **Mastering & Headroom:**
-   - **SFX & Foley:** Peak at -3.0 dBFS, integrated loudness -16.0 LUFS.
-   - **Ambience & Weather:** Peak at -6.0 dBFS, integrated loudness -24.0 LUFS.
-   - **Music Stems:** Peak at -4.0 dBFS, integrated loudness -20.0 LUFS.
+4. **Mastering & Headroom:** The exact integrated-loudness and true-peak targets are owned by the seven-bus table in §2.1. Do not introduce a second category table in tooling or status documentation.
 
 ### 5.2 Audio Manifest Schema (`audio-manifest.json`)
 All audio cues must be registered in the centralized manifest with deterministic parameters:
@@ -555,7 +565,8 @@ All audio cues must be registered in the centralized manifest with deterministic
       "licenseUrl": "project",
       "runtimeUrl": "/assets/audio/fishing-cast.mp3",
       "sha256": "...",
-      "durationSeconds": 2.40
+      "durationSeconds": 2.40,
+      "channels": 1
     }
   ],
   "cues": {
@@ -589,9 +600,34 @@ All audio cues must be registered in the centralized manifest with deterministic
 }
 ```
 
+`tools/audio/normalizeBus.mjs` is the implemented preparation path. It resolves
+each source from its live cue bus and `spatial` flag into the seven semantic
+roles in §2.1 (`music`, `ambience`, `weather`, world SFX, player SFX, foley,
+UI), performs two-pass EBU R128 normalization, and stages every selected file
+before atomic promotion. Spatial sources are emitted mono; non-spatial cues,
+UI, ambience, and music are emitted stereo. Cue ranges are protected by padding
+to at least the latest referenced cue end, and a successful promotion updates
+the manifest `sha256`, `durationSeconds`, and `channels` fields together.
+
+Use `npm run tools -- audio plan` to inspect the mapping,
+`npm run audio:normalize` after a source changes, and
+`npm run audio:normalize:check` for runtime-file/manifest parity. These commands
+prove preparation and metadata integrity, not the in-game mix: human listening
+review across gameplay, interiors, weather, fishing, UI, and music remains a
+separate P14 gate.
+
 ---
 
 # 6. Implementation Checklist & Verification Matrix
+
+**Read the Status column literally.** `Spec Ready` means *this document
+specifies the cues* — it is not a claim that the subsystem is authored, wired,
+mixed, or verified in the game. No row here may be promoted to a roadmap gate.
+When a subsystem is actually implemented, record the evidence in
+`LLM/IMPLEMENTATION_STATUS_CHECKLIST.md` (with the narrowest proof: manifest
+entries, the code path that triggers the cue, and who heard it in the game) and
+change the row to `Implemented — see checklist`. Do not mark a row implemented
+from this file alone.
 
 | Subsystem | Core Audio Requirements | Verification Method | Status |
 |---|---|---|---|

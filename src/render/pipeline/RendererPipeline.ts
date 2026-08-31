@@ -34,6 +34,7 @@ export class RendererPipeline {
   private gtaoRefreshThisFrame = true;
   private gtaoHasReusableFrame = false;
   private gtaoFramesSinceRefresh = 0;
+  private gtaoBlendScale = 1;
   private readonly lastGtaoCameraPosition = new THREE.Vector3();
   private readonly lastGtaoCameraQuaternion = new THREE.Quaternion();
   private hasGtaoCameraSample = false;
@@ -53,6 +54,14 @@ export class RendererPipeline {
     this.generation += 1;
     this.disposeComposer();
     this.initialization = null;
+  }
+
+  /** Fades the high-tier AO contribution at the edge of a quality handoff. */
+  public setGtaoBlendScale(scale: number): void {
+    this.gtaoBlendScale = THREE.MathUtils.clamp(scale, 0, 1);
+    if (this.gtaoPass) {
+      this.gtaoPass.blendIntensity = CANONICAL_RENDER_CONFIG.gtao.blendIntensity * this.gtaoBlendScale;
+    }
   }
 
   public resize(width: number, height: number): void {
@@ -84,6 +93,20 @@ export class RendererPipeline {
     }
     this.prepareGtaoFrame(camera);
     this.composer.render();
+  }
+
+  /**
+   * Warms the active render path before deterministic capture. Runtime frames
+   * still own the final shadow-map update and post-process draw.
+   */
+  public async prepareForCapture(camera: THREE.Camera): Promise<void> {
+    const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
+    if (quality.ambientOcclusion === "gtao" && (!this.composer || this.activeCamera !== camera)) {
+      this.beginInitialization(camera);
+      await this.initialization;
+    }
+    await this.renderer.compileAsync(this.scene, camera);
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   public isGtaoActive(): boolean {
@@ -119,7 +142,7 @@ export class RendererPipeline {
     const renderPass = new RenderPass(this.scene, camera);
     const gtaoPass = new GTAOPass(this.scene, camera, this.width, this.height);
     const config = CANONICAL_RENDER_CONFIG.gtao;
-    gtaoPass.blendIntensity = config.blendIntensity;
+    gtaoPass.blendIntensity = config.blendIntensity * this.gtaoBlendScale;
     gtaoPass.updateGtaoMaterial({
       radius: config.radius,
       thickness: config.thickness,

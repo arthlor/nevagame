@@ -72,9 +72,10 @@ async function snapshot(page: Page): Promise<NevaDebugSnapshot> {
 }
 
 async function readDiagnostics(page: Page): Promise<RuntimeDiagnostics> {
-  return page.evaluate(() => {
-    const element = document.querySelector<HTMLElement>("[data-testid='diagnostics']");
-    if (!element) throw new Error("Missing diagnostics overlay");
+  // React replaces the DEV overlay during mode/quest updates. Resolve it
+  // through a Locator so Playwright retries across that short unmount instead
+  // of turning a presentation refresh into a failed traversal assertion.
+  return page.getByTestId("diagnostics").evaluate((element) => {
     const numberAttribute = (name: string): number => {
       const value = Number(element.getAttribute(name));
       if (!Number.isFinite(value)) throw new Error(`Invalid diagnostic ${name}`);

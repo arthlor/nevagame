@@ -614,6 +614,26 @@ describe("Persistence & Offline Progression", () => {
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 
+  it("rescales a legacy small Work pool to the 1,000 ceiling, preserving how full it was", () => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 20;
+    legacy.player.money = 512;
+    legacy.player.workCapacity = { current: 20, maximum: 40, regeneratedAtMinute: 123 } as never;
+
+    const migrated = migrateSaveData({
+      schemaVersion: 20,
+      savedAtUtcMs: 1,
+      state: legacy
+    } as never);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.player.money).toBe(512);
+    expect(migrated.state.player.workCapacity.maximum).toBe(1000);
+    expect(migrated.state.player.workCapacity.current).toBe(500); // 20/40 of 1000
+    expect(migrated.state.player.workCapacity.regeneratedAtMinute).toBe(123);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
   it("migrates the v11 layout fixture by re-grounding land truth and preserving unrelated state", () => {
     const legacy = structuredClone(saveV11Layout3) as unknown as SaveEnvelope;
     const preserved = {
@@ -1071,7 +1091,8 @@ describe("Persistence & Offline Progression", () => {
       feedingFrenzyUntilMinute: 510,
       remainingCatchPotential: 2
     });
-    expect(migrated.state.sportFishing).toEqual(preserved.fishing);
+    expect(migrated.state.sportFishing).toMatchObject(preserved.fishing!);
+    expect(migrated.state.sportFishing?.dynamics).toBeDefined();
     expect(migrated.state.fishCargo["cargo.v6_trout"]).toEqual(preserved.cargo);
     expect(migrated.state.inventories[migrated.state.player.inventoryId]).toEqual(preserved.inventory);
     expect(migrated.state.markets).toEqual(preserved.markets);

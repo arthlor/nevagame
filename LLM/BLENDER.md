@@ -261,6 +261,7 @@ Follow the relevant Art Bible section. The compact non-negotiables are:
 - The human should send revision feedback as `asset ID + observed problem + desired change`; do not restate the entire pipeline.
 - Never run a command without `--asset`, `--family`, or explicit release `--all`.
 - Avoid full catalog dumps, full command logs, manifest pastes, and repeated canonical summaries.
+- Never hand-copy asset counts, below-target lists, report dates, or hashes into Markdown. Cite `generated/reports/asset_budget_report.json` and the command that regenerates it.
 
 ---
 
@@ -274,6 +275,7 @@ Integration: <game/runtime location>
 Mechanical generation: passed/failed
 Runtime TypeScript check: passed/not required/failed
 Save impact: no (unless explicitly changed)
+Docs updated: <paths, or `none — no documented fact changed`>
 Narrative role: <none or concise practical/story function>
 Visual status: Awaiting human game review
 ```

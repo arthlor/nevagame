@@ -8,7 +8,11 @@ export const BOATS: Record<string, BoatDefinition> = {
     name: "Wooden Rowboat",
     description: "A humble hand-crafted dinghy. Suitable for calm rivers, lakes and sheltered coastal waters.",
     maxSpeed: 4.5, // ~16 km/h
-    acceleration: 2.0,
+    // A hand-powered boat needs a responsive first stroke at the gameplay
+    // camera. The low top speed still preserves the rowboat's deliberate
+    // pace, while the quicker ramp keeps short steering corrections useful
+    // on browsers rendering the world at the 30 FPS floor.
+    acceleration: 3.0,
     turningRate: 1.2,
     fuelCapacity: 0, // Manual oar power - no fuel required
     durabilityMax: 100,

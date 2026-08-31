@@ -2,7 +2,19 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import {
+  advanceQualityLevel,
+  CANONICAL_RENDER_CONFIG,
+  contactTierEffectStrength,
+  highTierEffectStrength,
+  qualityTierAtLevel,
+  qualityTierLevel,
+  qualityValueAtLevel,
+  type QualityTier
+} from "../config/VisualRenderConfig";
 import {
   selectNearestPracticalLightIndices,
   uniquePracticalLightSourceNames
@@ -337,6 +349,16 @@ interface FishPresentationMember {
   actions: Map<FishAnimationClip, THREE.AnimationAction>;
   activeClip: FishAnimationClip | null;
   tailPivot?: THREE.Object3D;
+  visibilityMaterials: FishVisibilityMaterial[];
+}
+
+interface FishVisibilityMaterial {
+  material: THREE.Material & { color?: THREE.Color };
+  baseColor: THREE.Color | null;
+  baseOpacity: number;
+  baseTransparent: boolean;
+  baseDepthTest: boolean;
+  baseDepthWrite: boolean;
 }
 
 export interface SportFishingCameraHint {
@@ -345,6 +367,14 @@ export interface SportFishingCameraHint {
   lineTension: number;
   snapTimerSeconds: number;
   fightBehavior: FishingEncounterState["behavior"];
+  behaviorPhase: SportFishingPresentationSample["behaviorPhase"];
+  behaviorPhaseProgress: number;
+  fishDepthMeters: number;
+  fishStaminaRatio: number;
+  /** Physics head-shake amplitude, 0..1 — a continuous low camera rumble. */
+  shakeAmplitude: number;
+  /** One-frame cinematic trigger: the fight just started or just landed. */
+  cameraEvent: "hooked" | "landed" | null;
 }
 
 function boatBuoyancyFootprint(boatTypeId: string): { halfLength: number; halfBeam: number } {
@@ -355,6 +385,9 @@ function boatBuoyancyFootprint(boatTypeId: string): { halfLength: number; halfBe
 
 /** Presentation-only buoyancy key. Not a persisted BoatId. */
 const SKIFF_MOORING_PREVIEW_ID = "preview.harbor-skiff";
+
+/** Centreline samples along the fishing line ribbon (one more vertex pair than this). */
+const FISHING_LINE_SEGMENTS = 14;
 
 const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "seed", assetId: ASSET_IDS.TOOL_SEED_POUCH_A, socket: "char_player_hip_socket", scale: 0.72 },
@@ -469,6 +502,13 @@ export class WorldScene {
   private layoutEditHelper: THREE.BoxHelper | null = null;
   private layoutEditLockedObject: THREE.Object3D | null = null;
   private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
+  private qualityLevel = qualityTierLevel(CANONICAL_RENDER_CONFIG.qualityTier);
+  private targetQualityLevel = this.qualityLevel;
+  private qualityRebuildElapsedSeconds = 0;
+  private qualityContactStrength = contactTierEffectStrength(this.qualityLevel);
+  private hasRenderedFrame = false;
+  private lastResizeWidth = 0;
+  private lastResizeHeight = 0;
   private readonly placementPreview = new THREE.Group();
   private readonly interactionFeedback = new THREE.Mesh(
     new THREE.RingGeometry(0.42, 0.52, 24),
@@ -505,7 +545,10 @@ export class WorldScene {
   );
   private fishingBobberGroup: THREE.Group = new THREE.Group();
   private fishingBobberBody: THREE.Group = new THREE.Group();
-  private fishingLineMesh: THREE.Line | null = null;
+  private fishingLineMesh: Line2 | null = null;
+  private readonly fishingLinePositions = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
+  private readonly fishingLineColors = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
+  private readonly fishWaterTint = new THREE.Color(PALETTE_HEX.water_deep_01);
   private fishingRodBend: FishingRodBend | null = null;
   private readonly fishingMouthLocal = new THREE.Vector3();
   private fishingMouthNode: THREE.Object3D | null = null;
@@ -520,7 +563,12 @@ export class WorldScene {
   private readonly sportFishingPresentation: SportFishingPresentationSample =
     createSportFishingPresentationSample();
   private sportFishingCameraHint: SportFishingCameraHint | null = null;
+  /** Keeps a "landed" camera hint alive briefly after the fight state clears. */
+  private sportFishEndBeatSeconds = 0;
+  private readonly sportFishEndLook = new THREE.Vector3();
   private lastSportFishingSplashAtSeconds = Number.NEGATIVE_INFINITY;
+  private lastRodTipSprayAtSeconds = Number.NEGATIVE_INFINITY;
+  private lastRodLoadSample = 0;
   private hookedFishModel: THREE.Group | null = null;
   private hookedFishAssetId: AssetId | null = null;
   private hookedFishPresentation: FishPresentationMember | null = null;
@@ -1067,6 +1115,10 @@ export class WorldScene {
     this.questWaypointRing.position.set(position.x, position.y + 0.065, position.z);
   }
 
+
+  public getTerrainMesh(): THREE.Mesh | null {
+    return this.terrainMesh;
+  }
 
   public raycastTerrain(
     camera: THREE.Camera,
@@ -2272,7 +2324,7 @@ export class WorldScene {
   }
 
   private updateStaticLodBatches(): void {
-    const distanceScale = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].lodDistanceScale;
+    const distanceScale = qualityValueAtLevel(this.qualityLevel, (quality) => quality.lodDistanceScale);
     for (const instance of this.staticLodBatchInstances) {
       const distance = Math.hypot(
         this.visibilityAnchor.x - instance.position.x,
@@ -2340,7 +2392,10 @@ export class WorldScene {
       this.runtimeLodsDirty = false;
     }
     this.visibilityLodCamera.position.copy(this.visibilityAnchor);
-    this.visibilityLodCamera.zoom = CANONICAL_RENDER_CONFIG.quality[this.qualityTier].lodDistanceScale;
+    this.visibilityLodCamera.zoom = qualityValueAtLevel(
+      this.qualityLevel,
+      (quality) => quality.lodDistanceScale
+    );
     this.visibilityLodCamera.updateMatrixWorld(true);
     for (const object of this.runtimeLods) {
       if (!object.parent) continue;
@@ -2427,7 +2482,9 @@ export class WorldScene {
     if (this.playerContactShadow) {
       setContactShadowOpacity(
         this.playerContactShadow,
-        CANONICAL_RENDER_CONFIG.contact.opacity * THREE.MathUtils.lerp(0.42, 1, frame.daylight)
+        CANONICAL_RENDER_CONFIG.contact.opacity
+          * this.qualityContactStrength
+          * THREE.MathUtils.lerp(0.42, 1, frame.daylight)
       );
     }
     this.water.updateLighting(frame);
@@ -2462,7 +2519,9 @@ export class WorldScene {
    * used to draw the line and hooked fish in the current frame.
    */
   public getSportFishingPresentation(): Readonly<SportFishingPresentationSample> | undefined {
-    return this.sportFishingCameraHint ? this.sportFishingPresentation : undefined;
+    return this.sportFishingCameraHint && this.sportFishingCameraHint.cameraEvent !== "landed"
+      ? this.sportFishingPresentation
+      : undefined;
   }
 
   public getSportFishingCameraHint(): Readonly<SportFishingCameraHint> | undefined {
@@ -2839,9 +2898,13 @@ export class WorldScene {
   }
 
   private disposeSchoolEffect(group: THREE.Group): void {
+    const members = group.userData.fishMembers as FishPresentationMember[] | undefined;
+    for (const member of members ?? []) this.disposeFishVisibility(member);
     group.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || object.name !== "school_ripple") return;
       object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) material.dispose();
     });
     group.removeFromParent();
   }
@@ -3216,8 +3279,68 @@ export class WorldScene {
       mixer,
       actions,
       activeClip: swim ? "swim" : null,
-      tailPivot: root.getObjectByName(`${assetId}_tail_pivot`) ?? undefined
+      tailPivot: root.getObjectByName(`${assetId}_tail_pivot`) ?? undefined,
+      visibilityMaterials: this.prepareFishVisibility(root)
     };
+  }
+
+  /**
+   * Fish GLB clones share catalog materials, so clone just the materials before
+   * applying the water-visibility treatment. The treatment is presentation-only:
+   * it never changes the simulation-owned fish depth or position.
+   */
+  private prepareFishVisibility(root: THREE.Group): FishVisibilityMaterial[] {
+    const tracked: FishVisibilityMaterial[] = [];
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const originals = Array.isArray(object.material) ? object.material : [object.material];
+      const clones = originals.map((material) => material.clone());
+      object.material = Array.isArray(object.material) ? clones : clones[0];
+      for (const material of clones) {
+        const colored = material as THREE.Material & { color?: THREE.Color };
+        tracked.push({
+          material: colored,
+          baseColor: colored.color?.clone() ?? null,
+          baseOpacity: material.opacity,
+          baseTransparent: material.transparent,
+          baseDepthTest: material.depthTest,
+          baseDepthWrite: material.depthWrite
+        });
+      }
+    });
+    return tracked;
+  }
+
+  private updateFishVisibility(
+    member: FishPresentationMember,
+    depthMeters: number,
+    prominence: number
+  ): void {
+    const submerged = depthMeters > 0.035;
+    const depthFade = THREE.MathUtils.clamp(1 - depthMeters / 7, 0, 1);
+    const opacity = THREE.MathUtils.lerp(0.42, 0.82, depthFade) * prominence;
+    member.root.traverse((object) => {
+      if (object instanceof THREE.Mesh) object.renderOrder = submerged ? 4 : 0;
+    });
+    for (const tracked of member.visibilityMaterials) {
+      const { material } = tracked;
+      material.transparent = submerged || tracked.baseTransparent;
+      material.opacity = submerged ? Math.min(tracked.baseOpacity, opacity) : tracked.baseOpacity;
+      // The water mesh is intentionally opaque and depth-writing. Let the fish
+      // read through it as a soft teal silhouette instead of moving the fish out
+      // of the simulation-owned depth.
+      material.depthTest = submerged ? false : tracked.baseDepthTest;
+      material.depthWrite = submerged ? false : tracked.baseDepthWrite;
+      if (tracked.baseColor && material.color) {
+        material.color.copy(tracked.baseColor);
+        if (submerged) material.color.lerp(this.fishWaterTint, 0.24 + (1 - depthFade) * 0.22);
+      }
+    }
+  }
+
+  private disposeFishVisibility(member: FishPresentationMember | null): void {
+    member?.mixer?.stopAllAction();
+    for (const tracked of member?.visibilityMaterials ?? []) tracked.material.dispose();
   }
 
   private setFishAnimation(member: FishPresentationMember, clipName: FishAnimationClip): void {
@@ -3235,17 +3358,19 @@ export class WorldScene {
     member: FishPresentationMember,
     clipName: FishAnimationClip,
     delta: number,
-    timeSeconds: number
+    timeSeconds: number,
+    beatScale = 1
   ): void {
     this.setFishAnimation(member, clipName);
+    const beat = this.prefersReducedMotion
+      ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
+      : beatScale;
     if (member.mixer) {
-      member.mixer.timeScale = this.prefersReducedMotion
-        ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
-        : 1;
+      member.mixer.timeScale = beat;
     }
     member.mixer?.update(delta);
     if (!member.mixer && member.tailPivot) {
-      member.tailPivot.rotation.y = Math.sin(timeSeconds * 8.5 + member.phase * Math.PI * 2)
+      member.tailPivot.rotation.y = Math.sin(timeSeconds * 8.5 * beat + member.phase * Math.PI * 2)
         * 0.28
         * (this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1);
     }
@@ -3342,7 +3467,10 @@ export class WorldScene {
                 isBracing: state.sportFishing.isBracing,
                 rodDirectionAngle: state.sportFishing.dynamics?.rodDirection ?? state.sportFishing.rodDirectionAngle,
                 loadRatio: this.sportFishingPresentation.loadRatio,
-                retrievalMetersPerSecond: this.sportFishingPresentation.retrievalMetersPerSecond
+                pumpLoadRatio: this.sportFishingPresentation.pumpLoadRatio,
+                behaviorPhase: this.sportFishingPresentation.behaviorPhase,
+                retrievalMetersPerSecond: this.sportFishingPresentation.retrievalMetersPerSecond,
+                shakeAmplitude: this.sportFishingPresentation.shakeAmplitude
               }
             : undefined,
           boatInput: resolvedBoatInput
@@ -3458,6 +3586,7 @@ export class WorldScene {
         );
         fish.rotation.y = -orbit + Math.PI * 0.5;
         fish.rotation.z = Math.sin(timeSeconds * 2.2 + member.phase * Math.PI * 2) * 0.055;
+        this.updateFishVisibility(member, Math.max(0.04, -fish.position.y), frenzy ? 0.78 : 0.64);
       });
     }
 
@@ -3527,7 +3656,7 @@ export class WorldScene {
       }
     }
 
-    this.updateFishingPresentation(state, playerPose, timeSeconds);
+    this.updateFishingPresentation(state, playerPose, timeSeconds, delta);
   }
 
 
@@ -3579,19 +3708,29 @@ export class WorldScene {
     this.fishingBobberGroup.visible = false;
     this.scene.add(this.fishingBobberGroup);
 
-    // Fishing line
-    const linePoints: THREE.Vector3[] = [];
-    for (let i = 0; i <= 10; i++) {
-      linePoints.push(new THREE.Vector3(0, 0, 0));
-    }
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: PALETTE_HEX.foam_warm_01,
+    // Fishing line — screen-space Line2 keeps a stable physical read while the
+    // camera auto-yaws. The previous world-up ribbon twisted edge-on and looked
+    // like a dotted line sliding across the water.
+    const lineGeo = new LineGeometry();
+    lineGeo.setPositions(this.fishingLinePositions);
+    lineGeo.setColors(this.fishingLineColors);
+    const lineMat = new LineMaterial({
+      vertexColors: true,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.9,
+      linewidth: 1.55,
+      worldUnits: false,
+      depthWrite: false,
+      alphaToCoverage: true,
+      toneMapped: false,
+      resolution: new THREE.Vector2(
+        Math.max(1, this.lastResizeWidth || window.innerWidth),
+        Math.max(1, this.lastResizeHeight || window.innerHeight)
+      )
     });
-    this.fishingLineMesh = new THREE.Line(lineGeo, lineMat);
+    this.fishingLineMesh = new Line2(lineGeo, lineMat);
     this.fishingLineMesh.frustumCulled = false;
+    this.fishingLineMesh.renderOrder = 5;
     this.fishingLineMesh.visible = false;
     this.scene.add(this.fishingLineMesh);
   }
@@ -3599,7 +3738,8 @@ export class WorldScene {
   private updateFishingPresentation(
     state: Readonly<GameState>,
     playerPose: { x: number; y: number; z: number; rotationY: number },
-    timeSeconds: number
+    timeSeconds: number,
+    deltaSeconds: number
   ): void {
     const basic = state.basicFishing;
     const sport = state.sportFishing;
@@ -3609,19 +3749,38 @@ export class WorldScene {
 
     if (!sport) this.fishingRodBend?.update(0, this.fishingEndpointWorld);
 
+    if (!sport) {
+      // The fight state just cleared — carry a fading "landed" camera hint so the
+      // catch beat can play as control hands back to on-foot.
+      if (this.lastFishingInstanceId !== null) {
+        this.sportFishEndBeatSeconds = 0.7;
+        this.sportFishEndLook.copy(this.fishingEndpointWorld);
+      }
+      this.lastFishingInstanceId = null;
+      this.sportFishEndBeatSeconds = Math.max(0, this.sportFishEndBeatSeconds - deltaSeconds);
+      this.sportFishingCameraHint = this.sportFishEndBeatSeconds > 0
+        ? {
+            lookHint: { x: this.sportFishEndLook.x, y: this.sportFishEndLook.y, z: this.sportFishEndLook.z },
+            fightReachMeters: 0,
+            lineTension: 0,
+            snapTimerSeconds: 0,
+            fightBehavior: "rest",
+            behaviorPhase: "recovery",
+            behaviorPhaseProgress: 1,
+            fishDepthMeters: 0,
+            fishStaminaRatio: 0,
+            shakeAmplitude: 0,
+            cameraEvent: "landed"
+          }
+        : null;
+    }
+
     if (!basic && !sport) {
       this.fishingBobberGroup.visible = false;
       if (this.fishingLineMesh) this.fishingLineMesh.visible = false;
       if (this.hookedFishModel) this.hookedFishModel.visible = false;
       this.lastBasicFishingPhase = null;
-      this.sportFishingCameraHint = null;
-      this.lastFishingInstanceId = null;
       return;
-    }
-
-    if (!sport) {
-      this.sportFishingCameraHint = null;
-      this.lastFishingInstanceId = null;
     }
 
     const angle = playerPose.rotationY;
@@ -3685,16 +3844,24 @@ export class WorldScene {
       if (this.hookedFishModel) this.hookedFishModel.visible = false;
     } else if (sport) {
       this.lastBasicFishingPhase = null;
+      this.sportFishEndBeatSeconds = 0;
       const presentation = this.sportFishingPresentation;
       endpointX = presentation.endpointX;
       endpointZ = presentation.endpointZ;
       endpointY = this.water.sample(endpointX, endpointZ, timeSeconds).height - presentation.depthMeters;
+      const newlyHooked = this.lastFishingInstanceId !== sport.fish.instanceId;
       this.sportFishingCameraHint = {
         lookHint: { x: endpointX, y: endpointY, z: endpointZ },
         fightReachMeters: sport.distanceMeters,
         lineTension: sport.lineTension,
         snapTimerSeconds: sport.snapTimerSeconds,
-        fightBehavior: sport.behavior
+        fightBehavior: sport.behavior,
+        behaviorPhase: presentation.behaviorPhase,
+        behaviorPhaseProgress: presentation.behaviorPhaseProgress,
+        fishDepthMeters: presentation.depthMeters,
+        fishStaminaRatio: presentation.staminaRatio,
+        shakeAmplitude: presentation.shakeAmplitude,
+        cameraEvent: newlyHooked ? "hooked" : null
       };
       lineSag = presentation.lineSagMeters;
       lineCurve = presentation.rodTwistRadians * Math.min(4, sport.distanceMeters * 0.18);
@@ -3702,7 +3869,8 @@ export class WorldScene {
       this.fishingBobberBody.visible = false;
       this.fishingEndpointWorld.set(endpointX, endpointY, endpointZ);
       this.fishingRodBend?.update(presentation.rodBendRadians, this.fishingEndpointWorld,
-        presentation.retrievalMetersPerSecond, presentation.elapsedSeconds);
+        presentation.retrievalMetersPerSecond, presentation.elapsedSeconds,
+        presentation.rodDirection, presentation.shakeAmplitude);
       if (this.fishingRodBend && this.playerAnimation) {
         this.fishingRodBend.getGripWorld(this.tempRodTipVec);
         this.playerAnimation.alignFishingGrip(this.tempRodTipVec);
@@ -3719,20 +3887,25 @@ export class WorldScene {
           this.hookedFishPresentation,
           fishClip,
           THREE.MathUtils.clamp(sport.elapsedSeconds - this.lastHookedFishUpdateSeconds, 0, 0.1),
-          sport.elapsedSeconds
+          sport.elapsedSeconds,
+          THREE.MathUtils.clamp(presentation.fishTailBeatHz / 1.8, 0.3, 3.2)
         );
         this.lastHookedFishUpdateSeconds = sport.elapsedSeconds;
       }
       if (this.hookedFishModel) {
+        const shakeWobble = Math.sin(sport.elapsedSeconds * 22) * presentation.shakeAmplitude * 0.18;
         this.hookedFishModel.visible = true;
         this.hookedFishModel.position.set(endpointX, endpointY, endpointZ);
         this.hookedFishModel.scale.setScalar(0.82 * presentation.fishScale);
         this.hookedFishModel.rotation.set(
           presentation.fishPitchRadians,
-          presentation.fishYawRadians,
-          presentation.fishRollRadians,
+          presentation.fishYawRadians + shakeWobble,
+          presentation.fishRollRadians + presentation.fishBendRadians + presentation.fishFlashIntensity * 0.6,
           "YXZ"
         );
+        if (this.hookedFishPresentation) {
+          this.updateFishVisibility(this.hookedFishPresentation, presentation.depthMeters, 1);
+        }
       }
     }
 
@@ -3743,11 +3916,30 @@ export class WorldScene {
       const crossed = sameFish && presentation.surfaceCrossings !== this.lastFishingSurfaceCrossings;
       const nearSurface = Math.abs(presentation.depthMeters) < 0.3;
       const advanced = sport.elapsedSeconds > this.lastFishingSampleElapsed;
-      if ((crossed || (advanced && nearSurface && surfaceStrength > 0.45))
-        && timeSeconds - this.lastSportFishingSplashAtSeconds >= (crossed ? 0.12 : 0.65)) {
+      const breaching = sport.behavior === "burst" && nearSurface;
+      if ((crossed || breaching || (advanced && nearSurface && surfaceStrength > 0.45))
+        && timeSeconds - this.lastSportFishingSplashAtSeconds >= (crossed || breaching ? 0.12 : 0.65)) {
         this.farmVfx.spawn("water", { x: endpointX, y: waterHeight + 0.016, z: endpointZ }, timeSeconds,
           { origin: { x: endpointX, y: waterHeight + 0.2, z: endpointZ }, reducedMotion: this.prefersReducedMotion });
+        if (breaching) {
+          this.farmVfx.spawn("water", { x: endpointX, y: waterHeight + 0.05, z: endpointZ }, timeSeconds,
+            { origin: { x: endpointX, y: waterHeight + 0.35, z: endpointZ }, reducedMotion: this.prefersReducedMotion });
+        }
         this.lastSportFishingSplashAtSeconds = timeSeconds;
+      }
+      // Spray flicks off the rod tip when the blank loads up hard and fast.
+      const rodLoad = presentation.rodLoad;
+      const loadSpike = rodLoad - this.lastRodLoadSample;
+      this.lastRodLoadSample = rodLoad;
+      if (!this.prefersReducedMotion && (rodLoad > 0.9 || loadSpike > 0.12)
+        && timeSeconds - this.lastRodTipSprayAtSeconds >= 0.4) {
+        this.fishingRodBend?.getTipWorld(this.tempRodTipVec);
+        this.farmVfx.spawn("water", { x: this.tempRodTipVec.x, y: this.tempRodTipVec.y, z: this.tempRodTipVec.z },
+          timeSeconds, {
+            origin: { x: this.tempRodTipVec.x, y: this.tempRodTipVec.y + 0.15, z: this.tempRodTipVec.z },
+            reducedMotion: this.prefersReducedMotion
+          });
+        this.lastRodTipSprayAtSeconds = timeSeconds;
       }
       this.lastFishingInstanceId = sport.fish.instanceId;
       this.lastFishingSurfaceCrossings = presentation.surfaceCrossings;
@@ -3760,24 +3952,27 @@ export class WorldScene {
       const secondaryScale = this.prefersReducedMotion
         ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
         : 1;
-      const pulse = 0.7 + surfaceStrength * 0.65
-        + Math.sin(timeSeconds * (3 + surfaceStrength * 8)) * 0.12 * secondaryScale;
+      // The sport line cuts a bigger wake at the water than a still bobber.
+      const retrieval = sport ? this.sportFishingPresentation.retrievalMetersPerSecond : 0;
+      const wakeGain = sport ? 0.72 + Math.min(0.52, retrieval * 0.22) : 0.7;
+      const pulse = wakeGain + surfaceStrength * 0.7
+        + Math.sin(timeSeconds * (3 + surfaceStrength * 8)) * 0.12 * secondaryScale
+        + (sport ? Math.sin(timeSeconds * 11) * 0.08 * secondaryScale : 0);
       this.fishingBobberRipple.scale.set(pulse, 1, pulse);
       (this.fishingBobberRipple.material as THREE.MeshStandardMaterial).opacity =
-        THREE.MathUtils.lerp(0.28, 0.88, surfaceStrength);
-      this.fishingBobberRipple.visible = surfaceStrength > 0.01;
+        THREE.MathUtils.lerp(sport ? 0.2 : 0.28, sport ? 0.52 : 0.9,
+          Math.max(surfaceStrength, sport ? Math.min(0.6, retrieval * 0.25) : 0));
+      this.fishingBobberRipple.visible = sport ? lineVisible : surfaceStrength > 0.01;
     }
 
     if (!this.fishingLineMesh) return;
-    const lineMaterial = this.fishingLineMesh.material as THREE.LineBasicMaterial;
-    if (sport) {
-      const tensionRatio = THREE.MathUtils.clamp(sport.lineTension / 100, 0, 1);
-      lineMaterial.opacity = THREE.MathUtils.lerp(0.62, 0.96, tensionRatio);
-      lineMaterial.linewidth = THREE.MathUtils.lerp(1.15, 1.85, tensionRatio);
-    } else {
-      lineMaterial.opacity = 0.85;
-      lineMaterial.linewidth = 1;
-    }
+    const lineMaterial = this.fishingLineMesh.material as LineMaterial;
+    const tensionRatio = sport ? THREE.MathUtils.clamp(sport.lineTension / 100, 0, 1) : 0.35;
+    lineMaterial.opacity = sport ? THREE.MathUtils.lerp(0.82, 0.99, tensionRatio) : 0.85;
+    lineMaterial.linewidth = sport ? THREE.MathUtils.lerp(1.8, 3.2, tensionRatio) : 1.5;
+    // The low-poly water is opaque. Keep the sport line readable across its
+    // surface and communicate depth through the authored colour treatment.
+    lineMaterial.depthTest = !sport;
     if (sport && this.hookedFishModel && this.fishingMouthNode) {
       this.hookedFishModel.updateMatrixWorld(true);
       this.fishingMouthNode.localToWorld(this.fishingEndpointWorld.copy(this.fishingMouthLocal));
@@ -3801,26 +3996,76 @@ export class WorldScene {
       }
     }
 
-    const positions = this.fishingLineMesh.geometry.attributes.position;
-    const pointCount = positions.count - 1;
+    // Curve sideways in the line's own frame. Using the player's right vector
+    // made the whole ribbon slide across the screen when the camera auto-yawed.
+    const lineDx = endpointX - rodTipX;
+    const lineDz = endpointZ - rodTipZ;
+    const horizontalLineLength = Math.hypot(lineDx, lineDz);
+    const curveX = horizontalLineLength > 0.001 ? lineDz / horizontalLineLength : rightX;
+    const curveZ = horizontalLineLength > 0.001 ? -lineDx / horizontalLineLength : rightZ;
+
+    const lineGeometry = this.fishingLineMesh.geometry as LineGeometry;
+    const startPosition = lineGeometry.getAttribute("instanceStart") as THREE.InterleavedBufferAttribute;
+    const endPosition = lineGeometry.getAttribute("instanceEnd") as THREE.InterleavedBufferAttribute;
+    const startColor = lineGeometry.getAttribute("instanceColorStart") as THREE.InterleavedBufferAttribute;
+    const endColor = lineGeometry.getAttribute("instanceColorEnd") as THREE.InterleavedBufferAttribute;
     const lineEndY = basic ? endpointY + 0.12 : endpointY;
     const dangerVibration = sport
       ? THREE.MathUtils.clamp((sport.lineTension - 78) / 22, 0, 1)
         * 0.025
         * (this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1)
       : 0;
-    for (let index = 0; index <= pointCount; index += 1) {
-      const t = index / pointCount;
+    // Cool nylon grey → hot white as load builds → angry red as it nears the snap.
+    const hot = THREE.MathUtils.clamp(tensionRatio * 1.12, 0, 1);
+    const near = tensionRatio > 0.82 ? (tensionRatio - 0.82) / 0.18 : 0;
+    const lineR = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.80, 1, hot), 1, near);
+    const lineG = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.86, 0.97, hot), 0.3, near);
+    const lineB = THREE.MathUtils.lerp(0.9, 0.22, near);
+    for (let index = 0; index <= FISHING_LINE_SEGMENTS; index += 1) {
+      const t = index / FISHING_LINE_SEGMENTS;
       const curve = Math.sin(t * Math.PI);
       const vibration = sport
         ? Math.sin(sport.elapsedSeconds * 34 + t * 15) * dangerVibration * curve
         : 0;
-      const x = THREE.MathUtils.lerp(rodTipX, endpointX, t) + rightX * (lineCurve * curve + vibration);
-      const z = THREE.MathUtils.lerp(rodTipZ, endpointZ, t) + rightZ * (lineCurve * curve + vibration);
-      const y = THREE.MathUtils.lerp(rodTipY, lineEndY, t) - curve * lineSag;
-      positions.setXYZ(index, x, y, z);
+      const cx = THREE.MathUtils.lerp(rodTipX, endpointX, t) + curveX * (lineCurve * curve + vibration);
+      const cz = THREE.MathUtils.lerp(rodTipZ, endpointZ, t) + curveZ * (lineCurve * curve + vibration);
+      const cy = THREE.MathUtils.lerp(rodTipY, lineEndY, t) - curve * lineSag;
+      const offset = index * 3;
+      this.fishingLinePositions[offset] = cx;
+      this.fishingLinePositions[offset + 1] = cy;
+      this.fishingLinePositions[offset + 2] = cz;
+      // Sink the submerged run into a dim green-blue so the water line reads.
+      const submerged = cy < waterHeight - 0.02;
+      const dim = submerged ? 0.66 : 1;
+      const r = lineR * dim;
+      const g = (submerged ? Math.min(1, lineG * 1.2) : lineG) * dim;
+      const b = (submerged ? Math.min(1, lineB * 1.4 + 0.1) : lineB) * dim;
+      this.fishingLineColors[offset] = r;
+      this.fishingLineColors[offset + 1] = g;
+      this.fishingLineColors[offset + 2] = b;
     }
-    positions.needsUpdate = true;
+    for (let segment = 0; segment < FISHING_LINE_SEGMENTS; segment += 1) {
+      const startOffset = segment * 3;
+      const endOffset = (segment + 1) * 3;
+      startPosition.setXYZ(segment,
+        this.fishingLinePositions[startOffset],
+        this.fishingLinePositions[startOffset + 1],
+        this.fishingLinePositions[startOffset + 2]);
+      endPosition.setXYZ(segment,
+        this.fishingLinePositions[endOffset],
+        this.fishingLinePositions[endOffset + 1],
+        this.fishingLinePositions[endOffset + 2]);
+      startColor.setXYZ(segment,
+        this.fishingLineColors[startOffset],
+        this.fishingLineColors[startOffset + 1],
+        this.fishingLineColors[startOffset + 2]);
+      endColor.setXYZ(segment,
+        this.fishingLineColors[endOffset],
+        this.fishingLineColors[endOffset + 1],
+        this.fishingLineColors[endOffset + 2]);
+    }
+    startPosition.data.needsUpdate = true;
+    startColor.data.needsUpdate = true;
     this.fishingLineMesh.visible = lineVisible;
   }
 
@@ -3975,6 +4220,7 @@ export class WorldScene {
       ? fishSpeciesAsset(state.sportFishing.fish.speciesId)
       : null;
     if (this.hookedFishAssetId !== sportFishAssetId) {
+      this.disposeFishVisibility(this.hookedFishPresentation);
       this.hookedFishModel?.removeFromParent();
       this.hookedFishModel = null;
       this.hookedFishAssetId = null;
@@ -3993,12 +4239,20 @@ export class WorldScene {
         this.hookedFishModel = hookedFish;
         loadedNewMesh = true;
         const speciesKey = currentSpeciesId?.replace("fish.", "");
-        const body = hookedFish.getObjectByName(`${speciesKey}_body`) ?? hookedFish;
-        const bodyBounds = new THREE.Box3().setFromObject(body);
-        bodyBounds.getCenter(this.fishingMouthLocal);
-        this.fishingMouthLocal.z = bodyBounds.max.z;
-        this.fishingMouthNode = body;
-        body.worldToLocal(this.fishingMouthLocal);
+        const mouthHook = hookedFish.getObjectByName(`${sportFishAssetId}_mouth_hook`);
+        if (mouthHook) {
+          this.fishingMouthNode = mouthHook;
+          this.fishingMouthLocal.set(0, 0, 0);
+        } else {
+          // Backward-compatible fallback while an older published fish GLB is
+          // cached: authored fish travel nose-first along local -Y.
+          const body = hookedFish.getObjectByName(`${speciesKey}_body`) ?? hookedFish;
+          const bodyBounds = new THREE.Box3().setFromObject(body);
+          bodyBounds.getCenter(this.fishingMouthLocal);
+          this.fishingMouthLocal.y = bodyBounds.min.y;
+          this.fishingMouthNode = body;
+          body.worldToLocal(this.fishingMouthLocal);
+        }
         this.hookedFishAssetId = sportFishAssetId;
         this.hookedFishPresentation = this.createFishPresentationMember(
           hookedFish,
@@ -4012,9 +4266,14 @@ export class WorldScene {
     for (const [schoolId, school] of Object.entries(state.world.activeSchools)) {
       if (this.schoolEffects.has(schoolId)) continue;
       const sGroup = new THREE.Group();
-      const ringGeo = new THREE.RingGeometry(1.5, 3.5, 8);
+      const ringGeo = new THREE.RingGeometry(0.55, 0.82, 20);
       ringGeo.rotateX(-Math.PI / 2);
-      const ringMat = PaletteMaterials.standard("foam_warm_01", { transparent: true, opacity: 0.65 });
+      const ringMat = PaletteMaterials.standard("foam_warm_01", {
+        transparent: true,
+        opacity: 0.18,
+        roughness: 0.72
+      }).clone();
+      ringMat.depthWrite = false;
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
       ringMesh.name = "school_ripple";
       sGroup.add(ringMesh);
@@ -4078,10 +4337,16 @@ export class WorldScene {
     }
   }
 
-  public render(camera: THREE.Camera): void {
+  public render(camera: THREE.Camera, deltaSeconds = 1 / 60): void {
+    this.hasRenderedFrame = true;
+    this.updateQualityTransition(deltaSeconds);
     this.updateDistanceManagedPresentation();
     this.groundCover.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
     this.rendererPipeline.render(camera);
+  }
+
+  public prepareForVisualCapture(camera: THREE.Camera): Promise<void> {
+    return this.rendererPipeline.prepareForCapture(camera);
   }
 
   public renderObjectStats(): { visibleMeshes: number; shadowCasters: number; batchedMeshes: number; instancedMeshes: number } {
@@ -4101,25 +4366,65 @@ export class WorldScene {
   }
 
   public handleResize(width: number, height: number): void {
+    this.lastResizeWidth = Math.max(1, width);
+    this.lastResizeHeight = Math.max(1, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.lightingRig.pixelRatioCap()));
-    this.renderer.setSize(width, height);
-    this.rendererPipeline.resize(width, height);
+    this.renderer.setSize(this.lastResizeWidth, this.lastResizeHeight);
+    const fishingLineMaterial = this.fishingLineMesh?.material;
+    if (fishingLineMaterial instanceof LineMaterial) {
+      fishingLineMaterial.resolution.set(this.lastResizeWidth, this.lastResizeHeight);
+    }
+    this.rendererPipeline.resize(this.lastResizeWidth, this.lastResizeHeight);
   }
 
   public setQuality(tier: QualityTier): void {
+    this.targetQualityLevel = qualityTierLevel(tier);
+    if (this.hasRenderedFrame) return;
+    this.qualityLevel = this.targetQualityLevel;
+    this.applyContinuousQuality(true);
+    this.applyDiscreteQuality(tier);
+  }
+
+  private updateQualityTransition(deltaSeconds: number): void {
+    if (Math.abs(this.targetQualityLevel - this.qualityLevel) <= 0.0001) return;
+    this.qualityLevel = advanceQualityLevel(
+      this.qualityLevel,
+      this.targetQualityLevel,
+      THREE.MathUtils.clamp(deltaSeconds, 0, 0.1)
+    );
+    this.qualityRebuildElapsedSeconds += deltaSeconds;
+    this.applyContinuousQuality(
+      this.qualityRebuildElapsedSeconds
+        >= CANONICAL_RENDER_CONFIG.transitions.qualityRebuildIntervalSeconds
+        || this.qualityLevel === this.targetQualityLevel
+    );
+    const discreteTier = qualityTierAtLevel(this.qualityLevel);
+    if (discreteTier !== this.qualityTier) this.applyDiscreteQuality(discreteTier);
+  }
+
+  private applyContinuousQuality(rebuildDensity: boolean): void {
+    this.qualityContactStrength = contactTierEffectStrength(this.qualityLevel);
+    this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
+    this.rainField.setQualityLevel(this.qualityLevel);
+    if (!rebuildDensity) return;
+    this.qualityRebuildElapsedSeconds = 0;
+    this.groundCover.setQualityLevel(this.qualityLevel);
+    this.distanceVisibilityDirty = true;
+  }
+
+  private applyDiscreteQuality(tier: QualityTier): void {
     this.qualityTier = tier;
     this.lightingRig.setQuality(tier);
     this.rendererPipeline.setQuality(tier);
+    this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
     this.applyPracticalLightBudget();
-    this.groundCover.setQuality(tier);
-    this.rainField.setQuality(tier);
     this.distanceVisibilityDirty = true;
     this.playerContactShadow?.removeFromParent();
     this.playerContactShadow?.geometry.dispose();
     (this.playerContactShadow?.material as THREE.Material | undefined)?.dispose();
     this.playerContactShadow = null;
     this.buildPlayerContactShadow();
-    this.handleResize(window.innerWidth, window.innerHeight);
+    this.handleResize(this.lastResizeWidth || window.innerWidth, this.lastResizeHeight || window.innerHeight);
   }
 
   /**
@@ -4156,6 +4461,7 @@ export class WorldScene {
     }
     this.schoolEffects.clear();
     this.cloudMeshes.length = 0;
+    this.disposeFishVisibility(this.hookedFishPresentation);
     this.hookedFishModel?.removeFromParent();
     this.hookedFishModel = null;
     this.hookedFishAssetId = null;

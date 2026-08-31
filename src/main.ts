@@ -4,7 +4,10 @@ import "./ui/chrome/chrome.css";
 import "./ui/hud.css";
 import "./ui/modals.css";
 import "./ui/overlays.css";
+import "./ui/mobile.css";
+import "./ui/a11y.css";
 import { GameApp } from "./app/GameApp";
+import { uiScale } from "./ui/uiScale";
 
 function showFatalBootOverlay(error: unknown): void {
   const message = error instanceof Error
@@ -81,6 +84,9 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   try {
+    // Publishes --ui-scale before the first UI render so the HUD never flashes
+    // at the wrong size on load.
+    uiScale.start();
     const app = new GameApp(canvas, uiContainer);
     app.start().catch(showFatalBootOverlay);
   } catch (error) {

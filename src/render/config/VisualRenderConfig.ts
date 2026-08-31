@@ -3,6 +3,8 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
 
 export type QualityTier = "low" | "medium" | "high";
 
+const QUALITY_TIERS: readonly QualityTier[] = ["low", "medium", "high"];
+
 const SHARED_GROUND_WETNESS = {
   riseSeconds: 3,
   fallSeconds: 8,
@@ -16,6 +18,14 @@ export interface VisualRenderConfig {
   exposure: number;
   nightExposure: number;
   qualityTier: QualityTier;
+  transitions: {
+    /** Presentation response for integer simulation-clock steps and explicit time skips. */
+    timeOfDayResponseSeconds: number;
+    /** Visual handoff duration for each adjacent graphics tier. */
+    qualitySecondsPerTier: number;
+    /** Rate-limit expensive density/LOD rebuilds while the tier is moving. */
+    qualityRebuildIntervalSeconds: number;
+  };
   sun: {
     maxElevationDeg: number;
     noonAzimuthDeg: number;
@@ -56,6 +66,8 @@ export interface VisualRenderConfig {
     dawnDuskEdgeAmbient: number;
   };
   twilight: {
+    /** Extends the dawn/dusk ambient ramp beyond label boundaries without a hard edge. */
+    ambientShoulderMinutes: number;
     /** Moon stays up until the sun is this far above the horizon. */
     moonHoldSolarHeight: number;
     moonFadeWidth: number;
@@ -314,6 +326,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   exposure: 1.04,
   nightExposure: 1.24,
   qualityTier: "high",
+  transitions: {
+    timeOfDayResponseSeconds: 0.75,
+    qualitySecondsPerTier: 0.9,
+    qualityRebuildIntervalSeconds: 0.12
+  },
   sun: {
     maxElevationDeg: 35,
     noonAzimuthDeg: 45,
@@ -347,6 +364,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     dawnDuskEdgeAmbient: 0.46
   },
   twilight: {
+    ambientShoulderMinutes: 90,
     moonHoldSolarHeight: 0.16,
     moonFadeWidth: 0.26,
     practicalHoldDaylight: 0.22,
@@ -613,12 +631,56 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   }
 };
 
+export function qualityTierLevel(tier: QualityTier): number {
+  return QUALITY_TIERS.indexOf(tier);
+}
+
+export function qualityTierAtLevel(level: number): QualityTier {
+  return QUALITY_TIERS[Math.round(THREE.MathUtils.clamp(level, 0, QUALITY_TIERS.length - 1))]!;
+}
+
+export function qualityValueAtLevel(
+  level: number,
+  select: (quality: VisualRenderConfig["quality"][QualityTier]) => number
+): number {
+  const clamped = THREE.MathUtils.clamp(level, 0, QUALITY_TIERS.length - 1);
+  const lowerIndex = Math.floor(clamped);
+  const upperIndex = Math.min(QUALITY_TIERS.length - 1, lowerIndex + 1);
+  const lower = CANONICAL_RENDER_CONFIG.quality[QUALITY_TIERS[lowerIndex]!];
+  const upper = CANONICAL_RENDER_CONFIG.quality[QUALITY_TIERS[upperIndex]!];
+  return THREE.MathUtils.lerp(select(lower), select(upper), clamped - lowerIndex);
+}
+
+export function advanceQualityLevel(
+  current: number,
+  target: number,
+  deltaSeconds: number,
+  secondsPerTier: number = CANONICAL_RENDER_CONFIG.transitions.qualitySecondsPerTier
+): number {
+  const distance = target - current;
+  if (Math.abs(distance) <= 0.0001) return target;
+  const step = Math.max(0, deltaSeconds) / Math.max(0.001, secondsPerTier);
+  return current + Math.sign(distance) * Math.min(Math.abs(distance), step);
+}
+
+export function highTierEffectStrength(level: number): number {
+  return THREE.MathUtils.smoothstep(level, 1.5, 2);
+}
+
+export function contactTierEffectStrength(level: number): number {
+  return THREE.MathUtils.clamp(1 - Math.abs(level - 1) * 2, 0, 1);
+}
+
 export function groundCoverActiveCount(highCount: number, tier: QualityTier): number {
+  return groundCoverActiveCountAtLevel(highCount, qualityTierLevel(tier));
+}
+
+export function groundCoverActiveCountAtLevel(highCount: number, level: number): number {
   return Math.max(
     0,
     Math.min(
       highCount,
-      Math.floor(highCount * CANONICAL_RENDER_CONFIG.quality[tier].groundCoverDensityScale)
+      Math.floor(highCount * qualityValueAtLevel(level, (quality) => quality.groundCoverDensityScale))
     )
   );
 }

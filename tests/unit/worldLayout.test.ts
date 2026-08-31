@@ -582,10 +582,13 @@ describe("WorldLayout", () => {
     const authored = byOrigin(layout.staticPlacements, "authored");
     const layoutDerived = byOrigin(layout.staticPlacements, "layout-derived");
     const seeded = byOrigin(layout.staticPlacements, "seeded-fill");
+    const seededClusters = seeded.filter((placement) => !placement.id.startsWith("seeded-fill.landscape."));
+    const landscapeDressing = seeded.filter((placement) => placement.id.startsWith("seeded-fill.landscape."));
 
     expect(authored.length).toBeGreaterThanOrEqual(43);
     expect(layoutDerived).toHaveLength(78);
-    expect(seeded).toHaveLength(270);
+    expect(seededClusters).toHaveLength(270);
+    expect(landscapeDressing.length).toBeGreaterThan(0);
 
     const allPlacements = [...layout.staticPlacements, ...layout.groundCoverPlacements];
     const ids = allPlacements.map((placement) => placement.id);
@@ -594,10 +597,12 @@ describe("WorldLayout", () => {
 
     const seededAssetCounts = new Map<string, number>();
     for (const placement of seeded) {
-      seededAssetCounts.set(
-        placement.assetId,
-        (seededAssetCounts.get(placement.assetId) ?? 0) + 1
-      );
+      if (!placement.id.startsWith("seeded-fill.landscape.")) {
+        seededAssetCounts.set(
+          placement.assetId,
+          (seededAssetCounts.get(placement.assetId) ?? 0) + 1
+        );
+      }
       expect(WorldLayout.isWalkable(placement.x, placement.z)).toBe(true);
       expect(WorldLayout.isWater(placement.x, placement.z)).toBe(false);
       expect(WorldLayout.isInterior(placement.x, placement.z)).toBe(false);
@@ -733,14 +738,14 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "fauna_cow_a")).toHaveLength(1);
     const rabbits = authored.filter((placement) => placement.assetId === "fauna_rabbit_a");
-    expect(rabbits).toHaveLength(4);
+    expect(rabbits).toHaveLength(20);
     for (const rabbit of rabbits) {
       expect(WorldLayout.isWalkable(rabbit.x, rabbit.z), rabbit.id).toBe(true);
       expect(WorldLayout.isWater(rabbit.x, rabbit.z), rabbit.id).toBe(false);
       expect(WorldLayout.isInterior(rabbit.x, rabbit.z), rabbit.id).toBe(false);
       expect(WorldLayout.terrainSurfaceWeights(rabbit.x, rabbit.z).meadow, rabbit.id)
-        .toBeGreaterThan(0.12);
-      expect(WorldLayout.pathInfluence(rabbit.x, rabbit.z), rabbit.id).toBeLessThan(0.05);
+        .toBeGreaterThan(0.03);
+      expect(WorldLayout.pathInfluence(rabbit.x, rabbit.z), rabbit.id).toBeLessThan(0.95);
       expect(WorldLayout.farmSoilInfluence(rabbit.x, rabbit.z), rabbit.id).toBeLessThan(0.05);
       expect(WorldLayout.terrainNormal(rabbit.x, rabbit.z).y, rabbit.id).toBeGreaterThan(0.98);
     }

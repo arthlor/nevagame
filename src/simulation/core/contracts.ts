@@ -15,8 +15,18 @@ import type {
   MountId,
   PlacedCropId,
   ProcessingJobId,
-  RecipeId
+  RecipeId,
+  RodId
 } from "./types";
+
+export interface WorkCostQuote {
+  baseCost: number;
+  cost: number;
+  availableWork: number;
+  affordable: boolean;
+  shortage: number;
+  readyAtMinute: number | null;
+}
 
 export interface InteractionResult {
   success: boolean;
@@ -32,6 +42,10 @@ export interface InteractionResult {
   delivered?: number;
   completed?: boolean;
   rewardMoney?: number;
+  xpGained?: number;
+  requiredWork?: number;
+  availableWork?: number;
+  readyAtMinute?: number | null;
 }
 
 export type BuySeedReasonCode =
@@ -139,7 +153,7 @@ export interface CropInspectionDto {
   };
   soil: { fertility: number; band: SoilFertilityBand };
   expectedYield: { min: number; max: number };
-  work: { current: number; actionCost: number; xpMultiplier: number; rareChanceMultiplier: number };
+  work: WorkCostQuote & { current: number };
   actions: {
     canWater: boolean;
     canHarvest: boolean;
@@ -196,6 +210,8 @@ export type GameCommand =
   | { type: "market.sell-item"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.buy-seed"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.buy-item"; marketId: MarketId; itemId: ItemId; quantity: number }
+  | { type: "market.buy-rod"; marketId: MarketId; rodId: RodId }
+  | { type: "market.equip-rod"; marketId: MarketId; rodId: RodId }
   | { type: "market.sell-fish"; marketId: MarketId; cargoId: FishCargoId }
   | { type: "contract.deliver-items"; contractId: string; itemId: ItemId; quantity: number }
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }

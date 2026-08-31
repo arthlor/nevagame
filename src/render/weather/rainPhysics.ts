@@ -1,4 +1,9 @@
-import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
+import {
+  CANONICAL_RENDER_CONFIG,
+  qualityTierLevel,
+  qualityValueAtLevel,
+  type QualityTier
+} from "../config/VisualRenderConfig";
 import { WorldLayout } from "../../world/WorldLayout";
 import { waterHeight, type WaterConditions } from "../water/WaterSurface";
 
@@ -69,8 +74,16 @@ export function rainActiveDropCount(
   intensity: number,
   reducedMotionScale = 1
 ): number {
+  return rainActiveDropCountAtLevel(qualityTierLevel(tier), intensity, reducedMotionScale);
+}
+
+export function rainActiveDropCountAtLevel(
+  qualityLevel: number,
+  intensity: number,
+  reducedMotionScale = 1
+): number {
   if (intensity <= 0) return 0;
-  const budget = CANONICAL_RENDER_CONFIG.quality[tier].rainDropCount;
+  const budget = qualityValueAtLevel(qualityLevel, (quality) => quality.rainDropCount);
   const motionScale = Math.min(1, Math.max(0.2, reducedMotionScale));
   return Math.max(8, Math.round(budget * (0.28 + intensity * 0.72) * motionScale));
 }

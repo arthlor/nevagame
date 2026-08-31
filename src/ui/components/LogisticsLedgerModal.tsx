@@ -5,6 +5,7 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { calculateFishPrice } from "../../simulation/economy/calculateFishValue";
 import { IconCoin, IconFish, IconSprout, IconBoat, IconLedger } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
+import { handleTabListKeyDown } from "../useTabListKeyboard";
 import { ChromeButton, ChromeClose, ChromeMeter, ChromePanel, ChromeQuality, ChromeSlot } from "../chrome/Chrome";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish } from "../chrome/uiAtlas";
@@ -84,7 +85,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
             </div>
           </div>
 
-          <div className="ledger-tabs-bar mm-ribbon-tabs" role="tablist" aria-label="Ledger sections" data-testid="ledger-tabs">
+          <div className="ledger-tabs-bar mm-ribbon-tabs" role="tablist" aria-label="Ledger sections" data-testid="ledger-tabs" onKeyDown={handleTabListKeyDown}>
             <button
               type="button"
               role="tab"

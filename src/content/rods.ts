@@ -1,6 +1,31 @@
 // src/content/rods.ts
 
 import { RodDefinition } from "./types";
+import { PROFICIENCY_RANKS } from "./progression";
+import type { RodId } from "../simulation/core/types";
+
+export const ROD_PROGRESSION = [
+  "rod.willow",
+  "rod.river",
+  "rod.heavy_sport",
+  "rod.offshore",
+  "rod.master"
+] as const satisfies readonly RodId[];
+
+export function ownedRodsThrough(rodId: RodId): RodId[] {
+  const index = ROD_PROGRESSION.indexOf(rodId as (typeof ROD_PROGRESSION)[number]);
+  return index < 0 ? [ROD_PROGRESSION[0]] : [...ROD_PROGRESSION.slice(0, index + 1)];
+}
+
+export function previousRodId(rodId: RodId): RodId | null {
+  const index = ROD_PROGRESSION.indexOf(rodId as (typeof ROD_PROGRESSION)[number]);
+  return index > 0 ? ROD_PROGRESSION[index - 1] : null;
+}
+
+export function rodFishingXpRequirement(rodId: RodId): number | null {
+  const rank = PROFICIENCY_RANKS.find((candidate) => candidate.fishingUnlocks.includes(rodId));
+  return rank?.xpRequired ?? null;
+}
 
 export const RODS: Record<string, RodDefinition> = {
   "rod.willow": {

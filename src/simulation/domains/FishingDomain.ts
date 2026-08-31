@@ -3,6 +3,7 @@ import { WorldLayout } from "../../world/WorldLayout";
 import type {
   BasicFishingPhase,
   BasicFishingState,
+  CargoClass,
   FishSchoolId,
   FishSpeciesId,
   FishingEncounterState,
@@ -22,6 +23,21 @@ import { rodMeetsMinimum, rollSpeciesWeightKg } from "./domainRules";
 
 const SCHOOL_INTERACTION_RADIUS = 12;
 const SCHOOL_RESPAWN_COOLDOWN_MINUTES = 90;
+export const BASIC_FISHING_WORK_COST = 15;
+/**
+ * Sport-fishing hook cost scales with the size of fish a school can yield, so a
+ * lake trout is a light bite of the Work pool while a pelagic tuna costs more.
+ */
+export const SPORT_FISHING_WORK_COST_BY_CLASS: Record<CargoClass, number> = {
+  small: 18,
+  medium: 28,
+  large: 36,
+  gargantuan: 44
+};
+/** Representative cost shown in interaction prompts before a species is rolled. */
+export const SPORT_FISHING_WORK_COST = SPORT_FISHING_WORK_COST_BY_CLASS.medium;
+/** Portion of the discounted hook cost returned when a hooked sport fish is lost. */
+export const SPORT_FISHING_WORK_REFUND_RATIO = 0.6;
 export const SPORT_FISHING_REVIEW_POINTS = {
   trout: { habitatId: "lake", x: 18, z: WorldLayout.coastlineZ(18) + 12, speciesId: "fish.trout" },
   tuna: { habitatId: "coast", x: 118, z: WorldLayout.coastlineZ(118) + 58, speciesId: "fish.tuna" }
@@ -122,6 +138,7 @@ export class FishingDomain {
           // physical cargo, so a full hold or carry slot means the catch
           // escapes instead of leaving the simulation in a hidden limbo.
           this.commitSchoolCatch();
+          this.refundLostFightWork(encounterState.fish.speciesId);
           events.emit("FishEscaped", {
             speciesId: encounterState.fish.speciesId,
             reason: "no-cargo-space",
@@ -132,6 +149,7 @@ export class FishingDomain {
         }
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();
+        this.refundLostFightWork(encounterState.fish.speciesId);
         events.emit("FishEscaped", {
           speciesId: encounterState.fish.speciesId,
           reason: outcome === "line-snapped" ? "snapped" : "escaped",
@@ -149,7 +167,6 @@ export class FishingDomain {
     const { state } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
-    if (state.player.workCapacity.current <= 0) return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -162,6 +179,11 @@ export class FishingDomain {
     if (eligibleSpecies.length === 0) return { success: false, reason: "Nothing is biting in these conditions" };
     if (!eligibleSpecies.some((fish) => InventoryManager.canAddItems(inventory, [{ itemId: fish.id, quantity: 1 }]))) {
       return { success: false, reason: "Inventory is full!" };
+    }
+
+    const workQuote = this.progression.quoteWorkCost(BASIC_FISHING_WORK_COST, "fishing");
+    if (!workQuote.affordable) {
+      return this.progression.insufficientWorkResult(workQuote, "Casting");
     }
 
     const hasBait = InventoryManager.hasItems(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
@@ -186,10 +208,6 @@ export class FishingDomain {
     if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
       return { success: false, reason: "Not charging a cast" };
     }
-    if (state.player.workCapacity.current <= 0) {
-      state.basicFishing = null;
-      return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
-    }
     const power = Math.max(0.05, Math.min(1.0, castPower ?? state.basicFishing.castPower ?? 0.75));
     const habitatId = state.basicFishing.habitatId;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
@@ -200,12 +218,17 @@ export class FishingDomain {
       return { success: false, reason: "Nothing is biting in these conditions" };
     }
 
+    const work = this.progression.trySpendWork(BASIC_FISHING_WORK_COST, "fishing", "Casting");
+    if (!work.success) {
+      state.basicFishing = null;
+      return work;
+    }
+
     let hasBait = state.basicFishing.hasBait ?? false;
     if (hasBait) {
       hasBait = this.consumeBaitIfPresent();
     }
 
-    this.progression.consumeWorkCapacity(15, "fishing");
     const catchItemId = rng.weighted(eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight })));
 
     const newState = BasicFishingMinigame.createInitialState(
@@ -276,7 +299,6 @@ export class FishingDomain {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
-    if (state.player.workCapacity.current <= 0) return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
     const habitatId = WorldLayout.nearbyFishingHabitat(state.player.x, state.player.z);
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
     const inventory = state.inventories[state.player.inventoryId];
@@ -291,8 +313,9 @@ export class FishingDomain {
       return { success: false, reason: "Inventory is full!" };
     }
 
+    const work = this.progression.trySpendWork(BASIC_FISHING_WORK_COST, "fishing", "Casting");
+    if (!work.success) return work;
     const hasBait = this.consumeBaitIfPresent();
-    this.progression.consumeWorkCapacity(15, "fishing");
 
     const catchItemId = rng.weighted(
       eligibleSpecies.map((fish) => ({ value: fish.id, weight: fish.rarityWeight }))
@@ -377,10 +400,6 @@ export class FishingDomain {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
-    if (state.player.workCapacity.current <= 0) {
-      this.context.persistRng();
-      return { success: false, reason: "You need Labor to fish", reasonCode: "no-labor" };
-    }
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
     if (state.clock.currentMinute >= school.expiresAtMinute || school.remainingCatchPotential <= 0) {
@@ -393,31 +412,59 @@ export class FishingDomain {
       return { success: false, reason: "School is not in a feeding frenzy! Chum it first." };
     }
 
-    const speciesId = rng.weighted(school.speciesWeights.map((entry) => ({ value: entry.speciesId, weight: entry.weight })));
-    const speciesDef = ContentRegistry.fishSpecies.get(speciesId);
-    if (!speciesDef) {
-      this.context.persistRng();
-      return { success: false, reason: "Unknown fish species" };
-    }
     const rodDef = ContentRegistry.rods.get(state.player.equippedRodId) ?? ContentRegistry.rods.get("rod.willow")!;
-    if (
-      !rodDef.allowedHabitats.includes(school.habitatId) ||
-      !rodMeetsMinimum(rodDef.rodClass, speciesDef.minimumRodClass)
-    ) {
-      this.context.persistRng();
+    const eligibleSpeciesWeights = school.speciesWeights.filter((entry) => {
+      const species = ContentRegistry.fishSpecies.get(entry.speciesId);
+      return Boolean(
+        species &&
+        rodDef.allowedHabitats.includes(school.habitatId) &&
+        rodMeetsMinimum(rodDef.rodClass, species.minimumRodClass)
+      );
+    });
+    if (eligibleSpeciesWeights.length === 0) {
       return { success: false, reason: "Your equipped rod cannot fish this school" };
     }
-    const water = findFishingWater(state.player.x, state.player.z,
-      Math.atan2(school.x - state.player.x, school.z - state.player.z),
-      sportFishingStartDistanceMeters(speciesDef.cargoClass), (x, z) => WorldLayout.isSailable(x, z));
-    if (!water) {
-      this.context.persistRng();
+    const bearing = Math.atan2(school.x - state.player.x, school.z - state.player.z);
+    const viableSpecies = eligibleSpeciesWeights.flatMap((entry) => {
+      const species = ContentRegistry.fishSpecies.get(entry.speciesId)!;
+      const water = findFishingWater(
+        state.player.x,
+        state.player.z,
+        bearing,
+        sportFishingStartDistanceMeters(species.cargoClass),
+        (x, z) => WorldLayout.isSailable(x, z)
+      );
+      return water ? [{ entry, species, water }] : [];
+    });
+    if (viableSpecies.length === 0) {
       return { success: false, reason: "Move to open water before hooking the fish" };
     }
+    // Gate affordability on the priciest fish the school could hand us, so a
+    // failed check never advances species RNG. The actual spend below uses the
+    // rolled species' class cost and can only be cheaper, so it always clears.
+    const worstHookCost = Math.max(
+      ...viableSpecies.map((candidate) => SPORT_FISHING_WORK_COST_BY_CLASS[candidate.species.cargoClass])
+    );
+    const workQuote = this.progression.quoteWorkCost(worstHookCost, "fishing");
+    if (!workQuote.affordable) {
+      return this.progression.insufficientWorkResult(workQuote, "Hooking this fish");
+    }
+    const selected = rng.weighted(
+      viableSpecies.map((candidate) => ({ value: candidate, weight: candidate.entry.weight }))
+    );
+    const speciesId = selected.entry.speciesId;
+    const speciesDef = selected.species;
+    const water = selected.water;
+    const work = this.progression.trySpendWork(
+      SPORT_FISHING_WORK_COST_BY_CLASS[speciesDef.cargoClass],
+      "fishing",
+      "Hooking this fish"
+    );
+    if (!work.success) return work;
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
     const lureUsed = this.consumeLureIfPresent();
     const quality = this.rollQuality(
-      this.progression.getWorkOutcome().rareChanceMultiplier,
+      1,
       lureUsed ? 1.35 : 1
     );
     const fish: FishInstance = {
@@ -435,7 +482,6 @@ export class FishingDomain {
       { originX: state.player.x, originZ: state.player.z, bearingRadians: water.bearing,
         isWater: (x, z) => WorldLayout.isSailable(x, z) }
     );
-    this.progression.consumeWorkCapacity(40, "fishing");
     state.sportFishing = this.encounter.getState() as FishingEncounterState;
     this.pendingLandSchoolId = schoolId;
     state.sportFishing.schoolId = schoolId;
@@ -551,6 +597,23 @@ export class FishingDomain {
     if (!school) return;
     school.remainingCatchPotential -= 1;
     if (school.remainingCatchPotential <= 0) delete state.world.activeSchools[schoolId];
+  }
+
+  /**
+   * A lost fight is not a wasted trip: hand back most of the Work the hook cost
+   * so a snapped line or a slipped hook stings without emptying the pool.
+   */
+  private refundLostFightWork(speciesId: FishSpeciesId): void {
+    const species = ContentRegistry.fishSpecies.get(speciesId);
+    if (!species) return;
+    const spent = this.progression.getDiscountedActionCost(
+      SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass],
+      "fishing"
+    );
+    const refund = Math.round(spent * SPORT_FISHING_WORK_REFUND_RATIO);
+    if (refund <= 0) return;
+    const capacity = this.context.state.player.workCapacity;
+    capacity.current = Math.min(capacity.maximum, capacity.current + refund);
   }
 
   private rollQuality(workMultiplier: number, lureMultiplier = 1): FishQuality {

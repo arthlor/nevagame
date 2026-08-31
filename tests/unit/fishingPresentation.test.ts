@@ -3,6 +3,7 @@ import {
   createSportFishingPresentationSample,
   sampleSportFishingPresentation
 } from "../../src/render/fishing/FishingPresentation";
+import { createFishingDynamics } from "../../src/simulation/fishing/FishingTuning";
 import type { FishingEncounterState } from "../../src/simulation/core/types";
 
 function encounter(overrides: Partial<FishingEncounterState> = {}): FishingEncounterState {
@@ -60,6 +61,11 @@ describe("sport fishing presentation", () => {
 
   it("keeps essential fish position while reduced motion removes secondary response", () => {
     const state = encounter({ behavior: "surface", lineTension: 80, fishDirection: -1 });
+    state.dynamics = {
+      ...createFishingDynamics(state),
+      angularVelocity: 0.5,
+      effort: 0.7
+    };
     const full = sampleSportFishingPresentation(
       state, 0, 0, 0.4, 1, createSportFishingPresentationSample()
     );
@@ -69,7 +75,37 @@ describe("sport fishing presentation", () => {
     expect(reduced.endpointX).toBeCloseTo(full.endpointX, 8);
     expect(reduced.endpointZ).toBeCloseTo(full.endpointZ, 8);
     expect(reduced.depthMeters).toBe(full.depthMeters);
-    expect(reduced.rodBendRadians).toBe(0);
-    expect(reduced.surfaceStrength).toBe(0);
+    expect(reduced.rodBendRadians).toBe(full.rodBendRadians);
+    expect(reduced.surfaceStrength).toBe(full.surfaceStrength);
+    expect(full.fishRollRadians).not.toBe(0);
+    expect(reduced.fishRollRadians).toBe(0);
+  });
+
+  it("derives finite, bounded rebuild signals for the renderer", () => {
+    const state = encounter({ behavior: "shake", lineTension: 70, distanceMeters: 4, stamina: 6 });
+    state.dynamics = {
+      ...createFishingDynamics(state),
+      shakeAmplitude: 0.8,
+      shakePhase: 1.2,
+      fishSpeed: 3.5,
+      rodLoad: 0.66,
+      rodDirection: 0.4,
+      angularVelocity: 0.6,
+      effort: 0.9
+    };
+    const s = sampleSportFishingPresentation(state, 0, 0, 0, 1, createSportFishingPresentationSample());
+    for (const v of [s.shakeAmplitude, s.rodLoad, s.fishSpeedMps, s.rodDirection,
+      s.fishTailBeatHz, s.fishBendRadians, s.fishFlashIntensity]) {
+      expect(Number.isFinite(v)).toBe(true);
+    }
+    expect(s.shakeAmplitude).toBeCloseTo(0.8, 5);
+    expect(s.rodLoad).toBeCloseTo(0.66, 5);
+    expect(s.fishTailBeatHz).toBeGreaterThan(1.6); // faster than idle when the fish is driving
+    expect(s.fishTailBeatHz).toBeLessThanOrEqual(6);
+    expect(s.fishFlashIntensity).toBeGreaterThan(0); // near-beaten + close to the boat
+    expect(s.fishFlashIntensity).toBeLessThanOrEqual(1);
+    // Reduced motion scales the shake signal to zero.
+    const reduced = sampleSportFishingPresentation(state, 0, 0, 0, 0, createSportFishingPresentationSample());
+    expect(reduced.shakeAmplitude).toBe(0);
   });
 });

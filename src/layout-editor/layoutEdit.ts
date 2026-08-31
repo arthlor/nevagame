@@ -58,6 +58,8 @@ export interface LayoutEditCommit {
   duplicateFrom?: string;
   /** When true, remove this object from the owning layout source. */
   remove?: boolean;
+  /** Reinsert a previously removed duplicable object with the same stable ID. */
+  restore?: boolean;
   assetId?: string;
   scale?: readonly [number, number, number];
   grounding?: readonly [number, number];

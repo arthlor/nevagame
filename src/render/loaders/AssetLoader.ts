@@ -11,6 +11,7 @@ import {
   type AssetId,
   type RuntimeAssetSpec
 } from "../assets/AssetCatalog";
+import { AssetHotSwapper } from "../assets/AssetHotSwapper";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 
 const PRELOAD_ASSET_IDS: readonly AssetId[] = ASSET_CATALOG.map((asset) => asset.id);
@@ -192,5 +193,33 @@ export class AssetLoader {
   /** Declared `COL_*` proxy names remain available to physics without rendering them. */
   public static collisionNodeNames(model: THREE.Object3D): readonly string[] {
     return (model.userData.collisionNodes as readonly string[] | undefined) ?? [];
+  }
+
+  /** Purges in-memory cached model and in-flight loading promise for the specified asset. */
+  public static invalidateCache(assetId: AssetId): void {
+    this.modelCache.delete(assetId);
+    this.loadingPromises.delete(assetId);
+  }
+
+  /** Alias for invalidateCache */
+  public static invalidate(assetId: AssetId): void {
+    this.invalidateCache(assetId);
+  }
+
+  /**
+   * Reloads the model from disk/network, bypassing the local cache, and hot-swaps
+   * active scene instances if activeScene is provided.
+   */
+  public static async reload(
+    assetId: AssetId,
+    activeScene?: THREE.Scene
+  ): Promise<{ model: THREE.Group; replacedCount: number }> {
+    this.invalidateCache(assetId);
+    const model = await this.loadCached(assetId);
+    let replacedCount = 0;
+    if (activeScene) {
+      replacedCount = AssetHotSwapper.hotSwapAssetInstances(assetId, model, activeScene);
+    }
+    return { model, replacedCount };
   }
 }

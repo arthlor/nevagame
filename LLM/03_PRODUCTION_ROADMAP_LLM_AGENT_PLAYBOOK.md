@@ -44,6 +44,7 @@ Every ticket includes:
 # Task: <short title>
 ## Goal
 ## Required Reading
+## Documents This Change Makes Stale
 ## In Scope
 ## Out of Scope
 ## Invariants
@@ -185,27 +186,31 @@ Build and approve, in this order unless a human explicitly changes it:
 3. **Harbor:** dock, rowboat, fish-market/warehouse language, rope/nets/crates, ocean water.
 4. **Coast/lighthouse:** cliffs, dark rocks, graphic foam, atmospheric perspective, sunset variant.
 
-The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones before the human visual-gold decision is accepted.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/blender/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` retains the 2026-08-24 reference images and records the 2026-08-27 human visual-gold decision for the bridge/farm/harbor/coast scope. That decision unlocks further authored-world expansion; it does not certify the full catalog or release readiness. Per-asset triangle target floors are advisory for this visual lane; production minimums, hard maximums, materials, nodes, palette, runtime validation, and the published 188-asset manifest remain enforced. Do not reopen a candidate-selection loop merely because the authored world grows; re-review proportionately when the renderer/material/terrain-normal/route-surface contract or those reference scenes materially change.
+The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones before the human visual-gold decision is accepted.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/blender/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` retains the 2026-08-24 reference images and records the 2026-08-27 human visual-gold decision for the bridge/farm/harbor/coast scope. That decision unlocks further authored-world expansion; it does not certify the full catalog or release readiness. Per-asset triangle target floors are advisory for this visual lane; production minimums, hard maximums, materials, nodes, palette, runtime validation, and the published 189-asset manifest remain enforced. Do not reopen a candidate-selection loop merely because the authored world grows; re-review proportionately when the renderer/material/terrain-normal/route-surface contract or those reference scenes materially change.
 
 **Visual Gold Decision:** the human-approved bridge, farm, harbor, and coast gameplay-camera slices are recorded in the existing baseline registry. This is the visual-direction decision that permits further authored-world expansion and does not invent numeric scores.
 
-**P0.75 Technical Render Gate (open):** the current 188 published GLBs and manifest validate against the catalog, and `npm run art:benchmark` must have no browser errors, no more than 220 draw calls, and no more than 900,000 visible triangles in each measured scene. The lower per-scene/per-asset target floors are advisory in this lane and do not waive production minimums, hard maximums, material/node/palette contracts, or runtime validation. The current DEV layout-editor benchmark is intentionally unbatched, so its farm/coast over-budget result remains open evidence rather than a reason to relax `tools/blender/asset_budgets.json`.
+**P0.75 Technical Render Gate (open):** the current 189 published GLBs and manifest validate against the catalog, and `npm run art:benchmark` must have no browser errors, no more than 220 draw calls, and no more than 900,000 visible triangles in each measured scene. The lower per-scene/per-asset target floors are advisory in this lane and do not waive production minimums, hard maximums, material/node/palette contracts, or runtime validation. The current DEV layout-editor benchmark is intentionally unbatched, so its farm/coast over-budget result remains open evidence rather than a reason to relax `tools/blender/asset_budgets.json`.
 
-**Technical-Art Certification (open):** `npm run art:generate:strict` retains its existing below-target rejection semantics; `npm run art:validate` confirms the published set; representative clean-source determinism passes; and the benchmark is reproducible in the certified path. The current clean-source `prop_beehive_a` no-mesh generation failure and the 33 below-target report remain visible technical debt. Release/P16 claims stay blocked until this lane and the independent gameplay/release evidence pass.
+**Technical-Art Certification (open):** `npm run art:generate:strict` retains its existing below-target rejection semantics; `npm run art:validate` confirms the published set; representative clean-source determinism passes; and the benchmark is reproducible in the certified path. The current report records 31 below-target assets as visible technical debt. Release/P16 claims stay blocked until this lane and the independent gameplay/release evidence pass.
 
 # 7. P1 — Walkable World
 
 **Build:** player controller, on-foot camera, collision, interaction system, named NPC anchors, and a large authored multi-district world with northwest starter farm, northeast village hub (plaza/market, mill, inn, cottages, barn, homestead garden, orchard fringe), river corridor with an east-bank crossing gateway at the former stall site, southwest lighthouse cliffs, southeast harbor, coast, offshore boundary, arterial roads, scenic trails, and contextual prompts. World geometry may remain selectively content-light while districts are filled, but it MUST use the approved P0.5/P0.75 renderer/material foundation rather than a visually unrelated throwaway style. Story landmarks support the current quest spine without becoming gameplay authorities.
 
-**Avoid:** NPC schedules, complex animation, empty or purely decorative scale, unbounded runtime-procedural terrain, and decorative overbuild. Authored-world production may use the accepted 2026-08-27 visual-gold baseline registry, while P0.75 technical-art certification remains open (33 below-target records plus the clean-source `prop_beehive_a` blocker); do not treat release or P16 as complete.
+**Avoid:** NPC schedules, complex animation, empty or purely decorative scale, unbounded runtime-procedural terrain, and decorative overbuild. Authored-world production may use the accepted 2026-08-27 visual-gold baseline registry, while P0.75 technical-art certification remains open with 31 below-target records; do not treat release or P16 as complete.
 
 **Gate:** semantic input/`GameplayMode`, movement/collision/camera/resize, overlay pause/modal capture (pause is an overlay, not a gameplay mode), camera obstruction/line-of-sight handling, and representative screenshots. Physics returns a frame through the adapter and only the simulation commits it. Physics may sample presentation `WaterSurface` for boat bob; canonical `boat.y` stays waterline.
 
 # 8. P2 — Persistence & Time
 
-**Build:** IndexedDB repo, save envelope (`CURRENT_SCHEMA_VERSION = 17`, `layoutRevision` 8), **primary + backup keys only** (no third manual slot), migrate-then-validate, autosave, calendar, weather-bounded offline delta/summary, and traversal-state persistence. Schema v10 inserts the harbor fish-table and lifts y=0 stations. Schema v11 converts illegal `fish.trout` item stacks to cargo. Schema v12 migrates physical worked-road terrain without changing saved X/Z or unrelated state: on-foot players and structures re-ground through final canonical height while active boat/player waterline truth remains unchanged. Schema v13 advances layout 4 → 5 for the northeast village hub: it moves the starter mill off the homestead plantable, relocates the village market and road hub to the northeast plaza, keeps `(0, -5)` as the river-crossing gateway, preserves other structure/player/boat/crop/quest truth, and re-grounds land state. Schema v14 advances layout 5 → 6: it moves the starter mill off the packed plaza onto a southwest mill pad, keeps the village market at the northeast hub, enlarges the courtyard, preserves unrelated state, and re-grounds land state. Schema v15 advances layout 6 → 7 for the authored station/road world: it relocates the mill, starter workbench, compost bin, and harbor fish table to their canonical anchors; adopts the revised bridge/road/terrain topology; preserves unrelated simulation state; re-grounds land structures and an on-foot player; and leaves active-boat waterline state unchanged. Schema v17 advances layout 7 → 8 for the authored beach, rock-toe, and recessed-cliff topology with the same preservation and land re-grounding boundary. Before the first live release, topology revisions may deliberately invalidate development saves when a human explicitly authorizes it; after release, preserve compatible legacy Work Capacity, crop journal, starter-structure, docked-boat, quest, fish-table, and traversal state through explicit migrations.
+**Build:** IndexedDB repo, save envelope (`CURRENT_SCHEMA_VERSION = 21`, `layoutRevision` 8), **primary + backup keys only** (no third manual slot), migrate-then-validate, autosave, calendar, weather-bounded offline delta/summary, traversal-state persistence, persisted mount state, and persisted rod ownership.
 
-Schema v16 does not change the authored world or the narrative state. It normalizes legacy clock speed and fills the persisted `weather.nextWeatherType` forecast successor; dialogue page position, modal state, and last-spoken line remain transient and are never saved.
+**`01` §6.1 is the single migration ledger.** Read the per-version history
+there; this roadmap must not restate it. Dialogue page position, modal state,
+and the last-spoken line remain transient and are never saved.
+
+Before the first live release, topology revisions may deliberately invalidate development saves when a human explicitly authorizes it; after release, preserve compatible legacy Work Capacity, crop journal, starter-structure, docked-boat, quest, fish-table, traversal, mount, sport-fishing, and rod-ownership state through explicit migrations.
 
 Permanent fixtures add, never replace, historical saves. The physical-road migration is covered by `tests/fixtures/save_v11_layout3.json`; the subsequent mill relocation onto the plaza mill pad is covered by `tests/fixtures/save_v12_layout4.json`; moving the mill off the packed courtyard is covered by `tests/fixtures/save_v13_layout5.json`; the layout-7 station/topology migration is covered by `tests/fixtures/save_v14_layout6.json`; and the layout-8 coast-topology migration is covered by `tests/fixtures/save_v16_layout7.json`. Retain all five alongside future version fixtures.
 
@@ -261,7 +266,7 @@ Initial species: Carp, Trout, Tuna, Swordfish, Blue Marlin.
 
 # 16. P10 — Progression & Contracts
 
-**Build:** Farming/Fishing/Processing/Trading XP/ranks, capability unlocks, the explicit authored quest chain, contract templates/generator/deadlines, reputation, journal discoveries, first farm upgrade, Skiff unlock. Story rewards must change a capability, resource, knowledge state, or next decision; text alone is not progression.
+**Build:** Farming/Fishing/Processing/Trading XP/ranks, capability unlocks, the explicit authored quest chain, contract templates/generator/deadlines, reputation, journal discoveries, first farm upgrade, Skiff unlock, and persisted harbor tackle progression. Willow → River → Heavy Sport → Offshore → Master purchases require the preceding owned rod plus the live Fishing XP gate; buying auto-equips, and owned rods can be switched only while no fishing action is active. Manual production uses the full discounted Work cost as a hard atomic gate; traversal, boats, cargo, trade, quests, and dialogue remain free. Story rewards must change a capability, resource, knowledge state, or next decision; text alone is not progression.
 
 **Gate:** at least 3 milestones materially change capability; percentage-only bonus does not count.
 
@@ -289,14 +294,16 @@ edits. The simulation test may prove quest state and dialogue payloads, but it
 does not replace browser proof of the actual modal, HUD, navigation, and
 save/reload experience.
 
-Required: unit + deterministic simulation + integration + narrative payload/UI
-E2E + screenshots; browser matrix at least Chromium, Firefox, WebKit. Do not
-mark P12 complete: the last Playwright browser-loop run failed; the continuous
-new-save narrative/gameplay loop and browser save/reload proof remain open.
+The P12 product gate was human-accepted on 2026-08-30 after a continuous manual
+playthrough reached the end of the authored quest chain. This permits focused
+post-P12 progression and playability work. Automated continuous browser
+save/reload proof and the Chromium/Firefox/WebKit matrix remain independent
+P15/P16 release-certification evidence; the human product decision does not
+claim those release gates passed.
 
 # 19. P13 — MVP Content Expansion
 
-Only after P12. Expand to 8 crops/12 fish; add Apple Tree, Flax, Fishing Skiff, more contracts, market variety, journal detail, and only then optional side-story or lore entries. Any new narrative must introduce a meaningful place, practice, relationship, ecological condition, logistics decision, or capability; do not add exposition-only errands or behaviorally identical quest chains. Do not add new systems unless essential.
+After the accepted P12 product gate, expand to 8 crops/12 fish; add Apple Tree, Flax, Fishing Skiff, more contracts, market variety, journal detail, and only then optional side-story or lore entries. Any new narrative must introduce a meaningful place, practice, relationship, ecological condition, logistics decision, or capability; do not add exposition-only errands or behaviorally identical quest chains. Do not add new systems unless essential.
 
 # 20. P14 — Final Art, Audio & UX Polish
 
@@ -381,6 +388,7 @@ Changes to state shape, persistent IDs, saved enums, inventory/farm/cargo/market
 3. old-save fixture
 4. migration test
 5. backup preservation
+6. a new row in the `01` §6.1 migration ledger, in the same change
 
 # 26. Performance-Sensitive Protocol
 
@@ -416,14 +424,16 @@ Fix P0/P1 before feature work.
 
 General coding tasks use the expanded report below. Routine selected-asset work
 instead reports only asset IDs, runtime integration point, mechanical generation
-status, TypeScript status when applicable, save impact, and `Awaiting human game
-review`.
+status, TypeScript status when applicable, save impact, `Docs updated:`, and
+`Awaiting human game review`.
 
 Expanded report:
 ```md
 ## Completion
 ### What changed
 ### Files changed
+### Docs updated
+(owning canonical documents updated in this change, or `none — no documented fact changed`; see the documentation contract in root `AGENTS.md`)
 ### Gameplay behavior
 ### Narrative evidence
 ### Narrative content owner and save impact

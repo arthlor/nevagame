@@ -13,6 +13,9 @@ export interface ContextualHintCardProps {
   captureEscape?: boolean;
 }
 
+/** Long enough to read a three-line hint without rushing. */
+const HINT_VISIBLE_MS = 9000;
+
 export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   hintId,
   title,
@@ -22,16 +25,20 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   captureEscape = true
 }) => {
   const [visible, setVisible] = useState(true);
+  // A hint is shown once and never returns, so the countdown holds while the
+  // player is reading it rather than expiring mid-sentence.
+  const [held, setHeld] = useState(false);
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
 
   useEffect(() => {
     setVisible(true);
+    if (held) return;
     // GameApp renders once per frame, so the callback must not be a timer dependency.
     const timer = window.setTimeout(() => {
       setVisible(false);
       onDismissRef.current(hintId);
-    }, 7000);
+    }, HINT_VISIBLE_MS);
 
     const handleWindowKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || !captureEscape) return;
@@ -46,7 +53,7 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       clearTimeout(timer);
       window.removeEventListener("keydown", handleWindowKeyDown, true);
     };
-  }, [hintId, captureEscape]);
+  }, [hintId, captureEscape, held]);
 
   const handleDismiss = () => {
     setVisible(false);
@@ -64,6 +71,11 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       role="status"
       tabIndex={0}
       data-testid="contextual-hint"
+      data-held={held ? "true" : "false"}
+      onMouseEnter={() => setHeld(true)}
+      onMouseLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={() => setHeld(false)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " " || (captureEscape && e.key === "Escape")) {
           e.preventDefault();

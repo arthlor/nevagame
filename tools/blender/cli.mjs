@@ -11,6 +11,40 @@ import { dedup, join, meshopt, prune, weld } from "@gltf-transform/functions";
 import { validateBytes } from "gltf-validator";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 
+import {
+  computeAssetInputHash,
+  computeAssetToolchainHash,
+  computeToolchainHash,
+  computeCommonToolchainHash,
+  computeAssetHash,
+  isAssetCurrent,
+  isCached,
+  assetCachePlan,
+  readAssetCache as readAssetCacheModule,
+  writeAssetCache,
+  recordCache,
+  cleanCache,
+  ART_CACHE_VERSION,
+  DEFAULT_CACHE_ROOT,
+  hashFiles,
+  generatorModuleFor,
+  stableStringify,
+  sha256,
+} from "./cache.mjs";
+
+import {
+  runDynamicBlenderPool,
+  BlenderWorkerPool,
+  resolveConcurrency,
+} from "./pool.mjs";
+
+import {
+  optimizeAsset,
+  optimizeAndGenerateLods,
+  mayJoinStaticNode,
+  DEFAULT_OPTIMIZE_CONFIG,
+} from "./optimize.mjs";
+
 const CLI_PATH = fileURLToPath(import.meta.url);
 const HERE = path.dirname(CLI_PATH);
 const ROOT = path.resolve(HERE, "../..");
@@ -36,7 +70,6 @@ const REQUIRED_REFERENCE_VIEWS = Object.freeze([
   "gameplay_15m",
   "gameplay_read_distance",
 ]);
-const ART_CACHE_VERSION = 1;
 const STAGING_RUN_RETENTION = 3;
 const ART_YARD_URL = "http://localhost:3000/__neva_art_yard";
 const STAGE_PATTERN = /^run-[A-Za-z0-9_-]+$/;
@@ -44,29 +77,7 @@ const BLENDER_LOG_BUFFER_BYTES = 16 * 1024 * 1024;
 const FAILURE_EXCERPT_LINES = 30;
 
 const readJson = (filename) => JSON.parse(fs.readFileSync(filename, "utf8"));
-const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const safeFilename = (value) => path.basename(value) === value && value.endsWith(".glb");
-
-function computeToolchainHash(directory = HERE) {
-  const files = [];
-  const visit = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      if (entry.name === "__pycache__") continue;
-      const filename = path.join(current, entry.name);
-      if (entry.isDirectory()) visit(filename);
-      else if (entry.isFile() && TOOLCHAIN_EXTENSIONS.has(path.extname(entry.name))) files.push(filename);
-    }
-  };
-  visit(directory);
-  const digest = crypto.createHash("sha256");
-  for (const filename of files.sort()) {
-    digest.update(path.relative(directory, filename));
-    digest.update("\0");
-    digest.update(fs.readFileSync(filename));
-    digest.update("\0");
-  }
-  return digest.digest("hex");
-}
 
 function readGenerationInputs() {
   return {
@@ -86,68 +97,6 @@ function assertGenerationInputsUnchanged(expected, phase) {
   }
 }
 
-function stableStringify(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
-}
-
-function hashFiles(files, relativeRoot = ROOT) {
-  const digest = crypto.createHash("sha256");
-  for (const filename of [...new Set(files)].sort()) {
-    if (!fs.existsSync(filename)) throw new Error(`Cannot hash missing art input: ${filename}`);
-    digest.update(path.relative(relativeRoot, filename));
-    digest.update("\0");
-    digest.update(fs.readFileSync(filename));
-    digest.update("\0");
-  }
-  return digest.digest("hex");
-}
-
-function generatorModuleFor(generator) {
-  const registryPath = path.join(HERE, "generators/registry.py");
-  const registry = fs.readFileSync(registryPath, "utf8");
-  for (const match of registry.matchAll(/^from \.([a-z0-9_]+) import ([^\n]+)$/gm)) {
-    const importedNames = match[2].split(",").map((name) => name.trim());
-    if (importedNames.includes(generator)) return `${match[1]}.py`;
-  }
-  throw new Error(`${generator}: no registered generator module was found`);
-}
-
-function computeAssetToolchainHash(asset) {
-  const generatorModule = generatorModuleFor(asset.generator);
-  const commonDirectory = path.join(HERE, "common");
-  const commonFiles = fs.readdirSync(commonDirectory)
-    .filter((filename) => TOOLCHAIN_EXTENSIONS.has(path.extname(filename)))
-    .map((filename) => path.join(commonDirectory, filename));
-  const packageFiles = ["package.json", "package-lock.json", "npm-shrinkwrap.json"]
-    .map((filename) => path.join(ROOT, filename))
-    .filter((filename) => fs.existsSync(filename));
-  return hashFiles([
-    CLI_PATH,
-    path.join(HERE, "bootstrap.py"),
-    path.join(HERE, "generators/registry.py"),
-    path.join(HERE, "generators", generatorModule),
-    ...commonFiles,
-    SCHEMA_PATH,
-    SCENE_BUDGET_PATH,
-    ...packageFiles,
-  ]);
-}
-
-function computeAssetInputHash(asset, palette, blenderVersion) {
-  const paletteTokens = Object.fromEntries(
-    [...asset.palette].sort().map((token) => [token, palette.tokens[token]]),
-  );
-  return sha256(stableStringify({
-    cacheVersion: ART_CACHE_VERSION,
-    blenderVersion,
-    asset,
-    paletteVersion: palette.version,
-    paletteTokens,
-    toolchainHash: computeAssetToolchainHash(asset),
-  }));
-}
 
 const number = (min, max) => ({ kind: "number", min, max });
 const integer = (min, max) => ({ kind: "integer", min, max });
@@ -274,7 +223,17 @@ const PARAMETER_CONTRACTS = Object.freeze({
   turnip_crop: { leafCount: integer(4, 10) },
   pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
   stylized_fish: {
-    species: choice("trout", "tuna"),
+    species: choice(
+      "trout",
+      "catfish",
+      "pike",
+      "arowana",
+      "tuna",
+      "sturgeon",
+      "sailfish",
+      "swordfish",
+      "blue_marlin"
+    ),
     length: number(0.4, 5),
     girth: number(0.1, 1.5),
     finScale: number(0.3, 2),
@@ -725,7 +684,17 @@ function validateCatalog() {
 }
 
 function parseArgs(argv) {
-  const args = { command: "generate", assets: [], families: [], all: false, publish: true, strict: false };
+  const args = {
+    command: "generate",
+    assets: [],
+    families: [],
+    all: false,
+    publish: true,
+    strict: false,
+    concurrency: null,
+    timeoutMs: 60000,
+    useCache: true,
+  };
   let index = 0;
   if (argv[0] && !argv[0].startsWith("-")) args.command = argv[index++];
   while (index < argv.length) {
@@ -735,6 +704,9 @@ function parseArgs(argv) {
     else if (flag === "--all") args.all = true;
     else if (flag === "--no-publish") args.publish = false;
     else if (flag === "--strict") args.strict = true;
+    else if (flag === "--concurrency" || flag === "-j") args.concurrency = Number(argv[index++]);
+    else if (flag === "--timeout") args.timeoutMs = Number(argv[index++]);
+    else if (flag === "--no-cache" || flag === "--force") args.useCache = false;
     else if (flag === "--help" || flag === "-h") args.command = "help";
     else throw new Error(`Unknown argument: ${flag}`);
   }
@@ -1189,99 +1161,9 @@ async function validateGlb(filename, spec, phase) {
   };
 }
 
-function mayJoinStaticNode(node, spec) {
-  const name = node.getName();
-  // LOD generators already consolidate each level by material. Joining here
-  // could cross switch boundaries and invalidate runtime distance selection.
-  if (spec.lodLevels) return false;
-  if (spec.requiredNodes.includes(name) || name.startsWith("COL_")) return false;
-  // Preserve the authored character hierarchy, rig, sockets, and skinned parts.
-  if (spec.generator === "coastal_worker" || spec.generator === "npc_character") return false;
-
-  // Rowboat oars are presentation-rigged at runtime. Preserve their authored
-  // roots and mesh children instead of joining them into the static hull.
-  if (spec.generator === "rowboat" && name.startsWith("rowboat_oar_")) return false;
-  // Runtime reparents these meshes under a presentation-only rotor pivot.
-  if (
-    spec.generator === "windmill" &&
-    (name === "windmill_hub" || name.startsWith("windmill_spar_") || name.startsWith("windmill_sail_"))
-  ) {
-    return false;
-  }
-  return true;
-}
-
-async function optimizeAsset(source, destination, spec) {
-  await MeshoptDecoder.ready;
-  await MeshoptEncoder.ready;
-  const io = new NodeIO()
-    .registerExtensions(ALL_EXTENSIONS)
-    .registerDependencies({ "meshopt.decoder": MeshoptDecoder, "meshopt.encoder": MeshoptEncoder });
-  const document = await io.read(source);
-  await document.transform(
-    dedup(),
-    join({ cleanup: false, filter: (node) => mayJoinStaticNode(node, spec) }),
-    prune({ keepLeaves: true, keepAttributes: true, keepExtras: true }),
-    weld(),
-    meshopt({ encoder: MeshoptEncoder, level: "medium" }),
-  );
-  await io.write(destination, document);
-}
-
-function assetCachePlan(asset, context, blenderInfo) {
-  if (!context.palette) throw new Error("Asset cache planning requires the validated palette");
-  const inputHash = computeAssetInputHash(asset, context.palette, blenderInfo.version);
-  const directory = path.join(ART_CACHE_ROOT, inputHash);
-  return {
-    inputHash,
-    artifact: path.join(directory, asset.file),
-    metadata: path.join(directory, `${asset.file}.json`),
-  };
-}
 
 async function readAssetCache(plan, spec) {
-  if (!fs.existsSync(plan.artifact) || !fs.existsSync(plan.metadata)) return null;
-  try {
-    const record = readJson(plan.metadata);
-    if (
-      record.version !== ART_CACHE_VERSION ||
-      record.inputHash !== plan.inputHash ||
-      record.id !== spec.id ||
-      record.file !== spec.file ||
-      !record.result ||
-      record.result.artContractStatus !== "passed" ||
-      (record.result.fileHash !== undefined && typeof record.result.fileHash !== "string")
-    ) {
-      return null;
-    }
-    const validation = await validateGlb(plan.artifact, spec, "cache");
-    if (record.result.fileHash && record.result.fileHash !== validation.fileHash) return null;
-    return {
-      ...record.result,
-      ...validation,
-      semanticHash: record.result.semanticHash ?? validation.semanticHash,
-      inputHash: plan.inputHash,
-      cacheHit: true,
-    };
-  } catch (error) {
-    console.warn(`[NEVA ART] Ignoring invalid cache for ${spec.id}: ${error.message}`);
-    return null;
-  }
-}
-
-function writeAssetCache(plan, result, optimized, blenderVersion) {
-  fs.mkdirSync(path.dirname(plan.artifact), { recursive: true });
-  copyAtomically(optimized, plan.artifact);
-  const metadataTemporary = `${plan.metadata}.next-${process.pid}`;
-  fs.writeFileSync(metadataTemporary, `${JSON.stringify({
-    version: ART_CACHE_VERSION,
-    inputHash: plan.inputHash,
-    id: result.id,
-    file: result.file,
-    blenderVersion,
-    result: { ...result, cacheHit: false },
-  }, null, 2)}\n`);
-  fs.renameSync(metadataTemporary, plan.metadata);
+  return readAssetCacheModule(plan, spec, validateGlb);
 }
 
 function summarizeAssets(results) {
@@ -1316,9 +1198,21 @@ async function buildStage(context, assets, blenderInfo) {
     if (cached) cachedResults.set(spec.id, cached);
     else misses.push(spec);
   }
-  const { rawDir, blenderReport } = misses.length
-    ? runBlender(blenderInfo.blender, misses, context.stage, context.strict)
-    : { rawDir: null, blenderReport: { assets: [] } };
+  const rawDir = path.join(context.stage, "raw");
+  fs.mkdirSync(rawDir, { recursive: true });
+  const { blenderReport } = misses.length
+    ? await runDynamicBlenderPool({
+        blenderPath: blenderInfo.blender,
+        bootstrapScript: path.join(HERE, "bootstrap.py"),
+        catalogPath: CATALOG_PATH,
+        missAssets: misses,
+        outputDir: rawDir,
+        strict: context.strict,
+        concurrency: context.concurrency,
+        timeoutMs: context.timeoutMs,
+        repoRoot: ROOT,
+      })
+    : { blenderReport: { assets: [] } };
   const optimizedDir = path.join(context.stage, "optimized");
   fs.mkdirSync(optimizedDir, { recursive: true });
   const results = [];
@@ -1741,7 +1635,9 @@ async function main() {
     stage,
     strict: args.strict,
     palette,
-    useCache: args.command !== "determinism",
+    useCache: args.useCache !== false && args.command !== "determinism",
+    concurrency: args.concurrency,
+    timeoutMs: args.timeoutMs,
     ...generationInputs,
   };
   const first = await buildStage(context, selected, blenderInfo);
@@ -1760,6 +1656,8 @@ async function main() {
       strict: args.strict,
       palette,
       useCache: false,
+      concurrency: args.concurrency,
+      timeoutMs: args.timeoutMs,
       ...generationInputs,
     }, selected, blenderInfo);
     assertGenerationInputsUnchanged(generationInputs, "during the determinism build");
@@ -1789,6 +1687,15 @@ export {
   computeAssetInputHash,
   computeAssetToolchainHash,
   computeToolchainHash,
+  computeCommonToolchainHash,
+  computeAssetHash,
+  isAssetCurrent,
+  isCached,
+  recordCache,
+  cleanCache,
+  runDynamicBlenderPool,
+  BlenderWorkerPool,
+  optimizeAndGenerateLods,
   artYardUrl,
   parseArgs,
   pruneStagingRuns,
@@ -1805,6 +1712,7 @@ export {
   validateLodContract,
   validateReferenceAuthoring,
   optimizeAsset,
+  mayJoinStaticNode,
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === CLI_PATH) {

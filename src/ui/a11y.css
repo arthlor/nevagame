@@ -1,0 +1,436 @@
+/* src/ui/a11y.css — Focus, HUD scaling, and reduced-motion guarantees.
+   Imported last from main.ts so these rules win over the layered !important
+   declarations in the older sheets. */
+
+:root {
+  /* Overwritten at runtime by src/ui/uiScale.ts. */
+  --ui-scale: 1;
+  --ui-focus-ring: 0 0 0 2px #0a0e14, 0 0 0 4px var(--mm-gold-bright, #f0dd9a);
+}
+
+/* ==========================================================================
+   1. KEYBOARD FOCUS
+   Several base rules set `outline: none` without a replacement, which left
+   keyboard players with no way to see where they were. Every interactive
+   surface now carries the same ring, and only for keyboard focus.
+   ========================================================================== */
+#ui-container button:focus-visible,
+#ui-container a:focus-visible,
+#ui-container [tabindex]:focus-visible,
+#ui-container input:focus-visible,
+#ui-container select:focus-visible,
+#ui-container textarea:focus-visible,
+.start-screen button:focus-visible,
+.start-screen input:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus-ring) !important;
+}
+
+/* Slots sit in tight grids, so the ring is lifted above its neighbours. They
+   are already position: relative, so this does not disturb their layout — a
+   blanket `position: relative` would have moved any absolutely placed control
+   that took focus. */
+#ui-container .chrome-slot:focus-visible,
+#ui-container .inventory-slot:focus-visible,
+#ui-container .boat-cargo-slot:focus-visible,
+#ui-container .planting-seed-card:focus-visible,
+#ui-container .hud-hotbar-slot:focus-visible {
+  z-index: 3;
+  border-color: var(--mm-gold-bright, #f0dd9a) !important;
+}
+
+#ui-container .chrome-close:focus-visible {
+  border-radius: 4px;
+}
+
+/* A dialog that takes focus itself should not paint a ring around the panel. */
+#ui-container .modal-content:focus-visible,
+#ui-container [role="dialog"]:focus-visible {
+  box-shadow: var(--mm-shadow-modal) !important;
+}
+
+/* ==========================================================================
+   2. HUD SCALE
+   `zoom` scales layout boxes and hit testing together, so corner anchors and
+   pointer targets stay consistent. Modals size themselves from the viewport
+   already and are deliberately left alone.
+   ========================================================================== */
+#ui-container .hud-top-left-container,
+#ui-container .hud-top-right-cluster,
+#ui-container .hud-bottom-left-container,
+#ui-container .hud-play-cluster,
+#ui-container .hud-toast-container,
+#ui-container .contextual-hint-card,
+#ui-container .crop-inspection,
+#ui-container .farming-action-status,
+#ui-container .farm-gis-legend,
+#ui-container .fishing-hud-container,
+#ui-container .basic-fishing-container,
+#ui-container .planting-dock,
+#ui-container .catch-summary {
+  zoom: var(--ui-scale, 1);
+}
+
+/* Touch layouts are already sized for the device; a second multiplier there
+   pushes controls off the safe area. */
+#ui-container[data-mobile-device="true"] .hud-top-left-container,
+#ui-container[data-mobile-device="true"] .hud-top-right-cluster,
+#ui-container[data-mobile-device="true"] .hud-bottom-left-container,
+#ui-container[data-mobile-device="true"] .hud-play-cluster,
+#ui-container[data-mobile-device="true"] .hud-toast-container {
+  zoom: 1;
+}
+
+/* ==========================================================================
+   3. MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  #ui-container *,
+  .start-screen * {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   4. SHARED CONTROLS REFERENCE
+   One table rendered on the title screen, in the How to Play folio, and
+   anywhere else that lists keys.
+   ========================================================================== */
+.controls-reference {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.controls-group-title {
+  margin: 0 0 6px;
+  color: var(--mm-text-gold, #f0dd9a);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.controls-list {
+  display: grid;
+  /* Two columns where there is room, one where there is not. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 4px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.controls-row {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.controls-keycaps {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.controls-key-or {
+  color: rgba(245, 240, 230, 0.45);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.controls-action {
+  color: rgba(245, 240, 230, 0.88);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.controls-note {
+  display: block;
+  color: rgba(245, 240, 230, 0.5);
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+/* ==========================================================================
+   5. PAUSE MENU INLINE CONFIRMATION
+   ========================================================================== */
+.pause-confirm-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(224, 107, 107, 0.45);
+  border-radius: 6px;
+  background: rgba(46, 16, 20, 0.45);
+}
+
+.pause-confirm-copy {
+  color: var(--mm-text-ivory, #f5f0e6);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.pause-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pause-confirm-actions > * {
+  flex: 1;
+}
+
+/* Interface scale reuses the graphics-quality option chrome so the two
+   settings read as one family. */
+.interface-settings {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(245, 240, 230, 0.12);
+}
+
+/* Match the inset its sibling sections use inside the title-screen dialog. */
+.start-screen__options-body > .interface-settings {
+  margin: 0 22px;
+}
+
+.pause-modal .interface-settings h5,
+#ui-container .start-screen__options .interface-settings h5 {
+  color: var(--mm-text-ivory, #f5f0e6);
+}
+
+/* ==========================================================================
+   6. TOOL BELT STATE
+   Slots carry counts and a readiness state so the belt reports what it holds.
+   ========================================================================== */
+#ui-container .hud-tool-belt {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+#ui-container .hud-hotbar-count {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  color: var(--mm-text-ivory, #f5f0e6);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+
+/* Unusable slots stay legible but read as unavailable rather than broken. */
+#ui-container .hud-hotbar-slot.is-unavailable .quickbar-slot-icon,
+#ui-container .hud-hotbar-slot.is-unavailable .hud-atlas-icon {
+  opacity: 0.38;
+  filter: grayscale(0.85) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+}
+
+#ui-container .hud-hotbar-slot.is-unavailable .slot-num-badge {
+  color: rgba(240, 221, 154, 0.45);
+}
+
+#ui-container .hud-tool-belt-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  min-height: 14px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+#ui-container .hud-tool-belt-name {
+  color: var(--mm-text-gold, #f0dd9a);
+  font-family: var(--font-serif);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+#ui-container .hud-tool-belt-detail {
+  color: rgba(245, 240, 230, 0.62);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   7. VITALS READOUT
+   ========================================================================== */
+#ui-container .hud-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+#ui-container .hud-vitals-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding-left: 2px;
+}
+
+#ui-container .hud-vitals-caption {
+  color: rgba(245, 240, 230, 0.6);
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px #000;
+}
+
+#ui-container .hud-vitals-value {
+  color: var(--mm-text-gold, #f0dd9a);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px #000;
+}
+
+#ui-container .hud-vitals-value.is-exhausted {
+  color: var(--mm-text-crimson, #e06b6b);
+}
+
+/* ==========================================================================
+   8. QUEST TRACKER TURN-IN STATE
+   ========================================================================== */
+#ui-container .quest-turnin-chip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid rgba(114, 204, 142, 0.7);
+  border-radius: 999px;
+  background: rgba(17, 38, 27, 0.85);
+  color: var(--mm-text-emerald, #72cc8e);
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+#ui-container .quest-tracker-hud-wood.is-ready {
+  border-color: rgba(114, 204, 142, 0.55) !important;
+}
+
+/* ==========================================================================
+   9. INVENTORY DETAIL ACTION HINT
+   ========================================================================== */
+#ui-container .inventory-action-hint {
+  display: block;
+  margin-top: 5px;
+  color: rgba(245, 240, 230, 0.5);
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ==========================================================================
+   10. SETTINGS CARDS ON DARK PANELS
+   The base option-card palette is authored for the light "paper" surface. Only
+   the pause modal had been re-themed, so the same controls rendered as dark
+   ink on a dark plaque once they appeared in the title-screen options.
+   ========================================================================== */
+#ui-container .start-screen__options .graphics-settings__heading h5,
+#ui-container .start-screen__options .interface-settings h5,
+.start-screen__options .graphics-settings__heading h5,
+.start-screen__options .interface-settings h5 {
+  color: var(--mm-text-ivory, #f5f0e6);
+}
+
+.start-screen__options .graphics-settings__active,
+.start-screen__options .graphics-settings__hint,
+.start-screen__options .graphics-quality-option__description {
+  color: rgba(245, 240, 230, 0.62);
+}
+
+.start-screen__options .graphics-settings__active > span {
+  background: var(--mm-gold-leaf, #d4af37);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.16);
+}
+
+.start-screen__options .graphics-quality-option {
+  color: rgba(245, 240, 230, 0.88);
+  background: rgba(8, 11, 16, 0.48);
+  border-color: rgba(245, 240, 230, 0.16);
+}
+
+.start-screen__options .graphics-quality-option:hover {
+  background: rgba(20, 27, 38, 0.78);
+  border-color: rgba(212, 175, 55, 0.58);
+}
+
+.start-screen__options .graphics-quality-option.is-selected {
+  color: var(--mm-text-ivory, #f5f0e6);
+  background: rgba(212, 175, 55, 0.1);
+  border-color: var(--mm-gold-leaf, #d4af37);
+  box-shadow: inset 3px 0 0 var(--mm-gold-leaf, #d4af37);
+}
+
+.start-screen__options .graphics-quality-option__label {
+  color: var(--mm-text-ivory, #f5f0e6);
+  font-weight: 700;
+}
+
+.pause-modal .graphics-quality-option__label {
+  color: var(--mm-text-ivory, #f5f0e6);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   11. SAVE SUMMARY CARD
+   ========================================================================== */
+.start-screen__save-scroll-card .save-scroll-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.start-screen__save-scroll-card .save-scroll-date {
+  flex-basis: 100%;
+}
+
+/* ==========================================================================
+   12. STACKED MODAL LAYOUTS
+   Below the two-column breakpoint the satchel grid kept a fixed four-column
+   track and the detail card kept its column divider, so a wide single-column
+   body was mostly empty with a stray vertical rule down the middle.
+   ========================================================================== */
+@media (max-width: 820px) {
+  .inventory-satchel-modal .inventory-grid {
+    grid-template-columns: repeat(auto-fill, 64px);
+    justify-content: start;
+  }
+
+  .inventory-satchel-modal .inventory-details-card {
+    /* Overrides the fixed 230px column width from the two-column layout. */
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    align-content: start;
+    align-items: start;
+    gap: 4px 28px;
+    padding: 12px 0 0;
+    border-left: 0 !important;
+    border-top: 1px solid rgba(245, 240, 230, 0.12) !important;
+  }
+
+  .inventory-satchel-modal .inventory-details-card > .details-header,
+  .inventory-satchel-modal .inventory-details-card > .details-placeholder {
+    grid-column: 1 / -1;
+  }
+}

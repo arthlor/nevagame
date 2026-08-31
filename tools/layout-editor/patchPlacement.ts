@@ -1,5 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
+import { parse, print, types } from "recast";
+import * as babelParser from "@babel/parser";
+
+export const tsParser = {
+  parse(source: string) {
+    return babelParser.parse(source, {
+      sourceType: "module",
+      plugins: [
+        "typescript",
+        "jsx",
+        "decorators-legacy",
+        "exportDefaultFrom"
+      ],
+      tokens: true
+    });
+  }
+};
 
 import {
   ARCHITECTURE_PLACEMENT_TO_PAD,
@@ -16,6 +33,9 @@ import {
   type LayoutEditKind
 } from "../../src/layout-editor/layoutEdit";
 
+const b = types.builders;
+const n = types.namedTypes;
+
 const SAFE_EXPR = /^[0-9+\-*/().,\sMathPIatan2_]+$/;
 
 export interface LayoutSourceFiles {
@@ -25,6 +45,23 @@ export interface LayoutSourceFiles {
   environment: string;
   interior: string;
   npcs: string;
+}
+
+export interface PlacementMutation {
+  kind: "update" | "add" | "delete";
+  targetId: string;
+  data?: {
+    assetId?: string;
+    x?: number;
+    y?: number;
+    z?: number;
+    rotationY?: number;
+    scale?: number | readonly [number, number, number];
+    grounding?: readonly [number, number];
+    practicalLight?: boolean;
+    propType?: string;
+    [key: string]: unknown;
+  };
 }
 
 export class LayoutEditPatchError extends Error {
@@ -381,6 +418,22 @@ function resolveDuplicateCommit(files: LayoutSourceFiles, commit: LayoutEditComm
   };
 }
 
+function stringArrayHasId(source: string, constName: string, id: string): boolean {
+  const open = findConstArrayOpen(source, constName);
+  const block = extractBalanced(source, open);
+  return block.text.includes(`"${id}"`);
+}
+
+function removeStringArrayId(source: string, constName: string, id: string): string {
+  const open = findConstArrayOpen(source, constName);
+  const block = extractBalanced(source, open);
+  const needle = `"${id}"`;
+  const start = block.text.indexOf(needle);
+  if (start < 0) return source;
+  const nextInner = removeInclusiveComma(block.text, start, start + needle.length);
+  return replaceSlice(source, open, block.end, nextInner);
+}
+
 function findConstArrayOpen(source: string, constName: string): number {
   const pattern = new RegExp(`(?:export\\s+)?const\\s+${constName}\\b`);
   const match = pattern.exec(source);
@@ -589,6 +642,64 @@ function insertDuplicate(files: LayoutSourceFiles, commit: LayoutEditCommit): La
   return next;
 }
 
+function restoreLayoutEdit(files: LayoutSourceFiles, commit: LayoutEditCommit): LayoutSourceFiles {
+  const next: LayoutSourceFiles = { ...files };
+  switch (commit.kind) {
+    case "authored-detail":
+      if (authoredPlacementExists(next.environment, commit.id)) {
+        throw new LayoutEditPatchError(`Cannot restore existing layout ID ${commit.id}`);
+      }
+      next.environment = duplicateAuthoredPlacement(next.environment, commit);
+      break;
+    case "environment-override":
+      next.environment = removeStringArrayId(next.environment, "PLACEMENT_REMOVED", commit.id);
+      next.environment = upsertPlacementOverride(next.environment, commit);
+      break;
+    case "farm-prop": {
+      if (constArrayHasId(next.farmLayout, "STARTER_PROP_ANCHORS", commit.id)) {
+        throw new LayoutEditPatchError(`Cannot restore existing layout ID ${commit.id}`);
+      }
+      const local = writeFarmLocal(next.farmLayout, commit);
+      next.farmLayout = insertSnippetIntoConstArray(
+        next.farmLayout,
+        "STARTER_PROP_ANCHORS",
+        formatFarmPropSnippet(commit, local.x, local.z)
+      );
+      break;
+    }
+    case "farm-fence": {
+      const local = writeFarmLocal(next.farmLayout, commit);
+      if (stringArrayHasId(next.farmLayout, "FARM_FENCE_REMOVED", commit.id)) {
+        next.farmLayout = removeStringArrayId(next.farmLayout, "FARM_FENCE_REMOVED", commit.id);
+        next.farmLayout = upsertFenceOverride(next.farmLayout, commit);
+      } else {
+        if (constArrayHasId(next.farmLayout, "FARM_FENCE_EXTRAS", commit.id)) {
+          throw new LayoutEditPatchError(`Cannot restore existing layout ID ${commit.id}`);
+        }
+        next.farmLayout = insertSnippetIntoConstArray(
+          next.farmLayout,
+          "FARM_FENCE_EXTRAS",
+          `{ id: "${commit.id}", x: ${formatWorldCoord(local.x)}, z: ${formatWorldCoord(local.z)}, rotationY: ${formatRadians(commit.rotationY)} },`
+        );
+      }
+      break;
+    }
+    case "interior-prop":
+      if (constArrayHasId(next.interior, "FARMHOUSE_INTERIOR_PROPS", commit.id)) {
+        throw new LayoutEditPatchError(`Cannot restore existing layout ID ${commit.id}`);
+      }
+      next.interior = insertSnippetIntoConstArray(
+        next.interior,
+        "FARMHOUSE_INTERIOR_PROPS",
+        formatInteriorPropSnippet(commit)
+      );
+      break;
+    default:
+      throw new LayoutEditPatchError(`Cannot restore ${commit.kind}`);
+  }
+  return next;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -690,6 +801,9 @@ export function applyLayoutEditToSources(
 ): LayoutSourceFiles {
   if (commit.remove) {
     return removeLayoutEdit(files, commit);
+  }
+  if (commit.restore) {
+    return restoreLayoutEdit(files, commit);
   }
   if (commit.duplicateFrom) {
     return insertDuplicate(files, resolveDuplicateCommit(files, commit));
@@ -821,6 +935,8 @@ export function isLayoutEditCommit(value: unknown): value is LayoutEditCommit {
     && Number.isFinite(record.rotationY)
     && (record.y === undefined || (typeof record.y === "number" && Number.isFinite(record.y)))
     && (record.remove === undefined || record.remove === true)
+    && (record.restore === undefined || record.restore === true)
+    && !(record.restore === true && (record.remove === true || record.duplicateFrom !== undefined))
     && (record.duplicateFrom === undefined
       || (typeof record.duplicateFrom === "string"
         && record.duplicateFrom.length > 0
@@ -856,6 +972,32 @@ export function readLayoutSources(rootDirectory: string): LayoutSourceFiles {
   };
 }
 
+/**
+ * Validate and atomically write a source file.
+ * Creates a temp file, validates that it parses as TypeScript without errors,
+ * and atomically renames it over the target destination.
+ */
+export function atomicWriteSourceFile(filePath: string, content: string): void {
+  // Validate AST structure before committing to disk
+  try {
+    parse(content, { parser: tsParser });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    throw new LayoutEditPatchError(`Post-mutation syntax validation failed for ${filePath}: ${errorMsg}`);
+  }
+
+  const tempPath = `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    fs.writeFileSync(tempPath, content, "utf8");
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    try {
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    } catch {}
+    throw err;
+  }
+}
+
 export function writeLayoutSources(
   rootDirectory: string,
   files: LayoutSourceFiles
@@ -864,7 +1006,7 @@ export function writeLayoutSources(
   const write = (relative: string, contents: string, previous: string): void => {
     if (contents === previous) return;
     const absolute = path.join(rootDirectory, relative);
-    fs.writeFileSync(absolute, contents, "utf8");
+    atomicWriteSourceFile(absolute, contents);
     written.push(absolute);
   };
   const previous = readLayoutSources(rootDirectory);
@@ -905,4 +1047,273 @@ export function commitLayoutEdit(
   beforeWrite?.(planned.files);
   writeLayoutSources(rootDirectory, planned.next);
   return { files: planned.files, id: planned.id };
+}
+
+// ---------------------------------------------------------------------------
+// Scoped Lossless Recast AST Codemodder (Subsystem 2.1 Specification)
+// ---------------------------------------------------------------------------
+
+function buildAstValue(val: unknown): any {
+  if (typeof val === "string") {
+    return b.stringLiteral(val);
+  }
+  if (typeof val === "boolean") {
+    return b.booleanLiteral(val);
+  }
+  if (typeof val === "number") {
+    const rounded = Number(val.toFixed(4));
+    if (Object.is(rounded, -0) || rounded === 0) {
+      return b.numericLiteral(0);
+    }
+    if (rounded < 0) {
+      return b.unaryExpression("-", b.numericLiteral(Math.abs(rounded)));
+    }
+    return b.numericLiteral(rounded);
+  }
+  if (Array.isArray(val)) {
+    return b.arrayExpression(val.map(buildAstValue));
+  }
+  if (val && typeof val === "object") {
+    const props = Object.entries(val).map(([k, v]) =>
+      b.objectProperty(b.identifier(k), buildAstValue(v))
+    );
+    return b.objectExpression(props);
+  }
+  return b.nullLiteral();
+}
+
+/**
+ * Apply a single placement mutation against a parsed AST using Recast.
+ * Returns matchCount for update operations to verify zero-match / duplicate-ID safety.
+ */
+export function applyMutationToAst(
+  ast: any,
+  mutation: PlacementMutation,
+  targetArrayNames: string[] = [
+    "placements",
+    "STARTER_PROP_ANCHORS",
+    "STARTER_STRUCTURE_ANCHORS",
+    "STARTER_FARMSTEAD_ANCHORS",
+    "FARMHOUSE_INTERIOR_PROPS",
+    "FARM_FENCE_EXTRAS",
+    "AUTHORED_DETAIL_PLACEMENTS"
+  ]
+): number {
+  let matchCount = 0;
+
+  types.visit(ast, {
+    visitProperty(pathObj) {
+      this.traverse(pathObj);
+    },
+    visitVariableDeclarator(pathObj) {
+      const declaratorName = n.Identifier.check(pathObj.node.id) ? pathObj.node.id.name : null;
+      if (!declaratorName || !targetArrayNames.includes(declaratorName)) {
+        this.traverse(pathObj);
+        return;
+      }
+
+      let arrayNode: types.namedTypes.ArrayExpression | null = null;
+      if (n.ArrayExpression.check(pathObj.node.init)) {
+        arrayNode = pathObj.node.init;
+      } else if (
+        n.CallExpression.check(pathObj.node.init) &&
+        n.MemberExpression.check(pathObj.node.init.callee) &&
+        n.Identifier.check(pathObj.node.init.callee.object) &&
+        pathObj.node.init.callee.object.name === "Object" &&
+        n.Identifier.check(pathObj.node.init.callee.property) &&
+        pathObj.node.init.callee.property.name === "freeze" &&
+        pathObj.node.init.arguments.length > 0 &&
+        n.ArrayExpression.check(pathObj.node.init.arguments[0])
+      ) {
+        arrayNode = pathObj.node.init.arguments[0] as types.namedTypes.ArrayExpression;
+      }
+
+      if (arrayNode) {
+        processArrayElements(arrayNode, mutation, () => { matchCount++; });
+      }
+      this.traverse(pathObj);
+    },
+    visitObjectProperty(pathObj) {
+      const keyName = n.Identifier.check(pathObj.node.key)
+        ? pathObj.node.key.name
+        : n.StringLiteral.check(pathObj.node.key)
+        ? pathObj.node.key.value
+        : null;
+
+      if (keyName && targetArrayNames.includes(keyName) && n.ArrayExpression.check(pathObj.node.value)) {
+        processArrayElements(pathObj.node.value, mutation, () => { matchCount++; });
+      }
+      this.traverse(pathObj);
+    }
+  });
+
+  return matchCount;
+}
+
+function processArrayElements(
+  arrayNode: types.namedTypes.ArrayExpression,
+  mutation: PlacementMutation,
+  onMatch: () => void
+): void {
+  const elements = arrayNode.elements;
+
+  if (mutation.kind === "delete") {
+    const nextElements = elements.filter((el) => {
+      if (!el) return true;
+      // 1. Direct ObjectExpression with id property
+      if (n.ObjectExpression.check(el)) {
+        const idProp = el.properties.find(
+          (p): p is types.namedTypes.ObjectProperty =>
+            n.ObjectProperty.check(p) &&
+            ((n.Identifier.check(p.key) && p.key.name === "id") ||
+              (n.StringLiteral.check(p.key) && p.key.value === "id")) &&
+            n.StringLiteral.check(p.value) &&
+            p.value.value === mutation.targetId
+        );
+        if (idProp) {
+          onMatch();
+          return false;
+        }
+      }
+      // 2. CallExpression like authoredPlacement("targetId", { ... })
+      if (
+        n.CallExpression.check(el) &&
+        n.Identifier.check(el.callee) &&
+        el.callee.name === "authoredPlacement" &&
+        el.arguments.length > 0 &&
+        n.StringLiteral.check(el.arguments[0]) &&
+        el.arguments[0].value === mutation.targetId
+      ) {
+        onMatch();
+        return false;
+      }
+      return true;
+    });
+    arrayNode.elements = nextElements;
+  } else if (mutation.kind === "update") {
+    for (const el of elements) {
+      if (!el) continue;
+      // 1. Direct ObjectExpression
+      if (n.ObjectExpression.check(el)) {
+        const idProp = el.properties.find(
+          (p): p is types.namedTypes.ObjectProperty =>
+            n.ObjectProperty.check(p) &&
+            ((n.Identifier.check(p.key) && p.key.name === "id") ||
+              (n.StringLiteral.check(p.key) && p.key.value === "id")) &&
+            n.StringLiteral.check(p.value) &&
+            p.value.value === mutation.targetId
+        );
+        if (idProp) {
+          onMatch();
+          if (mutation.data) {
+            updateObjectProperties(el, mutation.data);
+          }
+        }
+      }
+      // 2. CallExpression like authoredPlacement("targetId", { ... })
+      if (
+        n.CallExpression.check(el) &&
+        n.Identifier.check(el.callee) &&
+        el.callee.name === "authoredPlacement" &&
+        el.arguments.length > 0 &&
+        n.StringLiteral.check(el.arguments[0]) &&
+        el.arguments[0].value === mutation.targetId
+      ) {
+        onMatch();
+        if (mutation.data && el.arguments.length > 1 && n.ObjectExpression.check(el.arguments[1])) {
+          updateObjectProperties(el.arguments[1], mutation.data);
+        }
+      }
+    }
+  } else if (mutation.kind === "add") {
+    if (mutation.data) {
+      const isAuthoredCall = mutation.targetId.startsWith("authored.");
+      if (isAuthoredCall) {
+        const props: types.namedTypes.ObjectProperty[] = [];
+        for (const [k, v] of Object.entries(mutation.data)) {
+          if (v === undefined || k === "id") continue;
+          props.push(b.objectProperty(b.identifier(k), buildAstValue(v)));
+        }
+        const call = b.callExpression(b.identifier("authoredPlacement"), [
+          b.stringLiteral(mutation.targetId),
+          b.objectExpression(props)
+        ]);
+        elements.push(call);
+        onMatch();
+      } else {
+        const props: types.namedTypes.ObjectProperty[] = [
+          b.objectProperty(b.identifier("id"), b.stringLiteral(mutation.targetId))
+        ];
+        for (const [k, v] of Object.entries(mutation.data)) {
+          if (v === undefined || k === "id") continue;
+          props.push(b.objectProperty(b.identifier(k), buildAstValue(v)));
+        }
+        elements.push(b.objectExpression(props));
+        onMatch();
+      }
+    }
+  }
+}
+
+function updateObjectProperties(obj: types.namedTypes.ObjectExpression, data: Record<string, unknown>): void {
+  for (const [key, val] of Object.entries(data)) {
+    if (val === undefined || key === "id") continue;
+    const existing = obj.properties.find(
+      (p): p is types.namedTypes.ObjectProperty =>
+        n.ObjectProperty.check(p) &&
+        ((n.Identifier.check(p.key) && p.key.name === key) ||
+          (n.StringLiteral.check(p.key) && p.key.value === key))
+    );
+    const astVal = buildAstValue(val);
+    if (existing) {
+      existing.value = astVal;
+    } else {
+      obj.properties.push(b.objectProperty(b.identifier(key), astVal));
+    }
+  }
+}
+
+/**
+ * Patch placement data in a TypeScript file losslessly using Recast AST transformation.
+ * Enforces zero-match and duplicate-ID invariants, verifies post-mutation syntax,
+ * and performs atomic disk writes via .tmp file replacement.
+ */
+export function patchPlacementInFile(
+  filePath: string,
+  mutation: PlacementMutation | PlacementMutation[]
+): string {
+  const mutations = Array.isArray(mutation) ? mutation : [mutation];
+  const sourceCode = fs.readFileSync(filePath, "utf8");
+  if (mutations.length === 0) return sourceCode;
+  const ast = parse(sourceCode, { parser: tsParser });
+
+  for (const mut of mutations) {
+    const matchCount = applyMutationToAst(ast, mut);
+    if (mut.kind === "update") {
+      if (matchCount === 0) {
+        throw new LayoutEditPatchError(`Target layout ID "${mut.targetId}" not found in ${filePath}`);
+      }
+      if (matchCount > 1) {
+        throw new LayoutEditPatchError(
+          `Duplicate layout ID "${mut.targetId}" found in ${filePath} (${matchCount} occurrences)`
+        );
+      }
+    } else if (mut.kind === "delete" && matchCount === 0) {
+      throw new LayoutEditPatchError(`Delete failed: target ID "${mut.targetId}" not found in ${filePath}`);
+    }
+  }
+
+  const outputCode = print(ast).code;
+  atomicWriteSourceFile(filePath, outputCode);
+  return outputCode;
+}
+
+/** Documented public contract; retained separately from the legacy file-oriented name. */
+export function patchPlacement(filePath: string, mutations: PlacementMutation[]): string {
+  return patchPlacementInFile(filePath, mutations);
+}
+
+/** Batch version of patchPlacementInFile. */
+export function batchPatchPlacements(filePath: string, mutations: PlacementMutation[]): void {
+  patchPlacementInFile(filePath, mutations);
 }

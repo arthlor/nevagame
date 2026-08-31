@@ -5,6 +5,9 @@ export interface ArtCliArgs {
   all: boolean;
   publish: boolean;
   strict: boolean;
+  concurrency?: number | null;
+  timeoutMs?: number;
+  useCache?: boolean;
 }
 
 export interface CatalogAsset {
@@ -92,6 +95,27 @@ export function computeAssetInputHash(
 ): string;
 export function computeAssetToolchainHash(asset: CatalogAsset): string;
 export function computeToolchainHash(directory?: string): string;
+export function computeCommonToolchainHash(commonDir?: string): string;
+export function computeAssetHash(
+  catalogEntry: CatalogAsset,
+  repoRoot?: string,
+  overrides?: { blenderVersion?: string; optimizeConfig?: Record<string, unknown> }
+): string;
+export function isAssetCurrent(cacheDir: string, assetId: string, sourceHash: string): boolean;
+export function isCached(assetId: string, targetHash: string, outputDir?: string, cacheRoot?: string): boolean;
+export function recordCache(
+  assetId: string,
+  hash: string,
+  metadata: Record<string, unknown>,
+  artifactPath?: string | null,
+  cacheRoot?: string
+): Record<string, unknown>;
+export function cleanCache(
+  cacheRoot?: string,
+  maxAgeMs?: number,
+  maxEntries?: number
+): { kept: number; removed: number };
+export function mayJoinStaticNode(node: unknown, spec: unknown): boolean;
 export function safeFilename(value: string): boolean;
 export function validateCatalog(): {
   catalog: { assets: CatalogAsset[] };

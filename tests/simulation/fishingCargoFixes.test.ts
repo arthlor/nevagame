@@ -47,6 +47,31 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(sim.state.basicFishing?.habitatId).toBe("river");
   });
 
+  it("blocks a basic cast before creating fishing state or consuming bait and RNG", () => {
+    const act3 = QUESTS.find((quest) => quest.id === "quest.act3_river_angler")!;
+    const anchor = act3.objectives[0].locationAnchor!;
+    sim.state.player.x = anchor.x;
+    sim.state.player.z = anchor.z;
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
+    const baitBefore = InventoryManager.getItemCount(inventory, "item.bait_worms");
+    const rngBefore = sim.rng.getState();
+    sim.state.player.workCapacity.current = 14.99;
+
+    const result = sim.startChargingBasicFishing();
+
+    expect(result).toMatchObject({
+      success: false,
+      reasonCode: "insufficient-work",
+      requiredWork: 15,
+      availableWork: 14
+    });
+    expect(sim.state.player.workCapacity.current).toBe(14.99);
+    expect(InventoryManager.getItemCount(inventory, "item.bait_worms")).toBe(baitBefore);
+    expect(sim.rng.getState()).toBe(rngBefore);
+    expect(sim.state.basicFishing).toBeNull();
+  });
+
   it("keeps a common river fish eligible at night in windy weather", () => {
     sim.state.player.x = -8;
     sim.state.player.z = 0;
@@ -140,6 +165,9 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     sim.state.sportFishing!.stamina = 0;
     sim.state.sportFishing!.distanceMeters = 0.5;
     sim.state.sportFishing!.lineTension = 35;
+    // The sustained landing hold is already earned; this test only cares that the
+    // FishLanded listener sees a valid envelope.
+    sim.state.sportFishing!.dynamics!.landReadySeconds = 1;
     sim.tick(0.1);
 
     expect(validDuringEvent).toBe(true);
@@ -231,7 +259,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
   });
 
-  it("blocks hooking sport-fish when Work Capacity is empty and allows it when Labor is available", () => {
+  it("blocks hooking sport-fish when Work is insufficient and allows it when Work is available", () => {
     const state = structuredClone(sim.state);
     state.worldSeed = 0;
     state.metadata.rngState = undefined;
@@ -245,16 +273,26 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     candidate.state.player.z = lake.z;
     expect(candidate.chumFishSchool(schoolId).success).toBe(true);
 
-    // Empty Labor blocks hooking
+    // Empty Work blocks hooking.
     const emptyResult = candidate.hookSportFish(schoolId);
     expect(emptyResult.success).toBe(false);
-    expect(emptyResult.reasonCode).toBe("no-labor");
+    expect(emptyResult.reasonCode).toBe("insufficient-work");
 
-    // With Labor, hook succeeds
+    // With Work, hook succeeds and spends the trout's size-scaled hook cost (small = 18).
     candidate.state.player.workCapacity.current = 1000;
     const validResult = candidate.hookSportFish(schoolId);
     expect(validResult.success).toBe(true);
     expect(validResult.encounter!.fish.quality).toBe("trophy");
-    expect(candidate.state.player.workCapacity.current).toBe(960);
+    expect(candidate.state.player.workCapacity.current).toBe(982);
+
+    // Losing the fight hands back ~60% of the hook cost (round(18 * 0.6) = 11).
+    candidate.state.sportFishing!.lineTension = 0;
+    candidate.state.sportFishing!.slackTimerSeconds = 999;
+    const escaped: string[] = [];
+    candidate.events.on("FishEscaped", (event) => escaped.push(event.reason));
+    candidate.tick(0.1);
+    expect(escaped).toEqual(["escaped"]);
+    expect(candidate.state.sportFishing).toBeNull();
+    expect(candidate.state.player.workCapacity.current).toBe(993);
   });
 });
