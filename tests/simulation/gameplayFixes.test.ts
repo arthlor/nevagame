@@ -564,7 +564,7 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.z = VILLAGE_MARKET.position.z;
     expect(sim.deliverFishCargoToContract(contract.id, "cargo.test_trout")).toMatchObject({
       success: false,
-      reason: "Bring this fish cargo to the Harbor Fish Market"
+      reason: `Bring this fish cargo to ${ContentRegistry.markets.get("market.harbor")!.name}`
     });
 
     sim.state.player.x = HARBOR_MARKET.position.x;

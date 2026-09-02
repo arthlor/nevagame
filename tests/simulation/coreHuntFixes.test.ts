@@ -69,14 +69,20 @@ describe("Core hunt fixes", () => {
     expect(InventoryManager.getItemCount(inventory, catchItemId)).toBe(0);
     expect(sim.execute({ type: "fishing.commit-basic" })).toMatchObject({
       success: false,
-      reason: "Your backpack is full. Make space to land the catch."
+      reason: "The satchel is full. Make space to land the catch."
     });
     expect(sim.state.basicFishing?.phase).toBe("caught");
 
+    // A full satchel no longer drops the catch on cancel. The attempt is held
+    // in `caught` so the player can make room or discard it deliberately.
     expect(sim.cancelBasicFishing()).toMatchObject({
-      success: true,
-      reason: "inventory-full"
+      success: false,
+      reasonCode: "inventory-full"
     });
+    expect(sim.state.basicFishing?.phase).toBe("caught");
+
+    expect(sim.execute({ type: "fishing.discard-basic-catch" }))
+      .toMatchObject({ success: true, reasonCode: "discarded" });
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(inventory, catchItemId)).toBe(0);
   });

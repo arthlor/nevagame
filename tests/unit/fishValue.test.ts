@@ -2,7 +2,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { calculateFishPrice } from "../../src/simulation/economy/calculateFishValue";
 import { calculateCommodityUnitPrice } from "../../src/simulation/economy/calculateCommodityValue";
-import { advanceCargoFreshness, calculateFreshnessLoss, getFreshnessPriceMultiplier } from "../../src/simulation/fishing/calculateFreshness";
+import {
+  advanceCargoFreshness,
+  calculateFreshnessLoss,
+  getFreshnessPriceMultiplier,
+  resolveCargoTemperatureC
+} from "../../src/simulation/fishing/calculateFreshness";
 import { FISH_SPECIES } from "../../src/content/fish";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
@@ -109,8 +114,16 @@ describe("Fish Value & Freshness Calculations", () => {
 
     advanceCargoFreshness(state, 60, state.clock.currentMinute);
     expect(InventoryManager.getItemCount(inventory, "item.crushed_ice")).toBe(0);
+    // Ambient is the live climate sample at the cargo holder, not a flat 20 C,
+    // so read it from the same owner the decay loop uses.
     expect(state.fishCargo["cargo.test"].freshness).toBeCloseTo(
-      100 - calculateFreshnessLoss(60, tuna.baseDecayRatePerMinute, "player", true, 20)
+      100 - calculateFreshnessLoss(
+        60,
+        tuna.baseDecayRatePerMinute,
+        "player",
+        true,
+        resolveCargoTemperatureC(state, state.fishCargo["cargo.test"])
+      )
     );
 
     const freshnessAfterIcedHour = state.fishCargo["cargo.test"].freshness;

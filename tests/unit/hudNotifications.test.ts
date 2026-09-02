@@ -81,7 +81,7 @@ describe("NoticeQueue", () => {
 
   it("reads failure prose as a danger tone", () => {
     expect(inferNoticeTone("Could not sell item")).toBe("danger");
-    expect(inferNoticeTone("Your backpack is full")).toBe("danger");
+    expect(inferNoticeTone("The satchel is full")).toBe("danger");
     expect(inferNoticeTone("The fish got away")).toBe("warning");
     expect(inferNoticeTone("Docked at harbor")).toBe("info");
   });
