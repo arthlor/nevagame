@@ -10,8 +10,18 @@ function makeFish(speciesId: string, weightKg: number): FishInstance {
   return { instanceId: `test.${speciesId}`, speciesId, weightKg, quality: "fine", caughtAtMinute: 100 };
 }
 
-/** Plays a competent fight: reel in the green band, ease off when tension climbs, counter runs. */
-function playSkilfully(encounter: FishingEncounter, maxSteps = 600, dt = 0.25): FishingEncounterState["result"] {
+/**
+ * Plays a competent fight: reel in the green band, ease off when tension
+ * climbs, counter runs.
+ *
+ * The budget is deliberately clear of the real fight length. A 3 kg trout on
+ * `rod.willow` lands at ~150 s: stamina falls from 57.2 to the 15% landing
+ * threshold at roughly 0.32/s. At 600 steps this assertion sat exactly on the
+ * boundary and failed by a single tick. This claim is "a competent fight
+ * lands the fish", not "it lands within 150 s" — see the encounter's own
+ * duration tests for pacing.
+ */
+function playSkilfully(encounter: FishingEncounter, maxSteps = 900, dt = 0.25): FishingEncounterState["result"] {
   let result: FishingEncounterState["result"] = "active";
   for (let step = 0; step < maxSteps; step++) {
     const s = encounter.getState();

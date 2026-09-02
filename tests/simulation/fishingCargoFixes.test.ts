@@ -271,15 +271,24 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     seeded.state.player.carriedFishCargoId = blockingCargoId;
     seeded.state.sportFishing!.stamina = 0;
     seeded.state.sportFishing!.distanceMeters = 0;
-    // Keep the forced landing inside the authored tension window; zero
-    // tension is a valid slack state but cannot satisfy canLand().
-    seeded.state.sportFishing!.lineTension = 35;
+    // Keep the forced landing inside the authored tension window; zero tension
+    // is a valid slack state but cannot satisfy canLand(). It must also stay
+    // above `minimumLandingTension` (12) for the whole `landReadySeconds`
+    // hold: with no reeling input tension bleeds ~4.4 per 0.1 s tick, so the
+    // old 35 dropped under 12 one tick before the window matured. The band is
+    // [12, maxSafeTension * landingTensionCeilRatio) = [12, 68.8) here.
+    seeded.state.sportFishing!.lineTension = 60;
 
     const reloaded = new Simulation(structuredClone(seeded.state));
     expect(reloaded.state.sportFishing?.schoolId).toBe(schoolId);
     const escaped: string[] = [];
     reloaded.events.on("FishEscaped", (event) => escaped.push(event.reason));
-    reloaded.tick(0.1);
+    // Landing is no longer instantaneous: `canLand()` requires the green-band
+    // window to be held for `landReadySeconds`, and that counter starts at
+    // zero on a reload, so a single 0.1 s tick cannot satisfy it.
+    for (let step = 0; step < 20 && reloaded.state.sportFishing; step += 1) {
+      reloaded.tick(0.1);
+    }
     expect(reloaded.activeFishingEncounter).toBeNull();
     expect(reloaded.state.sportFishing).toBeNull();
     expect(escaped).toEqual(["no-cargo-space"]);
