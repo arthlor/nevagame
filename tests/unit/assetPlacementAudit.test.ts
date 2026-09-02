@@ -56,7 +56,8 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     for (const id of layoutIds) expect(byId.get(id)?.disposition, id).toBe("static-world");
 
     const stageIds = Object.values(CROP_STAGE_ASSETS).flatMap((stages) => Object.values(stages));
-    expect(new Set(stageIds).size).toBe(19);
+    // 19 before Sunreach; its sunflower and olive families add six stages each.
+    expect(new Set(stageIds).size).toBe(31);
     for (const id of stageIds) {
       expect(byId.get(id)?.disposition, id).toBe(id === ASSET_IDS.TREE_APPLE_A ? "static-world" : "conditional-world");
     }
@@ -168,7 +169,8 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     const summary = getAssetCoverageSummary(42891);
     expect(summary.total).toBe(ASSET_CATALOG.length);
     expect(summary.byDisposition["progression-world"]).toBe(1);
-    expect(summary.byDisposition["conditional-world"]).toBe(18);
+    // Every crop stage except the apple tree, which is also static world art.
+    expect(summary.byDisposition["conditional-world"]).toBe(30);
     expect(summary.freshSaveVisible).toBeLessThan(summary.total);
   });
 });

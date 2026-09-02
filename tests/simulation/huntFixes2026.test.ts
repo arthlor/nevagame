@@ -143,7 +143,12 @@ describe("Hunt fixes 2026", () => {
 
   it("H7/H8: carp scraps is live; flax and barley seeds are XP-gated at the village stall", () => {
     expect(LIVE_RECIPE_IDS.has("recipe.carp_to_scraps")).toBe(true);
-    expect(LIVE_RECIPE_IDS.size).toBe(9);
+    // The real contract is that every authored recipe is live, not that there
+    // are exactly N of them. Sunreach added two and this asserted 9.
+    expect(LIVE_RECIPE_IDS.size).toBe(ContentRegistry.recipes.size);
+    for (const recipe of ContentRegistry.recipes.values()) {
+      expect(LIVE_RECIPE_IDS.has(recipe.id), recipe.id).toBe(true);
+    }
     const sim = new Simulation();
     sim.state.player.x = VILLAGE_MARKET.position.x;
     sim.state.player.z = VILLAGE_MARKET.position.z;

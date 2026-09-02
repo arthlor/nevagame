@@ -215,7 +215,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
   });
 
   describe("5. Bottom-Left Vitals, Context Statuses & Boat HUD", () => {
-    it("renders vertical Work meter with amber-gold fill", () => {
+    it("renders horizontal Work meter with amber-gold fill", () => {
       const state = createInitialGameState();
       state.player.workCapacity.current = 750;
       state.player.workCapacity.maximum = 1000;
@@ -230,7 +230,9 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("hud-vitals-tray");
       expect(html).toContain("hud-labor-meter");
       expect(html).toContain("chrome-meter--labor");
-      expect(html).toContain("chrome-meter--vertical");
+      // The HUD overhaul moved Work and Sprint into a horizontal vitals tray
+      // with the numeric readout lifted above it; they are no longer vertical.
+      expect(html).toContain("chrome-meter--horizontal");
     });
 
     it("renders Sprint stamina meter when sprinting or exhausted", () => {
