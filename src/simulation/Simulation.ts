@@ -2,7 +2,7 @@
 
 import { ContentRegistry } from "../content/ContentRegistry";
 import { EventBus } from "./core/EventBus";
-import { GameClock, minutesUntilNextMorning } from "./core/GameClock";
+import { GameClock, minutesUntilNextMorning, seasonAtMinute } from "./core/GameClock";
 import { SeededRng } from "./core/Rng";
 import {
   FarmId,
@@ -25,7 +25,7 @@ import {
   RodId
 } from "./core/types";
 import { createInitialGameState } from "./core/createInitialState";
-import { applyWeatherProfile } from "./weather/updateWeather";
+import { applyWeatherProfile, forecastWeatherAt } from "./weather/updateWeather";
 import { forEachWeatherBoundedSegment } from "./farming/weatherBoundedSegments";
 import type { ResolvedPhysicsFrame } from "./core/PhysicsAdapter";
 import type { DomainContext } from "./domains/DomainContext";
@@ -37,7 +37,13 @@ import { CargoDomain } from "./domains/CargoDomain";
 import { FishingDomain } from "./domains/FishingDomain";
 import { MarketDomain } from "./domains/MarketDomain";
 import { ContractDomain } from "./domains/ContractDomain";
-import { QuestDomain } from "./domains/QuestDomain";
+import { QuestDomain, reconcileInactiveQuestChain, reconcileSatisfiedQuestObjectives } from "./domains/QuestDomain";
+import { buildWorldHudDto } from "./presentation/WorldHudPresentation";
+import { buildSatchelDto } from "./presentation/SatchelPresentation";
+import { buildWorldMapDto } from "./presentation/WorldMapPresentation";
+import { buildJournalPagesDto } from "./presentation/JournalPresentation";
+import { buildPauseSummaryDto } from "./presentation/PausePresentation";
+import type { ExpeditionBoardDto } from "./expeditions/buildExpeditionOpportunities";
 import { InventoryManager } from "./inventory/InventoryManager";
 import { WorldLayout } from "../world/WorldLayout";
 import { HARBOR_DOCK } from "../world/WorldAnchors";
@@ -45,11 +51,20 @@ import { STARTER_DONKEY_ID } from "./mounts/Mounts";
 import type {
   CropInspectionDto,
   CropPlacementResult,
+  FarmForecastDto,
   GameCommand,
   GameQuery,
   GameQueryResult,
   InteractionResult,
+  JournalPagesDto,
+  HoldStoresDto,
   ProcessingJobInspectionDto,
+  PauseSummaryDto,
+  SeedBeltDto,
+  SatchelDto,
+  SkillProgressDto,
+  WorldHudDto,
+  WorldMapDto,
   WorkCostQuote
 } from "./core/contracts";
 
@@ -77,6 +92,8 @@ export class Simulation {
     // Overlay/UI pause is runtime-only. Loading a save must never freeze the world.
     this.clock.setPaused(false);
     this.state.clock = { ...this.clock.getState() };
+    reconcileInactiveQuestChain(this.state);
+    reconcileSatisfiedQuestObjectives(this.state);
     this.events = new EventBus();
     this.domainContext = {
       state: this.state,
@@ -130,6 +147,8 @@ export class Simulation {
         return this.boardBoat(command.boatId);
       case "boat.dock":
         return this.dockActiveBoat();
+      case "boat.refuel":
+        return this.navigationDomain.refuel(command.boatId);
       case "mount.board":
         return this.boardMount(command.mountId);
       case "mount.dismount":
@@ -169,18 +188,26 @@ export class Simulation {
         return { success: true };
       case "fishing.cancel-basic":
         return this.cancelBasicFishing();
+      case "fishing.discard-basic-catch":
+        return this.fishingDomain.discardBasicCatch();
+      case "fishing.commit-basic":
+        return this.fishingDomain.commitBasicFishing();
       case "fishing.chum-school":
         return this.chumFishSchool(command.schoolId);
       case "fishing.hook-school":
         return this.hookSportFish(command.schoolId);
+      case "fishing.toggle-lure":
+        return this.fishingDomain.togglePreparedLure();
       case "fishing.control":
         return this.setSportFishingInput(command.input)
           ? { success: true }
           : { success: false, reason: "No active fishing encounter" };
       case "cargo.discard":
-        return this.discardFishCargo(command.cargoId);
+        return this.discardFishCargo(command.cargoId, command.marketId);
       case "market.sell-item":
         return this.sellItemAtMarket(command.marketId, command.itemId, command.quantity);
+      case "market.sell-produce-bulk":
+        return this.marketDomain.sellBulkProduce(command.marketId);
       case "market.buy-seed":
         return this.buySeedAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.buy-item":
@@ -191,6 +218,8 @@ export class Simulation {
         return this.equipRodAtMarket(command.marketId, command.rodId);
       case "market.sell-fish":
         return this.sellFishCargoAtMarket(command.marketId, command.cargoId);
+      case "market.sell-fish-bulk":
+        return this.marketDomain.sellBulkFish(command.marketId);
       case "contract.deliver-items":
         return this.deliverItemsToContract(command.contractId, command.itemId, command.quantity);
       case "contract.deliver-fish":
@@ -209,6 +238,32 @@ export class Simulation {
     switch (query.type) {
       case "market.nearby":
         return this.getNearbyMarketId();
+      case "world.get-hud":
+        return this.inspectWorldHud(query.selectedCropId ?? null);
+      case "expedition.get-board":
+        return this.inspectExpeditionBoard();
+      case "cargo.get-hold-stores":
+        return this.inspectHoldStores();
+      case "inventory.get-satchel":
+        return this.inspectSatchel();
+      case "world.get-map":
+        return this.inspectWorldMap();
+      case "journal.get-pages":
+        return this.inspectJournalPages();
+      case "world.get-pause":
+        return this.inspectPauseSummary();
+      case "weather.get-farm-forecast":
+        return this.inspectFarmForecast();
+      case "fishing.get-sport-hud":
+        return this.inspectSportFishingHud();
+      case "progression.get-skills":
+        return this.inspectSkillProgress();
+      case "market.get-board":
+        return this.marketDomain.inspectBoard(query.marketId);
+      case "market.quote-sale":
+        return this.marketDomain.inspectCommodity(query.marketId, query.itemId, "sell", query.quantity);
+      case "market.quote-purchase":
+        return this.marketDomain.inspectCommodity(query.marketId, query.itemId, "buy", query.quantity);
       case "boat.can-board":
         return this.canBoardBoat(query.boatId);
       case "boat.can-dock":
@@ -217,6 +272,8 @@ export class Simulation {
         return this.farmingDomain.validatePlacement(query.request);
       case "crop.inspect":
         return this.farmingDomain.inspect(query.placedCropId);
+      case "crop.get-seed-belt":
+        return this.inspectSeedBelt();
       case "processing.inspect":
         return this.processingDomain.inspect(query.stationId);
       case "crop.find-placement":
@@ -292,6 +349,9 @@ export class Simulation {
   private applyElapsedGameMinutes(minutesAdvanced: number): void {
     const startMinute = this.state.clock.currentMinute - minutesAdvanced;
     const weatherBefore = this.state.weather.type;
+    // The clock has already advanced by the time we get here, so the previous
+    // season is derived from where the elapsed span started.
+    const seasonBefore = seasonAtMinute(startMinute);
     forEachWeatherBoundedSegment(
       this.state.weather,
       startMinute,
@@ -305,6 +365,14 @@ export class Simulation {
     if (this.state.weather.type !== weatherBefore) {
       this.events.emit("WeatherChanged", {
         weather: this.state.weather.type,
+        minute: this.state.clock.currentMinute
+      });
+    }
+    if (this.state.clock.season !== seasonBefore) {
+      this.events.emit("SeasonChanged", {
+        season: this.state.clock.season,
+        previousSeason: seasonBefore,
+        year: this.state.clock.year,
         minute: this.state.clock.currentMinute
       });
     }
@@ -722,6 +790,10 @@ export class Simulation {
     return this.farmingDomain.inspect(placedCropId);
   }
 
+  public inspectSeedBelt(): SeedBeltDto {
+    return this.farmingDomain.inspectSeedBelt();
+  }
+
   public inspectProcessingJob(stationId: string): ProcessingJobInspectionDto | null {
     return this.processingDomain.inspect(stationId);
   }
@@ -760,7 +832,7 @@ export class Simulation {
     this.fishingDomain.setBasicFishingInput(isHolding);
   }
 
-  public cancelBasicFishing(): { success: boolean; reason?: string } {
+  public cancelBasicFishing(): { success: boolean; reason?: string; reasonCode?: string } {
     return this.fishingDomain.cancelBasicFishing();
   }
 
@@ -776,8 +848,15 @@ export class Simulation {
     return this.fishingDomain.hookSportFish(schoolId);
   }
 
-  public discardFishCargo(cargoId: FishCargoId): { success: boolean; scraps?: number; reason?: string } {
-    return this.cargoDomain.discard(cargoId);
+  public quoteSchoolHookWork(schoolId: FishSchoolId): number {
+    return this.fishingDomain.quoteSchoolHookWork(schoolId);
+  }
+
+  public discardFishCargo(
+    cargoId: FishCargoId,
+    marketId?: MarketId
+  ): { success: boolean; scraps?: number; reason?: string } {
+    return this.cargoDomain.discard(cargoId, marketId);
   }
 
   // ==========================================
@@ -805,6 +884,83 @@ export class Simulation {
     return this.marketDomain.sellItem(marketId, itemId, quantity);
   }
 
+  public inspectCommodityAtMarket(
+    marketId: MarketId,
+    itemId: ItemId,
+    intent: "buy" | "sell" = "sell",
+    quantity = 1
+  ) {
+    return this.marketDomain.inspectCommodity(marketId, itemId, intent, quantity);
+  }
+
+  public inspectMarketBoard(marketId: MarketId) {
+    return this.marketDomain.inspectBoard(marketId);
+  }
+
+  public inspectBulkProduceAtMarket(marketId: MarketId) {
+    return this.marketDomain.inspectBulkProduce(marketId);
+  }
+
+  public inspectMarketDemand(marketId: MarketId) {
+    return this.marketDomain.inspectDemandSignal(marketId);
+  }
+
+  public inspectWorldHud(selectedCropId: string | null = null): WorldHudDto {
+    return buildWorldHudDto(this.state, selectedCropId);
+  }
+
+  public inspectExpeditionBoard(): ExpeditionBoardDto {
+    return this.marketDomain.inspectExpeditionBoard();
+  }
+
+  public inspectHoldStores(): HoldStoresDto {
+    return this.cargoDomain.inspectHoldStores();
+  }
+
+  public inspectSatchel(): SatchelDto {
+    return buildSatchelDto(this.state);
+  }
+
+  public inspectWorldMap(): WorldMapDto {
+    return buildWorldMapDto(this.state);
+  }
+
+  public inspectJournalPages(): JournalPagesDto {
+    return buildJournalPagesDto(this.state);
+  }
+
+  public inspectPauseSummary(): PauseSummaryDto {
+    return buildPauseSummaryDto(this.state);
+  }
+
+  public inspectFarmForecast(): FarmForecastDto {
+    const { clock, weather } = this.state;
+    return {
+      seasonLabel: clock.season.charAt(0).toUpperCase() + clock.season.slice(1),
+      currentTemperatureC: Math.round(weather.temperatureC),
+      slots: [
+        { label: "Now", type: forecastWeatherAt(weather, clock.currentMinute, 0) },
+        { label: "+2h", type: forecastWeatherAt(weather, clock.currentMinute, 120) },
+        { label: "+5h", type: forecastWeatherAt(weather, clock.currentMinute, 300) }
+      ],
+      rainLabel: weather.precipitation >= 0.65
+        ? "Soaking"
+        : weather.precipitation >= 0.25
+          ? "Showers possible"
+          : "Mostly dry",
+      windLabel: weather.windSpeed >= 11 ? "Gale" : weather.windSpeed >= 6 ? "Breezy" : "Light",
+      seaLabel: weather.seaRoughness >= 0.7 ? "Rough" : weather.seaRoughness >= 0.35 ? "Swell" : "Calm"
+    };
+  }
+
+  public inspectSportFishingHud() {
+    return this.fishingDomain.inspectSportFishingHud();
+  }
+
+  public inspectSkillProgress(): SkillProgressDto[] {
+    return this.progressionDomain.inspectSkills();
+  }
+
   public buySeedAtMarket(marketId: MarketId, itemId: ItemId, quantity: number): InteractionResult {
     return this.marketDomain.buySeed(marketId, itemId, quantity);
   }
@@ -819,6 +975,14 @@ export class Simulation {
 
   public equipRodAtMarket(marketId: MarketId, rodId: RodId): InteractionResult {
     return this.marketDomain.equipRod(marketId, rodId);
+  }
+
+  public inspectFishCargoAtMarket(marketId: MarketId, cargoId: FishCargoId) {
+    return this.marketDomain.inspectFish(marketId, cargoId);
+  }
+
+  public inspectBulkFishAtMarket(marketId: MarketId) {
+    return this.marketDomain.inspectBulkFish(marketId);
   }
 
   public sellFishCargoAtMarket(marketId: MarketId, cargoId: FishCargoId): { success: boolean; revenue?: number; reason?: string } {

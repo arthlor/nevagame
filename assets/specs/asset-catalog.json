@@ -1391,6 +1391,384 @@
       }
     },
     {
+      "id": "tree_olive_a",
+      "file": "tree_olive_a.glb",
+      "family": "vegetation",
+      "generator": "olive_tree",
+      "seed": 191,
+      "dimensions": {
+        "width": 4.6,
+        "depth": 4.1,
+        "height": 5.2
+      },
+      "palette": [
+        "wood_warm_01",
+        "foliage_olive_01",
+        "foliage_sage_01",
+        "foliage_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 2700,
+        "trianglesMax": 5000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "medium",
+      "rootNode": "tree_olive_a_root",
+      "requiredNodes": [
+        "tree_olive_a_root",
+        "tree_olive_a_LOD0",
+        "tree_olive_a_LOD1"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "height": 4.9,
+        "spread": 2.15,
+        "canopyClusters": 15,
+        "lean": 0.1,
+        "branchCount": 7,
+        "rootCount": 7,
+        "fruitCount": 18
+      },
+      "lodLevels": [
+        {
+          "node": "tree_olive_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "tree_olive_a_LOD1",
+          "distanceMeters": 24,
+          "triangleRatioMin": 0.06,
+          "triangleRatioMax": 0.48
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Wind-shaped coastal olive with a forked trunk and flattened silver-green crown",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns the faceted coastal silhouette, shared palette, and gameplay-camera readability."
+          }
+        ],
+        "components": [
+          {
+            "id": "forked_trunk",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the wind-shaped gesture",
+            "shape": "Low bifurcated tapered trunk with visible root flare",
+            "count": "1 connected structure",
+            "cues": [
+              "Fork remains visible",
+              "Base reads planted"
+            ]
+          },
+          {
+            "id": "flattened_crown",
+            "parent": "forked_trunk",
+            "importance": "primary",
+            "role": "Defines olive species identity",
+            "shape": "Asymmetric flattened faceted lobes",
+            "count": "parameter-driven clusters",
+            "cues": [
+              "Wider than tall",
+              "Silver-green highlights face outward"
+            ]
+          },
+          {
+            "id": "root_flares",
+            "parent": "forked_trunk",
+            "importance": "secondary",
+            "role": "Grounds the coastal tree on dry terrace soil",
+            "shape": "Irregular low tapered roots following the trunk lean",
+            "count": "parameter-driven roots",
+            "cues": [
+              "No symmetric starburst",
+              "Base remains readable at gameplay distance"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A low fork supports a broad wind-shaped crown.",
+          "Flattened lobes remain distinct from Neva oak crowns.",
+          "The leaning crown and unequal roots share one coastal wind gesture."
+        ],
+        "negativeSpace": [
+          "The central fork remains visible below the crown.",
+          "Two daylight gaps separate major lobe groups."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Rear branches continue the asymmetric load-bearing structure.",
+            "Rear crown lobes close the volume without hiding the central fork."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "olive_read",
+            "componentIds": [
+              "forked_trunk",
+              "flattened_crown"
+            ],
+            "requirement": "The asset reads as an olive rather than a recolored oak at gameplay distance.",
+            "priority": "must"
+          },
+          {
+            "id": "visible_fork",
+            "componentIds": [
+              "forked_trunk",
+              "flattened_crown"
+            ],
+            "requirement": "The primary fork remains visible beneath the flattened crown from front and three-quarter views.",
+            "priority": "must"
+          },
+          {
+            "id": "dry_grounding",
+            "componentIds": [
+              "forked_trunk",
+              "root_flares"
+            ],
+            "requirement": "The trunk and irregular roots read as one planted structure on the terrace.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "spread",
+            "componentIds": [
+              "flattened_crown"
+            ],
+            "purpose": "Controls the wind-shaped crown width."
+          },
+          {
+            "parameter": "rootCount",
+            "componentIds": [
+              "root_flares"
+            ],
+            "purpose": "Controls the asymmetric grounding wedges around the leaning trunk."
+          }
+        ],
+        "failureModes": [
+          "The crown becomes a round oak ball.",
+          "The trunk fork disappears behind foliage.",
+          "Olive fruit becomes noisy at gameplay distance."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
+      "id": "tree_olive_b",
+      "file": "tree_olive_b.glb",
+      "family": "vegetation",
+      "generator": "olive_tree",
+      "seed": 223,
+      "dimensions": {
+        "width": 5,
+        "depth": 4.2,
+        "height": 4.8
+      },
+      "palette": [
+        "wood_dark_01",
+        "foliage_olive_01",
+        "foliage_sage_01",
+        "foliage_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 2650,
+        "trianglesMax": 5000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "medium",
+      "rootNode": "tree_olive_b_root",
+      "requiredNodes": [
+        "tree_olive_b_root",
+        "tree_olive_b_LOD0",
+        "tree_olive_b_LOD1"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "height": 4.5,
+        "spread": 2.35,
+        "canopyClusters": 14,
+        "lean": -0.13,
+        "branchCount": 7,
+        "rootCount": 8,
+        "fruitCount": 16
+      },
+      "lodLevels": [
+        {
+          "node": "tree_olive_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "tree_olive_b_LOD1",
+          "distanceMeters": 24,
+          "triangleRatioMin": 0.06,
+          "triangleRatioMax": 0.48
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Broader old coastal olive variant with a darker forked trunk",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns the faceted coastal silhouette, shared palette, and gameplay-camera readability."
+          }
+        ],
+        "components": [
+          {
+            "id": "forked_trunk",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the older tree gesture",
+            "shape": "Low dark bifurcated trunk and broad roots",
+            "count": "1 connected structure",
+            "cues": [
+              "Asymmetric fork",
+              "Broad planted base"
+            ]
+          },
+          {
+            "id": "flattened_crown",
+            "parent": "forked_trunk",
+            "importance": "primary",
+            "role": "Defines the broad olive silhouette",
+            "shape": "Low flattened silver-green crown lobes",
+            "count": "parameter-driven clusters",
+            "cues": [
+              "Broader than variant A",
+              "Open central fork"
+            ]
+          },
+          {
+            "id": "root_flares",
+            "parent": "forked_trunk",
+            "importance": "secondary",
+            "role": "Grounds the older broad tree",
+            "shape": "Unequal low tapered roots following the wind gesture",
+            "count": "parameter-driven roots",
+            "cues": [
+              "Broad planted base",
+              "No radial symmetry"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A dark fork spreads into a low wind-shaped crown.",
+          "The broader canopy remains stepped and asymmetric.",
+          "Unequal roots counterbalance the crown without widening into a starburst."
+        ],
+        "negativeSpace": [
+          "The central fork remains visible.",
+          "Major lobe groups retain side-view gaps."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Rear branches preserve the same wind direction without mirroring.",
+            "Rear crown masses preserve the side-view gaps around the central fork."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "olive_read",
+            "componentIds": [
+              "forked_trunk",
+              "flattened_crown"
+            ],
+            "requirement": "The broader variant remains recognizably olive at gameplay distance.",
+            "priority": "must"
+          },
+          {
+            "id": "variant_structure",
+            "componentIds": [
+              "forked_trunk",
+              "flattened_crown"
+            ],
+            "requirement": "The broad older silhouette differs structurally from variant A, not only by palette.",
+            "priority": "must"
+          },
+          {
+            "id": "dry_grounding",
+            "componentIds": [
+              "forked_trunk",
+              "root_flares"
+            ],
+            "requirement": "The wider dark trunk and irregular roots read as one planted structure.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "spread",
+            "componentIds": [
+              "flattened_crown"
+            ],
+            "purpose": "Controls the broad low crown."
+          },
+          {
+            "parameter": "rootCount",
+            "componentIds": [
+              "root_flares"
+            ],
+            "purpose": "Controls the uneven grounding wedges beneath the older trunk."
+          }
+        ],
+        "failureModes": [
+          "The crown becomes spherical.",
+          "The variant differs only by palette.",
+          "The root flare forms a symmetric starburst."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
+    },
+    {
       "id": "foliage_bush_a",
       "file": "foliage_bush_a.glb",
       "family": "vegetation",
@@ -5079,18 +5457,6 @@
               "detail_density"
             ],
             "notes": "Isolated 3/4 sheet locking porch volume, overlapping shingles, chimney masonry, and lantern glow."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "silhouette",
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Derived annotated board measuring roof, porch, plinth, openings, value hierarchy, and inferred rear continuity."
           }
         ],
         "components": [
@@ -9113,7 +9479,10 @@
       "lod": "small",
       "rootNode": "tool_fishing_rod_a_root",
       "requiredNodes": [
-        "tool_fishing_rod_a_root"
+        "tool_fishing_rod_a_root",
+        "rod_primary_grip",
+        "rod_secondary_grip",
+        "rod_line_exit"
       ],
       "readDistanceMeters": 8,
       "parameters": {
@@ -9864,6 +10233,8 @@
         "boat_rowboat_root",
         "boat_rowboat_storage_01",
         "boat_rowboat_rower_seat",
+        "boat_rowboat_foot_left_socket",
+        "boat_rowboat_foot_right_socket",
         "boat_rowboat_oar_left_root",
         "boat_rowboat_oar_right_root",
         "boat_rowboat_oarlock_left",
@@ -10132,7 +10503,8 @@
         "boat_skiff_cargo_02",
         "boat_skiff_hook_left",
         "boat_skiff_hook_right",
-        "boat_skiff_driver_seat",
+        "boat_skiff_driver_station",
+        "boat_skiff_fishing_station",
         "COL_boat_skiff_a"
       ],
       "readDistanceMeters": 60,
@@ -11070,9 +11442,22 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 602,
-      "dimensions": { "width": 0.7, "depth": 1.45, "height": 0.65 },
-      "palette": ["wood_weathered_01", "fish_belly_01", "wood_dark_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 0.7,
+        "depth": 1.45,
+        "height": 0.65
+      },
+      "palette": [
+        "wood_weathered_01",
+        "fish_belly_01",
+        "wood_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
@@ -11085,10 +11470,26 @@
         "fish_catfish_a_mouth_hook"
       ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 18,
       "parameters": {
@@ -11108,20 +11509,54 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 603,
-      "dimensions": { "width": 0.55, "depth": 1.65, "height": 0.55 },
-      "palette": ["fish_trout_back_01", "fish_belly_01", "accent_ochre_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1050, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 0.55,
+        "depth": 1.65,
+        "height": 0.55
+      },
+      "palette": [
+        "fish_trout_back_01",
+        "fish_belly_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1050,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "medium",
       "rootNode": "fish_pike_a_root",
-      "requiredNodes": ["fish_pike_a_root", "fish_pike_a_motion_root", "fish_pike_a_tail_pivot", "fish_pike_a_mouth_hook"],
+      "requiredNodes": [
+        "fish_pike_a_root",
+        "fish_pike_a_motion_root",
+        "fish_pike_a_tail_pivot",
+        "fish_pike_a_mouth_hook"
+      ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 20,
       "parameters": {
@@ -11141,20 +11576,54 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 604,
-      "dimensions": { "width": 0.65, "depth": 1.6, "height": 0.75 },
-      "palette": ["accent_ochre_01", "fish_belly_01", "accent_red_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1100, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 0.65,
+        "depth": 1.6,
+        "height": 0.75
+      },
+      "palette": [
+        "accent_ochre_01",
+        "fish_belly_01",
+        "accent_red_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1100,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "medium",
       "rootNode": "fish_arowana_a_root",
-      "requiredNodes": ["fish_arowana_a_root", "fish_arowana_a_motion_root", "fish_arowana_a_tail_pivot", "fish_arowana_a_mouth_hook"],
+      "requiredNodes": [
+        "fish_arowana_a_root",
+        "fish_arowana_a_motion_root",
+        "fish_arowana_a_tail_pivot",
+        "fish_arowana_a_mouth_hook"
+      ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 22,
       "parameters": {
@@ -11241,20 +11710,54 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 608,
-      "dimensions": { "width": 0.85, "depth": 2.35, "height": 0.75 },
-      "palette": ["stone_cool_01", "fish_belly_01", "rock_coastal_dark_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1050, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 0.85,
+        "depth": 2.35,
+        "height": 0.75
+      },
+      "palette": [
+        "stone_cool_01",
+        "fish_belly_01",
+        "rock_coastal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1050,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "medium",
       "rootNode": "fish_sturgeon_a_root",
-      "requiredNodes": ["fish_sturgeon_a_root", "fish_sturgeon_a_motion_root", "fish_sturgeon_a_tail_pivot", "fish_sturgeon_a_mouth_hook"],
+      "requiredNodes": [
+        "fish_sturgeon_a_root",
+        "fish_sturgeon_a_motion_root",
+        "fish_sturgeon_a_tail_pivot",
+        "fish_sturgeon_a_mouth_hook"
+      ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 26,
       "parameters": {
@@ -11274,20 +11777,54 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 609,
-      "dimensions": { "width": 1, "depth": 2.2, "height": 1.45 },
-      "palette": ["fish_tuna_back_01", "fish_belly_01", "accent_ochre_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 1,
+        "depth": 2.2,
+        "height": 1.45
+      },
+      "palette": [
+        "fish_tuna_back_01",
+        "fish_belly_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "medium",
       "rootNode": "fish_sailfish_a_root",
-      "requiredNodes": ["fish_sailfish_a_root", "fish_sailfish_a_motion_root", "fish_sailfish_a_tail_pivot", "fish_sailfish_a_mouth_hook"],
+      "requiredNodes": [
+        "fish_sailfish_a_root",
+        "fish_sailfish_a_motion_root",
+        "fish_sailfish_a_tail_pivot",
+        "fish_sailfish_a_mouth_hook"
+      ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 34,
       "parameters": {
@@ -11307,20 +11844,54 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 610,
-      "dimensions": { "width": 1.05, "depth": 3.5, "height": 1.1 },
-      "palette": ["stone_cool_01", "fish_belly_01", "fish_tuna_back_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 1.05,
+        "depth": 3.5,
+        "height": 1.1
+      },
+      "palette": [
+        "stone_cool_01",
+        "fish_belly_01",
+        "fish_tuna_back_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "medium",
       "rootNode": "fish_swordfish_a_root",
-      "requiredNodes": ["fish_swordfish_a_root", "fish_swordfish_a_motion_root", "fish_swordfish_a_tail_pivot", "fish_swordfish_a_mouth_hook"],
+      "requiredNodes": [
+        "fish_swordfish_a_root",
+        "fish_swordfish_a_motion_root",
+        "fish_swordfish_a_tail_pivot",
+        "fish_swordfish_a_mouth_hook"
+      ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 38,
       "parameters": {
@@ -11340,20 +11911,54 @@
       "family": "fish",
       "generator": "stylized_fish",
       "seed": 611,
-      "dimensions": { "width": 1.25, "depth": 3.7, "height": 1.35 },
-      "palette": ["fish_tuna_back_01", "fish_belly_01", "accent_teal_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1050, "trianglesMax": 2500, "materialsMax": 3 },
+      "dimensions": {
+        "width": 1.25,
+        "depth": 3.7,
+        "height": 1.35
+      },
+      "palette": [
+        "fish_tuna_back_01",
+        "fish_belly_01",
+        "accent_teal_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1050,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "medium",
       "rootNode": "fish_blue_marlin_a_root",
-      "requiredNodes": ["fish_blue_marlin_a_root", "fish_blue_marlin_a_motion_root", "fish_blue_marlin_a_tail_pivot", "fish_blue_marlin_a_mouth_hook"],
+      "requiredNodes": [
+        "fish_blue_marlin_a_root",
+        "fish_blue_marlin_a_motion_root",
+        "fish_blue_marlin_a_tail_pivot",
+        "fish_blue_marlin_a_mouth_hook"
+      ],
       "animationClips": [
-        { "name": "swim", "durationSeconds": 0.8, "loop": true },
-        { "name": "turn", "durationSeconds": 0.48, "loop": false },
-        { "name": "burst", "durationSeconds": 0.4, "loop": true },
-        { "name": "struggle", "durationSeconds": 0.6, "loop": true }
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
       ],
       "readDistanceMeters": 42,
       "parameters": {
@@ -11400,7 +12005,7 @@
         "variant": "bank",
         "clusters": 8,
         "width": 7.5,
-        "depth": 6.0,
+        "depth": 6,
         "height": 4.8
       }
     },
@@ -11417,17 +12022,18 @@
       },
       "palette": [
         "plaster_warm_01",
-        "canvas_cream_01",
+        "accent_teal_01",
         "wood_dark_01",
-        "wood_honey_01",
-        "foliage_sage_01",
-        "fish_tuna_back_01"
+        "canvas_cream_01",
+        "metal_brass_01",
+        "water_deep_01",
+        "leather_harness_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 12000,
+        "trianglesTarget": 7800,
         "trianglesMax": 18000,
-        "materialsMax": 6
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -11458,54 +12064,54 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.5,
           "loop": true
         },
         {
           "name": "walk_start",
-          "durationSeconds": 0.32,
+          "durationSeconds": 0.233333,
           "loop": false
         },
         {
           "name": "walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 1,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5,
+          "referenceSpeedMetersPerSecond": 1.6,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.12
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.5
             }
           ]
         },
         {
           "name": "run_start",
-          "durationSeconds": 0.28,
+          "durationSeconds": 0.233333,
           "loop": false
         },
         {
           "name": "run",
-          "durationSeconds": 0.56,
+          "durationSeconds": 0.6,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 8.2,
+          "referenceSpeedMetersPerSecond": 4.4,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.08
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.36
+              "timeSeconds": 0.3
             }
           ]
         },
         {
           "name": "stop",
-          "durationSeconds": 0.36,
+          "durationSeconds": 0.333333,
           "loop": false
         },
         {
@@ -11520,7 +12126,7 @@
         },
         {
           "name": "jump_start",
-          "durationSeconds": 0.28,
+          "durationSeconds": 0.266667,
           "loop": false,
           "events": [
             {
@@ -11536,41 +12142,41 @@
         },
         {
           "name": "land_soft",
-          "durationSeconds": 0.32,
+          "durationSeconds": 0.333333,
           "loop": false,
           "events": [
             {
               "name": "landing_contact",
-              "timeSeconds": 0.08
+              "timeSeconds": 0.066667
             }
           ]
         },
         {
           "name": "land_hard",
-          "durationSeconds": 0.48,
+          "durationSeconds": 0.466667,
           "loop": false,
           "events": [
             {
               "name": "landing_contact",
-              "timeSeconds": 0.08
+              "timeSeconds": 0.066667
             }
           ]
         },
         {
           "name": "plant",
-          "durationSeconds": 0.72,
-          "commitMarkerSeconds": 0.32,
+          "durationSeconds": 0.733333,
+          "commitMarkerSeconds": 0.333333,
           "loop": false,
           "events": [
             {
               "name": "tool_contact",
-              "timeSeconds": 0.32
+              "timeSeconds": 0.333333
             }
           ]
         },
         {
           "name": "water",
-          "durationSeconds": 0.84,
+          "durationSeconds": 0.833333,
           "commitMarkerSeconds": 0.4,
           "loop": false,
           "events": [
@@ -11583,24 +12189,24 @@
         {
           "name": "harvest",
           "durationSeconds": 0.8,
-          "commitMarkerSeconds": 0.36,
+          "commitMarkerSeconds": 0.366667,
           "loop": false,
           "events": [
             {
               "name": "tool_contact",
-              "timeSeconds": 0.36
+              "timeSeconds": 0.366667
             }
           ]
         },
         {
           "name": "pickup",
-          "durationSeconds": 0.64,
-          "commitMarkerSeconds": 0.32,
+          "durationSeconds": 0.633333,
+          "commitMarkerSeconds": 0.333333,
           "loop": false,
           "events": [
             {
               "name": "transaction_commit",
-              "timeSeconds": 0.32
+              "timeSeconds": 0.333333
             }
           ]
         },
@@ -11611,71 +12217,76 @@
         },
         {
           "name": "carry_walk",
-          "durationSeconds": 0.88,
+          "durationSeconds": 1,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5,
+          "referenceSpeedMetersPerSecond": 1.6,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.16
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.6
+              "timeSeconds": 0.5
             }
           ]
         },
         {
           "name": "carry_run",
-          "durationSeconds": 0.64,
+          "durationSeconds": 0.6,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 8.2,
+          "referenceSpeedMetersPerSecond": 4.4,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.08
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.4
+              "timeSeconds": 0.3
             }
           ]
         },
         {
           "name": "place",
-          "durationSeconds": 0.72,
-          "commitMarkerSeconds": 0.52,
+          "durationSeconds": 0.733333,
+          "commitMarkerSeconds": 0.533333,
           "loop": false,
           "events": [
             {
               "name": "transaction_commit",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.533333
             }
           ]
         },
         {
           "name": "workstation",
-          "durationSeconds": 0.92,
-          "commitMarkerSeconds": 0.52,
+          "durationSeconds": 0.933333,
+          "commitMarkerSeconds": 0.533333,
           "loop": false,
           "events": [
             {
               "name": "tool_contact",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.533333
             }
           ]
         },
         {
           "name": "cast",
-          "durationSeconds": 0.92,
-          "commitMarkerSeconds": 0.58,
+          "durationSeconds": 0.933333,
+          "commitMarkerSeconds": 0.566667,
           "loop": false,
           "events": [
             {
               "name": "cast_release",
-              "timeSeconds": 0.58
+              "timeSeconds": 0.566667
             }
           ]
+        },
+        {
+          "name": "hookset",
+          "durationSeconds": 0.566667,
+          "loop": false
         },
         {
           "name": "fishing_idle",
@@ -11684,7 +12295,7 @@
         },
         {
           "name": "reel",
-          "durationSeconds": 0.72,
+          "durationSeconds": 0.733333,
           "loop": true
         },
         {
@@ -11699,25 +12310,49 @@
         },
         {
           "name": "board",
-          "durationSeconds": 0.88,
-          "commitMarkerSeconds": 0.64,
+          "durationSeconds": 0.866667,
+          "commitMarkerSeconds": 0.633333,
           "loop": false,
           "events": [
             {
               "name": "transaction_commit",
-              "timeSeconds": 0.64
+              "timeSeconds": 0.633333
+            }
+          ]
+        },
+        {
+          "name": "board_skiff",
+          "durationSeconds": 0.866667,
+          "commitMarkerSeconds": 0.633333,
+          "loop": false,
+          "events": [
+            {
+              "name": "transaction_commit",
+              "timeSeconds": 0.633333
             }
           ]
         },
         {
           "name": "dock",
-          "durationSeconds": 0.92,
-          "commitMarkerSeconds": 0.65,
+          "durationSeconds": 0.933333,
+          "commitMarkerSeconds": 0.666667,
           "loop": false,
           "events": [
             {
               "name": "transaction_commit",
-              "timeSeconds": 0.65
+              "timeSeconds": 0.666667
+            }
+          ]
+        },
+        {
+          "name": "dock_skiff",
+          "durationSeconds": 0.933333,
+          "commitMarkerSeconds": 0.666667,
+          "loop": false,
+          "events": [
+            {
+              "name": "transaction_commit",
+              "timeSeconds": 0.666667
             }
           ]
         },
@@ -11728,18 +12363,23 @@
         },
         {
           "name": "row",
-          "durationSeconds": 0.96,
+          "durationSeconds": 0.966667,
           "loop": true,
           "events": [
             {
               "name": "paddle_enter",
-              "timeSeconds": 0.18
+              "timeSeconds": 0.033333
             }
           ]
         },
         {
           "name": "skiff_idle",
           "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "skiff_fishing",
+          "durationSeconds": 1.2,
           "loop": true
         },
         {
@@ -11756,32 +12396,73 @@
         },
         {
           "name": "mounted_walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 0.666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5.5
+          "referenceSpeedMetersPerSecond": 1.7
         },
         {
           "name": "mounted_trot",
-          "durationSeconds": 0.56,
+          "durationSeconds": 0.3,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 8.5
+          "referenceSpeedMetersPerSecond": 4.9
+        },
+        {
+          "name": "mounted_gallop",
+          "durationSeconds": 0.3,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 7.2
         },
         {
           "name": "mount",
           "durationSeconds": 0.8,
-          "loop": false
+          "loop": false,
+          "events": [
+            {
+              "name": "seat_contact",
+              "timeSeconds": 0.72
+            }
+          ]
+        },
+        {
+          "name": "mount_right",
+          "durationSeconds": 0.8,
+          "loop": false,
+          "events": [
+            {
+              "name": "seat_contact",
+              "timeSeconds": 0.72
+            }
+          ]
         },
         {
           "name": "dismount",
           "durationSeconds": 0.8,
-          "loop": false
+          "loop": false,
+          "events": [
+            {
+              "name": "ground_contact",
+              "timeSeconds": 0.68
+            }
+          ]
+        },
+        {
+          "name": "dismount_right",
+          "durationSeconds": 0.8,
+          "loop": false,
+          "events": [
+            {
+              "name": "ground_contact",
+              "timeSeconds": 0.68
+            }
+          ]
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
         "height": 2.02,
         "headRatio": 6.2,
-        "handScale": 1.12
+        "handScale": 1,
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
       },
       "lodLevels": [
         {
@@ -11815,7 +12496,7 @@
           {
             "id": "character_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/character_isolated_1787930238180.png",
+            "uri": "repo://tools/blender/references/isolated/character_isolated_1787317045933.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -11985,16 +12666,17 @@
       },
       "palette": [
         "plaster_warm_01",
-        "roof_terracotta_01",
+        "foliage_sage_01",
         "wood_dark_01",
         "canvas_cream_01",
-        "foliage_sage_01"
+        "metal_brass_01",
+        "foam_warm_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 8000,
+        "trianglesTarget": 7800,
         "trianglesMax": 16000,
-        "materialsMax": 6
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -12025,27 +12707,27 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.5,
           "loop": true
         },
         {
           "name": "talk_gesture",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.933333,
           "loop": true
         },
         {
           "name": "walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 1.333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5,
+          "referenceSpeedMetersPerSecond": 0.975,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.12
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.666667
             }
           ]
         },
@@ -12069,8 +12751,152 @@
       "parameters": {
         "role": "gardener",
         "height": 1.88,
-        "headRatio": 6,
-        "handScale": 0.98
+        "headRatio": 4.75,
+        "handScale": 1.16,
+        "style": "chibi-storybook",
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable gardener silhouette",
+        "sources": [
+          {
+            "id": "npc_chibi_storybook_turnaround",
+            "kind": "visual_reference",
+            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+          }
+        ],
+        "components": [
+          {
+            "id": "head_face",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the friendly storybook expression and NPC identity",
+            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
+            "count": "1 connected head mass",
+            "cues": [
+              "Face stays visible from front and three-quarter views",
+              "Hair frames the face without hiding the eyes"
+            ]
+          },
+          {
+            "id": "body_outfit",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Communicates the compact coastal worker role before facial detail",
+            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
+            "count": "1 connected outfit silhouette",
+            "cues": [
+              "Torso remains compact rather than fashion-proportioned",
+              "Gardener tools and apron read as one working costume"
+            ]
+          },
+          {
+            "id": "hands_boots",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps gestures, sockets, and grounded stance readable in play",
+            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
+            "count": "2 arms and 2 legs",
+            "cues": [
+              "Hands meet the authored sockets",
+              "Boot soles remain clearly grounded from every review angle"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The head is visibly larger than the compact torso and short lower body.",
+          "The apron, bonnet, and gardening accents form a distinct elder-gardener outline.",
+          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+        ],
+        "negativeSpace": [
+          "A clear gap separates the arms from the rounded torso in neutral pose.",
+          "The face and hand shapes remain unobstructed around the apron and hat."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
+            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "readable_face",
+            "componentIds": [
+              "head_face"
+            ],
+            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "priority": "must"
+          },
+          {
+            "id": "compact_role_silhouette",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "requirement": "The NPC reads as a compact chibi storybook gardener before accessories are inspected.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_contacts",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "style",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+          },
+          {
+            "parameter": "headRatio",
+            "componentIds": [
+              "head_face"
+            ],
+            "purpose": "Controls the expressive head scale against the NPC stature."
+          },
+          {
+            "parameter": "handScale",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+          }
+        ],
+        "failureModes": [
+          "The face disappears under the bonnet or hair mass.",
+          "The body returns to adult fashion proportions with long thin limbs.",
+          "The apron, tools, or boots read as floating disconnected ornaments."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
       },
       "lodLevels": [
         {
@@ -12083,7 +12909,7 @@
           "node": "char_npc_elspeth_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.62
         }
       ]
     },
@@ -12100,16 +12926,17 @@
       },
       "palette": [
         "plaster_warm_01",
-        "wood_honey_01",
+        "accent_ochre_01",
         "wood_dark_01",
         "canvas_cream_01",
-        "metal_dark_01"
+        "metal_brass_01",
+        "burlap_grain_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 8000,
+        "trianglesTarget": 7800,
         "trianglesMax": 16000,
-        "materialsMax": 6
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -12140,27 +12967,27 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.5,
           "loop": true
         },
         {
           "name": "talk_gesture",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.933333,
           "loop": true
         },
         {
           "name": "walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 1.333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5,
+          "referenceSpeedMetersPerSecond": 0.975,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.12
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.666667
             }
           ]
         },
@@ -12184,8 +13011,152 @@
       "parameters": {
         "role": "handyman",
         "height": 1.98,
-        "headRatio": 6.2,
-        "handScale": 1.08
+        "headRatio": 4.9,
+        "handScale": 1.18,
+        "style": "chibi-storybook",
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable handyman silhouette",
+        "sources": [
+          {
+            "id": "npc_chibi_storybook_turnaround",
+            "kind": "visual_reference",
+            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+          }
+        ],
+        "components": [
+          {
+            "id": "head_face",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the friendly storybook expression and NPC identity",
+            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
+            "count": "1 connected head mass",
+            "cues": [
+              "Face stays visible from front and three-quarter views",
+              "Hair frames the face without hiding the eyes"
+            ]
+          },
+          {
+            "id": "body_outfit",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Communicates the compact coastal worker role before facial detail",
+            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
+            "count": "1 connected outfit silhouette",
+            "cues": [
+              "Torso remains compact rather than fashion-proportioned",
+              "Handyman tools and apron read as one working costume"
+            ]
+          },
+          {
+            "id": "hands_boots",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps gestures, sockets, and grounded stance readable in play",
+            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
+            "count": "2 arms and 2 legs",
+            "cues": [
+              "Hands meet the authored sockets",
+              "Boot soles remain clearly grounded from every review angle"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The head is visibly larger than the compact torso and short lower body.",
+          "The cap, apron, and tool accents form a distinct practical handyman outline.",
+          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+        ],
+        "negativeSpace": [
+          "A clear gap separates the arms from the rounded torso in neutral pose.",
+          "The face and hand shapes remain unobstructed around the apron and cap."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
+            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "readable_face",
+            "componentIds": [
+              "head_face"
+            ],
+            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "priority": "must"
+          },
+          {
+            "id": "compact_role_silhouette",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "requirement": "The NPC reads as a compact chibi storybook handyman before accessories are inspected.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_contacts",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "style",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+          },
+          {
+            "parameter": "headRatio",
+            "componentIds": [
+              "head_face"
+            ],
+            "purpose": "Controls the expressive head scale against the NPC stature."
+          },
+          {
+            "parameter": "handScale",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+          }
+        ],
+        "failureModes": [
+          "The face disappears under the cap or hair mass.",
+          "The body returns to adult fashion proportions with long thin limbs.",
+          "The apron, tools, or boots read as floating disconnected ornaments."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
       },
       "lodLevels": [
         {
@@ -12198,7 +13169,7 @@
           "node": "char_npc_barnaby_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.62
         }
       ]
     },
@@ -12215,16 +13186,17 @@
       },
       "palette": [
         "plaster_warm_01",
-        "accent_ochre_01",
-        "water_deep_01",
+        "water_mid_01",
+        "leather_harness_01",
+        "canvas_cream_01",
         "metal_brass_01",
         "foam_warm_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 8500,
+        "trianglesTarget": 8700,
         "trianglesMax": 16000,
-        "materialsMax": 6
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -12255,27 +13227,27 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.5,
           "loop": true
         },
         {
           "name": "talk_gesture",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.933333,
           "loop": true
         },
         {
           "name": "walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 1.333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5,
+          "referenceSpeedMetersPerSecond": 0.975,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.12
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.666667
             }
           ]
         },
@@ -12299,8 +13271,152 @@
       "parameters": {
         "role": "dockmaster",
         "height": 1.95,
-        "headRatio": 6.1,
-        "handScale": 1.12
+        "headRatio": 4.85,
+        "handScale": 1.18,
+        "style": "chibi-storybook",
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable dockmaster silhouette",
+        "sources": [
+          {
+            "id": "npc_chibi_storybook_turnaround",
+            "kind": "visual_reference",
+            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+          }
+        ],
+        "components": [
+          {
+            "id": "head_face",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the friendly storybook expression and NPC identity",
+            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
+            "count": "1 connected head mass",
+            "cues": [
+              "Face stays visible from front and three-quarter views",
+              "Hair frames the face without hiding the eyes"
+            ]
+          },
+          {
+            "id": "body_outfit",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Communicates the compact coastal worker role before facial detail",
+            "shape": "Short rounded torso with broad coat, practical sleeves, and restrained color blocks",
+            "count": "1 connected outfit silhouette",
+            "cues": [
+              "Torso remains compact rather than fashion-proportioned",
+              "Dockmaster coat and harbor accents read as one working costume"
+            ]
+          },
+          {
+            "id": "hands_boots",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps gestures, sockets, and grounded stance readable in play",
+            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
+            "count": "2 arms and 2 legs",
+            "cues": [
+              "Hands meet the authored sockets",
+              "Boot soles remain clearly grounded from every review angle"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The head is visibly larger than the compact torso and short lower body.",
+          "The sou'wester, beard, and coat accents form a distinct harbor dockmaster outline.",
+          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+        ],
+        "negativeSpace": [
+          "A clear gap separates the arms from the rounded torso in neutral pose.",
+          "The face and hand shapes remain unobstructed around the beard and hat."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear hair, beard, and coat construction continue the front silhouette without hollow gaps.",
+            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "readable_face",
+            "componentIds": [
+              "head_face"
+            ],
+            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "priority": "must"
+          },
+          {
+            "id": "compact_role_silhouette",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "requirement": "The NPC reads as a compact chibi storybook dockmaster before accessories are inspected.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_contacts",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "style",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+          },
+          {
+            "parameter": "headRatio",
+            "componentIds": [
+              "head_face"
+            ],
+            "purpose": "Controls the expressive head scale against the NPC stature."
+          },
+          {
+            "parameter": "handScale",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+          }
+        ],
+        "failureModes": [
+          "The face disappears under the sou'wester or beard mass.",
+          "The body returns to adult fashion proportions with long thin limbs.",
+          "The coat, harbor tools, or boots read as floating disconnected ornaments."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
       },
       "lodLevels": [
         {
@@ -12313,7 +13429,7 @@
           "node": "char_npc_silas_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.62
         }
       ]
     },
@@ -12333,13 +13449,14 @@
         "accent_teal_01",
         "wood_dark_01",
         "canvas_cream_01",
-        "metal_brass_01"
+        "metal_brass_01",
+        "foam_warm_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 8000,
+        "trianglesTarget": 7900,
         "trianglesMax": 16000,
-        "materialsMax": 6
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -12370,27 +13487,27 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.5,
           "loop": true
         },
         {
           "name": "talk_gesture",
-          "durationSeconds": 1.6,
+          "durationSeconds": 2.933333,
           "loop": true
         },
         {
           "name": "walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 1.333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5,
+          "referenceSpeedMetersPerSecond": 0.975,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.12
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.52
+              "timeSeconds": 0.666667
             }
           ]
         },
@@ -12414,8 +13531,152 @@
       "parameters": {
         "role": "merchant",
         "height": 1.94,
-        "headRatio": 6.2,
-        "handScale": 1
+        "headRatio": 4.8,
+        "handScale": 1.16,
+        "style": "chibi-storybook",
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable merchant silhouette",
+        "sources": [
+          {
+            "id": "npc_chibi_storybook_turnaround",
+            "kind": "visual_reference",
+            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+          }
+        ],
+        "components": [
+          {
+            "id": "head_face",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the friendly storybook expression and NPC identity",
+            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
+            "count": "1 connected head mass",
+            "cues": [
+              "Face stays visible from front and three-quarter views",
+              "Hair frames the face without hiding the eyes"
+            ]
+          },
+          {
+            "id": "body_outfit",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Communicates the compact coastal worker role before facial detail",
+            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
+            "count": "1 connected outfit silhouette",
+            "cues": [
+              "Torso remains compact rather than fashion-proportioned",
+              "Merchant apron and market accents read as one working costume"
+            ]
+          },
+          {
+            "id": "hands_boots",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps gestures, sockets, and grounded stance readable in play",
+            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
+            "count": "2 arms and 2 legs",
+            "cues": [
+              "Hands meet the authored sockets",
+              "Boot soles remain clearly grounded from every review angle"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The head is visibly larger than the compact torso and short lower body.",
+          "The bun, apron, and market accents form a distinct practical merchant outline.",
+          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+        ],
+        "negativeSpace": [
+          "A clear gap separates the arms from the rounded torso in neutral pose.",
+          "The face and hand shapes remain unobstructed around the hair and apron."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
+            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "readable_face",
+            "componentIds": [
+              "head_face"
+            ],
+            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "priority": "must"
+          },
+          {
+            "id": "compact_role_silhouette",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "requirement": "The NPC reads as a compact chibi storybook merchant before accessories are inspected.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_contacts",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "style",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+          },
+          {
+            "parameter": "headRatio",
+            "componentIds": [
+              "head_face"
+            ],
+            "purpose": "Controls the expressive head scale against the NPC stature."
+          },
+          {
+            "parameter": "handScale",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+          }
+        ],
+        "failureModes": [
+          "The face disappears under the hair mass.",
+          "The body returns to adult fashion proportions with long thin limbs.",
+          "The apron, market tools, or boots read as floating disconnected ornaments."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
       },
       "lodLevels": [
         {
@@ -12428,7 +13689,7 @@
           "node": "char_npc_maeve_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.62
         }
       ]
     },
@@ -12672,7 +13933,7 @@
       "seed": 839,
       "dimensions": {
         "width": 1.45,
-        "depth": 2.60,
+        "depth": 2.6,
         "height": 2.35
       },
       "palette": [
@@ -12711,7 +13972,9 @@
         "fauna_donkey_a_leg_rear_left_lower_pivot",
         "fauna_donkey_a_leg_rear_right_pivot",
         "fauna_donkey_a_leg_rear_right_lower_pivot",
-        "fauna_donkey_a_rider_socket"
+        "fauna_donkey_a_rider_socket",
+        "fauna_donkey_a_stirrup_left_socket",
+        "fauna_donkey_a_stirrup_right_socket"
       ],
       "animationClips": [
         {
@@ -12731,43 +13994,49 @@
         },
         {
           "name": "walk",
-          "durationSeconds": 0.8,
+          "durationSeconds": 0.666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 5.5,
+          "referenceSpeedMetersPerSecond": 1.7,
           "events": [
             {
               "name": "hoofstep_rear_left",
-              "timeSeconds": 0.08
+              "timeSeconds": 0
             },
             {
               "name": "hoofstep_front_left",
-              "timeSeconds": 0.28
+              "timeSeconds": 0.2
             },
             {
               "name": "hoofstep_rear_right",
-              "timeSeconds": 0.48
+              "timeSeconds": 0.4
             },
             {
               "name": "hoofstep_front_right",
-              "timeSeconds": 0.68
+              "timeSeconds": 0.6
             }
           ]
         },
         {
           "name": "trot",
-          "durationSeconds": 0.56,
+          "durationSeconds": 0.3,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 8.5,
+          "referenceSpeedMetersPerSecond": 4.9,
           "events": [
             {
               "name": "hoofstep_front_left_rear_right",
-              "timeSeconds": 0.12
+              "timeSeconds": 0
             },
             {
               "name": "hoofstep_front_right_rear_left",
-              "timeSeconds": 0.40
+              "timeSeconds": 0.2
             }
           ]
+        },
+        {
+          "name": "gallop",
+          "durationSeconds": 0.3,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 7.2
         },
         {
           "name": "mount",
@@ -12796,7 +14065,7 @@
         {
           "node": "fauna_donkey_a_LOD1",
           "distanceMeters": 18,
-          "triangleRatioMin": 0.10,
+          "triangleRatioMin": 0.1,
           "triangleRatioMax": 0.72
         }
       ],
@@ -14297,7 +15566,7 @@
       "id": "prop_beehive_a",
       "file": "prop_beehive_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "apiary_hive",
       "seed": 114,
       "dimensions": {
         "width": 0.47,
@@ -14305,16 +15574,16 @@
         "height": 0.9
       },
       "palette": [
+        "wood_honey_01",
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "roof_turf_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 114,
+        "trianglesTarget": 380,
+        "trianglesMax": 1140,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14331,7 +15600,7 @@
       "id": "prop_potting_bench_a",
       "file": "prop_potting_bench_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "potting_bench",
       "seed": 120,
       "dimensions": {
         "width": 1.5,
@@ -14340,15 +15609,15 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "soil_damp_01",
+        "foliage_sage_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14438,7 +15707,7 @@
       "id": "foliage_sunflower_a",
       "file": "foliage_sunflower_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "sunflower_stand",
       "seed": 119,
       "dimensions": {
         "width": 0.81,
@@ -14446,16 +15715,16 @@
         "height": 1.79
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "grass_yellow_01",
+        "accent_ochre_01",
+        "foliage_leaf_01",
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14472,7 +15741,7 @@
       "id": "prop_watering_can_rustic_a",
       "file": "prop_watering_can_rustic_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "rustic_watering_can",
       "seed": 126,
       "dimensions": {
         "width": 0.18,
@@ -14480,16 +15749,15 @@
         "height": 0.35
       },
       "palette": [
-        "wood_warm_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "metal_brass_01",
+        "wood_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 90,
+        "trianglesTarget": 300,
+        "trianglesMax": 900,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14506,7 +15774,7 @@
       "id": "prop_garden_hoe_a",
       "file": "prop_garden_hoe_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "garden_hoe",
       "seed": 117,
       "dimensions": {
         "width": 0.4,
@@ -14516,14 +15784,13 @@
       "palette": [
         "wood_warm_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "leather_harness_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
+        "trianglesMax": 600,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14540,7 +15807,7 @@
       "id": "prop_wheelbarrow_a",
       "file": "prop_wheelbarrow_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "wheelbarrow",
       "seed": 118,
       "dimensions": {
         "width": 0.54,
@@ -14549,15 +15816,15 @@
       },
       "palette": [
         "wood_warm_01",
+        "wood_dark_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "metal_brass_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 168,
+        "trianglesTarget": 560,
+        "trianglesMax": 1680,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14574,7 +15841,7 @@
       "id": "prop_water_trough_a",
       "file": "prop_water_trough_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "water_trough",
       "seed": 119,
       "dimensions": {
         "width": 1.6,
@@ -14582,16 +15849,16 @@
         "height": 0.5
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "water_shallow_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 126,
+        "trianglesTarget": 420,
+        "trianglesMax": 1260,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14608,7 +15875,7 @@
       "id": "prop_firewood_stack_a",
       "file": "prop_firewood_stack_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "firewood_stack",
       "seed": 121,
       "dimensions": {
         "width": 2,
@@ -14617,15 +15884,15 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "wood_weathered_01",
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 210,
+        "trianglesTarget": 700,
+        "trianglesMax": 2100,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -14657,7 +15924,7 @@
       "id": "prop_milk_churn_a",
       "file": "prop_milk_churn_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "milk_churn",
       "seed": 117,
       "dimensions": {
         "width": 0.42,
@@ -14665,16 +15932,15 @@
         "height": 0.8
       },
       "palette": [
-        "wood_warm_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "metal_brass_01",
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 96,
+        "trianglesTarget": 320,
+        "trianglesMax": 1200,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14890,7 +16156,7 @@
       "id": "prop_fence_section_a",
       "file": "prop_fence_section_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "fence_section",
       "seed": 120,
       "dimensions": {
         "width": 2,
@@ -14899,15 +16165,14 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 102,
+        "trianglesTarget": 340,
+        "trianglesMax": 1020,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14924,7 +16189,7 @@
       "id": "prop_vegetable_bed_tile_a",
       "file": "prop_vegetable_bed_tile_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "vegetable_bed_tile",
       "seed": 125,
       "dimensions": {
         "width": 4,
@@ -14932,16 +16197,16 @@
         "height": 0.05
       },
       "palette": [
+        "soil_damp_01",
+        "soil_warm_01",
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "foliage_sage_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 186,
+        "trianglesTarget": 620,
+        "trianglesMax": 1860,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14958,7 +16223,7 @@
       "id": "prop_tilled_soil_tile_a",
       "file": "prop_tilled_soil_tile_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "tilled_soil_tile",
       "seed": 123,
       "dimensions": {
         "width": 1,
@@ -14966,16 +16231,15 @@
         "height": 0.05
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "soil_damp_01",
+        "soil_shadow_01",
+        "soil_dry_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 66,
+        "trianglesTarget": 220,
+        "trianglesMax": 700,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14992,7 +16256,7 @@
       "id": "foliage_mushroom_cluster_a",
       "file": "foliage_mushroom_cluster_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "mushroom_cluster",
       "seed": 126,
       "dimensions": {
         "width": 0.27,
@@ -15000,16 +16264,15 @@
         "height": 0.23
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "roof_terracotta_01",
+        "canvas_cream_01",
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 78,
+        "trianglesTarget": 260,
+        "trianglesMax": 800,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15079,7 +16342,7 @@
       "id": "prop_dock_platform_a",
       "file": "prop_dock_platform_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "dock_platform",
       "seed": 120,
       "dimensions": {
         "width": 2,
@@ -15087,16 +16350,16 @@
         "height": 0.62
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "wood_wet_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 186,
+        "trianglesTarget": 620,
+        "trianglesMax": 1860,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15113,7 +16376,7 @@
       "id": "prop_pier_railing_a",
       "file": "prop_pier_railing_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "pier_railing",
       "seed": 119,
       "dimensions": {
         "width": 4,
@@ -15121,16 +16384,15 @@
         "height": 1
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "burlap_grain_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 168,
+        "trianglesTarget": 560,
+        "trianglesMax": 1800,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15147,7 +16409,7 @@
       "id": "prop_mooring_post_a",
       "file": "prop_mooring_post_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "mooring_post",
       "seed": 119,
       "dimensions": {
         "width": 0.66,
@@ -15155,16 +16417,16 @@
         "height": 1.1
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "burlap_grain_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 120,
+        "trianglesTarget": 400,
+        "trianglesMax": 1200,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15181,7 +16443,7 @@
       "id": "prop_gangplank_a",
       "file": "prop_gangplank_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "gangplank",
       "seed": 116,
       "dimensions": {
         "width": 0.9,
@@ -15189,16 +16451,16 @@
         "height": 1.9
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "burlap_grain_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 168,
+        "trianglesTarget": 560,
+        "trianglesMax": 1680,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15215,7 +16477,7 @@
       "id": "prop_dock_lantern_a",
       "file": "prop_dock_lantern_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "dock_lantern_post",
       "seed": 119,
       "dimensions": {
         "width": 0.51,
@@ -15223,16 +16485,16 @@
         "height": 2.6
       },
       "palette": [
-        "wood_warm_01",
+        "wood_dark_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "emissive_lantern_01",
+        "metal_brass_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15249,7 +16511,7 @@
       "id": "prop_signboard_hanging_a",
       "file": "prop_signboard_hanging_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "hanging_signboard",
       "seed": 124,
       "dimensions": {
         "width": 1.31,
@@ -15258,15 +16520,15 @@
       },
       "palette": [
         "wood_warm_01",
+        "wood_dark_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 144,
+        "trianglesTarget": 480,
+        "trianglesMax": 1440,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15283,7 +16545,7 @@
       "id": "prop_anchor_admiralty_a",
       "file": "prop_anchor_admiralty_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "admiralty_anchor",
       "seed": 123,
       "dimensions": {
         "width": 2.04,
@@ -15291,16 +16553,16 @@
         "height": 2.36
       },
       "palette": [
-        "wood_warm_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "metal_brass_01",
+        "burlap_grain_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 138,
+        "trianglesTarget": 460,
+        "trianglesMax": 1380,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15317,7 +16579,7 @@
       "id": "prop_marker_buoy_a",
       "file": "prop_marker_buoy_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "marker_buoy",
       "seed": 118,
       "dimensions": {
         "width": 0.34,
@@ -15325,16 +16587,16 @@
         "height": 3
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "accent_red_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "metal_dark_01",
+        "burlap_grain_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 120,
+        "trianglesTarget": 400,
+        "trianglesMax": 1200,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15351,7 +16613,7 @@
       "id": "rock_sea_stack_a",
       "file": "rock_sea_stack_a.glb",
       "family": "rock",
-      "generator": "polyfork_rock",
+      "generator": "sea_stack",
       "seed": 116,
       "dimensions": {
         "width": 1.8,
@@ -15361,13 +16623,14 @@
       "palette": [
         "rock_coastal_dark_01",
         "stone_cool_01",
-        "stone_warm_01"
+        "stone_moss_01",
+        "shore_wet_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 186,
+        "trianglesTarget": 620,
+        "trianglesMax": 1860,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -15399,7 +16662,7 @@
       "id": "rock_coastal_boulder_a",
       "file": "rock_coastal_boulder_a.glb",
       "family": "rock",
-      "generator": "polyfork_rock",
+      "generator": "coastal_boulder",
       "seed": 122,
       "dimensions": {
         "width": 2.4,
@@ -15409,13 +16672,13 @@
       "palette": [
         "rock_coastal_dark_01",
         "stone_cool_01",
-        "stone_warm_01"
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 126,
+        "trianglesTarget": 420,
+        "trianglesMax": 1260,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15432,7 +16695,7 @@
       "id": "prop_driftwood_log_a",
       "file": "prop_driftwood_log_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "driftwood_log",
       "seed": 120,
       "dimensions": {
         "width": 2.02,
@@ -15440,16 +16703,15 @@
         "height": 0.81
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "sand_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 114,
+        "trianglesTarget": 380,
+        "trianglesMax": 1140,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15466,7 +16728,7 @@
       "id": "foliage_beach_grass_a",
       "file": "foliage_beach_grass_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "beach_grass_tuft",
       "seed": 121,
       "dimensions": {
         "width": 0.45,
@@ -15474,16 +16736,15 @@
         "height": 0.5
       },
       "palette": [
-        "foliage_sage_01",
+        "grass_yellow_01",
         "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "sand_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 90,
+        "trianglesTarget": 300,
+        "trianglesMax": 900,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15500,7 +16761,7 @@
       "id": "prop_cargo_sack_a",
       "file": "prop_cargo_sack_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "cargo_sack",
       "seed": 117,
       "dimensions": {
         "width": 0.38,
@@ -15508,16 +16769,15 @@
         "height": 0.7
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "burlap_grain_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 72,
+        "trianglesTarget": 240,
+        "trianglesMax": 720,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15534,7 +16794,7 @@
       "id": "prop_cargo_crate_large_a",
       "file": "prop_cargo_crate_large_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "cargo_crate_large",
       "seed": 124,
       "dimensions": {
         "width": 0.8,
@@ -15543,15 +16803,15 @@
       },
       "palette": [
         "wood_warm_01",
+        "wood_dark_01",
         "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15568,7 +16828,7 @@
       "id": "tree_oak_broadleaf_a",
       "file": "tree_oak_broadleaf_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "broadleaf_oak",
       "seed": 120,
       "dimensions": {
         "width": 4.5,
@@ -15576,16 +16836,16 @@
         "height": 6.98
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "foliage_leaf_01",
+        "foliage_highlight_01",
+        "foliage_shadow_01",
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 570,
+        "trianglesTarget": 1900,
+        "trianglesMax": 6200,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15602,7 +16862,7 @@
       "id": "tree_maple_a",
       "file": "tree_maple_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "maple_tree",
       "seed": 112,
       "dimensions": {
         "width": 3.29,
@@ -15610,16 +16870,16 @@
         "height": 7.48
       },
       "palette": [
-        "foliage_sage_01",
         "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "accent_ochre_01",
+        "foliage_shadow_01",
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 510,
+        "trianglesTarget": 1700,
+        "trianglesMax": 5600,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15636,7 +16896,7 @@
       "id": "tree_pine_tall_a",
       "file": "tree_pine_tall_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "tall_pine",
       "seed": 116,
       "dimensions": {
         "width": 3.67,
@@ -15644,16 +16904,16 @@
         "height": 9
       },
       "palette": [
+        "foliage_pine_01",
+        "foliage_shadow_01",
         "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 390,
+        "trianglesTarget": 1300,
+        "trianglesMax": 4200,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15670,7 +16930,7 @@
       "id": "tree_pine_young_a",
       "file": "tree_pine_young_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "young_pine",
       "seed": 117,
       "dimensions": {
         "width": 1.86,
@@ -15678,16 +16938,16 @@
         "height": 3
       },
       "palette": [
+        "foliage_pine_01",
+        "foliage_shadow_01",
         "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 168,
+        "trianglesTarget": 560,
+        "trianglesMax": 2100,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15704,7 +16964,7 @@
       "id": "tree_dead_a",
       "file": "tree_dead_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "dead_tree",
       "seed": 111,
       "dimensions": {
         "width": 3.19,
@@ -15712,16 +16972,15 @@
         "height": 5
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "wood_weathered_01",
+        "wood_dark_01",
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 240,
+        "trianglesTarget": 800,
+        "trianglesMax": 2400,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15738,7 +16997,7 @@
       "id": "foliage_cattail_a",
       "file": "foliage_cattail_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "cattail_reeds",
       "seed": 117,
       "dimensions": {
         "width": 0.39,
@@ -15746,16 +17005,16 @@
         "height": 1.2
       },
       "palette": [
-        "foliage_sage_01",
         "foliage_olive_01",
-        "wood_warm_01",
+        "foliage_sage_01",
+        "wood_dark_01",
         "grass_yellow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 114,
+        "trianglesTarget": 380,
+        "trianglesMax": 1140,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15772,7 +17031,7 @@
       "id": "foliage_lily_pad_a",
       "file": "foliage_lily_pad_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "lily_pad_cluster",
       "seed": 118,
       "dimensions": {
         "width": 0.6,
@@ -15780,16 +17039,16 @@
         "height": 0.04
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "foliage_leaf_01",
+        "foliage_shadow_01",
+        "canvas_cream_01",
+        "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
+        "trianglesMax": 700,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15806,7 +17065,7 @@
       "id": "foliage_bush_round_a",
       "file": "foliage_bush_round_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "round_bush",
       "seed": 120,
       "dimensions": {
         "width": 0.94,
@@ -15815,15 +17074,15 @@
       },
       "palette": [
         "foliage_sage_01",
-        "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "foliage_highlight_01",
+        "foliage_shadow_01",
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 210,
+        "trianglesTarget": 700,
+        "trianglesMax": 2400,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -15840,7 +17099,7 @@
       "id": "rock_boulder_large_a",
       "file": "rock_boulder_large_a.glb",
       "family": "rock",
-      "generator": "polyfork_rock",
+      "generator": "boulder_large",
       "seed": 120,
       "dimensions": {
         "width": 2.2,
@@ -15848,15 +17107,15 @@
         "height": 1.34
       },
       "palette": [
-        "rock_coastal_dark_01",
+        "stone_warm_01",
         "stone_cool_01",
-        "stone_warm_01"
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 126,
+        "trianglesTarget": 420,
+        "trianglesMax": 1260,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -15888,7 +17147,7 @@
       "id": "rock_spire_a",
       "file": "rock_spire_a.glb",
       "family": "rock",
-      "generator": "polyfork_rock",
+      "generator": "rock_spire",
       "seed": 112,
       "dimensions": {
         "width": 1.29,
@@ -15898,13 +17157,13 @@
       "palette": [
         "rock_coastal_dark_01",
         "stone_cool_01",
-        "stone_warm_01"
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 144,
+        "trianglesTarget": 480,
+        "trianglesMax": 1440,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -15936,7 +17195,7 @@
       "id": "prop_fallen_log_a",
       "file": "prop_fallen_log_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "fallen_log",
       "seed": 117,
       "dimensions": {
         "width": 3.09,
@@ -15944,16 +17203,16 @@
         "height": 0.9
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "wood_weathered_01",
+        "stone_moss_01",
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 138,
+        "trianglesTarget": 460,
+        "trianglesMax": 1380,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -16195,8 +17454,8 @@
       "parameters": {
         "variant": "tower",
         "clusters": 12,
-        "width": 13.0,
-        "depth": 9.0,
+        "width": 13,
+        "depth": 9,
         "height": 6.4
       }
     },
@@ -16204,7 +17463,7 @@
       "id": "prop_smoke_plume_a",
       "file": "prop_smoke_plume_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "smoke_plume",
       "seed": 118,
       "dimensions": {
         "width": 1.29,
@@ -16212,16 +17471,15 @@
         "height": 2.83
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "sky_pale_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "horizon_warm_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 168,
+        "trianglesTarget": 560,
+        "trianglesMax": 2000,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -16702,7 +17960,7 @@
       "id": "prop_fire_pit_a",
       "file": "prop_fire_pit_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "fire_pit",
       "seed": 115,
       "dimensions": {
         "width": 1.21,
@@ -16710,16 +17968,16 @@
         "height": 0.67
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "stone_cool_01",
+        "stone_warm_01",
+        "wood_dark_01",
+        "emissive_lantern_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -16736,7 +17994,7 @@
       "id": "prop_trail_kiosk_a",
       "file": "prop_trail_kiosk_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "trail_kiosk",
       "seed": 118,
       "dimensions": {
         "width": 1.44,
@@ -16745,15 +18003,15 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "roof_turf_01",
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 192,
+        "trianglesTarget": 640,
+        "trianglesMax": 1920,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -16770,7 +18028,7 @@
       "id": "prop_signpost_trail_a",
       "file": "prop_signpost_trail_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "trail_signpost",
       "seed": 121,
       "dimensions": {
         "width": 1.15,
@@ -16779,15 +18037,15 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
+        "wood_dark_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 144,
+        "trianglesTarget": 480,
+        "trianglesMax": 1440,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -16804,7 +18062,7 @@
       "id": "prop_picnic_table_a",
       "file": "prop_picnic_table_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "picnic_table",
       "seed": 119,
       "dimensions": {
         "width": 2,
@@ -16813,15 +18071,14 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 186,
+        "trianglesTarget": 620,
+        "trianglesMax": 1860,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -16838,7 +18095,7 @@
       "id": "prop_bench_wood_a",
       "file": "prop_bench_wood_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "wood_bench",
       "seed": 117,
       "dimensions": {
         "width": 1.8,
@@ -16847,15 +18104,14 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17126,7 +18382,7 @@
       "id": "prop_path_stone_round_a",
       "file": "prop_path_stone_round_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "path_stone_round",
       "seed": 123,
       "dimensions": {
         "width": 0.7,
@@ -17134,16 +18390,15 @@
         "height": 0.06
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "stone_warm_01",
+        "stone_cool_01",
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 54,
+        "trianglesTarget": 180,
+        "trianglesMax": 600,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17160,7 +18415,7 @@
       "id": "prop_path_stone_slab_a",
       "file": "prop_path_stone_slab_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "path_stone_slab",
       "seed": 122,
       "dimensions": {
         "width": 1.1,
@@ -17168,16 +18423,15 @@
         "height": 0.06
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "stone_cool_01",
+        "stone_warm_01",
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
         "trianglesMax": 650,
-        "materialsMax": 2
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17194,7 +18448,7 @@
       "id": "foliage_seagrass_tuft_a",
       "file": "foliage_seagrass_tuft_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "seagrass_tuft",
       "seed": 123,
       "dimensions": {
         "width": 0.4,
@@ -17202,16 +18456,15 @@
         "height": 0.5
       },
       "palette": [
-        "foliage_sage_01",
         "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "foliage_pine_01",
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 78,
+        "trianglesTarget": 260,
+        "trianglesMax": 800,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17228,7 +18481,7 @@
       "id": "foliage_algae_frond_a",
       "file": "foliage_algae_frond_a.glb",
       "family": "vegetation",
-      "generator": "polyfork_vegetation",
+      "generator": "algae_frond",
       "seed": 121,
       "dimensions": {
         "width": 0.59,
@@ -17236,16 +18489,15 @@
         "height": 0.81
       },
       "palette": [
-        "foliage_sage_01",
+        "foliage_pine_01",
         "foliage_olive_01",
-        "wood_warm_01",
-        "grass_yellow_01"
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 96,
+        "trianglesTarget": 320,
+        "trianglesMax": 960,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17262,7 +18514,7 @@
       "id": "rock_reef_small_a",
       "file": "rock_reef_small_a.glb",
       "family": "rock",
-      "generator": "polyfork_rock",
+      "generator": "reef_small",
       "seed": 117,
       "dimensions": {
         "width": 0.5,
@@ -17271,14 +18523,14 @@
       },
       "palette": [
         "rock_coastal_dark_01",
-        "stone_cool_01",
-        "stone_warm_01"
+        "stone_moss_01",
+        "shore_wet_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 78,
+        "trianglesTarget": 260,
+        "trianglesMax": 800,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17295,7 +18547,7 @@
       "id": "prop_coral_pillar_a",
       "file": "prop_coral_pillar_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "coral_pillar",
       "seed": 119,
       "dimensions": {
         "width": 0.87,
@@ -17303,16 +18555,16 @@
         "height": 1.8
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "accent_teal_01",
+        "accent_red_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "stone_moss_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 156,
+        "trianglesTarget": 520,
+        "trianglesMax": 1560,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17329,7 +18581,7 @@
       "id": "prop_coral_staghorn_a",
       "file": "prop_coral_staghorn_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "coral_staghorn",
       "seed": 121,
       "dimensions": {
         "width": 1.27,
@@ -17337,16 +18589,15 @@
         "height": 1.41
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "accent_ochre_01",
+        "accent_teal_01",
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 144,
+        "trianglesTarget": 480,
+        "trianglesMax": 1440,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17363,7 +18614,7 @@
       "id": "prop_coral_table_a",
       "file": "prop_coral_table_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "coral_table",
       "seed": 118,
       "dimensions": {
         "width": 1.59,
@@ -17371,16 +18622,16 @@
         "height": 0.69
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "accent_teal_01",
+        "foliage_sage_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "rock_coastal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 138,
+        "trianglesTarget": 460,
+        "trianglesMax": 1380,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17397,7 +18648,7 @@
       "id": "prop_bookcase_wood_a",
       "file": "prop_bookcase_wood_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "wood_bookcase",
       "seed": 120,
       "dimensions": {
         "width": 1,
@@ -17406,15 +18657,15 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "accent_red_01",
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 186,
+        "trianglesTarget": 620,
+        "trianglesMax": 1860,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17431,7 +18682,7 @@
       "id": "prop_sideboard_wood_a",
       "file": "prop_sideboard_wood_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "wood_sideboard",
       "seed": 121,
       "dimensions": {
         "width": 1.4,
@@ -17440,15 +18691,15 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "metal_brass_01",
+        "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 168,
+        "trianglesTarget": 560,
+        "trianglesMax": 1680,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17465,7 +18716,7 @@
       "id": "prop_floor_plant_a",
       "file": "prop_floor_plant_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "floor_plant",
       "seed": 118,
       "dimensions": {
         "width": 0.55,
@@ -17473,16 +18724,16 @@
         "height": 1.2
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "roof_terracotta_01",
+        "foliage_leaf_01",
+        "foliage_shadow_01",
+        "soil_damp_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 144,
+        "trianglesTarget": 480,
+        "trianglesMax": 1440,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17499,7 +18750,7 @@
       "id": "prop_side_table_wood_a",
       "file": "prop_side_table_wood_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "wood_side_table",
       "seed": 122,
       "dimensions": {
         "width": 0.5,
@@ -17508,15 +18759,14 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01",
+        "metal_brass_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 114,
+        "trianglesTarget": 380,
+        "trianglesMax": 1140,
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -17533,7 +18783,7 @@
       "id": "item_carrot_a",
       "file": "item_carrot_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_carrot",
       "seed": 113,
       "dimensions": {
         "width": 0.11,
@@ -17541,16 +18791,15 @@
         "height": 0.29
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "roof_warm_orange_01",
+        "foliage_leaf_01",
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 66,
+        "trianglesTarget": 220,
+        "trianglesMax": 700,
+        "materialsMax": 3
       },
       "pivot": "center",
       "collision": "none",
@@ -17567,7 +18816,7 @@
       "id": "item_corn_cob_a",
       "file": "item_corn_cob_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_corn_cob",
       "seed": 115,
       "dimensions": {
         "width": 0.12,
@@ -17575,16 +18824,15 @@
         "height": 0.21
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "grass_yellow_01",
+        "foliage_leaf_01",
+        "foliage_shadow_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 84,
+        "trianglesTarget": 280,
+        "trianglesMax": 840,
+        "materialsMax": 3
       },
       "pivot": "center",
       "collision": "none",
@@ -17601,7 +18849,7 @@
       "id": "item_apple_a",
       "file": "item_apple_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_apple",
       "seed": 112,
       "dimensions": {
         "width": 0.12,
@@ -17609,16 +18857,15 @@
         "height": 0.13
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "accent_red_01",
+        "foliage_leaf_01",
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
         "trianglesMax": 650,
-        "materialsMax": 2
+        "materialsMax": 3
       },
       "pivot": "center",
       "collision": "none",
@@ -17635,7 +18882,7 @@
       "id": "item_bread_loaf_a",
       "file": "item_bread_loaf_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_bread_loaf",
       "seed": 117,
       "dimensions": {
         "width": 0.18,
@@ -17643,16 +18890,15 @@
         "height": 0.14
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "accent_ochre_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
         "trianglesMax": 650,
-        "materialsMax": 2
+        "materialsMax": 3
       },
       "pivot": "center",
       "collision": "none",
@@ -17669,7 +18915,7 @@
       "id": "item_pie_a",
       "file": "item_pie_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_pie",
       "seed": 110,
       "dimensions": {
         "width": 0.26,
@@ -17677,16 +18923,16 @@
         "height": 0.08
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "accent_red_01",
+        "accent_ochre_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 90,
+        "trianglesTarget": 300,
+        "trianglesMax": 900,
+        "materialsMax": 4
       },
       "pivot": "center",
       "collision": "none",
@@ -17703,7 +18949,7 @@
       "id": "item_coin_pouch_a",
       "file": "item_coin_pouch_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_coin_pouch",
       "seed": 117,
       "dimensions": {
         "width": 0.29,
@@ -17711,16 +18957,15 @@
         "height": 0.34
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "leather_harness_01",
+        "burlap_grain_01",
+        "metal_brass_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 78,
+        "trianglesTarget": 260,
+        "trianglesMax": 780,
+        "materialsMax": 3
       },
       "pivot": "center",
       "collision": "none",
@@ -17737,7 +18982,7 @@
       "id": "item_compass_a",
       "file": "item_compass_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "item_compass",
       "seed": 114,
       "dimensions": {
         "width": 0.05,
@@ -17745,16 +18990,16 @@
         "height": 0.06
       },
       "palette": [
-        "wood_warm_01",
-        "metal_dark_01",
+        "metal_brass_01",
         "canvas_cream_01",
-        "stone_golden_01"
+        "accent_red_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 72,
+        "trianglesTarget": 240,
+        "trianglesMax": 720,
+        "materialsMax": 4
       },
       "pivot": "center",
       "collision": "none",
@@ -17771,7 +19016,7 @@
       "id": "prop_treasure_chest_a",
       "file": "prop_treasure_chest_a.glb",
       "family": "prop",
-      "generator": "polyfork_prop",
+      "generator": "treasure_chest",
       "seed": 121,
       "dimensions": {
         "width": 0.9,
@@ -17779,16 +19024,16 @@
         "height": 0.6
       },
       "palette": [
+        "wood_dark_01",
         "wood_warm_01",
-        "metal_dark_01",
-        "canvas_cream_01",
-        "stone_golden_01"
+        "metal_brass_01",
+        "metal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 10,
-        "trianglesTarget": 350,
-        "trianglesMax": 650,
-        "materialsMax": 2
+        "trianglesMin": 186,
+        "trianglesTarget": 620,
+        "trianglesMax": 1860,
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -19272,18 +20517,6 @@
               "detail_density"
             ],
             "notes": "Locks the farmhouse structural anchor while allowing a distinct second arrangement."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "silhouette",
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Measures roof, plinth, porch, openings, and value hierarchy."
           }
         ],
         "components": [
@@ -19628,18 +20861,6 @@
               "detail_density"
             ],
             "notes": "Owns faceted coastal construction and palette relationships."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "silhouette",
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Provides measured farmhouse roof, porch, plinth, and opening relationships."
           }
         ],
         "components": [
@@ -19920,18 +21141,6 @@
               "detail_density"
             ],
             "notes": "Owns coastal timber, plaster, roof, and value grammar."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "silhouette",
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Anchors porch depth, plinth, roof layering, and opening cadence."
           }
         ],
         "components": [
@@ -20228,18 +21437,6 @@
               "detail_density"
             ],
             "notes": "Owns tactile timber, plaster, roof, and coastal working language."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "proportion",
-              "structure",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Supplies plinth and layered roof discipline for the working hall."
           }
         ],
         "components": [
@@ -20530,17 +21727,6 @@
               "detail_density"
             ],
             "notes": "Owns weathered timber and faceted coastal material language."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Provides plinth and roof discipline without turning the barn into a cottage."
           }
         ],
         "components": [
@@ -20809,17 +21995,6 @@
               "detail_density"
             ],
             "notes": "Owns tactile low-poly timber and grounded coastal values."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Supplies plinth, roof edge, porch depth, and opening separation cues."
           }
         ],
         "components": [
@@ -21066,17 +22241,6 @@
               "detail_density"
             ],
             "notes": "Owns restrained practical prop language and palette."
-          },
-          {
-            "id": "farmhouse_structural_study",
-            "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_structural_study_1787316809657.png",
-            "use": [
-              "proportion",
-              "structure",
-              "detail_density"
-            ],
-            "notes": "Keeps plinth and roof-edge grammar related without copying the facade."
           }
         ],
         "components": [
@@ -21227,6 +22391,1159 @@
           "close_material"
         ]
       }
+    },
+    {
+      "id": "crop_sunflower_seeded",
+      "file": "crop_sunflower_seeded.glb",
+      "family": "crop",
+      "generator": "sunflower_crop",
+      "seed": 1601,
+      "dimensions": {
+        "width": 0.8,
+        "depth": 0.8,
+        "height": 0.14
+      },
+      "palette": [
+        "foliage_highlight_01",
+        "foliage_olive_01",
+        "accent_ochre_01",
+        "soil_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 100,
+        "trianglesMax": 500,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_sunflower_seeded_root",
+      "requiredNodes": [
+        "crop_sunflower_seeded_root"
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "stage": "seeded"
+      }
+    },
+    {
+      "id": "crop_sunflower_sprout",
+      "file": "crop_sunflower_sprout.glb",
+      "family": "crop",
+      "generator": "sunflower_crop",
+      "seed": 1602,
+      "dimensions": {
+        "width": 0.8,
+        "depth": 0.8,
+        "height": 0.38
+      },
+      "palette": [
+        "foliage_highlight_01",
+        "foliage_olive_01",
+        "accent_ochre_01",
+        "soil_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 500,
+        "trianglesMax": 1800,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_sunflower_sprout_root",
+      "requiredNodes": [
+        "crop_sunflower_sprout_root"
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "stage": "sprout"
+      }
+    },
+    {
+      "id": "crop_sunflower_growing",
+      "file": "crop_sunflower_growing.glb",
+      "family": "crop",
+      "generator": "sunflower_crop",
+      "seed": 1603,
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 0.95
+      },
+      "palette": [
+        "foliage_highlight_01",
+        "foliage_olive_01",
+        "accent_ochre_01",
+        "soil_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 340,
+        "trianglesTarget": 1200,
+        "trianglesMax": 3200,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_sunflower_growing_root",
+      "requiredNodes": [
+        "crop_sunflower_growing_root"
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {
+        "stage": "growing"
+      }
+    },
+    {
+      "id": "crop_sunflower_mature",
+      "file": "crop_sunflower_mature.glb",
+      "family": "crop",
+      "generator": "sunflower_crop",
+      "seed": 1604,
+      "dimensions": {
+        "width": 1.1,
+        "depth": 1.1,
+        "height": 1.55
+      },
+      "palette": [
+        "foliage_highlight_01",
+        "foliage_olive_01",
+        "accent_ochre_01",
+        "soil_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 450,
+        "trianglesTarget": 2200,
+        "trianglesMax": 5200,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_sunflower_mature_root",
+      "requiredNodes": [
+        "crop_sunflower_mature_root"
+      ],
+      "readDistanceMeters": 24,
+      "parameters": {
+        "stage": "mature"
+      }
+    },
+    {
+      "id": "crop_sunflower_overripe",
+      "file": "crop_sunflower_overripe.glb",
+      "family": "crop",
+      "generator": "sunflower_crop",
+      "seed": 1605,
+      "dimensions": {
+        "width": 1.2,
+        "depth": 1.2,
+        "height": 1.35
+      },
+      "palette": [
+        "foliage_sage_01",
+        "foliage_olive_01",
+        "accent_ochre_01",
+        "soil_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 400,
+        "trianglesTarget": 2000,
+        "trianglesMax": 5000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_sunflower_overripe_root",
+      "requiredNodes": [
+        "crop_sunflower_overripe_root"
+      ],
+      "readDistanceMeters": 22,
+      "parameters": {
+        "stage": "overripe"
+      }
+    },
+    {
+      "id": "crop_sunflower_withered",
+      "file": "crop_sunflower_withered.glb",
+      "family": "crop",
+      "generator": "sunflower_crop",
+      "seed": 1606,
+      "dimensions": {
+        "width": 1.1,
+        "depth": 1.1,
+        "height": 0.9
+      },
+      "palette": [
+        "foliage_sage_01",
+        "wood_warm_01",
+        "accent_ochre_01",
+        "soil_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 220,
+        "trianglesTarget": 900,
+        "trianglesMax": 2800,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_sunflower_withered_root",
+      "requiredNodes": [
+        "crop_sunflower_withered_root"
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {
+        "stage": "withered"
+      }
+    },
+    {
+      "id": "crop_olive_tree_seeded",
+      "file": "crop_olive_tree_seeded.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1611,
+      "dimensions": {
+        "width": 0.8,
+        "depth": 0.8,
+        "height": 0.14
+      },
+      "palette": [
+        "foliage_olive_01",
+        "wood_warm_01",
+        "soil_shadow_01",
+        "foliage_sage_01"
+      ],
+      "budget": {
+        "trianglesMin": 20,
+        "trianglesTarget": 80,
+        "trianglesMax": 400,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_olive_tree_seeded_root",
+      "requiredNodes": [
+        "crop_olive_tree_seeded_root"
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "stage": "seeded"
+      }
+    },
+    {
+      "id": "crop_olive_tree_sprout",
+      "file": "crop_olive_tree_sprout.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1612,
+      "dimensions": {
+        "width": 0.7,
+        "depth": 0.7,
+        "height": 0.48
+      },
+      "palette": [
+        "foliage_olive_01",
+        "wood_warm_01",
+        "soil_shadow_01",
+        "foliage_sage_01"
+      ],
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 420,
+        "trianglesMax": 1600,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_olive_tree_sprout_root",
+      "requiredNodes": [
+        "crop_olive_tree_sprout_root"
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {
+        "stage": "sprout"
+      }
+    },
+    {
+      "id": "crop_olive_tree_growing",
+      "file": "crop_olive_tree_growing.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1613,
+      "dimensions": {
+        "width": 1.2,
+        "depth": 1.2,
+        "height": 1
+      },
+      "palette": [
+        "foliage_olive_01",
+        "wood_warm_01",
+        "soil_shadow_01",
+        "foliage_sage_01"
+      ],
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 950,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_olive_tree_growing_root",
+      "requiredNodes": [
+        "crop_olive_tree_growing_root"
+      ],
+      "readDistanceMeters": 22,
+      "parameters": {
+        "stage": "growing"
+      }
+    },
+    {
+      "id": "crop_olive_tree_mature",
+      "file": "crop_olive_tree_mature.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1614,
+      "dimensions": {
+        "width": 2.2,
+        "depth": 2.2,
+        "height": 1.8
+      },
+      "palette": [
+        "foliage_olive_01",
+        "wood_warm_01",
+        "soil_shadow_01",
+        "foliage_sage_01"
+      ],
+      "budget": {
+        "trianglesMin": 600,
+        "trianglesTarget": 1800,
+        "trianglesMax": 5000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_olive_tree_mature_root",
+      "requiredNodes": [
+        "crop_olive_tree_mature_root"
+      ],
+      "readDistanceMeters": 28,
+      "parameters": {
+        "stage": "mature"
+      }
+    },
+    {
+      "id": "crop_olive_tree_overripe",
+      "file": "crop_olive_tree_overripe.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1615,
+      "dimensions": {
+        "width": 2.3,
+        "depth": 2.3,
+        "height": 1.7
+      },
+      "palette": [
+        "foliage_olive_01",
+        "wood_warm_01",
+        "soil_shadow_01",
+        "foliage_sage_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1600,
+        "trianglesMax": 4800,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_olive_tree_overripe_root",
+      "requiredNodes": [
+        "crop_olive_tree_overripe_root"
+      ],
+      "readDistanceMeters": 26,
+      "parameters": {
+        "stage": "overripe"
+      }
+    },
+    {
+      "id": "crop_olive_tree_withered",
+      "file": "crop_olive_tree_withered.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1616,
+      "dimensions": {
+        "width": 1.8,
+        "depth": 1.8,
+        "height": 1.25
+      },
+      "palette": [
+        "foliage_sage_01",
+        "wood_warm_01",
+        "soil_shadow_01",
+        "foliage_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 160,
+        "trianglesTarget": 800,
+        "trianglesMax": 2600,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "crop_olive_tree_withered_root",
+      "requiredNodes": [
+        "crop_olive_tree_withered_root"
+      ],
+      "readDistanceMeters": 24,
+      "parameters": {
+        "stage": "withered"
+      }
+    },
+    {
+      "id": "fish_sardine_a",
+      "file": "fish_sardine_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 1621,
+      "dimensions": {
+        "width": 0.18,
+        "depth": 0.48,
+        "height": 0.22
+      },
+      "palette": [
+        "fish_tuna_back_01",
+        "fish_belly_01",
+        "canvas_cream_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 900,
+        "trianglesMax": 2500,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_sardine_a_root",
+      "requiredNodes": [
+        "fish_sardine_a_root",
+        "fish_sardine_a_motion_root",
+        "fish_sardine_a_tail_pivot",
+        "fish_sardine_a_mouth_hook"
+      ],
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "species": "sardine",
+        "length": 0.45,
+        "girth": 0.075,
+        "finScale": 0.72,
+        "bodyDepth": 0.72,
+        "bodySegments": 16,
+        "radialSegments": 14,
+        "tailPeduncle": 0.2
+      }
+    },
+    {
+      "id": "fish_sea_bream_a",
+      "file": "fish_sea_bream_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 1622,
+      "dimensions": {
+        "width": 0.32,
+        "depth": 0.72,
+        "height": 0.58
+      },
+      "palette": [
+        "accent_ochre_01",
+        "fish_belly_01",
+        "foliage_olive_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2700,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_sea_bream_a_root",
+      "requiredNodes": [
+        "fish_sea_bream_a_root",
+        "fish_sea_bream_a_motion_root",
+        "fish_sea_bream_a_tail_pivot",
+        "fish_sea_bream_a_mouth_hook"
+      ],
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 16,
+      "parameters": {
+        "species": "sea_bream",
+        "length": 0.68,
+        "girth": 0.15,
+        "finScale": 0.9,
+        "bodyDepth": 1.35,
+        "bodySegments": 16,
+        "radialSegments": 14,
+        "tailPeduncle": 0.2
+      }
+    },
+    {
+      "id": "fish_amberjack_a",
+      "file": "fish_amberjack_a.glb",
+      "family": "fish",
+      "generator": "stylized_fish",
+      "seed": 1623,
+      "dimensions": {
+        "width": 0.42,
+        "depth": 1.5,
+        "height": 0.62
+      },
+      "palette": [
+        "fish_tuna_back_01",
+        "fish_belly_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 700,
+        "trianglesTarget": 1300,
+        "trianglesMax": 3200,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "fish_amberjack_a_root",
+      "requiredNodes": [
+        "fish_amberjack_a_root",
+        "fish_amberjack_a_motion_root",
+        "fish_amberjack_a_tail_pivot",
+        "fish_amberjack_a_mouth_hook"
+      ],
+      "animationClips": [
+        {
+          "name": "swim",
+          "durationSeconds": 0.8,
+          "loop": true
+        },
+        {
+          "name": "turn",
+          "durationSeconds": 0.48,
+          "loop": false
+        },
+        {
+          "name": "burst",
+          "durationSeconds": 0.4,
+          "loop": true
+        },
+        {
+          "name": "struggle",
+          "durationSeconds": 0.6,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {
+        "species": "amberjack",
+        "length": 1.4,
+        "girth": 0.2,
+        "finScale": 1,
+        "bodyDepth": 0.95,
+        "bodySegments": 18,
+        "radialSegments": 14,
+        "tailPeduncle": 0.16
+      }
+    },
+    {
+      "id": "char_npc_tomas_a",
+      "file": "char_npc_tomas_a.glb",
+      "family": "character",
+      "generator": "npc_character",
+      "seed": 1631,
+      "dimensions": {
+        "width": 1.05,
+        "depth": 0.65,
+        "height": 2.02
+      },
+      "palette": [
+        "plaster_warm_01",
+        "water_mid_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "metal_brass_01",
+        "burlap_grain_01"
+      ],
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 7900,
+        "trianglesMax": 16000,
+        "materialsMax": 8
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "char_npc_tomas_a_root",
+      "requiredNodes": [
+        "char_npc_tomas_a_root",
+        "char_npc_tomas_a_LOD0",
+        "char_npc_tomas_a_LOD1",
+        "char_npc_tomas_a_rig",
+        "char_npc_tomas_a_hand_left",
+        "char_npc_tomas_a_hand_right",
+        "char_npc_tomas_a_hand_socket_left",
+        "char_npc_tomas_a_hand_socket_right",
+        "char_npc_tomas_a_tool_socket",
+        "char_npc_tomas_a_carry_socket",
+        "char_npc_tomas_a_hip_socket"
+      ],
+      "rigNode": "char_npc_tomas_a_rig",
+      "socketNodes": [
+        "char_npc_tomas_a_hand_socket_left",
+        "char_npc_tomas_a_hand_socket_right",
+        "char_npc_tomas_a_tool_socket",
+        "char_npc_tomas_a_carry_socket",
+        "char_npc_tomas_a_hip_socket"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 2.5,
+          "loop": true
+        },
+        {
+          "name": "talk_gesture",
+          "durationSeconds": 2.933333,
+          "loop": true
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 1.333333,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 0.975,
+          "events": [
+            {
+              "name": "footstep_left",
+              "timeSeconds": 0
+            },
+            {
+              "name": "footstep_right",
+              "timeSeconds": 0.666667
+            }
+          ]
+        },
+        {
+          "name": "carry_idle",
+          "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "turn_left",
+          "durationSeconds": 0.4,
+          "loop": false
+        },
+        {
+          "name": "turn_right",
+          "durationSeconds": 0.4,
+          "loop": false
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "role": "merchant",
+        "height": 1.94,
+        "headRatio": 4.8,
+        "handScale": 1.16,
+        "style": "chibi-storybook",
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable merchant silhouette",
+        "sources": [
+          {
+            "id": "npc_chibi_storybook_turnaround",
+            "kind": "visual_reference",
+            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+          }
+        ],
+        "components": [
+          {
+            "id": "head_face",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the friendly storybook expression and NPC identity",
+            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
+            "count": "1 connected head mass",
+            "cues": [
+              "Face stays visible from front and three-quarter views",
+              "Hair frames the face without hiding the eyes"
+            ]
+          },
+          {
+            "id": "body_outfit",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Communicates the compact coastal worker role before facial detail",
+            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
+            "count": "1 connected outfit silhouette",
+            "cues": [
+              "Torso remains compact rather than fashion-proportioned",
+              "Merchant apron and market accents read as one working costume"
+            ]
+          },
+          {
+            "id": "hands_boots",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps gestures, sockets, and grounded stance readable in play",
+            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
+            "count": "2 arms and 2 legs",
+            "cues": [
+              "Hands meet the authored sockets",
+              "Boot soles remain clearly grounded from every review angle"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The head is visibly larger than the compact torso and short lower body.",
+          "The bun, apron, and market accents form a distinct practical merchant outline.",
+          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+        ],
+        "negativeSpace": [
+          "A clear gap separates the arms from the rounded torso in neutral pose.",
+          "The face and hand shapes remain unobstructed around the hair and apron."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
+            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "readable_face",
+            "componentIds": [
+              "head_face"
+            ],
+            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "priority": "must"
+          },
+          {
+            "id": "compact_role_silhouette",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "requirement": "The NPC reads as a compact chibi storybook merchant before accessories are inspected.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_contacts",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "style",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+          },
+          {
+            "parameter": "headRatio",
+            "componentIds": [
+              "head_face"
+            ],
+            "purpose": "Controls the expressive head scale against the NPC stature."
+          },
+          {
+            "parameter": "handScale",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+          }
+        ],
+        "failureModes": [
+          "The face disappears under the hair mass.",
+          "The body returns to adult fashion proportions with long thin limbs.",
+          "The apron, market tools, or boots read as floating disconnected ornaments."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      },
+      "lodLevels": [
+        {
+          "node": "char_npc_tomas_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "char_npc_tomas_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.62
+        }
+      ]
+    },
+    {
+      "id": "char_npc_ines_a",
+      "file": "char_npc_ines_a.glb",
+      "family": "character",
+      "generator": "npc_character",
+      "seed": 1632,
+      "dimensions": {
+        "width": 1,
+        "depth": 0.65,
+        "height": 1.98
+      },
+      "palette": [
+        "plaster_warm_01",
+        "foliage_olive_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "metal_brass_01",
+        "foam_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 2500,
+        "trianglesTarget": 7800,
+        "trianglesMax": 16000,
+        "materialsMax": 8
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "char_npc_ines_a_root",
+      "requiredNodes": [
+        "char_npc_ines_a_root",
+        "char_npc_ines_a_LOD0",
+        "char_npc_ines_a_LOD1",
+        "char_npc_ines_a_rig",
+        "char_npc_ines_a_hand_left",
+        "char_npc_ines_a_hand_right",
+        "char_npc_ines_a_hand_socket_left",
+        "char_npc_ines_a_hand_socket_right",
+        "char_npc_ines_a_tool_socket",
+        "char_npc_ines_a_carry_socket",
+        "char_npc_ines_a_hip_socket"
+      ],
+      "rigNode": "char_npc_ines_a_rig",
+      "socketNodes": [
+        "char_npc_ines_a_hand_socket_left",
+        "char_npc_ines_a_hand_socket_right",
+        "char_npc_ines_a_tool_socket",
+        "char_npc_ines_a_carry_socket",
+        "char_npc_ines_a_hip_socket"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 2.5,
+          "loop": true
+        },
+        {
+          "name": "talk_gesture",
+          "durationSeconds": 2.933333,
+          "loop": true
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 1.333333,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 0.975,
+          "events": [
+            {
+              "name": "footstep_left",
+              "timeSeconds": 0
+            },
+            {
+              "name": "footstep_right",
+              "timeSeconds": 0.666667
+            }
+          ]
+        },
+        {
+          "name": "carry_idle",
+          "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "turn_left",
+          "durationSeconds": 0.4,
+          "loop": false
+        },
+        {
+          "name": "turn_right",
+          "durationSeconds": 0.4,
+          "loop": false
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "role": "gardener",
+        "height": 1.9,
+        "headRatio": 4.75,
+        "handScale": 1.16,
+        "style": "chibi-storybook",
+        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable gardener silhouette",
+        "sources": [
+          {
+            "id": "npc_chibi_storybook_turnaround",
+            "kind": "visual_reference",
+            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+          }
+        ],
+        "components": [
+          {
+            "id": "head_face",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries the friendly storybook expression and NPC identity",
+            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
+            "count": "1 connected head mass",
+            "cues": [
+              "Face stays visible from front and three-quarter views",
+              "Hair frames the face without hiding the eyes"
+            ]
+          },
+          {
+            "id": "body_outfit",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Communicates the compact coastal worker role before facial detail",
+            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
+            "count": "1 connected outfit silhouette",
+            "cues": [
+              "Torso remains compact rather than fashion-proportioned",
+              "Gardener tools and apron read as one working costume"
+            ]
+          },
+          {
+            "id": "hands_boots",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Keeps gestures, sockets, and grounded stance readable in play",
+            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
+            "count": "2 arms and 2 legs",
+            "cues": [
+              "Hands meet the authored sockets",
+              "Boot soles remain clearly grounded from every review angle"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The head is visibly larger than the compact torso and short lower body.",
+          "The bonnet, apron, and gardening accents form a distinct elder-gardener outline.",
+          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+        ],
+        "negativeSpace": [
+          "A clear gap separates the arms from the rounded torso in neutral pose.",
+          "The face and hand shapes remain unobstructed around the apron and hat."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
+            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "readable_face",
+            "componentIds": [
+              "head_face"
+            ],
+            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "priority": "must"
+          },
+          {
+            "id": "compact_role_silhouette",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "requirement": "The NPC reads as a compact chibi storybook gardener before accessories are inspected.",
+            "priority": "must"
+          },
+          {
+            "id": "grounded_contacts",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "style",
+            "componentIds": [
+              "head_face",
+              "body_outfit",
+              "hands_boots"
+            ],
+            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+          },
+          {
+            "parameter": "headRatio",
+            "componentIds": [
+              "head_face"
+            ],
+            "purpose": "Controls the expressive head scale against the NPC stature."
+          },
+          {
+            "parameter": "handScale",
+            "componentIds": [
+              "hands_boots"
+            ],
+            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+          }
+        ],
+        "failureModes": [
+          "The face disappears under the bonnet or hair mass.",
+          "The body returns to adult fashion proportions with long thin limbs.",
+          "The apron, tools, or boots read as floating disconnected ornaments."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      },
+      "lodLevels": [
+        {
+          "node": "char_npc_ines_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "char_npc_ines_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.62
+        }
+      ]
     }
   ]
 }

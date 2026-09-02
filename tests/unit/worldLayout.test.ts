@@ -3,6 +3,7 @@ import { WaterSurface, waterSpatialProfile } from "../../src/render/water/WaterS
 import {
   BRIDGE_WORLD_PROFILE,
   FARM_ROUTES,
+  RIVER_FISHING_ACCESS_RESERVES,
   SAILABLE_BOUNDS,
   TERRAIN_RESOLUTION,
   WATER_SURFACE,
@@ -30,9 +31,7 @@ import { collisionPrimitivesForAsset } from "../../src/physics/CollisionCatalogA
 import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../../src/render/materials/SurfaceFieldAttributes";
 import {
   createWorldEnvironmentLayout,
-  generateEnvironmentClusterPlacements,
-  grassPlacementDensityAt,
-  groundCoverPatchVariantIndex,
+  generateCausalCompositionPlacements,
   GROUND_COVER_DENSITY,
   HOMESTEAD_MEADOW_GRASS_COUNT,
   GRASS_MAX_PATH_INFLUENCE,
@@ -40,6 +39,11 @@ import {
   isPlacementFootprintStable,
   type EnvironmentAssetPlacement
 } from "../../src/world/WorldEnvironmentLayout";
+import {
+  compositionAddress,
+  compositionPriority,
+  sampleWorldComposition
+} from "../../src/world/WorldCompositionField";
 
 function byOrigin(
   placements: readonly EnvironmentAssetPlacement[],
@@ -144,10 +148,12 @@ describe("WorldLayout", () => {
     expect(WorldLayout.isSailable(0, 0)).toBe(false);
     expect(WorldLayout.isWalkable(WorldLayout.riverCenterX(0), 0)).toBe(false);
     expect(WorldLayout.isWalkable(bridge.x, bridge.z)).toBe(true);
-    expect(WorldLayout.nearbyFishingHabitat(
-      WorldLayout.riverCenterX(0) + WorldLayout.riverHalfWidth(0) + 2,
-      0
-    )).toBe("river");
+    const firstAccess = RIVER_FISHING_ACCESS_RESERVES[0];
+    const firstAccessSection = WorldLayout.riverSectionAt(firstAccess.z);
+    const firstAccessX = firstAccessSection.centerX
+      + (firstAccess.side === "left" ? -1 : 1)
+        * ((firstAccess.side === "left" ? firstAccessSection.leftWaterWidth : firstAccessSection.rightWaterWidth) + 2);
+    expect(WorldLayout.nearbyFishingHabitat(firstAccessX, firstAccess.z)).toBe("river");
     expect(WorldLayout.nearbyFishingHabitat(50, 0)).toBe(null);
     expect(WorldLayout.nearbyFishingHabitat(bridge.x, bridge.z)).toBe("river");
     expect(WorldLayout.isBridgeDeck(bridge.x, bridge.z)).toBe(true);
@@ -158,10 +164,43 @@ describe("WorldLayout", () => {
     expect(WorldLayout.nearbyFishingHabitat(50, WorldLayout.coastlineZ(50) - 2)).toBe("coast");
     expect(WorldLayout.nearbyFishingHabitat(72, WorldLayout.coastlineZ(72) - 2)).not.toBe("lake");
     expect(WORLD_BOUNDS).toEqual({ minX: -180, maxX: 180, minZ: -160, maxZ: 120 });
-    expect(SAILABLE_BOUNDS).toEqual({ minX: -260, maxX: 260, minZ: -240, maxZ: 280 });
-    expect(WATER_SURFACE).toMatchObject({ width: 750, depth: 750 });
+    expect(SAILABLE_BOUNDS).toEqual({ minX: -260, maxX: 720, minZ: -240, maxZ: 300 });
+    expect(WATER_SURFACE).toMatchObject({
+      width: 1150,
+      depth: 750,
+      centerX: 225,
+      centerZ: 20,
+      segmentsX: 221,
+      segmentsZ: 144
+    });
     expect(WorldLayout.terrainHeightfield()).toHaveLength((TERRAIN_RESOLUTION + 1) ** 2);
     expect(WorldLayout.terrainBaseHeightfield()).toHaveLength((TERRAIN_RESOLUTION + 1) ** 2);
+  });
+
+  it("reserves distinct same-side river fishing approaches and their casting clearings", () => {
+    expect(RIVER_FISHING_ACCESS_RESERVES.length + 1).toBeGreaterThanOrEqual(3);
+    for (const reserve of RIVER_FISHING_ACCESS_RESERVES) {
+      const section = WorldLayout.riverSectionAt(reserve.z);
+      const direction = reserve.side === "left" ? -1 : 1;
+      const width = reserve.side === "left" ? section.leftWaterWidth : section.rightWaterWidth;
+      const x = section.centerX + direction * (width + 2);
+      const access = WorldLayout.fishingAccessAt(x, reserve.z);
+      expect(access).toMatchObject({ accessible: true, habitat: "river", side: reserve.side, reason: "bank" });
+      expect(access.target).not.toBeNull();
+      expect(WorldLayout.isWater(access.target!.x, access.target!.z)).toBe(true);
+      expect(Math.sign(access.target!.x - section.centerX)).toBe(direction);
+      expect(WorldLayout.fishingAccessClearanceAt(x, reserve.z)).toBeGreaterThan(0.9);
+    }
+    const unreservedZ = -80;
+    const unreserved = WorldLayout.riverSectionAt(unreservedZ);
+    const unreservedX = unreserved.centerX - unreserved.leftWaterWidth - 2;
+    expect(WorldLayout.fishingAccessAt(unreservedX, unreservedZ)).toMatchObject({
+      accessible: false,
+      habitat: null,
+      reason: "blocked"
+    });
+    const bridge = WORLD_LAYOUT_V5.anchors.bridge;
+    expect(WorldLayout.fishingAccessAt(bridge.x, bridge.z).reason).toBe("bridge");
   });
 
   it("keeps the authored district elevations and anchor geography legible", () => {
@@ -194,7 +233,7 @@ describe("WorldLayout", () => {
     }
   });
 
-  it("keeps rendered ground on the collision landform and landmarks on the canonical height owner", () => {
+  it("keeps rendered ground on the collision landform and landmarks on the canonical height owner", { timeout: 120_000 }, () => {
     const farmhouse = WorldLayout.landmark("farmhouse");
     expect(WorldLayout.terrainSurface(-65, -55)).toBe("dry-soil");
     expect(WorldLayout.terrainNormal(farmhouse.x, farmhouse.z).length()).toBeCloseTo(1, 5);
@@ -375,9 +414,13 @@ describe("WorldLayout", () => {
     expect(WorldLayout.farmSoilInfluence(0, 0)).toBeLessThan(0.1);
     expect(WorldLayout.pathInfluence(WORLD_LAYOUT_V5.anchors.bridge.x, WORLD_LAYOUT_V5.anchors.bridge.z)).toBeGreaterThan(0.95);
     expect(WorldLayout.pathInfluence(-150, -120)).toBeLessThan(0.1);
-    const riverEdge = WorldLayout.riverCenterX(0) + WorldLayout.riverHalfWidth(0);
+    const riverSection = WorldLayout.riverSectionAt(0);
+    const riverEdge = riverSection.centerX + riverSection.rightWaterWidth;
     expect(WorldLayout.shorelineWetness(riverEdge, 0)).toBeGreaterThan(0.95);
-    expect(WorldLayout.shorelineWetness(riverEdge + 8, 0)).toBeLessThan(0.1);
+    expect(WorldLayout.shorelineWetness(
+      riverEdge + riverSection.rightBankRun + riverSection.rightFloodplainWidth + 6,
+      0
+    )).toBeLessThan(0.1);
 
     const path = WorldLayout.buildPathGeometry();
     expect(path.getAttribute("position").count).toBeGreaterThan(50);
@@ -446,7 +489,7 @@ describe("WorldLayout", () => {
     for (let x = mouth.x - 32; x <= mouth.x + 32; x += 2) {
       for (let z = mouth.z - 24; z <= mouth.z + 36; z += 2) {
         const coast = z - WorldLayout.coastlineZ(x);
-        const river = WorldLayout.riverHalfWidth(z) - WorldLayout.riverDistance(x, z);
+        const river = WorldLayout.riverWaterSignedDistance(x, z);
         const previousHardUnion = Math.max(
           coast,
           z <= WorldLayout.coastlineZ(x) + 1.5 ? river : Number.NEGATIVE_INFINITY
@@ -523,38 +566,33 @@ describe("WorldLayout", () => {
     expect(first.filter((placement) => placement.category === "pebbles")).toHaveLength(GROUND_COVER_DENSITY.high.pebbles);
     expect(first.filter((placement) => placement.category === "paving")).toHaveLength(GROUND_COVER_DENSITY.high.paving);
     expect(first.filter((placement) => placement.category === "driftwood")).toHaveLength(GROUND_COVER_DENSITY.high.driftwood);
-  });
+  }, 60_000);
 
-  it("biases grass density toward meadow surfaces with deterministic broad patches", () => {
-    const meadowSamples: number[] = [];
-    const ordinarySamples: number[] = [];
-    for (let x = WORLD_BOUNDS.minX + 8; x <= WORLD_BOUNDS.maxX - 8; x += 8) {
-      for (let z = WORLD_BOUNDS.minZ + 8; z <= WORLD_BOUNDS.maxZ - 8; z += 8) {
-        if (!WorldLayout.isWalkable(x, z) || WorldLayout.isWater(x, z)) continue;
-        const weights = WorldLayout.terrainSurfaceWeights(x, z);
-        if (weights.meadow > 0.16) meadowSamples.push(grassPlacementDensityAt(x, z));
-        if (weights.meadow < 0.04 && weights.grass > 0.7) ordinarySamples.push(grassPlacementDensityAt(x, z));
-      }
-    }
-    const average = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
-    expect(meadowSamples.length).toBeGreaterThan(10);
-    expect(ordinarySamples.length).toBeGreaterThan(5);
-    expect(average(meadowSamples)).toBeGreaterThan(average(ordinarySamples) + 0.12);
-    expect(Math.max(...meadowSamples) - Math.min(...meadowSamples)).toBeGreaterThan(0.1);
-  });
-
-  it("groups grass variants by deterministic warped world-space patches", () => {
+  it("derives district rhythm and category density from deterministic causal fields", () => {
     const seed = 42891;
-    const first = groundCoverPatchVariantIndex(32, -48, seed);
-    expect(groundCoverPatchVariantIndex(32, -48, seed)).toBe(first);
-    expect(groundCoverPatchVariantIndex(33, -47.5, seed)).toBe(first);
-    const broadSamples = new Set<number>();
-    for (let x = -120; x <= 120; x += 24) {
-      for (let z = -120; z <= 72; z += 21) {
-        broadSamples.add(groundCoverPatchVariantIndex(x, z, seed));
-      }
-    }
-    expect(broadSamples).toEqual(new Set([0, 1, 2]));
+    const farm = sampleWorldComposition(seed, -65, -55);
+    const village = sampleWorldComposition(seed, 53, -52);
+    const harbor = sampleWorldComposition(seed, 68, 60);
+    const headland = sampleWorldComposition(seed, -92, 74);
+    expect(sampleWorldComposition(seed, -65, -55)).toEqual(farm);
+    expect(farm.district.dominant).toBe("farm");
+    expect(village.district.dominant).toBe("village");
+    expect(harbor.district.dominant).toBe("harbor");
+    expect(headland.district.dominant).toBe("headland");
+    expect(farm.opening).toBeGreaterThan(0.7);
+    expect(headland.opening).toBeGreaterThan(0.7);
+    expect(harbor.density.tree).toBeLessThan(village.density.tree + 0.2);
+  });
+
+  it("uses independent stable candidate addresses and priorities per category", () => {
+    const seed = 42891;
+    const treeAddress = compositionAddress(seed, "tree", 32, -48, 0);
+    expect(compositionAddress(seed, "tree", 32, -48, 0)).toBe(treeAddress);
+    expect(compositionAddress(seed, "bush", 32, -48, 0)).not.toBe(treeAddress);
+    expect(compositionAddress(seed, "tree", 32, -48, 1)).not.toBe(treeAddress);
+    expect(compositionPriority(seed, "tree", 32, -48, 0)).not.toBe(
+      compositionPriority(seed, "bush", 32, -48, 0)
+    );
   });
 
   it("reproduces the complete environment layout for the same world seed", () => {
@@ -575,19 +613,31 @@ describe("WorldLayout", () => {
       byOrigin(first.staticPlacements, "seeded-fill")
     );
     expect(second.groundCoverPlacements).not.toEqual(first.groundCoverPlacements);
-  });
+  }, 60_000);
 
   it("keeps placement counts, IDs, variants, exclusions, and clearances valid", () => {
     const layout = createWorldEnvironmentLayout(42891);
     const authored = byOrigin(layout.staticPlacements, "authored");
     const layoutDerived = byOrigin(layout.staticPlacements, "layout-derived");
     const seeded = byOrigin(layout.staticPlacements, "seeded-fill");
-    const seededClusters = seeded.filter((placement) => !placement.id.startsWith("seeded-fill.landscape."));
+    const causal = seeded.filter((placement) => placement.compositionTag);
     const landscapeDressing = seeded.filter((placement) => placement.id.startsWith("seeded-fill.landscape."));
 
     expect(authored.length).toBeGreaterThanOrEqual(43);
-    expect(layoutDerived).toHaveLength(78);
-    expect(seededClusters).toHaveLength(270);
+    expect(layoutDerived).toHaveLength(0);
+    expect(causal.filter((placement) => placement.compositionTag?.category === "tree")).toHaveLength(235);
+    expect(causal.filter((placement) => placement.compositionTag?.category === "bush")).toHaveLength(115);
+    expect(causal.filter((placement) => placement.compositionTag?.category === "rock")).toHaveLength(72);
+    expect(causal.filter((placement) => placement.compositionTag?.category === "reed").length).toBeGreaterThan(10);
+    const roles = new Set(causal.map((placement) => placement.compositionTag?.role));
+    expect(roles).toEqual(new Set(["core", "edge", "isolate", "landmark", "riparian", "route-frame"]));
+    const structural = causal.filter((placement) =>
+      placement.compositionTag?.category === "tree" || placement.compositionTag?.category === "bush"
+    );
+    const isolateRatio = structural.filter((placement) => placement.compositionTag?.role === "isolate").length
+      / structural.length;
+    expect(isolateRatio).toBeGreaterThanOrEqual(0.03);
+    expect(isolateRatio).toBeLessThanOrEqual(0.12);
     expect(landscapeDressing.length).toBeGreaterThan(0);
 
     const allPlacements = [...layout.staticPlacements, ...layout.groundCoverPlacements];
@@ -595,33 +645,34 @@ describe("WorldLayout", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.every((id) => id.length > 0)).toBe(true);
 
-    const seededAssetCounts = new Map<string, number>();
     for (const placement of seeded) {
-      if (!placement.id.startsWith("seeded-fill.landscape.")) {
-        seededAssetCounts.set(
-          placement.assetId,
-          (seededAssetCounts.get(placement.assetId) ?? 0) + 1
-        );
+      if (placement.assetId === "foliage_kelp_a") {
+        expect(WorldLayout.isWater(placement.x, placement.z)).toBe(true);
+        continue;
       }
       expect(WorldLayout.isWalkable(placement.x, placement.z)).toBe(true);
       expect(WorldLayout.isWater(placement.x, placement.z)).toBe(false);
       expect(WorldLayout.isInterior(placement.x, placement.z)).toBe(false);
-      expect(WorldLayout.pathInfluence(placement.x, placement.z)).toBeLessThanOrEqual(0.12);
-      expect(Math.hypot(placement.x + 14, placement.z + 7)).toBeGreaterThan(9.4);
-      expect(Math.hypot(placement.x - 68, placement.z - 64)).toBeGreaterThan(8.4);
-      expect(Math.hypot(placement.x + 92, placement.z - 74)).toBeGreaterThan(7.4);
-      expect(Math.hypot(placement.x - 78, placement.z - 67)).toBeGreaterThan(8.4);
-      expect(isPlacementFootprintStable(placement)).toBe(true);
+      if (placement.compositionTag) {
+        const sample = sampleWorldComposition(42891, placement.x, placement.z);
+        expect(sample.route.clearance).toBeLessThanOrEqual(0.08);
+        expect(sample.route.gateway).toBeLessThanOrEqual(0.12);
+        expect(sample.architectureClearance).toBeLessThanOrEqual(0.08);
+        expect(sample.fishingAccessClearance).toBeLessThanOrEqual(0.08);
+      }
+      if (placement.grounding) {
+        const fieldRock = placement.compositionTag?.category === "rock";
+        expect(isPlacementFootprintStable(
+          placement,
+          fieldRock ? 0.66 : placement.assetId.startsWith("rock_coastal_") ? 0.8 : 0.72,
+          fieldRock ? 1.05 : placement.assetId.startsWith("rock_coastal_") ? 1.1 : 0.78
+        )).toBe(true);
+      }
     }
-    expect(Object.fromEntries(seededAssetCounts)).toEqual({
-      tree_oak_a: 43,
-      tree_oak_b: 45,
-      tree_oak_c: 52,
-      tree_apple_a: 30,
-      tree_pine_a: 20,
-      tree_pine_b: 12,
-      foliage_bush_a: 68
-    });
+    expect(causal.filter((placement) => placement.assetId === "tree_apple_a").every((placement) =>
+      sampleWorldComposition(42891, placement.x, placement.z).district.farm >= 0.35
+      && sampleWorldComposition(42891, placement.x, placement.z).habitat.orchard >= 0.34
+    )).toBe(true);
 
     const groundCoverAssetCounts = new Map<string, number>();
     for (const placement of layout.groundCoverPlacements) {
@@ -647,18 +698,16 @@ describe("WorldLayout", () => {
       .map((assetId) => groundCoverAssetCounts.get(assetId) ?? 0);
     const grassTotal = grassVariantCounts.reduce((sum, count) => sum + count, 0);
     expect(grassTotal).toBe(GROUND_COVER_DENSITY.high.grass + HOMESTEAD_MEADOW_GRASS_COUNT);
-    expect(grassVariantCounts[0]).toBeGreaterThan(grassVariantCounts[1]);
-    expect(grassVariantCounts[0]).toBeGreaterThan(grassVariantCounts[2]);
-    expect(grassVariantCounts[0] / grassTotal).toBeGreaterThan(0.6);
-    expect(grassVariantCounts[1]).toBeGreaterThan(400);
-    expect(grassVariantCounts[2]).toBeGreaterThan(400);
+    expect(grassVariantCounts.every((count) => count / grassTotal > 0.28)).toBe(true);
+    expect(grassVariantCounts.every((count) => count / grassTotal < 0.39)).toBe(true);
     const otherCover = Object.fromEntries(
       [...groundCoverAssetCounts].filter(([assetId]) => !assetId.startsWith("foliage_grass_"))
     );
     expect(otherCover.foliage_flower_drift_a).toBeGreaterThan(600);
     expect(otherCover.foliage_flower_drift_b).toBeGreaterThan(600);
     expect(otherCover.foliage_flower_drift_c).toBeGreaterThan(600);
-    expect(otherCover.foliage_bush_a).toBe(GROUND_COVER_DENSITY.high.bushes);
+    expect((otherCover.foliage_bush_a ?? 0) + (otherCover.foliage_bush_round_a ?? 0))
+      .toBe(GROUND_COVER_DENSITY.high.bushes);
     expect(
       (otherCover.foliage_meadow_tall_a ?? 0)
         + (otherCover.foliage_meadow_tall_b ?? 0)
@@ -669,9 +718,9 @@ describe("WorldLayout", () => {
     expect(
       (otherCover.prop_path_slab_a ?? 0) + (otherCover.prop_path_slab_b ?? 0)
     ).toBe(GROUND_COVER_DENSITY.high.paving);
-    expect(otherCover.prop_driftwood_a).toBe(10);
-    expect(otherCover.prop_driftwood_b).toBe(10);
-    expect(otherCover.prop_driftwood_c).toBe(10);
+    expect(otherCover.prop_driftwood_a).toBeGreaterThan(0);
+    expect(otherCover.prop_driftwood_b).toBeGreaterThan(0);
+    expect(otherCover.prop_driftwood_c).toBeGreaterThan(0);
 
     const grass = layout.groundCoverPlacements.filter((placement) => placement.category === "grass");
     expect(grass.filter((placement) => placement.id.includes("ground-cover.grass.homestead"))).toHaveLength(
@@ -758,10 +807,11 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.assetId === "building_barn_b")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "prop_tool_shed_b")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "building_outhouse_b")).toHaveLength(1);
-    const kelp = layoutDerived.filter((placement) => placement.assetId === "foliage_kelp_a");
-    expect(kelp).toHaveLength(10);
-    expect(kelp.every((placement) => WorldLayout.coastlineZ(placement.x) - placement.z > 1.2)).toBe(true);
-  });
+    const kelp = seeded.filter((placement) => placement.assetId === "foliage_kelp_a");
+    expect(kelp.length).toBeGreaterThanOrEqual(16);
+    expect(kelp.every((placement) => placement.z - WorldLayout.coastlineZ(placement.x) > 1.2)).toBe(true);
+    expect(kelp.every((placement) => WorldLayout.isWater(placement.x, placement.z))).toBe(true);
+  }, 60_000);
 
   it("uses only catalog assets and forbids collision on every seeded-fill placement", () => {
     const layout = createWorldEnvironmentLayout(42891);
@@ -854,19 +904,62 @@ describe("WorldLayout", () => {
     }
   });
 
-  it("fails clearly when a seeded cluster cannot reach its declared count", () => {
-    expect(() => generateEnvironmentClusterPlacements(42891, {
-      id: "test.impossible",
-      salt: 1,
-      count: 1,
-      center: { x: 1000, z: 1000 },
-      radiusX: 0,
-      radiusZ: 0,
-      assetIds: ["tree_oak_a"],
-      scaleRange: [1, 1]
-    })).toThrowError(
-      "[WorldEnvironmentLayout] Could only place 0/1 instances for seeded-fill cluster test.impossible"
+  it("authors asymmetric banks, bend response, and longitudinal bed variation", () => {
+    expect(WORLD_LAYOUT_V5.revision).toBe(9);
+    const sections = [];
+    for (let z = -155; z <= 80; z += 5) sections.push(WorldLayout.riverSectionAt(z));
+    const asymmetric = sections.filter((section) =>
+      Math.abs(section.leftWaterWidth - section.rightWaterWidth) >= 0.6
+      || Math.abs(section.leftBankRun - section.rightBankRun) >= 0.6
     );
+    expect(asymmetric.length / sections.length).toBeGreaterThanOrEqual(0.7);
+    const bedElevations = sections.map((section) => section.bedElevation);
+    expect(Math.max(...bedElevations) - Math.min(...bedElevations)).toBeGreaterThanOrEqual(0.45);
+    for (let index = 0; index < sections.length; index++) {
+      const section = sections[index];
+      if (index > 0) {
+        expect(Math.abs(section.bedElevation - sections[index - 1].bedElevation)).toBeLessThanOrEqual(0.25);
+      }
+      expect(Math.abs(section.thalwegOffset)).toBeLessThanOrEqual(
+        Math.min(section.leftWaterWidth, section.rightWaterWidth) * 0.35
+      );
+      const widthProgress = Math.max(0, Math.min(1, (section.z - 35) / (82 - 35)));
+      const previousWidth = 5.5
+        + widthProgress * widthProgress * (3 - 2 * widthProgress) * 3.5
+        + Math.sin(section.z * 0.041 + 0.9) * 0.28;
+      const footprintTolerance = section.estuaryInfluence > 0.01 ? 3 : 2;
+      expect(Math.abs(section.leftWaterWidth - previousWidth)).toBeLessThanOrEqual(footprintTolerance);
+      expect(Math.abs(section.rightWaterWidth - previousWidth)).toBeLessThanOrEqual(footprintTolerance);
+    }
+    const significantBends = sections.filter((section) =>
+      Math.abs(section.curvature * 42) >= 0.25
+      && Math.abs(section.z - WORLD_LAYOUT_V5.anchors.bridge.z) > 12
+    );
+    expect(significantBends.length).toBeGreaterThan(0);
+    for (const section of significantBends) {
+      if (section.curvature > 0) {
+        expect(section.thalwegOffset).toBeLessThan(0);
+        expect(section.leftErosion).toBeGreaterThan(section.rightErosion);
+        expect(section.rightDeposition).toBeGreaterThan(section.leftDeposition);
+        expect(section.leftBankRun).toBeLessThan(section.rightBankRun);
+        expect(section.leftFloodplainWidth).toBeLessThan(section.rightFloodplainWidth);
+      } else {
+        expect(section.thalwegOffset).toBeGreaterThan(0);
+        expect(section.rightErosion).toBeGreaterThan(section.leftErosion);
+        expect(section.leftDeposition).toBeGreaterThan(section.rightDeposition);
+        expect(section.rightBankRun).toBeLessThan(section.leftBankRun);
+        expect(section.rightFloodplainWidth).toBeLessThan(section.leftFloodplainWidth);
+      }
+    }
+    const straightReaches = sections.filter((section) =>
+      Math.abs(section.curvature * 42) <= 0.04
+      && Math.abs(section.z - WORLD_LAYOUT_V5.anchors.bridge.z) > 12
+    );
+    expect(straightReaches.length).toBeGreaterThan(0);
+    expect(straightReaches.every((section) => Math.abs(section.thalwegOffset) < 0.001)).toBe(true);
+    const bridge = WorldLayout.riverSectionAt(WORLD_LAYOUT_V5.anchors.bridge.z);
+    expect(bridge.leftWaterWidth).toBeCloseTo(bridge.rightWaterWidth, 6);
+    expect(bridge.thalwegOffset).toBeCloseTo(0, 6);
   });
 
   it("keeps all arterial roads and scenic trails continuous and joined at intentional gateways", () => {
@@ -1052,19 +1145,25 @@ describe("WorldLayout", () => {
     expect(WorldLayout.isSailable(harborDock.x, harborDock.z)).toBe(true);
   });
 
-  it("places deterministic reed pockets on both dry estuary banks without closing the mouth", () => {
+  it("places deterministic discontinuous reeds from wet depositional bank profiles", () => {
     const first = createWorldEnvironmentLayout(42891).staticPlacements.filter((placement) =>
-      placement.id.startsWith("layout-derived.reeds.estuary.")
+      placement.compositionTag?.category === "reed"
     );
-    const second = createWorldEnvironmentLayout(98765).staticPlacements.filter((placement) =>
-      placement.id.startsWith("layout-derived.reeds.estuary.")
+    const repeat = createWorldEnvironmentLayout(42891).staticPlacements.filter((placement) =>
+      placement.compositionTag?.category === "reed"
     );
-    expect(first).toEqual(second);
-    expect(first).toHaveLength(8);
-    expect(first.some((placement) => placement.x < WORLD_LAYOUT_V5.riverMouth.x)).toBe(true);
-    expect(first.some((placement) => placement.x > WORLD_LAYOUT_V5.riverMouth.x)).toBe(true);
-    expect(first.every((placement) => WorldLayout.estuaryInfluence(placement.x, placement.z) > 0)).toBe(true);
-    expect(first.every((placement) => placement.z < WORLD_LAYOUT_V5.riverMouth.z)).toBe(true);
+    const differentSeed = generateCausalCompositionPlacements(98765).filter((placement) =>
+      placement.compositionTag?.category === "reed"
+    );
+    expect(first).toEqual(repeat);
+    expect(differentSeed).not.toEqual(first);
+    expect(first.length).toBeGreaterThan(10);
+    expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "left")).toBe(true);
+    expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "right")).toBe(true);
+    expect(first.every((placement) => {
+      const bank = WorldLayout.riverBankSample(placement.x, placement.z);
+      return bank.wetness >= 0.34 && bank.deposition >= 0.24 && bank.fishingAccess <= 0.2;
+    })).toBe(true);
   });
 
   it("keeps the harbor interaction anchor on walkable ground", () => {

@@ -1,6 +1,9 @@
 export class StartupTimeoutError extends Error {
   public constructor(
-    public readonly code: "asset-loading-stalled" | "physics-startup-timeout",
+    public readonly code:
+      | "asset-loading-stalled"
+      | "world-startup-timeout"
+      | "physics-startup-timeout",
     message: string
   ) {
     super(message);

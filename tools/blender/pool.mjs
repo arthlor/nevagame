@@ -3,7 +3,10 @@ import path from "node:path";
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 
-export const DEFAULT_TIMEOUT_MS = 60000;
+// The rigged characters retarget ~18 clips against the UAL1 source, stepping the
+// scene frame by frame, and land around 80s. The guard exists to catch a hung
+// Blender, not to bound legitimate work, so it sits well clear of that.
+export const DEFAULT_TIMEOUT_MS = 180000;
 export const DEFAULT_RECYCLE_COUNT = 20;
 
 export function resolveConcurrency(override = null) {

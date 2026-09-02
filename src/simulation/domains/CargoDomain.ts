@@ -1,11 +1,16 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { advanceCargoFreshness } from "../fishing/calculateFreshness";
 import { InventoryManager } from "../inventory/InventoryManager";
-import type { CargoClass, CargoLocation, FishCargoId, FishCargoState, FishInstance } from "../core/types";
+import type { BoatId, CargoClass, CargoLocation, FishCargoId, FishCargoState, FishInstance, ItemId, MarketId } from "../core/types";
+import type { HoldStoresDto } from "../core/contracts";
+import { buildCargoPresentation } from "../presentation/WorldHudPresentation";
 import type { DomainContext } from "./DomainContext";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { cargoClassFits, qualityRank, scrapsForCargoClass } from "./domainRules";
+import { sportFishLandingXp } from "../economy/calculateFishXp";
+import { WorldLayout } from "../../world/WorldLayout";
+import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 
 export class CargoDomain {
   constructor(
@@ -14,7 +19,11 @@ export class CargoDomain {
     private readonly progression: ProgressionDomain
   ) {}
 
-  public landCaughtFish(fish: FishInstance): { success: boolean; reason?: string } {
+  public landCaughtFish(
+    fish: FishInstance,
+    awardSportXp = true,
+    beforeOutcomeEvents?: () => void
+  ): { success: boolean; reason?: string; cargoId?: FishCargoId; boatId?: BoatId } {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const speciesDef = ContentRegistry.fishSpecies.get(fish.speciesId);
@@ -50,11 +59,18 @@ export class CargoDomain {
     record.catchCount += 1;
     record.largestWeightKg = Math.max(record.largestWeightKg ?? 0, fish.weightKg);
     if (qualityRank(fish.quality) > qualityRank(record.bestQuality)) record.bestQuality = fish.quality;
-    this.progression.addProficiencyXp("fishing", 120);
+    if (awardSportXp) {
+      this.progression.addProficiencyXp(
+        "fishing",
+        sportFishLandingXp(speciesDef, fish.weightKg, fish.quality)
+      );
+    }
     this.context.persistRng();
+    beforeOutcomeEvents?.();
     events.emit("FishLanded", {
       cargoId,
       speciesId: fish.speciesId,
+      ecologyId: fish.ecologyId ?? WorldLayout.fishingEcologyAt(state.player.x, state.player.z).id,
       boatId: location.type === "boat-hold" || location.type === "boat-hook" ? location.containerId : undefined,
       weightKg: fish.weightKg,
       quality: fish.quality,
@@ -71,32 +87,42 @@ export class CargoDomain {
         minute: state.clock.currentMinute
       });
     }
-    return { success: true };
+    return {
+      success: true,
+      cargoId,
+      boatId: location.type === "boat-hold" || location.type === "boat-hook"
+        ? location.containerId
+        : undefined
+    };
   }
 
-  public discard(cargoId: FishCargoId): { success: boolean; scraps?: number; reason?: string } {
+  public discard(
+    cargoId: FishCargoId,
+    marketId?: MarketId
+  ): { success: boolean; scraps?: number; reason?: string } {
     const { state } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const cargo = state.fishCargo[cargoId];
     if (!cargo) return { success: false, reason: "Fish cargo not found" };
-    if (!this.navigation.canAccessFishCargo(cargo)) {
+    if (!this.navigation.canAccessFishCargo(cargo, marketId)) {
       return { success: false, reason: "Move to the fish cargo before discarding it" };
     }
     const scraps = scrapsForCargoClass(cargo.cargoClass);
     const inventory = state.inventories[state.player.inventoryId];
     const stack = [{ itemId: "item.fish_scraps", quantity: scraps }];
-    if (!InventoryManager.canAddItems(inventory, stack)) {
+    const canGrantScraps = InventoryManager.canAddItems(inventory, stack);
+    if (!canGrantScraps && cargo.freshness > 0) {
       return { success: false, reason: "No inventory space for scraps" };
     }
-    InventoryManager.addItemsAtomically(inventory, stack);
+    if (canGrantScraps) InventoryManager.addItemsAtomically(inventory, stack);
     this.clearPointers(cargo);
     delete state.fishCargo[cargoId];
-    return { success: true, scraps };
+    return { success: true, scraps: canGrantScraps ? scraps : 0 };
   }
 
   public tick(minutes: number, startMinute: number = this.context.state.clock.currentMinute - minutes): void {
     const { state } = this.context;
-    advanceCargoFreshness(state, minutes, startMinute, state.weather.temperatureC);
+    advanceCargoFreshness(state, minutes, startMinute);
   }
 
   public clearPointers(cargo: FishCargoState): void {
@@ -108,6 +134,66 @@ export class CargoDomain {
       }
     }
     if (state.player.carriedFishCargoId === cargo.id) state.player.carriedFishCargoId = null;
+  }
+
+  public canLandCargoClass(cargoClass: CargoClass): boolean {
+    return this.findLandingLocation(cargoClass) !== null;
+  }
+
+  public inspectHoldStores(): HoldStoresDto {
+    const { state } = this.context;
+    const playerInventory = state.inventories[state.player.inventoryId];
+    const boats = Object.values(state.boats).sort((a, b) => a.id.localeCompare(b.id));
+    const supplyIds: ItemId[] = [
+      "item.bait_worms",
+      "item.chum_bucket",
+      "item.basic_lure",
+      "item.crushed_ice",
+      "item.boat_fuel"
+    ];
+    const vessels = boats.map((boat) => {
+      const definition = ContentRegistry.boats.get(boat.boatTypeId);
+      const maximum = definition?.durabilityMax ?? 100;
+      const cargoSlots = boat.fishCargoSlotIds.map((cargoId, index) => ({
+        slotNumber: index + 1,
+        cargo: cargoId && state.fishCargo[cargoId] ? buildCargoPresentation(state.fishCargo[cargoId]) : null
+      }));
+      return {
+        boatId: boat.id,
+        name: definition?.name ?? "Vessel",
+        statusLabel: boat.isDocked ? "Docked" as const : "At sea" as const,
+        hull: {
+          current: boat.durability,
+          maximum,
+          percent: Math.round((boat.durability / Math.max(1, maximum)) * 100)
+        },
+        occupiedSlots: cargoSlots.filter((slot) => slot.cargo !== null).length,
+        cargoSlots
+      };
+    });
+    const carried = state.player.carriedFishCargoId
+      ? state.fishCargo[state.player.carriedFishCargoId] ?? null
+      : null;
+
+    return {
+      satchel: {
+        occupiedSlots: playerInventory.slots.filter(
+          (slot) => slot.itemId !== undefined && InventoryManager.getSlotQuantity(slot) > 0
+        ).length,
+        totalSlots: playerInventory.slots.length
+      },
+      vesselHolds: {
+        occupiedSlots: vessels.reduce((total, vessel) => total + vessel.occupiedSlots, 0),
+        totalSlots: vessels.reduce((total, vessel) => total + vessel.cargoSlots.length, 0)
+      },
+      carriedCatch: carried ? buildCargoPresentation(carried) : null,
+      supplies: supplyIds.map((itemId) => ({
+        itemId,
+        name: ContentRegistry.items.get(itemId)?.name ?? itemId,
+        count: accessibleFishingSupplyCount(state, itemId)
+      })),
+      vessels
+    };
   }
 
   private findLandingLocation(cargoClass: CargoClass): CargoLocation | null {

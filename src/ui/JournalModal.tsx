@@ -1,26 +1,34 @@
-// src/ui/JournalModal.tsx
 import React, { useRef, useState } from "react";
-import { GameState } from "../simulation/core/types";
-import { ContentRegistry } from "../content/ContentRegistry";
+import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
+import type { JournalPagesDto, SkillProgressDto } from "../simulation/core/contracts";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish } from "./chrome/uiAtlas";
-import { ChromeButton, ChromeClose, ChromeDivider, ChromeMeter, ChromePanel } from "./chrome/Chrome";
-import { IconCoin, IconCompass, IconFish, IconJournal, IconSprout, IconTools } from "./components/HudIcons";
+import { ChromeButton, ChromeClose } from "./chrome/Chrome";
+import { GameSheet, Meter } from "./coastal/CoastalUI";
+import { IconCompass, IconFish, IconJournal, IconSprout, IconTools } from "./components/HudIcons";
 import { HowToPlayGuide } from "./components/HowToPlayGuide";
 import { playUiSound } from "./audio/uiAudio";
-import { getNextRank, getRankForXp } from "../content/progression";
 
-export type JournalFolio = "quests" | "skills" | "bestiary" | "farming" | "guide";
+export type JournalFolio = "story" | "records" | "skills" | "guide";
 
 interface JournalModalProps {
-  state: GameState;
+  pages: JournalPagesDto;
+  activeQuest: ActiveQuestDto | null;
+  skills: SkillProgressDto[];
   onClose: () => void;
   initialFolio?: JournalFolio;
 }
 
-export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, initialFolio = "quests" }) => {
+const FOLIOS: Array<{ id: JournalFolio; label: string; icon: React.ReactNode }> = [
+  { id: "story", label: "Story", icon: <IconJournal size={14} aria-hidden="true" /> },
+  { id: "records", label: "Records", icon: <IconFish size={14} aria-hidden="true" /> },
+  { id: "skills", label: "Skills", icon: <IconTools size={14} aria-hidden="true" /> },
+  { id: "guide", label: "Guide", icon: <IconCompass size={14} aria-hidden="true" /> }
+];
+
+export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, skills, onClose, initialFolio = "story" }) => {
   const [activeFolio, setActiveFolio] = useState<JournalFolio>(initialFolio);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
@@ -30,354 +38,176 @@ export const JournalModal: React.FC<JournalModalProps> = ({ state, onClose, init
     setActiveFolio(folio);
   };
 
-  const { journal, player, quests } = state;
-  const proficiencies = player.proficiencies;
-
-  const totalFishSpecies = ContentRegistry.fishSpecies.size;
-  const discoveredFishCount = Object.keys(journal.fishRecords).length;
-
-  const getRankName = (
-    xp: number
-  ): { title: string; nextXp: number | null; progress: number; isMax: boolean } => {
-    const current = getRankForXp(xp);
-    const next = getNextRank(xp);
-    // At the top rank there is no next tier, so quoting the current rank's own
-    // requirement as "Next" read like the player had regressed.
-    if (!next) return { title: current.rankName, nextXp: null, progress: 100, isMax: true };
-    const span = Math.max(1, next.xpRequired - current.xpRequired);
-    const progress = Math.round(Math.min(1, Math.max(0, (xp - current.xpRequired) / span)) * 100);
-    return { title: current.rankName, nextXp: next.xpRequired, progress, isMax: false };
-  };
-
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <ChromePanel
+      <GameSheet
         ref={modalRef}
         as="div"
-        className="neva-panel modal-content journal-chronicle-modal"
-        tone="slate"
+        className="journal-chronicle-modal journal-folio"
+        tone="scroll"
         corners
-        rivets={false}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="journal-title"
         tabIndex={-1}
       >
-        <header className="modal-header">
-          <div className="modal-header-title-group">
-            <span id="journal-title" className="modal-heading-with-mark">
-              <IconJournal size={22} aria-hidden="true" /> Guild Chronicle & Bestiary
-            </span>
-          </div>
-
-          <div className="journal-folio-tabs mm-ribbon-tabs" role="tablist" aria-label="Chronicle sections" data-testid="journal-folio-tabs" onKeyDown={handleTabListKeyDown}>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeFolio === "quests"}
-              className={`journal-folio-btn ${activeFolio === "quests" ? "is-active" : ""}`}
-              onClick={() => selectFolio("quests")}
-            >
-              <IconJournal size={14} aria-hidden="true" /> Chronicles & Errands
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeFolio === "skills"}
-              className={`journal-folio-btn ${activeFolio === "skills" ? "is-active" : ""}`}
-              onClick={() => selectFolio("skills")}
-            >
-              <IconTools size={14} aria-hidden="true" /> Guild Masteries
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeFolio === "bestiary"}
-              className={`journal-folio-btn ${activeFolio === "bestiary" ? "is-active" : ""}`}
-              onClick={() => selectFolio("bestiary")}
-            >
-              <IconFish size={14} aria-hidden="true" /> Bestiary ({discoveredFishCount}/{totalFishSpecies})
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeFolio === "farming"}
-              className={`journal-folio-btn ${activeFolio === "farming" ? "is-active" : ""}`}
-              onClick={() => selectFolio("farming")}
-            >
-              <IconSprout size={14} aria-hidden="true" /> Field Notes
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeFolio === "guide"}
-              className={`journal-folio-btn ${activeFolio === "guide" ? "is-active" : ""}`}
-              onClick={() => selectFolio("guide")}
-            >
-              <IconCompass size={14} aria-hidden="true" /> How to Play
-            </button>
-          </div>
-
-          <ChromeClose onClick={onClose} label="Close chronicle" />
+        <header className="modal-header journal-header">
+          <span id="journal-title" className="modal-heading-with-mark">
+            <IconJournal size={22} aria-hidden="true" /> Field Journal
+          </span>
+          <nav
+            className="journal-folio-tabs"
+            role="tablist"
+            aria-label="Journal pages"
+            onKeyDown={handleTabListKeyDown}
+          >
+            {FOLIOS.map((folio) => (
+              <button
+                key={folio.id}
+                type="button"
+                id={`journal-folio-${folio.id}`}
+                role="tab"
+                aria-selected={activeFolio === folio.id}
+                aria-controls="journal-active-page"
+                tabIndex={activeFolio === folio.id ? 0 : -1}
+                className={`journal-folio-btn ${activeFolio === folio.id ? "is-active" : ""}`}
+                onClick={() => selectFolio(folio.id)}
+              >
+                {folio.icon}{folio.label}
+              </button>
+            ))}
+          </nav>
+          <ChromeClose onClick={onClose} label="Close journal" />
         </header>
 
-        <ChromeDivider ornate={false} />
-
-        <div className="modal-body journal-body">
-          {/* Folio 1: Chronicles & Quests */}
-          {activeFolio === "quests" && (
-            <div className="journal-tab-pane">
-              <div className="journal-card-section">
-                <h4 className="journal-section-title">Current Kingdom Questline</h4>
-                {quests.activeQuestId ? (() => {
-                  const active = ContentRegistry.quests.get(quests.activeQuestId);
-                  const objective = active?.objectives[quests.activeStepIndex];
-                  const progress = objective ? quests.stepProgress[objective.id] ?? 0 : 0;
-                  const target = objective?.targetQuantity ?? 1;
-                  const speaker = active ? ContentRegistry.npcs.get(active.speakerId) : undefined;
-                  const awaitingTurnIn = Boolean(
-                    active &&
-                    objective &&
-                    quests.activeStepIndex >= active.objectives.length - 1 &&
-                    progress >= target
-                  );
-                  const objectiveText = awaitingTurnIn
-                    ? `Talk to ${speaker?.name ?? "the quest giver"} to continue`
-                    : objective?.description;
-
-                  return active ? (
-                    <div className="journal-quest-hero-card">
-                      <div className="quest-hero-header">
-                        <span className="quest-act-badge">{active.actTitle.toUpperCase()}</span>
-                        <h3 className="quest-hero-title">{active.questTitle}</h3>
-                      </div>
-
-                      {objective && (
-                        <div className="quest-hero-objective">
-                          <p className="objective-desc">"{objectiveText}"</p>
-                          <div className="quest-hero-progress-wrap">
-                            <ChromeMeter
-                              label="Quest progress"
-                              value={Math.min(progress, target)}
-                              max={Math.max(1, target)}
-                              showLabel={false}
-                              valueText={`${Math.min(progress, target)} / ${target}`}
-                              variant="gold"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : null;
-                })() : (
-                  <div className="journal-story-block open-horizons-block">
-                    <strong>Realm of Open Horizons</strong>
-                    <span className="journal-story-note">
-                      The foundational island errands are complete. The island's trade and waters are yours to explore.
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {quests.completedQuestIds.length > 0 && (
-                <div className="journal-card-section">
-                  <h4 className="journal-section-title">Completed Chronicles</h4>
-                  <div className="completed-quests-annals">
-                    {quests.completedQuestIds.map((questId) => {
-                      const def = ContentRegistry.quests.get(questId);
-                      return (
-                        <div key={questId} className="completed-annal-row">
-                          <span className="annal-seal-check">✓</span>
-                          <strong>{def?.questTitle ?? questId}</strong>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {quests.unlockedFeatureIds.length > 0 && (
-                <div className="journal-card-section">
-                  <h4 className="journal-section-title">Unlocked Guild Capabilities</h4>
-                  <div className="unlocked-features-grid">
-                    {quests.unlockedFeatureIds.map((featureId) => (
-                      <div key={featureId} className="unlocked-feature-pill">
-                        <span className="feature-seal">★</span>
-                        <span>{featureId.replace(/^feature\.|^boat\./, "").replaceAll("_", " ")}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+        <div
+          id="journal-active-page"
+          className="journal-open-pages"
+          role="tabpanel"
+          aria-labelledby={`journal-folio-${activeFolio}`}
+          tabIndex={0}
+        >
+          {activeFolio === "story" && (
+            <StoryPage activeQuest={activeQuest} completedStories={pages.completedStories} />
           )}
-
-          {/* Folio 2: Guild Masteries & Skills */}
-          {activeFolio === "skills" && (
-            <div className="journal-tab-pane">
-              <div className="journal-card-section">
-                <h4 className="journal-section-title">Crafting, Agrarian & Angling Ranks</h4>
-                <div className="journal-masteries-grid">
-                  {Object.entries(proficiencies).map(([skill, xp]) => {
-                    const rank = getRankName(xp);
-                    return (
-                      <div key={skill} className="mastery-card">
-                        <div className="mastery-card-header">
-                          <div>
-                            <h4 className="mastery-skill-name">{skill.charAt(0).toUpperCase() + skill.slice(1)}</h4>
-                            <span className="mastery-rank-badge">{rank.title}</span>
-                          </div>
-                          <strong className="mastery-xp-total">{xp} XP</strong>
-                        </div>
-                        <ChromeMeter
-                          label={`${skill} mastery`}
-                          value={rank.progress}
-                          max={100}
-                          showLabel={false}
-                          variant="gold"
-                        />
-                        <div className="mastery-footer">
-                          {rank.isMax ? (
-                            <>
-                              <span>Highest rank reached</span>
-                              <span>Mastered</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>{rank.progress}% to next tier</span>
-                              <span>Next: {rank.nextXp} XP</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Folio 3: Fish & Fauna Bestiary */}
-          {activeFolio === "bestiary" && (
-            <div className="journal-tab-pane">
-              <div className="journal-card-section">
-                <div className="bestiary-header-row">
-                  <h4 className="journal-section-title">Waters of Neva Bestiary</h4>
-                  <span className="bestiary-counter">{discoveredFishCount} of {totalFishSpecies} Discovered</span>
-                </div>
-
-                <div className="bestiary-grid">
-                  {Array.from(ContentRegistry.fishSpecies.values()).map((species) => {
-                    const record = journal.fishRecords[species.id];
-                    const discovered = Boolean(record);
-
-                    return (
-                      <div
-                        key={species.id}
-                        className={`bestiary-entry-card ${discovered ? "is-discovered" : "is-mystery"}`}
-                      >
-                        <div className="bestiary-portrait-well">
-                          {discovered ? (
-                            <AtlasImage src={atlasForFish(species.id)} alt={species.name} size={48} />
-                          ) : (
-                            <span className="bestiary-silhouette-icon">?</span>
-                          )}
-                        </div>
-
-                        <div className="bestiary-info">
-                          <strong className="bestiary-name">
-                            {discovered ? species.name : "Unknown Species"}
-                          </strong>
-
-                          {discovered ? (
-                            <>
-                              <span className="bestiary-habitat">
-                                {species.habitats.map((h) => h.toUpperCase()).join(" · ")}
-                              </span>
-                              <div className="bestiary-stats-row">
-                                <span>Caught: <b>{record.catchCount}</b></span>
-                                <span>
-                                  Record:{" "}
-                                  <b className="record-weight">
-                                    {typeof record.largestWeightKg === "number"
-                                      ? `${record.largestWeightKg.toFixed(1)} kg`
-                                      : "not weighed"}
-                                  </b>
-                                </span>
-                              </div>
-                            </>
-                          ) : (
-                            <span className="bestiary-unknown-hint">
-                              Habitat unrecorded. Cast your line in unexplored waters.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Folio 4: Agrarian Field Notes */}
-          {activeFolio === "farming" && (
-            <div className="journal-tab-pane">
-              <div className="journal-card-section">
-                <h4 className="journal-section-title">Agrarian Almanac & Soil Practice</h4>
-                <div className="farming-field-notes-list">
-                  <div className="field-note-card">
-                    <div className="field-note-header">
-                      <IconSprout size={18} aria-hidden="true" />
-                      <strong>Starter Crops of Homestead Farm</strong>
-                    </div>
-                    <p>
-                      Wheat has a 180-game-minute base growth timer. Climate, moisture, fertility, and weather change its
-                      effective growth. Potatoes and tomatoes are also available in the starter crop set.
-                    </p>
-                  </div>
-
-                  <div className="field-note-card">
-                    <div className="field-note-header">
-                      <IconTools size={18} aria-hidden="true" />
-                      <strong>Soil Moisture & Fertility</strong>
-                    </div>
-                    <p>
-                      Plant on prepared soil. Watered soil supports growth, while low fertility and moisture stress slow the
-                      crop and can damage it. Rain adds moisture over time; it does not instantly saturate every crop.
-                    </p>
-                  </div>
-
-                  <div className="field-note-card">
-                    <div className="field-note-header">
-                      <IconCoin size={18} aria-hidden="true" />
-                      <strong>Market Routes & Fish Value</strong>
-                    </div>
-                    <p>
-                      Sell produce and grain at the Village Produce Stall. Bring physical fish cargo to the Harbor Fish Market;
-                      fish value also reflects weight, quality, freshness, demand, and season.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Folio 5: How to Play Guidebook */}
-          {activeFolio === "guide" && (
-            <div className="journal-tab-pane">
-              <HowToPlayGuide />
-            </div>
-          )}
+          {activeFolio === "records" && <RecordsPage pages={pages} />}
+          {activeFolio === "skills" && <SkillsPage skills={skills} />}
+          {activeFolio === "guide" && <HowToPlayGuide />}
         </div>
 
-        <footer className="modal-footer">
-          <ChromeButton onClick={onClose}>Close Chronicle</ChromeButton>
+        <footer className="modal-footer journal-footer">
+          <span>{pages.completedStories.length} story entries complete</span>
+          <ChromeButton onClick={onClose}>Close</ChromeButton>
         </footer>
-
-
-      </ChromePanel>
+      </GameSheet>
     </div>
   );
 };
+
+const StoryPage: React.FC<{
+  activeQuest: ActiveQuestDto | null;
+  completedStories: JournalPagesDto["completedStories"];
+}> = ({ activeQuest, completedStories }) => {
+  return (
+    <section className="journal-page journal-story-page" aria-label="Story">
+      <div className="journal-page-heading"><span>Story</span><h2>{activeQuest?.actTitle ?? "Open coast"}</h2></div>
+      {activeQuest ? (
+        <article className="journal-active-story">
+          <h3>{activeQuest.questTitle}</h3>
+          <p>{activeQuest.objectiveDescription}</p>
+          {activeQuest.targetQuantity > 1 && (
+            <Meter
+              label="Story progress"
+              value={Math.min(activeQuest.currentProgress, activeQuest.targetQuantity)}
+              max={activeQuest.targetQuantity}
+              valueText={`${Math.min(activeQuest.currentProgress, activeQuest.targetQuantity)} / ${activeQuest.targetQuantity}`}
+              variant="gold"
+            />
+          )}
+          {activeQuest.isQuestReadyToTurnIn && <strong className="journal-ready-mark">Ready to continue</strong>}
+          {activeQuest.turnInBlockerReason && (
+            <strong className="journal-ready-mark is-blocked">Blocked · {activeQuest.turnInBlockerReason}</strong>
+          )}
+        </article>
+      ) : (
+        <p className="journal-empty-copy">No active story errand. The coast is yours to explore.</p>
+      )}
+
+      {completedStories.length > 0 && (
+        <details className="journal-completed-stories">
+          <summary>Completed stories · {completedStories.length}</summary>
+          <ul>
+            {completedStories.map((story) => (
+              <li key={story.questId}>✓ {story.title}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+};
+
+const RecordsPage: React.FC<{ pages: JournalPagesDto }> = ({ pages }) => (
+  <section className="journal-page journal-records-page" aria-label="Records">
+    <div className="journal-page-heading"><span>Records</span><h2>What you have learned</h2></div>
+    <div className="journal-record-columns">
+      <section aria-labelledby="journal-fish-records">
+        <h3 id="journal-fish-records"><IconFish size={16} aria-hidden="true" /> Fish</h3>
+        {pages.fishRecords.length === 0 ? <p className="journal-empty-copy">No fish recorded yet.</p> : (
+          <div className="journal-record-list">
+            {pages.fishRecords.map((record) => (
+                <article key={record.speciesId} className="journal-record-entry">
+                  <AtlasImage src={atlasForFish(record.speciesId)} alt="" size={42} />
+                  <div><strong>{record.name}</strong><span>{record.habitatsLabel}</span></div>
+                  <dl>
+                    <div><dt>Caught</dt><dd>{record.caughtCount}</dd></div>
+                    <div><dt>Best</dt><dd>{record.bestLabel}</dd></div>
+                  </dl>
+                </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="journal-field-records">
+        <h3 id="journal-field-records"><IconSprout size={16} aria-hidden="true" /> Field &amp; coast</h3>
+        {pages.cropRecords.map((record) => (
+            <article key={record.cropId} className="journal-knowledge-entry">
+              <strong>{record.name}</strong>
+              <span>{record.harvestedCount} harvested{record.bestQuality ? ` · best ${record.bestQuality}` : ""}</span>
+            </article>
+        ))}
+        {pages.knowledge.map((entry) => (
+          <article key={entry.id} className="journal-knowledge-entry">
+            <strong>{entry.title}</strong><span>{entry.summary}</span>
+          </article>
+        ))}
+        {pages.cropRecords.length === 0 && pages.knowledge.length === 0 && <p className="journal-empty-copy">New notes appear as you work and explore.</p>}
+      </section>
+    </div>
+  </section>
+);
+
+const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => (
+  <section className="journal-page journal-skills-page" aria-label="Skills">
+    <div className="journal-page-heading"><span>Skills</span><h2>Practice along the coast</h2></div>
+    <div className="journal-skills-list">
+      {skills.length === 0 ? (
+        <p className="journal-empty-copy">No practice recorded yet.</p>
+      ) : skills.map((skill) => (
+        <article key={skill.skill} className="journal-skill-row">
+          <div><strong>{skill.label}</strong><span>{skill.rankName}</span></div>
+          <Meter
+            label={`${skill.label} progress`}
+            value={skill.progressPercent}
+            max={100}
+            showLabel={false}
+            valueText={skill.nextXp !== null ? `${skill.xp} XP · next ${skill.nextXp}` : `${skill.xp} XP · highest rank`}
+            variant="gold"
+          />
+        </article>
+      ))}
+    </div>
+  </section>
+);

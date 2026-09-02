@@ -37,15 +37,15 @@ export const ChromePanel = React.forwardRef<HTMLElement, ChromePanelProps>(
   ) => {
     // plaque maps to slate for backward compatibility while retaining class
     const resolvedTone = tone === "plaque" ? "slate" : tone;
-    const showRivets = rivets !== false && (resolvedTone === "slate" || resolvedTone === "timber" || tone === "plaque");
-    const showFlourish = flourish || corners || (resolvedTone === "slate" && (flourish || corners));
+    const showRivets = rivets === true;
+    const showFlourish = flourish === true;
 
     return (
       <Tag
         ref={ref as React.Ref<HTMLDivElement>}
         className={`chrome-panel chrome-panel--${resolvedTone} ${tone === "plaque" ? "chrome-panel--plaque" : ""}${
           showFlourish ? " chrome-panel--flourish" : ""
-        }${seal ? " chrome-panel--sealed" : ""} ${className}`.trim()}
+        }${corners ? " chrome-panel--corners" : ""}${seal ? " chrome-panel--sealed" : ""} ${className}`.trim()}
         {...rest}
       >
         {ribbon && (
@@ -249,7 +249,7 @@ export const ChromeQuality: React.FC<{ quality?: string | null; className?: stri
 };
 
 export const ChromeAlert: React.FC<{
-  tone?: "caution" | "danger" | "success" | "guild";
+  tone?: "caution" | "danger" | "success" | "info";
   children: React.ReactNode;
   className?: string;
 }> = ({ tone = "caution", children, className = "" }) => (

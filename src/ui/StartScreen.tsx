@@ -1,14 +1,17 @@
-// src/ui/StartScreen.tsx
 import { useEffect, useRef, useState } from "react";
 import type { FC, KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { StartupState } from "../app/StartupState";
-import { AudioControls } from "./EscapeMenuModal";
-import { ChromeButton, ChromeClose, ChromePanel } from "./chrome/Chrome";
+import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
+import type { QualityTier } from "../render/config/VisualRenderConfig";
+import { AudioControls, GraphicsControls } from "./EscapeMenuModal";
+import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { ControlsReference } from "./components/ControlsReference";
 import { InterfaceSettings } from "./components/InterfaceSettings";
+import { GameSheet } from "./coastal/CoastalUI";
+import { dayOfSeason } from "../simulation/core/GameClock";
 
 import { AtlasImage } from "./chrome/AtlasImage";
-import { UI_MENU, UI_STATUS, UI_WORLD } from "./chrome/uiAtlas";
+import { UI_MENU, UI_STATUS } from "./chrome/uiAtlas";
 import { playUiSound } from "./audio/uiAudio";
 
 export interface StartScreenProps {
@@ -17,6 +20,9 @@ export interface StartScreenProps {
   onStartNewGame: () => void;
   onStartWithoutSaving: () => void;
   onRetry: () => void;
+  graphicsQuality: GraphicsQualityPreference;
+  effectiveGraphicsQuality: QualityTier;
+  onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -41,11 +47,15 @@ const clamp = (value: number, min: number, max: number): number =>
 const titleCase = (value: string): string =>
   value.length > 0 ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 
-/**
- * A bare medium date could not tell two saves from the same day apart, which
- * is the case that matters most when deciding whether to continue. Recent
- * saves get a relative day plus the clock time.
- */
+type StartOptionsPage = "graphics" | "audio" | "interface" | "controls";
+
+const START_OPTIONS_PAGES: ReadonlyArray<{ id: StartOptionsPage; label: string }> = [
+  { id: "graphics", label: "Graphics" },
+  { id: "audio", label: "Audio" },
+  { id: "interface", label: "Interface" },
+  { id: "controls", label: "Controls" }
+];
+
 const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now()): string | null => {
   if (!Number.isFinite(savedAtUtcMs) || savedAtUtcMs <= 0) return null;
   try {
@@ -72,19 +82,26 @@ export const StartScreen: FC<StartScreenProps> = ({
   onStart,
   onStartNewGame,
   onStartWithoutSaving,
-  onRetry
+  onRetry,
+  graphicsQuality,
+  effectiveGraphicsQuality,
+  onGraphicsQualityChange
 }) => {
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [optionsPage, setOptionsPage] = useState<StartOptionsPage>("graphics");
   const [newGameConfirmationOpen, setNewGameConfirmationOpen] = useState(false);
+  const [withoutSavingConfirmationOpen, setWithoutSavingConfirmationOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenMessage, setFullscreenMessage] = useState<string | null>(null);
   const optionsCloseRef = useRef<HTMLButtonElement>(null);
   const newGameCancelRef = useRef<HTMLButtonElement>(null);
+  const withoutSavingCancelRef = useRef<HTMLButtonElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
 
   const isLoading = startup.status === "loading" || startup.status === "revealing";
   const isTitle = startup.status === "title";
   const isCheckingSave = isTitle && startup.saveStatus === "checking";
+  const hasMeasuredProgress = startup.totalAssets > 0;
   const loadedAssets = clamp(startup.loadedAssets, 0, Math.max(1, startup.totalAssets));
   const progressMax = Math.max(1, startup.totalAssets);
   const progressPercent = Math.max(0, Math.min(100, (loadedAssets / progressMax) * 100));
@@ -108,9 +125,14 @@ export const StartScreen: FC<StartScreenProps> = ({
   }, [newGameConfirmationOpen]);
 
   useEffect(() => {
+    if (withoutSavingConfirmationOpen) withoutSavingCancelRef.current?.focus();
+  }, [withoutSavingConfirmationOpen]);
+
+  useEffect(() => {
     if (startup.status !== "title") {
       setOptionsOpen(false);
       setNewGameConfirmationOpen(false);
+      setWithoutSavingConfirmationOpen(false);
     }
   }, [startup.status]);
 
@@ -133,6 +155,11 @@ export const StartScreen: FC<StartScreenProps> = ({
 
   const closeNewGameConfirmation = (): void => {
     setNewGameConfirmationOpen(false);
+    restoreFocus();
+  };
+
+  const closeWithoutSavingConfirmation = (): void => {
+    setWithoutSavingConfirmationOpen(false);
     restoreFocus();
   };
 
@@ -169,7 +196,7 @@ export const StartScreen: FC<StartScreenProps> = ({
         return;
       }
       if (typeof document.documentElement.requestFullscreen !== "function") {
-        setFullscreenMessage("Fullscreen is not available in this browser.");
+        setFullscreenMessage("Fullscreen is not available on this device.");
         return;
       }
       await document.documentElement.requestFullscreen();
@@ -189,7 +216,8 @@ export const StartScreen: FC<StartScreenProps> = ({
     if (startup.saveStatus === "available") {
       onStart();
     } else if (startup.saveStatus === "unavailable") {
-      onStartWithoutSaving();
+      rememberFocus();
+      setWithoutSavingConfirmationOpen(true);
     } else if (startup.saveStatus === "corrupt" || startup.saveStatus === "incompatible") {
       requestNewGame();
     } else {
@@ -198,16 +226,16 @@ export const StartScreen: FC<StartScreenProps> = ({
   };
 
   const primaryLabel = startup.status !== "title"
-    ? startup.status === "revealing" ? "Entering Neva Land…" : "Preparing Neva Land…"
+    ? startup.status === "revealing" ? "Entering the coast…" : "Preparing the coast…"
     : startup.saveStatus === "checking"
-      ? "Checking your harbor log…"
+      ? "Reading harbor log…"
       : startup.saveStatus === "available"
-        ? "Continue Neva Land"
+        ? "Continue"
         : startup.saveStatus === "corrupt" || startup.saveStatus === "incompatible"
           ? "Start a new game"
           : startup.saveStatus === "unavailable"
             ? "Continue without saving"
-            : "Enter Neva Land";
+            : "Begin";
 
   const primaryDisabled = isLoading || isCheckingSave;
   const showUtilities = startup.status === "title" || startup.status === "error";
@@ -249,7 +277,7 @@ export const StartScreen: FC<StartScreenProps> = ({
           <h1 id="start-screen-title">Neva Land</h1>
           <p className="start-screen__tagline">Grow a home. Follow the tide.</p>
           <p id="start-screen-description" className="start-screen__description">
-            A coastal life of soil, craft, and open water.
+            Soil, weather, and open water.
           </p>
         </div>
 
@@ -260,7 +288,8 @@ export const StartScreen: FC<StartScreenProps> = ({
             data-startup-error-code={startup.errorCode ?? undefined}
             data-startup-error-phase={startup.errorPhase ?? undefined}
           >
-            <ChromePanel className="start-screen__tray" tone="plaque" flourish corners>
+            <GameSheet className="start-screen__tray start-screen__recovery" tone="ghost">
+              <h2>The coast did not open</h2>
               <p className="start-screen__error" role="alert">
                 <span className="start-screen__icon-well" aria-hidden="true">
                   <AtlasImage src={UI_STATUS.warning} size={18} />
@@ -275,36 +304,46 @@ export const StartScreen: FC<StartScreenProps> = ({
               >
                 <span>Try again</span>
               </ChromeButton>
-            </ChromePanel>
+              {(startup.errorCode || startup.errorPhase) && (
+                <details className="start-screen__diagnostics">
+                  <summary>Diagnostics</summary>
+                  <span>Phase: {startup.errorPhase ?? "unknown"}</span>
+                  <span>Code: {startup.errorCode ?? "startup-failed"}</span>
+                  {startup.errorDetail && (
+                    <span className="start-screen__diagnostic-detail">{startup.errorDetail}</span>
+                  )}
+                </details>
+              )}
+            </GameSheet>
           </div>
         ) : (
           <div className="start-screen__state">
-            <ChromePanel className="start-screen__tray" tone="plaque" flourish corners>
+            <GameSheet className="start-screen__tray" tone="ghost">
               {isLoading ? (
                 <div className="start-screen__loading" aria-live="polite">
                   <div className="start-screen__progress-heading">
                     <span className="start-screen__progress-label">
-                      <span className="start-screen__icon-well" aria-hidden="true">
-                        <AtlasImage src={UI_WORLD.boat} size={18} />
-                      </span>
                       {startup.message}
                     </span>
-                    <span className="start-screen__progress-count">
-                      {startup.loadedAssets} / {startup.totalAssets}
-                    </span>
+                    {hasMeasuredProgress && (
+                      <span className="start-screen__progress-count">
+                        {startup.loadedAssets} / {startup.totalAssets}
+                      </span>
+                    )}
                   </div>
-                  <div className="start-screen__meter">
+                  <div className={`start-screen__meter${hasMeasuredProgress ? "" : " is-indeterminate"}`}>
                     <span
                       className="start-screen__meter-fill"
-                      style={{ width: `${progressPercent}%` }}
+                      style={hasMeasuredProgress ? { width: `${progressPercent}%` } : undefined}
                       aria-hidden="true"
                     />
                     <progress
                       className="start-screen__progress"
                       data-testid="startup-progress"
-                      value={loadedAssets}
+                      value={hasMeasuredProgress ? loadedAssets : undefined}
                       max={progressMax}
                       aria-label="Preparing the Neva Land world"
+                      aria-valuetext={hasMeasuredProgress ? `${startup.loadedAssets} of ${startup.totalAssets}` : "Starting"}
                     />
                   </div>
                 </div>
@@ -314,7 +353,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 </p>
               ) : isTitle && startup.saveStatus === "incompatible" ? (
                 <p className="start-screen__save-warning" role="status">
-                  This harbor log belongs to an older development world layout. Start a new game to enter the current world.
+                  This harbor log cannot open on the present coast. Start a new game to begin again.
                 </p>
               ) : isTitle && startup.saveStatus === "unavailable" ? (
                 <p className="start-screen__save-warning" role="status">
@@ -326,55 +365,53 @@ export const StartScreen: FC<StartScreenProps> = ({
                 </p>
               ) : null}
 
-              {/* Harbor Log Save Summary Card */}
               {isTitle && startup.saveStatus === "available" && startup.saveSummary && (
                 <div className="start-screen__save-scroll-card" aria-label="Existing save summary">
                   <div className="save-scroll-header">
                     <AtlasImage src={UI_MENU.journal} size={20} alt="" />
-                    <strong>Harbor Log Record</strong>
+                    <strong>Current harbor log</strong>
                   </div>
                   <div className="save-scroll-details">
-                    <span>Day {startup.saveSummary.dayCount} of {titleCase(startup.saveSummary.season)}</span>
+                    {/* dayCount is the absolute day since the save began; the day *within*
+                        the season is what "Day N of Spring" claims to show. */}
+                    <span>Day {dayOfSeason(startup.saveSummary.dayCount)} of {titleCase(startup.saveSummary.season)}</span>
                     <span className="save-scroll-sep">·</span>
                     <span>{REGION_LABELS[startup.saveSummary.regionId] ?? "The coast"}</span>
-                    {/* Own row: the inline separator dangled at the end of the
-                        first line once the summary wrapped. */}
                     {savedDate && <span className="save-scroll-date">Saved {savedDate}</span>}
                   </div>
                 </div>
               )}
 
-              <div
-                className={`start-screen__actions start-screen__menu${isLoading ? " start-screen__actions--busy" : ""}`}
-              >
-                <ChromeButton
-                  variant="gold"
-                  className="start-screen__button"
-                  data-testid="startup-start-button"
-                  soundCue="confirm"
-                  onClick={primaryAction}
-                  disabled={primaryDisabled}
-                >
-                  <span>{primaryLabel}</span>
-                </ChromeButton>
-
-                {isTitle && startup.saveStatus === "available" && (
+              {isTitle && (
+                <div className="start-screen__actions start-screen__menu">
                   <ChromeButton
-                    variant="secondary"
-                    className="start-screen__secondary-button"
-                    data-testid="startup-new-game-button"
-                    onClick={requestNewGame}
+                    variant="gold"
+                    className="start-screen__button"
+                    data-testid="startup-start-button"
+                    soundCue="confirm"
+                    onClick={primaryAction}
+                    disabled={primaryDisabled}
                   >
-                    Start a new game
+                    <span>{primaryLabel}</span>
                   </ChromeButton>
-                )}
-              </div>
-            </ChromePanel>
+
+                  {startup.saveStatus === "available" && (
+                    <ChromeButton
+                      variant="secondary"
+                      className="start-screen__secondary-button"
+                      data-testid="startup-new-game-button"
+                      onClick={requestNewGame}
+                    >
+                      Start a new game
+                    </ChromeButton>
+                  )}
+                </div>
+              )}
+            </GameSheet>
           </div>
         )}
       </div>
 
-      {/* Options Dialog */}
       {optionsOpen && (
         <div
           className="start-screen__dialog-backdrop"
@@ -382,23 +419,18 @@ export const StartScreen: FC<StartScreenProps> = ({
             if (event.target === event.currentTarget) closeOptions();
           }}
         >
-          <ChromePanel
+          <GameSheet
             as="section"
             id="start-screen-options"
             className="start-screen__dialog start-screen__options"
-            tone="plaque"
-            flourish
-            corners
+            tone="scroll"
             role="dialog"
             aria-modal="true"
             aria-labelledby="start-screen-options-title"
             onKeyDown={(event) => trapDialogFocus(event, closeOptions)}
           >
             <div className="start-screen__dialog-header">
-              <div>
-                <span className="start-screen__dialog-kicker">Neva Land</span>
-                <h2 id="start-screen-options-title">Options</h2>
-              </div>
+              <h2 id="start-screen-options-title">Settings</h2>
               <ChromeClose
                 ref={optionsCloseRef}
                 className="start-screen__dialog-close"
@@ -408,40 +440,53 @@ export const StartScreen: FC<StartScreenProps> = ({
               />
             </div>
 
-            <div className="start-screen__options-body">
-              <AudioControls />
-
-              <section className="start-screen__options-section" aria-labelledby="start-screen-display-title">
-                <h3 id="start-screen-display-title">Display</h3>
-                <ChromeButton
-                  className="start-screen__option-button"
-                  data-testid="startup-fullscreen-button"
-                  onClick={() => void toggleFullscreen()}
-                >
-                  {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                </ChromeButton>
-                <p className="start-screen__option-note">
-                  Reduced motion follows your device preference.
-                </p>
-                {fullscreenMessage && (
-                  <p className="start-screen__option-message" role="status">
-                    {fullscreenMessage}
-                  </p>
+            <div className="start-screen__options-layout">
+              <nav className="start-screen__options-pages" aria-label="Settings pages">
+                {START_OPTIONS_PAGES.map((entry) => (
+                  <button
+                    type="button"
+                    key={entry.id}
+                    className={optionsPage === entry.id ? "is-active" : ""}
+                    aria-current={optionsPage === entry.id ? "page" : undefined}
+                    onClick={() => setOptionsPage(entry.id)}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </nav>
+              <div className="start-screen__options-body">
+                {optionsPage === "graphics" && (
+                  <div className="start-screen__options-section">
+                    <GraphicsControls
+                      preference={graphicsQuality}
+                      effectiveTier={effectiveGraphicsQuality}
+                      onChange={onGraphicsQualityChange}
+                    />
+                    <ChromeButton
+                      className="start-screen__option-button"
+                      data-testid="startup-fullscreen-button"
+                      onClick={() => void toggleFullscreen()}
+                    >
+                      {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                    </ChromeButton>
+                    <p className="start-screen__option-note">Reduced motion follows your device setting.</p>
+                    {fullscreenMessage && <p className="start-screen__option-message" role="status">{fullscreenMessage}</p>}
+                  </div>
                 )}
-              </section>
-
-              <InterfaceSettings />
-
-              <section className="start-screen__options-section" aria-labelledby="start-screen-controls-title">
-                <h3 id="start-screen-controls-title">Controls</h3>
-                <ControlsReference className="start-screen__controls" />
-              </section>
+                {optionsPage === "audio" && <AudioControls />}
+                {optionsPage === "interface" && <InterfaceSettings />}
+                {optionsPage === "controls" && (
+                  <section className="start-screen__options-section" aria-labelledby="start-screen-controls-title">
+                    <h3 id="start-screen-controls-title">Controls</h3>
+                    <ControlsReference className="start-screen__controls" />
+                  </section>
+                )}
+              </div>
             </div>
-          </ChromePanel>
+          </GameSheet>
         </div>
       )}
 
-      {/* New Game Confirmation Dialog */}
       {newGameConfirmationOpen && (
         <div
           className="start-screen__dialog-backdrop"
@@ -449,12 +494,10 @@ export const StartScreen: FC<StartScreenProps> = ({
             if (event.target === event.currentTarget) closeNewGameConfirmation();
           }}
         >
-          <ChromePanel
+          <GameSheet
             as="section"
             className="start-screen__dialog start-screen__new-game-dialog"
-            tone="plaque"
-            flourish
-            corners
+            tone="scroll"
             role="dialog"
             aria-modal="true"
             aria-labelledby="start-screen-new-game-title"
@@ -462,10 +505,7 @@ export const StartScreen: FC<StartScreenProps> = ({
             onKeyDown={(event) => trapDialogFocus(event, closeNewGameConfirmation)}
           >
             <div className="start-screen__dialog-header">
-              <div>
-                <span className="start-screen__dialog-kicker">A fresh beginning</span>
-                <h2 id="start-screen-new-game-title">Start a new game?</h2>
-              </div>
+              <h2 id="start-screen-new-game-title">Replace this harbor log?</h2>
               <ChromeClose
                 className="start-screen__dialog-close"
                 label="Keep current game"
@@ -474,10 +514,10 @@ export const StartScreen: FC<StartScreenProps> = ({
             </div>
             <p id="start-screen-new-game-description" className="start-screen__dialog-copy">
               {startup.saveStatus === "available"
-                ? "Your current harbor log will be replaced by the new game. Nothing changes until you confirm."
-                : startup.saveStatus === "incompatible"
-                  ? "This harbor log belongs to an older development world layout and will stay untouched until you confirm a fresh game."
-                : "The old harbor log will remain untouched until the new world is ready. Start fresh?"}
+                ? `Day ${startup.saveSummary?.dayCount ?? "—"} at ${REGION_LABELS[startup.saveSummary?.regionId ?? ""] ?? "the coast"} will be replaced once the new world is ready.`
+                : startup.saveStatus === "incompatible" || startup.saveStatus === "corrupt"
+                  ? "The unreadable harbor log will remain untouched until you confirm. A new game will replace it once the coast is ready."
+                  : "The existing harbor log remains untouched until you confirm. A new game will replace it once the coast is ready."}
             </p>
             <div className="start-screen__dialog-actions">
               <ChromeButton
@@ -501,11 +541,52 @@ export const StartScreen: FC<StartScreenProps> = ({
                 Start a new game
               </ChromeButton>
             </div>
-          </ChromePanel>
+          </GameSheet>
         </div>
       )}
 
-      <p className="start-screen__footer">A slower kind of adventure</p>
+      {withoutSavingConfirmationOpen && (
+        <div
+          className="start-screen__dialog-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeWithoutSavingConfirmation();
+          }}
+        >
+          <GameSheet
+            as="section"
+            className="start-screen__dialog start-screen__new-game-dialog"
+            tone="scroll"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="start-screen-no-save-title"
+            aria-describedby="start-screen-no-save-description"
+            onKeyDown={(event) => trapDialogFocus(event, closeWithoutSavingConfirmation)}
+          >
+            <div className="start-screen__dialog-header">
+              <h2 id="start-screen-no-save-title">Continue without saving?</h2>
+              <ChromeClose label="Return to title" onClick={closeWithoutSavingConfirmation} />
+            </div>
+            <p id="start-screen-no-save-description" className="start-screen__dialog-copy">
+              Save storage is unavailable. Progress from this session will be lost when you leave or reload.
+            </p>
+            <div className="start-screen__dialog-actions">
+              <ChromeButton ref={withoutSavingCancelRef} onClick={closeWithoutSavingConfirmation}>
+                Return to title
+              </ChromeButton>
+              <ChromeButton
+                variant="danger"
+                soundCue="confirm"
+                onClick={() => {
+                  setWithoutSavingConfirmationOpen(false);
+                  onStartWithoutSaving();
+                }}
+              >
+                Continue without saving
+              </ChromeButton>
+            </div>
+          </GameSheet>
+        </div>
+      )}
     </main>
   );
 };

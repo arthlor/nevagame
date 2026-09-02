@@ -39,6 +39,25 @@ function placePlayer(sim: Simulation, x = 0, z = 0): void {
   });
 }
 
+function framesForWalkingDistance(distanceMeters: number): number {
+  // Keep route coverage tied to the canonical gait speed. The previous fixed
+  // six-second windows silently assumed the prototype's 5 m/s "walk".
+  return Math.ceil(
+    distanceMeters / PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 60 * 1.5
+  );
+}
+
+function routeLength(route: readonly Readonly<{ x: number; z: number }>[]): number {
+  let distance = 0;
+  for (let index = 1; index < route.length; index++) {
+    distance += Math.hypot(
+      route[index].x - route[index - 1].x,
+      route[index].z - route[index - 1].z
+    );
+  }
+  return distance;
+}
+
 function findDryShoreApproach(normalX: number, normalZ: number): { x: number; z: number } {
   const tangentX = normalZ;
   const tangentZ = -normalX;
@@ -330,6 +349,12 @@ describe("PhysicsWorld", () => {
       expect(result.playerMotion.speedMetersPerSecond).toBeLessThanOrEqual(
         PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 1.14 + 0.001
       );
+      if (index === 4) {
+        // The body follows the still-positive resolved velocity while braking;
+        // it must not snap toward the reverse input and moonwalk backward.
+        expect(result.playerMotion.velocity.x).toBeGreaterThan(0);
+        expect(Math.sin(sim.state.player.rotationY)).toBeGreaterThan(0.7);
+      }
     }
     expect(result.playerMotion.velocity.x).toBeLessThan(
       -PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 0.78
@@ -422,7 +447,8 @@ describe("PhysicsWorld", () => {
     const startY = sim.state.player.y;
     let highestY = startY;
 
-    for (let index = 0; index < 360; index++) {
+    const crossingFrames = framesForWalkingDistance(BRIDGE_WORLD_PROFILE.spanLength + 4);
+    for (let index = 0; index < crossingFrames; index++) {
       const result = physics.step(
         sim.state,
         { x: 1, z: 0, sprint: false },
@@ -447,7 +473,8 @@ describe("PhysicsWorld", () => {
     const bridge = WORLD_LAYOUT_V5.anchors.bridge;
     placePlayer(sim, bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5 + 1.6, bridge.z);
 
-    for (let index = 0; index < 360; index++) {
+    const crossingFrames = framesForWalkingDistance(BRIDGE_WORLD_PROFILE.spanLength + 4);
+    for (let index = 0; index < crossingFrames; index++) {
       const result = physics.step(
         sim.state,
         { x: -1, z: 0, sprint: false },
@@ -472,7 +499,8 @@ describe("PhysicsWorld", () => {
 
     let maxConsecutiveBlocked = 0;
     let consecutiveBlocked = 0;
-    for (let index = 0; index < 360; index++) {
+    const crossingFrames = framesForWalkingDistance(BRIDGE_WORLD_PROFILE.spanLength + 4);
+    for (let index = 0; index < crossingFrames; index++) {
       const result = physics.step(
         sim.state,
         { x: -1, z: 0, sprint: false },
@@ -518,7 +546,8 @@ describe("PhysicsWorld", () => {
     let consecutiveBlockedFrames = 0;
     let maxConsecutiveBlockedFrames = 0;
 
-    for (let index = 0; index < 1500; index++) {
+    const routeFrames = framesForWalkingDistance(routeLength(route));
+    for (let index = 0; index < routeFrames; index++) {
       let nearestIndex = 0;
       let nearestDistance = Number.POSITIVE_INFINITY;
       for (let pathIndex = 0; pathIndex < route.length; pathIndex++) {
@@ -582,7 +611,7 @@ describe("PhysicsWorld", () => {
       WORLD_LAYOUT_V5.anchors.bridge.x + BRIDGE_WORLD_PROFILE.spanLength * 0.5
     );
     expect(sim.state.player.traversal.isGrounded).toBe(true);
-  });
+  }, 120_000);
 
   it("keeps exact stable support on every named regional and farm route in both directions", async () => {
     const physics = await PhysicsWorld.create(

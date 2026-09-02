@@ -11,7 +11,7 @@ catalog entry. Missing isolated files named by catalog `repo://` URIs fail
 closed. Rows marked historical/unmapped are retained as graphics references and
 must not be passed to the current generator or runtime.
 
-This directory supports the Blender procedural generators in `tools/blender/`. Generation still goes through the catalog CLI (`npm run art:generate -- --asset <id>`), not polyfork import or a one-off GLB.
+This directory supports the Blender procedural generators in `tools/blender/`. Generation still goes through the catalog CLI (`npm run art:generate -- --asset <id>`), not a one-off GLB.
 
 ---
 
@@ -65,3 +65,12 @@ backgrounds, faceted planar geometry, and calibrated lighting:
    Player Character (Front, 3/4, Profile, Back) with straw hat and backpack.
 10. **`farm_animals_isolated_*.jpg`** — Multi-angle model sheets for Dairy Cow,
     Hens, and Farm Dog with facet shading and polygon callouts.
+
+## 2. NPC Chibi Storybook Proportion Study
+
+`../../output/imagegen/npc-chibi-storybook-turnaround.png` is the current
+generated technical study for the catalog NPC family. Use its front,
+three-quarter, side, rear, back, top, and close-up panels as a proportion,
+silhouette, material-block, and socket/readability bar when extending
+`npc_character`. It is an original style study, not a runtime asset, texture
+source, or instruction to copy a named game's character.

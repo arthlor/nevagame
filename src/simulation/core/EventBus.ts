@@ -8,7 +8,6 @@ import {
   CropStage,
   FarmId,
   FishCargoId,
-  FishCatchQuality,
   FishQuality,
   FishSchoolId,
   FishSpeciesId,
@@ -18,31 +17,38 @@ import {
   PlacedCropId,
   RecipeId,
   RodId,
+  SeasonId,
   SkillId,
   WeatherTag
 } from "./types";
+import type { FishingEcologyId } from "../../world/WorldIslands";
 
 export interface DomainEvents {
   CropPlanted: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; minute: GameMinute };
   CropWatered: { placedCropId: PlacedCropId; farmId: FarmId; newMoisture: number; minute: GameMinute };
   CropStageChanged: { placedCropId: PlacedCropId; cropId: CropId; stage: CropStage; minute: GameMinute };
   CropHarvested: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; quantity: number; quality: CropQuality; xpGained: number; minute: GameMinute };
+  FarmFertilized: { farmId: FarmId; newFertility: number; minute: GameMinute };
+  IrrigationInstalled: { farmId: FarmId; featureId: string; cost: number; minute: GameMinute };
+  FarmIrrigated: { farmId: FarmId; cropCount: number; minute: GameMinute };
   SeedPurchased: { marketId: MarketId; itemId: ItemId; quantity: number; cost: number; minute: GameMinute };
   RecipeStarted: { jobId: string; recipeId: RecipeId; minute: GameMinute };
   RecipeCompleted: { jobId: string; recipeId: RecipeId; stationId: string; minute: GameMinute };
-  FishSchoolSpawned: { schoolId: FishSchoolId; x: number; z: number; species: FishSpeciesId[]; minute: GameMinute };
-  FishSchoolChummed: { schoolId: FishSchoolId; habitatId: string; frenzyMinutes: number; minute: GameMinute };
-  FishHooked: { speciesId: FishSpeciesId; habitatId: string; weightKg: number; minute: GameMinute };
-  FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; boatId?: BoatId; weightKg: number; quality: FishQuality; minute: GameMinute };
+  FishSchoolSpawned: { schoolId: FishSchoolId; ecologyId: FishingEcologyId; x: number; z: number; species: FishSpeciesId[]; minute: GameMinute };
+  FishSchoolChummed: { schoolId: FishSchoolId; ecologyId: FishingEcologyId; habitatId: string; frenzyMinutes: number; minute: GameMinute };
+  FishHooked: { speciesId: FishSpeciesId; ecologyId: FishingEcologyId; habitatId: string; weightKg: number; minute: GameMinute };
+  FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; ecologyId: FishingEcologyId; boatId?: BoatId; weightKg: number; quality: FishQuality; minute: GameMinute };
   FishEscaped: { speciesId: FishSpeciesId; reason: "escaped" | "snapped" | "no-cargo-space"; minute: GameMinute };
-  BasicFishingStarted: { habitatId: string; castPower: number; minute: GameMinute };
-  BasicFishingBiteAlert: { habitatId: string; speciesId: FishSpeciesId; minute: GameMinute };
-  BasicFishingMinigameStarted: { habitatId: string; speciesId: FishSpeciesId; hasTreasure: boolean; minute: GameMinute };
+  BasicFishingStarted: { ecologyId: FishingEcologyId; habitatId: string; castPower: number; minute: GameMinute };
+  BasicFishingBiteAlert: { ecologyId: FishingEcologyId; habitatId: string; speciesId: FishSpeciesId; minute: GameMinute };
+  BasicFishingMinigameStarted: { ecologyId: FishingEcologyId; habitatId: string; speciesId: FishSpeciesId; hasTreasure: boolean; minute: GameMinute };
   BasicFishingTreasureCaught: { lootItemIds: ItemId[]; minute: GameMinute };
   BasicFishingResolved: {
+    ecologyId: FishingEcologyId;
     habitatId: string;
+    boatId?: BoatId;
     catchItemId?: ItemId;
-    quality?: FishCatchQuality;
+    quality?: FishQuality;
     isPerfect?: boolean;
     hasTreasure?: boolean;
     treasureLootItemIds?: ItemId[];
@@ -53,7 +59,7 @@ export interface DomainEvents {
   CargoUnloaded: { cargoId: FishCargoId; minute: GameMinute };
   BoatBoarded: { boatId: BoatId; minute: GameMinute };
   BoatDisembarked: { boatId: BoatId; minute: GameMinute };
-  BoatDocked: { boatId: BoatId; minute: GameMinute };
+  BoatDocked: { boatId: BoatId; marketId: MarketId; minute: GameMinute };
   MountBoarded: { mountId: string; minute: GameMinute };
   MountDisembarked: { mountId: string; minute: GameMinute };
   BoatPurchased: { boatId: BoatId; boatTypeId: string; cost: number; minute: GameMinute };
@@ -64,8 +70,14 @@ export interface DomainEvents {
   FishSold: { marketId: MarketId; cargoId: FishCargoId; speciesId: FishSpeciesId; revenue: number; minute: GameMinute };
   MarketTicked: { marketId: MarketId; minute: GameMinute };
   WeatherChanged: { weather: WeatherTag; minute: GameMinute };
+  /**
+   * The calendar turned over. Emitted once per crossing, from
+   * `applyElapsedGameMinutes`, so a long offline catch-up reports the season
+   * it landed in rather than every season it swept through.
+   */
+  SeasonChanged: { season: SeasonId; previousSeason: SeasonId; year: number; minute: GameMinute };
   ProficiencyLeveledUp: { skill: SkillId; newRank: string; totalXp: number; minute: GameMinute };
-  ContractCompleted: { contractId: ContractId; rewardMoney: number; minute: GameMinute };
+  ContractCompleted: { contractId: ContractId; templateId: string; contractType: string; rewardMoney: number; minute: GameMinute };
   NpcTalked: { npcId: string; minute: GameMinute };
   QuestStarted: { questId: string; actId: string; minute: GameMinute };
   QuestProgressed: { questId: string; stepId: string; current: number; total: number; minute: GameMinute };

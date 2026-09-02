@@ -1,9 +1,10 @@
 // src/content/quests.ts
 
 import type { QuestDefinition } from "../simulation/core/QuestTypes";
-import { HARBOR_DOCK, HARBOR_SILAS_ANCHOR, VILLAGE_MARKET } from "../world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
+import { SUNREACH_ANCHORS } from "../world/WorldIslands";
 
 const STARTER_FARM_ANCHOR = { x: -65, z: -55, name: "Starter Farm Field" } as const;
 const STARTER_MILL = starterStructureAnchor("struct.starter_mill")!;
@@ -13,6 +14,9 @@ const BRIDGE = WorldLayout.landmark("bridge");
 const VILLAGE_MARKET_ANCHOR = { ...VILLAGE_MARKET.position, name: "Village Produce Stall" } as const;
 const HARBOR_MARKET = WorldLayout.landmark("fish-market");
 const LAKE_SCHOOL_ANCHOR = { x: 18, z: WorldLayout.coastlineZ(18) + 12, name: "Lake Sport-Fishing School" } as const;
+const SUNREACH_COVE = { ...SUNREACH_ANCHORS.coveMarket, name: "Sunreach Cove" } as const;
+const SUNREACH_TERRACES = { ...SUNREACH_ANCHORS.terraceFarm, name: "Sunreach Terraces" } as const;
+const SUNREACH_REEF = { x: 586, z: 184, name: "Sunreach Reef Edge" } as const;
 
 export const QUESTS: QuestDefinition[] = [
   // ==========================================
@@ -53,7 +57,7 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.act1_sow_wheat",
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
-    questTitle: "Sowing the First Seeds",
+    questTitle: "Sowing the First Furrows",
     speakerId: "npc.elspeth",
     introDialogue: [
       "Walk onto the prepared field soil. Select the Wheat Seeds and click a clear spot to place them.",
@@ -147,7 +151,8 @@ export const QUESTS: QuestDefinition[] = [
     ],
     rewards: {
       items: [{ itemId: "item.bait_worms", quantity: 6 }],
-      skillXp: [{ skill: "farming", xp: 200 }, { skill: "processing", xp: 150 }]
+      skillXp: [{ skill: "farming", xp: 200 }, { skill: "processing", xp: 150 }],
+      unlocksKnowledgeIds: ["knowledge.worm_composting"]
     },
     nextQuestId: "quest.act2_mill_and_craft_chum"
   },
@@ -189,7 +194,8 @@ export const QUESTS: QuestDefinition[] = [
     rewards: {
       money: 50,
       items: [{ itemId: "item.bait_worms", quantity: 4 }],
-      skillXp: [{ skill: "processing", xp: 350 }]
+      skillXp: [{ skill: "processing", xp: 350 }],
+      unlocksKnowledgeIds: ["knowledge.wheat_milling"]
     },
     nextQuestId: "quest.act3_river_angler"
   },
@@ -313,8 +319,12 @@ export const QUESTS: QuestDefinition[] = [
         locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Southeast Harbor Pier" }
       }
     ],
+    turnInCost: {
+      money: 30,
+      items: [{ itemId: "item.ground_grain", quantity: 1 }]
+    },
     rewards: {
-      unlocksFeature: "boat.player_rowboat",
+      unlocksFeatureIds: ["boat.player_rowboat"],
       skillXp: [{ skill: "fishing", xp: 350 }]
     },
     nextQuestId: "quest.act5_maiden_voyage"
@@ -412,7 +422,257 @@ export const QUESTS: QuestDefinition[] = [
         { skill: "trading", xp: 600 },
         { skill: "farming", xp: 400 }
       ],
-      unlocksFeature: "feature.expedition_planner"
-    }
+      unlocksFeatureIds: ["feature.expedition_planner"]
+    },
+    nextQuestId: "quest.act6_harbor_promise"
+  },
+
+  // ==========================================
+  // ACT 6: STEWARDSHIP
+  // ==========================================
+  {
+    id: "quest.act6_harbor_promise",
+    actId: "act6_stewardship",
+    actTitle: "Act 6: Stewardship",
+    questTitle: "A Promise Made at the Board",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "The board is more than a price list. Pick an order you can honestly finish before its deadline, then bring it to the market that posted it.",
+      "A steady farm delivery is sound work. A fish order can pay more, but the water, tackle, cargo room, and clock all have a say."
+    ],
+    completionDialogue: [
+      "You chose a promise and kept it. That is how the cove learns it can rely on you.",
+      "Take this payment—and these clean scraps. Barnaby has an idea for putting both to work back at the homestead."
+    ],
+    objectives: [
+      {
+        id: "step.act6_complete_contract",
+        type: "complete-contract",
+        description: "Complete a feasible Expedition Board contract before its deadline",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Expedition Board" }
+      }
+    ],
+    rewards: {
+      money: 150,
+      items: [{ itemId: "item.fish_scraps", quantity: 3 }],
+      skillXp: [{ skill: "trading", xp: 450 }]
+    },
+    nextQuestId: "quest.act6_field_pump"
+  },
+  {
+    id: "quest.act6_field_pump",
+    actId: "act6_stewardship",
+    actTitle: "Act 6: Stewardship",
+    questTitle: "Water Where It Matters",
+    speakerId: "npc.barnaby",
+    introDialogue: [
+      "Maeve's payment is enough for the field-pump parts. Install them at the starter-farm well, then run the pump while the crops need water.",
+      "It will not grow anything for you. It will turn one careful watering job into a field decision."
+    ],
+    completionDialogue: [
+      "Hear that steady rhythm? You bought back time, not responsibility.",
+      "Now bring those fish scraps to the harbor cleaning table. The sea can feed the soil as surely as the field feeds the harbor."
+    ],
+    objectives: [
+      {
+        id: "step.act6_install_irrigation",
+        type: "install-irrigation",
+        description: "Install the field pump at the Starter Farm well",
+        targetId: "feature.irrigation_zone",
+        targetQuantity: 1,
+        locationAnchor: STARTER_FARM_ANCHOR,
+        location: { kind: "farm", id: "farm.starter_garden" }
+      },
+      {
+        id: "step.act6_irrigate_farm",
+        type: "irrigate-farm",
+        description: "Use the field pump to irrigate the Starter Farm",
+        targetId: "farm.starter_garden",
+        targetQuantity: 1,
+        locationAnchor: STARTER_FARM_ANCHOR,
+        location: { kind: "farm", id: "farm.starter_garden" }
+      }
+    ],
+    rewards: {
+      skillXp: [{ skill: "farming", xp: 550 }]
+    },
+    nextQuestId: "quest.act6_land_sea_cycle"
+  },
+  {
+    id: "quest.act6_land_sea_cycle",
+    actId: "act6_stewardship",
+    actTitle: "Act 6: Stewardship",
+    questTitle: "The Land-Sea Cycle",
+    speakerId: "npc.barnaby",
+    introDialogue: [
+      "Use Maeve's scraps at the harbor fish table to make fertilizer. Then carry it home and work it into the starter field.",
+      "Waste from one livelihood becomes preparation for the next. That is the quiet machinery of Neva Cove."
+    ],
+    completionDialogue: [
+      "There it is: field to bait, bait to fish, fish back to field. You are no longer following the cove's cycle—you are tending it.",
+      "I've written the method in your journal. Use it whenever the soil needs another season."
+    ],
+    objectives: [
+      {
+        id: "step.act6_craft_fertilizer",
+        type: "craft-recipe",
+        description: "Make fertilizer from Fish Scraps at the Harbor Fish Table",
+        targetId: "recipe.fish_to_fertilizer",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_FISH_TABLE.position.x, z: HARBOR_FISH_TABLE.position.z, name: "Harbor Fish Table" },
+        location: { kind: "station", id: "struct.harbor_fish_table" }
+      },
+      {
+        id: "step.act6_fertilize_farm",
+        type: "apply-fertilizer",
+        description: "Fertilize the Starter Farm soil",
+        targetId: "farm.starter_garden",
+        targetQuantity: 1,
+        locationAnchor: STARTER_FARM_ANCHOR,
+        location: { kind: "farm", id: "farm.starter_garden" }
+      }
+    ],
+    rewards: {
+      skillXp: [{ skill: "farming", xp: 650 }, { skill: "processing", xp: 450 }],
+      unlocksKnowledgeIds: ["knowledge.land_sea_cycle"]
+    },
+    nextQuestId: "quest.act7_open_channel"
+  },
+
+  {
+    id: "quest.act7_open_channel",
+    actId: "act7_sunreach",
+    actTitle: "Act 7: Sunreach",
+    questTitle: "Across the Open Channel",
+    speakerId: "npc.tomas",
+    introDialogue: [
+      "Sunreach lies beyond the open channel. A rowboat cannot hold its line in that swell; take the Coastal Fishing Skiff.",
+      "Follow the buoyed water east, enter the sheltered cove, and bring the skiff onto our mooring. Tomas keeps the market there."
+    ],
+    completionDialogue: [
+      "You read the channel cleanly. Welcome to Sunreach—warm stone, dry terraces, and a reef that rewards preparation."
+    ],
+    objectives: [
+      {
+        id: "step.act7_own_skiff",
+        type: "purchase-upgrade",
+        description: "Own the Coastal Fishing Skiff",
+        targetId: "boat.skiff",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_SKIFF_MOORING.playerPosition.x, z: HARBOR_SKIFF_MOORING.playerPosition.z, name: "Harbor Skiff Mooring" }
+      },
+      {
+        id: "step.act7_board_skiff",
+        type: "board-boat",
+        description: "Board the Coastal Fishing Skiff",
+        targetId: "boat.player_skiff",
+        targetQuantity: 1,
+        location: { kind: "boat", id: "boat.player_skiff" }
+      },
+      {
+        id: "step.act7_dock_sunreach",
+        type: "dock-boat",
+        description: "Cross the channel and dock at Sunreach Cove",
+        targetId: "boat.player_skiff",
+        targetQuantity: 1,
+        locationAnchor: { x: SUNREACH_ANCHORS.dockBoat.x, z: SUNREACH_ANCHORS.dockBoat.z, name: "Sunreach Cove Mooring" },
+        location: { kind: "market", id: "market.sunreach_cove" }
+      },
+      {
+        id: "step.act7_meet_tomas",
+        type: "talk-npc",
+        description: "Speak with Tomas at the cove market",
+        targetId: "npc.tomas",
+        targetQuantity: 1,
+        locationAnchor: SUNREACH_COVE
+      }
+    ],
+    rewards: {
+      items: [{ itemId: "seed.sunflower", quantity: 6 }],
+      skillXp: [{ skill: "trading", xp: 500 }, { skill: "fishing", xp: 500 }]
+    },
+    nextQuestId: "quest.act7_terraces_for_the_sun"
+  },
+  {
+    id: "quest.act7_terraces_for_the_sun",
+    actId: "act7_sunreach",
+    actTitle: "Act 7: Sunreach",
+    questTitle: "Terraces for the Sun",
+    speakerId: "npc.ines",
+    introDialogue: [
+      "These terraces hold warmth and lose water quickly. Plant three sunflowers, water them with care, and bring one head to harvest."
+    ],
+    completionDialogue: [
+      "The terraces answered you. Sunreach asks for attention, not excess water."
+    ],
+    objectives: [
+      { id: "step.act7_meet_ines", type: "talk-npc", description: "Meet Ines at the terraces", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES },
+      { id: "step.act7_plant_sunflowers", type: "plant-crop", description: "Plant 3 Sunflowers on the terraces", targetId: "crop.sunflower", targetQuantity: 3, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } },
+      { id: "step.act7_water_sunflowers", type: "water-crop", description: "Water the 3 Sunflowers", targetQuantity: 3, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } },
+      { id: "step.act7_harvest_sunflower", type: "harvest-crop", description: "Harvest a mature Sunflower", targetId: "crop.sunflower", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } }
+    ],
+    rewards: { items: [{ itemId: "seed.olive_sapling", quantity: 1 }], skillXp: [{ skill: "farming", xp: 800 }] },
+    nextQuestId: "quest.act7_seed_for_the_sea"
+  },
+  {
+    id: "quest.act7_seed_for_the_sea",
+    actId: "act7_sunreach",
+    actTitle: "Act 7: Sunreach",
+    questTitle: "Seed for the Sea",
+    speakerId: "npc.tomas",
+    introDialogue: [
+      "The sunflower head carries more than the next crop. Mill its seed into grain, then mix that grain into chum at the cove workbench."
+    ],
+    completionDialogue: [
+      "Field work has become reef preparation. That is the Sunreach way."
+    ],
+    objectives: [
+      { id: "step.act7_mill_sunflower", type: "craft-recipe", description: "Mill Sunflower Seed into Ground Grain", targetId: "recipe.sunflower_to_grain", targetQuantity: 1, locationAnchor: { x: 444, z: 21, name: "Sunreach Hand Mill" }, location: { kind: "station", id: "struct.sunreach_hand_mill" } },
+      { id: "step.act7_craft_sunreach_chum", type: "craft-recipe", description: "Craft Chum at the Sunreach Workbench", targetId: "recipe.craft_chum", targetQuantity: 1, locationAnchor: { x: 466, z: 17, name: "Sunreach Workbench" }, location: { kind: "station", id: "struct.sunreach_workbench" } }
+    ],
+    rewards: { items: [{ itemId: "item.bait_worms", quantity: 6 }], skillXp: [{ skill: "processing", xp: 700 }] },
+    nextQuestId: "quest.act7_reef_answer"
+  },
+  {
+    id: "quest.act7_reef_answer",
+    actId: "act7_sunreach",
+    actTitle: "Act 7: Sunreach",
+    questTitle: "The Reef's Answer",
+    speakerId: "npc.tomas",
+    introDialogue: [
+      "Cast that chum where the reef shelf drops away. A golden sea bream from these waters belongs in the skiff hold, then on my cove scales while it is fresh."
+    ],
+    completionDialogue: [
+      "Fresh, local, and landed with room to spare. The reef has answered your preparation."
+    ],
+    objectives: [
+      { id: "step.act7_chum_sunreach", type: "chum-school", description: "Chum a Sunreach fish school", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
+      { id: "step.act7_land_bream", type: "catch-basic-fish", description: "Land a Golden Sea Bream from Sunreach waters", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
+      { id: "step.act7_stow_bream", type: "catch-basic-fish", description: "Stow that Sea Bream aboard your skiff", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "boat", id: "boat.player_skiff" } },
+      { id: "step.act7_sell_bream", type: "sell-fish", description: "Sell the fresh Sea Bream at Sunreach Cove", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_COVE, location: { kind: "market", id: "market.sunreach_cove" } }
+    ],
+    rewards: { money: 240, skillXp: [{ skill: "fishing", xp: 900 }, { skill: "trading", xp: 500 }] },
+    nextQuestId: "quest.act7_land_sea_cycle"
+  },
+  {
+    id: "quest.act7_land_sea_cycle",
+    actId: "act7_sunreach",
+    actTitle: "Act 7: Sunreach",
+    questTitle: "The Sunreach Land-Sea Cycle",
+    speakerId: "npc.ines",
+    introDialogue: [
+      "Bring one cove sardine to the fish table, clean it into scraps, and return those nutrients to the terrace soil."
+    ],
+    completionDialogue: [
+      "Now the cove feeds the terrace, and the terrace prepares the next voyage. You understand Sunreach as one living route."
+    ],
+    objectives: [
+      { id: "step.act7_catch_sardine", type: "catch-basic-fish", description: "Catch a Sunreach Sardine in the cove", targetId: "fish.sardine", targetQuantity: 1, locationAnchor: SUNREACH_COVE, location: { kind: "ecology", id: "ecology.sunreach" } },
+      { id: "step.act7_clean_sardine", type: "craft-recipe", description: "Clean the Sardine into Fish Scraps", targetId: "recipe.sardine_to_scraps", targetQuantity: 1, locationAnchor: { x: 382, z: 61, name: "Sunreach Fish Table" }, location: { kind: "station", id: "struct.sunreach_fish_table" } },
+      { id: "step.act7_fertilize_terraces", type: "apply-fertilizer", description: "Fertilize the Sunreach Terraces", targetId: "farm.sunreach_terraces", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } },
+      { id: "step.act7_report_ines", type: "talk-npc", description: "Report back to Ines", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES }
+    ],
+    rewards: { money: 300, skillXp: [{ skill: "farming", xp: 900 }, { skill: "processing", xp: 650 }] }
   }
 ];

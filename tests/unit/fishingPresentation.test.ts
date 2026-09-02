@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import {
   createSportFishingPresentationSample,
@@ -5,11 +6,14 @@ import {
 } from "../../src/render/fishing/FishingPresentation";
 import { createFishingDynamics } from "../../src/simulation/fishing/FishingTuning";
 import type { FishingEncounterState } from "../../src/simulation/core/types";
+import { FishingRodBend } from "../../src/render/fishing/FishingRodBend";
 
 function encounter(overrides: Partial<FishingEncounterState> = {}): FishingEncounterState {
   return {
     fish: { instanceId: "fish.test", speciesId: "fish.trout", weightKg: 2, quality: "common" },
     rodId: "rod.willow",
+    tackleSnapshot: { lureItemId: null },
+    seaConditionSnapshot: { weatherType: "clear", seaRoughness: 0 },
     stamina: 40,
     maxStamina: 80,
     distanceMeters: 18,
@@ -31,6 +35,36 @@ function encounter(overrides: Partial<FishingEncounterState> = {}): FishingEncou
 }
 
 describe("sport fishing presentation", () => {
+  it("aims an authored rod line exit at the fish independently of its parent transform", () => {
+    const parent = new THREE.Group();
+    parent.position.set(4, 1, -3);
+    parent.rotation.set(0.2, -0.7, 0.1);
+    const rod = new THREE.Group();
+    parent.add(rod);
+    for (const [name, position] of [
+      ["rod_primary_grip", [0, 0, 0]],
+      ["rod_secondary_grip", [0.03, 0.18, 0.08]],
+      ["rod_line_exit", [0, 2.2, 0]],
+      ["rod_reel_spool", [0, 0.15, 0.08]]
+    ] as const) {
+      const marker = new THREE.Object3D();
+      marker.name = name;
+      marker.position.set(position[0], position[1], position[2]);
+      rod.add(marker);
+    }
+    const blank = new THREE.Mesh(new THREE.BoxGeometry(0.02, 2.2, 0.02));
+    blank.position.y = 1.1;
+    rod.add(blank);
+    parent.updateMatrixWorld(true);
+    const presentation = new FishingRodBend(rod);
+    const endpoint = new THREE.Vector3(13, -0.5, 8);
+    presentation.aimToward(endpoint, 1 / 60);
+    const grip = rod.getObjectByName("rod_primary_grip")!.getWorldPosition(new THREE.Vector3());
+    const tip = presentation.getTipWorld(new THREE.Vector3());
+    expect(tip.clone().sub(grip).normalize().dot(endpoint.clone().sub(grip).normalize())).toBeCloseTo(1, 5);
+    presentation.dispose();
+  });
+
   it("maps fish distance and direction without changing the authoritative encounter", () => {
     const state = encounter({ fishDirection: 1, behavior: "run-right" });
     const result = sampleSportFishingPresentation(

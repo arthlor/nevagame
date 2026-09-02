@@ -1,6 +1,7 @@
 // src/simulation/domains/QuestDomain.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
+import type { NpcDefinition } from "../../content/npcs";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
@@ -13,11 +14,60 @@ import type {
   QuestObjectiveType
 } from "../core/QuestTypes";
 import type { InteractionResult } from "../core/contracts";
+import type { GameState } from "../core/types";
 import { distance2d } from "./DomainContext";
 
 const NPC_TALK_RADIUS = 3.5;
 
 type ObjectiveEventLocation = QuestLocationRequirement;
+
+/**
+ * Content-chain reconciliation for saves that reached the former epilogue.
+ * It activates newly appended authored content without replaying any reward.
+ */
+export function reconcileInactiveQuestChain(state: GameState): boolean {
+  if (state.quests.activeQuestId !== null) return false;
+  const completed = new Set(state.quests.completedQuestIds);
+  for (let index = state.quests.completedQuestIds.length - 1; index >= 0; index -= 1) {
+    const completedQuest = ContentRegistry.quests.get(state.quests.completedQuestIds[index]);
+    const nextQuest = completedQuest?.nextQuestId
+      ? ContentRegistry.quests.get(completedQuest.nextQuestId)
+      : undefined;
+    if (!nextQuest || completed.has(nextQuest.id)) continue;
+    state.quests.activeActId = nextQuest.actId;
+    state.quests.activeQuestId = nextQuest.id;
+    state.quests.activeStepIndex = 0;
+    state.quests.stepProgress = {};
+    reconcileSatisfiedQuestObjectives(state);
+    return true;
+  }
+  return false;
+}
+
+export function reconcileSatisfiedQuestObjectives(state: GameState): boolean {
+  const quest = state.quests.activeQuestId
+    ? ContentRegistry.quests.get(state.quests.activeQuestId)
+    : undefined;
+  if (!quest) return false;
+  let changed = false;
+  while (state.quests.activeStepIndex < quest.objectives.length) {
+    const objective = quest.objectives[state.quests.activeStepIndex];
+    if (!objective?.targetId) break;
+    const alreadySatisfied =
+      (objective.type === "install-irrigation" && state.quests.unlockedFeatureIds.includes(objective.targetId))
+      || (objective.type === "purchase-upgrade" && (
+        state.quests.unlockedFeatureIds.includes(objective.targetId)
+        || Object.values(state.boats).some((boat) => boat.id === objective.targetId || boat.boatTypeId === objective.targetId)
+      ));
+    if (!alreadySatisfied) break;
+    state.quests.stepProgress[objective.id] = objective.targetQuantity;
+    changed = true;
+    if (state.quests.activeStepIndex >= quest.objectives.length - 1) break;
+    state.quests.activeStepIndex += 1;
+    state.quests.stepProgress = {};
+  }
+  return changed;
+}
 
 export class QuestDomain {
   private unsubscribeEvents: Array<() => void> = [];
@@ -40,11 +90,22 @@ export class QuestDomain {
       events.on("BasicFishingResolved", (e) => {
         if (e.catchItemId && e.reason !== "missed" && e.reason !== "escaped" && e.reason !== "cancelled") {
           this.onObjectiveEvent("catch-basic-fish", e.catchItemId, 1, { kind: "habitat", id: e.habitatId });
+          this.onObjectiveEvent("catch-basic-fish", e.catchItemId, 1, { kind: "ecology", id: e.ecologyId });
+          if (e.boatId) {
+            this.onObjectiveEvent("catch-basic-fish", e.catchItemId, 1, { kind: "boat", id: e.boatId });
+          }
         }
       }),
-      events.on("FishSchoolChummed", (e) => this.onObjectiveEvent("chum-school", undefined, 1, { kind: "habitat", id: e.habitatId })),
-      events.on("FishHooked", (e) => this.onObjectiveEvent("hook-sport-fish", e.speciesId, 1, { kind: "habitat", id: e.habitatId })),
+      events.on("FishSchoolChummed", (e) => {
+        this.onObjectiveEvent("chum-school", undefined, 1, { kind: "habitat", id: e.habitatId });
+        this.onObjectiveEvent("chum-school", undefined, 1, { kind: "ecology", id: e.ecologyId });
+      }),
+      events.on("FishHooked", (e) => {
+        this.onObjectiveEvent("hook-sport-fish", e.speciesId, 1, { kind: "habitat", id: e.habitatId });
+        this.onObjectiveEvent("hook-sport-fish", e.speciesId, 1, { kind: "ecology", id: e.ecologyId });
+      }),
       events.on("FishLanded", (e) => {
+        this.onObjectiveEvent("land-sport-fish", e.speciesId, 1, { kind: "ecology", id: e.ecologyId });
         this.onObjectiveEvent(
           "land-sport-fish",
           e.speciesId,
@@ -59,11 +120,30 @@ export class QuestDomain {
       }),
       events.on("CargoLoaded", (e) => this.onObjectiveEvent("stow-cargo", undefined, 1, { kind: "boat", id: e.boatId })),
       events.on("BoatBoarded", (e) => this.onObjectiveEvent("board-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),
-      events.on("BoatDocked", (e) => this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),
+      events.on("BoatDocked", (e) => {
+        this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "boat", id: e.boatId });
+        this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "market", id: e.marketId });
+      }),
       events.on("ItemSold", (e) => this.onObjectiveEvent("sell-item", e.itemId, e.quantity, { kind: "market", id: e.marketId })),
       events.on("FishSold", (e) => this.onObjectiveEvent("sell-fish", e.speciesId, 1, { kind: "market", id: e.marketId })),
+      events.on("ContractCompleted", (e) => this.onObjectiveEvent("complete-contract", e.templateId, 1)),
+      events.on("FarmFertilized", (e) => this.onObjectiveEvent("apply-fertilizer", e.farmId, 1, { kind: "farm", id: e.farmId })),
+      events.on("IrrigationInstalled", (e) => this.onObjectiveEvent("install-irrigation", e.featureId, 1, { kind: "farm", id: e.farmId })),
+      events.on("FarmIrrigated", (e) => this.onObjectiveEvent("irrigate-farm", e.farmId, 1, { kind: "farm", id: e.farmId })),
+      events.on("RodPurchased", (e) => this.onPurchaseUpgrade([e.rodId])),
+      events.on("BoatPurchased", (e) => this.onPurchaseUpgrade([e.boatTypeId, e.boatId])),
       events.on("NpcTalked", (e) => this.onObjectiveEvent("talk-npc", e.npcId, 1))
     );
+  }
+
+  private onPurchaseUpgrade(targetIds: string[]): void {
+    const objective = this.getActiveQuest()?.objectives[this.context.state.quests.activeStepIndex];
+    if (!objective || objective.type !== "purchase-upgrade") return;
+    const targetId = objective.targetId
+      ? targetIds.find((candidate) => candidate === objective.targetId)
+      : targetIds[0];
+    if (!targetId) return;
+    this.onObjectiveEvent("purchase-upgrade", targetId, 1);
   }
 
   public dispose(): void {
@@ -93,7 +173,8 @@ export class QuestDomain {
     const isLastStep = stepIndex === quest.objectives.length - 1
       || quests.activeStepIndex >= quest.objectives.length;
     const awaitingTurnIn = isLastStep && isStepComplete;
-    const isQuestReadyToTurnIn = awaitingTurnIn && this.canPayQuestTurnIn(quest).success;
+    const turnIn = awaitingTurnIn ? this.canPayQuestTurnIn(quest) : null;
+    const isQuestReadyToTurnIn = Boolean(awaitingTurnIn && turnIn?.success);
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
     const speakerName = speaker?.name ?? "Townsperson";
@@ -108,14 +189,19 @@ export class QuestDomain {
       currentStepIndex: stepIndex + 1,
       totalSteps: quest.objectives.length,
       objectiveDescription: awaitingTurnIn
-        ? `Talk to ${speakerName} to continue`
+        ? turnIn?.success
+          ? `Talk to ${speakerName} to continue`
+          : turnIn?.reason ?? "Prepare what this errand still needs"
         : objective.description,
       currentProgress,
       targetQuantity: objective.targetQuantity,
       isStepComplete,
       isQuestReadyToTurnIn,
+      turnInBlockerReason: awaitingTurnIn && !turnIn?.success ? turnIn?.reason : undefined,
       targetLocation: awaitingTurnIn && speaker
-        ? { x: speaker.anchor.x, z: speaker.anchor.z, name: speaker.anchor.locationName }
+        ? turnIn?.success
+          ? { x: speaker.anchor.x, z: speaker.anchor.z, name: speaker.anchor.locationName }
+          : undefined
         : objective.locationAnchor,
       rewards: quest.rewards
     };
@@ -198,28 +284,33 @@ export class QuestDomain {
       return { success: false, reason: `Move closer to ${npc.name} to talk` };
     }
 
-    if (activeQuest?.id === "quest.act4_restore_rowboat" && activeQuest.speakerId === npcId) {
-      const turnIn = this.canPayQuestTurnIn(activeQuest);
-      if (!turnIn.success) return turnIn;
-    }
-
-    events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
+    const intro = (): {
+      success: true;
+      dialogue: string[];
+      isCompletion: false;
+    } => ({
+      success: true,
+      dialogue: activeQuest?.introDialogue ?? npc.idleDialogue,
+      isCompletion: false
+    });
 
     // 1. Is active quest ready to complete and talking to the speaker?
     if (activeQuest && activeQuest.speakerId === npcId) {
       const currentStep = activeQuest.objectives[state.quests.activeStepIndex];
       const isLastStep = state.quests.activeStepIndex === activeQuest.objectives.length - 1;
       const progress = currentStep ? (state.quests.stepProgress[currentStep.id] ?? 0) : 0;
-      const isCurrentStepDone = currentStep ? progress >= currentStep.targetQuantity : true;
+      const wasStepDone = currentStep ? progress >= currentStep.targetQuantity : true;
 
-      if (isLastStep && isCurrentStepDone) {
+      if (isLastStep && wasStepDone) {
+        const turnIn = this.canPayQuestTurnIn(activeQuest);
+        if (!turnIn.success) return intro();
+
+        events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
         const completionDialogue = activeQuest.completionDialogue.length > 0
           ? activeQuest.completionDialogue
           : ["Thank you! Here is your reward."];
-
         const completion = this.completeQuest(activeQuest.id, npcId);
         if (!completion.success) return completion;
-
         return {
           success: true,
           dialogue: completionDialogue,
@@ -229,20 +320,28 @@ export class QuestDomain {
         };
       }
 
-      // Initial greeting / active instruction
-      return {
-        success: true,
-        dialogue: activeQuest.introDialogue,
-        isCompletion: false
-      };
+      events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
+      return intro();
     }
+
+    events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
 
     // 2. Idle dialogue when not on an active quest with this NPC
     return {
       success: true,
-      dialogue: npc.idleDialogue,
+      dialogue: this.getMilestoneDialogue(npc),
       isCompletion: false
     };
+  }
+
+  private getMilestoneDialogue(npc: NpcDefinition): string[] {
+    const { state } = this.context;
+    const matching = npc.recognitionDialogue?.filter((entry) =>
+      (entry.requiresCompletedQuestIds ?? []).every((id) => state.quests.completedQuestIds.includes(id)) &&
+      (entry.requiresFeatureIds ?? []).every((id) => state.quests.unlockedFeatureIds.includes(id)) &&
+      (entry.requiresKnowledgeIds ?? []).every((id) => state.journal.unlockedKnowledge.includes(id))
+    );
+    return matching?.at(-1)?.lines ?? npc.idleDialogue;
   }
 
   public completeQuest(questId: QuestId, turnInNpcId?: NpcId): InteractionResult {
@@ -278,8 +377,15 @@ export class QuestDomain {
     if (!turnIn.success) return turnIn;
 
     const inventory = state.inventories[state.player.inventoryId];
-    if (quest.rewards.items && !InventoryManager.canAddItems(inventory, quest.rewards.items)) {
-      return { success: false, reason: "Your backpack is full for this reward" };
+    const costItems = quest.turnInCost?.items ?? [];
+    const rewardItems = quest.rewards.items ?? [];
+    const canFitRewards = rewardItems.length === 0 || (
+      costItems.length > 0
+        ? InventoryManager.canAddItemsAfterRemoving(inventory, costItems, rewardItems)
+        : InventoryManager.canAddItems(inventory, rewardItems)
+    );
+    if (!canFitRewards) {
+      return { success: false, reason: "The satchel has no room for this reward" };
     }
 
     this.consumeQuestTurnIn(quest);
@@ -289,6 +395,11 @@ export class QuestDomain {
 
     state.quests.completedQuestIds.push(questId);
 
+    // Commit the entire quest-state transition before publishing events so
+    // persistence and presentation listeners can only observe a coherent
+    // completed/current-quest pair.
+    const transition = this.advanceToNextQuest(quest);
+
     events.emit("QuestCompleted", {
       questId: quest.id,
       actId: quest.actId,
@@ -296,8 +407,19 @@ export class QuestDomain {
       minute: state.clock.currentMinute
     });
 
-    // Advance to next quest
-    this.advanceToNextQuest(quest);
+    if (transition.completedActId) {
+      events.emit("ActCompleted", {
+        actId: transition.completedActId,
+        minute: state.clock.currentMinute
+      });
+    }
+    if (transition.nextQuest) {
+      events.emit("QuestStarted", {
+        questId: transition.nextQuest.id,
+        actId: transition.nextQuest.actId,
+        minute: state.clock.currentMinute
+      });
+    }
 
     return {
       success: true,
@@ -326,19 +448,27 @@ export class QuestDomain {
       }
     }
 
-    // Feature / Journal Unlocks
-    if (quest.rewards.unlocksFeature) {
-      if (!state.quests.unlockedFeatureIds.includes(quest.rewards.unlocksFeature)) {
-        state.quests.unlockedFeatureIds.push(quest.rewards.unlocksFeature);
+    for (const featureId of quest.rewards.unlocksFeatureIds ?? []) {
+      if (!state.quests.unlockedFeatureIds.includes(featureId)) {
+        state.quests.unlockedFeatureIds.push(featureId);
       }
-      if (!state.journal.unlockedKnowledge.includes(quest.rewards.unlocksFeature)) {
-        state.journal.unlockedKnowledge.push(quest.rewards.unlocksFeature);
-      }
+    }
+    for (const knowledgeId of quest.rewards.unlocksKnowledgeIds ?? []) {
+      const resolved = ContentRegistry.knowledge.has(knowledgeId)
+        ? knowledgeId
+        : ContentRegistry.knowledge.has(`knowledge.${knowledgeId}`)
+          ? `knowledge.${knowledgeId}`
+          : null;
+      if (!resolved || state.journal.unlockedKnowledge.includes(resolved)) continue;
+      state.journal.unlockedKnowledge.push(resolved);
     }
   }
 
-  private advanceToNextQuest(completedQuest: QuestDefinition): void {
-    const { state, events } = this.context;
+  private advanceToNextQuest(completedQuest: QuestDefinition): {
+    completedActId?: string;
+    nextQuest?: QuestDefinition;
+  } {
+    const { state } = this.context;
     const nextQuest = completedQuest.nextQuestId
       ? ContentRegistry.quests.get(completedQuest.nextQuestId)
       : undefined;
@@ -350,43 +480,46 @@ export class QuestDomain {
       state.quests.activeQuestId = nextQuest.id;
       state.quests.activeStepIndex = 0;
       state.quests.stepProgress = {};
+      reconcileSatisfiedQuestObjectives(state);
 
-      if (isNewAct) {
-        events.emit("ActCompleted", { actId: completedQuest.actId, minute: state.clock.currentMinute });
-      }
-
-      events.emit("QuestStarted", {
-        questId: nextQuest.id,
-        actId: nextQuest.actId,
-        minute: state.clock.currentMinute
-      });
-    } else {
-      // All story quests completed -> Epilogue
-      state.quests.activeActId = "epilogue_open";
-      state.quests.activeQuestId = null;
-      state.quests.activeStepIndex = 0;
-      state.quests.stepProgress = {};
-      events.emit("ActCompleted", { actId: completedQuest.actId, minute: state.clock.currentMinute });
+      return {
+        completedActId: isNewAct ? completedQuest.actId : undefined,
+        nextQuest
+      };
     }
+
+    // All story quests completed -> Epilogue
+    state.quests.activeActId = "epilogue_open";
+    state.quests.activeQuestId = null;
+    state.quests.activeStepIndex = 0;
+    state.quests.stepProgress = {};
+    return { completedActId: completedQuest.actId };
   }
 
   private canPayQuestTurnIn(quest: QuestDefinition): { success: boolean; reason?: string } {
-    if (quest.id !== "quest.act4_restore_rowboat") return { success: true };
     const { state } = this.context;
-    if (state.player.money < 30) return { success: false, reason: "You need 30 G for the harbor permit" };
+    const money = quest.turnInCost?.money ?? 0;
+    if (state.player.money < money) return { success: false, reason: `You need ${money} G to finish this quest` };
+    const items = quest.turnInCost?.items ?? [];
+    if (items.length === 0) return { success: true };
     const inventory = state.inventories[state.player.inventoryId];
-    if (!InventoryManager.hasItems(inventory, [{ itemId: "item.ground_grain", quantity: 1 }])) {
-      return { success: false, reason: "Bring 1 Ground Grain for the rowboat grease" };
+    if (!InventoryManager.hasItems(inventory, items)) {
+      const requirement = items.map(({ itemId, quantity }) => {
+        const name = ContentRegistry.items.get(itemId)?.name ?? itemId;
+        return `${quantity} ${name}`;
+      }).join(", ");
+      return { success: false, reason: `Bring ${requirement} to finish this quest` };
     }
     return { success: true };
   }
 
   private consumeQuestTurnIn(quest: QuestDefinition): void {
-    if (quest.id !== "quest.act4_restore_rowboat") return;
     const { state } = this.context;
-    const inventory = state.inventories[state.player.inventoryId];
-    InventoryManager.removeItemsAtomically(inventory, [{ itemId: "item.ground_grain", quantity: 1 }]);
-    state.player.money -= 30;
+    const items = quest.turnInCost?.items ?? [];
+    if (items.length > 0) {
+      InventoryManager.removeItemsAtomically(state.inventories[state.player.inventoryId], items);
+    }
+    state.player.money -= quest.turnInCost?.money ?? 0;
   }
 
 

@@ -187,7 +187,7 @@ def stylized_fish(spec: dict, root) -> None:
     height = girth * body_depth
     is_trout = species == "trout"
     is_billfish = species in {"swordfish", "blue_marlin"}
-    is_pelagic = species in {"tuna", "sailfish", "swordfish", "blue_marlin"}
+    is_pelagic = species in {"tuna", "amberjack", "sailfish", "swordfish", "blue_marlin"}
     _add_profiled_body(species, params, dorsal, belly, root)
 
     jaw_length = {
@@ -237,6 +237,9 @@ def stylized_fish(spec: dict, root) -> None:
         "sailfish": 1.12,
         "swordfish": 1.22,
         "blue_marlin": 1.28,
+        "sardine": 0.82,
+        "sea_bream": 0.92,
+        "amberjack": 1.02,
     }[species]
     tail_length = length * (0.23 if is_trout or species == "catfish" else 0.28)
     add_tri_prism(
@@ -267,6 +270,9 @@ def stylized_fish(spec: dict, root) -> None:
         "sailfish": 2.35,
         "swordfish": 0.78,
         "blue_marlin": 1.05,
+        "sardine": 0.52,
+        "sea_bream": 0.74,
+        "amberjack": 0.78,
     }[species] * params["finScale"]
     add_tri_prism(
         f"{species}_dorsal_fin",

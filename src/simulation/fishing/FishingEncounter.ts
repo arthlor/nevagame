@@ -4,8 +4,8 @@ import { SeededRng, type Rng } from "../core/Rng";
 import type { FishBehaviorProfile, RodDefinition } from "../../content/types";
 import {
   FISHING_TUNING as T, FISH_BEHAVIOR_EFFORT, createFishingDynamics,
-  fishingEndpoint, fishingAngleDelta, fishingBehaviorReadout,
-  clampFishing as clamp, approachFishing as approach
+  fishingEndpoint, fishingAngleDelta, fishingBehaviorReadout, fishingDepthBounds,
+  FISHING_STEER_INPUT_MAX, clampFishing as clamp, approachFishing as approach
 } from "./FishingTuning";
 
 const TAU = Math.PI * 2;
@@ -31,7 +31,14 @@ export class FishingEncounter {
   private weightScale: number;
   private inertia: number;
 
-  constructor(fish: FishInstance, rodId: string, rng: Rng, startDistanceMeters = 30, water?: FishingWaterConstraint) {
+  constructor(
+    fish: FishInstance,
+    rodId: string,
+    rng: Rng,
+    startDistanceMeters = 30,
+    water?: FishingWaterConstraint,
+    snapshot?: Pick<FishingEncounterState, "tackleSnapshot" | "seaConditionSnapshot">
+  ) {
     const species = ContentRegistry.fishSpecies.get(fish.speciesId);
     if (!species) throw new Error(`Unknown species ID ${fish.speciesId}`);
     const profile = ContentRegistry.fishBehaviors.get(species.behaviorProfileId);
@@ -44,7 +51,10 @@ export class FishingEncounter {
     this.inertia = clamp((profile.inertia ?? 0.35) + (this.weightScale - 1) * 0.08, 0.08, 1.1);
     const maxStamina = profile.baseStamina * Math.pow(this.weightScale, 0.75);
     this.state = {
-      fish, rodId, stamina: maxStamina, maxStamina, distanceMeters: startDistanceMeters,
+      fish, rodId,
+      tackleSnapshot: snapshot?.tackleSnapshot ?? { lureItemId: null },
+      seaConditionSnapshot: snapshot?.seaConditionSnapshot ?? { weatherType: "clear", seaRoughness: 0 },
+      stamina: maxStamina, maxStamina, distanceMeters: startDistanceMeters,
       lineTension: 35, lineIntegrity: 100, fishDirection: 0,
       behavior: "rest", behaviorUntilSeconds: 2.4, elapsedSeconds: 0,
       rodDirectionAngle: 0, isReeling: false, isSlacking: false, isBracing: false,
@@ -67,6 +77,8 @@ export class FishingEncounter {
     encounter.water = water;
     encounter.weightScale = clamp(state.fish.weightKg / Math.max(0.1, species.weightKg.average), 0.35, 2.5);
     encounter.inertia = clamp((profile.inertia ?? 0.35) + (encounter.weightScale - 1) * 0.08, 0.08, 1.1);
+    state.tackleSnapshot ??= { lureItemId: null };
+    state.seaConditionSnapshot ??= { weatherType: "clear", seaRoughness: 0 };
     // Backfill any dynamics field a pre-rebuild save predates (rodLoad, fishSpeed,
     // shake oscillator, landReadySeconds) while keeping every persisted value.
     state.dynamics = {
@@ -77,11 +89,6 @@ export class FishingEncounter {
       ...(state.dynamics ?? {})
     };
     encounter.rng = new SeededRng(1, state.dynamics.rngState);
-    // A fight saved already sitting in the landing window resolves on resume
-    // rather than forcing the player to re-earn the sustained hold.
-    if (encounter.landingWindowOpen()) {
-      state.dynamics.landReadySeconds = Math.max(state.dynamics.landReadySeconds, T.landReadySeconds);
-    }
     encounter.pendingLand = encounter.canLand();
     return encounter;
   }
@@ -108,7 +115,11 @@ export class FishingEncounter {
     this.state.isSlacking = input.isSlacking;
     this.state.isReeling = input.isReeling && !input.isSlacking;
     this.state.isBracing = input.isBracing;
-    this.state.rodDirectionAngle = clamp(input.rodDirectionAngle, -1, 1);
+    this.state.rodDirectionAngle = clamp(
+      input.rodDirectionAngle,
+      -FISHING_STEER_INPUT_MAX,
+      FISHING_STEER_INPUT_MAX
+    );
   }
 
   public tick(deltaSeconds: number): FishingEncounterState["result"] {
@@ -192,8 +203,11 @@ export class FishingEncounter {
     m.shakePhase = (m.shakePhase + (p.shakeHz ?? 2.7) * TAU * dt) % TAU;
     const shakeWave = Math.sin(m.shakePhase) * m.shakeAmplitude;
     const shakeLoad = 1 + shakeWave * 0.2;
+    const seaPressure = 1 + clamp(s.seaConditionSnapshot.seaRoughness, 0, 1) * T.roughSeaDriveScale;
+    const lureForgiveness = s.tackleSnapshot.lureItemId ? T.preparedLureDriveMultiplier : 1;
     const drive = m.effort * (p.burstStrength * 0.065 + p.directionalForce * 0.025)
-      * p.tensionSensitivity * Math.pow(this.weightScale, 0.25) * (1 - counter * 0.22) * shakeLoad;
+      * p.tensionSensitivity * Math.pow(this.weightScale, 0.25) * (1 - counter * 0.22)
+      * shakeLoad * seaPressure * lureForgiveness;
     const tensionRatio = s.lineTension / 100;
     const resistance = tensionRatio * this.rod.reelPower * T.resistancePerPower
       * (s.isBracing ? 1 + (p.pumpResistance ?? 1) * 0.34 : 1)
@@ -248,9 +262,12 @@ export class FishingEncounter {
       : s.behavior === "surface" ? 0.18 - Math.sin(progress * Math.PI) * (p.surfaceLeapMeters ?? 0.7) * phaseEnvelope
       : 0.2 + this.inertia * 0.62;
     m.verticalVelocity = approach(m.verticalVelocity, clamp((depthTarget - m.depthMeters) * 5, -2, 2), 7 * dt);
-    m.depthMeters = clamp(m.depthMeters + m.verticalVelocity * dt,
-      -Math.min(p.surfaceLeapMeters ?? 0.9, s.distanceMeters * 0.6),
-      Math.min(Math.max(4, p.diveDepthMeters ?? 4), s.distanceMeters * 0.6));
+    const depthBounds = fishingDepthBounds(p, s.distanceMeters);
+    m.depthMeters = clamp(
+      m.depthMeters + m.verticalVelocity * dt,
+      depthBounds.minimum,
+      depthBounds.maximum
+    );
     const nextPoint = fishingEndpoint(s);
     if (this.water && !this.waterPathIsClear(nextPoint)) {
       // Slide along the bank if turning is possible; otherwise allow inward retrieval.
@@ -292,7 +309,9 @@ export class FishingEncounter {
       ? T.restRecoveryPerSecond : 0;
     s.stamina = clamp(s.stamina + (recoveryStamina - fatigue) * dt, 0, s.maxStamina);
     const excess = Math.max(0, s.lineTension - this.rod.maxSafeTension);
-    const shakeBite = m.shakeAmplitude * Math.abs(shakeWave) * T.shakeDamageScale;
+    const shakeBite = m.shakeAmplitude * Math.abs(shakeWave) * T.shakeDamageScale
+      * (s.isBracing ? T.bracedShakeDamageMultiplier : 1)
+      * (s.tackleSnapshot.lureItemId ? T.preparedLureShakeDamageMultiplier : 1);
     s.lineIntegrity = Math.max(0, s.lineIntegrity - (excess * T.overloadDamageRate + shakeBite) * dt);
     s.snapTimerSeconds = s.lineTension >= 99 ? s.snapTimerSeconds + dt : Math.max(0, s.snapTimerSeconds - dt * 2);
     s.slackTimerSeconds = s.lineTension <= T.slackTension ? s.slackTimerSeconds + dt : Math.max(0, s.slackTimerSeconds - dt * 2);

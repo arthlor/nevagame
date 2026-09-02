@@ -7,10 +7,26 @@ import {
   calculateHarvestYield,
   applyCropMoistureOverMinutes,
   advancePlacedCropGrowth,
-  calculateCropHealth
+  calculateCropHealth,
+  POST_MATURE_MATURE_MINUTES,
+  POST_MATURE_WITHER_MINUTES
 } from "../../src/simulation/farming/calculateCropGrowth";
 import { CROPS } from "../../src/content/crops";
 import { SeededRng } from "../../src/simulation/core/Rng";
+import type { FarmEnvironmentSample } from "../../src/simulation/farming/FarmEnvironmentSample";
+
+const environment = (weatherType: "clear" | "storm"): FarmEnvironmentSample => ({
+  farmId: "farm.test",
+  islandId: "island.neva",
+  biomeId: "biome.neva_temperate",
+  climateId: "temperate",
+  weatherType,
+  temperatureC: 20,
+  rainfallEffectiveness: 1,
+  evaporationMultiplier: 1,
+  exposure: 0,
+  moistureRetention: 0
+});
 
 describe("Crop Growth & Quality Calculations", () => {
   const wheat = CROPS["crop.wheat"];
@@ -44,21 +60,36 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(stormGrowth).toBeGreaterThan(clearGrowth);
 
     const crop = { moisture: 40, averageMoistureAccum: 0, moistureSampleCount: 0 };
-    applyCropMoistureOverMinutes(crop, 60, wheat.waterNeed, "storm");
+    applyCropMoistureOverMinutes(crop, 60, wheat.waterNeed, environment("storm"));
     expect(crop.moisture).toBeGreaterThan(40);
   });
 
   it("determines correct lifecycle stages", () => {
-    expect(determineCropStage(5, 60)).toBe("seeded");
-    expect(determineCropStage(15, 60)).toBe("sprout");
-    expect(determineCropStage(45, 60)).toBe("growing");
-    expect(determineCropStage(65, 60)).toBe("mature");
-    expect(determineCropStage(85, 60)).toBe("overripe");
-    expect(determineCropStage(105, 60)).toBe("withered");
-    expect(determineCropStage(105, 60, false)).toBe("withered");
+    const base = 60;
+    expect(determineCropStage(5, base)).toBe("seeded");
+    expect(determineCropStage(15, base)).toBe("sprout");
+    expect(determineCropStage(45, base)).toBe("growing");
+    expect(determineCropStage(65, base)).toBe("mature");
+    expect(determineCropStage(base + POST_MATURE_MATURE_MINUTES - 1, base)).toBe("mature");
+    expect(determineCropStage(base + POST_MATURE_MATURE_MINUTES, base)).toBe("overripe");
+    expect(determineCropStage(base + POST_MATURE_WITHER_MINUTES - 1, base)).toBe("overripe");
+    expect(determineCropStage(base + POST_MATURE_WITHER_MINUTES, base)).toBe("withered");
+    expect(determineCropStage(base + POST_MATURE_WITHER_MINUTES, base, false)).toBe("withered");
     const apple = CROPS["crop.apple_tree"];
-    expect(determineCropStage(apple.baseGrowthMinutes * 1.7, apple.baseGrowthMinutes, true)).toBe("overripe");
-    expect(determineCropStage(apple.baseGrowthMinutes * 1.7, apple.baseGrowthMinutes, apple.regrows)).toBe("overripe");
+    expect(
+      determineCropStage(
+        apple.baseGrowthMinutes + POST_MATURE_MATURE_MINUTES + 10,
+        apple.baseGrowthMinutes,
+        true
+      )
+    ).toBe("overripe");
+    expect(
+      determineCropStage(
+        apple.baseGrowthMinutes + POST_MATURE_MATURE_MINUTES + 10,
+        apple.baseGrowthMinutes,
+        apple.regrows
+      )
+    ).toBe("overripe");
   });
 
   it("computes quality deterministically with RNG", () => {
@@ -103,7 +134,7 @@ describe("Crop Growth & Quality Calculations", () => {
 
   it("advances moisture and its quality samples without minute-by-minute iteration", () => {
     const crop = { moisture: 70, averageMoistureAccum: 70, moistureSampleCount: 1 };
-    applyCropMoistureOverMinutes(crop, 72 * 60, wheat.waterNeed, "clear");
+    applyCropMoistureOverMinutes(crop, 72 * 60, wheat.waterNeed, environment("clear"));
     expect(crop.moisture).toBe(0);
     expect(crop.moistureSampleCount).toBe(1 + 72 * 60);
     expect(crop.averageMoistureAccum).toBeGreaterThan(70);
@@ -118,17 +149,17 @@ describe("Crop Growth & Quality Calculations", () => {
       moistureSampleCount: 0,
       stage: "seeded"
     };
-    advancePlacedCropGrowth(dryCrop, wheat, "temperate", 50, "clear", 60);
+    advancePlacedCropGrowth(dryCrop, wheat, environment("clear"), 50, 60);
     expect(dryCrop.health).toBeLessThan(100);
     expect(dryCrop.health).toBeGreaterThanOrEqual(0);
 
     const witheredCrop: Parameters<typeof advancePlacedCropGrowth>[0] = {
       ...dryCrop,
-      effectiveGrowthMinutes: wheat.baseGrowthMinutes * 1.7,
+      effectiveGrowthMinutes: wheat.baseGrowthMinutes + POST_MATURE_WITHER_MINUTES,
       health: 42,
       stage: "mature"
     };
-    advancePlacedCropGrowth(witheredCrop, wheat, "temperate", 50, "clear", 1);
+    advancePlacedCropGrowth(witheredCrop, wheat, environment("clear"), 50, 1);
     expect(witheredCrop.stage).toBe("withered");
     expect(witheredCrop.health).toBe(0);
   });
@@ -146,7 +177,7 @@ describe("Crop Growth & Quality Calculations", () => {
       moistureSampleCount: 0,
       stage: "seeded" as const
     };
-    advancePlacedCropGrowth(crop, wheat, "temperate", 50, "clear", 600);
+    advancePlacedCropGrowth(crop, wheat, environment("clear"), 50, 600);
     const frozenAtStart = calculateEffectiveGrowthDelta(600, wheat, "temperate", 50, 50, "clear");
     expect(crop.moisture).toBeLessThan(15);
     expect(crop.effectiveGrowthMinutes).toBeLessThan(frozenAtStart);

@@ -186,6 +186,455 @@ def add_tapered_beam(
     return _finish_mesh(obj, name, token, parent, flat=flat)
 
 
+def add_limb_tube(
+    name,
+    points,
+    radii,
+    token,
+    parent,
+    *,
+    sides=8,
+    cap_start=True,
+    cap_end=True,
+    flat=True,
+):
+    """Loft one continuous tube through a joint chain.
+
+    Replaces the beam + ico-sphere + beam triples that used to build arms and
+    legs. Those left a free-floating ball at every joint that visibly detached
+    from the limb when the bone rotated. A single lofted surface with a real
+    edge loop at each joint deforms as one piece, and gives distance-based skin
+    weighting a clean loop to blend across.
+
+    Each ring is oriented by the average of the incoming and outgoing segment
+    directions, which is what miters the joint instead of creasing it. `points`
+    and `radii` must be the same length and at least two entries long.
+    """
+    if len(points) != len(radii):
+        raise ValueError(f"{name}: limb tube needs one radius per point")
+    if len(points) < 2:
+        raise ValueError(f"{name}: limb tube needs at least two points")
+
+    nodes = [Vector(point) for point in points]
+    directions = []
+    for index in range(len(nodes)):
+        if index == 0:
+            direction = nodes[1] - nodes[0]
+        elif index == len(nodes) - 1:
+            direction = nodes[-1] - nodes[-2]
+        else:
+            incoming = (nodes[index] - nodes[index - 1]).normalized()
+            outgoing = (nodes[index + 1] - nodes[index]).normalized()
+            direction = incoming + outgoing
+        if direction.length <= 1e-6:
+            raise ValueError(f"{name}: degenerate limb tube segment at {index}")
+        directions.append(direction.normalized())
+
+    vertices = []
+    faces = []
+    for index, (node, radius, direction) in enumerate(zip(nodes, radii, directions)):
+        # A stable reference axis keeps ring vertex order consistent between
+        # rings, which is what stops the tube from twisting along its length.
+        reference = Vector((0.0, 0.0, 1.0))
+        if abs(direction.dot(reference)) > 0.94:
+            reference = Vector((1.0, 0.0, 0.0))
+        side = direction.cross(reference).normalized()
+        # (side, up, direction) must be right-handed or every side quad winds
+        # inward and the tube renders inside-out.
+        up = direction.cross(side).normalized()
+        for step in range(sides):
+            angle = (2.0 * math.pi * step) / sides
+            offset = (side * math.cos(angle) + up * math.sin(angle)) * radius
+            vertices.append(node + offset)
+        if index > 0:
+            base = (index - 1) * sides
+            for step in range(sides):
+                nxt = (step + 1) % sides
+                faces.append((base + step, base + nxt, base + sides + nxt, base + sides + step))
+
+    if cap_start:
+        faces.append(tuple(range(sides - 1, -1, -1)))
+    if cap_end:
+        base = (len(nodes) - 1) * sides
+        faces.append(tuple(base + step for step in range(sides)))
+
+    mesh = bpy.data.meshes.new(f"{name}_mesh")
+    mesh.from_pydata([tuple(vertex) for vertex in vertices], [], faces)
+    mesh.validate()
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    collection = parent.users_collection[0] if parent.users_collection else bpy.context.scene.collection
+    collection.objects.link(obj)
+    return _finish_mesh(obj, name, token, parent, flat=flat)
+
+
+# --- Body forms and conforming garments -------------------------------------
+#
+# Every builder above shapes one closed primitive in isolation, which is why a
+# generated character read as a stack of separate blobs: an apron had no way to
+# know the shape of the chest it hung on, so it could only ever be a slab
+# parked in front of one. The builders below all consume the same authored
+# cross-section list, so a garment is *derived* from the body underneath it and
+# lands on that silhouette by construction instead of by hand-tuned offsets.
+#
+# A section is ``((x, y, z), half_width, half_depth)``: one horizontal
+# elliptical slice of the form, ordered bottom to top. Angles are measured from
+# the character's front (-Y) and increase toward +X, so an arc of
+# ``(-1.2, 1.2)`` is the front of the chest and ``0`` is the sternum.
+
+
+def _ellipse_point(center, half_width: float, half_depth: float, angle: float) -> Vector:
+    """One point on a cross-section, angle measured from the front (-Y)."""
+    return Vector((
+        center[0] + math.sin(angle) * half_width,
+        center[1] - math.cos(angle) * half_depth,
+        center[2],
+    ))
+
+
+def _ellipse_normal(half_width: float, half_depth: float, angle: float) -> Vector:
+    """True outward normal of that cross-section, not a scaled radius.
+
+    Scaling an ellipse outward thickens the flat flanks far more than the sharp
+    front, which is exactly the error that made offset garments bulge at the
+    sides. Offsetting along the real normal keeps a constant gap to the body.
+    """
+    normal = Vector((math.sin(angle) * half_depth, -math.cos(angle) * half_width, 0.0))
+    if normal.length <= 1e-9:
+        return Vector((0.0, -1.0, 0.0))
+    return normal.normalized()
+
+
+def _validate_sections(name: str, sections, minimum: int = 2) -> list:
+    resolved = [(Vector(center), float(half_width), float(half_depth)) for center, half_width, half_depth in sections]
+    if len(resolved) < minimum:
+        raise ValueError(f"{name}: needs at least {minimum} cross-sections")
+    return resolved
+
+
+def _section_origin(sections) -> Vector:
+    total = Vector((0.0, 0.0, 0.0))
+    for center, _, _ in sections:
+        total += center
+    return total / len(sections)
+
+
+def _build_mesh(name, origin, vertices, faces, token, parent, *, flat=True, bevel=0.0):
+    """Link one authored vertex/face soup as a mesh object seated at `origin`.
+
+    Vertices are authored relative to `origin` so the object's location stays
+    meaningful; `_bind_character_meshes` reads it to place hand sockets.
+    """
+    mesh = bpy.data.meshes.new(f"{name}_mesh")
+    mesh.from_pydata([tuple(vertex) for vertex in vertices], [], faces)
+    mesh.validate()
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    collection = parent.users_collection[0] if parent.users_collection else bpy.context.scene.collection
+    collection.objects.link(obj)
+    obj.location = origin
+    return _finish_mesh(obj, name, token, parent, flat=flat, bevel=bevel)
+
+
+def add_lofted_form(
+    name,
+    sections,
+    token,
+    parent,
+    *,
+    sides=12,
+    cap_bottom=True,
+    cap_top=True,
+    flat=True,
+    bevel=0.0,
+):
+    """Loft one closed volume through authored elliptical cross-sections.
+
+    A sphere can only ever be an egg. A stack of rings is the cheapest way to
+    author a torso that actually has shoulders and a waist, a skull that tapers
+    into a jaw, or a boot that spreads from ankle to sole -- and it costs fewer
+    triangles than the subdivided ico-spheres it replaces.
+
+    Ring vertex order is shared with `add_conforming_shell` and
+    `add_garment_hem`, so a garment authored from the same section list sits on
+    the silhouette it was derived from.
+    """
+    resolved = _validate_sections(name, sections)
+    if sides < 3:
+        raise ValueError(f"{name}: a lofted form needs at least three sides")
+
+    origin = _section_origin(resolved)
+    vertices = []
+    faces = []
+    for index, (center, half_width, half_depth) in enumerate(resolved):
+        for step in range(sides):
+            angle = (2.0 * math.pi * step) / sides
+            vertices.append(_ellipse_point(center, half_width, half_depth, angle) - origin)
+        if index > 0:
+            base = (index - 1) * sides
+            for step in range(sides):
+                nxt = (step + 1) % sides
+                faces.append((base + step, base + nxt, base + sides + nxt, base + sides + step))
+
+    if cap_bottom:
+        faces.append(tuple(range(sides - 1, -1, -1)))
+    if cap_top:
+        base = (len(resolved) - 1) * sides
+        faces.append(tuple(base + step for step in range(sides)))
+
+    return _build_mesh(name, origin, vertices, faces, token, parent, flat=flat, bevel=bevel)
+
+
+def add_conforming_shell(
+    name,
+    sections,
+    token,
+    parent,
+    *,
+    arc=(-1.20, 1.20),
+    offset=0.010,
+    thickness=0.016,
+    segments=8,
+    flat=True,
+    bevel=0.0,
+):
+    """Skin a panel of garment onto the body form the sections describe.
+
+    Pass the same sections used for the torso and the panel follows its
+    silhouette at a constant `offset`, with `thickness` of visible material at
+    every free edge. This is what an apron bib, a shirt front or a vest panel
+    is: cloth lying on a chest, not a box hovering in front of one.
+
+    `arc` is the angular span in radians measured from the front (-Y), so
+    ``(-1.2, 1.2)`` wraps roughly the front 140 degrees and ``(0.4, 2.6)``
+    wraps one flank.
+    """
+    resolved = _validate_sections(name, sections)
+    if segments < 1:
+        raise ValueError(f"{name}: a conforming shell needs at least one segment")
+
+    arc_start, arc_end = float(arc[0]), float(arc[1])
+    origin = _section_origin(resolved)
+    count = segments + 1
+    rows = len(resolved)
+    angles = [arc_start + (arc_end - arc_start) * (step / segments) for step in range(count)]
+
+    vertices = []
+    for center, half_width, half_depth in resolved:
+        for angle in angles:
+            point = _ellipse_point(center, half_width, half_depth, angle)
+            normal = _ellipse_normal(half_width, half_depth, angle)
+            vertices.append(point + normal * offset - origin)
+    for center, half_width, half_depth in resolved:
+        for angle in angles:
+            point = _ellipse_point(center, half_width, half_depth, angle)
+            normal = _ellipse_normal(half_width, half_depth, angle)
+            vertices.append(point + normal * (offset + thickness) - origin)
+
+    def inner(row, step):
+        return row * count + step
+
+    def outer(row, step):
+        return rows * count + row * count + step
+
+    faces = []
+    for row in range(rows - 1):
+        for step in range(segments):
+            faces.append((outer(row, step), outer(row, step + 1), outer(row + 1, step + 1), outer(row + 1, step)))
+            faces.append((inner(row, step), inner(row + 1, step), inner(row + 1, step + 1), inner(row, step + 1)))
+        faces.append((inner(row, 0), outer(row, 0), outer(row + 1, 0), inner(row + 1, 0)))
+        faces.append((inner(row, segments), inner(row + 1, segments), outer(row + 1, segments), outer(row, segments)))
+    for step in range(segments):
+        faces.append((inner(0, step), inner(0, step + 1), outer(0, step + 1), outer(0, step)))
+        faces.append((inner(rows - 1, step), outer(rows - 1, step), outer(rows - 1, step + 1), inner(rows - 1, step + 1)))
+
+    return _build_mesh(name, origin, vertices, faces, token, parent, flat=flat, bevel=bevel)
+
+
+def add_garment_hem(
+    name,
+    sections,
+    token,
+    parent,
+    *,
+    offset=0.010,
+    thickness=0.018,
+    flare=0.030,
+    sides=12,
+    flat=True,
+):
+    """Wrap a skirt, tunic or trouser hem all the way around a body form.
+
+    Same offset surface as `add_conforming_shell`, closed through 360 degrees
+    and with `flare` added at the *bottom* section and tapered to nothing at
+    the top. The flare is what stops a hem reading as a tube: cloth falls away
+    from the leg it hangs on, and the open bottom edge shows its thickness.
+    """
+    resolved = _validate_sections(name, sections)
+    if sides < 3:
+        raise ValueError(f"{name}: a garment hem needs at least three sides")
+
+    origin = _section_origin(resolved)
+    rows = len(resolved)
+    angles = [(2.0 * math.pi * step) / sides for step in range(sides)]
+
+    vertices = []
+    for surface in (0.0, 1.0):
+        for row, (center, half_width, half_depth) in enumerate(resolved):
+            ramp = 1.0 - (row / (rows - 1))
+            grown = offset + flare * ramp + thickness * surface
+            for angle in angles:
+                point = _ellipse_point(center, half_width, half_depth, angle)
+                normal = _ellipse_normal(half_width, half_depth, angle)
+                vertices.append(point + normal * grown - origin)
+
+    def inner(row, step):
+        return row * sides + (step % sides)
+
+    def outer(row, step):
+        return rows * sides + row * sides + (step % sides)
+
+    faces = []
+    for row in range(rows - 1):
+        for step in range(sides):
+            faces.append((outer(row, step), outer(row, step + 1), outer(row + 1, step + 1), outer(row + 1, step)))
+            faces.append((inner(row, step), inner(row + 1, step), inner(row + 1, step + 1), inner(row, step + 1)))
+    for step in range(sides):
+        faces.append((inner(0, step), inner(0, step + 1), outer(0, step + 1), outer(0, step)))
+        faces.append((inner(rows - 1, step), outer(rows - 1, step), outer(rows - 1, step + 1), inner(rows - 1, step + 1)))
+
+    return _build_mesh(name, origin, vertices, faces, token, parent, flat=flat)
+
+
+def add_cuff_band(
+    name,
+    center,
+    radius,
+    width,
+    token,
+    parent,
+    *,
+    direction=(0.0, 0.0, 1.0),
+    thickness=0.014,
+    flare=0.0,
+    sides=10,
+    flat=True,
+):
+    """Ring a limb with a rolled band at one point along its axis.
+
+    A torus reads as a doughnut threaded onto an arm. A rolled cuff is a short
+    walled band that shares the limb's axis, so it has to be oriented by
+    `direction` -- the limb's own direction at that point -- or it slices
+    through the sleeve the moment the arm is not vertical. `flare` widens the
+    open end (the one `direction` points at) so the roll bells outward.
+    """
+    axis = Vector(direction)
+    if axis.length <= 1e-6:
+        raise ValueError(f"{name}: a cuff band needs a non-degenerate direction")
+    axis.normalize()
+    reference = Vector((0.0, 0.0, 1.0))
+    if abs(axis.dot(reference)) > 0.94:
+        reference = Vector((1.0, 0.0, 0.0))
+    side = axis.cross(reference).normalized()
+    up = axis.cross(side).normalized()
+
+    origin = Vector(center)
+    start = -axis * (width * 0.5)
+    end = axis * (width * 0.5)
+
+    vertices = []
+    for base, grow in ((start, 0.0), (end, flare)):
+        for radial in (radius + grow, radius + thickness + grow):
+            for step in range(sides):
+                angle = (2.0 * math.pi * step) / sides
+                vertices.append(base + (side * math.cos(angle) + up * math.sin(angle)) * radial)
+
+    inner_start, outer_start, inner_end, outer_end = 0, sides, 2 * sides, 3 * sides
+    faces = []
+    for step in range(sides):
+        nxt = (step + 1) % sides
+        faces.append((outer_start + step, outer_start + nxt, outer_end + nxt, outer_end + step))
+        faces.append((inner_start + step, inner_end + step, inner_end + nxt, inner_start + nxt))
+        faces.append((inner_start + step, inner_start + nxt, outer_start + nxt, outer_start + step))
+        faces.append((inner_end + step, outer_end + step, outer_end + nxt, inner_end + nxt))
+
+    return _build_mesh(name, origin, vertices, faces, token, parent, flat=flat)
+
+
+def add_strap(
+    name,
+    points,
+    width,
+    thickness,
+    token,
+    parent,
+    *,
+    normals=None,
+    flat=True,
+):
+    """Lay a flat band along a path so it lies *on* the surface it crosses.
+
+    `add_rope_line` sweeps a round tube, which is right for rope and wrong for
+    every strap on a character: an apron tie or a satchel strap is flat webbing
+    whose broad face is pressed against the body. The band's width axis is
+    therefore held tangential to the surface, using `normals` when the caller
+    knows them and the outward radial from the body's vertical axis otherwise.
+    """
+    nodes = [Vector(point) for point in points]
+    if len(nodes) < 2:
+        raise ValueError(f"{name}: a strap needs at least two points")
+    if normals is not None and len(normals) != len(nodes):
+        raise ValueError(f"{name}: a strap needs one normal per point")
+
+    directions = []
+    for index in range(len(nodes)):
+        if index == 0:
+            direction = nodes[1] - nodes[0]
+        elif index == len(nodes) - 1:
+            direction = nodes[-1] - nodes[-2]
+        else:
+            direction = (nodes[index] - nodes[index - 1]).normalized() + (nodes[index + 1] - nodes[index]).normalized()
+        if direction.length <= 1e-6:
+            raise ValueError(f"{name}: degenerate strap segment at {index}")
+        directions.append(direction.normalized())
+
+    origin = sum(nodes, Vector((0.0, 0.0, 0.0))) / len(nodes)
+    half_width = width * 0.5
+    half_thickness = thickness * 0.5
+
+    vertices = []
+    for index, (node, direction) in enumerate(zip(nodes, directions)):
+        if normals is not None:
+            normal = Vector(normals[index])
+        else:
+            normal = Vector((node.x, node.y, 0.0))
+        normal = normal - direction * normal.dot(direction)
+        if normal.length <= 1e-6:
+            normal = Vector((0.0, -1.0, 0.0)) - direction * direction.y * -1.0
+            if normal.length <= 1e-6:
+                normal = Vector((0.0, 0.0, 1.0)) - direction * direction.z
+        normal.normalize()
+        # `normal x side == direction` keeps the four corners wound the same way
+        # as every other swept builder here, so the faces point outward.
+        side = direction.cross(normal).normalized()
+        vertices.append(node + normal * half_thickness + side * half_width - origin)
+        vertices.append(node - normal * half_thickness + side * half_width - origin)
+        vertices.append(node - normal * half_thickness - side * half_width - origin)
+        vertices.append(node + normal * half_thickness - side * half_width - origin)
+
+    faces = []
+    for index in range(len(nodes) - 1):
+        base = index * 4
+        for step in range(4):
+            nxt = (step + 1) % 4
+            faces.append((base + step, base + nxt, base + 4 + nxt, base + 4 + step))
+    faces.append((3, 2, 1, 0))
+    tail = (len(nodes) - 1) * 4
+    faces.append((tail, tail + 1, tail + 2, tail + 3))
+
+    return _build_mesh(name, origin, vertices, faces, token, parent, flat=flat)
+
+
 def add_tri_prism(name, center, size, token, parent, *, rotation=(0.0, 0.0, 0.0)):
     width, depth, height = size
     x, y, z = width / 2, depth / 2, height / 2

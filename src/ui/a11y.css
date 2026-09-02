@@ -1,6 +1,5 @@
 /* src/ui/a11y.css — Focus, HUD scaling, and reduced-motion guarantees.
-   Imported last from main.ts so these rules win over the layered !important
-   declarations in the older sheets. */
+   Imported after the legacy surface sheets and before coastal.css refinements. */
 
 :root {
   /* Overwritten at runtime by src/ui/uiScale.ts. */
@@ -77,7 +76,15 @@
 #ui-container[data-mobile-device="true"] .hud-top-right-cluster,
 #ui-container[data-mobile-device="true"] .hud-bottom-left-container,
 #ui-container[data-mobile-device="true"] .hud-play-cluster,
-#ui-container[data-mobile-device="true"] .hud-toast-container {
+#ui-container[data-mobile-device="true"] .hud-toast-container,
+#ui-container[data-mobile-device="true"] .contextual-hint-card,
+#ui-container[data-mobile-device="true"] .crop-inspection,
+#ui-container[data-mobile-device="true"] .farming-action-status,
+#ui-container[data-mobile-device="true"] .farm-gis-legend,
+#ui-container[data-mobile-device="true"] .fishing-hud-container,
+#ui-container[data-mobile-device="true"] .basic-fishing-container,
+#ui-container[data-mobile-device="true"] .planting-dock,
+#ui-container[data-mobile-device="true"] .catch-summary {
   zoom: 1;
 }
 

@@ -8,6 +8,7 @@ export type StartupErrorCode =
   | "save-failed"
   | "asset-loading-stalled"
   | "assets-failed"
+  | "world-startup-timeout"
   | "world-failed"
   | "physics-startup-timeout"
   | "physics-failed"
@@ -20,6 +21,7 @@ export interface StartupState {
   totalAssets: number;
   message: string;
   errorMessage: string | null;
+  errorDetail: string | null;
   errorCode: StartupErrorCode | null;
   errorPhase: StartupPhase | null;
   saveStatus: StartupSaveStatus;
@@ -33,6 +35,7 @@ export const createStartupState = (totalAssets: number): StartupState => ({
   totalAssets,
   message: "A quiet coast is waiting.",
   errorMessage: null,
+  errorDetail: null,
   errorCode: null,
   errorPhase: null,
   saveStatus: "checking",

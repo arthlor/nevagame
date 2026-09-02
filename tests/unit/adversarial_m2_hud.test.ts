@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
-import { HUD } from "../../src/ui/HUD";
+import { LegacyHUD as HUD } from "./uiTestHelpers";
 import { QuestTrackerHUD } from "../../src/ui/QuestTrackerHUD";
 import {
   CelestialTimeDial,
@@ -15,7 +15,7 @@ import {
   EmbossedKeycap
 } from "../../src/ui/HudDecorations";
 import { formatWeatherLabel } from "../../src/ui/weatherPresentation";
-import { GameClock, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
+import { GameClock, MINUTES_PER_DAY, DAYS_PER_SEASON } from "../../src/simulation/core/GameClock";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
 import type { WeatherTag } from "../../src/simulation/core/types";
 
@@ -98,21 +98,23 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       expect(htmlFloat).toContain("rotate(0.125 27 27)");
     });
 
-    it("correctly renders HUD clock across calendar rollover (Season transition Day 30 -> Day 31)", () => {
-      const clock = new GameClock({ currentMinute: 29 * MINUTES_PER_DAY + 1430 }); // Day 30 23:50
+    it("correctly renders HUD clock across calendar rollover (last day of Spring -> Summer 1)", () => {
+      // Last day of the season at 23:50, derived from DAYS_PER_SEASON so the
+      // assertion survives calendar retuning.
+      const clock = new GameClock({ currentMinute: (DAYS_PER_SEASON - 1) * MINUTES_PER_DAY + 1430 });
       const state = createInitialGameState();
       state.clock = clock.getState();
 
-      const htmlDay30 = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlDay30).toContain("Spring 30");
-      expect(htmlDay30).toContain("23:50");
+      const htmlLastDay = renderToString(React.createElement(HUD, { state, promptText: null }));
+      expect(htmlLastDay).toContain(`Spring ${DAYS_PER_SEASON}`);
+      expect(htmlLastDay).toContain("23:50");
 
       // Advance 20 minutes across midnight into Summer Day 1
       clock.advanceMinutes(20);
       state.clock = clock.getState();
-      const htmlDay31 = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlDay31).toContain("Summer 1");
-      expect(htmlDay31).toContain("00:10");
+      const htmlFirstDay = renderToString(React.createElement(HUD, { state, promptText: null }));
+      expect(htmlFirstDay).toContain("Summer 1");
+      expect(htmlFirstDay).toContain("00:10");
     });
   });
 

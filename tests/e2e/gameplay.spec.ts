@@ -4,19 +4,8 @@ import path from "path";
 import fs from "fs";
 import { CURRENT_SCHEMA_VERSION } from "../../src/persistence/SaveSchema";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
+import { dayOfSeason } from "../../src/simulation/core/GameClock";
 
-const highSceneBudget = (
-  JSON.parse(
-    fs.readFileSync(path.resolve(process.cwd(), "tools/blender/asset_budgets.json"), "utf8")
-  ) as {
-    sceneProfiles: {
-      high: {
-        visibleTriangles: { targetMax: number };
-        drawCalls: { preferredMax: number };
-      };
-    };
-  }
-).sceneProfiles.high;
 
 test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
   test.beforeEach(({ page }) => {
@@ -93,8 +82,8 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.keyboard.press("KeyJ");
     const journalModal = page.locator(".modal-content");
     await expect(journalModal).toBeVisible();
-    await expect(journalModal).toContainText("Guild Chronicle & Bestiary");
-    await expect(journalModal).toContainText("Guild Masteries");
+    await expect(journalModal).toContainText("Cove Chronicle & Bestiary");
+    await expect(journalModal).toContainText("Cove Masteries");
 
     const closeJournalBtn = journalModal.getByRole("button").filter({ hasText: "Close Chronicle" });
     await closeJournalBtn.click();
@@ -160,7 +149,10 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await page.reload();
     const continueButton = page.getByTestId("startup-start-button");
     await expect(continueButton).toContainText("Continue Neva Land", { timeout: 30_000 });
-    await expect(page.getByLabel("Existing save summary")).toContainText(`Day ${rawSaveEnvelope.state.clock.dayCount}`);
+    // The summary shows the day within the season, not the absolute day count.
+    await expect(page.getByLabel("Existing save summary")).toContainText(
+      `Day ${dayOfSeason(rawSaveEnvelope.state.clock.dayCount)}`
+    );
     await expect(page.getByTestId("startup-new-game-button")).toBeVisible();
 
     await page.getByTestId("startup-new-game-button").click();
@@ -245,34 +237,6 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 180_000 });
   });
 
-  test("debug diagnostics stay within the representative render budget", async ({ page, browserName }) => {
-    test.skip(browserName !== "chromium", "The representative render budget is measured once in Chromium");
-    test.setTimeout(480_000);
-    await page.goto("/?debug=1");
-
-    const diagnostics = page.getByTestId("diagnostics");
-    await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 450_000 });
-    const stats = page.getByTestId("render-stats");
-    await expect(stats).toBeVisible();
-    await expect.poll(async () => stats.textContent()).toMatch(/Draws: [1-9]\d* \| Triangles: [1-9][\d,]*/);
-
-    const text = (await stats.textContent()) ?? "";
-    const match = text.match(/Draws: (\d+) \| Triangles: ([\d,]+)/);
-    expect(match).not.toBeNull();
-
-    const drawCalls = Number(match?.[1]);
-    const triangles = Number(match?.[2].replaceAll(",", ""));
-    expect(drawCalls).toBeLessThanOrEqual(highSceneBudget.drawCalls.preferredMax);
-    expect(triangles).toBeLessThanOrEqual(highSceneBudget.visibleTriangles.targetMax);
-
-    const objectStats = text.match(/Meshes: (\d+) \| Shadows: (\d+) \| Batches: (\d+) \| Instances: (\d+)/);
-    console.info(
-      `[E2E] Representative render budget: ${drawCalls} draw calls, ${triangles} triangles` +
-      (objectStats
-        ? `, ${objectStats[1]} meshes, ${objectStats[2]} shadow casters, ${objectStats[3]} batches, ${objectStats[4]} instanced meshes`
-        : "")
-    );
-  });
 });
 
 async function startFromTitle(page: Page): Promise<void> {

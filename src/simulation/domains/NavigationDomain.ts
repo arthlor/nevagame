@@ -4,7 +4,6 @@ import { InventoryManager } from "../inventory/InventoryManager";
 import type { BoatId, BoatState, FishCargoState, GameState, MarketId, MountId } from "../core/types";
 import {
   HARBOR_SKIFF_MOORING,
-  harborMooringForBoatType,
   WORLD_SPAWN
 } from "../../world/WorldAnchors";
 import { SAILABLE_BOUNDS, WorldLayout } from "../../world/WorldLayout";
@@ -25,6 +24,11 @@ import {
   STARTER_DONKEY_ID,
   STARTER_DONKEY_TYPE_ID
 } from "../mounts/Mounts";
+import {
+  dockedMooring,
+  nearestMooring
+} from "../../world/WorldMoorings";
+import { SUNREACH_ANCHORS } from "../../world/WorldIslands";
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
 export function drainMotorFuel(state: GameState, minutes: number): void {
@@ -32,13 +36,15 @@ export function drainMotorFuel(state: GameState, minutes: number): void {
   for (const boat of Object.values(state.boats)) {
     const definition = ContentRegistry.boats.get(boat.boatTypeId);
     if (!definition || definition.fuelCapacity <= 0) continue;
+    if (Math.abs(boat.speed) < 0.02) continue;
     const speedRatio = Math.min(1, Math.abs(boat.speed) / Math.max(0.01, definition.maxSpeed));
-    if (speedRatio < 0.02) continue;
     boat.fuel = Math.max(0, boat.fuel - minutes * 2 * speedRatio);
   }
 }
 
 export class NavigationDomain {
+  private openChannelNoticeShown = false;
+
   constructor(private readonly context: DomainContext) {}
 
   public commitPhysicsFrame(frame: ResolvedPhysicsFrame): { success: boolean; reason?: string } {
@@ -103,9 +109,35 @@ export class NavigationDomain {
         return { success: false, reason: "Physics returned an invalid mounted pose" };
       }
     }
+    if (activeBoatId && activeBoatPose) {
+      const boat = state.boats[activeBoatId];
+      const approachDistance = Math.max(8, Math.abs(boat.speed) * 2);
+      const approachX = activeBoatPose.x + Math.sin(boat.headingRadians) * approachDistance;
+      const approachZ = activeBoatPose.z + Math.cos(boat.headingRadians) * approachDistance;
+      const requirement = WorldLayout.navigationRequirementAt(activeBoatPose.x, activeBoatPose.z)
+        ?? WorldLayout.navigationRequirementAt(boat.x, boat.z)
+        ?? WorldLayout.navigationRequirementAt(approachX, approachZ);
+      if (requirement && boat.boatTypeId !== requirement.requiredBoatTypeId) {
+        if (!this.openChannelNoticeShown) {
+          this.context.events.emit("Notification", {
+            title: "Open channel ahead",
+            message: requirement.message,
+            type: "warning"
+          });
+          this.openChannelNoticeShown = true;
+        }
+      } else {
+        this.openChannelNoticeShown = false;
+      }
+    }
     Object.assign(state.player, frame.player);
     for (const [boatId, pose] of Object.entries(frame.boats)) Object.assign(state.boats[boatId], pose);
-    if (activeMountId) Object.assign(state.mounts[activeMountId]!, mountPoseFromPlayer(state.player));
+    if (activeMountId) {
+      Object.assign(state.mounts[activeMountId]!, mountPoseFromPlayer(state.player));
+      // The gallop budget is the animal's, so it lives on the mount and is
+      // saved with it rather than being recomputed from the rider.
+      if (frame.mountGait) Object.assign(state.mounts[activeMountId]!, frame.mountGait);
+    }
     this.refreshPlayerRegion();
     return { success: true };
   }
@@ -204,7 +236,7 @@ export class NavigationDomain {
         };
       }
       if (boat) {
-        const mooring = harborMooringForBoatType(boat.boatTypeId);
+        const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
         Object.assign(boat, {
           speed: 0,
           isDocked: true,
@@ -217,15 +249,18 @@ export class NavigationDomain {
       }
       state.player.activeBoatId = null;
     }
+    const recovery = WorldLayout.islandAt(state.player.x, state.player.z) === "island.sunreach"
+      ? SUNREACH_ANCHORS.dockPlayer
+      : WORLD_SPAWN.playerPosition;
     Object.assign(state.player, {
-      x: WORLD_SPAWN.playerPosition.x,
+      x: recovery.x,
       y: WorldLayout.traversalSurfaceHeight(
-        WORLD_SPAWN.playerPosition.x,
-        WORLD_SPAWN.playerPosition.z
+        recovery.x,
+        recovery.z
       ) + 0.5,
-      z: WORLD_SPAWN.playerPosition.z,
+      z: recovery.z,
       rotationY: 0,
-      currentRegionId: WORLD_SPAWN.regionId,
+      currentRegionId: WorldLayout.regionAt(recovery.x, recovery.z),
       traversal: createFullPlayerTraversalState()
     });
     return { success: true };
@@ -234,7 +269,7 @@ export class NavigationDomain {
   public canBoardBoat(boatId: BoatId): boolean {
     const { state } = this.context;
     const boat = state.boats[boatId];
-    const mooring = boat ? harborMooringForBoatType(boat.boatTypeId) : null;
+    const mooring = boat ? dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z) : null;
     return Boolean(
       boat &&
         (boatId !== "boat.player_rowboat" || state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) &&
@@ -346,7 +381,7 @@ export class NavigationDomain {
     const { state } = this.context;
     const boatId = state.player.activeBoatId;
     const boat = boatId ? state.boats[boatId] : null;
-    const mooring = boat ? harborMooringForBoatType(boat.boatTypeId) : null;
+    const mooring = boat ? nearestMooring(boat.x, boat.z, boat.boatTypeId) : null;
     return Boolean(boat && mooring && distance2d(boat, mooring.boatPosition) <= mooring.dockRadius);
   }
 
@@ -357,7 +392,7 @@ export class NavigationDomain {
     if (!boatId) return { success: false, reason: "You are not aboard a boat" };
     if (!this.canDockActiveBoat()) return { success: false, reason: "Return to the harbor dock to disembark" };
     const boat = state.boats[boatId]!;
-    const mooring = harborMooringForBoatType(boat.boatTypeId);
+    const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
     Object.assign(boat, {
       x: mooring.boatPosition.x,
       y: mooring.boatPosition.y,
@@ -376,8 +411,39 @@ export class NavigationDomain {
       z: mooring.playerPosition.z,
       traversal: { ...state.player.traversal, isGrounded: true }
     });
-    events.emit("BoatDocked", { boatId, minute: state.clock.currentMinute });
+    events.emit("BoatDocked", { boatId, marketId: mooring.marketId, minute: state.clock.currentMinute });
     events.emit("BoatDisembarked", { boatId, minute: state.clock.currentMinute });
+    return { success: true };
+  }
+
+  public refuel(boatId?: BoatId): { success: boolean; reason?: string } {
+    const { state } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fuel" };
+    const targetId = boatId ?? state.player.activeBoatId ?? null;
+    if (!targetId) return { success: false, reason: "No boat to refuel" };
+    const boat = state.boats[targetId];
+    if (!boat) return { success: false, reason: "Boat not found" };
+    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+    if (!definition || definition.fuelCapacity <= 0) {
+      return { success: false, reason: "This boat does not take fuel" };
+    }
+    const aboard = state.player.activeBoatId === boat.id;
+    const near = distance2d(state.player, boat) <= 4.5;
+    if (!aboard && !near && !boat.isDocked) {
+      return { success: false, reason: "Move to the boat or dock before refueling" };
+    }
+    if (boat.fuel >= definition.fuelCapacity) {
+      return { success: false, reason: "The tank is already full" };
+    }
+    const inventory = state.inventories[state.player.inventoryId];
+    const fuel = [{ itemId: "item.boat_fuel", quantity: 1 }];
+    if (!InventoryManager.hasItems(inventory, fuel)) {
+      return { success: false, reason: "No boat fuel in the satchel" };
+    }
+    if (!InventoryManager.removeItemsAtomically(inventory, fuel)) {
+      return { success: false, reason: "No boat fuel in the satchel" };
+    }
+    boat.fuel = definition.fuelCapacity;
     return { success: true };
   }
 
@@ -423,7 +489,6 @@ export class NavigationDomain {
     state.inventories[supplyInventoryId] = supplyInventory;
     state.boats[boatId] = boat;
     if (!state.quests.unlockedFeatureIds.includes(boatId)) state.quests.unlockedFeatureIds.push(boatId);
-    if (!state.journal.unlockedKnowledge.includes(boatId)) state.journal.unlockedKnowledge.push(boatId);
     events.emit("BoatPurchased", {
       boatId,
       boatTypeId: definition.id,

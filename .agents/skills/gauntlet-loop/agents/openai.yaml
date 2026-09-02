@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gauntlet Loop"
+  short_description: "Run reference-driven builder and critic loops"
+  default_prompt: "Use $gauntlet-loop to turn this goal into a reference-driven improvement loop."

@@ -7,7 +7,7 @@ export interface PhysicsIntent {
   jumpRequested?: boolean;
 }
 
-export type RequestedPlayerGait = "idle" | "walk" | "run" | "trot" | "vehicle";
+export type RequestedPlayerGait = "idle" | "walk" | "run" | "trot" | "gallop" | "vehicle";
 
 export type PlayerAirbornePhase = "grounded" | "rising" | "apex" | "falling";
 
@@ -81,9 +81,17 @@ export interface ResolvedBoatPose {
   speed: number;
 }
 
+export interface ResolvedMountGait {
+  gallopStamina: number;
+  gallopRecoveryDelaySeconds: number;
+  gallopExhausted: boolean;
+}
+
 export interface ResolvedPhysicsFrame {
   player: ResolvedPlayerPose;
   boats: Record<string, ResolvedBoatPose>;
+  /** Present only while the player is mounted. */
+  mountGait?: ResolvedMountGait;
 }
 
 export interface PhysicsStepResult {

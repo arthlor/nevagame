@@ -70,6 +70,7 @@ describe("irrigation well binding", () => {
 
     standAt(sim, well.x + 1.6, well.z);
     expect(sim.getNearbyIrrigationFarmId()).toBe("farm.starter_garden");
+    sim.state.quests.activeQuestId = "quest.act6_field_pump";
     expect(sim.execute({ type: "farm.buy-irrigation" })).toMatchObject({
       success: true,
       cost: IRRIGATION_COST

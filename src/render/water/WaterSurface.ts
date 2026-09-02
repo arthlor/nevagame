@@ -86,6 +86,29 @@ function normalizedDirection(x: number, z: number): THREE.Vector2 {
 
 /** Render-only regional classification with soft estuary and offshore transitions. */
 export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
+  const marine = WorldLayout.marineSampleAt(x, z);
+  const usesSharedMarine = x > 260
+    || marine.ecologyWeights["ecology.sunreach"] > marine.ecologyWeights["ecology.neva"];
+  if (usesSharedMarine) {
+    const river = 0;
+    const ocean = THREE.MathUtils.clamp(
+      Math.max(
+        marine.openWaterExposure,
+        smoothstep(WATER_WAVE_CONFIG.oceanBlend[0], WATER_WAVE_CONFIG.oceanBlend[1], marine.signedShoreDistance)
+      ),
+      0,
+      1
+    );
+    const sea = Math.max(0, 1 - ocean);
+    const weights = { river, sea, ocean };
+    return {
+      region: dominantRegion(weights),
+      weights,
+      signedWaterDistance: marine.signedShoreDistance,
+      coastDistance: marine.signedShoreDistance,
+      localDirection: normalizedDirection(marine.waveDirection.x, marine.waveDirection.z)
+    };
+  }
   const coastDistance = z - WorldLayout.coastlineZ(x);
   const riverCore = 1 - smoothstep(
     WATER_WAVE_CONFIG.riverBlend[0],
@@ -122,7 +145,7 @@ export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
   return {
     region: dominantRegion(weights),
     weights,
-    signedWaterDistance: WorldLayout.waterSignedDistance(x, z),
+    signedWaterDistance: marine.signedShoreDistance,
     coastDistance,
     localDirection
   };

@@ -21,6 +21,7 @@ import {
   UI_PORTRAITS,
   UI_PRODUCE,
   UI_QUALITY,
+  UI_RODS,
   UI_SEEDS,
   UI_STATUS,
   UI_SUPPLIES,
@@ -45,6 +46,7 @@ export {
   UI_PORTRAITS,
   UI_PRODUCE,
   UI_QUALITY,
+  UI_RODS,
   UI_SEEDS,
   UI_STATUS,
   UI_SUPPLIES,
@@ -84,6 +86,11 @@ export function atlasForItem(itemId: string | null | undefined): SpriteUrl | und
 
 export function atlasForFish(speciesId: string | null | undefined): SpriteUrl | undefined {
   return lookup(UI_FISH, speciesId);
+}
+
+/** Fishing progression gear, keyed by the canonical rod IDs in content. */
+export function atlasForRod(rodId: string | null | undefined): SpriteUrl | undefined {
+  return lookup(UI_RODS, rodId);
 }
 
 export function atlasForPortrait(npcId: string | null | undefined): SpriteUrl | undefined {
@@ -139,6 +146,20 @@ export function atlasForBehavior(behaviorId: string | null | undefined): SpriteU
 export function atlasForMapNode(nodeId: string | null | undefined): SpriteUrl | undefined {
   if (!nodeId) return undefined;
   const aliases: Record<string, string> = {
+    "chart.neva_farm": "homestead",
+    "chart.neva_homestead": "garden",
+    "chart.neva_village": "village",
+    "chart.neva_mill": "village",
+    "chart.neva_crossing": "river_crossing",
+    "chart.neva_river": "river",
+    "chart.neva_harbor": "harbor",
+    "chart.neva_lighthouse": "lighthouse",
+    "chart.neva_offshore": "offshore",
+    "chart.open_channel": "offshore",
+    "chart.sunreach_cove": "sunreach",
+    "chart.sunreach_terraces": "sunreach",
+    "chart.sunreach_ridge": "sunreach",
+    "chart.sunreach_reef": "sunreach",
     node_home_farm: "homestead",
     node_uplands: "garden",
     node_village: "village",

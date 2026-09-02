@@ -63,6 +63,7 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
     title: "Fishing",
     bindings: [
       { keys: "E", action: "Hold to charge a cast, release to cast" },
+      { keys: "R", action: "Arm or put away a crafted lure", note: "Before casting or hooking" },
       { keys: "Space", action: "Hook the bite, then hold to keep pressure" },
       { keys: "W", action: "Reel in", note: "Sport fishing" },
       { keys: "S", action: "Give slack", note: "Sport fishing" },
@@ -73,12 +74,12 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
     id: "menus",
     title: "Menus",
     bindings: [
-      { keys: "Esc", action: "Pause, or close the open panel" },
+      { keys: "Esc", action: "Pause, or close the open screen" },
       { keys: "I", action: "Satchel" },
-      { keys: "J", action: "Chronicle" },
-      { keys: "M", action: "World map" },
-      { keys: "L", action: "Ledger" },
-      { keys: "P", action: "Expedition planner", note: "Once unlocked" }
+      { keys: "J", action: "Field Journal" },
+      { keys: "M", action: "Nautical chart" },
+      { keys: "L", action: "Hold & Stores" },
+      { keys: "P", action: "Expedition board", note: "Once unlocked" }
     ]
   }
 ] as const;

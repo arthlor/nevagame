@@ -10,6 +10,7 @@ import {
   type RuntimeAnimationClipSpec
 } from "../assets/AssetCatalog";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import { HumanoidFootSupportSolver } from "./HumanoidFootSupportSolver";
 
 export type PlayerAnimation =
   | "idle"
@@ -35,21 +36,28 @@ export type PlayerAnimation =
   | "place"
   | "workstation"
   | "cast"
+  | "hookset"
   | "fishing_idle"
   | "reel"
   | "slack"
   | "brace"
   | "board"
+  | "board_skiff"
   | "dock"
+  | "dock_skiff"
   | "rowboat_idle"
   | "row"
   | "skiff_idle"
+  | "skiff_fishing"
   | "skiff_drive"
   | "mounted_idle"
   | "mounted_walk"
   | "mounted_trot"
+  | "mounted_gallop"
   | "mount"
+  | "mount_right"
   | "dismount"
+  | "dismount_right"
   | "talk_gesture";
 
 export interface BoatAnimationInput {
@@ -96,6 +104,11 @@ export interface CharacterMotionFrame {
   events: readonly CharacterAnimationEvent[];
 }
 
+export interface CharacterGroundSurfaceSample {
+  height: number;
+  normal: Readonly<{ x: number; y: number; z: number }>;
+}
+
 interface RigPart {
   object: THREE.Object3D;
   position: THREE.Vector3;
@@ -107,6 +120,11 @@ interface SecondarySpring {
   velocityZ: number;
   angleX: number;
   angleZ: number;
+}
+
+interface FootContactState {
+  locked: boolean;
+  targetWorld: THREE.Vector3;
 }
 
 interface ManagedTransition {
@@ -141,10 +159,12 @@ const LOOPING_CLIPS = new Set<PlayerAnimation>([
   "rowboat_idle",
   "row",
   "skiff_idle",
+  "skiff_fishing",
   "skiff_drive",
   "mounted_idle",
   "mounted_walk",
   "mounted_trot",
+  "mounted_gallop",
   "talk_gesture"
 ]);
 
@@ -152,7 +172,30 @@ const MOVING_BASE_CLIPS = new Set<PlayerAnimation>([
   "walk",
   "run",
   "mounted_walk",
-  "mounted_trot"
+  "mounted_trot",
+  "mounted_gallop"
+]);
+// Terrain contact is deliberately restricted to moving gaits: an idle that
+// tilts to the ground plane amplifies every small terrain irregularity while
+// the player is standing still. Carrying variants ground like their base gait.
+const TERRAIN_CONTACT_BASE_CLIPS = new Set<PlayerAnimation>([
+  "walk_start",
+  "walk",
+  "carry_walk",
+  "run_start",
+  "run",
+  "carry_run"
+]);
+const PHASE_COMPATIBLE_BASE_CLIPS = new Set<PlayerAnimation>([
+  "walk",
+  "run",
+  "mounted_walk",
+  "mounted_trot",
+  "mounted_gallop"
+]);
+const PHASE_COMPATIBLE_UPPER_CLIPS = new Set<PlayerAnimation>([
+  "carry_walk",
+  "carry_run"
 ]);
 const BASE_TRANSITION_CLIPS = new Set<PlayerAnimation>([
   "walk_start",
@@ -171,7 +214,8 @@ const AIRBORNE_CLIPS = new Set<PlayerAnimation>([
 const UPPER_BODY_ONE_SHOTS = new Set<PlayerAnimation>([
   "water",
   "workstation",
-  "cast"
+  "cast",
+  "hookset"
 ]);
 const FISHING_UPPER_PULSES = new Set<PlayerAnimation>(["reel", "slack", "brace"]);
 
@@ -179,6 +223,7 @@ const RIG_ALIASES: Record<string, readonly string[]> = {
   root: ["rig_root", "character_root"],
   pelvis: ["rig_pelvis", "character_pelvis", "pelvis"],
   spine: ["rig_spine", "character_spine", "spine"],
+  spine_02: ["rig_spine_02", "character_spine_02", "spine_02"],
   chest: ["rig_chest", "character_chest", "chest"],
   neck: ["rig_neck", "character_neck", "neck"],
   clavicle_left: ["rig_clavicle_left", "character_clavicle_left", "clavicle_left"],
@@ -195,7 +240,9 @@ const RIG_ALIASES: Record<string, readonly string[]> = {
   shin_left: ["rig_shin_left", "character_shin_left", "shin_left"],
   shin_right: ["rig_shin_right", "character_shin_right", "shin_right"],
   boot_left: ["rig_foot_left", "character_boot_left", "boot_left", "foot_left"],
-  boot_right: ["rig_foot_right", "character_boot_right", "boot_right", "foot_right"]
+  boot_right: ["rig_foot_right", "character_boot_right", "boot_right", "foot_right"],
+  toe_left: ["rig_toe_left", "character_toe_left", "toe_left"],
+  toe_right: ["rig_toe_right", "character_toe_right", "toe_right"]
 };
 
 const UPPER_TRACK_TOKENS = [
@@ -242,21 +289,28 @@ const ALL_PLAYER_ANIMATIONS: readonly PlayerAnimation[] = [
   "place",
   "workstation",
   "cast",
+  "hookset",
   "fishing_idle",
   "reel",
   "slack",
   "brace",
   "board",
+  "board_skiff",
   "dock",
+  "dock_skiff",
   "rowboat_idle",
   "row",
   "skiff_idle",
+  "skiff_fishing",
   "skiff_drive",
   "mounted_idle",
   "mounted_walk",
   "mounted_trot",
+  "mounted_gallop",
   "mount",
+  "mount_right",
   "dismount",
+  "dismount_right",
   "talk_gesture"
 ];
 
@@ -295,15 +349,28 @@ function maskedClip(
  * remain presentation-only.
  */
 export class HumanoidAnimator {
+  private readonly root: THREE.Object3D;
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<PlayerAnimation, THREE.AnimationAction>();
   private readonly lowerActions = new Map<PlayerAnimation, THREE.AnimationAction>();
   private readonly upperActions = new Map<PlayerAnimation, THREE.AnimationAction>();
   private readonly specs = new Map<PlayerAnimation, RuntimeAnimationClipSpec>();
   private readonly rigParts = new Map<string, RigPart>();
+  private readonly footSupportSolver: HumanoidFootSupportSolver;
   private readonly secondaryParts = new Map<string, RigPart>();
   private readonly secondarySprings = new Map<string, SecondarySpring>();
   private readonly scratchPosition = new THREE.Vector3();
+  private readonly rootWorldPosition = new THREE.Vector3();
+  private readonly footWorldPosition = new THREE.Vector3();
+  private readonly footTargetWorld = new THREE.Vector3();
+  private readonly footContactStates: Record<"left" | "right", FootContactState> = {
+    left: { locked: false, targetWorld: new THREE.Vector3() },
+    right: { locked: false, targetWorld: new THREE.Vector3() }
+  };
+  private readonly footSoleClearanceMeters: Record<"left" | "right", number> = {
+    left: 0.12,
+    right: 0.12
+  };
 
   private activeBaseClip: PlayerAnimation = "idle";
   private activeBaseMasked = false;
@@ -327,7 +394,9 @@ export class HumanoidAnimator {
   private groundingFootIkScale = 1;
 
   public constructor(root: THREE.Object3D) {
+    this.root = root;
     this.mixer = new THREE.AnimationMixer(root);
+    this.footSupportSolver = new HumanoidFootSupportSolver(root);
     const asset = ASSET_BY_ID.get(root.userData.assetId as AssetId);
     const stampedSpecs = root.userData.animationClipSpecs as RuntimeAnimationClipSpec[] | undefined;
     const catalogSpecs = [
@@ -381,6 +450,18 @@ export class HumanoidAnimator {
         angleZ: 0
       });
     }
+    root.updateWorldMatrix(true, true);
+    root.getWorldPosition(this.rootWorldPosition);
+    for (const side of ["left", "right"] as const) {
+      const foot = this.rigParts.get(`boot_${side}`)?.object;
+      if (!foot) continue;
+      foot.getWorldPosition(this.footWorldPosition);
+      this.footSoleClearanceMeters[side] = THREE.MathUtils.clamp(
+        this.footWorldPosition.y - this.rootWorldPosition.y,
+        0.04,
+        0.24
+      );
+    }
   }
 
   public play(action: PlayerAnimation): void {
@@ -406,6 +487,75 @@ export class HumanoidAnimator {
     this.actionElapsed = 0;
   }
 
+  /**
+   * Releases world-space correction history without cancelling an interaction
+   * action that may have triggered the same canonical pose discontinuity.
+   */
+  public resetSpatialState(): void {
+    this.contactRecovery = null;
+    this.transition = null;
+    this.lastContactEvent = "none";
+    this.groundPitch = 0;
+    this.groundRoll = 0;
+    this.leftFootOffsetY = 0;
+    this.rightFootOffsetY = 0;
+    this.groundingFootIkScale = 1;
+    for (const state of Object.values(this.footContactStates)) state.locked = false;
+    for (const spring of this.secondarySprings.values()) {
+      spring.velocityX = 0;
+      spring.velocityZ = 0;
+      spring.angleX = 0;
+      spring.angleZ = 0;
+    }
+    for (const [semantic, part] of this.secondaryParts) {
+      const spring = this.secondarySprings.get(semantic);
+      if (!spring) continue;
+      part.object.rotation.copy(part.rotation);
+    }
+  }
+
+  /**
+   * Clears presentation-only history after teleports, save loads, and parent
+   * changes. Physics and simulation remain the sole owners of player truth.
+   */
+  public resetTransientState(): void {
+    this.mixer.stopAllAction();
+    this.activeBaseClip = "idle";
+    this.activeBaseMasked = false;
+    this.baseClipElapsed = 0;
+    this.basePlaybackScale = 1;
+    this.activeUpperClip = null;
+    this.upperClipElapsed = 0;
+    this.upperPlaybackScale = 1;
+    this.activeAction = null;
+    this.actionElapsed = 0;
+    this.lastDesiredBase = "idle";
+    this.resetSpatialState();
+  }
+
+  /**
+   * Returns the authored duration used by the one-shot action timer. Keeping
+   * this lookup here lets application-level interaction locks follow the same
+   * catalog contract as the visible animation.
+   */
+  public actionDurationSeconds(action: PlayerAnimation): number {
+    return this.clipDuration(action, 0.8);
+  }
+
+  /** Releases mixer bindings when a scene lifetime ends. */
+  public dispose(): void {
+    this.cancelAction();
+    this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.mixer.getRoot());
+    this.actions.clear();
+    this.lowerActions.clear();
+    this.upperActions.clear();
+    this.specs.clear();
+    this.rigParts.clear();
+    this.secondaryParts.clear();
+    this.secondarySprings.clear();
+  }
+
   public currentClip(): PlayerAnimation {
     return this.displayClip();
   }
@@ -416,6 +566,7 @@ export class HumanoidAnimator {
     activeAction: PlayerAnimation | null;
     baseClip: PlayerAnimation;
     upperClip: PlayerAnimation | null;
+    basePhase: number;
   }> {
     const clip = this.displayClip();
     return {
@@ -425,8 +576,14 @@ export class HumanoidAnimator {
         : this.basePlaybackScale,
       activeAction: this.activeAction,
       baseClip: this.activeBaseClip,
-      upperClip: this.activeUpperClip
+      upperClip: this.activeUpperClip,
+      basePhase: this.normalizedBasePhase()
     };
+  }
+
+  public normalizedBasePhase(): number {
+    const duration = this.clipDuration(this.activeBaseClip, 0);
+    return duration > 0 ? wrapTime(this.baseClipElapsed, duration) / duration : 0;
   }
 
   public update(
@@ -459,8 +616,8 @@ export class HumanoidAnimator {
 
     // A hook-set or catch gesture must not replace a seated lower body.
     if (context.boatInput && this.activeAction
-      && ["brace", "cast", "slack", "pickup"].includes(this.activeAction)) {
-      selectedBase = context.boatInput.boatTypeId === "boat.rowboat" ? "rowboat_idle" : "skiff_idle";
+      && ["brace", "cast", "hookset", "slack", "pickup"].includes(this.activeAction)) {
+      selectedBase = context.boatInput.boatTypeId === "boat.rowboat" ? "rowboat_idle" : "skiff_fishing";
       selectedUpper = this.activeAction;
     }
     const baseMasked = selectedUpper !== null;
@@ -532,7 +689,6 @@ export class HumanoidAnimator {
     }
 
     this.updateGrounding(dt, context, reducedMotion);
-    this.applyLocomotionIk(context, reducedMotion);
     this.applySecondarySprings(dt, context, reducedMotion);
     const bodyGroundPitch = this.groundPitch * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
     const bodyGroundRoll = this.groundRoll * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
@@ -589,12 +745,12 @@ export class HumanoidAnimator {
           : fishingInput?.isBracing
             ? "brace"
             : "fishing_idle";
-      const seated = boatInput?.boatTypeId === "boat.rowboat"
+      const craftStance = boatInput?.boatTypeId === "boat.rowboat"
         ? "rowboat_idle"
         : boatInput?.boatTypeId === "boat.skiff"
-          ? "skiff_idle"
+          ? "skiff_fishing"
           : "idle";
-      return { base: seated, upper };
+      return { base: craftStance, upper };
     }
     if (mode === "basic-fishing") return { base: "idle", upper: "fishing_idle" };
     if (mode === "boat-driving") {
@@ -617,7 +773,11 @@ export class HumanoidAnimator {
         return { base: "mounted_idle", upper: null };
       }
       return {
-        base: motion.requestedGait === "trot" ? "mounted_trot" : "mounted_walk",
+        base: motion.requestedGait === "gallop"
+          ? "mounted_gallop"
+          : motion.requestedGait === "trot"
+            ? "mounted_trot"
+            : "mounted_walk",
         upper: null
       };
     }
@@ -651,10 +811,12 @@ export class HumanoidAnimator {
       desired === "row" ||
       desired === "rowboat_idle" ||
       desired === "skiff_idle" ||
+      desired === "skiff_fishing" ||
       desired === "skiff_drive" ||
       desired === "mounted_idle" ||
       desired === "mounted_walk" ||
-      desired === "mounted_trot"
+      desired === "mounted_trot" ||
+      desired === "mounted_gallop"
     ) {
       this.transition = null;
       return desired;
@@ -669,22 +831,16 @@ export class HumanoidAnimator {
       return next;
     }
     if (desired === this.lastDesiredBase) return desired;
-    const wasMoving = MOVING_BASE_CLIPS.has(this.lastDesiredBase);
-    const isMoving = MOVING_BASE_CLIPS.has(desired);
-    const wasStationary = this.lastDesiredBase === "idle";
-    const isStationary = desired === "idle";
-    if (wasStationary && isMoving) {
-      const clip = desired === "run" ? "run_start" : "walk_start";
-      if (this.actions.has(clip)) {
-        this.transition = { clip, next: desired, elapsed: 0 };
-        return clip;
-      }
+    const startClip = desired === "walk"
+      ? "walk_start"
+      : desired === "run"
+        ? "run_start"
+        : null;
+    if (startClip && !MOVING_BASE_CLIPS.has(this.lastDesiredBase) && this.actions.has(startClip)) {
+      this.transition = { clip: startClip, next: desired, elapsed: 0 };
+      return startClip;
     }
-    if (wasMoving && isStationary && this.actions.has("stop")) {
-      this.transition = { clip: "stop", next: desired, elapsed: 0 };
-      return "stop";
-    }
-    if (!isMoving && Math.abs(motion.turnRateRadiansPerSecond) > 0.8) {
+    if (!MOVING_BASE_CLIPS.has(desired) && Math.abs(motion.turnRateRadiansPerSecond) > 0.8) {
       const clip = motion.turnRateRadiansPerSecond > 0 ? "turn_left" : "turn_right";
       if (this.actions.has(clip)) {
         this.transition = { clip, next: desired, elapsed: 0 };
@@ -739,19 +895,35 @@ export class HumanoidAnimator {
       return;
     }
     const blend = this.baseBlendSeconds(next);
-    this.activeBaseAction()?.fadeOut(blend);
+    const previousClip = this.activeBaseClip;
+    const previousAction = this.activeBaseAction();
+    const previousDuration = this.clipDuration(previousClip, 0);
+    const preservePhase = this.shouldPreserveBasePhase(previousClip, next);
+    const previousPhase = previousDuration > 0
+      ? wrapTime(this.baseClipElapsed, previousDuration) / previousDuration
+      : 0;
     const nextAction = actionMap.get(next);
     const spec = this.specs.get(next);
     if (nextAction) {
       nextAction.reset();
-      if (scale < 0) nextAction.time = Math.max(0, this.clipDuration(next) - 0.0001);
+      if (preservePhase) nextAction.time = previousPhase * this.clipDuration(next);
+      else if (scale < 0) nextAction.time = Math.max(0, this.clipDuration(next) - 0.0001);
       nextAction.clampWhenFinished = !spec?.loop;
       nextAction.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
-      nextAction.setEffectiveTimeScale(scale).fadeIn(blend).play();
+      nextAction.setEffectiveTimeScale(scale).play();
+      if (previousAction && previousAction !== nextAction) {
+        nextAction.crossFadeFrom(previousAction, blend, false);
+      } else {
+        nextAction.fadeIn(blend);
+      }
+    } else {
+      previousAction?.fadeOut(blend);
     }
     this.activeBaseClip = next;
     this.activeBaseMasked = masked;
-    this.baseClipElapsed = scale < 0 ? this.clipDuration(next) : 0;
+    this.baseClipElapsed = preservePhase
+      ? previousPhase * this.clipDuration(next)
+      : scale < 0 ? this.clipDuration(next) : 0;
     this.basePlaybackScale = scale;
   }
 
@@ -768,17 +940,25 @@ export class HumanoidAnimator {
     const blend = CANONICAL_RENDER_CONFIG.motion.actionBlendSeconds;
     if (this.activeUpperClip) this.upperActions.get(this.activeUpperClip)?.fadeOut(blend);
     this.activeUpperClip = next;
-    this.upperClipElapsed = 0;
+    const preservePhase = Boolean(next && PHASE_COMPATIBLE_UPPER_CLIPS.has(next));
+    const basePhase = this.normalizedBasePhase();
+    this.upperClipElapsed = preservePhase && next ? basePhase * this.clipDuration(next) : 0;
     this.upperPlaybackScale = next ? this.playbackScale(next, speed) : 1;
     if (!next) return;
     const action = this.upperActions.get(next);
     const spec = this.specs.get(next);
     if (action) {
       action.reset();
+      if (preservePhase) action.time = this.upperClipElapsed;
       action.clampWhenFinished = !spec?.loop;
       action.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
       action.setEffectiveTimeScale(this.upperPlaybackScale).fadeIn(blend).play();
     }
+  }
+
+  private shouldPreserveBasePhase(previous: PlayerAnimation, next: PlayerAnimation): boolean {
+    if (previous === next && this.specs.get(next)?.loop) return true;
+    return PHASE_COMPATIBLE_BASE_CLIPS.has(previous) && PHASE_COMPATIBLE_BASE_CLIPS.has(next);
   }
 
   private playbackScale(
@@ -878,12 +1058,10 @@ export class HumanoidAnimator {
     return CANONICAL_RENDER_CONFIG.motion.locomotionBlendSeconds;
   }
 
-  private additiveBob(context: CharacterAnimationContext): number {
-    if (!MOVING_BASE_CLIPS.has(this.activeBaseClip)) return 0;
-    const duration = this.clipDuration(this.activeBaseClip);
-    const phase = duration > 0 ? this.baseClipElapsed / duration * Math.PI * 2 : this.elapsed * 8.2;
-    return Math.abs(Math.sin(phase)) * 0.012 *
-      THREE.MathUtils.clamp(context.motion.speedMetersPerSecond / 5.6, 0, 1);
+  private additiveBob(_context: CharacterAnimationContext): number {
+    // Authored locomotion already contains contact compression and push-off.
+    // A second sinusoidal root bob detached the body from the planted feet.
+    return 0;
   }
 
   private additiveLeanX(context: CharacterAnimationContext): number {
@@ -898,7 +1076,7 @@ export class HumanoidAnimator {
       );
     }
     if (!MOVING_BASE_CLIPS.has(this.activeBaseClip)) return 0;
-    return -0.025 * THREE.MathUtils.clamp(
+    return 0.025 * THREE.MathUtils.clamp(
       context.motion.accelerationMetersPerSecondSquared / 18,
       0,
       1
@@ -926,6 +1104,7 @@ export class HumanoidAnimator {
     reducedMotion: boolean
   ): void {
     const canGround =
+      TERRAIN_CONTACT_BASE_CLIPS.has(this.activeBaseClip) &&
       context.motion.isGrounded &&
       context.motion.slopeRadians <= THREE.MathUtils.degToRad(38) &&
       (context.mode === "on-foot" || context.mode === "farm-placement");
@@ -987,58 +1166,96 @@ export class HumanoidAnimator {
     this.rightFootOffsetY = THREE.MathUtils.lerp(this.rightFootOffsetY, desiredRightFoot, smoothing);
   }
 
-  private applyFootGrounding(): void {
-    const left = this.rigParts.get("boot_left");
-    const right = this.rigParts.get("boot_right");
-    if (left) left.object.position.y = left.position.y + this.leftFootOffsetY;
-    if (right) right.object.position.y = right.position.y + this.rightFootOffsetY;
-  }
-
-  private applyLocomotionIk(
+  /**
+   * Applies world-space stance locks after the mixer pose and character root
+   * transform have both been resolved. Each sole samples the same authored
+   * traversal support as Rapier, so terrain, roads, bridges, piers, and
+   * interiors cannot disagree with the visible feet.
+   */
+  public resolveGroundContacts(
     context: CharacterAnimationContext,
-    reducedMotion: boolean
+    sampleSurface: (x: number, z: number) => CharacterGroundSurfaceSample
   ): void {
-    if (context.boatInput && (context.mode === "sport-fishing" || context.mode === "boat-driving")) return;
-    if (
-      reducedMotion ||
-      !CANONICAL_RENDER_CONFIG.motion.footIkEnabled ||
-      !context.motion.isGrounded ||
-      context.mode === "mounted"
-    ) {
-      this.applyFootGrounding();
+    const enabled = CANONICAL_RENDER_CONFIG.motion.footIkEnabled &&
+      TERRAIN_CONTACT_BASE_CLIPS.has(this.activeBaseClip) &&
+      context.motion.isGrounded &&
+      context.motion.slopeRadians <= THREE.MathUtils.degToRad(38) &&
+      (context.mode === "on-foot" || context.mode === "farm-placement") &&
+      !context.boatInput;
+    if (!enabled) {
+      for (const state of Object.values(this.footContactStates)) state.locked = false;
       return;
     }
-    this.applyTwoBoneFootIk();
+
+    this.root.updateWorldMatrix(true, true);
+    for (const side of ["left", "right"] as const) {
+      const thigh = this.rigParts.get(`thigh_${side}`)?.object;
+      const shin = this.rigParts.get(`shin_${side}`)?.object;
+      const foot = this.rigParts.get(`boot_${side}`)?.object;
+      if (!thigh || !shin || !foot) continue;
+
+      foot.getWorldPosition(this.footWorldPosition);
+      const contactWeight = this.footContactWeight(side);
+      const state = this.footContactStates[side];
+      if (contactWeight <= 0.001) {
+        state.locked = false;
+        continue;
+      }
+      if (!state.locked) {
+        state.locked = true;
+        state.targetWorld.copy(this.footWorldPosition);
+      }
+
+      const surface = sampleSurface(state.targetWorld.x, state.targetWorld.z);
+      const strength = contactWeight * this.groundingFootIkScale;
+      const maxHorizontalCorrection = 0.22;
+      const correctionX = THREE.MathUtils.clamp(
+        state.targetWorld.x - this.footWorldPosition.x,
+        -maxHorizontalCorrection,
+        maxHorizontalCorrection
+      );
+      const correctionZ = THREE.MathUtils.clamp(
+        state.targetWorld.z - this.footWorldPosition.z,
+        -maxHorizontalCorrection,
+        maxHorizontalCorrection
+      );
+      const desiredY = surface.height + this.footSoleClearanceMeters[side];
+      const correctionY = THREE.MathUtils.clamp(
+        desiredY - this.footWorldPosition.y,
+        -CANONICAL_RENDER_CONFIG.motion.groundingMaxFootOffsetMeters,
+        CANONICAL_RENDER_CONFIG.motion.groundingMaxFootOffsetMeters
+      );
+      this.footTargetWorld.copy(this.footWorldPosition).add(
+        this.scratchPosition.set(correctionX, correctionY, correctionZ).multiplyScalar(strength)
+      );
+      this.solveTwoBoneChain(
+        thigh,
+        shin,
+        foot,
+        this.footTargetWorld,
+        side === "left" ? -1 : 1
+      );
+    }
   }
 
-  private applyTwoBoneFootIk(): void {
-    const maxBend = CANONICAL_RENDER_CONFIG.motion.footIkMaxBendRadians;
-    const groundPitch = this.groundPitch * this.groundingFootIkScale;
-    for (const side of ["left", "right"] as const) {
-      const thigh = this.rigParts.get(`thigh_${side}`);
-      const shin = this.rigParts.get(`shin_${side}`);
-      const foot = this.rigParts.get(`boot_${side}`);
-      if (!thigh || !shin || !foot) continue;
-      const offsetY = side === "left" ? this.leftFootOffsetY : this.rightFootOffsetY;
-      const hip = THREE.MathUtils.clamp(
-        groundPitch * 0.5 + offsetY * 2.2,
-        -maxBend,
-        maxBend
-      );
-      const knee = THREE.MathUtils.clamp(
-        -groundPitch * 0.65 - offsetY * 3.1,
-        -maxBend * 1.2,
-        maxBend * 0.4
-      );
-      const ankle = THREE.MathUtils.clamp(
-        groundPitch * 0.4 - offsetY * 0.8,
-        -maxBend,
-        maxBend
-      );
-      thigh.object.rotation.x += hip;
-      shin.object.rotation.x += knee;
-      foot.object.rotation.x += ankle;
+  private footContactWeight(side: "left" | "right"): number {
+    if (!TERRAIN_CONTACT_BASE_CLIPS.has(this.activeBaseClip)) return 0;
+    if (this.activeBaseClip === "walk_start" || this.activeBaseClip === "run_start") {
+      return side === "left" ? 1 : 0;
     }
+    const duration = this.clipDuration(this.activeBaseClip, 0);
+    const event = this.specs.get(this.activeBaseClip)?.events?.find(
+      (candidate) => candidate.name === `footstep_${side}`
+    );
+    if (!event || duration <= 0) return 0.5;
+    const phaseAfterContact = wrapTime(this.baseClipElapsed - event.timeSeconds, duration) / duration;
+    // A running foot leaves the floor much earlier than a walking foot. Using
+    // the walk's near-half-cycle lock on run stretched the planted leg behind
+    // the body after toe-off and turned the flight phase into a drag.
+    const running = this.activeBaseClip === "run" || this.activeBaseClip === "carry_run";
+    const holdUntil = running ? 0.12 : 0.30;
+    const releaseBy = running ? 0.30 : 0.48;
+    return 1 - THREE.MathUtils.smoothstep(phaseAfterContact, holdUntil, releaseBy);
   }
 
   private applySecondarySprings(
@@ -1155,47 +1372,72 @@ export class HumanoidAnimator {
     );
   }
 
-  private readonly fishingGripIk = {
+  private readonly chainIk = {
     shoulder: new THREE.Vector3(), elbow: new THREE.Vector3(), wrist: new THREE.Vector3(),
     direction: new THREE.Vector3(), bend: new THREE.Vector3(), desiredElbow: new THREE.Vector3(),
     from: new THREE.Vector3(), to: new THREE.Vector3(),
     rotation: new THREE.Quaternion(), world: new THREE.Quaternion(), parent: new THREE.Quaternion()
   };
 
-  /** Keep the free hand on the reel after the socket-bearing arm has been posed. */
-  public alignFishingGrip(target: THREE.Vector3): void {
-    const upper = this.rigParts.get("arm_left")?.object;
-    const lower = this.rigParts.get("forearm_left")?.object;
-    const hand = this.rigParts.get("hand_left")?.object;
+  /** Constrains either hand to an authored world-space grip marker. */
+  public alignHandGrip(side: "left" | "right", target: THREE.Vector3): void {
+    const upper = this.rigParts.get(`arm_${side}`)?.object;
+    const lower = this.rigParts.get(`forearm_${side}`)?.object;
+    const hand = this.rigParts.get(`hand_${side}`)?.object;
     if (!upper || !lower || !hand) return;
-    const k = this.fishingGripIk;
+    this.solveTwoBoneChain(upper, lower, hand, target, side === "left" ? -1 : 1);
+  }
+
+  /** Keeps mounted boots on the authored stirrup supports after the mixer pose. */
+  public alignFootSupports(leftTarget: THREE.Vector3, rightTarget: THREE.Vector3): void {
+    this.footSupportSolver.alignFeet(leftTarget, rightTarget);
+  }
+
+  /** Backward-compatible semantic wrapper for the fishing rod's free hand. */
+  public alignFishingGrip(target: THREE.Vector3): void {
+    this.alignHandGrip("left", target);
+  }
+
+  private solveTwoBoneChain(
+    upper: THREE.Object3D,
+    lower: THREE.Object3D,
+    end: THREE.Object3D,
+    target: THREE.Vector3,
+    fallbackBendX: number
+  ): void {
+    const k = this.chainIk;
     upper.getWorldPosition(k.shoulder);
     lower.getWorldPosition(k.elbow);
-    hand.getWorldPosition(k.wrist);
+    end.getWorldPosition(k.wrist);
     const a = k.shoulder.distanceTo(k.elbow);
     const b = k.elbow.distanceTo(k.wrist);
     if (a < 0.001 || b < 0.001) return;
     k.direction.subVectors(target, k.shoulder);
-    const distance = THREE.MathUtils.clamp(k.direction.length(), Math.abs(a - b) + 0.001, a + b - 0.001);
+    const rawDistance = k.direction.length();
+    if (rawDistance < 0.0001) return;
+    const distance = THREE.MathUtils.clamp(rawDistance, Math.abs(a - b) + 0.001, a + b - 0.001);
     k.direction.normalize();
     k.bend.subVectors(k.elbow, k.shoulder).addScaledVector(k.direction, -k.bend.dot(k.direction));
-    if (k.bend.lengthSq() < 0.00001) k.bend.set(-1, 0, 0).addScaledVector(k.direction, k.direction.x);
+    if (k.bend.lengthSq() < 0.00001) {
+      k.bend.set(fallbackBendX, 0, 0)
+        .addScaledVector(k.direction, -fallbackBendX * k.direction.x);
+    }
     k.bend.normalize();
     const along = (a * a - b * b + distance * distance) / (2 * distance);
     k.desiredElbow.copy(k.shoulder).addScaledVector(k.direction, along)
       .addScaledVector(k.bend, Math.sqrt(Math.max(0, a * a - along * along)));
     k.from.subVectors(k.elbow, k.shoulder).normalize();
     k.to.subVectors(k.desiredElbow, k.shoulder).normalize();
-    this.rotateFishingBone(upper, k.from, k.to);
+    this.rotateChainBone(upper, k.from, k.to);
     lower.getWorldPosition(k.elbow);
-    hand.getWorldPosition(k.wrist);
+    end.getWorldPosition(k.wrist);
     k.from.subVectors(k.wrist, k.elbow).normalize();
     k.to.subVectors(target, k.elbow).normalize();
-    this.rotateFishingBone(lower, k.from, k.to);
+    this.rotateChainBone(lower, k.from, k.to);
   }
 
-  private rotateFishingBone(bone: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3): void {
-    const k = this.fishingGripIk;
+  private rotateChainBone(bone: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3): void {
+    const k = this.chainIk;
     k.rotation.setFromUnitVectors(from, to);
     bone.getWorldQuaternion(k.world).premultiply(k.rotation);
     if (bone.parent) bone.parent.getWorldQuaternion(k.parent).invert();

@@ -1,4 +1,5 @@
 import type { GameAction, GameMode } from "../simulation/core/types";
+import { FISHING_STEER_INPUT_MAX } from "../simulation/fishing/FishingTuning";
 
 export interface FishingInputState {
   isReeling: boolean;
@@ -51,7 +52,7 @@ export class HeldInputState {
 }
 
 const GAME_KEY_CODES = new Set([
-  "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyM", "Space",
+  "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyM", "KeyR", "Space",
   "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "KeyP",
   "Digit1", "Digit2", "Digit3", "Digit4", "Digit5"
 ]);
@@ -59,7 +60,6 @@ const MOVEMENT_MODES = new Set<GameMode>(["on-foot", "farm-placement", "boat-dri
 const EMPTY_KEYS: ReadonlySet<string> = new Set();
 const ORBIT_DRAG_THRESHOLD_PX = 4;
 const MAX_ACCUMULATED_POINTER_DELTA = 600;
-
 interface TouchPointerState {
   id: number;
   target: HTMLElement;
@@ -96,8 +96,8 @@ export function deriveSemanticInput(
 
   let rodDirectionAngle = 0;
   if (mode === "sport-fishing") {
-    if (hasAny(keys, "KeyA", "ArrowLeft")) rodDirectionAngle -= 0.6;
-    if (hasAny(keys, "KeyD", "ArrowRight")) rodDirectionAngle += 0.6;
+    if (hasAny(keys, "KeyA", "ArrowLeft")) rodDirectionAngle -= FISHING_STEER_INPUT_MAX;
+    if (hasAny(keys, "KeyD", "ArrowRight")) rodDirectionAngle += FISHING_STEER_INPUT_MAX;
   }
 
   return {
@@ -199,7 +199,11 @@ export class InputRouter {
     this.virtualFishing = {
       ...this.virtualFishing,
       ...input,
-      rodDirectionAngle: clamp(input.rodDirectionAngle ?? this.virtualFishing.rodDirectionAngle, -0.6, 0.6)
+      rodDirectionAngle: clamp(
+        input.rodDirectionAngle ?? this.virtualFishing.rodDirectionAngle,
+        -FISHING_STEER_INPUT_MAX,
+        FISHING_STEER_INPUT_MAX
+      )
     };
   }
 
@@ -282,8 +286,8 @@ export class InputRouter {
         isBracing: physical.fishing.isBracing || (this.currentMode === "sport-fishing" && this.virtualFishing.isBracing),
         rodDirectionAngle: clamp(
           physical.fishing.rodDirectionAngle + (this.currentMode === "sport-fishing" ? this.virtualFishing.rodDirectionAngle : 0),
-          -0.6,
-          0.6
+          -FISHING_STEER_INPUT_MAX,
+          FISHING_STEER_INPUT_MAX
         )
       }
     };
@@ -381,6 +385,11 @@ export class InputRouter {
       case "KeyL": this.dispatch("open-ledger"); break;
       case "KeyM": this.dispatch("open-map"); break;
       case "KeyP": this.dispatch("open-planning"); break;
+      case "KeyR":
+        if (!this.worldInputSuspended && (this.currentMode === "on-foot" || this.currentMode === "boat-driving")) {
+          this.dispatch("fishing.toggle-lure");
+        }
+        break;
       case "Digit1": if (!this.worldInputSuspended) this.dispatch("select-tool-1"); break;
       case "Digit2": if (!this.worldInputSuspended) this.dispatch("select-tool-2"); break;
       case "Digit3": if (!this.worldInputSuspended) this.dispatch("select-tool-3"); break;

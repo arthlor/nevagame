@@ -71,7 +71,12 @@ const KEEP_DISTANCE_SCALE = 1.34;
 
 const CATEGORY_DRAW_DISTANCE_SCALE: Readonly<Record<GroundCoverCategory, number>> = {
   grass: 0.84,
-  flowers: 0.9,
+  // Wildflowers are ~910 triangles each — 7.7x a grass tuft and on par with a
+  // bush — so they used to cost more than all 11,400 grass instances combined
+  // while drawing FURTHER than grass. At the old 86 m they were a few pixels
+  // tall and paid full price. Pulled inside the grass band; the gold
+  // visual-regression baselines are the gate on whether this reads.
+  flowers: 0.5,
   bushes: 0.78,
   meadowTall: 0.82,
   pebbles: 0.7,

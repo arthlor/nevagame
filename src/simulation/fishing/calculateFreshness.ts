@@ -3,6 +3,7 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { CarryLocationType, FishCargoState, GameState } from "../core/types";
+import { WorldLayout } from "../../world/WorldLayout";
 
 function cargoSupplyInventory(state: GameState, cargo: FishCargoState) {
   if (cargo.location.type === "player") {
@@ -43,24 +44,38 @@ export function getStorageFreshnessModifier(locationType: CarryLocationType, has
   }
 }
 
-export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boolean {
-  if (cargo.location.type === "cold-storage") return false;
-
-  if (cargoHasBuiltInIce(state, cargo)) return true;
+/** Inventory whose loose ice is actually cooling this cargo, or undefined if none / built-in. */
+export function resolveCargoIceInventory(state: GameState, cargo: FishCargoState) {
+  if (cargo.location.type === "cold-storage") return undefined;
+  if (cargoHasBuiltInIce(state, cargo)) return undefined;
   const supply = cargoSupplyInventory(state, cargo);
-  if (supply && InventoryManager.getItemCount(supply, "item.crushed_ice") > 0) return true;
-
+  if (supply && InventoryManager.getItemCount(supply, "item.crushed_ice") > 0) return supply;
   if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
     const boat = state.boats[cargo.location.containerId];
     if (boat && state.player.activeBoatId === boat.id) {
       const playerInv = state.inventories[state.player.inventoryId];
       if (playerInv && InventoryManager.getItemCount(playerInv, "item.crushed_ice") > 0) {
-        return true;
+        return playerInv;
       }
     }
   }
+  return undefined;
+}
 
-  return false;
+export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boolean {
+  if (cargo.location.type === "cold-storage") return false;
+  if (cargoHasBuiltInIce(state, cargo)) return true;
+  return resolveCargoIceInventory(state, cargo) !== undefined;
+}
+
+export function resolveCargoTemperatureC(state: GameState, cargo: FishCargoState): number {
+  let holder: { x: number; z: number } = state.player;
+  if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
+    holder = state.boats[cargo.location.containerId] ?? holder;
+  } else if (cargo.location.type === "cold-storage" || cargo.location.type === "crate") {
+    holder = state.world.structures[cargo.location.containerId] ?? holder;
+  }
+  return WorldLayout.climateSampleAt(holder.x, holder.z, state.weather).temperatureC;
 }
 
 /**
@@ -72,8 +87,7 @@ export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boo
 export function advanceCargoFreshness(
   state: GameState,
   minutes: number,
-  startMinute: number,
-  ambientTemperatureC: number
+  startMinute: number
 ): number {
   if (minutes <= 0) return 0;
 
@@ -103,7 +117,7 @@ export function advanceCargoFreshness(
           speciesDef.baseDecayRatePerMinute,
           cargo.location.type,
           resolveCargoHasIce(state, cargo),
-          ambientTemperatureC
+          resolveCargoTemperatureC(state, cargo)
         )
       );
       if (freshnessBefore > 0 && cargo.freshness <= 0) spoiledCount += 1;
@@ -111,14 +125,13 @@ export function advanceCargoFreshness(
 
     elapsed += sliceMinutes;
     if ((startMinute + elapsed) % 60 === 0) {
-      const containersNeedingLooseIce = new Set<string>();
+      const billedInventories = new Set<string>();
       for (const cargo of activeCargos) {
-        if (cargoHasBuiltInIce(state, cargo)) continue;
-        const supply = cargoSupplyInventory(state, cargo);
-        if (!supply) continue;
-        containersNeedingLooseIce.add(supply.id);
+        const iceInv = resolveCargoIceInventory(state, cargo);
+        if (!iceInv) continue;
+        billedInventories.add(iceInv.id);
       }
-      for (const inventoryId of containersNeedingLooseIce) {
+      for (const inventoryId of billedInventories) {
         const inventory = state.inventories[inventoryId];
         if (inventory) InventoryManager.removeItemsAtomically(inventory, [{ itemId: "item.crushed_ice", quantity: 1 }]);
       }

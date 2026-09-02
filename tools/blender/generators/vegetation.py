@@ -196,6 +196,93 @@ def oak_tree(spec: dict, root) -> None:
     _build_tree_lods(spec, root, _oak_tree, reduce)
 
 
+def _olive_tree(spec: dict, root) -> None:
+    params = spec["parameters"]
+    rng = seeded_rng(spec["seed"])
+    height = params["height"]
+    spread = params["spread"]
+    lean = params["lean"]
+    lod_index = spec.get("_lodIndex", 0)
+    wood, leaves, highlight, fruit = spec["palette"]
+    gesture = lean * height
+    lower = (gesture * 0.22, -0.05, height * 0.34)
+    fork = (gesture * 0.54, 0.08, height * 0.53)
+    crown = (gesture * 0.88, 0.0, height * 0.72)
+    add_tapered_beam("olive_trunk_lower", (0, 0, 0.07), lower, 0.52, 0.38, wood, root, vertices=8)
+    add_tapered_beam("olive_trunk_mid", lower, fork, 0.39, 0.27, wood, root, vertices=8)
+    add_root_flare(
+        "olive_root", (0, 0, 0), 0.94, 0.5, wood, root,
+        count=params["rootCount"], seed=spec["seed"] + 1,
+    )
+    _add_secondary_root_spokes(
+        "olive_root_spoke", 0.94, 0.5, wood, root,
+        count=max(3, min(5, params["rootCount"] // 2)), seed=spec["seed"] + 11,
+    )
+    branch_ends = []
+    for index in range(params["branchCount"]):
+        angle = index * math.tau / params["branchCount"] + 0.28 + rng.uniform(-0.2, 0.2)
+        start = fork if index % 2 == 0 else lower
+        end = (
+            crown[0] + math.cos(angle) * spread * rng.uniform(0.48, 0.72),
+            math.sin(angle) * spread * rng.uniform(0.38, 0.58),
+            height * rng.uniform(0.64, 0.83),
+        )
+        branch_ends.append(end)
+        add_tapered_beam(
+            f"olive_branch_{index:02d}", start, end,
+            0.18 if index < 2 else 0.14, 0.055, wood, root, vertices=7,
+        )
+        if lod_index == 0:
+            tip = (
+                end[0] + math.cos(angle + 0.46) * spread * 0.2,
+                end[1] + math.sin(angle + 0.46) * spread * 0.15,
+                end[2] + height * 0.055,
+            )
+            add_tapered_beam(f"olive_twig_{index:02d}", end, tip, 0.058, 0.022, wood, root, vertices=6)
+
+    cluster_count = params["canopyClusters"]
+    for index in range(cluster_count):
+        angle = index * 2.39996 + rng.uniform(-0.2, 0.2)
+        radius = spread * (0.28 + 0.34 * (index % 3) / 2) * rng.uniform(0.9, 1.08)
+        center = (
+            crown[0] + math.cos(angle) * radius,
+            math.sin(angle) * radius * 0.72,
+            height * (0.71 + 0.1 * (index % 3) / 2 + rng.uniform(-0.025, 0.025)),
+        )
+        size = spread * rng.uniform(0.33, 0.46)
+        add_ico(
+            f"olive_canopy_{index:02d}", center,
+            (size * 1.14, size * 0.78, size * 0.52),
+            highlight if index % 4 == 0 else leaves,
+            root,
+            subdivisions=1 if lod_index else 2,
+            rotation=(rng.uniform(-0.18, 0.18), rng.uniform(-0.18, 0.18), angle * 0.24),
+        )
+    if lod_index == 0:
+        for index in range(params["fruitCount"]):
+            angle = index * 2.39996 + 0.5
+            radius = spread * (0.38 + 0.24 * ((index * 3) % 7) / 6)
+            add_ico(
+                f"olive_fruit_{index:02d}",
+                (
+                    crown[0] + math.cos(angle) * radius,
+                    math.sin(angle) * radius * 0.7 - spread * 0.2,
+                    height * (0.68 + 0.16 * ((index * 5) % 7) / 6),
+                ),
+                (0.055, 0.045, 0.065), fruit, root, subdivisions=1,
+            )
+
+
+def olive_tree(spec: dict, root) -> None:
+    def reduce(parameters: dict) -> None:
+        parameters["canopyClusters"] = max(6, round(parameters["canopyClusters"] * 0.48))
+        parameters["branchCount"] = max(4, round(parameters["branchCount"] * 0.62))
+        parameters["rootCount"] = max(4, round(parameters["rootCount"] * 0.7))
+        parameters["fruitCount"] = 0
+
+    _build_tree_lods(spec, root, _olive_tree, reduce)
+
+
 def _pine_tree(spec: dict, root) -> None:
     params = spec["parameters"]
     rng = seeded_rng(spec["seed"])

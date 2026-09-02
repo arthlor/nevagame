@@ -360,7 +360,19 @@ def rowboat(spec: dict, root) -> None:
         "rowboat_floorboard", (0, 0.05, -0.12), beam * 0.54, length * 0.58, 0.07,
         (honey, warm), root, count=10, axis="y", bevel=0.014,
     )
-    add_marker("boat_rowboat_rower_seat", (0, 0.18, 0.08), root, marker_type="seat")
+    add_box(
+        "rowboat_foot_stretcher", (0, -0.23, 0.03), (0.62, 0.08, 0.20),
+        dark, root, rotation=(math.radians(-12), 0, 0), bevel=0.018,
+    )
+    add_marker("boat_rowboat_rower_seat", (0, 0.18, 0.42), root, marker_type="pelvis_contact")
+    add_marker(
+        "boat_rowboat_foot_left_socket", (-0.16, -0.22, 0.08),
+        root, marker_type="foot_support",
+    )
+    add_marker(
+        "boat_rowboat_foot_right_socket", (0.16, -0.22, 0.08),
+        root, marker_type="foot_support",
+    )
     for side_name, side in (("left", -1), ("right", 1)):
         grip = (side * 0.29, -0.12, 0.72)
         blade_center = (side * 0.70, 0.44, 0.50)
@@ -468,10 +480,16 @@ def fishing_skiff(spec: dict, root) -> None:
     add_box("skiff_stern_deck", (0, half_length * 0.62, 0.78), (beam * 0.72, 1.15, 0.16), honey, root, bevel=0.03)
     add_box("skiff_bow_deck", (0, -half_length * 0.62, 0.74), (beam * 0.48, 0.95, 0.14), honey, root, bevel=0.03)
     add_marker(
-        "boat_skiff_driver_seat",
-        (0, half_length * 0.56, 0.88),
+        "boat_skiff_driver_station",
+        (0, half_length * 0.56, 0.86),
         root,
-        marker_type="seat",
+        marker_type="standing_station",
+    )
+    add_marker(
+        "boat_skiff_fishing_station",
+        (beam * 0.25, -half_length * 0.24, 0.68),
+        root,
+        marker_type="standing_station",
     )
     add_beam("skiff_bowsprit", (0, -half_length * 0.92, 0.78), (0, -half_length * 1.18, 0.86), 0.07, dark, root, vertices=7)
 

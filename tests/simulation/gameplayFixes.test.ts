@@ -163,6 +163,8 @@ describe("Gameplay simulation fixes", () => {
       if (!sim.state.basicFishing) break;
       sim.tick(0.05);
     }
+    expect(sim.state.basicFishing?.phase).toBe("caught");
+    expect(sim.execute({ type: "fishing.commit-basic" }).success).toBe(true);
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "fish.perch")).toBe(1);
   });
@@ -234,12 +236,10 @@ describe("Gameplay simulation fixes", () => {
     const winterMinute = 90 * 1440 + 8 * 60;
     wheat.lastTickMinute = winterMinute - 60;
     wheat.seasonalModifier = 1.2;
-    const rng = new SeededRng(99);
-    tickMarket(market, winterMinute, "winter", rng);
+    tickMarket(market, winterMinute, "winter", sim.state.worldSeed);
     expect(wheat.seasonalModifier).toBe(1.2);
-    expect(wheat.demandIndex).toBeGreaterThanOrEqual(0.65);
-    expect(wheat.demandIndex).toBeLessThanOrEqual(1.1);
-    expect(wheat.demandIndex).toBeLessThan(1.15);
+    expect(wheat.demandIndex).toBeGreaterThanOrEqual(0.8);
+    expect(wheat.demandIndex).toBeLessThanOrEqual(1.2);
   });
 
   it("remainingCatchPotential stays until the catch is committed to cargo", () => {
@@ -354,6 +354,35 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.state.fishCargo["cargo.spoiled"]).toBeUndefined();
     expect(sim.state.player.carriedFishCargoId).toBeNull();
     expect(InventoryManager.getItemCount(inv, "item.fish_scraps")).toBe(scrapsBefore + 1);
+  });
+
+  it("discardFishCargo accepts docked boat hold cargo when discarding from the harbor market", () => {
+    const boat = sim.state.boats["boat.player_rowboat"];
+    boat.isDocked = true;
+    boat.dockedMarketId = "market.harbor";
+    boat.fishCargoSlotIds[0] = "cargo.spoiled_hold";
+    sim.state.player.x = HARBOR_MARKET.position.x;
+    sim.state.player.z = HARBOR_MARKET.position.z;
+    sim.state.player.activeBoatId = null;
+    sim.state.fishCargo["cargo.spoiled_hold"] = {
+      id: "cargo.spoiled_hold",
+      speciesId: "fish.tuna",
+      weightKg: 18,
+      quality: "fine",
+      caughtAtMinute: 0,
+      freshness: 0,
+      cargoClass: "medium",
+      location: { type: "boat-hold", containerId: boat.id, slotIndex: 0 }
+    };
+    const inv = sim.state.inventories[sim.state.player.inventoryId];
+    const scrapsBefore = InventoryManager.getItemCount(inv, "item.fish_scraps");
+
+    const discard = sim.discardFishCargo("cargo.spoiled_hold", "market.harbor");
+
+    expect(discard).toMatchObject({ success: true, scraps: 2 });
+    expect(sim.state.fishCargo["cargo.spoiled_hold"]).toBeUndefined();
+    expect(boat.fishCargoSlotIds[0]).toBeNull();
+    expect(InventoryManager.getItemCount(inv, "item.fish_scraps")).toBe(scrapsBefore + 2);
   });
 
   it("calculateCropQuality uses rngRoll and does not consume rng", () => {
@@ -473,18 +502,29 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.x = VILLAGE_MARKET.position.x;
     sim.state.player.z = VILLAGE_MARKET.position.z;
 
+    // Every crop is stocked; access is paced by the crop's own minimumFarmingXp.
+    // Carrot needs 200 Farming XP, so an unskilled player is "locked", not
+    // "not-stocked" — the stall carries it, they just cannot buy it yet.
+    expect(sim.state.player.proficiencies.farming).toBeLessThan(200);
     expect(sim.buySeedAtMarket("market.village", "seed.carrot", 1)).toMatchObject({
       success: false,
-      reasonCode: "not-stocked"
+      reasonCode: "locked"
     });
     expect(sim.buySeedAtMarket("market.village", "seed.wheat", 1)).toMatchObject({ success: true });
 
+    // Meeting the gate is the only thing standing between the player and the seed.
+    sim.state.player.proficiencies.farming = 200;
+    expect(sim.buySeedAtMarket("market.village", "seed.carrot", 1)).toMatchObject({ success: true });
+
+    // An item the stall genuinely does not carry still reports not-stocked.
+    expect(sim.buySeedAtMarket("market.village", "item.crushed_ice", 1)).toMatchObject({
+      success: false,
+      reasonCode: "not-stocked"
+    });
+
     InventoryManager.addItemsAtomically(inventory, [{ itemId: "fish.carp", quantity: 1 }]);
     movePlayerToProcessingFront(sim, HARBOR_FISH_TABLE.structureId);
-    expect(sim.startProcessingJob("recipe.carp_to_scraps", HARBOR_FISH_TABLE.structureId)).toMatchObject({
-      success: false,
-      reason: "That recipe is not available yet"
-    });
+    expect(sim.startProcessingJob("recipe.carp_to_scraps", HARBOR_FISH_TABLE.structureId).success).toBe(true);
   });
 
   it("only accepts contract fish cargo that meets the target requirements", () => {
@@ -492,6 +532,7 @@ describe("Gameplay simulation fixes", () => {
       id: "contract.test_trout",
       templateId: "contract.fresh_trout_order",
       requesterId: "npc.harbor_innkeeper",
+      deliveryMarketId: "market.harbor",
       type: "fresh-fish" as const,
       targetItemIdOrSpecies: "fish.trout",
       quantityRequired: 1,
@@ -977,6 +1018,7 @@ describe("Gameplay simulation fixes", () => {
 
     // 3. Reset while basic-fishing or sport-fishing
     sim.state.basicFishing = {
+      ecologyId: "ecology.neva",
       phase: "waiting",
       habitatId: "ocean",
       remainingSeconds: 4,
@@ -1045,7 +1087,7 @@ describe("Gameplay simulation fixes", () => {
     expect(plantedApple.success).toBe(true);
     const appleId = Object.keys(sim.state.crops)[0];
     const appleDef = ContentRegistry.crops.get("crop.apple_tree")!;
-    sim.state.crops[appleId].effectiveGrowthMinutes = appleDef.baseGrowthMinutes * 1.7;
+    sim.state.crops[appleId].effectiveGrowthMinutes = appleDef.baseGrowthMinutes + 12 * 60 + 1;
     sim.advanceGameMinutes(1);
     expect(sim.state.crops[appleId]).toBeDefined();
     expect(sim.state.crops[appleId].stage).toBe("overripe");
@@ -1064,7 +1106,7 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.plantCrop("farm.starter_garden", "crop.wheat", wheatPos.x, wheatPos.z).success).toBe(true);
     const wheatId = Object.keys(sim.state.crops)[0];
     const wheatDef = ContentRegistry.crops.get("crop.wheat")!;
-    sim.state.crops[wheatId].effectiveGrowthMinutes = wheatDef.baseGrowthMinutes * 1.7;
+    sim.state.crops[wheatId].effectiveGrowthMinutes = wheatDef.baseGrowthMinutes + 24 * 60 + 1;
     sim.advanceGameMinutes(1);
     expect(sim.state.crops[wheatId].stage).toBe("withered");
     const wheatClear = sim.harvestCrop(wheatId);

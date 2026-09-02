@@ -1,5 +1,5 @@
 import React from "react";
-import { ChromePanel } from "../chrome/Chrome";
+import { GameSheet } from "../coastal/CoastalUI";
 import { UI_GIS } from "../chrome/uiAtlas";
 import { AtlasImage } from "../chrome/AtlasImage";
 
@@ -11,7 +11,7 @@ export const FarmGISLegend: React.FC<FarmGISLegendProps> = ({ visible }) => {
   if (!visible) return null;
 
   return (
-    <ChromePanel as="aside" className="farm-gis-legend interactive" tone="slate" flourish corners role="status" aria-label="Field signs" data-testid="farm-gis-legend">
+    <GameSheet family="ink" as="aside" className="farm-gis-legend interactive" tone="slate" corners role="status" aria-label="Field signs" data-testid="farm-gis-legend">
       <div className="gis-legend-header">
         <strong className="gis-legend-title">Field signs</strong>
         <span className="gis-legend-hint">Release Alt to hide</span>
@@ -39,6 +39,6 @@ export const FarmGISLegend: React.FC<FarmGISLegendProps> = ({ visible }) => {
           <span>Prepared soil</span>
         </div>
       </div>
-    </ChromePanel>
+    </GameSheet>
   );
 };

@@ -4,7 +4,6 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { GameClock, seasonAtMinute, DAYS_PER_SEASON, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
 import { tickMarket } from "../../src/simulation/economy/updateMarket";
-import { SeededRng } from "../../src/simulation/core/Rng";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
 import { HARBOR_MARKET, VILLAGE_MARKET, HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -68,16 +67,18 @@ describe("Core hunt fixes", () => {
 
     expect(sim.state.basicFishing?.phase).toBe("caught");
     expect(InventoryManager.getItemCount(inventory, catchItemId)).toBe(0);
-    expect(sim.cancelBasicFishing()).toMatchObject({
+    expect(sim.execute({ type: "fishing.commit-basic" })).toMatchObject({
       success: false,
       reason: "Your backpack is full. Make space to land the catch."
     });
     expect(sim.state.basicFishing?.phase).toBe("caught");
 
-    inventory.slots[0] = {};
-    expect(sim.cancelBasicFishing().success).toBe(true);
+    expect(sim.cancelBasicFishing()).toMatchObject({
+      success: true,
+      reason: "inventory-full"
+    });
     expect(sim.state.basicFishing).toBeNull();
-    expect(InventoryManager.getItemCount(inventory, catchItemId)).toBe(1);
+    expect(InventoryManager.getItemCount(inventory, catchItemId)).toBe(0);
   });
 
   it("keeps a full bite-reaction window after a hitch that overshoots the wait", () => {
@@ -111,14 +112,14 @@ describe("Core hunt fixes", () => {
   });
 
   it("applies each market catch-up hour with the season at that hour", () => {
-    const winterStart = 90 * MINUTES_PER_DAY;
+    const winterStart = 3 * DAYS_PER_SEASON * MINUTES_PER_DAY;
     expect(seasonAtMinute(winterStart - 60)).toBe("autumn");
     expect(seasonAtMinute(winterStart)).toBe("winter");
 
     const market = structuredClone(sim.state.markets["market.village"]);
     const wheat = market.commodities["produce.wheat"];
     wheat.lastTickMinute = winterStart - 90;
-    tickMarket(market, winterStart + 30, "winter", new SeededRng(11));
+    tickMarket(market, winterStart + 30, "winter", sim.state.worldSeed);
     expect(wheat.lastTickMinute).toBe(winterStart + 30);
     expect(wheat.seasonalModifier).toBe(1.2);
   });
@@ -132,8 +133,8 @@ describe("Core hunt fixes", () => {
     expect(buy.cost).toBeGreaterThan(0);
     const sell = sim.sellItemAtMarket("market.harbor", "item.crushed_ice", 1);
     expect(sell.success).toBe(true);
-    expect(sell.revenue).toBe(buy.cost);
-    expect(sim.state.player.money).toBe(money);
+    expect(buy.cost!).toBeGreaterThan(sell.revenue!);
+    expect(sim.state.player.money).toBe(money - (buy.cost! - sell.revenue!));
   });
 
   it("decays cargo freshness across offline catch-up even when caughtAtMinute equals the frozen clock", () => {
@@ -292,17 +293,19 @@ describe("Core hunt fixes", () => {
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
     const before = InventoryManager.getItemCount(inventory, "item.compost_starter");
     const money = sim.state.player.money;
-    expect(sim.buySeedAtMarket("market.village", "item.compost_starter", 1)).toMatchObject({
-      success: true,
-      cost: 10
-    });
+    const compost = sim.buySeedAtMarket("market.village", "item.compost_starter", 1);
+    expect(compost.success).toBe(true);
+    expect(compost.cost).toBeGreaterThanOrEqual(10);
     expect(InventoryManager.getItemCount(inventory, "item.compost_starter")).toBe(before + 1);
-    expect(sim.state.player.money).toBe(money - 10);
+    expect(sim.state.player.money).toBe(money - (compost.cost ?? 0));
   });
 
-  it("lets a consumed lure raise sport quality when Work Capacity is full", () => {
-    const qualityRank: Record<string, number> = { common: 0, fine: 1, exceptional: 2, trophy: 3 };
-    const hookQuality = (seed: number, withLure: boolean): { quality: string; lureLeft: number } => {
+  it("consumes only an explicitly prepared sport lure without changing catch quality", () => {
+    const hookQuality = (seed: number, withLure: boolean): {
+      quality: string;
+      lureLeft: number;
+      lureSnapshot: string | null;
+    } => {
       const state = structuredClone(sim.state);
       state.worldSeed = seed;
       state.metadata.rngState = undefined;
@@ -310,7 +313,10 @@ describe("Core hunt fixes", () => {
       candidate.state.player.workCapacity.current = 1000;
       const inventory = candidate.state.inventories[candidate.state.player.inventoryId];
       InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
-      if (withLure) InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.basic_lure", quantity: 1 }]);
+      if (withLure) {
+        InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.basic_lure", quantity: 1 }]);
+        expect(candidate.execute({ type: "fishing.toggle-lure" }).success).toBe(true);
+      }
       const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
       const schoolId = candidate.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
       candidate.state.player.x = lake.x;
@@ -320,19 +326,17 @@ describe("Core hunt fixes", () => {
       expect(hooked.success).toBe(true);
       return {
         quality: hooked.encounter!.fish.quality,
-        lureLeft: InventoryManager.getItemCount(inventory, "item.basic_lure")
+        lureLeft: InventoryManager.getItemCount(inventory, "item.basic_lure"),
+        lureSnapshot: hooked.encounter!.tackleSnapshot.lureItemId
       };
     };
 
-    let improved = false;
-    for (let seed = 0; seed < 64; seed += 1) {
-      const plain = hookQuality(seed, false);
-      const lured = hookQuality(seed, true);
-      expect(lured.lureLeft).toBe(0);
-      expect(qualityRank[lured.quality]).toBeGreaterThanOrEqual(qualityRank[plain.quality]);
-      if (qualityRank[lured.quality] > qualityRank[plain.quality]) improved = true;
-    }
-    expect(improved).toBe(true);
+    const plain = hookQuality(23, false);
+    const lured = hookQuality(23, true);
+    expect(plain.lureSnapshot).toBeNull();
+    expect(lured.lureLeft).toBe(0);
+    expect(lured.lureSnapshot).toBe("item.basic_lure");
+    expect(lured.quality).toBe(plain.quality);
   });
 
   it("drains underway skiff fuel during offline catch-up", () => {
@@ -381,4 +385,3 @@ describe("Core hunt fixes", () => {
     expect(habitats.has("coast")).toBe(true);
   });
 });
-

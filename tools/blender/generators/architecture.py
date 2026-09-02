@@ -4518,6 +4518,33 @@ def _build_village_building(spec: dict, root) -> None:
             shutter_token=timber if profile["openingLayout"] in ("cottage-front", "cottage-side", "cottage-garden", "inn-veranda", "shed-tools") and detail else None,
         )
 
+    if variant == "cottage-a" and detail:
+        # The front gable otherwise reads as an uninterrupted plaster triangle.
+        # A small recessed attic opening adds the reference's lived-in scale
+        # without turning the cottage into a dormer-heavy hero building.
+        gable_pitch = math.radians(pitch_deg)
+        gable_rise = math.tan(gable_pitch) * (width * 0.5 + roof_overhang)
+        gable_window_z = wall_top + min(gable_rise * 0.46, gable_rise - 0.55)
+        add_box(
+            f"{variant}_gable_window_reveal",
+            (0.0, front_y - 0.12, gable_window_z),
+            (0.78, 0.24, 0.72),
+            dark,
+            root,
+            bevel=0.014,
+        )
+        _village_glazed_window(
+            f"{variant}_gable_window",
+            (0.0, front_y - 0.17, gable_window_z),
+            0.52,
+            0.50,
+            dark,
+            glass,
+            timber,
+            root,
+            shutter_token=timber,
+        )
+
     if profile["openingLayout"] in ("cottage-side", "cottage-garden"):
         _village_glazed_side_window(f"{variant}_side_window", -width * 0.5 - 0.04, 0.0, wall_base + wall_height * 0.62, window_w, window_h, dark, glass, timber, root, side=-1, shutters=detail)
     if profile["openingLayout"] == "inn-veranda" and detail:
@@ -4543,11 +4570,66 @@ def _build_village_building(spec: dict, root) -> None:
     # Chimney placement is an explicit catalog binding, not a profile-wide random choice.
     if profile["chimney"] and chimney_h > 0:
         chimney_y = depth * 0.12
-        add_box(f"{variant}_chimney", (chimney_x, chimney_y, wall_top + chimney_h * 0.28), (0.62, 0.54, chimney_h), stone, root, bevel=0.03 if detail else 0.0)
-        if detail:
-            add_masonry_courses(f"{variant}_chimney_masonry", (chimney_x, chimney_y, wall_top + chimney_h * 0.28), 0.62, 0.54, chimney_h, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 23, block_depth=0.12, bevel=0.012)
-            add_box(f"{variant}_chimney_crown", (chimney_x, chimney_y, wall_top + chimney_h * 0.82), (0.72, 0.64, 0.12), stone, root, bevel=0.012)
-            add_box(f"{variant}_chimney_pot", (chimney_x, chimney_y, wall_top + chimney_h * 0.96), (0.22, 0.22, 0.28), dark, root, bevel=0.01)
+        if variant == "cottage-a":
+            # The catalog value is the visible stack emphasis. Anchor the body
+            # to the actual front-gable roof plane so it cannot disappear
+            # inside the wall, then let the cap clear the ridge by a readable
+            # but restrained amount.
+            pitch = math.radians(pitch_deg)
+            roof_half_span = width * 0.5 + roof_overhang
+            chimney_roof_z = wall_top + math.tan(pitch) * max(
+                0.0, roof_half_span - min(abs(chimney_x), roof_half_span)
+            )
+            ridge_z = wall_top + math.tan(pitch) * roof_half_span
+            chimney_bottom_z = wall_top - 0.06
+            chimney_top_z = max(chimney_roof_z + chimney_h * 0.55, ridge_z + 0.08)
+            chimney_body_h = chimney_top_z - chimney_bottom_z
+            chimney_body_cz = (chimney_bottom_z + chimney_top_z) * 0.5
+            add_box(
+                f"{variant}_chimney",
+                (chimney_x, chimney_y, chimney_body_cz),
+                (0.62, 0.54, chimney_body_h),
+                stone,
+                root,
+                bevel=0.03 if detail else 0.0,
+            )
+            if detail:
+                add_masonry_courses(
+                    f"{variant}_chimney_masonry",
+                    (chimney_x, chimney_y, chimney_body_cz),
+                    0.62,
+                    0.54,
+                    chimney_body_h,
+                    (stone,),
+                    root,
+                    courses=max(4, round(chimney_body_h / 0.46)),
+                    blocks_per_long_side=2,
+                    seed=seed + 23,
+                    block_depth=0.12,
+                    bevel=0.012,
+                )
+                add_box(
+                    f"{variant}_chimney_crown",
+                    (chimney_x, chimney_y, chimney_top_z + 0.06),
+                    (0.72, 0.64, 0.12),
+                    stone,
+                    root,
+                    bevel=0.012,
+                )
+                add_box(
+                    f"{variant}_chimney_pot",
+                    (chimney_x, chimney_y, chimney_top_z + 0.20),
+                    (0.22, 0.22, 0.22),
+                    dark,
+                    root,
+                    bevel=0.01,
+                )
+        else:
+            add_box(f"{variant}_chimney", (chimney_x, chimney_y, wall_top + chimney_h * 0.28), (0.62, 0.54, chimney_h), stone, root, bevel=0.03 if detail else 0.0)
+            if detail:
+                add_masonry_courses(f"{variant}_chimney_masonry", (chimney_x, chimney_y, wall_top + chimney_h * 0.28), 0.62, 0.54, chimney_h, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 23, block_depth=0.12, bevel=0.012)
+                add_box(f"{variant}_chimney_crown", (chimney_x, chimney_y, wall_top + chimney_h * 0.82), (0.72, 0.64, 0.12), stone, root, bevel=0.012)
+                add_box(f"{variant}_chimney_pot", (chimney_x, chimney_y, wall_top + chimney_h * 0.96), (0.22, 0.22, 0.28), dark, root, bevel=0.01)
 
     added_entry_stairs = False
 

@@ -1,14 +1,13 @@
-// src/ui/components/ControlsReference.tsx
 import React from "react";
 import { KEY_BINDING_GROUPS, type KeyBinding } from "../keybindings";
-import { ChromeKeycap } from "../chrome/Chrome";
+import { KeyHint } from "../coastal/CoastalUI";
 
 const KeycapSequence: React.FC<{ keys: string }> = ({ keys }) => (
   <span className="controls-keycaps">
     {keys.split(" / ").map((key, index) => (
       <React.Fragment key={key}>
         {index > 0 && <span className="controls-key-or">or</span>}
-        <ChromeKeycap keyName={key} />
+        <KeyHint keyName={key} />
       </React.Fragment>
     ))}
   </span>

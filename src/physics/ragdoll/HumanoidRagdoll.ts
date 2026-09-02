@@ -30,9 +30,9 @@ export interface HumanoidRagdollInterface {
 /**
  * HumanoidRagdollSystem
  *
- * Implements the complete multi-body active Rapier ragdoll physics system.
- * Governs the dual-mode lifecycle state machine:
- * `kinematic-active` -> `physical-ragdoll` -> `recovering` -> `kinematic-active`
+ * Standalone/deferred character physics support. The live Neva MVP is
+ * no-combat and `PhysicsWorld` does not instantiate this system; callers that
+ * opt into it own the fixed-step world lifecycle explicitly.
  */
 export class HumanoidRagdollSystem implements HumanoidRagdollInterface {
   public mode: RagdollMode = "kinematic-active";
@@ -86,10 +86,12 @@ export class HumanoidRagdollSystem implements HumanoidRagdollInterface {
     initialPose?: CharacterPoseSnapshot,
     rapierInstance?: typeof RAPIER
   ): void {
-    this.rapierWorld = world;
-    if (rapierInstance) {
-      this.rapierInstance = rapierInstance;
+    const resolvedRapierInstance = rapierInstance ?? this.rapierInstance;
+    if (this.rapierWorld || this.rapierBodies.size > 0 || this.rapierJoints.length > 0) {
+      this.dispose();
     }
+    this.rapierWorld = world;
+    this.rapierInstance = resolvedRapierInstance;
 
     if (initialPose) {
       this.lastTargetPose = initialPose;
@@ -403,6 +405,11 @@ export class HumanoidRagdollSystem implements HumanoidRagdollInterface {
     this.rapierColliders.clear();
     this.rapierBodies.clear();
     this.rapierWorld = null;
+    this.rapierInstance = null;
+    this.lastTargetPose = null;
+    this.mode = "kinematic-active";
+    this.linearVelocity.set(0, 0, 0);
+    this.angularVelocity.set(0, 0, 0);
   }
 }
 

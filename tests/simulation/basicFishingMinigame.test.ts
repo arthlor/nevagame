@@ -15,7 +15,7 @@ describe("BasicFishingMinigame - Stardew Valley Mechanics", () => {
   describe("Bar Height Calculation", () => {
     it("scales with rod tier and fishing proficiency rank", () => {
       const baseHeight = BasicFishingMinigame.calculateBarHeight("rod.willow", 0);
-      expect(baseHeight).toBeCloseTo(0.20, 2);
+      expect(baseHeight).toBeCloseTo(0.22, 2);
 
       const riverHeight = BasicFishingMinigame.calculateBarHeight("rod.river", 0);
       expect(riverHeight).toBeGreaterThan(baseHeight);
@@ -154,10 +154,10 @@ describe("BasicFishingMinigame - Stardew Valley Mechanics", () => {
   describe("Quality Rating & Perfect Catch Bonus", () => {
     it("awards quality upgrades and perfect catch boosts", () => {
       const perfectQuality = BasicFishingMinigame.determineQuality(0.9, true, rng);
-      expect(["gold", "iridium"]).toContain(perfectQuality);
+      expect(["exceptional", "trophy"]).toContain(perfectQuality);
 
       const imperfectQuality = BasicFishingMinigame.determineQuality(0.2, false, rng);
-      expect(imperfectQuality).toBe("normal");
+      expect(imperfectQuality).toBe("common");
     });
   });
 
@@ -253,7 +253,9 @@ describe("Simulation Basic Fishing Loop Integration", () => {
       if (!sim.state.basicFishing) break;
       sim.tick(0.05);
     }
-    expect(sim.state.basicFishing).toBeNull(); // Caught and resolved atomically
+    expect(sim.state.basicFishing?.phase).toBe("caught");
+    expect(sim.execute({ type: "fishing.commit-basic" }).success).toBe(true);
+    expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "fish.perch")).toBeGreaterThan(0);
   });
 
@@ -314,6 +316,8 @@ describe("Simulation Basic Fishing Loop Integration", () => {
       if (!sim.state.basicFishing) break;
       sim.tick(0.05);
     }
+    expect(sim.state.basicFishing?.phase).toBe("caught");
+    expect(sim.execute({ type: "fishing.commit-basic" }).success).toBe(true);
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(inv, "fish.perch")).toBe(1);
     const added = table.reduce(

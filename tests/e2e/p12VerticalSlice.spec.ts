@@ -907,6 +907,8 @@ test.describe("P12 Chrome continuous player route", () => {
 
     expect((await snapshot(page)).activeQuestId).toBe("quest.act1_welcome");
     // The canonical spawn is already at the authored gate interaction point.
+    await talkAtCurrentPosition(page, "npc.elspeth", "Welcome to Neva Cove");
+    expect((await snapshot(page)).activeQuestId).toBe("quest.act1_welcome");
     await talkAtCurrentPosition(page, "npc.elspeth", "You have your grandfather's steady hands");
     expect((await snapshot(page)).activeQuestId).toBe("quest.act1_sow_wheat");
 
@@ -983,9 +985,13 @@ test.describe("P12 Chrome continuous player route", () => {
     await walkRoute(page, villageHarborRoute.points.slice(1, -1));
     await walkToMaeveDialogueApproach(page);
     await capture(page, "04-harbor-maeve.png");
+    await talkAtCurrentPosition(page, "npc.maeve", "Welcome to the Southeast Harbor");
+    expect((await snapshot(page)).activeQuestId).toBe("quest.act4_harbor_journey");
     await talkAtCurrentPosition(page, "npc.maeve", "Now you understand");
     expect((await snapshot(page)).activeQuestId).toBe("quest.act4_restore_rowboat");
 
+    await talkTo(page, "npc.silas", "Your family's old wooden rowboat");
+    expect((await snapshot(page)).activeQuestId).toBe("quest.act4_restore_rowboat");
     await talkTo(page, "npc.silas", "She's cleared for sea");
     expect((await snapshot(page)).unlocked).toContain("boat.player_rowboat");
     expect((await snapshot(page)).activeQuestId).toBe("quest.act5_maiden_voyage");
@@ -1044,7 +1050,7 @@ test.describe("P12 Chrome continuous player route", () => {
     await capture(page, "09-reloaded-epilogue.png");
 
     await page.keyboard.press("KeyJ");
-    const journal = page.getByRole("dialog", { name: /Guild Chronicle/i });
+    const journal = page.getByRole("dialog", { name: /Cove Chronicle/i });
     await expect(journal).toBeVisible();
     await expect(journal).toContainText("Completed Chronicles");
     await expect(journal).toContainText("The Call of the Deep");

@@ -1,25 +1,27 @@
-// src/ui/fishing/BasicFishingMinigameWidget.tsx
-
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BasicFishingState } from "../../simulation/core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { IconFish } from "../components/HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish } from "../chrome/uiAtlas";
-import { ChromeButton, ChromeKeycap, ChromeMeter, ChromePanel, ChromeQuality } from "../chrome/Chrome";
+import { ChromeButton, ChromeQuality } from "../chrome/Chrome";
+import { GameSheet, KeyHint, Meter } from "../coastal/CoastalUI";
 import { playUiSound } from "../audio/uiAudio";
-import "./BasicFishingMinigame.css";
 
 interface BasicFishingMinigameWidgetProps {
   fishingState: BasicFishingState;
   onHookBite?: () => void;
-  onDismissModal?: () => void;
+  onDismissModal?: () => { success: boolean; reason?: string; reasonCode?: string };
+  onOpenSatchel?: () => void;
+  onDiscardCatch?: () => void;
 }
 
 export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProps> = ({
   fishingState,
   onHookBite,
-  onDismissModal
+  onDismissModal,
+  onOpenSatchel,
+  onDiscardCatch
 }) => {
   const {
     phase,
@@ -41,6 +43,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   const speciesName = species?.name || "Fish";
 
   const prevPhaseRef = useRef(phase);
+  const [inventoryBlocked, setInventoryBlocked] = useState(false);
 
   useEffect(() => {
     if (prevPhaseRef.current === phase) return;
@@ -50,12 +53,17 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     if (phase === "escaped") playUiSound("click");
   }, [phase]);
 
+  const collectCatch = () => {
+    const result = onDismissModal?.();
+    setInventoryBlocked(result?.reasonCode === "inventory-full");
+  };
+
   if (phase === "charging-cast") {
     return (
       <div className="basic-fishing-container">
-        <ChromePanel tone="slate" flourish corners className="cast-power-card">
+        <GameSheet family="ink" tone="slate" corners className="cast-power-card">
           <div className="cast-title">Cast power</div>
-          <ChromeMeter
+          <Meter
             className="cast-power-meter"
             label="Cast power"
             value={castPower}
@@ -64,8 +72,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
             variant="gold"
             data-testid="cast-power-meter"
           />
-          <div className="cast-hint">Release <ChromeKeycap keyName="E / LMB" glow /> to cast · <ChromeKeycap keyName="Esc" /> cancel</div>
-        </ChromePanel>
+          <div className="cast-hint">Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</div>
+        </GameSheet>
       </div>
     );
   }
@@ -73,31 +81,27 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "bite-reaction") {
     return (
       <div className="basic-fishing-container">
-        <ChromePanel tone="slate" flourish corners className="bite-alert-banner" data-testid="bite-alert">
+        <GameSheet family="ink" tone="slate" corners className="bite-alert-banner" data-testid="bite-alert">
           <div className="bite-exclamation">!</div>
           <div className="bite-text">Bite!</div>
-          <div className="cast-hint">Hook set — press <ChromeKeycap keyName="Space" glow /></div>
+          <div className="cast-hint">Hook set — press <KeyHint keyName="Space" glow /></div>
           <ChromeButton variant="gold" soundCue="confirm" onClick={onHookBite}>Hook fish</ChromeButton>
-        </ChromePanel>
+        </GameSheet>
       </div>
     );
   }
 
   if (phase === "minigame") {
     return (
-      <div
-        className="basic-fishing-container"
-      >
-        <ChromePanel tone="slate" flourish corners className="minigame-card" data-testid="reeling-minigame">
+      <div className="basic-fishing-container">
+        <GameSheet family="ink" tone="slate" corners className="minigame-card" data-testid="reeling-minigame">
           <div className="minigame-header">
             <span className="minigame-species-name">Reeling Fish</span>
             {isPerfect && <span className="perfect-badge">Perfect</span>}
           </div>
 
           <div className="minigame-board">
-            {/* Water track containing the green bar and fish */}
             <div className="water-track">
-              {/* Green catch bar */}
               <div
                 className="green-catch-bar"
                 style={{
@@ -108,7 +112,6 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
                 <div className="green-bar-handle" />
               </div>
 
-              {/* Sunken Treasure Chest */}
               {hasTreasure && (
                 <div
                   className="treasure-chest-icon"
@@ -129,7 +132,6 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
                 </div>
               )}
 
-              {/* Swimming Fish Avatar */}
               <div
                 className="fish-avatar"
                 style={{
@@ -141,7 +143,6 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               </div>
             </div>
 
-            {/* Catch Progress & Risk Meter (Right Side) */}
             <div
               className="catch-progress-track"
               role="meter"
@@ -159,9 +160,9 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
 
           <div className="minigame-footer-hint">
-            Hold <ChromeKeycap keyName="Space" glow /> to keep pressure · <ChromeKeycap keyName="Esc" /> cancel
+            Hold <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel
           </div>
-        </ChromePanel>
+        </GameSheet>
       </div>
     );
   }
@@ -169,7 +170,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "caught") {
     return (
       <div className="basic-fishing-container">
-        <ChromePanel tone="slate" flourish corners className="catch-summary-card" data-testid="catch-landed">
+        <GameSheet family="ink" tone="slate" corners className="catch-summary-card result-stamp" data-testid="catch-landed">
           <div className="catch-summary-header">Fish landed</div>
           <div className="catch-item-preview">
             <div className="catch-item-emoji">
@@ -182,7 +183,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
           {isPerfect && (
             <div className="perfect-badge" style={{ fontSize: "12px", padding: "4px 10px" }}>
-              Perfect catch (+double experience)
+              Perfect catch
             </div>
           )}
 
@@ -192,10 +193,28 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
             </div>
           )}
 
-          <ChromeButton className="dismiss-button" variant="gold" soundCue="confirm" onClick={onDismissModal}>
-            Collect <ChromeKeycap keyName="Space" />
-          </ChromeButton>
-        </ChromePanel>
+          <p className="catch-storage-line">
+            {inventoryBlocked ? "Storage · Waiting in hand" : "Storage · Satchel on collect"}
+          </p>
+          {inventoryBlocked && <p className="catch-storage-blocker">The satchel is full. Make room or discard this catch.</p>}
+          <div className="catch-result-actions">
+            <ChromeButton
+              className="dismiss-button"
+              variant="gold"
+              soundCue="confirm"
+              autoFocus={inventoryBlocked}
+              onClick={collectCatch}
+            >
+              Collect <KeyHint keyName="Space" />
+            </ChromeButton>
+            {inventoryBlocked && onOpenSatchel && (
+              <ChromeButton onClick={onOpenSatchel}>Open satchel</ChromeButton>
+            )}
+            {inventoryBlocked && onDiscardCatch && (
+              <ChromeButton variant="danger" onClick={onDiscardCatch}>Discard catch</ChromeButton>
+            )}
+          </div>
+        </GameSheet>
       </div>
     );
   }
@@ -203,7 +222,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "escaped") {
     return (
       <div className="basic-fishing-container">
-        <ChromePanel tone="slate" flourish corners className="catch-summary-card escaped-card" data-testid="catch-escaped">
+        <GameSheet family="ink" tone="slate" corners className="catch-summary-card result-stamp escaped-card" data-testid="catch-escaped">
           <div className="catch-summary-header">Got away</div>
           <div className="catch-item-preview">
             <div className="catch-item-emoji">
@@ -215,7 +234,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           <ChromeButton className="dismiss-button dismiss-secondary" onClick={onDismissModal}>
             Dismiss
           </ChromeButton>
-        </ChromePanel>
+        </GameSheet>
       </div>
     );
   }

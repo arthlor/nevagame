@@ -27,6 +27,18 @@ export const POLYHAVEN_SURFACE_TEXTURES = Object.freeze({
     sourcePage: "https://polyhaven.com/a/grass_path_2",
     url: "/assets/textures/terrain/polyhaven-grass-path-2-roughness.webp"
   },
+  beachColor: {
+    kind: "color",
+    sourceName: "Coast Sand 01",
+    sourcePage: "https://polyhaven.com/a/coast_sand_01",
+    url: "/assets/textures/terrain/polyhaven-coast-sand-01-color.webp"
+  },
+  beachRoughness: {
+    kind: "roughness",
+    sourceName: "Coast Sand 01",
+    sourcePage: "https://polyhaven.com/a/coast_sand_01",
+    url: "/assets/textures/terrain/polyhaven-coast-sand-01-roughness.webp"
+  },
   leafyGrassColor: {
     kind: "color",
     sourceName: "Leafy Grass",

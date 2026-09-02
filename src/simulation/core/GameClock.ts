@@ -5,7 +5,7 @@ import { ClockState, SeasonId } from "./types";
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_PER_DAY = 24;
 export const MINUTES_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR; // 1440
-export const DAYS_PER_SEASON = 30;
+export const DAYS_PER_SEASON = 6;
 export const SEASONS: SeasonId[] = ["spring", "summer", "autumn", "winter"];
 /** Clock phase windows. Lighting ramps to these same boundaries. */
 export const DAWN_START_HOUR = 4;
@@ -19,6 +19,18 @@ export const REST_WAKE_MINUTE_OF_DAY = 8 * MINUTES_PER_HOUR;
 export function seasonAtMinute(currentMinute: number): SeasonId {
   const totalDays = Math.floor(Math.max(0, currentMinute) / MINUTES_PER_DAY);
   return SEASONS[Math.floor(totalDays / DAYS_PER_SEASON) % SEASONS.length];
+}
+
+/**
+ * Day number within the current season, 1-based.
+ *
+ * The single owner of this arithmetic. Presentation layers only hold a
+ * `ClockState`, not a `GameClock`, and were each re-deriving it with a
+ * hardcoded `% 30` — so retuning `DAYS_PER_SEASON` silently desynced the HUD
+ * and pause screen from the clock. Call this instead.
+ */
+export function dayOfSeason(dayCount: number): number {
+  return ((dayCount - 1) % DAYS_PER_SEASON) + 1;
 }
 
 export function minutesUntilNextMorning(currentMinute: number): number {
@@ -170,7 +182,7 @@ export class GameClock {
   }
 
   public getDayOfSeason(): number {
-    return ((this.state.dayCount - 1) % DAYS_PER_SEASON) + 1;
+    return dayOfSeason(this.state.dayCount);
   }
 
   public getFormattedTime(): string {

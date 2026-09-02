@@ -402,7 +402,6 @@ export class LightingRig {
   private readonly shadowRight = new THREE.Vector3();
   private readonly shadowUp = new THREE.Vector3();
   private readonly frame = createLightingFrame();
-  private lastShadowUpdateSeconds = Number.NEGATIVE_INFINITY;
   private presentedMinuteOfDay: number | null = null;
   private lastPresentationUpdateSeconds = Number.NEGATIVE_INFINITY;
 
@@ -457,7 +456,6 @@ export class LightingRig {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type;
     this.renderer.shadowMap.needsUpdate = true;
-    this.lastShadowUpdateSeconds = Number.NEGATIVE_INFINITY;
     for (const light of [this.sun, this.moon]) {
       light.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
       const camera = light.shadow.camera;
@@ -529,10 +527,11 @@ export class LightingRig {
     const moonOwnsShadows = frame.moonIntensity > frame.sunIntensity;
     this.sun.castShadow = !moonOwnsShadows && frame.sunIntensity > 0.01;
     this.moon.castShadow = moonOwnsShadows && frame.moonIntensity > 0.01;
-    if (timeSeconds - this.lastShadowUpdateSeconds >= 0.12) {
-      this.renderer.shadowMap.needsUpdate = true;
-      this.lastShadowUpdateSeconds = timeSeconds;
-    }
+    // The shadow camera follows the snapped focus above, and the player/mount
+    // are live casters. Refreshing less often leaves the current light-space
+    // camera sampling a depth map rendered from the previous focus, which
+    // produces a one-frame shadow pop whenever movement crosses a texel.
+    this.renderer.shadowMap.needsUpdate = true;
 
     this.skyFill.color.copy(frame.skyFillColor);
     this.skyFill.groundColor.copy(frame.groundFillColor);

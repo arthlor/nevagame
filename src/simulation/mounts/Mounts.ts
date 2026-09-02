@@ -7,10 +7,21 @@ export const STARTER_DONKEY_TYPE_ID = "mount.donkey" as const;
 
 /** Canonical authored offsets shared by boarding, physics, saves, and presentation. */
 export const MOUNT_TUNING = Object.freeze({
-  walkSpeedMetersPerSecond: 5.5,
-  trotSpeedMetersPerSecond: 8.5,
-  accelerationMetersPerSecondSquared: 18,
-  decelerationMetersPerSecondSquared: 24,
+  // Every gait clears the rider's equivalent on foot. A trot that lost to a
+  // sprint (3.7 against 3.8) made the donkey a downgrade; the trot is now the
+  // free cruise and the gallop is the quota-gated burst.
+  walkSpeedMetersPerSecond: 1.7,
+  trotSpeedMetersPerSecond: 4.9,
+  gallopSpeedMetersPerSecond: 7.2,
+  maximumGallopStamina: 100,
+  // Roughly seven seconds of gallop, against the player's four and a half, so
+  // the mount reads as a genuine advantage rather than a reskinned sprint.
+  gallopDrainPerSecond: 14,
+  gallopRecoveryPerSecond: 18,
+  gallopRecoveryDelaySeconds: 1,
+  gallopResumeThreshold: 25,
+  accelerationMetersPerSecondSquared: 4.5,
+  decelerationMetersPerSecondSquared: 7.5,
   playerPoseGroundOffsetMeters: 0.5,
   dismountClearanceMeters: 1.25,
   boardRadiusMeters: 2.75,
@@ -29,7 +40,63 @@ export function createStarterDonkeyState(): MountState {
     x: STARTER_DONKEY_ANCHOR.x,
     y: WorldLayout.traversalSurfaceHeight(STARTER_DONKEY_ANCHOR.x, STARTER_DONKEY_ANCHOR.z),
     z: STARTER_DONKEY_ANCHOR.z,
-    rotationY: STARTER_DONKEY_ANCHOR.rotationY
+    rotationY: STARTER_DONKEY_ANCHOR.rotationY,
+    gallopStamina: MOUNT_TUNING.maximumGallopStamina,
+    gallopRecoveryDelaySeconds: 0,
+    gallopExhausted: false
+  };
+}
+
+export interface MountGaitStepInput {
+  wantsGallop: boolean;
+  isMoving: boolean;
+}
+
+export interface MountGaitStepResult {
+  gallopStamina: number;
+  gallopRecoveryDelaySeconds: number;
+  gallopExhausted: boolean;
+  isGalloping: boolean;
+}
+
+/**
+ * Advances the mount's gallop budget once per fixed simulation step.
+ *
+ * Deliberately mirrors `advancePlayerTraversal` so the two budgets behave
+ * identically from the player's point of view and only differ in their numbers.
+ */
+export function advanceMountGait(
+  current: Readonly<Pick<MountState, "gallopStamina" | "gallopRecoveryDelaySeconds" | "gallopExhausted">>,
+  input: Readonly<MountGaitStepInput>,
+  fixedDeltaSeconds: number
+): MountGaitStepResult {
+  const dt = Math.max(0, fixedDeltaSeconds);
+  const maximum = MOUNT_TUNING.maximumGallopStamina;
+  const finiteOr = (value: number, fallback: number) => (Number.isFinite(value) ? value : fallback);
+  let stamina = Math.min(maximum, Math.max(0, finiteOr(current.gallopStamina, maximum)));
+  let recoveryDelay = Math.max(0, finiteOr(current.gallopRecoveryDelaySeconds, 0));
+  let exhausted = current.gallopExhausted === true;
+
+  if (exhausted && stamina >= MOUNT_TUNING.gallopResumeThreshold) exhausted = false;
+
+  const isGalloping = input.wantsGallop && input.isMoving && !exhausted && stamina > 0;
+  if (isGalloping) {
+    stamina = Math.max(0, stamina - MOUNT_TUNING.gallopDrainPerSecond * dt);
+    recoveryDelay = MOUNT_TUNING.gallopRecoveryDelaySeconds;
+    if (stamina <= 0) exhausted = true;
+  } else {
+    recoveryDelay = Math.max(0, recoveryDelay - dt);
+    if (recoveryDelay <= 0 && stamina < maximum) {
+      stamina = Math.min(maximum, stamina + MOUNT_TUNING.gallopRecoveryPerSecond * dt);
+    }
+    if (exhausted && stamina >= MOUNT_TUNING.gallopResumeThreshold) exhausted = false;
+  }
+
+  return {
+    gallopStamina: stamina,
+    gallopRecoveryDelaySeconds: recoveryDelay,
+    gallopExhausted: exhausted,
+    isGalloping
   };
 }
 

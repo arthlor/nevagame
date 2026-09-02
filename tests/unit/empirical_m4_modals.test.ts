@@ -12,37 +12,35 @@ import { playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 
 describe("Milestone M4 ornate modal presentation", () => {
-  it("renders the captain's ledger with money tabs and estimated holdings", () => {
+  it("renders the hold and stores ledger with current capacity summaries", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(LogisticsLedgerModal, {
-        state: sim.state,
+        stores: sim.inspectHoldStores(),
         onClose: () => {}
       })
     );
 
-    expect(html).toMatch(/Captain(?:'|&#x27;)s ledger/);
+    expect(html).toContain("Hold &amp; Stores");
+    expect(html).toContain("Cargo space and supplies currently in hand");
     expect(html).toContain("ledger-modal");
-    expect(html).toContain('data-testid="ledger-tabs"');
-    expect(html).toContain("Gold on hand");
-    expect(html).toContain("Estimated holdings");
-    expect(html).toContain("Money");
-    expect(html).toContain("Cargo &amp; boats");
+    expect(html).toContain("Satchel");
+    expect(html).toContain("Vessel holds");
+    expect(html).toContain("Supplies");
   });
 
   it("renders numbered velvet hold wells on the cargo ledger tab", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(LogisticsLedgerModal, {
-        state: sim.state,
-        onClose: () => {},
-        initialTab: "cargo"
+        stores: sim.inspectHoldStores(),
+        onClose: () => {}
       })
     );
 
     expect(html).toContain("Wooden Rowboat hold");
-    expect(html).toContain("Hold occupancy");
-    expect(html).toContain('data-testid="ledger-hold-grid"');
+    expect(html).toContain("Vessel holds");
+    expect(html).toContain("vessel-slots-grid");
     expect(html).toContain("chrome-slot");
     expect(html).toContain("Empty hold slot");
   });
@@ -52,7 +50,6 @@ describe("Milestone M4 ornate modal presentation", () => {
     const html = renderToString(
       React.createElement(DialogueModal, {
         npcId: "npc.elspeth",
-        state: sim.state,
         activeQuest: sim.questDomain.getActiveQuestDto(),
         onClose: () => {},
         onTalkNpc: () => ({
@@ -66,9 +63,7 @@ describe("Milestone M4 ornate modal presentation", () => {
     expect(html).toContain("Village Baker");
     expect(html).toContain("dialogue-card");
     expect(html).toContain("dialogue-avatar");
-    expect(html).toContain("Continue");
-    expect(html).toContain("Skip talk");
-    expect(html).toContain('data-testid="dialogue-skip-talk"');
+    expect(html).toContain("Show all");
     expect(html).toContain('data-testid="dialogue-text"');
   });
 
@@ -76,10 +71,11 @@ describe("Milestone M4 ornate modal presentation", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(EscapeMenuModal, {
-        state: sim.state,
+        pause: sim.inspectPauseSummary(),
         onClose: () => {},
         onResetPlayerToSafePlace: () => {},
         onQuickSave: () => {},
+        savingAvailable: true,
         onOpenInventory: () => {},
         onOpenJournal: () => {},
         onOpenGuide: () => {},
@@ -93,13 +89,13 @@ describe("Milestone M4 ornate modal presentation", () => {
     );
 
     expect(html).toContain("pause-modal");
-    expect(html).toContain("Pause");
+    expect(html).toContain("Paused");
     expect(html).toContain("Resume");
     expect(html).toContain("Work");
     expect(html).toContain("chrome-meter");
     expect(html).toContain("chrome-keycap");
-    expect(html).toContain("Sound");
-    expect(html).toContain("Ledger");
+    expect(html).toContain("Settings");
+    expect(html).toContain("Hold &amp; Stores");
   });
 
   it("renders the title screen harbor lockup and continue control", () => {
@@ -113,14 +109,17 @@ describe("Milestone M4 ornate modal presentation", () => {
         onStart: () => {},
         onStartNewGame: () => {},
         onStartWithoutSaving: () => {},
-        onRetry: () => {}
+        onRetry: () => {},
+        graphicsQuality: "high",
+        effectiveGraphicsQuality: "high",
+        onGraphicsQualityChange: () => {}
       })
     );
 
     expect(html).toContain("start-screen");
     expect(html).toContain("Grow a home. Follow the tide.");
     expect(html).toContain('data-testid="startup-start-button"');
-    expect(html).toContain("Enter Neva Land");
+    expect(html).toContain("Begin");
     expect(html).toContain('data-testid="startup-options-button"');
   });
 
@@ -128,19 +127,17 @@ describe("Milestone M4 ornate modal presentation", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(ExpeditionBoard, {
-        state: sim.state,
+        board: sim.inspectExpeditionBoard(),
         onClose: () => {}
       })
     );
 
-    expect(html).toContain("Prepare to depart");
+    expect(html).toContain("Expedition board");
     expect(html).toContain("expedition-modal");
     expect(html).toContain("Wooden Rowboat");
     expect(html).toContain("hull");
-    expect(html).toContain('data-testid="expedition-checklist"');
-    expect(html).toContain("Chum buckets");
-    expect(html).toContain("Worm bait");
-    expect(html).toContain("Crushed ice");
+    expect(html).toContain("Supplies");
+    expect(html).toContain("expedition-readiness-strip");
   });
 
   it("keeps UI audio presentation-only for M4 cues", () => {

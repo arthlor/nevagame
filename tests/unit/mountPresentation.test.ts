@@ -37,7 +37,10 @@ describe("mount presentation", () => {
     x: 12,
     y: 4.2,
     z: -8,
-    rotationY: 0.3
+    rotationY: 0.3,
+    gallopStamina: MOUNT_TUNING.maximumGallopStamina,
+    gallopRecoveryDelaySeconds: 0,
+    gallopExhausted: false
   };
 
   it("renders a mounted donkey from the interpolated player frame", () => {

@@ -26,6 +26,7 @@ export interface CameraMotionInput {
   lookHint?: { x: number; y: number; z: number };
   fightReachMeters?: number;
   lineTension?: number;
+  fightLoadRatio?: number;
   snapTimerSeconds?: number;
   fightBehavior?: string;
   fightBehaviorPhase?: "tell" | "drive" | "recovery";
@@ -34,8 +35,8 @@ export interface CameraMotionInput {
   fightStaminaRatio?: number;
   /** Physics head-shake amplitude 0..1 — a continuous low camera rumble under load. */
   fightShakeAmplitude?: number;
-  /** One-frame cinematic trigger from the fishing presentation. */
-  fightCameraEvent?: "hooked" | "landed" | null;
+  /** Transient cinematic outcome from the fishing presentation; de-duplicated by value. */
+  fightCameraEvent?: "hooked" | "landed" | "escaped" | "snapped" | "stow-failed" | null;
 }
 
 export interface CameraProfile {
@@ -274,10 +275,12 @@ export class GameCamera {
     this.hookBeatSeconds = Math.max(0, this.hookBeatSeconds - dt);
     this.landedBeatSeconds = Math.max(0, this.landedBeatSeconds - dt);
     const cameraEvent = motionInput?.fightCameraEvent ?? null;
-    if (cameraEvent && cameraEvent !== this.previousFightCameraEvent) {
+    const cameraEventStarted = cameraEvent !== null && cameraEvent !== this.previousFightCameraEvent;
+    if (cameraEventStarted) {
       if (cameraEvent === "hooked") this.hookBeatSeconds = 0.5;
-      if (cameraEvent === "landed") {
-        this.landedBeatSeconds = 0.7;
+      if (cameraEvent !== "hooked") {
+        this.landedBeatSeconds = cameraEvent === "snapped" ? 0.28 : cameraEvent === "landed" ? 0.7 : 0.5;
+        this.fightEndKind = cameraEvent;
         if (motionInput?.lookHint) this.landedBeatLook.set(motionInput.lookHint.x, motionInput.lookHint.y, motionInput.lookHint.z);
       }
     }
@@ -285,7 +288,7 @@ export class GameCamera {
 
     let distanceBiasTarget = 0;
     let pitchBiasTarget = 0;
-    if (mode === "sport-fishing") {
+    if (mode === "sport-fishing" && !this.reducedMotion) {
       const behaviour = motionInput?.fightBehavior;
       const phase = motionInput?.fightBehaviorPhase;
       if (behaviour === "run-left" || behaviour === "run-right" || behaviour === "dive") {
@@ -306,8 +309,8 @@ export class GameCamera {
         pitchBiasTarget += degrees(1);
       }
       distanceBiasTarget += THREE.MathUtils.clamp((motionInput?.fightDepthMeters ?? 0) / 5, 0, 1) * 1.2;
-      const tension = motionInput?.lineTension ?? 0;
-      if (tension >= 88 || (motionInput?.snapTimerSeconds ?? 0) > 0) {
+      const loadRatio = motionInput?.fightLoadRatio ?? 0;
+      if (loadRatio >= 0.95 || (motionInput?.snapTimerSeconds ?? 0) > 0) {
         distanceBiasTarget += 0.8;
         pitchBiasTarget -= degrees(1.5);
       }
@@ -317,7 +320,7 @@ export class GameCamera {
         pitchBiasTarget += degrees(3) * k;
       }
     }
-    const biasResponse = this.reducedMotion ? 1 : (1 - Math.exp(-2.4 * dt));
+    const biasResponse = 1 - Math.exp(-2.4 * dt);
     this.sportDistanceBias += (distanceBiasTarget - this.sportDistanceBias) * biasResponse;
     this.sportPitchBias += (pitchBiasTarget - this.sportPitchBias) * biasResponse;
 
@@ -329,7 +332,10 @@ export class GameCamera {
       // Preserve the two-subject composition without zooming so far out that
       // the fish becomes a dot. Long pelagic runs may approach the frame edge;
       // the tracked fish treatment keeps the actual target readable there.
-      const readableReach = Math.min(rawReach, motionInput.fightBehavior === "surface" ? 38 : 31);
+      const readableReach = Math.min(
+        rawReach,
+        !this.reducedMotion && motionInput.fightBehavior === "surface" ? 38 : 31
+      );
       const reachScale = rawReach > 0.001 ? readableReach / rawReach : 1;
       const dx = rawDx * reachScale;
       const dz = rawDz * reachScale;
@@ -358,7 +364,7 @@ export class GameCamera {
       this.desiredYaw = dampAngle(this.desiredYaw, wrapAngle(bearing + Math.PI + drift), 0.9, dt);
     }
 
-    if (this.reducedMotion) {
+    if (this.reducedMotion && mode !== "sport-fishing") {
       this.currentYaw = this.desiredYaw;
       this.currentPitch = this.desiredPitch;
       this.currentDistance = targetDistance;
@@ -380,7 +386,7 @@ export class GameCamera {
     );
     const teleported = this.anchorInitialized &&
       this.currentAnchor.distanceToSquared(this.rawAnchor) > CAMERA_TUNING.teleportSnapDistanceMeters ** 2;
-    if (!this.anchorInitialized || this.reducedMotion || teleported || explicitDiscontinuity) {
+    if (!this.anchorInitialized || (this.reducedMotion && mode !== "sport-fishing") || teleported || explicitDiscontinuity) {
       this.currentAnchor.copy(this.rawAnchor);
       this.anchorInitialized = true;
       if (teleported || explicitDiscontinuity) this.obstructionFraction = 1;
@@ -402,13 +408,15 @@ export class GameCamera {
     if (mode === "sport-fishing" && motionInput?.lookHint) {
       if (!this.fishingFocusActive || explicitDiscontinuity) this.fishingFocus.copy(this.currentLookAt);
       this.fishingFocusActive = true;
-      const follow = this.reducedMotion ? 1 : 1 - Math.exp(-4 * dt);
+      const follow = 1 - Math.exp(-(this.reducedMotion ? 2.4 : 4) * dt);
       const behaviour = motionInput.fightBehavior;
       const phase = motionInput.fightBehaviorPhase;
-      const fishWeight = behaviour === "surface" || behaviour === "burst"
-        ? 0.68
-        : phase === "recovery" ? 0.62
-          : behaviour === "dive" ? 0.53 : 0.57;
+      const fishWeight = this.reducedMotion
+        ? 0.57
+        : behaviour === "surface" || behaviour === "burst"
+          ? 0.68
+          : phase === "recovery" ? 0.62
+            : behaviour === "dive" ? 0.53 : 0.57;
       const fishFocusY = Math.max(motionInput.lookHint.y, this.currentAnchor.y - 1.2);
       this.fishingFocus.x = THREE.MathUtils.lerp(this.fishingFocus.x,
         THREE.MathUtils.lerp(this.currentAnchor.x, motionInput.lookHint.x, fishWeight), follow);
@@ -420,16 +428,20 @@ export class GameCamera {
     } else {
       this.fishingFocusActive = false;
     }
-    // Landed beat: ease the aim onto the caught fish and pull the boom in briefly.
-    // Survives the switch back to on-foot so the catch reads before control returns.
+    // Explicit terminal outcomes survive the switch back to on-foot and remain distinct.
     let landedBoomScale = 1;
     if (this.landedBeatSeconds > 0 && !this.reducedMotion) {
-      const k = this.landedBeatSeconds / 0.7;
-      const pull = k * 0.55;
+      const duration = this.fightEndKind === "snapped" ? 0.28 : this.fightEndKind === "landed" ? 0.7 : 0.5;
+      const k = this.landedBeatSeconds / duration;
+      const pull = k * (this.fightEndKind === "landed" ? 0.55 : this.fightEndKind === "stow-failed" ? 0.3 : 0.18);
       this.currentLookAt.x = THREE.MathUtils.lerp(this.currentLookAt.x, this.landedBeatLook.x, pull);
       this.currentLookAt.y = THREE.MathUtils.lerp(this.currentLookAt.y, this.landedBeatLook.y, pull);
       this.currentLookAt.z = THREE.MathUtils.lerp(this.currentLookAt.z, this.landedBeatLook.z, pull);
-      landedBoomScale = 1 - k * 0.16;
+      landedBoomScale = this.fightEndKind === "landed"
+        ? 1 - k * 0.16
+        : this.fightEndKind === "stow-failed"
+          ? 1 - k * 0.05
+          : 1 + k * (this.fightEndKind === "snapped" ? 0.16 : 0.1);
     }
     const effectivePitch = clamp(this.currentPitch + this.sportPitchBias,
       profile.minPitchRadians, profile.maxPitchRadians);
@@ -495,13 +507,15 @@ export class GameCamera {
       this.obstructionFraction
     );
 
-    const tension = motionInput?.lineTension ?? 0;
     const snapTimer = motionInput?.snapTimerSeconds ?? 0;
-    const danger = tension >= 94 || snapTimer > 0.2;
+    const danger = (motionInput?.fightLoadRatio ?? 0) >= 1 || snapTimer > 0.2;
     const burstStarted = motionInput?.fightBehavior === "burst" && this.previousFightBehavior !== "burst";
+    if (mode !== "sport-fishing" && !cameraEvent) this.fightTrauma = 0;
+    if (!this.reducedMotion && cameraEventStarted && cameraEvent === "snapped") {
+      this.fightTrauma = Math.max(this.fightTrauma, 0.22);
+    }
     if (mode === "sport-fishing" && !this.reducedMotion
       && (burstStarted || (danger && !this.previousFightDanger))) this.fightTrauma = 0.18;
-    if (mode !== "sport-fishing") this.fightTrauma = 0;
     this.previousFightBehavior = motionInput?.fightBehavior;
     this.previousFightDanger = danger;
     this.fightTrauma = Math.max(0, this.fightTrauma - 1.7 * dt);
@@ -519,7 +533,7 @@ export class GameCamera {
     }
 
     const targetFov = responsiveVerticalFov(profile.fovDegrees, this.camera.aspect);
-    this.camera.fov = this.reducedMotion
+    this.camera.fov = this.reducedMotion && mode !== "sport-fishing"
       ? targetFov
       : damp(this.camera.fov, targetFov, CAMERA_TUNING.profileResponse, dt);
     this.camera.updateProjectionMatrix();
@@ -697,7 +711,8 @@ export class GameCamera {
   /** Cinematic beat timers: a short settle on the hookset, a push-in when the fight ends. */
   private hookBeatSeconds = 0;
   private landedBeatSeconds = 0;
-  private previousFightCameraEvent: "hooked" | "landed" | null = null;
+  private previousFightCameraEvent: CameraMotionInput["fightCameraEvent"] = null;
+  private fightEndKind: Exclude<CameraMotionInput["fightCameraEvent"], "hooked" | null | undefined> = "landed";
   private readonly landedBeatLook = new THREE.Vector3();
   /** Smoothed behaviour-driven boom/pitch offsets layered over the sport-fishing profile. */
   private sportDistanceBias = 0;

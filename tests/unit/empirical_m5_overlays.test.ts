@@ -9,14 +9,15 @@ import { FarmGISLegend } from "../../src/ui/components/FarmGISLegend";
 import { CatchSummaryToast } from "../../src/ui/components/CatchInspectionModal";
 import { ContextualHintCard } from "../../src/ui/ContextualHintCard";
 import { CropInspection } from "../../src/ui/GameUI";
-import { HUD } from "../../src/ui/HUD";
+import { LegacyHUD as HUD } from "./uiTestHelpers";
 import { playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 import type { BasicFishingState, FishingEncounterState } from "../../src/simulation/core/types";
-import type { CropInspectionDto } from "../../src/simulation/core/contracts";
+import type { CropInspectionDto, SportFishingHudDto } from "../../src/simulation/core/contracts";
 
 function basicFishing(phase: BasicFishingState["phase"], extra: Partial<BasicFishingState> = {}): BasicFishingState {
   return {
+    ecologyId: "ecology.neva",
     habitatId: "habitat.river",
     phase,
     remainingSeconds: 4,
@@ -28,7 +29,7 @@ function basicFishing(phase: BasicFishingState["phase"], extra: Partial<BasicFis
     barHeight: 0.25,
     catchProgress: 0.45,
     isPerfect: true,
-    quality: "normal",
+    quality: "common",
     ...extra
   };
 }
@@ -41,6 +42,8 @@ const sportEncounter: FishingEncounterState = {
     quality: "common"
   },
   rodId: "rod.willow",
+  tackleSnapshot: { lureItemId: null },
+  seaConditionSnapshot: { weatherType: "clear", seaRoughness: 0 },
   stamina: 70,
   maxStamina: 100,
   distanceMeters: 8.5,
@@ -65,6 +68,7 @@ const cropInspection: CropInspectionDto = {
   name: "Wheat",
   stage: "growing",
   approximateMinutesRemaining: 40,
+  stageTimingLabel: "Ready in about 40 minutes",
   moisture: { value: 0.6, band: "normal" },
   climate: {
     current: "temperate",
@@ -82,7 +86,68 @@ const cropInspection: CropInspectionDto = {
     shortage: 0,
     readyAtMinute: null
   },
+  waterWork: {
+    baseCost: 5,
+    cost: 5,
+    availableWork: 800,
+    affordable: true,
+    shortage: 0,
+    readyAtMinute: null
+  },
+  harvestWork: {
+    baseCost: 45,
+    cost: 45,
+    availableWork: 800,
+    affordable: true,
+    shortage: 0,
+    readyAtMinute: null
+  },
+  immediateAction: {
+    kind: "water",
+    label: "Water crop",
+    cost: 5,
+    available: true
+  },
   actions: { canWater: true, canHarvest: false }
+};
+
+const sportHud: SportFishingHudDto = {
+  speciesId: "fish.trout",
+  speciesName: "Rainbow Trout",
+  energyPercent: 70,
+  rodDirectionAngle: 0,
+  steeringMagnitude: 0.6,
+  showFirstTip: true,
+  decision: {
+    fishAction: "Fish is easing off",
+    response: "Reel now",
+    action: "reel",
+    key: "W",
+    icon: "tiring",
+    tone: "opportunity"
+  },
+  tensionPercent: 42,
+  tensionBands: { slackEndPercent: 12, dangerStartPercent: 80 },
+  tensionTone: "safe",
+  tensionWord: "Good",
+  lineIntegrityPercent: 100,
+  showLineWarning: false,
+  landingProgress: null
+};
+
+const damagedSportHud: SportFishingHudDto = {
+  ...sportHud,
+  showFirstTip: false,
+  decision: {
+    fishAction: "Running left",
+    response: "Pull right",
+    action: "steer-right",
+    key: "D",
+    icon: "run",
+    tone: "warning"
+  },
+  lineIntegrityPercent: 40,
+  showLineWarning: true
 };
 
 describe("Milestone M5 tactile overlays", () => {
@@ -114,7 +179,7 @@ describe("Milestone M5 tactile overlays", () => {
     const landed = renderToString(
       React.createElement(BasicFishingMinigameWidget, {
         fishingState: basicFishing("caught"),
-        onDismissModal: () => {}
+        onDismissModal: () => ({ success: true })
       })
     );
     expect(landed).toContain("Fish landed");
@@ -124,7 +189,7 @@ describe("Milestone M5 tactile overlays", () => {
   it("renders one clear sport-fishing decision and progressively discloses damage", () => {
     const html = renderToString(
       React.createElement(FishingHUD, {
-        encounter: sportEncounter,
+        hud: sportHud,
         onSetInput: () => {}
       })
     );
@@ -136,7 +201,7 @@ describe("Milestone M5 tactile overlays", () => {
     expect(html).toContain("Fish is easing off");
     expect(html).toContain("Reel now");
     expect(html).toContain(">W<");
-    expect(html).toContain("fishing-action-rail");
+    expect(html).toContain("fishing-decision");
     expect(html).toContain("GOOD");
     expect(html).not.toContain('data-testid="fish-integrity"');
     expect(html).not.toContain("fishing-direction-arc");
@@ -146,13 +211,7 @@ describe("Milestone M5 tactile overlays", () => {
 
     const damagedRun = renderToString(
       React.createElement(FishingHUD, {
-        encounter: {
-          ...sportEncounter,
-          elapsedSeconds: 12,
-          behavior: "run-left",
-          behaviorUntilSeconds: 2,
-          lineIntegrity: 40
-        },
+        hud: damagedSportHud,
         onSetInput: () => {}
       })
     );
@@ -166,7 +225,7 @@ describe("Milestone M5 tactile overlays", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(PlantingSeedBar, {
-        state: sim.state,
+        seedBelt: sim.inspectSeedBelt(),
         selectedCropId: "crop.wheat",
         onSelectCrop: () => {},
         onCancel: () => {}
@@ -190,8 +249,8 @@ describe("Milestone M5 tactile overlays", () => {
     );
     expect(crop).toContain('data-testid="crop-inspection"');
     expect(crop).toContain("Wheat");
-    expect(crop).toContain("Soil Moisture");
-    expect(crop).toContain("Expected Yield");
+    expect(crop).toContain("Moisture");
+    expect(crop).toContain("Water crop");
   });
 
   it("renders catch summary, hint, and boat hold chrome", () => {
@@ -211,6 +270,7 @@ describe("Milestone M5 tactile overlays", () => {
     expect(hud).toContain("chrome-slot");
 
     sim.state.sportFishing = sportEncounter;
+    sim.state.player.activeBoatId = null;
     const fightHud = renderToString(
       React.createElement(HUD, {
         state: sim.state,
@@ -219,7 +279,9 @@ describe("Milestone M5 tactile overlays", () => {
       })
     );
     expect(fightHud).not.toContain("hud-boat-panel");
-    expect(fightHud).not.toContain("hud-vitals");
+    // GameUI owns sport-fishing mode gating; the standalone HUD DTO still
+    // includes the common work vitals when rendered directly.
+    expect(fightHud).toContain("hud-vitals");
 
     const hint = renderToString(
       React.createElement(ContextualHintCard, {

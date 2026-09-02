@@ -13,6 +13,7 @@ import { AssetLoader } from "../render/loaders/AssetLoader";
 import { LightingRig } from "../render/lighting/LightingRig";
 import { PaletteMaterials } from "../render/materials/PaletteMaterials";
 import { PALETTE_HEX } from "../render/materials/PaletteTokens";
+import { HumanoidFootSupportSolver } from "../render/animation/HumanoidFootSupportSolver";
 import type { GameState, WeatherState, WeatherTag } from "../simulation/core/types";
 import { resolveArtYardAssetId, syncArtYardAssetUrl } from "./urlState";
 import { socketAttachFor } from "../render/assets/ToolSocketAttach";
@@ -52,6 +53,16 @@ interface FloatingActor {
   pitchAmplitude: number;
 }
 
+interface AnimationContextPreviewSpec {
+  assetId: AssetId | null;
+  anchorName: string | null;
+  companionClip: string | null;
+  baseClip: string | null;
+  pelvisContact: boolean;
+  transition: "enter" | "exit" | null;
+  side: -1 | 1;
+}
+
 // Elements
 const yardApp = requiredElement<HTMLElement>("yard-app");
 const canvas = requiredElement<HTMLCanvasElement>("yard-canvas");
@@ -72,6 +83,7 @@ const togglePanelBtn = requiredElement<HTMLButtonElement>("toggle-panel-btn");
 // Animation Elements
 const animationSection = requiredElement<HTMLElement>("animation-section");
 const clipSelect = requiredElement<HTMLSelectElement>("clip-select");
+const animationContextSelect = requiredElement<HTMLSelectElement>("animation-context-select");
 const animPlayToggle = requiredElement<HTMLButtonElement>("anim-play-toggle");
 const animStepBackBtn = requiredElement<HTMLButtonElement>("anim-step-back-btn");
 const animStepFwdBtn = requiredElement<HTMLButtonElement>("anim-step-fwd-btn");
@@ -213,6 +225,17 @@ let isAnimationPlaying = true;
 let isScrubbing = false;
 let attachedSocketProp: THREE.Object3D | null = null;
 let socketPropSerial = 0;
+let contextPreviewRoot: THREE.Group | null = null;
+let contextPreviewMixer: THREE.AnimationMixer | null = null;
+let contextPreviewAction: THREE.AnimationAction | null = null;
+let contextBaseAction: THREE.AnimationAction | null = null;
+let contextPreviewAnchor: THREE.Object3D | null = null;
+let activeContextPreviewSpec: AnimationContextPreviewSpec | null = null;
+let contextFootSupportSolver: HumanoidFootSupportSolver | null = null;
+let contextPlayerPelvisRestOffsetY = 0;
+let contextPreviewSerial = 0;
+const contextLeftFootTarget = new THREE.Vector3();
+const contextRightFootTarget = new THREE.Vector3();
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -312,6 +335,10 @@ function visibleBounds(root: THREE.Object3D): THREE.Box3 {
   return bounds;
 }
 
+function inspectionRoot(): THREE.Group | null {
+  return contextPreviewRoot ?? currentModel;
+}
+
 function fitModel(root: THREE.Group): void {
   root.updateMatrixWorld(true);
   const bounds = visibleBounds(root);
@@ -338,6 +365,21 @@ function fitModel(root: THREE.Group): void {
   hudViewBadge.textContent = `${cameraAngleLabel("three-quarter")} · ${distanceRange.value}m`;
   controls.update();
   updateBoundingBoxOverlay();
+}
+
+function focusContextActor(actor: THREE.Group, minimumDistance: number): void {
+  actor.updateMatrixWorld(true);
+  const bounds = visibleBounds(actor);
+  if (bounds.isEmpty()) return;
+  const size = bounds.getSize(new THREE.Vector3());
+  controls.target.copy(bounds.getCenter(new THREE.Vector3()));
+  const distance = Math.max(minimumDistance, Math.max(size.x, size.y, size.z) * 1.8);
+  const direction = new THREE.Vector3(0.72, 0.42, 0.9).normalize();
+  camera.position.copy(controls.target).addScaledVector(direction, distance);
+  distanceRange.value = String(Math.round(Math.min(80, Math.max(1, distance))));
+  updateDistanceLabel();
+  hudViewBadge.textContent = `${cameraAngleLabel("three-quarter")} · ${distanceRange.value}m`;
+  controls.update();
 }
 
 function setCameraAngle(angle: string): void {
@@ -568,8 +610,9 @@ function updateBoundingBoxOverlay(): void {
     boundsHelper.dispose();
     boundsHelper = null;
   }
-  if (!boundsToggle.checked || !currentModel) return;
-  const box = visibleBounds(currentModel);
+  const root = inspectionRoot();
+  if (!boundsToggle.checked || !root) return;
+  const box = visibleBounds(root);
   if (box.isEmpty()) return;
   boundsHelper = new THREE.Box3Helper(box, new THREE.Color(0xd59b45));
   boundsHelper.renderOrder = 30;
@@ -577,8 +620,9 @@ function updateBoundingBoxOverlay(): void {
 }
 
 function updateShadowPolicies(enabled: boolean): void {
-  if (!currentModel) return;
-  currentModel.traverse((object) => {
+  const root = inspectionRoot();
+  if (!root) return;
+  root.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (mesh.isMesh && !object.name.startsWith("COL_")) {
       mesh.castShadow = enabled;
@@ -602,6 +646,7 @@ function updateGroundBed(kind: string): void {
 
 function clearModel(): void {
   socketPropSerial += 1;
+  clearContextPreview(false);
   restoreDiagnosticSnapshots();
   restoreCollisionSnapshots();
   disposeCollisionOverlay();
@@ -616,6 +661,8 @@ function clearModel(): void {
     animationMixer = null;
   }
   activeAction = null;
+  contextBaseAction = null;
+  contextPlayerPelvisRestOffsetY = 0;
   attachedSocketProp = null;
   floatingActors = [];
   activeShowcaseTitle = null;
@@ -624,6 +671,29 @@ function clearModel(): void {
   currentSpec = null;
   currentMetrics = null;
   currentLod = null;
+}
+
+function clearContextPreview(refit = true): void {
+  contextPreviewSerial += 1;
+  if (contextPreviewMixer) {
+    contextPreviewMixer.stopAllAction();
+    contextPreviewMixer.uncacheRoot(contextPreviewMixer.getRoot());
+  }
+  contextPreviewMixer = null;
+  contextPreviewAction = null;
+  contextPreviewAnchor = null;
+  activeContextPreviewSpec = null;
+  contextFootSupportSolver = null;
+  if (currentModel && contextPreviewRoot) {
+    currentModel.removeFromParent();
+    scene.add(currentModel);
+    currentModel.position.set(0, 0, 0);
+    currentModel.rotation.set(0, 0, 0);
+    currentModel.scale.set(1, 1, 1);
+  }
+  contextPreviewRoot?.removeFromParent();
+  contextPreviewRoot = null;
+  if (refit && currentModel) fitModel(currentModel);
 }
 
 function metricValue(value: string | number | null | undefined): string {
@@ -781,6 +851,13 @@ function setupAnimationStudio(model: THREE.Group): void {
 
   animationSection.style.display = "block";
   animationMixer = new THREE.AnimationMixer(model);
+  const pelvis = model.getObjectByName("rig_pelvis");
+  if (pelvis) {
+    model.updateMatrixWorld(true);
+    contextPlayerPelvisRestOffsetY = model.worldToLocal(
+      pelvis.getWorldPosition(new THREE.Vector3())
+    ).y;
+  }
 
   clipSelect.replaceChildren(
     ...clips.map((clip) => {
@@ -791,7 +868,229 @@ function setupAnimationStudio(model: THREE.Group): void {
     })
   );
 
-  playAnimationClip(clips[0].name);
+  const initialClip = clips.find((clip) => clip.name === "idle") ?? clips[0];
+  clipSelect.value = initialClip.name;
+  playAnimationClip(initialClip.name);
+}
+
+function animationContextPreviewSpec(name: string): AnimationContextPreviewSpec | null {
+  const mountedClip = name === "mounted_idle"
+    ? "idle"
+    : name === "mounted_walk"
+      ? "walk"
+      : name === "mounted_trot"
+        ? "trot"
+        : name === "mounted_gallop"
+          ? "gallop"
+          : name.startsWith("mount")
+            ? "mount"
+            : name.startsWith("dismount")
+              ? "dismount"
+              : null;
+  if (mountedClip) {
+    return {
+      assetId: "fauna_donkey_a" as AssetId,
+      anchorName: "fauna_donkey_a_rider_socket",
+      companionClip: mountedClip,
+      baseClip: null,
+      pelvisContact: true,
+      transition: name.startsWith("mount") ? "enter" : name.startsWith("dismount") ? "exit" : null,
+      side: name.endsWith("_right") ? 1 : -1
+    };
+  }
+  if (name === "reel") {
+    const selected = animationContextSelect.value === "auto" ? "rowboat" : animationContextSelect.value;
+    if (selected === "on-foot") {
+      return { assetId: null, anchorName: null, companionClip: null, baseClip: "idle", pelvisContact: false, transition: null, side: -1 };
+    }
+    if (selected === "skiff") {
+      return {
+        assetId: "boat_skiff_a" as AssetId,
+        anchorName: "boat_skiff_fishing_station",
+        companionClip: null,
+        baseClip: "skiff_fishing",
+        pelvisContact: false,
+        transition: null,
+        side: -1
+      };
+    }
+    return {
+      assetId: "boat_rowboat_a" as AssetId,
+      anchorName: "boat_rowboat_rower_seat",
+      companionClip: null,
+      baseClip: "rowboat_idle",
+      pelvisContact: true,
+      transition: null,
+      side: -1
+    };
+  }
+  if (["board", "dock", "rowboat_idle", "row"].includes(name)) {
+    return {
+      assetId: "boat_rowboat_a" as AssetId,
+      anchorName: "boat_rowboat_rower_seat",
+      companionClip: null,
+      baseClip: null,
+      pelvisContact: true,
+      transition: name === "board" ? "enter" : name === "dock" ? "exit" : null,
+      side: -1
+    };
+  }
+  if (["board_skiff", "dock_skiff", "skiff_idle", "skiff_drive", "skiff_fishing"].includes(name)) {
+    return {
+      assetId: "boat_skiff_a" as AssetId,
+      anchorName: name === "skiff_fishing" ? "boat_skiff_fishing_station" : "boat_skiff_driver_station",
+      companionClip: null,
+      baseClip: null,
+      pelvisContact: false,
+      transition: name === "board_skiff" ? "enter" : name === "dock_skiff" ? "exit" : null,
+      side: -1
+    };
+  }
+  return null;
+}
+
+function upperBodyPreviewClip(clip: THREE.AnimationClip): THREE.AnimationClip {
+  const upperTokens = [
+    "rig_spine", "rig_chest", "rig_neck", "rig_head", "rig_clavicle_",
+    "rig_upper_arm_", "rig_forearm_", "rig_hand_"
+  ];
+  return new THREE.AnimationClip(
+    `${clip.name}__upper`,
+    clip.duration,
+    clip.tracks.filter((track) => upperTokens.some((token) => track.name.includes(token)))
+      .map((track) => track.clone())
+  );
+}
+
+function positionContextTransition(normalizedTime: number): void {
+  const spec = activeContextPreviewSpec;
+  const player = currentModel;
+  const root = contextPreviewRoot;
+  const anchor = contextPreviewAnchor;
+  if (!spec?.transition || !player || !root || !anchor) return;
+  const target = anchor.getWorldPosition(new THREE.Vector3());
+  root.worldToLocal(target);
+  if (spec.pelvisContact) target.y -= contextPlayerPelvisRestOffsetY;
+  const source = target.clone().add(new THREE.Vector3(spec.side * 0.95, 0, 0.08));
+  source.y = 0;
+  const progress = THREE.MathUtils.clamp(normalizedTime, 0, 1);
+  const travel = spec.transition === "enter" ? progress : 1 - progress;
+  const eased = travel * travel * (3 - 2 * travel);
+  player.position.lerpVectors(source, target, eased);
+  player.position.y += Math.sin(Math.PI * progress) * 0.12;
+  player.rotation.set(0, 0, 0);
+}
+
+function applyContextFootSupports(): void {
+  const spec = activeContextPreviewSpec;
+  const root = contextPreviewRoot;
+  const solver = contextFootSupportSolver;
+  if (!spec || !root || !solver || spec.transition) return;
+
+  const clip = clipSelect.value;
+  const mounted = spec.assetId === "fauna_donkey_a"
+    && ["mounted_idle", "mounted_walk", "mounted_trot", "mounted_gallop"].includes(clip);
+  const rowboat = spec.assetId === "boat_rowboat_a"
+    && (clip === "rowboat_idle" || clip === "row" || clip === "reel");
+  if (!mounted && !rowboat) return;
+
+  const leftName = mounted
+    ? "fauna_donkey_a_stirrup_left_socket"
+    : "boat_rowboat_foot_left_socket";
+  const rightName = mounted
+    ? "fauna_donkey_a_stirrup_right_socket"
+    : "boat_rowboat_foot_right_socket";
+  const left = root.getObjectByName(leftName);
+  const right = root.getObjectByName(rightName);
+  if (!left || !right) return;
+  left.getWorldPosition(contextLeftFootTarget);
+  right.getWorldPosition(contextRightFootTarget);
+  solver.alignFeet(contextLeftFootTarget, contextRightFootTarget);
+}
+
+function syncContextPreviewTime(normalizedTime: number): void {
+  const normalized = THREE.MathUtils.clamp(normalizedTime, 0, 1);
+  if (contextPreviewAction && contextPreviewMixer) {
+    contextPreviewAction.time = normalized * contextPreviewAction.getClip().duration;
+    contextPreviewMixer.update(0);
+  }
+  if (contextBaseAction) {
+    contextBaseAction.time = normalized * contextBaseAction.getClip().duration;
+  }
+  positionContextTransition(normalized);
+  animationMixer?.update(0);
+  applyContextFootSupports();
+}
+
+async function updateContextPreview(name: string): Promise<void> {
+  const spec = animationContextPreviewSpec(name);
+  const player = currentModel;
+  animationContextSelect.disabled = name !== "reel";
+  if (!spec || !player || player.name !== "yard_char_player_a") {
+    if (contextPreviewRoot) clearContextPreview();
+    return;
+  }
+  if (!spec.assetId) {
+    if (contextPreviewRoot) clearContextPreview();
+    activeContextPreviewSpec = spec;
+    return;
+  }
+
+  clearContextPreview(false);
+  const requestSerial = ++contextPreviewSerial;
+  const companion = await AssetLoader.loadModel(spec.assetId);
+  if (
+    requestSerial !== contextPreviewSerial ||
+    currentModel !== player ||
+    animationContextPreviewSpec(clipSelect.value)?.assetId !== spec.assetId
+  ) {
+    companion.removeFromParent();
+    return;
+  }
+  const anchor = spec.anchorName ? companion.getObjectByName(spec.anchorName) : null;
+  if (!anchor) {
+    companion.removeFromParent();
+    return;
+  }
+
+  companion.name = `yard_context_${spec.assetId}`;
+  companion.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || object.name.startsWith("COL_")) return;
+    mesh.castShadow = shadowsToggle.checked;
+    mesh.receiveShadow = shadowsToggle.checked;
+  });
+  const root = new THREE.Group();
+  root.name = "yard_animation_context";
+  root.add(companion);
+  root.add(player);
+  scene.add(root);
+  contextPreviewRoot = root;
+  contextPreviewAnchor = anchor;
+  activeContextPreviewSpec = spec;
+  contextFootSupportSolver = new HumanoidFootSupportSolver(player);
+
+  if (!spec.transition) {
+    anchor.add(player);
+    player.position.set(0, spec.pelvisContact ? -contextPlayerPelvisRestOffsetY : 0, 0);
+    player.rotation.set(0, 0, 0);
+  }
+
+  const clips = (companion.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
+  const companionClip = spec.companionClip
+    ? clips.find((candidate) => candidate.name === spec.companionClip)
+    : undefined;
+  if (companionClip) {
+    contextPreviewMixer = new THREE.AnimationMixer(companion);
+    contextPreviewAction = contextPreviewMixer.clipAction(companionClip);
+    contextPreviewAction.reset().play();
+    contextPreviewAction.paused = !isAnimationPlaying;
+  }
+  syncContextPreviewTime(activeAction && currentClipDuration > 0
+    ? activeAction.time / currentClipDuration
+    : 0);
+  fitModel(root);
+  focusContextActor(player, spec.assetId === "boat_rowboat_a" ? 5 : 4);
 }
 
 function playAnimationClip(name: string): void {
@@ -800,18 +1099,26 @@ function playAnimationClip(name: string): void {
   const clip = clips.find((c) => c.name === name);
   if (!clip) return;
 
-  if (activeAction) {
-    activeAction.fadeOut(0.2);
+  animationMixer.stopAllAction();
+  contextBaseAction = null;
+  const contextSpec = animationContextPreviewSpec(name);
+  if (contextSpec?.baseClip) {
+    const baseClip = clips.find((candidate) => candidate.name === contextSpec.baseClip);
+    if (baseClip) {
+      contextBaseAction = animationMixer.clipAction(baseClip);
+      contextBaseAction.reset().setLoop(THREE.LoopRepeat, Infinity).play();
+    }
   }
 
   currentClipDuration = clip.duration;
-  activeAction = animationMixer.clipAction(clip);
+  activeAction = animationMixer.clipAction(name === "reel" ? upperBodyPreviewClip(clip) : clip);
   activeAction.reset();
-  activeAction.fadeIn(0.2);
+  activeAction.setLoop(THREE.LoopRepeat, Infinity);
   activeAction.play();
   isAnimationPlaying = true;
   animPlayToggle.textContent = "Pause";
   animPlayToggle.classList.add("primary");
+  void updateContextPreview(name);
 
   // Auto-equip matching tool when switching animation
   if (["cast", "fishing_idle", "reel", "slack", "brace"].includes(name)) {
@@ -835,6 +1142,9 @@ function playAnimationClip(name: string): void {
   } else if (name.startsWith("carry_")) {
     socketPropSelect.value = "prop_crop_bundle_a";
     void attachSocketProp("prop_crop_bundle_a");
+  } else {
+    socketPropSelect.value = "none";
+    void attachSocketProp("none");
   }
 }
 
@@ -1229,16 +1539,20 @@ function animate(): void {
   // Animation playback
   if (animationMixer && isAnimationPlaying && !isScrubbing) {
     animationMixer.update(delta * parseFloat(animSpeed.value));
+    contextPreviewMixer?.update(delta * parseFloat(animSpeed.value));
     if (activeAction && currentClipDuration > 0) {
       const time = activeAction.time % currentClipDuration;
+      positionContextTransition(time / currentClipDuration);
       animScrubber.value = (time / currentClipDuration).toFixed(3);
       animTimeOutput.value = `${time.toFixed(2)}s / ${currentClipDuration.toFixed(2)}s`;
     }
+    applyContextFootSupports();
   }
 
   // Dynamic Bounding Box update
-  if (boundsToggle.checked && boundsHelper && currentModel) {
-    const box = visibleBounds(currentModel);
+  const boundsRoot = inspectionRoot();
+  if (boundsToggle.checked && boundsHelper && boundsRoot) {
+    const box = visibleBounds(boundsRoot);
     if (!box.isEmpty()) boundsHelper.box.copy(box);
   }
 
@@ -1299,11 +1613,16 @@ togglePanelBtn.addEventListener("click", () => {
 
 // Animation Controls
 clipSelect.addEventListener("change", () => playAnimationClip(clipSelect.value));
+animationContextSelect.addEventListener("change", () => {
+  if (clipSelect.value === "reel") playAnimationClip("reel");
+});
 
 animPlayToggle.addEventListener("click", () => {
   if (!activeAction) return;
   isAnimationPlaying = !isAnimationPlaying;
   activeAction.paused = !isAnimationPlaying;
+  if (contextPreviewAction) contextPreviewAction.paused = !isAnimationPlaying;
+  if (contextBaseAction) contextBaseAction.paused = !isAnimationPlaying;
   animPlayToggle.textContent = isAnimationPlaying ? "Pause" : "Play";
   animPlayToggle.classList.toggle("primary", isAnimationPlaying);
 });
@@ -1312,8 +1631,7 @@ animStepBackBtn.addEventListener("click", () => {
   if (!activeAction || !animationMixer || currentClipDuration <= 0) return;
   const newTime = Math.max(0, activeAction.time - 0.1);
   activeAction.time = newTime;
-  animationMixer.setTime(newTime);
-  animationMixer.update(0);
+  syncContextPreviewTime(newTime / currentClipDuration);
   animScrubber.value = (newTime / currentClipDuration).toFixed(3);
   animTimeOutput.value = `${newTime.toFixed(2)}s / ${currentClipDuration.toFixed(2)}s`;
 });
@@ -1322,8 +1640,7 @@ animStepFwdBtn.addEventListener("click", () => {
   if (!activeAction || !animationMixer || currentClipDuration <= 0) return;
   const newTime = Math.min(currentClipDuration, activeAction.time + 0.1);
   activeAction.time = newTime;
-  animationMixer.setTime(newTime);
-  animationMixer.update(0);
+  syncContextPreviewTime(newTime / currentClipDuration);
   animScrubber.value = (newTime / currentClipDuration).toFixed(3);
   animTimeOutput.value = `${newTime.toFixed(2)}s / ${currentClipDuration.toFixed(2)}s`;
 });
@@ -1337,8 +1654,7 @@ animScrubber.addEventListener("input", () => {
   if (!activeAction || !animationMixer || currentClipDuration <= 0) return;
   const time = parseFloat(animScrubber.value) * currentClipDuration;
   activeAction.time = time;
-  animationMixer.setTime(time);
-  animationMixer.update(0); // Real-time immediate mesh update while scrubbing
+  syncContextPreviewTime(time / currentClipDuration);
   animTimeOutput.value = `${time.toFixed(2)}s / ${currentClipDuration.toFixed(2)}s`;
 });
 
@@ -1361,7 +1677,8 @@ document.querySelectorAll<HTMLButtonElement>("[data-dist]").forEach((button) => 
 });
 
 camFitBtn.addEventListener("click", () => {
-  if (currentModel) fitModel(currentModel);
+  const root = inspectionRoot();
+  if (root) fitModel(root);
 });
 
 distanceRange.addEventListener("input", () => {
@@ -1442,7 +1759,8 @@ window.addEventListener("keydown", (event) => {
   } else if (event.key.toLowerCase() === "t") {
     toggleTurntable();
   } else if (event.key.toLowerCase() === "f") {
-    if (currentModel) fitModel(currentModel);
+    const root = inspectionRoot();
+    if (root) fitModel(root);
   } else if (event.key.toLowerCase() === "w") {
     shadingSelect.value = shadingSelect.value === "lit" ? "wireframe_overlay" : "lit";
     updateShadingMode(shadingSelect.value);

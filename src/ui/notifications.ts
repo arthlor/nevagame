@@ -1,20 +1,10 @@
-// src/ui/notifications.ts
-
-/**
- * Tone drives colour, icon, and the audio cue a notice plays. Failures used to
- * be indistinguishable from successes because every message went through one
- * overwritten toast slot, so the tone is part of the contract rather than a
- * styling afterthought.
- */
 export type NoticeTone = "info" | "success" | "warning" | "danger" | "reward";
 
 export interface Notice {
   readonly id: number;
   readonly text: string;
   readonly tone: NoticeTone;
-  /** Groups successive updates of one ongoing event into a single entry. */
   readonly key?: string;
-  /** Repeat count for coalesced identical messages. Rendered as "xN". */
   readonly count: number;
   readonly createdMs: number;
   readonly expiresMs: number;
@@ -23,18 +13,20 @@ export interface Notice {
 export interface NoticeOptions {
   tone?: NoticeTone;
   durationMs?: number;
-  /**
-   * When set, a later notice with the same key rewrites the existing entry in
-   * place instead of stacking. Used for running totals such as "sell all",
-   * which would otherwise emit one line per item.
-   */
   key?: string;
 }
 
 export const NOTICE_DEFAULT_DURATION_MS = 2500;
 
-/** Beyond this the stack becomes noise rather than feedback. */
-export const NOTICE_MAX_VISIBLE = 3;
+export const NOTICE_MAX_VISIBLE = 2;
+
+export const NOTICE_TONE_PRIORITY: Record<NoticeTone, number> = {
+  danger: 0,
+  warning: 1,
+  reward: 2,
+  success: 3,
+  info: 4
+};
 
 const TONE_DURATION_FLOOR_MS: Record<NoticeTone, number> = {
   info: 1200,
@@ -44,14 +36,6 @@ const TONE_DURATION_FLOOR_MS: Record<NoticeTone, number> = {
   reward: 2400
 };
 
-/**
- * An append-only queue of transient player-facing messages.
- *
- * The previous implementation held a single string plus an expiry, so two
- * events in the same frame silently dropped one of them. This keeps a short
- * ordered stack, coalesces repeats, and expires entries by wall clock so the
- * caller can stay a plain render-every-frame consumer.
- */
 export class NoticeQueue {
   private entries: Notice[] = [];
   private nextId = 1;
@@ -73,7 +57,6 @@ export class NoticeQueue {
 
     this.prune(nowMs);
 
-    // A keyed update rewrites its own line wherever it sits in the stack.
     if (options.key) {
       const index = this.entries.findIndex((entry) => entry.key === options.key);
       if (index >= 0) {
@@ -88,8 +71,6 @@ export class NoticeQueue {
       }
     }
 
-    // Repeats of the same message read as one event that happened N times,
-    // not as N separate lines pushing the rest of the stack off screen.
     const newest = this.entries.at(-1);
     if (!options.key && newest && newest.text === trimmed && newest.tone === tone) {
       const coalesced: Notice = {
@@ -112,12 +93,14 @@ export class NoticeQueue {
     };
     this.entries.push(notice);
     if (this.entries.length > this.maxVisible) {
-      this.entries.splice(0, this.entries.length - this.maxVisible);
+      this.entries = this.entries
+        .sort((a, b) => NOTICE_TONE_PRIORITY[a.tone] - NOTICE_TONE_PRIORITY[b.tone] || b.createdMs - a.createdMs)
+        .slice(0, this.maxVisible)
+        .sort((a, b) => a.createdMs - b.createdMs);
     }
     return notice;
   }
 
-  /** Oldest first, so the newest notice sits closest to the play area. */
   public list(nowMs: number): Notice[] {
     this.prune(nowMs);
     return this.entries;
@@ -138,10 +121,6 @@ export class NoticeQueue {
   }
 }
 
-/**
- * Failure text arrives from simulation results as free-form prose, so the tone
- * is inferred once here instead of at every one of the call sites.
- */
 export function inferNoticeTone(text: string, fallback: NoticeTone = "info"): NoticeTone {
   const lowered = text.toLowerCase();
   if (/\b(could not|cannot|can't|failed|not enough|no room|full|too far|blocked|denied|unavailable|first\b)/.test(lowered)) {

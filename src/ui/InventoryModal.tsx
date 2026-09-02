@@ -1,7 +1,5 @@
-// src/ui/InventoryModal.tsx
-import React, { useMemo, useRef, useState } from "react";
-import { GameState, InventorySlot } from "../simulation/core/types";
-import { ContentRegistry } from "../content/ContentRegistry";
+import React, { useRef, useState } from "react";
+import type { SatchelDto } from "../simulation/core/contracts";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
@@ -10,26 +8,25 @@ import {
   ChromeButton,
   ChromeClose,
   ChromeDivider,
-  ChromeMeter,
-  ChromePanel,
-  ChromeSlot
+  ChromeAlert
 } from "./chrome/Chrome";
-import { IconBackpack, IconCoin, IconFish, IconSprout, IconTools } from "./components/HudIcons";
+import { IconFish, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
+import { GameSheet, ItemSlot, Meter } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 
 interface InventoryModalProps {
-  state: GameState;
+  satchel: SatchelDto;
   onClose: () => void;
   onSelectPlantCrop: (cropId: string) => void;
+  onInspectPlanting: (cropId: string) => { valid: boolean; reason?: string };
 }
 
 type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
 
-export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, onSelectPlantCrop }) => {
-  const playerInv = state.inventories[state.player.inventoryId];
+export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose, onSelectPlantCrop, onInspectPlanting }) => {
   const [activeCategory, setActiveCategory] = useState<InventoryCategory>("all");
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(() => {
-    const firstOccupied = playerInv?.slots.findIndex((slot) => slot.itemId !== null && (slot.quantity ?? 0) > 0) ?? -1;
+    const firstOccupied = satchel.slots.findIndex((slot) => slot.itemId !== null && slot.quantity > 0);
     return firstOccupied >= 0 ? firstOccupied : null;
   });
 
@@ -37,32 +34,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
   const gridRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
-  const allSlots = playerInv?.slots ?? [];
-  const totalSlots = allSlots.length;
-  const occupiedSlots = useMemo(() => {
-    return allSlots.filter((s) => s.itemId !== null && (s.quantity ?? 0) > 0).length;
-  }, [allSlots]);
-
-  const selectedSlot: InventorySlot | null =
-    selectedSlotIndex !== null && playerInv ? playerInv.slots[selectedSlotIndex] : null;
-  const selectedItemDef =
-    selectedSlot && selectedSlot.itemId ? ContentRegistry.items.get(selectedSlot.itemId) : null;
-  const selectedFishDef =
-    selectedSlot && selectedSlot.itemId ? ContentRegistry.fishSpecies.get(selectedSlot.itemId) : null;
-  const selectedName = selectedItemDef?.name ?? selectedFishDef?.name ?? selectedSlot?.itemId ?? "";
-  // Landed fish sit in the satchel as their own species entries. Falling back
-  // to a flat 10 G quoted an invented price for every one of them.
-  const selectedBaseValue = selectedItemDef?.baseValue ?? selectedFishDef?.baseMarketValue ?? null;
-  const totalStackValue =
-    selectedBaseValue == null ? null : selectedBaseValue * (selectedSlot?.quantity ?? 0);
-
-  const selectedCrop = selectedSlot?.itemId
-    ? Array.from(ContentRegistry.crops.values()).find((crop) => crop.seedItemId === selectedSlot.itemId)
-    : undefined;
+  const allSlots = satchel.slots;
+  const selectedSlot = selectedSlotIndex !== null ? allSlots[selectedSlotIndex] ?? null : null;
+  const planting = selectedSlot?.cropId ? onInspectPlanting(selectedSlot.cropId) : null;
 
   const handlePlantSelected = (): void => {
-    if (selectedCrop) {
-      onSelectPlantCrop(selectedCrop.id);
+    if (selectedSlot?.cropId) {
+      onSelectPlantCrop(selectedSlot.cropId);
       onClose();
     }
   };
@@ -108,29 +86,20 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
   const selectCategory = (category: InventoryCategory): void => {
     playUiSound("page-turn");
     setActiveCategory(category);
+    const firstRelevant = allSlots.findIndex((slot) =>
+      slot.itemId !== null && (category === "all" || slot.inventoryCategory === category)
+    );
+    setSelectedSlotIndex(firstRelevant >= 0 ? firstRelevant : null);
   };
 
-  const isSlotMatchingCategory = (slot: InventorySlot): boolean => {
+  const isSlotMatchingCategory = (slot: SatchelDto["slots"][number]): boolean => {
     if (activeCategory === "all") return true;
-    if (!slot.itemId) return false;
-    const itemDef = ContentRegistry.items.get(slot.itemId);
-    if (!itemDef) return false;
-
-    if (activeCategory === "farming") {
-      return itemDef.category === "seed" || itemDef.category === "produce" || itemDef.category === "grain" || itemDef.category === "fertilizer";
-    }
-    if (activeCategory === "fishing") {
-      return itemDef.category === "bait" || itemDef.category === "fishing-supply" || slot.itemId.startsWith("fish.");
-    }
-    if (activeCategory === "supplies") {
-      return itemDef.category === "crafting-material" || itemDef.category === "fuel" || itemDef.category === "ice" || itemDef.category === "processed-food" || itemDef.category === "misc";
-    }
-    return true;
+    return slot.inventoryCategory === activeCategory;
   };
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <ChromePanel
+      <GameSheet
         ref={modalRef}
         as="div"
         className="neva-panel modal-content inventory-satchel-modal"
@@ -146,20 +115,20 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
         <header className="modal-header">
           <div className="modal-header-title-group inventory-header-meta">
             <span id="inventory-title" className="modal-heading-with-mark">
-              <IconBackpack size={22} aria-hidden="true" /> Guild Satchel
+              <IconSatchel size={22} aria-hidden="true" /> Satchel
             </span>
             <span className="inventory-capacity-pill" data-testid="inventory-capacity">
-              {occupiedSlots} / {totalSlots} Slots
+              {satchel.occupiedSlots} / {satchel.totalSlots} Slots
             </span>
           </div>
 
-          <ChromeMeter
+          <Meter
             className="inventory-capacity-meter"
             label="Satchel capacity"
-            value={occupiedSlots}
-            max={Math.max(1, totalSlots)}
+            value={satchel.occupiedSlots}
+            max={Math.max(1, satchel.totalSlots)}
             showLabel={false}
-            valueText={`${occupiedSlots} / ${totalSlots}`}
+            valueText={`${satchel.occupiedSlots} / ${satchel.totalSlots}`}
             variant="gold"
           />
 
@@ -169,8 +138,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
         <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label="Item categories" onKeyDown={handleTabListKeyDown}>
           <button
             type="button"
+            id="inventory-tab-all"
             role="tab"
             aria-selected={activeCategory === "all"}
+            aria-controls="inventory-items"
+            tabIndex={activeCategory === "all" ? 0 : -1}
             className={`inventory-tab-btn ${activeCategory === "all" ? "is-active" : ""}`}
             onClick={() => selectCategory("all")}
           >
@@ -178,26 +150,35 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
           </button>
           <button
             type="button"
+            id="inventory-tab-farming"
             role="tab"
             aria-selected={activeCategory === "farming"}
+            aria-controls="inventory-items"
+            tabIndex={activeCategory === "farming" ? 0 : -1}
             className={`inventory-tab-btn ${activeCategory === "farming" ? "is-active" : ""}`}
             onClick={() => selectCategory("farming")}
           >
-            <IconSprout size={14} aria-hidden="true" /> Farming
+            <IconSprout size={14} aria-hidden="true" /> Field
           </button>
           <button
             type="button"
+            id="inventory-tab-fishing"
             role="tab"
             aria-selected={activeCategory === "fishing"}
+            aria-controls="inventory-items"
+            tabIndex={activeCategory === "fishing" ? 0 : -1}
             className={`inventory-tab-btn ${activeCategory === "fishing" ? "is-active" : ""}`}
             onClick={() => selectCategory("fishing")}
           >
-            <IconFish size={14} aria-hidden="true" /> Fish
+            <IconFish size={14} aria-hidden="true" /> Fishing
           </button>
           <button
             type="button"
+            id="inventory-tab-supplies"
             role="tab"
             aria-selected={activeCategory === "supplies"}
+            aria-controls="inventory-items"
+            tabIndex={activeCategory === "supplies" ? 0 : -1}
             className={`inventory-tab-btn ${activeCategory === "supplies" ? "is-active" : ""}`}
             onClick={() => selectCategory("supplies")}
           >
@@ -213,9 +194,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                 without rows is an incomplete structure for screen readers. */}
             <div
               className="inventory-grid"
+              id="inventory-items"
               ref={gridRef}
               role="listbox"
-              aria-label="Backpack items"
+              aria-label="Satchel items"
+              aria-labelledby={`inventory-tab-${activeCategory}`}
               onKeyDown={handleGridKeyDown}
             >
               {allSlots.map((slot, index) => {
@@ -223,35 +206,31 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                 const isMatching = isSlotMatchingCategory(slot);
                 if (!slot.itemId) {
                   return (
-                    <ChromeSlot
+                    <ItemSlot
                       key={`empty-${index}`}
                       id={`inventory-slot-${index}`}
                       className="inventory-slot"
                       role="option"
-                      aria-selected={false}
-                      // Roving tabindex: one stop into the grid, arrows inside.
-                      tabIndex={selectedSlotIndex === index ? 0 : -1}
+                      aria-selected={isSelected}
+                      selected={isSelected}
+                      onSelect={() => setSelectedSlotIndex(index)}
+                      tabIndex={selectedSlotIndex === index || (selectedSlotIndex === null && index === 0) ? 0 : -1}
                       label="Empty slot"
                     />
                   );
                 }
 
-                const item = ContentRegistry.items.get(slot.itemId);
-                const fish = ContentRegistry.fishSpecies.get(slot.itemId);
-                const name = item ? item.name : fish ? fish.name : slot.itemId;
-                const qty = slot.quantity ?? 0;
-
                 return (
-                  <ChromeSlot
+                  <ItemSlot
                     key={`${slot.itemId}-${index}`}
                     id={`inventory-slot-${index}`}
                     className={`inventory-slot ${!isMatching ? "is-dimmed" : ""}`}
                     filled
                     selected={isSelected}
-                    quantity={qty > 1 ? qty : undefined}
+                    quantity={slot.quantity > 1 ? slot.quantity : undefined}
                     onSelect={() => setSelectedSlotIndex(index)}
-                    label={`${name}, count ${qty}`}
-                    title={`${name} — ${qty}`}
+                    label={`${slot.name}, count ${slot.quantity}`}
+                    title={`${slot.name} — ${slot.quantity}`}
                     role="option"
                     aria-selected={isSelected}
                     tabIndex={isSelected ? 0 : -1}
@@ -262,7 +241,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                       size={40}
                       className="slot-item-icon"
                     />
-                  </ChromeSlot>
+                  </ItemSlot>
                 );
               })}
             </div>
@@ -280,51 +259,22 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                     />
                   </div>
                   <div>
-                    <h3 className="details-name">{selectedName}</h3>
-                    {selectedItemDef && (
-                      <span className="details-category-tag">{selectedItemDef.category.toUpperCase()}</span>
+                    <h3 className="details-name">{selectedSlot.name}</h3>
+                    {selectedSlot.categoryLabel && (
+                      <span className="details-category-tag">{selectedSlot.categoryLabel.toUpperCase()}</span>
                     )}
                   </div>
                 </div>
 
-                <div className="inventory-inspection-badges" aria-label="Item value">
-                  <span className="inventory-value-badge">Qty {selectedSlot.quantity}</span>
-                  {selectedBaseValue != null && (
-                    <span className="inventory-value-badge">
-                      <IconCoin size={12} aria-hidden="true" /> {selectedBaseValue} G
-                    </span>
-                  )}
-                  {totalStackValue != null && (
-                    <span className="inventory-value-badge">Stack {totalStackValue} G</span>
-                  )}
+                <div className="inventory-selected-strip">
+                  <span>{selectedSlot.categoryLabel ?? "item"}</span>
+                  <strong>{selectedSlot.quantity} carried</strong>
+                  {selectedSlot.isFish && <span>Market value depends on the catch and current demand</span>}
                 </div>
 
-                <div className="details-stats-list">
-                  <div className="details-stat-row">
-                    <span>Stack Quantity:</span>
-                    <strong>{selectedSlot.quantity}</strong>
-                  </div>
-                  <div className="details-stat-row">
-                    <span>Base Value:</span>
-                    <span>{selectedBaseValue == null ? "Not traded" : `${selectedBaseValue} G`}</span>
-                  </div>
-                  <div className="details-stat-row">
-                    <span>Total Stack Worth:</span>
-                    <strong className="details-gold-value">
-                      {totalStackValue == null ? "—" : `${totalStackValue} G`}
-                    </strong>
-                  </div>
-                  {selectedFishDef && (
-                    <div className="details-stat-row">
-                      <span>Market note:</span>
-                      <span>Sells for more by weight, quality and freshness</span>
-                    </div>
-                  )}
-                </div>
+                {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}
 
-                {selectedItemDef && <p className="details-description">{selectedItemDef.description}</p>}
-
-                {selectedCrop && (
+                {selectedSlot.cropId && planting?.valid && (
                   <div className="inventory-action-block">
                     <ChromeButton
                       variant="gold"
@@ -333,28 +283,30 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ state, onClose, 
                       data-testid="inventory-plant-action"
                       onClick={handlePlantSelected}
                     >
-                      <IconSprout size={16} aria-hidden="true" /> Plant {selectedCrop.name}
+                      <IconSprout size={16} aria-hidden="true" /> Plant {selectedSlot.cropName ?? selectedSlot.name}
                     </ChromeButton>
-                    <span className="inventory-action-hint">Arms tool slot 2 and closes the satchel</span>
                   </div>
+                )}
+                {selectedSlot.cropId && planting && !planting.valid && (
+                  <ChromeAlert tone="caution" className="inventory-plant-blocker">
+                    {planting.reason ?? "Planting is not available here"}
+                  </ChromeAlert>
                 )}
               </>
             ) : (
               <div className="details-placeholder">
-                <IconBackpack size={36} aria-hidden="true" className="placeholder-icon" />
-                <p>Select an item to see its details.</p>
+                <IconSatchel size={36} aria-hidden="true" className="placeholder-icon" />
+                <p>{activeCategory === "all" ? "Choose an item." : "Nothing in this part of the satchel."}</p>
               </div>
             )}
           </div>
         </div>
 
         <footer className="modal-footer">
-          <span className="satchel-footer-tip">
-            Click an item to inspect · Plant crops directly on prepared soil
-          </span>
-          <ChromeButton onClick={onClose}>Close Satchel</ChromeButton>
+          <span className="satchel-footer-tip">Arrow keys move through slots · Esc closes</span>
+          <ChromeButton onClick={onClose}>Close</ChromeButton>
         </footer>
-      </ChromePanel>
+      </GameSheet>
     </div>
   );
 };

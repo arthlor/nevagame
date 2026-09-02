@@ -8,6 +8,15 @@ import type { PlayerMotionSample } from "../../src/simulation/core/PhysicsAdapte
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { socketAttachFor } from "../../src/render/assets/ToolSocketAttach";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
+
+// Bound to the tuning rather than literals: these cases assert "at the tuned
+// travel speed the clip plays at its authored rate", which is a statement about
+// the relationship, not about any particular number.
+const WALK_SPEED = PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond;
+const RUN_SPEED = PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond;
+const RUN_CLIP_SECONDS = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A)!
+  .animationClips!.find((clip) => clip.name === "run")!.durationSeconds;
 
 function motion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample {
   return {
@@ -99,7 +108,50 @@ function makeHumanoidCharacter(): THREE.Group {
   return root;
 }
 
+function makeGroundContactCharacter(): THREE.Group {
+  const root = new THREE.Group();
+  root.userData.assetId = ASSET_IDS.CHAR_PLAYER_A;
+  const spec = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A)!;
+  root.userData.animationClips = spec.animationClips!.map(
+    (clip) => new THREE.AnimationClip(clip.name, clip.durationSeconds, [])
+  );
+  const rigRoot = new THREE.Bone();
+  rigRoot.name = "rig_root";
+  root.add(rigRoot);
+  const pelvis = new THREE.Bone();
+  pelvis.name = "rig_pelvis";
+  pelvis.position.y = 0.84;
+  rigRoot.add(pelvis);
+  for (const [side, x] of [["left", -0.14], ["right", 0.14]] as const) {
+    const thigh = new THREE.Bone();
+    thigh.name = `rig_thigh_${side}`;
+    thigh.position.set(x, 0, 0);
+    pelvis.add(thigh);
+    const shin = new THREE.Bone();
+    shin.name = `rig_shin_${side}`;
+    shin.position.set(0, -0.42, 0.04);
+    thigh.add(shin);
+    const foot = new THREE.Bone();
+    foot.name = `rig_foot_${side}`;
+    foot.position.set(0, -0.34, 0.05);
+    shin.add(foot);
+  }
+  return root;
+}
+
 describe("AnimationController", () => {
+  it("uses authored mount action durations and releases mixer state on disposal", () => {
+    const controller = new AnimationController(makeClippedCharacter());
+
+    expect(controller.actionDurationSeconds("mount")).toBe(0.8);
+    expect(controller.actionDurationSeconds("dismount")).toBe(0.8);
+    controller.play("mount");
+    controller.dispose();
+
+    expect(controller.playbackState().activeAction).toBeNull();
+    expect(controller.currentClip()).toBe("idle");
+  });
+
   it("identifies shipped articulated nodes without treating rigid details as limbs", () => {
     expect(isPlayerRigObjectName("character_upper_arm_left")).toBe(true);
     expect(isPlayerRigObjectName("character_boot_right")).toBe(true);
@@ -149,14 +201,14 @@ describe("AnimationController", () => {
     expect(character.getObjectByName("character_thigh_left")?.rotation.x).toBeLessThan(0);
   });
 
-  it("uses authored start, loop, stop, and speed-matched gait states", () => {
+  it("hands idle into authored starts and then speed-matched gait loops", () => {
     const controller = new AnimationController(makeClippedCharacter());
     const walking = {
       mode: "on-foot" as const,
       carrying: false,
       motion: motion({
-        velocity: { x: 0, y: 0, z: 5 },
-        speedMetersPerSecond: 5,
+        velocity: { x: 0, y: 0, z: WALK_SPEED },
+        speedMetersPerSecond: WALK_SPEED,
         requestedGait: "walk"
       })
     };
@@ -167,9 +219,33 @@ describe("AnimationController", () => {
 
     const stopping = { mode: "on-foot" as const, carrying: false, motion: motion() };
     controller.update(1 / 60, stopping);
-    expect(controller.currentClip()).toBe("stop");
+    expect(controller.currentClip()).toBe("idle");
     for (let index = 0; index < 24; index++) controller.update(1 / 60, stopping);
     expect(controller.currentClip()).toBe("idle");
+  });
+
+  it("uses run_start only from rest and hands off at loop phase zero", () => {
+    const controller = new AnimationController(makeClippedCharacter());
+    const running = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({
+        velocity: { x: 0, y: 0, z: RUN_SPEED },
+        speedMetersPerSecond: RUN_SPEED,
+        requestedGait: "run"
+      })
+    };
+    controller.update(1 / 60, running);
+    expect(controller.playbackState().baseClip).toBe("run_start");
+    for (let index = 0; index < 15; index += 1) controller.update(1 / 60, running);
+    expect(controller.playbackState().baseClip).toBe("run");
+    expect(controller.playbackState().basePhase).toBeLessThan(0.08);
+
+    controller.update(1 / 60, {
+      ...running,
+      motion: motion({ speedMetersPerSecond: WALK_SPEED, requestedGait: "walk" })
+    });
+    expect(controller.playbackState().baseClip).toBe("walk");
   });
 
   it("matches authored gait phase to resolved gameplay travel speed", () => {
@@ -178,8 +254,8 @@ describe("AnimationController", () => {
       mode: "on-foot" as const,
       carrying: false,
       motion: motion({
-        velocity: { x: 0, y: 0, z: 5 },
-        speedMetersPerSecond: 5,
+        velocity: { x: 0, y: 0, z: WALK_SPEED },
+        speedMetersPerSecond: WALK_SPEED,
         requestedGait: "walk"
       })
     };
@@ -191,8 +267,8 @@ describe("AnimationController", () => {
     const runContext = {
       ...walkContext,
       motion: motion({
-        velocity: { x: 0, y: 0, z: 8.2 },
-        speedMetersPerSecond: 8.2,
+        velocity: { x: 0, y: 0, z: RUN_SPEED },
+        speedMetersPerSecond: RUN_SPEED,
         requestedGait: "run"
       })
     };
@@ -263,7 +339,10 @@ describe("AnimationController", () => {
       requestedGait: "walk"
     });
     controller.update(1 / 60, { mode: "on-foot", carrying: true, motion: walkingMotion });
-    expect(controller.currentClip()).toBe("walk_start");
+    expect(controller.playbackState()).toMatchObject({
+      baseClip: "walk_start",
+      upperClip: "carry_walk"
+    });
     for (let index = 0; index < 24; index++) {
       controller.update(1 / 60, { mode: "on-foot", carrying: true, motion: walkingMotion });
     }
@@ -287,6 +366,25 @@ describe("AnimationController", () => {
     expect(controller.playbackState().upperClip).toBe("reel");
     expect(controller.currentClip()).toBe("reel");
     expect(seatedFight.clip).toBe("reel");
+    controller.update(1 / 60, {
+      mode: "sport-fishing",
+      carrying: false,
+      motion: motion(),
+      fishingInput: { isReeling: true, isSlacking: false, isBracing: false },
+      boatInput: { boatTypeId: "boat.skiff", throttle: 0, steering: 0 }
+    });
+    expect(controller.playbackState().baseClip).toBe("skiff_fishing");
+    expect(controller.playbackState().upperClip).toBe("reel");
+    controller.play("hookset");
+    controller.update(1 / 60, {
+      mode: "sport-fishing",
+      carrying: false,
+      motion: motion(),
+      fishingInput: { isReeling: false, isSlacking: false, isBracing: false },
+      boatInput: { boatTypeId: "boat.skiff", throttle: 0, steering: 0 }
+    });
+    expect(controller.playbackState().baseClip).toBe("skiff_fishing");
+    expect(controller.playbackState().upperClip).toBe("hookset");
     controller.play("brace");
     controller.update(1 / 60, {
       mode: "sport-fishing",
@@ -355,25 +453,117 @@ describe("AnimationController", () => {
     expect(controller.currentClip()).toBe("talk_gesture");
   });
 
-  it("applies two-bone foot IK from slope evidence at a fixed dt", () => {
+  it("resolves per-foot world contacts against the shared traversal surface", () => {
     const sloping = {
       mode: "on-foot" as const,
       carrying: false,
       motion: motion({
+        velocity: { x: 0, y: 0, z: WALK_SPEED },
+        speedMetersPerSecond: WALK_SPEED,
+        requestedGait: "walk",
         groundNormal: { x: 0.42, y: 0.908, z: 0 },
         slopeRadians: 0.43
       })
     };
-    const character = makeHumanoidCharacter();
+    const character = makeGroundContactCharacter();
     const ik = new AnimationController(character);
-    for (let index = 0; index < 24; index++) ik.update(1 / 60, sloping);
+    ik.update(1 / 60, sloping);
+    character.updateMatrixWorld(true);
+    const leftFoot = character.getObjectByName("rig_foot_left")!;
+    const rightFoot = character.getObjectByName("rig_foot_right")!;
+    const beforeLeft = new THREE.Vector3();
+    const beforeRight = new THREE.Vector3();
+    leftFoot.getWorldPosition(beforeLeft);
+    rightFoot.getWorldPosition(beforeRight);
+    ik.resolveGroundContacts(sloping, (x) => ({
+      height: x < 0 ? 0.08 : -0.04,
+      normal: { x: 0, y: 1, z: 0 }
+    }));
+    const afterLeft = new THREE.Vector3();
+    const afterRight = new THREE.Vector3();
+    leftFoot.getWorldPosition(afterLeft);
+    rightFoot.getWorldPosition(afterRight);
     expect(character.getObjectByName("rig_thigh_left")?.rotation.x).not.toBe(0);
     expect(character.getObjectByName("rig_shin_left")?.rotation.x).not.toBe(0);
+    expect(afterLeft.y).toBeGreaterThan(beforeLeft.y);
+    // The opposite foot is in swing at this phase and must not be dragged to
+    // the terrain merely because its sample lies below the authored sole.
+    expect(afterRight.y).toBeCloseTo(beforeRight.y, 6);
+  });
 
-    const reduced = makeHumanoidCharacter();
-    const reducedIk = new AnimationController(reduced);
-    for (let index = 0; index < 24; index++) reducedIk.update(1 / 60, sloping, true);
-    expect(reduced.getObjectByName("rig_thigh_left")?.rotation.x ?? 0).toBeCloseTo(0, 4);
+  it("preserves normalized gait phase across walk, run, and carry layer changes", () => {
+    const controller = new AnimationController(makeClippedCharacter());
+    const walk = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({ speedMetersPerSecond: WALK_SPEED, requestedGait: "walk" })
+    };
+    for (let index = 0; index < 32; index++) controller.update(1 / 60, walk);
+    const walkPhase = controller.playbackState().basePhase;
+    controller.update(1 / 60, {
+      ...walk,
+      motion: motion({ speedMetersPerSecond: RUN_SPEED, requestedGait: "run" })
+    });
+    const runPhase = controller.playbackState().basePhase;
+    expect(controller.playbackState().baseClip).toBe("run");
+    expect(runPhase).toBeCloseTo((walkPhase + (1 / 60) / RUN_CLIP_SECONDS) % 1, 3);
+
+    controller.update(1 / 60, {
+      ...walk,
+      carrying: true,
+      motion: motion({ speedMetersPerSecond: RUN_SPEED, requestedGait: "run" })
+    });
+    expect(controller.playbackState().baseClip).toBe("run");
+    expect(controller.playbackState().upperClip).toBe("carry_run");
+  });
+
+  it("clears one-shots, contact locks, blends, and springs on a presentation discontinuity", () => {
+    const character = makeGroundContactCharacter();
+    const controller = new AnimationController(character);
+    const moving = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({
+        speedMetersPerSecond: WALK_SPEED,
+        requestedGait: "walk",
+        accelerationMetersPerSecondSquared: 18
+      })
+    };
+    controller.play("water");
+    controller.update(0.1, moving);
+    controller.resolveGroundContacts(moving, () => ({
+      height: 0,
+      normal: { x: 0, y: 1, z: 0 }
+    }));
+    expect(controller.playbackState().activeAction).toBe("water");
+
+    controller.resetTransientState();
+    expect(controller.playbackState()).toMatchObject({
+      baseClip: "idle",
+      upperClip: null,
+      activeAction: null,
+      basePhase: 0
+    });
+  });
+
+  it("preserves a newly-triggered interaction while clearing spatial correction history", () => {
+    const controller = new AnimationController(makeGroundContactCharacter());
+    const context = {
+      mode: "on-foot" as const,
+      carrying: false,
+      motion: motion({ speedMetersPerSecond: 0, requestedGait: "idle" })
+    };
+    controller.play("mount");
+    controller.update(0.1, context);
+    controller.resolveGroundContacts(context, () => ({
+      height: 0,
+      normal: { x: 0, y: 1, z: 0 }
+    }));
+
+    controller.resetSpatialState();
+
+    expect(controller.playbackState().activeAction).toBe("mount");
+    expect(controller.currentClip()).toBe("mount");
   });
 
   it("springs backpack secondaries on elapsed seconds and skips them under reduced motion", () => {
@@ -496,6 +686,9 @@ describe("AnimationController", () => {
       mode: "on-foot" as const,
       carrying: false,
       motion: motion({
+        velocity: { x: 0, y: 0, z: WALK_SPEED },
+        speedMetersPerSecond: WALK_SPEED,
+        requestedGait: "walk",
         groundNormal: { x: 0.35, y: 0.936, z: 0 },
         slopeRadians: 0.36
       })
@@ -526,7 +719,7 @@ describe("AnimationController", () => {
     expect(frame.groundRoll).toBeCloseTo(0, 4);
   });
 
-  it("scales foot grounding by gait without reducing the established body-tilt rule", () => {
+  it("keeps idle neutral and scales terrain contact only across moving gaits", () => {
     const slopedMotion = (requestedGait: "idle" | "walk" | "run", speedMetersPerSecond: number) => ({
       mode: "on-foot" as const,
       carrying: false,
@@ -547,16 +740,16 @@ describe("AnimationController", () => {
     const idle = settle(new AnimationController(makeClippedCharacter()), "idle", 0);
     const walk = settle(new AnimationController(makeClippedCharacter()), "walk", 5);
     const run = settle(new AnimationController(makeClippedCharacter()), "run", 8.2);
-    expect(walk.leftFootOffsetY / idle.leftFootOffsetY).toBeCloseTo(
-      CANONICAL_RENDER_CONFIG.motion.groundingWalkFootIkScale,
+    expect(idle.leftFootOffsetY).toBeCloseTo(0, 5);
+    expect(idle.rightFootOffsetY).toBeCloseTo(0, 5);
+    expect(idle.groundPitch).toBeCloseTo(0, 5);
+    expect(idle.groundRoll).toBeCloseTo(0, 5);
+    expect(run.leftFootOffsetY / walk.leftFootOffsetY).toBeCloseTo(
+      CANONICAL_RENDER_CONFIG.motion.groundingRunFootIkScale /
+        CANONICAL_RENDER_CONFIG.motion.groundingWalkFootIkScale,
       2
     );
-    expect(run.leftFootOffsetY / idle.leftFootOffsetY).toBeCloseTo(
-      CANONICAL_RENDER_CONFIG.motion.groundingRunFootIkScale,
-      2
-    );
-    expect(walk.groundRoll).toBeCloseTo(idle.groundRoll, 4);
-    expect(run.groundRoll).toBeCloseTo(idle.groundRoll, 4);
+    expect(run.groundRoll).toBeCloseTo(walk.groundRoll, 4);
   });
 
   it("maintains stable, non-accumulating foot and leg bone transforms during idle across variable delta times", () => {

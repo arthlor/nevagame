@@ -93,6 +93,24 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     outputs: [{ itemId: "item.fish_scraps", quantity: 2 }],
     durationMinutes: 5,
     tags: ["fish-prep", "scraps"]
+  },
+  "recipe.sunflower_to_grain": {
+    id: "recipe.sunflower_to_grain",
+    name: "Mill Sunflower Seed into Ground Grain",
+    stationType: "hand-mill",
+    inputs: [{ itemId: "produce.sunflower_seed", quantity: 2 }],
+    outputs: [{ itemId: "item.ground_grain", quantity: 2 }],
+    durationMinutes: 5,
+    tags: ["milling", "chum-prep", "sunreach"]
+  },
+  "recipe.sardine_to_scraps": {
+    id: "recipe.sardine_to_scraps",
+    name: "Clean Sardines into Scraps",
+    stationType: "fish-table",
+    inputs: [{ itemId: "fish.sardine", quantity: 1 }],
+    outputs: [{ itemId: "item.fish_scraps", quantity: 2 }],
+    durationMinutes: 5,
+    tags: ["fish-prep", "scraps", "sunreach"]
   }
 };
 
@@ -109,5 +127,8 @@ export const LIVE_RECIPE_IDS = new Set<RecipeDefinition["id"]>([
   "recipe.fish_to_fertilizer",
   "recipe.compost_worms",
   "recipe.perch_to_scraps",
-  "recipe.mackerel_to_scraps"
+  "recipe.mackerel_to_scraps",
+  "recipe.carp_to_scraps",
+  "recipe.sunflower_to_grain",
+  "recipe.sardine_to_scraps"
 ]);

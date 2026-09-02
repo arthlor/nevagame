@@ -17,10 +17,11 @@ const CHARACTER_ASSET_IDS: AssetId[] = [
   ASSET_IDS.CHAR_NPC_MAEVE_A
 ];
 
-const REQUIRED_20_HUMANOID_BONES = [
+const REQUIRED_HUMANOID_BONES = [
   "rig_root",
   "rig_pelvis",
   "rig_spine",
+  "rig_spine_02",
   "rig_chest",
   "rig_neck",
   "rig_head",
@@ -35,9 +36,11 @@ const REQUIRED_20_HUMANOID_BONES = [
   "rig_thigh_left",
   "rig_shin_left",
   "rig_foot_left",
+  "rig_toe_left",
   "rig_thigh_right",
   "rig_shin_right",
-  "rig_foot_right"
+  "rig_foot_right",
+  "rig_toe_right"
 ] as const;
 
 const SECONDARY_4_BONES = [
@@ -47,7 +50,7 @@ const SECONDARY_4_BONES = [
   "rig_canteen_right"
 ] as const;
 
-const ALL_24_BONES = [...REQUIRED_20_HUMANOID_BONES, ...SECONDARY_4_BONES] as const;
+const ALL_CANONICAL_BONES = [...REQUIRED_HUMANOID_BONES, ...SECONDARY_4_BONES] as const;
 
 const EXPECTED_SOCKET_SUFFIXES = [
   "hand_socket_left",
@@ -81,7 +84,7 @@ describe("Milestone 2 Empirical Challenger — Rigging, Skinning & Sockets Adver
   // --------------------------------------------------------------------------
   // TEST 1: Skin & Armature Hierarchy Structure
   // --------------------------------------------------------------------------
-  it("TC1: All character GLBs contain valid skins with 24 canonical joints, non-singular IBMs, and correct parent tree", () => {
+  it("TC1: All character GLBs contain valid skins with every canonical joint, non-singular IBMs, and correct parent tree", () => {
     for (const charId of CHARACTER_ASSET_IDS) {
       const doc = loadedDocs.get(charId)!;
       const root = doc.getRoot();
@@ -89,13 +92,13 @@ describe("Milestone 2 Empirical Challenger — Rigging, Skinning & Sockets Adver
       const skins = root.listSkins();
       expect(skins.length, `Expected at least 1 skin in ${charId}`).toBeGreaterThan(0);
 
-      // Verify each skin in the glTF binds all 24 bones and has non-singular IBMs
+      // Verify each skin in the glTF binds every canonical bone and has non-singular IBMs
       for (const skin of skins) {
         const joints = skin.listJoints();
-        expect(joints.length, `Expected 24 joints in ${charId} skin ${skin.getName()}, found ${joints.length}`).toBe(24);
+        expect(joints.length, `Expected ${ALL_CANONICAL_BONES.length} joints in ${charId} skin ${skin.getName()}, found ${joints.length}`).toBe(ALL_CANONICAL_BONES.length);
 
         const jointNames = new Set(joints.map((j) => j.getName()));
-        for (const boneName of ALL_24_BONES) {
+        for (const boneName of ALL_CANONICAL_BONES) {
           expect(jointNames.has(boneName), `Missing bone ${boneName} in ${charId} skin ${skin.getName()}`).toBe(true);
         }
 
@@ -131,19 +134,24 @@ describe("Milestone 2 Empirical Challenger — Rigging, Skinning & Sockets Adver
       const rigRoot = nodeMap.get("rig_root")!;
       const pelvis = nodeMap.get("rig_pelvis")!;
       const spine = nodeMap.get("rig_spine")!;
+      const spine02 = nodeMap.get("rig_spine_02")!;
       const chest = nodeMap.get("rig_chest")!;
       const neck = nodeMap.get("rig_neck")!;
       const head = nodeMap.get("rig_head")!;
       const backpack = nodeMap.get("rig_backpack")!;
       const hatBrim = nodeMap.get("rig_hat_brim")!;
 
-      expect(pelvis.getParentNode()).toBe(rigRoot);
-      expect(spine.getParentNode()).toBe(pelvis);
-      expect(chest.getParentNode()).toBe(spine);
-      expect(neck.getParentNode()).toBe(chest);
-      expect(head.getParentNode()).toBe(neck);
-      expect(hatBrim.getParentNode()).toBe(head);
-      expect(backpack.getParentNode()).toBe(spine);
+      // Comparing glTF nodes directly makes a failure print the whole graph and
+      // blow the reporter's string limit, so assert on names.
+      const parentName = (node: typeof pelvis) => node.getParentNode()?.getName();
+      expect(parentName(pelvis)).toBe(rigRoot.getName());
+      expect(parentName(spine)).toBe(pelvis.getName());
+      expect(parentName(spine02)).toBe(spine.getName());
+      expect(parentName(chest)).toBe(spine02.getName());
+      expect(parentName(neck)).toBe(chest.getName());
+      expect(parentName(head)).toBe(neck.getName());
+      expect(parentName(hatBrim)).toBe(head.getName());
+      expect(parentName(backpack)).toBe(spine.getName());
 
       for (const side of ["left", "right"]) {
         const clavicle = nodeMap.get(`rig_clavicle_${side}`)!;
@@ -155,14 +163,15 @@ describe("Milestone 2 Empirical Challenger — Rigging, Skinning & Sockets Adver
         const foot = nodeMap.get(`rig_foot_${side}`)!;
         const canteen = nodeMap.get(`rig_canteen_${side}`)!;
 
-        expect(clavicle.getParentNode()).toBe(chest);
-        expect(upperArm.getParentNode()).toBe(clavicle);
-        expect(forearm.getParentNode()).toBe(upperArm);
-        expect(hand.getParentNode()).toBe(forearm);
-        expect(thigh.getParentNode()).toBe(pelvis);
-        expect(shin.getParentNode()).toBe(thigh);
-        expect(foot.getParentNode()).toBe(shin);
-        expect(canteen.getParentNode()).toBe(backpack);
+        expect(parentName(clavicle)).toBe(chest.getName());
+        expect(parentName(upperArm)).toBe(clavicle.getName());
+        expect(parentName(forearm)).toBe(upperArm.getName());
+        expect(parentName(hand)).toBe(forearm.getName());
+        expect(parentName(thigh)).toBe(pelvis.getName());
+        expect(parentName(shin)).toBe(thigh.getName());
+        expect(parentName(foot)).toBe(shin.getName());
+        expect(parentName(nodeMap.get(`rig_toe_${side}`)!)).toBe(foot.getName());
+        expect(parentName(canteen)).toBe(backpack.getName());
       }
     }
   });

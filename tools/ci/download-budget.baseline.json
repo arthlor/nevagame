@@ -1,0 +1,5 @@
+{
+  "comment": "Ratchet baseline for total dist size. Lower it whenever dist shrinks; never raise it without a deliberate reason. The 20MB downloadBudgetBytes in assets/specs/asset-catalog.json gates the code bundle, not this number.",
+  "totalBytes": 100325682,
+  "recordedAtUtc": "2026-09-01"
+}

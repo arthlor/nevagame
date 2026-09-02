@@ -11,6 +11,8 @@ export type QuestActId =
   | "act3_river"
   | "act4_harbor"
   | "act5_expedition"
+  | "act6_stewardship"
+  | "act7_sunreach"
   | "epilogue_open";
 
 export type QuestObjectiveType =
@@ -28,12 +30,17 @@ export type QuestObjectiveType =
   | "dock-boat"
   | "sell-item"
   | "sell-fish"
+  | "complete-contract"
+  | "apply-fertilizer"
+  | "install-irrigation"
+  | "irrigate-farm"
   | "purchase-upgrade";
 
 export type QuestLocationRequirement =
   | { kind: "farm"; id: string }
   | { kind: "station"; id: string }
   | { kind: "habitat"; id: string }
+  | { kind: "ecology"; id: string }
   | { kind: "market"; id: string }
   | { kind: "boat"; id: string };
 
@@ -51,7 +58,13 @@ export interface QuestRewardDefinition {
   money?: number;
   items?: Array<{ itemId: string; quantity: number }>;
   skillXp?: Array<{ skill: SkillId; xp: number }>;
-  unlocksFeature?: string;
+  unlocksFeatureIds?: string[];
+  unlocksKnowledgeIds?: string[];
+}
+
+export interface QuestTurnInCost {
+  money?: number;
+  items?: Array<{ itemId: string; quantity: number }>;
 }
 
 export interface QuestDefinition {
@@ -63,6 +76,7 @@ export interface QuestDefinition {
   introDialogue: string[];
   completionDialogue: string[];
   objectives: QuestObjectiveDefinition[];
+  turnInCost?: QuestTurnInCost;
   rewards: QuestRewardDefinition;
   nextQuestId?: QuestId;
 }
@@ -92,6 +106,7 @@ export interface ActiveQuestDto {
   targetQuantity: number;
   isStepComplete: boolean;
   isQuestReadyToTurnIn: boolean;
+  turnInBlockerReason?: string;
   targetLocation?: { x: number; z: number; name: string };
   rewards?: QuestRewardDefinition;
 }

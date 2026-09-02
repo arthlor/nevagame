@@ -1,11 +1,5 @@
 // src/main.ts
-import "./ui/styles.css";
-import "./ui/chrome/chrome.css";
-import "./ui/hud.css";
-import "./ui/modals.css";
-import "./ui/overlays.css";
-import "./ui/mobile.css";
-import "./ui/a11y.css";
+import "./ui/coastal.css";
 import { GameApp } from "./app/GameApp";
 import { uiScale } from "./ui/uiScale";
 
@@ -20,58 +14,43 @@ function showFatalBootOverlay(error: unknown): void {
 
   const overlay = document.createElement("div");
   overlay.id = "neva-fatal-boot";
-  overlay.setAttribute("role", "alert");
+  overlay.className = "fatal-recovery-screen interactive";
+  overlay.setAttribute("role", "alertdialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "fatal-recovery-title");
+  overlay.setAttribute("aria-describedby", "fatal-recovery-copy");
   overlay.setAttribute("aria-live", "assertive");
-  overlay.style.cssText = [
-    "position:fixed",
-    "inset:0",
-    "z-index:100000",
-    "display:flex",
-    "align-items:center",
-    "justify-content:center",
-    "padding:24px",
-    "background:rgba(10,13,11,0.94)",
-    "color:#F3F0E6",
-    "font-family:Inter,system-ui,sans-serif"
-  ].join(";");
 
   const panel = document.createElement("div");
-  panel.style.cssText = [
-    "max-width:640px",
-    "width:100%",
-    "border:1px solid rgba(243,240,230,0.18)",
-    "border-radius:12px",
-    "background:#1B201D",
-    "padding:28px 24px",
-    "box-shadow:0 16px 48px rgba(0,0,0,0.65)"
-  ].join(";");
+  panel.className = "fatal-recovery-sheet";
 
   const title = document.createElement("h1");
-  title.textContent = "Neva could not start";
-  title.style.cssText = "margin:0 0 12px;font-size:22px;font-weight:700;color:#C86A58;";
+  title.id = "fatal-recovery-title";
+  title.textContent = "The coast did not open";
 
   const body = document.createElement("p");
-  body.textContent = "WebGL, assets, or physics failed during boot. The game cannot continue in this session.";
-  body.style.cssText = "margin:0 0 16px;line-height:1.45;color:#A7B0A5;";
+  body.id = "fatal-recovery-copy";
+  body.textContent = "Neva could not finish preparing. Try again; your harbor log has not been changed.";
+
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "fatal-recovery-retry";
+  retry.textContent = "Try again";
+  retry.addEventListener("click", () => window.location.reload());
+
+  const details = document.createElement("details");
+  details.className = "fatal-recovery-diagnostics";
+  const summary = document.createElement("summary");
+  summary.textContent = "Diagnostics";
 
   const pre = document.createElement("pre");
   pre.textContent = message;
-  pre.style.cssText = [
-    "margin:0",
-    "max-height:40vh",
-    "overflow:auto",
-    "padding:12px",
-    "border-radius:8px",
-    "background:#141815",
-    "color:#F3F0E6",
-    "font-size:12px",
-    "white-space:pre-wrap",
-    "word-break:break-word"
-  ].join(";");
+  details.append(summary, pre);
 
-  panel.append(title, body, pre);
+  panel.append(title, body, retry, details);
   overlay.append(panel);
   document.body.append(overlay);
+  retry.focus();
 }
 
 window.addEventListener("DOMContentLoaded", () => {

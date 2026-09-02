@@ -18,6 +18,7 @@
     "weather": { "export": "UI_WEATHER", "doc": "Sky and sea condition icons for the almanac and forecast." },
     "time": { "export": "UI_TIME", "doc": "Time-of-day icons for the almanac dial." },
     "tool": { "export": "UI_TOOLS", "doc": "Tool belt icons." },
+    "rod": { "export": "UI_RODS", "doc": "Fishing-rod progression icons for the equipped hotbar slot and Harbor Tackle." },
     "menu": { "export": "UI_MENU", "doc": "Navigation icons for modal headers and the pause menu." },
     "status": { "export": "UI_STATUS", "doc": "Purse, labour and alert icons." },
     "world": { "export": "UI_WORLD", "doc": "Generic world-subject icons used as fallbacks." },
@@ -237,6 +238,18 @@
       ]
     },
     {
+      "id": "rods",
+      "family": "rod",
+      "source": "assets/ui/sheets/rods.png",
+      "sprites": [
+        { "id": "rod.willow", "file": "rod-willow.png" },
+        { "id": "rod.river", "file": "rod-river.png" },
+        { "id": "rod.heavy_sport", "file": "rod-heavy_sport.png" },
+        { "id": "rod.offshore", "file": "rod-offshore.png" },
+        { "id": "rod.master", "file": "rod-master.png" }
+      ]
+    },
+    {
       "id": "menu",
       "family": "menu",
       "source": "assets/ui/sheets/menu.png",
@@ -337,6 +350,66 @@
         { "id": "demand_down", "file": "chrome-demand_down.png" },
         { "id": "corner_leaf", "file": "chrome-corner_leaf.png" },
         { "id": "corner_rope", "file": "chrome-corner_rope.png" }
+      ]
+    },
+    {
+      "id": "sunreach-fish",
+      "family": "fish",
+      "source": "assets/ui/sheets/sunreach-fish.png",
+      "detect": { "grid": { "cols": 3, "rows": 1 } },
+      "sprites": [
+        { "id": "fish.sardine", "file": "fish-sardine.png" },
+        { "id": "fish.sea_bream", "file": "fish-sea_bream.png" },
+        { "id": "fish.amberjack", "file": "fish-amberjack.png" }
+      ]
+    },
+    {
+      "id": "sunreach-seeds",
+      "family": "seed",
+      "source": "assets/ui/sheets/sunreach-seeds.png",
+      "detect": { "grid": { "cols": 2, "rows": 1 } },
+      "sprites": [
+        { "id": "seed.sunflower", "file": "seed-sunflower.png" },
+        { "id": "seed.olive_pit", "file": "seed-olive_pit.png" }
+      ]
+    },
+    {
+      "id": "sunreach-produce",
+      "family": "produce",
+      "source": "assets/ui/sheets/sunreach-produce.png",
+      "detect": { "grid": { "cols": 2, "rows": 1 } },
+      "sprites": [
+        { "id": "produce.sunflower_seed", "file": "produce-sunflower_seed.png" },
+        { "id": "produce.olive", "file": "produce-olive.png" }
+      ]
+    },
+    {
+      "id": "sunreach-plants",
+      "family": "plant",
+      "source": "assets/ui/sheets/sunreach-plants.png",
+      "detect": { "grid": { "cols": 2, "rows": 1 } },
+      "sprites": [
+        { "id": "crop.sunflower", "file": "plant-sunflower.png" },
+        { "id": "crop.olive_tree", "file": "plant-olive_tree.png" }
+      ]
+    },
+    {
+      "id": "sunreach-portraits",
+      "family": "portrait",
+      "source": "assets/ui/sheets/sunreach-portraits.png",
+      "detect": { "grid": { "cols": 2, "rows": 1 } },
+      "sprites": [
+        { "id": "npc.tomas", "file": "portrait-tomas.png" },
+        { "id": "npc.ines", "file": "portrait-ines.png" }
+      ]
+    },
+    {
+      "id": "sunreach-mapnode",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/sunreach-mapnode.png",
+      "detect": { "grid": { "cols": 1, "rows": 1 } },
+      "sprites": [
+        { "id": "sunreach", "file": "mapnode-sunreach.png" }
       ]
     }
   ],

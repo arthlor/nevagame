@@ -1,7 +1,5 @@
-// src/ui/DialogueModal.tsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ContentRegistry } from "../content/ContentRegistry";
-import type { GameState } from "../simulation/core/types";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import {
   IconCoin,
@@ -15,12 +13,12 @@ import {
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForItem, atlasForPortrait } from "./chrome/uiAtlas";
-import { ChromeButton, ChromeClose, ChromeKeycap, ChromePanel } from "./chrome/Chrome";
+import { ChromeButton } from "./chrome/Chrome";
+import { GameSheet, KeyHint } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 
 export interface DialogueModalProps {
   npcId: string;
-  state: GameState;
   onClose: () => void;
   onTalkNpc: (npcId: string) => {
     success: boolean;
@@ -53,6 +51,13 @@ function getSkillIcon(skill: string) {
   }
 }
 
+function featureUnlockLabel(featureId: string): string {
+  if (featureId === "boat.player_rowboat") return "Wooden Rowboat";
+  if (featureId === "feature.expedition_planner") return "Expedition Board";
+  if (featureId === "feature.irrigation_zone") return "Field Irrigation";
+  return "New coastal opportunity";
+}
+
 export const DialogueModal: React.FC<DialogueModalProps> = ({
   npcId,
   onClose,
@@ -63,13 +68,13 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const [dialogueIndex, setDialogueIndex] = useState(0);
   const [dialoguePages, setDialoguePages] = useState<string[]>(() => npc?.idleDialogue ?? []);
   const [isCompletion, setIsCompletion] = useState(false);
+  const [talkFailed, setTalkFailed] = useState(false);
   const [rewardsClaimed, setRewardsClaimed] = useState(false);
   const [completionQuest, setCompletionQuest] = useState<ActiveQuestDto | null>(null);
   const [revealedChars, setRevealedChars] = useState(0);
   const initializedNpcRef = useRef<string | null>(null);
   const chimePlayedRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const spaceHoldTimerRef = useRef<number | null>(null);
   useModalAccessibility(dialogRef, onClose);
 
   useEffect(() => {
@@ -78,6 +83,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     const questSnapshot = activeQuest;
     const res = onTalkNpc(npcId);
     if (!res.success) {
+      setTalkFailed(true);
       setDialoguePages([res.reason ?? "Move closer to talk to this person."]);
     } else if (res.dialogue && res.dialogue.length > 0) {
       setDialoguePages(res.dialogue);
@@ -94,12 +100,11 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   }, [activeQuest, npc, npcId, onTalkNpc]);
 
   const totalPages = dialoguePages.length || 1;
-  const currentPageText = dialoguePages[dialogueIndex] || "Hello traveler!";
+  const currentPageText = dialoguePages[dialogueIndex] || "Good tide to you.";
   const isLastPage = dialogueIndex >= totalPages - 1;
   const isTyping = revealedChars < currentPageText.length;
   const visibleText = currentPageText.slice(0, revealedChars);
 
-  // Typewriter effect with throttled soft audio chatter
   useEffect(() => {
     if (prefersReducedMotion()) {
       setRevealedChars(currentPageText.length);
@@ -112,7 +117,6 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
       shown += 1;
       setRevealedChars(shown);
       tickCounter += 1;
-      // Soft audio tick every 4 characters on non-whitespace
       if (tickCounter % 4 === 0 && shown < currentPageText.length) {
         const char = currentPageText[shown - 1];
         if (char && char.trim().length > 0) {
@@ -135,12 +139,10 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 
   const handleNext = useCallback((playCue = false) => {
     if (isTyping) {
-      // Step 1: Instantly reveal full text
       setRevealedChars(currentPageText.length);
       if (playCue) playUiSound("click");
       return;
     }
-    // Step 2: Advance to next page or finish
     if (isLastPage) {
       if (playCue) playUiSound("confirm");
       onClose();
@@ -160,7 +162,6 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const handleSkipTalkRef = useRef(handleSkipTalk);
   handleSkipTalkRef.current = handleSkipTalk;
 
-  // Keyboard navigation: Space/Enter/E for 2-step reveal & hold-to-skip, Esc for instant skip
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -174,34 +175,13 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         e.stopPropagation();
         if (!e.repeat) {
           handleNextRef.current(true);
-          if (e.key === " ") {
-            if (spaceHoldTimerRef.current) window.clearTimeout(spaceHoldTimerRef.current);
-            spaceHoldTimerRef.current = window.setTimeout(() => {
-              handleSkipTalkRef.current();
-            }, 350);
-          }
-        }
-      }
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === " ") {
-        if (spaceHoldTimerRef.current) {
-          window.clearTimeout(spaceHoldTimerRef.current);
-          spaceHoldTimerRef.current = null;
         }
       }
     };
 
     window.addEventListener("keydown", onKeyDown, { capture: true });
-    window.addEventListener("keyup", onKeyUp, { capture: true });
     return () => {
       window.removeEventListener("keydown", onKeyDown, { capture: true });
-      window.removeEventListener("keyup", onKeyUp, { capture: true });
-      if (spaceHoldTimerRef.current) {
-        window.clearTimeout(spaceHoldTimerRef.current);
-        spaceHoldTimerRef.current = null;
-      }
     };
   }, []);
 
@@ -209,12 +189,11 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 
   return (
     <div className="dialogue-backdrop interactive" onClick={onClose}>
-      <ChromePanel
+      <GameSheet
         ref={dialogRef}
         as="div"
         className="dialogue-card"
         tone="slate"
-        flourish
         corners
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -237,7 +216,6 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             </div>
             <span className="dialogue-district">{npc.district}</span>
           </div>
-          <ChromeClose onClick={onClose} label="Close dialogue" className="dialogue-close-btn" />
         </header>
 
         <div className="dialogue-body" onClick={() => handleNext(true)}>
@@ -247,16 +225,9 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
           {totalPages > 1 && (
             <div className="dialogue-page-dots">
               {dialoguePages.map((_, i) => (
-                <button
-                  type="button"
+                <span
                   key={i}
                   className={`dialogue-dot ${i === dialogueIndex ? "active" : ""}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    playUiSound("page-turn");
-                    setDialogueIndex(i);
-                  }}
-                  aria-label={`Go to dialogue page ${i + 1}`}
                   aria-current={i === dialogueIndex ? "step" : undefined}
                 />
               ))}
@@ -310,39 +281,29 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
                   <span className="dialogue-reward-label">{xp.skill.toUpperCase()} XP</span>
                 </span>
               ))}
-              {completionQuest.rewards.unlocksFeature && (
-                <span
-                  className="dialogue-reward-pill unlock dialogue-reward-pill-enter"
-                  style={{ animationDelay: "180ms" }}
-                >
+              {completionQuest.rewards.unlocksFeatureIds?.map((featureId) => (
+                <span key={featureId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "180ms" }}>
                   <IconCompass size={16} aria-hidden />
                   <span className="dialogue-reward-label">
-                    Unlocked: {completionQuest.rewards.unlocksFeature.replace("feature.", "").replace("_", " ")}
+                    Now available · {featureUnlockLabel(featureId)}
                   </span>
                 </span>
-              )}
+              ))}
+              {completionQuest.rewards.unlocksKnowledgeIds
+                ?.filter((knowledgeId) => !completionQuest.rewards?.unlocksFeatureIds?.includes(knowledgeId))
+                .map((knowledgeId) => (
+                <span key={knowledgeId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "220ms" }}>
+                  <IconCompass size={16} aria-hidden />
+                  <span className="dialogue-reward-label">
+                    Journal · {ContentRegistry.knowledge.get(knowledgeId)?.title ?? "New field note"}
+                  </span>
+                </span>
+              ))}
             </div>
           </div>
         )}
 
         <footer className="dialogue-footer">
-          <div className="dialogue-footer-left">
-            <span className="dialogue-key-hint">
-              <ChromeKeycap keyName="Space" glow={isTyping} />{" "}
-              <span className="dialogue-hint-label">
-                {isCompletion && isLastPage && !isTyping ? "Complete" : "Continue"}
-              </span>
-            </span>
-            <button
-              type="button"
-              className="dialogue-skip-link"
-              onClick={handleSkipTalk}
-              data-testid="dialogue-skip-talk"
-            >
-              <ChromeKeycap keyName="Esc" /> Skip talk
-            </button>
-          </div>
-
           <div className="dialogue-footer-right">
             <ChromeButton
               variant="primary"
@@ -350,19 +311,18 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
               soundCue={isTyping ? "click" : isLastPage ? "confirm" : "page-turn"}
               onClick={() => handleNext(false)}
             >
-              <ChromeKeycap keyName="Space" glow={isTyping} />
+              <KeyHint keyName="Space" glow={isTyping} />
               <span>
                 {isTyping
                   ? "Show all"
                   : isLastPage
-                  ? (isCompletion ? "Claim & Finish" : "Complete")
+                  ? (talkFailed ? "Close" : isCompletion ? "Continue" : "Close")
                   : "Next"}
               </span>
             </ChromeButton>
           </div>
         </footer>
-      </ChromePanel>
+      </GameSheet>
     </div>
   );
 };
-

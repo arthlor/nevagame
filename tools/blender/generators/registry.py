@@ -5,17 +5,25 @@ from .boats import fishing_skiff, rowboat
 from .characters import coastal_worker, fauna_butterfly, fauna_chicken, fauna_cow, fauna_donkey, fauna_gull, fauna_rabbit, npc_character
 
 from .clouds import faceted_cloud
-from .crops import potato_crop, pumpkin_crop, tomato_crop, turnip_crop, wheat_crop
+from .crops import olive_crop, potato_crop, pumpkin_crop, sunflower_crop, tomato_crop, turnip_crop, wheat_crop
 from .fish import stylized_fish
+from .camp import fallen_log, fire_pit, path_stone_round, path_stone_slab, picnic_table, smoke_plume, trail_kiosk, trail_signpost, wood_bench
+from .furnishings import floor_plant, wood_bookcase, wood_side_table, wood_sideboard
+from .harbor import admiralty_anchor, cargo_crate_large, cargo_sack, dock_lantern_post, dock_platform, driftwood_log, gangplank, hanging_signboard, marker_buoy, mooring_post, pier_railing
+from .items import item_apple, item_bread_loaf, item_carrot, item_coin_pouch, item_compass, item_corn_cob, item_pie, treasure_chest
+from .reef import coral_pillar, coral_staghorn, coral_table
+from .stones import boulder_large, coastal_boulder, reef_small, rock_spire, sea_stack
+from .woodland import algae_frond, beach_grass_tuft, broadleaf_oak, cattail_reeds, dead_tree, lily_pad_cluster, maple_tree, mushroom_cluster, round_bush, seagrass_tuft, sunflower_stand, tall_pine, young_pine
+from .homestead import apiary_hive, fence_section, firewood_stack, garden_hoe, milk_churn, potting_bench, rustic_watering_can, tilled_soil_tile, vegetable_bed_tile, water_trough, wheelbarrow
 from .interiors import cozy_armchair, cozy_bed, cupboard_shelves, dining_table, fireplace_hearth, interior_farmhouse_shell, rustic_chair, woven_rug
-from .polyfork import polyfork_architecture, polyfork_cloud, polyfork_crop, polyfork_prop, polyfork_rock, polyfork_vegetation
 from .props import clay_oven, crop_bundle, driftwood_cluster, farm_workbench, fish_drying_rack, fishing_net_rack, fishing_rod, harvest_basket, hay_bale, lamp_post, lobster_trap, produce_crate, produce_stall, pumpkin_patch, seed_pouch, sickle, wagon_cart, water_well, watering_can, wood_barrel, wood_crate, wood_fence, workstation_scoop, worm_compost_bin
 from .rocks import faceted_rock, path_slab, pebble_cluster
-from .vegetation import apple_tree, bush, flower_drift, grass_clump, kelp_clump, oak_tree, pine_tree, reeds, wildflower_clump
+from .vegetation import apple_tree, bush, flower_drift, grass_clump, kelp_clump, oak_tree, olive_tree, pine_tree, reeds, wildflower_clump
 
 
 GENERATORS = {
     "oak_tree": oak_tree,
+    "olive_tree": olive_tree,
     "pine_tree": pine_tree,
     "apple_tree": apple_tree,
     "bush": bush,
@@ -71,6 +79,8 @@ GENERATORS = {
     "fishing_skiff": fishing_skiff,
     "wheat_crop": wheat_crop,
     "tomato_crop": tomato_crop,
+    "sunflower_crop": sunflower_crop,
+    "olive_crop": olive_crop,
     "potato_crop": potato_crop,
     "turnip_crop": turnip_crop,
     "pumpkin_crop": pumpkin_crop,
@@ -84,12 +94,70 @@ GENERATORS = {
     "fauna_rabbit": fauna_rabbit,
     "fauna_gull": fauna_gull,
     "fauna_butterfly": fauna_butterfly,
-    "polyfork_prop": polyfork_prop,
-    "polyfork_vegetation": polyfork_vegetation,
-    "polyfork_rock": polyfork_rock,
-    "polyfork_architecture": polyfork_architecture,
-    "polyfork_crop": polyfork_crop,
-    "polyfork_cloud": polyfork_cloud,
+    "apiary_hive": apiary_hive,
+    "potting_bench": potting_bench,
+    "rustic_watering_can": rustic_watering_can,
+    "garden_hoe": garden_hoe,
+    "wheelbarrow": wheelbarrow,
+    "water_trough": water_trough,
+    "firewood_stack": firewood_stack,
+    "milk_churn": milk_churn,
+    "fence_section": fence_section,
+    "vegetable_bed_tile": vegetable_bed_tile,
+    "tilled_soil_tile": tilled_soil_tile,
+    "admiralty_anchor": admiralty_anchor,
+    "cargo_crate_large": cargo_crate_large,
+    "cargo_sack": cargo_sack,
+    "dock_lantern_post": dock_lantern_post,
+    "dock_platform": dock_platform,
+    "driftwood_log": driftwood_log,
+    "gangplank": gangplank,
+    "hanging_signboard": hanging_signboard,
+    "marker_buoy": marker_buoy,
+    "mooring_post": mooring_post,
+    "pier_railing": pier_railing,
+    "algae_frond": algae_frond,
+    "beach_grass_tuft": beach_grass_tuft,
+    "broadleaf_oak": broadleaf_oak,
+    "cattail_reeds": cattail_reeds,
+    "dead_tree": dead_tree,
+    "lily_pad_cluster": lily_pad_cluster,
+    "maple_tree": maple_tree,
+    "mushroom_cluster": mushroom_cluster,
+    "round_bush": round_bush,
+    "seagrass_tuft": seagrass_tuft,
+    "sunflower_stand": sunflower_stand,
+    "tall_pine": tall_pine,
+    "young_pine": young_pine,
+    "boulder_large": boulder_large,
+    "coastal_boulder": coastal_boulder,
+    "reef_small": reef_small,
+    "rock_spire": rock_spire,
+    "sea_stack": sea_stack,
+    "fallen_log": fallen_log,
+    "fire_pit": fire_pit,
+    "path_stone_round": path_stone_round,
+    "path_stone_slab": path_stone_slab,
+    "picnic_table": picnic_table,
+    "smoke_plume": smoke_plume,
+    "trail_kiosk": trail_kiosk,
+    "trail_signpost": trail_signpost,
+    "wood_bench": wood_bench,
+    "coral_pillar": coral_pillar,
+    "coral_staghorn": coral_staghorn,
+    "coral_table": coral_table,
+    "floor_plant": floor_plant,
+    "wood_bookcase": wood_bookcase,
+    "wood_side_table": wood_side_table,
+    "wood_sideboard": wood_sideboard,
+    "item_apple": item_apple,
+    "item_bread_loaf": item_bread_loaf,
+    "item_carrot": item_carrot,
+    "item_coin_pouch": item_coin_pouch,
+    "item_compass": item_compass,
+    "item_corn_cob": item_corn_cob,
+    "item_pie": item_pie,
+    "treasure_chest": treasure_chest,
 }
 
 

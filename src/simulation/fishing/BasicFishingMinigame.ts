@@ -1,9 +1,10 @@
 // src/simulation/fishing/BasicFishingMinigame.ts
 
-import { BasicFishingState, FishCatchQuality } from "../core/types";
+import { BasicFishingState, FishQuality, WeatherTag, TimeWindowId } from "../core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { Rng } from "../core/Rng";
 import { MinigameFishBehavior } from "../../content/types";
+import type { FishingEcologyId } from "../../world/WorldIslands";
 
 export interface BasicFishingMinigameConfig {
   gravity: number;
@@ -34,13 +35,37 @@ export class BasicFishingMinigame {
     const rod = ContentRegistry.rods.get(rodId);
     let rodBonus = 0.0;
     if (rod) {
-      if (rod.rodClass === "river") rodBonus = 0.03;
+      if (rod.rodClass === "willow") rodBonus = 0.02;
+      else if (rod.rodClass === "river") rodBonus = 0.03;
       else if (rod.rodClass === "heavy-sport") rodBonus = 0.06;
       else if (rod.rodClass === "offshore" || rod.rodClass === "master") rodBonus = 0.08;
     }
     const skillBonus = Math.max(0, fishingProficiencyRank) * 0.015;
     const baseHeight = 0.20;
     return Math.min(0.45, Math.max(0.15, baseHeight + rodBonus + skillBonus));
+  }
+
+  public static weatherWaitMultiplier(weatherType: WeatherTag): number {
+    switch (weatherType) {
+      case "light-rain": return 0.9;
+      case "heavy-rain": return 1.15;
+      case "windy": return 1.1;
+      case "fog": return 1.2;
+      case "storm": return 1.25;
+      default: return 1.0;
+    }
+  }
+
+  public static timeOfDayWaitMultiplier(timeOfDay: TimeWindowId): number {
+    switch (timeOfDay) {
+      case "dawn":
+      case "dusk":
+        return 0.85;
+      case "night":
+        return 1.15;
+      default:
+        return 1.0;
+    }
   }
 
   public static createInitialState(
@@ -50,21 +75,32 @@ export class BasicFishingMinigame {
     rodId: string,
     fishingProficiencyRank: number,
     hasBait: boolean,
-    rng: Rng
+    rng: Rng,
+    weatherType: WeatherTag = "clear",
+    timeOfDay: TimeWindowId = "day",
+    ecologyId: FishingEcologyId = "ecology.neva"
   ): BasicFishingState {
     const barHeight = this.calculateBarHeight(rodId, fishingProficiencyRank);
     const hasTreasure = rng.chance(0.18);
     const treasureY = hasTreasure ? rng.range(0.15, 0.85) : 0;
 
-    // Bait and cast power affect initial bite wait time
+    // Bait, cast power, weather, and time of day affect bite wait.
     const baseWait = rng.range(4.0, 7.5);
     const baitMultiplier = hasBait ? 0.6 : 1.0;
     const powerMultiplier = 1.0 - (castPower * 0.25); // high power cuts wait by up to 25%
-    const waitTime = Math.max(2.0, baseWait * baitMultiplier * powerMultiplier);
+    const waitTime = Math.max(
+      2.0,
+      baseWait
+        * baitMultiplier
+        * powerMultiplier
+        * this.weatherWaitMultiplier(weatherType)
+        * this.timeOfDayWaitMultiplier(timeOfDay)
+    );
 
     const castDistanceMeters = 3.0 + castPower * 9.0; // 3m to 12m
 
     return {
+      ecologyId,
       habitatId,
       phase: "waiting-bite",
       remainingSeconds: waitTime,
@@ -74,7 +110,7 @@ export class BasicFishingMinigame {
       castDistanceMeters,
       isChargingCast: false,
       castChargeDirection: 1,
-      biteReactionWindowSeconds: 1.4,
+      biteReactionWindowSeconds: rng.range(1.2, 1.5),
       hasBait,
       fishY: 0.25,
       fishVy: 0,
@@ -89,7 +125,7 @@ export class BasicFishingMinigame {
       treasureY,
       treasureProgress: 0.0,
       treasureCaught: false,
-      quality: "normal",
+      quality: "common",
       isHolding: false
     };
   }
@@ -287,26 +323,22 @@ export class BasicFishingMinigame {
     state.fishY = Math.max(0.02, Math.min(0.98, nextY));
   }
 
-  public static determineQuality(castPower: number, isPerfect: boolean, rng: Rng): FishCatchQuality {
-    let qualityTier = 0; // 0 = normal, 1 = silver, 2 = gold, 3 = iridium
+  public static determineQuality(castPower: number, isPerfect: boolean, rng: Rng): FishQuality {
+    let qualityTier = 0; // 0 = common, 1 = fine, 2 = exceptional, 3 = trophy
 
-    // Cast power rolls for base tier
     if (castPower >= 0.85) {
-      if (rng.chance(0.55)) qualityTier = 2; // Gold
-      else qualityTier = 1; // Silver
+      if (rng.chance(0.55)) qualityTier = 2;
+      else qualityTier = 1;
     } else if (castPower >= 0.50) {
-      if (rng.chance(0.40)) qualityTier = 1; // Silver
+      if (rng.chance(0.40)) qualityTier = 1;
     }
 
-    // Perfect Catch upgrades quality by +1 tier
-    if (isPerfect) {
-      qualityTier += 1;
-    }
+    if (isPerfect) qualityTier += 1;
 
-    if (qualityTier >= 3) return "iridium";
-    if (qualityTier === 2) return "gold";
-    if (qualityTier === 1) return "silver";
-    return "normal";
+    if (qualityTier >= 3) return "trophy";
+    if (qualityTier === 2) return "exceptional";
+    if (qualityTier === 1) return "fine";
+    return "common";
   }
 
   public static readonly COMMON_TREASURE_LOOT = ["item.bait_worms", "seed.wheat", "seed.carrot"] as const;

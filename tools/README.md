@@ -28,6 +28,5 @@ The unified front door is `npm run tools -- <command>`. Run it without a
 command in a terminal for the interactive menu. Visual baselines use
 `npm run visual:update`; normal comparison uses `npm run visual:test`.
 
-Do not treat `tools/art/import_polyfork.mjs`,
-`tools/art/register_polyfork_catalog.mjs`, or
-`tools/blender/generators/generate_all.py` as the generate-asset front door.
+Do not treat `tools/blender/generators/generate_all.py` as the generate-asset
+front door.

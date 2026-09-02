@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Generated artifacts are committed, so verify they match their sources
+      # BEFORE anything regenerates them. `npm run typecheck`/`test`/`build`
+      # each fire an `assets:sync` pre-hook in WRITE mode, which would silently
+      # paper over drift — so every gate below is invoked directly via npx to
+      # bypass those hooks.
+      - name: Verify generated art catalog
+        run: npm run art:codegen:check
+
+      - name: Verify generated UI atlas
+        run: |
+          npm run ui:codegen:check
+          npm run ui:publish:check
+          npm run ui:pack:check
+
+      - name: Content validation
+        run: npm run content:validate
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Unit and simulation tests
+        run: npx vitest run
+
+      - name: Build
+        run: npx vite build
+
+      # The catalog declares downloadBudgetBytes and nothing enforced it, so
+      # dist grew to ~5x the budget. Failing here is the whole point.
+      - name: Enforce download budget
+        run: node tools/ci/check-download-budget.mjs
+
+      # Draw-call/triangle budget is measured against the PRODUCTION bundle,
+      # because static prefab batching is skipped under import.meta.env.DEV.
+      # Measuring it on the dev server measures the wrong configuration.
+      # The budget config pins the desktop Chrome channel, matching the repo's
+      # existing Chrome-only acceptance convention in playwright.config.ts.
+      - name: Install Playwright Chrome
+        run: npx playwright install --with-deps chrome
+
+      - name: Render budget (production build)
+        run: npm run test:budget
+
+      - name: Fail if the working tree drifted
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Build or codegen modified tracked files. Commit the regenerated artifacts."
+            git status --porcelain
+            git diff --stat
+            exit 1
+          fi

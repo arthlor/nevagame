@@ -1069,3 +1069,150 @@ def pumpkin_crop(spec: dict, root) -> None:
             root,
             rotation=angle,
         )
+
+
+def sunflower_crop(spec: dict, root) -> None:
+    """Warm-dry terrace sunflower with a readable radial head at maturity."""
+    rng = seeded_rng(spec["seed"])
+    stage = spec["parameters"]["stage"]
+    tokens = spec["palette"]
+    leaf_token = tokens[0]
+    stem_token = tokens[1] if len(tokens) > 1 else leaf_token
+    petal_token = tokens[2] if len(tokens) > 2 else stem_token
+    center_token = tokens[3] if len(tokens) > 3 else stem_token
+
+    if stage == "seeded":
+        for index in range(7):
+            angle = index * GOLDEN_ANGLE
+            radius = 0.05 + index * 0.025
+            _add_octahedron(
+                f"sunflower_seed_{index:02d}",
+                (math.cos(angle) * radius, math.sin(angle) * radius, 0.025),
+                (0.030, 0.012, 0.018),
+                center_token,
+                root,
+                rotation=angle,
+            )
+        return
+
+    settings = {
+        "sprout": (0.28, 2, 0.0),
+        "growing": (0.82, 4, 0.02),
+        "mature": (1.34, 5, 0.04),
+        "overripe": (1.12, 4, 0.34),
+        "withered": (0.70, 3, 0.72),
+    }
+    height, leaf_count, droop = settings[stage]
+    plant_count = 2 if stage in ("sprout", "withered") else 3
+    for index in range(plant_count):
+        angle = index * GOLDEN_ANGLE + 0.32
+        base_radius = 0.08 + 0.09 * index
+        base = (math.cos(angle) * base_radius, math.sin(angle) * base_radius, 0.016)
+        lean = (0.03 + droop * 0.20) * (1 if index % 2 == 0 else -1)
+        tip = (
+            base[0] + math.cos(angle) * lean,
+            base[1] + math.sin(angle) * lean,
+            height * rng.uniform(0.92, 1.04) * (1.0 - droop * 0.18),
+        )
+        _add_culm(
+            f"sunflower_stem_{index:02d}", base, tip,
+            0.026 if stage in ("mature", "overripe") else 0.018,
+            0.012, stem_token, root, knee=0.03 + droop * 0.08,
+        )
+        for leaf_index in range(leaf_count):
+            t = 0.22 + leaf_index * (0.58 / max(1, leaf_count - 1))
+            attach = (
+                base[0] + (tip[0] - base[0]) * t,
+                base[1] + (tip[1] - base[1]) * t,
+                base[2] + (tip[2] - base[2]) * t,
+            )
+            _add_folded_leaf(
+                f"sunflower_leaf_{index:02d}_{leaf_index:02d}",
+                attach,
+                0.20 if stage == "sprout" else 0.30,
+                0.11 if stage == "sprout" else 0.18,
+                angle + leaf_index * GOLDEN_ANGLE,
+                leaf_token,
+                root,
+                pitch=0.22,
+                droop=droop,
+                cup=0.18,
+            )
+        if stage == "growing":
+            _add_octahedron(f"sunflower_bud_{index:02d}", tip, (0.07, 0.07, 0.06), leaf_token, root)
+        elif stage in ("mature", "overripe", "withered"):
+            head_center = (
+                tip[0] + math.cos(angle) * (0.04 + droop * 0.12),
+                tip[1] + math.sin(angle) * (0.04 + droop * 0.12),
+                tip[2] + 0.03 - droop * 0.08,
+            )
+            _add_star_flower(
+                f"sunflower_head_{index:02d}",
+                head_center,
+                0.18 if stage == "mature" else 0.15,
+                petal_token if stage != "withered" else stem_token,
+                center_token,
+                root,
+                petals=12,
+                rotation=angle,
+            )
+
+
+def olive_crop(spec: dict, root) -> None:
+    """Compact orchard crop stages distinct from the full environmental olive."""
+    stage = spec["parameters"]["stage"]
+    tokens = spec["palette"]
+    leaf_token = tokens[0]
+    wood_token = tokens[1] if len(tokens) > 1 else leaf_token
+    fruit_token = tokens[2] if len(tokens) > 2 else leaf_token
+    dry_token = tokens[3] if len(tokens) > 3 else wood_token
+
+    if stage == "seeded":
+        for index in range(4):
+            angle = index * GOLDEN_ANGLE
+            _add_octahedron(
+                f"olive_pit_{index:02d}",
+                (math.cos(angle) * (0.06 + index * 0.035), math.sin(angle) * (0.06 + index * 0.035), 0.03),
+                (0.035, 0.022, 0.025), fruit_token, root, rotation=angle,
+            )
+        return
+
+    settings = {
+        "sprout": (0.34, 2, 0.10, 0.0),
+        "growing": (0.82, 4, 0.28, 0.0),
+        "mature": (1.42, 7, 0.54, 0.0),
+        "overripe": (1.30, 6, 0.58, 0.24),
+        "withered": (0.92, 4, 0.48, 0.72),
+    }
+    height, branches, spread, droop = settings[stage]
+    trunk_top = (0.04 * droop, -0.02, height * 0.58)
+    _add_culm("olive_crop_trunk", (0, 0, 0.016), trunk_top, 0.07, 0.035, wood_token, root, knee=0.06)
+    for index in range(branches):
+        angle = index * GOLDEN_ANGLE + 0.22
+        attach_t = 0.46 + 0.44 * ((index % 3) / 2.0)
+        attach = (trunk_top[0] * attach_t, trunk_top[1] * attach_t, trunk_top[2] * attach_t)
+        tip = (
+            attach[0] + math.cos(angle) * spread * (0.64 + 0.12 * (index % 2)),
+            attach[1] + math.sin(angle) * spread * (0.64 + 0.12 * (index % 2)),
+            attach[2] + height * (0.22 + 0.04 * (index % 3)) * (1.0 - droop * 0.5),
+        )
+        add_tapered_beam(f"olive_crop_branch_{index:02d}", attach, tip, 0.025, 0.010, wood_token, root, vertices=5)
+        for leaf_index in range(3 if stage != "withered" else 1):
+            _add_folded_leaf(
+                f"olive_crop_leaf_{index:02d}_{leaf_index:02d}",
+                tip,
+                0.16,
+                0.055,
+                angle + (leaf_index - 1) * 0.52,
+                leaf_token if stage != "withered" else dry_token,
+                root,
+                pitch=0.16,
+                droop=droop,
+                cup=0.10,
+            )
+        if stage in ("mature", "overripe") and index < 5:
+            fruit_center = (tip[0], tip[1], tip[2] - 0.07 - 0.02 * (index % 2))
+            _add_octahedron(
+                f"olive_crop_fruit_{index:02d}", fruit_center,
+                (0.035, 0.025, 0.045), fruit_token, root, rotation=angle,
+            )

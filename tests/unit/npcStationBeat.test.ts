@@ -6,6 +6,8 @@ import {
   assertNpcStationBeatRadius,
   sampleNpcStationBeat
 } from "../../src/render/scene/npcStationBeat";
+import { ContentRegistry } from "../../src/content/ContentRegistry";
+import { WorldLayout } from "../../src/world/WorldLayout";
 
 const TALK_RADIUS_METERS = 3.5;
 
@@ -38,6 +40,23 @@ describe("npcStationBeat", () => {
       expect(samples.some((sample) => sample.walking)).toBe(true);
       expect(samples.some((sample) => !sample.walking)).toBe(true);
       expect(sampleNpcStationBeat(spec, 0)).toEqual(sampleNpcStationBeat(spec, 0));
+    }
+  });
+
+  it("keeps authored station waypoints on canonical walkable support", () => {
+    const minimumGroundNormalY = Math.cos((38 * Math.PI) / 180);
+    for (const [npcId, spec] of Object.entries(NPC_STATION_BEATS)) {
+      const npc = ContentRegistry.npcs.get(npcId);
+      expect(npc, npcId).toBeDefined();
+      for (const waypoint of spec.waypoints) {
+        const x = npc!.anchor.x + waypoint.dx;
+        const z = npc!.anchor.z + waypoint.dz;
+        const surface = WorldLayout.traversalSurfaceSample(x, z);
+        expect(WorldLayout.isWalkable(x, z), npcId).toBe(true);
+        expect(WorldLayout.isWater(x, z), npcId).toBe(false);
+        expect(surface.normal.y, npcId).toBeGreaterThanOrEqual(minimumGroundNormalY);
+        expect(surface.height).toBeCloseTo(WorldLayout.traversalSurfaceHeight(x, z), 8);
+      }
     }
   });
 });

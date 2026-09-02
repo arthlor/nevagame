@@ -42,6 +42,20 @@ export class InventoryManager {
   }
 
   /**
+   * Returns the usable quantity represented by a slot.
+   *
+   * Empty slots intentionally omit both fields, so callers that project
+   * inventory state into counts or DTOs must not read `quantity` directly.
+   * Invalid numeric values are treated as empty here; mutation APIs still
+   * reject the containing inventory through `isValidInventory`.
+   */
+  public static getSlotQuantity(slot: InventorySlot): number {
+    return typeof slot.quantity === "number" && Number.isSafeInteger(slot.quantity) && slot.quantity > 0
+      ? slot.quantity
+      : 0;
+  }
+
+  /**
    * Creates a fresh empty inventory with specified slot count.
    */
   public static createInventory(id: InventoryId, slotCount: number): InventoryState {

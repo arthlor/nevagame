@@ -113,9 +113,13 @@ export class PlacementEditor {
       this.pendingCommitObject = null;
       this.clearSelection();
     } else {
-      const terrain = this.worldScene.getTerrainMesh();
-      if (terrain && this.terrainSnapper.getTerrainMesh() !== terrain) {
-        this.terrainSnapper.registerTerrain(terrain);
+      const terrains = this.worldScene.getTerrainMeshes();
+      const registered = this.terrainSnapper.getTerrainMeshes();
+      if (
+        terrains.length > 0
+        && (terrains.length !== registered.length || terrains.some((terrain, index) => terrain !== registered[index]))
+      ) {
+        this.terrainSnapper.registerTerrains(terrains);
       }
     }
     this.status = active

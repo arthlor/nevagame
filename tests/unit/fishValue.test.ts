@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { calculateFishPrice } from "../../src/simulation/economy/calculateFishValue";
 import { calculateCommodityUnitPrice } from "../../src/simulation/economy/calculateCommodityValue";
 import { advanceCargoFreshness, calculateFreshnessLoss, getFreshnessPriceMultiplier } from "../../src/simulation/fishing/calculateFreshness";
-import { calculateCatchSummaryHarborEstimate } from "../../src/ui/components/CatchInspectionModal";
 import { FISH_SPECIES } from "../../src/content/fish";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
@@ -60,7 +59,7 @@ describe("Fish Value & Freshness Calculations", () => {
     expect(breakdown.finalPrice).toBeGreaterThan(tuna.baseMarketValue);
   });
 
-  it("uses harbor demand and season for the landed-catch estimate", () => {
+  it("applies harbor demand and seasonal modifiers to a fish price breakdown", () => {
     const state = createInitialGameState();
     const commodity = state.markets["market.harbor"].commodities[tuna.id];
     const cargo = {
@@ -74,16 +73,22 @@ describe("Fish Value & Freshness Calculations", () => {
       location: { type: "player" as const, containerId: "player" }
     };
 
-    expect(calculateCatchSummaryHarborEstimate(cargo, state.markets["market.harbor"])).toBe(
-      calculateFishPrice(
-        tuna,
-        cargo.weightKg,
-        cargo.quality,
-        cargo.freshness,
-        commodity.demandIndex,
-        commodity.seasonalModifier
-      ).finalPrice
+    commodity.demandIndex = 1.15;
+    commodity.seasonalModifier = 1.1;
+    const breakdown = calculateFishPrice(
+      tuna,
+      cargo.weightKg,
+      cargo.quality,
+      cargo.freshness,
+      commodity.demandIndex,
+      commodity.seasonalModifier
     );
+
+    expect(breakdown).toMatchObject({
+      demandPercent: 115,
+      seasonalModifier: 1.1,
+      finalPrice: 253
+    });
   });
 
   it("consumes loose crushed ice after the storage hour it preserves", () => {
@@ -102,14 +107,14 @@ describe("Fish Value & Freshness Calculations", () => {
     };
     state.player.carriedFishCargoId = "cargo.test";
 
-    advanceCargoFreshness(state, 60, state.clock.currentMinute, 20);
+    advanceCargoFreshness(state, 60, state.clock.currentMinute);
     expect(InventoryManager.getItemCount(inventory, "item.crushed_ice")).toBe(0);
     expect(state.fishCargo["cargo.test"].freshness).toBeCloseTo(
       100 - calculateFreshnessLoss(60, tuna.baseDecayRatePerMinute, "player", true, 20)
     );
 
     const freshnessAfterIcedHour = state.fishCargo["cargo.test"].freshness;
-    advanceCargoFreshness(state, 60, state.clock.currentMinute + 60, 20);
+    advanceCargoFreshness(state, 60, state.clock.currentMinute + 60);
     expect(state.fishCargo["cargo.test"].freshness).toBeLessThan(freshnessAfterIcedHour);
   });
 });

@@ -21,18 +21,20 @@ export interface WaterOptions {
 }
 
 export const SHORE_MASK_RESOLUTION = 512;
+export const SHORE_MASK_METERS_PER_TEXEL = 750 / (SHORE_MASK_RESOLUTION - 1);
 
 function createWaterProfileMap(
   bounds: THREE.Vector4,
-  size: number = SHORE_MASK_RESOLUTION
+  width: number,
+  height: number
 ): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 4);
-  for (let row = 0; row < size; row += 1) {
-    for (let column = 0; column < size; column += 1) {
-      const x = bounds.x + (column / (size - 1)) * bounds.z;
-      const z = bounds.y + (row / (size - 1)) * bounds.w;
+  const data = new Uint8Array(width * height * 4);
+  for (let row = 0; row < height; row += 1) {
+    for (let column = 0; column < width; column += 1) {
+      const x = bounds.x + (column / (width - 1)) * bounds.z;
+      const z = bounds.y + (row / (height - 1)) * bounds.w;
       const profile = waterSpatialProfile(x, z);
-      const offset = (row * size + column) * 4;
+      const offset = (row * width + column) * 4;
       data[offset] = Math.round(
         THREE.MathUtils.clamp((profile.signedWaterDistance + 16) / 32, 0, 1) * 255
       );
@@ -42,7 +44,7 @@ function createWaterProfileMap(
       data[offset + 3] = Math.round(((angle + Math.PI) / (Math.PI * 2)) * 255);
     }
   }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -163,6 +165,12 @@ const fragmentShader = /* glsl */ `
   uniform float uShallowEndMeters;
   uniform float uShallowColorStrength;
   uniform float uNearShoreNormalScale;
+  uniform float uDepthRampStartMeters;
+  uniform float uDepthRampEndMeters;
+  uniform float uDepthColorStrength;
+  uniform float uEdgeOpacity;
+  uniform float uBodyOpacity;
+  uniform float uOpacityRampMeters;
 
   in vec3 vWorldPosition;
   in float vWaveHeight;
@@ -190,7 +198,14 @@ const fragmentShader = /* glsl */ `
 
     float shallowMix = 1.0 - smoothstep(uShallowStartMeters, uShallowEndMeters, waterDepth);
     vec3 waterColor = mix(uMidColor, uShallowColor, shallowMix * uShallowColorStrength);
-    waterColor = mix(waterColor, uDeepColor, vRegionWeights.z * 0.82);
+    // Distance from the shoreline is the only depth cue a flat water plane
+    // has. Without it open sea and a river shallow read as the same teal.
+    float bodyDepth = smoothstep(uDepthRampStartMeters, uDepthRampEndMeters, waterDepth);
+    waterColor = mix(
+      waterColor,
+      uDeepColor,
+      clamp(max(vRegionWeights.z * 0.82, bodyDepth * uDepthColorStrength), 0.0, 1.0)
+    );
     float waterFacetBand = step(0.34, waterPolygonCell.x) + step(0.7, waterPolygonCell.x);
     waterColor *= mix(
       1.0 - uPolygonColorVariation,
@@ -224,7 +239,15 @@ const fragmentShader = /* glsl */ `
     float waterLuma = dot(color, vec3(0.299, 0.587, 0.114));
     color = mix(color, vec3(waterLuma), fogFactor * uFogDistanceDesaturation);
     color = mix(color, uFogColor, fogFactor * 0.82);
-    outColor = vec4(color, 0.96);
+    // Let the wet sand and riverbed show through the waterline instead of
+    // ending the water body on a hard opaque polygon edge.
+    float edgeOpacity = mix(
+      uEdgeOpacity,
+      uBodyOpacity,
+      smoothstep(0.0, max(0.001, uOpacityRampMeters), waterDepth)
+    );
+    float opacity = mix(edgeOpacity, uBodyOpacity, fogFactor);
+    outColor = vec4(color, opacity);
   }
 `;
 
@@ -234,6 +257,8 @@ function vector(values: readonly [number, number, number]): THREE.Vector3 {
 
 export class FacetedWater {
   public mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  public readonly group = new THREE.Group();
+  public readonly meshes: readonly THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>[];
   private readonly waterProfileMap: THREE.DataTexture;
   private conditions: WaterConditions = {
     seaRoughness: 0.2,
@@ -255,9 +280,9 @@ export class FacetedWater {
       depth
     );
 
-    const geometry = new THREE.PlaneGeometry(width, depth, segmentsX, segmentsZ);
-    geometry.rotateX(-Math.PI / 2);
-    this.waterProfileMap = createWaterProfileMap(profileBounds);
+    const profileWidth = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
+    const profileHeight = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
+    this.waterProfileMap = createWaterProfileMap(profileBounds, profileWidth, profileHeight);
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       vertexShader,
@@ -301,7 +326,13 @@ export class FacetedWater {
         uShallowStartMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowStartMeters },
         uShallowEndMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters },
         uShallowColorStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowColorStrength },
-        uNearShoreNormalScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.nearShoreNormalScale }
+        uNearShoreNormalScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.nearShoreNormalScale },
+        uDepthRampStartMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.depthRampStartMeters },
+        uDepthRampEndMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.depthRampEndMeters },
+        uDepthColorStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.depthColorStrength },
+        uEdgeOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.edgeOpacity },
+        uBodyOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.bodyOpacity },
+        uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters }
       },
       transparent: true,
       opacity: 0.96,
@@ -309,10 +340,34 @@ export class FacetedWater {
       side: THREE.DoubleSide
     });
 
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.position.set(centerX, 0, centerZ);
-    this.mesh.receiveShadow = false;
-    this.mesh.castShadow = false;
+    const chunkCountX = width > 900 ? 2 : 1;
+    const chunkWidth = width / chunkCountX;
+    const chunkMeshes: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>[] = [];
+    let consumedSegments = 0;
+    for (let chunkIndex = 0; chunkIndex < chunkCountX; chunkIndex += 1) {
+      const remainingSegments = segmentsX - consumedSegments;
+      const chunkSegmentsX = chunkIndex === chunkCountX - 1
+        ? remainingSegments
+        : Math.max(1, Math.round(segmentsX / chunkCountX));
+      consumedSegments += chunkSegmentsX;
+      const geometry = new THREE.PlaneGeometry(chunkWidth, depth, chunkSegmentsX, segmentsZ);
+      geometry.rotateX(-Math.PI / 2);
+      const chunk = new THREE.Mesh(geometry, material);
+      chunk.position.set(
+        centerX - width * 0.5 + chunkWidth * (chunkIndex + 0.5),
+        0,
+        centerZ
+      );
+      chunk.receiveShadow = false;
+      chunk.castShadow = false;
+      chunk.frustumCulled = true;
+      chunk.name = `faceted_water_${chunkIndex}`;
+      chunkMeshes.push(chunk);
+      this.group.add(chunk);
+    }
+    this.meshes = chunkMeshes;
+    this.mesh = chunkMeshes[0];
+    this.group.name = "faceted_water";
   }
 
   public update(timeSeconds: number, conditions: WaterConditions): void {
@@ -367,7 +422,7 @@ export class FacetedWater {
 
   public dispose(): void {
     this.waterProfileMap.dispose();
-    this.mesh.geometry.dispose();
+    for (const mesh of this.meshes) mesh.geometry.dispose();
     this.mesh.material.dispose();
   }
 }

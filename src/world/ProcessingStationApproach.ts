@@ -6,8 +6,7 @@
  * Keep this module free of rendering and mutable simulation state so the app
  * and simulation validate the same physical approach contract.
  */
-import { starterStructureAnchor } from "./FarmLayout";
-import { HARBOR_FISH_TABLE } from "./WorldAnchors";
+import { WORLD_STATION_DEFINITIONS } from "./WorldGameplayLocations";
 
 export const PROCESSING_STATION_INTERACTION_RADIUS = 1.5;
 export const PROCESSING_STATION_FRONT_ALIGNMENT_MIN = 0.5;
@@ -20,14 +19,9 @@ export const PROCESSING_STATION_FRONT_ALIGNMENT_MIN = 0.5;
  */
 export const PROCESSING_STATION_ASSET_YAW_CORRECTION = Math.PI;
 
-export const PROCESSING_STATION_IDS = [
-  "struct.starter_mill",
-  "struct.workbench",
-  "struct.starter_compost",
-  HARBOR_FISH_TABLE.structureId
-] as const;
+export const PROCESSING_STATION_IDS = Object.freeze(Object.keys(WORLD_STATION_DEFINITIONS));
 
-export type ProcessingStationId = (typeof PROCESSING_STATION_IDS)[number];
+export type ProcessingStationId = string;
 
 export interface ProcessingStationApproachDefinition {
   stationId: ProcessingStationId;
@@ -50,32 +44,13 @@ export interface ProcessingStationApproachAssessment {
   frontAlignment: number;
 }
 
-const MILL = starterStructureAnchor("struct.starter_mill")!;
-const WORKBENCH = starterStructureAnchor("struct.workbench")!;
-const COMPOST = starterStructureAnchor("struct.starter_compost")!;
-
-export const PROCESSING_STATION_APPROACHES: readonly ProcessingStationApproachDefinition[] = [
-  {
-    stationId: "struct.starter_mill",
-    rotationY: MILL.rotationY,
-    frontApproachDistanceMeters: MILL.frontApproachDistanceMeters
-  },
-  {
-    stationId: "struct.workbench",
-    rotationY: WORKBENCH.rotationY,
-    frontApproachDistanceMeters: WORKBENCH.frontApproachDistanceMeters
-  },
-  {
-    stationId: "struct.starter_compost",
-    rotationY: COMPOST.rotationY,
-    frontApproachDistanceMeters: COMPOST.frontApproachDistanceMeters
-  },
-  {
-    stationId: HARBOR_FISH_TABLE.structureId,
-    rotationY: HARBOR_FISH_TABLE.rotationY,
-    frontApproachDistanceMeters: HARBOR_FISH_TABLE.frontApproachDistanceMeters
-  }
-] as const;
+export const PROCESSING_STATION_APPROACHES: readonly ProcessingStationApproachDefinition[] = Object.values(
+  WORLD_STATION_DEFINITIONS
+).map((station) => ({
+  stationId: station.id,
+  rotationY: station.rotationY,
+  frontApproachDistanceMeters: station.approachDistanceMeters
+}));
 
 const APPROACH_BY_STATION_ID = new Map<string, ProcessingStationApproachDefinition>(
   PROCESSING_STATION_APPROACHES.map((approach) => [approach.stationId, approach])

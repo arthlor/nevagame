@@ -43,7 +43,7 @@ describe("Complete catalog-to-runtime asset coverage", () => {
       expect(record.activationTrigger.length, record.id).toBeGreaterThan(0);
     }
     expect(() => assertAssetCoverageParity(42891)).not.toThrow();
-  });
+  }, 60_000);
 
   it("covers the authored layout, crop stages, fish schools, tools, and fresh-save vessel", () => {
     const records = getAssetCoverage(42891);

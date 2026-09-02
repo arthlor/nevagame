@@ -3,9 +3,25 @@
 import { MarketDefinition } from "./types";
 import { VILLAGE_MARKET } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
+import { WORLD_MARKET_LOCATIONS } from "../world/WorldGameplayLocations";
 
-/** Seed shop scope for the current P12 vertical slice. */
-export const VILLAGE_SEED_CROP_IDS = ["crop.wheat", "crop.tomato", "crop.potato"] as const;
+/**
+ * Every crop the village stall stocks. Access is paced by each crop's own
+ * `minimumFarmingXp`, which `MarketDomain.buySeed` already enforces — this list
+ * only decides what exists in the shop at all. Corn and the apple sapling were
+ * previously absent here and had no other source, so `crop.corn` and
+ * `crop.apple_tree` (the game's only orchard/perennial loop) were unplantable.
+ */
+export const VILLAGE_SEED_CROP_IDS = [
+  "crop.wheat",
+  "crop.tomato",
+  "crop.potato",
+  "crop.barley",
+  "crop.carrot",
+  "crop.corn",
+  "crop.flax",
+  "crop.apple_tree"
+] as const;
 
 export function isVillageSeedCrop(cropId: string): boolean {
   return (VILLAGE_SEED_CROP_IDS as readonly string[]).includes(cropId);
@@ -22,6 +38,10 @@ export const MARKETS: Record<string, MarketDefinition> = {
       z: VILLAGE_MARKET.position.z,
       radiusMeters: VILLAGE_MARKET.radiusMeters
     },
+    retail: {
+      seedCropIds: [...VILLAGE_SEED_CROP_IDS],
+      itemIds: ["item.basic_fertilizer", "item.compost_starter"]
+    },
     commodities: [
       { itemId: "produce.wheat", basePrice: 8, targetSupply: 50, consumptionRatePerHour: 4, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "produce.barley", basePrice: 10, targetSupply: 40, consumptionRatePerHour: 3, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
@@ -31,6 +51,7 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "produce.carrot", basePrice: 9, targetSupply: 45, consumptionRatePerHour: 4, seasonalFactors: { winter: 1.1, autumn: 0.9 } },
       { itemId: "produce.flax", basePrice: 16, targetSupply: 25, consumptionRatePerHour: 2, seasonalFactors: { spring: 1.1, summer: 1.0 } },
       { itemId: "produce.apple", basePrice: 15, targetSupply: 30, consumptionRatePerHour: 2.5, seasonalFactors: { autumn: 0.8, spring: 1.3 } },
+      { itemId: "produce.olive", basePrice: 22, targetSupply: 18, consumptionRatePerHour: 1.6, seasonalFactors: { winter: 1.2, spring: 1.1 } },
       { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 6, seasonalFactors: {} },
       { itemId: "item.basic_fertilizer", basePrice: 18, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { spring: 1.25 } },
       { itemId: "item.compost_starter", basePrice: 10, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} }
@@ -45,6 +66,10 @@ export const MARKETS: Record<string, MarketDefinition> = {
       x: WorldLayout.landmark("fish-market").x,
       z: WorldLayout.landmark("fish-market").z,
       radiusMeters: 7
+    },
+    retail: {
+      itemIds: ["item.crushed_ice", "item.chum_bucket", "item.boat_fuel", "item.bait_worms"],
+      rodIds: ["rod.river", "rod.heavy_sport", "rod.offshore", "rod.master"]
     },
     commodities: [
       { itemId: "fish.carp", basePrice: 35, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { spring: 1.1 } },
@@ -63,6 +88,35 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "item.crushed_ice", basePrice: 15, targetSupply: 50, consumptionRatePerHour: 3.5, seasonalFactors: { summer: 1.3 } },
       { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 40, consumptionRatePerHour: 2.5, seasonalFactors: {} },
       { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 4.0, seasonalFactors: {} }
+    ]
+  },
+  "market.sunreach_cove": {
+    id: "market.sunreach_cove",
+    name: "Sunreach Cove Market",
+    regionId: "region.sunreach_cove",
+    description: "A compact cove market trading terrace harvests, reef catch, and voyage supplies.",
+    interactionPosition: {
+      x: WORLD_MARKET_LOCATIONS["market.sunreach_cove"].position.x,
+      z: WORLD_MARKET_LOCATIONS["market.sunreach_cove"].position.z,
+      radiusMeters: WORLD_MARKET_LOCATIONS["market.sunreach_cove"].radiusMeters
+    },
+    retail: {
+      seedCropIds: ["crop.sunflower", "crop.olive_tree"],
+      itemIds: ["item.bait_worms", "item.crushed_ice", "item.boat_fuel"]
+    },
+    commodities: [
+      { itemId: "seed.sunflower", basePrice: 7, targetSupply: 40, consumptionRatePerHour: 2.5, seasonalFactors: { spring: 1.05 } },
+      { itemId: "seed.olive_sapling", basePrice: 55, targetSupply: 12, consumptionRatePerHour: 0.5, seasonalFactors: { autumn: 0.95 } },
+      { itemId: "produce.sunflower_seed", basePrice: 13, targetSupply: 35, consumptionRatePerHour: 2.5, seasonalFactors: { summer: 0.9, winter: 1.25 } },
+      { itemId: "produce.olive", basePrice: 22, targetSupply: 28, consumptionRatePerHour: 2.0, seasonalFactors: { autumn: 0.9, spring: 1.15 } },
+      { itemId: "produce.tomato", basePrice: 12, targetSupply: 28, consumptionRatePerHour: 2.2, seasonalFactors: { summer: 0.8, winter: 1.4 } },
+      { itemId: "produce.corn", basePrice: 14, targetSupply: 24, consumptionRatePerHour: 1.8, seasonalFactors: { summer: 0.85, winter: 1.3 } },
+      { itemId: "fish.sardine", basePrice: 12, targetSupply: 60, consumptionRatePerHour: 5.0, seasonalFactors: {} },
+      { itemId: "fish.sea_bream", basePrice: 55, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { summer: 1.05 } },
+      { itemId: "fish.amberjack", basePrice: 175, targetSupply: 6, consumptionRatePerHour: 0.45, seasonalFactors: { summer: 1.2, autumn: 1.1 } },
+      { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 4.0, seasonalFactors: {} },
+      { itemId: "item.crushed_ice", basePrice: 15, targetSupply: 55, consumptionRatePerHour: 3.5, seasonalFactors: { summer: 1.3 } },
+      { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 55, consumptionRatePerHour: 2.5, seasonalFactors: {} }
     ]
   }
 };

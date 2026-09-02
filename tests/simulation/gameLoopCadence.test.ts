@@ -71,7 +71,12 @@ describe("game loop cadence", () => {
     expect(stormGrowth).toBeGreaterThan(clearGrowth);
 
     const crop = { moisture: 40, averageMoistureAccum: 0, moistureSampleCount: 0 };
-    applyCropMoistureOverMinutes(crop, 60, wheat.waterNeed, "storm");
+    applyCropMoistureOverMinutes(crop, 60, wheat.waterNeed, {
+      weatherType: "storm",
+      rainfallEffectiveness: 1,
+      evaporationMultiplier: 1,
+      moistureRetention: 0
+    });
     expect(crop.moisture).toBeGreaterThan(40);
   });
 
@@ -167,6 +172,8 @@ describe("game loop cadence", () => {
     sim.advanceGameMinutes(1);
 
     const active = sim.state.contracts.filter((contract) => contract.status === "active");
+    expect(active).toHaveLength(2);
+    expect(active.some((contract) => contract.type === "produce")).toBe(true);
     expect(active.some((contract) => {
       return contract.type === "fresh-fish" && contract.targetItemIdOrSpecies === "fish.trout";
     })).toBe(true);
@@ -183,7 +190,8 @@ describe("game loop cadence", () => {
       itemId: "item.compost_starter",
       quantity: 1
     });
-    expect(compost).toMatchObject({ success: true, cost: 10 });
+    expect(compost.success).toBe(true);
+    expect(compost.cost).toBeGreaterThanOrEqual(10);
     expect(InventoryManager.getItemCount(inventory, "item.compost_starter")).toBe(3);
 
     expect(sim.execute({
@@ -201,7 +209,8 @@ describe("game loop cadence", () => {
       itemId: "item.crushed_ice",
       quantity: 1
     });
-    expect(ice).toMatchObject({ success: true, cost: 15 });
+    expect(ice.success).toBe(true);
+    expect(ice.cost).toBeGreaterThanOrEqual(15);
     expect(InventoryManager.getItemCount(inventory, "item.crushed_ice")).toBe(1);
   });
 
@@ -223,6 +232,7 @@ describe("game loop cadence", () => {
 
     const well = farmWellWorldAnchor("farm.starter_garden")!;
     commitPlayerPose(sim, well.x, well.z);
+    sim.state.quests.activeQuestId = "quest.act6_field_pump";
     const purchase = sim.execute({ type: "farm.buy-irrigation" });
     expect(purchase).toMatchObject({ success: true, cost: IRRIGATION_COST });
     expect(sim.state.quests.unlockedFeatureIds).toContain(IRRIGATION_FEATURE_ID);

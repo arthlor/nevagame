@@ -17,6 +17,9 @@ export const UI_FISH = {
   "fish.sailfish": `${ATLAS}/fish-sailfish.png`,
   "fish.swordfish": `${ATLAS}/fish-swordfish.png`,
   "fish.blue_marlin": `${ATLAS}/fish-blue_marlin.png`,
+  "fish.sardine": `${ATLAS}/fish-sardine.png`,
+  "fish.sea_bream": `${ATLAS}/fish-sea_bream.png`,
+  "fish.amberjack": `${ATLAS}/fish-amberjack.png`,
 } as const;
 
 export type FishSpriteKey = keyof typeof UI_FISH;
@@ -31,6 +34,8 @@ export const UI_SEEDS = {
   "seed.carrot": `${ATLAS}/seed-carrot.png`,
   "seed.flax": `${ATLAS}/seed-flax.png`,
   "seed.apple_sapling": `${ATLAS}/seed-apple_sapling.png`,
+  "seed.sunflower": `${ATLAS}/seed-sunflower.png`,
+  "seed.olive_pit": `${ATLAS}/seed-olive_pit.png`,
 } as const;
 
 export type SeedSpriteKey = keyof typeof UI_SEEDS;
@@ -45,6 +50,8 @@ export const UI_PRODUCE = {
   "produce.carrot": `${ATLAS}/produce-carrot.png`,
   "produce.flax": `${ATLAS}/produce-flax.png`,
   "produce.apple": `${ATLAS}/produce-apple.png`,
+  "produce.sunflower_seed": `${ATLAS}/produce-sunflower_seed.png`,
+  "produce.olive": `${ATLAS}/produce-olive.png`,
 } as const;
 
 export type ProduceSpriteKey = keyof typeof UI_PRODUCE;
@@ -59,6 +66,8 @@ export const UI_PLANTS = {
   "crop.carrot": `${ATLAS}/plant-carrot.png`,
   "crop.flax": `${ATLAS}/plant-flax.png`,
   "crop.apple_tree": `${ATLAS}/plant-apple_tree.png`,
+  "crop.sunflower": `${ATLAS}/plant-sunflower.png`,
+  "crop.olive_tree": `${ATLAS}/plant-olive_tree.png`,
 } as const;
 
 export type PlantSpriteKey = keyof typeof UI_PLANTS;
@@ -116,6 +125,8 @@ export const UI_PORTRAITS = {
   "npc.barnaby": `${ATLAS}/portrait-barnaby.png`,
   "npc.silas": `${ATLAS}/portrait-silas.png`,
   "npc.maeve": `${ATLAS}/portrait-maeve.png`,
+  "npc.tomas": `${ATLAS}/portrait-tomas.png`,
+  "npc.ines": `${ATLAS}/portrait-ines.png`,
 } as const;
 
 export type PortraitSpriteKey = keyof typeof UI_PORTRAITS;
@@ -156,6 +167,17 @@ export const UI_TOOLS = {
 } as const;
 
 export type ToolSpriteKey = keyof typeof UI_TOOLS;
+
+/** Fishing-rod progression icons for the equipped hotbar slot and Harbor Tackle. */
+export const UI_RODS = {
+  "rod.willow": `${ATLAS}/rod-willow.png`,
+  "rod.river": `${ATLAS}/rod-river.png`,
+  "rod.heavy_sport": `${ATLAS}/rod-heavy_sport.png`,
+  "rod.offshore": `${ATLAS}/rod-offshore.png`,
+  "rod.master": `${ATLAS}/rod-master.png`,
+} as const;
+
+export type RodSpriteKey = keyof typeof UI_RODS;
 
 /** Navigation icons for modal headers and the pause menu. */
 export const UI_MENU = {
@@ -225,6 +247,7 @@ export const UI_MAP_NODES = {
   "harbor": `${ATLAS}/mapnode-harbor.png`,
   "lighthouse": `${ATLAS}/mapnode-lighthouse.png`,
   "offshore": `${ATLAS}/mapnode-offshore.png`,
+  "sunreach": `${ATLAS}/mapnode-sunreach.png`,
 } as const;
 
 export type MapnodeSpriteKey = keyof typeof UI_MAP_NODES;
@@ -242,4 +265,4 @@ export type ChromeSpriteKey = keyof typeof UI_CHROME;
 /** Seamless paper tile behind every panel. Copied whole, not keyed. */
 export const UI_PARCHMENT_GRAIN = `${ATLAS}/parchment-grain.png`;
 
-export const UI_ATLAS_SPRITE_COUNT = 122;
+export const UI_ATLAS_SPRITE_COUNT = 139;

@@ -1,7 +1,25 @@
-import { WorldLayout, WORLD_BOUNDS, WORLD_LAYOUT_V5, type WorldArchitecturePad } from "./WorldLayout";
+import {
+  WorldLayout,
+  WORLD_BOUNDS,
+  WORLD_LAYOUT_V5,
+  pointSegmentProjection,
+  type WorldArchitecturePad
+} from "./WorldLayout";
 import { STARTER_DONKEY_ANCHOR, STARTER_FARM_LAYOUT, farmLocalToWorld, starterStructureAnchor } from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN } from "./FarmhouseInterior";
 import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_MARKET } from "./WorldAnchors";
+import {
+  compositionAddress,
+  compositionPlacementTag,
+  compositionPriority,
+  islandCompositionPriority,
+  sampleWorldComposition,
+  type CompositionCategory,
+  type CompositionPlacementTag,
+  type WorldCompositionSample,
+  type WorldDistrictId
+} from "./WorldCompositionField";
+import { WORLD_ISLAND_DEFINITIONS, type WorldBiomeId, type WorldIslandId } from "./WorldIslands";
 
 export type EnvironmentQualityTier = "low" | "medium" | "high";
 export type EnvironmentPlacementOrigin = "authored" | "layout-derived" | "seeded-fill";
@@ -24,6 +42,10 @@ export interface EnvironmentAssetPlacement {
   /** Walkable distance reserved in front of the published +Z doorway. */
   frontApproachMeters?: number;
   practicalLight?: boolean;
+  islandId?: WorldIslandId;
+  biomeId?: WorldBiomeId;
+  /** Deterministic presentation provenance; excluded from canonical state and saves. */
+  compositionTag?: CompositionPlacementTag;
 }
 
 export interface PlacementOverride {
@@ -34,21 +56,6 @@ export interface PlacementOverride {
 
 /** DEV layout-editor pins for seeded/layout-derived instances. Empty until an in-game drop writes an id. */
 export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = {
-  "seeded-fill.bushes.homestead.003": { x: -48.2, z: -55.5, rotationY: 3.7574 },
-  "seeded-fill.trees.northwest-farm.023": { x: -74.3, z: -71.1, rotationY: 1.0894 },
-  "seeded-fill.bushes.homestead.006": { x: -78.1, z: -60.3, rotationY: 3.6746 },
-  "seeded-fill.bushes.northwest.001": { x: -62.8, z: -45.4, rotationY: 2.1949 },
-  "seeded-fill.bushes.northwest.012": { x: -65.8, z: -43.3, rotationY: 1.5159 },
-  "seeded-fill.trees.central-village.001": { x: 33.2, z: -38.4, rotationY: 3.4087 },
-  "seeded-fill.trees.northwest-farm.001": { x: -77.7, z: -76.2, rotationY: 1.3619 },
-  "seeded-fill.trees.northwest-farm.002": { x: -67, z: -74.1, rotationY: 5.1019 },
-  "seeded-fill.trees.northwest-farm.009": { x: -47.5, z: -48.5, rotationY: 3.5326 },
-  "seeded-fill.trees.southeast-harbor.007": { x: 106.9, z: 34, rotationY: 4.453 },
-  "seeded-fill.trees.southeast-harbor.006": { x: 85.8, z: 49.5, rotationY: 5.3055 },
-  "seeded-fill.bushes.uplands.001": { x: 50.7, z: -29.3, rotationY: 6.2832 },
-  "seeded-fill.bushes.uplands.014": { x: 30.4, z: -23.8, rotationY: 2.7361 },
-  "seeded-fill.bushes.coastal.018": { x: 97.8, z: 58.9, rotationY: 3.7116 },
-  "seeded-fill.bushes.coastal.004": { x: 36.9, z: 22.2, rotationY: 2.3684 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
@@ -75,28 +82,6 @@ export interface WorldEnvironmentLayout {
   worldSeed: number;
   staticPlacements: readonly EnvironmentAssetPlacement[];
   groundCoverPlacements: readonly GroundCoverPlacement[];
-}
-
-/** @internal Exported so declared cluster failure behavior can be regression-tested. */
-export interface EnvironmentClusterDefinition {
-  id: string;
-  salt: number;
-  count: number;
-  center: Readonly<{ x: number; z: number }>;
-  radiusX: number;
-  radiusZ: number;
-  assetIds: readonly string[];
-  scaleRange: readonly [number, number];
-}
-
-interface GroundCoverPatchDistribution {
-  patchCount: number;
-  radiusRange: readonly [number, number];
-  depthScaleRange: readonly [number, number];
-  /** Reject patch centers that cannot host cover (water, farm soil, interiors). */
-  centerPredicate?: (x: number, z: number) => boolean;
-  /** Spread the low meadow layer across land cells before adding accent pockets. */
-  stratified?: boolean;
 }
 
 export const GROUND_COVER_DENSITY: Readonly<
@@ -130,23 +115,6 @@ export const GROUND_COVER_SCALE_PROFILE: Readonly<
   driftwood: { horizontal: 1, vertical: 1 }
 };
 
-const SEEDED_FILL_CLUSTERS: readonly EnvironmentClusterDefinition[] = [
-  { id: "trees.northwest-farm", salt: 811, count: 26, center: { x: -88, z: -64 }, radiusX: 26, radiusZ: 24, assetIds: ["tree_oak_a", "tree_oak_b", "tree_oak_c", "tree_apple_a"], scaleRange: [0.9, 1.12] },
-  { id: "trees.northern-river", salt: 823, count: 24, center: { x: -42, z: -104 }, radiusX: 24, radiusZ: 42, assetIds: ["tree_oak_a", "tree_oak_b", "tree_oak_c"], scaleRange: [0.94, 1.14] },
-  { id: "trees.northeast-orchard", salt: 827, count: 30, center: { x: 90, z: -46 }, radiusX: 22, radiusZ: 20, assetIds: ["tree_apple_a", "tree_apple_a", "tree_oak_b"], scaleRange: [0.88, 1.08] },
-  { id: "trees.central-village", salt: 829, count: 16, center: { x: 24, z: -30 }, radiusX: 20, radiusZ: 16, assetIds: ["tree_oak_a", "tree_oak_b", "tree_oak_c"], scaleRange: [0.92, 1.1] },
-  { id: "trees.southwest-headland", salt: 839, count: 22, center: { x: -102, z: 45 }, radiusX: 35, radiusZ: 24, assetIds: ["tree_pine_a", "tree_pine_b", "tree_oak_c"], scaleRange: [0.9, 1.12] },
-  { id: "trees.southeast-harbor", salt: 853, count: 16, center: { x: 105, z: 43 }, radiusX: 30, radiusZ: 25, assetIds: ["tree_pine_a", "tree_pine_b", "tree_oak_c"], scaleRange: [0.92, 1.14] },
-  { id: "trees.eastern-meadow", salt: 857, count: 20, center: { x: 126, z: -48 }, radiusX: 30, radiusZ: 42, assetIds: ["tree_oak_a", "tree_oak_c", "tree_pine_a"], scaleRange: [0.9, 1.1] },
-  { id: "trees.farm-west-ridge", salt: 883, count: 16, center: { x: -118, z: -52 }, radiusX: 22, radiusZ: 18, assetIds: ["tree_oak_a", "tree_oak_b", "tree_oak_c", "tree_apple_a"], scaleRange: [0.9, 1.12] },
-  { id: "trees.inland-north", salt: 887, count: 18, center: { x: -8, z: -92 }, radiusX: 28, radiusZ: 22, assetIds: ["tree_oak_a", "tree_oak_b", "tree_oak_c"], scaleRange: [0.92, 1.12] },
-  { id: "trees.village-south-slope", salt: 893, count: 14, center: { x: 38, z: -18 }, radiusX: 22, radiusZ: 18, assetIds: ["tree_oak_a", "tree_oak_b", "tree_oak_c"], scaleRange: [0.9, 1.1] },
-  { id: "bushes.northwest", salt: 859, count: 22, center: { x: -77, z: -45 }, radiusX: 47, radiusZ: 42, assetIds: ["foliage_bush_a"], scaleRange: [0.8, 1.12] },
-  { id: "bushes.homestead", salt: 881, count: 8, center: { x: -76, z: -68 }, radiusX: 12, radiusZ: 9, assetIds: ["foliage_bush_a"], scaleRange: [0.72, 0.98] },
-  { id: "bushes.uplands", salt: 863, count: 18, center: { x: 70, z: -45 }, radiusX: 48, radiusZ: 38, assetIds: ["foliage_bush_a"], scaleRange: [0.8, 1.1] },
-  { id: "bushes.coastal", salt: 877, count: 20, center: { x: 0, z: 45 }, radiusX: 145, radiusZ: 28, assetIds: ["foliage_bush_a"], scaleRange: [0.82, 1.12] }
-];
-
 function createRng(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
@@ -178,42 +146,6 @@ function grassClumpScale(variant: number): { horizontal: number; vertical: numbe
   if (variant === 2) return { horizontal: 1.02, vertical: 0.84 };
   if (variant === 1) return { horizontal: 1.08, vertical: 0.8 };
   return { horizontal: 1.12, vertical: 0.72 };
-}
-
-/** @internal Deterministic world-space bias used to form broad meadow grass pockets. */
-export function grassPlacementDensityAt(x: number, z: number): number {
-  const meadowWeight = WorldLayout.terrainSurfaceSample(x, z).weights.meadow;
-  const roadsideWeight = WorldLayout.pathShoulderInfluence(x, z);
-  const broadSignal = 0.5
-    + Math.sin(x * 0.041 + z * 0.026 + 0.8) * 0.27
-    + Math.cos(x * 0.019 - z * 0.047 - 0.6) * 0.19;
-  const pocket = clamp01((broadSignal - 0.28) / 0.5);
-  const clusteredPocket = pocket * pocket * (3 - 2 * pocket);
-  return clamp01(
-    0.34
-      + meadowWeight * 0.78
-      + roadsideWeight * 0.24
-      + clusteredPocket * (0.38 + meadowWeight * 0.42)
-  );
-}
-
-/** Deterministic warped world-space cells keep grass palette variants in broad patches. */
-export function groundCoverPatchVariantIndex(
-  x: number,
-  z: number,
-  worldSeed: number,
-  variantCount: number = 3
-): number {
-  if (!Number.isInteger(variantCount) || variantCount <= 0) {
-    throw new Error(`[WorldEnvironmentLayout] Invalid ground-cover variant count ${variantCount}`);
-  }
-  const phase = ((worldSeed >>> 0) / 0xffffffff) * Math.PI * 2;
-  const warpedX = x + Math.sin(z * 0.035 + phase) * 7;
-  const warpedZ = z + Math.cos(x * 0.031 - phase) * 7;
-  const patchX = Math.floor(warpedX / 24);
-  const patchZ = Math.floor(warpedZ / 21);
-  const patchSalt = Math.imul(patchX, 0x1f123bb5) ^ Math.imul(patchZ, 0x5f356495);
-  return mixSeed(worldSeed, patchSalt) % variantCount;
 }
 
 export type FarmPathPaverToken = "stone_warm_01" | "stone_golden_01";
@@ -427,50 +359,6 @@ export function isPlacementFootprintStable(
   return Math.max(...heights) - Math.min(...heights) <= maximumHeightDelta;
 }
 
-export function generateEnvironmentClusterPlacements(
-  worldSeed: number,
-  definition: EnvironmentClusterDefinition
-): EnvironmentAssetPlacement[] {
-  if (definition.count < 0 || !Number.isInteger(definition.count) || definition.assetIds.length === 0) {
-    throw new Error(`[WorldEnvironmentLayout] Invalid seeded-fill cluster ${definition.id}`);
-  }
-  const rng = createRng(mixSeed(worldSeed, definition.salt));
-  const placements: EnvironmentAssetPlacement[] = [];
-  for (let attempt = 0; attempt < definition.count * 60 && placements.length < definition.count; attempt++) {
-    const angle = rng() * Math.PI * 2;
-    const radius = Math.sqrt(rng());
-    const x = definition.center.x + Math.cos(angle) * definition.radiusX * radius;
-    const z = definition.center.z + Math.sin(angle) * definition.radiusZ * radius;
-    const scale = definition.scaleRange[0] + (definition.scaleRange[1] - definition.scaleRange[0]) * rng();
-    const rotationY = rng() * Math.PI * 2;
-    const grounding = [1.18 * scale, 0.78 * scale] as const;
-    if (
-      WorldLayout.isInterior(x, z)
-      || WorldLayout.pathInfluence(x, z) > 0.12
-      || WorldLayout.roadsideInfluence(x, z) > 0.72
-      || !clearsLandmarks(x, z, 0.4)
-      || !isPlacementFootprintStable({ x, z, rotationY, grounding })
-    ) continue;
-    const index = placements.length;
-    placements.push({
-      id: stablePlacementId(definition.id, index),
-      origin: "seeded-fill",
-      assetId: definition.assetIds[index % definition.assetIds.length],
-      x,
-      z,
-      rotationY,
-      scale: [scale, scale * (0.96 + rng() * 0.08), scale],
-      grounding
-    });
-  }
-  if (placements.length !== definition.count) {
-    throw new Error(
-      `[WorldEnvironmentLayout] Could only place ${placements.length}/${definition.count} instances for seeded-fill cluster ${definition.id}`
-    );
-  }
-  return placements;
-}
-
 function authoredPlacement(
   id: string,
   placement: Omit<EnvironmentAssetPlacement, "id" | "origin">
@@ -682,85 +570,592 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.copy.tree_oak_c.1", { assetId: "tree_oak_c", x: -47.5, z: -53.8, rotationY: 5.1019, scale: [0.94, 0.95, 0.94] }),
 ];
 
-function fixedEnvironmentPlacements(): EnvironmentAssetPlacement[] {
+function independentCoastalDressing(worldSeed: number): EnvironmentAssetPlacement[] {
   const placements: EnvironmentAssetPlacement[] = [];
-  for (let index = 0; index < 40; index++) {
-    let z = -145 + index * 5.55;
-    if (z >= -12.5 && z <= -1.5) {
-      z += z < -7 ? -5.8 : 5.8;
-    }
-    const side = index % 2 === 0 ? -1 : 1;
-    const x = WorldLayout.riverCenterX(z) + side * (WorldLayout.riverHalfWidth(z) + 0.72);
+  const candidateCount = 20;
+  for (let address = 0; address < candidateCount; address++) {
+    const xProgress = compositionPriority(worldSeed, "short-cover", address, 0x4b1d, 0);
+    const depthProgress = compositionPriority(worldSeed, "short-cover", address, 0x4b1d, 1);
+    const x = WORLD_BOUNDS.minX + 8 + xProgress * (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - 16);
+    const z = WorldLayout.coastlineZ(x) + 1.4 + depthProgress * 4.2;
+    if (!WorldLayout.isWater(x, z)) continue;
+    const scale = 0.82 + compositionPriority(worldSeed, "short-cover", address, 0x4b1d, 2) * 0.24;
     placements.push({
-      id: `layout-derived.reeds.river.${index.toString().padStart(3, "0")}`,
-      origin: "layout-derived",
-      assetId: "foliage_reeds_a",
+      id: `seeded-fill.${compositionAddress(worldSeed, "short-cover", address, 0x4b1d, 3)}`,
+      origin: "seeded-fill",
+      assetId: "foliage_kelp_a",
       x,
       z,
-      rotationY: index * 1.17,
-      scale: [0.88, 0.88, 0.88]
+      rotationY: compositionPriority(worldSeed, "short-cover", address, 0x4b1d, 4) * Math.PI * 2,
+      scale: [scale, scale, scale]
     });
   }
-  const coastalReedPockets = [-156, -42, 20, 61, 96] as const;
-  for (const [pocketIndex, centerX] of coastalReedPockets.entries()) {
-    for (let memberIndex = 0; memberIndex < 4; memberIndex++) {
-      const index = pocketIndex * 4 + memberIndex;
-      const x = centerX + (memberIndex - 1.5) * 1.15 + Math.sin(index * 1.9) * 0.2;
-      const z = WorldLayout.coastlineZ(x) - 1.2 - memberIndex * 0.38;
-      placements.push({
-        id: `layout-derived.reeds.coast.${index.toString().padStart(3, "0")}`,
-        origin: "layout-derived",
-        assetId: "foliage_reeds_a",
-        x,
-        z,
-        rotationY: index * 0.73,
-        scale: [0.78 + memberIndex * 0.05, 0.78 + memberIndex * 0.05, 0.78 + memberIndex * 0.05]
-      });
+  return placements;
+}
+
+interface CausalStructuralSpec {
+  category: CompositionCategory;
+  targetCount: number;
+  salt: number;
+  spacing: number;
+  scaleRange: readonly [number, number];
+  footprint: readonly [number, number];
+}
+
+const DEPOSITIONAL_RIVER_CANDIDATE_Z = Array.from({ length: 127 }, (_, index) => -176 + index * 2)
+  .filter((z) => {
+    const section = WorldLayout.riverSectionAt(z);
+    return Math.max(section.leftDeposition, section.rightDeposition) >= 0.24;
+  });
+
+function structuralAssetFor(
+  category: CompositionCategory,
+  sample: WorldCompositionSample,
+  speciesRoll: number
+): string {
+  if (category === "tree") {
+    if (sample.habitat.orchard >= 0.34 && sample.district.farm >= 0.35) return "tree_apple_a";
+    if (sample.district.headland >= 0.34 || sample.habitat.exposed >= 0.54) {
+      return speciesRoll < 0.48 ? "tree_pine_a" : speciesRoll < 0.82 ? "tree_pine_b" : "tree_pine_young_a";
+    }
+    const sheltered = ["tree_oak_a", "tree_oak_b", "tree_oak_c", "tree_oak_broadleaf_a", "tree_maple_a"] as const;
+    return sheltered[Math.min(sheltered.length - 1, Math.floor(speciesRoll * sheltered.length))];
+  }
+  if (category === "bush") return speciesRoll < 0.58 ? "foliage_bush_a" : "foliage_bush_round_a";
+  if (category === "reed") return speciesRoll < 0.52 ? "foliage_reeds_a" : "foliage_cattail_a";
+  if (category === "rock") {
+    if (sample.district.headland >= 0.3 || sample.district.coast >= 0.48) {
+      return "rock_coastal_boulder_a";
+    }
+    return "rock_field_a";
+  }
+  throw new Error(`[WorldEnvironmentLayout] Unsupported structural category ${category}`);
+}
+
+function structuralCandidatePosition(
+  worldSeed: number,
+  spec: CausalStructuralSpec,
+  address: number
+): { x: number; z: number } {
+  if (spec.category === "reed") {
+    const reachRoll = compositionPriority(worldSeed, spec.category, address, spec.salt, 1);
+    const reachIndex = Math.min(
+      DEPOSITIONAL_RIVER_CANDIDATE_Z.length - 1,
+      Math.floor(reachRoll * DEPOSITIONAL_RIVER_CANDIDATE_Z.length)
+    );
+    const z = (DEPOSITIONAL_RIVER_CANDIDATE_Z[reachIndex] ?? -48)
+      + (compositionPriority(worldSeed, spec.category, address, spec.salt, 11) - 0.5) * 1.6;
+    const section = WorldLayout.riverSectionAt(z);
+    const depositionalSide = section.leftDeposition >= section.rightDeposition ? -1 : 1;
+    const side = compositionPriority(worldSeed, spec.category, address, spec.salt, 9) < 0.82
+      ? depositionalSide
+      : -depositionalSide;
+    const waterWidth = side > 0 ? section.rightWaterWidth : section.leftWaterWidth;
+    const bankRun = side > 0 ? section.rightBankRun : section.leftBankRun;
+    const dryShelfOffset = 0.12
+      + bankRun * (0.004 + compositionPriority(worldSeed, spec.category, address, spec.salt, 10) * 0.018);
+    return {
+      x: section.centerX + side * (waterWidth + dryShelfOffset),
+      z
+    };
+  }
+  const inset = 5;
+  return {
+    x: WORLD_BOUNDS.minX + inset
+      + compositionPriority(worldSeed, spec.category, address, spec.salt, 0)
+        * (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - inset * 2),
+    z: WORLD_BOUNDS.minZ + inset
+      + compositionPriority(worldSeed, spec.category, address, spec.salt, 1)
+        * (WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ - inset * 2)
+  };
+}
+
+function clearsCompleteRouteCorridor(x: number, z: number, extraMeters: number = 0): boolean {
+  for (const route of WorldLayout.compiledRouteNetwork()) {
+    const corridor = route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters + extraMeters;
+    if (
+      x < route.minX - corridor
+      || x > route.maxX + corridor
+      || z < route.minZ - corridor
+      || z > route.maxZ + corridor
+    ) continue;
+    for (const segment of route.segments) {
+      if (
+        x < segment.minX - corridor
+        || x > segment.maxX + corridor
+        || z < segment.minZ - corridor
+        || z > segment.maxZ + corridor
+      ) continue;
+      if (pointSegmentProjection(x, z, segment.start, segment.end).distance < corridor) return false;
     }
   }
-  const kelpPockets = [-156, -42, 20, 61, 96] as const;
-  for (const [pocketIndex, centerX] of kelpPockets.entries()) {
-    for (let memberIndex = 0; memberIndex < 2; memberIndex++) {
-      const index = pocketIndex * 2 + memberIndex;
-      const x = centerX + (memberIndex === 0 ? -0.82 : 0.68) + Math.sin(index * 1.6) * 0.16;
-      const z = WorldLayout.coastlineZ(x) - 1.75 - memberIndex * 0.34;
-      placements.push({
-        id: `layout-derived.kelp.coast.${index.toString().padStart(3, "0")}`,
-        origin: "layout-derived",
-        assetId: "foliage_kelp_a",
-        x,
-        z,
-        rotationY: 0.24 + index * 0.91,
-        scale: [0.86 + memberIndex * 0.08, 0.86 + memberIndex * 0.08, 0.86 + memberIndex * 0.08]
-      });
-    }
+  return true;
+}
+
+function causesDenseRouteWall(
+  x: number,
+  z: number,
+  accepted: readonly EnvironmentAssetPlacement[]
+): boolean {
+  const route = WorldLayout.nearestRouteDistance(x, z);
+  const edgeReach = route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters + 11;
+  if (route.distance > edgeReach) return false;
+  let neighbors = 0;
+  for (const placement of accepted) {
+    if (placement.compositionTag?.category !== "tree" && placement.compositionTag?.category !== "bush") continue;
+    const other = WorldLayout.nearestRouteDistance(placement.x, placement.z);
+    if (other.route.id !== route.route.id) continue;
+    if (Math.abs(other.distanceAlongRoute - route.distanceAlongRoute) > 12) continue;
+    neighbors += 1;
+    if (neighbors >= 4) return true;
   }
-  const mouth = WORLD_LAYOUT_V5.riverMouth;
-  const estuaryPocketZ = [68.5, 72.2, 75.9, 79.6] as const;
-  for (const [rowIndex, z] of estuaryPocketZ.entries()) {
-    for (const side of [-1, 1] as const) {
-      const index = rowIndex * 2 + (side > 0 ? 1 : 0);
-      const center = WorldLayout.riverCenterX(z);
-      const bankOffset = WorldLayout.riverHalfWidth(z) + 0.7 + (rowIndex % 2) * 0.32;
-      const x = center + side * bankOffset;
-      if (WorldLayout.estuaryInfluence(x, z) <= 0 || z >= mouth.z) continue;
-      placements.push({
-        id: `layout-derived.reeds.estuary.${index.toString().padStart(3, "0")}`,
-        origin: "layout-derived",
-        assetId: "foliage_reeds_a",
-        x,
-        z,
-        rotationY: 0.38 + index * 0.91,
-        scale: [0.82 + rowIndex * 0.025, 0.82 + rowIndex * 0.025, 0.82 + rowIndex * 0.025]
-      });
+  return false;
+}
+
+function generateDistrictLandmarkSpecimens(
+  worldSeed: number,
+  occupied: readonly EnvironmentAssetPlacement[]
+): EnvironmentAssetPlacement[] {
+  const placements: EnvironmentAssetPlacement[] = [];
+  const districts: readonly Exclude<WorldDistrictId, "river">[] = ["farm", "village", "harbor", "headland", "coast"];
+  for (const [districtIndex, district] of districts.entries()) {
+    let best: { placement: EnvironmentAssetPlacement; score: number } | null = null;
+    for (let address = 0; address < 320; address++) {
+      const spec: CausalStructuralSpec = {
+        category: "tree",
+        targetCount: 1,
+        salt: 0x711d + districtIndex * 97,
+        spacing: 11,
+        scaleRange: [1.1, 1.34],
+        footprint: [1.32, 0.86]
+      };
+      const point = structuralCandidatePosition(worldSeed, spec, address);
+      const sample = sampleWorldComposition(worldSeed, point.x, point.z);
+      if (sample.district.dominant !== district || sample.opening > 0.72) continue;
+      const score = sample.density.tree * 0.74
+        + sample.macro * 0.18
+        + compositionPriority(worldSeed, "tree", address, spec.salt, 8) * 0.08;
+      if (best && score <= best.score) continue;
+      const scale = 1.12 + compositionPriority(worldSeed, "tree", address, spec.salt, 9) * 0.22;
+      const placement: EnvironmentAssetPlacement = {
+        id: `seeded-fill.${compositionAddress(worldSeed, "tree", address, spec.salt, 11)}`,
+        origin: "seeded-fill",
+        assetId: structuralAssetFor(
+          "tree",
+          sample,
+          compositionPriority(worldSeed, "tree", address, spec.salt, 12)
+        ),
+        x: point.x,
+        z: point.z,
+        rotationY: compositionPriority(worldSeed, "tree", address, spec.salt, 10) * Math.PI * 2,
+        scale: [scale, scale * 1.08, scale],
+        grounding: [1.32 * scale, 0.86 * scale],
+        compositionTag: {
+          ...compositionPlacementTag(worldSeed, "tree", address, spec.salt, 13, sample),
+          role: "landmark",
+          district
+        }
+      };
+      const radius = 3.2 * scale;
+      if (
+        sample.route.clearance > 0.005
+        || sample.route.gateway > 0.05
+        || sample.architectureClearance > 0.05
+        || sample.coastlineClearance > 0.05
+        || sample.fishingAccessClearance > 0.08
+        || !clearsCompleteRouteCorridor(point.x, point.z, 0.4)
+        || !clearsLandmarks(point.x, point.z, radius)
+        || occupied.some((other) => distanceTo(point.x, point.z, other) < radius + 2.8)
+        || placements.some((other) => distanceTo(point.x, point.z, other) < radius + 2.8)
+        || !isPlacementFootprintStable(placement, 0.78, 0.66)
+      ) continue;
+      best = { placement, score };
+    }
+    if (best) placements.push(best.placement);
+  }
+  return placements;
+}
+
+function generateRouteFrameSpecimens(
+  worldSeed: number,
+  occupied: readonly EnvironmentAssetPlacement[]
+): EnvironmentAssetPlacement[] {
+  const placements: EnvironmentAssetPlacement[] = [];
+  for (const [routeIndex, route] of WorldLayout.compiledRouteNetwork().slice(0, 5).entries()) {
+    const candidates = route.samples
+      .slice(3, -3)
+      .filter((sample) => sample.distanceAlongRoute >= route.totalLength * 0.22)
+      .filter((sample) => sample.distanceAlongRoute <= route.totalLength * 0.78)
+      .map((sample, sampleIndex) => ({
+        sample,
+        sampleIndex,
+        priority: compositionPriority(worldSeed, "bush", routeIndex, sampleIndex, 0x6f21)
+      }))
+      .sort((left, right) => right.priority - left.priority);
+
+    for (const candidate of candidates) {
+      const pair: EnvironmentAssetPlacement[] = [];
+      for (const side of [-1, 1] as const) {
+        const address = routeIndex * 2048 + candidate.sampleIndex * 2 + (side > 0 ? 1 : 0);
+        const offset = route.corridorRadiusMeters + 4.2
+          + compositionPriority(worldSeed, "bush", address, 0x6f21, 1) * 2.4;
+        const x = candidate.sample.point.x + candidate.sample.normal.x * side * offset;
+        const z = candidate.sample.point.z + candidate.sample.normal.z * side * offset;
+        const sample = sampleWorldComposition(worldSeed, x, z);
+        const scale = 0.82 + compositionPriority(worldSeed, "bush", address, 0x6f21, 2) * 0.28;
+        const placement: EnvironmentAssetPlacement = {
+          id: `seeded-fill.${compositionAddress(worldSeed, "bush", address, 0x6f21, 3)}`,
+          origin: "seeded-fill",
+          assetId: structuralAssetFor(
+            "bush",
+            sample,
+            compositionPriority(worldSeed, "bush", address, 0x6f21, 4)
+          ),
+          x,
+          z,
+          rotationY: compositionPriority(worldSeed, "bush", address, 0x6f21, 5) * Math.PI * 2,
+          scale: [scale, scale * 1.05, scale],
+          grounding: [0.7 * scale, 0.58 * scale],
+          compositionTag: {
+            ...compositionPlacementTag(worldSeed, "bush", address, 0x6f21, 6, sample),
+            role: "route-frame"
+          }
+        };
+        if (
+          WorldLayout.isWater(x, z)
+          || WorldLayout.isInterior(x, z)
+          || sample.route.clearance > 0.005
+          || sample.route.gateway > 0.05
+          || sample.architectureClearance > 0.05
+          || sample.coastlineClearance > 0.1
+          || sample.fishingAccessClearance > 0.08
+          || !clearsCompleteRouteCorridor(x, z, 0.35)
+          || !clearsLandmarks(x, z, 1.6)
+          || occupied.some((other) => distanceTo(x, z, other) < 3.2)
+          || placements.some((other) => distanceTo(x, z, other) < 2.5)
+          || !isPlacementFootprintStable(placement, 0.76, 0.72)
+        ) {
+          continue;
+        }
+        pair.push(placement);
+      }
+      if (pair.length > 0) {
+        placements.push(...pair);
+        break;
+      }
     }
   }
   return placements;
 }
 
+function generateCausalStructuralPlacements(
+  worldSeed: number,
+  existing: readonly EnvironmentAssetPlacement[]
+): EnvironmentAssetPlacement[] {
+  const specs: readonly CausalStructuralSpec[] = [
+    { category: "tree", targetCount: 235, salt: 0x1d17, spacing: 5.4, scaleRange: [0.74, 1.38], footprint: [1.2, 0.8] },
+    { category: "bush", targetCount: 115, salt: 0x2b29, spacing: 2.5, scaleRange: [0.62, 1.24], footprint: [0.7, 0.58] },
+    { category: "reed", targetCount: 84, salt: 0x3c41, spacing: 1.7, scaleRange: [0.74, 1.08], footprint: [0.45, 0.38] },
+    { category: "rock", targetCount: 72, salt: 0x4d53, spacing: 2.6, scaleRange: [0.72, 1.28], footprint: [0.9, 0.7] }
+  ];
+  const accepted: EnvironmentAssetPlacement[] = [];
+  const landmarks = generateDistrictLandmarkSpecimens(worldSeed, existing);
+  accepted.push(...landmarks);
+  accepted.push(...generateRouteFrameSpecimens(worldSeed, [...existing, ...accepted]));
+  for (const spec of specs) {
+    const candidateMultiplier = spec.category === "tree" ? 20
+      : spec.category === "bush" ? 25
+        : spec.category === "reed" ? 30
+          : 45;
+    const candidateCount = spec.targetCount * candidateMultiplier;
+    for (let address = 0; address < candidateCount; address++) {
+      if (accepted.filter((placement) => placement.compositionTag?.category === spec.category).length >= spec.targetCount) break;
+      const point = structuralCandidatePosition(worldSeed, spec, address);
+      const sample = sampleWorldComposition(worldSeed, point.x, point.z);
+      const selection = compositionPriority(worldSeed, spec.category, address, spec.salt, 2);
+      const isolateOpportunity = sample.opening >= 0.35 ? 0.16 : 0;
+      const selectionGain = spec.category === "reed" ? 10 : 3;
+      if (selection > Math.max(sample.density[spec.category] * selectionGain, isolateOpportunity)) continue;
+      const tag: CompositionPlacementTag = {
+        ...compositionPlacementTag(worldSeed, spec.category, address, spec.salt, 3, sample),
+        priority: 1 - address / Math.max(1, candidateCount)
+      };
+      if (spec.category === "reed") {
+        const bank = WorldLayout.riverBankSample(point.x, point.z);
+        if (
+          bank.wetness < 0.34
+          || bank.deposition < 0.24
+          || bank.deposition <= bank.erosion * 0.7
+          || bank.fishingAccess > 0.2
+        ) continue;
+      }
+      const candidate = { address, ...point, sample, tag };
+      const roleSpacing = candidate.tag.role === "isolate" ? spec.spacing * 1.7
+        : candidate.tag.role === "landmark" ? spec.spacing * 2
+          : candidate.tag.role === "core" ? spec.spacing * 0.82
+            : spec.spacing;
+      if (
+        WorldLayout.isInterior(candidate.x, candidate.z)
+        || WorldLayout.isWater(candidate.x, candidate.z)
+        || candidate.sample.route.clearance > 0.005
+        || candidate.sample.route.gateway > 0.12
+        || candidate.sample.architectureClearance > 0.08
+        || candidate.sample.coastlineClearance > 0.1
+        || candidate.sample.fishingAccessClearance > 0.08
+        || !clearsCompleteRouteCorridor(candidate.x, candidate.z, 0.35)
+        || ((spec.category === "tree" || spec.category === "bush")
+          && causesDenseRouteWall(candidate.x, candidate.z, accepted))
+        || !clearsLandmarks(candidate.x, candidate.z, spec.spacing * 0.45)
+        || distanceTo(candidate.x, candidate.z, STARTER_DONKEY_ANCHOR) < STARTER_DONKEY_ANCHOR.clearanceRadius + roleSpacing
+        || existing.some((other) => distanceTo(candidate.x, candidate.z, other) < roleSpacing + 1.8)
+        || accepted.some((other) => distanceTo(candidate.x, candidate.z, other) < Math.max(
+          roleSpacing,
+          other.compositionTag?.role === "isolate" ? spec.spacing * 1.7 : 0
+        ))
+      ) continue;
+      const scaleRoll = compositionPriority(worldSeed, spec.category, candidate.address, spec.salt, 4);
+      const speciesRoll = compositionPriority(worldSeed, spec.category, candidate.address, spec.salt, 5);
+      const scale = spec.scaleRange[0] + (spec.scaleRange[1] - spec.scaleRange[0]) * scaleRoll;
+      const rotationY = compositionPriority(worldSeed, spec.category, candidate.address, spec.salt, 6) * Math.PI * 2;
+      const grounding = [spec.footprint[0] * scale, spec.footprint[1] * scale] as const;
+      const placement: EnvironmentAssetPlacement = {
+        id: `seeded-fill.${candidate.tag.address}`,
+        origin: "seeded-fill",
+        assetId: structuralAssetFor(spec.category, candidate.sample, speciesRoll),
+        x: candidate.x,
+        z: candidate.z,
+        rotationY,
+        scale: [scale, scale * (0.92 + compositionPriority(worldSeed, spec.category, candidate.address, spec.salt, 7) * 0.16), scale],
+        grounding: spec.category === "reed" ? undefined : grounding,
+        compositionTag: candidate.tag
+      };
+      if (spec.category !== "reed") {
+        const coastalRock = placement.assetId.startsWith("rock_coastal_");
+        const stable = isPlacementFootprintStable(
+          placement,
+          spec.category === "rock" ? (coastalRock ? 0.8 : 0.72) : 0.76,
+          spec.category === "rock" ? (coastalRock ? 1.05 : 0.78) : 0.72
+        );
+        if (!stable) continue;
+      } else if (WorldLayout.waterSignedDistance(candidate.x, candidate.z) > -0.12) {
+        continue;
+      }
+      if (spec.category === "reed" && accepted.some((other) => {
+        if (other.compositionTag?.category !== "reed") return false;
+        return Math.abs(Math.abs(other.x - candidate.x) - 5.55) <= 0.22
+          || Math.abs(Math.abs(other.z - candidate.z) - 5.55) <= 0.22;
+      })) continue;
+      accepted.push(placement);
+    }
+  }
+  return accepted;
+}
+
+function islandCacheKey(worldSeed: number, islandId: WorldIslandId): string {
+  return `${WORLD_LAYOUT_V5.revision}:${worldSeed}:${islandId}`;
+}
+
+const CAUSAL_COMPOSITION_CACHE = new Map<string, readonly EnvironmentAssetPlacement[]>();
+
+/** Structural field output only; used by the 64-seed composition audit without generating ground cover. */
+export function generateCausalCompositionPlacements(worldSeed: number): readonly EnvironmentAssetPlacement[] {
+  const cacheKey = islandCacheKey(worldSeed, "island.neva");
+  const cached = CAUSAL_COMPOSITION_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const base = [...AUTHORED_DETAIL_PLACEMENTS, ...independentCoastalDressing(worldSeed)];
+  const placements = generateCausalStructuralPlacements(worldSeed, base);
+  CAUSAL_COMPOSITION_CACHE.set(cacheKey, placements);
+  return placements;
+}
+
+const SUNREACH_STRUCTURAL_SPECS = [
+  { category: "tree" as const, count: 48, spacing: 7.4, salt: 0x71a1, scale: [0.86, 1.08] as const },
+  { category: "bush" as const, count: 62, spacing: 3.3, salt: 0x71b3, scale: [0.7, 1.04] as const },
+  { category: "rock" as const, count: 38, spacing: 4.2, salt: 0x71c7, scale: [0.72, 1.18] as const }
+] as const;
+
+function sunreachStructuralAsset(
+  category: "tree" | "bush" | "rock",
+  sample: WorldCompositionSample,
+  variant: number
+): string {
+  if (category === "tree") {
+    if (sample.habitat["olive-grove"] > 0.18) return variant < 0.5 ? "tree_olive_a" : "tree_olive_b";
+    return variant < 0.55 ? "tree_pine_a" : "tree_pine_b";
+  }
+  if (category === "bush") return variant < 0.52 ? "foliage_bush_a" : "foliage_bush_round_a";
+  if (sample.habitat["reef-edge"] > 0.12) return "rock_reef_small_a";
+  return variant < 0.52 ? "rock_field_a" : "rock_coastal_boulder_a";
+}
+
+export function generateSunreachCausalCompositionPlacements(
+  worldSeed: number
+): readonly EnvironmentAssetPlacement[] {
+  const cacheKey = islandCacheKey(worldSeed, "island.sunreach");
+  const cached = CAUSAL_COMPOSITION_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const bounds = WORLD_ISLAND_DEFINITIONS["island.sunreach"].authoredBounds;
+  const accepted: EnvironmentAssetPlacement[] = [];
+  for (const spec of SUNREACH_STRUCTURAL_SPECS) {
+    let categoryCount = 0;
+    for (let address = 0; address < spec.count * 240 && categoryCount < spec.count; address++) {
+      const x = bounds.minX + 4
+        + islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 0)
+          * (bounds.maxX - bounds.minX - 8);
+      const z = bounds.minZ + 4
+        + islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 1)
+          * (bounds.maxZ - bounds.minZ - 8);
+      if (WorldLayout.islandAt(x, z) !== "island.sunreach" || !WorldLayout.isWalkable(x, z)) continue;
+      const sample = sampleWorldComposition(worldSeed, x, z);
+      const selection = islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 2);
+      const isolateOpportunity = sample.opening >= 0.34 ? 0.12 : 0;
+      if (selection > Math.max(sample.density[spec.category] * 3.4, isolateOpportunity)) continue;
+      if (
+        sample.route.clearance > 0.04
+        || sample.architectureClearance > 0.28
+        || sample.coastlineClearance > 0.18
+        || WorldLayout.terrainNormalY(x, z) < (spec.category === "rock" ? 0.58 : 0.72)
+        || accepted.some((placement) => Math.hypot(placement.x - x, placement.z - z) < spec.spacing)
+      ) continue;
+      const scaleRoll = islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 3);
+      const variant = islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 4);
+      const scale = spec.scale[0] + (spec.scale[1] - spec.scale[0]) * scaleRoll;
+      const tag = compositionPlacementTag(worldSeed, spec.category, address, spec.salt, 5, sample);
+      const placement: EnvironmentAssetPlacement = {
+        id: `seeded-fill.${tag.address}`,
+        origin: "seeded-fill",
+        islandId: "island.sunreach",
+        biomeId: "biome.sunreach_warm_dry",
+        assetId: sunreachStructuralAsset(spec.category, sample, variant),
+        x,
+        z,
+        rotationY: islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 6) * Math.PI * 2,
+        scale: [scale, scale * (0.92 + variant * 0.14), scale],
+        grounding: spec.category === "bush" ? undefined : [1.05 * scale, 0.82 * scale],
+        compositionTag: tag
+      };
+      const isCoastalRock = placement.assetId.startsWith("rock_coastal_");
+      if (placement.grounding && !isPlacementFootprintStable(
+        placement,
+        isCoastalRock ? 0.8 : 0.72,
+        isCoastalRock ? 1.1 : 0.78
+      )) continue;
+      accepted.push(placement);
+      categoryCount += 1;
+    }
+    if (categoryCount !== spec.count) {
+      throw new Error(`[WorldEnvironmentLayout] Could only place ${categoryCount}/${spec.count} Sunreach ${spec.category} instances`);
+    }
+  }
+  CAUSAL_COMPOSITION_CACHE.set(cacheKey, accepted);
+  return accepted;
+}
+
+const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
+  {
+    id: "authored.sunreach.cove-dock",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "dock_straight_a",
+    x: 351,
+    z: 58,
+    rotationY: Math.PI * 0.5,
+    scale: [1, 1, 1]
+  },
+  {
+    id: "authored.sunreach.cove-market",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "building_market_stall_a",
+    x: 373,
+    z: 56,
+    rotationY: -Math.PI * 0.5,
+    scale: [0.92, 0.92, 0.92],
+    grounding: [4.5, 3.5],
+    practicalLight: true
+  },
+  {
+    id: "authored.sunreach.terrace-cistern",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "prop_water_well_a",
+    x: 468,
+    z: 16,
+    rotationY: 0.42,
+    scale: [0.9, 0.9, 0.9],
+    grounding: [1.8, 1.8]
+  },
+  {
+    id: "authored.sunreach.ridge-landmark",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "rock_spire_a",
+    x: 590,
+    z: 25,
+    rotationY: 1.18,
+    scale: [1.08, 1.08, 1.08]
+  },
+  {
+    id: "authored.sunreach.hand-mill",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "prop_potting_bench_a",
+    x: 444,
+    z: 21,
+    rotationY: 2.35,
+    scale: [0.82, 0.82, 0.82],
+    grounding: [1.25, 0.9]
+  },
+  {
+    id: "authored.sunreach.workbench",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "prop_farm_workbench_a",
+    x: 466,
+    z: 17,
+    rotationY: -0.7,
+    scale: [0.9, 0.9, 0.9],
+    grounding: [1.25, 0.9]
+  },
+  {
+    id: "authored.sunreach.fish-table",
+    origin: "authored",
+    islandId: "island.sunreach",
+    biomeId: "biome.sunreach_warm_dry",
+    assetId: "prop_farm_workbench_a",
+    x: 382,
+    z: 61,
+    rotationY: -1.5,
+    scale: [0.88, 0.88, 0.88],
+    grounding: [1.2, 0.85]
+  },
+  ...[
+    { id: "cove-north", x: 341, z: 47, rotationY: 0.18 },
+    { id: "cove-south", x: 339, z: 72, rotationY: -0.12 },
+    { id: "reef-west", x: 512, z: 194, rotationY: 0.08 },
+    { id: "reef-east", x: 550, z: 208, rotationY: -0.2 }
+  ].map((buoy) => ({
+    id: `authored.sunreach.buoy.${buoy.id}`,
+    origin: "authored" as const,
+    islandId: "island.sunreach" as const,
+    biomeId: "biome.sunreach_warm_dry" as const,
+    assetId: "prop_marker_buoy_a",
+    x: buoy.x,
+    y: 0,
+    z: buoy.z,
+    rotationY: buoy.rotationY,
+    scale: [0.82, 0.82, 0.82] as [number, number, number]
+  }))
+];
+
 /** Fill the spaces between authored districts without moving their existing anchors. */
 function generateLandscapeDressing(
-  worldSeed: number,
   existing: readonly EnvironmentAssetPlacement[]
 ): EnvironmentAssetPlacement[] {
   const placements: EnvironmentAssetPlacement[] = [];
@@ -855,59 +1250,63 @@ function generateLandscapeDressing(
     }
   }
 
-  // Each land cell gets a small habitat group. Jitter and unequal grove sizes
-  // hide the coverage lattice; existing trees suppress duplicates, not whole districts.
-  const cellSize = 22;
-  let rabbitCount = 0;
-  for (let row = 0; row < Math.ceil((WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ) / cellSize); row++) {
-    for (let column = 0; column < Math.ceil((WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX) / cellSize); column++) {
-      const rng = createRng(mixSeed(worldSeed, 0x61d3 ^ Math.imul(row + 1, 73856093) ^ Math.imul(column + 1, 19349663)));
-      const cellId = `${row}.${column}`;
-      let anchor: EnvironmentAssetPlacement | undefined;
-      for (let attempt = 0; attempt < 14 && !anchor; attempt++) {
-        const x = WORLD_BOUNDS.minX + (column + 0.18 + rng() * 0.64) * cellSize;
-        const z = WORLD_BOUNDS.minZ + (row + 0.18 + rng() * 0.64) * cellSize;
-        const coastDistance = WorldLayout.coastlineZ(x) - z;
-        const wetBank = WorldLayout.riverDistance(x, z) - WorldLayout.riverHalfWidth(z) < 9;
-        const wooded = z < -95 || x < -125 || x > 130;
-        const coastal = coastDistance < 26;
-        const trees = coastal
-          ? ["tree_pine_a", "tree_pine_b", "tree_pine_young_a"]
-          : wooded
-            ? ["tree_oak_broadleaf_a", "tree_pine_tall_a", "tree_oak_c", "tree_maple_a"]
-            : ["tree_oak_a", "tree_oak_b", "tree_oak_broadleaf_a", "tree_maple_a"];
-        const hasCanopy = occupied.some((other) => other.assetId.startsWith("tree_") && distanceTo(x, z, other) < 8);
-        const assetId = coastDistance < 9 ? "rock_coastal_boulder_a"
-          : wetBank ? "foliage_cattail_a" : hasCanopy ? "foliage_bush_round_a" : trees[Math.floor(rng() * trees.length)];
-        anchor = append(`habitat.${cellId}.anchor`, assetId, x, z, rng() * Math.PI * 2,
-          0.92 + rng() * 0.16, assetId.startsWith("tree_") ? [1.2, 0.8] : [0.9, 0.7]);
-        if (!anchor) continue;
-        const members = coastal
-          ? ["foliage_beach_grass_a", "rock_coastal_boulder_a", "tree_pine_young_a"]
-          : wetBank
-            ? ["foliage_reeds_a", "foliage_cattail_a", "rock_field_a"]
-            : ["foliage_bush_round_a", wooded ? "prop_fallen_log_a" : "rock_field_a", trees[Math.floor(rng() * trees.length)]];
-        for (let member = 0; member < members.length; member++) {
-          const angle = rng() * Math.PI * 2;
-          const radius = 4.5 + rng() * 3.5;
-          const memberId = members[member];
-          append(`habitat.${cellId}.${member}`, memberId,
-            anchor.x + Math.cos(angle) * radius, anchor.z + Math.sin(angle) * radius,
-            angle, 0.92 + rng() * 0.16,
-            memberId === "prop_fallen_log_a" ? [1.55, 0.4] : memberId.startsWith("tree_") ? [1.2, 0.8] : [0.9, 0.7]);
-        }
-        if (wooded && !coastal && !wetBank) {
-          append(`habitat.${cellId}.mushrooms`, "foliage_mushroom_cluster_a",
-            anchor.x + 3.6, anchor.z - 1.2, 0.4, 1.08, [0.18, 0.18]);
-        }
-        if (!coastal && !wetBank && rabbitCount < 10 && (row * 7 + column) % 13 === 0) {
-          if (append(`habitat.${cellId}.rabbit`, "fauna_rabbit_a",
-            anchor.x - 4.4, anchor.z + 1.8, rng() * Math.PI * 2, 0.96, [0.65, 0.65])) rabbitCount++;
-        }
-      }
-    }
-  }
   return placements;
+}
+
+const GROUND_COVER_COMPOSITION_STEP_METERS = 4;
+const GROUND_COVER_SURFACE_STEP_METERS = 4;
+const GROUND_COVER_COMPOSITION_CACHE = new Map<string, Map<string, WorldCompositionSample>>();
+const GROUND_COVER_SURFACE_CACHE = new Map<
+  string,
+  ReturnType<typeof WorldLayout.terrainSurfaceSample>
+>();
+const GROUND_COVER_NORMAL_Y_CACHE = new Map<string, number>();
+
+function quantizedGroundCoverKey(x: number, z: number, step: number): string {
+  return `${Math.round(x / step)},${Math.round(z / step)}`;
+}
+
+function sampleGroundCoverComposition(worldSeed: number, x: number, z: number): WorldCompositionSample {
+  const islandId = WorldLayout.terrainPatchAt(x, z)?.islandId ?? "island.neva";
+  const cacheKey = islandCacheKey(worldSeed, islandId);
+  let cache = GROUND_COVER_COMPOSITION_CACHE.get(cacheKey);
+  if (!cache) {
+    cache = new Map();
+    GROUND_COVER_COMPOSITION_CACHE.set(cacheKey, cache);
+  }
+  const key = quantizedGroundCoverKey(x, z, GROUND_COVER_COMPOSITION_STEP_METERS);
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const sampleX = Math.round(x / GROUND_COVER_COMPOSITION_STEP_METERS) * GROUND_COVER_COMPOSITION_STEP_METERS;
+  const sampleZ = Math.round(z / GROUND_COVER_COMPOSITION_STEP_METERS) * GROUND_COVER_COMPOSITION_STEP_METERS;
+  const sample = sampleWorldComposition(worldSeed, sampleX, sampleZ);
+  cache.set(key, sample);
+  return sample;
+}
+
+function sampleGroundCoverSurface(
+  x: number,
+  z: number
+): ReturnType<typeof WorldLayout.terrainSurfaceSample> {
+  const key = quantizedGroundCoverKey(x, z, GROUND_COVER_SURFACE_STEP_METERS);
+  const cached = GROUND_COVER_SURFACE_CACHE.get(key);
+  if (cached) return cached;
+  const sampleX = Math.round(x / GROUND_COVER_SURFACE_STEP_METERS) * GROUND_COVER_SURFACE_STEP_METERS;
+  const sampleZ = Math.round(z / GROUND_COVER_SURFACE_STEP_METERS) * GROUND_COVER_SURFACE_STEP_METERS;
+  const sample = WorldLayout.terrainSurfaceSample(sampleX, sampleZ);
+  GROUND_COVER_SURFACE_CACHE.set(key, sample);
+  return sample;
+}
+
+function sampleGroundCoverNormalY(x: number, z: number): number {
+  const key = quantizedGroundCoverKey(x, z, GROUND_COVER_SURFACE_STEP_METERS);
+  const cached = GROUND_COVER_NORMAL_Y_CACHE.get(key);
+  if (cached !== undefined) return cached;
+  const sampleX = Math.round(x / GROUND_COVER_SURFACE_STEP_METERS) * GROUND_COVER_SURFACE_STEP_METERS;
+  const sampleZ = Math.round(z / GROUND_COVER_SURFACE_STEP_METERS) * GROUND_COVER_SURFACE_STEP_METERS;
+  const normalY = WorldLayout.terrainNormal(sampleX, sampleZ).y;
+  GROUND_COVER_NORMAL_Y_CACHE.set(key, normalY);
+  return normalY;
 }
 
 function scatterGroundCover(
@@ -915,103 +1314,118 @@ function scatterGroundCover(
   assetIds: readonly string[],
   count: number,
   seed: number,
-  predicate: (x: number, z: number) => boolean,
+  predicate: (
+    x: number,
+    z: number,
+    surface: ReturnType<typeof WorldLayout.terrainSurfaceSample>,
+    composition: WorldCompositionSample
+  ) => boolean,
   scaleRange: readonly [number, number],
   idGroup: string = `ground-cover.${category}`,
-  densityWeight: (x: number, z: number) => number = () => 1,
-  patchDistribution?: GroundCoverPatchDistribution
+  densityWeight: (
+    x: number,
+    z: number,
+    surface: ReturnType<typeof WorldLayout.terrainSurfaceSample>,
+    composition: WorldCompositionSample
+  ) => number = () => 1,
+  worldSeed: number = seed
 ): GroundCoverPlacement[] {
-  const rng = createRng(seed);
   const placements: GroundCoverPlacement[] = [];
-  const patches: Array<{
-    x: number;
-    z: number;
-    radius: number;
-    depthScale: number;
-    rotation: number;
-  }> = [];
-  if (patchDistribution) {
-    const centerPredicate = patchDistribution.centerPredicate;
-    const width = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - 10;
-    const depth = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ - 10;
-    const columns = Math.ceil(Math.sqrt(patchDistribution.patchCount * width / depth));
-    const rows = Math.ceil(patchDistribution.patchCount / columns);
-    for (
-      let attempt = 0;
-      attempt < patchDistribution.patchCount * 200 && patches.length < patchDistribution.patchCount;
-      attempt += 1
-    ) {
-      const cell = attempt % (columns * rows);
-      const x = WORLD_BOUNDS.minX + 5 + (patchDistribution.stratified
-        ? (cell % columns + 0.15 + rng() * 0.7) / columns : rng()) * width;
-      const z = WORLD_BOUNDS.minZ + 5 + (patchDistribution.stratified
-        ? (Math.floor(cell / columns) + 0.15 + rng() * 0.7) / rows : rng()) * depth;
-      if (centerPredicate && !centerPredicate(x, z)) continue;
-      patches.push({
-        x,
-        z,
-        radius: patchDistribution.radiusRange[0]
-          + (patchDistribution.radiusRange[1] - patchDistribution.radiusRange[0]) * rng(),
-        depthScale: patchDistribution.depthScaleRange[0]
-          + (patchDistribution.depthScaleRange[1] - patchDistribution.depthScaleRange[0]) * rng(),
-        rotation: rng() * Math.PI * 2
-      });
-    }
-    if (patches.length !== patchDistribution.patchCount) {
-      throw new Error(
-        `[WorldEnvironmentLayout] Could only place ${patches.length}/${patchDistribution.patchCount} ${category} patches`
+  const compositionCategory: CompositionCategory = category === "flowers"
+    ? "flower"
+    : category === "bushes"
+      ? "bush"
+      : category === "pebbles"
+        ? "rock"
+        : "short-cover";
+  const attemptMultiplier = category === "pebbles" ? 240 : category === "bushes" ? 150 : 90;
+  for (let attempt = 0; attempt < count * attemptMultiplier && placements.length < count; attempt++) {
+    const candidateAddress = category === "flowers" ? Math.floor(attempt / 3) : attempt;
+    const candidateSlot = category === "flowers" ? attempt % 3 : 0;
+    const baseX = WORLD_BOUNDS.minX + 5
+      + compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 0)
+        * (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - 10);
+    const baseZ = WORLD_BOUNDS.minZ + 5
+      + compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 1)
+        * (WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ - 10);
+    const driftAngle = compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 10 + candidateSlot) * Math.PI * 2;
+    const driftRadius = category === "flowers"
+      ? 0.08 + Math.pow(
+        compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 20 + candidateSlot),
+        1.7
+      ) * 0.45
+      : 0;
+    const x = baseX + Math.cos(driftAngle) * driftRadius;
+    const z = baseZ + Math.sin(driftAngle) * driftRadius;
+    const composition = sampleGroundCoverComposition(worldSeed, x, z);
+    const selection = compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 2);
+    const fieldDensity = composition.density[compositionCategory];
+    const maximumDensity = category === "grass"
+      ? clamp01(0.2 + fieldDensity * 0.8)
+      : category === "flowers"
+        ? clamp01(0.025 + fieldDensity * fieldDensity * 1.5)
+        : clamp01(0.5 + fieldDensity * 0.5);
+    if (selection > maximumDensity) continue;
+    const surface = sampleGroundCoverSurface(x, z);
+    if (!predicate(x, z, surface, composition) || !hasGroundCoverClearance(x, z)) continue;
+    const weight = densityWeight(x, z, surface, composition);
+    const density = category === "grass"
+      ? clamp01(
+        0.04
+        + weight * 0.16
+        + fieldDensity * 0.8
+      )
+      : category === "flowers"
+        ? clamp01(0.02 + Math.pow(fieldDensity * (0.65 + weight * 0.35), 2) * 1.5)
+      : clamp01(
+        0.12
+        + weight * 0.38
+        + fieldDensity * 0.5
       );
-    }
-  }
-  for (let attempt = 0; attempt < count * 400 && placements.length < count; attempt++) {
-    let x: number;
-    let z: number;
-    if (patches.length > 0) {
-      const patch = patches[patchDistribution?.stratified
-        ? attempt % patches.length : Math.floor(rng() * patches.length)];
-      const angle = rng() * Math.PI * 2;
-      const radius = Math.sqrt(rng()) * patch.radius;
-      const localX = Math.cos(angle) * radius;
-      const localZ = Math.sin(angle) * radius * patch.depthScale;
-      const cosine = Math.cos(patch.rotation);
-      const sine = Math.sin(patch.rotation);
-      x = patch.x + localX * cosine - localZ * sine;
-      z = patch.z + localX * sine + localZ * cosine;
-    } else {
-      x = WORLD_BOUNDS.minX + 5 + rng() * (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - 10);
-      z = WORLD_BOUNDS.minZ + 5 + rng() * (WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ - 10);
-    }
-    if (!predicate(x, z) || !hasGroundCoverClearance(x, z)) continue;
-    const density = clamp01(densityWeight(x, z));
-    if (density < 1 && rng() > density) continue;
-    const scale = scaleRange[0] + (scaleRange[1] - scaleRange[0]) * rng();
-    const index = placements.length;
-    const grassPatchVariant = groundCoverPatchVariantIndex(x, z, seed, 6);
-    const selectedVariant = category === "grass"
-      ? grassPatchVariant < 4 ? 0 : grassPatchVariant < 5 ? 1 : 2
-      : index % assetIds.length;
+    if (selection > density) continue;
+    const exactSurface = WorldLayout.terrainSurfaceSample(x, z);
+    if (!predicate(x, z, exactSurface, composition)) continue;
+    if (
+      (category === "grass" || category === "flowers" || category === "bushes" || category === "meadowTall")
+      && WorldLayout.terrainNormal(x, z).y <= 0.66
+    ) continue;
+    const scale = scaleRange[0]
+      + (scaleRange[1] - scaleRange[0])
+        * compositionPriority(worldSeed, compositionCategory, attempt, seed, 3);
+    const variantRoll = compositionPriority(worldSeed, compositionCategory, attempt, seed, 4);
+    const selectedVariant = Math.min(assetIds.length - 1, Math.floor(variantRoll * assetIds.length));
     const grassScale = grassClumpScale(selectedVariant);
     const categoryScale = GROUND_COVER_SCALE_PROFILE[category];
     const horizontalScale = category === "grass" ? grassScale.horizontal : categoryScale.horizontal;
     const verticalScale = category === "grass" ? grassScale.vertical : categoryScale.vertical;
+    const tag = compositionPlacementTag(
+      worldSeed,
+      compositionCategory,
+      candidateAddress,
+      seed,
+      category === "flowers" ? candidateSlot : 5,
+      composition
+    );
     placements.push({
-      id: stablePlacementId(idGroup, index),
+      id: `seeded-fill.${idGroup}.${tag.address}`,
       origin: "seeded-fill",
       category,
       assetId: assetIds[selectedVariant],
       x,
       z,
-      rotationY: rng() * Math.PI * 2,
+      rotationY: compositionPriority(worldSeed, compositionCategory, attempt, seed, 6) * Math.PI * 2,
       scale: [
-        scale * horizontalScale * (0.94 + rng() * 0.12),
+        scale * horizontalScale * (0.94 + compositionPriority(worldSeed, compositionCategory, attempt, seed, 7) * 0.12),
         scale * verticalScale,
-        scale * horizontalScale * (0.94 + rng() * 0.12)
-      ]
+        scale * horizontalScale * (0.94 + compositionPriority(worldSeed, compositionCategory, attempt, seed, 8) * 0.12)
+      ],
+      compositionTag: tag
     });
   }
   if (placements.length !== count) {
     throw new Error(`[WorldEnvironmentLayout] Could only place ${placements.length}/${count} ${category} instances`);
   }
+  placements.sort((left, right) => (right.compositionTag?.priority ?? 0) - (left.compositionTag?.priority ?? 0));
   return placements;
 }
 
@@ -1022,129 +1436,49 @@ function scatterCoastGroundCover(
   seed: number,
   landwardOffsets: readonly [number, number],
   predicate: (x: number, z: number) => boolean,
-  scaleRange: readonly [number, number]
+  scaleRange: readonly [number, number],
+  worldSeed: number
 ): GroundCoverPlacement[] {
-  const rng = createRng(seed);
   const placements: GroundCoverPlacement[] = [];
   for (let attempt = 0; attempt < count * 150 && placements.length < count; attempt++) {
-    const x = WORLD_BOUNDS.minX + 6 + rng() * (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - 12);
-    const progress = Math.sqrt(rng());
+    const compositionCategory: CompositionCategory = category === "pebbles" ? "rock" : "short-cover";
+    const x = WORLD_BOUNDS.minX + 6
+      + compositionPriority(worldSeed, compositionCategory, attempt, seed, 0)
+        * (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX - 12);
+    const progress = Math.sqrt(compositionPriority(worldSeed, compositionCategory, attempt, seed, 1));
     const landwardOffset = landwardOffsets[0] + (landwardOffsets[1] - landwardOffsets[0]) * progress;
-    const z = WorldLayout.coastlineZ(x) - landwardOffset + Math.sin(x * 0.13 + attempt) * 0.12;
+    const z = WorldLayout.coastlineZ(x) - landwardOffset
+      + (compositionPriority(worldSeed, compositionCategory, attempt, seed, 2) - 0.5) * 0.24;
     if (!predicate(x, z) || !clearsLandmarks(x, z, 0.15)) continue;
-    const scale = scaleRange[0] + (scaleRange[1] - scaleRange[0]) * rng();
-    const index = placements.length;
+    const scale = scaleRange[0]
+      + (scaleRange[1] - scaleRange[0])
+        * compositionPriority(worldSeed, compositionCategory, attempt, seed, 3);
+    const variant = Math.min(
+      assetIds.length - 1,
+      Math.floor(compositionPriority(worldSeed, compositionCategory, attempt, seed, 4) * assetIds.length)
+    );
+    const composition = sampleGroundCoverComposition(worldSeed, x, z);
+    const tag = compositionPlacementTag(worldSeed, compositionCategory, attempt, seed, 5, composition);
     placements.push({
-      id: stablePlacementId(`ground-cover.coast.${category}`, index),
+      id: `seeded-fill.ground-cover.coast.${category}.${tag.address}`,
       origin: "seeded-fill",
       category,
-      assetId: assetIds[index % assetIds.length],
+      assetId: assetIds[variant],
       x,
       z,
-      rotationY: rng() * Math.PI * 2,
-      scale: [scale * (0.94 + rng() * 0.12), scale, scale * (0.94 + rng() * 0.12)]
+      rotationY: compositionPriority(worldSeed, compositionCategory, attempt, seed, 6) * Math.PI * 2,
+      scale: [
+        scale * (0.94 + compositionPriority(worldSeed, compositionCategory, attempt, seed, 7) * 0.12),
+        scale,
+        scale * (0.94 + compositionPriority(worldSeed, compositionCategory, attempt, seed, 8) * 0.12)
+      ],
+      compositionTag: tag
     });
   }
   if (placements.length !== count) {
     throw new Error(`[WorldEnvironmentLayout] Could only place ${placements.length}/${count} coastal ${category} instances`);
   }
-  return placements;
-}
-
-function isMeadowCoverPatchCenter(x: number, z: number): boolean {
-  const surface = WorldLayout.terrainSurfaceSample(x, z);
-  return WorldLayout.isWalkable(x, z)
-    && !WorldLayout.isWater(x, z)
-    && !WorldLayout.isInterior(x, z)
-    && WorldLayout.terrainNormal(x, z).y > 0.66
-    && surface.farmInfluence < 0.16
-    && surface.shorelineWetness < 0.7;
-}
-
-function scatterHomesteadMeadowGrass(
-  count: number,
-  seed: number,
-  scaleRange: readonly [number, number]
-): GroundCoverPlacement[] {
-  const origin = STARTER_FARM_LAYOUT.origin;
-  const rng = createRng(seed);
-  const placements: GroundCoverPlacement[] = [];
-  for (let attempt = 0; attempt < count * 400 && placements.length < count; attempt += 1) {
-    const angle = rng() * Math.PI * 2;
-    const radius = 8 + Math.sqrt(rng()) * 34;
-    const x = origin.x + Math.cos(angle) * radius;
-    const z = origin.z + Math.sin(angle) * radius * 0.92;
-    if (
-      !WorldLayout.isWalkable(x, z)
-      || WorldLayout.isWater(x, z)
-      || WorldLayout.isInterior(x, z)
-      || WorldLayout.terrainNormal(x, z).y <= 0.66
-      || WorldLayout.pathInfluence(x, z) >= GRASS_MAX_PATH_INFLUENCE
-    ) continue;
-    const surface = WorldLayout.terrainSurfaceSample(x, z);
-    if (surface.farmInfluence >= 0.08 || surface.shorelineWetness >= 0.62 || !hasGroundCoverClearance(x, z)) continue;
-    const scale = scaleRange[0] + (scaleRange[1] - scaleRange[0]) * rng();
-    const index = placements.length;
-    const clump = grassClumpScale(0);
-    placements.push({
-      id: stablePlacementId("ground-cover.grass.homestead", index),
-      origin: "seeded-fill",
-      category: "grass",
-      assetId: "foliage_grass_a",
-      x,
-      z,
-      rotationY: rng() * Math.PI * 2,
-      scale: [
-        scale * clump.horizontal * (0.94 + rng() * 0.12),
-        scale * clump.vertical,
-        scale * clump.horizontal * (0.94 + rng() * 0.12)
-      ]
-    });
-  }
-  if (placements.length !== count) {
-    throw new Error(
-      `[WorldEnvironmentLayout] Could only place ${placements.length}/${count} homestead meadow grass instances`
-    );
-  }
-  return placements;
-}
-
-function deriveInstancedBushesFromGrass(
-  grassPlacements: readonly GroundCoverPlacement[],
-  count: number,
-  seed: number
-): GroundCoverPlacement[] {
-  const rng = createRng(seed);
-  const placements: GroundCoverPlacement[] = [];
-  const usedGrassIds = new Set<string>();
-  for (let attempt = 0; attempt < count * 120 && placements.length < count; attempt += 1) {
-    const source = grassPlacements[Math.floor(rng() * grassPlacements.length)];
-    if (
-      !source
-      || usedGrassIds.has(source.id)
-      || WorldLayout.pathInfluence(source.x, source.z) >= 0.08
-    ) continue;
-    if (WorldLayout.terrainSurfaceSample(source.x, source.z).shorelineWetness >= 0.58) continue;
-    usedGrassIds.add(source.id);
-    const scale = 0.62 + rng() * 0.3;
-    const index = placements.length;
-    placements.push({
-      id: stablePlacementId("ground-cover.bushes", index),
-      origin: "seeded-fill",
-      category: "bushes",
-      assetId: "foliage_bush_a",
-      x: source.x,
-      z: source.z,
-      rotationY: rng() * Math.PI * 2,
-      scale: [scale * (0.94 + rng() * 0.12), scale, scale * (0.94 + rng() * 0.12)]
-    });
-  }
-  if (placements.length !== count) {
-    throw new Error(
-      `[WorldEnvironmentLayout] Could only derive ${placements.length}/${count} instanced bushes`
-    );
-  }
-  return placements;
+  return placements.sort((left, right) => (right.compositionTag?.priority ?? 0) - (left.compositionTag?.priority ?? 0));
 }
 
 export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPlacement[] {
@@ -1157,7 +1491,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     WorldLayout.isWalkable(x, z)
     && !WorldLayout.isWater(x, z)
     && !WorldLayout.isInterior(x, z)
-    && WorldLayout.terrainNormal(x, z).y > 0.66
+    && sampleGroundCoverNormalY(x, z) > 0.66
     && surface.farmInfluence < 0.08;
 
   const grass = scatterGroundCover(
@@ -1165,35 +1499,40 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"],
     high.grass,
     mixSeed(worldSeed, 0x1a31),
-    (x, z) => {
-      const surface = WorldLayout.terrainSurfaceSample(x, z);
+    (x, z, surface) => {
       return meadowCoverGround(x, z, surface)
         && WorldLayout.pathInfluence(x, z) < GRASS_MAX_PATH_INFLUENCE
         && surface.shorelineWetness < 0.62;
     },
     [0.96, 1.22],
     "ground-cover.grass",
-    grassPlacementDensityAt,
-    {
-      patchCount: 1450,
-      stratified: true,
-      radiusRange: [2.4, 4.6],
-      depthScaleRange: [0.55, 0.96],
-      centerPredicate: isMeadowCoverPatchCenter
-    }
+    (_x, _z, _surface, composition) => composition.density["short-cover"],
+    worldSeed
   );
-  const homesteadGrass = scatterHomesteadMeadowGrass(
+  const homesteadGrass = scatterGroundCover(
+    "grass",
+    ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"],
     HOMESTEAD_MEADOW_GRASS_COUNT,
     mixSeed(worldSeed, 0x1a42),
-    [0.96, 1.22]
+    (x, z, surface) => {
+      const distance = distanceTo(x, z, STARTER_FARM_LAYOUT.origin);
+      return distance >= 8
+        && distance <= 43
+        && meadowCoverGround(x, z, surface)
+        && WorldLayout.pathInfluence(x, z) < GRASS_MAX_PATH_INFLUENCE
+        && surface.shorelineWetness < 0.62;
+    },
+    [0.96, 1.22],
+    "ground-cover.grass.homestead",
+    (_x, _z, _surface, composition) => composition.density["short-cover"],
+    worldSeed
   );
   const flowers = scatterGroundCover(
     "flowers",
     ["foliage_flower_drift_a", "foliage_flower_drift_b", "foliage_flower_drift_c"],
     high.flowers,
     mixSeed(worldSeed, 0x2b47),
-    (x, z) => {
-      const surface = WorldLayout.terrainSurfaceSample(x, z);
+    (x, z, surface) => {
       return meadowCoverGround(x, z, surface)
         && WorldLayout.pathInfluence(x, z) < GRASS_MAX_PATH_INFLUENCE
         && surface.weights.meadow > 0.08
@@ -1201,9 +1540,8 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     },
     [2.85, 4.15],
     "ground-cover.flowers",
-    (x, z) => {
+    (x, z, surface) => {
       const farmBias = clamp01(1 - distanceTo(x, z, STARTER_FARM_LAYOUT.origin) / 48);
-      const surface = WorldLayout.terrainSurfaceSample(x, z);
       return clamp01(
         0.38
           + surface.weights.meadow * 0.48
@@ -1211,20 +1549,28 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
           + WorldLayout.pathShoulderInfluence(x, z) * 0.38
       );
     },
-    {
-      patchCount: 280,
-      radiusRange: [0.85, 2.15],
-      depthScaleRange: [0.58, 1],
-      centerPredicate: isMeadowCoverPatchCenter
-    }
+    worldSeed
   );
-  const bushes = deriveInstancedBushesFromGrass(
-    [...grass, ...homesteadGrass],
+  const bushes = scatterGroundCover(
+    "bushes",
+    ["foliage_bush_a", "foliage_bush_round_a"],
     high.bushes,
-    mixSeed(worldSeed, 0x2b91)
+    mixSeed(worldSeed, 0x2b91),
+    (x, z, surface) => {
+      return meadowCoverGround(x, z, surface)
+        && WorldLayout.pathInfluence(x, z) < 0.08
+        && surface.shorelineWetness < 0.58;
+    },
+    [0.62, 0.92],
+    "ground-cover.bushes",
+    (_x, _z, _surface, composition) => composition.density.bush,
+    worldSeed
   );
-  const tallMeadowGround = (x: number, z: number) => {
-    const surface = WorldLayout.terrainSurfaceSample(x, z);
+  const tallMeadowGround = (
+    x: number,
+    z: number,
+    surface: ReturnType<typeof WorldLayout.terrainSurfaceSample>
+  ) => {
     if (!meadowCoverGround(x, z, surface) || WorldLayout.pathInfluence(x, z) >= 0.08) return false;
     const wetness = surface.shorelineWetness;
     const waterDistance = WorldLayout.waterSignedDistance(x, z);
@@ -1242,61 +1588,57 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     tallMeadowGround,
     [1, 1.34],
     "ground-cover.meadow-tall",
-    (x, z) => {
-      const surface = WorldLayout.terrainSurfaceSample(x, z);
+    (_x, _z, surface) => {
       return clamp01(
         0.22
           + surface.shorelineWetness * 0.55
           + surface.weights.meadow * 0.36
       );
     },
-    {
-      patchCount: 190,
-      radiusRange: [1.4, 3.8],
-      depthScaleRange: [0.5, 0.94],
-      centerPredicate: tallMeadowGround
-    }
-  ).map((placement, index) => {
-    const surface = WorldLayout.terrainSurfaceSample(placement.x, placement.z);
+    worldSeed
+  ).map((placement) => {
+    const surface = sampleGroundCoverSurface(placement.x, placement.z);
     const wetness = surface.shorelineWetness;
     const waterDistance = WorldLayout.waterSignedDistance(placement.x, placement.z);
-    const coast = WorldLayout.coastProfile(placement.x);
     const coastDistance = placement.z - WorldLayout.coastlineZ(placement.x);
     const belongsAtCoastalWetEdge = coastDistance > -8
       && coastDistance < -0.7
       && (wetness > 0.14 || waterDistance > -5.5);
     if (!belongsAtCoastalWetEdge) return placement;
-    const belongsInReedPocket = coast.reedPocket > 0.22
-      || WorldLayout.estuaryInfluence(placement.x, placement.z) > 0.08;
+    const bank = WorldLayout.riverBankSample(placement.x, placement.z);
+    const belongsInReedPocket = bank.wetness > 0.38
+      && bank.deposition > bank.erosion
+      && bank.fishingAccess < 0.18;
     return {
       ...placement,
       assetId: belongsInReedPocket
-        ? index % 2 === 0 ? "foliage_reeds_a" : "foliage_cattail_a"
+        ? (placement.compositionTag?.priority ?? 0) >= 0.5 ? "foliage_reeds_a" : "foliage_cattail_a"
         : "foliage_beach_grass_a"
     };
   });
   const coastPebbleCount = Math.round(high.pebbles * 0.42);
-  const coastPebbles = scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainNormal(x, z).y > 0.68 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42, [0.74, 1.12]);
+  const coastPebbles = scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainNormal(x, z).y > 0.68 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42, [0.74, 1.12], worldSeed);
   const pathPebbleCount = Math.round(high.pebbles * 0.22);
-  const shoulderPebbles = scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainSurfaceSample(x, z).farmInfluence < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32);
+  const shoulderPebbles = scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z, surface) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && surface.farmInfluence < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32, worldSeed);
   const pathPebbles = scatterGroundCover(
     "pebbles",
     ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"],
     pathPebbleCount,
     mixSeed(worldSeed, 0x3c5b),
-    (x, z) => WorldLayout.isWalkable(x, z)
+    (x, z, surface) => WorldLayout.isWalkable(x, z)
       && !WorldLayout.isWater(x, z)
       && !WorldLayout.isBridgeDeck(x, z)
       && WorldLayout.terrainNormal(x, z).y > 0.74
-      && WorldLayout.terrainSurfaceSample(x, z).farmInfluence < 0.12
+      && surface.farmInfluence < 0.12
       && WorldLayout.pathInfluence(x, z) > 0.28,
     [0.52, 0.86],
     "ground-cover.path.pebbles",
-    (x, z) => WorldLayout.pathInfluence(x, z)
+    (x, z) => WorldLayout.pathInfluence(x, z),
+    worldSeed
   );
   const paving = generateInstancedPathSlabs(high.paving, mixSeed(worldSeed, 0x3c71));
-  const driftwood = scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08]);
-  return [
+  const driftwood = scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08], worldSeed);
+  const placements = [
     ...grass,
     ...homesteadGrass,
     ...flowers,
@@ -1308,36 +1650,104 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     ...paving,
     ...driftwood
   ];
+  GROUND_COVER_COMPOSITION_CACHE.delete(islandCacheKey(worldSeed, "island.neva"));
+  GROUND_COVER_COMPOSITION_CACHE.delete(islandCacheKey(worldSeed, "island.sunreach"));
+  GROUND_COVER_SURFACE_CACHE.clear();
+  GROUND_COVER_NORMAL_Y_CACHE.clear();
+  return placements;
 }
 
-const ENVIRONMENT_LAYOUT_CACHE = new Map<number, WorldEnvironmentLayout>();
+export function generateSunreachGroundCoverPlacements(worldSeed: number): GroundCoverPlacement[] {
+  const bounds = WORLD_ISLAND_DEFINITIONS["island.sunreach"].authoredBounds;
+  const specs = [
+    { category: "grass" as const, composition: "short-cover" as const, count: 360, salt: 0x7311, assets: ["foliage_beach_grass_a", "foliage_meadow_tall_a"] as const, scale: [0.78, 1.12] as const },
+    { category: "flowers" as const, composition: "flower" as const, count: 72, salt: 0x7327, assets: ["foliage_flower_drift_a", "foliage_flower_drift_c"] as const, scale: [1.8, 2.8] as const },
+    { category: "pebbles" as const, composition: "rock" as const, count: 96, salt: 0x7339, assets: ["rock_pebble_cluster_a", "rock_pebble_cluster_c"] as const, scale: [0.62, 0.94] as const }
+  ] as const;
+  const placements: GroundCoverPlacement[] = [];
+  for (const spec of specs) {
+    let placed = 0;
+    for (let address = 0; address < spec.count * 160 && placed < spec.count; address++) {
+      const x = bounds.minX + 3
+        + islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 0)
+          * (bounds.maxX - bounds.minX - 6);
+      const z = bounds.minZ + 3
+        + islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 1)
+          * (bounds.maxZ - bounds.minZ - 6);
+      if (WorldLayout.islandAt(x, z) !== "island.sunreach" || WorldLayout.terrainNormalY(x, z) < 0.64) continue;
+      const sample = sampleWorldComposition(worldSeed, x, z);
+      if (
+        sample.route.clearance > 0.1
+        || sample.architectureClearance > 0.36
+        || sample.coastlineClearance > 0.32
+      ) continue;
+      const density = spec.composition === "flower"
+        ? sample.density.flower
+        : spec.composition === "rock" ? sample.density.rock : sample.density["short-cover"];
+      if (islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 2) > density * 5.2) continue;
+      const variant = islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 3);
+      const scale = spec.scale[0] + (spec.scale[1] - spec.scale[0]) * variant;
+      const tag = compositionPlacementTag(worldSeed, spec.composition, address, spec.salt, 4, sample);
+      placements.push({
+        id: `seeded-fill.ground-cover.${tag.address}`,
+        origin: "seeded-fill",
+        islandId: "island.sunreach",
+        biomeId: "biome.sunreach_warm_dry",
+        category: spec.category,
+        assetId: spec.assets[Math.min(spec.assets.length - 1, Math.floor(variant * spec.assets.length))],
+        x,
+        z,
+        rotationY: islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 5) * Math.PI * 2,
+        scale: [scale, scale * (0.78 + variant * 0.18), scale],
+        compositionTag: tag
+      });
+      placed += 1;
+    }
+    if (placed !== spec.count) {
+      throw new Error(`[WorldEnvironmentLayout] Could only place ${placed}/${spec.count} Sunreach ${spec.category} instances`);
+    }
+  }
+  return placements;
+}
+
+const ENVIRONMENT_LAYOUT_CACHE = new Map<string, WorldEnvironmentLayout>();
 
 export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmentLayout {
-  const cached = ENVIRONMENT_LAYOUT_CACHE.get(worldSeed);
+  const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;
+  const cached = ENVIRONMENT_LAYOUT_CACHE.get(cacheKey);
   if (cached) return cached;
-  const fixed = fixedEnvironmentPlacements();
-  const seededFill = SEEDED_FILL_CLUSTERS.flatMap((definition) =>
-    generateEnvironmentClusterPlacements(worldSeed, definition)
-  );
+  const coastalDressing = independentCoastalDressing(worldSeed);
   const existing = applyPlacementOverrides([
     ...AUTHORED_DETAIL_PLACEMENTS,
-    ...fixed,
-    ...seededFill
+    ...coastalDressing
   ]).filter((placement) => !PLACEMENT_REMOVED.includes(placement.id));
-  const staticPlacements = [...existing, ...generateLandscapeDressing(worldSeed, existing)];
+  const causalPlacements = generateCausalCompositionPlacements(worldSeed);
+  const sunreachPlacements = [
+    ...SUNREACH_AUTHORED_PLACEMENTS,
+    ...generateSunreachCausalCompositionPlacements(worldSeed)
+  ];
+  const composed = [...existing, ...causalPlacements, ...sunreachPlacements];
+  const staticPlacements = [...composed, ...generateLandscapeDressing(composed)];
   for (const placement of staticPlacements) {
     if (!placement.grounding) continue;
     if (PLACEMENT_OVERRIDES[placement.id]) continue;
     const isCoastalRock = placement.assetId.startsWith("rock_coastal_");
-    if (!isPlacementFootprintStable(placement, isCoastalRock ? 0.8 : 0.72, isCoastalRock ? 1.1 : 0.78)) {
+    if (!isPlacementFootprintStable(
+      placement,
+      isCoastalRock ? 0.8 : 0.72,
+      isCoastalRock ? 1.1 : 0.78
+    )) {
       throw new Error(`[WorldEnvironmentLayout] Unstable authored footprint ${placement.id}`);
     }
   }
   const layout = {
     worldSeed,
     staticPlacements,
-    groundCoverPlacements: generateGroundCoverPlacements(worldSeed)
+    groundCoverPlacements: [
+      ...generateGroundCoverPlacements(worldSeed),
+      ...generateSunreachGroundCoverPlacements(worldSeed)
+    ]
   };
-  ENVIRONMENT_LAYOUT_CACHE.set(worldSeed, layout);
+  ENVIRONMENT_LAYOUT_CACHE.set(cacheKey, layout);
   return layout;
 }

@@ -1,7 +1,7 @@
-// src/ui/ContextualHintCard.tsx
 import React, { useEffect, useRef, useState } from "react";
 import { IconCompass } from "./components/HudIcons";
-import { ChromeClose, ChromePanel } from "./chrome/Chrome";
+import { ChromeClose } from "./chrome/Chrome";
+import { GameSheet } from "./coastal/CoastalUI";
 
 export interface ContextualHintCardProps {
   hintId: string;
@@ -63,10 +63,10 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   if (!visible) return null;
 
   return (
-    <ChromePanel
+    <GameSheet
+      family="ink"
       className="contextual-hint-card interactive"
       tone="slate"
-      flourish
       corners
       role="status"
       tabIndex={0}
@@ -88,7 +88,7 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
         {icon === "✦" ? <IconCompass size={16} /> : icon}
       </div>
       <div className="hint-card-body">
-        <strong className="hint-card-title">Hint · {title}</strong>
+        <strong className="hint-card-title">{title}</strong>
         <p className="hint-card-message">{message}</p>
       </div>
       <ChromeClose
@@ -99,6 +99,6 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
           handleDismiss();
         }}
       />
-    </ChromePanel>
+    </GameSheet>
   );
 };

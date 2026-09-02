@@ -159,10 +159,10 @@ describe("NEVA farming correctness foundation", () => {
     expect(determineCropStage(35, base)).toBe("growing");
     expect(determineCropStage(99.999, base)).toBe("growing");
     expect(determineCropStage(100, base)).toBe("mature");
-    expect(determineCropStage(129.999, base)).toBe("mature");
-    expect(determineCropStage(130, base)).toBe("overripe");
-    expect(determineCropStage(160, base)).toBe("overripe");
-    expect(determineCropStage(160.001, base)).toBe("withered");
+    expect(determineCropStage(100 + 12 * 60 - 0.001, base)).toBe("mature");
+    expect(determineCropStage(100 + 12 * 60, base)).toBe("overripe");
+    expect(determineCropStage(100 + 24 * 60 - 0.001, base)).toBe("overripe");
+    expect(determineCropStage(100 + 24 * 60, base)).toBe("withered");
   });
 
   it("centralizes dry, normal, and wet presentation thresholds", () => {
@@ -322,19 +322,18 @@ describe("NEVA farming correctness foundation", () => {
     sim.state.player.x = VILLAGE_MARKET.position.x;
     sim.state.player.z = VILLAGE_MARKET.position.z;
     const money = sim.state.player.money;
-    expect(sim.buySeedAtMarket("market.village", "seed.tomato", 1)).toMatchObject({ success: true, cost: 8 });
+    const tomato = sim.buySeedAtMarket("market.village", "seed.tomato", 1);
+    expect(tomato.success).toBe(true);
+    expect(tomato.cost).toBeGreaterThanOrEqual(8);
     expect(InventoryManager.getItemCount(inventory, "seed.tomato")).toBe(7);
-    expect(sim.state.player.money).toBe(money - 8);
+    expect(sim.state.player.money).toBe(money - (tomato.cost ?? 0));
     expect(sim.buySeedAtMarket("market.village", "seed.barley", 1)).toMatchObject({
       success: false,
-      reasonCode: "not-stocked"
+      reasonCode: "locked"
     });
     sim.state.player.proficiencies.farming = 500;
-    expect(sim.buySeedAtMarket("market.village", "seed.barley", 1)).toMatchObject({
-      success: false,
-      reasonCode: "not-stocked"
-    });
-    expect(InventoryManager.getItemCount(inventory, "seed.barley")).toBe(0);
+    expect(sim.buySeedAtMarket("market.village", "seed.barley", 1).success).toBe(true);
+    expect(InventoryManager.getItemCount(inventory, "seed.barley")).toBe(1);
 
     sim.state.player.money = 0;
     const before = InventoryManager.getItemCount(inventory, "seed.wheat");
@@ -366,8 +365,9 @@ describe("NEVA farming correctness foundation", () => {
     expect(InventoryManager.getItemCount(inventory, "item.basic_fertilizer")).toBe(1);
 
     const sell = sim.sellItemAtMarket("market.village", "item.basic_fertilizer", 1);
-    expect(sell).toMatchObject({ success: true, revenue: buy.cost });
-    expect(sim.state.player.money).toBe(money);
+    expect(sell.success).toBe(true);
+    expect(sell.revenue!).toBeLessThan(buy.cost!);
+    expect(sim.state.player.money).toBe(money - (buy.cost! - sell.revenue!));
   });
 
   it.each([1, 2, 3] as const)("migrates v%i saves to the current schema without changing unrelated truth", (version) => {

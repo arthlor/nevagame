@@ -1,10 +1,12 @@
 import type { PlayerTraversalState } from "../core/types";
 
 export const PLAYER_TRAVERSAL_TUNING = Object.freeze({
-  walkSpeedMetersPerSecond: 5,
-  sprintSpeedMetersPerSecond: 8.2,
-  accelerationMetersPerSecondSquared: 32,
-  decelerationMetersPerSecondSquared: 42,
+  // The animation controller scales phase from resolved travel; these values
+  // remain gameplay tuning while the proportion-authored clips own cadence.
+  walkSpeedMetersPerSecond: 1.6,
+  sprintSpeedMetersPerSecond: 4.4,
+  accelerationMetersPerSecondSquared: 9,
+  decelerationMetersPerSecondSquared: 12,
   gravityMetersPerSecondSquared: 18,
   terminalFallSpeedMetersPerSecond: 22,
   jumpSpeedMetersPerSecond: 5.55,

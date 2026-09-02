@@ -84,10 +84,10 @@ export interface VisualRenderConfig {
     near: number;
     far: number;
     followSnap: boolean;
-    castPlayer: boolean;
+    /** Player, NPCs and mounts cast their real silhouette, not a blob proxy. */
+    castCharacters: boolean;
     castSmallProps: boolean;
     castRocks: boolean;
-    vegetationCastDistanceMeters: number;
   };
   quality: Record<
     QualityTier,
@@ -104,6 +104,7 @@ export interface VisualRenderConfig {
       groundCoverDensityScale: number;
       rainDropCount: number;
       rainSplashCount: number;
+      fireflyCount: number;
     }
   >;
   contact: {
@@ -142,6 +143,15 @@ export interface VisualRenderConfig {
       sparseRotationRadians: number;
       colorStrength: number;
       roughnessStrength: number;
+      beach: {
+        fineSampleScaleMeters: number;
+        mesoSampleScaleMeters: number;
+        rotationRadians: number;
+        lodBias: number;
+        fineMix: number;
+        colorStrength: number;
+        roughnessStrength: number;
+      };
     };
     polygonCellScaleMeters: number;
     smallLayerRotationRadians: number;
@@ -212,12 +222,20 @@ export interface VisualRenderConfig {
     polygonNormalStrength: number;
     fresnelStrength: number;
     sunGlintStrength: number;
+    /** Shore distance at which the open-water body colour is fully reached. */
+    depthRampStartMeters: number;
+    depthRampEndMeters: number;
+    depthColorStrength: number;
     shoreline: {
       shallowStartMeters: number;
       shallowEndMeters: number;
       shallowColorStrength: number;
       nearShoreNormalScale: number;
       foamHeightOffsetMeters: number;
+      /** Waterline opacity, so wet sand and riverbed read through the edge. */
+      edgeOpacity: number;
+      bodyOpacity: number;
+      opacityRampMeters: number;
     };
   };
   practicalLights: {
@@ -229,6 +247,18 @@ export interface VisualRenderConfig {
   stars: {
     count: number;
     size: number;
+  };
+  fireflies: {
+    maxDistanceMeters: number;
+    fadeStartMeters: number;
+    sizeMeters: number;
+    baseOpacity: number;
+    motionRadiusMeters: number;
+    verticalMotionMeters: number;
+    motionSpeed: number;
+    pulseSpeed: number;
+    nightStartAmbient: number;
+    nightFullAmbient: number;
   };
   gtao: {
     blendIntensity: number;
@@ -336,7 +366,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     noonAzimuthDeg: 45,
     colorHex: PALETTE_HEX.horizon_warm_01,
     horizonColorHex: PALETTE_HEX.emissive_window_01,
-    intensity: 2.2
+    // The key must out-run the hemisphere fill or shadowed ground stays as
+    // bright as lit ground and the world reads as an unlit diorama.
+    intensity: 3.05
   },
   moon: {
     colorHex: PALETTE_HEX.sky_pale_01,
@@ -356,8 +388,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     nightGroundColorHex: PALETTE_HEX.foliage_shadow_01,
     nightSkyColorStrength: 0.82,
     nightGroundColorStrength: 1.08,
-    intensity: 1.45,
-    nightIntensity: 0.88,
+    intensity: 1.02,
+    // Held in proportion to the daytime fill: a night ambient that nearly
+    // matches day flattens the moonlit world as badly as an over-bright fill
+    // flattens noon.
+    nightIntensity: 0.62,
     twilightFillLift: 0.3,
     twilightZenithHorizonMix: 0.28,
     twilightExposureHold: 0.4,
@@ -372,22 +407,26 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   shadows: {
     type: THREE.PCFSoftShadowMap,
-    intensity: 0.7,
-    bias: -0.00012,
-    normalBias: 0.028,
+    intensity: 1,
+    // Bias is tuned for the wider shadow cameras below: an 84 m ortho at 2048
+    // is ~0.082 m per texel, and at a 35 degree sun the depth slope across one
+    // texel on open terrain is what produced the diagonal acne streaks.
+    bias: -0.0011,
+    normalBias: 0.14,
     radius: 2.35,
-    near: 0.5,
-    far: 260,
+    // The key light sits 120 m from the shadow focus; a tighter slab than the
+    // old 0.5-260 range keeps depth precision where the casters actually are.
+    near: 30,
+    far: 235,
     followSnap: true,
-    castPlayer: false,
-    castSmallProps: false,
-    castRocks: false,
-    vegetationCastDistanceMeters: 28
+    castCharacters: true,
+    castSmallProps: true,
+    castRocks: true
   },
   quality: {
     low: {
       shadowMapSize: 1024,
-      shadowCameraSize: 20,
+      shadowCameraSize: 46,
       pixelRatioCap: 1,
       dynamicContactShadows: false,
       ambientOcclusion: "off",
@@ -397,11 +436,12 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       groundCoverDrawDistanceMeters: 55,
       groundCoverDensityScale: 0.24,
       rainDropCount: 140,
-      rainSplashCount: 20
+      rainSplashCount: 20,
+      fireflyCount: 28
     },
     medium: {
       shadowMapSize: 1536,
-      shadowCameraSize: 24,
+      shadowCameraSize: 64,
       pixelRatioCap: 1.5,
       dynamicContactShadows: true,
       ambientOcclusion: "contact",
@@ -411,11 +451,12 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       groundCoverDrawDistanceMeters: 78,
       groundCoverDensityScale: 0.48,
       rainDropCount: 240,
-      rainSplashCount: 32
+      rainSplashCount: 32,
+      fireflyCount: 48
     },
     high: {
       shadowMapSize: 2048,
-      shadowCameraSize: 28,
+      shadowCameraSize: 84,
       // High keeps the full material/lighting path while avoiding the steep
       // fill-rate jump from a native 2x drawing buffer on dense displays.
       pixelRatioCap: 1.75,
@@ -427,7 +468,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       groundCoverDrawDistanceMeters: 96,
       groundCoverDensityScale: 0.6,
       rainDropCount: 360,
-      rainSplashCount: 48
+      rainSplashCount: 48,
+      fireflyCount: 72
     }
   },
   contact: {
@@ -460,7 +502,16 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       leafyRotationRadians: 0.61,
       sparseRotationRadians: -0.83,
       colorStrength: 1,
-      roughnessStrength: 1
+      roughnessStrength: 1,
+      beach: {
+        fineSampleScaleMeters: 6,
+        mesoSampleScaleMeters: 14,
+        rotationRadians: -0.31,
+        lodBias: 0.2,
+        fineMix: 0.38,
+        colorStrength: 1,
+        roughnessStrength: 1
+      }
     },
     polygonCellScaleMeters: 1.2,
     smallLayerRotationRadians: 0.61,
@@ -492,7 +543,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       max: 0.945
     },
     shoreline: {
-      beachColorMix: 0.46,
+      beachColorMix: 0.54,
       wetColorMix: 0.62,
       cliffColorMix: 0.5,
       rainDarkening: 0.12,
@@ -525,14 +576,20 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     polygonCellScaleMeters: 3.2,
     polygonColorVariationStrength: 0.075,
     polygonNormalStrength: 0.11,
-    fresnelStrength: 0.2,
+    fresnelStrength: 0.26,
     sunGlintStrength: 0.13,
+    depthRampStartMeters: 14,
+    depthRampEndMeters: 96,
+    depthColorStrength: 0.78,
     shoreline: {
       shallowStartMeters: 0.2,
       shallowEndMeters: 13,
       shallowColorStrength: 0.9,
       nearShoreNormalScale: 0.48,
-      foamHeightOffsetMeters: 0.024
+      foamHeightOffsetMeters: 0.024,
+      edgeOpacity: 0.3,
+      bodyOpacity: 0.965,
+      opacityRampMeters: 6.5
     }
   },
   practicalLights: {
@@ -544,6 +601,18 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   stars: {
     count: 180,
     size: 0.72
+  },
+  fireflies: {
+    maxDistanceMeters: 160,
+    fadeStartMeters: 84,
+    sizeMeters: 0.34,
+    baseOpacity: 0.78,
+    motionRadiusMeters: 0.56,
+    verticalMotionMeters: 0.34,
+    motionSpeed: 0.22,
+    pulseSpeed: 1.25,
+    nightStartAmbient: 0.58,
+    nightFullAmbient: 0.12
   },
   gtao: {
     blendIntensity: 0.44,
@@ -585,10 +654,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   fog: {
     colorHex: PALETTE_HEX.sky_pale_01,
-    near: 120,
-    far: 450,
-    clearDayNear: 300,
-    clearDayFar: 1100,
+    near: 62,
+    far: 330,
+    // The terrain plane is 600 m across, so a clear-day far plane beyond it
+    // left the world's cut edge visible against the sky and removed every
+    // depth cue between the foreground and the horizon.
+    clearDayNear: 115,
+    clearDayFar: 430,
     distanceDesaturation: 0.2
   },
   bloom: {

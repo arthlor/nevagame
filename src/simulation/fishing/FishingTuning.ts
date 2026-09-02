@@ -3,6 +3,8 @@ import type { FishBehaviorProfile } from "../../content/types";
 
 export type FishingBehaviorPhase = "tell" | "drive" | "recovery";
 
+export const FISHING_STEER_INPUT_MAX = 0.6;
+
 /** Metres, seconds and normalized gameplay load (not Newtons). */
 export const FISHING_TUNING = Object.freeze({
   stepSeconds: 1 / 60,
@@ -54,7 +56,15 @@ export const FISHING_TUNING = Object.freeze({
   fishAccelResponse: 2.4,
   fishTurnResponse: 2.4,
   /** Line-integrity damage multiplier contributed by a hard head-shake. */
-  shakeDamageScale: 4
+  shakeDamageScale: 4,
+  /** Bracing protects the hook during a shake, but still adds its normal tension load. */
+  bracedShakeDamageMultiplier: 0.3,
+  /** A prepared lure makes a hooked sport fish more readable without changing tell duration. */
+  preparedLureDriveMultiplier: 0.9,
+  preparedLureShakeDamageMultiplier: 0.8,
+  /** Rough water adds bounded fight pressure; behavior clocks and minimum tells are untouched. */
+  roughSeaDriveScale: 0.18,
+  windOpportunityCueThreshold: 0.12
 });
 
 export interface FishingBehaviorReadout {
@@ -102,6 +112,35 @@ export const approachFishing = (value: number, target: number, step: number): nu
   value + clampFishing(target - value, -step, step);
 export const fishingAngleDelta = (from: number, to: number): number =>
   Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+/** One species-aware depth contract shared by encounter motion and save validation. */
+export function fishingDepthBounds(
+  profile: Readonly<Pick<FishBehaviorProfile, "surfaceLeapMeters" | "diveDepthMeters">>,
+  distanceMeters: number
+): { minimum: number; maximum: number } {
+  const reach = Math.max(0, distanceMeters) * 0.6;
+  return {
+    minimum: -Math.min(profile.surfaceLeapMeters ?? 0.9, reach),
+    maximum: Math.min(Math.max(4, profile.diveDepthMeters ?? 4), reach)
+  };
+}
+
+/** Simulation-owned opportunity signal used by mechanics, presentation, and HUD. */
+export function fishingWindOpportunity(state: Readonly<FishingEncounterState>): number {
+  const tension = clampFishing(state.lineTension / 100, 0, 1);
+  const storedLoadOpportunity = clampFishing(
+    Math.max(0, (state.dynamics?.rodLoad ?? tension) - tension)
+      / Math.max(0.01, FISHING_TUNING.pumpMaximumLoad - tension),
+    0,
+    1
+  );
+  const lowEffortOpportunity = 1 - clampFishing(
+    ((state.dynamics?.effort ?? 1) - 0.12) / 0.6,
+    0,
+    1
+  );
+  return Math.max(storedLoadOpportunity, lowEffortOpportunity);
+}
 
 /** Also used by the save migration; preserves the encounter's existing result/resources. */
 export function createFishingDynamics(

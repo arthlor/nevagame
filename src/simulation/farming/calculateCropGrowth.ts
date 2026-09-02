@@ -3,6 +3,7 @@
 import { ClimateId, CropQuality, CropQualityInputs, CropStage, WeatherTag } from "../core/types";
 import { CropDefinition } from "../../content/types";
 import { Rng } from "../core/Rng";
+import type { FarmEnvironmentSample } from "./FarmEnvironmentSample";
 
 export interface GrowthStepResult {
   newEffectiveMinutes: number;
@@ -39,9 +40,8 @@ export function calculateEffectiveGrowthDelta(
 ): number {
   if (elapsedMinutes <= 0) return 0;
 
-  // LIVE 02: preferred 1.20 | poor 0.80. Neutral 1.00 only when a crop
-  // declares an explicit neutralClimates set (none currently do).
-  const declaredNeutral = (crop as CropDefinition & { neutralClimates?: ClimateId[] }).neutralClimates;
+  // LIVE 02: preferred 1.20 | neutral 1.00 | poor 0.80.
+  const declaredNeutral = crop.neutralClimates;
   let climateMod = 0.8;
   if (crop.preferredClimates.includes(farmClimate)) {
     climateMod = 1.2;
@@ -77,19 +77,26 @@ export function calculateEffectiveGrowthDelta(
   return elapsedMinutes * totalMod;
 }
 
+/** Calendar minutes of mature after time-to-mature is reached. Climate must not shrink this. */
+export const POST_MATURE_MATURE_MINUTES = 12 * 60;
+/** Calendar minutes after mature before an annual withers. */
+export const POST_MATURE_WITHER_MINUTES = 24 * 60;
+
 export function determineCropStage(
   effectiveGrowthMinutes: number,
   baseGrowthMinutes: number,
   regrows: boolean = false
 ): CropStage {
   if (baseGrowthMinutes <= 0) return "mature";
-  const progressRatio = effectiveGrowthMinutes / baseGrowthMinutes;
-
-  if (progressRatio < 0.1) return "seeded";
-  if (progressRatio < 0.35) return "sprout";
-  if (progressRatio < 1.0) return "growing";
-  if (progressRatio < 1.3) return "mature";
-  if (regrows || progressRatio <= 1.6) return "overripe";
+  if (effectiveGrowthMinutes < baseGrowthMinutes) {
+    const progressRatio = effectiveGrowthMinutes / baseGrowthMinutes;
+    if (progressRatio < 0.1) return "seeded";
+    if (progressRatio < 0.35) return "sprout";
+    return "growing";
+  }
+  const calendarPastMature = effectiveGrowthMinutes - baseGrowthMinutes;
+  if (calendarPastMature < POST_MATURE_MATURE_MINUTES) return "mature";
+  if (regrows || calendarPastMature < POST_MATURE_WITHER_MINUTES) return "overripe";
   return "withered";
 }
 
@@ -144,11 +151,21 @@ export function calculateHarvestYield(
   return finalYield;
 }
 
-export function moistureChangePerHour(waterNeed: number, weatherType: WeatherTag): number {
-  let delta = -(waterNeed * 0.4);
-  if (weatherType === "light-rain") delta += 15;
-  else if (weatherType === "heavy-rain" || weatherType === "storm") delta += 35;
-  if (weatherType === "windy") delta -= waterNeed * 0.2;
+export function moistureChangePerHour(
+  waterNeed: number,
+  environment: Pick<FarmEnvironmentSample, "weatherType" | "rainfallEffectiveness" | "evaporationMultiplier" | "moistureRetention">
+): number {
+  const retention = Math.min(1, Math.max(0, environment.moistureRetention));
+  // Higher retention slows dry-out only; rain still restores full moisture.
+  const dryOutScale = 1 - retention * 0.5;
+  let delta = -(waterNeed * 0.4 * dryOutScale * environment.evaporationMultiplier);
+  if (environment.weatherType === "light-rain") delta += 15 * environment.rainfallEffectiveness;
+  else if (environment.weatherType === "heavy-rain" || environment.weatherType === "storm") {
+    delta += 35 * environment.rainfallEffectiveness;
+  }
+  if (environment.weatherType === "windy") {
+    delta -= waterNeed * 0.2 * dryOutScale * environment.evaporationMultiplier;
+  }
   return delta;
 }
 
@@ -156,11 +173,11 @@ export function applyCropMoistureOverMinutes(
   crop: { moisture: number; averageMoistureAccum: number; moistureSampleCount: number },
   minutes: number,
   waterNeed: number,
-  weatherType: WeatherTag
+  environment: Pick<FarmEnvironmentSample, "weatherType" | "rainfallEffectiveness" | "evaporationMultiplier" | "moistureRetention">
 ): void {
   const steps = Math.floor(minutes);
   if (steps <= 0) return;
-  const perMinute = moistureChangePerHour(waterNeed, weatherType) / 60;
+  const perMinute = moistureChangePerHour(waterNeed, environment) / 60;
   const initialMoisture = crop.moisture;
   if (perMinute === 0) {
     crop.averageMoistureAccum += initialMoisture * steps;
@@ -176,6 +193,39 @@ export function applyCropMoistureOverMinutes(
   crop.moistureSampleCount += steps;
 }
 
+function addGrowthMinutes(
+  crop: { effectiveGrowthMinutes: number },
+  cropDef: CropDefinition,
+  farmClimate: ClimateId,
+  currentMoisture: number,
+  soilFertility: number,
+  weatherType: WeatherTag,
+  chunk: number
+): void {
+  const base = cropDef.baseGrowthMinutes;
+  const before = crop.effectiveGrowthMinutes;
+  if (before >= base) {
+    crop.effectiveGrowthMinutes = before + chunk;
+    return;
+  }
+  const delta = calculateEffectiveGrowthDelta(
+    chunk,
+    cropDef,
+    farmClimate,
+    currentMoisture,
+    soilFertility,
+    weatherType
+  );
+  const after = before + delta;
+  if (after < base) {
+    crop.effectiveGrowthMinutes = after;
+    return;
+  }
+  const needed = base - before;
+  const fraction = delta > 0 ? Math.min(1, needed / delta) : 1;
+  crop.effectiveGrowthMinutes = base + Math.max(0, chunk * (1 - fraction));
+}
+
 export function advancePlacedCropGrowth(
   crop: {
     effectiveGrowthMinutes: number;
@@ -186,14 +236,14 @@ export function advancePlacedCropGrowth(
     health?: number;
   },
   cropDef: CropDefinition,
-  farmClimate: ClimateId,
+  environment: FarmEnvironmentSample,
   soilFertility: number,
-  weatherType: WeatherTag,
-  elapsedMinutes: number
+  elapsedMinutes: number,
 ): CropStage {
+  const alreadyWithered = crop.stage === "withered" && !cropDef.regrows;
   let remaining = Math.floor(elapsedMinutes);
   while (remaining > 0) {
-    const perMinute = moistureChangePerHour(cropDef.waterNeed, weatherType) / 60;
+    const perMinute = moistureChangePerHour(cropDef.waterNeed, environment) / 60;
     let chunk = remaining;
     if (perMinute > 0) {
       if (crop.moisture < 15) {
@@ -208,21 +258,20 @@ export function advancePlacedCropGrowth(
         chunk = Math.min(chunk, Math.max(1, Math.ceil((crop.moisture - 15) / -perMinute)));
       }
     }
-    crop.effectiveGrowthMinutes += calculateEffectiveGrowthDelta(
-      chunk,
-      cropDef,
-      farmClimate,
-      crop.moisture,
-      soilFertility,
-      weatherType
-    );
+    if (!alreadyWithered) {
+      addGrowthMinutes(crop, cropDef, environment.climateId, crop.moisture, soilFertility, environment.weatherType, chunk);
+    }
     if (typeof crop.health === "number") {
       crop.health = calculateCropHealth(crop.health, crop.moisture, chunk);
     }
-    applyCropMoistureOverMinutes(crop, chunk, cropDef.waterNeed, weatherType);
+    applyCropMoistureOverMinutes(crop, chunk, cropDef.waterNeed, environment);
     remaining -= chunk;
   }
-  crop.stage = determineCropStage(crop.effectiveGrowthMinutes, cropDef.baseGrowthMinutes, cropDef.regrows);
+  if (alreadyWithered) {
+    crop.stage = "withered";
+  } else {
+    crop.stage = determineCropStage(crop.effectiveGrowthMinutes, cropDef.baseGrowthMinutes, cropDef.regrows);
+  }
   if (crop.stage === "withered" && typeof crop.health === "number") crop.health = 0;
   return crop.stage;
 }

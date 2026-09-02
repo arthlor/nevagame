@@ -10,6 +10,12 @@ export class FishingRodBend {
   private readonly point = new THREE.Vector3();
   private readonly bentTip = new THREE.Vector3();
   private readonly inverseRoot = new THREE.Matrix4();
+  private readonly aimDirection = new THREE.Vector3();
+  private readonly aimLocalDirection = new THREE.Vector3();
+  private readonly aimParentQuaternion = new THREE.Quaternion();
+  private readonly aimTargetQuaternion = new THREE.Quaternion();
+  private readonly aimQuaternion = new THREE.Quaternion();
+  private aimInitialized = false;
   private readonly length: number;
   private lastBend = -1;
   private readonly reelCenter = new THREE.Vector3();
@@ -23,16 +29,19 @@ export class FishingRodBend {
 
   constructor(private readonly root: THREE.Group) {
     root.updateWorldMatrix(true, true);
-    const foregrip = root.getObjectByName("rod_foregrip");
-    const tiptop = root.getObjectByName("rod_guide_tiptop") ?? root.getObjectByName("rod_tiptop_sleeve");
+    const foregrip = root.getObjectByName("rod_primary_grip") ?? root.getObjectByName("rod_foregrip");
+    const tiptop = root.getObjectByName("rod_line_exit")
+      ?? root.getObjectByName("rod_guide_tiptop")
+      ?? root.getObjectByName("rod_tiptop_sleeve");
     if (!foregrip || !tiptop) throw new Error("Fishing rod is missing its authored grip/tip nodes");
-    root.worldToLocal(new THREE.Box3().setFromObject(foregrip).getCenter(this.base));
-    root.worldToLocal(new THREE.Box3().setFromObject(tiptop).getCenter(this.tip));
+    this.nodeCenterInRoot(foregrip, this.base);
+    this.nodeCenterInRoot(tiptop, this.tip);
     const spool = root.getObjectByName("rod_reel_spool");
-    const handle = root.getObjectByName("rod_reel_handle_knob");
+    const handle = root.getObjectByName("rod_secondary_grip")
+      ?? root.getObjectByName("rod_reel_handle_knob");
     if (!spool || !handle) throw new Error("Fishing rod is missing its reel/handle nodes");
-    root.worldToLocal(new THREE.Box3().setFromObject(spool).getCenter(this.reelCenter));
-    root.worldToLocal(new THREE.Box3().setFromObject(handle).getCenter(this.handle));
+    this.nodeCenterInRoot(spool, this.reelCenter);
+    this.nodeCenterInRoot(handle, this.handle);
     this.axis.subVectors(this.tip, this.base);
     this.length = this.axis.length();
     this.axis.normalize();
@@ -51,6 +60,60 @@ export class FishingRodBend {
         reel: ["rod_reel_spool", "rod_reel_line_coil", "rod_reel_crank_arm", "rod_reel_handle_knob"].includes(node.name) });
     });
     this.bentTip.copy(this.tip);
+    this.aimQuaternion.copy(root.quaternion);
+  }
+
+  /** Keeps the blank pointed into the live pull without inheriting camera motion. */
+  public aimToward(endpoint: THREE.Vector3, deltaSeconds: number): void {
+    this.root.updateWorldMatrix(true, false);
+    this.root.localToWorld(this.aimDirection.copy(this.base));
+    this.aimDirection.subVectors(endpoint, this.aimDirection);
+    if (this.aimDirection.lengthSq() < 0.0001) return;
+    this.aimDirection.normalize();
+    if (this.root.parent) {
+      this.root.parent.getWorldQuaternion(this.aimParentQuaternion).invert();
+      this.aimLocalDirection.copy(this.aimDirection).applyQuaternion(this.aimParentQuaternion).normalize();
+    } else {
+      this.aimLocalDirection.copy(this.aimDirection);
+    }
+    this.aimTargetQuaternion.setFromUnitVectors(this.axis, this.aimLocalDirection);
+    if (!this.aimInitialized) {
+      this.aimQuaternion.copy(this.aimTargetQuaternion);
+      this.aimInitialized = true;
+    } else {
+      this.aimQuaternion.slerp(
+        this.aimTargetQuaternion,
+        1 - Math.exp(-THREE.MathUtils.clamp(deltaSeconds, 0, 0.1) * 10)
+      );
+    }
+    this.root.quaternion.copy(this.aimQuaternion);
+    this.root.updateWorldMatrix(true, false);
+  }
+
+  public resetAim(baseQuaternion: THREE.Quaternion): void {
+    this.aimInitialized = false;
+    this.aimQuaternion.copy(baseQuaternion);
+    this.root.quaternion.copy(baseQuaternion);
+  }
+
+  /** Restores the authored straight blank and clears every spring/reel accumulator. */
+  public resetDynamics(): void {
+    this.bendValue = 0;
+    this.bendVelocity = 0;
+    this.reelAngle = 0;
+    this.lastElapsed = 0;
+    this.lastBend = 0;
+    this.reelRotation.identity();
+    this.bentTip.copy(this.tip);
+    for (const part of this.parts) {
+      const position = part.mesh.geometry.getAttribute("position");
+      for (let index = 0; index < position.count; index++) {
+        this.point.fromArray(part.points, index * 3).applyMatrix4(part.toLocal);
+        position.setXYZ(index, this.point.x, this.point.y, this.point.z);
+      }
+      position.needsUpdate = true;
+      part.mesh.geometry.computeVertexNormals();
+    }
   }
 
   public update(
@@ -105,6 +168,12 @@ export class FishingRodBend {
 
   public getTipWorld(target: THREE.Vector3): THREE.Vector3 {
     return this.root.localToWorld(target.copy(this.bentTip));
+  }
+
+  private nodeCenterInRoot(node: THREE.Object3D, target: THREE.Vector3): THREE.Vector3 {
+    if (node instanceof THREE.Mesh) new THREE.Box3().setFromObject(node).getCenter(target);
+    else node.getWorldPosition(target);
+    return this.root.worldToLocal(target);
   }
 
   private rotateReelPoint(point: THREE.Vector3): THREE.Vector3 {

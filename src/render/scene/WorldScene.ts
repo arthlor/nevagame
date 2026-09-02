@@ -26,6 +26,7 @@ import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { CultivatedSurfaceMaterial } from "../materials/CultivatedSurfaceMaterial";
 import { RoadSurfaceMaterial } from "../materials/RoadSurfaceMaterial";
+import { vegetationInstanceTintMaterial } from "../materials/VegetationTintMaterial";
 import {
   isTerrainDebugMode,
   TerrainSurfaceMaterial
@@ -51,12 +52,12 @@ import {
 } from "../../world/WorldLayout";
 import {
   STARTER_FARM_LAYOUT,
+  SUNREACH_FARM_LAYOUT,
   farmLocalToWorld,
   starterStructureAnchor
 } from "../../world/FarmLayout";
 import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
 import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING } from "../../world/WorldAnchors";
-import { isWithinVegetationCastRange } from "./vegetationShadowRange";
 import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
 import {
   ARCHITECTURE_PLACEMENT_TO_PAD,
@@ -88,16 +89,58 @@ import {
   HumanoidAnimator,
   isPlayerRigObjectName,
   type BoatAnimationInput,
+  type CharacterAnimationContext,
   type CharacterAnimationEvent,
   type PlayerAnimation
 } from "../animation/AnimationController";
+import {
+  attachPreservingWorld,
+  attachmentClip,
+  attachmentSideFromLocalX,
+  sampleAttachmentCurve
+} from "../animation/PlayerAttachmentTransition";
 import {
   stationaryPlayerMotion,
   type PresentedPlayerFrame
 } from "../presentation/PlayerPresentationBuffer";
 import { resolveMountPresentationPose } from "../presentation/MountPresentation";
 import { LightingRig } from "../lighting/LightingRig";
-import { RendererPipeline } from "../pipeline/RendererPipeline";
+import {
+  RendererPipeline,
+  type CaptureRenderMode,
+  type RendererPipelineDiagnostics
+} from "../pipeline/RendererPipeline";
+import {
+  createWorldDiagnosticOverlay,
+  type WorldFieldOverlay
+} from "./WorldDiagnosticOverlay";
+
+export interface WorldRenderDiagnostics {
+  meshes: number;
+  batched: number;
+  instances: number;
+  casters: number;
+  receivers: number;
+  casterNames: readonly string[];
+  /** Top scene subtrees by triangle count, largest first. */
+  trianglesByGroup: ReadonlyArray<{ group: string; triangles: number }>;
+  lights: readonly Record<string, unknown>[];
+  fog: Record<string, unknown> | null;
+  shadowMap: {
+    enabled: boolean;
+    type: number;
+    autoUpdate: boolean;
+  };
+  exposure: number;
+  qualityTier: QualityTier;
+  render: {
+    calls: number;
+    triangles: number;
+    programs: number;
+  };
+  pipeline: RendererPipelineDiagnostics;
+  fieldOverlay: WorldFieldOverlay | null;
+}
 import { ShoreFoam } from "../water/ShoreFoam";
 
 import { BoatWakePool } from "../water/BoatWakePool";
@@ -120,11 +163,12 @@ import {
 import { NPC_STATION_BEATS, sampleNpcStationBeat } from "./npcStationBeat";
 import { buildStarterFarmGround } from "./StarterFarmGround";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { fishSchoolAsset, fishSpeciesAsset } from "./FishSchoolAssets";
+import { fishSchoolMemberAssets, fishSpeciesAsset } from "./FishSchoolAssets";
 
 
 
 import { FarmVfxPool, type FarmVfxKind, type FarmVfxPoint } from "../effects/FarmVfxPool";
+import { FireflyField, fireflyNightVisibility } from "../effects/FireflyField";
 import { RainField } from "../weather/RainField";
 import type { WaterConditions } from "../water/WaterSurface";
 import {
@@ -135,6 +179,7 @@ import {
 import {
   createSportFishingPresentationSample,
   sampleSportFishingPresentation,
+  type SportFishingEndCue,
   type SportFishingPresentationSample
 } from "../fishing/FishingPresentation";
 import { FishingRodBend } from "../fishing/FishingRodBend";
@@ -191,6 +236,20 @@ const CHARACTER_DETAIL_NODE_PATTERNS = [
 
 function isCharacterDetailNode(name: string): boolean {
   return CHARACTER_DETAIL_NODE_PATTERNS.some((pattern) => pattern.test(name));
+}
+
+// NPC station beats are presentation-only, but they still need to use the
+// same support envelope that the humanoid grounding pass can represent.
+const NPC_MAX_GROUND_SLOPE_NORMAL_Y = Math.cos(THREE.MathUtils.degToRad(38));
+
+function isValidNpcPresentationGround(
+  x: number,
+  z: number,
+  surface: ReturnType<typeof WorldLayout.traversalSurfaceSample>
+): boolean {
+  return WorldLayout.isWalkable(x, z)
+    && !WorldLayout.isWater(x, z)
+    && surface.normal.y >= NPC_MAX_GROUND_SLOPE_NORMAL_Y;
 }
 
 function npcPresentationMotion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample {
@@ -262,19 +321,19 @@ interface PropAttachmentConfig {
 }
 
 interface RowboatOarAttachment {
+  side: "left" | "right";
+  pivot: THREE.Group;
   root: THREE.Object3D;
-  originalParent: THREE.Object3D;
-  originalPosition: THREE.Vector3;
-  originalQuaternion: THREE.Quaternion;
-  originalScale: THREE.Vector3;
-  handSocketName: "char_player_hand_socket_left" | "char_player_hand_socket_right";
+  grip: THREE.Object3D;
+  restPivotQuaternion: THREE.Quaternion;
 }
 
 interface RowboatPresentationRig {
   boatRoot: THREE.Group;
   rowerSeat: THREE.Object3D;
+  footLeftSupport: THREE.Object3D;
+  footRightSupport: THREE.Object3D;
   oars: readonly RowboatOarAttachment[];
-  held: boolean;
 }
 
 interface BoatBuoyancyPresentationState {
@@ -309,18 +368,15 @@ interface FaunaPresentation {
   lastMotionUpdateSeconds: number;
 }
 
-type DonkeyAnimationClip = "idle" | "graze" | "look" | "walk" | "trot" | "mount" | "dismount";
-
-// char_player_a's rest pelvis origin is 0.626 m above its GLTF root. The
-// donkey rider socket is authored at the saddle, so this keeps the pelvis at
-// the socket instead of leaving the rider hovering above it.
-const DONKEY_RIDER_ROOT_OFFSET_Y = -0.626;
+type DonkeyAnimationClip = "idle" | "graze" | "look" | "walk" | "trot" | "gallop" | "mount" | "dismount";
 
 interface DonkeyPresentation {
   id: string;
   placementId: string;
   root: THREE.Group;
   riderSocket: THREE.Object3D;
+  stirrupLeftSocket: THREE.Object3D;
+  stirrupRightSocket: THREE.Object3D;
   mixer: THREE.AnimationMixer | null;
   actions: Map<DonkeyAnimationClip, THREE.AnimationAction>;
   activeClip: DonkeyAnimationClip | null;
@@ -328,6 +384,20 @@ interface DonkeyPresentation {
   originalPlayerParent: THREE.Object3D | null;
   transitionUntilSeconds: number;
   lastAnimationUpdateSeconds: number;
+}
+
+type PlayerAttachmentAction = "board" | "dock" | "mount" | "dismount";
+
+interface PlayerAttachmentTransition {
+  action: PlayerAttachmentAction;
+  targetId: string;
+  clip: PlayerAnimation | null;
+  startedAtSeconds: number;
+  durationSeconds: number;
+  sourcePosition: THREE.Vector3;
+  sourceQuaternion: THREE.Quaternion;
+  sourceScale: THREE.Vector3;
+  detachedAtContact: boolean;
 }
 
 interface AmbientFlyerPresentation {
@@ -365,6 +435,7 @@ export interface SportFishingCameraHint {
   lookHint: { x: number; y: number; z: number };
   fightReachMeters: number;
   lineTension: number;
+  lineLoadRatio: number;
   snapTimerSeconds: number;
   fightBehavior: FishingEncounterState["behavior"];
   behaviorPhase: SportFishingPresentationSample["behaviorPhase"];
@@ -373,8 +444,8 @@ export interface SportFishingCameraHint {
   fishStaminaRatio: number;
   /** Physics head-shake amplitude, 0..1 — a continuous low camera rumble. */
   shakeAmplitude: number;
-  /** One-frame cinematic trigger: the fight just started or just landed. */
-  cameraEvent: "hooked" | "landed" | null;
+  /** Transient outcome bridge; it is never simulation or save state. */
+  cameraEvent: "hooked" | SportFishingEndCue | null;
 }
 
 function boatBuoyancyFootprint(boatTypeId: string): { halfLength: number; halfBeam: number } {
@@ -399,6 +470,9 @@ const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "rod", assetId: ASSET_IDS.TOOL_FISHING_ROD_A, socket: "char_player_tool_socket", scale: 0.85 }
 ] as const;
 
+const SKY_DOME_RADIUS = 650;
+const CELESTIAL_DISC_DISTANCE = SKY_DOME_RADIUS - 10;
+
 function createCelestialDiscTexture(size = 64): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y += 1) {
@@ -415,11 +489,56 @@ function createCelestialDiscTexture(size = 64): THREE.DataTexture {
     }
   }
   const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;
   texture.needsUpdate = true;
   return texture;
+}
+
+function createCelestialDiscMaterial(
+  map: THREE.DataTexture,
+  color: THREE.ColorRepresentation,
+  opacity: number
+): THREE.SpriteMaterial {
+  return new THREE.SpriteMaterial({
+    map,
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending
+  });
+}
+
+/** Fallback yield when rAF is unavailable or throttled (hidden tab). */
+const YIELD_FALLBACK_MS = 32;
+
+/**
+ * Yields to the browser between heavy world-build steps so the loading screen
+ * can paint.
+ *
+ * Races `requestAnimationFrame` against a timer. rAF alone is not safe here:
+ * it does not fire in a hidden or backgrounded tab, so a boot that awaits it
+ * never resolves — no error, no timeout, main thread responsive, loading
+ * screen frozen forever. The timer guarantees forward progress; in a visible
+ * tab rAF wins the race and the yield behaves exactly as before.
+ */
+function yieldToBrowser(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(settle);
+    setTimeout(settle, YIELD_FALLBACK_MS);
+  });
 }
 
 export class WorldScene {
@@ -434,10 +553,13 @@ export class WorldScene {
   private readonly shoreFoam: ShoreFoam;
   private readonly boatWakes: BoatWakePool;
   private readonly farmVfx: FarmVfxPool;
+  private readonly fireflyField: FireflyField;
   private readonly rainField: RainField;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
   private readonly roadSurfaceMaterial = new RoadSurfaceMaterial();
   private readonly cultivatedSurfaceMaterial = new CultivatedSurfaceMaterial();
+  private diagnosticOverlay: THREE.Group | null = null;
+  private diagnosticOverlayMode: WorldFieldOverlay | null = null;
 
   private playerMesh: THREE.Group | null = null;
   private boatMeshes: Map<string, THREE.Group> = new Map();
@@ -448,6 +570,9 @@ export class WorldScene {
   private environmentGroup: THREE.Group = new THREE.Group();
   private staticPrefabGroup: THREE.Group = new THREE.Group();
   private playerAnimation: HumanoidAnimator | null = null;
+  private playerPelvisRestOffsetY = 0;
+  private playerAttachmentTransition: PlayerAttachmentTransition | null = null;
+  private lastPlayerDiscontinuitySequence = -1;
   private readonly farmingProps = new Map<string, THREE.Group>();
   private farmingPropsAttached = false;
   private cosmeticCropCarryUntilSeconds = 0;
@@ -465,6 +590,7 @@ export class WorldScene {
   private lastPresentationTime = 0;
   private prefersReducedMotion: boolean = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   private skyMaterial: THREE.ShaderMaterial | null = null;
+  private skyDome: THREE.Mesh | null = null;
   private sunDisc: THREE.Sprite | null = null;
   private moonDisc: THREE.Sprite | null = null;
   private starField: THREE.Points | null = null;
@@ -494,9 +620,12 @@ export class WorldScene {
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
   private readonly boatDriverSeats = new Map<string, THREE.Object3D>();
+  private readonly boatFishingStations = new Map<string, THREE.Object3D>();
   private readonly boatBuoyancyState = new Map<string, BoatBuoyancyPresentationState>();
+  private sportFishingBodyYaw = 0;
+  private sportFishingBodyYawInstanceId: string | null = null;
   private latestBoatPresentationInput: BoatPresentationInput | null = null;
-  private terrainMesh: THREE.Mesh | null = null;
+  private readonly terrainMeshes: THREE.Mesh[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly layoutEditRoots: THREE.Object3D[] = [];
   private layoutEditHelper: THREE.BoxHelper | null = null;
@@ -546,8 +675,13 @@ export class WorldScene {
   private fishingBobberGroup: THREE.Group = new THREE.Group();
   private fishingBobberBody: THREE.Group = new THREE.Group();
   private fishingLineMesh: Line2 | null = null;
+  private fishingSubmergedLineMesh: Line2 | null = null;
+  private readonly fishingLinePathPositions = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
+  private readonly fishingLineWaterOffsets = new Float32Array(FISHING_LINE_SEGMENTS + 1);
   private readonly fishingLinePositions = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
   private readonly fishingLineColors = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
+  private readonly fishingSubmergedLinePositions = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
+  private readonly fishingSubmergedLineColors = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
   private readonly fishWaterTint = new THREE.Color(PALETTE_HEX.water_deep_01);
   private fishingRodBend: FishingRodBend | null = null;
   private readonly fishingMouthLocal = new THREE.Vector3();
@@ -563,8 +697,9 @@ export class WorldScene {
   private readonly sportFishingPresentation: SportFishingPresentationSample =
     createSportFishingPresentationSample();
   private sportFishingCameraHint: SportFishingCameraHint | null = null;
-  /** Keeps a "landed" camera hint alive briefly after the fight state clears. */
+  /** Keeps an explicit terminal outcome hint alive briefly after fight state clears. */
   private sportFishEndBeatSeconds = 0;
+  private sportFishEndCue: SportFishingEndCue | null = null;
   private readonly sportFishEndLook = new THREE.Vector3();
   private lastSportFishingSplashAtSeconds = Number.NEGATIVE_INFINITY;
   private lastRodTipSprayAtSeconds = Number.NEGATIVE_INFINITY;
@@ -575,6 +710,21 @@ export class WorldScene {
   private lastHookedFishUpdateSeconds = 0;
   private readonly tempRodTipVec = new THREE.Vector3();
   private readonly tempBoatSeatVec = new THREE.Vector3();
+  private readonly playerAttachmentTargetPosition = new THREE.Vector3();
+  private readonly playerAttachmentTargetQuaternion = new THREE.Quaternion();
+  private readonly playerAttachmentTargetScale = new THREE.Vector3(1, 1, 1);
+  private readonly playerAttachmentBlendPosition = new THREE.Vector3();
+  private readonly playerAttachmentBlendQuaternion = new THREE.Quaternion();
+  private readonly mountedLeftFootTarget = new THREE.Vector3();
+  private readonly mountedRightFootTarget = new THREE.Vector3();
+  private readonly playerAttachmentWorldMatrix = new THREE.Matrix4();
+  private readonly playerAttachmentLocalMatrix = new THREE.Matrix4();
+  private readonly playerAttachmentParentInverse = new THREE.Matrix4();
+  private readonly playerAttachmentEuler = new THREE.Euler();
+  private readonly tempOarGripVec = new THREE.Vector3();
+  private readonly tempOarEuler = new THREE.Euler();
+  private readonly tempOarQuaternion = new THREE.Quaternion();
+  private readonly tempOarDeltaQuaternion = new THREE.Quaternion();
   private readonly npcPresentations = new Map<string, NpcPresentation>();
   private activeDialogueNpcId: string | null = null;
   private readonly weatherMotion: WeatherMotionSignal = createWeatherMotionSignal();
@@ -628,13 +778,15 @@ export class WorldScene {
     // 2. Sky and faceted animated water
     this.buildSky();
     this.water = new FacetedWater(WATER_SURFACE);
-    this.scene.add(this.water.mesh);
+    this.scene.add(this.water.group);
     this.shoreFoam = new ShoreFoam();
     this.scene.add(this.shoreFoam.mesh);
     this.boatWakes = new BoatWakePool();
     this.scene.add(this.boatWakes.group);
     this.farmVfx = new FarmVfxPool();
     this.scene.add(this.farmVfx.group);
+    this.fireflyField = new FireflyField(CANONICAL_RENDER_CONFIG.qualityTier);
+    this.scene.add(this.fireflyField.group);
     this.rainField = new RainField(CANONICAL_RENDER_CONFIG.qualityTier);
     this.scene.add(this.rainField.group);
 
@@ -663,12 +815,12 @@ export class WorldScene {
       this.roadSurfaceMaterial.loadExternalTextures()
     ]);
     this.buildWorldTerrain();
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await yieldToBrowser();
     this.buildPlacementPreview();
     this.buildStarterFarmDetails();
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await yieldToBrowser();
     this.buildRouteDetails();
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await yieldToBrowser();
     this.buildFishingPresentation();
   }
 
@@ -733,7 +885,7 @@ export class WorldScene {
   public rebuildStaticCollisionProxies(): readonly StaticCollisionProxy[] {
     this.staticPrefabGroup.updateMatrixWorld(true);
     const roots = this.staticPrefabGroup.children.filter(
-      (child) => child.name !== "static_shadow_silhouette_proxy" && Boolean(child.userData.assetId)
+      (child) => Boolean(child.userData.assetId)
     );
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(roots);
     return this.staticCollisionProxyList;
@@ -756,7 +908,7 @@ export class WorldScene {
   }
 
   private buildSky(): void {
-    const skyGeometry = new THREE.SphereGeometry(650, 28, 14);
+    const skyGeometry = new THREE.SphereGeometry(SKY_DOME_RADIUS, 28, 14);
     this.skyMaterial = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
@@ -782,38 +934,39 @@ export class WorldScene {
           // a narrow band around the geometric horizon rather than the dome apex.
           float height = smoothstep(-0.16, 0.10, vWorldDirection.y);
           vec3 color = mix(horizonColor, topColor, height);
+          // A single two-stop ramp reads as a painted backdrop. A compressed
+          // haze band just above the waterline, plus a slightly cooler zenith,
+          // gives the dome the depth cue the fog is already producing on land.
+          float haze = 1.0 - smoothstep(-0.06, 0.34, vWorldDirection.y);
+          color = mix(color, horizonColor, haze * haze * 0.5);
+          float zenith = smoothstep(0.18, 0.9, vWorldDirection.y);
+          color *= mix(1.0, 0.93, zenith);
           gl_FragColor = vec4(color, 1.0);
         }
       `
     });
     const skyMesh = new THREE.Mesh(skyGeometry, this.skyMaterial);
     skyMesh.name = "world_sky_dome";
+    skyMesh.frustumCulled = false;
+    this.skyDome = skyMesh;
     this.scene.add(skyMesh);
     const celestialDiscTexture = createCelestialDiscTexture();
-    const sunMaterial = new THREE.SpriteMaterial({
-      map: celestialDiscTexture,
-      color: PALETTE_HEX.emissive_window_01,
-      transparent: true,
-      opacity: 0.56,
-      depthWrite: false,
-      fog: false
-    });
-    this.sunDisc = new THREE.Sprite(sunMaterial);
+    this.sunDisc = new THREE.Sprite(createCelestialDiscMaterial(
+      celestialDiscTexture,
+      PALETTE_HEX.emissive_window_01,
+      0.56
+    ));
     this.sunDisc.scale.set(40, 40, 1);
-    this.sunDisc.renderOrder = -1;
+    this.sunDisc.renderOrder = 1;
     this.scene.add(this.sunDisc);
 
-    const moonMaterial = new THREE.SpriteMaterial({
-      map: celestialDiscTexture,
-      color: CANONICAL_RENDER_CONFIG.moon.colorHex,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      fog: false
-    });
-    this.moonDisc = new THREE.Sprite(moonMaterial);
+    this.moonDisc = new THREE.Sprite(createCelestialDiscMaterial(
+      celestialDiscTexture,
+      CANONICAL_RENDER_CONFIG.moon.colorHex,
+      0
+    ));
     this.moonDisc.scale.setScalar(CANONICAL_RENDER_CONFIG.moon.discSize);
-    this.moonDisc.renderOrder = -1;
+    this.moonDisc.renderOrder = 1;
     this.scene.add(this.moonDisc);
 
     const starPositions = new Float32Array(CANONICAL_RENDER_CONFIG.stars.count * 3);
@@ -835,10 +988,13 @@ export class WorldScene {
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      fog: false
+      depthTest: false,
+      fog: false,
+      toneMapped: false,
+      blending: THREE.AdditiveBlending
     });
     this.starField = new THREE.Points(starGeometry, starMaterial);
-    this.starField.renderOrder = -2;
+    this.starField.renderOrder = 1;
     this.scene.add(this.starField);
   }
 
@@ -854,15 +1010,52 @@ export class WorldScene {
 
   /** Builds the selectively smoothed terrain and its shared physical-road surface. */
   private buildWorldTerrain(): void {
-    const layoutGeometry = WorldLayout.buildTerrainGeometry();
-    const layoutTerrain = new THREE.Mesh(
-      layoutGeometry,
-      this.terrainSurfaceMaterial.material
-    );
-    layoutTerrain.receiveShadow = true;
-    layoutTerrain.name = "world_terrain";
-    this.terrainMesh = layoutTerrain;
-    this.environmentGroup.add(layoutTerrain);
+    for (const patch of WorldLayout.terrainPatches()) {
+      const layoutGeometry = WorldLayout.buildTerrainGeometry(patch.id);
+      const layoutTerrain = new THREE.Mesh(
+        layoutGeometry,
+        this.terrainSurfaceMaterial.material
+      );
+      layoutTerrain.position.set(patch.center.x, 0, patch.center.z);
+      layoutTerrain.receiveShadow = true;
+      layoutTerrain.frustumCulled = true;
+      layoutTerrain.name = patch.islandId === "island.neva"
+        ? "world_terrain"
+        : `world_terrain_${patch.islandId.slice("island.".length)}`;
+      layoutTerrain.userData.islandId = patch.islandId;
+      layoutTerrain.userData.terrainPatchId = patch.id;
+      this.terrainMeshes.push(layoutTerrain);
+      this.environmentGroup.add(layoutTerrain);
+
+      const half = patch.sizeMeters * 0.5;
+      const outerHalf = half + patch.submergedApronMeters;
+      const apronShape = new THREE.Shape([
+        new THREE.Vector2(-outerHalf, -outerHalf),
+        new THREE.Vector2(outerHalf, -outerHalf),
+        new THREE.Vector2(outerHalf, outerHalf),
+        new THREE.Vector2(-outerHalf, outerHalf)
+      ]);
+      const inner = new THREE.Path([
+        new THREE.Vector2(-half, -half),
+        new THREE.Vector2(-half, half),
+        new THREE.Vector2(half, half),
+        new THREE.Vector2(half, -half)
+      ]);
+      apronShape.holes.push(inner);
+      const apronGeometry = new THREE.ShapeGeometry(apronShape);
+      apronGeometry.rotateX(-Math.PI / 2);
+      const apron = new THREE.Mesh(
+        apronGeometry,
+        PaletteMaterials.standard("rock_coastal_dark_01", { roughness: 1, flatShading: true })
+      );
+      apron.position.set(patch.center.x, -7.5, patch.center.z);
+      apron.name = `submerged_apron_${patch.islandId.slice("island.".length)}`;
+      apron.receiveShadow = false;
+      apron.castShadow = false;
+      apron.userData.islandId = patch.islandId;
+      apron.userData.presentationOnly = true;
+      this.environmentGroup.add(apron);
+    }
 
     // High-resolution path ribbon — paints the packed core and shoulder at
     // 17-strip transverse resolution. A narrow alpha-tested polygon edge owns
@@ -1098,7 +1291,9 @@ export class WorldScene {
   }
 
   public setInteractionTargetFeedback(position: { x: number; y: number; z: number } | null): void {
-    if (!position) {
+    // The mounted donkey remains the active Dismount target so the prompt can
+    // stay visible, but its ground ring is redundant beneath the rider.
+    if (!position || Boolean(this.donkeyPresentation?.attachedMountId)) {
       this.interactionFeedback.visible = false;
       return;
     }
@@ -1117,16 +1312,114 @@ export class WorldScene {
 
 
   public getTerrainMesh(): THREE.Mesh | null {
-    return this.terrainMesh;
+    return this.terrainMeshes[0] ?? null;
+  }
+
+  public getTerrainMeshes(): readonly THREE.Mesh[] {
+    return this.terrainMeshes;
+  }
+
+  /**
+   * DEV-only snapshot of the live shadow/fog/draw state. Graphics work needs a
+   * way to confirm what the renderer actually does rather than what the
+   * configuration says it should do.
+   */
+  public renderDiagnostics(): WorldRenderDiagnostics {
+    let meshes = 0;
+    let batched = 0;
+    let instances = 0;
+    let casters = 0;
+    let receivers = 0;
+    const casterNames: string[] = [];
+    // Triangles attributed to the scene subtree they hang from. A render
+    // budget is unactionable without knowing which layer spends it — this is
+    // the difference between "1.5M triangles" and "ground cover is 60% of it".
+    const trianglesByGroup = new Map<string, number>();
+    const groupOf = (object: THREE.Object3D): string => {
+      let node: THREE.Object3D | null = object;
+      let label = object.name || object.type;
+      while (node && node.parent && node.parent !== this.scene) {
+        node = node.parent;
+        if (node.name) label = node.name;
+      }
+      return node?.name || label;
+    };
+    this.scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.BatchedMesh)) return;
+      meshes += 1;
+      if (object instanceof THREE.BatchedMesh) batched += 1;
+      if (object instanceof THREE.InstancedMesh) instances += object.count;
+      const geometry = (object as THREE.Mesh).geometry;
+      if (geometry) {
+        const indexed = geometry.index?.count ?? geometry.attributes?.position?.count ?? 0;
+        let triangles = indexed / 3;
+        if (object instanceof THREE.InstancedMesh) triangles *= object.count;
+        const key = groupOf(object);
+        trianglesByGroup.set(key, (trianglesByGroup.get(key) ?? 0) + triangles);
+      }
+      if (object.castShadow) {
+        casters += 1;
+        if (casterNames.length < 24) casterNames.push(object.name || object.type);
+      }
+      if (object.receiveShadow) receivers += 1;
+    });
+    const lights: Array<Record<string, unknown>> = [];
+    this.scene.traverse((object) => {
+      if (!(object instanceof THREE.Light)) return;
+      if (object.intensity <= 0 && !object.castShadow) return;
+      const shadow = (object as THREE.DirectionalLight).shadow;
+      lights.push({
+        type: object.type,
+        name: object.name,
+        intensity: Number(object.intensity.toFixed(3)),
+        castShadow: object.castShadow,
+        mapSize: shadow ? [shadow.mapSize.x, shadow.mapSize.y] : null,
+        hasMap: Boolean(shadow?.map),
+        position: object.position.toArray().map((value) => Number(value.toFixed(2)))
+      });
+    });
+    const fog = this.scene.fog;
+    return {
+      meshes,
+      batched,
+      instances,
+      casters,
+      receivers,
+      casterNames,
+      trianglesByGroup: [...trianglesByGroup.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([group, triangles]) => ({ group, triangles: Math.round(triangles) })),
+      lights: lights.slice(0, 12),
+      fog: fog instanceof THREE.Fog
+        ? { near: fog.near, far: fog.far, color: fog.color.getHexString() }
+        : fog
+          ? { type: "other" }
+          : null,
+      shadowMap: {
+        enabled: this.renderer.shadowMap.enabled,
+        type: this.renderer.shadowMap.type,
+        autoUpdate: this.renderer.shadowMap.autoUpdate
+      },
+      exposure: this.renderer.toneMappingExposure,
+      qualityTier: this.qualityTier,
+      render: {
+        calls: this.renderer.info.render.calls,
+        triangles: this.renderer.info.render.triangles,
+        programs: this.renderer.info.programs?.length ?? 0
+      },
+      pipeline: this.rendererPipeline.diagnostics(),
+      fieldOverlay: this.diagnosticOverlayMode
+    };
   }
 
   public raycastTerrain(
     camera: THREE.Camera,
     pointerNdc: { x: number; y: number }
   ): { x: number; y: number; z: number } | null {
-    if (!this.terrainMesh) return null;
+    if (this.terrainMeshes.length === 0) return null;
     this.raycaster.setFromCamera(new THREE.Vector2(pointerNdc.x, pointerNdc.y), camera);
-    const hit = this.raycaster.intersectObject(this.terrainMesh, false)[0];
+    const hit = this.raycaster.intersectObjects(this.terrainMeshes, false)[0];
     return hit ? { x: hit.point.x, y: hit.point.y, z: hit.point.z } : null;
   }
 
@@ -1176,7 +1469,7 @@ export class WorldScene {
   public relocateNpcPresentation(id: string, x: number, z: number, rotationY: number): void {
     const npc = this.npcPresentations.get(id);
     if (!npc) return;
-    const y = WorldLayout.terrainHeight(x, z);
+    const y = WorldLayout.traversalSurfaceHeight(x, z);
     npc.anchor = { x, z, rotationY };
     npc.initialRotationY = rotationY;
     npc.model.position.set(x, y, z);
@@ -1368,6 +1661,14 @@ export class WorldScene {
       heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ),
       surfaceMaterial: this.cultivatedSurfaceMaterial.material
     }));
+    for (const terrace of SUNREACH_FARM_LAYOUT.plantableAreas) {
+      this.environmentGroup.add(buildStarterFarmGround({
+        origin: SUNREACH_FARM_LAYOUT.origin,
+        plantableArea: terrace,
+        heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ),
+        surfaceMaterial: this.cultivatedSurfaceMaterial.material
+      }));
+    }
   }
 
   private buildRouteDetails(): void {
@@ -1549,32 +1850,9 @@ export class WorldScene {
   private setShadowPolicy(root: THREE.Object3D, castShadow: boolean): void {
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      if (object.name === "character_shadow_proxy") return;
       object.castShadow = castShadow;
       object.receiveShadow = true;
     });
-  }
-
-  private attachCharacterShadowProxy(root: THREE.Object3D): void {
-    if (root.getObjectByName("character_shadow_proxy")) return;
-    root.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(root);
-    const measuredHeight = bounds.max.y - bounds.min.y;
-    const height = Number.isFinite(measuredHeight) && measuredHeight > 0.8 ? measuredHeight : 1.96;
-    const radius = 0.28;
-    const cylinderHeight = Math.max(0.24, height - radius * 2);
-    const geometry = new THREE.CapsuleGeometry(radius, cylinderHeight, 2, 8);
-    const material = new THREE.MeshBasicMaterial({
-      colorWrite: false,
-      depthWrite: false
-    });
-    const proxy = new THREE.Mesh(geometry, material);
-    proxy.name = "character_shadow_proxy";
-    proxy.castShadow = true;
-    proxy.receiveShadow = false;
-    proxy.position.y = height * 0.5;
-    proxy.frustumCulled = true;
-    root.add(proxy);
   }
 
   private attachPracticalLights(root: THREE.Object3D, fallbackIfMissing = false): void {
@@ -1815,6 +2093,7 @@ export class WorldScene {
       object.scale.set(placement.scale[0], placement.scale[1], placement.scale[2]);
       object.userData.environmentPlacementId = placement.id;
       object.userData.environmentPlacementOrigin = placement.origin;
+      object.userData.islandId = placement.islandId ?? WorldLayout.islandAt(placement.x, placement.z) ?? "island.neva";
       const padId = ARCHITECTURE_PLACEMENT_TO_PAD[placement.id];
       if (padId) {
         const pad = WORLD_ARCHITECTURE_PADS.find((candidate) => candidate.id === padId);
@@ -1842,7 +2121,7 @@ export class WorldScene {
       });
       placementIndex += 1;
       if (placementIndex % 80 === 0) {
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await yieldToBrowser();
       }
     }
     this.rebuildLayoutGroundingPatches();
@@ -1880,6 +2159,7 @@ export class WorldScene {
     const staticAssetRoots = spawnedRoots.filter((child) => !child.userData.dynamicPresentation);
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(staticAssetRoots);
     for (const root of spawnedRoots) this.applyStaticShadowPolicy(root);
+    for (const root of spawnedRoots) this.applyVegetationInstanceVariation(root);
     if (import.meta.env.DEV) {
       for (const root of spawnedRoots) this.applyLayoutEditShadowFollow(root);
     }
@@ -1892,11 +2172,7 @@ export class WorldScene {
     // Mesh merge pulls visible geometry into BatchedMesh siblings and then
     // strips LOD children, leaving layout-edit tags on empty groups. DEV
     // keeps live meshes so F2 picking/dragging can hit the object you see.
-    if (!import.meta.env.DEV) {
-      this.mergeStaticPrefabMeshes();
-      const staticShadowProxy = this.buildStaticShadowProxy(staticAssetRoots);
-      if (staticShadowProxy) this.staticPrefabGroup.add(staticShadowProxy);
-    }
+    if (!import.meta.env.DEV) this.mergeStaticPrefabMeshes();
 
     const farmhouseSmoke = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
     farmhouseSmoke.name = "farmhouse_chimney_smoke";
@@ -1933,17 +2209,12 @@ export class WorldScene {
       try {
         const assetId = npc.assetId as AssetId;
         const model = await AssetLoader.loadModel(assetId);
-        const y = WorldLayout.terrainHeight(npc.anchor.x, npc.anchor.z);
+        const y = WorldLayout.traversalSurfaceHeight(npc.anchor.x, npc.anchor.z);
         model.position.set(npc.anchor.x, y, npc.anchor.z);
         model.rotation.y = npc.anchor.rotationY;
         model.userData.dynamicPresentation = true;
         this.tagLayoutEdit(model, createNpcTag(npc.id));
-        // NPCs use the authored contact disc below for grounding. Keeping the
-        // full articulated rig out of the sun-shadow pass prevents each body
-        // facet from becoming a separate shadow draw while preserving the
-        // readable feet-to-ground cue in gameplay cameras.
-        this.setShadowPolicy(model, false);
-        this.attachCharacterShadowProxy(model);
+        this.setShadowPolicy(model, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
 
         // Ground contact shadow disc
         if (this.lightingRig.contactShadowsEnabled()) {
@@ -1978,82 +2249,18 @@ export class WorldScene {
 
 
   /**
-   * Broad architecture/tree silhouettes need one soft sun shadow, not another
-   * pass over every visible trim and facet. The proxy is presentation-only and
-   * derives entirely from catalog bounds plus the authoritative placements.
+   * Vegetation shares one palette material across every placement, so without
+   * a per-instance signal every tree in a stand renders the identical green.
+   * The variant material keeps them inside a single static batch.
    */
-  private buildStaticShadowProxy(assetRoots: readonly THREE.Object3D[]): THREE.Mesh | null {
-    this.environmentGroup.updateMatrixWorld(true);
-    const geometries: THREE.BufferGeometry[] = [];
-    const addGeometry = (
-      geometry: THREE.BufferGeometry,
-      position: THREE.Vector3,
-      scale: THREE.Vector3
-    ) => {
-      const local = new THREE.Matrix4().compose(position, new THREE.Quaternion(), scale);
-      geometry.applyMatrix4(local);
-      geometries.push(geometry);
-    };
-
-    for (const root of assetRoots) {
-      const assetId = root.userData.assetId as AssetId | undefined;
-      const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
-      if (!spec || (spec.family !== "architecture" && spec.family !== "vegetation")) continue;
-      let castsShadow = false;
-      root.traverseVisible((object) => {
-        if (object instanceof THREE.Mesh && object.castShadow) castsShadow = true;
-      });
-      if (!castsShadow) continue;
-
-      const bounds = new THREE.Box3().setFromObject(root);
-      if (bounds.isEmpty()) continue;
-      const size = bounds.getSize(new THREE.Vector3());
-      const center = bounds.getCenter(new THREE.Vector3());
-      if (spec.family === "architecture") {
-        addGeometry(
-          new THREE.BoxGeometry(1, 1, 1),
-          center,
-          new THREE.Vector3(size.x * 0.86, size.y * 0.9, size.z * 0.86)
-        );
-      } else if (assetId?.startsWith("tree_pine")) {
-        addGeometry(
-          new THREE.ConeGeometry(0.5, 1, 7, 2),
-          center,
-          new THREE.Vector3(size.x * 0.9, size.y * 0.9, size.z * 0.9)
-        );
-      } else {
-        addGeometry(
-          new THREE.SphereGeometry(0.5, 6, 4),
-          new THREE.Vector3(center.x, bounds.min.y + size.y * 0.68, center.z),
-          new THREE.Vector3(size.x * 0.94, size.y * 0.54, size.z * 0.94)
-        );
-        addGeometry(
-          new THREE.CylinderGeometry(0.58, 0.72, 1, 5),
-          new THREE.Vector3(center.x, bounds.min.y + size.y * 0.28, center.z),
-          new THREE.Vector3(size.x * 0.16, size.y * 0.56, size.z * 0.16)
-        );
-      }
-    }
-
-    if (geometries.length === 0) return null;
-    const merged = mergeGeometries(geometries, false);
-    if (!merged) {
-      for (const geometry of geometries) geometry.dispose();
-      throw new Error("[WorldScene] Could not merge static shadow proxy geometry");
-    }
-    for (const geometry of geometries) geometry.dispose();
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      colorWrite: false,
-      depthWrite: false,
-      toneMapped: false
+  private applyVegetationInstanceVariation(root: THREE.Object3D): void {
+    const assetId = root.userData.assetId as AssetId | undefined;
+    const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
+    if (spec?.family !== "vegetation") return;
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || Array.isArray(object.material)) return;
+      object.material = vegetationInstanceTintMaterial(object.material);
     });
-    const proxy = new THREE.Mesh(merged, material);
-    proxy.name = "static_shadow_silhouette_proxy";
-    proxy.castShadow = true;
-    proxy.receiveShadow = false;
-    proxy.frustumCulled = false;
-    return proxy;
   }
 
   private applyStaticShadowPolicy(root: THREE.Object3D): void {
@@ -2062,24 +2269,17 @@ export class WorldScene {
     if (!spec) return;
     if (assetId === ASSET_IDS.FAUNA_DONKEY_A) {
       // Catalog family stays "prop" for the mount contract, but the ridden
-      // donkey needs a character-scale sun silhouette instead of small-prop skip.
-      this.setShadowPolicy(root, false);
-      this.attachCharacterShadowProxy(root);
+      // donkey is a character silhouette rather than a small prop.
+      this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
       return;
     }
+    // Reeds and bushes stay out of the sun pass: at gameplay shadow-map
+    // density their silhouettes alias more than they ground the object.
     const isMinorFoliage = assetId === ASSET_IDS.FOLIAGE_BUSH_A || assetId === ASSET_IDS.FOLIAGE_REEDS_A;
-    const withinVegetationShadowRange = isWithinVegetationCastRange(
-      root.position.x,
-      root.position.z,
-      this.visibilityAnchor.x,
-      this.visibilityAnchor.z
-    );
     const castShadow = spec.family === "prop"
       ? CANONICAL_RENDER_CONFIG.shadows.castSmallProps
       : spec.family === "rock"
         ? CANONICAL_RENDER_CONFIG.shadows.castRocks
-        : spec.family === "vegetation"
-          ? !isMinorFoliage && withinVegetationShadowRange
         : spec.family === "cloud" || isMinorFoliage
           ? false
           : true;
@@ -2093,7 +2293,7 @@ export class WorldScene {
     if (!spec || spec.collision === "none") return;
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      if (object.name.startsWith("COL_") || object.name === "character_shadow_proxy") {
+      if (object.name.startsWith("COL_")) {
         object.castShadow = false;
         return;
       }
@@ -2150,10 +2350,6 @@ export class WorldScene {
       flattenedLods.push(object);
     });
     for (const lod of flattenedLods) lod.removeFromParent();
-    this.staticPrefabGroup.traverseVisible((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = false;
-    });
   }
 
   private batchCompatibleMeshes(
@@ -2233,8 +2429,11 @@ export class WorldScene {
         )
         .sort()
         .join("|");
+      const worldX = object.matrixWorld.elements[12];
+      const worldZ = object.matrixWorld.elements[14];
+      const islandBatchKey = WorldLayout.islandAt(worldX, worldZ) ?? "ocean";
       const chunkKey = trackStaticLods
-        ? `${Math.floor(object.matrixWorld.elements[12] / STATIC_BATCH_CHUNK_SIZE_METERS)}:${Math.floor(object.matrixWorld.elements[14] / STATIC_BATCH_CHUNK_SIZE_METERS)}`
+        ? `${islandBatchKey}:${Math.floor(worldX / STATIC_BATCH_CHUNK_SIZE_METERS)}:${Math.floor(worldZ / STATIC_BATCH_CHUNK_SIZE_METERS)}`
         : "unbounded";
       const signature = `${chunkKey}|${object.material.uuid}|receive:${object.receiveShadow}|indexed:${Boolean(object.geometry.index)}|${attributes}`;
       const group = compatibleGroups.get(signature) ?? {
@@ -2424,7 +2623,6 @@ export class WorldScene {
     }
     this.batchCompatibleMeshes(root, (object) => {
       if ((object as THREE.SkinnedMesh).isSkinnedMesh) return true;
-      if (object.name === "character_shadow_proxy") return true;
       let current: THREE.Object3D | null = object;
       while (current && current !== root) {
         if (isPlayerRigObjectName(current.name) || animatedNames.has(current.name)) return true;
@@ -2452,14 +2650,17 @@ export class WorldScene {
     (uniforms?.topColor?.value as THREE.Color | undefined)?.copy(frame.skyTopColor);
     (uniforms?.horizonColor?.value as THREE.Color | undefined)?.copy(frame.skyHorizonColor);
     this.scene.background = frame.skyTopColor;
+    if (this.skyDome) {
+      this.skyDome.position.copy(focus);
+    }
     if (this.sunDisc) {
-      this.sunDisc.position.copy(focus).addScaledVector(frame.sunDirection, 560);
+      this.sunDisc.position.copy(focus).addScaledVector(frame.sunDirection, CELESTIAL_DISC_DISTANCE);
       this.sunDisc.visible = frame.sunVisibility > 0.002;
       this.sunDisc.material.opacity = frame.sunVisibility * 0.62;
       this.sunDisc.material.color.copy(frame.sunColor);
     }
     if (this.moonDisc) {
-      this.moonDisc.position.copy(focus).addScaledVector(frame.moonDirection, 558);
+      this.moonDisc.position.copy(focus).addScaledVector(frame.moonDirection, CELESTIAL_DISC_DISTANCE);
       this.moonDisc.visible = frame.moonVisibility > 0.002;
       this.moonDisc.material.opacity = frame.moonVisibility * 0.78;
       this.moonDisc.material.color.copy(frame.moonColor);
@@ -2495,6 +2696,12 @@ export class WorldScene {
     this.roadSurfaceMaterial.setWetness(sharedGroundWetness);
     this.cultivatedSurfaceMaterial.setWetness(sharedGroundWetness);
     this.updateAmbientMotion(state, timeSeconds);
+    this.fireflyField.update({
+      focus,
+      timeSeconds,
+      nightVisibility: fireflyNightVisibility(frame.ambientDaylight),
+      reducedMotion: this.prefersReducedMotion
+    });
     this.rainField.update({
       focus,
       timeSeconds,
@@ -2519,9 +2726,16 @@ export class WorldScene {
    * used to draw the line and hooked fish in the current frame.
    */
   public getSportFishingPresentation(): Readonly<SportFishingPresentationSample> | undefined {
-    return this.sportFishingCameraHint && this.sportFishingCameraHint.cameraEvent !== "landed"
+    return this.sportFishingCameraHint && this.sportFishEndCue === null
       ? this.sportFishingPresentation
       : undefined;
+  }
+
+  public playSportFishingEndCue(cue: SportFishingEndCue): void {
+    if (this.lastFishingInstanceId === null) return;
+    this.sportFishEndCue = cue;
+    this.sportFishEndBeatSeconds = cue === "landed" ? 0.7 : cue === "snapped" ? 0.28 : 0.5;
+    this.sportFishEndLook.copy(this.fishingEndpointWorld);
   }
 
   public getSportFishingCameraHint(): Readonly<SportFishingCameraHint> | undefined {
@@ -2537,6 +2751,58 @@ export class WorldScene {
     if (action === "harvest") {
       this.cosmeticCropCarryUntilSeconds = this.lastPresentationTime + 1.4;
     }
+  }
+
+  public beginPlayerAttachmentAction(action: PlayerAttachmentAction, targetId: string): void {
+    if (!this.playerMesh || !this.playerAnimation) {
+      this.playPlayerAction(action);
+      return;
+    }
+    this.playerMesh.updateWorldMatrix(true, true);
+    const sourcePosition = new THREE.Vector3();
+    const sourceQuaternion = new THREE.Quaternion();
+    const sourceScale = new THREE.Vector3();
+    this.playerMesh.matrixWorld.decompose(sourcePosition, sourceQuaternion, sourceScale);
+
+    let clip: PlayerAnimation | null = action;
+    if (action === "board" || action === "dock") {
+      const boat = this.boatMeshes.get(targetId);
+      const isSkiff = Boolean(boat?.getObjectByName("boat_skiff_driver_station"));
+      clip = attachmentClip(action, { skiff: isSkiff });
+    } else if (action === "mount") {
+      const donkey = this.donkeyPresentation;
+      if (donkey) {
+        const approach = donkey.root.worldToLocal(sourcePosition.clone());
+        clip = attachmentClip("mount", { side: attachmentSideFromLocalX(approach.x) });
+      }
+    } else {
+      // The simulation-selected dismount point is available on the next
+      // presented frame. Resolve the mirrored clip from that exact point.
+      clip = null;
+    }
+
+    const durationSeconds = clip
+      ? this.playerAnimation.actionDurationSeconds(clip)
+      : this.playerAnimation.actionDurationSeconds("dismount");
+    this.playerAttachmentTransition = {
+      action,
+      targetId,
+      clip,
+      startedAtSeconds: this.lastPresentationTime,
+      durationSeconds,
+      sourcePosition,
+      sourceQuaternion,
+      sourceScale,
+      detachedAtContact: false
+    };
+    if (clip) this.playerAnimation.play(clip);
+    if (action === "mount" && this.donkeyPresentation?.id === targetId) {
+      this.attachPlayerToDonkey(this.donkeyPresentation, targetId, this.lastPresentationTime);
+    }
+  }
+
+  public playerAnimationActionDurationSeconds(action: PlayerAnimation): number {
+    return this.playerAnimation?.actionDurationSeconds(action) ?? 0.8;
   }
 
   public setFarmingActionPresentation(
@@ -2625,31 +2891,56 @@ export class WorldScene {
     if (this.rowboatPresentationRigs.has(boatId)) return;
     const rowerSeat = boatRoot.getObjectByName("boat_rowboat_rower_seat");
     if (!rowerSeat) throw new Error("[WorldScene] Rowboat is missing boat_rowboat_rower_seat");
+    const footLeftSupport = boatRoot.getObjectByName("boat_rowboat_foot_left_socket");
+    const footRightSupport = boatRoot.getObjectByName("boat_rowboat_foot_right_socket");
+    if (!footLeftSupport || !footRightSupport) {
+      throw new Error("[WorldScene] Rowboat is missing authored foot supports");
+    }
     this.boatDriverSeats.set(boatId, rowerSeat);
+    boatRoot.updateMatrixWorld(true);
     const oars = (["left", "right"] as const).map((side): RowboatOarAttachment => {
       const root = boatRoot.getObjectByName(`boat_rowboat_oar_${side}_root`);
+      const grip = boatRoot.getObjectByName(`boat_rowboat_oar_${side}_grip`);
+      const oarlock = boatRoot.getObjectByName(`boat_rowboat_oarlock_${side}`);
       if (!root?.parent) {
         throw new Error(`[WorldScene] Rowboat is missing boat_rowboat_oar_${side}_root`);
       }
+      if (!grip || !oarlock) {
+        throw new Error(`[WorldScene] Rowboat is missing authored ${side} oar grip or oarlock`);
+      }
+      const oarlockWorld = new THREE.Vector3();
+      oarlock.getWorldPosition(oarlockWorld);
+      const pivot = new THREE.Group();
+      pivot.name = `runtime_rowboat_oar_${side}_pivot`;
+      boatRoot.add(pivot);
+      pivot.position.copy(boatRoot.worldToLocal(oarlockWorld));
+      pivot.updateMatrixWorld(true);
+      pivot.attach(root);
       return {
+        side,
+        pivot,
         root,
-        originalParent: root.parent,
-        originalPosition: root.position.clone(),
-        originalQuaternion: root.quaternion.clone(),
-        originalScale: root.scale.clone(),
-        handSocketName: side === "left"
-          ? "char_player_hand_socket_left"
-          : "char_player_hand_socket_right"
+        grip,
+        restPivotQuaternion: pivot.quaternion.clone()
       };
     });
-    this.rowboatPresentationRigs.set(boatId, { boatRoot, rowerSeat, oars, held: false });
+    this.rowboatPresentationRigs.set(boatId, {
+      boatRoot,
+      rowerSeat,
+      footLeftSupport,
+      footRightSupport,
+      oars
+    });
   }
 
   private configureSkiffPresentation(boatId: string, boatRoot: THREE.Group): void {
     if (this.boatDriverSeats.has(boatId)) return;
-    const driverSeat = boatRoot.getObjectByName("boat_skiff_driver_seat");
-    if (!driverSeat) throw new Error("[WorldScene] Skiff is missing boat_skiff_driver_seat");
+    const driverSeat = boatRoot.getObjectByName("boat_skiff_driver_station");
+    if (!driverSeat) throw new Error("[WorldScene] Skiff is missing boat_skiff_driver_station");
+    const fishingStation = boatRoot.getObjectByName("boat_skiff_fishing_station");
+    if (!fishingStation) throw new Error("[WorldScene] Skiff is missing boat_skiff_fishing_station");
     this.boatDriverSeats.set(boatId, driverSeat);
+    this.boatFishingStations.set(boatId, fishingStation);
   }
 
   private skiffMooringPreviewPose(): GameState["boats"][string] {
@@ -2707,31 +2998,35 @@ export class WorldScene {
     this.skiffMooringPreview = mesh;
   }
 
-  private setRowboatOarsHeld(rig: RowboatPresentationRig, held: boolean): void {
-    if (rig.held === held || !this.playerMesh) return;
-    if (held) {
-      for (const oar of rig.oars) {
-        const socket = this.playerMesh.getObjectByName(oar.handSocketName);
-        if (!socket) throw new Error(`[WorldScene] Player is missing ${oar.handSocketName}`);
-        socket.add(oar.root);
-        oar.root.position.set(0, 0, 0);
-        oar.root.quaternion.identity();
-        oar.root.scale.set(1, 1, 1);
-      }
-    } else {
-      for (const oar of rig.oars) {
-        oar.originalParent.add(oar.root);
-        oar.root.position.copy(oar.originalPosition);
-        oar.root.quaternion.copy(oar.originalQuaternion);
-        oar.root.scale.copy(oar.originalScale);
-      }
-    }
-    rig.held = held;
-  }
-
-  private syncRowboatOarOwnership(activeBoatId: string | null, holdingOars: boolean): void {
+  private syncRowboatOarPresentation(
+    activeBoatId: string | null,
+    holdingOars: boolean,
+    deltaSeconds: number
+  ): void {
+    const rowing = holdingOars && this.playerAnimation?.currentClip() === "row";
+    const phase = this.playerAnimation?.normalizedBasePhase() ?? 0;
+    const phaseRadians = phase * Math.PI * 2;
+    const stroke = rowing ? Math.sin(phaseRadians) : 0;
+    const catchAndRelease = rowing ? Math.cos(phaseRadians) : 0;
+    const response = 1 - Math.exp(-16 * Math.max(0, deltaSeconds));
     for (const [boatId, rig] of this.rowboatPresentationRigs) {
-      this.setRowboatOarsHeld(rig, holdingOars && boatId === activeBoatId);
+      const active = holdingOars && boatId === activeBoatId;
+      for (const oar of rig.oars) {
+        this.tempOarEuler.set(
+          active ? catchAndRelease * 0.1 : 0,
+          active ? stroke * 0.3 : 0,
+          active ? (oar.side === "left" ? -1 : 1) * catchAndRelease * 0.07 : 0,
+          "YXZ"
+        );
+        this.tempOarDeltaQuaternion.setFromEuler(this.tempOarEuler);
+        this.tempOarQuaternion.copy(oar.restPivotQuaternion).multiply(this.tempOarDeltaQuaternion);
+        oar.pivot.quaternion.slerp(this.tempOarQuaternion, response);
+        oar.pivot.updateWorldMatrix(false, true);
+        if (active && this.playerAnimation) {
+          oar.grip.getWorldPosition(this.tempOarGripVec);
+          this.playerAnimation.alignHandGrip(oar.side, this.tempOarGripVec);
+        }
+      }
     }
   }
 
@@ -2910,7 +3205,7 @@ export class WorldScene {
   }
 
   private disposeDonkeyShadowPresentation(root: THREE.Object3D): void {
-    for (const name of ["character_shadow_proxy", "donkey_contact_shadow"]) {
+    for (const name of ["donkey_contact_shadow"]) {
       const mesh = root.getObjectByName(name);
       if (!(mesh instanceof THREE.Mesh)) continue;
       mesh.removeFromParent();
@@ -2931,16 +3226,21 @@ export class WorldScene {
     if (!riderSocket) {
       throw new Error(`[WorldScene] Donkey is missing ${ASSET_IDS.FAUNA_DONKEY_A}_rider_socket`);
     }
+    const stirrupLeftSocket = root.getObjectByName(`${ASSET_IDS.FAUNA_DONKEY_A}_stirrup_left_socket`);
+    const stirrupRightSocket = root.getObjectByName(`${ASSET_IDS.FAUNA_DONKEY_A}_stirrup_right_socket`);
+    if (!stirrupLeftSocket || !stirrupRightSocket) {
+      throw new Error(`[WorldScene] Donkey is missing authored stirrup sockets`);
+    }
     const clips = (root.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
     const clipSpecs = ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)?.animationClips ?? [];
     const mixer = clips.length > 0 ? new THREE.AnimationMixer(root) : null;
     const actions = new Map<DonkeyAnimationClip, THREE.AnimationAction>();
     if (mixer) {
-      for (const clipName of ["idle", "graze", "look", "walk", "trot", "mount", "dismount"] as const) {
+      for (const clipName of ["idle", "graze", "look", "walk", "trot", "gallop", "mount", "dismount"] as const) {
         const clip = clips.find((candidate) => candidate.name === clipName);
         if (!clip) continue;
         const spec = clipSpecs.find((candidate) => candidate.name === clipName);
-        const loop = spec?.loop ?? ["idle", "graze", "look", "walk", "trot"].includes(clipName);
+        const loop = spec?.loop ?? ["idle", "graze", "look", "walk", "trot", "gallop"].includes(clipName);
         const action = mixer.clipAction(clip);
         action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
         action.clampWhenFinished = !loop;
@@ -2957,6 +3257,8 @@ export class WorldScene {
       placementId,
       root,
       riderSocket,
+      stirrupLeftSocket,
+      stirrupRightSocket,
       mixer,
       actions,
       activeClip: idleAction ? "idle" : null,
@@ -2977,14 +3279,34 @@ export class WorldScene {
     }
   }
 
-  private setDonkeyAnimation(donkey: DonkeyPresentation, clipName: DonkeyAnimationClip): void {
+  private setDonkeyAnimation(
+    donkey: DonkeyPresentation,
+    clipName: DonkeyAnimationClip,
+    synchronizedPhase?: number
+  ): void {
     if (donkey.activeClip === clipName) return;
     const next = donkey.actions.get(clipName) ?? donkey.actions.get("idle");
     if (!next) return;
     const resolvedClip = next === donkey.actions.get("idle") ? "idle" : clipName;
     const previous = donkey.activeClip ? donkey.actions.get(donkey.activeClip) : undefined;
-    previous?.fadeOut(0.16);
-    next.reset().fadeIn(0.16).play();
+    const preserveGaitPhase = Boolean(
+      previous && donkey.activeClip &&
+      ["walk", "trot", "gallop"].includes(donkey.activeClip) &&
+      ["walk", "trot", "gallop"].includes(resolvedClip)
+    );
+    const previousPhase = previous
+      ? ((previous.time / previous.getClip().duration) % 1 + 1) % 1
+      : 0;
+    next.reset();
+    if (Number.isFinite(synchronizedPhase)) {
+      next.time = THREE.MathUtils.euclideanModulo(synchronizedPhase ?? 0, 1)
+        * next.getClip().duration;
+    } else if (preserveGaitPhase) {
+      next.time = previousPhase * next.getClip().duration;
+    }
+    if (previous && previous !== next) next.crossFadeFrom(previous, 0.2, false);
+    else next.fadeIn(0.16);
+    next.play();
     donkey.activeClip = resolvedClip;
   }
 
@@ -3012,15 +3334,145 @@ export class WorldScene {
     );
   }
 
+  private preparePlayerAttachmentTransition(playerPose: PresentedPlayerFrame, timeSeconds: number): void {
+    const transition = this.playerAttachmentTransition;
+    if (!transition || transition.clip || transition.action !== "dismount") return;
+    const donkey = this.donkeyPresentation;
+    let clip: PlayerAnimation = "dismount";
+    if (donkey?.id === transition.targetId) {
+      const landing = donkey.root.worldToLocal(
+        new THREE.Vector3(playerPose.x, playerPose.y - 0.5, playerPose.z)
+      );
+      clip = attachmentClip("dismount", { side: attachmentSideFromLocalX(landing.x) });
+    }
+    transition.clip = clip;
+    transition.startedAtSeconds = timeSeconds;
+    transition.durationSeconds = this.playerAnimation?.actionDurationSeconds(clip) ?? 0.8;
+    this.playerAnimation?.play(clip);
+  }
+
+  private resolvePlayerAttachmentTarget(playerPose: PresentedPlayerFrame): boolean {
+    const transition = this.playerAttachmentTransition;
+    if (!transition || !this.playerMesh) return false;
+    let target: THREE.Object3D | undefined;
+    let pelvisContact = false;
+    if (transition.action === "mount") {
+      target = this.donkeyPresentation?.id === transition.targetId
+        ? this.donkeyPresentation.riderSocket
+        : undefined;
+      pelvisContact = true;
+    } else if (transition.action === "board") {
+      target = this.boatDriverSeats.get(transition.targetId)
+        ?? this.boatFishingStations.get(transition.targetId);
+      pelvisContact = target?.name === "boat_rowboat_rower_seat";
+    }
+
+    if (target) {
+      target.updateWorldMatrix(true, false);
+      this.playerAttachmentWorldMatrix.copy(target.matrixWorld);
+      if (pelvisContact) {
+        this.playerAttachmentLocalMatrix.makeTranslation(0, -this.playerPelvisRestOffsetY, 0);
+        this.playerAttachmentWorldMatrix.multiply(this.playerAttachmentLocalMatrix);
+      }
+      this.playerAttachmentWorldMatrix.decompose(
+        this.playerAttachmentTargetPosition,
+        this.playerAttachmentTargetQuaternion,
+        this.playerAttachmentTargetScale
+      );
+      return true;
+    }
+
+    this.playerAttachmentTargetPosition.set(playerPose.x, playerPose.y - 0.5, playerPose.z);
+    this.playerAttachmentEuler.set(0, playerPose.rotationY, 0, "YXZ");
+    this.playerAttachmentTargetQuaternion.setFromEuler(this.playerAttachmentEuler);
+    this.playerAttachmentTargetScale.set(1, 1, 1);
+    return true;
+  }
+
+  private setPlayerWorldTransform(
+    position: THREE.Vector3,
+    quaternion: THREE.Quaternion,
+    scale: THREE.Vector3
+  ): void {
+    if (!this.playerMesh) return;
+    this.playerAttachmentWorldMatrix.compose(position, quaternion, scale);
+    const parent = this.playerMesh.parent;
+    if (parent) {
+      parent.updateWorldMatrix(true, false);
+      this.playerAttachmentParentInverse.copy(parent.matrixWorld).invert();
+      this.playerAttachmentLocalMatrix.multiplyMatrices(
+        this.playerAttachmentParentInverse,
+        this.playerAttachmentWorldMatrix
+      );
+    } else {
+      this.playerAttachmentLocalMatrix.copy(this.playerAttachmentWorldMatrix);
+    }
+    this.playerAttachmentLocalMatrix.decompose(
+      this.playerMesh.position,
+      this.playerMesh.quaternion,
+      this.playerMesh.scale
+    );
+  }
+
+  private updatePlayerAttachmentTransition(
+    playerPose: PresentedPlayerFrame,
+    timeSeconds: number
+  ): boolean {
+    const transition = this.playerAttachmentTransition;
+    if (!transition || !this.playerMesh || !this.resolvePlayerAttachmentTarget(playerPose)) return false;
+    const progress = THREE.MathUtils.clamp(
+      (timeSeconds - transition.startedAtSeconds) / Math.max(0.001, transition.durationSeconds),
+      0,
+      1
+    );
+    if (
+      transition.action === "dismount" &&
+      !transition.detachedAtContact &&
+      progress >= 0.68 / Math.max(0.001, transition.durationSeconds)
+    ) {
+      this.detachPlayerFromDonkey();
+      transition.detachedAtContact = true;
+    }
+    const arcHeight = this.prefersReducedMotion
+      ? 0
+      : transition.action === "mount" || transition.action === "board" ? 0.14 : 0.08;
+    const curve = sampleAttachmentCurve(progress, arcHeight);
+    this.playerAttachmentBlendPosition.lerpVectors(
+      transition.sourcePosition,
+      this.playerAttachmentTargetPosition,
+      curve.weight
+    );
+    this.playerAttachmentBlendPosition.y += curve.arcY;
+    this.playerAttachmentBlendQuaternion.copy(transition.sourceQuaternion)
+      .slerp(this.playerAttachmentTargetQuaternion, curve.weight);
+    this.setPlayerWorldTransform(
+      this.playerAttachmentBlendPosition,
+      this.playerAttachmentBlendQuaternion,
+      this.playerAttachmentTargetScale
+    );
+    if (progress < 1) return true;
+    if (transition.action === "dismount" && !transition.detachedAtContact) {
+      this.detachPlayerFromDonkey();
+    }
+    this.setPlayerWorldTransform(
+      this.playerAttachmentTargetPosition,
+      this.playerAttachmentTargetQuaternion,
+      this.playerAttachmentTargetScale
+    );
+    this.playerAttachmentTransition = null;
+    return true;
+  }
+
   private attachPlayerToDonkey(donkey: DonkeyPresentation, mountId: string, timeSeconds: number): void {
     if (!this.playerMesh || donkey.attachedMountId === mountId) return;
     donkey.originalPlayerParent = this.playerMesh.parent ?? this.scene;
-    donkey.riderSocket.attach(this.playerMesh);
-    // The socket marks the saddle seat; the player root is offset to keep the
-    // seated pelvis and boots on that seat while preserving the simulation's
-    // ground-centred player pose.
-    this.playerMesh.position.set(0, DONKEY_RIDER_ROOT_OFFSET_Y, 0);
-    this.playerMesh.rotation.set(0, 0, 0);
+    attachPreservingWorld(donkey.riderSocket, this.playerMesh);
+    const transitioning = this.playerAttachmentTransition?.action === "mount"
+      && this.playerAttachmentTransition.targetId === mountId;
+    if (!transitioning) {
+      this.playerMesh.position.set(0, -this.playerPelvisRestOffsetY, 0);
+      this.playerMesh.rotation.set(0, 0, 0);
+    }
     donkey.attachedMountId = mountId;
     donkey.transitionUntilSeconds = timeSeconds + 0.8;
     this.setDonkeyAnimation(donkey, "mount");
@@ -3056,17 +3508,35 @@ export class WorldScene {
     if (isMounted && this.playerMesh) {
       this.attachPlayerToDonkey(donkey, donkey.id, timeSeconds);
       if (timeSeconds >= donkey.transitionUntilSeconds) {
-        const gait = playerPose.motion?.requestedGait === "trot" ? "trot" : "walk";
+        const gait = playerPose.motion?.requestedGait === "gallop"
+          ? "gallop"
+          : playerPose.motion?.requestedGait === "trot"
+            ? "trot"
+            : "walk";
+        const riderState = this.playerAnimation?.playbackState();
+        const riderGait = gait === "gallop"
+          ? "mounted_gallop"
+          : gait === "trot"
+            ? "mounted_trot"
+            : "mounted_walk";
         this.setDonkeyAnimation(
           donkey,
-          playerPose.motion?.speedMetersPerSecond > 0.1 && !playerPose.motion.isCollisionBlocked ? gait : "idle"
+          playerPose.motion?.speedMetersPerSecond > 0.1 && !playerPose.motion.isCollisionBlocked ? gait : "idle",
+          riderState?.baseClip === riderGait ? riderState.basePhase : undefined
         );
       }
     } else {
       if (donkey.attachedMountId !== null) {
-        this.detachPlayerFromDonkey();
-        donkey.transitionUntilSeconds = timeSeconds + 0.8;
-        this.setDonkeyAnimation(donkey, "dismount");
+        const transitioningDismount = this.playerAttachmentTransition?.action === "dismount"
+          && this.playerAttachmentTransition.targetId === donkey.id;
+        if (transitioningDismount) {
+          donkey.transitionUntilSeconds = Math.max(donkey.transitionUntilSeconds, timeSeconds + delta + 0.05);
+          this.setDonkeyAnimation(donkey, "dismount");
+        } else {
+          this.detachPlayerFromDonkey();
+          donkey.transitionUntilSeconds = timeSeconds + 0.8;
+          this.setDonkeyAnimation(donkey, "dismount");
+        }
       } else if (timeSeconds >= donkey.transitionUntilSeconds) {
         const cycle = (timeSeconds + stablePresentationPhase(donkey.id) * 9.0) % 12;
         const desired: DonkeyAnimationClip = this.prefersReducedMotion
@@ -3453,28 +3923,41 @@ export class WorldScene {
               steering: 0
             }
         : undefined;
+      if (playerPose.discontinuitySequence !== this.lastPlayerDiscontinuitySequence) {
+        // Boarding and mounting one-shots are emitted before their canonical
+        // pose jump. Release stale world-space contacts without erasing that
+        // newly-started interaction action.
+        const preservesInteractionAction = playerPose.discontinuityReason === "boarding"
+          || playerPose.discontinuityReason === "docking"
+          || playerPose.discontinuityReason === "dismounting";
+        if (preservesInteractionAction) this.playerAnimation?.resetSpatialState();
+        else this.playerAnimation?.resetTransientState();
+        this.lastPlayerDiscontinuitySequence = playerPose.discontinuitySequence;
+      }
+      this.preparePlayerAttachmentTransition(playerPose, timeSeconds);
+      const animationContext: CharacterAnimationContext = {
+        mode: presentationMode,
+        motion: playerPose.motion,
+        facingRadians: playerPose.rotationY,
+        carrying: Boolean(state.player.carriedFishCargoId) || timeSeconds < this.cosmeticCropCarryUntilSeconds,
+        fishingInput: state.sportFishing
+          ? {
+              isReeling: this.sportFishingPresentation.retrievalMetersPerSecond > 0.03,
+              isSlacking: state.sportFishing.isSlacking,
+              isBracing: state.sportFishing.isBracing,
+              rodDirectionAngle: state.sportFishing.dynamics?.rodDirection ?? state.sportFishing.rodDirectionAngle,
+              loadRatio: this.sportFishingPresentation.loadRatio,
+              pumpLoadRatio: this.sportFishingPresentation.pumpLoadRatio,
+              behaviorPhase: this.sportFishingPresentation.behaviorPhase,
+              retrievalMetersPerSecond: this.sportFishingPresentation.retrievalMetersPerSecond,
+              shakeAmplitude: this.sportFishingPresentation.shakeAmplitude
+            }
+          : undefined,
+        boatInput: resolvedBoatInput
+      };
       const motion = this.playerAnimation?.update(
         delta,
-        {
-          mode: presentationMode,
-          motion: playerPose.motion,
-          facingRadians: playerPose.rotationY,
-          carrying: Boolean(state.player.carriedFishCargoId) || timeSeconds < this.cosmeticCropCarryUntilSeconds,
-          fishingInput: state.sportFishing
-            ? {
-                isReeling: this.sportFishingPresentation.retrievalMetersPerSecond > 0.03,
-                isSlacking: state.sportFishing.isSlacking,
-                isBracing: state.sportFishing.isBracing,
-                rodDirectionAngle: state.sportFishing.dynamics?.rodDirection ?? state.sportFishing.rodDirectionAngle,
-                loadRatio: this.sportFishingPresentation.loadRatio,
-                pumpLoadRatio: this.sportFishingPresentation.pumpLoadRatio,
-                behaviorPhase: this.sportFishingPresentation.behaviorPhase,
-                retrievalMetersPerSecond: this.sportFishingPresentation.retrievalMetersPerSecond,
-                shakeAmplitude: this.sportFishingPresentation.shakeAmplitude
-              }
-            : undefined,
-          boatInput: resolvedBoatInput
-        },
+        animationContext,
         this.prefersReducedMotion
       ) ?? {
         bobY: 0,
@@ -3494,16 +3977,30 @@ export class WorldScene {
         ? this.sampleBoatPresentation(activeBoat, state, timeSeconds)
         : null;
       const driverSeat = activeBoat ? this.boatDriverSeats.get(activeBoat.id) : undefined;
+      const rowboatRig = activeBoat?.boatTypeId === "boat.rowboat"
+        ? this.rowboatPresentationRigs.get(activeBoat.id)
+        : undefined;
+      const fishingStation = state.sportFishing && activeBoat?.boatTypeId === "boat.skiff"
+        ? this.boatFishingStations.get(activeBoat.id)
+        : undefined;
+      const boatCharacterAnchor = fishingStation ?? driverSeat;
       const attachedToDonkey = state.player.activeMountId !== null
         && this.donkeyPresentation?.attachedMountId === state.player.activeMountId;
-      if (attachedToDonkey) {
-        this.playerMesh.position.set(0, DONKEY_RIDER_ROOT_OFFSET_Y, 0);
+      const attachmentTransitionActive = this.updatePlayerAttachmentTransition(playerPose, timeSeconds);
+      if (attachmentTransitionActive) {
+        // The attachment solver owns the world transform until exact terminal
+        // lock. Mixer poses remain local and cannot snap the presentation.
+      } else if (attachedToDonkey) {
+        this.playerMesh.position.set(0, -this.playerPelvisRestOffsetY, 0);
         this.playerMesh.rotation.set(motion.leanX, 0, motion.leanZ, "YXZ");
-      } else if (driverSeat) {
-        driverSeat.getWorldPosition(this.tempBoatSeatVec);
+      } else if (boatCharacterAnchor) {
+        boatCharacterAnchor.getWorldPosition(this.tempBoatSeatVec);
+        const pelvisOffset = boatCharacterAnchor.name === "boat_rowboat_rower_seat"
+          ? this.playerPelvisRestOffsetY
+          : 0;
         this.playerMesh.position.set(
           this.tempBoatSeatVec.x,
-          this.tempBoatSeatVec.y + motion.bobY,
+          this.tempBoatSeatVec.y - pelvisOffset + motion.bobY,
           this.tempBoatSeatVec.z
         );
       } else {
@@ -3513,27 +4010,66 @@ export class WorldScene {
           playerPose.z
         );
       }
-      if (!attachedToDonkey) {
+      if (!attachedToDonkey && !attachmentTransitionActive) {
+        let characterYaw = playerPose.rotationY;
+        if (state.sportFishing) {
+          const desiredFishingYaw = Math.atan2(
+            this.sportFishingPresentation.endpointX - this.playerMesh.position.x,
+            this.sportFishingPresentation.endpointZ - this.playerMesh.position.z
+          );
+          if (this.sportFishingBodyYawInstanceId !== state.sportFishing.fish.instanceId) {
+            this.sportFishingBodyYaw = desiredFishingYaw;
+            this.sportFishingBodyYawInstanceId = state.sportFishing.fish.instanceId;
+          } else {
+            this.sportFishingBodyYaw = dampPresentationAngle(
+              this.sportFishingBodyYaw,
+              desiredFishingYaw,
+              7.5,
+              delta
+            );
+          }
+          characterYaw = this.sportFishingBodyYaw;
+        } else {
+          this.sportFishingBodyYawInstanceId = null;
+        }
         this.playerMesh.rotation.set(
           motion.leanX + motion.groundPitch + (boatPresentation?.pitch ?? 0),
-          state.sportFishing
-            ? Math.atan2(this.sportFishingPresentation.endpointX - playerPose.x,
-                this.sportFishingPresentation.endpointZ - playerPose.z)
-            : playerPose.rotationY,
+          characterYaw,
           motion.leanZ + motion.groundRoll + (boatPresentation?.roll ?? 0),
           "YXZ"
         );
       }
       this.playerMesh.updateMatrixWorld(true);
+      if (attachedToDonkey && !attachmentTransitionActive && this.donkeyPresentation) {
+        this.donkeyPresentation.stirrupLeftSocket.getWorldPosition(this.mountedLeftFootTarget);
+        this.donkeyPresentation.stirrupRightSocket.getWorldPosition(this.mountedRightFootTarget);
+        this.playerAnimation?.alignFootSupports(
+          this.mountedLeftFootTarget,
+          this.mountedRightFootTarget
+        );
+      } else if (!attachmentTransitionActive && rowboatRig) {
+        rowboatRig.footLeftSupport.getWorldPosition(this.mountedLeftFootTarget);
+        rowboatRig.footRightSupport.getWorldPosition(this.mountedRightFootTarget);
+        this.playerAnimation?.alignFootSupports(
+          this.mountedLeftFootTarget,
+          this.mountedRightFootTarget
+        );
+      }
+      this.playerAnimation?.resolveGroundContacts(
+        animationContext,
+        (x, z) => WorldLayout.traversalSurfaceSample(x, z)
+      );
       const holdingOars = presentationMode === "boat-driving"
         && activeBoat?.boatTypeId === "boat.rowboat";
-      this.syncRowboatOarOwnership(activeBoat?.id ?? null, holdingOars);
+      this.syncRowboatOarPresentation(activeBoat?.id ?? null, holdingOars, delta);
       if (holdingOars && activeBoat && motion.events.some((event) => event.name === "paddle_enter")) {
         this.spawnPaddleDisturbance(activeBoat, state, timeSeconds);
       }
       this.lastPresentationTime = timeSeconds;
       if (this.playerContactShadow) {
-        this.playerContactShadow.visible = !state.player.activeBoatId && !state.player.activeMountId;
+        this.playerContactShadow.visible = !state.player.activeBoatId
+          && !state.player.activeMountId
+          && !attachmentTransitionActive;
         this.playerContactShadow.position.set(
           playerPose.x,
           WorldLayout.terrainHeight(playerPose.x, playerPose.z) + 0.025,
@@ -3579,15 +4115,40 @@ export class WorldScene {
           schoolDelta,
           timeSeconds
         );
+        const jumpPhase = (timeSeconds * 0.72 + member.phase * 3.1) % 1;
+        const jumpHeight = frenzy && index === 0 && jumpPhase < 0.24
+          ? Math.sin((jumpPhase / 0.24) * Math.PI) * 0.42
+          : 0;
         fish.position.set(
           Math.cos(orbit) * radius,
-          -0.12 + Math.sin(timeSeconds * (frenzy ? 3.2 : 1.8) + index) * (frenzy ? 0.14 : 0.08),
+          -0.12 + jumpHeight + Math.sin(timeSeconds * (frenzy ? 3.2 : 1.8) + index) * (frenzy ? 0.14 : 0.08),
           Math.sin(orbit) * radius
         );
         fish.rotation.y = -orbit + Math.PI * 0.5;
         fish.rotation.z = Math.sin(timeSeconds * 2.2 + member.phase * Math.PI * 2) * 0.055;
         this.updateFishVisibility(member, Math.max(0.04, -fish.position.y), frenzy ? 0.78 : 0.64);
       });
+      const gull = sGroup.userData.schoolGull as THREE.Group | undefined;
+      if (gull) {
+        gull.visible = frenzy;
+        const phase = (sGroup.userData.cuePhase as number | undefined) ?? 0;
+        const angle = timeSeconds * 0.48 + phase * Math.PI * 2;
+        gull.position.set(Math.cos(angle) * 4.4, 4.2 + Math.sin(angle * 2) * 0.25, Math.sin(angle) * 3.2);
+        gull.rotation.y = -angle;
+      }
+      const cuePhase = (sGroup.userData.cuePhase as number | undefined) ?? 0;
+      const cueCycle = Math.floor((timeSeconds + cuePhase * 1.7) / 1.6);
+      if (frenzy && sGroup.userData.lastFrenzyCueCycle !== cueCycle) {
+        sGroup.userData.lastFrenzyCueCycle = cueCycle;
+        const cueAngle = cuePhase * Math.PI * 2 + cueCycle * 2.399963;
+        const cueX = school.x + Math.cos(cueAngle) * 2.1;
+        const cueZ = school.z + Math.sin(cueAngle) * 2.1;
+        const cueY = this.water.sample(cueX, cueZ, timeSeconds).height;
+        this.farmVfx.spawn("water", { x: cueX, y: cueY + 0.016, z: cueZ }, timeSeconds, {
+          origin: { x: cueX, y: cueY + 0.22, z: cueZ },
+          reducedMotion: this.prefersReducedMotion
+        });
+      }
     }
 
     // NPC positions remain content anchored. Dialogue only adds a presentation
@@ -3615,11 +4176,21 @@ export class WorldScene {
         : { dx: 0, dz: 0, heading: npc.initialRotationY, walking: false };
       const worldX = npc.anchor.x + beatSample.dx;
       const worldZ = npc.anchor.z + beatSample.dz;
-      npc.model.position.set(worldX, WorldLayout.terrainHeight(worldX, worldZ), worldZ);
+      const candidateSurface = WorldLayout.traversalSurfaceSample(worldX, worldZ);
+      const candidateGroundValid = isValidNpcPresentationGround(worldX, worldZ, candidateSurface);
+      // An authored station beat must never place a character into water or
+      // onto a slope its grounding pass cannot represent. Freeze that beat at
+      // its canonical interaction anchor until the authored data is corrected.
+      const resolvedX = candidateGroundValid ? worldX : npc.anchor.x;
+      const resolvedZ = candidateGroundValid ? worldZ : npc.anchor.z;
+      const resolvedSurface = candidateGroundValid
+        ? candidateSurface
+        : WorldLayout.traversalSurfaceSample(npc.anchor.x, npc.anchor.z);
+      npc.model.position.set(resolvedX, resolvedSurface.height, resolvedZ);
       const playerHeading = Math.atan2(dx, dz);
       const desiredHeading = isDialogueTarget
         ? playerHeading
-        : beatSample.walking
+        : beatSample.walking && candidateGroundValid
           ? beatSample.heading
           : npc.initialRotationY;
       const turnDifference = wrapPresentationAngle(desiredHeading - npc.model.rotation.y);
@@ -3629,7 +4200,9 @@ export class WorldScene {
         isDialogueTarget ? 9.5 : beatSample.walking ? 8.2 : 5.5,
         npcDelta
       );
-      const walkSpeed = beatSample.walking ? (beat?.walkSpeedMetersPerSecond ?? 1.45) : 0;
+      const walkSpeed = beatSample.walking && candidateGroundValid
+        ? (beat?.walkSpeedMetersPerSecond ?? 1.45)
+        : 0;
       npc.animator.update(
         npcDelta,
         {
@@ -3638,9 +4211,18 @@ export class WorldScene {
           talking: isDialogueTarget,
           facingRadians: npc.model.rotation.y,
           motion: npcPresentationMotion({
+            velocity: {
+              x: Math.sin(beatSample.heading) * walkSpeed,
+              y: 0,
+              z: Math.cos(beatSample.heading) * walkSpeed
+            },
             speedMetersPerSecond: walkSpeed,
             turnRateRadiansPerSecond: isDialogueTarget ? 0 : turnDifference / Math.max(npcDelta, 1 / 60),
-            requestedGait: beatSample.walking ? "walk" : "idle"
+            groundNormal: { ...resolvedSurface.normal },
+            slopeRadians: Math.acos(THREE.MathUtils.clamp(resolvedSurface.normal.y, -1, 1)),
+            contactSurface: resolvedSurface.source === "terrain" ? "grass" : "path",
+            isCollisionBlocked: !candidateGroundValid,
+            requestedGait: beatSample.walking && candidateGroundValid ? "walk" : "idle"
           })
         },
         this.prefersReducedMotion
@@ -3708,31 +4290,47 @@ export class WorldScene {
     this.fishingBobberGroup.visible = false;
     this.scene.add(this.fishingBobberGroup);
 
-    // Fishing line — screen-space Line2 keeps a stable physical read while the
-    // camera auto-yaws. The previous world-up ribbon twisted edge-on and looked
-    // like a dotted line sliding across the water.
-    const lineGeo = new LineGeometry();
-    lineGeo.setPositions(this.fishingLinePositions);
-    lineGeo.setColors(this.fishingLineColors);
-    const lineMat = new LineMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      linewidth: 1.55,
-      worldUnits: false,
-      depthWrite: false,
-      alphaToCoverage: true,
-      toneMapped: false,
-      resolution: new THREE.Vector2(
-        Math.max(1, this.lastResizeWidth || window.innerWidth),
-        Math.max(1, this.lastResizeHeight || window.innerHeight)
-      )
-    });
-    this.fishingLineMesh = new Line2(lineGeo, lineMat);
-    this.fishingLineMesh.frustumCulled = false;
-    this.fishingLineMesh.renderOrder = 5;
-    this.fishingLineMesh.visible = false;
-    this.scene.add(this.fishingLineMesh);
+    // The aerial and submerged runs have different depth rules. Keeping them
+    // separate prevents the readable underwater trace from compositing across
+    // the angler or boat.
+    const createLine = (
+      positions: Float32Array,
+      colors: Float32Array,
+      depthTest: boolean,
+      renderOrder: number
+    ): Line2 => {
+      const geometry = new LineGeometry();
+      geometry.setPositions(positions);
+      geometry.setColors(colors);
+      const material = new LineMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9,
+        linewidth: 1.45,
+        worldUnits: false,
+        depthTest,
+        depthWrite: false,
+        alphaToCoverage: true,
+        toneMapped: false,
+        resolution: new THREE.Vector2(
+          Math.max(1, this.lastResizeWidth || window.innerWidth),
+          Math.max(1, this.lastResizeHeight || window.innerHeight)
+        )
+      });
+      const line = new Line2(geometry, material);
+      line.frustumCulled = false;
+      line.renderOrder = renderOrder;
+      line.visible = false;
+      this.scene.add(line);
+      return line;
+    };
+    this.fishingLineMesh = createLine(this.fishingLinePositions, this.fishingLineColors, true, 5);
+    this.fishingSubmergedLineMesh = createLine(
+      this.fishingSubmergedLinePositions,
+      this.fishingSubmergedLineColors,
+      false,
+      4
+    );
   }
 
   private updateFishingPresentation(
@@ -3745,24 +4343,21 @@ export class WorldScene {
     const sport = state.sportFishing;
     const rodProp = this.farmingProps.get("rod");
     const rodBaseQuaternion = rodProp?.userData.socketBaseQuaternion as THREE.Quaternion | undefined;
-    if (rodProp && rodBaseQuaternion) rodProp.quaternion.copy(rodBaseQuaternion);
-
-    if (!sport) this.fishingRodBend?.update(0, this.fishingEndpointWorld);
+    if (!sport && rodProp && rodBaseQuaternion) this.fishingRodBend?.resetAim(rodBaseQuaternion);
 
     if (!sport) {
-      // The fight state just cleared — carry a fading "landed" camera hint so the
-      // catch beat can play as control hands back to on-foot.
       if (this.lastFishingInstanceId !== null) {
-        this.sportFishEndBeatSeconds = 0.7;
-        this.sportFishEndLook.copy(this.fishingEndpointWorld);
+        this.fishingRodBend?.resetDynamics();
       }
       this.lastFishingInstanceId = null;
       this.sportFishEndBeatSeconds = Math.max(0, this.sportFishEndBeatSeconds - deltaSeconds);
-      this.sportFishingCameraHint = this.sportFishEndBeatSeconds > 0
+      if (this.sportFishEndBeatSeconds <= 0) this.sportFishEndCue = null;
+      this.sportFishingCameraHint = this.sportFishEndBeatSeconds > 0 && this.sportFishEndCue
         ? {
             lookHint: { x: this.sportFishEndLook.x, y: this.sportFishEndLook.y, z: this.sportFishEndLook.z },
             fightReachMeters: 0,
             lineTension: 0,
+            lineLoadRatio: 0,
             snapTimerSeconds: 0,
             fightBehavior: "rest",
             behaviorPhase: "recovery",
@@ -3770,7 +4365,7 @@ export class WorldScene {
             fishDepthMeters: 0,
             fishStaminaRatio: 0,
             shakeAmplitude: 0,
-            cameraEvent: "landed"
+            cameraEvent: this.sportFishEndCue
           }
         : null;
     }
@@ -3778,6 +4373,7 @@ export class WorldScene {
     if (!basic && !sport) {
       this.fishingBobberGroup.visible = false;
       if (this.fishingLineMesh) this.fishingLineMesh.visible = false;
+      if (this.fishingSubmergedLineMesh) this.fishingSubmergedLineMesh.visible = false;
       if (this.hookedFishModel) this.hookedFishModel.visible = false;
       this.lastBasicFishingPhase = null;
       return;
@@ -3845,6 +4441,7 @@ export class WorldScene {
     } else if (sport) {
       this.lastBasicFishingPhase = null;
       this.sportFishEndBeatSeconds = 0;
+      this.sportFishEndCue = null;
       const presentation = this.sportFishingPresentation;
       endpointX = presentation.endpointX;
       endpointZ = presentation.endpointZ;
@@ -3854,6 +4451,7 @@ export class WorldScene {
         lookHint: { x: endpointX, y: endpointY, z: endpointZ },
         fightReachMeters: sport.distanceMeters,
         lineTension: sport.lineTension,
+        lineLoadRatio: presentation.loadRatio,
         snapTimerSeconds: sport.snapTimerSeconds,
         fightBehavior: sport.behavior,
         behaviorPhase: presentation.behaviorPhase,
@@ -3868,6 +4466,7 @@ export class WorldScene {
       surfaceStrength = presentation.surfaceStrength;
       this.fishingBobberBody.visible = false;
       this.fishingEndpointWorld.set(endpointX, endpointY, endpointZ);
+      this.fishingRodBend?.aimToward(this.fishingEndpointWorld, deltaSeconds);
       this.fishingRodBend?.update(presentation.rodBendRadians, this.fishingEndpointWorld,
         presentation.retrievalMetersPerSecond, presentation.elapsedSeconds,
         presentation.rodDirection, presentation.shakeAmplitude);
@@ -3965,14 +4564,15 @@ export class WorldScene {
       this.fishingBobberRipple.visible = sport ? lineVisible : surfaceStrength > 0.01;
     }
 
-    if (!this.fishingLineMesh) return;
+    if (!this.fishingLineMesh || !this.fishingSubmergedLineMesh) return;
     const lineMaterial = this.fishingLineMesh.material as LineMaterial;
-    const tensionRatio = sport ? THREE.MathUtils.clamp(sport.lineTension / 100, 0, 1) : 0.35;
-    lineMaterial.opacity = sport ? THREE.MathUtils.lerp(0.82, 0.99, tensionRatio) : 0.85;
-    lineMaterial.linewidth = sport ? THREE.MathUtils.lerp(1.8, 3.2, tensionRatio) : 1.5;
-    // The low-poly water is opaque. Keep the sport line readable across its
-    // surface and communicate depth through the authored colour treatment.
-    lineMaterial.depthTest = !sport;
+    const submergedLineMaterial = this.fishingSubmergedLineMesh.material as LineMaterial;
+    const lineLoadRatio = sport ? this.sportFishingPresentation.loadRatio : 0.35;
+    const tensionRatio = THREE.MathUtils.clamp(lineLoadRatio, 0, 1);
+    lineMaterial.opacity = sport ? THREE.MathUtils.lerp(0.68, 0.92, tensionRatio) : 0.82;
+    lineMaterial.linewidth = sport ? THREE.MathUtils.lerp(1.25, 2.05, tensionRatio) : 1.4;
+    submergedLineMaterial.opacity = sport ? THREE.MathUtils.lerp(0.28, 0.48, tensionRatio) : 0;
+    submergedLineMaterial.linewidth = THREE.MathUtils.lerp(0.72, 1.15, tensionRatio);
     if (sport && this.hookedFishModel && this.fishingMouthNode) {
       this.hookedFishModel.updateMatrixWorld(true);
       this.fishingMouthNode.localToWorld(this.fishingEndpointWorld.copy(this.fishingMouthLocal));
@@ -4004,23 +4604,18 @@ export class WorldScene {
     const curveX = horizontalLineLength > 0.001 ? lineDz / horizontalLineLength : rightX;
     const curveZ = horizontalLineLength > 0.001 ? -lineDx / horizontalLineLength : rightZ;
 
-    const lineGeometry = this.fishingLineMesh.geometry as LineGeometry;
-    const startPosition = lineGeometry.getAttribute("instanceStart") as THREE.InterleavedBufferAttribute;
-    const endPosition = lineGeometry.getAttribute("instanceEnd") as THREE.InterleavedBufferAttribute;
-    const startColor = lineGeometry.getAttribute("instanceColorStart") as THREE.InterleavedBufferAttribute;
-    const endColor = lineGeometry.getAttribute("instanceColorEnd") as THREE.InterleavedBufferAttribute;
     const lineEndY = basic ? endpointY + 0.12 : endpointY;
     const dangerVibration = sport
-      ? THREE.MathUtils.clamp((sport.lineTension - 78) / 22, 0, 1)
+      ? THREE.MathUtils.clamp((lineLoadRatio - 0.9) / 0.25, 0, 1)
         * 0.025
         * (this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1)
       : 0;
-    // Cool nylon grey → hot white as load builds → angry red as it nears the snap.
+    // Cool nylon grey → warm load signal → red only close to a snap.
     const hot = THREE.MathUtils.clamp(tensionRatio * 1.12, 0, 1);
-    const near = tensionRatio > 0.82 ? (tensionRatio - 0.82) / 0.18 : 0;
-    const lineR = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.80, 1, hot), 1, near);
-    const lineG = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.86, 0.97, hot), 0.3, near);
-    const lineB = THREE.MathUtils.lerp(0.9, 0.22, near);
+    const near = lineLoadRatio > 0.82 ? THREE.MathUtils.clamp((lineLoadRatio - 0.82) / 0.18, 0, 1) : 0;
+    const lineR = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.64, 0.94, hot), 1, near);
+    const lineG = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.72, 0.9, hot), 0.26, near);
+    const lineB = THREE.MathUtils.lerp(0.76, 0.18, near);
     for (let index = 0; index <= FISHING_LINE_SEGMENTS; index += 1) {
       const t = index / FISHING_LINE_SEGMENTS;
       const curve = Math.sin(t * Math.PI);
@@ -4031,42 +4626,100 @@ export class WorldScene {
       const cz = THREE.MathUtils.lerp(rodTipZ, endpointZ, t) + curveZ * (lineCurve * curve + vibration);
       const cy = THREE.MathUtils.lerp(rodTipY, lineEndY, t) - curve * lineSag;
       const offset = index * 3;
-      this.fishingLinePositions[offset] = cx;
-      this.fishingLinePositions[offset + 1] = cy;
-      this.fishingLinePositions[offset + 2] = cz;
-      // Sink the submerged run into a dim green-blue so the water line reads.
-      const submerged = cy < waterHeight - 0.02;
-      const dim = submerged ? 0.66 : 1;
-      const r = lineR * dim;
-      const g = (submerged ? Math.min(1, lineG * 1.2) : lineG) * dim;
-      const b = (submerged ? Math.min(1, lineB * 1.4 + 0.1) : lineB) * dim;
-      this.fishingLineColors[offset] = r;
-      this.fishingLineColors[offset + 1] = g;
-      this.fishingLineColors[offset + 2] = b;
+      this.fishingLinePathPositions[offset] = cx;
+      this.fishingLinePathPositions[offset + 1] = cy;
+      this.fishingLinePathPositions[offset + 2] = cz;
+      this.fishingLineWaterOffsets[index] = cy - this.water.sample(cx, cz, timeSeconds).height;
     }
+
+    let waterSplitIndex = -1;
+    if (sport) {
+      for (let index = 1; index <= FISHING_LINE_SEGMENTS; index += 1) {
+        if (this.fishingLineWaterOffsets[index - 1] > 0.004
+          && this.fishingLineWaterOffsets[index] <= 0.004) {
+          waterSplitIndex = index;
+          break;
+        }
+      }
+    }
+    let entryX = endpointX;
+    let entryY = waterHeight + 0.008;
+    let entryZ = endpointZ;
+    if (waterSplitIndex >= 1) {
+      const previousOffset = this.fishingLineWaterOffsets[waterSplitIndex - 1];
+      const nextOffset = this.fishingLineWaterOffsets[waterSplitIndex];
+      const crossing = THREE.MathUtils.clamp(
+        previousOffset / Math.max(0.0001, previousOffset - nextOffset),
+        0,
+        1
+      );
+      const previous = (waterSplitIndex - 1) * 3;
+      const next = waterSplitIndex * 3;
+      entryX = THREE.MathUtils.lerp(
+        this.fishingLinePathPositions[previous],
+        this.fishingLinePathPositions[next],
+        crossing
+      );
+      entryZ = THREE.MathUtils.lerp(
+        this.fishingLinePathPositions[previous + 2],
+        this.fishingLinePathPositions[next + 2],
+        crossing
+      );
+      entryY = this.water.sample(entryX, entryZ, timeSeconds).height + 0.008;
+    }
+
+    for (let index = 0; index <= FISHING_LINE_SEGMENTS; index += 1) {
+      const offset = index * 3;
+      const airUsesPath = waterSplitIndex < 0 || index < waterSplitIndex;
+      const submergedUsesPath = waterSplitIndex >= 0 && index > waterSplitIndex;
+      this.fishingLinePositions[offset] = airUsesPath ? this.fishingLinePathPositions[offset] : entryX;
+      this.fishingLinePositions[offset + 1] = airUsesPath ? this.fishingLinePathPositions[offset + 1] : entryY;
+      this.fishingLinePositions[offset + 2] = airUsesPath ? this.fishingLinePathPositions[offset + 2] : entryZ;
+      this.fishingSubmergedLinePositions[offset] = submergedUsesPath
+        ? this.fishingLinePathPositions[offset]
+        : entryX;
+      this.fishingSubmergedLinePositions[offset + 1] = submergedUsesPath
+        ? this.fishingLinePathPositions[offset + 1]
+        : entryY;
+      this.fishingSubmergedLinePositions[offset + 2] = submergedUsesPath
+        ? this.fishingLinePathPositions[offset + 2]
+        : entryZ;
+      this.fishingLineColors[offset] = lineR;
+      this.fishingLineColors[offset + 1] = lineG;
+      this.fishingLineColors[offset + 2] = lineB;
+      this.fishingSubmergedLineColors[offset] = THREE.MathUtils.lerp(0.22, 0.48, near);
+      this.fishingSubmergedLineColors[offset + 1] = THREE.MathUtils.lerp(0.52, 0.34, near);
+      this.fishingSubmergedLineColors[offset + 2] = THREE.MathUtils.lerp(0.58, 0.26, near);
+    }
+    this.syncFishingLineGeometry(this.fishingLineMesh, this.fishingLinePositions, this.fishingLineColors);
+    this.syncFishingLineGeometry(
+      this.fishingSubmergedLineMesh,
+      this.fishingSubmergedLinePositions,
+      this.fishingSubmergedLineColors
+    );
+    if (sport && waterSplitIndex >= 0) {
+      this.fishingBobberGroup.position.set(entryX, entryY + 0.004, entryZ);
+    }
+    this.fishingLineMesh.visible = lineVisible;
+    this.fishingSubmergedLineMesh.visible = lineVisible && sport !== null && waterSplitIndex >= 0;
+  }
+
+  private syncFishingLineGeometry(mesh: Line2, positions: Float32Array, colors: Float32Array): void {
+    const geometry = mesh.geometry as LineGeometry;
+    const startPosition = geometry.getAttribute("instanceStart") as THREE.InterleavedBufferAttribute;
+    const endPosition = geometry.getAttribute("instanceEnd") as THREE.InterleavedBufferAttribute;
+    const startColor = geometry.getAttribute("instanceColorStart") as THREE.InterleavedBufferAttribute;
+    const endColor = geometry.getAttribute("instanceColorEnd") as THREE.InterleavedBufferAttribute;
     for (let segment = 0; segment < FISHING_LINE_SEGMENTS; segment += 1) {
       const startOffset = segment * 3;
       const endOffset = (segment + 1) * 3;
-      startPosition.setXYZ(segment,
-        this.fishingLinePositions[startOffset],
-        this.fishingLinePositions[startOffset + 1],
-        this.fishingLinePositions[startOffset + 2]);
-      endPosition.setXYZ(segment,
-        this.fishingLinePositions[endOffset],
-        this.fishingLinePositions[endOffset + 1],
-        this.fishingLinePositions[endOffset + 2]);
-      startColor.setXYZ(segment,
-        this.fishingLineColors[startOffset],
-        this.fishingLineColors[startOffset + 1],
-        this.fishingLineColors[startOffset + 2]);
-      endColor.setXYZ(segment,
-        this.fishingLineColors[endOffset],
-        this.fishingLineColors[endOffset + 1],
-        this.fishingLineColors[endOffset + 2]);
+      startPosition.setXYZ(segment, positions[startOffset], positions[startOffset + 1], positions[startOffset + 2]);
+      endPosition.setXYZ(segment, positions[endOffset], positions[endOffset + 1], positions[endOffset + 2]);
+      startColor.setXYZ(segment, colors[startOffset], colors[startOffset + 1], colors[startOffset + 2]);
+      endColor.setXYZ(segment, colors[endOffset], colors[endOffset + 1], colors[endOffset + 2]);
     }
     startPosition.data.needsUpdate = true;
     startColor.data.needsUpdate = true;
-    this.fishingLineMesh.visible = lineVisible;
   }
 
   private sampleBoatPresentation(
@@ -4172,9 +4825,17 @@ export class WorldScene {
     if (!this.playerMesh) {
       const mesh = await AssetLoader.loadModel(ASSET_IDS.CHAR_PLAYER_A);
       if (!this.playerMesh) {
-        this.setShadowPolicy(mesh, CANONICAL_RENDER_CONFIG.shadows.castPlayer);
-        this.attachCharacterShadowProxy(mesh);
+        this.setShadowPolicy(mesh, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
         this.batchPlayerRigidMeshes(mesh);
+        const pelvis = mesh.getObjectByName("rig_pelvis");
+        if (!pelvis) throw new Error("[WorldScene] char_player_a is missing rig_pelvis");
+        mesh.updateMatrixWorld(true);
+        pelvis.getWorldPosition(this.tempCharacterWorldPosition);
+        mesh.worldToLocal(this.tempCharacterWorldPosition);
+        if (!Number.isFinite(this.tempCharacterWorldPosition.y) || this.tempCharacterWorldPosition.y <= 0) {
+          throw new Error("[WorldScene] char_player_a has an invalid rest pelvis offset");
+        }
+        this.playerPelvisRestOffsetY = this.tempCharacterWorldPosition.y;
         this.playerMesh = mesh;
         this.playerAnimation = new HumanoidAnimator(mesh);
         this.scene.add(this.playerMesh);
@@ -4278,10 +4939,11 @@ export class WorldScene {
       ringMesh.name = "school_ripple";
       sGroup.add(ringMesh);
       try {
-        const fishAssetId = fishSchoolAsset(school);
-        if (fishAssetId) {
+        const fishAssetIds = fishSchoolMemberAssets(school, 3);
+        if (fishAssetIds.length > 0) {
           const fishMembers: FishPresentationMember[] = [];
-          for (let index = 0; index < 3; index++) {
+          for (let index = 0; index < fishAssetIds.length; index++) {
+            const fishAssetId = fishAssetIds[index];
             const fish = await AssetLoader.loadModel(fishAssetId);
             fish.scale.setScalar(0.55);
             fish.userData.dynamicPresentation = true;
@@ -4295,6 +4957,14 @@ export class WorldScene {
           }
           sGroup.userData.fishMembers = fishMembers;
         }
+        const schoolGull = await AssetLoader.loadModel(ASSET_IDS.FAUNA_GULL_A);
+        schoolGull.scale.setScalar(1.05);
+        schoolGull.userData.dynamicPresentation = true;
+        this.setShadowPolicy(schoolGull, false);
+        schoolGull.visible = false;
+        sGroup.add(schoolGull);
+        sGroup.userData.schoolGull = schoolGull;
+        sGroup.userData.cuePhase = stablePresentationPhase(`school-cues:${schoolId}`);
         if (!sim.getState().world.activeSchools[schoolId]) {
           this.disposeSchoolEffect(sGroup);
           continue;
@@ -4346,7 +5016,38 @@ export class WorldScene {
   }
 
   public prepareForVisualCapture(camera: THREE.Camera): Promise<void> {
+    // Distance-managed LOD and visibility only recompute when the anchor moves
+    // or a load dirties them, and a fixed benchmark camera never moves. Force
+    // one pass here so the captured frame cannot depend on whether an async
+    // asset load happened to land before or after the last update.
+    this.distanceVisibilityDirty = true;
+    this.updateDistanceManagedPresentation();
     return this.rendererPipeline.prepareForCapture(camera);
+  }
+
+  public setCaptureRenderMode(mode: CaptureRenderMode): void {
+    this.rendererPipeline.setCaptureRenderMode(mode);
+  }
+
+  public setDiagnosticOverlay(mode: WorldFieldOverlay | null, worldSeed: number): void {
+    if (this.diagnosticOverlayMode === mode) return;
+    if (this.diagnosticOverlay) {
+      this.diagnosticOverlay.removeFromParent();
+      this.diagnosticOverlay.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        if (Array.isArray(object.material)) {
+          for (const material of object.material) material.dispose();
+        } else {
+          object.material.dispose();
+        }
+      });
+      this.diagnosticOverlay = null;
+    }
+    this.diagnosticOverlayMode = mode;
+    if (!mode) return;
+    this.diagnosticOverlay = createWorldDiagnosticOverlay(mode, worldSeed);
+    this.scene.add(this.diagnosticOverlay);
   }
 
   public renderObjectStats(): { visibleMeshes: number; shadowCasters: number; batchedMeshes: number; instancedMeshes: number } {
@@ -4373,6 +5074,10 @@ export class WorldScene {
     const fishingLineMaterial = this.fishingLineMesh?.material;
     if (fishingLineMaterial instanceof LineMaterial) {
       fishingLineMaterial.resolution.set(this.lastResizeWidth, this.lastResizeHeight);
+    }
+    const submergedFishingLineMaterial = this.fishingSubmergedLineMesh?.material;
+    if (submergedFishingLineMaterial instanceof LineMaterial) {
+      submergedFishingLineMaterial.resolution.set(this.lastResizeWidth, this.lastResizeHeight);
     }
     this.rendererPipeline.resize(this.lastResizeWidth, this.lastResizeHeight);
   }
@@ -4406,6 +5111,7 @@ export class WorldScene {
     this.qualityContactStrength = contactTierEffectStrength(this.qualityLevel);
     this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
     this.rainField.setQualityLevel(this.qualityLevel);
+    this.fireflyField.setQualityLevel(this.qualityLevel);
     if (!rebuildDensity) return;
     this.qualityRebuildElapsedSeconds = 0;
     this.groundCover.setQualityLevel(this.qualityLevel);
@@ -4433,6 +5139,17 @@ export class WorldScene {
    */
   public dispose(): void {
     this.detachPlayerFromDonkey();
+    this.playerAttachmentTransition = null;
+    this.playerAnimation?.dispose();
+    this.playerAnimation = null;
+    this.playerPelvisRestOffsetY = 0;
+    this.lastPlayerDiscontinuitySequence = -1;
+    for (const npc of this.npcPresentations.values()) {
+      npc.animator.dispose();
+      npc.model.removeFromParent();
+    }
+    this.npcPresentations.clear();
+    this.playerAnimationEvents.length = 0;
     this.donkeyPresentation?.mixer?.stopAllAction();
     if (this.donkeyPresentation) this.disposeDonkeyShadowPresentation(this.donkeyPresentation.root);
     this.donkeyPresentation = null;
@@ -4440,13 +5157,16 @@ export class WorldScene {
     this.fishingRodBend = null;
     this.cropInstances.dispose();
     this.groundCover.dispose();
+    this.setDiagnosticOverlay(null, 0);
     this.farmVfx.dispose();
     this.farmVfx.group.removeFromParent();
+    this.fireflyField.dispose();
+    this.fireflyField.group.removeFromParent();
     this.rainField.dispose();
     this.rainField.group.removeFromParent();
     this.disposeBatchedMeshes();
     this.water.dispose();
-    this.water.mesh.removeFromParent();
+    this.water.group.removeFromParent();
     this.shoreFoam.dispose();
     this.shoreFoam.mesh.removeFromParent();
     this.boatWakes.dispose();
@@ -4469,11 +5189,11 @@ export class WorldScene {
     this.skiffMooringPreview?.removeFromParent();
     this.skiffMooringPreview = null;
 
-    if (this.terrainMesh) {
-      this.terrainMesh.removeFromParent();
-      this.terrainMesh.geometry.dispose();
-      this.terrainMesh = null;
+    for (const terrainMesh of this.terrainMeshes) {
+      terrainMesh.removeFromParent();
+      terrainMesh.geometry.dispose();
     }
+    this.terrainMeshes.length = 0;
     disposeNamedGeneratedMesh(this.environmentGroup, "world_path_overlay");
     const farmGround = this.environmentGroup.getObjectByName("starter_farm_cultivated_ground");
     if (farmGround) {
@@ -4506,10 +5226,10 @@ export class WorldScene {
       this.playerContactShadow = null;
     }
 
-    const skyMesh = this.scene.getObjectByName("world_sky_dome");
-    if (skyMesh instanceof THREE.Mesh) {
-      skyMesh.removeFromParent();
-      skyMesh.geometry.dispose();
+    if (this.skyDome) {
+      this.skyDome.removeFromParent();
+      this.skyDome.geometry.dispose();
+      this.skyDome = null;
     }
     this.skyMaterial?.dispose();
     this.skyMaterial = null;
@@ -4537,6 +5257,12 @@ export class WorldScene {
       this.fishingLineMesh.geometry.dispose();
       (this.fishingLineMesh.material as THREE.Material).dispose();
       this.fishingLineMesh = null;
+    }
+    if (this.fishingSubmergedLineMesh) {
+      this.fishingSubmergedLineMesh.removeFromParent();
+      this.fishingSubmergedLineMesh.geometry.dispose();
+      (this.fishingSubmergedLineMesh.material as THREE.Material).dispose();
+      this.fishingSubmergedLineMesh = null;
     }
 
     this.lightingRig.sun.shadow.map?.dispose();

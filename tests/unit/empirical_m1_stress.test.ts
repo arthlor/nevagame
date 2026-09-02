@@ -447,7 +447,7 @@ describe("Milestone M1 Empirical Stress & Boundary Verification", () => {
     });
 
     it("renders ChromeAlert tones", () => {
-      const tones = ["caution", "danger", "success", "guild"] as const;
+      const tones = ["caution", "danger", "success", "info"] as const;
       for (const tone of tones) {
         const html = renderToString(
           React.createElement(ChromeAlert, { tone, children: "Alert text" })

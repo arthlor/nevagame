@@ -151,6 +151,16 @@ export function computeAssetInputHash(
       )
     : {};
 
+  const animationSource = asset.parameters?.animationSource;
+  let animationSourceHash = null;
+  if (animationSource) {
+    const sourcePath = path.resolve(repoRoot, animationSource);
+    if (sourcePath !== repoRoot && !sourcePath.startsWith(`${repoRoot}${path.sep}`)) {
+      throw new Error(`Unsafe animation source path: ${animationSource}`);
+    }
+    animationSourceHash = hashFiles([sourcePath], repoRoot);
+  }
+
   return sha256(
     stableStringify({
       cacheVersion: ART_CACHE_VERSION,
@@ -158,6 +168,7 @@ export function computeAssetInputHash(
       asset,
       paletteVersion: palette?.version ?? 1,
       paletteTokens,
+      animationSourceHash,
       optimizeConfig,
       toolchainHash: computeAssetToolchainHash(asset, repoRoot),
     })

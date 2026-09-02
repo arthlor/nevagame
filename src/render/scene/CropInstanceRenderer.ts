@@ -42,6 +42,24 @@ export const POTATO_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   withered: ASSET_IDS.CROP_POTATO_WITHERED
 };
 
+export const SUNFLOWER_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: ASSET_IDS.CROP_SUNFLOWER_SEEDED,
+  sprout: ASSET_IDS.CROP_SUNFLOWER_SPROUT,
+  growing: ASSET_IDS.CROP_SUNFLOWER_GROWING,
+  mature: ASSET_IDS.CROP_SUNFLOWER_MATURE,
+  overripe: ASSET_IDS.CROP_SUNFLOWER_OVERRIPE,
+  withered: ASSET_IDS.CROP_SUNFLOWER_WITHERED
+};
+
+export const OLIVE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: ASSET_IDS.CROP_OLIVE_TREE_SEEDED,
+  sprout: ASSET_IDS.CROP_OLIVE_TREE_SPROUT,
+  growing: ASSET_IDS.CROP_OLIVE_TREE_GROWING,
+  mature: ASSET_IDS.CROP_OLIVE_TREE_MATURE,
+  overripe: ASSET_IDS.CROP_OLIVE_TREE_OVERRIPE,
+  withered: ASSET_IDS.CROP_OLIVE_TREE_WITHERED
+};
+
 const APPLE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   seeded: WHEAT_STAGE_ASSET.seeded,
   sprout: WHEAT_STAGE_ASSET.sprout,
@@ -52,8 +70,8 @@ const APPLE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
 };
 
 /**
- * Every playable crop has a presentation binding. Wheat, tomato, and potato
- * have dedicated Blender stage families. Barley, corn, and flax reuse the
+ * Every playable crop has a presentation binding. Wheat, tomato, potato,
+ * sunflower, and olive have dedicated Blender stage families. Barley, corn, and flax reuse the
  * wheat meshes and carrot reuses potato until those generators exist — these
  * are silhouette stand-ins, not distinct crop models. Apple uses the wheat
  * early stages plus the apple-tree mesh at mature/overripe.
@@ -66,7 +84,9 @@ export const CROP_STAGE_ASSETS: Readonly<Record<string, Readonly<Record<CropStag
   "crop.corn": WHEAT_STAGE_ASSET,
   "crop.carrot": POTATO_STAGE_ASSET,
   "crop.flax": WHEAT_STAGE_ASSET,
-  "crop.apple_tree": APPLE_TREE_STAGE_ASSET
+  "crop.apple_tree": APPLE_TREE_STAGE_ASSET,
+  "crop.sunflower": SUNFLOWER_STAGE_ASSET,
+  "crop.olive_tree": OLIVE_TREE_STAGE_ASSET
 };
 
 export function cropStageAsset(cropId: string, stage: CropStage): AssetId | null {

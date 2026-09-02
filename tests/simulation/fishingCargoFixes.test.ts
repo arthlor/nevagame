@@ -13,7 +13,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     sim = new Simulation();
   });
 
-  it("refuses discard when scraps cannot fit and leaves the fish cargo", () => {
+  it("discards spoiled cargo without scraps when inventory cannot fit them", () => {
     sim.state.fishCargo["cargo.spoiled"] = {
       id: "cargo.spoiled",
       speciesId: "fish.trout",
@@ -31,10 +31,35 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
       slot.quantity = 1;
     }
     const discard = sim.discardFishCargo("cargo.spoiled");
+    expect(discard.success).toBe(true);
+    expect(discard.scraps).toBe(0);
+    expect(sim.state.fishCargo["cargo.spoiled"]).toBeUndefined();
+    expect(sim.state.player.carriedFishCargoId).toBeNull();
+    expect(InventoryManager.getItemCount(inv, "item.fish_scraps")).toBe(0);
+  });
+
+  it("refuses discard when scraps cannot fit and the fish is still fresh", () => {
+    sim.state.fishCargo["cargo.fresh"] = {
+      id: "cargo.fresh",
+      speciesId: "fish.trout",
+      weightKg: 3,
+      quality: "fine",
+      caughtAtMinute: 0,
+      freshness: 80,
+      cargoClass: "small",
+      location: { type: "player", containerId: "player" }
+    };
+    sim.state.player.carriedFishCargoId = "cargo.fresh";
+    const inv = sim.state.inventories[sim.state.player.inventoryId];
+    for (const slot of inv.slots) {
+      slot.itemId = "seed.wheat";
+      slot.quantity = 1;
+    }
+    const discard = sim.discardFishCargo("cargo.fresh");
     expect(discard.success).toBe(false);
     expect(discard.reason).toMatch(/inventory space/i);
-    expect(sim.state.fishCargo["cargo.spoiled"]).toBeDefined();
-    expect(sim.state.player.carriedFishCargoId).toBe("cargo.spoiled");
+    expect(sim.state.fishCargo["cargo.fresh"]).toBeDefined();
+    expect(sim.state.player.carriedFishCargoId).toBe("cargo.fresh");
   });
 
   it("lets the player fish from the Act 3 bridge waypoint", () => {
@@ -141,7 +166,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(sim.activeFishingEncounter).toBeNull();
     expect(sim.state.sportFishing).toBeNull();
     expect(Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.trout")).toBe(false);
-    expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
+    expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
   });
 
   it("keeps the save envelope valid while FishLanded listeners run", () => {
@@ -185,6 +210,8 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
         caughtAtMinute: 0
       },
       rodId: "rod.willow",
+      tackleSnapshot: { lureItemId: null },
+      seaConditionSnapshot: { weatherType: "clear", seaRoughness: 0 },
       stamina: 10,
       maxStamina: 40,
       distanceMeters: 12,
@@ -256,7 +283,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(reloaded.activeFishingEncounter).toBeNull();
     expect(reloaded.state.sportFishing).toBeNull();
     expect(escaped).toEqual(["no-cargo-space"]);
-    expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
+    expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
   });
 
   it("blocks hooking sport-fish when Work is insufficient and allows it when Work is available", () => {

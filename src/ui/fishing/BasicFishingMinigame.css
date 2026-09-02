@@ -559,13 +559,15 @@
 .cast-power-card,
 .minigame-card,
 .catch-summary-card {
-  background-color: transparent;
-  background-image: url("/assets/ui/neva-field-journal/journal-panel.png");
+  background-color: var(--journal-paper);
+  background-image:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 255, 255, 0.42), transparent 78%),
+    linear-gradient(180deg, var(--journal-paper-light), var(--journal-paper-deep));
   background-position: center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--journal-stitch);
+  border-radius: 4px;
   box-shadow: none;
   filter: drop-shadow(0 10px 12px rgba(54, 39, 21, 0.2));
 }

@@ -18,7 +18,7 @@ export const IconCoin: React.FC<IconProps> = (props) => <AtlasIcon src={UI_STATU
 export const IconEnergy: React.FC<IconProps> = (props) => <AtlasIcon src={UI_STATUS.labor} size={18} {...props} />;
 export const IconWarning: React.FC<IconProps> = (props) => <AtlasIcon src={UI_STATUS.warning} size={16} {...props} />;
 
-export const IconBackpack: React.FC<IconProps> = (props) => <AtlasIcon src={UI_MENU.backpack} size={18} {...props} />;
+export const IconSatchel: React.FC<IconProps> = (props) => <AtlasIcon src={UI_MENU.backpack} size={18} {...props} />;
 export const IconJournal: React.FC<IconProps> = (props) => <AtlasIcon src={UI_MENU.journal} size={16} {...props} />;
 export const IconLedger: React.FC<IconProps> = (props) => <AtlasIcon src={UI_MENU.ledger} size={16} {...props} />;
 export const IconCompass: React.FC<IconProps> = (props) => <AtlasIcon src={UI_MENU.compass} size={16} {...props} />;

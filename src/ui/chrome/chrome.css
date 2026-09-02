@@ -344,14 +344,6 @@
   border-color: var(--mm-gold-leaf);
 }
 
-.chrome-alert--guild {
-  color: var(--mm-text-gold);
-  background: linear-gradient(180deg, rgba(34, 46, 62, 0.96) 0%, rgba(20, 28, 38, 0.96) 100%);
-  border: 1.5px solid var(--mm-gold-leaf);
-  border-radius: 5px;
-  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.2), 0 2px 6px rgba(0, 0, 0, 0.5);
-}
-
 .chrome-alert--success {
   color: #a7f3d0;
   background: linear-gradient(180deg, rgba(6, 78, 59, 0.95) 0%, rgba(4, 47, 36, 0.95) 100%);

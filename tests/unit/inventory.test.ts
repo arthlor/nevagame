@@ -68,6 +68,14 @@ describe("InventoryManager", () => {
     expect(inv.slots[0].quantity).toBe(5);
   });
 
+  it("normalizes empty and malformed slot quantities for read-only projections", () => {
+    expect(InventoryManager.getSlotQuantity({})).toBe(0);
+    expect(InventoryManager.getSlotQuantity({ itemId: "seed.wheat" })).toBe(0);
+    expect(InventoryManager.getSlotQuantity({ itemId: "seed.wheat", quantity: 0 })).toBe(0);
+    expect(InventoryManager.getSlotQuantity({ itemId: "seed.wheat", quantity: Number.NaN })).toBe(0);
+    expect(InventoryManager.getSlotQuantity({ itemId: "seed.wheat", quantity: 3 })).toBe(3);
+  });
+
   it("rejects malformed, duplicate, and unknown transactions without mutation", () => {
     const inv = InventoryManager.createInventory("test_inv", 1);
     const cases = [

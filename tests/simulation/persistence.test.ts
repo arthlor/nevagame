@@ -10,6 +10,7 @@ import {
   type SaveEnvelope
 } from "../../src/persistence/SaveSchema";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
+import type { GameState } from "../../src/simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
@@ -20,6 +21,11 @@ import saveV12Layout4 from "../fixtures/save_v12_layout4.json";
 import saveV13Layout5 from "../fixtures/save_v13_layout5.json";
 import saveV14Layout6 from "../fixtures/save_v14_layout6.json";
 import saveV16Layout7 from "../fixtures/save_v16_layout7.json";
+import saveV22Layout8 from "../fixtures/save_v22_layout8.json";
+import saveV23Layout8 from "../fixtures/save_v23_layout8.json";
+import saveV24Calendar30 from "../fixtures/save_v24_calendar30.json";
+import saveV25Layout9 from "../fixtures/save_v25_layout9.json";
+import { DAYS_PER_SEASON, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
 
 function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
   const factory = globalThis.indexedDB as unknown as {
@@ -304,6 +310,7 @@ describe("Persistence & Offline Progression", () => {
       state.player.x = originalX + 40;
       inventory.slots[0].quantity = 1;
       state.basicFishing = {
+        ecologyId: "ecology.neva",
         habitatId: "river",
         phase: "minigame",
         remainingSeconds: 1.5,
@@ -538,6 +545,7 @@ describe("Persistence & Offline Progression", () => {
     const poisonedSchool = validEnvelope();
     poisonedSchool.state.world.activeSchools["school.bad"] = {
       id: "school.bad",
+      ecologyId: "ecology.neva",
       habitatId: "lake",
       x: Number.NaN,
       z: 45,
@@ -634,6 +642,113 @@ describe("Persistence & Offline Progression", () => {
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 
+  it("migrates v22 market state out of the broken equilibrium without changing RNG state", () => {
+    const fixture = structuredClone(saveV22Layout8) as unknown as SaveEnvelope;
+    const legacy = createInitialGameState(42891);
+    legacy.schemaVersion = 22;
+    legacy.world.layoutRevision = 8;
+    Object.assign(legacy.clock, fixture.state.clock);
+    legacy.markets = fixture.state.markets;
+    legacy.metadata.rngState = fixture.state.metadata.rngState;
+    const rngState = legacy.metadata.rngState;
+
+    const migrated = migrateSaveData({ schemaVersion: 22, savedAtUtcMs: 1, state: legacy });
+    const wheat = migrated.state.markets["market.village"].commodities["produce.wheat"];
+    const marlin = migrated.state.markets["market.harbor"].commodities["fish.blue_marlin"];
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(wheat).toMatchObject({
+      localSupply: 50,
+      targetSupply: 50,
+      demandIndex: 1,
+      lastTickMinute: 4320,
+      recentSalesVolume: 0
+    });
+    expect(marlin).toMatchObject({
+      localSupply: 1,
+      targetSupply: 1,
+      demandIndex: 1,
+      lastTickMinute: 4320,
+      recentSalesVolume: 0
+    });
+    expect(migrated.state.metadata.rngState).toBe(rngState);
+  });
+
+  it("migrates the v23 layout-8 fixture by relocating only newly invalid land poses", () => {
+    const fixture = structuredClone(saveV23Layout8);
+    const legacy = createInitialGameState(42891);
+    legacy.schemaVersion = 23;
+    legacy.world.layoutRevision = 8;
+    Object.assign(legacy.player, fixture.state.player);
+    Object.assign(legacy.world.structures, fixture.state.world.structures);
+    legacy.metadata.rngState = fixture.state.metadata.rngState;
+    const preserved = {
+      validStructure: structuredClone(legacy.world.structures["struct.layout8_fixture"]),
+      boats: structuredClone(legacy.boats),
+      crops: structuredClone(legacy.crops),
+      farms: structuredClone(legacy.farms),
+      inventory: structuredClone(legacy.inventories),
+      cargo: structuredClone(legacy.fishCargo),
+      quests: structuredClone(legacy.quests),
+      journal: structuredClone(legacy.journal),
+      proficiencies: structuredClone(legacy.player.proficiencies),
+      rngState: legacy.metadata.rngState,
+      mountX: legacy.mounts["mount.donkey_starter"].x,
+      mountZ: legacy.mounts["mount.donkey_starter"].z
+    };
+    expect(WorldLayout.isWater(legacy.player.x, legacy.player.z)).toBe(true);
+
+    const migrated = migrateSaveData({ schemaVersion: 23, savedAtUtcMs: fixture.savedAtUtcMs, state: legacy });
+
+    // migrateSaveData always runs the chain to head, so assert against the
+    // current version rather than the version this fixture's hop targets.
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(WorldLayout.isWater(migrated.state.player.x, migrated.state.player.z)).toBe(false);
+    expect(WorldLayout.isWalkable(migrated.state.player.x, migrated.state.player.z)).toBe(true);
+    expect(migrated.state.player.y).toBeCloseTo(
+      WorldLayout.terrainHeight(migrated.state.player.x, migrated.state.player.z) + 0.5,
+      6
+    );
+    expect(migrated.state.world.structures["struct.layout8_fixture"]).toMatchObject({
+      x: preserved.validStructure.x,
+      z: preserved.validStructure.z,
+      rotationY: preserved.validStructure.rotationY
+    });
+    expect(migrated.state.world.structures["struct.layout8_fixture"].y).toBeCloseTo(
+      WorldLayout.terrainHeight(preserved.validStructure.x, preserved.validStructure.z),
+      6
+    );
+    expect(migrated.state.mounts["mount.donkey_starter"]).toMatchObject({
+      x: preserved.mountX,
+      z: preserved.mountZ
+    });
+    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.crops).toEqual(preserved.crops);
+    expect(migrated.state.farms).toEqual(preserved.farms);
+    expect(migrated.state.inventories).toEqual(preserved.inventory);
+    expect(migrated.state.fishCargo).toEqual(preserved.cargo);
+    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.journal).toEqual(preserved.journal);
+    expect(migrated.state.player.proficiencies).toEqual(preserved.proficiencies);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("preserves valid v23 player X/Z while re-grounding it on layout revision 9", () => {
+    const legacy = createInitialGameState(42891);
+    legacy.schemaVersion = 23;
+    legacy.world.layoutRevision = 8;
+    legacy.player.x = -65;
+    legacy.player.y = 99;
+    legacy.player.z = -55;
+    const migrated = migrateSaveData({ schemaVersion: 23, savedAtUtcMs: 1, state: legacy });
+    expect(migrated.state.player).toMatchObject({ x: -65, z: -55 });
+    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.terrainHeight(-65, -55) + 0.5, 6);
+  });
+
   it("migrates the v11 layout fixture by re-grounding land truth and preserving unrelated state", () => {
     const legacy = structuredClone(saveV11Layout3) as unknown as SaveEnvelope;
     const preserved = {
@@ -670,7 +785,7 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.crops).toEqual(preserved.crops);
     expect(migrated.state.inventories).toEqual(preserved.inventories);
     expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
-    expect(migrated.state.markets).toEqual(preserved.markets);
+    expect(migrated.state.markets["market.fixture"]).toEqual(preserved.markets["market.fixture"]);
     expect(migrated.state.quests).toEqual(preserved.quests);
     expect(migrated.state.boats).toEqual(preserved.boats);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
@@ -804,7 +919,7 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.crops).toEqual(preserved.crops);
     expect(migrated.state.inventories).toEqual(preserved.inventories);
     expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
-    expect(migrated.state.markets).toEqual(preserved.markets);
+    expect(migrated.state.markets["market.fixture"]).toEqual(preserved.markets["market.fixture"]);
     expect(migrated.state.quests).toEqual(preserved.quests);
     expect(migrated.state.boats).toEqual(preserved.boats);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
@@ -1012,6 +1127,7 @@ describe("Persistence & Offline Progression", () => {
 
     legacy.world.activeSchools["school.v6_coast"] = {
       id: "school.v6_coast",
+      ecologyId: "ecology.neva",
       habitatId: "coast",
       x: 10,
       z: 65,
@@ -1041,7 +1157,7 @@ describe("Persistence & Offline Progression", () => {
       slackTimerSeconds: 0,
       snapTimerSeconds: 0,
       result: "active"
-    };
+    } as never;
 
     const preserved = {
       crop: structuredClone(legacy.crops["crop.v6_wheat"]),
@@ -1098,5 +1214,144 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.markets).toEqual(preserved.markets);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
     expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates the v24 calendar fixture: re-derives the season, refreshes seasonal price factors, and voids in-flight contracts exactly once", () => {
+    const fixture = structuredClone(saveV24Calendar30);
+    const legacy = createInitialGameState(90210) as unknown as Record<string, unknown>;
+    legacy.schemaVersion = 24;
+    Object.assign(legacy.clock as object, fixture.state.clock);
+    legacy.contracts = structuredClone(fixture.state.contracts);
+    const village = (legacy.markets as Record<string, { commodities: Record<string, { seasonalModifier: number }> }>)[
+      "market.village"
+    ];
+    village.commodities["produce.tomato"].seasonalModifier =
+      fixture.state.markets["market.village"].commodities["produce.tomato"].seasonalModifier;
+
+    const inventoryId = (legacy.player as { inventoryId: string }).inventoryId;
+    const wheatBefore = ((legacy.inventories as Record<string, { slots: Array<{ itemId: string; quantity: number } | null> }>)[
+      inventoryId
+    ].slots.find((slot) => slot?.itemId === "produce.wheat")?.quantity) ?? 0;
+
+    const migrated = migrateSaveData({
+      schemaVersion: 24,
+      savedAtUtcMs: fixture.savedAtUtcMs,
+      state: legacy as unknown as GameState
+    });
+
+    // Day 20 was mid-spring on the 30-day calendar and is a different season now.
+    const expectedDay = Math.floor(fixture.state.clock.currentMinute / MINUTES_PER_DAY) + 1;
+    expect(migrated.state.clock.dayCount).toBe(expectedDay);
+    expect(migrated.state.clock.season).not.toBe("spring");
+    expect(migrated.state.clock.season).toBe(
+      (["spring", "summer", "autumn", "winter"] as const)[
+        Math.floor((expectedDay - 1) / DAYS_PER_SEASON) % 4
+      ]
+    );
+
+    // The stale 1.0 modifier is refreshed to the definition's factor for the new season.
+    const tomato = migrated.state.markets["market.village"].commodities["produce.tomato"];
+    expect(tomato.seasonalModifier).not.toBe(1.0);
+
+    // The in-flight contract is voided once, and its 3 delivered wheat come back.
+    const contract = migrated.state.contracts.find((entry) => entry.id === "contract.fixture_active");
+    expect(contract?.status).toBe("expired");
+    expect(contract?.quantityFulfilled).toBe(0);
+    const wheatAfter =
+      migrated.state.inventories[migrated.state.player.inventoryId].slots.find(
+        (slot) => slot?.itemId === "produce.wheat"
+      )?.quantity ?? 0;
+    expect(wheatAfter).toBe(wheatBefore + 3);
+
+    // Re-running the migration must not refund a second time.
+    const rerun = migrateSaveData(migrated);
+    const wheatRerun =
+      rerun.state.inventories[rerun.state.player.inventoryId].slots.find(
+        (slot) => slot?.itemId === "produce.wheat"
+      )?.quantity ?? 0;
+    expect(wheatRerun).toBe(wheatAfter);
+
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("migrates the v25 layout-9 fixture to the Sunreach registries without changing existing Neva truth", () => {
+    const legacy = createInitialGameState(424242) as GameState;
+    legacy.schemaVersion = 25;
+    legacy.world.layoutRevision = 9;
+    Object.assign(legacy.player, saveV25Layout9.state.player);
+    legacy.metadata.rngState = saveV25Layout9.state.metadata.rngState;
+    delete legacy.farms["farm.sunreach_terraces"];
+    delete legacy.markets["market.sunreach_cove"];
+    for (const stationId of ["struct.sunreach_hand_mill", "struct.sunreach_workbench", "struct.sunreach_fish_table"]) {
+      delete legacy.world.structures[stationId];
+    }
+    legacy.world.activeSchools["school.v25_neva"] = {
+      id: "school.v25_neva",
+      ecologyId: "ecology.neva",
+      habitatId: "lake",
+      x: 18,
+      z: 92.21637079147003,
+      radius: 8,
+      spawnedAtMinute: 480,
+      expiresAtMinute: 660,
+      remainingCatchPotential: 3,
+      speciesWeights: [{ speciesId: "fish.trout", weight: 1 }]
+    };
+    delete (legacy.world.activeSchools["school.v25_neva"] as Partial<(typeof legacy.world.activeSchools)[string]>).ecologyId;
+    if (legacy.contracts[0]) delete (legacy.contracts[0] as Partial<typeof legacy.contracts[number]>).deliveryMarketId;
+
+    const preserved = {
+      player: structuredClone(legacy.player),
+      boats: structuredClone(legacy.boats),
+      mounts: structuredClone(legacy.mounts),
+      crops: structuredClone(legacy.crops),
+      inventories: structuredClone(legacy.inventories),
+      fishCargo: structuredClone(legacy.fishCargo),
+      quests: structuredClone(legacy.quests),
+      contracts: legacy.contracts.map((contract) => ({
+        id: contract.id,
+        status: contract.status,
+        quantityRequired: contract.quantityRequired,
+        quantityFulfilled: contract.quantityFulfilled,
+        rewardMoney: contract.rewardMoney,
+        rewardSkillXp: structuredClone(contract.rewardSkillXp)
+      })),
+      rngState: legacy.metadata.rngState
+    };
+    const migrated = migrateSaveData({
+      schemaVersion: saveV25Layout9.schemaVersion,
+      savedAtUtcMs: saveV25Layout9.savedAtUtcMs,
+      state: legacy
+    });
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(10);
+    expect(migrated.state.player).toEqual(preserved.player);
+    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.mounts).toEqual(preserved.mounts);
+    expect(migrated.state.crops).toEqual(preserved.crops);
+    expect(migrated.state.inventories).toEqual(preserved.inventories);
+    expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
+    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.contracts.map((contract) => ({
+      id: contract.id,
+      status: contract.status,
+      quantityRequired: contract.quantityRequired,
+      quantityFulfilled: contract.quantityFulfilled,
+      rewardMoney: contract.rewardMoney,
+      rewardSkillXp: contract.rewardSkillXp
+    }))).toEqual(preserved.contracts);
+    expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
+    expect(migrated.state.farms["farm.sunreach_terraces"]).toMatchObject({
+      climateId: "warm",
+      soil: { fertility: 80, moistureRetention: 0.45 }
+    });
+    expect(migrated.state.markets["market.sunreach_cove"]).toBeDefined();
+    expect(migrated.state.world.activeSchools["school.v25_neva"].ecologyId).toBe("ecology.neva");
+    expect(migrated.state.contracts.every((contract) => Boolean(contract.deliveryMarketId))).toBe(true);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+
+    const repeated = migrateSaveData(structuredClone(migrated));
+    expect(repeated).toEqual(migrated);
   });
 });

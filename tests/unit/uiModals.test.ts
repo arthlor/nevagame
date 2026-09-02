@@ -7,23 +7,38 @@ import { InventoryModal } from "../../src/ui/InventoryModal";
 import { JournalModal } from "../../src/ui/JournalModal";
 import { WorldMapModal } from "../../src/ui/components/WorldMapModal";
 import { HowToPlayGuide } from "../../src/ui/components/HowToPlayGuide";
+import { ContentRegistry } from "../../src/content/ContentRegistry";
+import type { MarketId } from "../../src/simulation/core/types";
+
+function marketProps(sim: Simulation, marketId: MarketId) {
+  const market = ContentRegistry.markets.get(marketId)!;
+  sim.state.player.x = market.interactionPosition.x;
+  sim.state.player.z = market.interactionPosition.z;
+  return {
+    board: sim.inspectMarketBoard(marketId),
+    onSellItem: () => {},
+    onSellAllProduce: () => {},
+    onInspectCommodity: (id: MarketId, itemId: string, intent: "buy" | "sell" = "sell", quantity = 1) =>
+      sim.inspectCommodityAtMarket(id, itemId, intent, quantity),
+    onBuySeed: () => {},
+    onBuyItem: () => {},
+    onBuyRod: () => {},
+    onEquipRod: () => {},
+    onSellFishCargo: () => {},
+    onSellAllFishCargo: () => {},
+    onDiscardFishCargo: () => {},
+    onDeliverContractItems: () => {},
+    onDeliverFishCargo: () => {},
+    onClose: () => {}
+  };
+}
 
 describe("UI Modals Server/Unit Render", () => {
   it("renders MarketModal for village market without throwing", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(MarketModal, {
-        state: sim.state,
-        marketId: "market.village",
-        onSellItem: () => {},
-        onBuySeed: () => {},
-        onBuyRod: () => {},
-        onEquipRod: () => {},
-        onSellFishCargo: () => {},
-        onDiscardFishCargo: () => {},
-        onDeliverContractItems: () => {},
-        onDeliverFishCargo: () => {},
-        onClose: () => {}
+        ...marketProps(sim, "market.village")
       })
     );
     expect(html).toContain("Village Produce Market");
@@ -36,17 +51,7 @@ describe("UI Modals Server/Unit Render", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(MarketModal, {
-        state: sim.state,
-        marketId: "market.harbor",
-        onSellItem: () => {},
-        onBuySeed: () => {},
-        onBuyRod: () => {},
-        onEquipRod: () => {},
-        onSellFishCargo: () => {},
-        onDiscardFishCargo: () => {},
-        onDeliverContractItems: () => {},
-        onDeliverFishCargo: () => {},
-        onClose: () => {}
+        ...marketProps(sim, "market.harbor")
       })
     );
     expect(html).toContain("Harbor Fish Market &amp; Wholesaler");
@@ -57,34 +62,38 @@ describe("UI Modals Server/Unit Render", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(InventoryModal, {
-        state: sim.state,
+        satchel: sim.inspectSatchel(),
         onClose: () => {},
-        onSelectPlantCrop: () => {}
+        onSelectPlantCrop: () => {},
+        onInspectPlanting: () => ({ valid: false })
       })
     );
-    expect(html).toContain("Guild Satchel");
+    expect(html).toContain("Satchel");
   });
 
   it("renders JournalModal without throwing", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(JournalModal, {
-        state: sim.state,
+        pages: sim.inspectJournalPages(),
+        activeQuest: sim.questDomain.getActiveQuestDto(),
+        skills: sim.inspectSkillProgress(),
         onClose: () => {}
       })
     );
-    expect(html).toContain("Guild Chronicle &amp; Bestiary");
+    expect(html).toContain("Field Journal");
   });
 
   it("renders WorldMapModal without throwing", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(WorldMapModal, {
-        state: sim.state,
+        map: sim.inspectWorldMap(),
+        onInspectMarketDemand: (marketId) => sim.inspectMarketDemand(marketId),
         onClose: () => {}
       })
     );
-    expect(html).toContain("Illuminated Realm of Neva");
+    expect(html).toContain("Nautical Chart of Neva");
   });
 
   it("documents the live tool-slot map in the field guide", () => {

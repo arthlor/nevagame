@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 24,
+  "savedAtUtcMs": 1788500000000,
+  "state": {
+    "schemaVersion": 24,
+    "clock": {
+      "currentMinute": 27960,
+      "minutesPerRealSecond": 0.4,
+      "dayCount": 20,
+      "season": "spring",
+      "year": 1,
+      "timeOfDay": "day",
+      "isPaused": false
+    },
+    "contracts": [
+      {
+        "id": "contract.fixture_active",
+        "templateId": "contract.wheat_supply",
+        "requesterId": "Village Baker",
+        "type": "produce",
+        "targetItemIdOrSpecies": "produce.wheat",
+        "quantityRequired": 8,
+        "quantityFulfilled": 3,
+        "rewardMoney": 96,
+        "rewardSkillXp": { "skill": "farming", "xp": 40 },
+        "expiresAtMinute": 40000,
+        "status": "active"
+      }
+    ],
+    "markets": {
+      "market.village": {
+        "commodities": {
+          "produce.tomato": { "seasonalModifier": 1.0 }
+        }
+      }
+    },
+    "metadata": {
+      "rngState": 90210
+    }
+  }
+}

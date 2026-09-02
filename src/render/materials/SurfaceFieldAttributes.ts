@@ -13,6 +13,16 @@ function clamp01(value: number): number {
 }
 
 /**
+ * Every surface-field channel is a clamped 0..1 weight, so a normalized byte
+ * carries it with 1/255 precision. The terrain mesh alone has ~885k vertices;
+ * keeping three float vec4s per vertex here cost ~36 bytes of vertex fetch
+ * bandwidth per vertex for no visible precision.
+ */
+function quantize01(value: number): number {
+  return Math.round(clamp01(value) * 255);
+}
+
+/**
  * Writes the presentation-only surface field at the geometry's world-space
  * vertices. WorldLayout remains the semantic owner; this module only packs its
  * result for shared terrain, road, and cultivated-ground materials.
@@ -50,41 +60,41 @@ export function writeSurfaceFieldAttributes(
       `[SurfaceFieldAttributes] Expected ${positions.count} samples, received ${samples.length}`
     );
   }
-  const weights0 = new Float32Array(positions.count * 4);
-  const weights1 = new Float32Array(positions.count * 4);
-  const causes = new Float32Array(positions.count * 4);
+  const weights0 = new Uint8Array(positions.count * 4);
+  const weights1 = new Uint8Array(positions.count * 4);
+  const causes = new Uint8Array(positions.count * 4);
 
   for (let index = 0; index < positions.count; index += 1) {
     const sample = samples[index];
     const weights = sample.weights;
     const offset = index * 4;
 
-    weights0[offset] = clamp01(weights.grass);
-    weights0[offset + 1] = clamp01(weights.meadow);
-    weights0[offset + 2] = clamp01(weights.drySoil);
-    weights0[offset + 3] = clamp01(weights.dampSoil);
+    weights0[offset] = quantize01(weights.grass);
+    weights0[offset + 1] = quantize01(weights.meadow);
+    weights0[offset + 2] = quantize01(weights.drySoil);
+    weights0[offset + 3] = quantize01(weights.dampSoil);
 
-    weights1[offset] = clamp01(weights.path);
-    weights1[offset + 1] = clamp01(weights.shoulder);
-    weights1[offset + 2] = clamp01(weights.beach);
-    weights1[offset + 3] = clamp01(weights.riverbed);
+    weights1[offset] = quantize01(weights.path);
+    weights1[offset + 1] = quantize01(weights.shoulder);
+    weights1[offset + 2] = quantize01(weights.beach);
+    weights1[offset + 3] = quantize01(weights.riverbed);
 
-    causes[offset] = clamp01(weights.wetShoreline);
-    causes[offset + 1] = clamp01(weights.cliff);
-    causes[offset + 2] = clamp01(sample.farmInfluence);
-    causes[offset + 3] = clamp01(sample.shorelineWetness);
+    causes[offset] = quantize01(weights.wetShoreline);
+    causes[offset + 1] = quantize01(weights.cliff);
+    causes[offset + 2] = quantize01(sample.farmInfluence);
+    causes[offset + 3] = quantize01(sample.shorelineWetness);
   }
 
   geometry.setAttribute(
     SURFACE_FIELD_ATTRIBUTE_NAMES.weights0,
-    new THREE.BufferAttribute(weights0, 4)
+    new THREE.Uint8BufferAttribute(weights0, 4, true)
   );
   geometry.setAttribute(
     SURFACE_FIELD_ATTRIBUTE_NAMES.weights1,
-    new THREE.BufferAttribute(weights1, 4)
+    new THREE.Uint8BufferAttribute(weights1, 4, true)
   );
   geometry.setAttribute(
     SURFACE_FIELD_ATTRIBUTE_NAMES.causes,
-    new THREE.BufferAttribute(causes, 4)
+    new THREE.Uint8BufferAttribute(causes, 4, true)
   );
 }

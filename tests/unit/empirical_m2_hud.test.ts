@@ -2,13 +2,14 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
-import { HUD } from "../../src/ui/HUD";
+import { LegacyHUD as HUD } from "./uiTestHelpers";
 import { QuestTrackerHUD } from "../../src/ui/QuestTrackerHUD";
 import { FarmForecastPopover } from "../../src/ui/components/FarmForecastPopover";
 import { CelestialTimeDial } from "../../src/ui/HudDecorations";
 import { playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
+import { dayOfSeason } from "../../src/simulation/core/GameClock";
 
 describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
   describe("1. CelestialTimeDial Rotation Math & Astronomical Cycle", () => {
@@ -78,7 +79,8 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain('data-testid="game-clock"');
       expect(html).toContain("13:35");
       // Season and Day
-      expect(html).toContain("Summer 14");
+      // Derived from the shared owner so the assertion survives calendar retuning.
+      expect(html).toContain(`Summer ${dayOfSeason(state.clock.dayCount)}`);
       // Temperature readout in °C
       expect(html).toContain("22°C");
       // Gold purse formatted balance
@@ -109,25 +111,36 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
 
       const html = renderToString(
         React.createElement(FarmForecastPopover, {
-          weather: state.weather,
-          clock: state.clock,
+          forecast: {
+            seasonLabel: "Autumn",
+            currentTemperatureC: Math.round(state.weather.temperatureC),
+            slots: [
+              { label: "Now", type: state.weather.type },
+              { label: "+2h", type: "cloudy" },
+              { label: "+5h", type: "clear" }
+            ],
+            rainLabel: "Showers possible",
+            windLabel: "Breezy",
+            seaLabel: "Swell"
+          },
           onClose: () => {}
         })
       );
 
       expect(html).toContain("farm-forecast-popover");
-      expect(html).toContain("Almanac &amp; Forecast");
+      expect(html).toContain("Coast forecast");
       expect(html).toContain("Autumn");
       expect(html).toContain("Now");
       expect(html).toContain("17°C");
       expect(html).toContain("+2h");
       expect(html).toContain("+5h");
-      // Impact metrics
-      expect(html).toContain("Precipitation");
-      expect(html).toContain("45%");
-      expect(html).toContain("Wind Speed");
-      expect(html).toContain("Sea Swell");
-      expect(html).toContain("60%");
+      // Current impact metrics
+      expect(html).toContain("Rain");
+      expect(html).toContain("Showers possible");
+      expect(html).toContain("Wind");
+      expect(html).toContain("Breezy");
+      expect(html).toContain("Sea");
+      expect(html).toContain("Swell");
       expect(html).toContain("forecast-close-btn");
     });
   });
@@ -168,8 +181,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       const html = renderToString(
         React.createElement(QuestTrackerHUD, { activeQuest: null })
       );
-      expect(html).toContain("Open Horizons");
-      expect(html).toContain("completed");
+      expect(html).toBe("");
     });
 
     it("renders severe weather chips in Top-Right under storm and gale conditions", () => {

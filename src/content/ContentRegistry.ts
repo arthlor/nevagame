@@ -25,6 +25,9 @@ import { PROFICIENCY_RANKS } from "./progression";
 import { CONTRACT_TEMPLATES } from "./contracts";
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
+import { KNOWLEDGE_ENTRIES, type KnowledgeEntryDefinition } from "./knowledge";
+import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
+import { FISHING_ECOLOGY_DEFINITIONS } from "../world/WorldIslands";
 
 export class ContentRegistry {
   public static readonly crops: ReadonlyMap<string, CropDefinition> = new Map(Object.entries(CROPS));
@@ -41,6 +44,7 @@ export class ContentRegistry {
   );
   public static readonly npcs: ReadonlyMap<string, NpcDefinition> = new Map(NPCS.map((n) => [n.id, n]));
   public static readonly quests: ReadonlyMap<string, QuestDefinition> = new Map(QUESTS.map((q) => [q.id, q]));
+  public static readonly knowledge: ReadonlyMap<string, KnowledgeEntryDefinition> = new Map(Object.entries(KNOWLEDGE_ENTRIES));
 
   private static isInitialized = false;
 
@@ -50,6 +54,10 @@ export class ContentRegistry {
    */
   public static initializeAndValidate(): void {
     if (this.isInitialized) return;
+
+    this.assertUniqueIds("contract template", CONTRACT_TEMPLATES);
+    this.assertUniqueIds("NPC", NPCS);
+    this.assertUniqueIds("quest", QUESTS);
 
     // 1. Validate Crops
     for (const [cropId, crop] of this.crops.entries()) {
@@ -71,6 +79,9 @@ export class ContentRegistry {
       }
       if (fish.baseMarketValue <= 0) {
         throw new Error(`Fish '${fishId}' has non-positive baseMarketValue: ${fish.baseMarketValue}`);
+      }
+      if (!fish.ecologyIds.length || fish.ecologyIds.some((id) => !FISHING_ECOLOGY_DEFINITIONS[id])) {
+        throw new Error(`Fish '${fishId}' has an invalid fishing ecology`);
       }
     }
 
@@ -95,7 +106,9 @@ export class ContentRegistry {
     }
 
     // 4. Validate Markets
+    const commodityBasePrices = new Map<string, { marketId: string; basePrice: number }>();
     for (const [marketId, market] of this.markets.entries()) {
+      const listedIds = new Set<string>();
       for (const commodity of market.commodities) {
         const itemExists = this.items.has(commodity.itemId);
         const fishExists = this.fishSpecies.has(commodity.itemId);
@@ -107,6 +120,37 @@ export class ContentRegistry {
         if (commodity.basePrice <= 0) {
           throw new Error(`Market '${marketId}' commodity '${commodity.itemId}' has invalid basePrice: ${commodity.basePrice}`);
         }
+        if (listedIds.has(commodity.itemId)) {
+          throw new Error(`Market '${marketId}' lists commodity '${commodity.itemId}' more than once`);
+        }
+        listedIds.add(commodity.itemId);
+        if (commodity.targetSupply < 1) {
+          throw new Error(`Market '${marketId}' commodity '${commodity.itemId}' has invalid targetSupply: ${commodity.targetSupply}`);
+        }
+        if (commodity.consumptionRatePerHour <= 0) {
+          throw new Error(`Market '${marketId}' commodity '${commodity.itemId}' has invalid consumptionRatePerHour: ${commodity.consumptionRatePerHour}`);
+        }
+        for (const [season, factor] of Object.entries(commodity.seasonalFactors)) {
+          if (factor <= 0 || factor > 2) {
+            throw new Error(`Market '${marketId}' commodity '${commodity.itemId}' has invalid ${season} seasonal factor: ${factor}`);
+          }
+        }
+        const previous = commodityBasePrices.get(commodity.itemId);
+        if (previous && previous.basePrice !== commodity.basePrice) {
+          throw new Error(
+            `Commodity '${commodity.itemId}' has conflicting base prices in '${previous.marketId}' and '${marketId}'`
+          );
+        }
+        commodityBasePrices.set(commodity.itemId, { marketId, basePrice: commodity.basePrice });
+      }
+      for (const itemId of market.retail.itemIds) {
+        if (!this.items.has(itemId)) throw new Error(`Market '${marketId}' retails missing item '${itemId}'`);
+      }
+      for (const cropId of market.retail.seedCropIds ?? []) {
+        if (!this.crops.has(cropId)) throw new Error(`Market '${marketId}' stocks seed for missing crop '${cropId}'`);
+      }
+      for (const rodId of market.retail.rodIds ?? []) {
+        if (!this.rods.has(rodId)) throw new Error(`Market '${marketId}' retails missing rod '${rodId}'`);
       }
     }
 
@@ -117,91 +161,123 @@ export class ContentRegistry {
       }
     }
 
-    // 6. Validate Quests
-    for (const [questId, quest] of this.quests.entries()) {
-      if (!this.npcs.has(quest.speakerId)) {
-        throw new Error(`Quest '${questId}' references unknown speakerId '${quest.speakerId}'`);
-      }
-      if (!quest.objectives || quest.objectives.length === 0) {
-        throw new Error(`Quest '${questId}' must have at least one objective.`);
-      }
-      if (quest.nextQuestId && !this.quests.has(quest.nextQuestId)) {
-        throw new Error(`Quest '${questId}' references unknown nextQuestId '${quest.nextQuestId}'`);
-      }
-      for (const objective of quest.objectives) {
-        if (!Number.isSafeInteger(objective.targetQuantity) || objective.targetQuantity <= 0) {
-          throw new Error(`Quest '${questId}' objective '${objective.id}' has an invalid target quantity`);
-        }
-      }
-      if (quest.rewards.items) {
-        for (const item of quest.rewards.items) {
-          if (!this.items.has(item.itemId)) {
-            throw new Error(`Quest '${questId}' reward references missing itemId '${item.itemId}'`);
-          }
-        }
-      }
-      for (const objective of quest.objectives) {
-        if (!objective.targetId) continue;
-        this.validateQuestTarget(questId, objective.type, objective.targetId);
-        if (objective.location?.kind === "farm" && objective.location.id !== "farm.starter_garden" && objective.location.id !== "farm.player_homestead") {
-          throw new Error(`Quest '${questId}' objective '${objective.id}' references unknown farm '${objective.location.id}'`);
-        }
-        if (objective.location?.kind === "market" && !this.markets.has(objective.location.id)) {
-          throw new Error(`Quest '${questId}' objective '${objective.id}' references unknown market '${objective.location.id}'`);
-        }
-        if (objective.location?.kind === "station" && !objective.location.id.startsWith("struct.")) {
-          throw new Error(`Quest '${questId}' objective '${objective.id}' references invalid station '${objective.location.id}'`);
-        }
-      }
-    }
+    // 6. Validate authored quest content and its single reachable chain.
+    this.validateQuestDefinitions(QUESTS);
+    this.validateNpcRecognition();
 
-    for (const rank of this.ranks) {
-      for (const id of rank.farmingUnlocks) {
-        if (id.startsWith("crop.") && !this.crops.has(id)) {
-          throw new Error(`Rank '${rank.rankName}' farmingUnlocks missing crop '${id}'`);
-        }
-      }
-      for (const id of rank.processingUnlocks) {
-        if (id.startsWith("recipe.") && !this.recipes.has(id)) {
-          throw new Error(`Rank '${rank.rankName}' processingUnlocks missing recipe '${id}'`);
-        }
-      }
-      for (const id of rank.fishingUnlocks) {
-        if (id.startsWith("rod.") && !this.rods.has(id)) {
-          throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing rod '${id}'`);
-        }
-        if (id.startsWith("boat.") && ![...this.boats.values()].some((boat) => boat.id === id)) {
-          throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing boat '${id}'`);
-        }
-      }
-      for (const id of rank.tradingUnlocks) {
-        if (id.startsWith("market.") && !this.markets.has(id)) {
-          throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing market '${id}'`);
-        }
-        if (id.startsWith("contract.") && !this.contractTemplates.has(id)) {
-          throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing contract template '${id}'`);
-        }
-      }
-    }
-
-    for (const [rodId, rod] of this.rods.entries()) {
-      if (rod.costMoney < 0) throw new Error(`Rod '${rodId}' has invalid costMoney`);
-    }
-    for (const [boatId, boat] of this.boats.entries()) {
-      if (boat.fuelCapacity < 0) throw new Error(`Boat '${boatId}' has invalid fuelCapacity`);
-    }
-    for (const [templateId, template] of this.contractTemplates.entries()) {
-      for (const poolId of template.itemOrSpeciesPool) {
-        if (!this.items.has(poolId) && !this.fishSpecies.has(poolId)) {
-          throw new Error(`Contract '${templateId}' pool id '${poolId}' is neither an item nor a fish species`);
-        }
-      }
-    }
-
+    this.validateProgressionAndEquipment();
     this.isInitialized = true;
   }
 
-  private static validateQuestTarget(questId: string, type: string, targetId: string): void {
+  private static assertUniqueIds(label: string, definitions: ReadonlyArray<{ id: string }>): void {
+    const ids = new Set<string>();
+    for (const definition of definitions) {
+      if (ids.has(definition.id)) throw new Error(`Duplicate ${label} id '${definition.id}'`);
+      ids.add(definition.id);
+    }
+  }
+
+  public static validateQuestDefinitions(definitions: readonly QuestDefinition[]): void {
+    this.assertUniqueIds("quest", definitions);
+    const questMap = new Map(definitions.map((quest) => [quest.id, quest]));
+    const objectiveIds = new Set<string>();
+    const supportedTypes = new Set([
+      "talk-npc", "plant-crop", "water-crop", "harvest-crop", "craft-recipe",
+      "catch-basic-fish", "chum-school", "hook-sport-fish", "land-sport-fish",
+      "stow-cargo", "board-boat", "dock-boat", "sell-item", "sell-fish",
+      "purchase-upgrade", "complete-contract", "apply-fertilizer", "install-irrigation", "irrigate-farm"
+    ]);
+    const farms = new Set(Object.keys(WORLD_FARM_DEFINITIONS));
+    const stations = new Set(Object.keys(WORLD_STATION_DEFINITIONS));
+    const habitats = new Set(["river", "lake", "coast", "offshore"]);
+    const ecologies = new Set(Object.keys(FISHING_ECOLOGY_DEFINITIONS));
+    const boatIds = new Set(["boat.player_rowboat", "boat.player_skiff", ...this.boats.keys()]);
+    const expectedKinds: Partial<Record<string, string[]>> = {
+      "plant-crop": ["farm"], "water-crop": ["farm"], "harvest-crop": ["farm"],
+      "apply-fertilizer": ["farm"], "install-irrigation": ["farm"], "irrigate-farm": ["farm"],
+      "craft-recipe": ["station"], "catch-basic-fish": ["habitat", "ecology", "boat"], "chum-school": ["habitat", "ecology"],
+      "hook-sport-fish": ["habitat", "ecology"], "land-sport-fish": ["habitat", "boat", "ecology"],
+      "stow-cargo": ["boat"], "board-boat": ["boat"], "dock-boat": ["boat", "market"],
+      "sell-item": ["market"], "sell-fish": ["market"]
+    };
+
+    for (const quest of definitions) {
+      if (!this.npcs.has(quest.speakerId)) throw new Error(`Quest '${quest.id}' references unknown speakerId '${quest.speakerId}'`);
+      if (!quest.objectives?.length) throw new Error(`Quest '${quest.id}' must have at least one objective.`);
+      if (quest.nextQuestId && !questMap.has(quest.nextQuestId)) throw new Error(`Quest '${quest.id}' references unknown nextQuestId '${quest.nextQuestId}'`);
+
+      for (const objective of quest.objectives) {
+        if (objectiveIds.has(objective.id)) throw new Error(`Duplicate quest objective id '${objective.id}'`);
+        objectiveIds.add(objective.id);
+        if (!supportedTypes.has(objective.type)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has unsupported type '${objective.type}'`);
+        if (!Number.isSafeInteger(objective.targetQuantity) || objective.targetQuantity <= 0) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has an invalid target quantity`);
+        if (objective.targetId) this.validateQuestTarget(quest.id, objective.type, objective.targetId, farms, boatIds);
+
+        const location = objective.location;
+        if (!location) continue;
+        if (location.kind === "farm" && !farms.has(location.id)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' references unknown farm '${location.id}'`);
+        if (location.kind === "market" && !this.markets.has(location.id)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' references unknown market '${location.id}'`);
+        if (location.kind === "station" && !stations.has(location.id)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' references unknown station '${location.id}'`);
+        if (location.kind === "habitat" && !habitats.has(location.id)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' references unknown habitat '${location.id}'`);
+        if (location.kind === "ecology" && !ecologies.has(location.id)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' references unknown ecology '${location.id}'`);
+        if (location.kind === "boat" && !boatIds.has(location.id)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' references unknown boat '${location.id}'`);
+        const allowedKinds = expectedKinds[objective.type];
+        if (allowedKinds && !allowedKinds.includes(location.kind)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has unsupported ${location.kind} location`);
+      }
+
+      this.validateItemBatch(quest.id, "reward", quest.rewards.items);
+      this.validateItemBatch(quest.id, "turn-in cost", quest.turnInCost?.items);
+      if (quest.turnInCost?.money !== undefined && (!Number.isSafeInteger(quest.turnInCost.money) || quest.turnInCost.money <= 0)) throw new Error(`Quest '${quest.id}' has invalid turn-in money cost`);
+      if (quest.rewards.money !== undefined && (!Number.isSafeInteger(quest.rewards.money) || quest.rewards.money < 0)) throw new Error(`Quest '${quest.id}' has invalid money reward`);
+      for (const id of [...(quest.rewards.unlocksFeatureIds ?? []), ...(quest.rewards.unlocksKnowledgeIds ?? [])]) {
+        if (!id.trim()) throw new Error(`Quest '${quest.id}' has an empty unlock id`);
+      }
+      for (const id of quest.rewards.unlocksKnowledgeIds ?? []) {
+        const resolved = this.knowledge.has(id) ? id : `knowledge.${id}`;
+        if (!this.knowledge.has(id) && !this.knowledge.has(resolved)) {
+          throw new Error(`Quest '${quest.id}' references unknown knowledge '${id}'`);
+        }
+      }
+    }
+
+    const visited = new Set<string>();
+    let cursor: string | undefined = "quest.act1_welcome";
+    while (cursor) {
+      if (visited.has(cursor)) throw new Error(`Quest chain cycle detected at '${cursor}'`);
+      visited.add(cursor);
+      const quest = questMap.get(cursor);
+      if (!quest) throw new Error(`Quest chain references missing quest '${cursor}'`);
+      cursor = quest.nextQuestId;
+    }
+    const unreachable = definitions.filter((quest) => !visited.has(quest.id)).map((quest) => quest.id);
+    if (unreachable.length) throw new Error(`Unreachable main-story quests: ${unreachable.join(", ")}`);
+  }
+
+  private static validateItemBatch(questId: string, label: string, items: Array<{ itemId: string; quantity: number }> | undefined): void {
+    const seen = new Set<string>();
+    for (const item of items ?? []) {
+      if (!this.items.has(item.itemId)) throw new Error(`Quest '${questId}' ${label} references missing itemId '${item.itemId}'`);
+      if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) throw new Error(`Quest '${questId}' ${label} has invalid item quantity`);
+      if (seen.has(item.itemId)) throw new Error(`Quest '${questId}' ${label} repeats itemId '${item.itemId}'`);
+      seen.add(item.itemId);
+    }
+  }
+
+  private static validateNpcRecognition(): void {
+    for (const npc of this.npcs.values()) {
+      const ids = new Set<string>();
+      for (const entry of npc.recognitionDialogue ?? []) {
+        if (ids.has(entry.id)) throw new Error(`NPC '${npc.id}' repeats recognition dialogue '${entry.id}'`);
+        ids.add(entry.id);
+        if (!entry.lines.length || entry.lines.some((line) => !line.trim())) throw new Error(`NPC '${npc.id}' recognition dialogue '${entry.id}' has no usable lines`);
+        for (const questId of entry.requiresCompletedQuestIds ?? []) {
+          if (!this.quests.has(questId)) throw new Error(`NPC '${npc.id}' recognition dialogue references unknown quest '${questId}'`);
+        }
+      }
+    }
+  }
+
+  private static validateQuestTarget(questId: string, type: string, targetId: string, farms: Set<string>, boats: Set<string>): void {
     switch (type) {
       case "talk-npc":
         if (!this.npcs.has(targetId)) throw new Error(`Quest '${questId}' talk-npc target '${targetId}' is not an NPC`);
@@ -220,12 +296,50 @@ export class ContentRegistry {
       case "hook-sport-fish":
       case "land-sport-fish":
       case "sell-fish":
-        if (!this.fishSpecies.has(targetId) && !this.items.has(targetId)) {
-          throw new Error(`Quest '${questId}' fish target '${targetId}' is missing`);
-        }
+        if (!this.fishSpecies.has(targetId) && !this.items.has(targetId)) throw new Error(`Quest '${questId}' fish target '${targetId}' is missing`);
+        return;
+      case "complete-contract":
+        if (!this.contractTemplates.has(targetId)) throw new Error(`Quest '${questId}' contract target '${targetId}' is missing`);
+        return;
+      case "apply-fertilizer":
+      case "irrigate-farm":
+        if (!farms.has(targetId)) throw new Error(`Quest '${questId}' farm target '${targetId}' is missing`);
+        return;
+      case "install-irrigation":
+        if (targetId !== "feature.irrigation_zone") throw new Error(`Quest '${questId}' irrigation target '${targetId}' is unsupported`);
+        return;
+      case "board-boat":
+      case "dock-boat":
+        if (!boats.has(targetId)) throw new Error(`Quest '${questId}' boat target '${targetId}' is missing`);
+        return;
+      case "purchase-upgrade":
+        if (!this.rods.has(targetId) && !boats.has(targetId)) throw new Error(`Quest '${questId}' upgrade target '${targetId}' is missing`);
         return;
       default:
         return;
+    }
+  }
+
+  private static validateProgressionAndEquipment(): void {
+    for (const rank of this.ranks) {
+      for (const id of rank.farmingUnlocks) if (id.startsWith("crop.") && !this.crops.has(id)) throw new Error(`Rank '${rank.rankName}' farmingUnlocks missing crop '${id}'`);
+      for (const id of rank.processingUnlocks) if (id.startsWith("recipe.") && !this.recipes.has(id)) throw new Error(`Rank '${rank.rankName}' processingUnlocks missing recipe '${id}'`);
+      for (const id of rank.fishingUnlocks) {
+        if (id.startsWith("rod.") && !this.rods.has(id)) throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing rod '${id}'`);
+        if (id.startsWith("boat.") && ![...this.boats.values()].some((boat) => boat.id === id)) throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing boat '${id}'`);
+      }
+      for (const id of rank.tradingUnlocks) {
+        if (id.startsWith("market.") && !this.markets.has(id)) throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing market '${id}'`);
+        if (id.startsWith("contract.") && !this.contractTemplates.has(id)) throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing contract template '${id}'`);
+      }
+    }
+    for (const [rodId, rod] of this.rods) if (rod.costMoney < 0) throw new Error(`Rod '${rodId}' has invalid costMoney`);
+    for (const [boatId, boat] of this.boats) if (boat.fuelCapacity < 0) throw new Error(`Boat '${boatId}' has invalid fuelCapacity`);
+    for (const [templateId, template] of this.contractTemplates) {
+      if (!this.markets.has(template.deliveryMarketId)) throw new Error(`Contract '${templateId}' delivery market '${template.deliveryMarketId}' is missing`);
+      for (const poolId of template.itemOrSpeciesPool) {
+        if (!this.items.has(poolId) && !this.fishSpecies.has(poolId)) throw new Error(`Contract '${templateId}' pool id '${poolId}' is neither an item nor a fish species`);
+      }
     }
   }
 }

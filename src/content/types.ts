@@ -23,6 +23,7 @@ import {
   TimeWindowId,
   WeatherTag
 } from "../simulation/core/types";
+import type { FishingEcologyId } from "../world/WorldIslands";
 
 export interface ItemDefinition {
   id: ItemId;
@@ -43,6 +44,8 @@ export interface CropDefinition {
   footprint: { width: number; depth: number }; // meters
   baseGrowthMinutes: number;
   preferredClimates: ClimateId[];
+  /** Climates that grow at 1.00 (not 0.80 poor). Starter farms are temperate. */
+  neutralClimates?: ClimateId[];
   baseYield: { min: number; max: number };
   waterNeed: number; // 0..100 moisture consumption rate
   fertilityCost: number; // soil fertility reduction on harvest
@@ -83,6 +86,7 @@ export type MinigameFishBehavior = "mixed" | "smooth" | "sinker" | "floater" | "
 
 export interface FishSpeciesDefinition {
   id: FishSpeciesId;
+  ecologyIds: FishingEcologyId[];
   name: string;
   habitats: string[]; // e.g. "river", "lake", "coast", "offshore"
   seasons: SeasonId[];
@@ -143,6 +147,11 @@ export interface MarketDefinition {
   description: string;
   interactionPosition: { x: number; z: number; radiusMeters: number };
   commodities: MarketCommodityDefinition[];
+  retail: {
+    itemIds: ItemId[];
+    seedCropIds?: CropId[];
+    rodIds?: string[];
+  };
 }
 
 export interface RodDefinition {
@@ -172,6 +181,7 @@ export interface ContractTemplateDefinition {
   id: ContractTemplateId;
   type: "produce" | "fresh-fish" | "quality-target" | "bulk-order";
   requesterName: string;
+  deliveryMarketId: MarketId;
   itemOrSpeciesPool: string[];
   quantityRange: [number, number];
   minQuality?: string;

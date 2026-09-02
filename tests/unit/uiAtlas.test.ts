@@ -8,9 +8,11 @@ import {
   atlasForBehavior,
   atlasForMapNode,
   atlasForQuality,
+  atlasForRod,
   atlasForWeather,
   qualitySpriteKey
 } from "../../src/ui/chrome/uiAtlas";
+import { ROD_PROGRESSION } from "../../src/content/rods";
 
 import {
   dilateAlphaRgb,
@@ -54,6 +56,13 @@ describe("UI atlas resolvers (Legacy / Compatibility)", () => {
     expect(atlasForBehavior("run-left")).toContain("behavior-run.png");
     expect(atlasForBehavior("rest")).toContain("behavior-tiring.png");
     expect(atlasForMapNode("node_lighthouse")).toContain("mapnode-lighthouse.png");
+  });
+
+  it("maps every canonical fishing rod to its own atlas sprite", () => {
+    for (const rodId of ROD_PROGRESSION) {
+      expect(atlasForRod(rodId)).toContain(`rod-${rodId.slice("rod.".length)}.png`);
+    }
+    expect(atlasForRod("rod.unknown")).toBeUndefined();
   });
 });
 

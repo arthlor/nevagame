@@ -99,11 +99,11 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     id: "profile.pike",
     baseStamina: 75,
     behaviorWeights: {
-      "burst": 0.30,
-      "run-left": 0.25,
-      "run-right": 0.25,
-      "rest": 0.15,
-      "shake": 0.05,
+      "burst": 0.28,
+      "run-left": 0.22,
+      "run-right": 0.22,
+      "rest": 0.08,
+      "shake": 0.20,
       "dive": 0.00,
       "surface": 0.00
     },
@@ -278,13 +278,13 @@ export const FISH_BEHAVIOR_PROFILES: Record<string, FishBehaviorProfile> = {
     id: "profile.blue_marlin",
     baseStamina: 240,
     behaviorWeights: {
-      "burst": 0.35,
-      "surface": 0.25,
-      "run-left": 0.20,
-      "run-right": 0.15,
-      "dive": 0.05,
+      "burst": 0.28,
+      "surface": 0.20,
+      "run-left": 0.18,
+      "run-right": 0.12,
+      "dive": 0.04,
       "rest": 0.00,
-      "shake": 0.00
+      "shake": 0.18
     },
     minBehaviorDurationSeconds: 1.0,
     maxBehaviorDurationSeconds: 3.0,
@@ -308,6 +308,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   // Freshwater (6)
   "fish.carp": {
     id: "fish.carp",
+    ecologyIds: ["ecology.neva"],
     name: "Common Carp",
     habitats: ["river", "lake"],
     seasons: ["spring", "summer", "autumn", "winter"],
@@ -327,6 +328,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.trout": {
     id: "fish.trout",
+    ecologyIds: ["ecology.neva"],
     name: "Rainbow Trout",
     habitats: ["river", "lake"],
     seasons: ["spring", "summer", "autumn", "winter"],
@@ -346,6 +348,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.perch": {
     id: "fish.perch",
+    ecologyIds: ["ecology.neva"],
     name: "River Perch",
     habitats: ["river"],
     seasons: ["spring", "summer", "autumn", "winter"],
@@ -365,6 +368,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.catfish": {
     id: "fish.catfish",
+    ecologyIds: ["ecology.neva"],
     name: "Channel Catfish",
     habitats: ["river", "lake"],
     seasons: ["summer", "autumn"],
@@ -384,6 +388,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.pike": {
     id: "fish.pike",
+    ecologyIds: ["ecology.neva"],
     name: "Northern Pike",
     habitats: ["lake"],
     seasons: ["autumn", "winter", "spring"],
@@ -403,6 +408,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.arowana": {
     id: "fish.arowana",
+    ecologyIds: ["ecology.neva"],
     name: "Golden Arowana",
     habitats: ["lake"],
     seasons: ["summer"],
@@ -424,6 +430,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   // Saltwater (6)
   "fish.mackerel": {
     id: "fish.mackerel",
+    ecologyIds: ["ecology.neva"],
     name: "Atlantic Mackerel",
     habitats: ["coast"],
     seasons: ["spring", "summer", "autumn", "winter"],
@@ -443,6 +450,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.tuna": {
     id: "fish.tuna",
+    ecologyIds: ["ecology.neva"],
     name: "Yellowfin Tuna",
     habitats: ["coast", "offshore"],
     seasons: ["summer", "autumn"],
@@ -462,6 +470,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.sturgeon": {
     id: "fish.sturgeon",
+    ecologyIds: ["ecology.neva"],
     name: "White Sturgeon",
     habitats: ["coast"],
     seasons: ["autumn", "winter", "spring"],
@@ -481,6 +490,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.sailfish": {
     id: "fish.sailfish",
+    ecologyIds: ["ecology.neva"],
     name: "Pacific Sailfish",
     habitats: ["offshore"],
     seasons: ["summer"],
@@ -500,6 +510,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.swordfish": {
     id: "fish.swordfish",
+    ecologyIds: ["ecology.neva"],
     name: "Broadbill Swordfish",
     habitats: ["offshore"],
     seasons: ["autumn", "winter"],
@@ -519,6 +530,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.blue_marlin": {
     id: "fish.blue_marlin",
+    ecologyIds: ["ecology.neva"],
     name: "Blue Marlin",
     habitats: ["offshore"],
     seasons: ["summer", "autumn"],
@@ -535,5 +547,65 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     minigameBehavior: "dart",
     minigameDifficulty: 90,
     tags: ["saltwater", "sport", "apex", "legendary"]
+  },
+  "fish.sardine": {
+    id: "fish.sardine",
+    ecologyIds: ["ecology.sunreach"],
+    name: "Sunreach Sardine",
+    habitats: ["coast"],
+    seasons: ["spring", "summer", "autumn", "winter"],
+    timeWindows: ["dawn", "day", "dusk"],
+    weatherPreferences: ["clear", "cloudy", "windy"],
+    weightKg: { min: 0.15, average: 0.3, max: 0.6 },
+    baseMarketValue: 12,
+    rarityWeight: 130,
+    behaviorProfileId: "profile.mackerel",
+    minimumRodClass: "willow",
+    cargoClass: "small",
+    baseDecayRatePerMinute: 0.22,
+    isSportFish: false,
+    minigameBehavior: "floater",
+    minigameDifficulty: 24,
+    tags: ["saltwater", "basic", "cove", "sunreach"]
+  },
+  "fish.sea_bream": {
+    id: "fish.sea_bream",
+    ecologyIds: ["ecology.sunreach"],
+    name: "Golden Sea Bream",
+    habitats: ["coast"],
+    seasons: ["spring", "summer", "autumn", "winter"],
+    timeWindows: ["dawn", "day", "dusk"],
+    weatherPreferences: ["clear", "cloudy", "light-rain"],
+    weightKg: { min: 0.8, average: 2.2, max: 5.5 },
+    baseMarketValue: 55,
+    rarityWeight: 65,
+    behaviorProfileId: "profile.trout",
+    minimumRodClass: "river",
+    cargoClass: "small",
+    baseDecayRatePerMinute: 0.18,
+    isSportFish: false,
+    minigameBehavior: "dart",
+    minigameDifficulty: 55,
+    tags: ["saltwater", "basic", "reef-edge", "physical-basic-catch", "sunreach"]
+  },
+  "fish.amberjack": {
+    id: "fish.amberjack",
+    ecologyIds: ["ecology.sunreach"],
+    name: "Greater Amberjack",
+    habitats: ["coast", "offshore"],
+    seasons: ["summer", "autumn"],
+    timeWindows: ["dawn", "day", "dusk"],
+    weatherPreferences: ["clear", "windy", "light-rain"],
+    weightKg: { min: 8, average: 22, max: 48 },
+    baseMarketValue: 175,
+    rarityWeight: 35,
+    behaviorProfileId: "profile.tuna",
+    minimumRodClass: "heavy-sport",
+    cargoClass: "medium",
+    baseDecayRatePerMinute: 0.13,
+    isSportFish: true,
+    minigameBehavior: "smooth",
+    minigameDifficulty: 72,
+    tags: ["saltwater", "sport", "reef-edge", "exposed", "sunreach"]
   }
 };

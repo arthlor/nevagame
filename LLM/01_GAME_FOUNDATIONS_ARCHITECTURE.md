@@ -50,12 +50,13 @@ uncertain knowledge, and the consequences of preparation create pressure.
 
 Narrative ownership is explicit:
 
-- `src/content/quests.ts` and `src/content/npcs.ts` own the current authored
-  story text, quest titles, acts, speakers, objectives, and idle dialogue.
+- `src/content/quests.ts`, `src/content/npcs.ts`, and `src/content/knowledge.ts`
+  own the current authored story text, quest titles, acts, speakers,
+  objectives, milestone recognition, and journal knowledge entries.
 - `ContentRegistry` validates and exposes that content; it is the single
   runtime content entry point, not a second story database.
-- `QuestDomain` owns quest progression, target/location predicates, turn-ins,
-  rewards, `nextQuestId`, and quest-related domain events.
+- `QuestDomain` owns quest progression, target/location predicates, content-owned
+  turn-in costs and rewards, `nextQuestId`, and quest-related domain events.
 - `GameState.quests` owns only serializable progression truth: active quest and
   step, progress, completed quest IDs, feature unlocks, and hints. Dialogue
   pages are a transient presentation interaction; do not save the current page,
@@ -73,9 +74,11 @@ make; it must not replace the action. Quest progression must remain valid if a
 player closes a dialogue early and resumes the objective. Conversely, a
 mechanic must not silently advance because the player merely read text.
 
-The current MVP uses a single explicit quest chain with contextual intro,
-completion, and idle dialogue. It does not yet include branching outcomes,
-romance, NPC schedules, a dialogue transcript, or a separate lore-codex state.
+The current game uses one explicit 18-quest chain: the accepted ten-quest P12
+spine, a three-quest P13 stewardship postscript, and five Act 7 Sunreach quests. Contextual intro,
+completion, idle, and milestone-recognition dialogue all remain content. It
+does not include branching outcomes, romance, NPC schedules, a dialogue
+transcript, relationship state, or a separate lore-codex state.
 Those are future content/system decisions, not permission to invent local
 flags or parallel narrative state. `unlockedDialogueIds` remains a reserved
 field until a real unlock model, content IDs, migration plan, and tests exist.
@@ -118,6 +121,9 @@ CONTENT DEFINITIONS → SIMULATION → APPLICATION SERVICES → PRESENTATION ADA
 ```
 - **Content:** static crops, fish, recipes, boats, items, markets, regions, unlocks, contracts.
 - **Narrative content:** static NPC definitions, authored quest chain, dialogue, and story-facing discovery labels.
+- **Expedition choices:** `buildExpeditionOpportunities()` is a pure simulation
+  query over active contracts, market demand, weather, owned equipment, cargo,
+  and supplies. React renders its DTO and never recomputes prices or readiness.
 - **Simulation:** authoritative mutable state + deterministic rules.
 - **Application:** save/load, input, scene transitions, ticks, renderer sync, dialogue/modal orchestration, UI events.
 - **Presentation:** displays state; MUST NOT decide economic/gameplay outcomes.
@@ -139,7 +145,7 @@ tests/ unit/ simulation/ integration/ fixtures/ e2e/
 
 # 6. Canonical State, IDs, RNG & Time
 
-Representative state (`CURRENT_SCHEMA_VERSION = 21`, `world.layoutRevision = 8`):
+Representative state (`CURRENT_SCHEMA_VERSION = 28`, `world.layoutRevision = 10`):
 ```ts
 interface GameState {
   schemaVersion: number;
@@ -186,15 +192,27 @@ save-sensitive protocol in `03` §25.
 | v19 | 8 | Adds sport-fishing dynamics: continuous fish bearing/depth/velocity, line length, rod response, behavior duration, a private RNG stream, and the fixed-step remainder. | Preserves the active catch, stamina, line condition, school association, cargo, and progression. A legacy line may be shortened only when its old presentation distance cannot fit reachable water. |
 | v20 | 8 | Adds `player.ownedRodIds`; grants every rod through the equipped tier. | Legacy saves retain current capability and can switch back to earlier habitat coverage. |
 | v21 | 8 | Rescales a legacy non-canonical `player.workCapacity` pool to the `WORK_CAPACITY_MAXIMUM` (1,000) ceiling, preserving how full it was. A zero/absent old maximum fills to full. | No world move. Preserves `regeneratedAtMinute` and all other player truth. Covered by `tests/simulation/persistence.test.ts`. |
+| v22 | 8 | Remaps in-flight basic-fishing / cargo / journal fish quality from Stardew skins (`normal/silver/gold/iridium`) onto `FishQuality` (`common/fine/exceptional/trophy`). Backfills `journal.unlockedKnowledge` to `[]` when missing. | No world move. Covered by `tests/simulation/huntFixes2026.test.ts`. |
+| v23 | 8 | Adopts the centered market model. Existing authored commodities are rebased to their catalog target supply with demand `1.0`, their authored price/throughput/season values are synchronized, and `lastTickMinute` advances to the saved clock so the new model does not replay stale hours from the broken equilibrium. Unknown fixture/mod content markets remain untouched. | No world move or inventory/cargo change. Persisted RNG state is preserved, but resumed future draws may diverge because market ticks no longer consume the shared RNG stream. Covered by `tests/fixtures/save_v22_layout8.json` and `tests/simulation/persistence.test.ts`. |
+| v24 | 8 → 9 | Relocates player, mount, and structure poses invalidated by the layout-9 world revision, and pulls an in-flight sport-fishing line back onto reachable water. | Preserves boats, crops, farms, inventory, cargo, quests, journal, proficiencies, and persisted RNG state. Covered by `tests/fixtures/save_v23_layout8.json` and `tests/simulation/persistence.test.ts`. |
+| v25 | 9 | Calendar retune. `DAYS_PER_SEASON` drops 30 → 6, so a stored `currentMinute` now resolves to a different season; the clock is rebuilt to re-derive `season`, `year`, and `dayCount`, and every market commodity's `seasonalModifier` is refreshed from its definition's `seasonalFactors` for the new season. Every `active` contract is voided once through the normal expiry refund path. | No world move, no shape change. Voiding is version-gated rather than reconciled every load, so partial produce is refunded exactly once; `ContractDomain.tick()` refills on the next tick. A player loses at most two in-flight orders. Covered by `tests/fixtures/save_v24_calendar30.json` and `tests/simulation/persistence.test.ts`. |
+| v26 | 9 → 10 | Adds `island.sunreach`, its terrain patch, regions, warm climate, fishing ecology, farm, stations, cove market, and mooring. Existing schools derive ecology from position; an in-flight basic cast becomes `ecology.neva`; contracts gain their content-owned delivery market. | Preserves existing Neva player/boat/mount/crop/farm/inventory/cargo/quest/reward/RNG truth and adds only missing registry-owned Sunreach state. Covered by `tests/fixtures/save_v25_layout9.json`, `tests/simulation/persistence.test.ts`, and `tests/unit/sunreachWorld.test.ts`. |
+| v27 | 10 | Moves the mount gallop budget onto each persisted mount: stamina, recovery delay, and exhaustion. Existing mounts start rested when these fields are absent. | No world move. Preserves rider sprint state and all non-mount truth; validation bounds the new fields through `MOUNT_TUNING`. |
+| v28 | 10 | Adds explicit prepared-lure state, per-ecology/habitat fishing pressure and cooldown, plus hook-time tackle and sea-condition snapshots on active sport-fishing encounters. It backfills only absent dynamics members; validation now uses the hooked species' authored leap/dive bounds and covers every persisted dynamics field. | No world move. Defaults absent fields in place without changing any already-persisted active-fish dynamics or landing progress, cargo, school association, Work, progression, or either RNG stream. Save-fixture and migration-test evidence remain pending under the source-only no-tests boundary. |
 
 Fishing uses a 60 Hz encounter step independently of render frames. No offline
 fight advancement is introduced.
 
-`WorldState` owns the current world seed, `activeSchools`, authored
-`structures`, and the last school-spawn minute. Do not add fish schools or
-structures as parallel top-level `GameState` fields.
+`WorldState` owns the current world seed, `activeSchools`, per-ecology/habitat
+fishing pressure/cooldown, authored `structures`, and the last school-spawn
+minute. World geometry is registry-driven:
+`WorldIslands` owns islands, terrain patches, closed coasts, climates, marine
+fields, fishing ecologies, and the open-channel requirement;
+`WorldGameplayLocations` owns farms, stations, markets, chart nodes, and
+ambience; `WorldMoorings` owns moorings and sailing routes. Do not add fish
+schools, structures, or island-local variants as parallel top-level fields.
 
-`PlayerState` includes serializable traversal state (`sprintStamina`, recovery delay, exhaustion, grounded state), `equippedRodId`, and the unique known `ownedRodIds` set required by schema v20. Traversal is simulation-owned and fixed-step; Work Capacity is a separate economy resource and must not be reused as movement stamina.
+`PlayerState` includes serializable traversal state (`sprintStamina`, recovery delay, exhaustion, grounded state), `equippedRodId`, the unique known `ownedRodIds` set required by schema v20, and the optional explicitly prepared lure ID. Traversal is simulation-owned and fixed-step; Work Capacity is a separate economy resource and must not be reused as movement stamina.
 
 Manual production affordability and spending are simulation-owned by `ProgressionDomain`. Callers validate capability, inputs, and output capacity first, then quote and spend the full discounted Work cost as one transaction boundary. An insufficient quote cannot partially drain Work, consume items, advance canonical RNG, create gameplay state, award XP, or emit a success event; presentation may only display the structured quote/result.
 
@@ -265,9 +283,10 @@ type GameAction =
   | "move-forward" | "move-backward" | "move-left" | "move-right"
   | "interact" | "use-primary" | "use-secondary"
   | "open-inventory" | "open-map" | "open-journal" | "pause"
-  | "fish-reel" | "fish-slack" | "fish-brace" | "fish-left" | "fish-right";
+  | "fish-reel" | "fish-slack" | "fish-brace" | "fish-left" | "fish-right"
+  | "fishing.toggle-lure";
 ```
-Fishing minigames are driven by held-state `fishing` (`isReeling`, `isSlacking`, `isBracing`, `rodDirectionAngle`) plus `fish-left` / `fish-right`, not only discrete reel/slack/brace actions.
+Fishing minigames are driven by held-state `fishing` (`isReeling`, `isSlacking`, `isBracing`, `rodDirectionAngle`) plus `fish-left` / `fish-right`, not only discrete reel/slack/brace actions. Keyboard and touch steering share the same ±0.6 semantic clamp. `fishing.toggle-lure` explicitly arms or puts away the crafted lure before a cast/hook; preparation does not consume it.
 
 Modal rules: inventory may pause movement; **basic-fishing and sport-fishing block inventory**; modal disables boat steering. Pause is an overlay (`GameOverlay` includes `"pause"`), not a `GameplayMode`. It suspends simulation while open and MUST NOT be persisted as a serializable sim mode.
 
@@ -282,6 +301,8 @@ Cameras react to `GameplayMode`, never decide gameplay:
 - boat: wider chase, visible horizon/forward waves/schools;
 - sport fishing: tighter, visible line/fish direction, unobstructed HUD.
 
+Reduced-motion sport fishing keeps a damped static two-subject framing but disables behavior choreography, camera trauma, and terminal cinematic beats.
+
 `ModeController` owns gameplay mode plus the modal/overlay stack. `InputRouter` maps physical input to semantic movement, camera and action intents; camera orbit/zoom is presentation input and never becomes simulation state. `FarmingActionController` may time an authored presentation clip, but only its commit callback may call a simulation command; interruption before commit must leave gameplay state unchanged.
 
 # 10. World Scope
@@ -295,13 +316,17 @@ Southwest headland: cliffs, lighthouse, coastal walk
 Southeast harbor: fish market, dock, boat vendor, fuel/ice
 Coast and offshore: coastal and higher-value sport fishing
 ```
-The loop is farm → village hub → harbor. Spawn and the northwest farmhouse stay on the starter farm. World `(0, -5)` is the river-crossing apron after the bridge, not a fake village. `market.village` and the arterial road hub sit on the northeast plaza near `(54, -52)`. The mill pad sits southwest of that courtyard so the packed plaza stays an open market square. The current world is a finite, deliberately authored multi-district composition rather than an unbounded or runtime-procedural map: its implementation uses a 600 m terrain field with explicit world and sailing bounds, while `WORLD_LAYOUT_V5` is a retained symbol whose live layout revision is 8. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data and preserve strategic travel rather than tedious traversal. Runtime chunk streaming is not implemented.
+The loop is farm → village hub → harbor. Spawn and the northwest farmhouse stay on the starter farm. World `(0, -5)` is the river-crossing apron after the bridge, not a fake village. `market.village` and the arterial road hub sit on the northeast plaza near `(54, -52)`. The mill pad sits southwest of that courtyard so the packed plaza stays an open market square. The current world is a finite, deliberately authored multi-district composition rather than an unbounded or runtime-procedural map: its implementation uses a 600 m terrain field with explicit world and sailing bounds, while `WORLD_LAYOUT_V5` is a retained symbol whose live layout revision is 9. `WorldLayout` owns side-aware longitudinal river profiles and district fields; `WorldCompositionField` derives deterministic habitat, route, opening, and category-density causes from those authored owners. Hashed candidates are stable presentation addresses, never geography or serialized gameplay truth. Every arterial route and scenic trail must connect gameplay, navigation, a landmark, or an intentional vista; do not create empty distance for its own sake. Use deterministic layout data and preserve strategic travel rather than tedious traversal. Runtime chunk streaming is not implemented.
 
 # 11. Physics & Water
 
-Use Rapier only where collision response matters: player/world, boat/world, dock, shoreline, simple vehicle/rigid gameplay props. Avoid full physics for crops, fish AI, fishing line, waves, UI, decorative props unless required. Fishing line is simulation math. `PhysicsWorld` implements the `PhysicsAdapter`; it returns a validated pose frame, and `Simulation`/the navigation domain is the only layer allowed to commit that frame into `GameState`. Physics may sample presentation `WaterSurface` for boat bob; **canonical `boat.y` stays at the waterline** so save/load never depends on wall-clock wave height. Camera sweeps and interaction line-of-sight queries are presentation/application services, not gameplay authority.
+Use Rapier only where collision response matters: player/world, boat/world, dock, shoreline, simple vehicle/rigid gameplay props. Every registered terrain patch gets its translated heightfield collider; there is no single-origin terrain assumption. Boats ignore land heightfields and remain constrained by the shared marine/sailable field, mooring rules, and authored progression gates. Avoid full physics for crops, fish AI, fishing line, waves, UI, decorative props unless required. Fishing line is simulation math. `PhysicsWorld` implements the `PhysicsAdapter`; it returns a validated pose frame, and `Simulation`/the navigation domain is the only layer allowed to commit that frame into `GameState`. Physics may sample presentation `WaterSurface` for boat bob; **canonical `boat.y` stays at the waterline** so save/load never depends on wall-clock wave height. Camera sweeps and interaction line-of-sight queries are presentation/application services, not gameplay authority.
 
-MVP water: attractive, animated, readable shore, weather-controlled roughness, mid-tier acceptable, clear boat silhouettes. Simulation owns `sea roughness`, `wind`, `risk`; renderer owns waves/normals/foam/reflection approximation. Do not begin with expensive ocean simulation.
+Character motion follows the same one-way boundary. Fixed-step physics resolves the capsule, support, velocity, grounded/airborne/contact evidence, and requested gait; interpolation may carry that transient sample into rendering, but no mixer time, gait phase, stance lock, spring state, socket constraint, or bone transform is serialized or written back into simulation. Locomotion clips are in-place presentation whose phase and playback rate follow resolved travel. Authored walk/run starts are eligible only when their terminal pose is exactly equal to phase zero of the corresponding loop; the controller hands off at that phase instead of restarting the gait. During authored moving stance phases, post-pose foot constraints sample `WorldLayout.traversalSurfaceSample` so terrain, road, bridge, pier, and interior support remain consistent with physics. Neutral human and animal idles preserve the authored rest support chain without terrain-driven foot locks or slope tilt. Authored grip/seat markers own tool, carried cargo, fishing, rowing, boat, and mount alignment; parent changes or presentation discontinuities must release world-space locks and stale blend/spring history. Boarding, docking, mounting, and dismounting remain presentation-only spatial transitions: they preserve the first-frame world pose across reparenting, follow the simulation-owned moving target, and finish with an exact lock to its authored terminal anchor.
+
+The river is canonical landform topology, not a symmetric visual mask. `WorldLayout.riverSectionAt()` owns longitudinal bed elevation, thalweg movement, independent left/right water widths and bank runs, floodplain shelves, curvature response, and estuary influence. `riverBankSample()` exposes side-aware channel, bank, wetness, erosion, and deposition causes to terrain, materials, vegetation, rocks, navigation, and fishing-access queries. Compatibility helpers may summarize that profile, but authoritative water sign, walkability, placement, and bank consumers use the side-aware sample.
+
+MVP water: attractive, animated, readable shore, weather-controlled roughness, mid-tier acceptable, clear boat silhouettes. The global water sign is the union of registered closed coast fields: land wins when any island reports dry ground. `MarineSample` owns signed shore distance, bathymetry, shelter/exposure, reef/shallow influence, wave/flow directions, navigation hazard, and normalized ecology weights. Simulation owns `sea roughness`, `wind`, `risk`, locality, and progression gates; renderer owns waves/normals/foam/reflection approximation. Rectangular shore-profile textures preserve meters per texel and per segment instead of stretching the old square profile. Do not begin with expensive ocean simulation.
 
 # 12. Art & Asset Runtime Contract
 
@@ -315,6 +340,8 @@ Canonical visual-system ownership:
 
 Canonical ground-presentation ownership:
 - Authored world-layout data owns terrain height/normal queries, route centerlines and profiles, farm/structure clearances, water/shore relationships, and other semantics that affect traversal or interaction. Rendering may derive surface weights, road/shore influence, wetness, disturbance, and vegetation-density signals from those owners; the derived representation is presentation data, not a second world or gameplay authority.
+- River water, bed, bank, floodplain, wetness, erosion/deposition, fishing access, and riparian placement derive from the same `RiverSectionProfile` / `RiverBankSample` contract. Independent absolute-distance masks are not permitted for those consumers.
+- Structural vegetation and ground cover derive from inspectable district/habitat/route/opening/category fields with independent stable candidate streams. Quality tiers retain stable priority prefixes; accepted-array indices, shared coordinates between categories, fixed lattice rows, and manual seeded overrides are not placement authorities.
 - The current layout exposes `terrainBaseHeight()` for the graded landform and final `terrainHeight()` for the save/placement/anchor/normal authority. Final height adds the deterministic, nonnegative road cross-section sampled from route identity, distance along route, and lateral distance. Rapier uses `terrainBaseHeightfield()` for the coarse landform plus an exact static road trimesh built from the same indexed geometry rendered by Three.js; catalog bridge collision remains the bridge-deck authority.
 - Terrain color/material blending, road geometry, shoreline dressing, and ground-cover placement MUST consume the same route/shore/clearance semantics. Do not hand-tune independent masks in several render modules until roads, terrain, cover, map projection, and collision disagree. Supporting maps enrich meso/fine wear after palette remap; they cannot author a second path width, meadow mask, or collision silhouette.
 - Any road cut, crown, rut, bench, bank, or other deformation that materially changes the walkable surface MUST be represented by the canonical height/normal contract consumed by rendering, Rapier, placement validity, and affected anchors. Cosmetic shader displacement is allowed only when it remains below a gameplay-camera-visible render/collision mismatch and cannot affect traversal or placement; otherwise it is a topology/layout change, not a rendering-only effect.
@@ -322,6 +349,7 @@ Canonical ground-presentation ownership:
 - Rendering-only changes to normals, material fields, road surface presentation, supporting maps, cover density, or precipitation wetness have `Save-impact: no` and `Migration required: no` only while canonical topology, route/structure anchors, collision, placement validity, and serialized world data remain unchanged. A topology/layout revision that changes gameplay reachability or persistent coordinates follows the normal save/layout migration protocol.
 
 Runtime asset contract: **GLB/glTF 2.0** for static 3D prefabs; never runtime `.blend/.fbx/.obj`. Ground supporting maps are the documented non-GLB exception: local processed images loaded only through `ExternalSurfaceTextures`, never as catalog IDs or a parallel exporter.
+- Character animation sources may be declared as catalog-owned, repository-local authoring inputs. The generator may retarget a selected source clip only when its relaxed pose, axes, proportions, and usable joint ranges are compatible with Neva's canonical semantic rig. Repeated locomotion that fails that test is authored directly on the Neva rig with catalog-owned duration, reference speed, and contact markers; a source clip may remain motion reference rather than exported motion. Every path strips source meshes and root motion and exports in-place 30 FPS presentation clips, so the source library never becomes a runtime dependency.
 - Static prefabs: catalog entry, with its optional closed `referenceAuthoring` evidence-to-generator brief when image/study guided → the brief binds identity-defining layout into catalog `parameters` → registered deterministic Blender Python family generator consumes those keys (optionally composed from shared `common/authored.py` construction helpers) → raw GLB → Khronos validation → glTF Transform dedupe/prune/weld + Meshopt → revalidation → atomic publish. A reconstruction study may inform the brief; it does not authorize a direct runtime TypeScript factory or second exporter.
 - Ground supporting maps: processed CC0 derivatives published under `public/assets/textures/terrain/`, provenance and URLs owned by `src/render/materials/ExternalSurfaceTextures.ts`, sampling/blend strengths owned by `VisualRenderConfig`. They occupy the Art Bible's low-frequency tiler slot and must remap into `PaletteTokens`; photographic RGB is not final albedo. See Art Pipeline section 6.2.
 - Dynamic systems: Three.js TS buffer/procedural builders (water, crop stages, seasonal tint, dynamic fish, debug proxies).
@@ -375,7 +403,7 @@ Baseline accessibility: keyboard support, readable contrast, UI scaling, audio s
 
 Audio categories: `master`, `music`, `ambience`, `weather`, `boat`, `fishing`, `ui`. Fishing feedback MUST include cast, bite, reel, strain, near-snap, splash, catch, snap/escape so fishing is not meter-only. Narrative feedback may respond to `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`, but audio must reinforce a real state transition rather than invent one.
 
-Use explicit domain events such as `CropPlanted`, `CropMatured`, `CropHarvested`, `RecipeStarted/Completed`, `FishSchoolSpawned/Activated`, `FishHooked/Escaped/Caught/Stored`, `BoatDocked`, `ItemSold`, `MarketTicked`, `WeatherChanged`, `ProficiencyRankUnlocked`, `ContractCompleted`, `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`. Events may feed UI/audio/analytics/achievements/diagnostics; do not turn simulation into one opaque event bus. Narrative events are signals, not a replacement for `GameState.quests` or the content registry.
+Use explicit domain events such as `CropPlanted`, `CropMatured`, `CropHarvested`, `FarmFertilized`, `IrrigationInstalled`, `FarmIrrigated`, `RecipeStarted/Completed`, `FishSchoolSpawned/Activated`, `FishHooked/Escaped/Caught/Stored`, `BoatDocked`, `ItemSold`, `MarketTicked`, `WeatherChanged`, `ProficiencyRankUnlocked`, `ContractCompleted`, `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`. Success events are emitted only after their atomic mutation succeeds. `QuestCompleted` is published only after the active pointer has advanced to the next quest or epilogue, so persistence and presentation listeners observe one coherent transition. Events may feed UI/audio/analytics/achievements/diagnostics; do not turn simulation into one opaque event bus. Narrative events are signals, not a replacement for `GameState.quests` or the content registry.
 
 # 15. Error Recovery & Diagnostics
 

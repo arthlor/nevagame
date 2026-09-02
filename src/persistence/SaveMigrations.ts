@@ -1,18 +1,25 @@
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
-import { GameState, FishingEncounterState } from "../simulation/core/types";
-import { createFishingDynamics, findFishingWater, FISHING_TUNING } from "../simulation/fishing/FishingTuning";
+import { GameState, FishingEncounterState, ClockState } from "../simulation/core/types";
+import { createFishingDynamics, findFishingWater, fishingEndpoint, FISHING_TUNING } from "../simulation/fishing/FishingTuning";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { STARTER_STRUCTURE_IDS, starterStructureAnchor } from "../world/FarmLayout";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
-import { DEFAULT_MINUTES_PER_REAL_SECOND, seasonAtMinute } from "../simulation/core/GameClock";
-import { createStarterDonkeyState, STARTER_DONKEY_ID } from "../simulation/mounts/Mounts";
+import { DEFAULT_MINUTES_PER_REAL_SECOND, seasonAtMinute, GameClock } from "../simulation/core/GameClock";
+import {
+  createStarterDonkeyState,
+  MOUNT_TUNING,
+  playerPoseFromMount,
+  STARTER_DONKEY_ID
+} from "../simulation/mounts/Mounts";
 import { ownedRodsThrough } from "../content/rods";
 import { WORK_CAPACITY_MAXIMUM } from "../simulation/domains/ProgressionDomain";
+import { voidActiveContracts } from "../simulation/domains/ContractDomain";
+import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -123,6 +130,39 @@ function mapLegacySchool(school: Record<string, unknown>): Record<string, unknow
     ? mapLegacyWaterPoint(x, Math.min(z, WorldLayout.coastlineZ(x) - 0.5))
     : mapLegacyWaterPoint(x, z);
   return { ...school, x: mapped.x, z: mapped.z };
+}
+
+function isValidSavedLandPose(x: number, z: number): boolean {
+  return WorldLayout.isWalkable(x, z)
+    && (!WorldLayout.isWater(x, z) || WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z));
+}
+
+function savedLandSupportHeight(x: number, z: number): number {
+  return WorldLayout.isBridgeDeck(x, z) || WorldLayout.isPierDeck(x, z)
+    ? WorldLayout.traversalSurfaceHeight(x, z)
+    : WorldLayout.terrainHeight(x, z);
+}
+
+function nearestValidMountGround(point: { x: number; z: number }): { x: number; z: number } {
+  const valid = (x: number, z: number): boolean =>
+    isValidSavedLandPose(x, z)
+    && !WorldLayout.isInterior(x, z)
+    && !WorldLayout.isPierDeck(x, z)
+    && WorldLayout.traversalSurfaceSample(x, z).normal.y >= MOUNT_TUNING.maximumSlopeNormalY;
+  if (valid(point.x, point.z)) return point;
+  for (let radius = 0.5; radius <= 72; radius += 0.5) {
+    const steps = Math.max(16, Math.ceil(radius * 5));
+    for (let step = 0; step < steps; step++) {
+      const angle = (step / steps) * Math.PI * 2;
+      const candidate = {
+        x: point.x + Math.cos(angle) * radius,
+        z: point.z + Math.sin(angle) * radius
+      };
+      if (valid(candidate.x, candidate.z)) return candidate;
+    }
+  }
+  const fallback = WorldLayout.nearestValidGround(CURRENT_STARTER_FARM);
+  return valid(fallback.x, fallback.z) ? fallback : { ...CURRENT_STARTER_FARM };
 }
 
 export const MIGRATIONS: Record<number, MigrationFunction> = {
@@ -707,7 +747,7 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
     const old = previous.sportFishing;
     let sportFishing = old;
     if (old) {
-      const fish: FishingEncounterState = { ...old };
+      const fish = { ...old } as FishingEncounterState;
       const player = previous.player;
       const school = old.schoolId ? previous.world.activeSchools[old.schoolId] : undefined;
       const bearing = school ? Math.atan2(school.x - player.x, school.z - player.z) : player.rotationY;
@@ -756,6 +796,382 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       schemaVersion: 21,
       player: { ...player, workCapacity: { ...work, current, maximum } }
     };
+  },
+  22: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const QUALITY_REMAP: Record<string, string> = {
+      normal: "common",
+      silver: "fine",
+      gold: "exceptional",
+      iridium: "trophy",
+      prize: "trophy"
+    };
+    const remapQuality = (value: unknown): unknown => {
+      if (typeof value !== "string") return value;
+      return QUALITY_REMAP[value] ?? value;
+    };
+    const journal = { ...((previous.journal ?? {}) as Record<string, unknown>) };
+    if (!Array.isArray(journal.unlockedKnowledge)) {
+      journal.unlockedKnowledge = [];
+    }
+    const fishRecords = { ...((journal.fishRecords ?? {}) as Record<string, Record<string, unknown>>) };
+    for (const [speciesId, record] of Object.entries(fishRecords)) {
+      if (!record || typeof record !== "object") continue;
+      fishRecords[speciesId] = { ...record, bestQuality: remapQuality(record.bestQuality) as string };
+    }
+    journal.fishRecords = fishRecords;
+    let basicFishing = previous.basicFishing;
+    if (basicFishing && typeof basicFishing === "object") {
+      const session = { ...(basicFishing as Record<string, unknown>) };
+      if (session.quality !== undefined) session.quality = remapQuality(session.quality);
+      basicFishing = session;
+    }
+    const fishCargo = { ...((previous.fishCargo ?? {}) as Record<string, Record<string, unknown>>) };
+    for (const [cargoId, cargo] of Object.entries(fishCargo)) {
+      if (!cargo || typeof cargo !== "object") continue;
+      fishCargo[cargoId] = { ...cargo, quality: remapQuality(cargo.quality) as string };
+    }
+    return {
+      ...previous,
+      schemaVersion: 22,
+      journal,
+      basicFishing,
+      fishCargo
+    };
+  },
+  23: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+    const clock = (previous.clock ?? {}) as Record<string, unknown>;
+    const currentMinute = Math.max(0, Math.trunc(finite(clock.currentMinute, 8 * 60)));
+    const season = seasonAtMinute(currentMinute);
+    const oldMarkets = (previous.markets ?? {}) as Record<string, Record<string, unknown>>;
+    const markets: Record<string, Record<string, unknown>> = {};
+
+    ContentRegistry.initializeAndValidate();
+    for (const [marketId, oldMarket] of Object.entries(oldMarkets)) {
+      const definition = ContentRegistry.markets.get(marketId);
+      if (!definition) {
+        markets[marketId] = oldMarket;
+        continue;
+      }
+      const oldCommodities = (oldMarket.commodities ?? {}) as Record<string, Record<string, unknown>>;
+      const commodities: Record<string, Record<string, unknown>> = {};
+      for (const authored of definition.commodities) {
+        const oldCommodity = oldCommodities[authored.itemId] ?? {};
+        commodities[authored.itemId] = {
+          ...oldCommodity,
+          itemId: authored.itemId,
+          basePrice: authored.basePrice,
+          demandIndex: 1,
+          localSupply: authored.targetSupply,
+          targetSupply: authored.targetSupply,
+          consumptionRate: authored.consumptionRatePerHour,
+          seasonalModifier: authored.seasonalFactors[season] ?? 1,
+          lastTickMinute: currentMinute,
+          recentSalesVolume: 0
+        };
+      }
+      markets[marketId] = { ...oldMarket, commodities };
+    }
+
+    // Market ticks no longer consume the shared RNG stream. Existing rngState is
+    // preserved, but post-migration future draws intentionally diverge from v22.
+    return {
+      ...previous,
+      schemaVersion: 23,
+      markets
+    };
+  },
+  24: (state: unknown) => {
+    const previous = state as GameState;
+    const player = { ...previous.player };
+    const activeBoatId = player.activeBoatId ?? null;
+    const hasActiveBoat = activeBoatId !== null && previous.boats[activeBoatId] !== undefined;
+
+    if (!hasActiveBoat) {
+      const savedPlayerPoint = { x: player.x, z: player.z };
+      const playerPoint = isValidSavedLandPose(savedPlayerPoint.x, savedPlayerPoint.z)
+        ? savedPlayerPoint
+        : WorldLayout.nearestValidGround(savedPlayerPoint);
+      player.x = playerPoint.x;
+      player.y = savedLandSupportHeight(playerPoint.x, playerPoint.z)
+        + MOUNT_TUNING.playerPoseGroundOffsetMeters;
+      player.z = playerPoint.z;
+    }
+
+    const structures = Object.fromEntries(
+      Object.entries(previous.world.structures).map(([structureId, structure]) => {
+        const savedPoint = { x: structure.x, z: structure.z };
+        const point = isValidSavedLandPose(savedPoint.x, savedPoint.z)
+          ? savedPoint
+          : WorldLayout.nearestValidGround(savedPoint);
+        return [structureId, {
+          ...structure,
+          x: point.x,
+          y: WorldLayout.terrainHeight(point.x, point.z),
+          z: point.z
+        }];
+      })
+    ) as GameState["world"]["structures"];
+
+    const mounts = Object.fromEntries(
+      Object.entries(previous.mounts).map(([mountId, mount]) => {
+        const point = nearestValidMountGround({ x: mount.x, z: mount.z });
+        return [mountId, {
+          ...mount,
+          x: point.x,
+          y: WorldLayout.traversalSurfaceHeight(point.x, point.z),
+          z: point.z
+        }];
+      })
+    ) as GameState["mounts"];
+
+    if (!hasActiveBoat && player.activeMountId !== null) {
+      const activeMount = mounts[player.activeMountId];
+      if (activeMount) Object.assign(player, playerPoseFromMount(activeMount));
+    }
+    player.currentRegionId = WorldLayout.regionAt(player.x, player.z);
+
+    const activeSchools = Object.fromEntries(
+      Object.entries(previous.world.activeSchools).map(([schoolId, school]) => {
+        if (WorldLayout.isSailable(school.x, school.z)) return [schoolId, school];
+        const point = WorldLayout.nearestValidSailable({ x: school.x, z: school.z });
+        return [schoolId, { ...school, x: point.x, z: point.z }];
+      })
+    ) as GameState["world"]["activeSchools"];
+
+    let sportFishing = previous.sportFishing;
+    if (sportFishing?.dynamics) {
+      const endpoint = fishingEndpoint(sportFishing);
+      if (!WorldLayout.isSailable(endpoint.x, endpoint.z)) {
+        const water = findFishingWater(
+          sportFishing.dynamics.originX,
+          sportFishing.dynamics.originZ,
+          sportFishing.dynamics.bearingRadians,
+          Math.min(sportFishing.distanceMeters, FISHING_TUNING.maximumDistance),
+          (x, z) => WorldLayout.isSailable(x, z)
+        );
+        if (water) {
+          const lineLengthMeters = Math.max(
+            FISHING_TUNING.minimumLineLength,
+            Math.min(
+              sportFishing.dynamics.lineLengthMeters,
+              water.distance - sportFishing.lineTension / FISHING_TUNING.lineStiffness
+            )
+          );
+          sportFishing = {
+            ...sportFishing,
+            distanceMeters: water.distance,
+            dynamics: {
+              ...sportFishing.dynamics,
+              bearingRadians: water.bearing,
+              headingRadians: water.bearing,
+              lineLengthMeters
+            }
+          };
+        }
+      }
+    }
+
+    return {
+      ...previous,
+      schemaVersion: 24,
+      player,
+      mounts,
+      sportFishing,
+      world: {
+        ...previous.world,
+        layoutRevision: 9,
+        structures,
+        activeSchools
+      }
+    };
+  },
+  /**
+   * v25 — calendar retune (DAYS_PER_SEASON 30 -> 6) plus shoulder-season
+   * fish availability.
+   *
+   * Nothing about the state *shape* changes, but the meaning of a stored
+   * `currentMinute` does: the same minute now lands in a different season. Two
+   * consequences have to be settled exactly once, which is why this is a
+   * version-gated migration rather than an every-load reconciliation.
+   */
+  25: (state: unknown) => {
+    const previous = state as Record<string, unknown>;
+
+    // Season, year and dayCount are all derived from currentMinute. Rebuilding
+    // the clock re-derives them against the new constant.
+    const clock = previous.clock
+      ? new GameClock(previous.clock as Partial<ClockState>).getState()
+      : (previous.clock as ClockState | undefined);
+
+    // Refresh each commodity's seasonal price factor for its new season, using
+    // the same expression fillMissingMarketCommodities uses for new entries.
+    const season = clock ? seasonAtMinute(clock.currentMinute) : "spring";
+    const markets = previous.markets as
+      | Record<string, { commodities?: Record<string, { seasonalModifier: number }> }>
+      | undefined;
+    if (markets) {
+      ContentRegistry.initializeAndValidate();
+      for (const [marketId, definition] of ContentRegistry.markets.entries()) {
+        const commodities = markets[marketId]?.commodities;
+        if (!commodities) continue;
+        for (const comm of definition.commodities) {
+          const commodity = commodities[comm.itemId];
+          if (!commodity) continue;
+          commodity.seasonalModifier = comm.seasonalFactors[season] || 1.0;
+        }
+      }
+    }
+
+    const migrated = { ...previous, schemaVersion: 25, clock, markets };
+
+    // An in-flight order for a now-out-of-season species can never be filled
+    // and would hold its slot forever. Void once, refunding partials through
+    // the normal expiry path; ContractDomain.tick() refills on the next tick.
+    if (Array.isArray(previous.contracts)) {
+      voidActiveContracts(migrated as unknown as GameState);
+    }
+
+    return migrated;
+  },
+  26: (state: unknown) => {
+    ContentRegistry.initializeAndValidate();
+    const previous = state as GameState;
+    const sunreachFarm = WORLD_FARM_DEFINITIONS["farm.sunreach_terraces"];
+    const previousFarms = previous.farms ?? {};
+    const farms = previousFarms[sunreachFarm.id]
+      ? previousFarms
+      : {
+          ...previousFarms,
+          [sunreachFarm.id]: {
+            id: sunreachFarm.id,
+            regionId: sunreachFarm.regionId,
+            widthMeters: sunreachFarm.widthMeters,
+            depthMeters: sunreachFarm.depthMeters,
+            climateId: sunreachFarm.climateId,
+            soil: {
+              fertility: sunreachFarm.fertility,
+              moistureRetention: sunreachFarm.moistureRetention
+            },
+            placedCropIds: [],
+            placedStructureIds: [...sunreachFarm.structureIds],
+            leaseCost: sunreachFarm.leaseCost,
+            leaseDueMinute: 0,
+            accessType: sunreachFarm.accessType
+          }
+        };
+
+    const structures = { ...previous.world.structures };
+    for (const station of Object.values(WORLD_STATION_DEFINITIONS)) {
+      if (station.islandId !== "island.sunreach" || structures[station.id]) continue;
+      structures[station.id] = {
+        id: station.id,
+        type: station.type,
+        x: station.position.x,
+        y: WorldLayout.terrainHeight(station.position.x, station.position.z),
+        z: station.position.z,
+        rotationY: station.rotationY
+      };
+    }
+
+    const activeSchools = Object.fromEntries(
+      Object.entries(previous.world.activeSchools).map(([schoolId, school]) => [schoolId, {
+        ...school,
+        ecologyId: WorldLayout.fishingEcologyAt(school.x, school.z).id
+      }])
+    ) as GameState["world"]["activeSchools"];
+
+    const basicFishing = previous.basicFishing
+      ? { ...previous.basicFishing, ecologyId: "ecology.neva" as const }
+      : null;
+    const contracts = (previous.contracts ?? []).map((contract) => {
+      const template = ContentRegistry.contractTemplates.get(contract.templateId);
+      return {
+        ...contract,
+        deliveryMarketId: template?.deliveryMarketId
+          ?? (contract.type === "produce" ? "market.village" : "market.harbor")
+      };
+    });
+
+    return {
+      ...previous,
+      schemaVersion: 26,
+      player: {
+        ...previous.player,
+        currentRegionId: WorldLayout.regionAt(previous.player.x, previous.player.z)
+      },
+      world: {
+        ...previous.world,
+        layoutRevision: 10,
+        structures,
+        activeSchools
+      },
+      farms,
+      basicFishing,
+      contracts
+    };
+  },
+  27: (state: unknown) => {
+    // The gallop budget moved onto the mount so riding no longer spends the
+    // rider's sprint stamina. Existing saves carry no such field; start every
+    // mount rested rather than at zero, which would read as a broken donkey.
+    const previous = state as GameState;
+    const mounts = Object.fromEntries(
+      Object.entries(previous.mounts ?? {}).map(([mountId, mount]) => [
+        mountId,
+        {
+          ...mount,
+          gallopStamina: finite(
+            (mount as { gallopStamina?: unknown }).gallopStamina,
+            MOUNT_TUNING.maximumGallopStamina
+          ),
+          gallopRecoveryDelaySeconds: finite(
+            (mount as { gallopRecoveryDelaySeconds?: unknown }).gallopRecoveryDelaySeconds,
+            0
+          ),
+          gallopExhausted: (mount as { gallopExhausted?: unknown }).gallopExhausted === true
+        }
+      ])
+    ) as GameState["mounts"];
+    return { ...previous, schemaVersion: 27, mounts };
+  },
+  28: (state: unknown) => {
+    const previous = state as GameState;
+    const weatherType = previous.weather?.type ?? "clear";
+    const seaRoughness = finite(previous.weather?.seaRoughness, 0);
+    const oldSportFishing = previous.sportFishing;
+    const oldDynamics = oldSportFishing?.dynamics;
+    const sportFishing = oldSportFishing
+      ? {
+          ...oldSportFishing,
+          dynamics: {
+            ...createFishingDynamics(
+              oldSportFishing,
+              oldDynamics?.originX ?? previous.player.x,
+              oldDynamics?.originZ ?? previous.player.z,
+              oldDynamics?.bearingRadians ?? previous.player.rotationY,
+              oldDynamics?.rngState ?? previous.metadata.rngState ?? previous.worldSeed
+            ),
+            ...(oldDynamics ?? {})
+          },
+          tackleSnapshot: { lureItemId: null },
+          seaConditionSnapshot: { weatherType, seaRoughness }
+        }
+      : null;
+    return {
+      ...previous,
+      schemaVersion: 28,
+      player: {
+        ...previous.player,
+        preparedLureItemId: null
+      },
+      world: {
+        ...previous.world,
+        fishingPressureByHabitat: {}
+      },
+      sportFishing
+    };
   }
 };
 
@@ -791,8 +1207,13 @@ function fillMissingMarketCommodities(state: GameState): void {
   const season = state.clock ? seasonAtMinute(state.clock.currentMinute) : "spring";
   const lastTick = state.clock?.currentMinute ?? 8 * 60;
   for (const [marketId, definition] of ContentRegistry.markets.entries()) {
-    const market = state.markets[marketId];
-    if (!market || !market.commodities) continue;
+    const market = state.markets[marketId] ?? (state.markets[marketId] = {
+      id: marketId,
+      name: definition.name,
+      regionId: definition.regionId,
+      commodities: {}
+    });
+    if (!market.commodities) continue;
     for (const comm of definition.commodities) {
       if (market.commodities[comm.itemId]) continue;
       market.commodities[comm.itemId] = {

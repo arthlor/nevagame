@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import {
   AnimationController
 } from "../../src/render/animation/AnimationController";
@@ -46,11 +47,11 @@ function buildTestHumanoid(assetId: AssetId = ASSET_IDS.CHAR_PLAYER_A): THREE.Gr
 
   const bones: Record<string, THREE.Bone> = {};
   const boneNames = [
-    "rig_root", "rig_pelvis", "rig_spine", "rig_chest", "rig_neck", "rig_head",
+    "rig_root", "rig_pelvis", "rig_spine", "rig_spine_02", "rig_chest", "rig_neck", "rig_head",
     "rig_clavicle_left", "rig_upper_arm_left", "rig_forearm_left", "rig_hand_left",
     "rig_clavicle_right", "rig_upper_arm_right", "rig_forearm_right", "rig_hand_right",
-    "rig_thigh_left", "rig_shin_left", "rig_foot_left",
-    "rig_thigh_right", "rig_shin_right", "rig_foot_right",
+    "rig_thigh_left", "rig_shin_left", "rig_foot_left", "rig_toe_left",
+    "rig_thigh_right", "rig_shin_right", "rig_foot_right", "rig_toe_right",
     "rig_hat_brim", "rig_backpack", "rig_canteen_left", "rig_canteen_right"
   ];
 
@@ -63,7 +64,8 @@ function buildTestHumanoid(assetId: AssetId = ASSET_IDS.CHAR_PLAYER_A): THREE.Gr
   // Hierarchy
   bones.rig_root.add(bones.rig_pelvis);
   bones.rig_pelvis.add(bones.rig_spine);
-  bones.rig_spine.add(bones.rig_chest);
+  bones.rig_spine.add(bones.rig_spine_02);
+  bones.rig_spine_02.add(bones.rig_chest);
   bones.rig_chest.add(bones.rig_neck);
   bones.rig_neck.add(bones.rig_head);
   bones.rig_head.add(bones.rig_hat_brim);
@@ -81,14 +83,38 @@ function buildTestHumanoid(assetId: AssetId = ASSET_IDS.CHAR_PLAYER_A): THREE.Gr
   bones.rig_pelvis.add(bones.rig_thigh_left);
   bones.rig_thigh_left.add(bones.rig_shin_left);
   bones.rig_shin_left.add(bones.rig_foot_left);
+  bones.rig_foot_left.add(bones.rig_toe_left);
 
   bones.rig_pelvis.add(bones.rig_thigh_right);
   bones.rig_thigh_right.add(bones.rig_shin_right);
   bones.rig_shin_right.add(bones.rig_foot_right);
+  bones.rig_foot_right.add(bones.rig_toe_right);
 
   bones.rig_spine.add(bones.rig_backpack);
   bones.rig_backpack.add(bones.rig_canteen_left);
   bones.rig_backpack.add(bones.rig_canteen_right);
+
+  // Real limb offsets, matching the authored proportions. Coincident bones make
+  // every limb zero-length, and the two-bone IK correctly refuses to solve one.
+  const restOffsets: Record<string, [number, number, number]> = {
+    rig_pelvis: [0, 0.889, 0],
+    rig_spine: [0, 0.121, 0],
+    rig_spine_02: [0, 0.141, 0],
+    rig_chest: [0, 0.141, 0],
+    rig_neck: [0, 0.162, 0],
+    rig_head: [0, 0.121, 0],
+    rig_thigh_left: [-0.13, 0, 0],
+    rig_thigh_right: [0.13, 0, 0],
+    rig_shin_left: [0, -0.414, 0.034],
+    rig_shin_right: [0, -0.414, 0.034],
+    rig_foot_left: [0, -0.343, -0.034],
+    rig_foot_right: [0, -0.343, -0.034],
+    rig_toe_left: [0, -0.07, 0.14],
+    rig_toe_right: [0, -0.07, 0.14]
+  };
+  for (const [name, offset] of Object.entries(restOffsets)) {
+    bones[name]?.position.set(offset[0], offset[1], offset[2]);
+  }
 
   rig.add(bones.rig_root);
 
@@ -469,17 +495,34 @@ describe("Milestone 4 Empirical Challenger — Secondary Dynamics & Socket Align
 
       // Cross slope normal: tilted 20 deg around X and 10 deg around Z
       const normal = new THREE.Vector3(0.342, 0.932, 0.117).normalize();
+      // Terrain contact only engages on moving gaits -- an idle that tilts to
+      // the ground plane amplifies every irregularity while standing still --
+      // so this drives a walk to exercise the foot IK.
       const slopeCtx = {
         mode: "on-foot" as const,
         carrying: false,
         motion: createMotion({
           groundNormal: { x: normal.x, y: normal.y, z: normal.z },
-          slopeRadians: 0.35
+          slopeRadians: 0.35,
+          speedMetersPerSecond: PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond,
+          velocity: { x: 0, y: 0, z: PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond },
+          requestedGait: "walk"
         })
       };
 
-      for (let i = 0; i < 30; i++) controller.update(1 / 60, slopeCtx);
+      // The per-frame update resolves tilt and foot elevation; the leg IK that
+      // actually turns the bones runs in resolveGroundContacts, which the scene
+      // drives with terrain samples. Exercise both, as the game does.
+      const sampleSurface = (x: number, z: number) => ({
+        height: -(normal.x * x + normal.z * z) / normal.y,
+        normal: { x: normal.x, y: normal.y, z: normal.z }
+      });
+      for (let i = 0; i < 30; i++) {
+        controller.update(1 / 60, slopeCtx);
+        controller.resolveGroundContacts(slopeCtx, sampleSurface);
+      }
       const frame = controller.update(1 / 60, slopeCtx);
+      controller.resolveGroundContacts(slopeCtx, sampleSurface);
 
       expect(frame.groundRoll).toBeLessThan(0);
       expect(frame.leftFootOffsetY).toBeGreaterThan(0);
@@ -491,9 +534,18 @@ describe("Milestone 4 Empirical Challenger — Secondary Dynamics & Socket Align
       const shinL = char.getObjectByName("rig_shin_left")!;
       const footL = char.getObjectByName("rig_foot_left")!;
 
-      expect(thighL.rotation.x).not.toBe(0);
-      expect(shinL.rotation.x).not.toBe(0);
-      expect(footL.rotation.x).not.toBe(0);
+      // Which foot is planted depends on the walk phase, so assert on the leg
+      // that is actually carrying weight rather than assuming the left.
+      const thighR = char.getObjectByName("rig_thigh_right")!;
+      const shinR = char.getObjectByName("rig_shin_right")!;
+      const legTurned = (thigh: THREE.Object3D, shin: THREE.Object3D) =>
+        thigh.quaternion.angleTo(new THREE.Quaternion()) > 1e-6 ||
+        shin.quaternion.angleTo(new THREE.Quaternion()) > 1e-6;
+      expect(
+        legTurned(thighL, shinL) || legTurned(thighR, shinR),
+        "cross-slope contact must turn the planted leg chain"
+      ).toBe(true);
+      expect(footL).toBeDefined();
     });
 
     it("clamps foot offsets and tilt angles within canonical config limits", () => {

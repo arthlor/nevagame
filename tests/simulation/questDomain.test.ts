@@ -35,14 +35,16 @@ describe("QuestDomain & Storyline Progression", () => {
     const sim = new Simulation();
     const startXp = sim.state.player.proficiencies.farming;
 
-    // Talk to Elspeth
+    // First talk is intro; second talk completes the welcome quest
+    const intro = sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" }) as { success: boolean; dialogue?: string[] };
+    expect(intro.success).toBe(true);
+    expect(intro.dialogue).toBeDefined();
+    expect(intro.dialogue!.length).toBeGreaterThan(0);
+    expect(sim.state.quests.activeQuestId).toBe("quest.act1_welcome");
     const talkResult = sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" }) as { success: boolean; dialogue?: string[] };
     expect(talkResult.success).toBe(true);
-    expect(talkResult.dialogue).toBeDefined();
-    expect(talkResult.dialogue!.length).toBeGreaterThan(0);
 
-
-    // Initial quest should now be completed and advanced to planting seeds
+    // Welcome quest should now be completed and advanced to planting seeds
     const nextQuest = sim.query({ type: "quest.get-active" }) as ActiveQuestDto;
     expect(nextQuest).not.toBeNull();
     expect(nextQuest.questId).toBe("quest.act1_sow_wheat");
@@ -62,6 +64,7 @@ describe("QuestDomain & Storyline Progression", () => {
     // Advance past welcome quest
     sim.state.player.x = -63.5;
     sim.state.player.z = -62;
+    sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
 
     // Plant 3 wheat crops on starter farm
@@ -111,7 +114,8 @@ describe("QuestDomain & Storyline Progression", () => {
   it("progresses into Act 2 upon harvesting wheat", () => {
     const sim = new Simulation();
 
-    // Complete Act 1 Quest 1: Welcome
+    // Complete Act 1 Quest 1: Welcome (intro then turn-in)
+    sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
 
     // Complete Act 1 Quest 2: Sow Wheat
@@ -343,6 +347,7 @@ describe("QuestDomain & Storyline Progression", () => {
     sim.events.emit("FishLanded", {
       cargoId: "cargo.test",
       speciesId: "fish.trout",
+      ecologyId: "ecology.neva",
       boatId: "boat.player_rowboat",
       weightKg: 2.5,
       quality: "common",
@@ -370,11 +375,41 @@ describe("QuestDomain & Storyline Progression", () => {
     sim.events.emit("FishLanded", {
       cargoId: "cargo.carry",
       speciesId: "fish.trout",
+      ecologyId: "ecology.neva",
       weightKg: 2.5,
       quality: "common",
       minute: sim.state.clock.currentMinute
     });
     expect(sim.state.quests.activeStepIndex).toBe(5);
     expect(sim.state.quests.stepProgress).toEqual({});
+  });
+
+  it("requires the Act 7 Sea Bream to land in the player skiff", () => {
+    const sim = new Simulation();
+    sim.state.quests.activeActId = "act7_sunreach";
+    sim.state.quests.activeQuestId = "quest.act7_reef_answer";
+    sim.state.quests.activeStepIndex = 1;
+    sim.state.quests.stepProgress = {};
+
+    sim.events.emit("BasicFishingResolved", {
+      ecologyId: "ecology.sunreach",
+      habitatId: "coast",
+      catchItemId: "fish.sea_bream",
+      quality: "fine",
+      minute: sim.state.clock.currentMinute
+    });
+    expect(sim.state.quests.activeStepIndex).toBe(2);
+
+    sim.state.quests.activeStepIndex = 1;
+    sim.state.quests.stepProgress = {};
+    sim.events.emit("BasicFishingResolved", {
+      ecologyId: "ecology.sunreach",
+      habitatId: "coast",
+      boatId: "boat.player_skiff",
+      catchItemId: "fish.sea_bream",
+      quality: "fine",
+      minute: sim.state.clock.currentMinute
+    });
+    expect(sim.state.quests.activeStepIndex).toBe(3);
   });
 });

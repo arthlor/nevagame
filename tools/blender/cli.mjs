@@ -106,6 +106,7 @@ const boolean = () => ({ kind: "boolean" });
 
 const PARAMETER_CONTRACTS = Object.freeze({
   oak_tree: { height: number(3, 10), spread: number(1, 5), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10) },
+  olive_tree: { height: number(3, 8), spread: number(1, 4), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10), fruitCount: integer(0, 30) },
   pine_tree: { height: number(4, 12), spread: number(1, 4), tiers: integer(5, 12), lean: number(-0.4, 0.4), branchesPerTier: integer(3, 8), rootCount: integer(3, 8) },
   apple_tree: { height: number(2.5, 7), spread: number(1, 4), canopyClusters: integer(6, 20), fruitCount: integer(6, 30), branchCount: integer(3, 8), rootCount: integer(3, 8) },
   bush: { clusters: integer(3, 10), flowerCount: integer(0, 20), leafTips: integer(0, 16) },
@@ -220,6 +221,8 @@ const PARAMETER_CONTRACTS = Object.freeze({
   wheat_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 24) },
   tomato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), plants: integer(0, 12) },
   potato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
+  sunflower_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
+  olive_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
   turnip_crop: { leafCount: integer(4, 10) },
   pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
   stylized_fish: {
@@ -232,10 +235,13 @@ const PARAMETER_CONTRACTS = Object.freeze({
       "sturgeon",
       "sailfish",
       "swordfish",
-      "blue_marlin"
+      "blue_marlin",
+      "sardine",
+      "sea_bream",
+      "amberjack"
     ),
     length: number(0.4, 5),
-    girth: number(0.1, 1.5),
+    girth: number(0.05, 1.5),
     finScale: number(0.3, 2),
     bodyDepth: number(0.6, 1.8),
     bodySegments: integer(8, 24),
@@ -249,8 +255,20 @@ const PARAMETER_CONTRACTS = Object.freeze({
     depth: number(1, 14),
     height: number(1, 16)
   },
-  coastal_worker: { height: number(1.5, 2.4), headRatio: number(4.0, 7.0), handScale: number(0.8, 1.4) },
-  npc_character: { role: choice("gardener", "handyman", "dockmaster", "merchant"), height: number(1.5, 2.4), headRatio: number(4.0, 7.0), handScale: number(0.8, 1.4) },
+  coastal_worker: {
+    height: number(1.5, 2.4),
+    headRatio: number(4.0, 7.0),
+    handScale: number(0.8, 1.4),
+    animationSource: choice("anim/Unreal-Godot/UAL1_Standard.glb"),
+  },
+  npc_character: {
+    role: choice("gardener", "handyman", "dockmaster", "merchant"),
+    height: number(1.5, 2.4),
+    headRatio: number(4.0, 7.0),
+    handScale: number(0.8, 1.4),
+    style: choice("chibi-storybook"),
+    animationSource: choice("anim/Unreal-Godot/UAL1_Standard.glb"),
+  },
 
 
   grass_clump: { bladeCount: integer(4, 50), height: number(0.1, 3), spread: number(0.1, 3), bladeWidth: number(0.01, 0.5) },
@@ -284,12 +302,72 @@ const PARAMETER_CONTRACTS = Object.freeze({
   woven_rug: { width: number(1, 6), depth: number(1, 5) },
   cupboard_shelves: { width: number(0.8, 4), depth: number(0.3, 2), height: number(1, 4) },
   cozy_armchair: { scale: number(0.5, 2) },
-  polyfork_prop: {},
-  polyfork_vegetation: {},
-  polyfork_rock: {},
-  polyfork_architecture: {},
-  polyfork_crop: {},
-  polyfork_cloud: {},
+  // Fully authored family builders: silhouette is fixed by the catalog
+  // dimensions and seed, so they take no tuning parameters.
+  admiralty_anchor: {},
+  algae_frond: {},
+  apiary_hive: {},
+  beach_grass_tuft: {},
+  boulder_large: {},
+  broadleaf_oak: {},
+  cargo_crate_large: {},
+  cargo_sack: {},
+  cattail_reeds: {},
+  coastal_boulder: {},
+  coral_pillar: {},
+  coral_staghorn: {},
+  coral_table: {},
+  dead_tree: {},
+  dock_lantern_post: {},
+  dock_platform: {},
+  driftwood_log: {},
+  fallen_log: {},
+  fence_section: {},
+  fire_pit: {},
+  firewood_stack: {},
+  floor_plant: {},
+  gangplank: {},
+  garden_hoe: {},
+  hanging_signboard: {},
+  item_apple: {},
+  item_bread_loaf: {},
+  item_carrot: {},
+  item_coin_pouch: {},
+  item_compass: {},
+  item_corn_cob: {},
+  item_pie: {},
+  lily_pad_cluster: {},
+  maple_tree: {},
+  marker_buoy: {},
+  milk_churn: {},
+  mooring_post: {},
+  mushroom_cluster: {},
+  path_stone_round: {},
+  path_stone_slab: {},
+  picnic_table: {},
+  pier_railing: {},
+  potting_bench: {},
+  reef_small: {},
+  rock_spire: {},
+  round_bush: {},
+  rustic_watering_can: {},
+  sea_stack: {},
+  seagrass_tuft: {},
+  smoke_plume: {},
+  sunflower_stand: {},
+  tall_pine: {},
+  tilled_soil_tile: {},
+  trail_kiosk: {},
+  trail_signpost: {},
+  treasure_chest: {},
+  vegetable_bed_tile: {},
+  water_trough: {},
+  wheelbarrow: {},
+  wood_bench: {},
+  wood_bookcase: {},
+  wood_side_table: {},
+  wood_sideboard: {},
+  young_pine: {},
 });
 
 const PRIMARY_BINDING_GENERATORS = Object.freeze(
@@ -532,11 +610,6 @@ function validateReferenceAuthoring(asset) {
     throw new Error(`${asset.id}: reference brief is missing required review views: ${missingViews.join(", ")}`);
   }
 
-  const isolatedSources = brief.sources.filter((source) => source.uri.includes("tools/blender/references/isolated/"));
-  if (isolatedSources.length && String(asset.generator).startsWith("polyfork")) {
-    throw new Error(`${asset.id}: polyfork generators are forbidden for isolated-sheet assets`);
-  }
-
   if (PRIMARY_BINDING_GENERATORS.has(asset.generator)) {
     const boundComponents = new Set(brief.parameterBindings.flatMap((binding) => binding.componentIds));
     const missingPrimary = brief.components
@@ -692,7 +765,7 @@ function parseArgs(argv) {
     publish: true,
     strict: false,
     concurrency: null,
-    timeoutMs: 60000,
+    timeoutMs: 180000,
     useCache: true,
   };
   let index = 0;

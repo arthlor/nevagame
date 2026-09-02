@@ -45,6 +45,7 @@ describe("post-P12 Work economy and tackle progression", () => {
 
     moveToHarborMarket(sim);
     sim.state.basicFishing = {
+      ecologyId: "ecology.neva",
       habitatId: "river",
       phase: "charging-cast",
       remainingSeconds: 0,

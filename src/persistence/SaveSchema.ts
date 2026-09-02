@@ -6,16 +6,17 @@ import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
-import { FISHING_TUNING } from "../simulation/fishing/FishingTuning";
+import { FISHING_TUNING, fishingDepthBounds } from "../simulation/fishing/FishingTuning";
 import {
   isPlayerAtMountPose,
   isValidMountPose,
+  MOUNT_TUNING,
   isValidPlayerMountGround,
   STARTER_DONKEY_ID,
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 21;
+export const CURRENT_SCHEMA_VERSION = 28;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -43,6 +44,7 @@ function isFiniteInRange(value: unknown, minimum: number, maximum: number): valu
 const SKILL_IDS = ["farming", "fishing", "processing", "trading"] as const;
 const WEATHER_TYPES = ["clear", "cloudy", "light-rain", "heavy-rain", "windy", "fog", "storm"] as const;
 const FISHING_HABITATS = ["river", "lake", "coast", "offshore"] as const;
+const FISHING_ECOLOGIES = ["ecology.neva", "ecology.sunreach"] as const;
 const FISH_QUALITIES = ["common", "fine", "exceptional", "trophy"] as const;
 const CARGO_CLASSES = ["small", "medium", "large", "gargantuan"] as const;
 
@@ -97,8 +99,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 17
+    (schemaVersion >= 26
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 24
+      ? state.world.layoutRevision !== 9
+      : schemaVersion >= 17
+      ? state.world.layoutRevision !== 8
       : schemaVersion >= 15
         ? state.world.layoutRevision !== 7
       : schemaVersion === 14
@@ -111,6 +117,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     !isSafeInteger(state.world.currentSeed, 0) ||
     state.world.currentSeed !== state.worldSeed ||
     !isRecord(state.world.activeSchools) ||
+    (schemaVersion >= 28 && !isRecord(state.world.fishingPressureByHabitat)) ||
     !isRecord(state.world.structures) ||
     (state.world.lastSchoolSpawnMinute !== undefined && !isSafeInteger(state.world.lastSchoolSpawnMinute, 0))
     || (schemaVersion >= 9 && typeof state.world.storySchoolSpawned !== "boolean")
@@ -168,6 +175,11 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !state.player.ownedRodIds.includes(state.player.equippedRodId)
     ) return false;
   }
+  if (
+    schemaVersion >= 28 &&
+    state.player.preparedLureItemId !== null &&
+    (state.player.preparedLureItemId !== "item.basic_lure" || !ContentRegistry.items.has(state.player.preparedLureItemId))
+  ) return false;
   if (state.player.activeBoatId !== null && state.player.activeBoatId !== undefined && !state.boats[state.player.activeBoatId]) return false;
   if (state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined) {
     const carriedCargo = state.fishCargo[state.player.carriedFishCargoId];
@@ -183,27 +195,49 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     state.basicFishing &&
     (typeof state.basicFishing.habitatId !== "string" ||
       !isOneOf(state.basicFishing.habitatId, FISHING_HABITATS) ||
+      (schemaVersion >= 26 && !isOneOf(state.basicFishing.ecologyId, FISHING_ECOLOGIES)) ||
       !["charging-cast", "waiting-bite", "bite-reaction", "minigame", "caught", "escaped", "casting", "waiting", "bite"].includes(state.basicFishing.phase) ||
       !isFiniteNumber(state.basicFishing.remainingSeconds, 0) ||
       (state.basicFishing.catchItemId !== undefined && !ContentRegistry.items.has(state.basicFishing.catchItemId)) ||
-      typeof state.basicFishing.willCatch !== "boolean")
+      typeof state.basicFishing.willCatch !== "boolean" ||
+      (schemaVersion >= 22 && state.basicFishing.quality !== undefined && !isOneOf(state.basicFishing.quality, FISH_QUALITIES)))
   ) return false;
   if (state.sportFishing) {
     const dynamics = state.sportFishing.dynamics;
+    const speciesId = isRecord(state.sportFishing.fish) && typeof state.sportFishing.fish.speciesId === "string"
+      ? state.sportFishing.fish.speciesId
+      : null;
+    const species = speciesId ? ContentRegistry.fishSpecies.get(speciesId) : undefined;
+    const profile = species ? ContentRegistry.fishBehaviors.get(species.behaviorProfileId) : undefined;
+    const depthBounds = profile && isFiniteNumber(state.sportFishing.distanceMeters, 0)
+      ? fishingDepthBounds(profile, state.sportFishing.distanceMeters)
+      : null;
     if (schemaVersion >= 19 && (
       !isRecord(dynamics) ||
       ![dynamics.originX, dynamics.originZ, dynamics.bearingRadians, dynamics.headingRadians,
         dynamics.radialVelocity, dynamics.angularVelocity, dynamics.verticalVelocity].every(value => isFiniteNumber(value)) ||
-      !isFiniteNumber(dynamics.lineLengthMeters, FISHING_TUNING.minimumLineLength) ||
-      !isFiniteInRange(dynamics.depthMeters, -0.9, 4) ||
+      !isFiniteInRange(dynamics.lineLengthMeters, FISHING_TUNING.minimumLineLength, FISHING_TUNING.maximumDistance + 5) ||
+      !depthBounds ||
+      !isFiniteInRange(dynamics.depthMeters, depthBounds.minimum, depthBounds.maximum) ||
       !isFiniteInRange(dynamics.rodDirection, -1, 1) ||
-      !isFiniteNumber(dynamics.effort, 0) ||
-      !isFiniteNumber(dynamics.retrievalMetersPerSecond, 0) ||
-      !isFiniteNumber(dynamics.payoutMetersPerSecond, 0) ||
-      !isFiniteNumber(dynamics.behaviorDurationSeconds, 0.1) ||
+      !isFiniteInRange(dynamics.effort, 0, 2) ||
+      !isFiniteInRange(dynamics.retrievalMetersPerSecond, 0, 20) ||
+      !isFiniteInRange(dynamics.payoutMetersPerSecond, 0, 20) ||
+      !isFiniteInRange(dynamics.behaviorDurationSeconds, 0.1, 120) ||
       !isSafeInteger(dynamics.surfaceCrossings, 0) ||
       !isSafeInteger(dynamics.rngState, 0) ||
       !isFiniteInRange(dynamics.stepRemainderSeconds, 0, FISHING_TUNING.stepSeconds) ||
+      (schemaVersion >= 28 && (
+        !isFiniteInRange(dynamics.rodLoad, 0, FISHING_TUNING.pumpMaximumLoad) ||
+        !isFiniteInRange(dynamics.fishSpeed, 0, 100) ||
+        !isFiniteInRange(dynamics.shakePhase, 0, Math.PI * 2) ||
+        !isFiniteInRange(dynamics.shakeAmplitude, 0, 1) ||
+        !isFiniteInRange(
+          dynamics.landReadySeconds,
+          0,
+          FISHING_TUNING.landReadySeconds + FISHING_TUNING.stepSeconds
+        )
+      )) ||
       !isOneOf(state.sportFishing.behavior, ["rest", "run-left", "run-right", "dive", "surface", "burst", "shake"]) ||
       !isFiniteNumber(state.sportFishing.behaviorUntilSeconds, 0) ||
       !isFiniteNumber(state.sportFishing.elapsedSeconds, 0) ||
@@ -230,6 +264,13 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isFiniteInRange(state.sportFishing.lineIntegrity, 0, 100) ||
       !isFiniteNumber(state.sportFishing.slackTimerSeconds, 0) ||
       !isFiniteNumber(state.sportFishing.snapTimerSeconds, 0) ||
+      (schemaVersion >= 28 && (
+        !isRecord(state.sportFishing.tackleSnapshot) ||
+        (state.sportFishing.tackleSnapshot.lureItemId !== null && state.sportFishing.tackleSnapshot.lureItemId !== "item.basic_lure") ||
+        !isRecord(state.sportFishing.seaConditionSnapshot) ||
+        !isOneOf(state.sportFishing.seaConditionSnapshot.weatherType, WEATHER_TYPES) ||
+        !isFiniteInRange(state.sportFishing.seaConditionSnapshot.seaRoughness, 0, 1)
+      )) ||
       (state.sportFishing.schoolId !== undefined &&
         state.sportFishing.schoolId !== null &&
         (typeof state.sportFishing.schoolId !== "string" || !state.world.activeSchools[state.sportFishing.schoolId]))
@@ -245,6 +286,9 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         mountId !== STARTER_DONKEY_ID ||
         mount.id !== mountId ||
         mount.mountTypeId !== STARTER_DONKEY_TYPE_ID ||
+        !isFiniteInRange(mount.gallopStamina, 0, MOUNT_TUNING.maximumGallopStamina) ||
+        !isFiniteInRange(mount.gallopRecoveryDelaySeconds, 0, MOUNT_TUNING.gallopRecoveryDelaySeconds) ||
+        typeof mount.gallopExhausted !== "boolean" ||
         !isValidMountPose(mount as unknown as GameState["mounts"][string])
       ) return false;
     }
@@ -299,6 +343,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isRecord(school) ||
       school.id !== schoolId ||
       !isOneOf(school.habitatId, FISHING_HABITATS) ||
+      (schemaVersion >= 26 && !isOneOf(school.ecologyId, FISHING_ECOLOGIES)) ||
       ![school.x, school.z].every((value) => isFiniteNumber(value)) ||
       !isFiniteNumber(school.radius, 0) ||
       !isSafeInteger(school.spawnedAtMinute, 0) ||
@@ -315,6 +360,21 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
           !isFiniteNumber(entry.weight, 0)
       )
     ) return false;
+  }
+
+  if (schemaVersion >= 28) {
+    for (const [key, pressure] of Object.entries(state.world.fishingPressureByHabitat)) {
+      if (
+        !isRecord(pressure) ||
+        key !== `${String(pressure.ecologyId)}:${String(pressure.habitatId)}` ||
+        !isOneOf(pressure.ecologyId, FISHING_ECOLOGIES) ||
+        !isOneOf(pressure.habitatId, FISHING_HABITATS) ||
+        !isSafeInteger(pressure.lastEndedMinute, 0) ||
+        !isSafeInteger(pressure.cooldownUntilMinute, pressure.lastEndedMinute) ||
+        !isSafeInteger(pressure.recentCatchCount, 0) ||
+        pressure.recentCatchCount > 12
+      ) return false;
+    }
   }
 
   for (const [jobId, job] of Object.entries(state.processingJobs)) {
@@ -391,6 +451,22 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       ) return false;
     }
     if (!definition.commodities.every((entry) => Boolean(market.commodities[entry.itemId]))) return false;
+  }
+
+  if (schemaVersion >= 26) {
+    for (const contract of state.contracts) {
+      if (
+        !isRecord(contract) ||
+        typeof contract.deliveryMarketId !== "string" ||
+        !ContentRegistry.markets.has(contract.deliveryMarketId)
+      ) return false;
+    }
+  }
+
+  if (schemaVersion >= 22) {
+    if (!Array.isArray(state.journal.unlockedKnowledge) || !state.journal.unlockedKnowledge.every((id) => typeof id === "string")) {
+      return false;
+    }
   }
 
   if (!isRecord(state.journal.cropRecords)) return false;

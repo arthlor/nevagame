@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 25,
+  "savedAtUtcMs": 1787979600000,
+  "state": {
+    "schemaVersion": 25,
+    "player": {
+      "x": -65,
+      "y": 1.25,
+      "z": -55,
+      "rotationY": 0.42,
+      "money": 1234
+    },
+    "world": {
+      "layoutRevision": 9
+    },
+    "metadata": {
+      "rngState": 260926
+    }
+  }
+}

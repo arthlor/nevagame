@@ -5,8 +5,11 @@ import {
   FISHING_TUNING,
   fishingBehaviorReadout,
   fishingEndpoint,
+  fishingWindOpportunity,
   type FishingBehaviorPhase
 } from "../../simulation/fishing/FishingTuning";
+
+export type SportFishingEndCue = "landed" | "escaped" | "snapped" | "stow-failed";
 
 export interface SportFishingPresentationSample {
   endpointX: number; endpointZ: number; depthMeters: number;
@@ -117,12 +120,7 @@ export function sampleSportFishingPresentation(
     0,
     1
   );
-  target.windOpportunity = THREE.MathUtils.clamp(
-    Math.max(0, (m?.rodLoad ?? tension) - tension)
-      / Math.max(0.01, FISHING_TUNING.pumpMaximumLoad - tension),
-    0,
-    1
-  );
+  target.windOpportunity = fishingWindOpportunity(encounter);
   target.staminaRatio = THREE.MathUtils.clamp(encounter.stamina / Math.max(1, encounter.maxStamina), 0, 1);
   return target;
 }

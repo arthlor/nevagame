@@ -3,6 +3,8 @@
  * Keep this module free of Three.js and mutable game state.
  */
 
+import { SUNREACH_ANCHORS } from "./WorldIslands";
+
 export interface FarmPoint {
   x: number;
   z: number;
@@ -249,9 +251,55 @@ export const PLAYER_HOMESTEAD_LAYOUT: FarmLayoutDefinition = {
   paths: []
 };
 
+export const SUNREACH_FARM_LAYOUT: FarmLayoutDefinition = {
+  farmId: "farm.sunreach_terraces",
+  origin: SUNREACH_ANCHORS.terraceFarm,
+  farmBounds: { minX: -28, maxX: 28, minZ: -31, maxZ: 25 },
+  plantableAreas: [
+    { minX: -23, maxX: 23, minZ: -29, maxZ: -16 },
+    { minX: -26, maxX: 26, minZ: -12, maxZ: 2 },
+    { minX: -21, maxX: 21, minZ: 7, maxZ: 22 }
+  ],
+  structureAnchors: [
+    {
+      id: "struct.sunreach_hand_mill",
+      type: "hand-mill",
+      x: -11,
+      z: 16,
+      rotationY: 2.35,
+      clearanceRadius: 1.35,
+      frontApproachDistanceMeters: 1.2
+    },
+    {
+      id: "struct.sunreach_workbench",
+      type: "workbench",
+      x: 11,
+      z: 12,
+      rotationY: -0.7,
+      clearanceRadius: 1.3,
+      frontApproachDistanceMeters: 1.05
+    }
+  ],
+  marketAnchors: [],
+  farmsteadAnchors: [
+    {
+      id: "well",
+      x: -3.8,
+      z: 2.4,
+      rotationY: 0.3,
+      scale: 0.9,
+      clearanceRadius: 1.75
+    }
+  ],
+  fenceAnchors: [],
+  propAnchors: [],
+  paths: []
+};
+
 const FARM_LAYOUTS: Readonly<Record<string, FarmLayoutDefinition>> = {
   [STARTER_FARM_LAYOUT.farmId]: STARTER_FARM_LAYOUT,
-  [PLAYER_HOMESTEAD_LAYOUT.farmId]: PLAYER_HOMESTEAD_LAYOUT
+  [PLAYER_HOMESTEAD_LAYOUT.farmId]: PLAYER_HOMESTEAD_LAYOUT,
+  [SUNREACH_FARM_LAYOUT.farmId]: SUNREACH_FARM_LAYOUT
 };
 
 export const STARTER_DONKEY_ANCHOR: StarterDonkeyAnchor = {

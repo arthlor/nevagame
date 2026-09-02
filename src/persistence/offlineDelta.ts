@@ -12,6 +12,7 @@ import { regenerateWorkCapacity, OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR } from "..
 import { expireContracts, refillContracts } from "../simulation/domains/ContractDomain";
 import { expireSpentSchools } from "../simulation/domains/FishingDomain";
 import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
+import { sampleFarmEnvironment } from "../simulation/farming/FarmEnvironmentSample";
 
 export interface OfflineProgressionSummary {
   elapsedRealMinutes: number;
@@ -65,9 +66,8 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
       const newStage = advancePlacedCropGrowth(
         cropState,
         cropDef,
-        farm.climateId,
+        sampleFarmEnvironment(farm, state.weather),
         farm.soil.fertility,
-        state.weather.type,
         segmentMinutes
       );
       if (previousStage !== "mature" && previousStage !== "overripe" && (newStage === "mature" || newStage === "overripe")) {
@@ -80,8 +80,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
     summary.cargoSpoiledCount += advanceCargoFreshness(
       state,
       segmentMinutes,
-      segmentStartMinute,
-      state.weather.temperatureC
+      segmentStartMinute
     );
   });
 
@@ -116,7 +115,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
 
   // Step 7: Market ticks
   for (const market of Object.values(state.markets)) {
-    tickMarket(market, state.clock.currentMinute, state.clock.season, rng);
+    tickMarket(market, state.clock.currentMinute, state.clock.season, state.worldSeed);
   }
 
   // Step 8: Weather that lands exactly at the final minute is resolved by the

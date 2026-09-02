@@ -9,6 +9,7 @@ import {
   clockWindowAmbient,
   deriveCelestialDirections,
   deriveLightingFrame,
+  LightingRig,
   lightningEnvelope,
   snapShadowFocus
 } from "../../src/render/lighting/LightingRig";
@@ -50,6 +51,28 @@ describe("LightingRig", () => {
       6
     );
     expect(snapped.distanceTo(focus)).toBeLessThan(texelSize);
+  });
+
+  it("refreshes the shadow depth map on every moving-light update", () => {
+    const renderer = {
+      shadowMap: {
+        autoUpdate: true,
+        enabled: false,
+        type: THREE.PCFSoftShadowMap,
+        needsUpdate: false
+      },
+      toneMappingExposure: 1
+    } as unknown as THREE.WebGLRenderer;
+    const rig = new LightingRig(new THREE.Scene(), renderer);
+    const state = createInitialGameState(42);
+    const focus = new THREE.Vector3(4, 0.5, -6);
+
+    rig.update(state, 0, focus);
+    expect(renderer.shadowMap.needsUpdate).toBe(true);
+
+    renderer.shadowMap.needsUpdate = false;
+    rig.update(state, 0.016, new THREE.Vector3(focus.x + 0.5, focus.y, focus.z));
+    expect(renderer.shadowMap.needsUpdate).toBe(true);
   });
 
   it("derives stable time-of-day light from simulation inputs", () => {

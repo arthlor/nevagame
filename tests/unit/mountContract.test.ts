@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import { MOUNT_TUNING } from "../../src/simulation/mounts/Mounts";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import {
   isPlacementFootprintStable,
   createWorldEnvironmentLayout
@@ -48,10 +50,12 @@ describe("starter donkey asset and placement contract", () => {
       "fauna_donkey_a_leg_rear_left_lower_pivot",
       "fauna_donkey_a_leg_rear_right_pivot",
       "fauna_donkey_a_leg_rear_right_lower_pivot",
-      "fauna_donkey_a_rider_socket"
+      "fauna_donkey_a_rider_socket",
+      "fauna_donkey_a_stirrup_left_socket",
+      "fauna_donkey_a_stirrup_right_socket"
     ]));
     expect(donkey?.animationClips?.map((clip) => clip.name)).toEqual([
-      "idle", "graze", "look", "walk", "trot", "mount", "dismount"
+      "idle", "graze", "look", "walk", "trot", "gallop", "mount", "dismount"
     ]);
     expect(donkey?.animationClips?.find((clip) => clip.name === "walk")?.events?.map((event) => event.name)).toEqual([
       "hoofstep_rear_left",
@@ -74,8 +78,46 @@ describe("starter donkey asset and placement contract", () => {
       ...(player?.additionalAnimationClips ?? [])
     ].map((clip) => clip.name);
     expect(playerClipNames).toEqual(expect.arrayContaining([
-      "mounted_idle", "mounted_walk", "mounted_trot", "mount", "dismount"
+      "mounted_idle", "mounted_walk", "mounted_trot", "mount", "mount_right", "dismount", "dismount_right"
     ]));
+  });
+
+  it("keeps mounted tiers distinct from on-foot travel and aligns humanoid and mount gait clips to the 30 fps grid", () => {
+    const donkey = ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)!;
+    const player = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A)!;
+    const donkeyClips = new Map((donkey.animationClips ?? []).map((clip) => [clip.name, clip]));
+    const playerClips = new Map([
+      ...(player.animationClips ?? []),
+      ...(player.additionalAnimationClips ?? [])
+    ].map((clip) => [clip.name, clip]));
+
+    // Riding must beat travelling on foot at every tier, or the mount is a
+    // downgrade. This is the assertion that would have caught the shipped
+    // 3.7 m/s trot losing to a 3.8 m/s sprint.
+    expect(MOUNT_TUNING.walkSpeedMetersPerSecond).toBeGreaterThan(PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond);
+    expect(MOUNT_TUNING.trotSpeedMetersPerSecond).toBeGreaterThan(PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond);
+    expect(MOUNT_TUNING.gallopSpeedMetersPerSecond).toBeGreaterThan(MOUNT_TUNING.trotSpeedMetersPerSecond);
+
+    expect(donkeyClips.get("walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
+    expect(donkeyClips.get("trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
+    expect(donkeyClips.get("gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
+    expect(playerClips.get("walk")?.durationSeconds).toBe(1);
+    expect(playerClips.get("run")?.durationSeconds).toBe(0.6);
+    expect(playerClips.get("mounted_walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
+    expect(playerClips.get("mounted_trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
+    expect(playerClips.get("mounted_gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
+    expect(playerClips.get("mounted_walk")?.durationSeconds).toBe(donkeyClips.get("walk")?.durationSeconds);
+    expect(playerClips.get("mounted_trot")?.durationSeconds).toBe(donkeyClips.get("trot")?.durationSeconds);
+    expect(playerClips.get("mounted_gallop")?.durationSeconds).toBe(donkeyClips.get("gallop")?.durationSeconds);
+
+    for (const clip of [donkeyClips.get("walk"), donkeyClips.get("trot"), donkeyClips.get("gallop")]) {
+      expect(clip).toBeDefined();
+      expect(clip!.durationSeconds * 30).toBeCloseTo(Math.round(clip!.durationSeconds * 30), 4);
+      for (const event of clip!.events ?? []) {
+        expect(event.timeSeconds * 30).toBeCloseTo(Math.round(event.timeSeconds * 30), 4);
+        expect(event.timeSeconds).toBeLessThan(clip!.durationSeconds);
+      }
+    }
   });
 
   it("keeps the published donkey GLB mechanically in parity with its catalog contract", () => {
@@ -90,7 +132,7 @@ describe("starter donkey asset and placement contract", () => {
     });
     expect(manifestAsset?.requiredNodes).toEqual(ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)?.requiredNodes);
     expect((manifestAsset?.animationClips as Array<{ name: string }>).map((clip) => clip.name)).toEqual([
-      "idle", "graze", "look", "walk", "trot", "mount", "dismount"
+      "idle", "graze", "look", "walk", "trot", "gallop", "mount", "dismount"
     ]);
     expect(fs.existsSync(path.join(ROOT, "public/assets/models/fauna_donkey_a.glb"))).toBe(true);
   });

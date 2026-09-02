@@ -41,6 +41,7 @@ export const CROPS: Record<string, CropDefinition> = {
     footprint: { width: 1.2, depth: 1.2 },
     baseGrowthMinutes: 150,
     preferredClimates: ["warm"],
+    neutralClimates: ["temperate"],
     baseYield: { min: 2, max: 5 },
     waterNeed: 25,
     fertilityCost: 15,
@@ -71,6 +72,7 @@ export const CROPS: Record<string, CropDefinition> = {
     footprint: { width: 1.0, depth: 1.0 },
     baseGrowthMinutes: 360,
     preferredClimates: ["cool"],
+    neutralClimates: ["temperate"],
     baseYield: { min: 3, max: 6 },
     waterNeed: 14,
     fertilityCost: 10,
@@ -123,5 +125,37 @@ export const CROPS: Record<string, CropDefinition> = {
     regrowMinutes: 360, // 6 hours regrow cycle
     minimumFarmingXp: 7500,
     tags: ["tree", "regrowing", "orchard"]
+  },
+  "crop.sunflower": {
+    id: "crop.sunflower",
+    name: "Sunflower",
+    seedItemId: "seed.sunflower",
+    harvestItemId: "produce.sunflower_seed",
+    footprint: { width: 1.1, depth: 1.1 },
+    baseGrowthMinutes: 210,
+    preferredClimates: ["warm"],
+    neutralClimates: ["temperate"],
+    baseYield: { min: 3, max: 6 },
+    waterNeed: 17,
+    fertilityCost: 10,
+    regrows: false,
+    minimumFarmingXp: 1000,
+    tags: ["flower", "warm", "chum-core"]
+  },
+  "crop.olive_tree": {
+    id: "crop.olive_tree",
+    name: "Olive Tree",
+    seedItemId: "seed.olive_sapling",
+    harvestItemId: "produce.olive",
+    footprint: { width: 2.5, depth: 2.5 },
+    baseGrowthMinutes: 840,
+    preferredClimates: ["warm"],
+    baseYield: { min: 4, max: 8 },
+    waterNeed: 8,
+    fertilityCost: 5,
+    regrows: true,
+    regrowMinutes: 420,
+    minimumFarmingXp: 7500,
+    tags: ["tree", "regrowing", "warm", "olive-grove"]
   }
 };

@@ -1,185 +1,140 @@
-// src/ui/ExpeditionBoard.tsx
-import React, { useRef } from "react";
-import { GameState } from "../simulation/core/types";
-import { ContentRegistry } from "../content/ContentRegistry";
-import { InventoryManager } from "../simulation/inventory/InventoryManager";
-import { IconBoat, IconFish, IconWarning, IconExpedition } from "./components/HudIcons";
+import React, { useRef, useState } from "react";
+import { IconBoat, IconExpedition, IconFish, IconWarning } from "./components/HudIcons";
 import { formatWeatherLabel, WeatherIcon } from "./weatherPresentation";
 import { useModalAccessibility } from "./useModalAccessibility";
-import { ChromeAlert, ChromeButton, ChromeClose, ChromeMeter, ChromePanel } from "./chrome/Chrome";
+import { ChromeButton, ChromeClose } from "./chrome/Chrome";
+import { GameSheet, Meter } from "./coastal/CoastalUI";
 import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForItem, atlasForFish } from "./chrome/uiAtlas";
+import { atlasForItem } from "./chrome/uiAtlas";
+import type { ExpeditionBoardDto } from "../simulation/expeditions/buildExpeditionOpportunities";
 
 interface ExpeditionBoardProps {
-  state: GameState;
+  board: ExpeditionBoardDto;
   onClose: () => void;
 }
 
-export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ state, onClose }) => {
+export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
-  const playerInv = state.inventories[state.player.inventoryId];
-  const boats = Object.values(state.boats).sort((a, b) => a.id.localeCompare(b.id));
-  const harborMarket = state.markets["market.harbor"];
-  const chumCount = InventoryManager.getItemCount(playerInv, "item.chum_bucket");
-  const wormCount = InventoryManager.getItemCount(playerInv, "item.bait_worms");
-  const iceCount = InventoryManager.getItemCount(playerInv, "item.crushed_ice");
-  const roughWater = state.weather.seaRoughness > 0.4;
+  const { opportunities, readiness } = board;
+  const [selectedId, setSelectedId] = useState(opportunities[0]?.id ?? "");
+  const selected = opportunities.find((item) => item.id === selectedId) ?? opportunities[0] ?? null;
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <ChromePanel
+      <GameSheet
         ref={modalRef}
         as="div"
-        className="neva-panel modal-content expedition-modal"
+        className="expedition-modal expedition-board-sheet"
         tone="slate"
-        flourish
         corners
+        rivets={false}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="expedition-title"
         tabIndex={-1}
       >
-        <header className="modal-header">
-          <span id="expedition-title" className="modal-heading-with-mark">
-            <IconExpedition size={18} aria-hidden="true" /> Prepare to depart
-          </span>
-          <ChromeClose onClick={onClose} label="Close expedition notes" />
+        <header className="modal-header expedition-board-header">
+          <div>
+            <h2 id="expedition-title" className="modal-heading-with-mark">
+              <IconExpedition size={19} aria-hidden="true" /> Expedition board
+            </h2>
+            <span>Posted opportunities and what you still need</span>
+          </div>
+          <ChromeClose onClick={onClose} label="Close expedition board" />
         </header>
 
-        <div className="modal-body expedition-body">
-          <p className="expedition-intro">A short readiness check before leaving the harbor.</p>
-
-          <div className="expedition-readiness-list">
-            <section className="expedition-section" aria-labelledby="expedition-weather-title">
-              <h3 id="expedition-weather-title">
-                <WeatherIcon type={state.weather.type} size={17} aria-hidden="true" /> Weather
-              </h3>
-              <div className="expedition-rows">
-                <div className="expedition-row">
-                  <span>Conditions</span>
-                  <strong>
-                    {formatWeatherLabel(state.weather.type)} · {Math.round(state.weather.temperatureC)}°C
-                  </strong>
-                </div>
-                <div className="expedition-row">
-                  <span>Wind</span>
-                  <strong>{Math.round(state.weather.windSpeed * 1.944)} kn</strong>
-                </div>
-                <div className="expedition-row">
-                  <span>Sea</span>
-                  <strong>{Math.round(state.weather.seaRoughness * 100)}% roughness</strong>
-                </div>
-              </div>
-              <ChromeAlert tone={roughWater ? "caution" : "success"} className="expedition-weather-alert">
-                <IconWarning size={13} aria-hidden="true" />
-                {roughWater ? "Rough water is expected offshore." : "The water is calm enough for the rowboat."}
-              </ChromeAlert>
-            </section>
-
-            <section className="expedition-section" aria-labelledby="expedition-vessel-title">
-              <h3 id="expedition-vessel-title">
-                <IconBoat size={17} aria-hidden="true" /> Vessel
-              </h3>
-              {boats.length > 0 ? (
-                <div className="expedition-vessel-list">
-                  {boats.map((boat) => {
-                    const definition = ContentRegistry.boats.get(boat.boatTypeId);
-                    const cargoCount = boat.fishCargoSlotIds.filter(Boolean).length;
-                    const durabilityMax = definition?.durabilityMax ?? 100;
-                    const durabilityPercent = durabilityMax > 0
-                      ? Math.round((boat.durability / durabilityMax) * 100)
-                      : 0;
-                    return (
-                      <div key={boat.id} className="expedition-vessel-entry">
-                        <strong>{definition?.name ?? boat.boatTypeId}</strong>
-                        <ChromeMeter
-                          className="expedition-hull-meter"
-                          label={`${definition?.name ?? "Vessel"} hull`}
-                          value={boat.durability}
-                          max={durabilityMax}
-                          valueText={`${durabilityPercent}%`}
-                          variant="hull"
-                        />
-                        <span>
-                          {cargoCount}/{boat.fishCargoSlotIds.length} hold · {boat.isDocked ? "Docked" : "At sea"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="expedition-empty">No vessel is registered.</p>
-              )}
-            </section>
-
-            <section className="expedition-section" aria-labelledby="expedition-supplies-title">
-              <h3 id="expedition-supplies-title">
-                <IconFish size={17} aria-hidden="true" /> Supplies
-              </h3>
-              <ul className="expedition-checklist" data-testid="expedition-checklist">
-                <li className={`expedition-check ${chumCount > 0 ? "is-ready" : "is-missing"}`}>
-                  <span aria-hidden="true">{chumCount > 0 ? "✓" : "–"}</span>
-                  <span>Chum buckets</span>
-                  <strong>
-                    <AtlasImage src={atlasForItem("item.chum_bucket")} alt="" size={18} /> {chumCount}
-                  </strong>
-                </li>
-                <li className={`expedition-check ${wormCount > 0 ? "is-ready" : "is-missing"}`}>
-                  <span aria-hidden="true">{wormCount > 0 ? "✓" : "–"}</span>
-                  <span>Worm bait</span>
-                  <strong>
-                    <AtlasImage src={atlasForItem("item.bait_worms")} alt="" size={18} /> {wormCount}
-                  </strong>
-                </li>
-                <li className={`expedition-check ${iceCount > 0 ? "is-ready" : "is-missing"}`}>
-                  <span aria-hidden="true">{iceCount > 0 ? "✓" : "–"}</span>
-                  <span>Crushed ice</span>
-                  <strong>
-                    <AtlasImage src={atlasForItem("item.crushed_ice")} alt="" size={18} /> {iceCount}
-                  </strong>
-                </li>
-              </ul>
-              {chumCount === 0 && (
-                <ChromeAlert tone="caution" className="expedition-supply-alert">
-                  <IconWarning size={13} aria-hidden="true" /> No chum buckets are ready.
-                </ChromeAlert>
-              )}
-            </section>
-
-            <section className="expedition-section" aria-labelledby="expedition-harbor-title">
-              <h3 id="expedition-harbor-title">Harbor</h3>
-              <div className="expedition-rows">
-                {harborMarket &&
-                  ["fish.trout", "fish.tuna", "fish.blue_marlin"].map((speciesId) => {
-                    const commodity = harborMarket.commodities[speciesId];
-                    const species = ContentRegistry.fishSpecies.get(speciesId);
-                    if (!species || !commodity) return null;
-                    const demandPct = Math.round(commodity.demandIndex * 100);
-                    return (
-                      <div key={speciesId} className="expedition-row">
-                        <span>
-                          <AtlasImage src={atlasForFish(speciesId)} alt="" size={18} /> {species.name}
-                        </span>
-                        <strong className={demandPct >= 100 ? "demand-up" : "demand-down"}>
-                          {demandPct}% · {commodity.basePrice} G
-                        </strong>
-                      </div>
-                    );
-                  })}
-              </div>
-            </section>
+        <div className="expedition-readiness-strip" aria-label="Current readiness">
+          <div className="expedition-readiness-vessel">
+            <IconBoat size={18} aria-hidden="true" />
+            <span>Vessel</span>
+            <strong>{readiness.vessel?.name ?? "None"}</strong>
+            {readiness.vessel && (
+              <Meter
+                className="expedition-hull-meter"
+                label="Hull"
+                value={readiness.vessel.hullCurrent}
+                max={readiness.vessel.hullMaximum}
+                valueText={`${readiness.vessel.hullPercent}%`}
+                variant="hull"
+              />
+            )}
+          </div>
+          <div className="expedition-readiness-supplies">
+            <IconFish size={18} aria-hidden="true" />
+            <span>Supplies</span>
+            {readiness.supplies.map(({ itemId, count }) => (
+              <span key={itemId} className={count > 0 ? "is-ready" : "is-missing"}>
+                <AtlasImage src={atlasForItem(itemId)} alt="" size={17} /> {count}
+              </span>
+            ))}
+          </div>
+          <div className="expedition-readiness-weather">
+            <WeatherIcon type={readiness.weatherType} size={18} aria-hidden="true" />
+            <span>Weather</span>
+            <strong>{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</strong>
           </div>
         </div>
 
+        <div className="expedition-board-body">
+          <nav className="expedition-notice-stack" aria-label="Posted opportunities">
+            {opportunities.map((opportunity) => (
+              <button
+                key={opportunity.id}
+                type="button"
+                className={`expedition-posted-notice tone-${opportunity.tone} ${selected?.id === opportunity.id ? "is-selected" : ""}`}
+                aria-pressed={selected?.id === opportunity.id}
+                onClick={() => setSelectedId(opportunity.id)}
+              >
+                <span className="expedition-notice-tone">{opportunity.tone === "steady" ? "Steady" : "Bold"}</span>
+                <strong>{opportunity.title.replace(/^(Steady|Bold):\s*/, "")}</strong>
+                <span>{opportunity.destination}</span>
+                <span className={opportunity.ready ? "is-ready" : "is-blocked"}>
+                  {opportunity.ready ? "Ready" : `${opportunity.blockers.length} to resolve`}
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          <section className="expedition-selected-notice" aria-live="polite">
+            {selected ? (
+              <>
+                <div className="expedition-selected-heading">
+                  <div>
+                    <span>{selected.tone === "steady" ? "Steady opportunity" : "Bold opportunity"}</span>
+                    <h3>{selected.title.replace(/^(Steady|Bold):\s*/, "")}</h3>
+                  </div>
+                  <strong className={selected.ready ? "is-ready" : "is-blocked"}>
+                    {selected.ready ? "Ready" : "Not ready"}
+                  </strong>
+                </div>
+                <p>{selected.summary}</p>
+                <dl className="expedition-selected-meta">
+                  <div><dt>Destination</dt><dd>{selected.destination}</dd></div>
+                  <div><dt>Return</dt><dd>{selected.valueLabel}</dd></div>
+                  {selected.deadlineLabel && <div><dt>Deadline</dt><dd>{selected.deadlineLabel}</dd></div>}
+                </dl>
+                {selected.ready ? (
+                  <p className="expedition-ready-note">Your current vessel, supplies, and conditions meet this notice.</p>
+                ) : (
+                  <div className="expedition-blockers">
+                    <h4><IconWarning size={15} aria-hidden="true" /> Resolve in order</h4>
+                    <ol>{selected.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ol>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="expedition-empty">No opportunity is posted right now.</p>
+            )}
+          </section>
+        </div>
+
         <footer className="modal-footer">
-          <ChromeButton variant="primary" soundCue="confirm" onClick={onClose}>
-            Done
-          </ChromeButton>
+          <ChromeButton onClick={onClose}>Close board</ChromeButton>
         </footer>
-      </ChromePanel>
+      </GameSheet>
     </div>
   );
 };

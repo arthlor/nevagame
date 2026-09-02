@@ -159,7 +159,7 @@ the integrated game.
 - calibrated warm sun + cool fill, grounded shadows/AO, atmosphere, and color pipeline;
 - canonical ground-surface foundation: class-aware terrain normals, semantic grass/meadow/soil/path/shore/cliff blending, bounded macro/meso variation, weather wetness through `VisualRenderConfig`, and optional world-space supporting maps remapped into palette families (never photographic RGB as final albedo, never a second route/meadow mask);
 - one authored route/profile owner shared by terrain grading/surface influence, road presentation, map projection, cover exclusion, and relevant collision queries; roads have route-kind width, worn core/ruts, soft shoulders, terrain integration, and shaped junctions;
-- deterministic semantic ground-cover density with clustered short/medium/tall hierarchy, authored clearances, variant/palette grouping, instancing, draw-distance culling, and quality-tier counts;
+- deterministic causal composition fields for district, habitat, route framing, openings, and independent category densities; stable priority-prefix placement with core/edge/isolate/landmark/riparian roles, authored clearances, variant/palette grouping, instancing, draw-distance culling, and quality-tier counts;
 - approved stylized water prototype with faceting, 2–3 low-frequency wave layers, shallow→deep palette, Fresnel-like response, and graphic foam;
 - approved vegetation/rock shading prototypes;
 - catalog-backed GLB loader with Meshopt decoding, source-scene cache/clones, and compatible static-prefab `THREE.BatchedMesh` consolidation; ground supporting maps currently ship as local WebP through `ExternalSurfaceTextures`; KTX2 remains preferred for later GLB-embedded textures;
@@ -196,7 +196,7 @@ The first accepted slice must demonstrate final-or-near-final geometry language,
 
 # 7. P1 — Walkable World
 
-**Build:** player controller, on-foot camera, collision, interaction system, named NPC anchors, and a large authored multi-district world with northwest starter farm, northeast village hub (plaza/market, mill, inn, cottages, barn, homestead garden, orchard fringe), river corridor with an east-bank crossing gateway at the former stall site, southwest lighthouse cliffs, southeast harbor, coast, offshore boundary, arterial roads, scenic trails, and contextual prompts. World geometry may remain selectively content-light while districts are filled, but it MUST use the approved P0.5/P0.75 renderer/material foundation rather than a visually unrelated throwaway style. Story landmarks support the current quest spine without becoming gameplay authorities.
+**Build:** player controller, on-foot camera, collision, interaction system, named NPC anchors, and a large authored multi-district world with northwest starter farm, northeast village hub (plaza/market, mill, inn, cottages, barn, homestead garden, orchard fringe), a side-aware longitudinal river corridor with a bridge gateway and usable fishing banks, southwest lighthouse cliffs, southeast harbor, coast, offshore boundary, arterial roads, scenic trails, causal vegetation/opening fields, and contextual prompts. World geometry may remain selectively content-light while districts are filled, but it MUST use the approved P0.5/P0.75 renderer/material foundation rather than a visually unrelated throwaway style. Story landmarks support the current quest spine without becoming gameplay authorities.
 
 **Avoid:** NPC schedules, complex animation, empty or purely decorative scale, unbounded runtime-procedural terrain, and decorative overbuild. Authored-world production may use the accepted 2026-08-27 visual-gold baseline registry, while P0.75 technical-art certification remains open with 31 below-target records; do not treat release or P16 as complete.
 
@@ -204,7 +204,7 @@ The first accepted slice must demonstrate final-or-near-final geometry language,
 
 # 8. P2 — Persistence & Time
 
-**Build:** IndexedDB repo, save envelope (`CURRENT_SCHEMA_VERSION = 21`, `layoutRevision` 8), **primary + backup keys only** (no third manual slot), migrate-then-validate, autosave, calendar, weather-bounded offline delta/summary, traversal-state persistence, persisted mount state, and persisted rod ownership.
+**Build:** IndexedDB repo using the current schema and layout revision owned by `01` §6.1, **primary + backup keys only** (no third manual slot), migrate-then-validate, autosave, calendar, weather-bounded offline delta/summary, traversal-state persistence, persisted mount state, and persisted rod ownership.
 
 **`01` §6.1 is the single migration ledger.** Read the per-version history
 there; this roadmap must not restate it. Dialogue page position, modal state,
@@ -212,7 +212,7 @@ and the last-spoken line remain transient and are never saved.
 
 Before the first live release, topology revisions may deliberately invalidate development saves when a human explicitly authorizes it; after release, preserve compatible legacy Work Capacity, crop journal, starter-structure, docked-boat, quest, fish-table, traversal, mount, sport-fishing, and rod-ownership state through explicit migrations.
 
-Permanent fixtures add, never replace, historical saves. The physical-road migration is covered by `tests/fixtures/save_v11_layout3.json`; the subsequent mill relocation onto the plaza mill pad is covered by `tests/fixtures/save_v12_layout4.json`; moving the mill off the packed courtyard is covered by `tests/fixtures/save_v13_layout5.json`; the layout-7 station/topology migration is covered by `tests/fixtures/save_v14_layout6.json`; and the layout-8 coast-topology migration is covered by `tests/fixtures/save_v16_layout7.json`. Retain all five alongside future version fixtures.
+Permanent fixtures add, never replace, historical saves. The physical-road migration is covered by `tests/fixtures/save_v11_layout3.json`; the subsequent mill relocation onto the plaza mill pad is covered by `tests/fixtures/save_v12_layout4.json`; moving the mill off the packed courtyard is covered by `tests/fixtures/save_v13_layout5.json`; the layout-7 station/topology migration is covered by `tests/fixtures/save_v14_layout6.json`; the layout-8 coast-topology migration is covered by `tests/fixtures/save_v16_layout7.json`; and the causal river/layout-9 migration is covered by `tests/fixtures/save_v23_layout8.json`. Retain them alongside future version fixtures.
 
 **Gate:** reload preserves player position, money, time, dummy inventory, world seed; offline delta deterministic under fixed time.
 
@@ -305,6 +305,29 @@ claim those release gates passed.
 
 After the accepted P12 product gate, expand to 8 crops/12 fish; add Apple Tree, Flax, Fishing Skiff, more contracts, market variety, journal detail, and only then optional side-story or lore entries. Any new narrative must introduce a meaningful place, practice, relationship, ecological condition, logistics decision, or capability; do not add exposition-only errands or behaviorally identical quest chains. Do not add new systems unless essential.
 
+The live focused P13 narrative increment appends three linear stewardship
+quests to the accepted ten-quest spine: feasible contract completion → field
+pump installation and farm irrigation → fish-scrap fertilizer and a journal
+practice entry. It also adds deterministic steady/bold expedition choices and
+milestone NPC recognition. This is focused content/playability evidence, not a
+P13 completion or P15/P16 browser/release claim. The narrow current-tree gate
+is `tests/simulation/{questDomain,questExpansion,questContentValidation,expeditionOpportunities,gameLoopCadence,questPersistence,p12VerticalSlice}.test.ts`
+plus the Chrome-only `tests/e2e/p13Stewardship.spec.ts`. The browser route uses
+debug relocation to keep travel out of scope, but performs the contract,
+dialogue, pump, processing, fertilizer, journal, autosave, and reload actions
+through the actual game UI; it does not prove first-time-player comprehension,
+continuous traversal, a browser matrix, or release readiness.
+
+The next live P13 content increment is the registry-driven Sunreach expansion:
+a second warm-dry island/terrain patch, skiff-gated channel route, cove market,
+terrace farm, two NPCs, two crops, three local fish, two recipes, two contract
+templates, and five Act 7 quests. Its narrow mechanical gate is the v25/layout-9
+fixture migration plus `tests/unit/sunreachWorld.test.ts`,
+`tests/simulation/{persistence,questDomain}.test.ts`, the two 64-seed Neva and
+Sunreach composition audits, generated asset/UI publication checks, and
+typecheck. Completion remains separate from the continuous real-input
+harbor→Sunreach→ridge/reef→Neva browser route and human gameplay-camera review.
+
 # 20. P14 — Final Art, Audio & UX Polish
 
 P14 assumes P0.5/P0.75 already locked the visual language. Do **not** use P14 to replace placeholder rendering with the first real art pass; use it to finish coverage, variation, animation, audio, UX, and quality across the mature vertical slice.
@@ -314,10 +337,12 @@ P14 assumes P0.5/P0.75 already locked the visual language. Do **not** use P14 to
 - Fish: silhouettes/animation/size readability + species material polish.
 - Boats: cargo points/wake/steering feedback + final working-boat detail.
 - Characters, if present: conform to `04` character proportions/face/hair/clothing/material/rig rules; no separate chibi/anime/realistic visual language.
-- UI: coherent theme/animations/responsive/reduced motion while keeping the world primary.
+- UI: the `04` §17 coastal HUD/physical-interface language is applied across title/loading/recovery, normal and fishing HUD, farming, dialogue, satchel, market, Hold & Stores, chart, journal/guide, expedition, pause/settings, confirmations, and landscape touch fallback. Each player surface consumes a narrow simulation-owned presentation query instead of reconstructing facts from full `GameState`; responsive fit, keyboard focus/return, non-color state cues, and reduced motion remain acceptance requirements while keeping the world primary.
 - Narrative presentation: post-milestone NPC recognition, concise journal people/places/practices entries, and environmental story cues may deepen the live chain without introducing unowned branches or a second save system.
 - Audio/VFX: repeated verbs, story transitions, and place/condition ambience receive final tactile feedback without reward-firework clutter.
 Follow `04` + Art Pipeline gates; do not break the locked `VisualRenderConfig`/`PaletteMaterials` contract for one-off beauty shots.
+
+P14 UI implementation is not completion evidence by itself. Do not mark P14 complete until the human has reviewed the integrated game at the requested desktop sizes, UI-scale extremes, long/empty/full/blocked states, keyboard-only flow, reduced motion, and the existing landscape touch fallback.
 
 # 21. P15 — Performance & Browser Compatibility
 
@@ -363,6 +388,10 @@ Use fixed camera/resolution/world state where applicable and review against `04`
 
 Browser playtest covers: boot, input, visual/aesthetic gate, save, performance. Significant renderer/material/family-generator/shared-authored-construction changes also re-run the gold-standard slices. Reference-guided assets first pass their deterministic brief; its requested views are inspected by the human through Art Yard/game controls rather than static preview generation.
 
+World-composition remediation uses the additive `npm run world:acceptance` gate. It verifies generated adapters with check-only commands, hashes runtime/build inputs, builds and serves one static production bundle, runs separate 64-seed Neva-preservation and Sunreach causal-field audits, and writes only beneath `output/world-alignment/<digest>/`. It captures seed 42 plus joint stress seeds at the four accepted Neva views and five Sunreach views (departure/channel, cove, terraces, wash/ridge, reef) in normal gameplay, world-only final, true same-content no-post, and relevant diagnostic-field modes. Its movement lane is one continuous real-input harbor→channel→cove→market/terraces/ridge/reef→harbor round trip after a single authored start setup. It fails on preservation/hash drift, HMR, browser/network errors, zero world assets, repeated scene identity, or final/no-post content-count changes. Approved baselines, candidates, benchmark JSON, and snapshots are never rewritten by this gate.
+
+The software lane proves deterministic rendering behavior only. The hardware lane must identify a real GPU and return valid non-disjoint WebGL2 timer-query samples; FPS never substitutes for GPU timing. Composer/GTAO targets, shadows, formats, samples, depth/stencil state, estimated target bytes, and renderer geometry/texture memory are reported separately. Automated output can prove determinism, topology, coupling, performance evidence, and error-free capture, but the resulting gameplay-camera comparison remains a human review handoff.
+
 # 24. Coding & Formula Ownership
 
 Prefer small modules, pure functions, explicit state machines, readonly definitions, centralized formulas/tuning, strong types/names, early returns, domain tests. Avoid magic numbers, deep conditional pyramids, giant switches/god objects, ambient globals, cross-module mutation, anonymous untyped maps.
@@ -372,7 +401,8 @@ Every formula has one owner, e.g.:
 crop growth → simulation/farming/calculateCropGrowth.ts
 fish value → simulation/economy/calculateFishValue.ts
 freshness → simulation/fishing/calculateFreshness.ts
-market demand → simulation/economy/updateMarket.ts
+market demand and marginal quotes → simulation/economy/marketPricing.ts
+market hourly replay and supply recovery → simulation/economy/updateMarket.ts
 ```
 UI consumes results; never reproduces formulas.
 
@@ -401,6 +431,8 @@ memory expectation
 fallback/degradation behavior
 ```
 and run representative browser profiling.
+
+When post-processing is under test, compare `final` with a true same-quality `no-post` path that bypasses the composer and GTAO without changing seed, camera, quality, cover, shadows, time, weather, DPR, or loaded assets. Inventory render targets and collect GPU frame timing where supported; otherwise label the hardware claim blocked.
 
 # 27. Dependency Protocol
 
@@ -461,7 +493,7 @@ Never claim success without actual validation results.
 
 # 31. Reusable Agent Prompts
 
-**Asset generation:** `@LLM @tools check these for guidance, generate assets of <subject>` is a folder dump, not equal authority. Obey root `AGENTS.md`, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, owning family generator, isolated sheet if present, and the relevant Art Bible section. Do not start `threejs-game-director` for this prompt. Do not run polyfork import/register or `generate_all.py`. Resolve catalog ID → registered family generator (not polyfork for isolated-sheet or unique-silhouette assets) → measure sheet identity into `parameters` → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → Art Yard. Completion report is the `BLENDER.md` handoff (Art Yard link, no screenshot field): `Awaiting human game review`. Leave `02` and ArcheAge unread for this prompt class.
+**Asset generation:** `@LLM @tools check these for guidance, generate assets of <subject>` is a folder dump, not equal authority. Obey root `AGENTS.md`, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, owning family generator, isolated sheet if present, and the relevant Art Bible section. Do not start `threejs-game-director` for this prompt. Do not run `generate_all.py`. Resolve catalog ID → registered family generator → measure sheet identity into `parameters` → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → Art Yard. Completion report is the `BLENDER.md` handoff (Art Yard link, no screenshot field): `Awaiting human game review`. Leave `02` and ArcheAge unread for this prompt class.
 
 **Coding agent:** use scoped task-class reading; preserve no-combat, simulation authority, deterministic RNG, versioned persistence, finite inventory, physical fish cargo, farming/fishing interdependence, DOM text UI, GLB runtime assets, and capability progression. Routine assets follow the lean gate and await human game review; broader coding work runs its proportional validation gate.
 
@@ -496,7 +528,7 @@ Post-MVP content must create at least one new preparation strategy, ecological c
 
 Candidates only after stable MVP: livestock, beekeeping, orchards, irrigation networks, ports/regional trade, cold-storage business, longliner, trophy/legendary fish, boat customization, employee automation, multiple farm climates, seasonal festivals, shared online market, co-op. Multiplayer last.
 
-Explicitly not yet: PvP/combat, guilds/raids/MMO server/global auction house, armed boats, NPC romance, branching/large narrative, 30+ NPC schedules, persistent dialogue transcripts, a separate lore database, hundreds of recipes, unbounded runtime-procedural or MMO-scale world generation, hunger/thirst, realistic ocean physics/full rope sim/fully simulated crop biology. The authored ten-quest MVP spine and a small post-P12 people/places/practices journal layer are in scope; a large branching narrative is not.
+Explicitly not yet: PvP/combat, guilds/raids/MMO server/global auction house, armed boats, NPC romance, branching/large narrative, 30+ NPC schedules, persistent dialogue transcripts, a separate lore database, hundreds of recipes, unbounded runtime-procedural or MMO-scale world generation, hunger/thirst, realistic ocean physics/full rope sim/fully simulated crop biology. The authored eighteen-quest linear spine and its small people/places/practices journal layer are in scope; a large branching narrative is not.
 
 # 34. Final MVP & Agent Principle
 

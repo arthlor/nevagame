@@ -5,6 +5,7 @@ import {
 } from "../../src/render/animation/AnimationController";
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import type { PlayerMotionSample } from "../../src/simulation/core/PhysicsAdapter";
+import { MOUNT_TUNING } from "../../src/simulation/mounts/Mounts";
 
 function motion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample {
   return {
@@ -54,8 +55,8 @@ describe("mounted character animation", () => {
       mode: "mounted",
       carrying: false,
       motion: motion({
-        velocity: { x: 0, y: 0, z: 5.5 },
-        speedMetersPerSecond: 5.5,
+        velocity: { x: 0, y: 0, z: MOUNT_TUNING.walkSpeedMetersPerSecond },
+        speedMetersPerSecond: MOUNT_TUNING.walkSpeedMetersPerSecond,
         requestedGait: "walk"
       })
     });
@@ -65,8 +66,8 @@ describe("mounted character animation", () => {
       mode: "mounted",
       carrying: false,
       motion: motion({
-        velocity: { x: 0, y: 0, z: 8.5 },
-        speedMetersPerSecond: 8.5,
+        velocity: { x: 0, y: 0, z: MOUNT_TUNING.trotSpeedMetersPerSecond },
+        speedMetersPerSecond: MOUNT_TUNING.trotSpeedMetersPerSecond,
         requestedGait: "trot"
       })
     });
@@ -92,5 +93,13 @@ describe("mounted character animation", () => {
     controller.update(0.1, context);
     expect(controller.currentClip()).toBe("dismount");
     expect(controller.playbackState().activeAction).toBe("dismount");
+
+    controller.play("mount_right");
+    controller.update(0.1, context);
+    expect(controller.currentClip()).toBe("mount_right");
+
+    controller.play("dismount_right");
+    controller.update(0.1, context);
+    expect(controller.currentClip()).toBe("dismount_right");
   });
 });

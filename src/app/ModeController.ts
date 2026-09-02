@@ -53,8 +53,9 @@ export class ModeController {
   }
 
   /** Closing overlays (null) and Pause are allowed while fishing; other HUD modals are not. */
-  public allowsOverlayChange(modal: ActiveModal): boolean {
+  public allowsOverlayChange(modal: ActiveModal, options?: { catchSummary?: boolean }): boolean {
     if (!this.blocksHudOverlaysAndTools) return true;
+    if (options?.catchSummary && modal === "inventory") return true;
     return modal === "pause" || modal === null;
   }
 

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 23,
+  "savedAtUtcMs": 1787896800000,
+  "state": {
+    "schemaVersion": 23,
+    "player": {
+      "x": -27.7,
+      "y": 99,
+      "z": -58,
+      "rotationY": 1.1,
+      "activeBoatId": null,
+      "activeMountId": null,
+      "money": 731
+    },
+    "world": {
+      "layoutRevision": 8,
+      "structures": {
+        "struct.layout8_fixture": {
+          "id": "struct.layout8_fixture",
+          "type": "workbench",
+          "x": -48,
+          "y": 99,
+          "z": -60,
+          "rotationY": 0.75
+        }
+      }
+    },
+    "metadata": {
+      "rngState": 90210
+    }
+  }
+}

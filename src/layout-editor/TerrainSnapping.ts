@@ -79,7 +79,7 @@ export function alignNormalToSurface(
  * and analytical barycentric heightfield grid fallback.
  */
 export class TerrainSnappingSystem {
-  private bvhMesh: THREE.Mesh | null = null;
+  private bvhMeshes: THREE.Mesh[] = [];
   private raycaster = new THREE.Raycaster();
   private maxElevation = 500;
 
@@ -93,21 +93,33 @@ export class TerrainSnappingSystem {
    * Constructs the boundsTree if not already present.
    */
   public registerTerrain(mesh: THREE.Mesh): void {
-    if (!mesh.geometry.boundsTree) {
-      mesh.geometry.boundsTree = new MeshBVH(mesh.geometry, {
-        targetLeafSize: 10,
-        strategy: SAH
-      });
+    this.registerTerrains([mesh]);
+  }
+
+  public registerTerrains(meshes: readonly THREE.Mesh[]): void {
+    let maximumElevation = Number.NEGATIVE_INFINITY;
+    for (const mesh of meshes) {
+      if (!mesh.geometry.boundsTree) {
+        mesh.geometry.boundsTree = new MeshBVH(mesh.geometry, {
+          targetLeafSize: 10,
+          strategy: SAH
+        });
+      }
+      mesh.geometry.computeBoundingBox();
+      if (mesh.geometry.boundingBox) {
+        maximumElevation = Math.max(maximumElevation, mesh.geometry.boundingBox.max.y + mesh.position.y);
+      }
     }
-    mesh.geometry.computeBoundingBox();
-    if (mesh.geometry.boundingBox) {
-      this.maxElevation = mesh.geometry.boundingBox.max.y + 20.0;
-    }
-    this.bvhMesh = mesh;
+    if (Number.isFinite(maximumElevation)) this.maxElevation = maximumElevation + 20;
+    this.bvhMeshes = [...meshes];
   }
 
   public getTerrainMesh(): THREE.Mesh | null {
-    return this.bvhMesh;
+    return this.bvhMeshes[0] ?? null;
+  }
+
+  public getTerrainMeshes(): readonly THREE.Mesh[] {
+    return this.bvhMeshes;
   }
 
   public getMaxElevation(): number {
@@ -126,11 +138,11 @@ export class TerrainSnappingSystem {
     const maxSlope = options?.maxSlopeDegrees ?? 40;
     const yOffset = options?.yOffset ?? 0;
 
-    if (this.bvhMesh) {
+    if (this.bvhMeshes.length > 0) {
       this.raycaster.ray.origin.set(worldX, this.maxElevation, worldZ);
       this.raycaster.ray.direction.set(0, -1, 0);
 
-      const hits = this.raycaster.intersectObject(this.bvhMesh, false);
+      const hits = this.raycaster.intersectObjects(this.bvhMeshes, false);
       if (hits.length > 0) {
         const hit = hits[0]!;
         const localNormal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
@@ -150,7 +162,7 @@ export class TerrainSnappingSystem {
           worldNormal,
           slopeDegrees,
           isSlopeAcceptable: slopeDegrees <= maxSlope,
-          source: this.bvhMesh.geometry.boundsTree ? "bvh" : "mesh-raycast"
+          source: hit.object instanceof THREE.Mesh && hit.object.geometry.boundsTree ? "bvh" : "mesh-raycast"
         };
       }
     }

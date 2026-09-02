@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "world:acceptance": "node tools/world/acceptance.mjs",
     "art:codegen": "node tools/art/codegen.mjs",
     "art:codegen:check": "node tools/art/codegen.mjs --check",
     "art:brief": "node tools/blender/cli.mjs brief",
@@ -43,7 +44,9 @@
     "ui:codegen:check": "node tools/ui/codegen.mjs --check",
     "ui:atlas": "node tools/ui/extrudeAndPack.mjs",
     "ui:pack": "node tools/ui/extrudeAndPack.mjs",
-    "ui:pack:check": "node tools/ui/extrudeAndPack.mjs --check"
+    "ui:pack:check": "node tools/ui/extrudeAndPack.mjs --check",
+    "content:validate": "vite-node tools/content/validate.ts",
+    "test:budget": "playwright test --config=playwright.budget.config.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

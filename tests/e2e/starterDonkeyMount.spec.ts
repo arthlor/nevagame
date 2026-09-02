@@ -140,6 +140,15 @@ test.describe("starter-farm donkey mount", () => {
     await expect.poll(async () => (await snapshot(page)).activeMountId, { timeout: 5_000 }).toBeNull();
     const dismounted = await snapshot(page);
     expect(dismounted.mode).toBe("on-foot");
+    expect(dismounted.interactionTarget).toBeNull();
+    await page.keyboard.press("KeyE");
+    await page.waitForTimeout(180);
+    const blockedReboard = await snapshot(page);
+    expect(blockedReboard.activeMountId).toBeNull();
+    expect(blockedReboard.mode).toBe("on-foot");
+    expect(blockedReboard.interactionTarget).toBeNull();
+    await expect.poll(async () => (await snapshot(page)).interactionTarget?.prompt, { timeout: 5_000 })
+      .toBe("[E] Ride donkey");
     expect(dismounted.starterDonkeyPosition?.x).toBeCloseTo(dismountSource.starterDonkeyPosition?.x ?? 0, 3);
     expect(dismounted.starterDonkeyPosition?.z).toBeCloseTo(dismountSource.starterDonkeyPosition?.z ?? 0, 3);
 

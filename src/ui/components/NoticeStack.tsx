@@ -1,7 +1,7 @@
-// src/ui/components/NoticeStack.tsx
 import React from "react";
-import type { Notice, NoticeTone } from "../notifications";
+import { NOTICE_TONE_PRIORITY, type Notice, type NoticeTone } from "../notifications";
 import { IconCoin, IconWarning, type IconProps } from "./HudIcons";
+import { Notice as CoastalNotice } from "../coastal/CoastalUI";
 
 export interface NoticeStackProps {
   notices: readonly Notice[];
@@ -13,26 +13,34 @@ const TONE_ICON: Partial<Record<NoticeTone, React.FC<IconProps>>> = {
   reward: IconCoin
 };
 
-/**
- * The live region is mounted unconditionally. Assistive technology only
- * announces changes inside a region that already existed, so a container that
- * appears together with its first message is silently skipped.
- */
-export const NoticeStack: React.FC<NoticeStackProps> = ({ notices }) => (
-  <aside
+// Keep the live region mounted so assistive technology observes its first update.
+export const NoticeStack: React.FC<NoticeStackProps> = ({ notices }) => {
+  const visible = [...notices]
+    .sort((a, b) => NOTICE_TONE_PRIORITY[a.tone] - NOTICE_TONE_PRIORITY[b.tone] || b.createdMs - a.createdMs)
+    .slice(0, 2);
+  return <aside
     className="hud-toast-container"
     role="status"
     aria-live="polite"
     aria-atomic="false"
     data-testid="notice-stack"
-    data-notice-count={notices.length}
+    data-notice-count={visible.length}
   >
-    {notices.map((notice) => {
+    {visible.map((notice) => {
       const Icon = TONE_ICON[notice.tone];
+      const urgency = notice.tone === "danger"
+        ? "danger"
+        : notice.tone === "warning"
+          ? "caution"
+          : notice.tone === "success" || notice.tone === "reward"
+            ? "success"
+            : "info";
       return (
-        <div
+        <CoastalNotice
           key={notice.id}
+          urgency={urgency}
           className={`hud-toast-pill hud-toast-pill--${notice.tone}`}
+          role="presentation"
           data-testid="toast"
           data-tone={notice.tone}
         >
@@ -47,8 +55,8 @@ export const NoticeStack: React.FC<NoticeStackProps> = ({ notices }) => (
               {`x${notice.count}`}
             </span>
           )}
-        </div>
+        </CoastalNotice>
       );
     })}
-  </aside>
-);
+  </aside>;
+};

@@ -1,14 +1,19 @@
 /*
  * Additive touch/viewport layer. Desktop selectors stay in their existing
- * files; this file is imported last so mobile fit is centralized without
- * changing the established field-journal chrome.
+ * files; coastal.css adds the final touch-specific ownership rules after the
+ * shared HUD and surface refinements.
  */
 
 :root {
   --mobile-control-bottom: max(12px, env(safe-area-inset-bottom));
   --mobile-control-left: max(12px, env(safe-area-inset-left));
   --mobile-control-right: max(12px, env(safe-area-inset-right));
-  --mobile-control-size: clamp(52px, 13vw, 66px);
+  --mobile-control-size: 48px;
+  --mobile-joystick-size: clamp(112px, 18vw, 148px);
+  --mobile-cluster-height: calc(var(--mobile-control-size) * 2 + 8px);
+  --mobile-controls-stack: max(var(--mobile-joystick-size), var(--mobile-cluster-height));
+  --mobile-hud-gap: 16px;
+  --mobile-hud-lift: calc(var(--mobile-control-bottom) + var(--mobile-controls-stack) + var(--mobile-hud-gap));
 }
 
 html,
@@ -72,16 +77,43 @@ body,
 #ui-container[data-mobile-device="true"] .start-screen__utility-button,
 #ui-container[data-mobile-device="true"] .start-screen__option-button {
   min-height: 48px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  letter-spacing: 0.02em;
 }
 
-/* Portrait is an explicit product state after the world is ready. */
+#ui-container[data-mobile-device="true"] .start-screen__button span,
+#ui-container[data-mobile-device="true"] .start-screen__secondary-button {
+  font-family: var(--font-sans);
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__button {
+  min-height: 52px;
+  font-weight: 800;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__utilities {
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__utility-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+/* Portrait is an explicit product state after the world is ready.
+   Stay below modal overlays (z-index 100) and above world chrome, while
+   clock/menu remain reachable above the gate. */
 .mobile-orientation-gate {
   position: absolute;
-  z-index: 1000;
+  z-index: 90;
   inset: 0;
   display: grid;
   place-items: center;
-  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  padding: max(64px, calc(52px + env(safe-area-inset-top))) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   background: rgba(8, 11, 16, 0.92);
   color: var(--mm-text-ivory, #fffaf0);
   pointer-events: auto;
@@ -154,8 +186,8 @@ body,
   bottom: var(--mobile-control-bottom);
   left: var(--mobile-control-left);
   display: grid;
-  width: clamp(116px, 19vw, 150px);
-  height: clamp(116px, 19vw, 150px);
+  width: var(--mobile-joystick-size);
+  height: var(--mobile-joystick-size);
   place-items: center;
   pointer-events: auto;
   touch-action: none;
@@ -192,7 +224,7 @@ body,
   right: var(--mobile-control-right);
   bottom: var(--mobile-control-bottom);
   display: flex;
-  max-width: min(48vw, 360px);
+  max-width: min(46vw, 280px);
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
@@ -207,6 +239,15 @@ body,
   align-items: stretch;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.mobile-fishing-direction-actions {
+  position: absolute;
+  left: var(--mobile-control-left);
+  bottom: var(--mobile-control-bottom);
+  justify-content: flex-start;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .mobile-action-button {
@@ -229,6 +270,7 @@ body,
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .mobile-action-button--hold {
@@ -246,49 +288,33 @@ body,
 }
 
 .mobile-action-label {
-  max-width: 8ch;
+  max-width: 10ch;
 }
 
 .mobile-action-hint {
-  color: var(--mm-text-gold, #f3d484);
-  font-size: 9px;
-  opacity: 0.78;
+  display: none;
 }
 
 .mobile-controls-safe-label {
-  position: absolute;
-  right: var(--mobile-control-right);
-  bottom: calc(var(--mobile-control-bottom) + var(--mobile-control-size) + 8px);
-  color: rgba(255, 250, 231, 0.46);
-  font: 600 9px/1 var(--font-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: none;
 }
 
-.mobile-controls--fishing .mobile-fishing-actions,
-.mobile-controls--fishing .mobile-fishing-direction-actions {
-  position: absolute;
-  pointer-events: auto;
-  touch-action: none;
-}
-
-.mobile-controls--basic .mobile-fishing-actions {
-  right: var(--mobile-control-right);
-  bottom: var(--mobile-control-bottom);
-}
-
-.mobile-controls--sport .mobile-fishing-direction-actions {
-  bottom: var(--mobile-control-bottom);
-  left: var(--mobile-control-left);
-}
-
-/* The existing sport HUD stays visible, but moves into the upper-right safe
-   zone so its three hold controls do not collide with the action cluster. */
-#ui-container[data-mobile-device="true"] .fishing-hud-container {
-  top: max(72px, calc(54px + env(safe-area-inset-top)));
+/* Sport fight panel stays a compact readout. Touch verbs live in the
+   action cluster so the two never stack on the same corner. */
+#ui-container[data-mobile-device="true"] .fishing-hud-container,
+#ui-container[data-mobile-device="true"] .fishing-hud-container.fishing-hud-simple {
+  top: max(62px, calc(52px + env(safe-area-inset-top)));
   right: var(--mobile-control-right);
   bottom: auto;
-  width: min(286px, calc(46vw - var(--mobile-control-right)));
+  left: auto;
+  width: min(240px, calc(42vw - var(--mobile-control-right)));
+  transform: none;
+}
+
+#ui-container[data-mobile-device="true"] .fishing-action-rail,
+#ui-container[data-mobile-device="true"] .fishing-decision .chrome-keycap,
+#ui-container[data-mobile-device="true"] .fishing-rail-chip .chrome-keycap {
+  display: none !important;
 }
 
 #ui-container[data-mobile-device="true"] .fishing-touch-control {
@@ -297,16 +323,20 @@ body,
   padding: 7px 5px;
 }
 
-/* The basic widget remains a world-facing card while giving the explicit
-   release/reel affordance its own safe corner. */
+/* Basic widget stays a world-facing card, clear of the right action cluster. */
 #ui-container[data-mobile-device="true"] .basic-fishing-container {
-  right: clamp(148px, 27vw, 310px);
-  width: min(320px, calc(100vw - 180px));
-  max-width: calc(100vw - 190px);
+  top: max(56px, calc(44px + env(safe-area-inset-top)));
+  right: auto;
+  bottom: var(--mobile-hud-lift);
+  left: 50%;
+  width: min(280px, calc(100vw - 200px));
+  max-width: calc(100vw - 200px);
+  max-height: calc(100dvh - var(--mobile-hud-lift) - 64px);
+  transform: translateX(-50%);
 }
 
 #ui-container[data-mobile-device="true"] .minigame-board {
-  height: clamp(190px, 48dvh, 280px);
+  height: clamp(120px, 36dvh, 210px);
 }
 
 #ui-container[data-mobile-device="true"] .minigame-footer-hint,
@@ -315,28 +345,76 @@ body,
   white-space: normal;
 }
 
-/* HUD safe-area and control reservation. */
+#ui-container[data-mobile-device="true"] .basic-fishing-container .chrome-keycap,
+#ui-container[data-mobile-device="true"] .interaction-prompt .chrome-keycap,
+#ui-container[data-mobile-device="true"] .interaction-prompt .keycap-badge,
+#ui-container[data-mobile-device="true"] .hud-bottom-center .chrome-keycap {
+  display: none;
+}
+
+/* HUD safe-area and control reservation. Clock/menu stay above the
+   portrait gate so they remain usable while world controls hide. */
+#ui-container[data-mobile-device="true"] .hud-top-left-container,
+#ui-container[data-mobile-device="true"] .hud-top-right-cluster {
+  z-index: 95;
+}
+
 #ui-container[data-mobile-device="true"] .hud-top-left-container {
   top: max(10px, env(safe-area-inset-top));
-  left: var(--mobile-control-left);
-  max-width: min(42vw, 300px);
+  right: var(--mobile-control-right);
+  left: auto;
+  max-width: min(40vw, 260px);
 }
 
 #ui-container[data-mobile-device="true"] .hud-top-left {
   min-width: 0;
   max-width: 100%;
-  padding: 7px 9px;
+  padding: 4px 6px;
+}
+
+#ui-container[data-mobile-device="true"] .hud-clock-dial,
+#ui-container[data-mobile-device="true"] .hud-clock .hud-clock-dial {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+}
+
+#ui-container[data-mobile-device="true"] .hud-clock-time {
+  font-size: 15px;
+}
+
+#ui-container[data-mobile-device="true"] .hud-clock-season,
+#ui-container[data-mobile-device="true"] .hud-weather-label {
+  font-size: 10px;
 }
 
 #ui-container[data-mobile-device="true"] .hud-top-right-cluster {
   top: max(10px, env(safe-area-inset-top));
-  right: var(--mobile-control-right);
-  left: auto;
-  max-width: min(48vw, 360px);
+  right: auto;
+  left: var(--mobile-control-left);
+  max-width: min(46vw, 320px);
 }
 
 #ui-container[data-mobile-device="true"] .hud-top-right {
   max-width: 100%;
+}
+
+#ui-container[data-mobile-device="true"] .quest-tracker-hud-wood {
+  width: min(220px, calc(46vw - 56px));
+  padding: 6px 8px;
+}
+
+#ui-container[data-mobile-device="true"] .quest-title {
+  font-size: 12px;
+}
+
+#ui-container[data-mobile-device="true"] .quest-objective-text {
+  font-size: 11px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 #ui-container[data-mobile-device="true"] .hud-menu-button {
@@ -346,35 +424,105 @@ body,
   min-height: 48px;
 }
 
+#ui-container[data-mobile-device="true"] .hud-bottom-left-container,
+#ui-container[data-mobile-device="true"] .hud-play-cluster,
+#ui-container[data-mobile-device="true"] .hud-bottom-center {
+  bottom: var(--mobile-hud-lift);
+}
+
 #ui-container[data-mobile-device="true"] .hud-bottom-left-container {
-  bottom: calc(var(--mobile-control-bottom) + var(--mobile-control-size) + 12px);
-  max-width: min(34vw, 250px);
+  left: var(--mobile-control-left);
+  max-width: min(32vw, 220px);
 }
 
 #ui-container[data-mobile-device="true"] .hud-context-statuses,
 #ui-container[data-mobile-device="true"] .hud-boat-panel {
-  width: min(250px, 34vw);
+  width: min(220px, 32vw);
   max-width: 100%;
 }
 
+#ui-container[data-mobile-device="true"] .hud-play-cluster {
+  max-width: min(52vw, 400px);
+}
+
 #ui-container[data-mobile-device="true"] .hud-bottom-center {
-  bottom: calc(var(--mobile-control-bottom) + var(--mobile-control-size) + 12px);
-  max-width: min(54vw, 440px);
+  max-width: min(52vw, 400px);
 }
 
 #ui-container[data-mobile-device="true"] .hud-toast-container {
-  top: max(62px, calc(44px + env(safe-area-inset-top)));
-  max-width: min(70vw, 520px);
+  top: max(62px, calc(52px + env(safe-area-inset-top)));
+  right: calc(var(--mobile-control-right) + 56px);
+  left: 50%;
+  width: min(52vw, calc(100vw - 160px));
+  max-width: min(52vw, calc(100vw - 160px));
+  transform: translateX(-50%);
+  z-index: 20;
 }
 
 #ui-container[data-mobile-device="true"] .hud-hotbar {
-  max-width: min(56vw, 440px);
+  max-width: min(52vw, 400px);
   overflow-x: auto;
   scrollbar-width: none;
 }
 
 #ui-container[data-mobile-device="true"] .hud-hotbar::-webkit-scrollbar {
   display: none;
+}
+
+#ui-container[data-mobile-device="true"] .hud-tool-belt-readout {
+  display: none;
+}
+
+#ui-container[data-mobile-device="true"] .hud-hotbar-slot {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+}
+
+#ui-container[data-mobile-device="true"] .hud-boat-panel {
+  padding: 7px 8px;
+  gap: 5px;
+}
+
+#ui-container[data-mobile-device="true"] .boat-hull-section,
+#ui-container[data-mobile-device="true"] .boat-cargo-section {
+  gap: 2px;
+}
+
+#ui-container[data-mobile-device="true"] .boat-section-title,
+#ui-container[data-mobile-device="true"] .boat-panel-sub-row {
+  font-size: 10px;
+}
+
+#ui-container[data-mobile-device="true"] .boat-cargo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#ui-container[data-mobile-device="true"] .boat-cargo-slot {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+#ui-container[data-mobile-device="true"] .boat-cargo-slot .atlas-image {
+  width: 18px;
+  height: 18px;
+}
+
+#ui-container[data-mobile-device="true"] .planting-dock {
+  bottom: var(--mobile-hud-lift);
+}
+
+#ui-container[data-mobile-device="true"] .farming-action-status {
+  bottom: calc(var(--mobile-hud-lift) + 8px);
+}
+
+#ui-container[data-mobile-device="true"] .contextual-hint-card {
+  top: max(78px, calc(64px + env(safe-area-inset-top)));
+  max-width: min(36vw, 240px);
 }
 
 /* All existing modal families share a bounded flex column. Their body is the
@@ -452,6 +600,7 @@ body,
 #ui-container[data-mobile-device="true"] .chrome-close {
   min-width: 44px;
   min-height: 44px;
+  margin-left: auto;
 }
 
 #ui-container[data-mobile-device="true"] .inventory-body,
@@ -538,19 +687,23 @@ body,
 }
 
 #ui-container[data-mobile-device="true"] .journal-folio-tabs,
-#ui-container[data-mobile-device="true"] .market-stall-tabs,
+#ui-container[data-mobile-device="true"] .market-ledger-index,
 #ui-container[data-mobile-device="true"] .inventory-category-tabs,
 #ui-container[data-mobile-device="true"] .map-lenses-bar,
 #ui-container[data-mobile-device="true"] .ledger-tabs-bar {
+  position: relative;
   width: 100%;
   overflow-x: auto;
   flex-wrap: nowrap;
   touch-action: pan-x;
   scrollbar-width: none;
+  padding-right: 28px;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 28px), transparent 100%);
 }
 
 #ui-container[data-mobile-device="true"] .journal-folio-tabs::-webkit-scrollbar,
-#ui-container[data-mobile-device="true"] .market-stall-tabs::-webkit-scrollbar,
+#ui-container[data-mobile-device="true"] .market-ledger-index::-webkit-scrollbar,
 #ui-container[data-mobile-device="true"] .inventory-category-tabs::-webkit-scrollbar,
 #ui-container[data-mobile-device="true"] .map-lenses-bar::-webkit-scrollbar,
 #ui-container[data-mobile-device="true"] .ledger-tabs-bar::-webkit-scrollbar {
@@ -558,7 +711,7 @@ body,
 }
 
 #ui-container[data-mobile-device="true"] .journal-folio-btn,
-#ui-container[data-mobile-device="true"] .market-stall-tab,
+#ui-container[data-mobile-device="true"] .market-ledger-marker,
 #ui-container[data-mobile-device="true"] .inventory-tab-btn,
 #ui-container[data-mobile-device="true"] .map-lens-btn,
 #ui-container[data-mobile-device="true"] .ledger-tab-btn {
@@ -573,9 +726,46 @@ body,
   }
 }
 
+@media (max-height: 430px) {
+  :root {
+    --mobile-control-size: 44px;
+    --mobile-joystick-size: clamp(96px, 28vh, 118px);
+    --mobile-hud-gap: 10px;
+  }
+
+  #ui-container[data-mobile-device="true"] .hud-weather-label,
+  #ui-container[data-mobile-device="true"] .hud-weather-temp,
+  #ui-container[data-mobile-device="true"] .quest-tracker-content,
+  #ui-container[data-mobile-device="true"] .boat-hull-label-row,
+  #ui-container[data-mobile-device="true"] .boat-cargo-label-row {
+    display: none;
+  }
+
+  #ui-container[data-mobile-device="true"] .minigame-board {
+    height: clamp(96px, 32dvh, 150px);
+  }
+
+  #ui-container[data-mobile-device="true"] .fishing-hud-container,
+  #ui-container[data-mobile-device="true"] .fishing-hud-container.fishing-hud-simple {
+    width: min(220px, calc(38vw - var(--mobile-control-right)));
+    padding: 8px 9px;
+  }
+
+  #ui-container[data-mobile-device="true"] .hud-vitals-tray .chrome-meter--vertical .chrome-meter-track {
+    height: 40px !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mobile-action-button,
-  .mobile-orientation-button {
+  .mobile-orientation-button,
+  .mobile-joystick-knob {
     transition: none;
+  }
+
+  #ui-container[data-mobile-device="true"] .hud-toast-pill,
+  #ui-container[data-mobile-device="true"] .hud-menu-button,
+  #ui-container[data-mobile-device="true"] .hud-weather-chip--danger {
+    animation: none;
   }
 }

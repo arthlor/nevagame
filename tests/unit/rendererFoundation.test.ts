@@ -8,6 +8,7 @@ import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/re
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { WaterSurface } from "../../src/render/water/WaterSurface";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
+import { TERRAIN_SIZE_METERS } from "../../src/world/WorldLayout";
 import { createContactShadowMesh, setContactShadowOpacity } from "../../src/render/scene/ContactShadow";
 
 const WATER_CONDITIONS = {
@@ -24,9 +25,21 @@ describe("renderer foundation", () => {
     expect(CANONICAL_RENDER_CONFIG.quality.high.ambientOcclusion).toBe("gtao");
     expect(CANONICAL_RENDER_CONFIG.quality.high.dynamicContactShadows).toBe(false);
     expect(CANONICAL_RENDER_CONFIG.gtao.resolutionScale).toBeLessThan(1);
-    expect(CANONICAL_RENDER_CONFIG.shadows.vegetationCastDistanceMeters).toBe(28);
-    expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBe(0.7);
-    expect(CANONICAL_RENDER_CONFIG.skyFill.intensity).toBe(1.45);
+    expect(CANONICAL_RENDER_CONFIG.shadows.castCharacters).toBe(true);
+    expect(CANONICAL_RENDER_CONFIG.shadows.castRocks).toBe(true);
+    expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBe(1);
+    // Shadows only read when the key light dominates the hemisphere fill.
+    expect(CANONICAL_RENDER_CONFIG.sun.intensity)
+      .toBeGreaterThan(CANONICAL_RENDER_CONFIG.skyFill.intensity * 2.4);
+    // A clear-day far plane must stay inside the 600 m terrain grid so the
+    // plane's cut edge never resolves against the sky.
+    expect(CANONICAL_RENDER_CONFIG.fog.clearDayFar).toBeLessThan(TERRAIN_SIZE_METERS);
+    expect(CANONICAL_RENDER_CONFIG.fog.clearDayNear)
+      .toBeLessThan(CANONICAL_RENDER_CONFIG.fog.clearDayFar);
+    // Shadow coverage has to span the gameplay camera, not a bubble around the player.
+    expect(CANONICAL_RENDER_CONFIG.quality.high.shadowCameraSize).toBeGreaterThanOrEqual(80);
+    expect(CANONICAL_RENDER_CONFIG.quality.medium.shadowCameraSize).toBeGreaterThanOrEqual(60);
+    expect(CANONICAL_RENDER_CONFIG.quality.low.shadowCameraSize).toBeGreaterThanOrEqual(40);
     expect(CANONICAL_RENDER_CONFIG.gtao.blendIntensity).toBe(0.44);
     expect(CANONICAL_RENDER_CONFIG.gtao.radius).toBeLessThan(0.6);
     expect(CANONICAL_RENDER_CONFIG.contact.opacity).toBeGreaterThan(0.2);

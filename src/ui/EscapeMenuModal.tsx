@@ -1,28 +1,29 @@
-// src/ui/EscapeMenuModal.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { GameState } from "../simulation/core/types";
+import type { PauseSummaryDto } from "../simulation/core/contracts";
 import { audioSettings, AudioSettings } from "../audio/AudioSettings";
 import { useModalAccessibility } from "./useModalAccessibility";
-import { ChromeButton, ChromeClose, ChromeKeycap, ChromeMeter, ChromePanel } from "./chrome/Chrome";
+import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import {
-  IconBackpack,
-  IconCoin,
   IconCompass,
   IconEnergy,
   IconExpedition,
   IconJournal,
-  IconLedger
+  IconLedger,
+  IconSatchel
 } from "./components/HudIcons";
 import { playUiSound } from "./audio/uiAudio";
 import { InterfaceSettings } from "./components/InterfaceSettings";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
+import { ControlsReference } from "./components/ControlsReference";
+import { GameSheet, KeyHint, Meter } from "./coastal/CoastalUI";
 
 export interface EscapeMenuModalProps {
-  state: GameState;
+  pause: PauseSummaryDto;
   onClose: () => void;
   onResetPlayerToSafePlace: () => void;
   onQuickSave: () => void;
+  savingAvailable: boolean;
   onOpenInventory: () => void;
   onOpenJournal: () => void;
   onOpenGuide?: () => void;
@@ -36,10 +37,11 @@ export interface EscapeMenuModalProps {
 }
 
 export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
-  state,
+  pause,
   onClose,
   onResetPlayerToSafePlace,
   onQuickSave,
+  savingAvailable,
   onOpenInventory,
   onOpenJournal,
   onOpenGuide,
@@ -52,37 +54,32 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   onGraphicsQualityChange
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
-  const [confirmingReturn, setConfirmingReturn] = useState(false);
+  const safeReturnCancelRef = useRef<HTMLButtonElement>(null);
+  const [page, setPage] = useState<PausePage>("menu");
   useModalAccessibility(modalRef, onClose);
 
-  const clock = state.clock;
-  const player = state.player;
-  const hh = String(Math.floor((clock.currentMinute % 1440) / 60)).padStart(2, "0");
-  const mm = String(clock.currentMinute % 60).padStart(2, "0");
-  const seasonName = clock.season.charAt(0).toUpperCase() + clock.season.slice(1);
-  const dayInSeason = ((clock.dayCount - 1) % 30) + 1;
-  const currentRegion =
-    player.currentRegionId === "region.village"
-      ? "Neva Village"
-      : player.currentRegionId === "region.farm"
-        ? "Homestead Farm"
-        : player.currentRegionId === "region.coast"
-          ? "Rocky Coast & Lighthouse"
-          : player.currentRegionId === "region.harbor"
-            ? "Seabreak Harbor"
-            : player.currentRegionId === "region.offshore"
-              ? "Open Waters"
-              : "Open Waters";
+  useEffect(() => {
+    if (page === "safe-return") safeReturnCancelRef.current?.focus();
+  }, [page]);
+
+  const lastSaved = savingAvailable
+    ? formatLastSaved(pause.lastSavedUtcMs)
+    : "This session is not being saved";
+  const pageTitle = page === "menu"
+    ? "Paused"
+    : page === "safe-return"
+      ? "Safe Return"
+      : SETTINGS_PAGES.find((entry) => entry.id === page)?.label ?? "Settings";
 
   return (
-    <div className="modal-overlay interactive" onClick={onClose}>
-      <ChromePanel
+    <div className="modal-overlay pause-overlay interactive" onClick={onClose}>
+      <GameSheet
         ref={modalRef}
         as="div"
         className="neva-panel modal-content pause-modal"
-        tone="slate"
-        corners
-        rivets={false}
+        family="ink"
+        tone="ghost"
+        data-page={page}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -90,107 +87,157 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
         tabIndex={-1}
       >
         <header className="modal-header">
-          <span id="pause-title" className="modal-heading-with-mark">
-            Pause
-          </span>
+          <div className="pause-heading">
+            {page !== "menu" && (
+              <button type="button" className="pause-back" onClick={() => setPage("menu")}>
+                ← Back
+              </button>
+            )}
+            <span id="pause-title" className="modal-heading-with-mark">{pageTitle}</span>
+          </div>
           <ChromeClose onClick={onClose} label="Resume game" />
         </header>
 
         <div className="modal-body pause-body">
-          <div className="pause-status-card">
-            <div>
-              <div className="pause-region-title">{currentRegion}</div>
-              <div className="pause-date-sub">
-                Day {dayInSeason} of {seasonName} · {hh}:{mm}
+          {page === "menu" ? (
+            <>
+              <div className="pause-vignette-status">
+                <div>
+                  <strong className="pause-region-title">{pause.regionLabel}</strong>
+                  <span className="pause-date-sub">{pause.dateTimeLabel}</span>
+                </div>
+                <Meter
+                  className="pause-labor-meter"
+                  label="Work"
+                  icon={<IconEnergy size={16} aria-hidden="true" />}
+                  value={pause.work.current}
+                  max={pause.work.maximum}
+                  variant="gold"
+                />
               </div>
-            </div>
-            <div className="pause-status-values">
-              <div className="pause-gold-val">
-                <IconCoin size={18} aria-hidden="true" /> {player.money.toLocaleString()} G
-              </div>
-              <ChromeMeter
-                className="pause-labor-meter"
-                label="Work"
-                icon={<IconEnergy size={16} aria-hidden="true" />}
-                value={Math.floor(player.workCapacity.current)}
-                max={player.workCapacity.maximum}
-                variant="gold"
-              />
-            </div>
-          </div>
 
-          <div className="pause-layout">
-            <div className="pause-actions-column">
-              <div className="pause-actions" aria-label="Pause menu actions">
+              <nav className="pause-actions" aria-label="Pause menu actions">
                 <ChromeButton variant="primary" soundCue="confirm" onClick={onClose}>
-                  Resume <ChromeKeycap keyName="Esc" />
+                  Resume <KeyHint keyName="Esc" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenInventory}>
-                  <IconBackpack size={22} aria-hidden="true" /> Inventory <ChromeKeycap keyName="I" />
+                  <IconSatchel size={20} aria-hidden="true" /> Satchel <KeyHint keyName="I" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenJournal}>
-                  <IconJournal size={22} aria-hidden="true" /> Journal <ChromeKeycap keyName="J" />
+                  <IconJournal size={20} aria-hidden="true" /> Field Journal <KeyHint keyName="J" />
                 </ChromeButton>
-                {onOpenGuide && (
-                  <ChromeButton onClick={onOpenGuide}>
-                    <IconCompass size={22} aria-hidden="true" /> How to Play
-                  </ChromeButton>
-                )}
                 <ChromeButton onClick={onOpenMap}>
-                  <IconCompass size={22} aria-hidden="true" /> Map <ChromeKeycap keyName="M" />
+                  <IconCompass size={20} aria-hidden="true" /> Nautical Chart <KeyHint keyName="M" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenLedger}>
-                  <IconLedger size={22} aria-hidden="true" /> Ledger <ChromeKeycap keyName="L" />
+                  <IconLedger size={20} aria-hidden="true" /> Hold &amp; Stores <KeyHint keyName="L" />
                 </ChromeButton>
                 {expeditionUnlocked && (
                   <ChromeButton onClick={onOpenExpedition}>
-                    <IconExpedition size={22} aria-hidden="true" /> Expedition <ChromeKeycap keyName="P" />
+                    <IconExpedition size={20} aria-hidden="true" /> Expedition Board <KeyHint keyName="P" />
                   </ChromeButton>
                 )}
-                <ChromeButton onClick={onQuickSave}>Save game</ChromeButton>
-                {/* Teleporting across the map is not something to trigger on a
-                    stray click while looking for Resume. */}
-                {confirmingReturn ? (
-                  <div className="pause-confirm-row" role="group" aria-label="Confirm return to garden">
-                    <span className="pause-confirm-copy">Teleport back to the Starter Garden?</span>
-                    <div className="pause-confirm-actions">
-                      <ChromeButton size="sm" onClick={() => setConfirmingReturn(false)}>
-                        Stay here
-                      </ChromeButton>
-                      <ChromeButton
-                        size="sm"
-                        variant="danger"
-                        soundCue="confirm"
-                        data-testid="pause-confirm-return"
-                        onClick={() => {
-                          setConfirmingReturn(false);
-                          onResetPlayerToSafePlace();
-                        }}
-                      >
-                        Return
-                      </ChromeButton>
-                    </div>
-                  </div>
-                ) : (
-                  <ChromeButton onClick={() => setConfirmingReturn(true)}>Return to garden</ChromeButton>
+                {onOpenGuide && (
+                  <ChromeButton onClick={onOpenGuide}>
+                    <IconCompass size={20} aria-hidden="true" /> Guide
+                  </ChromeButton>
                 )}
+                <ChromeButton onClick={() => setPage("graphics")}>Settings</ChromeButton>
+              </nav>
+
+              <div className="pause-save-line" aria-live="polite">
+                <div>
+                  <strong>Harbor log</strong>
+                  <span>{lastSaved}</span>
+                </div>
+                <ChromeButton size="sm" onClick={onQuickSave} disabled={!savingAvailable}>
+                  {savingAvailable ? "Save now" : "Saving unavailable"}
+                </ChromeButton>
+              </div>
+
+              <button type="button" className="pause-safe-return-link" onClick={() => setPage("safe-return")}>
+                Safe Return
+              </button>
+            </>
+          ) : page === "safe-return" ? (
+            <section
+              className="pause-critical-sheet"
+              aria-labelledby="pause-safe-return-title"
+              aria-describedby="pause-safe-return-description"
+            >
+              <h2 id="pause-safe-return-title">Return to Starter Garden?</h2>
+              <p id="pause-safe-return-description">
+                This moves you to the Starter Garden immediately. Your cargo, money, and progress remain with you.
+              </p>
+              <div className="pause-critical-actions">
+                <ChromeButton ref={safeReturnCancelRef} onClick={() => setPage("menu")}>
+                  Stay here
+                </ChromeButton>
+                <ChromeButton
+                  variant="danger"
+                  soundCue="confirm"
+                  data-testid="pause-confirm-return"
+                  onClick={onResetPlayerToSafePlace}
+                >
+                  Use Safe Return
+                </ChromeButton>
+              </div>
+            </section>
+          ) : (
+            <div className="pause-settings-layout">
+              <nav className="pause-settings-pages" aria-label="Settings pages">
+                {SETTINGS_PAGES.map((entry) => (
+                  <button
+                    type="button"
+                    key={entry.id}
+                    className={page === entry.id ? "is-active" : ""}
+                    aria-current={page === entry.id ? "page" : undefined}
+                    onClick={() => setPage(entry.id)}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </nav>
+              <div className="pause-settings-page">
+                {page === "graphics" && (
+                  <GraphicsControls
+                    preference={graphicsQuality}
+                    effectiveTier={effectiveGraphicsQuality}
+                    onChange={onGraphicsQualityChange}
+                  />
+                )}
+                {page === "audio" && <AudioControls />}
+                {page === "interface" && <InterfaceSettings />}
+                {page === "controls" && <ControlsReference />}
               </div>
             </div>
-
-            <div className="pause-audio-column">
-              <GraphicsControls
-                preference={graphicsQuality}
-                effectiveTier={effectiveGraphicsQuality}
-                onChange={onGraphicsQualityChange}
-              />
-              <InterfaceSettings />
-              <AudioControls />
-            </div>
-          </div>
+          )}
         </div>
-      </ChromePanel>
+      </GameSheet>
     </div>
   );
+};
+
+type SettingsPage = "graphics" | "audio" | "interface" | "controls";
+type PausePage = "menu" | "safe-return" | SettingsPage;
+
+const SETTINGS_PAGES: ReadonlyArray<{ id: SettingsPage; label: string }> = [
+  { id: "graphics", label: "Graphics" },
+  { id: "audio", label: "Audio" },
+  { id: "interface", label: "Interface" },
+  { id: "controls", label: "Controls" }
+];
+
+const formatLastSaved = (timestamp: number): string => {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "Not saved yet";
+  try {
+    return `Last saved ${new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit"
+    }).format(new Date(timestamp))}`;
+  } catch {
+    return "Last save recorded";
+  }
 };
 
 const GRAPHICS_QUALITY_CHOICES: ReadonlyArray<{
@@ -204,7 +251,7 @@ const GRAPHICS_QUALITY_CHOICES: ReadonlyArray<{
   { value: "high", label: "High", description: "Richest detail" }
 ];
 
-const GraphicsControls: React.FC<{
+export const GraphicsControls: React.FC<{
   preference: GraphicsQualityPreference;
   effectiveTier: QualityTier;
   onChange: (quality: GraphicsQualityPreference) => void;

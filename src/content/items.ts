@@ -76,6 +76,24 @@ export const ITEMS: Record<string, ItemDefinition> = {
     baseValue: 45,
     tags: ["tree-sapling", "orchard"]
   },
+  "seed.sunflower": {
+    id: "seed.sunflower",
+    name: "Sunflower Seeds",
+    category: "seed",
+    description: "Sun-loving seed selected for Sunreach's warm terraces.",
+    stackLimit: 100,
+    baseValue: 7,
+    tags: ["crop-seed", "warm", "sunreach"]
+  },
+  "seed.olive_sapling": {
+    id: "seed.olive_sapling",
+    name: "Olive Sapling",
+    category: "seed",
+    description: "A hardy young olive tree suited to warm, well-drained ground.",
+    stackLimit: 20,
+    baseValue: 55,
+    tags: ["tree-sapling", "warm", "sunreach"]
+  },
 
   // Produce & Harvested Goods
   "produce.wheat": {
@@ -149,6 +167,24 @@ export const ITEMS: Record<string, ItemDefinition> = {
     stackLimit: 100,
     baseValue: 15,
     tags: ["fruit", "produce"]
+  },
+  "produce.sunflower_seed": {
+    id: "produce.sunflower_seed",
+    name: "Sunflower Seed",
+    category: "grain",
+    description: "A ripe terrace harvest that can be milled into ground grain.",
+    stackLimit: 100,
+    baseValue: 13,
+    tags: ["grain", "millable", "sunreach"]
+  },
+  "produce.olive": {
+    id: "produce.olive",
+    name: "Sunreach Olive",
+    category: "produce",
+    description: "Firm warm-climate olives from the terraced groves.",
+    stackLimit: 100,
+    baseValue: 22,
+    tags: ["fruit", "produce", "sunreach"]
   },
 
   // Fishing Supplies & Intermediate Products
@@ -270,5 +306,23 @@ export const ITEMS: Record<string, ItemDefinition> = {
     stackLimit: 50,
     baseValue: 35,
     tags: ["fish", "freshwater", "small-catch"]
+  },
+  "fish.sardine": {
+    id: "fish.sardine",
+    name: "Sunreach Sardine",
+    category: "produce",
+    description: "A small silver fish schooling inside Sunreach Cove.",
+    stackLimit: 50,
+    baseValue: 12,
+    tags: ["fish", "saltwater", "small-catch", "sunreach"]
+  },
+  "fish.sea_bream": {
+    id: "fish.sea_bream",
+    name: "Golden Sea Bream",
+    category: "produce",
+    description: "A reef-edge bream with a warm gold flash along its flank.",
+    stackLimit: 20,
+    baseValue: 55,
+    tags: ["fish", "saltwater", "physical-basic-catch", "sunreach"]
   }
 };

@@ -1,8 +1,8 @@
 /**
  * Neva Character Overhaul — Ragdoll Bone & Joint Specifications
  *
- * Defines the 11 rigid body articulable groups (12 segment specs) and
- * 10 anatomical joint constraints matching the Neva humanoid skeletal armature.
+ * Defines 12 rigid body segment specs and 11 anatomical joint instances
+ * matching the Neva humanoid skeletal armature.
  */
 
 export type RagdollMode = "kinematic-active" | "physical-ragdoll" | "recovering";
@@ -46,7 +46,7 @@ export interface RagdollRecoverySample {
   blendedBones: Map<string, { position: [number, number, number]; quaternion: [number, number, number, number] }>;
 }
 
-// 11 Physical Rigid Body articulable groups (12 segments including L/R symmetry) matching Humanoid Armature
+// 12 physical rigid body segments matching the Humanoid Armature.
 export const RAGDOLL_BODIES: readonly RagdollBodySpec[] = [
   { boneName: "rig_pelvis", shape: "box", halfExtents: [0.18, 0.12, 0.14], massKg: 14.0, linearDamping: 0.6, angularDamping: 1.2, friction: 0.86, restitution: 0.1 },
   { boneName: "rig_spine", shape: "box", halfExtents: [0.16, 0.14, 0.12], massKg: 16.0, linearDamping: 0.6, angularDamping: 1.2, friction: 0.86, restitution: 0.1 },
@@ -62,7 +62,7 @@ export const RAGDOLL_BODIES: readonly RagdollBodySpec[] = [
   { boneName: "rig_shin_right", shape: "capsule", halfExtents: [0.07, 0.18, 0], massKg: 4.5, linearDamping: 0.6, angularDamping: 1.2, friction: 0.86, restitution: 0.1 }
 ];
 
-// 10 Anatomical Joint Constraints (11 joint instances)
+// 11 anatomical joint instances connecting the segment bodies.
 export const RAGDOLL_JOINTS: readonly RagdollJointSpec[] = [
   { name: "joint_pelvis_spine", parentBone: "rig_pelvis", childBone: "rig_spine", type: "spherical", anchor: [0, 0.12, 0], minAngleLimitRad: -0.45, maxAngleLimitRad: 0.45, stiffness: 220, damping: 25, maxTorque: 350 },
   { name: "joint_spine_chest", parentBone: "rig_spine", childBone: "rig_chest", type: "spherical", anchor: [0, 0.14, 0], minAngleLimitRad: -0.40, maxAngleLimitRad: 0.40, stiffness: 240, damping: 28, maxTorque: 380 },

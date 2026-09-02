@@ -69,7 +69,7 @@ Never rely on default smoothing.
 `1 world unit = 1 meter`.
 
 The current runtime world is a finite authored composition: `WORLD_LAYOUT_V5`
-is a retained implementation symbol, the live layout revision is 8, and the
+is a retained implementation symbol, the live layout revision is 9, and the
 terrain field is 600 m. Runtime chunk streaming is not implemented. The
 following values are **authoring heuristics only** for making reusable forms;
 they are not runtime grid, streaming, or asset-budget contracts:
@@ -162,11 +162,27 @@ Road implementation requirements:
 
 Ground-cover implementation requirements:
 - deterministic world-seed derivation with stable placement IDs where identity is exposed;
+- one inspectable composition sample combining authored district envelopes, route projection, river/floodplain causes, openings, architecture/farm/landmark/fishing/coast clearances, and independent category-salted macro/meso fields;
+- independent category candidate streams and species hashes, deterministic priority inhibition, and explicit core/edge/isolate/landmark/riparian/route-frame roles; IDs derive from category/address/slot rather than accepted-array index;
 - semantic density plus authored exclusions/clearances, clustered patch signals, variant families, and patch-level palette grouping;
 - high-count uniform geometry uses `InstancedMesh`/the established batching path, with quality-tier counts and draw-distance culling;
 - distance selection and world-asset LOD membership are anchored to the player/world focus. Camera orbit, pitch, zoom, and look-ahead direction may not reshuffle instances or switch asset membership; ordinary off-screen frustum rejection remains allowed;
 - short cover generally receives light but does not cast dynamic shadows; reserve real shadows/contact for readable clumps and anchors;
 - changing quality tier may reduce count/distance, not change route readability, shoreline continuity, collision, or gameplay truth.
+
+Do not derive bushes from grass coordinates, cycle assets by accepted-array index, fill fixed ellipses, lay reeds at a fixed cadence, or use a habitat-cell lattice as visible coverage. Hashed candidate addresses are allowed only as stable invisible address space. Authored overrides remain available for deliberate layout-editor pins, but seeded overrides must be empty while the field rules are being accepted.
+
+River-facing consumers use `WorldLayout.riverSectionAt()` and `riverBankSample()`: independent left/right water widths and banks, moving thalweg, bed elevation, floodplain, wetness, erosion/deposition, and estuary influence are canonical. Terrain height/normals, Rapier support, water sign, walkability, fishing access, soils, rocks, riparian cover, roads, and bridge approaches must not recreate the river from an absolute centerline-distance formula.
+
+Multi-island consumers iterate `WORLD_TERRAIN_PATCHES` and sample the closed
+coast/marine registry; they do not assume one square heightfield centered at
+the origin. Terrain meshes, translated Rapier heightfields, snapping, routes,
+composition, map nodes, water, and diagnostics all resolve the owning island
+from world position. The shared water surface may span a rectangular union of
+patches, but its shore-profile texture preserves world meters per texel and per
+segment, and the global sign treats a point as land when any registered island
+coast reports dry ground. Submerged visual aprons soften outer patch seams and
+must never become walkable collision or a second shoreline authority.
 
 For the starter-farm ground/meadow pass, `art/references/neva-ui-hud-on-foot.png` is the authoritative gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. Supporting maps may enrich packed-core wear and meadow meso breakup only after palette remap (section 6.2). The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
 
@@ -181,16 +197,16 @@ Owners:
 - `src/render/config/VisualRenderConfig.ts` owns `terrainSurface.externalTextures`, `roadSurface.externalTexture`, polygon/edge/path-transition strengths, and roughness bounds. Tune numbers there; do not fork them into a parallel spec.
 - `src/render/materials/ExternalSurfaceTextures.ts` owns source name, source page, runtime URL, texture kind, wrap/filter/color-space, and the 1px fallback used while images decode.
 - `public/assets/textures/terrain/` stores the published local WebP derivatives. It is not an asset catalog and must not gain a filename-list authority.
-- `TerrainSurfaceMaterial` consumes Leafy Grass and Sparse Grass on meadow-masked ground.
+- Beach/wet shore use the same application model as meadows: remap the supporting map into palette bands, blend `mix(paletteBase, sourceColor, 0.76)`, then apply through semantic masks at full `colorStrength`. Vegetation and shore masks are derived from the packed surface field with a gradual crossfade (`vegetationMask`, `shoreMask`); shore also receives the meadow polygon value-band and `terrainShorePolygonTint` stack. Do not route beach through a second attenuated `beachColorMix` pass.
 - `RoadSurfaceMaterial` consumes Grass Path 2 on the shared route mesh. Coverage, dither, and packed-core/shoulder response stay on this material.
 - `GroundPolygonCells.ts` owns the shared world-space Worley snippet so meadow mosaic and road-edge irregularity use the same field.
 
-Current selected sources are Poly Haven CC0 maps: Grass Path 2 for the road, Leafy Grass and Sparse Grass for meadows. Keep the source pages in `ExternalSurfaceTextures` when replacing a derivative so provenance is not lost. Licensing remains CC0; do not add non-CC0 ground maps without an explicit human decision.
+Current selected sources are Poly Haven CC0 maps: Grass Path 2 for the road, Leafy Grass and Sparse Grass for meadows, and Coast Sand 01 for beach and wet-shore breakup. Keep the source pages in `ExternalSurfaceTextures` when replacing a derivative so provenance is not lost. Licensing remains CC0; do not add non-CC0 ground maps without an explicit human decision.
 
 Required behavior:
 
 - sample in world XZ with explicit rotation; never let mesh UVs or camera orbit change the field;
-- remap luminance/chrominance into `PaletteTokens` (`foliage_sage_01` / olive / grass for meadows; `path_dust_01` / `soil_dry_01` / `sand_warm_01` for worked ground). Photographic RGB is not the final diffuse;
+- remap luminance/chrominance into `PaletteTokens` (`foliage_sage_01` / olive / grass for meadows; `path_dust_01` / `soil_dry_01` / `sand_warm_01` for worked ground; `sand_warm_01` / `shore_wet_01` for beach and wet shore). Photographic RGB is not the final diffuse;
 - keep roughness bounded and palette-preserving; precipitation wetness stays on the existing terrain wetness owner;
 - protect water, shore, farm, and other non-meadow/non-road surfaces with the existing semantic masks;
 - if a file fails to load, log loudly and leave the deterministic palette/procedural path active;
@@ -198,7 +214,7 @@ Required behavior:
 
 Do not:
 
-- register these maps as catalog IDs or run `art:generate` / polyfork / Tripo for them;
+- register these maps as catalog IDs or run `art:generate` / Tripo for them;
 - publish a downloaded photogrammetry GLB or an unprocessed photo as ground albedo;
 - invent a second `VisualRenderConfig`, palette file, or per-zone ground material;
 - change route width, collision, topology, or save schema to “make the texture fit.”
@@ -208,8 +224,6 @@ Do not:
 # 7. Procedural Generator Library
 
 `tools/blender/generators/registry.py` is the only generator-name dispatch table. Family composition lives in the owning family module (`architecture.py`, `vegetation.py`, `boats.py`, and so on). Extend an appropriate family module and register one stable name; do not create an alternate entrypoint or filename list. Same catalog seed + parameters + generator code MUST reproduce the same semantic output.
-
-**Polyfork last-resort:** `polyfork_*` is not a visual family. It is a primitive filler for catalog IDs that do not yet have a real generator. It is forbidden for any asset with an isolated studio sheet or a unique silhouette. Village cottages, inn, hall, barn, shed, and outhouse stay on `village_building` with variant-specific secondary volumes. Plaza produce stalls stay on `produce_stall`. The clay bake oven is `clay_oven` in `props.py`. Fence sections and the homestead gate stay on `wood_fence` (`hasGate` for the gate leaf).
 
 `tools/blender/common/authored.py` is below that registry boundary. It provides reusable deliberate construction systems currently consumed by architecture, prop and boat generators: staggered box/cylindrical masonry, shingle rows, plank fields, lattices, segmented rope lines, arch rings, root flares, fasteners, timber-frame bays, mullioned openings, and banded tapered towers. Reuse or extend it when several assets need the same visual construction language. Do not register its helpers, call them directly from the CLI, let them own palette/budget/file metadata, or treat “authored” as permission for unseeded one-off geometry. Any helper control exposed to an asset remains an explicit catalog `parameters` key and must reproduce from the same catalog seed.
 
@@ -302,6 +316,8 @@ Procedural generation is allowed only when deterministic/seeded, constrained by 
 
 World-layout semantics may generate deterministic presentation fields for surface blending and cover density. These are derived art data, not permission for runtime-random terrain or a second gameplay world. Important routes, shorelines, farms, structures, clearances, and landmark composition remain authored/overrideable.
 
+The current finite world uses a hierarchical district/habitat/route/opening composition field over stable category-specific candidate streams. It establishes large openings, cluster structure, route frames, riparian pockets, and isolates before asset selection. Quality tiers use stable priority prefixes. The field and non-serializable placement tags are inspection surfaces; they do not replace `WorldLayout`, create saved procedural geography, or authorize runtime regeneration from camera position.
+
 Important areas require visual anchors, readable routes, foreground/midground/background, prop clusters, negative space, height variation, sightline control, landmarks, compositional asymmetry. Avoid even scatter, identical rotations/spacing, world-axis alignment everywhere. Modular settlements must still feel authored.
 
 ## 9.1 Narrative-to-art contract
@@ -334,6 +350,8 @@ quest condition.
 Repeated environment assets MUST be evaluated for batching/instancing; any static asset appearing roughly **>10 times** is a strong candidate. Common: grass, wheat/crops, flowers, rocks, fence modules, repeated trees, reeds, debris, repeated roof/architecture modules. The current static-prefab path groups compatible material/geometry signatures into `THREE.BatchedMesh`; use `InstancedMesh` for uniform high-count runtime systems where it is the clearer fit. Animated, skinned or morph-target meshes must not be folded into static batching.
 
 Rapier is for gameplay-relevant physics: player capsule, NPC collision if present, triggers, doors, boats, rigid gameplay props, raycasts/moving obstacles. Do **not** create complex bodies for every flower/crop/plank/rock/small prop. Use simple primitives/proxies; collision need not match render mesh.
+
+Rigged character generation remains catalog-driven. The registered character generator authors in-place actions with catalog durations, loop/reference-speed metadata, contact/commit events, stable humanoid/secondary bone names, and required socket nodes; the GLB exporter must retain normalized skin weights and the player volume-preserving armature deformation. Imported motion is not presumed transferable: incompatible proportions, bind axes, or joint ranges require a target-rig-authored performance, with the source retained only as motion reference. Runtime may crossfade phase-compatible clips and apply post-pose foot/hand constraints, but it may not repair a missing contact/pass/recovery performance by inventing root motion or by becoming gameplay authority. Equipment stays owned by its authored object hierarchy (for example an oar by its boat/oarlock); character hands follow grip markers after the mixer pose.
 
 # 11. Optimization & LOD
 
@@ -371,7 +389,7 @@ tests/visual/candidates/
 ```
 P0.75 `npm run art:benchmark` captures four fixed 1440×900 comparison images through Playwright (`farm`, `bridge`, `harbor`, `coast`), rejects browser errors and preferred upper-budget overruns (≤220 draw calls and ≤900,000 visible triangles per scene), and records measurements in `tests/visual/candidates/art-benchmark.json`. `NEVA_ART_EXTENDED=1 npm run art:benchmark` captures the full 14-view matrix: dawn, morning, noon, harbor, coast, sunset, night, light rain, storm, lightning, on-foot farmhouse, on-foot bridge, boat harbor night, and sport-fishing framing. The lower scene triangle target is diagnostic/advisory for this gate. The current human-approved references and the 2026-08-27 visual-gold decision are registered in `tests/visual/reference/approved-baselines.json`; new captures are comparison evidence, not a request to select replacement candidates unless a human explicitly reopens that gate. The benchmark runs against the Vite DEV server, where layout-editor picking intentionally disables static prefab merging and the baked shadow proxy; those DEV draw/triangle measurements are diagnostic and do not constitute production-equivalent certification. `art:benchmark:extended` remains an explicit release diagnostic. Agents do not capture or inspect these images during routine asset work and do not visually analyze release images unless the human requests it.
 
-The development-only Art Yard is served at `/__neva_art_yard` by Vite and is the sole asset-review surface. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. It is not included in the production build. The human performs visual approval in the actual integrated game.
+The development-only Art Yard is served at `/__neva_art_yard` by Vite and is the sole asset-review surface. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. Mounted player clips are reviewed as a synchronized rider-and-mount pair so saddle contact, gait phase, and counter-motion remain visible in context. It is not included in the production build. The human performs visual approval in the actual integrated game.
 
 ## 13.1 Regression QA — Game vs Approved Game
 Same scene/state/camera/resolution/config only. Where available compare screenshot diff, SSIM, LPIPS, histogram/luminance, palette distribution and silhouette/edge metrics. These detect unintended change; they do not define artistic quality. Intentional accepted changes update benchmarks only after review.
@@ -380,6 +398,14 @@ Same scene/state/camera/resolution/config only. Where available compare screensh
 Do **not** apply pixel-similarity thresholds across different compositions. Reference-image comparison intentionally ignores layout, camera angle, diorama/tabletop framing, depth of field/tilt-shift, scene borders and prop staging unless the task explicitly targets composition. Vision review scores geometry/faceting, silhouette/proportion, roughness/material response, palette/warm-cool distribution, lighting/shadows/AO, water/foam, vegetation/rocks, atmosphere, detail frequency, gameplay readability and realism/plastic drift.
 
 A game screenshot passes style QA when it plausibly belongs beside the references as a continuous playable world without copying their presentation.
+
+## 13.3 Frozen World-Composition Acceptance
+
+`npm run world:acceptance` is the additive acceptance path for causal world, river, and composition changes. It records and revalidates a SHA-256 input digest, runs check-only generated-adapter verification, builds once, serves the static production bundle on a unique port, and writes only beneath `output/world-alignment/<digest>/`. It must not update candidate images, approved baselines, benchmark JSON, snapshots, catalog output, or published assets.
+
+Capture modes are presentation diagnostics over identical world content: `final`; a true same-quality `no-post` path that bypasses the composer/GTAO; and named district, habitat, route, density, opening, river-profile, wetness, erosion/deposition, and fishing-access overlays. Final/no-post comparisons keep seed, camera, quality, cover, shadows, time, weather, DPR, and loaded assets identical and fail if content counts differ.
+
+The harness runs a deterministic SwiftShader lane and a real Chrome hardware lane. GPU performance evidence requires non-blocking `EXT_disjoint_timer_query_webgl2` samples with warm-up, query buffering, and disjoint rejection; FPS cannot substitute. The report inventories composer buffers, GTAO targets, shadow maps, dimensions, formats, samples, depth/stencil state, estimated target bytes, and renderer geometry/texture memory separately. Browser/page/network errors, HMR, source-digest drift, zero assets, or repeated canonical scene identity fail the lane. Automated captures remain comparison evidence for human gameplay-camera review, never automatic aesthetic approval.
 
 # 14. Agent Roles & Working Rules
 

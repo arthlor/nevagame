@@ -1,4 +1,5 @@
 import type { QuestState } from "./QuestTypes";
+import type { FishingEcologyId } from "../../world/WorldIslands";
 
 export type CropId = string;
 export type FishSpeciesId = string;
@@ -90,7 +91,8 @@ export type GameAction =
   | "fish-slack"
   | "fish-brace"
   | "fish-left"
-  | "fish-right";
+  | "fish-right"
+  | "fishing.toggle-lure";
 
 export interface ClockState {
   currentMinute: GameMinute;
@@ -111,6 +113,7 @@ export interface PlayerState {
   inventoryId: InventoryId;
   equippedRodId: RodId;
   ownedRodIds: RodId[];
+  preparedLureItemId: ItemId | null;
   carriedFishCargoId?: FishCargoId | null;
   activeBoatId?: BoatId | null;
   activeMountId: MountId | null;
@@ -236,10 +239,19 @@ export interface MountState {
   y: number;
   z: number;
   rotationY: number;
+  /**
+   * The mount's own burst budget. A mount that spent the rider's stamina made
+   * riding strictly worse than running; the gallop is the animal's effort, so
+   * it draws on the animal's reserve.
+   */
+  gallopStamina: number;
+  gallopRecoveryDelaySeconds: number;
+  gallopExhausted: boolean;
 }
 
 export interface FishSchoolState {
   id: FishSchoolId;
+  ecologyId: FishingEcologyId;
   habitatId: string;
   x: number;
   z: number;
@@ -254,6 +266,7 @@ export interface FishSchoolState {
 export interface FishInstance {
   instanceId: string;
   speciesId: FishSpeciesId;
+  ecologyId?: FishingEcologyId;
   weightKg: number;
   quality: FishQuality;
   caughtAtMinute?: GameMinute;
@@ -303,6 +316,13 @@ export interface FishingEncounterState {
   /** The school that owns this encounter, so a deferred landing survives reload. */
   schoolId?: FishSchoolId | null;
   rodId: RodId;
+  tackleSnapshot: {
+    lureItemId: ItemId | null;
+  };
+  seaConditionSnapshot: {
+    weatherType: WeatherTag;
+    seaRoughness: number;
+  };
   stamina: number;
   maxStamina: number;
   distanceMeters: number;
@@ -334,9 +354,11 @@ export type BasicFishingPhase =
   | "waiting"
   | "bite";
 
-export type FishCatchQuality = "normal" | "silver" | "gold" | "iridium";
+/** @deprecated Alias of FishQuality. Silver/Gold/Iridium are UI atlas skins only. */
+export type FishCatchQuality = FishQuality;
 
 export interface BasicFishingState {
+  ecologyId: FishingEcologyId;
   habitatId: string;
   phase: BasicFishingPhase;
   remainingSeconds: number;
@@ -434,6 +456,7 @@ export interface ContractState {
   id: ContractId;
   templateId: ContractTemplateId;
   requesterId: string;
+  deliveryMarketId: MarketId;
   type: "produce" | "fresh-fish" | "quality-target" | "bulk-order";
   targetItemIdOrSpecies: string;
   quantityRequired: number;
@@ -465,6 +488,13 @@ export interface WorldState {
   layoutRevision: number;
   currentSeed: number;
   activeSchools: Record<FishSchoolId, FishSchoolState>;
+  fishingPressureByHabitat: Record<string, {
+    ecologyId: FishingEcologyId;
+    habitatId: string;
+    lastEndedMinute: GameMinute;
+    cooldownUntilMinute: GameMinute;
+    recentCatchCount: number;
+  }>;
   structures: Record<StructureId, {
     id: StructureId;
     type: StationType;

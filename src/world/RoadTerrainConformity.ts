@@ -3,6 +3,8 @@ import * as THREE from "three";
 interface RoadTerrainGrid {
   sizeMeters: number;
   resolution: number;
+  centerX?: number;
+  centerZ?: number;
   heightAt: (x: number, z: number) => number;
 }
 
@@ -64,7 +66,10 @@ export function conformRoadGeometryToTerrain(
   const indices: number[] = [];
   let vertexCache = new Map<string, number>();
   const cellSize = grid.sizeMeters / grid.resolution;
-  const minimum = -grid.sizeMeters * 0.5;
+  const minimumX = (grid.centerX ?? 0) - grid.sizeMeters * 0.5;
+  const minimumZ = (grid.centerZ ?? 0) - grid.sizeMeters * 0.5;
+  const maximumX = minimumX + grid.sizeMeters;
+  const maximumZ = minimumZ + grid.sizeMeters;
   const stride = grid.resolution + 1;
   const heightCache = new Map<number, number>();
   const roadTriangleEnd = source.userData.roadTriangleCount as number;
@@ -78,8 +83,8 @@ export function conformRoadGeometryToTerrain(
     if (cached !== undefined) return cached;
     // PlaneGeometry and its height attribute store float32, not the original
     // analytic doubles. Use those same samples for exact surface agreement.
-    const x = Math.fround(minimum + column * cellSize);
-    const z = Math.fround(minimum + row * cellSize);
+    const x = Math.fround(minimumX + column * cellSize);
+    const z = Math.fround(minimumZ + row * cellSize);
     const height = Math.fround(grid.heightAt(x, z));
     heightCache.set(key, height);
     return height;
@@ -135,6 +140,16 @@ export function conformRoadGeometryToTerrain(
       ];
     });
     const kind = triangle < roadTriangleEnd ? "road" : triangle < junctionTriangleEnd ? "junction" : "gateway";
+    const triangleMinimumX = Math.min(...vertices.map((vertex) => vertex[0]));
+    const triangleMaximumX = Math.max(...vertices.map((vertex) => vertex[0]));
+    const triangleMinimumZ = Math.min(...vertices.map((vertex) => vertex[2]));
+    const triangleMaximumZ = Math.max(...vertices.map((vertex) => vertex[2]));
+    if (
+      triangleMaximumX < minimumX
+      || triangleMinimumX > maximumX
+      || triangleMaximumZ < minimumZ
+      || triangleMinimumZ > maximumZ
+    ) continue;
     if (kind === "gateway") {
       if (counts.gateway === 0) {
         gatewayVertexStart = positions.length / 3;
@@ -146,15 +161,15 @@ export function conformRoadGeometryToTerrain(
       continue;
     }
 
-    const firstColumn = Math.max(0, Math.floor((Math.min(...vertices.map((vertex) => vertex[0])) - minimum) / cellSize));
-    const lastColumn = Math.min(grid.resolution - 1, Math.floor((Math.max(...vertices.map((vertex) => vertex[0])) - minimum) / cellSize));
-    const firstRow = Math.max(0, Math.floor((Math.min(...vertices.map((vertex) => vertex[2])) - minimum) / cellSize));
-    const lastRow = Math.min(grid.resolution - 1, Math.floor((Math.max(...vertices.map((vertex) => vertex[2])) - minimum) / cellSize));
+    const firstColumn = Math.max(0, Math.floor((triangleMinimumX - minimumX) / cellSize));
+    const lastColumn = Math.min(grid.resolution - 1, Math.floor((triangleMaximumX - minimumX) / cellSize));
+    const firstRow = Math.max(0, Math.floor((triangleMinimumZ - minimumZ) / cellSize));
+    const lastRow = Math.min(grid.resolution - 1, Math.floor((triangleMaximumZ - minimumZ) / cellSize));
 
     for (let row = firstRow; row <= lastRow; row++) {
       for (let column = firstColumn; column <= lastColumn; column++) {
-        const x0 = minimum + column * cellSize;
-        const z0 = minimum + row * cellSize;
+        const x0 = minimumX + column * cellSize;
+        const z0 = minimumZ + row * cellSize;
         let cell = clipPolygon(vertices, (vertex) => vertex[0] - x0);
         cell = clipPolygon(cell, (vertex) => x0 + cellSize - vertex[0]);
         cell = clipPolygon(cell, (vertex) => vertex[2] - z0);

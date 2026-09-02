@@ -280,6 +280,8 @@ Fishing is a centerpiece mechanic with layered, nuanced sound design spanning ea
 - **`sfx.sport.fish_deck_slam`**: Massive physical thud of a 40 kg+ sport fish landing on the wooden boat deck.
 - **`sfx.sport.fish_flop_loop`**: Muscular, wet tail slapping against deck boards as the landed fish thrashes in the hold.
 
+Current runtime terminal timing follows simulation outcomes: `FishLanded` triggers the existing splash/flop/catch stack, a snapped `FishEscaped` triggers the existing snap cue, a normal escape triggers splash/strain, and failed stow triggers splash plus the existing UI error cue. Dedicated frenzy, line-whine, dive, headshake, landing-net, and mass-tier landing assets above remain specified targets until separately authored, admitted to the manifest, and wired; visual school churn does not imply those sounds ship.
+
 ---
 
 ## 3.5 Boating, Logistics & Physical Cargo Handling

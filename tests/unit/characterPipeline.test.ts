@@ -139,6 +139,28 @@ function buildMockCharacterHierarchy(assetId: AssetId = ASSET_IDS.CHAR_PLAYER_A)
   bones.rig_backpack.add(bones.rig_canteen_left);
   bones.rig_backpack.add(bones.rig_canteen_right);
 
+  // Minimal authored rest pose so world-space hand/foot constraints exercise
+  // real chain lengths instead of a degenerate all-zero test skeleton.
+  bones.rig_pelvis.position.y = 0.84;
+  bones.rig_spine.position.y = 0.2;
+  bones.rig_chest.position.y = 0.18;
+  bones.rig_neck.position.y = 0.16;
+  bones.rig_head.position.y = 0.13;
+  bones.rig_clavicle_left.position.set(-0.12, 0.08, 0);
+  bones.rig_clavicle_right.position.set(0.12, 0.08, 0);
+  bones.rig_upper_arm_left.position.set(-0.16, 0, 0);
+  bones.rig_upper_arm_right.position.set(0.16, 0, 0);
+  bones.rig_forearm_left.position.set(0, -0.27, 0.02);
+  bones.rig_forearm_right.position.set(0, -0.27, 0.02);
+  bones.rig_hand_left.position.set(0, -0.23, 0.02);
+  bones.rig_hand_right.position.set(0, -0.23, 0.02);
+  bones.rig_thigh_left.position.set(-0.14, 0, 0);
+  bones.rig_thigh_right.position.set(0.14, 0, 0);
+  bones.rig_shin_left.position.set(0, -0.42, 0.04);
+  bones.rig_shin_right.position.set(0, -0.42, 0.04);
+  bones.rig_foot_left.position.set(0, -0.34, 0.05);
+  bones.rig_foot_right.position.set(0, -0.34, 0.05);
+
   rig.add(bones.rig_root);
 
   // Sockets parented to bones
@@ -181,7 +203,7 @@ function buildMockCharacterHierarchy(assetId: AssetId = ASSET_IDS.CHAR_PLAYER_A)
 
 describe("Tier 1: Character Pipeline Feature Coverage", () => {
   const characters = [
-    { id: ASSET_IDS.CHAR_PLAYER_A, role: "player", clipsCount: 32, maxTris: 18000, targetTris: 12000 },
+    { id: ASSET_IDS.CHAR_PLAYER_A, role: "player", clipsCount: 36, maxTris: 18000, targetTris: 12000 },
     { id: ASSET_IDS.CHAR_NPC_ELSPETH_A, role: "gardener", clipsCount: 6, maxTris: 16000, targetTris: 8000 },
     { id: ASSET_IDS.CHAR_NPC_BARNABY_A, role: "handyman", clipsCount: 6, maxTris: 16000, targetTris: 8000 },
     { id: ASSET_IDS.CHAR_NPC_SILAS_A, role: "dockmaster", clipsCount: 6, maxTris: 16000, targetTris: 8500 },
@@ -204,7 +226,7 @@ describe("Tier 1: Character Pipeline Feature Coverage", () => {
       "char_player_carry_socket",
       "char_player_hip_socket"
     ]));
-    expect(spec?.animationClips?.length).toBe(32);
+    expect(spec?.animationClips?.length).toBe(36);
   });
 
   // Feature 2: Gardener NPC Model
@@ -276,7 +298,10 @@ describe("Tier 1: Character Pipeline Feature Coverage", () => {
       expect(lod1.distanceMeters).toBeGreaterThan(lod0.distanceMeters);
       expect(lod1.triangleRatioMax).toBeLessThan(1.0);
       expect(lod1.triangleRatioMin).toBeGreaterThanOrEqual(0.08);
-      expect(lod1.triangleRatioMax).toBeLessThanOrEqual(0.52);
+      // Continuous limb tubes decimate less aggressively than the beam-plus-
+      // sphere clusters they replaced, so the authored window widened with the
+      // rebuild. The contract that matters is that LOD1 is a real reduction.
+      expect(lod1.triangleRatioMax).toBeLessThanOrEqual(0.65);
     }
   });
 
@@ -371,18 +396,28 @@ describe("Tier 1: Character Pipeline Feature Coverage", () => {
     expect(hipSocket?.parent?.name).toBe("rig_pelvis");
   });
 
-  // Feature 11: Authored Action Suite (32+6)
-  it("F11: Catalog defines full 32-player clip suite and 6-NPC action suite with commit markers", () => {
+  // Feature 11: Authored Action Suite (36+7)
+  it("F11: Catalog defines full 36-player base clip suite and 6-NPC action suite with commit markers", () => {
     const playerSpec = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A);
     const clips = playerSpec?.animationClips ?? [];
-    expect(clips.length).toBe(32);
+    expect(clips.length).toBe(36);
+    expect(playerSpec?.additionalAnimationClips?.map((clip) => clip.name)).toEqual([
+      "mounted_idle",
+      "mounted_walk",
+      "mounted_trot",
+      "mounted_gallop",
+      "mount",
+      "mount_right",
+      "dismount",
+      "dismount_right"
+    ]);
 
     const clipNames = new Set(clips.map((c) => c.name));
     const essentialClips = [
       "idle", "walk_start", "walk", "run_start", "run", "stop",
       "jump_start", "fall", "land_soft", "land_hard",
       "plant", "water", "harvest", "pickup", "carry_walk",
-      "cast", "fishing_idle", "reel", "brace", "row", "skiff_drive"
+      "cast", "fishing_idle", "reel", "brace", "board_skiff", "dock_skiff", "row", "skiff_drive"
     ];
     for (const name of essentialClips) {
       expect(clipNames.has(name), `Missing player clip ${name}`).toBe(true);
@@ -439,6 +474,9 @@ describe("Tier 1: Character Pipeline Feature Coverage", () => {
       mode: "on-foot",
       carrying: false,
       motion: createMotionSample({
+        velocity: { x: 0, y: 0, z: 1.4 },
+        speedMetersPerSecond: 1.4,
+        requestedGait: "walk",
         groundNormal: { x: 0.35, y: 0.936, z: 0 },
         slopeRadians: 0.36
       })
@@ -448,6 +486,11 @@ describe("Tier 1: Character Pipeline Feature Coverage", () => {
     for (let i = 0; i < 20; i++) {
       lastFrame = controller.update(1 / 60, slopeCtx);
     }
+    character.updateMatrixWorld(true);
+    controller.resolveGroundContacts(slopeCtx, (x) => ({
+      height: -x * 0.3,
+      normal: slopeCtx.motion.groundNormal
+    }));
 
     const thighL = character.getObjectByName("rig_thigh_left");
     const shinL = character.getObjectByName("rig_shin_left");
@@ -525,8 +568,8 @@ describe("Tier 1: Character Pipeline Feature Coverage", () => {
     expect(Object.values(ASSET_IDS)).toContain("char_npc_maeve_a");
 
     // 2. Traversal speeds match controller expectations
-    expect(PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond).toBe(5);
-    expect(PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond).toBe(8.2);
+    expect(PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond).toBe(1.6);
+    expect(PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond).toBe(4.4);
 
     // 3. Motion config scaling bounds
     expect(CANONICAL_RENDER_CONFIG.motion.locomotionPlaybackMinimum).toBe(0.45);
@@ -723,14 +766,28 @@ describe("Tier 3: Cross-Feature Interactions", () => {
     };
 
     let frame!: ReturnType<typeof controller.update>;
+    let maximumLegCorrection = 0;
     for (let i = 0; i < 30; i++) {
       frame = controller.update(1 / 60, uphillSprint);
+      character.updateMatrixWorld(true);
+      controller.resolveGroundContacts(uphillSprint, (_x, z) => ({
+        height: z * 0.3,
+        normal: uphillSprint.motion.groundNormal
+      }));
+      const thighL = character.getObjectByName("rig_thigh_left");
+      const thighR = character.getObjectByName("rig_thigh_right");
+      maximumLegCorrection = Math.max(
+        maximumLegCorrection,
+        Math.abs(thighL?.rotation.x ?? 0) + Math.abs(thighR?.rotation.x ?? 0)
+      );
     }
 
-    const thighL = character.getObjectByName("rig_thigh_left");
     const backpack = character.getObjectByName("rig_backpack");
 
-    expect(thighL?.rotation.x).not.toBe(0);
+    // Running includes a real flight/recovery interval where neither stance
+    // leg should be pinned. Assert correction happened during the cycle rather
+    // than sampling one arbitrary airborne frame.
+    expect(maximumLegCorrection).toBeGreaterThan(0);
     expect(backpack?.rotation.x).not.toBe(0);
     expect(frame.groundPitch).toBeLessThan(0);
   });

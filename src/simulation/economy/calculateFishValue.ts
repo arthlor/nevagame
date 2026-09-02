@@ -33,6 +33,11 @@ export function getQualityMultiplier(quality: FishQuality): number {
   }
 }
 
+export function getFishWeightMultiplier(species: FishSpeciesDefinition, weightKg: number): number {
+  const weightRatio = weightKg / Math.max(0.1, species.weightKg.average);
+  return Math.min(2.5, Math.max(0.6, Math.pow(weightRatio, 0.85)));
+}
+
 export function calculateFishPrice(
   species: FishSpeciesDefinition,
   weightKg: number,
@@ -44,9 +49,8 @@ export function calculateFishPrice(
   const speciesBasePrice = species.baseMarketValue;
 
   // Weight modifier: relative to average species weight
-  const weightRatio = weightKg / Math.max(0.1, species.weightKg.average);
   // Diminishing returns scaling for extreme weights
-  const weightModifier = Math.min(2.5, Math.max(0.6, Math.pow(weightRatio, 0.85)));
+  const weightModifier = getFishWeightMultiplier(species, weightKg);
 
   const qualityModifier = getQualityMultiplier(quality);
   const freshnessModifier = getFreshnessPriceMultiplier(freshness);

@@ -11,6 +11,7 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_marker,
     add_ring,
     add_tapered_beam,
     add_tri_prism,
@@ -1901,6 +1902,9 @@ def fishing_rod(spec: dict, root) -> None:
     add_cylinder("rod_seat_lock_ring", (0, 0, 0.235), 0.025, 0.008, brass, root, vertices=6)
     add_cylinder("rod_check_front", (0, 0, 0.25), 0.022, 0.008, brass, root, vertices=6)
     add_tapered_beam("rod_foregrip", (0, 0, 0.255), (0, 0, 0.36), 0.023, 0.018, wood_honey, root, vertices=6)
+    # Authored anchors keep both hands and the live line independent from mesh bounds.
+    add_marker("rod_primary_grip", (0, 0, 0.0), root, marker_type="grip")
+    add_marker("rod_secondary_grip", (0.035, -0.095, 0.195), root, marker_type="grip")
 
     # 3. Classic Coastal Fly/Centerpin Reel
     reel_y = -0.095
@@ -2022,6 +2026,8 @@ def fishing_rod(spec: dict, root) -> None:
                 rotation=(math.pi / 2, 0, 0),
             )
             add_cylinder("rod_tiptop_sleeve", bp, 0.0055, 0.016, brass, root, vertices=4)
+
+    add_marker("rod_line_exit", guide_centers[-1], root, marker_type="line_exit")
 
     # 6. Tensioned Fishing Line threaded through graduated guides to Tip-Top
     line_start = (0.0, reel_y, reel_z + spool_radius * 0.70)

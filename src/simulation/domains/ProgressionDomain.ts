@@ -1,6 +1,6 @@
-import { getRankForXp } from "../../content/progression";
+import { getNextRank, getRankForXp } from "../../content/progression";
 import type { GameMinute, SkillId, WorkCapacityState } from "../core/types";
-import type { WorkCostQuote } from "../core/contracts";
+import type { SkillProgressDto, WorkCostQuote } from "../core/contracts";
 import { formatClockTime } from "../core/GameClock";
 import type { DomainContext } from "./DomainContext";
 
@@ -27,6 +27,24 @@ export function regenerateWorkCapacity(
 
 export class ProgressionDomain {
   constructor(private readonly context: DomainContext) {}
+
+  public inspectSkills(): SkillProgressDto[] {
+    return (Object.entries(this.context.state.player.proficiencies) as Array<[SkillId, number]>).map(([skill, xp]) => {
+      const current = getRankForXp(xp);
+      const next = getNextRank(xp);
+      const span = next ? Math.max(1, next.xpRequired - current.xpRequired) : 1;
+      return {
+        skill,
+        label: skill.charAt(0).toUpperCase() + skill.slice(1),
+        xp,
+        rankName: current.rankName,
+        progressPercent: next
+          ? Math.max(0, Math.min(100, ((xp - current.xpRequired) / span) * 100))
+          : 100,
+        nextXp: next?.xpRequired ?? null
+      };
+    });
+  }
 
   public getProficiencyLevel(skill: SkillId): number {
     const xp = this.context.state.player.proficiencies[skill] ?? 0;

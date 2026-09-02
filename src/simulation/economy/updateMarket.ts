@@ -2,15 +2,15 @@
 
 import { GameMinute, MarketCommodityState, MarketState, SeasonId } from "../core/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { Rng } from "../core/Rng";
 import { seasonAtMinute } from "../core/GameClock";
 import type { MarketCommodityDefinition } from "../../content/types";
+import { demandFromSupply, relaxSupply } from "./marketPricing";
 
 export function tickMarket(
   market: MarketState,
   currentMinute: GameMinute,
   currentSeason: SeasonId,
-  rng: Rng
+  worldSeed: number
 ): boolean {
   const def = ContentRegistry.markets.get(market.id);
   if (!def) return false;
@@ -43,11 +43,18 @@ export function tickMarket(
     while (remainingMinutes >= 60) {
       cursor += 60;
       remainingMinutes -= 60;
-      applyMarketHour(state, commodityDef, seasonAtMinute(cursor), rng, 1);
+      applyMarketHour(state, commodityDef, seasonAtMinute(cursor), cursor / 60, worldSeed, 1);
       tickedHours = true;
     }
     if (remainingMinutes > 0) {
-      applyMarketHour(state, commodityDef, seasonAtMinute(currentMinute), rng, remainingMinutes / 60);
+      applyMarketHour(
+        state,
+        commodityDef,
+        seasonAtMinute(currentMinute),
+        currentMinute / 60,
+        worldSeed,
+        remainingMinutes / 60
+      );
       tickedHours = true;
     }
     if (!tickedHours) continue;
@@ -64,21 +71,20 @@ function applyMarketHour(
   state: MarketCommodityState,
   commodityDef: MarketCommodityDefinition,
   season: SeasonId,
-  rng: Rng,
+  absoluteHour: number,
+  worldSeed: number,
   hours: number
 ): void {
-  state.seasonalModifier = commodityDef.seasonalFactors[season] || 1.0;
-  const consumed = state.consumptionRate * hours;
-  state.localSupply = Math.max(1, state.localSupply - consumed);
-  if (state.localSupply < state.targetSupply) {
-    const recovery = (state.targetSupply - state.localSupply) * 0.15 * hours;
-    state.localSupply += recovery;
-  }
-  const supplyRatio = state.targetSupply / Math.max(1, state.localSupply);
-  const noise = (rng.nextFloat() - 0.5) * 0.05;
-  const rawDemand = supplyRatio + noise;
-  state.demandIndex = Math.min(1.6, Math.max(0.65, rawDemand));
-  state.recentSalesVolume = Math.max(0, state.recentSalesVolume * 0.5);
+  state.seasonalModifier = commodityDef.seasonalFactors[season] ?? 1.0;
+  state.localSupply = relaxSupply(
+    state.localSupply,
+    state.targetSupply,
+    state.consumptionRate,
+    hours
+  );
+  state.demandIndex = demandFromSupply(state, state.localSupply, absoluteHour, worldSeed);
+  // Display-only recent activity. Supply is the sole pricing input from trades.
+  state.recentSalesVolume = Math.max(0, state.recentSalesVolume * Math.pow(0.5, hours));
 }
 
 export function recordMarketSale(
@@ -90,8 +96,15 @@ export function recordMarketSale(
   if (state) {
     state.localSupply += quantity;
     state.recentSalesVolume += quantity;
-    // Immediate slight dampening of demand on heavy sale
-    const drop = Math.min(0.2, (quantity / Math.max(1, state.targetSupply)) * 0.15);
-    state.demandIndex = Math.min(1.6, Math.max(0.65, state.demandIndex - drop));
   }
+}
+
+export function recordMarketPurchase(
+  market: MarketState,
+  itemId: string,
+  quantity: number
+): void {
+  const state = market.commodities[itemId];
+  if (!state) return;
+  state.localSupply = Math.max(0, state.localSupply - quantity);
 }

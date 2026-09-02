@@ -105,7 +105,8 @@ describe("shared world surface field", () => {
         cliff: 0.9
       },
       farmInfluence: Number.NaN,
-      shorelineWetness: 1.4
+      shorelineWetness: 1.4,
+      river: WorldLayout.riverBankSample(_x, _z)
     }));
 
     for (const name of Object.values(SURFACE_FIELD_ATTRIBUTE_NAMES)) {
@@ -113,20 +114,20 @@ describe("shared world surface field", () => {
       expect(attribute).toBeDefined();
       expect(attribute.itemSize).toBe(4);
       expect(attribute.count).toBe(geometry.getAttribute("position").count);
-      expect(Array.from(attribute.array).every(Number.isFinite)).toBe(true);
-      expect(Array.from(attribute.array).every((value) => value >= 0 && value <= 1)).toBe(true);
+      expect(attribute.normalized).toBe(true);
+      expect(attribute.array).toBeInstanceOf(Uint8Array);
+      expect(Array.from(attribute.array as Uint8Array).every((value) => value >= 0 && value <= 255)).toBe(true);
     }
-    const weights0 = Array.from(geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.weights0).array.slice(0, 4));
-    expect(weights0).toHaveLength(4);
-    expect(weights0[0]).toBeCloseTo(1);
-    expect(weights0[1]).toBeCloseTo(0.2);
-    expect(weights0[2]).toBe(0);
-    expect(weights0[3]).toBeCloseTo(0.75);
-    const causes = Array.from(geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.causes).array.slice(0, 4));
-    expect(causes[0]).toBeCloseTo(0.8);
-    expect(causes[1]).toBeCloseTo(0.9);
-    expect(causes[2]).toBe(0);
-    expect(causes[3]).toBeCloseTo(1);
+    const weights0 = geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.weights0);
+    expect(weights0.getX(0)).toBeCloseTo(1);
+    expect(weights0.getY(0)).toBeCloseTo(0.2);
+    expect(weights0.getZ(0)).toBe(0);
+    expect(weights0.getW(0)).toBeCloseTo(0.75);
+    const causes = geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.causes);
+    expect(causes.getX(0)).toBeCloseTo(0.8);
+    expect(causes.getY(0)).toBeCloseTo(0.9);
+    expect(causes.getZ(0)).toBe(0);
+    expect(causes.getW(0)).toBeCloseTo(1);
     geometry.dispose();
   });
 });

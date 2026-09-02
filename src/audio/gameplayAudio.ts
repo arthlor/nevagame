@@ -2,6 +2,7 @@ import type { SportFishingPresentationSample } from "../render/fishing/FishingPr
 import type { EventBus } from "../simulation/core/EventBus";
 import type { GameMode, WeatherTag } from "../simulation/core/types";
 import { WorldLayout } from "../world/WorldLayout";
+import { WORLD_AMBIENCE_PROFILES } from "../world/WorldGameplayLocations";
 import { gameAudio, type AudioBedId } from "./AudioManager";
 
 interface AudioPosition {
@@ -18,6 +19,12 @@ const bedForPlayer = (x: number, z: number, mode: GameMode): AudioBedId => {
     return "water";
   }
   const region = WorldLayout.regionAt(x, z);
+  const profile = WORLD_AMBIENCE_PROFILES.find((candidate) => candidate.regionId === region);
+  if (profile?.islandId === "island.sunreach") {
+    if (profile.harborGain >= 0.5 || profile.surfGain >= 0.55) return "coast";
+    if (profile.insectsGain >= 0.4) return "farm";
+    return "coast";
+  }
   if (region === "region.coast") {
     return "coast";
   }
@@ -137,7 +144,7 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
         return;
       }
       gameAudio.playBank("splash", getPosition());
-      play("fishing-strain");
+      play(reason === "no-cargo-space" ? "ui-error" : "fishing-strain");
     }),
     events.on("CargoLoaded", () => play("place")),
     events.on("CargoUnloaded", () => play("pickup")),

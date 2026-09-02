@@ -1,183 +1,136 @@
-// src/ui/MarketModal.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FishCargoState, GameState, MarketCommodityState, MarketId, RodId } from "../simulation/core/types";
-import { ContentRegistry } from "../content/ContentRegistry";
-import { isVillageSeedCrop } from "../content/markets";
-import { calculateFishPrice } from "../simulation/economy/calculateFishValue";
-import { calculateCommodityUnitPrice } from "../simulation/economy/calculateCommodityValue";
-import { InventoryManager } from "../simulation/inventory/InventoryManager";
-import { IconCoin, IconFish, IconJournal, IconSprout } from "./components/HudIcons";
+import React, { useEffect, useRef, useState } from "react";
+import type { MarketId, RodId } from "../simulation/core/types";
+import { IconCoin, IconFish, IconJournal, IconRod, IconSprout } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
-import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
-import { ChromeButton, ChromeClose, ChromeDivider, ChromePanel, ChromeQuality } from "./chrome/Chrome";
+import { atlasForFish, atlasForItem, atlasForRod } from "./chrome/uiAtlas";
+import { ChromeButton, ChromeClose, ChromeDivider, ChromeQuality } from "./chrome/Chrome";
+import { GameSheet } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
-import { MarketDomain } from "../simulation/domains/MarketDomain";
-import { contractDeliveryMarketId } from "../content/contracts";
-import { previousRodId, ROD_PROGRESSION, rodFishingXpRequirement } from "../content/rods";
+import type { CommodityQuote, MarketBoardDto } from "../simulation/core/contracts";
 
-type MarketStallTab = "buy" | "sell" | "hold";
+type MarketLedgerSection = "buy" | "sell" | "hold";
 
 interface MarketModalProps {
-  state: GameState;
-  marketId: MarketId | null;
+  board: MarketBoardDto | null;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onSellAllProduce: (marketId: MarketId) => void;
+  onInspectCommodity: (
+    marketId: MarketId,
+    itemId: string,
+    intent?: "buy" | "sell",
+    quantity?: number
+  ) => CommodityQuote;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
-  onBuyItem?: (marketId: MarketId, itemId: string, quantity: number) => void;
+  onBuyItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyRod: (marketId: MarketId, rodId: RodId) => void;
   onEquipRod: (marketId: MarketId, rodId: RodId) => void;
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
-  onDiscardFishCargo: (cargoId: string) => void;
+  onSellAllFishCargo: (marketId: MarketId) => void;
+  onDiscardFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
   onDeliverFishCargo: (contractId: string, cargoId: string) => void;
   onClose: () => void;
-  initialStallTab?: MarketStallTab;
-}
-
-function marketShortName(id: string): string {
-  return id === "market.harbor" ? "Harbor" : "Village";
+  initialSection?: MarketLedgerSection;
 }
 
 export const MarketModal: React.FC<MarketModalProps> = ({
-  state,
-  marketId,
+  board,
   onSellItem,
+  onSellAllProduce,
+  onInspectCommodity,
   onBuySeed,
   onBuyItem,
   onBuyRod,
   onEquipRod,
   onSellFishCargo,
+  onSellAllFishCargo,
   onDiscardFishCargo,
   onDeliverContractItems,
   onDeliverFishCargo,
   onClose,
-  initialStallTab = "buy"
+  initialSection = "buy"
 }) => {
-  const activeMarketId = marketId;
-  const currentMarket = activeMarketId ? state.markets[activeMarketId] : null;
-  const marketDef = activeMarketId ? ContentRegistry.markets.get(activeMarketId) : undefined;
-  const playerInv = state.inventories[state.player.inventoryId];
+  const activeMarketId = board?.marketId ?? null;
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [sellQty, setSellQty] = useState(1);
-  const [stallTab, setStallTab] = useState<MarketStallTab>(initialStallTab);
+  const [ledgerSection, setLedgerSection] = useState<MarketLedgerSection>(initialSection);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
-  const selectStallTab = (tab: MarketStallTab) => {
+  const selectLedgerSection = (section: MarketLedgerSection) => {
     playUiSound("page-turn");
-    setStallTab(tab);
+    setLedgerSection(section);
   };
 
-  const fishCargoList: FishCargoState[] = Object.values(state.fishCargo).filter((cargo) => {
-    if (cargo.location.type === "player") return state.player.carriedFishCargoId === cargo.id;
-    if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
-    const boat = state.boats[cargo.location.containerId];
-    return Boolean(activeMarketId && boat?.isDocked && boat.dockedMarketId === activeMarketId);
-  });
-  const activeContracts = state.contracts.filter(
-    (contract) => contract.status === "active" && contractDeliveryMarketId(contract.type) === activeMarketId
-  );
-
-  const ownedSellables = useMemo(() => {
-    if (!currentMarket || !playerInv) return [];
-    const seen = new Set<string>();
-    const rows: { itemId: string; count: number; commodity: MarketCommodityState }[] = [];
-    for (const slot of playerInv.slots) {
-      const itemId = slot.itemId;
-      if (!itemId || seen.has(itemId)) continue;
-      const commodity = currentMarket.commodities[itemId];
-      if (!commodity) continue;
-      const count = InventoryManager.getItemCount(playerInv, itemId);
-      if (count <= 0) continue;
-      seen.add(itemId);
-      rows.push({ itemId, count, commodity });
-    }
-    return rows;
-  }, [playerInv, currentMarket]);
+  const fishCargoList = board?.fishRows ?? [];
+  const activeContracts = board?.contractRows ?? [];
+  const ownedSellables = board?.sellRows ?? [];
 
   useEffect(() => {
-    if (stallTab !== "sell") return;
+    if (ledgerSection !== "sell") return;
     if (!ownedSellables.some((row) => row.itemId === selectedItemId)) {
       setSelectedItemId(ownedSellables[0]?.itemId ?? null);
       setSellQty(1);
     }
-  }, [stallTab, ownedSellables, selectedItemId]);
+  }, [ledgerSection, ownedSellables, selectedItemId]);
 
   const selectedOwned =
     ownedSellables.find((row) => row.itemId === selectedItemId) ?? ownedSellables[0] ?? null;
 
-  const selectedItemDef = selectedOwned ? ContentRegistry.items.get(selectedOwned.itemId) : null;
-  const ticketName = selectedItemDef?.name ?? selectedOwned?.itemId ?? "Produce";
-  const ticketPrice = selectedOwned ? calculateCommodityUnitPrice(selectedOwned.commodity) : null;
-
-  const comparisonMarket = selectedOwned
-    ? Object.values(state.markets).find(
-        (m) => m.id !== activeMarketId && Boolean(m.commodities[selectedOwned.itemId])
-      )
-    : undefined;
-  const comparisonCommodity =
-    selectedOwned && comparisonMarket ? comparisonMarket.commodities[selectedOwned.itemId] : undefined;
-  const comparisonPrice = comparisonCommodity ? calculateCommodityUnitPrice(comparisonCommodity) : null;
-  const priceDelta =
-    ticketPrice && comparisonPrice ? comparisonPrice.unitPrice - ticketPrice.unitPrice : null;
-
-  const ownedCount = selectedOwned?.count ?? 0;
+  const ticketName = selectedOwned?.name ?? "Produce";
+  const ownedCount = selectedOwned?.owned ?? 0;
   const clampedQty = ownedCount > 0 ? Math.min(Math.max(sellQty, 1), ownedCount) : 1;
-  const liveGold = ticketPrice ? ticketPrice.unitPrice * (ownedCount > 0 ? clampedQty : 0) : 0;
+  const ticketPrice = activeMarketId && selectedOwned
+    ? onInspectCommodity(activeMarketId, selectedOwned.itemId, "sell", clampedQty)
+    : null;
 
-  const totalSellableProduceGold = useMemo(() => {
-    if (!playerInv || !currentMarket) return 0;
-    let sum = 0;
-    for (const slot of playerInv.slots) {
-      const qty = slot.quantity ?? 0;
-      if (!slot.itemId || qty <= 0) continue;
-      const comm = currentMarket.commodities[slot.itemId];
-      if (comm && MarketDomain.isBulkSellProduceItem(slot.itemId)) {
-        const unit = calculateCommodityUnitPrice(comm).unitPrice;
-        sum += unit * qty;
-      }
-    }
-    return sum;
-  }, [playerInv, currentMarket]);
-
-  const totalFishCargoGold = useMemo(() => {
-    if (!currentMarket || fishCargoList.length === 0) return 0;
-    let sum = 0;
-    for (const cargo of fishCargoList) {
-      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-      if (!speciesDef) continue;
-      const comm = currentMarket.commodities[cargo.speciesId];
-      const demand = comm ? comm.demandIndex : 1.0;
-      const seasonal = comm ? comm.seasonalModifier : 1.0;
-      const price = calculateFishPrice(speciesDef, cargo.weightKg, cargo.quality, cargo.freshness, demand, seasonal);
-      sum += price.finalPrice;
-    }
-    return sum;
-  }, [currentMarket, fishCargoList]);
+  const liveGold = ticketPrice?.success ? ticketPrice.totalPrice ?? 0 : 0;
+  const bulkProduceQuote = board?.bulkProduce ?? { success: false, quantity: 0, lineCount: 0, revenue: 0 };
+  const bulkFishQuote = board?.bulkFish ?? { success: false, quantity: 0, lineCount: 0, revenue: 0 };
 
   const handleSellAllProduce = () => {
-    if (!activeMarketId || !playerInv || !currentMarket) return;
-    for (const slot of playerInv.slots) {
-      const qty = slot.quantity ?? 0;
-      if (!slot.itemId || qty <= 0) continue;
-      if (currentMarket.commodities[slot.itemId] && MarketDomain.isBulkSellProduceItem(slot.itemId)) {
-        onSellItem(activeMarketId, slot.itemId, qty);
-      }
-    }
+    if (activeMarketId) onSellAllProduce(activeMarketId);
   };
 
   const handleSellAllFishCargo = () => {
-    if (!activeMarketId) return;
-    for (const cargo of fishCargoList) {
-      onSellFishCargo(activeMarketId, cargo.id);
-    }
+    if (activeMarketId) onSellAllFishCargo(activeMarketId);
   };
+
+  if (!board) {
+    return (
+      <div className="modal-overlay interactive" onClick={onClose}>
+        <GameSheet
+          ref={modalRef}
+          as="div"
+          className="market-trading-modal market-unavailable-sheet"
+          tone="slate"
+          corners
+          rivets={false}
+          onClick={(event) => event.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="market-unavailable-title"
+          tabIndex={-1}
+        >
+          <header className="market-modal-header">
+            <h2 id="market-unavailable-title" className="market-modal-title">The stall is out of reach</h2>
+            <ChromeClose onClick={onClose} label="Close market" />
+          </header>
+          <div className="market-unavailable-state" role="status">
+            <IconCoin size={28} aria-hidden="true" />
+            <p>Return to the counter to trade.</p>
+            <ChromeButton onClick={onClose}>Return to the coast</ChromeButton>
+          </div>
+        </GameSheet>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
-      <ChromePanel
+      <GameSheet
         ref={modalRef}
         as="div"
         className="market-trading-modal"
@@ -197,136 +150,87 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             </span>
             <div>
               <h2 id="market-title" className="market-modal-title">
-                {marketDef?.name ?? "Guild Trading Post"}
+                {board?.name ?? "Coastal Market"}
               </h2>
               <span className="market-shopkeep-line">
                 {activeMarketId === "market.harbor"
                   ? "The wharfinger eyes your hold. Fair weight, fair gold."
                   : "The grocer wipes the counter. Fresh from the yards, then?"}
               </span>
-              <span className="market-modal-desc">{marketDef?.description}</span>
             </div>
           </div>
 
           <div className="market-purse-badge" data-testid="market-purse">
             <IconCoin size={16} aria-hidden="true" />
-            <span>Purse: <strong>{state.player.money.toLocaleString()} G</strong></span>
+            <span>Purse: <strong>{(board?.money ?? 0).toLocaleString()} G</strong></span>
           </div>
 
-          <ChromeClose onClick={onClose} label="Close trading post" className="market-close-btn" />
+          <ChromeClose onClick={onClose} label="Close market" className="market-close-btn" />
         </header>
 
-        <div className="market-stall-tabs mm-ribbon-tabs" role="tablist" aria-label="Stall views" data-testid="market-stall-tabs" onKeyDown={handleTabListKeyDown}>
+        <nav className="market-ledger-index" aria-label="Ledger sections" data-testid="market-ledger-index">
           <button
             type="button"
-            role="tab"
-            aria-selected={stallTab === "buy"}
-            className={`market-stall-tab ${stallTab === "buy" ? "is-active" : ""}`}
-            onClick={() => selectStallTab("buy")}
+            id="market-section-buy"
+            aria-current={ledgerSection === "buy" ? "page" : undefined}
+            aria-controls="market-ledger-sheet"
+            className={`market-ledger-marker ${ledgerSection === "buy" ? "is-active" : ""}`}
+            onClick={() => selectLedgerSection("buy")}
           >
-            Buy
+            Wares
           </button>
           <button
             type="button"
-            role="tab"
-            aria-selected={stallTab === "sell"}
-            className={`market-stall-tab ${stallTab === "sell" ? "is-active" : ""}`}
-            onClick={() => selectStallTab("sell")}
+            id="market-section-sell"
+            aria-current={ledgerSection === "sell" ? "page" : undefined}
+            aria-controls="market-ledger-sheet"
+            className={`market-ledger-marker ${ledgerSection === "sell" ? "is-active" : ""}`}
+            onClick={() => selectLedgerSection("sell")}
           >
-            Sell
+            Your goods
           </button>
-            {activeMarketId === "market.harbor" && (
+          {activeMarketId === "market.harbor" && (
             <button
               type="button"
-              role="tab"
-              aria-selected={stallTab === "hold"}
-              className={`market-stall-tab ${stallTab === "hold" ? "is-active" : ""}`}
-              onClick={() => selectStallTab("hold")}
+              id="market-section-hold"
+              aria-current={ledgerSection === "hold" ? "page" : undefined}
+              aria-controls="market-ledger-sheet"
+              className={`market-ledger-marker ${ledgerSection === "hold" ? "is-active" : ""}`}
+              onClick={() => selectLedgerSection("hold")}
             >
-              Docked Fish
+              Fish hold
             </button>
           )}
-        </div>
+        </nav>
 
         <ChromeDivider ornate={false} />
 
         <div
-          className={`market-modal-grid${stallTab !== "sell" && activeContracts.length === 0 ? " is-single" : ""}`}
+          className={`market-modal-grid${ledgerSection !== "sell" ? " is-single" : ""}`}
         >
-          <section className="market-left-panel">
-            {stallTab === "buy" && activeMarketId === "market.village" && (
+          <section
+            className="market-left-panel"
+            id="market-ledger-sheet"
+            aria-labelledby={`market-section-${ledgerSection}`}
+            tabIndex={0}
+          >
+            {ledgerSection === "buy" && activeMarketId === "market.village" && (
               <div className="market-seeds-section">
                 <h3 className="section-title">
                   <IconSprout size={15} aria-hidden="true" /> Crop Seeds & Supplies
                 </h3>
                 <div className="seed-stall-list">
-                  {[...ContentRegistry.crops.values()]
-                    .filter((crop) => isVillageSeedCrop(crop.id))
-                    .slice()
-                    .sort((a, b) => a.minimumFarmingXp - b.minimumFarmingXp || a.name.localeCompare(b.name))
-                    .map((crop) => {
-                      const seed = ContentRegistry.items.get(crop.seedItemId);
-                      if (!seed) return null;
-                      const owned = InventoryManager.getItemCount(playerInv, seed.id);
-                      const locked = state.player.proficiencies.farming < crop.minimumFarmingXp;
-                      // The stall charges the live commodity price and only
-                      // falls back to the flat base value when the market does
-                      // not trade the seed. Quoting baseValue unconditionally
-                      // showed the wrong number and mis-judged affordability.
-                      const seedCommodity = currentMarket?.commodities[seed.id];
-                      const seedPrice = seedCommodity
-                        ? calculateCommodityUnitPrice(seedCommodity).unitPrice
-                        : seed.baseValue;
-                      const unaffordable = state.player.money < seedPrice;
-                      return (
-                        <div className="seed-stall-card" key={crop.id}>
-                          <div className="seed-card-meta">
-                            <AtlasImage src={atlasForItem(seed.id)} alt="" size={32} />
-                            <div>
-                              <strong>{crop.name}</strong>
-                              <span className="seed-meta-sub">
-                                {locked
-                                  ? `Locked · ${crop.minimumFarmingXp} Farming XP`
-                                  : `${owned} in bag · Yield ~${crop.baseYield.min}–${crop.baseYield.max}`}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="seed-card-actions">
-                            <ChromeButton
-                              size="sm"
-                              className="seed-buy-btn"
-                              soundCue="coins"
-                              disabled={locked || unaffordable}
-                              title={
-                                locked
-                                  ? `Requires ${crop.minimumFarmingXp} Farming XP`
-                                  : unaffordable
-                                    ? `Needs ${seedPrice} G`
-                                    : undefined
-                              }
-                              onClick={() => onBuySeed(activeMarketId, seed.id, 1)}
-                            >
-                              {locked ? "Locked" : `Buy 1 · ${seedPrice} G`}
-                            </ChromeButton>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  {MarketDomain.VILLAGE_SUPPLIES.map((itemId) => {
-                    const supply = ContentRegistry.items.get(itemId);
-                    if (!supply) return null;
-                    const owned = InventoryManager.getItemCount(playerInv, supply.id);
-                    const commodity = currentMarket?.commodities[supply.id];
-                    const unitPrice = commodity
-                      ? calculateCommodityUnitPrice(commodity).unitPrice
-                      : supply.baseValue;
+                  {(board?.buyRows ?? []).map((row) => {
+                    const unitPrice = row.quote.unitPrice ?? 0;
                     return (
-                      <div className="seed-stall-card" key={supply.id} title={supply.description}>
+                      <div className="seed-stall-card" key={row.itemId} title={row.description}>
                         <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(supply.id)} alt="" size={32} />
+                          <AtlasImage src={atlasForItem(row.itemId)} alt="" size={32} />
                           <div>
-                            <strong>{supply.name}</strong>
-                            <span className="seed-meta-sub">{owned} in bag</span>
+                            <strong>{row.name}</strong>
+                            <span className="seed-meta-sub">
+                              {row.locked ? row.blockerReason : `${row.owned} in satchel`}
+                            </span>
                           </div>
                         </div>
                         <div className="seed-card-actions">
@@ -334,10 +238,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             size="sm"
                             className="seed-buy-btn"
                             soundCue="coins"
-                            disabled={state.player.money < unitPrice}
-                            onClick={() => onBuySeed(activeMarketId, supply.id, 1)}
+                            disabled={row.disabled}
+                            title={row.blockerReason}
+                            onClick={() => onBuySeed(activeMarketId, row.itemId, 1)}
                           >
-                            Buy 1 · {unitPrice} G
+                            {row.blockerReason ?? `Buy 1 · ${unitPrice} G`}
                           </ChromeButton>
                         </div>
                       </div>
@@ -347,24 +252,19 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               </div>
             )}
 
-            {stallTab === "buy" && activeMarketId === "market.harbor" && (
+            {ledgerSection === "buy" && activeMarketId === "market.harbor" && (
               <>
               <div className="market-seeds-section">
                 <h3 className="section-title">Harbor Supplies</h3>
                 <div className="seed-stall-list">
-                  {MarketDomain.HARBOR_BUYABLE.map((itemId) => {
-                    const item = ContentRegistry.items.get(itemId);
-                    const commodity = currentMarket?.commodities[itemId];
-                    if (!item || !commodity) return null;
-                    const price = calculateCommodityUnitPrice(commodity);
-                    const owned = InventoryManager.getItemCount(playerInv, itemId);
+                  {(board?.buyRows ?? []).map((row) => {
                     return (
-                      <div className="seed-stall-card" key={itemId}>
+                      <div className="seed-stall-card" key={row.itemId} title={row.description}>
                         <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(item.id)} alt="" size={32} />
+                          <AtlasImage src={atlasForItem(row.itemId)} alt="" size={32} />
                           <div>
-                            <strong>{item.name}</strong>
-                            <span className="seed-meta-sub">{owned} in satchel</span>
+                            <strong>{row.name}</strong>
+                            <span className="seed-meta-sub">{row.owned} in satchel</span>
                           </div>
                         </div>
                         <div className="seed-card-actions">
@@ -372,10 +272,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             size="sm"
                             className="seed-buy-btn"
                             soundCue="coins"
-                            disabled={state.player.money < price.unitPrice}
-                            onClick={() => onBuyItem?.(activeMarketId, itemId, 1)}
+                            disabled={row.disabled}
+                            title={row.blockerReason}
+                            onClick={() => onBuyItem(activeMarketId, row.itemId, 1)}
                           >
-                            Buy 1 · {price.unitPrice} G
+                            {row.blockerReason ?? `Buy 1 · ${row.quote.unitPrice ?? 0} G`}
                           </ChromeButton>
                         </div>
                       </div>
@@ -386,30 +287,16 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               <div className="market-seeds-section" data-testid="harbor-tackle-shop">
                 <h3 className="section-title"><IconFish size={15} aria-hidden="true" /> Tackle</h3>
                 <div className="seed-stall-list">
-                  {ROD_PROGRESSION.map((rodId) => {
-                    const rod = ContentRegistry.rods.get(rodId);
-                    if (!rod) return null;
-                    const fishingActive = Boolean(state.basicFishing || state.sportFishing);
-                    const owned = state.player.ownedRodIds.includes(rodId);
-                    const equipped = state.player.equippedRodId === rodId;
-                    const prerequisite = previousRodId(rodId);
-                    const prerequisiteOwned = prerequisite == null || state.player.ownedRodIds.includes(prerequisite);
-                    const requiredXp = rodFishingXpRequirement(rodId) ?? 0;
-                    const xpLocked = state.player.proficiencies.fishing < requiredXp;
-                    const purchasable = prerequisite != null && !fishingActive && prerequisiteOwned && !xpLocked && state.player.money >= rod.costMoney;
-                    const lockLabel = fishingActive
-                      ? "Finish fishing first"
-                      : !prerequisiteOwned
-                      ? "Previous rod required"
-                      : xpLocked
-                        ? `${requiredXp.toLocaleString()} Fishing XP`
-                        : state.player.money < rod.costMoney
-                          ? `${rod.costMoney} G required`
-                          : null;
+                  {(board?.rodRows ?? []).map((rod) => {
+                    const rodSprite = atlasForRod(rod.rodId);
                     return (
-                      <div className="seed-stall-card" key={rodId}>
+                      <div className="seed-stall-card" key={rod.rodId}>
                         <div className="seed-card-meta">
-                          <IconFish size={28} aria-hidden="true" />
+                          {rodSprite ? (
+                            <AtlasImage src={rodSprite} alt="" size={28} aria-hidden="true" />
+                          ) : (
+                            <IconRod size={28} aria-hidden="true" />
+                          )}
                           <div>
                             <strong>{rod.name}</strong>
                             <span className="seed-meta-sub">
@@ -418,28 +305,28 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                           </div>
                         </div>
                         <div className="seed-card-actions">
-                          {equipped ? (
+                          {rod.equipped ? (
                             <ChromeButton size="sm" disabled>Equipped</ChromeButton>
-                          ) : owned ? (
+                          ) : rod.owned ? (
                             <ChromeButton
                               size="sm"
-                              disabled={fishingActive}
-                              title={fishingActive ? "Finish fishing first" : undefined}
-                              onClick={() => onEquipRod(activeMarketId, rodId)}
+                              disabled={!rod.equippable}
+                              title={rod.blockerReason}
+                              onClick={() => onEquipRod(activeMarketId, rod.rodId)}
                             >
-                              {fishingActive ? "Fishing active" : "Equip"}
+                              {rod.blockerReason ?? "Equip"}
                             </ChromeButton>
-                          ) : prerequisite == null ? (
+                          ) : rod.starter ? (
                             <ChromeButton size="sm" disabled>Starter rod</ChromeButton>
                           ) : (
                             <ChromeButton
                               size="sm"
                               soundCue="coins"
-                              disabled={!purchasable}
-                              title={lockLabel ?? undefined}
-                              onClick={() => onBuyRod(activeMarketId, rodId)}
+                              disabled={!rod.purchasable}
+                              title={rod.blockerReason}
+                              onClick={() => onBuyRod(activeMarketId, rod.rodId)}
                             >
-                              {lockLabel ?? `Buy & equip · ${rod.costMoney} G`}
+                              {rod.blockerReason ?? `Buy & equip · ${rod.costMoney} G`}
                             </ChromeButton>
                           )}
                         </div>
@@ -451,13 +338,13 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               </>
             )}
 
-            {stallTab === "sell" && (
+            {ledgerSection === "sell" && (
             <div className="market-commodities-section">
               <div className="market-section-header-row">
                 <h3 className="section-title">
                   <IconSprout size={15} aria-hidden="true" /> Your Satchel
                 </h3>
-                {totalSellableProduceGold > 0 && (
+                {bulkProduceQuote.success && bulkProduceQuote.revenue > 0 && (
                   <ChromeButton
                     variant="gold"
                     size="sm"
@@ -465,7 +352,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     className="batch-sell-btn-compact"
                     onClick={handleSellAllProduce}
                   >
-                    Sell all produce (+{totalSellableProduceGold.toLocaleString()} G)
+                    Sell all produce · {bulkProduceQuote.revenue.toLocaleString()} G
                   </ChromeButton>
                 )}
               </div>
@@ -476,9 +363,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               ) : (
                 <div className="commodities-list" data-testid="market-sell-list">
                   {ownedSellables.map((row) => {
-                    const itemDef = ContentRegistry.items.get(row.itemId);
-                    const name = itemDef?.name ?? row.itemId;
-                    const price = calculateCommodityUnitPrice(row.commodity);
+                    const name = row.name;
+                    const price = row.quote;
                     const isSelected = selectedOwned?.itemId === row.itemId;
 
                     return (
@@ -501,14 +387,14 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             <AtlasImage src={atlasForItem(row.itemId)} alt="" size={28} />
                             <div>
                               <strong className="comm-name">{name}</strong>
-                              <span className="comm-owned">In bag: {row.count}</span>
+                              <span className="comm-owned">In satchel: {row.owned}</span>
                             </div>
                           </div>
                           <div className="comm-right">
-                            <span className={`comm-demand ${price.demandPercent >= 100 ? "up" : "down"}`}>
-                              {price.demandPercent >= 100 ? "↑" : "↓"} {price.demandPercent}%
+                            <span className={`comm-demand demand-${price?.demandLabel?.toLowerCase() ?? "steady"}`}>
+                              {price?.demandLabel ?? "Steady"}
                             </span>
-                            <strong className="comm-price">{price.unitPrice} G</strong>
+                            <strong className="comm-price">{price?.unitPrice ?? "—"} G</strong>
                           </div>
                         </button>
                       </div>
@@ -519,13 +405,13 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             </div>
             )}
 
-            {stallTab === "hold" && activeMarketId === "market.harbor" && (
+            {ledgerSection === "hold" && activeMarketId === "market.harbor" && (
               <div className="market-fish-cargo-section">
                 <div className="market-section-header-row">
                   <h3 className="section-title">
-                    <IconFish size={15} aria-hidden="true" /> Docked Fish in Boat Hold
+                    <IconFish size={15} aria-hidden="true" /> Fish hold
                   </h3>
-                  {totalFishCargoGold > 0 && (
+                  {bulkFishQuote.success && bulkFishQuote.revenue > 0 && (
                     <ChromeButton
                       variant="gold"
                       size="sm"
@@ -533,7 +419,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       className="batch-sell-btn-compact"
                       onClick={handleSellAllFishCargo}
                     >
-                      Sell All Fish (+{totalFishCargoGold.toLocaleString()} G)
+                      Sell all fish · {bulkFishQuote.revenue.toLocaleString()} G
                     </ChromeButton>
                   )}
                 </div>
@@ -544,51 +430,74 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 ) : (
                   <div className="fish-cargo-trade-list">
                     {fishCargoList.map((cargo) => {
-                      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-                      if (!speciesDef) return null;
-                      const commodity = currentMarket?.commodities[cargo.speciesId];
-                      const demandIndex = commodity ? commodity.demandIndex : 1.0;
-                      const seasonalMod = commodity ? commodity.seasonalModifier : 1.0;
-
-                      const breakdown = calculateFishPrice(
-                        speciesDef,
-                        cargo.weightKg,
-                        cargo.quality,
-                        cargo.freshness,
-                        demandIndex,
-                        seasonalMod
-                      );
+                      const breakdown = cargo.breakdown;
+                      if (!breakdown) {
+                        return (
+                          <div key={cargo.cargoId} className="fish-cargo-card">
+                            <div className="cargo-card-meta">
+                              <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={36} />
+                              <div>
+                                <strong>{cargo.name} ({cargo.weightKg.toFixed(1)} kg)</strong>
+                                <div className="cargo-sub-meta">
+                                  <ChromeQuality quality={cargo.quality} />
+                                  <span className="cargo-freshness-num">
+                                    · {cargo.spoiled ? "Spoiled" : cargo.reason ?? "Not priced here"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            {cargo.spoiled && activeMarketId && (
+                              <div className="cargo-card-actions">
+                                <ChromeButton
+                                  className="plaque-release-btn"
+                                  soundCue="click"
+                                  onClick={() => onDiscardFishCargo(activeMarketId, cargo.cargoId)}
+                                >
+                                  Make scraps
+                                </ChromeButton>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
 
                       return (
-                        <div key={cargo.id} className="fish-cargo-card">
+                        <div key={cargo.cargoId} className="fish-cargo-card">
                           <div className="cargo-card-meta">
                             <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={36} />
                             <div>
-                              <strong>{speciesDef.name} ({cargo.weightKg.toFixed(1)} kg)</strong>
+                              <strong>{cargo.name} ({cargo.weightKg.toFixed(1)} kg)</strong>
                               <div className="cargo-sub-meta">
                                 <ChromeQuality quality={cargo.quality} />
                                 <span className="cargo-freshness-num">· {Math.round(cargo.freshness)}% Fresh</span>
                               </div>
                             </div>
                           </div>
+                          <dl className="market-fish-breakdown" aria-label="Fish quote breakdown">
+                            <div><dt>Base</dt><dd>{breakdown.speciesBasePrice} G</dd></div>
+                            <div><dt>Weight</dt><dd>×{breakdown.weightModifier.toFixed(2)}</dd></div>
+                            <div><dt>Quality</dt><dd>×{breakdown.qualityModifier.toFixed(2)}</dd></div>
+                            <div><dt>Freshness</dt><dd>×{breakdown.freshnessModifier.toFixed(2)}</dd></div>
+                            <div><dt>Demand</dt><dd>{breakdown.demandPercent}%</dd></div>
+                          </dl>
                           <div className="cargo-card-actions">
                             <strong className="cargo-value">{breakdown.finalPrice} G</strong>
-                            {cargo.freshness <= 0 || breakdown.finalPrice <= 0 ? (
+                            {cargo.spoiled || breakdown.finalPrice <= 0 ? (
                               <ChromeButton
                                 className="plaque-release-btn"
                                 soundCue="click"
-                                onClick={() => onDiscardFishCargo(cargo.id)}
+                                onClick={() => activeMarketId && onDiscardFishCargo(activeMarketId, cargo.cargoId)}
                               >
-                                Scraps
+                                Make scraps
                               </ChromeButton>
                             ) : (
                               <ChromeButton
                                 variant="gold"
                                 soundCue="coins"
                                 className="plaque-keep-btn"
-                                onClick={() => activeMarketId && onSellFishCargo(activeMarketId, cargo.id)}
+                                onClick={() => activeMarketId && onSellFishCargo(activeMarketId, cargo.cargoId)}
                               >
-                                Sell Fish
+                                Sell fish
                               </ChromeButton>
                             )}
                           </div>
@@ -601,18 +510,17 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             )}
           </section>
 
-          {(stallTab === "sell" || activeContracts.length > 0) && (
+          {ledgerSection === "sell" && (
           <aside className="market-right-panel">
-            {stallTab === "sell" ? (
-              selectedOwned && ticketPrice ? (
+            {selectedOwned && ticketPrice?.success && ticketPrice.unitPrice != null ? (
                 <div className="market-sell-ticket" data-testid="market-sell-ticket">
                   <h3 className="section-title">Sale ticket</h3>
                   <div className="market-ticket-head">
                     <AtlasImage src={atlasForItem(selectedOwned.itemId)} alt="" size={40} />
                     <div>
                       <strong className="arb-title">{ticketName}</strong>
-                      <span className={`comm-demand ${ticketPrice.demandPercent >= 100 ? "up" : "down"}`}>
-                        {ticketPrice.demandPercent >= 100 ? "↑" : "↓"} Demand {ticketPrice.demandPercent}%
+                      <span className={`comm-demand demand-${ticketPrice.demandLabel?.toLowerCase() ?? "steady"}`}>
+                        Demand · {ticketPrice.demandLabel ?? "Steady"}
                       </span>
                     </div>
                   </div>
@@ -644,14 +552,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   <div className="market-ticket-live">
                     You receive <strong>{liveGold.toLocaleString()} G</strong>
                   </div>
-                  {comparisonMarket && comparisonPrice && (
-                    <p className="market-ticket-arb">
-                      {marketShortName(comparisonMarket.id)} would pay {comparisonPrice.unitPrice} G
-                      {priceDelta !== null && priceDelta !== 0
-                        ? ` (${priceDelta > 0 ? "+" : "−"}${Math.abs(priceDelta)} vs here)`
-                        : ""}
-                    </p>
-                  )}
                   <div className="market-ticket-actions">
                     <ChromeButton
                       variant="gold"
@@ -676,90 +576,76 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 </div>
               ) : (
                 <div className="no-commodity-selected">
-                  <span>Bring produce this stall prices and pick a row to write a ticket.</span>
+                  <span>Bring goods this stall buys, then choose a row for a sale ticket.</span>
                 </div>
-              )
-            ) : null}
-
-            {activeContracts.length > 0 && (
-              <div className="market-contracts-sub">
-                <h4 className="section-title">
-                  <IconJournal size={15} aria-hidden="true" /> Royal Guild Contracts
-                </h4>
-                <div className="active-contracts-list">
-                  {activeContracts.map((contract) => {
-                    const itemDef = ContentRegistry.items.get(contract.targetItemIdOrSpecies);
-                    const fishDef = ContentRegistry.fishSpecies.get(contract.targetItemIdOrSpecies);
-                    const targetName = itemDef?.name ?? fishDef?.name ?? contract.targetItemIdOrSpecies;
-                    const ownedForContract = itemDef ? InventoryManager.getItemCount(playerInv, itemDef.id) : 0;
-                    const eligibleCargo = fishCargoList.filter((cargo) => cargo.speciesId === contract.targetItemIdOrSpecies);
-                    // A twenty-unit contract used to mean twenty clicks.
-                    const remainingForContract = Math.max(
-                      0,
-                      contract.quantityRequired - contract.quantityFulfilled
-                    );
-                    const deliverableNow = Math.min(ownedForContract, remainingForContract);
-
-                    return (
-                      <div key={contract.id} className="contract-mini-card">
-                        <div className="contract-mini-header">
-                          <strong>Supply {targetName}</strong>
-                          <span className="contract-gold">
-                            <IconCoin size={12} aria-hidden="true" /> {contract.rewardMoney} G
-                          </span>
-                        </div>
-                        <span className="contract-prog">
-                          Fulfilled: {contract.quantityFulfilled} / {contract.quantityRequired}
-                        </span>
-                        <div className="contract-actions-row" style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
-                          {itemDef && ownedForContract > 0 && (
-                            <>
-                              <ChromeButton
-                                className="comm-sell-btn"
-                                onClick={() => onDeliverContractItems(contract.id, itemDef.id, 1)}
-                              >
-                                Deliver 1 ({ownedForContract} in bag)
-                              </ChromeButton>
-                              {deliverableNow > 1 && (
-                                <ChromeButton
-                                  variant="gold"
-                                  soundCue="stamp"
-                                  className="comm-sell-btn"
-                                  onClick={() =>
-                                    onDeliverContractItems(contract.id, itemDef.id, deliverableNow)
-                                  }
-                                >
-                                  {`Deliver ${deliverableNow}`}
-                                </ChromeButton>
-                              )}
-                            </>
-                          )}
-                          {eligibleCargo.length > 0 && (
-                            <ChromeButton
-                              variant="gold"
-                              className="comm-sell-btn"
-                              onClick={() => onDeliverFishCargo(contract.id, eligibleCargo[0].id)}
-                            >
-                              Deliver Fish ({eligibleCargo[0].weightKg.toFixed(1)} kg)
-                            </ChromeButton>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+              )}
           </aside>
           )}
         </div>
 
+        {activeContracts.length > 0 && (
+          <section className="market-contracts-footer" aria-labelledby="market-contracts-title">
+            <h3 id="market-contracts-title" className="section-title">
+              <IconJournal size={15} aria-hidden="true" /> Posted orders
+            </h3>
+            <div className="active-contracts-list">
+              {activeContracts.map((contract) => (
+                <article key={contract.contractId} className="contract-mini-card">
+                  <div className="contract-mini-header">
+                    <strong>Supply {contract.targetName}</strong>
+                    <span className="contract-gold">
+                      <IconCoin size={12} aria-hidden="true" /> {contract.rewardMoney} G
+                    </span>
+                  </div>
+                  <span className="contract-prog">
+                    Fulfilled: {contract.quantityFulfilled} / {contract.quantityRequired}
+                  </span>
+                  <div className={`contract-readiness${contract.ready ? " is-ready" : " is-blocked"}`}>
+                    {contract.ready ? (
+                      <strong>Ready</strong>
+                    ) : (
+                      <ul>
+                        {contract.blockerReasons.map((reason) => <li key={reason}>{reason}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="contract-actions-row">
+                    {contract.itemId && contract.deliverableItems > 0 && (
+                      <ChromeButton
+                        variant="gold"
+                        soundCue="stamp"
+                        className="comm-sell-btn"
+                        onClick={() => onDeliverContractItems(
+                          contract.contractId,
+                          contract.itemId!,
+                          contract.deliverableItems
+                        )}
+                      >
+                        Deliver {contract.deliverableItems} from satchel
+                      </ChromeButton>
+                    )}
+                    {contract.eligibleCargoIds.length > 0 && (
+                      <ChromeButton
+                        variant="gold"
+                        className="comm-sell-btn"
+                        onClick={() => onDeliverFishCargo(contract.contractId, contract.eligibleCargoIds[0])}
+                      >
+                        Deliver fish
+                      </ChromeButton>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
         <footer className="market-modal-footer">
           <ChromeButton onClick={onClose}>
-            Done Trading
+            Leave market
           </ChromeButton>
         </footer>
-      </ChromePanel>
+      </GameSheet>
     </div>
   );
 };

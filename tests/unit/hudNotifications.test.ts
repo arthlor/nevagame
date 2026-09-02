@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
-import { HUD } from "../../src/ui/HUD";
+import { LegacyHUD as HUD } from "./uiTestHelpers";
 import {
   NOTICE_MAX_VISIBLE,
   NoticeQueue,

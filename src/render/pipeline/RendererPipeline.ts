@@ -2,6 +2,34 @@ import * as THREE from "three";
 import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import type { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
+import { GpuFrameTimer, type GpuFrameTimingSnapshot } from "./GpuFrameTimer";
+
+export type CaptureRenderMode = "final" | "no-post";
+
+export interface RenderTargetDiagnostic {
+  id: string;
+  width: number;
+  height: number;
+  format: number;
+  type: number;
+  internalFormat: string | null;
+  samples: number;
+  depthBuffer: boolean;
+  stencilBuffer: boolean;
+  estimatedBytes: number;
+}
+
+export interface RendererPipelineDiagnostics {
+  renderMode: CaptureRenderMode;
+  qualityTier: QualityTier;
+  gtaoActive: boolean;
+  gpuTiming: GpuFrameTimingSnapshot;
+  renderTargets: readonly RenderTargetDiagnostic[];
+  memory: {
+    geometries: number;
+    textures: number;
+  };
+}
 
 interface GtaoPassRuntimeInternals {
   output: number;
@@ -15,6 +43,33 @@ interface GtaoPassRuntimeInternals {
     material: THREE.Material,
     target: THREE.WebGLRenderTarget | null
   ): void;
+}
+
+interface ComposerRuntimeInternals {
+  renderTarget1: THREE.WebGLRenderTarget;
+  renderTarget2: THREE.WebGLRenderTarget;
+}
+
+export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarget): RenderTargetDiagnostic {
+  const bytesPerPixel = target.texture.type === THREE.FloatType ? 16
+    : target.texture.type === THREE.HalfFloatType ? 8
+      : 4;
+  const colorBytes = target.width * target.height * bytesPerPixel * Math.max(1, target.samples || 1);
+  const depthStencilBytes = target.depthBuffer
+    ? target.width * target.height * (target.stencilBuffer ? 4 : 3) * Math.max(1, target.samples || 1)
+    : 0;
+  return {
+    id,
+    width: target.width,
+    height: target.height,
+    format: target.texture.format,
+    type: target.texture.type,
+    internalFormat: target.texture.internalFormat ?? null,
+    samples: target.samples,
+    depthBuffer: target.depthBuffer,
+    stencilBuffer: target.stencilBuffer,
+    estimatedBytes: colorBytes + depthStencilBytes
+  };
 }
 
 /**
@@ -38,6 +93,8 @@ export class RendererPipeline {
   private readonly lastGtaoCameraPosition = new THREE.Vector3();
   private readonly lastGtaoCameraQuaternion = new THREE.Quaternion();
   private hasGtaoCameraSample = false;
+  private renderMode: CaptureRenderMode = "final";
+  private readonly gpuTimer: GpuFrameTimer | null;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -46,6 +103,10 @@ export class RendererPipeline {
   ) {
     this.qualityTier = initialQuality;
     this.renderer.info.autoReset = false;
+    const context = this.renderer.getContext();
+    this.gpuTimer = "createQuery" in context
+      ? new GpuFrameTimer(context as WebGL2RenderingContext)
+      : null;
   }
 
   public setQuality(tier: QualityTier): void {
@@ -79,20 +140,29 @@ export class RendererPipeline {
     this.resetGtaoReuse();
   }
 
+  public setCaptureRenderMode(mode: CaptureRenderMode): void {
+    this.renderMode = mode;
+  }
+
   public render(camera: THREE.Camera): void {
     this.renderer.info.reset();
-    const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
-    if (quality.ambientOcclusion !== "gtao") {
-      this.renderer.render(this.scene, camera);
-      return;
+    this.gpuTimer?.beginFrame();
+    try {
+      const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
+      if (this.renderMode === "no-post" || quality.ambientOcclusion !== "gtao") {
+        this.renderer.render(this.scene, camera);
+        return;
+      }
+      if (!this.composer || this.activeCamera !== camera) {
+        this.beginInitialization(camera);
+        this.renderer.render(this.scene, camera);
+        return;
+      }
+      this.prepareGtaoFrame(camera);
+      this.composer.render();
+    } finally {
+      this.gpuTimer?.endFrame();
     }
-    if (!this.composer || this.activeCamera !== camera) {
-      this.beginInitialization(camera);
-      this.renderer.render(this.scene, camera);
-      return;
-    }
-    this.prepareGtaoFrame(camera);
-    this.composer.render();
   }
 
   /**
@@ -113,10 +183,49 @@ export class RendererPipeline {
     return Boolean(this.composer && this.gtaoPass);
   }
 
+  public diagnostics(): RendererPipelineDiagnostics {
+    const targets: RenderTargetDiagnostic[] = [];
+    if (this.composer) {
+      const composer = this.composer as unknown as ComposerRuntimeInternals;
+      targets.push(renderTargetDiagnostic("composer.primary", composer.renderTarget1));
+      targets.push(renderTargetDiagnostic("composer.secondary", composer.renderTarget2));
+    }
+    if (this.gtaoPass) {
+      const gtao = this.gtaoPass as unknown as GtaoPassRuntimeInternals;
+      targets.push(renderTargetDiagnostic("gtao.denoised", gtao.pdRenderTarget));
+    }
+    this.scene.traverse((object) => {
+      if (!(object instanceof THREE.Light) || !object.castShadow) return;
+      const shadow = (object as THREE.DirectionalLight).shadow;
+      if (shadow?.map) targets.push(renderTargetDiagnostic(`shadow.${object.name || object.uuid}`, shadow.map));
+    });
+    return {
+      renderMode: this.renderMode,
+      qualityTier: this.qualityTier,
+      gtaoActive: this.isGtaoActive(),
+      gpuTiming: this.gpuTimer?.snapshot() ?? {
+        supported: false,
+        blockedReason: "WebGL2 context unavailable",
+        softwareRenderer: false,
+        renderer: "unknown",
+        sampleCount: 0,
+        disjointCount: 0,
+        p50Milliseconds: null,
+        p95Milliseconds: null
+      },
+      renderTargets: targets,
+      memory: {
+        geometries: this.renderer.info.memory.geometries,
+        textures: this.renderer.info.memory.textures
+      }
+    };
+  }
+
   public dispose(): void {
     this.generation += 1;
     this.disposeComposer();
     this.initialization = null;
+    this.gpuTimer?.dispose();
   }
 
   private beginInitialization(camera: THREE.Camera): void {

@@ -11,7 +11,7 @@ import { assessProcessingStationApproach } from "../../world/ProcessingStationAp
 
 export { PROCESSING_STATION_INTERACTION_RADIUS } from "../../world/ProcessingStationApproach";
 
-/** First unlocked recipe the backpack can actually start, else the first unlocked recipe. */
+/** First unlocked recipe the satchel can actually start, else the first unlocked recipe. */
 export function pickUnlockedStationRecipe(
   stationType: StationType,
   inventory: InventoryState,
@@ -89,7 +89,7 @@ export class ProcessingDomain {
     const recipe = ContentRegistry.recipes.get(job.recipeId)!;
     const inventory = state.inventories[state.player.inventoryId];
     if (!InventoryManager.canAddItems(inventory, recipe.outputs)) {
-      return { success: false, reason: "Inventory is full!" };
+      return { success: false, reason: "The satchel is full" };
     }
     InventoryManager.addItemsAtomically(inventory, recipe.outputs);
     job.status = "collected";

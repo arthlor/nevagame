@@ -5901,7 +5901,6 @@ input:focus-visible,
   font-weight: 650;
 }
 
-/* Contextual surfaces: they are notes, not dashboards. */
 .hud-toast-container {
   top: calc(78px + env(safe-area-inset-top));
   right: var(--ui-safe-right);

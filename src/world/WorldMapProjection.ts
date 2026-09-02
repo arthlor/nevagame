@@ -11,13 +11,13 @@ export interface MapSvgPoint {
  * map cannot grow a second, approximate road layout.
  */
 export const WORLD_MAP_PROJECTION = Object.freeze({
-  originX: 480,
-  originY: 328,
-  scaleX: 4.2,
-  scaleZ: 2.6,
-  minX: 80,
-  maxX: 920,
-  minY: 70,
+  originX: 250,
+  originY: 340,
+  scaleX: 1,
+  scaleZ: 1.1,
+  minX: 50,
+  maxX: 950,
+  minY: 50,
   maxY: 650
 });
 

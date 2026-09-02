@@ -81,7 +81,11 @@ function activeQuestId(simulation: Simulation): string | null {
 
 function talkTo(simulation: Simulation, npcId: string): void {
   moveToNpc(simulation, npcId);
+  const before = simulation.state.quests.activeQuestId;
   expect(simulation.execute({ type: "quest.talk-npc", npcId })).toMatchObject({ success: true });
+  if (simulation.state.quests.activeQuestId === before) {
+    expect(simulation.execute({ type: "quest.talk-npc", npcId })).toMatchObject({ success: true });
+  }
 }
 
 function processAndCollect(simulation: Simulation, recipeId: string, stationId: string, durationMinutes: number): void {
@@ -131,6 +135,9 @@ function catchBasicFish(simulation: Simulation): void {
       const hold = fishY > barCenter + 0.015 || (fishY >= barY && fishY <= barY + barHeight && (fishing.barVy ?? 0) < -0.3);
       expect(simulation.execute({ type: "fishing.control-basic", isHolding: hold })).toMatchObject({ success: true });
       simulation.tick(0.05);
+    }
+    if (simulation.state.basicFishing?.phase === "caught") {
+      simulation.execute({ type: "fishing.commit-basic" });
     }
     caught = fishInventoryCount(simulation) > before;
   }
@@ -304,16 +311,16 @@ describe("P12 new-save vertical slice", () => {
     expect(sale).toMatchObject({ success: true });
     expect(simulation.state.fishCargo[cargoId]).toBeUndefined();
     talkTo(simulation, "npc.silas");
-    expect(activeQuestId(simulation)).toBeNull();
-    expect(simulation.state.quests.activeActId).toBe("epilogue_open");
-    expect(simulation.state.quests.completedQuestIds).toHaveLength(ContentRegistry.quests.size);
+    expect(activeQuestId(simulation)).toBe("quest.act6_harbor_promise");
+    expect(simulation.state.quests.activeActId).toBe("act6_stewardship");
+    expect(simulation.state.quests.completedQuestIds).toHaveLength(10);
 
     expect(await repository.saveGame(simulation.state)).toBe(true);
     const finalSave = await repository.loadGame();
     expect(finalSave).not.toBeNull();
     expect(validateSaveEnvelope(finalSave)).toBe(true);
     const reloaded = new Simulation(finalSave!.state);
-    expect(reloaded.state.quests.activeQuestId).toBeNull();
+    expect(reloaded.state.quests.activeQuestId).toBe("quest.act6_harbor_promise");
     expect(reloaded.state.quests.completedQuestIds).toEqual(simulation.state.quests.completedQuestIds);
     expect(reloaded.state.player.activeBoatId).toBeNull();
     expect(reloaded.state.fishCargo).toEqual({});

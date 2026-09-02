@@ -22,7 +22,6 @@ export interface MobileControlsProps {
 
 interface HoldControlProps {
   label: string;
-  hint?: string;
   className?: string;
   onPress: () => void;
   onRelease: () => void;
@@ -30,7 +29,6 @@ interface HoldControlProps {
 
 const MobileHoldButton: React.FC<HoldControlProps> = ({
   label,
-  hint,
   className = "",
   onPress,
   onRelease
@@ -76,17 +74,15 @@ const MobileHoldButton: React.FC<HoldControlProps> = ({
       aria-label={label}
     >
       <span className="mobile-action-label">{label}</span>
-      {hint && <span className="mobile-action-hint" aria-hidden="true">{hint}</span>}
     </button>
   );
 };
 
 const MobileTapButton: React.FC<{
   label: string;
-  hint?: string;
   className?: string;
   onTap: () => void;
-}> = ({ label, hint, className = "", onTap }) => (
+}> = ({ label, className = "", onTap }) => (
   <button
     type="button"
     className={`mobile-action-button ${className}`.trim()}
@@ -94,9 +90,10 @@ const MobileTapButton: React.FC<{
     aria-label={label}
   >
     <span className="mobile-action-label">{label}</span>
-    {hint && <span className="mobile-action-hint" aria-hidden="true">{hint}</span>}
   </button>
 );
+
+const KNOB_TRAVEL_RATIO = 0.29;
 
 const MobileJoystick: React.FC<{
   onChange: (vector: VirtualMoveVector) => void;
@@ -104,6 +101,7 @@ const MobileJoystick: React.FC<{
   const pointerIdRef = useRef<number | null>(null);
   const onChangeRef = useRef(onChange);
   const [vector, setVector] = useState<VirtualMoveVector>({ x: 0, z: 0 });
+  const [knobTravel, setKnobTravel] = useState(34);
   onChangeRef.current = onChange;
 
   useEffect(() => () => {
@@ -118,7 +116,9 @@ const MobileJoystick: React.FC<{
 
   const update = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    const radius = Math.max(1, Math.min(bounds.width, bounds.height) * 0.5);
+    const size = Math.max(1, Math.min(bounds.width, bounds.height));
+    const radius = size * 0.5;
+    setKnobTravel(size * KNOB_TRAVEL_RATIO);
     const centerX = bounds.left + bounds.width * 0.5;
     const centerY = bounds.top + bounds.height * 0.5;
     let x = (event.clientX - centerX) / radius;
@@ -145,6 +145,7 @@ const MobileJoystick: React.FC<{
       className="mobile-joystick"
       role="group"
       aria-label="Movement joystick"
+      data-knob-travel={knobTravel.toFixed(1)}
       onPointerDown={(event) => {
         event.preventDefault();
         pointerIdRef.current = event.pointerId;
@@ -169,7 +170,7 @@ const MobileJoystick: React.FC<{
       <span
         className="mobile-joystick-knob"
         aria-hidden="true"
-        style={{ transform: `translate(${vector.x * 28}px, ${vector.z * 28}px)` }}
+        style={{ transform: `translate(${vector.x * knobTravel}px, ${vector.z * knobTravel}px)` }}
       />
     </div>
   );
@@ -182,13 +183,13 @@ export const MobileOrientationGate: React.FC<{
 }> = ({ touchDevice, orientationBlocked, onRequestLandscape }) => {
   if (!touchDevice || !orientationBlocked) return null;
   return (
-    <div className="mobile-orientation-gate" role="dialog" aria-modal="true" aria-label="Landscape orientation required">
+    <div className="mobile-orientation-gate" role="status" aria-live="polite" aria-label="Landscape orientation required">
       <div className="mobile-orientation-panel">
         <span className="mobile-orientation-mark" aria-hidden="true">↔</span>
         <h2>Turn your device sideways</h2>
-        <p>Neva needs the wider landscape view for movement, fishing, and the world map.</p>
+        <p>The coast is played in landscape.</p>
         <button type="button" className="mobile-orientation-button" onClick={onRequestLandscape}>
-          Try landscape mode
+          Turn to landscape
         </button>
       </div>
     </div>
@@ -220,46 +221,25 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   if (mode === "basic-fishing") {
     return (
       <div className="mobile-controls mobile-controls--fishing mobile-controls--basic" data-testid="mobile-basic-controls">
-        <div className="mobile-fishing-actions">
+        <div className="mobile-action-cluster" aria-label="Fishing actions">
           {basicFishingPhase === "charging-cast" && (
-            <MobileTapButton label="Release cast" hint="Cast" className="is-primary" onTap={onReleaseBasicCast} />
+            <MobileTapButton label="Cast" className="is-primary" onTap={onReleaseBasicCast} />
           )}
           {basicFishingPhase === "minigame" && (
             <MobileHoldButton
               label="Reel"
-              hint="Hold"
               className="is-primary"
               onPress={() => onSetFishingInput({ isReeling: true })}
               onRelease={() => onSetFishingInput({ isReeling: false })}
             />
           )}
-          <MobileTapButton label="Cancel" hint="×" onTap={() => onVirtualAction("pause")} />
+          <MobileTapButton label="Cancel" onTap={() => onVirtualAction("pause")} />
         </div>
       </div>
     );
   }
 
-  if (mode === "sport-fishing") {
-    return (
-      <div className="mobile-controls mobile-controls--fishing mobile-controls--sport" data-testid="mobile-sport-controls">
-        <div className="mobile-fishing-direction-actions" aria-label="Rod direction controls">
-          <MobileHoldButton
-            label="Left"
-            hint="A"
-            onPress={() => onSetFishingInput({ rodDirectionAngle: -0.6 })}
-            onRelease={() => onSetFishingInput({ rodDirectionAngle: 0 })}
-          />
-          <MobileHoldButton
-            label="Right"
-            hint="D"
-            onPress={() => onSetFishingInput({ rodDirectionAngle: 0.6 })}
-            onRelease={() => onSetFishingInput({ rodDirectionAngle: 0 })}
-          />
-          <MobileTapButton label="End fishing" hint="Esc" onTap={() => onVirtualAction("pause")} />
-        </div>
-      </div>
-    );
-  }
+  if (mode === "sport-fishing") return null;
 
   const isPlacement = mode === "farm-placement";
   const isMounted = mode === "mounted";
@@ -270,16 +250,14 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       <MobileJoystick onChange={onSetMoveVector} />
       <div className="mobile-action-cluster" aria-label="Touch actions">
         <div className="mobile-action-row">
-          <MobileHoldButton
+          <MobileTapButton
             label={isPlacement ? "Place" : isBoat ? "Dock" : "Interact"}
-            hint="E"
-            onPress={() => onVirtualAction("interact")}
-            onRelease={() => onVirtualAction("interact-release")}
+            className="is-primary"
+            onTap={() => onVirtualAction("interact")}
           />
           {!isMounted && !isPlacement && (
             <MobileHoldButton
               label={isBoat ? "Cast" : "Use"}
-              hint="Use"
               onPress={() => onVirtualAction("use-primary")}
               onRelease={() => onVirtualAction("use-primary-release")}
             />
@@ -287,34 +265,29 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
         </div>
         <div className="mobile-action-row">
           {isPlacement ? (
-            <MobileTapButton label="Cancel" hint="Esc" onTap={() => onVirtualAction("use-secondary")} />
+            <MobileTapButton label="Cancel" onTap={() => onVirtualAction("use-secondary")} />
           ) : (
             !isMounted && !isBoat && (
-              <MobileTapButton label="Inspect" hint="Look" onTap={() => onVirtualAction("use-secondary")} />
+              <MobileTapButton label="Inspect" onTap={() => onVirtualAction("use-secondary")} />
             )
           )}
-          {!isBoat && !isMounted && !isPlacement && (
+          {!isBoat && (
             <MobileHoldButton
               label="Sprint"
-              hint="Hold"
-              onPress={() => onSetSprint(true)}
-              onRelease={() => onSetSprint(false)}
-            />
-          )}
-          {isMounted && (
-            <MobileHoldButton
-              label="Sprint"
-              hint="Hold"
               onPress={() => onSetSprint(true)}
               onRelease={() => onSetSprint(false)}
             />
           )}
           {!isBoat && !isMounted && (
-            <MobileTapButton label="Jump" hint="↟" onTap={onQueueJump} />
+            <MobileTapButton label="Jump" onTap={onQueueJump} />
           )}
         </div>
+        {!isMounted && !isPlacement && (
+          <div className="mobile-action-row">
+            <MobileTapButton label="Lure" onTap={() => onVirtualAction("fishing.toggle-lure")} />
+          </div>
+        )}
       </div>
-      <span className="mobile-controls-safe-label" aria-hidden="true">Touch controls</span>
     </div>
   );
 };

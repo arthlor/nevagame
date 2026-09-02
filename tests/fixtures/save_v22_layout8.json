@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 22,
+  "savedAtUtcMs": 1,
+  "state": {
+  "schemaVersion": 22,
+  "clock": {
+    "currentMinute": 4320,
+    "season": "spring"
+  },
+  "markets": {
+    "market.village": {
+      "id": "market.village",
+      "name": "Village Produce Market",
+      "regionId": "region.village",
+      "commodities": {
+        "produce.wheat": {
+          "itemId": "produce.wheat",
+          "basePrice": 8,
+          "demandIndex": 1.6,
+          "localSupply": 27.3,
+          "targetSupply": 50,
+          "consumptionRate": 4,
+          "seasonalModifier": 1,
+          "lastTickMinute": 60,
+          "recentSalesVolume": 12
+        }
+      }
+    },
+    "market.harbor": {
+      "id": "market.harbor",
+      "name": "Harbor Fish Market & Wholesaler",
+      "regionId": "region.harbor",
+      "commodities": {
+        "fish.blue_marlin": {
+          "itemId": "fish.blue_marlin",
+          "basePrice": 480,
+          "demandIndex": 1,
+          "localSupply": 1,
+          "targetSupply": 1,
+          "consumptionRate": 0.1,
+          "seasonalModifier": 1,
+          "lastTickMinute": 60,
+          "recentSalesVolume": 1
+        }
+      }
+    }
+  },
+  "metadata": {
+    "rngState": 987654321
+  }
+  }
+}
