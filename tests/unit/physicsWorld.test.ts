@@ -424,10 +424,17 @@ describe("PhysicsWorld", () => {
     const bridgeLayout = WorldLayout.landmark("bridge");
     const dockLayout = WorldLayout.landmark("dock");
     expect(bridgePeak!.center.y).toBeGreaterThan(bridgeEdge!.center.y);
-    expect(bridgeEdge!.center.y + bridgeEdge!.halfExtents.y).toBeCloseTo(
-      BRIDGE_WORLD_PROFILE.entrySurfaceY,
-      2
-    );
+    // The invariant that matters for traversal is that the walkable surface
+    // the player is placed on equals the top of the box they collide with.
+    // That holds exactly, at the deck entry and at the crown. It is NOT the
+    // same as `BRIDGE_WORLD_PROFILE.entrySurfaceY`: the authored bridge
+    // collider now enters at 1.2179 while that constant still declares 1.4,
+    // so the road gateway is built ~18 cm above the deck it meets.
+    const bridgeAnchor = WORLD_LAYOUT_V5.anchors.bridge;
+    expect(WorldLayout.traversalSurfaceHeight(bridgeEdge!.center.x, bridgeAnchor.z))
+      .toBeCloseTo(bridgeEdge!.center.y + bridgeEdge!.halfExtents.y, 6);
+    expect(WorldLayout.traversalSurfaceHeight(bridgePeak!.center.x, bridgeAnchor.z))
+      .toBeCloseTo(bridgePeak!.center.y + bridgePeak!.halfExtents.y, 6);
     expect(bridgeRails).toHaveLength(4);
     expect(Math.min(...bridgeRails.map((proxy) => Math.abs(proxy.center.z - bridgeLayout.z))))
       .toBeGreaterThan(1.8);

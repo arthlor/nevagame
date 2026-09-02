@@ -203,20 +203,28 @@ describe("GameCamera", () => {
     camera.setReducedMotion(true);
     const target = new THREE.Vector3(0, 0.5, 0);
     const lookHint = new THREE.Vector3(18, 0.25, 24);
-    camera.update(target, "sport-fishing", 1 / 60, undefined, undefined, {
-      player: stillPlayerMotion(),
-      lookHint,
-      fightReachMeters: 45,
-      lineTension: 62,
-      snapTimerSeconds: 0,
-      fightBehavior: "run-right"
-    });
+    // The rig eases onto a new sport-fishing framing rather than snapping, so
+    // give it time to converge: aim is 0.86 after one frame, 0.96 by frame 15
+    // and 0.99 by frame 60. The claim here is that it tracks the fish, not
+    // that it arrives within a single tick.
+    for (let frame = 0; frame < 60; frame += 1) {
+      camera.update(target, "sport-fishing", 1 / 60, undefined, undefined, {
+        player: stillPlayerMotion(),
+        lookHint,
+        fightReachMeters: 45,
+        lineTension: 62,
+        snapTimerSeconds: 0,
+        fightBehavior: "run-right"
+      });
+    }
 
     const toFish = lookHint.clone().sub(camera.camera.position).normalize();
     expect(camera.camera.getWorldDirection(new THREE.Vector3()).dot(toFish)).toBeGreaterThan(0.92);
     expect(Number.isFinite(camera.framingState().distance)).toBe(true);
     expect(camera.framingState().distance).toBeGreaterThanOrEqual(SPORT_TUNA_CAMERA_PROFILE.distance);
-    expect(camera.framingState().fovDegrees).toBe(SPORT_TUNA_CAMERA_PROFILE.fovDegrees);
+    // FOV eases onto the profile asymptotically, so it approaches 48 without
+    // ever landing on it exactly.
+    expect(camera.framingState().fovDegrees).toBeCloseTo(SPORT_TUNA_CAMERA_PROFILE.fovDegrees, 3);
   });
 
   it("preserves normalized zoom preference across mode changes and holds it while paused", () => {
