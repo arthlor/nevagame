@@ -421,13 +421,17 @@ describe("farming action commit controller", () => {
       commit: () => { commits += 1; return { success: true }; },
       phaseChanged: (snapshot) => phases.push(snapshot.phase)
     })).toBe(true);
-    controller.update(1319);
+    // Markers come from the authored player clips in the asset catalog, so
+    // derive them rather than pinning milliseconds a re-export would move.
+    const plant = FARMING_ACTION_TIMINGS.plant;
+    const plantCommitAt = 1000 + Math.ceil(plant.commitMs);
+    controller.update(plantCommitAt - 1);
     expect(commits).toBe(0);
-    controller.update(1320);
-    controller.update(1400);
+    controller.update(plantCommitAt);
+    controller.update(plantCommitAt + 1);
     expect(commits).toBe(1);
     expect(controller.hasCommitted).toBe(true);
-    controller.update(1720);
+    controller.update(1000 + Math.ceil(plant.durationMs));
     expect(commits).toBe(1);
     expect(controller.isActive).toBe(false);
     expect(phases).toEqual(["started", "committed", "completed"]);
@@ -448,9 +452,10 @@ describe("farming action commit controller", () => {
     late.start("harvest", { x: 0, y: 0, z: 0 }, 0, {
       commit: () => { lateCommits += 1; return { success: true }; }
     });
-    late.update(360);
+    const harvestCommitAt = Math.ceil(FARMING_ACTION_TIMINGS.harvest.commitMs);
+    late.update(harvestCommitAt);
     expect(lateCommits).toBe(1);
-    expect(late.cancelBeforeCommit(351)).toBe(false);
+    expect(late.cancelBeforeCommit(harvestCommitAt - 1)).toBe(false);
     late.update(800);
     expect(lateCommits).toBe(1);
   });
@@ -465,9 +470,12 @@ describe("farming action commit controller", () => {
     controller.update(3_000, true);
     expect(controller.snapshot(3_000)?.progress).toBeCloseTo(300 / FARMING_ACTION_TIMINGS.board.durationMs, 5);
     expect(commits).toBe(0);
-    controller.update(3_339, false);
+    // 300 ms of action time already elapsed before the pause, so the marker
+    // lands that much earlier on the resumed wall clock.
+    const boardCommitAt = 3_000 + Math.ceil(FARMING_ACTION_TIMINGS.board.commitMs) - 300;
+    controller.update(boardCommitAt - 1, false);
     expect(commits).toBe(0);
-    controller.update(3_340, false);
+    controller.update(boardCommitAt, false);
     expect(commits).toBe(1);
   });
 

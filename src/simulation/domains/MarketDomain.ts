@@ -585,8 +585,14 @@ export class MarketDomain {
 
   public equipRod(marketId: MarketId, rodId: RodId): InteractionResult {
     const { state, events } = this.context;
-    if (!ContentRegistry.markets.get(marketId)?.retail.rodIds?.includes(rodId) || this.getNearbyMarketId() !== marketId) {
-      return { success: false, reason: "Change tackle at a stall that stocks it" };
+    // A tackle stall lets you swap between rods you already own; it does not
+    // have to stock the one you are switching to. Requiring that stranded
+    // `rod.willow`, the starter rod, which is sold nowhere — once the player
+    // bought any rod they could never equip the willow again. Ownership is
+    // checked below and remains the real gate.
+    const stallSellsTackle = (ContentRegistry.markets.get(marketId)?.retail.rodIds?.length ?? 0) > 0;
+    if (!stallSellsTackle || this.getNearbyMarketId() !== marketId) {
+      return { success: false, reason: "Change tackle at a stall that sells it" };
     }
     if (state.basicFishing || state.sportFishing) {
       return { success: false, reason: "Finish fishing before changing tackle" };
