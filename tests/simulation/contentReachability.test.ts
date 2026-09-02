@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
-import { VILLAGE_SEED_CROP_IDS, isVillageSeedCrop } from "../../src/content/markets";
 import { MarketDomain } from "../../src/simulation/domains/MarketDomain";
 import { BasicFishingMinigame } from "../../src/simulation/fishing/BasicFishingMinigame";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
@@ -17,6 +16,19 @@ import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain"
  * checked. This is that check.
  */
 
+/**
+ * Every crop whose seed is stocked by *some* market. Sunreach's cove stall is
+ * a second seed vendor, so asking only the village list would report the two
+ * warm-dry crops as unreachable when they are simply sold on the other island.
+ */
+function stockedSeedCropIds(): Set<string> {
+  const stocked = new Set<string>();
+  for (const market of ContentRegistry.markets.values()) {
+    for (const cropId of market.retail.seedCropIds ?? []) stocked.add(cropId);
+  }
+  return stocked;
+}
+
 /** Every way an item can enter a player's hands. */
 function itemSources(): Map<string, string[]> {
   const sources = new Map<string, string[]>();
@@ -26,9 +38,12 @@ function itemSources(): Map<string, string[]> {
     sources.set(itemId, list);
   };
 
-  for (const cropId of VILLAGE_SEED_CROP_IDS) {
-    const crop = ContentRegistry.crops.get(cropId);
-    if (crop) add(crop.seedItemId, "village seed stall");
+  for (const market of ContentRegistry.markets.values()) {
+    for (const cropId of market.retail.seedCropIds ?? []) {
+      const crop = ContentRegistry.crops.get(cropId);
+      if (crop) add(crop.seedItemId, `${market.id} seed stall`);
+    }
+    for (const itemId of market.retail.itemIds) add(itemId, `${market.id} retail`);
   }
   for (const itemId of MarketDomain.VILLAGE_SUPPLIES) add(itemId, "village supplies");
   for (const itemId of MarketDomain.HARBOR_BUYABLE) add(itemId, "harbor supplies");
@@ -75,9 +90,10 @@ describe("content reachability", () => {
     }
   });
 
-  it("stocks every crop in the seed stall so the XP gate is the only pacing", () => {
+  it("stocks every crop at some seed stall so the XP gate is the only pacing", () => {
+    const stocked = stockedSeedCropIds();
     for (const crop of ContentRegistry.crops.values()) {
-      expect(isVillageSeedCrop(crop.id), `${crop.id} is not stocked anywhere`).toBe(true);
+      expect(stocked.has(crop.id), `${crop.id} is not stocked at any market`).toBe(true);
     }
   });
 
@@ -109,7 +125,7 @@ describe("content reachability", () => {
           );
           expect(crop, `contract ${template.id} targets unknown produce '${targetId}'`).toBeDefined();
           expect(
-            isVillageSeedCrop(crop!.id),
+            stockedSeedCropIds().has(crop!.id),
             `contract ${template.id} targets '${targetId}', whose crop is not obtainable`
           ).toBe(true);
           continue;

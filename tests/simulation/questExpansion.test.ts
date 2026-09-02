@@ -157,20 +157,27 @@ describe("post-story quest expansion", () => {
   });
 
   it("publishes completion only after the final quest pointer reaches epilogue", () => {
+    // Walk the authored chain instead of naming a quest. Act 7 already moved
+    // this terminus once; appending another act must not re-break the test.
+    let terminal = ContentRegistry.quests.get("quest.act1_welcome")!;
+    while (terminal.nextQuestId) terminal = ContentRegistry.quests.get(terminal.nextQuestId)!;
+    const finalObjective = terminal.objectives.at(-1)!;
+    expect(finalObjective.type).toBe("talk-npc");
+
     const sim = new Simulation();
-    const barnaby = ContentRegistry.npcs.get("npc.barnaby")!;
-    sim.state.quests.activeActId = "act6_stewardship";
-    sim.state.quests.activeQuestId = "quest.act6_land_sea_cycle";
-    sim.state.quests.activeStepIndex = 1;
-    sim.state.quests.stepProgress = { "step.act6_fertilize_farm": 1 };
-    sim.state.player.x = barnaby.anchor.x;
-    sim.state.player.z = barnaby.anchor.z;
+    const speaker = ContentRegistry.npcs.get(terminal.speakerId)!;
+    sim.state.quests.activeActId = terminal.actId;
+    sim.state.quests.activeQuestId = terminal.id;
+    sim.state.quests.activeStepIndex = terminal.objectives.length - 1;
+    sim.state.quests.stepProgress = { [finalObjective.id]: finalObjective.targetQuantity };
+    sim.state.player.x = speaker.anchor.x;
+    sim.state.player.z = speaker.anchor.z;
     let activeQuestSeenByListener: string | null | undefined;
     const unsubscribe = sim.events.on("QuestCompleted", () => {
       activeQuestSeenByListener = sim.state.quests.activeQuestId;
     });
 
-    expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" })).toMatchObject({ success: true });
+    expect(sim.execute({ type: "quest.talk-npc", npcId: terminal.speakerId })).toMatchObject({ success: true });
     unsubscribe();
     expect(activeQuestSeenByListener).toBeNull();
     expect(sim.state.quests.activeActId).toBe("epilogue_open");

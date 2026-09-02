@@ -54,12 +54,17 @@ function directionFromCenter(center: { x: number; z: number }, point: { x: numbe
 }
 
 describe("processing station front approach", () => {
-  it("defines exactly the four interactive station fronts", () => {
+  it("defines exactly the authored interactive station fronts", () => {
+    // Exact equality on purpose: this is the guard against a station being
+    // added or dropped without anyone noticing. Sunreach contributed three.
     expect(PROCESSING_STATION_IDS).toEqual([
       "struct.starter_mill",
       "struct.workbench",
       "struct.starter_compost",
-      HARBOR_FISH_TABLE.structureId
+      HARBOR_FISH_TABLE.structureId,
+      "struct.sunreach_hand_mill",
+      "struct.sunreach_workbench",
+      "struct.sunreach_fish_table"
     ]);
   });
 
