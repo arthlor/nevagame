@@ -70,7 +70,12 @@ describe("starter donkey mount", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.player.money).toBe(731);
-    expect(migrated.state.player).toMatchObject(preservedPosition);
+    // Migration re-grounds land truth, so Y is resolved from terrain rather
+    // than copied. X and Z are the claim here — that the player was not moved
+    // back to spawn — and Y only has to land on the same ground.
+    expect(migrated.state.player.x).toBe(preservedPosition.x);
+    expect(migrated.state.player.z).toBe(preservedPosition.z);
+    expect(migrated.state.player.y).toBeCloseTo(preservedPosition.y, 3);
     expect(migrated.state.player.activeMountId).toBeNull();
     expect(migrated.state.mounts[STARTER_DONKEY_ID]).toBeDefined();
     expect(validateSaveEnvelope(migrated)).toBe(true);
@@ -248,7 +253,10 @@ describe("starter donkey mount", () => {
         1 / 60,
         index / 60
       );
-      expect(frame.playerMotion.requestedGait).toBe("trot");
+      // Sprinting on a mount is a gallop, spent from the mount's own gallop
+      // stamina. The claim this test guards is that the rider's sprint
+      // stamina is untouched, asserted after the loop.
+      expect(frame.playerMotion.requestedGait).toBe("gallop");
       expect(frame.playerMotion.airbornePhase).toBe("grounded");
       const commit = simulation.commitPhysicsFrame(frame.frame);
       expect(commit.success, JSON.stringify({
@@ -329,7 +337,14 @@ describe("starter donkey mount", () => {
     setMountedPose(simulation, startX, bridge.z, Math.PI / 2);
     const start = simulation.state.player.x;
 
-    for (let index = 0; index < 30; index++) {
+    // 30 frames is half a second, which the mount spends accelerating from a
+    // standstill — it covers ~0.54 m and never reaches the bridge at all, so
+    // "moved more than a metre" stopped being evidence of anything once the
+    // gallop ramp changed. Run the approach out and assert what the test is
+    // named for: the capsule climbs onto the deck instead of catching its
+    // vertical edge, staying grounded and out of the water the whole way.
+    let reachedDeck = false;
+    for (let index = 0; index < 240; index++) {
       const frame = physics.step(
         simulation.state,
         { x: 1, z: 0, sprint: true },
@@ -338,10 +353,13 @@ describe("starter donkey mount", () => {
         index / 60
       );
       expect(simulation.commitPhysicsFrame(frame.frame).success).toBe(true);
+      expect(frame.playerMotion.isCollisionBlocked).toBe(false);
       expect(WorldLayout.isWater(simulation.state.player.x, simulation.state.player.z)).toBe(false);
       expect(simulation.state.player.traversal.isGrounded).toBe(true);
+      if (WorldLayout.isBridgeDeck(simulation.state.player.x, simulation.state.player.z)) reachedDeck = true;
     }
 
+    expect(reachedDeck).toBe(true);
     expect(simulation.state.player.x).toBeGreaterThan(start + 1);
     physics.dispose();
   });
