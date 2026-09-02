@@ -24,10 +24,16 @@ describe("Organic road environment", () => {
     const first = createWorldEnvironmentLayout(42891);
     const second = createWorldEnvironmentLayout(42891);
     expect(second.groundCoverPlacements).toEqual(first.groundCoverPlacements);
-    expect(first.groundCoverPlacements).toHaveLength(
+    // `GROUND_COVER_DENSITY.high` is Neva's tier. Sunreach carries its own
+    // 360/72/96 dry-scrub budget, so count the two islands separately rather
+    // than letting one absorb a shortfall in the other.
+    const isSunreach = (placement: { compositionTag?: { islandId?: string } }) =>
+      placement.compositionTag?.islandId === "island.sunreach";
+    expect(first.groundCoverPlacements.filter((placement) => !isSunreach(placement))).toHaveLength(
       Object.values(GROUND_COVER_DENSITY.high).reduce((total, count) => total + count, 0)
         + HOMESTEAD_MEADOW_GRASS_COUNT
     );
+    expect(first.groundCoverPlacements.filter(isSunreach)).toHaveLength(360 + 72 + 96);
 
     const shoulderCover = first.groundCoverPlacements.filter((placement) =>
       placement.id.includes("ground-cover.shoulder.pebbles")
@@ -52,7 +58,10 @@ describe("Organic road environment", () => {
   });
 
   it("forms correlated grass and flower patches instead of even world scatter", () => {
-    const cover = createWorldEnvironmentLayout(42891).groundCoverPlacements;
+    // Patch formation is Neva's authored contract; Sunreach scatters its dry
+    // scrub far more sparsely by design, which would dilute the statistic.
+    const cover = createWorldEnvironmentLayout(42891).groundCoverPlacements
+      .filter((placement) => placement.compositionTag?.islandId !== "island.sunreach");
     const grass = cover.filter((placement) => placement.category === "grass");
     const flowers = cover.filter((placement) => placement.category === "flowers");
 

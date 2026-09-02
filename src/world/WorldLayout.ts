@@ -966,6 +966,16 @@ function splineValue(points: readonly WorldPoint[], coordinate: number, axis: "x
   return catmullScalar(p0[valueKey], p1[valueKey], p2[valueKey], p3[valueKey], t);
 }
 
+/**
+ * Maximum spacing between consecutive compiled route samples, in metres.
+ * Road ribbons and route terrain conformity are built from these samples, so
+ * this is the resolution floor for every walkable route on every island.
+ */
+export const ROUTE_MAX_SAMPLE_SPACING_METERS = 4.2;
+
+/** Upper bound on the subdivision search, so a pathological span cannot hang module init. */
+const MAX_ROUTE_SPAN_SUBDIVISIONS = 256;
+
 function sampleRoutePoints(route: WorldRoute, subdivisions: number = 10): WorldPoint[] {
   const sampled: WorldPoint[] = [];
   const points = route.points;
@@ -975,19 +985,43 @@ function sampleRoutePoints(route: WorldRoute, subdivisions: number = 10): WorldP
     const p1 = points[index];
     const p2 = points[index + 1];
     const p3 = points[Math.min(points.length - 1, index + 2)];
-    for (let step = 0; step < subdivisions; step++) {
-      const t = step / subdivisions;
-      if (linearSegments.has(index)) {
-        sampled.push({
-          x: THREE.MathUtils.lerp(p1.x, p2.x, t),
-          z: THREE.MathUtils.lerp(p1.z, p2.z, t)
-        });
-        continue;
-      }
-      sampled.push({
+    // A flat subdivision count makes sample spacing a function of how finely
+    // the author happened to place control points. Every Neva route complies
+    // by hand; Sunreach's longer spans did not, leaving 4.3-4.7 m gaps that
+    // coarsen road ribbons and terrain conformity. Raise the count for long
+    // spans so the spacing contract holds structurally. The floor keeps every
+    // already-compliant route sampled exactly as before.
+    const isLinear = linearSegments.has(index);
+    const pointAt = (t: number): WorldPoint => isLinear
+      ? { x: THREE.MathUtils.lerp(p1.x, p2.x, t), z: THREE.MathUtils.lerp(p1.z, p2.z, t) }
+      : {
         x: monotoneCatmullScalar(p0.x, p1.x, p2.x, p3.x, t),
         z: monotoneCatmullScalar(p0.z, p1.z, p2.z, p3.z, t)
-      });
+      };
+    // Sampling is uniform in `t`, not in arc length, so a Catmull-Rom span's
+    // spacing peaks where the curve moves fastest — an average-length estimate
+    // under-subdivides exactly those bends. Raise the count until the widest
+    // gap in this span complies. Every already-compliant route keeps its
+    // existing sampling because the search starts at the authored floor.
+    const widestGapFor = (count: number): number => {
+      let widest = 0;
+      let previous = pointAt(0);
+      for (let step = 1; step <= count; step++) {
+        const current = pointAt(step / count);
+        widest = Math.max(widest, Math.hypot(current.x - previous.x, current.z - previous.z));
+        previous = current;
+      }
+      return widest;
+    };
+    let spanSubdivisions = subdivisions;
+    while (
+      spanSubdivisions < MAX_ROUTE_SPAN_SUBDIVISIONS
+      && widestGapFor(spanSubdivisions) > ROUTE_MAX_SAMPLE_SPACING_METERS
+    ) {
+      spanSubdivisions += 1;
+    }
+    for (let step = 0; step < spanSubdivisions; step++) {
+      sampled.push(pointAt(step / spanSubdivisions));
     }
   }
   sampled.push(points[points.length - 1]);

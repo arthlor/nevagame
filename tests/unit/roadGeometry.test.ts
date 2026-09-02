@@ -63,25 +63,39 @@ function authoredRoadGeometry(): THREE.BufferGeometry {
   });
 }
 
+/**
+ * Reconstructs the collider plane a road must sit on. Each island has its own
+ * terrain patch with its own origin and grid step — Neva is 600 m / 384, and
+ * Sunreach is 360 m / 256 — so the plane has to be rebuilt on the patch that
+ * actually owns the point. Sampling every island on Neva's grid mis-registers
+ * Sunreach by up to ~6 cm on its steeper ground.
+ */
 function baseTerrainPlaneSampler(): (x: number, z: number) => number {
-  const step = TERRAIN_SIZE_METERS / TERRAIN_RESOLUTION;
-  const minimum = -TERRAIN_SIZE_METERS * 0.5;
   const heights = new Map<string, number>();
-  const height = (column: number, row: number): number => {
-    const key = `${column}:${row}`;
-    if (!heights.has(key)) {
-      heights.set(key, Math.fround(WorldLayout.terrainBaseHeight(
-        minimum + column * step,
-        minimum + row * step
-      )));
-    }
-    return heights.get(key)!;
-  };
   return (x, z) => {
-    const column = Math.floor((x - minimum) / step);
-    const row = Math.floor((z - minimum) / step);
-    const u = (x - minimum - column * step) / step;
-    const v = (z - minimum - row * step) / step;
+    const patch = WorldLayout.terrainPatchAt(x, z);
+    const size = patch?.sizeMeters ?? TERRAIN_SIZE_METERS;
+    const resolution = patch?.resolution ?? TERRAIN_RESOLUTION;
+    const centerX = patch?.center.x ?? 0;
+    const centerZ = patch?.center.z ?? 0;
+    const step = size / resolution;
+    const minimumX = centerX - size * 0.5;
+    const minimumZ = centerZ - size * 0.5;
+    const patchId = patch?.id ?? "terrain.neva";
+    const height = (column: number, row: number): number => {
+      const key = `${patchId}:${column}:${row}`;
+      if (!heights.has(key)) {
+        heights.set(key, Math.fround(WorldLayout.terrainBaseHeight(
+          minimumX + column * step,
+          minimumZ + row * step
+        )));
+      }
+      return heights.get(key)!;
+    };
+    const column = Math.floor((x - minimumX) / step);
+    const row = Math.floor((z - minimumZ) / step);
+    const u = (x - minimumX - column * step) / step;
+    const v = (z - minimumZ - row * step) / step;
     const a = height(column, row);
     const b = height(column, row + 1);
     const c = height(column + 1, row + 1);

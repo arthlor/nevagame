@@ -13,10 +13,12 @@ import {
   WORLD_REGIONAL_PATHS,
   WORLD_ROUTE_JUNCTIONS,
   WORLD_ROUTE_NETWORK,
+  ROUTE_MAX_SAMPLE_SPACING_METERS,
   WORLD_ROUTE_PROFILES,
   WORLD_ROUTES,
   WorldLayout
 } from "../../src/world/WorldLayout";
+import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
 import {
   STARTER_FARM_LAYOUT,
   isPointInsideRect,
@@ -25,7 +27,13 @@ import {
   worldToFarmLocal
 } from "../../src/world/FarmLayout";
 import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_PIER_DECK, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import {
+  HARBOR_DOCK,
+  HARBOR_PIER_DECK,
+  HARBOR_SKIFF_MOORING,
+  VILLAGE_MARKET,
+  WORLD_LAYOUT_REVISION
+} from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, ASSET_IDS, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { collisionPrimitivesForAsset } from "../../src/physics/CollisionCatalogAdapter";
 import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../../src/render/materials/SurfaceFieldAttributes";
@@ -518,8 +526,11 @@ describe("WorldLayout", () => {
 
   it("grades typed dirt routes and adds deterministic nonnegative physical relief", () => {
     expect(WorldLayout.routeDefinitions().map((route) => route.kind)).toEqual([
+      // Neva regional, then the farmstead paths...
       "arterial", "lane", "arterial", "lane", "trail",
-      "lane", "trail", "lane"
+      "lane", "trail", "lane",
+      // ...then Sunreach: cove-terraces, terraces-scrub, scrub-ridge, scrub-reef.
+      "arterial", "lane", "trail", "trail"
     ]);
     expect(WORLD_ROUTE_PROFILES.arterial.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.lane.crownMeters);
     expect(WORLD_ROUTE_PROFILES.lane.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.trail.crownMeters);
@@ -556,16 +567,21 @@ describe("WorldLayout", () => {
     expect(Object.values(weights).reduce((sum, value) => sum + value, 0)).toBeCloseTo(1, 6);
     const first = createWorldEnvironmentLayout(42891).groundCoverPlacements;
     const second = createWorldEnvironmentLayout(42891).groundCoverPlacements;
+    // `GROUND_COVER_DENSITY.high` is Neva's tier; Sunreach carries its own
+    // 360/72/96 budget and is asserted separately in the placement-count test.
+    const firstNeva = first.filter(
+      (placement) => placement.compositionTag?.islandId !== "island.sunreach"
+    );
     expect(second).toEqual(first);
-    expect(first.filter((placement) => placement.category === "grass")).toHaveLength(
+    expect(firstNeva.filter((placement) => placement.category === "grass")).toHaveLength(
       GROUND_COVER_DENSITY.high.grass + HOMESTEAD_MEADOW_GRASS_COUNT
     );
-    expect(first.filter((placement) => placement.category === "flowers")).toHaveLength(GROUND_COVER_DENSITY.high.flowers);
-    expect(first.filter((placement) => placement.category === "bushes")).toHaveLength(GROUND_COVER_DENSITY.high.bushes);
-    expect(first.filter((placement) => placement.category === "meadowTall")).toHaveLength(GROUND_COVER_DENSITY.high.meadowTall);
-    expect(first.filter((placement) => placement.category === "pebbles")).toHaveLength(GROUND_COVER_DENSITY.high.pebbles);
-    expect(first.filter((placement) => placement.category === "paving")).toHaveLength(GROUND_COVER_DENSITY.high.paving);
-    expect(first.filter((placement) => placement.category === "driftwood")).toHaveLength(GROUND_COVER_DENSITY.high.driftwood);
+    expect(firstNeva.filter((placement) => placement.category === "flowers")).toHaveLength(GROUND_COVER_DENSITY.high.flowers);
+    expect(firstNeva.filter((placement) => placement.category === "bushes")).toHaveLength(GROUND_COVER_DENSITY.high.bushes);
+    expect(firstNeva.filter((placement) => placement.category === "meadowTall")).toHaveLength(GROUND_COVER_DENSITY.high.meadowTall);
+    expect(firstNeva.filter((placement) => placement.category === "pebbles")).toHaveLength(GROUND_COVER_DENSITY.high.pebbles);
+    expect(firstNeva.filter((placement) => placement.category === "paving")).toHaveLength(GROUND_COVER_DENSITY.high.paving);
+    expect(firstNeva.filter((placement) => placement.category === "driftwood")).toHaveLength(GROUND_COVER_DENSITY.high.driftwood);
   }, 60_000);
 
   it("derives district rhythm and category density from deterministic causal fields", () => {
@@ -625,10 +641,19 @@ describe("WorldLayout", () => {
 
     expect(authored.length).toBeGreaterThanOrEqual(43);
     expect(layoutDerived).toHaveLength(0);
-    expect(causal.filter((placement) => placement.compositionTag?.category === "tree")).toHaveLength(235);
-    expect(causal.filter((placement) => placement.compositionTag?.category === "bush")).toHaveLength(115);
-    expect(causal.filter((placement) => placement.compositionTag?.category === "rock")).toHaveLength(72);
-    expect(causal.filter((placement) => placement.compositionTag?.category === "reed").length).toBeGreaterThan(10);
+    // Counted per island: both generators hard-fail if they cannot hit their
+    // exact target, so an off-by-one here is a real placement regression. A
+    // whole-world total would let one island absorb the other's shortfall.
+    const causalCount = (islandId: string, category: string) => causal.filter((placement) =>
+      placement.compositionTag?.islandId === islandId && placement.compositionTag?.category === category
+    ).length;
+    expect(causalCount("island.neva", "tree")).toBe(235);
+    expect(causalCount("island.neva", "bush")).toBe(115);
+    expect(causalCount("island.neva", "rock")).toBe(72);
+    expect(causalCount("island.neva", "reed")).toBeGreaterThan(10);
+    expect(causalCount("island.sunreach", "tree")).toBe(48);
+    expect(causalCount("island.sunreach", "bush")).toBe(62);
+    expect(causalCount("island.sunreach", "rock")).toBe(38);
     const roles = new Set(causal.map((placement) => placement.compositionTag?.role));
     expect(roles).toEqual(new Set(["core", "edge", "isolate", "landmark", "riparian", "route-frame"]));
     const structural = causal.filter((placement) =>
@@ -655,10 +680,18 @@ describe("WorldLayout", () => {
       expect(WorldLayout.isInterior(placement.x, placement.z)).toBe(false);
       if (placement.compositionTag) {
         const sample = sampleWorldComposition(42891, placement.x, placement.z);
+        // Traversal-critical clearances are strict on both islands.
         expect(sample.route.clearance).toBeLessThanOrEqual(0.08);
         expect(sample.route.gateway).toBeLessThanOrEqual(0.12);
-        expect(sample.architectureClearance).toBeLessThanOrEqual(0.08);
         expect(sample.fishingAccessClearance).toBeLessThanOrEqual(0.08);
+        // `architectureClearance` does not mean the same thing on both islands.
+        // On Neva it is building frontage, which nothing may stand in. On
+        // Sunreach it is the cove/terrace opening falloff, which the generator
+        // only soft-weights via `1 - structuralClearance`, so the edge of an
+        // opening is a legal — and visually correct — place for scrub.
+        expect(sample.architectureClearance).toBeLessThanOrEqual(
+          placement.compositionTag.islandId === "island.sunreach" ? 0.35 : 0.08
+        );
       }
       if (placement.grounding) {
         const fieldRock = placement.compositionTag?.category === "rock";
@@ -674,12 +707,26 @@ describe("WorldLayout", () => {
       && sampleWorldComposition(42891, placement.x, placement.z).habitat.orchard >= 0.34
     )).toBe(true);
 
+    // Counted for Neva only. Sunreach dresses its dry scrub with
+    // `foliage_meadow_tall_a` / `foliage_beach_grass_a`, which fall into Neva's
+    // meadowTall bucket and would silently inflate these density targets.
     const groundCoverAssetCounts = new Map<string, number>();
+    const sunreachCover = layout.groundCoverPlacements.filter(
+      (placement) => placement.compositionTag?.islandId === "island.sunreach"
+    );
+    const sunreachCoverByCategory = (category: string) =>
+      sunreachCover.filter((placement) => placement.category === category).length;
+    expect(sunreachCoverByCategory("grass")).toBe(360);
+    expect(sunreachCoverByCategory("flowers")).toBe(72);
+    expect(sunreachCoverByCategory("pebbles")).toBe(96);
+
     for (const placement of layout.groundCoverPlacements) {
-      groundCoverAssetCounts.set(
-        placement.assetId,
-        (groundCoverAssetCounts.get(placement.assetId) ?? 0) + 1
-      );
+      if (placement.compositionTag?.islandId !== "island.sunreach") {
+        groundCoverAssetCounts.set(
+          placement.assetId,
+          (groundCoverAssetCounts.get(placement.assetId) ?? 0) + 1
+        );
+      }
       expect(placement.origin).toBe("seeded-fill");
       expect(WorldLayout.isWalkable(placement.x, placement.z)).toBe(true);
       expect(WorldLayout.isWater(placement.x, placement.z)).toBe(false);
@@ -722,7 +769,13 @@ describe("WorldLayout", () => {
     expect(otherCover.prop_driftwood_b).toBeGreaterThan(0);
     expect(otherCover.prop_driftwood_c).toBeGreaterThan(0);
 
-    const grass = layout.groundCoverPlacements.filter((placement) => placement.category === "grass");
+    // The per-category scale, slope and wetness contracts below are Neva's.
+    // Sunreach authors its own dry-scrub cover, so scope these to Neva.
+    const nevaCover = (category: string) => layout.groundCoverPlacements.filter(
+      (placement) => placement.category === category
+        && placement.compositionTag?.islandId !== "island.sunreach"
+    );
+    const grass = nevaCover("grass");
     expect(grass.filter((placement) => placement.id.includes("ground-cover.grass.homestead"))).toHaveLength(
       HOMESTEAD_MEADOW_GRASS_COUNT
     );
@@ -737,12 +790,12 @@ describe("WorldLayout", () => {
     expect(grass.every((placement) => WorldLayout.shorelineWetness(placement.x, placement.z) < 0.62)).toBe(true);
     expect(grass.every((placement) => hasGroundCoverClearance(placement.x, placement.z))).toBe(true);
 
-    const flowers = layout.groundCoverPlacements.filter((placement) => placement.category === "flowers");
+    const flowers = nevaCover("flowers");
     expect(flowers.every((placement) => placement.scale[1] >= 1.59 && placement.scale[1] <= 2.33)).toBe(true);
     expect(flowers.every((placement) => placement.scale[0] / placement.scale[1] >= 1.65)).toBe(true);
     expect(flowers.every((placement) => placement.scale[2] / placement.scale[1] >= 1.65)).toBe(true);
 
-    const tallMeadow = layout.groundCoverPlacements.filter((placement) => placement.category === "meadowTall");
+    const tallMeadow = nevaCover("meadowTall");
     expect(tallMeadow.every((placement) => placement.scale[1] >= 0.78 && placement.scale[1] <= 1.05)).toBe(true);
     expect(tallMeadow.every((placement) => {
       const wetness = WorldLayout.shorelineWetness(placement.x, placement.z);
@@ -761,7 +814,7 @@ describe("WorldLayout", () => {
         || (waterDistance > -8 && waterDistance < -1.4);
     })).toBe(true);
 
-    const driftwood = layout.groundCoverPlacements.filter((placement) => placement.category === "driftwood");
+    const driftwood = nevaCover("driftwood");
     expect(driftwood.every((placement) => placement.id.startsWith("seeded-fill.ground-cover.coast.driftwood"))).toBe(true);
     expect(driftwood.every((placement) => {
       const landwardDistance = WorldLayout.coastlineZ(placement.x) - placement.z;
@@ -905,7 +958,10 @@ describe("WorldLayout", () => {
   });
 
   it("authors asymmetric banks, bend response, and longitudinal bed variation", () => {
-    expect(WORLD_LAYOUT_V5.revision).toBe(9);
+    // Two independent literals in two modules that must agree: WorldLayout's
+    // authored descriptor and the constant save migration gates on. Compare
+    // them rather than hardcoding, so bumping a revision cannot go stale here.
+    expect(WORLD_LAYOUT_V5.revision).toBe(WORLD_LAYOUT_REVISION);
     const sections = [];
     for (let z = -155; z <= 80; z += 5) sections.push(WorldLayout.riverSectionAt(z));
     const asymmetric = sections.filter((section) =>
@@ -974,9 +1030,12 @@ describe("WorldLayout", () => {
     expect(routes.map((route) => route.kind)).toEqual([
       "arterial", "lane", "arterial", "lane", "trail"
     ]);
+    // Every route on every island, not just the Neva ones: road ribbons and
+    // route terrain conformity are built from these samples.
     for (const path of WORLD_PATHS) {
       for (let index = 1; index < path.length; index++) {
-        expect(Math.hypot(path[index].x - path[index - 1].x, path[index].z - path[index - 1].z)).toBeLessThan(4.2);
+        expect(Math.hypot(path[index].x - path[index - 1].x, path[index].z - path[index - 1].z))
+          .toBeLessThanOrEqual(ROUTE_MAX_SAMPLE_SPACING_METERS);
       }
     }
 
@@ -1005,14 +1064,16 @@ describe("WorldLayout", () => {
   });
 
   it("compiles the farmstead paths into the canonical network with shared junctions and a door endpoint", () => {
-    expect(WORLD_ROUTE_NETWORK).toEqual([...WORLD_ROUTES, ...FARM_ROUTES]);
+    expect(WORLD_ROUTE_NETWORK).toEqual([...WORLD_ROUTES, ...FARM_ROUTES, ...SUNREACH_ROUTES]);
     expect(FARM_ROUTES.map((route) => route.id)).toEqual([
       "farm-entry",
       "farm-work-zone",
       "farm-home"
     ]);
     expect(FARM_ROUTES.every((route) => route.scope === "farmstead")).toBe(true);
-    expect(WORLD_ROUTE_NETWORK.filter((route) => route.scope === "regional")).toHaveLength(5);
+    expect(WORLD_ROUTE_NETWORK.filter((route) => route.scope === "regional")).toHaveLength(
+      WORLD_ROUTES.length + SUNREACH_ROUTES.length
+    );
 
     const farmEntry = FARM_ROUTES.find((route) => route.id === "farm-entry")!;
     const farmWorkZone = FARM_ROUTES.find((route) => route.id === "farm-work-zone")!;
