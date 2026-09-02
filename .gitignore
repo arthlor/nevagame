@@ -10,3 +10,15 @@ output/playwright/
 .playwright-mcp/
 assets/audio/licenses/
 marketing/
+# Generated audit / capture artifacts (world-alignment alone is ~2.7 GB)
+output/
+
+# Local scratch: AI reference dumps and one-off debug scripts
+npcs/
+neva-debug.ts
+
+# Quaternius Universal Animation Library (CC0). Only the glTF variants under
+# anim/Unreal-Godot/ are build inputs — the catalog's `animationSource` and
+# tools/blender/cli.mjs reference UAL1_Standard.glb. The 47 MB Unity FBX pair
+# is unused by this pipeline.
+anim/Unity/
