@@ -138,6 +138,31 @@ describe("content reachability", () => {
     }
   });
 
+  it("gives every sport-fish quest objective a school it can actually be caught in", () => {
+    // A quest naming a species with no spawn point in a habitat it lives in is
+    // uncompletable, and nothing else would notice. The same class of hole let
+    // a `land-sport-fish` objective be located by habitat when `FishLanded`
+    // never emits one.
+    const spawnHabitats = new Set<string>(SCHOOL_SPAWN_POINTS.map((point) => point.habitatId));
+    for (const quest of ContentRegistry.quests.values()) {
+      for (const objective of quest.objectives) {
+        if (objective.type !== "land-sport-fish" && objective.type !== "hook-sport-fish") continue;
+        if (!objective.targetId) continue;
+        const fish = ContentRegistry.fishSpecies.get(objective.targetId);
+        expect(fish, `${quest.id}/${objective.id} targets unknown species`).toBeDefined();
+        expect(fish!.isSportFish, `${quest.id}/${objective.id} targets a non-sport species`).toBe(true);
+        expect(
+          fish!.habitats.some((habitat) => spawnHabitats.has(habitat)),
+          `${quest.id}/${objective.id} wants '${fish!.id}', which has no school in any habitat it lives in`
+        ).toBe(true);
+        const rodReaches = [...ContentRegistry.rods.values()].some((rod) =>
+          rod.allowedHabitats.some((habitat) => fish!.habitats.includes(habitat) && spawnHabitats.has(habitat))
+        );
+        expect(rodReaches, `${quest.id}/${objective.id} wants a species no rod can reach`).toBe(true);
+      }
+    }
+  });
+
   it("makes every contract template completable in at least one season", () => {
     for (const template of ContentRegistry.contractTemplates.values()) {
       for (const targetId of template.itemOrSpeciesPool) {

@@ -2,6 +2,9 @@
 
 import { MAIN_QUEST_TRACK_ID, type QuestTrackDefinition } from "../simulation/core/QuestTypes";
 
+/** Silas's standing lesson in where each species actually lives. */
+export const TIDES_QUEST_TRACK_ID = "track.tides";
+
 /**
  * Quest tracks are parallel linear chains, not branches.
  *
@@ -18,5 +21,15 @@ export const QUEST_TRACKS: QuestTrackDefinition[] = [
     id: MAIN_QUEST_TRACK_ID,
     title: "The Neva Spine",
     entryQuestId: "quest.act1_welcome"
+  },
+  {
+    // Opens once the player has landed and sold their first sport fish, which
+    // is also the point the spine stops teaching new verbs. Every seasonal and
+    // conditional objective in the game lives here rather than on the spine,
+    // so waiting for winter never blocks the story.
+    id: TIDES_QUEST_TRACK_ID,
+    title: "Reading the Water",
+    entryQuestId: "quest.tides_home_water",
+    unlock: { requiresCompletedQuestIds: ["quest.act5_maiden_voyage"] }
   }
 ];

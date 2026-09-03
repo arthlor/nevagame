@@ -201,7 +201,11 @@ export class ContentRegistry {
       "plant-crop": ["farm"], "water-crop": ["farm"], "harvest-crop": ["farm"],
       "apply-fertilizer": ["farm"], "install-irrigation": ["farm"], "irrigate-farm": ["farm"],
       "craft-recipe": ["station"], "catch-basic-fish": ["habitat", "ecology", "boat"], "chum-school": ["habitat", "ecology"],
-      "hook-sport-fish": ["habitat", "ecology"], "land-sport-fish": ["habitat", "boat", "ecology"],
+      "hook-sport-fish": ["habitat", "ecology"],
+      // No "habitat": `FishLanded` carries speciesId, ecologyId and boatId only,
+      // so a habitat-located landing objective could never complete. Hooking
+      // does emit a habitat, which is how a per-water objective is authored.
+      "land-sport-fish": ["boat", "ecology"],
       "stow-cargo": ["boat"], "board-boat": ["boat"], "dock-boat": ["boat", "market"],
       "sell-item": ["market"], "sell-fish": ["market"]
     };

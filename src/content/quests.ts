@@ -1,6 +1,7 @@
 // src/content/quests.ts
 
 import { MAIN_QUEST_TRACK_ID, type QuestDefinition } from "../simulation/core/QuestTypes";
+import { TIDES_QUEST_TRACK_ID } from "./questTracks";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
@@ -692,5 +693,231 @@ export const QUESTS: QuestDefinition[] = [
       { id: "step.act7_report_ines", type: "talk-npc", description: "Report back to Ines", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES }
     ],
     rewards: { money: 300, skillXp: [{ skill: "farming", xp: 900 }, { skill: "processing", xp: 650 }] }
+  },
+
+  // ===========================================================================
+  // Side track: Reading the Water (track.tides)
+  //
+  // Silas's standing lesson. Every season-, hour- and weather-conditional
+  // objective in the game lives on this chain rather than the spine, so a
+  // player waiting on winter pike is never blocked from the story. The
+  // conditions are not authored as objective predicates — the ecology already
+  // gates which species a school can roll, so "land a pike" *is* the seasonal
+  // objective, expressed entirely in existing machinery.
+  // ===========================================================================
+  {
+    id: "quest.tides_home_water",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "The Water You Started In",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "You have been to the deep and come back. Good. Now go back to the river you learned in.",
+      "Most anglers never return to their first water once they own a boat. That is how they stop learning. Chum the Silverwater run and take a trout out of it."
+    ],
+    completionDialogue: [
+      "Same river, different angler. Keep that in mind every time a water looks beneath you."
+    ],
+    objectives: [
+      {
+        id: "step.tides_chum_river",
+        type: "chum-school",
+        description: "Chum a school in the river",
+        targetQuantity: 1,
+        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" },
+        location: { kind: "habitat", id: "river" }
+      },
+      {
+        id: "step.tides_hook_river",
+        type: "hook-sport-fish",
+        description: "Hook a Brook Trout in the river",
+        targetId: "fish.trout",
+        targetQuantity: 1,
+        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" },
+        location: { kind: "habitat", id: "river" }
+      },
+      {
+        id: "step.tides_land_river",
+        type: "land-sport-fish",
+        description: "Land the trout",
+        targetId: "fish.trout",
+        targetQuantity: 1,
+        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" }
+      }
+    ],
+    rewards: { money: 60, skillXp: [{ skill: "fishing", xp: 350 }] },
+    nextQuestId: "quest.tides_deep_channel"
+  },
+  {
+    id: "quest.tides_deep_channel",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "The Deep Channel",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "Under the trout there is something heavier, and it does not come up for a willow branch.",
+      "A catfish holds where the channel runs deepest and it will not be hurried. Bring one in."
+    ],
+    completionDialogue: [
+      "Patience and a rod that can take the weight. That is the whole of it."
+    ],
+    objectives: [
+      {
+        id: "step.tides_land_catfish",
+        type: "land-sport-fish",
+        description: "Land a Channel Catfish",
+        targetId: "fish.catfish",
+        targetQuantity: 1,
+        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" }
+      }
+    ],
+    rewards: { money: 110, skillXp: [{ skill: "fishing", xp: 500 }] },
+    nextQuestId: "quest.tides_cold_teeth"
+  },
+  {
+    id: "quest.tides_cold_teeth",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "Cold Water Teeth",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "Pike keep to the lake and they keep to the cold. Come autumn they are everywhere; come high summer you will not find one.",
+      "Do not fight the calendar. Go when the water is right, and until then there is other work."
+    ],
+    completionDialogue: [
+      "You waited for the season instead of wearing yourself out against it. That is most of what I know."
+    ],
+    objectives: [
+      {
+        id: "step.tides_land_pike",
+        type: "land-sport-fish",
+        description: "Land a Northern Pike from the lake",
+        targetId: "fish.pike",
+        targetQuantity: 1,
+        locationAnchor: { x: 18, z: 92, name: "Neva Lake" }
+      }
+    ],
+    rewards: { money: 150, skillXp: [{ skill: "fishing", xp: 650 }] },
+    nextQuestId: "quest.tides_summer_gold"
+  },
+  {
+    id: "quest.tides_summer_gold",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "Summer Gold",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "There is a fish in that same lake that shows itself for one season only, and it is the handsomest thing in Neva.",
+      "An arowana runs gold along the surface in high summer. You will need a rod with some spine. Miss the season and you wait a year."
+    ],
+    completionDialogue: [
+      "Not many have seen one up close. Fewer have landed one. Write it down."
+    ],
+    objectives: [
+      {
+        id: "step.tides_land_arowana",
+        type: "land-sport-fish",
+        description: "Land a Golden Arowana",
+        targetId: "fish.arowana",
+        targetQuantity: 1,
+        locationAnchor: { x: 18, z: 92, name: "Neva Lake" }
+      }
+    ],
+    rewards: { money: 260, skillXp: [{ skill: "fishing", xp: 900 }] },
+    nextQuestId: "quest.tides_old_coast"
+  },
+  {
+    id: "quest.tides_old_coast",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "The Old Coast",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "The sturgeon was here before the harbor was. It runs the coast when the water turns cold and it is heavier than anything you have carried.",
+      "Make sure you have somewhere to put it before you hook it. A won fight with nowhere to stow the fish is a lost fish."
+    ],
+    completionDialogue: [
+      "That is an old animal and you brought it in whole. The coast keeps its own records; now you are in them."
+    ],
+    objectives: [
+      {
+        id: "step.tides_land_sturgeon",
+        type: "land-sport-fish",
+        description: "Land a Sturgeon from the coast",
+        targetId: "fish.sturgeon",
+        targetQuantity: 1,
+        locationAnchor: { x: 118, z: 138, name: "Neva Coast" }
+      },
+      {
+        id: "step.tides_sell_sturgeon",
+        type: "sell-fish",
+        description: "Sell the Sturgeon at the Fish Market",
+        targetId: "fish.sturgeon",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
+        location: { kind: "market", id: "market.harbor" }
+      }
+    ],
+    rewards: { money: 320, skillXp: [{ skill: "fishing", xp: 1100 }, { skill: "trading", xp: 400 }] },
+    nextQuestId: "quest.tides_every_water"
+  },
+  {
+    id: "quest.tides_every_water",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "Every Water on the Chart",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "Last thing. Hook a school in each water Neva has — the river, the lake, and the open coast — and then come and tell me.",
+      "Not to prove anything to me. So that when someone asks you where a fish lives, you answer from memory instead of guessing."
+    ],
+    completionDialogue: [
+      "Then you can read the water. That is not a rank and nobody will hand you a rod for it. It just means you will keep eating."
+    ],
+    objectives: [
+      {
+        id: "step.tides_sweep_river",
+        type: "hook-sport-fish",
+        description: "Hook a school in the river",
+        targetQuantity: 1,
+        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" },
+        location: { kind: "habitat", id: "river" }
+      },
+      {
+        id: "step.tides_sweep_lake",
+        type: "hook-sport-fish",
+        description: "Hook a school in the lake",
+        targetQuantity: 1,
+        locationAnchor: { x: 18, z: 92, name: "Neva Lake" },
+        location: { kind: "habitat", id: "lake" }
+      },
+      {
+        id: "step.tides_sweep_coast",
+        type: "hook-sport-fish",
+        description: "Hook a school on the coast",
+        targetQuantity: 1,
+        locationAnchor: { x: 118, z: 138, name: "Neva Coast" },
+        location: { kind: "habitat", id: "coast" }
+      },
+      {
+        id: "step.tides_report_silas",
+        type: "talk-npc",
+        description: "Report back to Old Silas",
+        targetId: "npc.silas",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Harbor Pier" }
+      }
+    ],
+    rewards: {
+      money: 400,
+      skillXp: [{ skill: "fishing", xp: 1400 }],
+      unlocksKnowledgeIds: ["knowledge.reading_the_water"]
+    }
   }
 ];

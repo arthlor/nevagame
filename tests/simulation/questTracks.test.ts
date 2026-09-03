@@ -175,3 +175,53 @@ describe("quest tracks", () => {
     expect(sim.query({ type: "quest.get-active" })).toMatchObject({ questId: sideEntry.id });
   });
 });
+
+describe("the tides side track", () => {
+  it("stays closed until the maiden voyage, then opens on its own", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    expect(questTrackProgress(sim.state.quests, "track.tides").activeQuestId).toBeNull();
+
+    // Completing the spine quest that gates it is what opens the track; no
+    // separate unlock step and no branch.
+    sim.state.quests.completedQuestIds.push("quest.act5_maiden_voyage");
+    sim.questDomain.evaluateTrackUnlocks();
+
+    expect(questTrackProgress(sim.state.quests, "track.tides").activeQuestId)
+      .toBe("quest.tides_home_water");
+    // The spine keeps its own cursor and is untouched by the side track opening.
+    expect(questTrackProgress(sim.state.quests, MAIN_QUEST_TRACK_ID).activeQuestId)
+      .toBe("quest.act1_welcome");
+  });
+
+  it("chains all six quests in one track and ends with a practice entry", () => {
+    const chain: string[] = [];
+    let quest = ContentRegistry.quests.get("quest.tides_home_water");
+    while (quest) {
+      chain.push(quest.id);
+      expect(quest.trackId).toBe("track.tides");
+      quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
+    }
+    expect(chain).toHaveLength(6);
+    const last = ContentRegistry.quests.get(chain[chain.length - 1])!;
+    expect(last.rewards.unlocksKnowledgeIds).toEqual(["knowledge.reading_the_water"]);
+    expect(ContentRegistry.knowledge.has("knowledge.reading_the_water")).toBe(true);
+  });
+
+  it("keeps every seasonal objective off the main spine", () => {
+    // The point of the track: a species that is out of season for most of the
+    // year must never sit on the chain the story runs through.
+    const seasonal = [...ContentRegistry.fishSpecies.values()]
+      .filter((fish) => fish.seasons.length < 4)
+      .map((fish) => fish.id);
+    for (const quest of ContentRegistry.quests.values()) {
+      if (quest.trackId !== MAIN_QUEST_TRACK_ID) continue;
+      for (const objective of quest.objectives) {
+        if (!objective.targetId || !seasonal.includes(objective.targetId)) continue;
+        throw new Error(
+          `${quest.id}/${objective.id} puts seasonal '${objective.targetId}' on the main spine`
+        );
+      }
+    }
+  });
+});

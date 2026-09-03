@@ -33,6 +33,19 @@ describe("quest content validation", () => {
     expect(() => ContentRegistry.validateQuestDefinitions(unsupported)).toThrow(/unsupported type/);
   });
 
+  it("rejects a landing objective located by habitat, which can never complete", () => {
+    // `FishLanded` carries speciesId, ecologyId and boatId — never a habitat —
+    // so the validator must refuse the objective rather than let it ship as a
+    // quest that silently cannot be finished.
+    const quests = copyQuests();
+    const landing = quests.find((quest) =>
+      quest.objectives.some((objective) => objective.type === "land-sport-fish")
+    )!;
+    const objective = landing.objectives.find((candidate) => candidate.type === "land-sport-fish")!;
+    objective.location = { kind: "habitat", id: "coast" };
+    expect(() => ContentRegistry.validateQuestDefinitions(quests)).toThrow(/unsupported habitat location/);
+  });
+
   it("rejects cycles and unreachable entries", () => {
     const cycle = copyQuests();
     cycle[cycle.length - 1].nextQuestId = cycle[0].id;

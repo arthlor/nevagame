@@ -85,7 +85,7 @@ describe("records board", () => {
 
   it("reaches every milestone through the journal query surface", () => {
     const sim = new Simulation();
-    const pages = sim.query({ type: "journal.get-pages" }) as { records: unknown[] };
+    const pages = sim.query({ type: "journal.get-pages" }) as unknown as { records: unknown[] };
     expect(Array.isArray(pages.records)).toBe(true);
     expect(pages.records.length).toBe(buildRecordMilestones(sim.state).length);
   });

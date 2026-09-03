@@ -8,14 +8,26 @@ import { getProcessingStationFrontPosition } from "../../src/world/ProcessingSta
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 describe("QuestDomain & Storyline Progression", () => {
-  it("chains every authored quest until the final epilogue quest", () => {
-    const quests = Array.from(ContentRegistry.quests.values());
-    expect(quests.length).toBeGreaterThan(1);
-    expect(quests[0].id).toBe("quest.act1_welcome");
-    for (let i = 0; i < quests.length - 1; i++) {
-      expect(quests[i].nextQuestId).toBe(quests[i + 1].id);
+  it("chains every authored quest inside its own track, terminating once", () => {
+    // Chains are per track now, so declaration order is no longer one line.
+    // The claim is unchanged: no quest is orphaned and every chain ends.
+    const seen = new Set<string>();
+    for (const track of ContentRegistry.questTracks.values()) {
+      const chain: string[] = [];
+      let quest = ContentRegistry.quests.get(track.entryQuestId);
+      expect(quest, `track '${track.id}' entry quest is missing`).toBeDefined();
+      while (quest) {
+        expect(seen.has(quest.id), `${quest.id} appears in two chains`).toBe(false);
+        expect(quest.trackId, `${quest.id} is chained from the wrong track`).toBe(track.id);
+        seen.add(quest.id);
+        chain.push(quest.id);
+        quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
+      }
+      expect(chain.length).toBeGreaterThan(1);
+      expect(ContentRegistry.quests.get(chain[chain.length - 1])!.nextQuestId).toBeUndefined();
     }
-    expect(quests[quests.length - 1].nextQuestId).toBeUndefined();
+    expect(seen.size).toBe(ContentRegistry.quests.size);
+    expect(ContentRegistry.quests.get("quest.act1_welcome")).toBeDefined();
   });
 
   it("initializes game state with Act 1 introduction quest", () => {

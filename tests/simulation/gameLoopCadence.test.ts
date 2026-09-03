@@ -26,6 +26,7 @@ import { FARMHOUSE_INTERIOR_ORIGIN } from "../../src/world/FarmhouseInterior";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
+import { isProduceContractType } from "../../src/simulation/domains/domainRules";
 
 function commitPlayerPose(simulation: Simulation, x: number, z: number): void {
   const { player, boats } = simulation.state;
@@ -160,7 +161,10 @@ describe("game loop cadence", () => {
 
     const active = sim.state.contracts.filter((contract) => contract.status === "active");
     expect(active.length).toBeGreaterThan(0);
-    expect(active.every((contract) => contract.type === "produce")).toBe(true);
+    // The claim is that no *fish* contract publishes before the boat and rod
+    // route exists. Bulk orders are item-lane produce and need neither, so
+    // assert the lane rather than the literal "produce" type.
+    expect(active.every((contract) => isProduceContractType(contract.type))).toBe(true);
     expect(active.some((contract) => contract.targetItemIdOrSpecies.startsWith("fish."))).toBe(false);
   });
 

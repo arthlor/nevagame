@@ -63,10 +63,21 @@ mechanical quest progress, rewards, and unlocks.
 
 ## Live story spine
 
-The current game has eighteen explicit quests in one stable `nextQuestId`
-chain. Sequences 1–10 are the accepted P12 loop; 11–13 are the focused P13
-stewardship postscript; 14–18 are Act 7's Sunreach land-sea route. `src/content/quests.ts` remains the source of exact
-copy, IDs, counts, costs, rewards, and objective data.
+The spine — `track.main` — is one stable `nextQuestId` chain of eighteen
+quests. Sequences 1–10 are the accepted P12 loop; 11–13 are the focused P13
+stewardship postscript; 14–18 are Act 7's Sunreach land-sea route.
+`src/content/quests.ts` remains the source of exact copy, IDs, counts, costs,
+rewards, and objective data, and `src/content/questTracks.ts` owns the tracks.
+
+Alongside it runs **`track.tides` — Reading the Water**, Silas's six-quest
+standing lesson, which opens when `quest.act5_maiden_voyage` completes. It
+exists so that every season-, hour- and weather-conditional objective in the
+game sits off the spine: at roughly six real hours per season, a story quest
+that waits for winter is a hard stop, while a side thread that waits is simply
+something to come back to. Its conditions are not authored as objective
+predicates — the ecology already decides which species a school can roll, so
+"land a pike" *is* the seasonal objective, expressed in machinery that already
+exists. A test asserts no seasonal species ever appears on the spine.
 
 | Sequence | Quest | Story beat | Mechanical bridge and consequence | Speaker |
 |---|---|---|---|---|
