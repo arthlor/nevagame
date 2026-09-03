@@ -1,6 +1,7 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import type { JournalPagesDto } from "../core/contracts";
 import type { GameState } from "../core/types";
+import { buildRecordMilestones } from "./buildRecordMilestones";
 
 export function buildJournalPagesDto(state: GameState): JournalPagesDto {
   const fishRecords = [...ContentRegistry.fishSpecies.values()]
@@ -40,6 +41,7 @@ export function buildJournalPagesDto(state: GameState): JournalPagesDto {
     knowledge: state.journal.unlockedKnowledge
       .map((id) => ContentRegistry.knowledge.get(id))
       .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-      .map((entry) => ({ id: entry.id, title: entry.title, summary: entry.summary }))
+      .map((entry) => ({ id: entry.id, title: entry.title, summary: entry.summary })),
+    records: buildRecordMilestones(state)
   };
 }

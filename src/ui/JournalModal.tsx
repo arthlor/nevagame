@@ -8,6 +8,7 @@ import { atlasForFish } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet, Meter } from "./coastal/CoastalUI";
 import { IconCompass, IconFish, IconJournal, IconSprout, IconTools } from "./components/HudIcons";
+import { RECORD_TIERS } from "../content/records";
 import { HowToPlayGuide } from "./components/HowToPlayGuide";
 import { playUiSound } from "./audio/uiAudio";
 
@@ -148,9 +149,60 @@ const StoryPage: React.FC<{
   );
 };
 
+/**
+ * The Records Board: standing goals that outlive the authored quest chain.
+ *
+ * All 34 milestones at once would be a wall, so each tier shows its completion
+ * count and the two closest to falling — which is the "what now" answer the
+ * game had no way to give once the story ran out.
+ */
+const RecordsBoard: React.FC<{ records: JournalPagesDto["records"] }> = ({ records }) => {
+  if (records.length === 0) return null;
+  const tiers = RECORD_TIERS
+    .map((tier) => {
+      const mine = records.filter((record) => record.tier === tier.id);
+      const open = mine
+        .filter((record) => !record.achieved)
+        .sort((a, b) => b.progress - a.progress)
+        .slice(0, 2);
+      return { tier, done: mine.filter((record) => record.achieved).length, total: mine.length, open };
+    })
+    .filter((row) => row.total > 0);
+
+  return (
+    <section aria-labelledby="journal-records-board" className="journal-records-board">
+      <h3 id="journal-records-board"><IconCompass size={16} aria-hidden="true" /> Standing records</h3>
+      {tiers.map(({ tier, done, total, open }) => (
+        <article key={tier.id} className="journal-record-tier">
+          <div className="journal-record-tier-head">
+            <strong>{tier.title}</strong>
+            <span>{done} / {total}</span>
+          </div>
+          {open.length === 0 ? (
+            <p className="journal-empty-copy">Every record here stands to your name.</p>
+          ) : open.map((record) => (
+            <div key={record.id} className="journal-record-goal">
+              <div><strong>{record.title}</strong><span>{record.detail}</span></div>
+              <Meter
+                label={record.title}
+                value={Math.round(record.progress * 100)}
+                max={100}
+                showLabel={false}
+                valueText={record.currentLabel}
+                variant="gold"
+              />
+            </div>
+          ))}
+        </article>
+      ))}
+    </section>
+  );
+};
+
 const RecordsPage: React.FC<{ pages: JournalPagesDto }> = ({ pages }) => (
   <section className="journal-page journal-records-page" aria-label="Records">
     <div className="journal-page-heading"><span>Records</span><h2>What you have learned</h2></div>
+    <RecordsBoard records={pages.records} />
     <div className="journal-record-columns">
       <section aria-labelledby="journal-fish-records">
         <h3 id="journal-fish-records"><IconFish size={16} aria-hidden="true" /> Fish</h3>

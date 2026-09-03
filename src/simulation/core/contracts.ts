@@ -1,5 +1,6 @@
 import type { ResolvedPhysicsFrame } from "./PhysicsAdapter";
 import type { QuestTrackId } from "./QuestTypes";
+import type { RecordTier } from "../../content/records";
 import type {
   BoatId,
   BasicFishingPhase,
@@ -281,6 +282,18 @@ export interface WorldMapDto {
   }>;
 }
 
+/** One standing goal on the Records Board, derived from `state.journal`. */
+export interface RecordMilestoneDto {
+  id: string;
+  tier: RecordTier;
+  title: string;
+  detail: string;
+  achieved: boolean;
+  /** 0..1, for a progress bar. */
+  progress: number;
+  currentLabel: string;
+}
+
 export interface JournalPagesDto {
   completedStories: ReadonlyArray<{ questId: string; title: string }>;
   fishRecords: ReadonlyArray<{
@@ -297,6 +310,7 @@ export interface JournalPagesDto {
     bestQuality: CropQuality | null;
   }>;
   knowledge: ReadonlyArray<{ id: string; title: string; summary: string }>;
+  records: ReadonlyArray<RecordMilestoneDto>;
 }
 
 export interface PauseSummaryDto {

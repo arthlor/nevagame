@@ -1216,6 +1216,43 @@
   box-shadow: none !important;
 }
 
+/* Records Board: standing goals above the per-species and per-crop logs. */
+#ui-container .journal-records-board {
+  display: grid;
+  gap: 10px;
+  margin-block-end: 18px;
+}
+
+#ui-container .journal-record-tier {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+#ui-container .journal-record-tier-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+#ui-container .journal-record-tier-head span {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.78;
+}
+
+#ui-container .journal-record-goal {
+  display: grid;
+  gap: 4px;
+}
+
+#ui-container .journal-record-goal span {
+  display: block;
+  opacity: 0.72;
+}
+
 #ui-container .journal-record-columns {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
