@@ -1,4 +1,5 @@
 import type { ResolvedPhysicsFrame } from "./PhysicsAdapter";
+import type { QuestTrackId } from "./QuestTypes";
 import type {
   BoatId,
   BasicFishingPhase,
@@ -537,7 +538,8 @@ export type GameCommand =
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }
   | { type: "quest.talk-npc"; npcId: string }
   | { type: "quest.claim-reward"; questId: string; npcId: string }
-  | { type: "quest.record-hint"; hintId: string };
+  | { type: "quest.record-hint"; hintId: string }
+  | { type: "quest.focus-track"; trackId: QuestTrackId };
 
 export type GameQuery =
   | { type: "market.nearby" }

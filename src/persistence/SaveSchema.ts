@@ -16,7 +16,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 28;
+export const CURRENT_SCHEMA_VERSION = 29;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -485,17 +485,33 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (
       !isRecord(quests) ||
       typeof quests.activeActId !== "string" ||
-      (quests.activeQuestId !== null && typeof quests.activeQuestId !== "string") ||
-      !isSafeInteger(quests.activeStepIndex, 0) ||
-      !isRecord(quests.stepProgress) ||
       !Array.isArray(quests.completedQuestIds) ||
-      !Array.isArray(quests.unlockedDialogueIds) ||
       !isRecord(quests.hintsShown)
     ) return false;
     if (schemaVersion >= 9 && (
       !Array.isArray(quests.unlockedFeatureIds) ||
       !quests.unlockedFeatureIds.every((featureId) => typeof featureId === "string")
     )) return false;
+    if (schemaVersion < 29) {
+      // Single-cursor shape, before quests were split across tracks.
+      if (
+        (quests.activeQuestId !== null && typeof quests.activeQuestId !== "string") ||
+        !isSafeInteger(quests.activeStepIndex, 0) ||
+        !isRecord(quests.stepProgress) ||
+        !Array.isArray(quests.unlockedDialogueIds)
+      ) return false;
+    } else {
+      if (typeof quests.focusedTrackId !== "string" || !isRecord(quests.tracks)) return false;
+      for (const progress of Object.values(quests.tracks)) {
+        if (
+          !isRecord(progress) ||
+          (progress.activeQuestId !== null && typeof progress.activeQuestId !== "string") ||
+          !isSafeInteger(progress.activeStepIndex, 0) ||
+          !isRecord(progress.stepProgress)
+        ) return false;
+      }
+      if (!isRecord(quests.tracks[quests.focusedTrackId as string])) return false;
+    }
   }
 
   return true;

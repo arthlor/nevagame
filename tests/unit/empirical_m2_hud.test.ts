@@ -149,6 +149,8 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
     it("renders active quest title, objective description, gold progress bar, and location pin", () => {
       const activeQuest: ActiveQuestDto = {
         questId: "quest.starter_harvest",
+        trackId: "track.main",
+        trackTitle: "The Neva Spine",
         actId: "act1_homestead",
         actTitle: "Act I: Coastal Horizons",
         questTitle: "The Autumn Harvest",

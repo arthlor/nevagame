@@ -5,6 +5,9 @@ import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from 
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { MAIN_QUEST_TRACK_ID, mainQuestTrack, type ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
+import { Simulation } from "../../src/simulation/Simulation";
+import saveV28Layout10 from "../fixtures/save_v28_layout10.json";
 
 describe("Quest State Persistence & Schema 10 Migration", () => {
   it("validates valid GameState with quests on CURRENT_SCHEMA_VERSION", () => {
@@ -43,8 +46,8 @@ describe("Quest State Persistence & Schema 10 Migration", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.quests).toBeDefined();
     expect(migrated.state.quests.activeActId).toBe("act1_homestead");
-    expect(migrated.state.quests.activeQuestId).toBe("quest.act1_welcome");
-    expect(migrated.state.quests.activeStepIndex).toBe(0);
+    expect(mainQuestTrack(migrated.state.quests).activeQuestId).toBe("quest.act1_welcome");
+    expect(mainQuestTrack(migrated.state.quests).activeStepIndex).toBe(0);
     expect(Array.isArray(migrated.state.quests.completedQuestIds)).toBe(true);
     expect(migrated.state.quests.unlockedFeatureIds).toEqual([]);
     expect(migrated.state.world.storySchoolSpawned).toBe(false);
@@ -68,9 +71,9 @@ describe("Quest State Persistence & Schema 10 Migration", () => {
       const state = createInitialGameState();
 
       // Advance quest step
-      state.quests.activeQuestId = "quest.act1_sow_wheat";
-      state.quests.activeStepIndex = 0;
-      state.quests.stepProgress = { "step.act1_sow_3_wheat": 2 };
+      mainQuestTrack(state.quests).activeQuestId = "quest.act1_sow_wheat";
+      mainQuestTrack(state.quests).activeStepIndex = 0;
+      mainQuestTrack(state.quests).stepProgress = { "step.act1_sow_3_wheat": 2 };
       state.quests.completedQuestIds = ["quest.act1_welcome"];
 
       const saveSuccess = await repo.saveGame(state);
@@ -78,8 +81,8 @@ describe("Quest State Persistence & Schema 10 Migration", () => {
 
       const loaded = await repo.loadGame();
       expect(loaded).not.toBeNull();
-      expect(loaded?.state.quests.activeQuestId).toBe("quest.act1_sow_wheat");
-      expect(loaded?.state.quests.stepProgress["step.act1_sow_3_wheat"]).toBe(2);
+      expect(loaded && mainQuestTrack(loaded.state.quests).activeQuestId).toBe("quest.act1_sow_wheat");
+      expect(loaded && mainQuestTrack(loaded.state.quests).stepProgress["step.act1_sow_3_wheat"]).toBe(2);
       expect(loaded?.state.quests.completedQuestIds).toContain("quest.act1_welcome");
     });
   });
@@ -103,5 +106,49 @@ describe("Quest State Persistence & Schema 10 Migration", () => {
     };
 
     expect(validateSaveEnvelope(envelope)).toBe(false);
+  });
+});
+
+describe("v28 -> v29 quest track migration", () => {
+  it("moves the single cursor onto the main track without replaying progress", () => {
+    const legacy = structuredClone(saveV28Layout10) as unknown as SaveEnvelope;
+    const legacyQuests = legacy.state.quests as unknown as Record<string, unknown>;
+    expect(legacyQuests.activeQuestId).toBe("quest.act1_water_crops");
+    expect(legacyQuests.unlockedDialogueIds).toEqual([]);
+    const moneyBefore = legacy.state.player.money;
+
+    const migrated = migrateSaveData(legacy);
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+
+    const track = mainQuestTrack(migrated.state.quests);
+    expect(track.activeQuestId).toBe("quest.act1_water_crops");
+    expect(track.activeStepIndex).toBe(0);
+    expect(track.stepProgress).toEqual({ "step.act1_water_3_crops": 2 });
+    expect(migrated.state.quests.focusedTrackId).toBe(MAIN_QUEST_TRACK_ID);
+
+    // Everything the cursor did not own survives untouched, and no reward is
+    // re-granted for the two quests this save had already completed.
+    expect(migrated.state.quests.completedQuestIds).toEqual([
+      "quest.act1_welcome",
+      "quest.act1_sow_wheat"
+    ]);
+    expect(migrated.state.quests.activeActId).toBe("act1_homestead");
+    expect(migrated.state.quests.hintsShown).toEqual({ "hint.farming_plant": true });
+    expect(migrated.state.player.money).toBe(moneyBefore);
+
+    // The dead field is gone rather than carried forward.
+    expect("unlockedDialogueIds" in migrated.state.quests).toBe(false);
+    expect("activeQuestId" in migrated.state.quests).toBe(false);
+  });
+
+  it("resumes the migrated save in the simulation on the same objective", () => {
+    const migrated = migrateSaveData(structuredClone(saveV28Layout10) as unknown as SaveEnvelope);
+    const resumed = new Simulation(migrated.state);
+    const active = resumed.query({ type: "quest.get-active" }) as ActiveQuestDto | null;
+    expect(active?.questId).toBe("quest.act1_water_crops");
+    expect(active?.trackId).toBe(MAIN_QUEST_TRACK_ID);
+    expect(active?.currentProgress).toBe(2);
   });
 });

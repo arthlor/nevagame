@@ -5,6 +5,7 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { CURRENT_SCHEMA_VERSION } from "../../src/persistence/SaveSchema";
 import { STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLayout";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 async function seedOldEpilogueSave(page: Page): Promise<void> {
   const simulation = new Simulation();
@@ -22,9 +23,9 @@ async function seedOldEpilogueSave(page: Page): Promise<void> {
   simulation.state.player.money = 500;
   simulation.state.quests.completedQuestIds = QUESTS.slice(0, 10).map((quest) => quest.id);
   simulation.state.quests.activeActId = "epilogue_open";
-  simulation.state.quests.activeQuestId = null;
-  simulation.state.quests.activeStepIndex = 0;
-  simulation.state.quests.stepProgress = {};
+  mainQuestTrack(simulation.state.quests).activeQuestId = null;
+  mainQuestTrack(simulation.state.quests).activeStepIndex = 0;
+  mainQuestTrack(simulation.state.quests).stepProgress = {};
   simulation.state.quests.unlockedFeatureIds = ["boat.player_rowboat", "feature.expedition_planner"];
   const inventory = simulation.state.inventories[simulation.state.player.inventoryId];
   expect(InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 1 }])).toBe(true);

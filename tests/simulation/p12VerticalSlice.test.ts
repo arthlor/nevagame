@@ -12,6 +12,7 @@ import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 function commitPlayerPose(simulation: Simulation, x: number, z: number, rotationY = 0): void {
   const { player, boats } = simulation.state;
@@ -76,14 +77,14 @@ function moveToStation(simulation: Simulation, stationId: string): void {
 }
 
 function activeQuestId(simulation: Simulation): string | null {
-  return simulation.state.quests.activeQuestId;
+  return mainQuestTrack(simulation.state.quests).activeQuestId;
 }
 
 function talkTo(simulation: Simulation, npcId: string): void {
   moveToNpc(simulation, npcId);
-  const before = simulation.state.quests.activeQuestId;
+  const before = mainQuestTrack(simulation.state.quests).activeQuestId;
   expect(simulation.execute({ type: "quest.talk-npc", npcId })).toMatchObject({ success: true });
-  if (simulation.state.quests.activeQuestId === before) {
+  if (mainQuestTrack(simulation.state.quests).activeQuestId === before) {
     expect(simulation.execute({ type: "quest.talk-npc", npcId })).toMatchObject({ success: true });
   }
 }
@@ -210,7 +211,7 @@ describe("P12 new-save vertical slice", () => {
       expect(planted).toMatchObject({ success: true });
       cropIds.push((planted as { placedCropId: string }).placedCropId);
     }
-    expect(simulation.state.quests.stepProgress).toEqual({ "step.act1_sow_3_wheat": 3 });
+    expect(mainQuestTrack(simulation.state.quests).stepProgress).toEqual({ "step.act1_sow_3_wheat": 3 });
     expect(activeQuestId(simulation)).toBe("quest.act1_sow_wheat");
     talkTo(simulation, "npc.elspeth");
     expect(activeQuestId(simulation)).toBe("quest.act1_water_crops");
@@ -221,7 +222,7 @@ describe("P12 new-save vertical slice", () => {
       commitPlayerPose(simulation, position.x, position.z);
       expect(simulation.execute({ type: "crop.water", placedCropId: cropId })).toMatchObject({ success: true });
     }
-    expect(simulation.state.quests.stepProgress).toEqual({ "step.act1_water_3_crops": 3 });
+    expect(mainQuestTrack(simulation.state.quests).stepProgress).toEqual({ "step.act1_water_3_crops": 3 });
     talkTo(simulation, "npc.elspeth");
     expect(activeQuestId(simulation)).toBe("quest.act2_harvest_and_compost");
 
@@ -261,7 +262,7 @@ describe("P12 new-save vertical slice", () => {
     expect(WorldLayout.nearbyFishingHabitat(bridge.x, bridge.z)).toBe("river");
     catchBasicFish(simulation);
     catchBasicFish(simulation);
-    expect(simulation.state.quests.stepProgress).toEqual({ "step.act3_catch_2_river_fish": 2 });
+    expect(mainQuestTrack(simulation.state.quests).stepProgress).toEqual({ "step.act3_catch_2_river_fish": 2 });
     talkTo(simulation, "npc.silas");
     expect(activeQuestId(simulation)).toBe("quest.act3_market_intro");
 
@@ -296,7 +297,7 @@ describe("P12 new-save vertical slice", () => {
     const cargoId = landSportFish(simulation);
     const cargo = simulation.state.fishCargo[cargoId];
     expect(cargo.location).toMatchObject({ type: "boat-hold", containerId: "boat.player_rowboat", slotIndex: 0 });
-    expect(simulation.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(simulation.state.quests).stepProgress).toEqual({});
     expect(cargo.freshness).toBe(100);
 
     simulation.advanceGameMinutes(10);
@@ -320,7 +321,7 @@ describe("P12 new-save vertical slice", () => {
     expect(finalSave).not.toBeNull();
     expect(validateSaveEnvelope(finalSave)).toBe(true);
     const reloaded = new Simulation(finalSave!.state);
-    expect(reloaded.state.quests.activeQuestId).toBe("quest.act6_harbor_promise");
+    expect(mainQuestTrack(reloaded.state.quests).activeQuestId).toBe("quest.act6_harbor_promise");
     expect(reloaded.state.quests.completedQuestIds).toEqual(simulation.state.quests.completedQuestIds);
     expect(reloaded.state.player.activeBoatId).toBeNull();
     expect(reloaded.state.fishCargo).toEqual({});

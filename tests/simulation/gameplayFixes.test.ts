@@ -25,6 +25,7 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { FERTILITY_RESTORE } from "../../src/simulation/domains/FarmingDomain";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 
 function movePlayerToProcessingFront(simulation: Simulation, stationId: string): void {
@@ -960,6 +961,17 @@ describe("Gameplay simulation fixes", () => {
     legacy.world.layoutRevision = 3;
     delete legacy.world.structures[HARBOR_FISH_TABLE.structureId];
     legacy.world.structures["struct.workbench"].y = 0;
+    // A real v9 save predates quest tracks: it carries one cursor and the
+    // since-removed `unlockedDialogueIds`, which is what the validator checks
+    // for below-v29 envelopes.
+    const legacyQuests = legacy.quests as unknown as Record<string, unknown>;
+    const migratedTrack = mainQuestTrack(legacy.quests);
+    legacyQuests.activeQuestId = migratedTrack.activeQuestId;
+    legacyQuests.activeStepIndex = migratedTrack.activeStepIndex;
+    legacyQuests.stepProgress = migratedTrack.stepProgress;
+    legacyQuests.unlockedDialogueIds = [];
+    delete legacyQuests.tracks;
+    delete legacyQuests.focusedTrackId;
     const envelope = { schemaVersion: 9, savedAtUtcMs: 1, state: legacy };
     expect(validateSaveEnvelope(envelope)).toBe(true);
     const migrated = migrateSaveData(envelope);

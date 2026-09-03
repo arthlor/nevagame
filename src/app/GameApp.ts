@@ -133,6 +133,7 @@ import { createStartupState, type StartupState } from "./StartupState";
 import { createInitialGameState } from "../simulation/core/createInitialState";
 import { SessionRecorder } from "../telemetry/SessionRecorder";
 import { attachTelemetry } from "../telemetry/attachTelemetry";
+import { focusedQuestTrack } from "../simulation/core/QuestTypes";
 
 interface FishingHoldInput {
   isReeling: boolean;
@@ -1459,7 +1460,7 @@ export class GameApp {
       attachTelemetry(this.sim.events, this.telemetry, {
         gameMinute: () => this.sim.state.clock.currentMinute,
         realElapsedMs: () => performance.now() - this.telemetryStartedAtMs,
-        activeQuestId: () => this.sim.state.quests.activeQuestId
+        activeQuestId: () => focusedQuestTrack(this.sim.state.quests).activeQuestId
       }),
       bindDomainAudio(this.sim.events, () => {
         const player = this.lastPresentedPlayer ?? this.sim.state.player;
@@ -2945,9 +2946,10 @@ export class GameApp {
           starterDonkeyPosition: this.sim.state.mounts[STARTER_DONKEY_ID]
             ? { ...this.sim.state.mounts[STARTER_DONKEY_ID] }
             : null,
-          activeQuestId: this.sim.state.quests.activeQuestId,
-          activeQuestStepIndex: this.sim.state.quests.activeStepIndex,
-          activeQuestStepProgress: { ...this.sim.state.quests.stepProgress },
+          activeQuestId: focusedQuestTrack(this.sim.state.quests).activeQuestId,
+          activeQuestStepIndex: focusedQuestTrack(this.sim.state.quests).activeStepIndex,
+          activeQuestStepProgress: { ...focusedQuestTrack(this.sim.state.quests).stepProgress },
+          focusedTrackId: this.sim.state.quests.focusedTrackId,
           activeActId: this.sim.state.quests.activeActId,
           completedQuestIds: [...this.sim.state.quests.completedQuestIds],
           money: this.sim.state.player.money,

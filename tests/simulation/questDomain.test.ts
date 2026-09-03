@@ -5,6 +5,7 @@ import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 describe("QuestDomain & Storyline Progression", () => {
   it("chains every authored quest until the final epilogue quest", () => {
@@ -40,7 +41,7 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(intro.success).toBe(true);
     expect(intro.dialogue).toBeDefined();
     expect(intro.dialogue!.length).toBeGreaterThan(0);
-    expect(sim.state.quests.activeQuestId).toBe("quest.act1_welcome");
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act1_welcome");
     const talkResult = sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" }) as { success: boolean; dialogue?: string[] };
     expect(talkResult.success).toBe(true);
 
@@ -50,7 +51,7 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(nextQuest.questId).toBe("quest.act1_sow_wheat");
     expect(nextQuest.actId).not.toBe("epilogue_open");
     expect(sim.state.quests.activeActId).toBe("act1_homestead");
-    expect(sim.state.quests.activeQuestId).toBe("quest.act1_sow_wheat");
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act1_sow_wheat");
     expect(nextQuest.currentProgress).toBe(0);
     expect(nextQuest.targetQuantity).toBe(3);
 
@@ -230,7 +231,7 @@ describe("QuestDomain & Storyline Progression", () => {
 
     sim.questDomain.onObjectiveEvent("plant-crop", undefined, 1, { kind: "farm", id: "farm.starter_garden" });
     sim.questDomain.onObjectiveEvent("plant-crop", "crop.wheat", 1, { kind: "farm", id: "farm.player_homestead" });
-    expect(sim.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
 
     sim.state.player.x = 0;
     sim.state.player.z = 0;
@@ -250,16 +251,16 @@ describe("QuestDomain & Storyline Progression", () => {
     sim.state.player.z = silas.anchor.z;
     expect(sim.canBoardBoat("boat.player_rowboat")).toBe(false);
 
-    sim.state.quests.activeQuestId = "quest.act4_restore_rowboat";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = { "step.act4_restore_rowboat_silas": 1 };
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act4_restore_rowboat";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = { "step.act4_restore_rowboat_silas": 1 };
     expect(InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.ground_grain", quantity: 1 }])).toBe(true);
 
     const commission = sim.execute({ type: "quest.talk-npc", npcId: "npc.silas" });
     expect(commission.success).toBe(true);
     expect(sim.state.player.money).toBe(70);
     expect(sim.state.quests.unlockedFeatureIds).toContain("boat.player_rowboat");
-    expect(sim.state.quests.activeQuestId).toBe("quest.act5_maiden_voyage");
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act5_maiden_voyage");
 
     sim.advanceGameMinutes(1);
     const schools = Object.values(sim.state.world.activeSchools);
@@ -276,9 +277,9 @@ describe("QuestDomain & Storyline Progression", () => {
     const speaker = ContentRegistry.npcs.get("npc.elspeth")!;
     sim.state.player.x = speaker.anchor.x;
     sim.state.player.z = speaker.anchor.z;
-    sim.state.quests.activeQuestId = "quest.act1_welcome";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = { "step.act1_welcome_talk": 1 };
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act1_welcome";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = { "step.act1_welcome_talk": 1 };
 
     const result = sim.execute({
       type: "quest.claim-reward",
@@ -288,16 +289,16 @@ describe("QuestDomain & Storyline Progression", () => {
 
     expect(result).toMatchObject({ success: true, rewardMoney: undefined });
     expect(sim.state.quests.completedQuestIds).toContain("quest.act1_welcome");
-    expect(sim.state.quests.activeQuestId).toBe("quest.act1_sow_wheat");
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act1_sow_wheat");
   });
 
 
   it("counts one harvest-crop plant toward Act 2, not produce yield", () => {
     const sim = new Simulation();
     sim.state.quests.activeActId = "act2_processing";
-    sim.state.quests.activeQuestId = "quest.act2_harvest_and_compost";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act2_harvest_and_compost";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
 
     const cropIds: string[] = [];
     for (let i = 0; i < 3; i++) {
@@ -334,15 +335,15 @@ describe("QuestDomain & Storyline Progression", () => {
       expect(sim.harvestCrop(cropId).success).toBe(true);
     }
 
-    expect(sim.state.quests.activeQuestId).toBe("quest.act2_harvest_and_compost");
-    expect(sim.state.quests.activeStepIndex).toBe(1);
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act2_harvest_and_compost");
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(1);
   });
 
   it("advances the Act 5 land step before the physical stow event", () => {
     const sim = new Simulation();
-    sim.state.quests.activeQuestId = "quest.act5_maiden_voyage";
-    sim.state.quests.activeStepIndex = 3;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act5_maiden_voyage";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 3;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
 
     sim.events.emit("FishLanded", {
       cargoId: "cargo.test",
@@ -353,8 +354,8 @@ describe("QuestDomain & Storyline Progression", () => {
       quality: "common",
       minute: sim.state.clock.currentMinute
     });
-    expect(sim.state.quests.activeStepIndex).toBe(4);
-    expect(sim.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(4);
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
 
     sim.events.emit("CargoLoaded", {
       cargoId: "cargo.test",
@@ -362,15 +363,15 @@ describe("QuestDomain & Storyline Progression", () => {
       slotIndex: 0,
       minute: sim.state.clock.currentMinute
     });
-    expect(sim.state.quests.activeStepIndex).toBe(5);
-    expect(sim.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(5);
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
   });
 
   it("counts player-carry shore landings as land and stow so Act 5 cannot softlock", () => {
     const sim = new Simulation();
-    sim.state.quests.activeQuestId = "quest.act5_maiden_voyage";
-    sim.state.quests.activeStepIndex = 3;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act5_maiden_voyage";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 3;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
 
     sim.events.emit("FishLanded", {
       cargoId: "cargo.carry",
@@ -380,16 +381,16 @@ describe("QuestDomain & Storyline Progression", () => {
       quality: "common",
       minute: sim.state.clock.currentMinute
     });
-    expect(sim.state.quests.activeStepIndex).toBe(5);
-    expect(sim.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(5);
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
   });
 
   it("requires the Act 7 Sea Bream to land in the player skiff", () => {
     const sim = new Simulation();
     sim.state.quests.activeActId = "act7_sunreach";
-    sim.state.quests.activeQuestId = "quest.act7_reef_answer";
-    sim.state.quests.activeStepIndex = 1;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act7_reef_answer";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 1;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
 
     sim.events.emit("BasicFishingResolved", {
       ecologyId: "ecology.sunreach",
@@ -398,10 +399,10 @@ describe("QuestDomain & Storyline Progression", () => {
       quality: "fine",
       minute: sim.state.clock.currentMinute
     });
-    expect(sim.state.quests.activeStepIndex).toBe(2);
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(2);
 
-    sim.state.quests.activeStepIndex = 1;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeStepIndex = 1;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
     sim.events.emit("BasicFishingResolved", {
       ecologyId: "ecology.sunreach",
       habitatId: "coast",
@@ -410,6 +411,6 @@ describe("QuestDomain & Storyline Progression", () => {
       quality: "fine",
       minute: sim.state.clock.currentMinute
     });
-    expect(sim.state.quests.activeStepIndex).toBe(3);
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(3);
   });
 });

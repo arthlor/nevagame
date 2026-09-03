@@ -19,6 +19,7 @@ import { HARBOR_DOCK, HARBOR_MARKET, VILLAGE_MARKET } from "../../src/world/Worl
 import { WorldLayout } from "../../src/world/WorldLayout";
 import type { ResolvedPhysicsFrame } from "../../src/simulation/core/PhysicsAdapter";
 import type { FishQuality } from "../../src/simulation/core/types";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 function commitPlayerPose(simulation: Simulation, x: number, z: number): void {
   const { player, boats } = simulation.state;
@@ -191,7 +192,7 @@ describe("Hunt fixes 2026", () => {
     commitPlayerPose(sim, well.x, well.z);
     sim.state.player.money = 500;
     expect(sim.execute({ type: "farm.buy-irrigation" }).success).toBe(false);
-    sim.state.quests.activeQuestId = "quest.act6_field_pump";
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_field_pump";
     expect(sim.execute({ type: "farm.buy-irrigation" }).success).toBe(true);
   });
 
@@ -268,13 +269,13 @@ describe("Hunt fixes 2026", () => {
     sim.state.player.x = silas.anchor.x;
     sim.state.player.z = silas.anchor.z;
     sim.state.player.money = 0;
-    sim.state.quests.activeQuestId = "quest.act4_restore_rowboat";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act4_restore_rowboat";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
     const intro = sim.execute({ type: "quest.talk-npc", npcId: "npc.silas" }) as { success: boolean; dialogue?: string[] };
     expect(intro.success).toBe(true);
     expect(intro.dialogue?.length).toBeGreaterThan(0);
-    expect(sim.state.quests.activeQuestId).toBe("quest.act4_restore_rowboat");
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act4_restore_rowboat");
     expect(sim.state.quests.unlockedFeatureIds.includes("boat.player_rowboat")).toBe(false);
   });
 });

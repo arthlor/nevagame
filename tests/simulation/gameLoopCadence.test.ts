@@ -25,6 +25,7 @@ import { STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLa
 import { FARMHOUSE_INTERIOR_ORIGIN } from "../../src/world/FarmhouseInterior";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 function commitPlayerPose(simulation: Simulation, x: number, z: number): void {
   const { player, boats } = simulation.state;
@@ -232,7 +233,7 @@ describe("game loop cadence", () => {
 
     const well = farmWellWorldAnchor("farm.starter_garden")!;
     commitPlayerPose(sim, well.x, well.z);
-    sim.state.quests.activeQuestId = "quest.act6_field_pump";
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_field_pump";
     const purchase = sim.execute({ type: "farm.buy-irrigation" });
     expect(purchase).toMatchObject({ success: true, cost: IRRIGATION_COST });
     expect(sim.state.quests.unlockedFeatureIds).toContain(IRRIGATION_FEATURE_ID);

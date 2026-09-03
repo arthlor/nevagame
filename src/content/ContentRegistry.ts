@@ -25,6 +25,8 @@ import { LIVE_FEATURE_IDS, PROFICIENCY_RANKS, rankIndexForRequirement } from "./
 import { CONTRACT_TEMPLATES } from "./contracts";
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
+import { QUEST_TRACKS } from "./questTracks";
+import type { QuestTrackDefinition } from "../simulation/core/QuestTypes";
 import { KNOWLEDGE_ENTRIES, type KnowledgeEntryDefinition } from "./knowledge";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
 import { FISHING_ECOLOGY_DEFINITIONS } from "../world/WorldIslands";
@@ -44,6 +46,9 @@ export class ContentRegistry {
   );
   public static readonly npcs: ReadonlyMap<string, NpcDefinition> = new Map(NPCS.map((n) => [n.id, n]));
   public static readonly quests: ReadonlyMap<string, QuestDefinition> = new Map(QUESTS.map((q) => [q.id, q]));
+  public static readonly questTracks: ReadonlyMap<string, QuestTrackDefinition> = new Map(
+    QUEST_TRACKS.map((track) => [track.id, track])
+  );
   public static readonly knowledge: ReadonlyMap<string, KnowledgeEntryDefinition> = new Map(Object.entries(KNOWLEDGE_ENTRIES));
 
   private static isInitialized = false;
@@ -240,17 +245,30 @@ export class ContentRegistry {
       }
     }
 
+    // One chain per track, walked from that track's entry quest. A quest must
+    // be reachable from its own track, and a chain may never cross tracks —
+    // that is what keeps parallel tracks parallel rather than branching.
     const visited = new Set<string>();
-    let cursor: string | undefined = "quest.act1_welcome";
-    while (cursor) {
-      if (visited.has(cursor)) throw new Error(`Quest chain cycle detected at '${cursor}'`);
-      visited.add(cursor);
-      const quest = questMap.get(cursor);
-      if (!quest) throw new Error(`Quest chain references missing quest '${cursor}'`);
-      cursor = quest.nextQuestId;
+    for (const track of QUEST_TRACKS) {
+      let cursor: string | undefined = track.entryQuestId;
+      while (cursor) {
+        if (visited.has(cursor)) throw new Error(`Quest chain cycle detected at '${cursor}'`);
+        visited.add(cursor);
+        const quest: QuestDefinition | undefined = questMap.get(cursor);
+        if (!quest) throw new Error(`Quest chain references missing quest '${cursor}'`);
+        if (quest.trackId !== track.id) {
+          throw new Error(`Quest '${quest.id}' is on track '${quest.trackId}' but chained from '${track.id}'`);
+        }
+        cursor = quest.nextQuestId;
+      }
+    }
+    for (const quest of definitions) {
+      if (!this.questTracks.has(quest.trackId)) {
+        throw new Error(`Quest '${quest.id}' references unknown track '${quest.trackId}'`);
+      }
     }
     const unreachable = definitions.filter((quest) => !visited.has(quest.id)).map((quest) => quest.id);
-    if (unreachable.length) throw new Error(`Unreachable main-story quests: ${unreachable.join(", ")}`);
+    if (unreachable.length) throw new Error(`Unreachable quests: ${unreachable.join(", ")}`);
   }
 
   private static validateItemBatch(questId: string, label: string, items: Array<{ itemId: string; quantity: number }> | undefined): void {

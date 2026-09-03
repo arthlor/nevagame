@@ -85,6 +85,28 @@ async function putRawSave(key: string, value: unknown): Promise<void> {
   });
 }
 
+/**
+ * The v29 shape of a pre-v29 quest state: the single cursor becomes the main
+ * track's cursor and the never-read `unlockedDialogueIds` is dropped. Used so
+ * the migration fixtures still assert "nothing else changed" rather than
+ * demanding a shape the migration deliberately replaces.
+ */
+function questsAfterTrackMigration(legacyQuests: Record<string, unknown>): Record<string, unknown> {
+  const { activeQuestId, activeStepIndex, stepProgress, unlockedDialogueIds, ...carried } = legacyQuests;
+  void unlockedDialogueIds;
+  return {
+    ...carried,
+    tracks: {
+      "track.main": {
+        activeQuestId: (activeQuestId as string | null | undefined) ?? null,
+        activeStepIndex: (activeStepIndex as number | undefined) ?? 0,
+        stepProgress: (stepProgress as Record<string, number> | undefined) ?? {}
+      }
+    },
+    focusedTrackId: "track.main"
+  };
+}
+
 describe("Persistence & Offline Progression", () => {
   it("does not report a durable save when IndexedDB is unavailable", async () => {
     const previous = (globalThis as { indexedDB?: IDBFactory }).indexedDB;
@@ -730,7 +752,9 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.farms).toEqual(preserved.farms);
     expect(migrated.state.inventories).toEqual(preserved.inventory);
     expect(migrated.state.fishCargo).toEqual(preserved.cargo);
-    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.quests).toEqual(
+      questsAfterTrackMigration(preserved.quests as unknown as Record<string, unknown>)
+    );
     expect(migrated.state.journal).toEqual(preserved.journal);
     expect(migrated.state.player.proficiencies).toEqual(preserved.proficiencies);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
@@ -786,7 +810,9 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.inventories).toEqual(preserved.inventories);
     expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
     expect(migrated.state.markets["market.fixture"]).toEqual(preserved.markets["market.fixture"]);
-    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.quests).toEqual(
+      questsAfterTrackMigration(preserved.quests as unknown as Record<string, unknown>)
+    );
     expect(migrated.state.boats).toEqual(preserved.boats);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
   });
@@ -920,7 +946,9 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.inventories).toEqual(preserved.inventories);
     expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
     expect(migrated.state.markets["market.fixture"]).toEqual(preserved.markets["market.fixture"]);
-    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.quests).toEqual(
+      questsAfterTrackMigration(preserved.quests as unknown as Record<string, unknown>)
+    );
     expect(migrated.state.boats).toEqual(preserved.boats);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
   });
@@ -1332,7 +1360,9 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.crops).toEqual(preserved.crops);
     expect(migrated.state.inventories).toEqual(preserved.inventories);
     expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);
-    expect(migrated.state.quests).toEqual(preserved.quests);
+    expect(migrated.state.quests).toEqual(
+      questsAfterTrackMigration(preserved.quests as unknown as Record<string, unknown>)
+    );
     expect(migrated.state.contracts.map((contract) => ({
       id: contract.id,
       status: contract.status,

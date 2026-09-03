@@ -1,6 +1,6 @@
 // src/content/quests.ts
 
-import type { QuestDefinition } from "../simulation/core/QuestTypes";
+import { MAIN_QUEST_TRACK_ID, type QuestDefinition } from "../simulation/core/QuestTypes";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
@@ -24,6 +24,7 @@ export const QUESTS: QuestDefinition[] = [
   // ==========================================
   {
     id: "quest.act1_welcome",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
     questTitle: "The Inherited Soil",
@@ -55,6 +56,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act1_sow_wheat",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
     questTitle: "Sowing the First Furrows",
@@ -85,6 +87,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act1_water_crops",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
     questTitle: "Morning Dew & Moisture",
@@ -118,6 +121,7 @@ export const QUESTS: QuestDefinition[] = [
   // ==========================================
   {
     id: "quest.act2_harvest_and_compost",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act2_processing",
     actTitle: "Act 2: From Grain to Bait",
     questTitle: "The Cycle of the Soil",
@@ -158,6 +162,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act2_mill_and_craft_chum",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act2_processing",
     actTitle: "Act 2: From Grain to Bait",
     questTitle: "Milling & Mixing Chum",
@@ -205,6 +210,7 @@ export const QUESTS: QuestDefinition[] = [
   // ==========================================
   {
     id: "quest.act3_river_angler",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act3_river",
     actTitle: "Act 3: The River's Whispers",
     questTitle: "Reading the Currents",
@@ -235,6 +241,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act3_market_intro",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act3_river",
     actTitle: "Act 3: The River's Whispers",
     questTitle: "Fair Trade at the Village",
@@ -268,6 +275,7 @@ export const QUESTS: QuestDefinition[] = [
   // ==========================================
   {
     id: "quest.act4_harbor_journey",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act4_harbor",
     actTitle: "Act 4: The Harbor Call",
     questTitle: "Journey to the Salt",
@@ -298,6 +306,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act4_restore_rowboat",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act4_harbor",
     actTitle: "Act 4: The Harbor Call",
     questTitle: "Commissioning the Old Rowboat",
@@ -335,6 +344,7 @@ export const QUESTS: QuestDefinition[] = [
   // ==========================================
   {
     id: "quest.act5_maiden_voyage",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act5_expedition",
     actTitle: "Act 5: The Maiden Expedition",
     questTitle: "The Call of the Deep",
@@ -432,6 +442,7 @@ export const QUESTS: QuestDefinition[] = [
   // ==========================================
   {
     id: "quest.act6_harbor_promise",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act6_stewardship",
     actTitle: "Act 6: Stewardship",
     questTitle: "A Promise Made at the Board",
@@ -462,6 +473,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act6_field_pump",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act6_stewardship",
     actTitle: "Act 6: Stewardship",
     questTitle: "Water Where It Matters",
@@ -501,6 +513,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act6_land_sea_cycle",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act6_stewardship",
     actTitle: "Act 6: Stewardship",
     questTitle: "The Land-Sea Cycle",
@@ -542,6 +555,7 @@ export const QUESTS: QuestDefinition[] = [
 
   {
     id: "quest.act7_open_channel",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act7_sunreach",
     actTitle: "Act 7: Sunreach",
     questTitle: "Across the Open Channel",
@@ -596,6 +610,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act7_terraces_for_the_sun",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act7_sunreach",
     actTitle: "Act 7: Sunreach",
     questTitle: "Terraces for the Sun",
@@ -617,6 +632,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act7_seed_for_the_sea",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act7_sunreach",
     actTitle: "Act 7: Sunreach",
     questTitle: "Seed for the Sea",
@@ -636,6 +652,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act7_reef_answer",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act7_sunreach",
     actTitle: "Act 7: Sunreach",
     questTitle: "The Reef's Answer",
@@ -657,6 +674,7 @@ export const QUESTS: QuestDefinition[] = [
   },
   {
     id: "quest.act7_land_sea_cycle",
+    trackId: MAIN_QUEST_TRACK_ID,
     actId: "act7_sunreach",
     actTitle: "Act 7: Sunreach",
     questTitle: "The Sunreach Land-Sea Cycle",

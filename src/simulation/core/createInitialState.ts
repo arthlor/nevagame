@@ -14,6 +14,7 @@ import { SeededRng } from "./Rng";
 import { applyWeatherProfile, rollWeatherType, WEATHER_FRONT_MIN_MINUTES } from "../weather/updateWeather";
 import { createStarterDonkeyState } from "../mounts/Mounts";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../../world/WorldGameplayLocations";
+import { MAIN_QUEST_TRACK_ID } from "./QuestTypes";
 
 function structureOnTerrain(
   id: StructureId,
@@ -214,11 +215,15 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     },
     quests: {
       activeActId: "act1_homestead",
-      activeQuestId: "quest.act1_welcome",
-      activeStepIndex: 0,
-      stepProgress: {},
+      tracks: {
+        [MAIN_QUEST_TRACK_ID]: {
+          activeQuestId: "quest.act1_welcome",
+          activeStepIndex: 0,
+          stepProgress: {}
+        }
+      },
+      focusedTrackId: MAIN_QUEST_TRACK_ID,
       completedQuestIds: [],
-      unlockedDialogueIds: [],
       unlockedFeatureIds: [],
       hintsShown: {}
     },

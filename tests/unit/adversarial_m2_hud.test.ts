@@ -414,6 +414,8 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
     it("clamps progress to targetQuantity when currentProgress exceeds target", () => {
       const overCompleteQuest: ActiveQuestDto = {
         questId: "quest.harvest_extra",
+        trackId: "track.main",
+        trackTitle: "The Neva Spine",
         actId: "act1_homestead",
         actTitle: "Act I: Coastal Horizons",
         questTitle: "Abundant Harvest",
@@ -441,6 +443,8 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
     it("handles single-target quests (targetQuantity = 1) by omitting progress bar", () => {
       const singleTargetQuest: ActiveQuestDto = {
         questId: "quest.speak_elder",
+        trackId: "track.main",
+        trackTitle: "The Neva Spine",
         actId: "act1_homestead",
         actTitle: "Act I: Coastal Horizons",
         questTitle: "Seek the Elder",

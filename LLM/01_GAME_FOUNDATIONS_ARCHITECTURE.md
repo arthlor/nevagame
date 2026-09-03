@@ -145,7 +145,7 @@ tests/ unit/ simulation/ integration/ fixtures/ e2e/
 
 # 6. Canonical State, IDs, RNG & Time
 
-Representative state (`CURRENT_SCHEMA_VERSION = 28`, `world.layoutRevision = 10`):
+Representative state (`CURRENT_SCHEMA_VERSION = 29`, `world.layoutRevision = 10`):
 ```ts
 interface GameState {
   schemaVersion: number;
@@ -165,7 +165,7 @@ interface GameState {
   markets: Record<MarketId, MarketState>;
   contracts: ContractState[];
   journal: JournalState;
-  quests: QuestState; // nextQuestId chain; completed IDs; feature/knowledge unlocks
+  quests: QuestState; // one cursor per track; completed IDs; feature/knowledge unlocks
   metadata: GameMetadata;
 }
 ```
@@ -199,6 +199,7 @@ save-sensitive protocol in `03` §25.
 | v26 | 9 → 10 | Adds `island.sunreach`, its terrain patch, regions, warm climate, fishing ecology, farm, stations, cove market, and mooring. Existing schools derive ecology from position; an in-flight basic cast becomes `ecology.neva`; contracts gain their content-owned delivery market. | Preserves existing Neva player/boat/mount/crop/farm/inventory/cargo/quest/reward/RNG truth and adds only missing registry-owned Sunreach state. Covered by `tests/fixtures/save_v25_layout9.json`, `tests/simulation/persistence.test.ts`, and `tests/unit/sunreachWorld.test.ts`. |
 | v27 | 10 | Moves the mount gallop budget onto each persisted mount: stamina, recovery delay, and exhaustion. Existing mounts start rested when these fields are absent. | No world move. Preserves rider sprint state and all non-mount truth; validation bounds the new fields through `MOUNT_TUNING`. |
 | v28 | 10 | Adds explicit prepared-lure state, per-ecology/habitat fishing pressure and cooldown, plus hook-time tackle and sea-condition snapshots on active sport-fishing encounters. It backfills only absent dynamics members; validation now uses the hooked species' authored leap/dive bounds and covers every persisted dynamics field. | No world move. Defaults absent fields in place without changing any already-persisted active-fish dynamics or landing progress, cargo, school association, Work, progression, or either RNG stream. Save-fixture and migration-test evidence remain pending under the source-only no-tests boundary. |
+| v29 | 10 | Splits quest progress into one cursor per track. `QuestState.activeQuestId` / `activeStepIndex` / `stepProgress` become `tracks: Record<QuestTrackId, QuestTrackProgress>` plus `focusedTrackId`, and `unlockedDialogueIds` is dropped — it was declared, validated and migrated since v8 without ever being read or written. | No world move. The single pre-v29 cursor becomes `track.main` verbatim, so no objective progress, reward or completion is replayed or lost; `activeActId`, `completedQuestIds`, `unlockedFeatureIds` and `hintsShown` carry through untouched. Fixture `tests/fixtures/save_v28_layout10.json` with migration and resume coverage in `tests/simulation/questPersistence.test.ts`. |
 
 Fishing uses a 60 Hz encounter step independently of render frames. No offline
 fight advancement is introduced.

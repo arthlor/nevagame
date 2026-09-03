@@ -1,17 +1,22 @@
 // src/simulation/domains/QuestDomain.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { getRankForXp } from "../../content/progression";
 import type { NpcDefinition } from "../../content/npcs";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
-import type {
-  ActiveQuestDto,
-  NpcId,
-  QuestDefinition,
-  QuestId,
-  QuestLocationRequirement,
-  QuestObjectiveType
+import {
+  MAIN_QUEST_TRACK_ID,
+  activeQuestTrackIds,
+  questTrackProgress,
+  type ActiveQuestDto,
+  type NpcId,
+  type QuestDefinition,
+  type QuestId,
+  type QuestLocationRequirement,
+  type QuestObjectiveType,
+  type QuestTrackId
 } from "../core/QuestTypes";
 import type { InteractionResult } from "../core/contracts";
 import type { GameState } from "../core/types";
@@ -22,36 +27,58 @@ const NPC_TALK_RADIUS = 3.5;
 type ObjectiveEventLocation = QuestLocationRequirement;
 
 /**
- * Content-chain reconciliation for saves that reached the former epilogue.
- * It activates newly appended authored content without replaying any reward.
+ * Content-chain reconciliation for saves whose track ran out of authored
+ * content. It activates newly appended quests without replaying any reward.
+ *
+ * Runs per track, so appending to one chain never disturbs another's cursor.
  */
 export function reconcileInactiveQuestChain(state: GameState): boolean {
-  if (state.quests.activeQuestId !== null) return false;
   const completed = new Set(state.quests.completedQuestIds);
-  for (let index = state.quests.completedQuestIds.length - 1; index >= 0; index -= 1) {
-    const completedQuest = ContentRegistry.quests.get(state.quests.completedQuestIds[index]);
-    const nextQuest = completedQuest?.nextQuestId
-      ? ContentRegistry.quests.get(completedQuest.nextQuestId)
-      : undefined;
-    if (!nextQuest || completed.has(nextQuest.id)) continue;
-    state.quests.activeActId = nextQuest.actId;
-    state.quests.activeQuestId = nextQuest.id;
-    state.quests.activeStepIndex = 0;
-    state.quests.stepProgress = {};
-    reconcileSatisfiedQuestObjectives(state);
-    return true;
+  let activated = false;
+  for (const track of ContentRegistry.questTracks.values()) {
+    const progress = questTrackProgress(state.quests, track.id);
+    if (progress.activeQuestId !== null) continue;
+    for (let index = state.quests.completedQuestIds.length - 1; index >= 0; index -= 1) {
+      const completedQuest = ContentRegistry.quests.get(state.quests.completedQuestIds[index]);
+      if (completedQuest?.trackId !== track.id) continue;
+      const nextQuest = completedQuest.nextQuestId
+        ? ContentRegistry.quests.get(completedQuest.nextQuestId)
+        : undefined;
+      if (!nextQuest || completed.has(nextQuest.id)) continue;
+      if (track.id === MAIN_QUEST_TRACK_ID) state.quests.activeActId = nextQuest.actId;
+      progress.activeQuestId = nextQuest.id;
+      progress.activeStepIndex = 0;
+      progress.stepProgress = {};
+      reconcileSatisfiedQuestObjectives(state, track.id);
+      activated = true;
+      break;
+    }
   }
-  return false;
+  return activated;
 }
 
-export function reconcileSatisfiedQuestObjectives(state: GameState): boolean {
-  const quest = state.quests.activeQuestId
-    ? ContentRegistry.quests.get(state.quests.activeQuestId)
+/**
+ * Auto-satisfies objectives whose target the player already owns, so a save
+ * that bought the skiff before the quest asked for it cannot softlock.
+ * Reconciles every track when no track id is given.
+ */
+export function reconcileSatisfiedQuestObjectives(state: GameState, trackId?: QuestTrackId): boolean {
+  if (trackId === undefined) {
+    let changed = false;
+    for (const id of Object.keys(state.quests.tracks)) {
+      if (reconcileSatisfiedQuestObjectives(state, id)) changed = true;
+    }
+    return changed;
+  }
+
+  const progress = questTrackProgress(state.quests, trackId);
+  const quest = progress.activeQuestId
+    ? ContentRegistry.quests.get(progress.activeQuestId)
     : undefined;
   if (!quest) return false;
   let changed = false;
-  while (state.quests.activeStepIndex < quest.objectives.length) {
-    const objective = quest.objectives[state.quests.activeStepIndex];
+  while (progress.activeStepIndex < quest.objectives.length) {
+    const objective = quest.objectives[progress.activeStepIndex];
     if (!objective?.targetId) break;
     const alreadySatisfied =
       (objective.type === "install-irrigation" && state.quests.unlockedFeatureIds.includes(objective.targetId))
@@ -60,11 +87,11 @@ export function reconcileSatisfiedQuestObjectives(state: GameState): boolean {
         || Object.values(state.boats).some((boat) => boat.id === objective.targetId || boat.boatTypeId === objective.targetId)
       ));
     if (!alreadySatisfied) break;
-    state.quests.stepProgress[objective.id] = objective.targetQuantity;
+    progress.stepProgress[objective.id] = objective.targetQuantity;
     changed = true;
-    if (state.quests.activeStepIndex >= quest.objectives.length - 1) break;
-    state.quests.activeStepIndex += 1;
-    state.quests.stepProgress = {};
+    if (progress.activeStepIndex >= quest.objectives.length - 1) break;
+    progress.activeStepIndex += 1;
+    progress.stepProgress = {};
   }
   return changed;
 }
@@ -132,18 +159,22 @@ export class QuestDomain {
       events.on("FarmIrrigated", (e) => this.onObjectiveEvent("irrigate-farm", e.farmId, 1, { kind: "farm", id: e.farmId })),
       events.on("RodPurchased", (e) => this.onPurchaseUpgrade([e.rodId])),
       events.on("BoatPurchased", (e) => this.onPurchaseUpgrade([e.boatTypeId, e.boatId])),
-      events.on("NpcTalked", (e) => this.onObjectiveEvent("talk-npc", e.npcId, 1))
+      events.on("NpcTalked", (e) => this.onObjectiveEvent("talk-npc", e.npcId, 1)),
+      events.on("ProficiencyLeveledUp", () => this.evaluateTrackUnlocks())
     );
   }
 
   private onPurchaseUpgrade(targetIds: string[]): void {
-    const objective = this.getActiveQuest()?.objectives[this.context.state.quests.activeStepIndex];
-    if (!objective || objective.type !== "purchase-upgrade") return;
-    const targetId = objective.targetId
-      ? targetIds.find((candidate) => candidate === objective.targetId)
-      : targetIds[0];
-    if (!targetId) return;
-    this.onObjectiveEvent("purchase-upgrade", targetId, 1);
+    for (const trackId of activeQuestTrackIds(this.context.state.quests)) {
+      const progress = questTrackProgress(this.context.state.quests, trackId);
+      const objective = this.getActiveQuest(trackId)?.objectives[progress.activeStepIndex];
+      if (!objective || objective.type !== "purchase-upgrade") continue;
+      const targetId = objective.targetId
+        ? targetIds.find((candidate) => candidate === objective.targetId)
+        : targetIds[0];
+      if (!targetId) continue;
+      this.applyObjectiveEventToTrack(trackId, "purchase-upgrade", targetId, 1);
+    }
   }
 
   public dispose(): void {
@@ -153,25 +184,34 @@ export class QuestDomain {
     this.unsubscribeEvents = [];
   }
 
-  public getActiveQuest(): QuestDefinition | null {
-    const { quests } = this.context.state;
-    if (!quests.activeQuestId) return null;
-    return ContentRegistry.quests.get(quests.activeQuestId) ?? null;
+  /** The quest running on one track, or on the focused track by default. */
+  public getActiveQuest(trackId: QuestTrackId = this.context.state.quests.focusedTrackId): QuestDefinition | null {
+    const progress = questTrackProgress(this.context.state.quests, trackId);
+    if (!progress.activeQuestId) return null;
+    return ContentRegistry.quests.get(progress.activeQuestId) ?? null;
   }
 
-  public getActiveQuestDto(): ActiveQuestDto | null {
-    const quest = this.getActiveQuest();
+  /** Every track with a quest in progress, focused track first. */
+  public getActiveQuestDtos(): ActiveQuestDto[] {
+    const { quests } = this.context.state;
+    const trackIds = activeQuestTrackIds(quests)
+      .sort((a, b) => (a === quests.focusedTrackId ? -1 : b === quests.focusedTrackId ? 1 : 0));
+    return trackIds.flatMap((trackId) => this.getActiveQuestDto(trackId) ?? []);
+  }
+
+  public getActiveQuestDto(trackId: QuestTrackId = this.context.state.quests.focusedTrackId): ActiveQuestDto | null {
+    const quest = this.getActiveQuest(trackId);
     if (!quest) return null;
 
-    const { quests } = this.context.state;
-    const stepIndex = Math.min(quests.activeStepIndex, quest.objectives.length - 1);
+    const progress = questTrackProgress(this.context.state.quests, trackId);
+    const stepIndex = Math.min(progress.activeStepIndex, quest.objectives.length - 1);
     const objective = quest.objectives[stepIndex];
     if (!objective) return null;
 
-    const currentProgress = quests.stepProgress[objective.id] ?? 0;
+    const currentProgress = progress.stepProgress[objective.id] ?? 0;
     const isStepComplete = currentProgress >= objective.targetQuantity;
     const isLastStep = stepIndex === quest.objectives.length - 1
-      || quests.activeStepIndex >= quest.objectives.length;
+      || progress.activeStepIndex >= quest.objectives.length;
     const awaitingTurnIn = isLastStep && isStepComplete;
     const turnIn = awaitingTurnIn ? this.canPayQuestTurnIn(quest) : null;
     const isQuestReadyToTurnIn = Boolean(awaitingTurnIn && turnIn?.success);
@@ -181,6 +221,8 @@ export class QuestDomain {
 
     return {
       questId: quest.id,
+      trackId,
+      trackTitle: ContentRegistry.questTracks.get(trackId)?.title ?? quest.actTitle,
       actId: quest.actId,
       actTitle: quest.actTitle,
       questTitle: quest.questTitle,
@@ -213,10 +255,25 @@ export class QuestDomain {
     amount: number = 1,
     location?: ObjectiveEventLocation
   ): void {
-    const quest = this.getActiveQuest();
+    // One world event may legitimately satisfy an objective on more than one
+    // track at once — harvesting a crop can advance the spine and a side
+    // chain in the same tick — so every active track is offered the event.
+    for (const trackId of activeQuestTrackIds(this.context.state.quests)) {
+      this.applyObjectiveEventToTrack(trackId, type, targetId, amount, location);
+    }
+  }
+
+  private applyObjectiveEventToTrack(
+    trackId: QuestTrackId,
+    type: QuestObjectiveType,
+    targetId?: string,
+    amount: number = 1,
+    location?: ObjectiveEventLocation
+  ): void {
+    const quest = this.getActiveQuest(trackId);
     if (!quest) return;
 
-    const { quests } = this.context.state;
+    const quests = questTrackProgress(this.context.state.quests, trackId);
 
     const currentStep = quest.objectives[quests.activeStepIndex];
     if (!currentStep) return;
@@ -278,11 +335,18 @@ export class QuestDomain {
       return { success: false, reason: `Unknown NPC: '${npcId}'` };
     }
 
-    const activeQuest = this.getActiveQuest();
-
     if (distance2d(state.player, npc.anchor) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Move closer to ${npc.name} to talk` };
     }
+
+    // Resolution order across tracks: a thread this NPC can actually close
+    // wins, then any thread they are currently speaking for, then their own
+    // idle or milestone lines. Without the first pass a side track waiting on
+    // the same NPC could hide a finished main-track turn-in behind its intro.
+    const speakingTracks = activeQuestTrackIds(state.quests)
+      .filter((trackId) => this.getActiveQuest(trackId)?.speakerId === npcId);
+    const turnInTrackId = speakingTracks.find((trackId) => this.isQuestReadyToTurnIn(trackId));
+    const activeQuest = this.getActiveQuest(turnInTrackId ?? speakingTracks[0] ?? state.quests.focusedTrackId);
 
     const intro = (): {
       success: true;
@@ -290,36 +354,29 @@ export class QuestDomain {
       isCompletion: false;
     } => ({
       success: true,
-      dialogue: activeQuest?.introDialogue ?? npc.idleDialogue,
+      dialogue: speakingTracks.length > 0 && activeQuest
+        ? activeQuest.introDialogue
+        : npc.idleDialogue,
       isCompletion: false
     });
 
-    // 1. Is active quest ready to complete and talking to the speaker?
-    if (activeQuest && activeQuest.speakerId === npcId) {
-      const currentStep = activeQuest.objectives[state.quests.activeStepIndex];
-      const isLastStep = state.quests.activeStepIndex === activeQuest.objectives.length - 1;
-      const progress = currentStep ? (state.quests.stepProgress[currentStep.id] ?? 0) : 0;
-      const wasStepDone = currentStep ? progress >= currentStep.targetQuantity : true;
+    if (turnInTrackId && activeQuest) {
+      events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
+      const completionDialogue = activeQuest.completionDialogue.length > 0
+        ? activeQuest.completionDialogue
+        : ["Thank you! Here is your reward."];
+      const completion = this.completeQuest(activeQuest.id, npcId);
+      if (!completion.success) return completion;
+      return {
+        success: true,
+        dialogue: completionDialogue,
+        isCompletion: true,
+        questCompleted: true,
+        rewardsGiven: true
+      };
+    }
 
-      if (isLastStep && wasStepDone) {
-        const turnIn = this.canPayQuestTurnIn(activeQuest);
-        if (!turnIn.success) return intro();
-
-        events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
-        const completionDialogue = activeQuest.completionDialogue.length > 0
-          ? activeQuest.completionDialogue
-          : ["Thank you! Here is your reward."];
-        const completion = this.completeQuest(activeQuest.id, npcId);
-        if (!completion.success) return completion;
-        return {
-          success: true,
-          dialogue: completionDialogue,
-          isCompletion: true,
-          questCompleted: true,
-          rewardsGiven: true
-        };
-      }
-
+    if (speakingTracks.length > 0) {
       events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
       return intro();
     }
@@ -332,6 +389,19 @@ export class QuestDomain {
       dialogue: this.getMilestoneDialogue(npc),
       isCompletion: false
     };
+  }
+
+  /** Final objective met and any turn-in cost affordable. */
+  private isQuestReadyToTurnIn(trackId: QuestTrackId): boolean {
+    const quest = this.getActiveQuest(trackId);
+    if (!quest) return false;
+    const progress = questTrackProgress(this.context.state.quests, trackId);
+    const finalIndex = quest.objectives.length - 1;
+    if (progress.activeStepIndex !== finalIndex) return false;
+    const finalStep = quest.objectives[finalIndex];
+    if (!finalStep) return false;
+    if ((progress.stepProgress[finalStep.id] ?? 0) < finalStep.targetQuantity) return false;
+    return this.canPayQuestTurnIn(quest).success;
   }
 
   private getMilestoneDialogue(npc: NpcDefinition): string[] {
@@ -355,15 +425,16 @@ export class QuestDomain {
       return { success: false, reason: "Quest already completed" };
     }
 
-    if (state.quests.activeQuestId !== questId) {
+    const progress = questTrackProgress(state.quests, quest.trackId);
+    if (progress.activeQuestId !== questId) {
       return { success: false, reason: "This quest is not active" };
     }
 
     const finalStep = quest.objectives[quest.objectives.length - 1];
     if (
-      state.quests.activeStepIndex !== quest.objectives.length - 1 ||
+      progress.activeStepIndex !== quest.objectives.length - 1 ||
       !finalStep ||
-      (state.quests.stepProgress[finalStep.id] ?? 0) < finalStep.targetQuantity
+      (progress.stepProgress[finalStep.id] ?? 0) < finalStep.targetQuantity
     ) {
       return { success: false, reason: "Complete the final objective first" };
     }
@@ -413,6 +484,8 @@ export class QuestDomain {
         minute: state.clock.currentMinute
       });
     }
+    this.evaluateTrackUnlocks();
+
     if (transition.nextQuest) {
       events.emit("QuestStarted", {
         questId: transition.nextQuest.id,
@@ -473,14 +546,18 @@ export class QuestDomain {
       ? ContentRegistry.quests.get(completedQuest.nextQuestId)
       : undefined;
 
+    const trackId = completedQuest.trackId;
+    const progress = questTrackProgress(state.quests, trackId);
+    const isMainTrack = trackId === MAIN_QUEST_TRACK_ID;
+
     if (nextQuest) {
       const isNewAct = nextQuest.actId !== completedQuest.actId;
 
-      state.quests.activeActId = nextQuest.actId;
-      state.quests.activeQuestId = nextQuest.id;
-      state.quests.activeStepIndex = 0;
-      state.quests.stepProgress = {};
-      reconcileSatisfiedQuestObjectives(state);
+      if (isMainTrack) state.quests.activeActId = nextQuest.actId;
+      progress.activeQuestId = nextQuest.id;
+      progress.activeStepIndex = 0;
+      progress.stepProgress = {};
+      reconcileSatisfiedQuestObjectives(state, trackId);
 
       return {
         completedActId: isNewAct ? completedQuest.actId : undefined,
@@ -488,12 +565,69 @@ export class QuestDomain {
       };
     }
 
-    // All story quests completed -> Epilogue
-    state.quests.activeActId = "epilogue_open";
-    state.quests.activeQuestId = null;
-    state.quests.activeStepIndex = 0;
-    state.quests.stepProgress = {};
+    // This track is out of authored content. Only the spine running dry moves
+    // the act to the epilogue; a finished side chain leaves it alone.
+    progress.activeQuestId = null;
+    progress.activeStepIndex = 0;
+    progress.stepProgress = {};
+    if (isMainTrack) state.quests.activeActId = "epilogue_open";
+    this.refocusAfterTrackEnded(trackId);
     return { completedActId: completedQuest.actId };
+  }
+
+  /** Keep the tracker pointed at something the player can act on. */
+  private refocusAfterTrackEnded(endedTrackId: QuestTrackId): void {
+    const { quests } = this.context.state;
+    if (quests.focusedTrackId !== endedTrackId) return;
+    quests.focusedTrackId = activeQuestTrackIds(quests)[0] ?? MAIN_QUEST_TRACK_ID;
+  }
+
+  /** Point the tracker at a track the player is actually carrying. */
+  public focusTrack(trackId: QuestTrackId): InteractionResult {
+    const { quests } = this.context.state;
+    if (!ContentRegistry.questTracks.has(trackId)) {
+      return { success: false, reason: "Unknown quest track" };
+    }
+    if (!questTrackProgress(quests, trackId).activeQuestId) {
+      return { success: false, reason: "That thread has nothing waiting" };
+    }
+    quests.focusedTrackId = trackId;
+    return { success: true };
+  }
+
+  /**
+   * Starts any track whose unlock predicate now holds. Called after the state
+   * changes that can satisfy one, so a track opens the moment it is earned
+   * rather than on the next save load.
+   */
+  public evaluateTrackUnlocks(): void {
+    const { state, events } = this.context;
+    const completed = new Set(state.quests.completedQuestIds);
+    for (const track of ContentRegistry.questTracks.values()) {
+      const progress = questTrackProgress(state.quests, track.id);
+      if (progress.activeQuestId || completed.has(track.entryQuestId)) continue;
+      const unlock = track.unlock;
+      if (!unlock) continue;
+      const satisfied =
+        (unlock.requiresCompletedQuestIds ?? []).every((id) => completed.has(id))
+        && (unlock.requiresFeatureIds ?? []).every((id) => state.quests.unlockedFeatureIds.includes(id))
+        && (unlock.requiresKnowledgeIds ?? []).every((id) => state.journal.unlockedKnowledge.includes(id))
+        && (unlock.requiresRank === undefined
+          || getRankForXp(state.player.proficiencies[unlock.requiresRank.skill] ?? 0).rankIndex
+            >= unlock.requiresRank.rankIndex);
+      if (!satisfied) continue;
+      const entry = ContentRegistry.quests.get(track.entryQuestId);
+      if (!entry) continue;
+      progress.activeQuestId = entry.id;
+      progress.activeStepIndex = 0;
+      progress.stepProgress = {};
+      reconcileSatisfiedQuestObjectives(state, track.id);
+      events.emit("QuestStarted", {
+        questId: entry.id,
+        actId: entry.actId,
+        minute: state.clock.currentMinute
+      });
+    }
   }
 
   private canPayQuestTurnIn(quest: QuestDefinition): { success: boolean; reason?: string } {

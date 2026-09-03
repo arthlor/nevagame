@@ -231,6 +231,8 @@ export class Simulation {
       case "quest.record-hint":
         this.questDomain.recordHintShown(command.hintId);
         return { success: true };
+      case "quest.focus-track":
+        return this.questDomain.focusTrack(command.trackId);
     }
   }
 

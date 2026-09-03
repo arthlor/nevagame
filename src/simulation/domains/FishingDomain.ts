@@ -37,6 +37,7 @@ import {
   FISHING_ECOLOGY_DEFINITIONS,
   type FishingEcologyId
 } from "../../world/WorldIslands";
+import { isQuestActive } from "../core/QuestTypes";
 
 const SCHOOL_INTERACTION_RADIUS = 12;
 /** Floor so a shoulder-season-only school still has a selectable species pool. */
@@ -754,7 +755,7 @@ export class FishingDomain {
     // once the rowboat has been commissioned, independent of weather or the
     // normal respawn cadence; subsequent schools retain the live ecology.
     if (
-      state.quests.activeQuestId === "quest.act5_maiden_voyage" &&
+      isQuestActive(state.quests, "quest.act5_maiden_voyage") &&
       state.quests.unlockedFeatureIds.includes("boat.player_rowboat") &&
       !state.world.storySchoolSpawned
     ) {

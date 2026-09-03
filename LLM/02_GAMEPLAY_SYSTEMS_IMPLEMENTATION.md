@@ -137,19 +137,20 @@ The current representation uses content-owned string arrays and stable
 knowledge-entry IDs. Do not add
 branching, line-level save state, or local UI flags as a shortcut. If future
 optional lore requires persistence, introduce stable content IDs and an
-explicit unlock/discovery contract first; `unlockedDialogueIds` is reserved,
-not live functionality.
+explicit unlock/discovery contract first. The reserved `unlockedDialogueIds`
+field was removed in v29 after twenty schema versions without a reader.
 
 ## Narrative persistence boundary
 
 Dialogue page position, open/closed modal state, and the last spoken line are
 transient. Save only the simulation truth needed to resume the story:
-`activeActId`, `activeQuestId`, `activeStepIndex`, `stepProgress`,
-`completedQuestIds`, `unlockedFeatureIds`, `journal.unlockedKnowledge`, and the
-currently implemented hint state. Save/load must preserve the quest chain and
+`activeActId`, `tracks` (one `{activeQuestId, activeStepIndex, stepProgress}`
+cursor per quest track), `focusedTrackId`, `completedQuestIds`, `unlockedFeatureIds`,
+`journal.unlockedKnowledge`, and the currently implemented hint state. Save/load must preserve the quest chain and
 capability/knowledge unlocks without replaying rewards or requiring a
-conversation page to be serialized. Appending Quest 11–13 needs no schema bump
-because these fields already store stable string IDs. On load, an inactive
+conversation page to be serialized. Appending quests to an existing track needs no schema
+bump because these fields store stable string IDs; adding a *track* is a
+schema change, and v29 is the one that introduced them. On load, an inactive
 older save that completed Quest 10 follows its now-authored `nextQuestId` once,
 without replaying Quest 10 rewards. Any new story state shape still requires
 the schema, migration, historical fixture, and migration-test protocol from
@@ -1083,7 +1084,8 @@ The preceding sections are the **LIVE** implementation authority. The items belo
 - **Authored ice location table.** LIVE ice is a slot `hasIce` flag or `item.crushed_ice` in satchel / boat supply, which forces storage modifier **0.4** wherever that ice resolves. The carried/hold/ice-box/cold-storage table is the design target, not a live per-location ice lookup.
 - **Mandatory sport lure gate.** A lure is **not** required to hook a chummed school. Explicit preparation, successful-hook consumption, and fight forgiveness are live; making lure possession mandatory remains deferred.
 - **External hook verb and Emergency Tow.** The skiff purchase and persisted second vessel are live. External-hook class as a distinct live verb and zero-fuel Emergency Tow are not live.
-- **Branching dialogue, persistent transcripts, and separate lore codex.** The eighteen-quest linear chain, contextual intro/completion/idle/milestone dialogue, quest titles/objectives, completed quest history, and feature/knowledge unlocks are live. Branches, relationship variables, dialogue page saves, a transcript, and a separate `loreDiscoveries` state are not live; do not add them opportunistically.
+- **Branching dialogue, persistent transcripts, and separate lore codex.** The eighteen-quest chain, contextual intro/completion/idle/milestone dialogue, quest titles/objectives, completed quest history, and feature/knowledge unlocks are live. Branches, relationship variables, dialogue page saves, a transcript, and a separate `loreDiscoveries` state are not live; do not add them opportunistically.
+  **Parallel quest tracks are not branching and remain in scope.** A track is its own linear `nextQuestId` chain with its own cursor, activated by an explicit state predicate (`QuestTrackDefinition.unlock`). No quest has two possible outcomes and no dialogue offers a choice; the player simply carries more than one thread. The validator enforces this by walking one chain per track and rejecting a `nextQuestId` that crosses tracks. Only `track.main` currently exists.
 - **NPC schedules and romance.** Named NPC roles and fixed authored anchors are live. Daily schedules, relationship progression, romance, and large companion/story systems remain out of scope for the MVP.
 - **Physical character ragdoll.** `HumanoidRagdoll` remains standalone support;
   the no-combat MVP does not instantiate or step a live character ragdoll in

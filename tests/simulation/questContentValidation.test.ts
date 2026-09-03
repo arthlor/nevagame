@@ -33,13 +33,13 @@ describe("quest content validation", () => {
     expect(() => ContentRegistry.validateQuestDefinitions(unsupported)).toThrow(/unsupported type/);
   });
 
-  it("rejects cycles and unreachable main-story entries", () => {
+  it("rejects cycles and unreachable entries", () => {
     const cycle = copyQuests();
     cycle[cycle.length - 1].nextQuestId = cycle[0].id;
     expect(() => ContentRegistry.validateQuestDefinitions(cycle)).toThrow(/cycle/);
 
     const unreachable = copyQuests();
     unreachable[9].nextQuestId = undefined;
-    expect(() => ContentRegistry.validateQuestDefinitions(unreachable)).toThrow(/Unreachable main-story quests/);
+    expect(() => ContentRegistry.validateQuestDefinitions(unreachable)).toThrow(/Unreachable quests/);
   });
 });

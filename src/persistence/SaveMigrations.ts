@@ -20,6 +20,7 @@ import { ownedRodsThrough } from "../content/rods";
 import { WORK_CAPACITY_MAXIMUM } from "../simulation/domains/ProgressionDomain";
 import { voidActiveContracts } from "../simulation/domains/ContractDomain";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
+import { MAIN_QUEST_TRACK_ID } from "../simulation/core/QuestTypes";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -1171,6 +1172,39 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
         fishingPressureByHabitat: {}
       },
       sportFishing
+    };
+  },
+  29: (state: unknown) => {
+    // Quests move from one cursor to a cursor per track. The old single chain
+    // is the main track verbatim, so no progress is replayed or lost. Also
+    // drops `unlockedDialogueIds`, which was declared, validated and migrated
+    // for twenty versions without ever being read or written.
+    const previous = state as GameState & {
+      quests: {
+        activeQuestId?: string | null;
+        activeStepIndex?: number;
+        stepProgress?: Record<string, number>;
+        unlockedDialogueIds?: string[];
+      };
+    };
+    const legacy = previous.quests;
+    const { activeQuestId, activeStepIndex, stepProgress, unlockedDialogueIds, ...carried } =
+      legacy as unknown as Record<string, unknown>;
+    void unlockedDialogueIds;
+    return {
+      ...previous,
+      schemaVersion: 29,
+      quests: {
+        ...carried,
+        tracks: {
+          [MAIN_QUEST_TRACK_ID]: {
+            activeQuestId: (activeQuestId as string | null | undefined) ?? null,
+            activeStepIndex: finite(activeStepIndex as number | undefined, 0),
+            stepProgress: (stepProgress as Record<string, number> | undefined) ?? {}
+          }
+        },
+        focusedTrackId: MAIN_QUEST_TRACK_ID
+      }
     };
   }
 };

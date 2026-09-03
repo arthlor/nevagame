@@ -33,6 +33,7 @@ import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
 import { distance2d } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
+import { isQuestActive } from "../core/QuestTypes";
 
 export const CROP_INTERACTION_RADIUS = 2.5;
 export const WET_MOISTURE_THRESHOLD = 85;
@@ -575,7 +576,7 @@ export class FarmingDomain {
     if (state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) {
       return { success: false, reason: "This well already has a field pump" };
     }
-    if (state.quests.activeQuestId !== "quest.act6_field_pump") {
+    if (!isQuestActive(state.quests, "quest.act6_field_pump")) {
       return { success: false, reason: "Barnaby hasn't released the field pump yet" };
     }
     if (state.player.money < IRRIGATION_COST) {

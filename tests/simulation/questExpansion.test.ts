@@ -4,17 +4,18 @@ import { Simulation } from "../../src/simulation/Simulation";
 import type { QuestDefinition } from "../../src/simulation/core/QuestTypes";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLayout";
+import { MAIN_QUEST_TRACK_ID, mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 describe("post-story quest expansion", () => {
   it("advances only the exact active contract and farm objective", () => {
     const sim = new Simulation();
     sim.state.quests.activeActId = "act6_stewardship";
-    sim.state.quests.activeQuestId = "quest.act6_harbor_promise";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_harbor_promise";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
 
     sim.events.emit("FarmIrrigated", { farmId: "farm.starter_garden", cropCount: 2, minute: 0 });
-    expect(sim.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
     sim.events.emit("ContractCompleted", {
       contractId: "contract.test",
       templateId: "contract.wheat_supply",
@@ -22,15 +23,15 @@ describe("post-story quest expansion", () => {
       rewardMoney: 100,
       minute: 0
     });
-    expect(sim.state.quests.stepProgress).toEqual({ "step.act6_complete_contract": 1 });
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.act6_complete_contract": 1 });
 
-    sim.state.quests.activeQuestId = "quest.act6_field_pump";
-    sim.state.quests.activeStepIndex = 1;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_field_pump";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 1;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
     sim.events.emit("FarmIrrigated", { farmId: "farm.player_homestead", cropCount: 2, minute: 0 });
-    expect(sim.state.quests.stepProgress).toEqual({});
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
     sim.events.emit("FarmIrrigated", { farmId: "farm.starter_garden", cropCount: 2, minute: 0 });
-    expect(sim.state.quests.stepProgress).toEqual({ "step.act6_irrigate_farm": 1 });
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.act6_irrigate_farm": 1 });
   });
 
   it("wires rod and boat purchases to purchase-upgrade without double progress", () => {
@@ -38,6 +39,7 @@ describe("post-story quest expansion", () => {
     const registry = ContentRegistry.quests as Map<string, QuestDefinition>;
     const quest: QuestDefinition = {
       id: "quest.test_purchase",
+      trackId: MAIN_QUEST_TRACK_ID,
       actId: "act6_stewardship",
       actTitle: "Test",
       questTitle: "Test purchase",
@@ -49,13 +51,13 @@ describe("post-story quest expansion", () => {
     };
     registry.set(quest.id, quest);
     try {
-      sim.state.quests.activeQuestId = quest.id;
-      sim.state.quests.activeStepIndex = 0;
-      sim.state.quests.stepProgress = {};
+      mainQuestTrack(sim.state.quests).activeQuestId = quest.id;
+      mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+      mainQuestTrack(sim.state.quests).stepProgress = {};
       sim.events.emit("RodPurchased", { marketId: "market.harbor", rodId: "rod.river", cost: 120, minute: 0 });
-      expect(sim.state.quests.stepProgress).toEqual({});
+      expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
       sim.events.emit("BoatPurchased", { boatId: "boat.player_skiff", boatTypeId: "boat.skiff", cost: 850, minute: 0 });
-      expect(sim.state.quests.stepProgress).toEqual({ "step.test_purchase": 1 });
+      expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.test_purchase": 1 });
     } finally {
       registry.delete(quest.id);
     }
@@ -70,21 +72,21 @@ describe("post-story quest expansion", () => {
     const crop = sim.state.crops[Object.keys(sim.state.crops)[0]];
     crop.moisture = 20;
     sim.state.quests.activeActId = "act6_stewardship";
-    sim.state.quests.activeQuestId = "quest.act6_field_pump";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_field_pump";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
     const well = farmWellWorldAnchor("farm.starter_garden")!;
     sim.state.player.x = well.x;
     sim.state.player.z = well.z;
 
     expect(sim.execute({ type: "farm.buy-irrigation" })).toMatchObject({ success: true });
-    expect(sim.state.quests.activeStepIndex).toBe(1);
+    expect(mainQuestTrack(sim.state.quests).activeStepIndex).toBe(1);
     expect(sim.execute({ type: "farm.irrigate", farmId: "farm.starter_garden" })).toMatchObject({ success: true });
-    expect(sim.state.quests.stepProgress).toEqual({ "step.act6_irrigate_farm": 1 });
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.act6_irrigate_farm": 1 });
 
-    sim.state.quests.activeQuestId = "quest.act6_land_sea_cycle";
-    sim.state.quests.activeStepIndex = 1;
-    sim.state.quests.stepProgress = {};
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_land_sea_cycle";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 1;
+    mainQuestTrack(sim.state.quests).stepProgress = {};
     sim.state.farms["farm.starter_garden"].soil.fertility = 40;
     expect(InventoryManager.addItemsAtomically(
       sim.state.inventories[sim.state.player.inventoryId],
@@ -93,7 +95,7 @@ describe("post-story quest expansion", () => {
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
     expect(sim.execute({ type: "farm.apply-fertilizer", farmId: "farm.starter_garden" })).toMatchObject({ success: true });
-    expect(sim.state.quests.stepProgress).toEqual({ "step.act6_fertilize_farm": 1 });
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.act6_fertilize_farm": 1 });
   });
 
   it("keeps failed quest turn-ins atomic", () => {
@@ -103,9 +105,9 @@ describe("post-story quest expansion", () => {
     const wheatLimit = ContentRegistry.items.get("seed.wheat")!.stackLimit;
     inventory.slots = inventory.slots.map(() => ({ itemId: "seed.wheat", quantity: wheatLimit }));
     sim.state.quests.activeActId = "act6_stewardship";
-    sim.state.quests.activeQuestId = "quest.act6_harbor_promise";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = { "step.act6_complete_contract": 1 };
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_harbor_promise";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = { "step.act6_complete_contract": 1 };
     sim.state.player.x = maeve.anchor.x;
     sim.state.player.z = maeve.anchor.z;
     const moneyBefore = sim.state.player.money;
@@ -121,31 +123,31 @@ describe("post-story quest expansion", () => {
     const firstTen = [...ContentRegistry.quests.values()].slice(0, 10).map((quest) => quest.id);
     original.state.quests.completedQuestIds = firstTen;
     original.state.quests.activeActId = "epilogue_open";
-    original.state.quests.activeQuestId = null;
-    original.state.quests.activeStepIndex = 0;
-    original.state.quests.stepProgress = {};
+    mainQuestTrack(original.state.quests).activeQuestId = null;
+    mainQuestTrack(original.state.quests).activeStepIndex = 0;
+    mainQuestTrack(original.state.quests).stepProgress = {};
     original.state.player.money = 777;
 
     const loaded = new Simulation(structuredClone(original.state));
-    expect(loaded.state.quests.activeQuestId).toBe("quest.act6_harbor_promise");
+    expect(mainQuestTrack(loaded.state.quests).activeQuestId).toBe("quest.act6_harbor_promise");
     expect(loaded.state.player.money).toBe(777);
     expect(loaded.state.quests.completedQuestIds).toEqual(firstTen);
 
     const reloaded = new Simulation(structuredClone(loaded.state));
-    expect(reloaded.state.quests.activeQuestId).toBe("quest.act6_harbor_promise");
+    expect(mainQuestTrack(reloaded.state.quests).activeQuestId).toBe("quest.act6_harbor_promise");
     expect(reloaded.state.player.money).toBe(777);
   });
 
   it("preserves active stewardship progress and recognizes milestones across reload", () => {
     const sim = new Simulation();
     sim.state.quests.activeActId = "act6_stewardship";
-    sim.state.quests.activeQuestId = "quest.act6_land_sea_cycle";
-    sim.state.quests.activeStepIndex = 0;
-    sim.state.quests.stepProgress = { "step.act6_craft_fertilizer": 0 };
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_land_sea_cycle";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = { "step.act6_craft_fertilizer": 0 };
     sim.state.quests.completedQuestIds.push("quest.act6_harbor_promise");
     const loaded = new Simulation(structuredClone(sim.state));
-    expect(loaded.state.quests.activeQuestId).toBe("quest.act6_land_sea_cycle");
-    expect(loaded.state.quests.stepProgress).toEqual({ "step.act6_craft_fertilizer": 0 });
+    expect(mainQuestTrack(loaded.state.quests).activeQuestId).toBe("quest.act6_land_sea_cycle");
+    expect(mainQuestTrack(loaded.state.quests).stepProgress).toEqual({ "step.act6_craft_fertilizer": 0 });
 
     const maeve = ContentRegistry.npcs.get("npc.maeve")!;
     loaded.state.player.x = maeve.anchor.x;
@@ -167,14 +169,14 @@ describe("post-story quest expansion", () => {
     const sim = new Simulation();
     const speaker = ContentRegistry.npcs.get(terminal.speakerId)!;
     sim.state.quests.activeActId = terminal.actId;
-    sim.state.quests.activeQuestId = terminal.id;
-    sim.state.quests.activeStepIndex = terminal.objectives.length - 1;
-    sim.state.quests.stepProgress = { [finalObjective.id]: finalObjective.targetQuantity };
+    mainQuestTrack(sim.state.quests).activeQuestId = terminal.id;
+    mainQuestTrack(sim.state.quests).activeStepIndex = terminal.objectives.length - 1;
+    mainQuestTrack(sim.state.quests).stepProgress = { [finalObjective.id]: finalObjective.targetQuantity };
     sim.state.player.x = speaker.anchor.x;
     sim.state.player.z = speaker.anchor.z;
     let activeQuestSeenByListener: string | null | undefined;
     const unsubscribe = sim.events.on("QuestCompleted", () => {
-      activeQuestSeenByListener = sim.state.quests.activeQuestId;
+      activeQuestSeenByListener = mainQuestTrack(sim.state.quests).activeQuestId;
     });
 
     expect(sim.execute({ type: "quest.talk-npc", npcId: terminal.speakerId })).toMatchObject({ success: true });

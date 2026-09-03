@@ -11,6 +11,7 @@ import {
   farmWellWorldAnchor
 } from "../../src/world/FarmLayout";
 import { VILLAGE_MARKET, VILLAGE_PLAZA, WORLD_SPAWN } from "../../src/world/WorldAnchors";
+import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
 function standAt(sim: Simulation, x: number, z: number): void {
   sim.state.player.x = x;
@@ -70,7 +71,7 @@ describe("irrigation well binding", () => {
 
     standAt(sim, well.x + 1.6, well.z);
     expect(sim.getNearbyIrrigationFarmId()).toBe("farm.starter_garden");
-    sim.state.quests.activeQuestId = "quest.act6_field_pump";
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_field_pump";
     expect(sim.execute({ type: "farm.buy-irrigation" })).toMatchObject({
       success: true,
       cost: IRRIGATION_COST
