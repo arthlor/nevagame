@@ -2,85 +2,124 @@
 
 import { ProficiencyRankDefinition } from "./types";
 
+/**
+ * Feature ids the simulation actually reads.
+ *
+ * A rank may only advertise a `feature.*` id that appears here, and every id
+ * here must have a real consumer in `src/` — both halves are enforced, at
+ * startup by `ContentRegistry.validateProgressionAndEquipment` and in
+ * `tests/simulation/rankUnlocks.test.ts` respectively. The rank tables used to
+ * list 25 feature ids of which 23 had no implementation at all, and the other
+ * two are granted by quests rather than by XP, so the ladder promised
+ * capabilities that never arrived.
+ *
+ * Both live features are quest-granted, which is why neither appears in a rank
+ * below: `feature.expedition_planner` comes from `quest.act5_maiden_voyage` and
+ * `feature.irrigation_zone` from `quest.act6_field_pump`. One owner each.
+ */
+export const LIVE_FEATURE_IDS: ReadonlySet<string> = new Set([
+  "feature.expedition_planner",
+  "feature.irrigation_zone"
+]);
+
+/**
+ * What each proficiency band actually opens.
+ *
+ * This table is an advertisement, not a gate. The real gates live with the
+ * content: `crop.minimumFarmingXp`, `recipe.minimumSkill`,
+ * `boat.requiredSkillXp`, and — the one entry the table genuinely owns —
+ * `rodFishingXpRequirement`, which reads a rod's rank back out of
+ * `fishingUnlocks`. `validateProgressionAndEquipment` asserts every listed id
+ * becomes available in the band it is listed under, so the advertisement
+ * cannot drift from the gate.
+ *
+ * Ranks 4-7 are deliberately sparse. That is the honest state of the game:
+ * beyond the offshore rod and the skiff, high proficiency currently unlocks
+ * nothing. Filling those bands is content work, not a table edit.
+ */
 export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
   {
     rankIndex: 0,
     rankName: "Novice",
     xpRequired: 0,
-    farmingUnlocks: ["crop.wheat", "crop.potato", "crop.tomato"],
-    fishingUnlocks: ["rod.willow", "habitat.river"],
+    farmingUnlocks: ["crop.wheat", "crop.tomato", "crop.potato"],
+    fishingUnlocks: ["rod.willow"],
     tradingUnlocks: ["market.village", "market.harbor"],
     processingUnlocks: [
       "recipe.wheat_to_grain",
       "recipe.barley_to_grain",
+      "recipe.sunflower_to_grain",
       "recipe.craft_chum",
       "recipe.compost_worms",
+      "recipe.fish_to_fertilizer",
       "recipe.perch_to_scraps",
-      "recipe.mackerel_to_scraps"
+      "recipe.mackerel_to_scraps",
+      "recipe.carp_to_scraps",
+      "recipe.sardine_to_scraps"
     ]
   },
   {
     rankIndex: 1,
     rankName: "Apprentice",
     xpRequired: 1000,
-    farmingUnlocks: ["crop.carrot", "crop.corn", "crop.barley", "feature.quality_preview"],
-    fishingUnlocks: ["rod.river", "habitat.lake", "feature.lake_sport_fishing"],
-    tradingUnlocks: ["feature.price_breakdown"],
-    processingUnlocks: ["recipe.fish_to_fertilizer"]
+    farmingUnlocks: ["crop.carrot", "crop.barley", "crop.corn", "crop.sunflower"],
+    fishingUnlocks: ["rod.river"],
+    tradingUnlocks: [],
+    processingUnlocks: ["recipe.craft_lure"]
   },
   {
     rankIndex: 2,
     rankName: "Skilled",
     xpRequired: 3000,
-    farmingUnlocks: ["crop.flax", "feature.fast_composting"],
-    fishingUnlocks: ["rod.heavy_sport", "feature.coastal_pelagics"],
-    tradingUnlocks: ["feature.price_history"],
-    processingUnlocks: ["recipe.craft_lure"]
+    farmingUnlocks: ["crop.flax"],
+    fishingUnlocks: ["rod.heavy_sport"],
+    tradingUnlocks: [],
+    processingUnlocks: []
   },
   {
     rankIndex: 3,
     rankName: "Expert",
     xpRequired: 7500,
-    farmingUnlocks: ["crop.apple_tree", "feature.seed_bundles"],
-    fishingUnlocks: ["feature.chum_frenzy_boost"],
-    tradingUnlocks: ["feature.expedition_planner", "feature.contract_tier2"],
+    farmingUnlocks: ["crop.apple_tree", "crop.olive_tree"],
+    fishingUnlocks: [],
+    tradingUnlocks: [],
     processingUnlocks: []
   },
   {
     rankIndex: 4,
     rankName: "Master",
     xpRequired: 15000,
-    farmingUnlocks: ["feature.irrigation_zone"],
-    fishingUnlocks: ["rod.offshore", "boat.skiff", "feature.offshore_expeditions"],
-    tradingUnlocks: ["feature.market_forecast", "feature.contract_tier3"],
-    processingUnlocks: ["feature.batch_milling"]
+    farmingUnlocks: [],
+    fishingUnlocks: ["rod.offshore", "boat.skiff"],
+    tradingUnlocks: [],
+    processingUnlocks: []
   },
   {
     rankIndex: 5,
     rankName: "Artisan",
     xpRequired: 30000,
-    farmingUnlocks: ["feature.orchard_specialization"],
-    fishingUnlocks: ["feature.sonar_fish_finder"],
-    tradingUnlocks: ["feature.export_buyers"],
-    processingUnlocks: ["feature.artisan_preservation"]
+    farmingUnlocks: [],
+    fishingUnlocks: [],
+    tradingUnlocks: [],
+    processingUnlocks: []
   },
   {
     rankIndex: 6,
     rankName: "Famed",
     xpRequired: 60000,
-    farmingUnlocks: ["feature.premium_seed_selection"],
-    fishingUnlocks: ["rod.master", "feature.deep_trench_schools"],
-    tradingUnlocks: ["feature.standing_buyer_contracts"],
-    processingUnlocks: ["feature.instant_processing"]
+    farmingUnlocks: [],
+    fishingUnlocks: ["rod.master"],
+    tradingUnlocks: [],
+    processingUnlocks: []
   },
   {
     rankIndex: 7,
     rankName: "Legendary",
     xpRequired: 100000,
-    farmingUnlocks: ["feature.master_crop_strains"],
-    fishingUnlocks: ["feature.legendary_marlin_encounters"],
-    tradingUnlocks: ["feature.maritime_guild_charter"],
-    processingUnlocks: ["feature.master_preservation"]
+    farmingUnlocks: [],
+    fishingUnlocks: [],
+    tradingUnlocks: [],
+    processingUnlocks: []
   }
 ];
 
@@ -102,10 +141,14 @@ export function getNextRank(xp: number): ProficiencyRankDefinition | null {
   return null;
 }
 
-function unlocksThroughRank(
-  xp: number,
-  key: "farmingUnlocks" | "fishingUnlocks" | "tradingUnlocks" | "processingUnlocks"
-): Set<string> {
+export type RankUnlockKey =
+  | "farmingUnlocks"
+  | "fishingUnlocks"
+  | "tradingUnlocks"
+  | "processingUnlocks";
+
+/** Every id advertised at or below `xp` for one skill column. */
+export function unlocksThroughRank(xp: number, key: RankUnlockKey): Set<string> {
   const unlocked = new Set<string>();
   for (const rank of PROFICIENCY_RANKS) {
     if (xp < rank.xpRequired) break;
@@ -114,8 +157,19 @@ function unlocksThroughRank(
   return unlocked;
 }
 
-export function isProcessingRecipeUnlocked(processingXp: number, recipeId: string): boolean {
-  const listed = PROFICIENCY_RANKS.some((rank) => rank.processingUnlocks.includes(recipeId));
-  if (!listed) return true;
-  return unlocksThroughRank(processingXp, "processingUnlocks").has(recipeId);
+/** Whether `xp` has reached the band that advertises `id` in that column. */
+export function hasRankUnlock(xp: number, key: RankUnlockKey, id: string): boolean {
+  return unlocksThroughRank(xp, key).has(id);
+}
+
+/**
+ * The XP band a gate of `requiredXp` falls into: the first rank whose
+ * threshold reaches it. Used by the validator to keep the advertisement and
+ * the live gate on the same row.
+ */
+export function rankIndexForRequirement(requiredXp: number): number {
+  for (const rank of PROFICIENCY_RANKS) {
+    if (requiredXp <= rank.xpRequired) return rank.rankIndex;
+  }
+  return PROFICIENCY_RANKS[PROFICIENCY_RANKS.length - 1].rankIndex;
 }

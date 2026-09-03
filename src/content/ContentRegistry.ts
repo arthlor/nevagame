@@ -21,7 +21,7 @@ import { RECIPES } from "./recipes";
 import { BOATS } from "./boats";
 import { RODS } from "./rods";
 import { MARKETS } from "./markets";
-import { PROFICIENCY_RANKS } from "./progression";
+import { LIVE_FEATURE_IDS, PROFICIENCY_RANKS, rankIndexForRequirement } from "./progression";
 import { CONTRACT_TEMPLATES } from "./contracts";
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
@@ -321,17 +321,71 @@ export class ContentRegistry {
   }
 
   private static validateProgressionAndEquipment(): void {
+    const bandFor = (requiredXp: number): number => rankIndexForRequirement(requiredXp);
+    const advertisedCrops = new Set<string>();
+    const advertisedRecipes = new Set<string>();
+
     for (const rank of this.ranks) {
-      for (const id of rank.farmingUnlocks) if (id.startsWith("crop.") && !this.crops.has(id)) throw new Error(`Rank '${rank.rankName}' farmingUnlocks missing crop '${id}'`);
-      for (const id of rank.processingUnlocks) if (id.startsWith("recipe.") && !this.recipes.has(id)) throw new Error(`Rank '${rank.rankName}' processingUnlocks missing recipe '${id}'`);
+      // A rank may only advertise a feature the simulation actually reads.
+      // The ladder previously listed 25 feature ids, 23 of them unimplemented.
+      for (const column of [rank.farmingUnlocks, rank.fishingUnlocks, rank.tradingUnlocks, rank.processingUnlocks]) {
+        for (const id of column) {
+          if (id.startsWith("feature.") && !LIVE_FEATURE_IDS.has(id)) {
+            throw new Error(`Rank '${rank.rankName}' advertises '${id}', which no live system reads`);
+          }
+        }
+      }
+
+      for (const id of rank.farmingUnlocks) {
+        if (!id.startsWith("crop.")) continue;
+        const crop = this.crops.get(id);
+        if (!crop) throw new Error(`Rank '${rank.rankName}' farmingUnlocks missing crop '${id}'`);
+        if (bandFor(crop.minimumFarmingXp) !== rank.rankIndex) {
+          throw new Error(
+            `Crop '${id}' unlocks at ${crop.minimumFarmingXp} Farming XP but is advertised at rank '${rank.rankName}'`
+          );
+        }
+        advertisedCrops.add(id);
+      }
+
+      for (const id of rank.processingUnlocks) {
+        if (!id.startsWith("recipe.")) continue;
+        const recipe = this.recipes.get(id);
+        if (!recipe) throw new Error(`Rank '${rank.rankName}' processingUnlocks missing recipe '${id}'`);
+        if (bandFor(recipe.minimumSkill?.xp ?? 0) !== rank.rankIndex) {
+          throw new Error(
+            `Recipe '${id}' unlocks at ${recipe.minimumSkill?.xp ?? 0} XP but is advertised at rank '${rank.rankName}'`
+          );
+        }
+        advertisedRecipes.add(id);
+      }
+
       for (const id of rank.fishingUnlocks) {
         if (id.startsWith("rod.") && !this.rods.has(id)) throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing rod '${id}'`);
-        if (id.startsWith("boat.") && ![...this.boats.values()].some((boat) => boat.id === id)) throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing boat '${id}'`);
+        if (!id.startsWith("boat.")) continue;
+        const boat = [...this.boats.values()].find((candidate) => candidate.id === id);
+        if (!boat) throw new Error(`Rank '${rank.rankName}' fishingUnlocks missing boat '${id}'`);
+        const requirement = boat.requiredSkillXp;
+        if (requirement?.skill === "fishing" && bandFor(requirement.xp) !== rank.rankIndex) {
+          throw new Error(
+            `Boat '${id}' requires ${requirement.xp} Fishing XP but is advertised at rank '${rank.rankName}'`
+          );
+        }
       }
+
       for (const id of rank.tradingUnlocks) {
         if (id.startsWith("market.") && !this.markets.has(id)) throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing market '${id}'`);
         if (id.startsWith("contract.") && !this.contractTemplates.has(id)) throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing contract template '${id}'`);
       }
+    }
+
+    // Completeness: a crop or recipe added without a rank row would otherwise
+    // be invisible in the ladder even though it is reachable in the world.
+    for (const cropId of this.crops.keys()) {
+      if (!advertisedCrops.has(cropId)) throw new Error(`Crop '${cropId}' is not advertised by any proficiency rank`);
+    }
+    for (const recipeId of this.recipes.keys()) {
+      if (!advertisedRecipes.has(recipeId)) throw new Error(`Recipe '${recipeId}' is not advertised by any proficiency rank`);
     }
     for (const [rodId, rod] of this.rods) if (rod.costMoney < 0) throw new Error(`Rod '${rodId}' has invalid costMoney`);
     for (const [boatId, boat] of this.boats) if (boat.fuelCapacity < 0) throw new Error(`Boat '${boatId}' has invalid fuelCapacity`);
