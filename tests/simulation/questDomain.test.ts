@@ -208,34 +208,45 @@ describe("QuestDomain & Storyline Progression", () => {
 
   it("awards skill XP, unlocks knowledge, and progresses to epilogue", () => {
     const sim = new Simulation();
-    const allQuests = Array.from(ContentRegistry.quests.values());
 
-    // Progress through each quest sequentially
-    for (const quest of allQuests) {
-      const active = sim.query({ type: "quest.get-active" }) as ActiveQuestDto;
-      expect(active.questId).toBe(quest.id);
+    // Walk the spine only. Registry order interleaves four tracks now, and a
+    // side track is not active until its predicate holds, so iterating every
+    // quest in declaration order would assert an order that never happens.
+    const spine: string[] = [];
+    let cursor = ContentRegistry.quests.get("quest.act1_welcome");
+    while (cursor) {
+      spine.push(cursor.id);
+      cursor = cursor.nextQuestId ? ContentRegistry.quests.get(cursor.nextQuestId) : undefined;
+    }
 
-      // Fulfill step objectives
+    for (const questId of spine) {
+      const quest = ContentRegistry.quests.get(questId)!;
+      expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe(questId);
+
       for (const step of quest.objectives) {
         sim.questDomain.onObjectiveEvent(step.type, step.targetId, step.targetQuantity, step.location);
       }
 
-      // Complete via NPC turn-in or claim
       const speaker = ContentRegistry.npcs.get(quest.speakerId)!;
       sim.state.player.x = speaker.anchor.x;
       sim.state.player.z = speaker.anchor.z;
-      if (quest.id === "quest.act4_restore_rowboat") {
+      if (questId === "quest.act4_restore_rowboat") {
         const inventory = sim.state.inventories[sim.state.player.inventoryId];
         inventory.slots[0] = { itemId: "item.ground_grain", quantity: 1 };
       }
-      sim.execute({ type: "quest.talk-npc", npcId: quest.speakerId });
+      // A side track sharing this speaker may be ready to hand in too, and
+      // turn-in-ready threads resolve first by design. Keep talking until the
+      // spine quest itself is the one that closed.
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        if (sim.state.quests.completedQuestIds.includes(questId)) break;
+        sim.execute({ type: "quest.talk-npc", npcId: quest.speakerId });
+      }
+      expect(sim.state.quests.completedQuestIds, `${questId} never completed`).toContain(questId);
     }
 
-    // After all 5 acts are completed, activeQuest should be null (epilogue open state)
-    const finalQuest = sim.query({ type: "quest.get-active" }) as ActiveQuestDto | null;
-    expect(finalQuest).toBeNull();
+    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBeNull();
     expect(sim.state.quests.activeActId).toBe("epilogue_open");
-    expect(sim.state.quests.completedQuestIds.length).toBe(allQuests.length);
+    for (const questId of spine) expect(sim.state.quests.completedQuestIds).toContain(questId);
   });
 
   it("rejects omitted targets, wrong locations, remote dialogue, and out-of-order completion", () => {

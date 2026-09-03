@@ -63,9 +63,9 @@ mechanical quest progress, rewards, and unlocks.
 
 ## Live story spine
 
-The spine — `track.main` — is one stable `nextQuestId` chain of eighteen
+The spine — `track.main` — is one stable `nextQuestId` chain of twenty-three
 quests. Sequences 1–10 are the accepted P12 loop; 11–13 are the focused P13
-stewardship postscript; 14–18 are Act 7's Sunreach land-sea route.
+stewardship postscript; 14–18 are Act 7's Sunreach land-sea route, and 19–23 are Act 8's dry season: the terraces irrigated from their own well, the southern reef given its first gameplay verb, salt-curing that takes the freshness clock off a catch entirely, and the Sunreach route finally run in the paying direction.
 `src/content/quests.ts` remains the source of exact copy, IDs, counts, costs,
 rewards, and objective data, and `src/content/questTracks.ts` owns the tracks.
 
@@ -900,7 +900,7 @@ The single cost authority returns base cost, discounted cost, floored available 
 
 MVP proficiencies: Farming, Fishing, Processing, Trading. Later: Husbandry, Boatbuilding. Shared ranks: Novice → Apprentice → Skilled → Expert → Master → Artisan → Famed → Legendary.
 
-The rank-unlock table is an **advertisement of live gates, not a second gate**. `crop.minimumFarmingXp`, `recipe.minimumSkill` and `boat.requiredSkillXp` own their own requirements; `ContentRegistry.validateProgressionAndEquipment` asserts at startup that every crop, recipe and boat is advertised in exactly the band its own gate implies, and that every crop and recipe appears somewhere, so the table cannot drift from the content. The one column the table genuinely owns is rods: `rodFishingXpRequirement` reads a rod's requirement back out of `fishingUnlocks`.
+The rank-unlock table advertises gates that live with the content, and for the processing column it is also a live gate: `isProcessingRecipeUnlocked` checks a recipe's rank in `ProcessingDomain`. That is safe to run beside `recipe.minimumSkill` only because the validator below forces the two to agree. `crop.minimumFarmingXp`, `recipe.minimumSkill` and `boat.requiredSkillXp` own their own requirements; `ContentRegistry.validateProgressionAndEquipment` asserts at startup that every crop, recipe and boat is advertised in exactly the band its own gate implies, and that every crop and recipe appears somewhere, so the table cannot drift from the content. The one column the table genuinely owns is rods: `rodFishingXpRequirement` reads a rod's requirement back out of `fishingUnlocks`.
 
 A rank may only list a `feature.*` id present in `LIVE_FEATURE_IDS` (`src/content/progression.ts`), which is the set the simulation actually reads; `tests/simulation/rankUnlocks.test.ts` asserts the converse, that every id in that set has a consumer in `src/`. Both live features — `feature.expedition_planner` and `feature.irrigation_zone` — are granted by quests, so neither appears in a rank. Ranks 5 and 7 currently advertise nothing, and rank 6 only `rod.master`: that is the honest state of high-proficiency play and is content work to fill, not a table edit.
 

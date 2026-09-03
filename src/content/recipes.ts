@@ -103,6 +103,16 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 5,
     tags: ["milling", "chum-prep", "sunreach"]
   },
+  "recipe.cure_sardine": {
+    id: "recipe.cure_sardine",
+    name: "Salt-Cure Sardines",
+    stationType: "fish-table",
+    inputs: [{ itemId: "fish.sardine", quantity: 2 }],
+    outputs: [{ itemId: "item.salt_cured_fish", quantity: 1 }],
+    durationMinutes: 45,
+    minimumSkill: { skill: "processing", xp: 1000 },
+    tags: ["fish-prep", "preserved"]
+  },
   "recipe.sardine_to_scraps": {
     id: "recipe.sardine_to_scraps",
     name: "Clean Sardines into Scraps",
@@ -130,5 +140,6 @@ export const LIVE_RECIPE_IDS = new Set<RecipeDefinition["id"]>([
   "recipe.mackerel_to_scraps",
   "recipe.carp_to_scraps",
   "recipe.sunflower_to_grain",
-  "recipe.sardine_to_scraps"
+  "recipe.sardine_to_scraps",
+  "recipe.cure_sardine"
 ]);

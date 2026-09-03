@@ -694,7 +694,8 @@ export const QUESTS: QuestDefinition[] = [
       { id: "step.act7_fertilize_terraces", type: "apply-fertilizer", description: "Fertilize the Sunreach Terraces", targetId: "farm.sunreach_terraces", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } },
       { id: "step.act7_report_ines", type: "talk-npc", description: "Report back to Ines", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES }
     ],
-    rewards: { money: 300, skillXp: [{ skill: "farming", xp: 900 }, { skill: "processing", xp: 650 }] }
+    rewards: { money: 300, skillXp: [{ skill: "farming", xp: 900 }, { skill: "processing", xp: 650 }] },
+    nextQuestId: "quest.act8_dry_season"
   },
 
   // ===========================================================================
@@ -1269,5 +1270,175 @@ export const QUESTS: QuestDefinition[] = [
       skillXp: [{ skill: "trading", xp: 1400 }],
       unlocksKnowledgeIds: ["knowledge.freight_and_favour"]
     }
+  },
+
+  // ===========================================================================
+  // Act 8: The Dry Season
+  //
+  // Sunreach's own problem, stated mechanically. The terraces hold water badly
+  // (moistureRetention 0.45) and the island is a long crossing from any buyer,
+  // so the act is about the one thing warm dry wind is good for: preserving a
+  // catch until distance stops mattering. It gives the southern reef its first
+  // gameplay verb and ends with the route running the other way.
+  // ===========================================================================
+  {
+    id: "quest.act8_dry_season",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act8_dry_season",
+    actTitle: "Act 8: The Dry Season",
+    questTitle: "What the Terraces Drink",
+    speakerId: "npc.ines",
+    introDialogue: [
+      "You have seen these terraces take water. Now watch them lose it. By afternoon the top row is dust again.",
+      "Plant a row and then run the cistern through it from the well. You brought a pump across the channel with you, whether or not you thought of it that way."
+    ],
+    completionDialogue: [
+      "One pass of the cistern does what a morning of carrying cans does. Sunreach does not reward effort. It rewards arrangement."
+    ],
+    objectives: [
+      {
+        id: "step.act8_plant_terrace",
+        type: "plant-crop",
+        description: "Plant 2 Sunflowers on the Sunreach terraces",
+        targetId: "crop.sunflower",
+        targetQuantity: 2,
+        locationAnchor: SUNREACH_TERRACES,
+        location: { kind: "farm", id: "farm.sunreach_terraces" }
+      },
+      {
+        id: "step.act8_irrigate_terrace",
+        type: "irrigate-farm",
+        description: "Run the cistern through the terraces from the well",
+        targetId: "farm.sunreach_terraces",
+        targetQuantity: 1,
+        locationAnchor: { x: 451.2, z: 7.4, name: "Sunreach Terrace Well" },
+        location: { kind: "farm", id: "farm.sunreach_terraces" }
+      }
+    ],
+    rewards: { money: 120, skillXp: [{ skill: "farming", xp: 700 }] },
+    nextQuestId: "quest.act8_southern_shelf"
+  },
+  {
+    id: "quest.act8_southern_shelf",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act8_dry_season",
+    actTitle: "Act 8: The Dry Season",
+    questTitle: "The Southern Shelf",
+    speakerId: "npc.tomas",
+    introDialogue: [
+      "South of the scrub the reef shelf runs a long way out and nobody works it. Not because it is poor - because it is far from anywhere you could sell in time.",
+      "Take the skiff round and bring back an amberjack. Never mind the clock on it yet. I want you to see what is down there first."
+    ],
+    completionDialogue: [
+      "Now you have seen it. That water has been full the whole time we have been selling sardines off the cove wall."
+    ],
+    objectives: [
+      {
+        id: "step.act8_land_amberjack",
+        type: "land-sport-fish",
+        description: "Land a Greater Amberjack in Sunreach waters",
+        targetId: "fish.amberjack",
+        targetQuantity: 1,
+        locationAnchor: SUNREACH_REEF,
+        location: { kind: "ecology", id: "ecology.sunreach" }
+      }
+    ],
+    rewards: { money: 200, skillXp: [{ skill: "fishing", xp: 900 }] },
+    nextQuestId: "quest.act8_salt_and_shade"
+  },
+  {
+    id: "quest.act8_salt_and_shade",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act8_dry_season",
+    actTitle: "Act 8: The Dry Season",
+    questTitle: "Salt and Shade",
+    speakerId: "npc.ines",
+    introDialogue: [
+      "Here is what this island actually has. Not water. Sun, and wind that never stops, and salt off the cove.",
+      "Split a pair of sardines at the fish table and cure them. Ice buys you hours. This buys you weeks, and weeks is what a crossing costs."
+    ],
+    completionDialogue: [
+      "No clock on it now. That is the whole of what Sunreach is for, and it took us two generations to work it out."
+    ],
+    objectives: [
+      {
+        id: "step.act8_catch_sardines",
+        type: "catch-basic-fish",
+        description: "Catch 2 Sunreach Sardines",
+        targetId: "fish.sardine",
+        targetQuantity: 2,
+        locationAnchor: SUNREACH_COVE,
+        location: { kind: "ecology", id: "ecology.sunreach" }
+      },
+      {
+        id: "step.act8_cure_sardines",
+        type: "craft-recipe",
+        description: "Salt-cure the sardines at the Sunreach fish table",
+        targetId: "recipe.cure_sardine",
+        targetQuantity: 1,
+        locationAnchor: { x: 382, z: 61, name: "Sunreach Fish Table" },
+        location: { kind: "station", id: "struct.sunreach_fish_table" }
+      }
+    ],
+    rewards: {
+      money: 180,
+      skillXp: [{ skill: "processing", xp: 900 }, { skill: "fishing", xp: 300 }],
+      unlocksKnowledgeIds: ["knowledge.salt_and_shade"]
+    },
+    nextQuestId: "quest.act8_route_worth_keeping"
+  },
+  {
+    id: "quest.act8_route_worth_keeping",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act8_dry_season",
+    actTitle: "Act 8: The Dry Season",
+    questTitle: "A Route Worth Keeping",
+    speakerId: "npc.tomas",
+    introDialogue: [
+      "Now run it the other way. Cured fish across the channel, and sell it in the village where nobody has tasted one in years.",
+      "This is the trip we could never make with fresh fish in the hold. Same water, same skiff. The difference is that the cargo stopped counting the hours."
+    ],
+    completionDialogue: [
+      "Sunreach has a market on the other side of the channel now, and it did not need a faster boat. It needed salt."
+    ],
+    objectives: [
+      {
+        id: "step.act8_sell_cured",
+        type: "sell-item",
+        description: "Sell Salt-Cured Fish at the Village Produce Market",
+        targetId: "item.salt_cured_fish",
+        targetQuantity: 1,
+        locationAnchor: VILLAGE_MARKET_ANCHOR,
+        location: { kind: "market", id: "market.village" }
+      }
+    ],
+    rewards: { money: 240, skillXp: [{ skill: "trading", xp: 1000 }] },
+    nextQuestId: "quest.act8_dry_season_end"
+  },
+  {
+    id: "quest.act8_dry_season_end",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act8_dry_season",
+    actTitle: "Act 8: The Dry Season",
+    questTitle: "The Dry Season's End",
+    speakerId: "npc.ines",
+    introDialogue: [
+      "So. Come and tell me what you make of us now.",
+      "People arrive here and see a place that is short of water. They are not wrong. But short of water is only a problem if you were planning to grow the same things they grow over there."
+    ],
+    completionDialogue: [
+      "Every place is poor in something. The work is finding what it is rich in instead, and Sunreach is rich in exactly one thing. You found it."
+    ],
+    objectives: [
+      {
+        id: "step.act8_report_ines",
+        type: "talk-npc",
+        description: "Report back to Ines at the terraces",
+        targetId: "npc.ines",
+        targetQuantity: 1,
+        locationAnchor: SUNREACH_TERRACES
+      }
+    ],
+    rewards: { money: 300, skillXp: [{ skill: "farming", xp: 600 }, { skill: "trading", xp: 600 }] }
   }
 ];

@@ -2,6 +2,8 @@ import { describe, expect, it, afterEach } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { CONTRACT_TYPES } from "../../src/content/contracts";
 import { Simulation } from "../../src/simulation/Simulation";
+import { SEASONS } from "../../src/simulation/core/GameClock";
+import { speciesSeasonWeight } from "../../src/simulation/fishing/seasonalAvailability";
 import {
   MAIN_QUEST_TRACK_ID,
   activeQuestTrackIds,
@@ -209,12 +211,17 @@ describe("the tides side track", () => {
     expect(ContentRegistry.knowledge.has("knowledge.reading_the_water")).toBe(true);
   });
 
-  it("keeps every seasonal objective off the main spine", () => {
-    // The point of the track: a species that is out of season for most of the
-    // year must never sit on the chain the story runs through.
+  it("keeps species that vanish for a season off the main spine", () => {
+    // The property that matters is availability, not the length of the
+    // authored season list. Season is a rate: a shoulder season still spawns
+    // the species thinly, so a two-season fish like the amberjack can be
+    // caught year round and never blocks the story. Only a species whose
+    // weight actually reaches zero can stall the spine — today that is the
+    // arowana and the sailfish, both of which sit on side tracks.
     const seasonal = [...ContentRegistry.fishSpecies.values()]
-      .filter((fish) => fish.seasons.length < 4)
+      .filter((fish) => SEASONS.some((season) => speciesSeasonWeight(fish, season) === 0))
       .map((fish) => fish.id);
+    expect(seasonal).toContain("fish.arowana");
     for (const quest of ContentRegistry.quests.values()) {
       if (quest.trackId !== MAIN_QUEST_TRACK_ID) continue;
       for (const objective of quest.objectives) {

@@ -58,7 +58,10 @@ export const MARKETS: Record<string, MarketDefinition> = {
       // Milled grain and cut plant matter had no sell venue anywhere, so
       // every surplus one was dead weight. The village mills and composts.
       { itemId: "item.ground_grain", basePrice: 12, targetSupply: 45, consumptionRatePerHour: 3.0, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
-      { itemId: "item.plant_matter", basePrice: 2, targetSupply: 90, consumptionRatePerHour: 6.0, seasonalFactors: { spring: 1.1 } }
+      { itemId: "item.plant_matter", basePrice: 2, targetSupply: 90, consumptionRatePerHour: 6.0, seasonalFactors: { spring: 1.1 } },
+      // The Sunreach route pays here: cured fish keeps, so distance stops
+      // being a freshness problem and starts being a trade.
+      { itemId: "item.salt_cured_fish", basePrice: 34, targetSupply: 20, consumptionRatePerHour: 2.2, seasonalFactors: { winter: 1.25, summer: 0.9 } }
     ]
   },
   "market.harbor": {
@@ -127,7 +130,11 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 55, consumptionRatePerHour: 2.5, seasonalFactors: {} },
       // Warm-water pelagics now range into Sunreach, so the cove scales buy them.
       { itemId: "fish.tuna", basePrice: 160, targetSupply: 7, consumptionRatePerHour: 0.7, seasonalFactors: { summer: 1.2, autumn: 1.1 } },
-      { itemId: "fish.sailfish", basePrice: 280, targetSupply: 3, consumptionRatePerHour: 0.25, seasonalFactors: { summer: 1.25 } }
+      { itemId: "fish.sailfish", basePrice: 280, targetSupply: 3, consumptionRatePerHour: 0.25, seasonalFactors: { summer: 1.25 } },
+      // Same base price as the village by the cross-market rule; the cove is
+      // simply a thinner, better-supplied market for it, so carrying cured
+      // fish across the channel is what pays rather than a price gap.
+      { itemId: "item.salt_cured_fish", basePrice: 34, targetSupply: 34, consumptionRatePerHour: 0.9, seasonalFactors: {} }
     ]
   }
 };

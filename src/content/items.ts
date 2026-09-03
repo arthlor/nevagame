@@ -224,6 +224,15 @@ export const ITEMS: Record<string, ItemDefinition> = {
     baseValue: 20,
     tags: ["lure"]
   },
+  "item.salt_cured_fish": {
+    id: "item.salt_cured_fish",
+    name: "Salt-Cured Fish",
+    category: "processed-food",
+    description: "Split, salted and dried in the Sunreach wind. It keeps without ice, which means it travels without a clock.",
+    stackLimit: 40,
+    baseValue: 34,
+    tags: ["preserved", "trade-good"]
+  },
   "item.fish_scraps": {
     id: "item.fish_scraps",
     name: "Fish Scraps",

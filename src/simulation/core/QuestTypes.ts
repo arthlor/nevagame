@@ -14,6 +14,7 @@ export type QuestActId =
   | "act5_expedition"
   | "act6_stewardship"
   | "act7_sunreach"
+  | "act8_dry_season"
   | "epilogue_open"
   // Side tracks carry their own act label. `activeActId` follows the main
   // track only, so these are titles for the journal rather than story acts.

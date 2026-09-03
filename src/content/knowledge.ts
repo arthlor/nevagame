@@ -15,6 +15,11 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
     title: "Wheat Milling",
     summary: "The hand mill turns harvested wheat into ground grain. Grain is the backbone of chum, and chum is how Neva's sport schools are called."
   },
+  "knowledge.salt_and_shade": {
+    id: "knowledge.salt_and_shade",
+    title: "Salt and Shade",
+    summary: "Ice buys you hours; salt and dry wind buy you weeks. A cured catch has no clock on it, which is what makes a long crossing worth making at all. Sunreach is poor in water and rich in the one thing that preserves — sun."
+  },
   "knowledge.freight_and_favour": {
     id: "knowledge.freight_and_favour",
     title: "Freight and Favour",

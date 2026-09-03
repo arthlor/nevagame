@@ -65,7 +65,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.carrot", "crop.barley", "crop.corn", "crop.sunflower"],
     fishingUnlocks: ["rod.river"],
     tradingUnlocks: [],
-    processingUnlocks: ["recipe.craft_lure"]
+    processingUnlocks: ["recipe.craft_lure", "recipe.cure_sardine"]
   },
   {
     rankIndex: 2,
@@ -155,6 +155,22 @@ export function unlocksThroughRank(xp: number, key: RankUnlockKey): Set<string> 
     for (const id of rank[key]) unlocked.add(id);
   }
   return unlocked;
+}
+
+/**
+ * Whether a recipe's Processing rank has been reached.
+ *
+ * This makes `processingUnlocks` a live gate rather than only an
+ * advertisement. It is safe to run alongside `recipe.minimumSkill` because
+ * `validateProgressionAndEquipment` asserts every recipe is advertised in
+ * exactly the band its own `minimumSkill` implies — the two gates cannot
+ * disagree, so the pair is redundant rather than contradictory. A recipe no
+ * rank lists is treated as unlocked, and the same validator guarantees none.
+ */
+export function isProcessingRecipeUnlocked(processingXp: number, recipeId: string): boolean {
+  const listed = PROFICIENCY_RANKS.some((rank) => rank.processingUnlocks.includes(recipeId));
+  if (!listed) return true;
+  return hasRankUnlock(processingXp, "processingUnlocks", recipeId);
 }
 
 /** Whether `xp` has reached the band that advertises `id` in that column. */
