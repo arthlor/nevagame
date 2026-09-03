@@ -63,9 +63,11 @@ mechanical quest progress, rewards, and unlocks.
 
 ## Live story spine
 
-The spine — `track.main` — is one stable `nextQuestId` chain of twenty-three
+The spine — `track.main` — is one stable `nextQuestId` chain of twenty-eight
 quests. Sequences 1–10 are the accepted P12 loop; 11–13 are the focused P13
-stewardship postscript; 14–18 are Act 7's Sunreach land-sea route, and 19–23 are Act 8's dry season: the terraces irrigated from their own well, the southern reef given its first gameplay verb, salt-curing that takes the freshness clock off a catch entirely, and the Sunreach route finally run in the paying direction.
+stewardship postscript; 14–18 are Act 7's Sunreach land-sea route, 19–23 are Act 8's dry season: the terraces irrigated from their own well, the southern reef given its first gameplay verb, salt-curing that takes the freshness clock off a catch entirely, and the Sunreach route finally run in the paying direction. 24–27 are Act 9's charter — the offshore rod, the deep trench, one promise of each kind kept, and the harbor agreeing to hold an order open. 28 is Act 10, the closing round.
+
+`epilogue_open` is now reached deliberately rather than fallen into. Act 10 is the beat that state was always supposed to have, and the Records Board, the contract board and the side tracks are what continue past it. Act 9 does **not** ask for a blue marlin: that needs `rod.master` at 60,000 Fishing XP and would put a wall back on the spine, so the marlin is a Records Board goal instead, where a long chase belongs.
 `src/content/quests.ts` remains the source of exact copy, IDs, counts, costs,
 rewards, and objective data, and `src/content/questTracks.ts` owns the tracks.
 

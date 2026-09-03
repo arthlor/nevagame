@@ -230,9 +230,15 @@ describe("QuestDomain & Storyline Progression", () => {
       const speaker = ContentRegistry.npcs.get(quest.speakerId)!;
       sim.state.player.x = speaker.anchor.x;
       sim.state.player.z = speaker.anchor.z;
-      if (questId === "quest.act4_restore_rowboat") {
+      // Fund whatever this quest asks for at turn-in. Generic rather than a
+      // per-quest special case, so a new commission does not silently make the
+      // walk unfinishable — Act 9's charter costs money and cured fish.
+      if (quest.turnInCost) {
+        sim.state.player.money += quest.turnInCost.money ?? 0;
         const inventory = sim.state.inventories[sim.state.player.inventoryId];
-        inventory.slots[0] = { itemId: "item.ground_grain", quantity: 1 };
+        quest.turnInCost.items?.forEach((cost, index) => {
+          inventory.slots[index] = { itemId: cost.itemId, quantity: cost.quantity };
+        });
       }
       // A side track sharing this speaker may be ready to hand in too, and
       // turn-in-ready threads resolve first by design. Keep talking until the

@@ -15,6 +15,11 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
     title: "Wheat Milling",
     summary: "The hand mill turns harvested wheat into ground grain. Grain is the backbone of chum, and chum is how Neva's sport schools are called."
   },
+  "knowledge.open_horizons": {
+    id: "knowledge.open_horizons",
+    title: "Open Horizons",
+    summary: "Nothing here was finished by one person. The soil was fed by someone who never saw this harvest, the slip was kept by someone who never saw this boat, and the route was salted by an island that could not use it alone. A charter is not permission to go further. It is other people agreeing that you will come back."
+  },
   "knowledge.salt_and_shade": {
     id: "knowledge.salt_and_shade",
     title: "Salt and Shade",

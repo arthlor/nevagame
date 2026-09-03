@@ -167,7 +167,10 @@ export function refillContracts(
   nextEntityId: (prefix: string) => string
 ): void {
   const activeCount = () => state.contracts.filter((contract) => contract.status === "active").length;
-  const slots = contractSlotsForRank(getRankForXp(state.player.proficiencies.trading).rankIndex);
+  const slots = contractSlotsForRank(
+    getRankForXp(state.player.proficiencies.trading).rankIndex,
+    state.quests.unlockedFeatureIds.includes("feature.maritime_guild_charter")
+  );
   while (activeCount() < slots) {
     const eligible = eligibleContractCandidates(state);
     if (eligible.length === 0) return;

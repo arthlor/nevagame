@@ -245,7 +245,11 @@ export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Read
       // all, so the starting water went dead the moment the lesson ended. This
       // sits on the charted Silverwater access, where the bank reserve gives
       // the encounter a channel run to work with.
-      { x: -19.193839218632608, z: -40, habitatId: "river" as const, reviewSpeciesId: "fish.trout" }
+      { x: -19.193839218632608, z: -40, habitatId: "river" as const, reviewSpeciesId: "fish.trout" },
+      // The deep trench, southwest and well past the working grounds. A second
+      // offshore point so the far water is a place the player goes rather than
+      // a re-roll of the one they already know.
+      { x: -40, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.swordfish" }
     ])
   }),
   "ecology.sunreach": Object.freeze({

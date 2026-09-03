@@ -19,7 +19,8 @@ import { ProficiencyRankDefinition } from "./types";
  */
 export const LIVE_FEATURE_IDS: ReadonlySet<string> = new Set([
   "feature.expedition_planner",
-  "feature.irrigation_zone"
+  "feature.irrigation_zone",
+  "feature.maritime_guild_charter"
 ]);
 
 /**
@@ -198,8 +199,9 @@ export function rankIndexForRequirement(requiredXp: number): number {
  * can feel: a wider board means a real choice between orders rather than
  * taking whatever the two slots happened to roll.
  */
-export function contractSlotsForRank(tradingRankIndex: number): number {
-  if (tradingRankIndex >= 5) return 4;
-  if (tradingRankIndex >= 3) return 3;
-  return 2;
+export function contractSlotsForRank(tradingRankIndex: number, hasGuildCharter = false): number {
+  const base = tradingRankIndex >= 5 ? 4 : tradingRankIndex >= 3 ? 3 : 2;
+  // The charter is the story's capstone, so it pays in the same currency the
+  // rest of the trading ladder does: one more promise you can carry at once.
+  return base + (hasGuildCharter ? 1 : 0);
 }

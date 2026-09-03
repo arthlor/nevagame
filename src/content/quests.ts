@@ -1439,6 +1439,217 @@ export const QUESTS: QuestDefinition[] = [
         locationAnchor: SUNREACH_TERRACES
       }
     ],
-    rewards: { money: 300, skillXp: [{ skill: "farming", xp: 600 }, { skill: "trading", xp: 600 }] }
+    rewards: { money: 300, skillXp: [{ skill: "farming", xp: 600 }, { skill: "trading", xp: 600 }] },
+    nextQuestId: "quest.act9_beyond_the_grounds"
+  },
+
+  // ===========================================================================
+  // Act 9: The Charter
+  //
+  // Earned seamanship. The offshore rod is the one purchase the story has
+  // never asked for, the trench is water the player has had no reason to visit,
+  // and the charter is the harbor agreeing you can be relied on. Deliberately
+  // does NOT ask for a blue marlin: that needs rod.master at 60,000 Fishing XP
+  // and would put a wall back on the spine. The marlin is a Records Board
+  // goal, where a long chase belongs.
+  // ===========================================================================
+  {
+    id: "quest.act9_beyond_the_grounds",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act9_charter",
+    actTitle: "Act 9: The Charter",
+    questTitle: "Beyond the Grounds",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "You have worked every water this island has, and you are still fishing them with tackle meant for the ones near shore.",
+      "There is an offshore rod on Maeve's rack. It is not a reward and nobody is giving it to you. Go and buy it, and then we will talk about where it can take you."
+    ],
+    completionDialogue: [
+      "Now you are carrying something that can hold a fish you cannot see the bottom under. Do not mistake that for being ready."
+    ],
+    objectives: [
+      {
+        id: "step.act9_buy_offshore_rod",
+        type: "purchase-upgrade",
+        description: "Buy the Offshore Rod at the harbor tackle stall",
+        targetId: "rod.offshore",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      }
+    ],
+    rewards: { money: 200, skillXp: [{ skill: "fishing", xp: 900 }] },
+    nextQuestId: "quest.act9_deep_trench"
+  },
+  {
+    id: "quest.act9_deep_trench",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act9_charter",
+    actTitle: "Act 9: The Charter",
+    questTitle: "The Deep Trench",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "Southwest of the working grounds the bottom drops away and stays gone. We call it the trench because nobody has ever had a better word for it.",
+      "Swordfish hold there. Take the skiff out past where you can see the lighthouse and bring one back. Go on a day you have the fuel to be patient."
+    ],
+    completionDialogue: [
+      "Off the trench and home again. There are maybe four people on this island who have done that, and two of them are standing here."
+    ],
+    objectives: [
+      {
+        id: "step.act9_land_swordfish",
+        type: "land-sport-fish",
+        description: "Land a Swordfish from the deep trench",
+        targetId: "fish.swordfish",
+        targetQuantity: 1,
+        locationAnchor: { x: -40, z: 250, name: "The Deep Trench" },
+        location: { kind: "ecology", id: "ecology.neva" }
+      },
+      {
+        id: "step.act9_sell_swordfish",
+        type: "sell-fish",
+        description: "Sell the Swordfish at the Fish Market",
+        targetId: "fish.swordfish",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
+        location: { kind: "market", id: "market.harbor" }
+      }
+    ],
+    rewards: { money: 400, skillXp: [{ skill: "fishing", xp: 1400 }, { skill: "trading", xp: 500 }] },
+    nextQuestId: "quest.act9_standing_arrangement"
+  },
+  {
+    id: "quest.act9_standing_arrangement",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act9_charter",
+    actTitle: "Act 9: The Charter",
+    questTitle: "A Standing Arrangement",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "Silas will tell you seamanship is the hard part. Silas has never had to explain to a buyer why their order is not on the quay.",
+      "Two promises, both kept. One where the grade has to be right, and one where the volume has to be. Different skills entirely, and the harbor needs somebody who has both."
+    ],
+    completionDialogue: [
+      "Grade and volume, in the same season, from the same person. That is not luck twice. That is somebody the harbor can plan around."
+    ],
+    objectives: [
+      {
+        id: "step.act9_quality_order",
+        type: "complete-contract",
+        description: "Complete a quality-target order",
+        targetId: "quality-target",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      },
+      {
+        id: "step.act9_bulk_order",
+        type: "complete-contract",
+        description: "Complete a bulk order",
+        targetId: "bulk-order",
+        targetQuantity: 1,
+        locationAnchor: VILLAGE_MARKET_ANCHOR
+      }
+    ],
+    rewards: { money: 350, skillXp: [{ skill: "trading", xp: 1400 }] },
+    nextQuestId: "quest.act9_the_charter"
+  },
+  {
+    id: "quest.act9_the_charter",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act9_charter",
+    actTitle: "Act 9: The Charter",
+    questTitle: "The Charter",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "There is a paper the harbor keeps. It is not a licence and it does not let you do anything you cannot already do.",
+      "It says the people here will hold an order open for you, because they expect you back. Bring the fee and a case of cured fish for the table, and I will put your name on it."
+    ],
+    completionDialogue: [
+      "Signed. You can carry one more standing order than the board would otherwise give you - not because you are owed it, but because somebody is prepared to wait."
+    ],
+    objectives: [
+      {
+        id: "step.act9_sign_charter",
+        type: "talk-npc",
+        description: "Sign the charter with Maeve",
+        targetId: "npc.maeve",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      }
+    ],
+    turnInCost: { money: 400, items: [{ itemId: "item.salt_cured_fish", quantity: 2 }] },
+    rewards: {
+      skillXp: [{ skill: "trading", xp: 1200 }, { skill: "fishing", xp: 600 }],
+      unlocksFeatureIds: ["feature.maritime_guild_charter"]
+    },
+    nextQuestId: "quest.act10_open_horizons"
+  },
+
+  // ===========================================================================
+  // Act 10: Open Horizons
+  //
+  // The arc in LLM/02 section 0.1 ends at "open horizons", and the game used to
+  // reach it by setting activeActId to a state with no content in it. This is
+  // the closing beat that state was always supposed to have: not a reward, a
+  // round of the people whose work the player has been standing on.
+  // ===========================================================================
+  {
+    id: "quest.act10_open_horizons",
+    trackId: MAIN_QUEST_TRACK_ID,
+    actId: "act10_open_horizons",
+    actTitle: "Act 10: Open Horizons",
+    questTitle: "Open Horizons",
+    speakerId: "npc.elspeth",
+    introDialogue: [
+      "Before you take that charter anywhere, do one more thing for me, and it is not work.",
+      "Go round. Silas, Maeve, Barnaby. Say whatever you say. Then come back and tell me what you think you inherited, now that you have actually done it."
+    ],
+    completionDialogue: [
+      "Soil, a boat, a route and a name at three stalls. None of it was finished when it came to you and none of it will be finished when you hand it on.",
+      "That is the whole of it, and it is enough. Go and see what the horizon is for."
+    ],
+    objectives: [
+      {
+        id: "step.act10_silas",
+        type: "talk-npc",
+        description: "Speak with Old Silas at the pier",
+        targetId: "npc.silas",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Harbor Pier" }
+      },
+      {
+        id: "step.act10_maeve",
+        type: "talk-npc",
+        description: "Speak with Maeve at the Fish Market",
+        targetId: "npc.maeve",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      },
+      {
+        id: "step.act10_barnaby",
+        type: "talk-npc",
+        description: "Speak with Barnaby at the farmhouse bench",
+        targetId: "npc.barnaby",
+        targetQuantity: 1,
+        locationAnchor: { x: -73.5, z: -58.8, name: "Farmhouse Workbench" }
+      },
+      {
+        id: "step.act10_elspeth",
+        type: "talk-npc",
+        description: "Return to Elspeth at the garden gate",
+        targetId: "npc.elspeth",
+        targetQuantity: 1,
+        locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
+      }
+    ],
+    rewards: {
+      money: 500,
+      skillXp: [
+        { skill: "farming", xp: 800 },
+        { skill: "fishing", xp: 800 },
+        { skill: "processing", xp: 800 },
+        { skill: "trading", xp: 800 }
+      ],
+      unlocksKnowledgeIds: ["knowledge.open_horizons"]
+    }
   }
 ];
