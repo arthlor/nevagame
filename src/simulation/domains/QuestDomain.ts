@@ -414,7 +414,10 @@ export class QuestDomain {
     const matching = npc.recognitionDialogue?.filter((entry) =>
       (entry.requiresCompletedQuestIds ?? []).every((id) => state.quests.completedQuestIds.includes(id)) &&
       (entry.requiresFeatureIds ?? []).every((id) => state.quests.unlockedFeatureIds.includes(id)) &&
-      (entry.requiresKnowledgeIds ?? []).every((id) => state.journal.unlockedKnowledge.includes(id))
+      (entry.requiresKnowledgeIds ?? []).every((id) => state.journal.unlockedKnowledge.includes(id)) &&
+      (entry.requiresRankIndex === undefined
+        || getRankForXp(state.player.proficiencies[entry.requiresRankIndex.skill] ?? 0).rankIndex
+          >= entry.requiresRankIndex.rankIndex)
     );
     return matching?.at(-1)?.lines ?? npc.idleDialogue;
   }

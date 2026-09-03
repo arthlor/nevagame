@@ -55,6 +55,27 @@ export const NPC_STATION_BEATS: Readonly<Record<string, NpcStationBeatSpec>> = {
     ],
     pauseSeconds: 1.1,
     walkSpeedMetersPerSecond: NPC_STATION_WALK_SPEED_METERS_PER_SECOND
+  },
+  // Sunreach shipped without beats, so both islanders stood perfectly still
+  // while every Neva NPC moved. Tomas works a mooring, so he paces the
+  // landing; Ines tends terraces, so she moves along a row.
+  "npc.tomas": {
+    waypoints: [
+      { dx: 0, dz: 0 },
+      { dx: 0.84, dz: -0.36 },
+      { dx: -0.24, dz: -0.9 }
+    ],
+    pauseSeconds: 1.3,
+    walkSpeedMetersPerSecond: NPC_STATION_WALK_SPEED_METERS_PER_SECOND
+  },
+  "npc.ines": {
+    waypoints: [
+      { dx: 0, dz: 0 },
+      { dx: -0.66, dz: 0.62 },
+      { dx: 0.7, dz: 0.5 }
+    ],
+    pauseSeconds: 1.4,
+    walkSpeedMetersPerSecond: NPC_STATION_WALK_SPEED_METERS_PER_SECOND
   }
 };
 

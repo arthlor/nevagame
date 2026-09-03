@@ -295,6 +295,26 @@ export class ContentRegistry {
         for (const questId of entry.requiresCompletedQuestIds ?? []) {
           if (!this.quests.has(questId)) throw new Error(`NPC '${npc.id}' recognition dialogue references unknown quest '${questId}'`);
         }
+        // A predicate that can never hold is a line the player will never see.
+        // Only quest ids were checked before, so a typo in a knowledge or
+        // feature id silently retired the entry.
+        for (const knowledgeId of entry.requiresKnowledgeIds ?? []) {
+          if (!this.knowledge.has(knowledgeId)) {
+            throw new Error(`NPC '${npc.id}' recognition dialogue references unknown knowledge '${knowledgeId}'`);
+          }
+        }
+        for (const featureId of entry.requiresFeatureIds ?? []) {
+          const grantedByQuest = [...this.quests.values()].some(
+            (quest) => quest.rewards.unlocksFeatureIds?.includes(featureId)
+          );
+          if (!grantedByQuest && !LIVE_FEATURE_IDS.has(featureId)) {
+            throw new Error(`NPC '${npc.id}' recognition dialogue references feature '${featureId}', which nothing grants`);
+          }
+        }
+        const rank = entry.requiresRankIndex;
+        if (rank && !this.ranks.some((candidate) => candidate.rankIndex === rank.rankIndex)) {
+          throw new Error(`NPC '${npc.id}' recognition dialogue references unknown rank index ${rank.rankIndex}`);
+        }
       }
     }
   }

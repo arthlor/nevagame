@@ -150,8 +150,12 @@ The live dialogue model has four contextual sources:
 - NPC `idleDialogue`: returned when the contacted NPC is not the active quest
   speaker; it provides place/role texture without changing quest state.
 - NPC `recognitionDialogue`: the latest content-authored entry whose completed
-  quest, feature, and knowledge predicates match; it recognizes milestones
-  without relationship state, schedules, branches, or UI-owned history.
+  quest, feature, knowledge and **proficiency-rank** predicates match; it
+  recognizes milestones without relationship state, schedules, branches, or
+  UI-owned history. `requiresRankIndex` lets an NPC react to proficiency, the
+  one axis they were previously blind to. Every predicate is validated at
+  startup, so an entry cannot silently reference something nothing grants and
+  quietly retire itself.
 
 The talk command requires the authoritative proximity check. `NpcTalked`,
 `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted` are
