@@ -1,5 +1,6 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
+import { CONTRACT_TYPES } from "../../src/content/contracts";
 import { Simulation } from "../../src/simulation/Simulation";
 import {
   MAIN_QUEST_TRACK_ID,
@@ -276,5 +277,60 @@ describe("the family ledger side track", () => {
 
     expect(homestead.stepProgress["step.homestead_plant_wheat"]).toBe(1);
     expect(tides.stepProgress).toEqual(tidesBefore);
+  });
+});
+
+describe("the freight side track", () => {
+  it("targets contract types rather than templates the board may not roll", () => {
+    ContentRegistry.initializeAndValidate();
+    // Naming one template would make the quest wait on a dice roll: the board
+    // fills a few slots from two dozen templates.
+    const chain: string[] = [];
+    let quest = ContentRegistry.quests.get("quest.tradelanes_volume");
+    while (quest) {
+      chain.push(quest.id);
+      expect(quest.trackId).toBe("track.tradelanes");
+      quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
+    }
+    expect(chain).toHaveLength(5);
+
+    const contractTargets = [...ContentRegistry.quests.values()]
+      .filter((candidate) => candidate.trackId === "track.tradelanes")
+      .flatMap((candidate) => candidate.objectives)
+      .filter((objective) => objective.type === "complete-contract")
+      .map((objective) => objective.targetId);
+    expect(contractTargets.length).toBeGreaterThan(0);
+    for (const target of contractTargets) {
+      expect(CONTRACT_TYPES.has(target!), `${target} should be a contract type`).toBe(true);
+      expect(ContentRegistry.contractTemplates.has(target!)).toBe(false);
+    }
+  });
+
+  it("advances a type-targeted objective from any contract of that type", () => {
+    const sim = new Simulation();
+    const track = questTrackProgress(sim.state.quests, "track.tradelanes");
+    track.activeQuestId = "quest.tradelanes_volume";
+    track.activeStepIndex = 0;
+    track.stepProgress = {};
+
+    // A produce contract must not satisfy the bulk-order objective...
+    sim.events.emit("ContractCompleted", {
+      contractId: "contract.a",
+      templateId: "contract.wheat_supply",
+      contractType: "produce",
+      rewardMoney: 10,
+      minute: 0
+    });
+    expect(track.stepProgress).toEqual({});
+
+    // ...but any bulk order does, whichever template rolled it.
+    sim.events.emit("ContractCompleted", {
+      contractId: "contract.b",
+      templateId: "contract.bulk_root_order",
+      contractType: "bulk-order",
+      rewardMoney: 10,
+      minute: 0
+    });
+    expect(track.stepProgress["step.tradelanes_bulk"]).toBe(1);
   });
 });

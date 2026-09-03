@@ -9,6 +9,20 @@ export function contractDeliveryMarketId(
   return definition.deliveryMarketId;
 }
 
+/**
+ * The authored contract types. A quest may target one of these instead of a
+ * specific template id: the board rolls a handful of slots out of two dozen
+ * templates, so "complete this exact contract" would leave the player
+ * rerolling and waiting, while "complete any bulk order" is a goal they can
+ * actually pursue.
+ */
+export const CONTRACT_TYPES: ReadonlySet<string> = new Set([
+  "produce",
+  "fresh-fish",
+  "quality-target",
+  "bulk-order"
+]);
+
 export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
   {
     id: "contract.wheat_supply",

@@ -22,7 +22,7 @@ import { BOATS } from "./boats";
 import { RODS } from "./rods";
 import { MARKETS } from "./markets";
 import { LIVE_FEATURE_IDS, PROFICIENCY_RANKS, rankIndexForRequirement } from "./progression";
-import { CONTRACT_TEMPLATES } from "./contracts";
+import { CONTRACT_TEMPLATES, CONTRACT_TYPES } from "./contracts";
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
 import { QUEST_TRACKS } from "./questTracks";
@@ -321,7 +321,10 @@ export class ContentRegistry {
         if (!this.fishSpecies.has(targetId) && !this.items.has(targetId)) throw new Error(`Quest '${questId}' fish target '${targetId}' is missing`);
         return;
       case "complete-contract":
-        if (!this.contractTemplates.has(targetId)) throw new Error(`Quest '${questId}' contract target '${targetId}' is missing`);
+        // Either one template, or any contract of a type.
+        if (!this.contractTemplates.has(targetId) && !CONTRACT_TYPES.has(targetId)) {
+          throw new Error(`Quest '${questId}' contract target '${targetId}' is neither a template nor a contract type`);
+        }
         return;
       case "apply-fertilizer":
       case "irrigate-farm":

@@ -69,13 +69,20 @@ stewardship postscript; 14–18 are Act 7's Sunreach land-sea route.
 `src/content/quests.ts` remains the source of exact copy, IDs, counts, costs,
 rewards, and objective data, and `src/content/questTracks.ts` owns the tracks.
 
-Two side tracks run alongside it. **`track.homestead` — The Family Ledger**
+Three side tracks run alongside it. **`track.homestead` — The Family Ledger**
 is five quests opening after `quest.act2_harvest_and_compost`: it pays off the
 inheritance premise, which had been three sentences of dialogue and nothing
 else, by putting the player to work on `farm.player_homestead` — a fully
 defined second farm that no quest, gate or structure had ever referenced. It
 ends on an apple tree, a deliberately long-tail goal that only a side track can
 carry.
+
+**`track.tradelanes` — Freight and Favour** is five quests with Maeve, opening
+after `quest.act6_harbor_promise`, one for each kind of promise the board
+makes: volume, freshness, grade and distance. Its objectives target a contract
+**type** rather than a template id, because the board fills a few slots from
+two dozen templates and naming one would make the quest a dice roll rather than
+a goal. `ContractCompleted` fans out on both, and the validator accepts either.
 
 **`track.tides` — Reading the Water** is Silas's six-quest
 standing lesson, which opens when `quest.act5_maiden_voyage` completes. It

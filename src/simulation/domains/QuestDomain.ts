@@ -153,7 +153,12 @@ export class QuestDomain {
       }),
       events.on("ItemSold", (e) => this.onObjectiveEvent("sell-item", e.itemId, e.quantity, { kind: "market", id: e.marketId })),
       events.on("FishSold", (e) => this.onObjectiveEvent("sell-fish", e.speciesId, 1, { kind: "market", id: e.marketId })),
-      events.on("ContractCompleted", (e) => this.onObjectiveEvent("complete-contract", e.templateId, 1)),
+      events.on("ContractCompleted", (e) => {
+        this.onObjectiveEvent("complete-contract", e.templateId, 1);
+        // Also by type, so a quest can ask for "any bulk order" rather than
+        // one template the board may not roll for a long time.
+        if (e.contractType !== e.templateId) this.onObjectiveEvent("complete-contract", e.contractType, 1);
+      }),
       events.on("FarmFertilized", (e) => this.onObjectiveEvent("apply-fertilizer", e.farmId, 1, { kind: "farm", id: e.farmId })),
       events.on("IrrigationInstalled", (e) => this.onObjectiveEvent("install-irrigation", e.featureId, 1, { kind: "farm", id: e.farmId })),
       events.on("FarmIrrigated", (e) => this.onObjectiveEvent("irrigate-farm", e.farmId, 1, { kind: "farm", id: e.farmId })),

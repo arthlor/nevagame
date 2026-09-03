@@ -8,6 +8,9 @@ export const TIDES_QUEST_TRACK_ID = "track.tides";
 /** The inheritance the homestead itself remembers. */
 export const HOMESTEAD_QUEST_TRACK_ID = "track.homestead";
 
+/** Maeve on what an order actually costs to keep. */
+export const TRADELANES_QUEST_TRACK_ID = "track.tradelanes";
+
 /**
  * Quest tracks are parallel linear chains, not branches.
  *
@@ -44,5 +47,16 @@ export const QUEST_TRACKS: QuestTrackDefinition[] = [
     title: "The Family Ledger",
     entryQuestId: "quest.homestead_seed_pouch",
     unlock: { requiresCompletedQuestIds: ["quest.act2_harvest_and_compost"] }
+  },
+  {
+    // Opens once the player has kept one contract, which is the point they
+    // have the vocabulary for the rest. Its objectives target contract *types*
+    // rather than specific templates: the board rolls a few slots out of two
+    // dozen, so naming one template would leave the player waiting on a dice
+    // roll instead of pursuing a goal.
+    id: TRADELANES_QUEST_TRACK_ID,
+    title: "Freight and Favour",
+    entryQuestId: "quest.tradelanes_volume",
+    unlock: { requiresCompletedQuestIds: ["quest.act6_harbor_promise"] }
   }
 ];

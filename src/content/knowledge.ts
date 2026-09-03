@@ -15,6 +15,11 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
     title: "Wheat Milling",
     summary: "The hand mill turns harvested wheat into ground grain. Grain is the backbone of chum, and chum is how Neva's sport schools are called."
   },
+  "knowledge.freight_and_favour": {
+    id: "knowledge.freight_and_favour",
+    title: "Freight and Favour",
+    summary: "An order is a promise with a clock on it. Volume pays less per unit and more in total; freshness pays only if you carry ice and keep moving. The board is not a list of prices — it is a list of promises you have to be able to keep."
+  },
   "knowledge.family_ledger": {
     id: "knowledge.family_ledger",
     title: "The Family Ledger",

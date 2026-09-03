@@ -18,7 +18,8 @@ export type QuestActId =
   // Side tracks carry their own act label. `activeActId` follows the main
   // track only, so these are titles for the journal rather than story acts.
   | "track_tides"
-  | "track_homestead";
+  | "track_homestead"
+  | "track_tradelanes";
 
 export type QuestObjectiveType =
   | "talk-npc"

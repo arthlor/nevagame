@@ -1,7 +1,7 @@
 // src/content/quests.ts
 
 import { MAIN_QUEST_TRACK_ID, type QuestDefinition } from "../simulation/core/QuestTypes";
-import { HOMESTEAD_QUEST_TRACK_ID, TIDES_QUEST_TRACK_ID } from "./questTracks";
+import { HOMESTEAD_QUEST_TRACK_ID, TIDES_QUEST_TRACK_ID, TRADELANES_QUEST_TRACK_ID } from "./questTracks";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
@@ -1109,6 +1109,165 @@ export const QUESTS: QuestDefinition[] = [
       money: 300,
       skillXp: [{ skill: "farming", xp: 1500 }],
       unlocksKnowledgeIds: ["knowledge.family_ledger"]
+    }
+  },
+
+  // ===========================================================================
+  // Side track: Freight and Favour (track.tradelanes)
+  //
+  // Maeve on what an order costs to keep. Every objective targets a contract
+  // *type* rather than a template id, because the board rolls a few slots out
+  // of two dozen templates and naming one would make the quest a dice roll.
+  // ===========================================================================
+  {
+    id: "quest.tradelanes_volume",
+    trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes",
+    actTitle: "Freight and Favour",
+    questTitle: "The Weight of an Order",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "You kept one order. Good. Now find out what happens when the number on it is large.",
+      "Take a bulk order off the board and fill it. Not a basket - a granary's worth. You will learn more about your own storage in one of those than in a season of small deliveries."
+    ],
+    completionDialogue: [
+      "Now you know. Volume pays less for each measure and more in total, and it eats every slot you own while you gather it."
+    ],
+    objectives: [
+      {
+        id: "step.tradelanes_bulk",
+        type: "complete-contract",
+        description: "Complete any bulk order",
+        targetId: "bulk-order",
+        targetQuantity: 1,
+        locationAnchor: VILLAGE_MARKET_ANCHOR
+      }
+    ],
+    rewards: { money: 120, skillXp: [{ skill: "trading", xp: 600 }] },
+    nextQuestId: "quest.tradelanes_freshness"
+  },
+  {
+    id: "quest.tradelanes_freshness",
+    trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes",
+    actTitle: "Freight and Favour",
+    questTitle: "The Clock in the Hold",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "The other kind of order does not care how much you bring. It cares how fresh it is when it lands on my scales.",
+      "Take a fresh-fish order and meet its mark. Buy ice before you sail, not after - the clock starts when the fish does, and no amount of hurry buys back an hour you already spent."
+    ],
+    completionDialogue: [
+      "Ice in the hold and a short route home. That is the entire trick, and most people learn it by losing a catch first."
+    ],
+    objectives: [
+      {
+        id: "step.tradelanes_fresh",
+        type: "complete-contract",
+        description: "Complete any fresh-fish order at its freshness mark",
+        targetId: "fresh-fish",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      }
+    ],
+    rewards: {
+      items: [{ itemId: "item.crushed_ice", quantity: 3 }],
+      money: 140,
+      skillXp: [{ skill: "trading", xp: 700 }, { skill: "fishing", xp: 300 }]
+    },
+    nextQuestId: "quest.tradelanes_grade"
+  },
+  {
+    id: "quest.tradelanes_grade",
+    trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes",
+    actTitle: "Freight and Favour",
+    questTitle: "A Buyer Who Can Tell",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "There is a third sort, and it is the one that separates anglers. The buyer names a grade, and nothing under it will do.",
+      "You cannot hurry a grade. It comes from the fight - a clean one, on tackle that was never over its head. Take a quality order and bring it in at the mark."
+    ],
+    completionDialogue: [
+      "That is the order most people fail. A buyer who can tell the difference is worth more to you than one who cannot."
+    ],
+    objectives: [
+      {
+        id: "step.tradelanes_quality",
+        type: "complete-contract",
+        description: "Complete any quality-target order",
+        targetId: "quality-target",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      }
+    ],
+    rewards: { money: 220, skillXp: [{ skill: "trading", xp: 900 }, { skill: "fishing", xp: 400 }] },
+    nextQuestId: "quest.tradelanes_crossing"
+  },
+  {
+    id: "quest.tradelanes_crossing",
+    trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes",
+    actTitle: "Freight and Favour",
+    questTitle: "The Long Way Round",
+    speakerId: "npc.tomas",
+    introDialogue: [
+      "Maeve says you have learned volume, freshness and grade. Here is the fourth thing: distance.",
+      "Fill an order that has to cross the channel. Everything you already know still applies, only now the clock runs while you are at sea and there is no turning back halfway."
+    ],
+    completionDialogue: [
+      "A crossing turns every one of those lessons into the same lesson. Load for the trip you are actually making."
+    ],
+    objectives: [
+      {
+        id: "step.tradelanes_dock_cove",
+        type: "dock-boat",
+        description: "Dock at Sunreach Cove",
+        targetId: "boat.player_skiff",
+        targetQuantity: 1,
+        locationAnchor: SUNREACH_COVE,
+        location: { kind: "market", id: "market.sunreach_cove" }
+      },
+      {
+        id: "step.tradelanes_cross_order",
+        type: "complete-contract",
+        description: "Complete any produce order",
+        targetId: "produce",
+        targetQuantity: 1,
+        locationAnchor: VILLAGE_MARKET_ANCHOR
+      }
+    ],
+    rewards: { money: 260, skillXp: [{ skill: "trading", xp: 1000 }] },
+    nextQuestId: "quest.tradelanes_ledger"
+  },
+  {
+    id: "quest.tradelanes_ledger",
+    trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes",
+    actTitle: "Freight and Favour",
+    questTitle: "Freight and Favour",
+    speakerId: "npc.maeve",
+    introDialogue: [
+      "Four kinds of promise, and you have kept one of each. Come and tell me what you would say to somebody starting.",
+      "Not the prices. Anyone can read prices. What it actually costs you to keep a promise you made three days ago."
+    ],
+    completionDialogue: [
+      "That is the trade. Not the coin - the keeping. Say it to the next one who asks you, and the harbor will be fine."
+    ],
+    objectives: [
+      {
+        id: "step.tradelanes_report_maeve",
+        type: "talk-npc",
+        description: "Report back to Maeve at the Fish Market",
+        targetId: "npc.maeve",
+        targetQuantity: 1,
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+      }
+    ],
+    rewards: {
+      money: 350,
+      skillXp: [{ skill: "trading", xp: 1400 }],
+      unlocksKnowledgeIds: ["knowledge.freight_and_favour"]
     }
   }
 ];
