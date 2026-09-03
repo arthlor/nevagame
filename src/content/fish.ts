@@ -450,7 +450,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.tuna": {
     id: "fish.tuna",
-    ecologyIds: ["ecology.neva"],
+    ecologyIds: ["ecology.neva", "ecology.sunreach"],
     name: "Yellowfin Tuna",
     habitats: ["coast", "offshore"],
     seasons: ["summer", "autumn"],
@@ -490,7 +490,7 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
   },
   "fish.sailfish": {
     id: "fish.sailfish",
-    ecologyIds: ["ecology.neva"],
+    ecologyIds: ["ecology.neva", "ecology.sunreach"],
     name: "Pacific Sailfish",
     habitats: ["offshore"],
     seasons: ["summer"],

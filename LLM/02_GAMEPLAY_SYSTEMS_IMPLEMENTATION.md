@@ -546,7 +546,7 @@ AND distanceMeters <= landingDistance
 AND lineTension within valid range
 AND the valid range is held continuously for 0.55 seconds
 ```
-On land: auto-stow into a free hold/hook/player-carry slot, or `FishEscaped` if no space — a won fight with a failed stow does **not** consume the school. A successful stow commits school catch potential/pressure before `FishLanded`, so event-driven autosaves observe the cargo and its consumed school catch as one outcome. Hook will not roll a species the current hold/carry cannot fit. `SCHOOL_SPAWN_POINTS` includes at least one `habitatId: "offshore"` point so sailfish/swordfish/blue marlin can spawn when season and pressure allow. Do not implement combat-style HP defeat.
+On land: auto-stow into a free hold/hook/player-carry slot, or `FishEscaped` if no space — a won fight with a failed stow does **not** consume the school. A successful stow commits school catch potential/pressure before `FishLanded`, so event-driven autosaves observe the cargo and its consumed school catch as one outcome. Hook will not roll a species the current hold/carry cannot fit. `SCHOOL_SPAWN_POINTS` covers every sport habitat — river, lake, coast and offshore on Neva, coast and offshore on Sunreach — and `tests/simulation/seasonalAvailability.test.ts` asserts none of them is empty in any season. The river point sits on the charted Silverwater access so the water Act 3 teaches stays a sport ground; `fish.tuna` and `fish.sailfish` range into `ecology.sunreach` as migratory pelagics, which is why the island's two points no longer roll a single species. Reef and river residents stay local to their island. Do not implement combat-style HP defeat.
 
 ```ts
 interface FishBehaviorProfile {
@@ -686,7 +686,7 @@ interface BoatState {
 ```
 Rowboat: first vehicle, lake sport/nearshore, tiny cargo/low speed/poor rough sea; fuel may be omitted. The live definition keeps its 4.5 m/s top speed with a 3.0 m/s² launch ramp so short player-led steering inputs remain responsive at the browser's 30 FPS floor (`src/content/boats.ts` owns the tuning).
 
-Fishing Skiff: LIVE acquisition at the authored harbor skiff mooring requires **15,000 Fishing XP and 850 G**. The atomic purchase creates the persisted `boat.player_skiff`, its eight-slot supply inventory, four internal medium cargo slots, two **external gargantuan hooks** (needed to stow blue marlin; do not nerf marlin to large), fuel tank, and better rough-water tolerance. `item.boat_fuel` is sold at the harbor; `boat.refuel` (dock, nearby, or aboard) consumes one can and fills `fuel` to `fuelCapacity`. A fresh save does not create a skiff; it remains a progression-world asset until purchased.
+Fishing Skiff: LIVE acquisition at the authored harbor skiff mooring requires **6,000 Fishing XP and 850 G**. The atomic purchase creates the persisted `boat.player_skiff`, its eight-slot supply inventory, four internal medium cargo slots, two **external gargantuan hooks** (needed to stow blue marlin; do not nerf marlin to large), fuel tank, and better rough-water tolerance. `item.boat_fuel` is sold at the harbor; `boat.refuel` (dock, nearby, or aboard) consumes one can and fills `fuel` to `fuelCapacity`. A fresh save does not create a skiff; it remains a progression-world asset until purchased.
 
 The Neva–Sunreach sailing centerline and both moorings are world registries.
 The open-channel exposure gate is physical navigation: a rowboat is stopped at

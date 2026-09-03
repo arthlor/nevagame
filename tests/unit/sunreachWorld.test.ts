@@ -263,10 +263,20 @@ describe("Sunreach world contract", () => {
     expect(ContentRegistry.markets.get("market.sunreach_cove")?.retail.itemIds).toEqual(
       expect.arrayContaining(["item.crushed_ice", "item.boat_fuel"])
     );
+    // Residents stay local: a reef or river species belongs to one island.
+    // Migratory open-ocean pelagics are the stated exception — they range
+    // across both, which is what stops Sunreach's two spawn points from
+    // rolling the same single species forever.
+    const RANGING_PELAGICS = new Set(["fish.tuna", "fish.sailfish"]);
+    const SUNREACH_RESIDENTS = new Set(["fish.sardine", "fish.sea_bream", "fish.amberjack"]);
     for (const fish of ContentRegistry.fishSpecies.values()) {
-      if (!fish.id.startsWith("fish.sardine") && fish.id !== "fish.sea_bream" && fish.id !== "fish.amberjack") {
-        expect(fish.ecologyIds).toEqual(["ecology.neva"]);
+      if (SUNREACH_RESIDENTS.has(fish.id)) continue;
+      if (RANGING_PELAGICS.has(fish.id)) {
+        expect(fish.ecologyIds, fish.id).toEqual(["ecology.neva", "ecology.sunreach"]);
+        expect(fish.habitats, `${fish.id} must be pelagic to range`).toContain("offshore");
+        continue;
       }
+      expect(fish.ecologyIds, fish.id).toEqual(["ecology.neva"]);
     }
   });
 });

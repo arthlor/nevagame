@@ -54,7 +54,11 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "produce.olive", basePrice: 22, targetSupply: 18, consumptionRatePerHour: 1.6, seasonalFactors: { winter: 1.2, spring: 1.1 } },
       { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 6, seasonalFactors: {} },
       { itemId: "item.basic_fertilizer", basePrice: 18, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { spring: 1.25 } },
-      { itemId: "item.compost_starter", basePrice: 10, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} }
+      { itemId: "item.compost_starter", basePrice: 10, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} },
+      // Milled grain and cut plant matter had no sell venue anywhere, so
+      // every surplus one was dead weight. The village mills and composts.
+      { itemId: "item.ground_grain", basePrice: 12, targetSupply: 45, consumptionRatePerHour: 3.0, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
+      { itemId: "item.plant_matter", basePrice: 2, targetSupply: 90, consumptionRatePerHour: 6.0, seasonalFactors: { spring: 1.1 } }
     ]
   },
   "market.harbor": {
@@ -87,7 +91,11 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "item.chum_bucket", basePrice: 25, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} },
       { itemId: "item.crushed_ice", basePrice: 15, targetSupply: 50, consumptionRatePerHour: 3.5, seasonalFactors: { summer: 1.3 } },
       { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 40, consumptionRatePerHour: 2.5, seasonalFactors: {} },
-      { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 4.0, seasonalFactors: {} }
+      { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 4.0, seasonalFactors: {} },
+      // Scraps and crafted lures were likewise unsellable; the harbor is
+      // where both are actually used.
+      { itemId: "item.fish_scraps", basePrice: 4, targetSupply: 70, consumptionRatePerHour: 5.0, seasonalFactors: {} },
+      { itemId: "item.basic_lure", basePrice: 20, targetSupply: 25, consumptionRatePerHour: 1.5, seasonalFactors: { summer: 1.1 } }
     ]
   },
   "market.sunreach_cove": {
@@ -116,7 +124,10 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "fish.amberjack", basePrice: 175, targetSupply: 6, consumptionRatePerHour: 0.45, seasonalFactors: { summer: 1.2, autumn: 1.1 } },
       { itemId: "item.bait_worms", basePrice: 5, targetSupply: 80, consumptionRatePerHour: 4.0, seasonalFactors: {} },
       { itemId: "item.crushed_ice", basePrice: 15, targetSupply: 55, consumptionRatePerHour: 3.5, seasonalFactors: { summer: 1.3 } },
-      { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 55, consumptionRatePerHour: 2.5, seasonalFactors: {} }
+      { itemId: "item.boat_fuel", basePrice: 30, targetSupply: 55, consumptionRatePerHour: 2.5, seasonalFactors: {} },
+      // Warm-water pelagics now range into Sunreach, so the cove scales buy them.
+      { itemId: "fish.tuna", basePrice: 160, targetSupply: 7, consumptionRatePerHour: 0.7, seasonalFactors: { summer: 1.2, autumn: 1.1 } },
+      { itemId: "fish.sailfish", basePrice: 280, targetSupply: 3, consumptionRatePerHour: 0.25, seasonalFactors: { summer: 1.25 } }
     ]
   }
 };

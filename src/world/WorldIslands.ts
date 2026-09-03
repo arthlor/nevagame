@@ -240,7 +240,12 @@ export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Read
     schoolSpawnPoints: Object.freeze([
       { x: 18, z: 92.21637079147003, habitatId: "lake" as const, reviewSpeciesId: "fish.trout" },
       { x: 118, z: 138.00113938994076, habitatId: "coast" as const, reviewSpeciesId: "fish.tuna" },
-      { x: 90, z: 221.41154209242305, habitatId: "offshore" as const, reviewSpeciesId: "fish.blue_marlin" }
+      { x: 90, z: 221.41154209242305, habitatId: "offshore" as const, reviewSpeciesId: "fish.blue_marlin" },
+      // The river taught sport fishing in Act 3 and then had no sport school at
+      // all, so the starting water went dead the moment the lesson ended. This
+      // sits on the charted Silverwater access, where the bank reserve gives
+      // the encounter a channel run to work with.
+      { x: -19.193839218632608, z: -40, habitatId: "river" as const, reviewSpeciesId: "fish.trout" }
     ])
   }),
   "ecology.sunreach": Object.freeze({

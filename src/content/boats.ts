@@ -44,6 +44,6 @@ export const BOATS: Record<string, BoatDefinition> = {
     supplySlotCount: 8,
     safeSeaRoughness: 0.75,
     costMoney: 850,
-    requiredSkillXp: { skill: "fishing", xp: 15000 }
+    requiredSkillXp: { skill: "fishing", xp: 6000 }
   }
 };

@@ -116,6 +116,27 @@ describe("content reachability", () => {
     }
   });
 
+  it("gives every non-seed item a market that will buy it", () => {
+    // The mirror of the source checks above. `item.basic_lure`,
+    // `item.fish_scraps`, `item.ground_grain` and `item.plant_matter` were all
+    // craftable or harvestable with nowhere to sell them, so a surplus was
+    // simply dead weight in a finite satchel. Seeds are deliberately exempt:
+    // they are an input the player buys, not an output they accumulate.
+    const buyers = new Map<string, string[]>();
+    for (const market of ContentRegistry.markets.values()) {
+      for (const commodity of market.commodities) {
+        buyers.set(commodity.itemId, [...(buyers.get(commodity.itemId) ?? []), market.id]);
+      }
+    }
+    for (const item of ContentRegistry.items.values()) {
+      if (item.category === "seed") continue;
+      expect(
+        buyers.get(item.id)?.length ?? 0,
+        `${item.id} can be obtained but no market buys it`
+      ).toBeGreaterThan(0);
+    }
+  });
+
   it("makes every contract template completable in at least one season", () => {
     for (const template of ContentRegistry.contractTemplates.values()) {
       for (const targetId of template.itemOrSpeciesPool) {

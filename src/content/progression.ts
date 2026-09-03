@@ -81,7 +81,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     rankName: "Expert",
     xpRequired: 7500,
     farmingUnlocks: ["crop.apple_tree", "crop.olive_tree"],
-    fishingUnlocks: [],
+    fishingUnlocks: ["boat.skiff"],
     tradingUnlocks: [],
     processingUnlocks: []
   },
@@ -90,7 +90,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     rankName: "Master",
     xpRequired: 15000,
     farmingUnlocks: [],
-    fishingUnlocks: ["rod.offshore", "boat.skiff"],
+    fishingUnlocks: ["rod.offshore"],
     tradingUnlocks: [],
     processingUnlocks: []
   },
