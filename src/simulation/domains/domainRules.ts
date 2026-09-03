@@ -64,3 +64,14 @@ export function rollSpeciesWeightKg(
   const sigma = Math.max(0.01, (max - min) / 6);
   return Number(Math.min(max, Math.max(min, average + nextGaussian(rng) * sigma)).toFixed(1));
 }
+
+/**
+ * Contracts run in two lanes: item delivery and physical fish cargo.
+ * `bulk-order` is an item lane order — `ContractDomain.deliverItems` already
+ * accepts it, and only the feasibility and refund branches were still asking
+ * `type === "produce"`, which routed it into the fish lane and made every
+ * bulk-order template silently ungeneratable.
+ */
+export function isProduceContractType(type: string): boolean {
+  return type === "produce" || type === "bulk-order";
+}

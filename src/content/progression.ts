@@ -173,3 +173,17 @@ export function rankIndexForRequirement(requiredXp: number): number {
   }
   return PROFICIENCY_RANKS[PROFICIENCY_RANKS.length - 1].rankIndex;
 }
+
+/**
+ * How many contracts the board offers at once, by Trading rank.
+ *
+ * This is the scale axis the deleted `feature.contract_tier2` /
+ * `contract_tier3` flags were gesturing at, expressed as something the player
+ * can feel: a wider board means a real choice between orders rather than
+ * taking whatever the two slots happened to roll.
+ */
+export function contractSlotsForRank(tradingRankIndex: number): number {
+  if (tradingRankIndex >= 5) return 4;
+  if (tradingRankIndex >= 3) return 3;
+  return 2;
+}

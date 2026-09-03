@@ -6,6 +6,7 @@ import { createInitialGameState } from "../../src/simulation/core/createInitialS
 import { SEASONS } from "../../src/simulation/core/GameClock";
 import { isSpeciesInSeason } from "../../src/simulation/fishing/seasonalAvailability";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
+import { isProduceContractType } from "../../src/simulation/domains/domainRules";
 
 /**
  * Guards the "authored but unreachable" defect class.
@@ -140,7 +141,7 @@ describe("content reachability", () => {
   it("makes every contract template completable in at least one season", () => {
     for (const template of ContentRegistry.contractTemplates.values()) {
       for (const targetId of template.itemOrSpeciesPool) {
-        if (template.type === "produce") {
+        if (isProduceContractType(template.type)) {
           const crop = [...ContentRegistry.crops.values()].find(
             (candidate) => candidate.harvestItemId === targetId
           );

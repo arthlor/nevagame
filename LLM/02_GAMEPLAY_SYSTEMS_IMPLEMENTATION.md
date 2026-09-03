@@ -900,7 +900,11 @@ interface ContractTemplate {
   progressionGate?: ProgressionRequirement;
 }
 ```
-Generator MUST validate feasibility, use the template-owned delivery market for readiness and completion, and preserve the produce/fishing choice rule above. The seven live templates in `src/content/contracts.ts` include an olive delivery from Sunreach to Neva village and a fresh reef-fish order delivered at Sunreach Cove.
+Generator MUST validate feasibility, use the template-owned delivery market for readiness and completion, and preserve the produce/fishing choice rule above. `src/content/contracts.ts` is the count authority; the board spans village produce laddered by each crop's own Farming XP gate, harbor sport-fish orders laddered by rod and cargo class, and Sunreach cove orders for the pelagics that range there.
+
+Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match.
+
+The board's width scales with Trading rank through `contractSlotsForRank` — 2 slots below rank 3, 3 at ranks 3-4, 4 at rank 5 and above — so proficiency buys a real choice between orders instead of whatever two slots happened to roll.
 
 Contract money is fixed at generation from a **rest-demand market reference**, then multiplied by the template premium. Produce reference includes the delivery market's current seasonal factor. Fish reference includes the contract's minimum quality, minimum freshness, and minimum or average weight modifiers. Live demand is deliberately excluded so accepting or rerolling during a demand spike cannot manipulate the fixed reward. If an expired partially fulfilled produce contract cannot return items because the satchel is full, its money refund uses the same rest reference rather than raw item value.
 

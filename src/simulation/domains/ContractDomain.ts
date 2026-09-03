@@ -9,16 +9,17 @@ import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
-import { cargoClassFits, qualityRank, rodMeetsMinimum } from "./domainRules";
+import { cargoClassFits, isProduceContractType, qualityRank, rodMeetsMinimum } from "./domainRules";
 import { isSpeciesInSeason } from "../fishing/seasonalAvailability";
 import { SCHOOL_SPAWN_POINTS } from "./FishingDomain";
 import { getFishWeightMultiplier, getQualityMultiplier } from "../economy/calculateFishValue";
 import { getFreshnessPriceMultiplier } from "../fishing/calculateFreshness";
+import { contractSlotsForRank, getRankForXp } from "../../content/progression";
 
-const MAX_ACTIVE_CONTRACTS = 2;
+
 const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
 
-function feasibleContractTargets(
+export function feasibleContractTargets(
   state: GameState,
   template: ContractTemplateDefinition
 ): string[] {
@@ -26,7 +27,7 @@ function feasibleContractTargets(
   if (state.player.proficiencies[template.rewardSkill] < requiredXp) return [];
 
   return template.itemOrSpeciesPool.filter((targetId) => {
-    if (template.type === "produce") {
+    if (isProduceContractType(template.type)) {
       const crop = [...ContentRegistry.crops.values()].find((candidate) => candidate.harvestItemId === targetId);
       const deliveryMarket = state.markets[template.deliveryMarketId];
       const seedIsStocked = crop && [...ContentRegistry.markets.values()].some((market) =>
@@ -97,7 +98,7 @@ export function voidActiveContracts(state: GameState): number {
 
 function refundAndExpireContract(state: GameState, contract: GameState["contracts"][number]): void {
   contract.status = "expired";
-  if (contract.type !== "produce" || contract.quantityFulfilled <= 0) return;
+  if (!isProduceContractType(contract.type) || contract.quantityFulfilled <= 0) return;
   const itemId = contract.targetItemIdOrSpecies;
   const quantity = contract.quantityFulfilled;
   const inventory = state.inventories[state.player.inventoryId];
@@ -166,17 +167,18 @@ export function refillContracts(
   nextEntityId: (prefix: string) => string
 ): void {
   const activeCount = () => state.contracts.filter((contract) => contract.status === "active").length;
-  while (activeCount() < MAX_ACTIVE_CONTRACTS) {
+  const slots = contractSlotsForRank(getRankForXp(state.player.proficiencies.trading).rankIndex);
+  while (activeCount() < slots) {
     const eligible = eligibleContractCandidates(state);
     if (eligible.length === 0) return;
     const activeContracts = state.contracts.filter((contract) => contract.status === "active");
-    const hasProduce = activeContracts.some((contract) => contract.type === "produce");
-    const hasFishing = activeContracts.some((contract) => contract.type !== "produce");
+    const hasProduce = activeContracts.some((contract) => isProduceContractType(contract.type));
+    const hasFishing = activeContracts.some((contract) => !isProduceContractType(contract.type));
     const hasRowboat = state.quests.unlockedFeatureIds.includes("boat.player_rowboat");
     const preferred = !hasProduce
-      ? eligible.filter(({ template }) => template.type === "produce")
+      ? eligible.filter(({ template }) => isProduceContractType(template.type))
       : hasRowboat && !hasFishing
-        ? eligible.filter(({ template }) => template.type !== "produce")
+        ? eligible.filter(({ template }) => !isProduceContractType(template.type))
         : [];
     const candidatePool = preferred.length > 0 ? preferred : eligible;
     const candidate = candidatePool[rng.intInclusive(0, candidatePool.length - 1)];

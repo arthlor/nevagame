@@ -2,7 +2,7 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
-import { cargoClassFits, rodMeetsMinimum } from "../domains/domainRules";
+import { cargoClassFits, isProduceContractType, rodMeetsMinimum } from "../domains/domainRules";
 import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 
 export interface ExpeditionOpportunityDto {
@@ -71,7 +71,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
   const targetName = itemName(contract.targetItemIdOrSpecies);
   const remaining = Math.max(0, contract.quantityRequired - contract.quantityFulfilled);
   const minutesLeft = contract.expiresAtMinute - state.clock.currentMinute;
-  const isProduce = contract.type === "produce";
+  const isProduce = isProduceContractType(contract.type);
   const blockers: string[] = [];
   const inventory = state.inventories[state.player.inventoryId];
 
@@ -158,8 +158,8 @@ export function buildExpeditionOpportunities(
   vesselId: string | null = state.player.activeBoatId ?? null
 ): ExpeditionOpportunityDto[] {
   const active = state.contracts.filter((contract) => contract.status === "active");
-  const produce = active.find((contract) => contract.type === "produce");
-  const fishing = active.find((contract) => contract.type !== "produce");
+  const produce = active.find((contract) => isProduceContractType(contract.type));
+  const fishing = active.find((contract) => !isProduceContractType(contract.type));
   return [
     produce ? contractOpportunity(state, produce, vesselId) : marketOpportunity(state, "steady", marketSignals.steady, vesselId),
     fishing ? contractOpportunity(state, fishing, vesselId) : marketOpportunity(state, "bold", marketSignals.bold, vesselId)
