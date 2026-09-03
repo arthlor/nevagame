@@ -225,3 +225,56 @@ describe("the tides side track", () => {
     }
   });
 });
+
+describe("the family ledger side track", () => {
+  it("opens after the compost lesson and runs its own five-quest chain", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    expect(questTrackProgress(sim.state.quests, "track.homestead").activeQuestId).toBeNull();
+
+    sim.state.quests.completedQuestIds.push("quest.act2_harvest_and_compost");
+    sim.questDomain.evaluateTrackUnlocks();
+    expect(questTrackProgress(sim.state.quests, "track.homestead").activeQuestId)
+      .toBe("quest.homestead_seed_pouch");
+
+    const chain: string[] = [];
+    let quest = ContentRegistry.quests.get("quest.homestead_seed_pouch");
+    while (quest) {
+      chain.push(quest.id);
+      expect(quest.trackId).toBe("track.homestead");
+      quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
+    }
+    expect(chain).toHaveLength(5);
+    expect(ContentRegistry.quests.get(chain[chain.length - 1])!.rewards.unlocksKnowledgeIds)
+      .toEqual(["knowledge.family_ledger"]);
+  });
+
+  it("carries three threads at once without them interfering", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    sim.state.quests.completedQuestIds.push("quest.act2_harvest_and_compost", "quest.act5_maiden_voyage");
+    sim.questDomain.evaluateTrackUnlocks();
+
+    const active = activeQuestTrackIds(sim.state.quests).sort();
+    expect(active).toEqual(["track.homestead", "track.main", "track.tides"]);
+
+    // A homestead planting advances only the chain that asked for it: the
+    // spine is on its own quest and the tides track wants a fish.
+    const homestead = questTrackProgress(sim.state.quests, "track.homestead");
+    homestead.activeQuestId = "quest.homestead_overgrown_rows";
+    homestead.activeStepIndex = 0;
+    homestead.stepProgress = {};
+    const tides = questTrackProgress(sim.state.quests, "track.tides");
+    const tidesBefore = { ...tides.stepProgress };
+
+    sim.events.emit("CropPlanted", {
+      farmId: "farm.player_homestead",
+      cropId: "crop.wheat",
+      placedCropId: "crop.test",
+      minute: 0
+    });
+
+    expect(homestead.stepProgress["step.homestead_plant_wheat"]).toBe(1);
+    expect(tides.stepProgress).toEqual(tidesBefore);
+  });
+});

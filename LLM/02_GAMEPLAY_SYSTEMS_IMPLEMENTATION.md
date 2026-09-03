@@ -69,7 +69,15 @@ stewardship postscript; 14–18 are Act 7's Sunreach land-sea route.
 `src/content/quests.ts` remains the source of exact copy, IDs, counts, costs,
 rewards, and objective data, and `src/content/questTracks.ts` owns the tracks.
 
-Alongside it runs **`track.tides` — Reading the Water**, Silas's six-quest
+Two side tracks run alongside it. **`track.homestead` — The Family Ledger**
+is five quests opening after `quest.act2_harvest_and_compost`: it pays off the
+inheritance premise, which had been three sentences of dialogue and nothing
+else, by putting the player to work on `farm.player_homestead` — a fully
+defined second farm that no quest, gate or structure had ever referenced. It
+ends on an apple tree, a deliberately long-tail goal that only a side track can
+carry.
+
+**`track.tides` — Reading the Water** is Silas's six-quest
 standing lesson, which opens when `quest.act5_maiden_voyage` completes. It
 exists so that every season-, hour- and weather-conditional objective in the
 game sits off the spine: at roughly six real hours per season, a story quest

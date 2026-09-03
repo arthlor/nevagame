@@ -17,7 +17,8 @@ export type QuestActId =
   | "epilogue_open"
   // Side tracks carry their own act label. `activeActId` follows the main
   // track only, so these are titles for the journal rather than story acts.
-  | "track_tides";
+  | "track_tides"
+  | "track_homestead";
 
 export type QuestObjectiveType =
   | "talk-npc"

@@ -7,6 +7,7 @@ import { SEASONS } from "../../src/simulation/core/GameClock";
 import { isSpeciesInSeason } from "../../src/simulation/fishing/seasonalAvailability";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
 import { isProduceContractType } from "../../src/simulation/domains/domainRules";
+import { WORLD_FARM_DEFINITIONS } from "../../src/world/WorldGameplayLocations";
 
 /**
  * Guards the "authored but unreachable" defect class.
@@ -160,6 +161,22 @@ describe("content reachability", () => {
         );
         expect(rodReaches, `${quest.id}/${objective.id} wants a species no rod can reach`).toBe(true);
       }
+    }
+  });
+
+  it("gives every authored farm a quest that sends the player to it", () => {
+    // `farm.player_homestead` shipped as a fully defined second farm that no
+    // quest, gate or structure referenced — a whole plot of the world nothing
+    // pointed at. This is the guard against adding another.
+    const questFarms = new Set<string>();
+    for (const quest of ContentRegistry.quests.values()) {
+      for (const objective of quest.objectives) {
+        if (objective.location?.kind === "farm") questFarms.add(objective.location.id);
+        if (objective.type === "apply-fertilizer" && objective.targetId) questFarms.add(objective.targetId);
+      }
+    }
+    for (const farmId of Object.keys(WORLD_FARM_DEFINITIONS)) {
+      expect(questFarms.has(farmId), `${farmId} exists but no quest ever sends the player there`).toBe(true);
     }
   });
 

@@ -5,6 +5,9 @@ import { MAIN_QUEST_TRACK_ID, type QuestTrackDefinition } from "../simulation/co
 /** Silas's standing lesson in where each species actually lives. */
 export const TIDES_QUEST_TRACK_ID = "track.tides";
 
+/** The inheritance the homestead itself remembers. */
+export const HOMESTEAD_QUEST_TRACK_ID = "track.homestead";
+
 /**
  * Quest tracks are parallel linear chains, not branches.
  *
@@ -31,5 +34,15 @@ export const QUEST_TRACKS: QuestTrackDefinition[] = [
     title: "Reading the Water",
     entryQuestId: "quest.tides_home_water",
     unlock: { requiresCompletedQuestIds: ["quest.act5_maiden_voyage"] }
+  },
+  {
+    // Opens once the player has harvested and composted, so they know the
+    // verbs the private homestead asks for. It runs long on purpose: the
+    // orchard at its end is a genuine late goal, which is exactly the kind of
+    // pacing a side track can carry and the spine cannot.
+    id: HOMESTEAD_QUEST_TRACK_ID,
+    title: "The Family Ledger",
+    entryQuestId: "quest.homestead_seed_pouch",
+    unlock: { requiresCompletedQuestIds: ["quest.act2_harvest_and_compost"] }
   }
 ];

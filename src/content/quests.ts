@@ -1,7 +1,7 @@
 // src/content/quests.ts
 
 import { MAIN_QUEST_TRACK_ID, type QuestDefinition } from "../simulation/core/QuestTypes";
-import { TIDES_QUEST_TRACK_ID } from "./questTracks";
+import { HOMESTEAD_QUEST_TRACK_ID, TIDES_QUEST_TRACK_ID } from "./questTracks";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
@@ -14,6 +14,8 @@ const COMPOST_BIN = starterStructureAnchor("struct.starter_compost")!;
 const BRIDGE = WorldLayout.landmark("bridge");
 const VILLAGE_MARKET_ANCHOR = { ...VILLAGE_MARKET.position, name: "Village Produce Stall" } as const;
 const HARBOR_MARKET = WorldLayout.landmark("fish-market");
+/** Centre of the private homestead's single plantable area. */
+const HOMESTEAD_PLOT = { x: 63.5, z: -62.5, name: "Private Homestead" };
 const LAKE_SCHOOL_ANCHOR = { x: 18, z: WorldLayout.coastlineZ(18) + 12, name: "Lake Sport-Fishing School" } as const;
 const SUNREACH_COVE = { ...SUNREACH_ANCHORS.coveMarket, name: "Sunreach Cove" } as const;
 const SUNREACH_TERRACES = { ...SUNREACH_ANCHORS.terraceFarm, name: "Sunreach Terraces" } as const;
@@ -918,6 +920,195 @@ export const QUESTS: QuestDefinition[] = [
       money: 400,
       skillXp: [{ skill: "fishing", xp: 1400 }],
       unlocksKnowledgeIds: ["knowledge.reading_the_water"]
+    }
+  },
+
+  // ===========================================================================
+  // Side track: The Family Ledger (track.homestead)
+  //
+  // The inheritance premise was three sentences of dialogue and nothing else,
+  // and `farm.player_homestead` -- a fully defined second farm -- was referenced
+  // by no quest, gate or structure. This chain pays the first off by putting
+  // the player to work on the second. It ends on the apple tree, a genuine
+  // late goal, which is pacing only a side track can carry.
+  // ===========================================================================
+  {
+    id: "quest.homestead_seed_pouch",
+    trackId: HOMESTEAD_QUEST_TRACK_ID,
+    actId: "track_homestead",
+    actTitle: "The Family Ledger",
+    questTitle: "The Seed Pouch",
+    speakerId: "npc.elspeth",
+    introDialogue: [
+      "There is something I kept back, and I am sorry for it. A seed pouch, oilcloth, tied at the neck. It hung in your family's kitchen for as long as I knew them.",
+      "The private rows east of the village are theirs too - overgrown now, but the soil under them is the best on this island. Take the pouch. Go and look at what you actually inherited."
+    ],
+    completionDialogue: [
+      "They saved seed every year rather than buy it. That is not thrift. That is a person deciding there will be a next season."
+    ],
+    objectives: [
+      {
+        id: "step.homestead_take_pouch",
+        type: "talk-npc",
+        description: "Take the seed pouch from Elspeth",
+        targetId: "npc.elspeth",
+        targetQuantity: 1,
+        locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
+      }
+    ],
+    rewards: {
+      items: [{ itemId: "seed.wheat", quantity: 8 }, { itemId: "seed.potato", quantity: 4 }],
+      skillXp: [{ skill: "farming", xp: 250 }]
+    },
+    nextQuestId: "quest.homestead_overgrown_rows"
+  },
+  {
+    id: "quest.homestead_overgrown_rows",
+    trackId: HOMESTEAD_QUEST_TRACK_ID,
+    actId: "track_homestead",
+    actTitle: "The Family Ledger",
+    questTitle: "The Overgrown Rows",
+    speakerId: "npc.barnaby",
+    introDialogue: [
+      "So you found the private rows. Good soil, bad state. Nobody has turned it since before you came.",
+      "Put the family's own wheat back in it - three rows will do to start - and water them in. Land forgets fast, but it forgives faster."
+    ],
+    completionDialogue: [
+      "Rows in, water on. That plot has been waiting years for exactly that and nothing more."
+    ],
+    objectives: [
+      {
+        id: "step.homestead_plant_wheat",
+        type: "plant-crop",
+        description: "Plant 3 Wheat on the private homestead",
+        targetId: "crop.wheat",
+        targetQuantity: 3,
+        locationAnchor: HOMESTEAD_PLOT,
+        location: { kind: "farm", id: "farm.player_homestead" }
+      },
+      {
+        id: "step.homestead_water_wheat",
+        type: "water-crop",
+        description: "Water the homestead rows",
+        targetQuantity: 3,
+        locationAnchor: HOMESTEAD_PLOT,
+        location: { kind: "farm", id: "farm.player_homestead" }
+      }
+    ],
+    rewards: { money: 40, skillXp: [{ skill: "farming", xp: 400 }] },
+    nextQuestId: "quest.homestead_first_crop"
+  },
+  {
+    id: "quest.homestead_first_crop",
+    trackId: HOMESTEAD_QUEST_TRACK_ID,
+    actId: "track_homestead",
+    actTitle: "The Family Ledger",
+    questTitle: "The First Crop Home",
+    speakerId: "npc.barnaby",
+    introDialogue: [
+      "When it comes ripe, bring it in yourself. All three rows.",
+      "Then take one measure to the village stall and sell it there. Not for the coin. So the stall sees that plot is being worked again."
+    ],
+    completionDialogue: [
+      "Word travels faster than wheat. That plot has a name at the market again, and it is yours now."
+    ],
+    objectives: [
+      {
+        id: "step.homestead_harvest_wheat",
+        type: "harvest-crop",
+        description: "Harvest 3 Wheat from the homestead",
+        targetId: "crop.wheat",
+        targetQuantity: 3,
+        locationAnchor: HOMESTEAD_PLOT,
+        location: { kind: "farm", id: "farm.player_homestead" }
+      },
+      {
+        id: "step.homestead_sell_wheat",
+        type: "sell-item",
+        description: "Sell Wheat at the Village Produce Market",
+        targetId: "produce.wheat",
+        targetQuantity: 1,
+        locationAnchor: VILLAGE_MARKET_ANCHOR,
+        location: { kind: "market", id: "market.village" }
+      }
+    ],
+    rewards: { money: 90, skillXp: [{ skill: "farming", xp: 450 }, { skill: "trading", xp: 300 }] },
+    nextQuestId: "quest.homestead_worn_tools"
+  },
+  {
+    id: "quest.homestead_worn_tools",
+    trackId: HOMESTEAD_QUEST_TRACK_ID,
+    actId: "track_homestead",
+    actTitle: "The Family Ledger",
+    questTitle: "The Worn Tools",
+    speakerId: "npc.barnaby",
+    introDialogue: [
+      "Look at the mill handle sometime. Worn on one side only, and not by you.",
+      "Grind some of that homestead wheat there. Same stone, same handle, same grip. That is the whole inheritance, if you want my opinion on it."
+    ],
+    completionDialogue: [
+      "Every tool on this island is a record of the hands that used it. Yours are on that handle now too."
+    ],
+    objectives: [
+      {
+        id: "step.homestead_mill_grain",
+        type: "craft-recipe",
+        description: "Mill Wheat into Ground Grain at the family mill",
+        targetId: "recipe.wheat_to_grain",
+        targetQuantity: 1,
+        locationAnchor: { x: STARTER_MILL.x, z: STARTER_MILL.z, name: "Village Mill" },
+        location: { kind: "station", id: "struct.starter_mill" }
+      }
+    ],
+    rewards: { money: 60, skillXp: [{ skill: "processing", xp: 400 }] },
+    nextQuestId: "quest.homestead_orchard"
+  },
+  {
+    id: "quest.homestead_orchard",
+    trackId: HOMESTEAD_QUEST_TRACK_ID,
+    actId: "track_homestead",
+    actTitle: "The Family Ledger",
+    questTitle: "The Family Orchard",
+    speakerId: "npc.elspeth",
+    introDialogue: [
+      "One thing is still missing from that plot, and it will take you a long while to put back.",
+      "There were apple trees on the homestead. An orchard is not a crop - you will not see fruit for a good long stretch, and whoever plants one is mostly planting it for somebody else. Plant a sapling there. Bring me the first apple off it, whenever that is."
+    ],
+    completionDialogue: [
+      "Then the ledger is current again. Someone kept it before you, and now you are the one keeping it. That is all inheriting anything ever means."
+    ],
+    objectives: [
+      {
+        id: "step.homestead_plant_orchard",
+        type: "plant-crop",
+        description: "Plant an Apple Tree on the homestead",
+        targetId: "crop.apple_tree",
+        targetQuantity: 1,
+        locationAnchor: HOMESTEAD_PLOT,
+        location: { kind: "farm", id: "farm.player_homestead" }
+      },
+      {
+        id: "step.homestead_harvest_apple",
+        type: "harvest-crop",
+        description: "Harvest the first apple",
+        targetId: "crop.apple_tree",
+        targetQuantity: 1,
+        locationAnchor: HOMESTEAD_PLOT,
+        location: { kind: "farm", id: "farm.player_homestead" }
+      },
+      {
+        id: "step.homestead_report_elspeth",
+        type: "talk-npc",
+        description: "Bring the first apple to Elspeth",
+        targetId: "npc.elspeth",
+        targetQuantity: 1,
+        locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
+      }
+    ],
+    rewards: {
+      money: 300,
+      skillXp: [{ skill: "farming", xp: 1500 }],
+      unlocksKnowledgeIds: ["knowledge.family_ledger"]
     }
   }
 ];
