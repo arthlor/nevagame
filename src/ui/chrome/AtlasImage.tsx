@@ -8,6 +8,7 @@ import {
 interface AtlasImageProps {
   src?: string | null;
   size?: number;
+  fit?: "contain" | "fill";
   alt?: string;
   className?: string;
   title?: string;
@@ -29,6 +30,7 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
   alt = "",
   className,
   size,
+  fit = "contain",
   title,
   style,
   id,
@@ -36,6 +38,7 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
   "aria-hidden": ariaHidden,
   "aria-label": ariaLabel
 }) => {
+  const clipId = React.useId();
   if (!src) return null;
   const key = spriteKeyFromUrl(src);
   const sprite = getAtlasSprite(key);
@@ -50,7 +53,7 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
         width={size}
         height={size}
         viewBox={`${sprite.frame.x} ${sprite.frame.y} ${sprite.frame.w} ${sprite.frame.h}`}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio={fit === "fill" ? "none" : "xMidYMid meet"}
         role={decorative ? undefined : role ?? "img"}
         aria-hidden={decorative ? true : ariaHidden}
         aria-label={decorative ? undefined : ariaLabel ?? alt}
@@ -58,7 +61,12 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
         style={style}
       >
         {title && !decorative ? <title>{title}</title> : null}
-        <image href={getAtlasPageUrl(sprite.page, "webp")} width={page.width} height={page.height} />
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={sprite.frame.x} y={sprite.frame.y} width={sprite.frame.w} height={sprite.frame.h} />
+          </clipPath>
+        </defs>
+        <image href={getAtlasPageUrl(sprite.page, "webp")} width={page.width} height={page.height} clipPath={`url(#${clipId})`} />
       </svg>
     );
   }

@@ -21,6 +21,8 @@ import { WORK_CAPACITY_MAXIMUM } from "../simulation/domains/ProgressionDomain";
 import { voidActiveContracts } from "../simulation/domains/ContractDomain";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
 import { MAIN_QUEST_TRACK_ID } from "../simulation/core/QuestTypes";
+import { migrateTerrainLayout11 } from "./migrateTerrainLayout11";
+import { migrateTerrainLayout12 } from "./migrateTerrainLayout12";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -1206,7 +1208,37 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
         focusedTrackId: MAIN_QUEST_TRACK_ID
       }
     };
-  }
+  },
+  30: (state: unknown) => {
+    // Schools gain an optional deep-chum scent timestamp. Pre-v30 saves
+    // predate the field entirely, so there is nothing to convert — but any
+    // malformed value smuggled in must not survive the crossing.
+    const previous = state as GameState;
+    const activeSchools = Object.fromEntries(
+      Object.entries(previous.world?.activeSchools ?? {}).map(([schoolId, school]) => {
+        if (!school || typeof school !== "object") return [schoolId, school];
+        const candidate = (school as unknown as Record<string, unknown>).deepChumUntilMinute;
+        if (candidate === undefined) return [schoolId, school];
+        return [
+          schoolId,
+          {
+            ...school,
+            deepChumUntilMinute: Number.isSafeInteger(candidate) ? candidate : undefined
+          }
+        ];
+      })
+    );
+    return {
+      ...previous,
+      schemaVersion: 30,
+      world: {
+        ...previous.world,
+        activeSchools
+      }
+    };
+  },
+  31: (state: unknown) => migrateTerrainLayout11(state as GameState),
+  32: (state: unknown) => migrateTerrainLayout12(state as GameState)
 };
 
 

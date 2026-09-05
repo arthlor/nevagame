@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
+import { NEVA_HEADWATERS, headwaterGradientAt } from "../../world/NevaHeadwaters";
+import { WAVE_BAND_PHASES, WAVE_DETAIL_AXIS } from "./waveGlsl";
 
 export type WaterRegion = "river" | "sea" | "ocean";
 
@@ -118,7 +120,10 @@ export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
   const estuaryFlow = WorldLayout.estuaryInfluence(x, z)
     * (1 - smoothstep(2, 27, coastDistance))
     * 0.82;
-  const river = Math.max(riverCore, estuaryFlow);
+  const sourceInfluence = z < NEVA_HEADWATERS.source.z
+    ? smoothstep(-1, 0, WorldLayout.riverWaterSignedDistance(x, z))
+    : 1;
+  const river = Math.max(riverCore * sourceInfluence, estuaryFlow);
   const ocean = smoothstep(
     WATER_WAVE_CONFIG.oceanBlend[0],
     WATER_WAVE_CONFIG.oceanBlend[1],
@@ -199,16 +204,73 @@ export function waterHeight(
   const crossDirection = new THREE.Vector2(-direction.y, direction.x);
   const primaryPosition = x * direction.x + z * direction.y;
   const crossPosition = x * crossDirection.x + z * crossDirection.y;
-  const detailPosition = x * (direction.x * 0.72 + crossDirection.x * 0.28)
-    + z * (direction.y * 0.72 + crossDirection.y * 0.28);
+  const detailPosition = x * (direction.x * WAVE_DETAIL_AXIS.along + crossDirection.x * WAVE_DETAIL_AXIS.across)
+    + z * (direction.y * WAVE_DETAIL_AXIS.along + crossDirection.y * WAVE_DETAIL_AXIS.across);
   const roughnessScale = 1
     + conditions.seaRoughness * weighted(WATER_WAVE_CONFIG.roughnessGain, profile.weights)
     + conditions.windSpeed * profile.weights.ocean * WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond;
-  return (
-    bandHeight(WATER_WAVE_CONFIG.primary, profile.weights, primaryPosition, timeSeconds, 0)
-    + bandHeight(WATER_WAVE_CONFIG.cross, profile.weights, crossPosition, timeSeconds, 1.7)
-    + bandHeight(WATER_WAVE_CONFIG.detail, profile.weights, detailPosition, timeSeconds, 4.1)
+  return WorldLayout.waterSurfaceElevation(x, z) + (
+    bandHeight(WATER_WAVE_CONFIG.primary, profile.weights, primaryPosition, timeSeconds, WAVE_BAND_PHASES.primary)
+    + bandHeight(WATER_WAVE_CONFIG.cross, profile.weights, crossPosition, timeSeconds, WAVE_BAND_PHASES.cross)
+    + bandHeight(WATER_WAVE_CONFIG.detail, profile.weights, detailPosition, timeSeconds, WAVE_BAND_PHASES.detail)
   ) * roughnessScale;
+}
+
+/**
+ * Analytic surface normal for the same wave field waterHeight() evaluates.
+ * Wave height is Σ A·sin(φ), so each band contributes A·freq·cos(φ) along its
+ * projected axis, reprojected onto world X/Z and scaled by roughnessScale.
+ * Regional weights and travel direction are treated as locally constant,
+ * mirroring the GPU's waveHeightAndNormal() in waveGlsl.ts. Presentation
+ * only; buoyancy reads height, never this normal. The headwater grade adds
+ * the canonical static surface derivative after the wave contribution.
+ */
+export function waterNormal(
+  x: number,
+  z: number,
+  timeSeconds: number,
+  inputConditions: Partial<WaterConditions> = DEFAULT_CONDITIONS
+): THREE.Vector3 {
+  const conditions = resolvedConditions(inputConditions);
+  const profile = waterSpatialProfile(x, z);
+  const direction = travelDirection(profile, conditions);
+  const crossDirection = new THREE.Vector2(-direction.y, direction.x);
+  const detailDirection = new THREE.Vector2(
+    direction.x * WAVE_DETAIL_AXIS.along + crossDirection.x * WAVE_DETAIL_AXIS.across,
+    direction.y * WAVE_DETAIL_AXIS.along + crossDirection.y * WAVE_DETAIL_AXIS.across
+  );
+  const primaryPosition = x * direction.x + z * direction.y;
+  const crossPosition = x * crossDirection.x + z * crossDirection.y;
+  const detailPosition = x * detailDirection.x + z * detailDirection.y;
+  const roughnessScale = 1
+    + conditions.seaRoughness * weighted(WATER_WAVE_CONFIG.roughnessGain, profile.weights)
+    + conditions.windSpeed * profile.weights.ocean * WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond;
+  const bands: readonly (readonly [WaterWaveBand, number, number])[] = [
+    [WATER_WAVE_CONFIG.primary, primaryPosition, WAVE_BAND_PHASES.primary],
+    [WATER_WAVE_CONFIG.cross, crossPosition, WAVE_BAND_PHASES.cross],
+    [WATER_WAVE_CONFIG.detail, detailPosition, WAVE_BAND_PHASES.detail],
+  ];
+  let dhdx = 0;
+  let dhdz = 0;
+  for (const [band, projectedPosition, phase] of bands) {
+    const frequency = weighted(band.frequency, profile.weights);
+    const speed = weighted(band.speed, profile.weights);
+    const amplitude = weighted(band.amplitude, profile.weights);
+    const slope = Math.cos(projectedPosition * frequency + timeSeconds * speed + phase)
+      * frequency * amplitude;
+    const axis = band === WATER_WAVE_CONFIG.primary
+      ? direction
+      : band === WATER_WAVE_CONFIG.cross ? crossDirection : detailDirection;
+    dhdx += slope * axis.x;
+    dhdz += slope * axis.y;
+  }
+  dhdx *= roughnessScale;
+  dhdz *= roughnessScale;
+  const bounds = NEVA_HEADWATERS.bounds;
+  if (x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ) {
+    dhdz += headwaterGradientAt(z);
+  }
+  return new THREE.Vector3(-dhdx, 1, -dhdz).normalize();
 }
 
 export class WaterSurface {
@@ -227,14 +289,11 @@ export class WaterSurface {
     timeSeconds: number,
     conditions: Partial<WaterConditions> = DEFAULT_CONDITIONS
   ): WaterSample {
-    const step = 0.15;
     const height = this.height(x, z, timeSeconds, conditions);
-    const dx = this.height(x + step, z, timeSeconds, conditions) - height;
-    const dz = this.height(x, z + step, timeSeconds, conditions) - height;
     const profile = waterSpatialProfile(x, z);
     return {
       height,
-      normal: new THREE.Vector3(-dx / step, 1, -dz / step).normalize(),
+      normal: waterNormal(x, z, timeSeconds, conditions),
       region: profile.region,
       weights: profile.weights
     };

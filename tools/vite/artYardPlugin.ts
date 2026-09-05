@@ -77,6 +77,39 @@ function resolveSource(rootDirectory: string, requestedStage: string | null, cat
   return { name: candidate.name, report: candidate.report };
 }
 
+function generateYardDataPayload(rootDirectory: string, catalogPath: string, stage: string | null): Record<string, unknown> {
+  const catalog = readJson(catalogPath).assets as CatalogAsset[];
+  const source = resolveSource(rootDirectory, stage, catalog);
+  const reportById = new Map(reportEntries(source.report).map((asset) => [asset.id, asset]));
+  return {
+    version: 1,
+    source: source.name,
+    generatedAt: source.report?.generatedAt ?? null,
+    assets: catalog.map((asset) => {
+      const report = reportById.get(asset.id);
+      return {
+        id: asset.id,
+        file: asset.file,
+        family: asset.family,
+        collision: asset.collision,
+        collisionPrimitives: asset.collisionPrimitives ?? null,
+        lodContract: asset.lodLevels ?? null,
+        readDistanceMeters: asset.readDistanceMeters,
+        inputHash: report?.inputHash ?? null,
+        cacheHit: report?.cacheHit ?? null,
+        fileHash: report?.fileHash ?? null,
+        semanticHash: report?.semanticHash ?? null,
+        triangles: report?.triangles ?? null,
+        packagedTriangles: report?.packagedTriangles ?? null,
+        bytes: report?.bytes ?? null,
+        qualityStatus: report?.qualityStatus ?? null,
+        lodLevels: report?.lodLevels ?? null,
+        budget: report?.budget ?? null,
+      };
+    }),
+  };
+}
+
 function jsonResponse(response: ServerResponse, value: unknown): void {
   response.statusCode = 200;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -87,8 +120,47 @@ function jsonResponse(response: ServerResponse, value: unknown): void {
 export function artYardPlugin(rootDirectory: string): Plugin {
   const viewerPath = path.resolve(rootDirectory, "tools/art-yard/viewer.html");
   const catalogPath = path.resolve(rootDirectory, "assets/specs/asset-catalog.json");
+  let outputDirectory = path.resolve(rootDirectory, "dist");
+
   return {
     name: "neva-dev-art-yard",
+    configResolved(config) {
+      outputDirectory = path.resolve(config.root, config.build.outDir);
+    },
+    writeBundle() {
+      const bundledViewer = path.join(outputDirectory, "tools/art-yard/viewer.html");
+      if (fs.existsSync(bundledViewer)) {
+        const viewerHtml = fs.readFileSync(bundledViewer, "utf8");
+
+        const targetHtmlFiles = [
+          path.join(outputDirectory, "art-yard/index.html"),
+          path.join(outputDirectory, "__neva_art_yard/index.html"),
+          path.join(outputDirectory, "art-yard.html")
+        ];
+
+        for (const target of targetHtmlFiles) {
+          fs.mkdirSync(path.dirname(target), { recursive: true });
+          fs.writeFileSync(target, viewerHtml, "utf8");
+        }
+
+        try {
+          const payload = generateYardDataPayload(rootDirectory, catalogPath, null);
+          const dataJson = `${JSON.stringify(payload)}\n`;
+          const targetDataFiles = [
+            path.join(outputDirectory, "__neva_art_yard/data"),
+            path.join(outputDirectory, "__neva_art_yard/data.json"),
+            path.join(outputDirectory, "art-yard/data"),
+            path.join(outputDirectory, "art-yard/data.json")
+          ];
+          for (const dataFile of targetDataFiles) {
+            fs.mkdirSync(path.dirname(dataFile), { recursive: true });
+            fs.writeFileSync(dataFile, dataJson, "utf8");
+          }
+        } catch (error) {
+          console.warn("[Art Yard] Could not pre-render static yard data:", error);
+        }
+      }
+    },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         if (request.method !== "GET" || !request.url) {
@@ -99,6 +171,8 @@ export function artYardPlugin(rootDirectory: string): Plugin {
         if (
           url.pathname === YARD_PATH ||
           url.pathname === `${YARD_PATH}/` ||
+          url.pathname === "/art-yard" ||
+          url.pathname === "/art-yard/" ||
           url.pathname === "/tools/art-yard/viewer.html" ||
           url.pathname === "/tools/art-yard" ||
           url.pathname === "/tools/art-yard/"
@@ -115,41 +189,13 @@ export function artYardPlugin(rootDirectory: string): Plugin {
           }
           return;
         }
-        if (url.pathname !== DATA_PATH) {
+        if (url.pathname !== DATA_PATH && url.pathname !== "/art-yard/data") {
           next();
           return;
         }
         try {
-          const catalog = readJson(catalogPath).assets as CatalogAsset[];
-          const source = resolveSource(rootDirectory, url.searchParams.get("artStage"), catalog);
-          const reportById = new Map(reportEntries(source.report).map((asset) => [asset.id, asset]));
-          jsonResponse(response, {
-            version: 1,
-            source: source.name,
-            generatedAt: source.report?.generatedAt ?? null,
-            assets: catalog.map((asset) => {
-              const report = reportById.get(asset.id);
-              return {
-                id: asset.id,
-                file: asset.file,
-                family: asset.family,
-                collision: asset.collision,
-                collisionPrimitives: asset.collisionPrimitives ?? null,
-                lodContract: asset.lodLevels ?? null,
-                readDistanceMeters: asset.readDistanceMeters,
-                inputHash: report?.inputHash ?? null,
-                cacheHit: report?.cacheHit ?? null,
-                fileHash: report?.fileHash ?? null,
-                semanticHash: report?.semanticHash ?? null,
-                triangles: report?.triangles ?? null,
-                packagedTriangles: report?.packagedTriangles ?? null,
-                bytes: report?.bytes ?? null,
-                qualityStatus: report?.qualityStatus ?? null,
-                lodLevels: report?.lodLevels ?? null,
-                budget: report?.budget ?? null,
-              };
-            }),
-          });
+          const payload = generateYardDataPayload(rootDirectory, catalogPath, url.searchParams.get("artStage"));
+          jsonResponse(response, payload);
         } catch (error) {
           response.statusCode = 404;
           response.setHeader("Content-Type", "text/plain; charset=utf-8");

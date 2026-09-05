@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { MarketId, RodId } from "../simulation/core/types";
 import { IconCoin, IconFish, IconJournal, IconRod, IconSprout } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
@@ -7,9 +7,75 @@ import { atlasForFish, atlasForItem, atlasForRod } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeDivider, ChromeQuality } from "./chrome/Chrome";
 import { GameSheet } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
-import type { CommodityQuote, MarketBoardDto } from "../simulation/core/contracts";
+import type { CommodityQuote, MarketBoardDto, MarketDemandTrendDto } from "../simulation/core/contracts";
+import { MarketDemandTrend } from "./components/MarketDemandTrend";
 
 type MarketLedgerSection = "buy" | "sell" | "hold";
+
+/** Bulk sales above this gold value require an explicit confirmation step. */
+const BULK_CONFIRM_THRESHOLD_G = 200;
+
+const HARBOR_SHOPKEEP_LINES = [
+  "The wharfinger eyes your hold. Fair weight, fair gold.",
+  "Tide's kind today. Bring what you've caught.",
+  "Salt air and honest scales — that's the harbor way.",
+  "Good haul? Let's see what the market says.",
+  "Another day on the docks. Show me your catch."
+];
+
+const VILLAGE_SHOPKEEP_LINES = [
+  "The grocer wipes the counter. Fresh from the yards, then?",
+  "Morning light, morning trade. What have you brought?",
+  "Soil on your boots — must be harvest day.",
+  "The shelf won't stock itself. Let's see your yield.",
+  "A farmer's work shows in the basket. Show me yours."
+];
+
+/**
+ * Deterministic day hash (integer avalanche, no Math.random, no sim RNG)
+ * so the shopkeep line rotates day to day without touching simulation truth.
+ */
+const hashGameDay = (day: number): number => {
+  let h = (day | 0) ^ 0x9e3779b9;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+};
+
+const pickShopkeepLine = (marketId: MarketId | null, dayInSeason: number): string => {
+  const pool = marketId === "market.harbor" ? HARBOR_SHOPKEEP_LINES : VILLAGE_SHOPKEEP_LINES;
+  return pool[hashGameDay(dayInSeason) % pool.length];
+};
+
+function SortToggles<T extends string>({ options, activeKey, direction, onSelect, ariaLabel }: {
+  options: ReadonlyArray<{ key: T; label: string }>;
+  activeKey: T;
+  direction: 1 | -1;
+  onSelect: (key: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="market-sort-row" role="group" aria-label={ariaLabel}>
+      {options.map((option) => {
+        const isActive = option.key === activeKey;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            className={`market-sort-btn${isActive ? " is-active" : ""}`}
+            aria-pressed={isActive}
+            title={isActive ? `Sorted by ${option.label} (${direction === 1 ? "ascending" : "descending"}). Activate to reverse.` : `Sort by ${option.label}`}
+            onClick={() => onSelect(option.key)}
+          >
+            {option.label}{isActive ? (direction === 1 ? " ↑" : " ↓") : ""}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 interface MarketModalProps {
   board: MarketBoardDto | null;
@@ -28,8 +94,11 @@ interface MarketModalProps {
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onSellAllFishCargo: (marketId: MarketId) => void;
   onDiscardFishCargo: (marketId: MarketId, cargoId: string) => void;
+  onReleaseFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
   onDeliverFishCargo: (contractId: string, cargoId: string) => void;
+  /** Demand outlook for one commodity. Omitted where the host cannot project it. */
+  onInspectDemandTrend?: (marketId: MarketId, itemId: string) => MarketDemandTrendDto | null;
   onClose: () => void;
   initialSection?: MarketLedgerSection;
 }
@@ -39,6 +108,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   onSellItem,
   onSellAllProduce,
   onInspectCommodity,
+  onInspectDemandTrend,
   onBuySeed,
   onBuyItem,
   onBuyRod,
@@ -46,6 +116,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   onSellFishCargo,
   onSellAllFishCargo,
   onDiscardFishCargo,
+  onReleaseFishCargo,
   onDeliverContractItems,
   onDeliverFishCargo,
   onClose,
@@ -56,6 +127,13 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [sellQty, setSellQty] = useState(1);
   const [ledgerSection, setLedgerSection] = useState<MarketLedgerSection>(initialSection);
+  const [buySortKey, setBuySortKey] = useState<"name" | "price">("name");
+  const [buySortDir, setBuySortDir] = useState<1 | -1>(1);
+  const [sellSortKey, setSellSortKey] = useState<"name" | "price" | "quantity">("name");
+  const [sellSortDir, setSellSortDir] = useState<1 | -1>(1);
+  const [holdSortKey, setHoldSortKey] = useState<"name" | "price">("name");
+  const [holdSortDir, setHoldSortDir] = useState<1 | -1>(1);
+  const [pendingBulk, setPendingBulk] = useState<"produce" | "fish" | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
@@ -67,17 +145,45 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const fishCargoList = board?.fishRows ?? [];
   const activeContracts = board?.contractRows ?? [];
   const ownedSellables = board?.sellRows ?? [];
+  const buyRows = board?.buyRows ?? [];
+
+  const sortedBuyRows = useMemo(() => [...buyRows].sort((a, b) => {
+    const cmp = buySortKey === "price"
+      ? (a.quote.unitPrice ?? 0) - (b.quote.unitPrice ?? 0)
+      : a.name.localeCompare(b.name);
+    return cmp * buySortDir;
+  }), [buyRows, buySortKey, buySortDir]);
+
+  const sortedSellables = useMemo(() => [...ownedSellables].sort((a, b) => {
+    let cmp = 0;
+    if (sellSortKey === "price") cmp = (a.quote.unitPrice ?? 0) - (b.quote.unitPrice ?? 0);
+    else if (sellSortKey === "quantity") cmp = a.owned - b.owned;
+    else cmp = a.name.localeCompare(b.name);
+    return cmp * sellSortDir;
+  }), [ownedSellables, sellSortKey, sellSortDir]);
+
+  const sortedFishCargo = useMemo(() => [...fishCargoList].sort((a, b) => {
+    const cmp = holdSortKey === "price"
+      ? (a.breakdown?.finalPrice ?? -1) - (b.breakdown?.finalPrice ?? -1)
+      : a.name.localeCompare(b.name);
+    return cmp * holdSortDir;
+  }), [fishCargoList, holdSortKey, holdSortDir]);
+
+  // A pending bulk confirmation never survives a market or section switch.
+  useEffect(() => {
+    setPendingBulk(null);
+  }, [activeMarketId, ledgerSection]);
 
   useEffect(() => {
     if (ledgerSection !== "sell") return;
-    if (!ownedSellables.some((row) => row.itemId === selectedItemId)) {
-      setSelectedItemId(ownedSellables[0]?.itemId ?? null);
+    if (!sortedSellables.some((row) => row.itemId === selectedItemId)) {
+      setSelectedItemId(sortedSellables[0]?.itemId ?? null);
       setSellQty(1);
     }
-  }, [ledgerSection, ownedSellables, selectedItemId]);
+  }, [ledgerSection, sortedSellables, selectedItemId]);
 
   const selectedOwned =
-    ownedSellables.find((row) => row.itemId === selectedItemId) ?? ownedSellables[0] ?? null;
+    sortedSellables.find((row) => row.itemId === selectedItemId) ?? sortedSellables[0] ?? null;
 
   const ticketName = selectedOwned?.name ?? "Produce";
   const ownedCount = selectedOwned?.owned ?? 0;
@@ -86,16 +192,37 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     ? onInspectCommodity(activeMarketId, selectedOwned.itemId, "sell", clampedQty)
     : null;
 
+  const demandTrend = activeMarketId && selectedOwned && onInspectDemandTrend
+    ? onInspectDemandTrend(activeMarketId, selectedOwned.itemId)
+    : null;
+
   const liveGold = ticketPrice?.success ? ticketPrice.totalPrice ?? 0 : 0;
   const bulkProduceQuote = board?.bulkProduce ?? { success: false, quantity: 0, lineCount: 0, revenue: 0 };
   const bulkFishQuote = board?.bulkFish ?? { success: false, quantity: 0, lineCount: 0, revenue: 0 };
 
   const handleSellAllProduce = () => {
+    setPendingBulk(null);
     if (activeMarketId) onSellAllProduce(activeMarketId);
   };
 
   const handleSellAllFishCargo = () => {
+    setPendingBulk(null);
     if (activeMarketId) onSellAllFishCargo(activeMarketId);
+  };
+
+  /**
+   * #11: bulk sales worth more than BULK_CONFIRM_THRESHOLD_G need an armed
+   * confirmation popover. Confirmation-only: the sim exposes no reversal
+   * callback on these props, so no undo toast is shown (never fake gold).
+   */
+  const requestBulkSell = (kind: "produce" | "fish", revenue: number, fire: () => void): void => {
+    if (revenue > BULK_CONFIRM_THRESHOLD_G && pendingBulk !== kind) {
+      playUiSound("click");
+      setPendingBulk(kind);
+      return;
+    }
+    setPendingBulk(null);
+    fire();
   };
 
   if (!board) {
@@ -153,9 +280,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 {board?.name ?? "Coastal Market"}
               </h2>
               <span className="market-shopkeep-line">
-                {activeMarketId === "market.harbor"
-                  ? "The wharfinger eyes your hold. Fair weight, fair gold."
-                  : "The grocer wipes the counter. Fresh from the yards, then?"}
+                {pickShopkeepLine(activeMarketId, board?.dayInSeason ?? 0)}
               </span>
             </div>
           </div>
@@ -219,8 +344,19 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 <h3 className="section-title">
                   <IconSprout size={15} aria-hidden="true" /> Crop Seeds & Supplies
                 </h3>
+                <SortToggles
+                  ariaLabel="Sort wares"
+                  options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }]}
+                  activeKey={buySortKey}
+                  direction={buySortDir}
+                  onSelect={(key) => {
+                    playUiSound("click");
+                    if (key === buySortKey) setBuySortDir(buySortDir === 1 ? -1 : 1);
+                    else { setBuySortKey(key); setBuySortDir(1); }
+                  }}
+                />
                 <div className="seed-stall-list">
-                  {(board?.buyRows ?? []).map((row) => {
+                  {sortedBuyRows.map((row) => {
                     const unitPrice = row.quote.unitPrice ?? 0;
                     return (
                       <div className="seed-stall-card" key={row.itemId} title={row.description}>
@@ -256,8 +392,19 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               <>
               <div className="market-seeds-section">
                 <h3 className="section-title">Harbor Supplies</h3>
+                <SortToggles
+                  ariaLabel="Sort harbor supplies"
+                  options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }]}
+                  activeKey={buySortKey}
+                  direction={buySortDir}
+                  onSelect={(key) => {
+                    playUiSound("click");
+                    if (key === buySortKey) setBuySortDir(buySortDir === 1 ? -1 : 1);
+                    else { setBuySortKey(key); setBuySortDir(1); }
+                  }}
+                />
                 <div className="seed-stall-list">
-                  {(board?.buyRows ?? []).map((row) => {
+                  {sortedBuyRows.map((row) => {
                     return (
                       <div className="seed-stall-card" key={row.itemId} title={row.description}>
                         <div className="seed-card-meta">
@@ -350,19 +497,56 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     size="sm"
                     soundCue="coins"
                     className="batch-sell-btn-compact"
-                    onClick={handleSellAllProduce}
+                    aria-expanded={pendingBulk === "produce"}
+                    onClick={() => requestBulkSell("produce", bulkProduceQuote.revenue, handleSellAllProduce)}
                   >
                     Sell all produce · {bulkProduceQuote.revenue.toLocaleString()} G
                   </ChromeButton>
                 )}
               </div>
+              <SortToggles
+                ariaLabel="Sort your goods"
+                options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }, { key: "quantity", label: "Qty" }]}
+                activeKey={sellSortKey}
+                direction={sellSortDir}
+                onSelect={(key) => {
+                  playUiSound("click");
+                  if (key === sellSortKey) setSellSortDir(sellSortDir === 1 ? -1 : 1);
+                  else { setSellSortKey(key); setSellSortDir(1); }
+                }}
+              />
+              {pendingBulk === "produce" && (
+                <div
+                  className="bulk-confirm-popover"
+                  role="alertdialog"
+                  aria-label={`Confirm bulk produce sale for ${bulkProduceQuote.revenue.toLocaleString()} gold`}
+                >
+                  <p className="bulk-confirm-text">
+                    Sell {bulkProduceQuote.quantity} goods ({bulkProduceQuote.lineCount} lines) for{" "}
+                    <strong>{bulkProduceQuote.revenue.toLocaleString()} G</strong>? This cannot be undone.
+                  </p>
+                  <div className="bulk-confirm-actions">
+                    <ChromeButton
+                      variant="gold"
+                      size="sm"
+                      soundCue="coins"
+                      onClick={handleSellAllProduce}
+                    >
+                      Confirm sale
+                    </ChromeButton>
+                    <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                      Keep goods
+                    </ChromeButton>
+                  </div>
+                </div>
+              )}
               {ownedSellables.length === 0 ? (
                 <div className="no-cargo-card" data-testid="market-sell-empty">
                   Nothing in your satchel that this stall buys.
                 </div>
               ) : (
                 <div className="commodities-list" data-testid="market-sell-list">
-                  {ownedSellables.map((row) => {
+                  {sortedSellables.map((row) => {
                     const name = row.name;
                     const price = row.quote;
                     const isSelected = selectedOwned?.itemId === row.itemId;
@@ -417,19 +601,56 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       size="sm"
                       soundCue="coins"
                       className="batch-sell-btn-compact"
-                      onClick={handleSellAllFishCargo}
+                      aria-expanded={pendingBulk === "fish"}
+                      onClick={() => requestBulkSell("fish", bulkFishQuote.revenue, handleSellAllFishCargo)}
                     >
                       Sell all fish · {bulkFishQuote.revenue.toLocaleString()} G
                     </ChromeButton>
                   )}
                 </div>
+                <SortToggles
+                  ariaLabel="Sort fish hold"
+                  options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }]}
+                  activeKey={holdSortKey}
+                  direction={holdSortDir}
+                  onSelect={(key) => {
+                    playUiSound("click");
+                    if (key === holdSortKey) setHoldSortDir(holdSortDir === 1 ? -1 : 1);
+                    else { setHoldSortKey(key); setHoldSortDir(1); }
+                  }}
+                />
+                {pendingBulk === "fish" && (
+                  <div
+                    className="bulk-confirm-popover"
+                    role="alertdialog"
+                    aria-label={`Confirm bulk fish sale for ${bulkFishQuote.revenue.toLocaleString()} gold`}
+                  >
+                    <p className="bulk-confirm-text">
+                      Sell {bulkFishQuote.quantity} fish ({bulkFishQuote.lineCount} lines) for{" "}
+                      <strong>{bulkFishQuote.revenue.toLocaleString()} G</strong>? This cannot be undone.
+                    </p>
+                    <div className="bulk-confirm-actions">
+                      <ChromeButton
+                        variant="gold"
+                        size="sm"
+                        soundCue="coins"
+                        onClick={handleSellAllFishCargo}
+                      >
+                        Confirm sale
+                      </ChromeButton>
+                      <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                        Keep catch
+                      </ChromeButton>
+                    </div>
+                  </div>
+                )}
                 {fishCargoList.length === 0 ? (
                   <div className="no-cargo-card">
                     <span>No sport fish currently in boat hold or carried in hand.</span>
                   </div>
                 ) : (
                   <div className="fish-cargo-trade-list">
-                    {fishCargoList.map((cargo) => {
+                    {sortedFishCargo.map((cargo) => {
                       const breakdown = cargo.breakdown;
                       if (!breakdown) {
                         return (
@@ -451,10 +672,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                 <ChromeButton
                                   className="plaque-release-btn"
                                   soundCue="click"
+                                  title="Spoiled fish can be broken down for bait materials"
                                   onClick={() => onDiscardFishCargo(activeMarketId, cargo.cargoId)}
                                 >
                                   Make scraps
                                 </ChromeButton>
+                                <p className="scraps-explainer">Spoiled fish can&apos;t be sold — Make scraps breaks it down into bait materials.</p>
                               </div>
                             )}
                           </div>
@@ -483,22 +706,34 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                           <div className="cargo-card-actions">
                             <strong className="cargo-value">{breakdown.finalPrice} G</strong>
                             {cargo.spoiled || breakdown.finalPrice <= 0 ? (
-                              <ChromeButton
-                                className="plaque-release-btn"
-                                soundCue="click"
-                                onClick={() => activeMarketId && onDiscardFishCargo(activeMarketId, cargo.cargoId)}
-                              >
-                                Make scraps
-                              </ChromeButton>
+                              <>
+                                <ChromeButton
+                                  className="plaque-release-btn"
+                                  soundCue="click"
+                                  onClick={() => activeMarketId && onDiscardFishCargo(activeMarketId, cargo.cargoId)}
+                                >
+                                  Make scraps
+                                </ChromeButton>
+                                <p className="scraps-explainer">Spoiled fish can&apos;t be sold — Make scraps breaks it down into bait materials.</p>
+                              </>
                             ) : (
-                              <ChromeButton
-                                variant="gold"
-                                soundCue="coins"
-                                className="plaque-keep-btn"
-                                onClick={() => activeMarketId && onSellFishCargo(activeMarketId, cargo.cargoId)}
-                              >
-                                Sell fish
-                              </ChromeButton>
+                              <>
+                                <ChromeButton
+                                  variant="gold"
+                                  soundCue="coins"
+                                  className="plaque-keep-btn"
+                                  onClick={() => activeMarketId && onSellFishCargo(activeMarketId, cargo.cargoId)}
+                                >
+                                  Sell fish
+                                </ChromeButton>
+                                <ChromeButton
+                                  className="plaque-release-btn"
+                                  soundCue="click"
+                                  onClick={() => activeMarketId && onReleaseFishCargo(activeMarketId, cargo.cargoId)}
+                                >
+                                  Release
+                                </ChromeButton>
+                              </>
                             )}
                           </div>
                         </div>
@@ -528,25 +763,56 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     <span>Unit price</span>
                     <strong>{ticketPrice.unitPrice} G</strong>
                   </div>
+                  {demandTrend && <MarketDemandTrend trend={demandTrend} />}
                   <div className="market-qty-stepper" data-testid="market-sell-qty">
                     <ChromeButton
                       size="sm"
                       className="market-qty-btn"
                       disabled={clampedQty <= 1}
-                      onClick={() => setSellQty((n) => Math.max(1, n - 1))}
-                      aria-label="Fewer"
+                      onClick={(e) => setSellQty((n) => Math.max(1, n - (e.shiftKey ? 10 : 1)))}
+                      aria-label="Fewer (Shift+click for −10)"
+                      title="−1 (Shift: −10)"
                     >
                       −
                     </ChromeButton>
-                    <span className="market-qty-value">{clampedQty} / {ownedCount}</span>
+                    <span className="market-qty-value">
+                      <label className="market-qty-direct">
+                        <span className="market-qty-sr">Quantity to sell</span>
+                        <input
+                          type="number"
+                          className="market-qty-input"
+                          min={1}
+                          max={ownedCount}
+                          step={1}
+                          value={clampedQty}
+                          onChange={(event) => {
+                            const next = Math.floor(Number(event.target.value));
+                            if (!Number.isFinite(next)) return;
+                            setSellQty(Math.min(ownedCount, Math.max(1, next)));
+                          }}
+                          aria-label={`Quantity to sell, 1 to ${ownedCount}`}
+                        />
+                        <span aria-hidden="true"> / {ownedCount}</span>
+                      </label>
+                    </span>
                     <ChromeButton
                       size="sm"
                       className="market-qty-btn"
                       disabled={clampedQty >= ownedCount}
-                      onClick={() => setSellQty((n) => Math.min(ownedCount, n + 1))}
-                      aria-label="More"
+                      onClick={(e) => setSellQty((n) => Math.min(ownedCount, n + (e.shiftKey ? 10 : 1)))}
+                      aria-label="More (Shift+click for +10)"
+                      title="+1 (Shift: +10)"
                     >
                       +
+                    </ChromeButton>
+                    <ChromeButton
+                      size="sm"
+                      className="market-qty-btn market-qty-max"
+                      disabled={clampedQty >= ownedCount}
+                      onClick={() => setSellQty(ownedCount)}
+                      aria-label="Set to maximum quantity"
+                    >
+                      Max
                     </ChromeButton>
                   </div>
                   <div className="market-ticket-live">

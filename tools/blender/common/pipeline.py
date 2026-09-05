@@ -9,6 +9,8 @@ import bpy
 from mathutils import Vector
 
 from .materials import MATERIAL_SPECS
+from .humanoid_export import restore_solid_humanoid_colors
+from .static_export import restore_static_material_state
 
 
 def clean_scene() -> None:
@@ -41,7 +43,29 @@ def _is_descendant_of(obj: bpy.types.Object, ancestor: bpy.types.Object) -> bool
     return False
 
 
-def _validate_vertex_color_contract(asset_id: str, obj: bpy.types.Object) -> tuple[set[str], int]:
+def _preserved_texture_tokens(spec: dict | None) -> set[str]:
+    if not spec or not spec.get("staticAuthoring"):
+        return set()
+    return {
+        mapping["token"]
+        for mapping in spec["staticAuthoring"]["materialMap"].values()
+        if mapping["texturePolicy"] == "preserve"
+    }
+
+
+def _material_palette_token(material: bpy.types.Material | None) -> str | None:
+    """Resolve a canonical token without collapsing imported source regions."""
+    if material is None:
+        return None
+    token = material.get("neva_palette_token", material.name)
+    return token if isinstance(token, str) else None
+
+
+def _validate_vertex_color_contract(
+    asset_id: str,
+    obj: bpy.types.Object,
+    spec: dict | None = None,
+) -> tuple[set[str], int]:
     """Verify that every rendered corner carries its material token in linear COLOR_0.
 
     Neva's GLBs intentionally keep their semantic palette color in COLOR_0 while
@@ -50,8 +74,17 @@ def _validate_vertex_color_contract(asset_id: str, obj: bpy.types.Object) -> tup
     before the exporter or optimizer can make those defects harder to diagnose.
     """
     mesh = obj.data
+    preserved_texture_tokens = _preserved_texture_tokens(spec)
+    rendered_tokens = {
+        _material_palette_token(mesh.materials[polygon.material_index])
+        for polygon in mesh.polygons
+        if polygon.material_index < len(mesh.materials) and mesh.materials[polygon.material_index] is not None
+    }
+    rendered_tokens.discard(None)
     attribute = mesh.color_attributes.get("Color")
     if attribute is None:
+        if rendered_tokens and rendered_tokens.issubset(preserved_texture_tokens):
+            return rendered_tokens, 0
         raise RuntimeError(f"{asset_id}: {obj.name} is missing the Color vertex attribute")
     if attribute.domain != "CORNER":
         raise RuntimeError(f"{asset_id}: {obj.name} Color must use CORNER domain, found {attribute.domain}")
@@ -65,14 +98,24 @@ def _validate_vertex_color_contract(asset_id: str, obj: bpy.types.Object) -> tup
         if polygon.material_index >= len(mesh.materials):
             raise RuntimeError(f"{asset_id}: {obj.name} polygon references a missing material slot")
         material = mesh.materials[polygon.material_index]
-        if material is None or material.name not in MATERIAL_SPECS:
+        token = _material_palette_token(material)
+        if material is None or token not in MATERIAL_SPECS:
             name = None if material is None else material.name
             raise RuntimeError(f"{asset_id}: {obj.name} polygon uses unknown material {name!r}")
-        used_tokens.add(material.name)
+        used_tokens.add(token)
+        if token in preserved_texture_tokens:
+            for loop_index in polygon.loop_indices:
+                actual = Vector(attribute.data[loop_index].color[:3])
+                if (actual - Vector((1.0, 1.0, 1.0))).length > 1e-5:
+                    raise RuntimeError(
+                        f"{asset_id}: {obj.name} textured material {token!r} "
+                        "must use neutral COLOR_0"
+                    )
+            continue
         expected = Vector(material.diffuse_color[:3])
         expected_length_squared = expected.length_squared
         if expected_length_squared <= 1e-8:
-            raise RuntimeError(f"{asset_id}: {obj.name} material {material.name!r} has no usable base color")
+            raise RuntimeError(f"{asset_id}: {obj.name} material {token!r} has no usable base color")
         for loop_index in polygon.loop_indices:
             actual = Vector(attribute.data[loop_index].color[:3])
             if not all(math.isfinite(channel) for channel in actual):
@@ -81,10 +124,64 @@ def _validate_vertex_color_contract(asset_id: str, obj: bpy.types.Object) -> tup
             residual = (actual - expected * value).length
             if not 0.70 <= value <= 1.04 or residual > 0.025:
                 raise RuntimeError(
-                    f"{asset_id}: {obj.name} COLOR_0 does not match linear token {material.name!r} "
+                    f"{asset_id}: {obj.name} COLOR_0 does not match linear token {token!r} "
                     f"(value={value:.3f}, residual={residual:.4f})"
                 )
     return used_tokens, len(attribute.data)
+
+
+def _prepare_imported_vertex_color_export(
+    spec: dict,
+    meshes: list[bpy.types.Object],
+) -> dict:
+    """Avoid Blender 5.2's later-material COLOR_0 substitution.
+
+    The exporter resolves an active layer named ``Color`` to glTF ``COLOR_0``
+    for the first material, but looks the layer up by its glTF semantic for
+    subsequent materials and silently emits white when that name is absent.
+    Naming the already-validated Blender layer ``COLOR_0`` makes both lookups
+    agree. This runs only in the isolated imported-source export process; the
+    durable authoring library and all decoded attribute values stay unchanged.
+    """
+    asset_id = spec["id"]
+    preserved_texture_tokens = _preserved_texture_tokens(spec)
+    renamed_meshes = []
+    texture_only_meshes = []
+    retargeted_materials = set()
+    for obj in meshes:
+        mesh = obj.data
+        source = mesh.color_attributes.get("Color")
+        semantic = mesh.color_attributes.get("COLOR_0")
+        if source is not None and semantic is not None and source is not semantic:
+            raise RuntimeError(f"{asset_id}: {obj.name} has ambiguous Color and COLOR_0 layers")
+        attribute = semantic or source
+        if attribute is None:
+            tokens = {
+                _material_palette_token(material) for material in mesh.materials
+                if material is not None
+            }
+            if tokens and tokens.issubset(preserved_texture_tokens):
+                texture_only_meshes.append(obj.name)
+                continue
+            raise RuntimeError(f"{asset_id}: {obj.name} is missing its validated color layer")
+        if attribute.name != "COLOR_0":
+            attribute.name = "COLOR_0"
+            renamed_meshes.append(obj.name)
+        mesh.color_attributes.active_color = attribute
+        mesh.color_attributes.render_color_index = mesh.color_attributes.find(attribute.name)
+        for material in mesh.materials:
+            if material is None or material.node_tree is None or material in retargeted_materials:
+                continue
+            for node in material.node_tree.nodes:
+                if node.type == "VERTEX_COLOR" and node.layer_name == "Color":
+                    node.layer_name = "COLOR_0"
+            retargeted_materials.add(material)
+    return {
+        "semantic": "COLOR_0",
+        "renamedMeshes": sorted(renamed_meshes),
+        "textureOnlyMeshes": sorted(texture_only_meshes),
+        "retargetedMaterials": sorted(material.name for material in retargeted_materials),
+    }
 
 
 def _validate_animation_contract(
@@ -204,9 +301,10 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
             if material is None:
                 continue
             material_names.add(material.name)
-            if material.name not in MATERIAL_SPECS:
+            token = _material_palette_token(material)
+            if token not in MATERIAL_SPECS:
                 raise RuntimeError(f"{asset_id}: unknown material {material.name!r}")
-        used_tokens, color_loops = _validate_vertex_color_contract(asset_id, obj)
+        used_tokens, color_loops = _validate_vertex_color_contract(asset_id, obj, spec)
         used_material_names.update(used_tokens)
         vertex_color_loops += color_loops
 
@@ -254,7 +352,7 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         )
     if len(material_names) > budget["materialsMax"]:
         raise RuntimeError(f"{asset_id}: {len(material_names)} materials exceeds {budget['materialsMax']}")
-    undeclared = sorted(material_names - set(spec["palette"]))
+    undeclared = sorted(used_material_names - set(spec["palette"]))
     if undeclared:
         raise RuntimeError(f"{asset_id}: generator used undeclared palette tokens {undeclared}")
     # Catalog palette entries are an allow-list for the family generator, not
@@ -292,12 +390,47 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
     window = next(iter(window_manager.windows), None) if window_manager else None
     if window is not None:
         export_override.update(window=window, screen=window.screen)
+    # Canonical palm/contact frames are consumed at runtime; keep their explicit
+    # marker together with the quaternion for procedural equipment as well.
+    imported_options = {"export_extras": any(obj.get("neva_grip_frame") for obj in objects)}
+    if spec.get("generator") == "imported_blend":
+        # Imported derivatives already contain baked object transforms, authored
+        # weights and clips. Keep the same export contract as their staging pass;
+        # regeneration must not resample actions or apply skin modifiers.
+        imported_options = {
+            "export_extras": True,
+            "export_materials": "EXPORT",
+            "export_texcoords": True,
+            "export_normals": True,
+            "export_all_vertex_colors": True,
+            "export_vertex_color": "ACTIVE",
+            "export_skins": True,
+            "export_all_influences": False,
+            "export_influence_nb": 4,
+            "export_merge_animation": "ACTION",
+            "export_force_sampling": False,
+            "export_optimize_animation_size": True,
+            "export_anim_slide_to_zero": True,
+            "export_frame_step": 1,
+            "export_morph": False,
+            "export_rest_position_armature": True,
+            "export_meshopt_compression_enable": False,
+        }
+    # Single-key bone channels may take the exporter's evaluated-pose path.
+    # Geometry/binds still use export_rest_position_armature, but actions require
+    # POSE evaluation so sparse native defaults never become identity.
+    if spec.get("humanoidAuthoring"):
+        for obj in objects:
+            if obj.type == "ARMATURE": obj.data.pose_position = "POSE"
+    imported_color_export = None
+    if spec.get("generator") == "imported_blend":
+        imported_color_export = _prepare_imported_vertex_color_export(spec, meshes)
     with bpy.context.temp_override(**export_override):
         bpy.ops.export_scene.gltf(
             filepath=str(output_path),
             export_format="GLB",
             use_selection=False,
-            export_apply=True,
+            export_apply=spec.get("generator") != "imported_blend",
             export_yup=True,
             export_attributes=True,
             export_animation_mode=(
@@ -307,7 +440,10 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
             ),
             export_cameras=False,
             export_lights=False,
+            **imported_options,
         )
+    static_material_export = restore_static_material_state(output_path, spec, MATERIAL_SPECS)
+    source_color_export = restore_solid_humanoid_colors(output_path, spec, MATERIAL_SPECS)
     quality_status = "on_target" if triangle_count >= budget["trianglesTarget"] else "below_target"
     return {
         "id": asset_id,
@@ -324,6 +460,9 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         "paletteTokensUsed": sorted(used_material_names),
         "vertexColorLoops": vertex_color_loops,
         "vertexColorSpace": "linear-srgb",
+        "importedColorExport": imported_color_export,
+        "staticMaterialExport": static_material_export,
+        "sourceColorExport": source_color_export,
         "artContractStatus": "passed",
         "bounds": {"min": minimum, "max": maximum},
         "dimensions": actual_dimensions,

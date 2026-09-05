@@ -224,8 +224,9 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       // every visible channel must still be pixel-identical.
       let maxDiff = 0;
       let diffCount = 0;
+      let alphaDiffCount = 0;
       for (let i = 0; i < pngRaw.length; i += 4) {
-        expect(webpRaw[i + 3]).toBe(pngRaw[i + 3]);
+        if (webpRaw[i + 3] !== pngRaw[i + 3]) alphaDiffCount++;
         if (pngRaw[i + 3] > 0) {
           for (let channel = 0; channel < 3; channel++) {
             const d = Math.abs(pngRaw[i + channel] - webpRaw[i + channel]);
@@ -240,6 +241,7 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       console.log(`[LOSSLESS PARITY] PNG vs WebP diff count: ${diffCount} / ${pngRaw.length}, max diff: ${maxDiff}`);
       expect(maxDiff).toBe(0);
       expect(diffCount).toBe(0);
+      expect(alphaDiffCount).toBe(0);
     });
 
     it("verifies pixel-perfect fidelity: atlas inner pixels exactly match original source sprites", async () => {

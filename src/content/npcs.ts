@@ -37,7 +37,7 @@ export const NPCS: NpcDefinition[] = [
     name: "Elspeth",
     title: "Village Baker & Garden Elder",
     district: "Starter Farm & Village Edge",
-    portraitIcon: "🌾",
+    portraitIcon: "sprout",
     assetId: ASSET_IDS.CHAR_NPC_ELSPETH_A,
     anchor: {
       x: -63.5,
@@ -98,7 +98,7 @@ export const NPCS: NpcDefinition[] = [
     name: "Barnaby",
     title: "Homestead Handyman & Craftsman",
     district: "Starter Farmstead",
-    portraitIcon: "🪵",
+    portraitIcon: "pack",
     assetId: ASSET_IDS.CHAR_NPC_BARNABY_A,
     anchor: {
       x: -73.5,
@@ -159,7 +159,7 @@ export const NPCS: NpcDefinition[] = [
     name: "Old Silas",
     title: "Harbor Salt & Master Angler",
     district: "Neva Harbor Pier",
-    portraitIcon: "⚓",
+    portraitIcon: "anchor",
     assetId: ASSET_IDS.CHAR_NPC_SILAS_A,
     anchor: {
       x: HARBOR_SILAS_ANCHOR.x,
@@ -212,7 +212,7 @@ export const NPCS: NpcDefinition[] = [
     name: "Maeve",
     title: "Fishmonger & Market Master",
     district: "Neva Fish Market",
-    portraitIcon: "🐟",
+    portraitIcon: "fish",
     assetId: ASSET_IDS.CHAR_NPC_MAEVE_A,
     anchor: {
       x: HARBOR_MAEVE_ANCHOR.x,
@@ -265,7 +265,7 @@ export const NPCS: NpcDefinition[] = [
     name: "Tomas",
     title: "Cove Boatkeeper",
     district: "Sunreach Cove",
-    portraitIcon: "⛵",
+    portraitIcon: "boat",
     assetId: ASSET_IDS.CHAR_NPC_TOMAS_A,
     anchor: {
       x: SUNREACH_ANCHORS.coveMarket.x - 2.8,
@@ -310,7 +310,7 @@ export const NPCS: NpcDefinition[] = [
     name: "Ines",
     title: "Terrace Grower",
     district: "Sunreach Terraces",
-    portraitIcon: "🫒",
+    portraitIcon: "sprout",
     assetId: ASSET_IDS.CHAR_NPC_INES_A,
     anchor: {
       x: SUNREACH_ANCHORS.terraceFarm.x + 4.2,

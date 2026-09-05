@@ -18,15 +18,18 @@ import type {
   CropPlacementRequest,
   CropPlacementResult,
   InteractionResult,
-  SoilFertilityBand
+  SoilFertilityBand,
+  WorkCostQuote
 } from "../core/contracts";
+import { formatClockTime } from "../core/GameClock";
 import { SeededRng } from "../core/Rng";
 import type { CropQuality, FarmId, GameState, PlacedCropId } from "../core/types";
 import {
   advancePlacedCropGrowth,
   calculateCropQuality,
   calculateEffectiveGrowthDelta,
-  calculateHarvestYield
+  calculateHarvestYield,
+  GROWING_STAGE_MIN_PROGRESS
 } from "../farming/calculateCropGrowth";
 import { sampleFarmEnvironment } from "../farming/FarmEnvironmentSample";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -34,6 +37,7 @@ import type { DomainContext } from "./DomainContext";
 import { distance2d } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { isQuestActive } from "../core/QuestTypes";
+import { freeHandsBlocker } from "./domainRules";
 
 export const CROP_INTERACTION_RADIUS = 2.5;
 export const WET_MOISTURE_THRESHOLD = 85;
@@ -43,9 +47,9 @@ export const FERTILITY_MAX = 100;
 /** Basic fertilizer restore; crop fertilityCost is 8–15, so +20 covers ~1–2 harvests. */
 export const FERTILITY_RESTORE = 20;
 export const FARMING_ACTION_COST = {
-  plant: 10,
+  plant: 12,
   water: 5,
-  harvest: 45,
+  harvest: 30,
   fertilize: 8,
   irrigate: 8
 } as const;
@@ -238,6 +242,8 @@ export class FarmingDomain {
     });
 
     if (state.player.activeMountId) return result(false, "mounted", "Dismount before planting");
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return result(false, "hands-occupied", handsBlocker);
     if (!farm) return result(false, "invalid-farm", "This farm is unavailable");
     if (!cropDef) return result(false, "unknown-crop", "This seed cannot be planted here");
     if (!Number.isFinite(request.x) || !Number.isFinite(request.z)) {
@@ -407,6 +413,8 @@ export class FarmingDomain {
   public water(placedCropId: PlacedCropId): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
     const crop = state.crops[placedCropId];
     if (!crop) return { success: false, reason: "Crop not found" };
     if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
@@ -425,6 +433,8 @@ export class FarmingDomain {
   public harvest(placedCropId: PlacedCropId): InteractionResult & { quality?: CropQuality } {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
     const crop = state.crops[placedCropId];
     if (!crop) return { success: false, reason: "Crop not found" };
     if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
@@ -495,8 +505,15 @@ export class FarmingDomain {
     if (cropDef.regrows) {
       const regrowMinutes = cropDef.regrowMinutes ?? cropDef.baseGrowthMinutes;
       // Spec: sapling -> mature -> fruit ready. Skip seeded/sprout; sit on the
-      // growing stage with remaining effective time = regrowMinutes.
-      crop.effectiveGrowthMinutes = Math.max(0, cropDef.baseGrowthMinutes - regrowMinutes);
+      // growing stage with remaining effective time ~= regrowMinutes. Never roll
+      // back past the "growing" progress threshold, or the next growth tick would
+      // reclassify the tree as seeded/sprout and the visible stage would snap
+      // backward the moment time advances.
+      const growingFloor = cropDef.baseGrowthMinutes * GROWING_STAGE_MIN_PROGRESS;
+      crop.effectiveGrowthMinutes = Math.min(
+        Math.max(0, cropDef.baseGrowthMinutes - 1),
+        Math.max(growingFloor, cropDef.baseGrowthMinutes - regrowMinutes)
+      );
       crop.stage = "growing";
       crop.health = 100;
       crop.plantedAtMinute = state.clock.currentMinute;
@@ -515,6 +532,8 @@ export class FarmingDomain {
   public applyFertilizer(farmId: FarmId): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
     const farm = state.farms[farmId];
     if (!farm) return { success: false, reason: "Farm not found" };
     if (!this.isNearFarm(farmId)) return { success: false, reason: "Move closer to the farm" };
@@ -596,6 +615,8 @@ export class FarmingDomain {
   public irrigate(farmId: FarmId): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
     if (!state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) {
       return { success: false, reason: "Install a field pump at the well first" };
     }
@@ -655,26 +676,29 @@ export class FarmingDomain {
     const harvestQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.harvest, "farming");
     const harvestable = crop.stage === "mature" || crop.stage === "overripe";
     const workQuote = harvestable ? harvestQuote : waterQuote;
-    const canWater = near && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD && waterQuote.affordable;
-    const canHarvest = near && (harvestable || crop.stage === "withered")
+    const handsBlocker = freeHandsBlocker(state.player);
+    const canWater = !handsBlocker && near && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD && waterQuote.affordable;
+    const canHarvest = !handsBlocker && near && (harvestable || crop.stage === "withered")
       && (crop.stage === "withered" || harvestQuote.affordable);
     const moistureBand = cropMoistureBand(crop.moisture);
+    const workShortage = (quote: WorkCostQuote): string =>
+      `Need ${quote.cost} Work · ${quote.availableWork} available · ready ${quote.readyAtMinute == null ? "later" : formatClockTime(quote.readyAtMinute)}`;
     const waterReason = canWater
       ? undefined
-      : !near
+      : handsBlocker ?? (!near
         ? "Move closer"
         : !waterQuote.affordable
-          ? `Need ${waterQuote.cost} Work`
+          ? workShortage(waterQuote)
           : crop.stage === "withered"
             ? "Crop withered"
-            : "Soil already wet";
+            : "Soil already wet");
     const harvestReason = canHarvest
       ? undefined
-      : !near
+      : handsBlocker ?? (!near
         ? "Move closer"
         : !harvestQuote.affordable && harvestable
-          ? `Need ${harvestQuote.cost} Work`
-          : "Not ready";
+          ? workShortage(harvestQuote)
+          : "Not ready");
     const harvestStage = harvestable || crop.stage === "withered";
     const immediateAction: CropInspectionDto["immediateAction"] = harvestStage
       ? {

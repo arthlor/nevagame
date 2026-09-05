@@ -64,7 +64,29 @@ export const FISHING_TUNING = Object.freeze({
   preparedLureShakeDamageMultiplier: 0.8,
   /** Rough water adds bounded fight pressure; behavior clocks and minimum tells are untouched. */
   roughSeaDriveScale: 0.18,
-  windOpportunityCueThreshold: 0.12
+  windOpportunityCueThreshold: 0.12,
+  /**
+   * How the wind takes a bank cast. `castWind.ts` owns the formula; these are
+   * its only numbers. The reference blow matches the 12 m/s the weather motion
+   * signal already normalizes against, so a "strong wind" means the same thing
+   * to the line as it does to the grass and the clouds.
+   */
+  castWind: {
+    referenceWindSpeed: 12,
+    /** Fraction of reach a full tailwind adds, or a full headwind takes away. */
+    carryScale: 0.28,
+    /** Metres a full crosswind pushes a full-power cast off its aim line. */
+    driftMeters: 2.4,
+    /** Wind load that fishes best: enough ripple to hide the line, not a blow. */
+    idealLoad: 0.35,
+    /** Wait multiplier at that ideal ripple, and at either extreme from it. */
+    bestWaitMultiplier: 0.85,
+    worstWaitMultiplier: 1.18
+  },
+  /** Drag-notch scales on the automatic-drag threshold: light drag starts paying line sooner. */
+  dragThresholdScale: [0.85, 1, 1.15] as const,
+  /** Drag-notch nudge on basic hook reliability: light hooks surer, heavy sloppier. */
+  dragHookDelta: [0.03, 0, -0.03] as const
 });
 
 export interface FishingBehaviorReadout {

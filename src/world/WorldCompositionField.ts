@@ -5,6 +5,8 @@ import {
   type WorldDistrictSample
 } from "./WorldLayout";
 import { SUNREACH_ANCHORS, type WorldBiomeId, type WorldIslandId } from "./WorldIslands";
+import { sampleNevaLandforms } from "./NevaLandforms";
+import { headwaterSpringInfluence } from "./NevaHeadwaters";
 
 export type WorldDistrictId =
   | "farm"
@@ -377,6 +379,8 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
   const fine = valueNoise(worldSeed, x, z, 8.5, 0x1b873593);
   const coverMicro = valueNoise(worldSeed, x, z, 3.4, 0x51ed270b);
   const flowerMicro = valueNoise(worldSeed, x, z, 2.8, 0x2c1b3c6d);
+  const springExposure = headwaterSpringInfluence(x, z);
+  const mountainExposure = Math.max(sampleNevaLandforms(x, z).exposure, springExposure);
 
   const farmWorkOpening = radialWeight(
     x,
@@ -410,11 +414,11 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
     * river.wetness
     * (0.34 + river.deposition * 0.76)
   );
-  const exposed = clamp01(Math.max(district.headland, district.coast * 0.72) * (0.55 + macro * 0.45));
+  const exposed = clamp01(Math.max(district.headland, district.coast * 0.72, mountainExposure) * (0.55 + macro * 0.45));
   const orchard = clamp01(district.farm * radialWeight(x, z, 116, -48, 34, 28));
   const workingEdge = clamp01(district.harbor * (1 - harborWaterfrontOpening * 0.84) * (0.55 + meso * 0.45));
   const meadow = clamp01((district.farm * 0.7 + district.coast * 0.32 + district.village * 0.28) * (0.45 + meso * 0.55));
-  const woodland = clamp01(sheltered * (0.34 + macro * 0.76) * (1 - opening * 0.88));
+  const woodland = clamp01(sheltered * (0.34 + macro * 0.76) * (1 - opening * 0.88) * (1 - mountainExposure * 0.85));
   const habitatValues: Record<WorldHabitatId, number> = {
     woodland,
     meadow,
@@ -467,17 +471,20 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
     (meadow * 0.66 + orchard * 0.24 + riparian * 0.2)
     * (0.08 + smoothstep(0.48, 0.78, flowerMicro) * 0.72 + fine * 0.2)
     * (1 - Math.max(routeClearance, architectureClearance, coastlineClearance))
+    * (1 - mountainExposure * 0.95)
   );
   const shortCover = clamp01(
     (0.22 + meadow * 0.54 + woodland * 0.2 + workingEdge * 0.2)
     * (0.12 + fine * 0.28 + coverMicro * 0.6)
     * (1 - Math.max(routeClearance, architectureClearance, coastlineClearance))
+    * (1 - mountainExposure * 0.88)
   );
   const reed = clamp01(
     riparian
     * (0.24 + meso * 0.76)
     * (1 - routeGateway)
     * (1 - river.erosion * 0.72)
+    * (1 - springExposure)
   );
   const rock = clamp01(
     (exposed * 0.58 + river.erosion * Math.max(river.lowerBank, river.upperBank) * 0.76)

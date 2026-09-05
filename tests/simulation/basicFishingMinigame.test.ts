@@ -284,9 +284,24 @@ describe("Simulation Basic Fishing Loop Integration", () => {
     sim.state.basicFishing!.remainingSeconds = 0.05;
     sim.tick(3);
     expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
-    sim.tick(2);
+    for (let i = 0; i < 40; i += 1) sim.tick(0.05);
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(inv, "fish.perch")).toBe(0);
+  });
+
+  it("keeps the bite-reaction window after a hitch-sized frame", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    expect(sim.startChargingBasicFishing().success).toBe(true);
+    expect(sim.releaseCastBasicFishing(0.8).success).toBe(true);
+    sim.state.basicFishing!.remainingSeconds = 0.05;
+    sim.tick(0.1);
+    expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
+    const before = sim.state.basicFishing!.remainingSeconds;
+    sim.tick(2);
+    expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
+    expect(sim.state.basicFishing!.remainingSeconds).toBeGreaterThan(before - 0.2);
+    expect(sim.hookBiteBasicFishing().success).toBe(true);
   });
 
   it("treasure catch grants at least one registered item without dropping the fish", () => {

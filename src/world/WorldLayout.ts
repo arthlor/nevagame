@@ -9,14 +9,26 @@ import {
   starterStructureAnchor,
   type FarmPathKind
 } from "./FarmLayout";
-import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_PIER_DECK, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_MARKET, VILLAGE_PLAZA, WORLD_SPAWN } from "./WorldAnchors";
+import {
+  HARBOR_DOCK,
+  HARBOR_MARKET,
+  HARBOR_MARKET_APRON,
+  HARBOR_PIER_DECK,
+  HARBOR_SKIFF_MOORING,
+  RIVER_CROSSING,
+  VILLAGE_MARKET,
+  VILLAGE_PLAZA,
+  WORLD_SPAWN
+} from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
   sampleRoadCrossSection,
   type RoadCrossSectionSample
 } from "./RoadGeometry";
 import { conformRoadGeometryToTerrain } from "./RoadTerrainConformity";
+import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
+import { NEVA_FOOTHILL_TRAILS, nevaTrailBenchAt, sampleNevaLandforms } from "./NevaLandforms";
+import { NEVA_HEADWATERS, headwaterElevationAt, headwaterSpringInfluence, isInHeadwaterBounds } from "./NevaHeadwaters";
 import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
 import {
   attachSurfaceFieldAttributes,
@@ -28,6 +40,7 @@ import {
   SUNREACH_ANCHORS,
   WORLD_ISLAND_DEFINITIONS,
   worldIslandDefinitions,
+  signedDistanceToNevaCoast,
   type FishingEcologyDefinition,
   type MarineSample,
   type SailingRequirement,
@@ -143,6 +156,7 @@ export interface RiverSectionProfile {
   curvature: number;
   leftWaterWidth: number;
   rightWaterWidth: number;
+  surfaceElevation: number;
   bedElevation: number;
   thalwegOffset: number;
   leftBankRun: number;
@@ -251,7 +265,7 @@ export interface WorldRouteProfile {
 }
 
 export interface WorldLayoutDescriptor {
-  revision: 10;
+  revision: 12;
   anchors: {
     starterFarm: WorldPoint;
     playerSpawn: WorldPoint;
@@ -262,6 +276,12 @@ export interface WorldLayoutDescriptor {
     lighthouse: WorldPoint;
     fishMarket: WorldPoint;
     harborDock: WorldPoint;
+    foothillGateway: WorldPoint;
+    foothillFork: WorldPoint;
+    mountainSpring: WorldPoint;
+    westernOverlook: WorldPoint;
+    westernBeach: WorldPoint;
+    northernBluff: WorldPoint;
   };
   coast: readonly WorldPoint[];
   river: readonly WorldPoint[];
@@ -270,8 +290,8 @@ export interface WorldLayoutDescriptor {
   architecturePads: readonly WorldArchitecturePad[];
 }
 
-export const WORLD_BOUNDS: WorldBounds = { minX: -180, maxX: 180, minZ: -160, maxZ: 120 };
-export const SAILABLE_BOUNDS: WorldBounds = { minX: -260, maxX: 720, minZ: -240, maxZ: 300 };
+export const WORLD_BOUNDS: WorldBounds = { minX: -220, maxX: 200, minZ: -250, maxZ: 130 };
+export const SAILABLE_BOUNDS: WorldBounds = { minX: -270, maxX: 720, minZ: -300, maxZ: 300 };
 /**
  * 384 cells across 600 m is a 1.56 m grid. The previous 2.34 m grid could not
  * resolve an 11 m river or a 9 m beach without turning every bank into a
@@ -387,7 +407,10 @@ const BRIDGE_CENTER = Object.freeze({ x: -15.3, z: -6});
 export const BRIDGE_WORLD_PROFILE = Object.freeze({
   spanLength: 14.2,
   deckWidth: 3.8,
-  entrySurfaceY: 1.4,
+  // Matches the authored bridge_stone_a deck_01 top after its landmark
+  // transform. The deck collider, traversal surface, approach grading, and
+  // gateway geometry must meet at this entry height.
+  entrySurfaceY: 1.2178505,
   approachLength: 8,
   lateralBlendWidth: 3.6,
   westBankSurfaceY: 1.68,
@@ -433,6 +456,7 @@ interface RawTraversalSurfaceSample {
 }
 
 const terrainBaseHeightfieldCache = new Map<WorldTerrainPatchDefinition["id"], Float32Array>();
+let pathCollisionGeometryCache: THREE.BufferGeometry | null = null;
 let pathGeometryTemplateCache: THREE.BufferGeometry | null = null;
 let traversalRoadTriangleIndexCache: Map<string, TraversalRoadTriangle[]> | null = null;
 let cachedTraversalSurfaceQuery: {
@@ -483,7 +507,7 @@ function sampleTraversalBasePlane(x: number, z: number): number {
 
 function sharedTraversalRoadTriangleIndex(): Map<string, TraversalRoadTriangle[]> {
   if (traversalRoadTriangleIndexCache) return traversalRoadTriangleIndexCache;
-  const geometry = WorldLayout.buildPathGeometry();
+  const geometry = WorldLayout.buildPathCollisionGeometry();
   const positions = geometry.getAttribute("position");
   const indices = geometry.getIndex();
   if (!indices) {
@@ -516,6 +540,15 @@ function sharedTraversalRoadTriangleIndex(): Map<string, TraversalRoadTriangle[]
 }
 
 function sampleTraversalRoadPlane(x: number, z: number): number | null {
+  // Reading the road plane builds the entire worked-road ribbon and its
+  // triangle index, which is seconds of work. A point outside every route
+  // corridor cannot land on a road triangle, and the route segment index
+  // answers that in constant time, so the ribbon is only built once a query
+  // actually reaches a road. ROUTE_INDEX_PADDING_METERS (18m) comfortably
+  // exceeds the widest corridor and junction, which
+  // `road triangles stay inside the route index padding` pins.
+  if (!Number.isFinite(WorldLayout.nearestRouteDistance(x, z).distance)) return null;
+
   let highest = Number.NEGATIVE_INFINITY;
   for (const triangle of sharedTraversalRoadTriangleIndex().get(traversalCellKey(x, z)) ?? []) {
     const { a, b, c } = triangle;
@@ -607,7 +640,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 58, z: -4 },
       { x: 60, z: 20 },
       { x: 62, z: 44 },
-      HARBOR_MARKET.position
+      HARBOR_MARKET_APRON
     ]
   },
   {
@@ -655,10 +688,18 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 32, z: 28 },
       { x: 48, z: 46 },
       { x: 58, z: 54 },
-      HARBOR_MARKET.position
+      HARBOR_MARKET_APRON
     ],
     linearSegmentIndices: [6, 7, 8, 9]
-  }
+  },
+  ...NEVA_FOOTHILL_TRAILS.map((trail): WorldRoute => ({
+    id: trail.id,
+    scope: "regional",
+    kind: "trail",
+    widthMeters: 2.2,
+    points: trail.points.map(({ x, z }) => ({ x, z })),
+    linearSegmentIndices: trail.points.slice(1).map((_, index) => index)
+  }))
 ] as const;
 
 const FARM_PATH_KIND_TO_WORLD_KIND: Readonly<Record<FarmPathKind, WorldRouteKind>> = {
@@ -675,8 +716,9 @@ export const FARM_ROUTES: readonly WorldRoute[] = STARTER_FARM_LAYOUT.paths.map(
 }));
 
 export const WORLD_ROUTE_NETWORK: readonly WorldRoute[] = [
-  ...WORLD_ROUTES,
+  ...WORLD_ROUTES.filter((route) => !NEVA_FOOTHILL_TRAILS.some((trail) => trail.id === route.id)),
   ...FARM_ROUTES,
+  ...WORLD_ROUTES.filter((route) => NEVA_FOOTHILL_TRAILS.some((trail) => trail.id === route.id)),
   ...SUNREACH_ROUTES
 ];
 
@@ -723,7 +765,7 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   },
   {
     id: "harbor-market-gateway",
-    center: HARBOR_MARKET.position,
+    center: HARBOR_MARKET_APRON,
     radiusMeters: 3.25,
     blendLengthMeters: 1.45,
     surface: "landmark-gateway",
@@ -742,7 +784,7 @@ function villageArchitectureRotation(center: WorldPoint): number {
  */
 export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   // Village approach and orchard homesteads; existing terrain, no new gameplay anchors.
-  { id: "village.approach-inn", center: { x: 76, z: -25 }, rotationY: -0.624023, envelope: [4.5, 4.1], frontageClearanceMeters: 7, frontApproachMeters: 4 },
+  { id: "village.approach-inn", center: { x: 79.3, z: -29.1}, rotationY: -0.624, envelope: [4.5, 4.1], frontageClearanceMeters: 7, frontApproachMeters: 4 },
   { id: "village.cooperative-hall", center: { x: 38, z: 12 }, rotationY: 2.111216, envelope: [5, 4.2], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
   { id: "orchard.barn", center: { x: 100, z: -66 }, rotationY: -0.566729, envelope: [4.8, 3.2], frontageClearanceMeters: 6.5, frontApproachMeters: 4 },
   { id: "orchard.farmhouse", center: { x: 134, z: -32 }, rotationY: -1.172274, envelope: [4.5, 4.75], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
@@ -849,7 +891,7 @@ function pointInRotatedEnvelope(
 }
 
 export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
-  revision: 10,
+  revision: 12,
   anchors: {
     starterFarm: STARTER_FARM_LAYOUT.origin,
     playerSpawn: WORLD_SPAWN.playerPosition,
@@ -858,11 +900,17 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
     riverCrossing: RIVER_CROSSING,
     bridge: BRIDGE_CENTER,
     lighthouse: LIGHTHOUSE_GATEWAY,
-    fishMarket: HARBOR_MARKET.position,
-    harborDock: HARBOR_DOCK.boatPosition
+    fishMarket: HARBOR_MARKET_APRON,
+    harborDock: HARBOR_DOCK.boatPosition,
+    foothillGateway: NEVA_FOOTHILL_TRAILS[0].points[0],
+    foothillFork: NEVA_FOOTHILL_TRAILS[1].points[0],
+    mountainSpring: NEVA_FOOTHILL_TRAILS[0].points.at(-1)!,
+    westernOverlook: NEVA_FOOTHILL_TRAILS[1].points.at(-1)!,
+    westernBeach: NEVA_FOOTHILL_TRAILS[2].points.at(-1)!,
+    northernBluff: NEVA_FOOTHILL_TRAILS[3].points.at(-1)!
   },
   coast: COAST_SPLINE,
-  river: RIVER_SPLINE,
+  river: [NEVA_HEADWATERS.source, ...RIVER_SPLINE.slice(1)],
   riverMouth: RIVER_MOUTH,
   routes: WORLD_ROUTE_NETWORK,
   architecturePads: WORLD_ARCHITECTURE_PADS
@@ -1333,8 +1381,14 @@ export class WorldLayout {
       && z <= sunreach.authoredBounds.maxZ
       && signedDistanceToSunreachCoast(x, z) <= 0
     ) return "island.sunreach";
-    const neva = WORLD_ISLAND_DEFINITIONS["island.neva"].authoredBounds;
-    if (x >= neva.minX && x <= neva.maxX && z >= neva.minZ && z <= neva.maxZ) return "island.neva";
+    const neva = WORLD_ISLAND_DEFINITIONS["island.neva"];
+    if (
+      x >= neva.authoredBounds.minX
+      && x <= neva.authoredBounds.maxX
+      && z >= neva.authoredBounds.minZ
+      && z <= neva.authoredBounds.maxZ
+      && (signedDistanceToNevaCoast(x, z) <= 0 || this.isBridgeDeck(x, z) || this.isPierDeck(x, z))
+    ) return "island.neva";
     return null;
   }
 
@@ -1488,7 +1542,10 @@ export class WorldLayout {
   }
 
   public static riverCenterX(z: number): number {
-    return splineValue(RIVER_SPLINE, z, "z");
+    const legacyCenter = splineValue(RIVER_SPLINE, z, "z");
+    return z < -135
+      ? THREE.MathUtils.lerp(NEVA_HEADWATERS.source.x, legacyCenter, smoothstep(NEVA_HEADWATERS.source.z, -135, z))
+      : legacyCenter;
   }
 
   public static riverSectionAt(z: number): RiverSectionProfile {
@@ -1562,19 +1619,22 @@ export class WorldLayout {
     const estuaryInfluence = mouthDistance >= 0
       ? 1 - smoothstep(16, 30, mouthDistance)
       : 1 - smoothstep(25, 39, -mouthDistance);
+    const headwaterBlend = 1 - smoothstep(-136, NEVA_HEADWATERS.endZ, z);
+    const surfaceElevation = z < NEVA_HEADWATERS.endZ ? headwaterElevationAt(z) : 0;
     return {
       z,
       centerX,
       tangent: { x: dx / tangentLength, z: 1 / tangentLength },
       curvature,
-      leftWaterWidth,
-      rightWaterWidth,
-      bedElevation,
+      leftWaterWidth: THREE.MathUtils.lerp(leftWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend),
+      rightWaterWidth: THREE.MathUtils.lerp(rightWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend),
+      surfaceElevation,
+      bedElevation: surfaceElevation + THREE.MathUtils.lerp(bedElevation, -0.75, headwaterBlend),
       thalwegOffset: THREE.MathUtils.lerp(bendThalwegOffset, 0, bridgeLock),
-      leftBankRun,
-      rightBankRun,
-      leftFloodplainWidth,
-      rightFloodplainWidth,
+      leftBankRun: THREE.MathUtils.lerp(leftBankRun, 5, headwaterBlend),
+      rightBankRun: THREE.MathUtils.lerp(rightBankRun, 4, headwaterBlend),
+      leftFloodplainWidth: THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend),
+      rightFloodplainWidth: THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend),
       leftErosion: THREE.MathUtils.lerp(0.16 + leftOutside * 0.84, 0.18, bridgeLock),
       rightErosion: THREE.MathUtils.lerp(0.16 + rightOutside * 0.84, 0.18, bridgeLock),
       leftDeposition: THREE.MathUtils.lerp(0.18 + rightOutside * 0.82, 0.2, bridgeLock),
@@ -1595,6 +1655,10 @@ export class WorldLayout {
 
   /** Positive values are river water, negative values are dry of that bank. */
   public static riverWaterSignedDistance(x: number, z: number): number {
+    if (z < NEVA_HEADWATERS.source.z) {
+      return NEVA_HEADWATERS.sourceRadiusMeters
+        - Math.hypot(x - NEVA_HEADWATERS.source.x, z - NEVA_HEADWATERS.source.z);
+    }
     const section = this.riverSectionAt(z);
     const signedLateral = x - section.centerX;
     const width = signedLateral < 0 ? section.leftWaterWidth : section.rightWaterWidth;
@@ -1610,8 +1674,10 @@ export class WorldLayout {
     const floodplainWidth = side === "left" ? section.leftFloodplainWidth : section.rightFloodplainWidth;
     const erosion = side === "left" ? section.leftErosion : section.rightErosion;
     const deposition = side === "left" ? section.leftDeposition : section.rightDeposition;
-    const waterEdgeDistance = Math.abs(signedLateral) - waterWidth;
-    const waterSignedDistance = -waterEdgeDistance;
+    const waterSignedDistance = z < NEVA_HEADWATERS.source.z
+      ? NEVA_HEADWATERS.sourceRadiusMeters - Math.hypot(x - NEVA_HEADWATERS.source.x, z - NEVA_HEADWATERS.source.z)
+      : waterWidth - Math.abs(signedLateral);
+    const waterEdgeDistance = -waterSignedDistance;
     const dryDistance = Math.max(0, waterEdgeDistance);
     const channel = waterSignedDistance > 0
       ? smoothstep(0, Math.max(1.2, waterWidth * 0.7), waterSignedDistance)
@@ -1671,7 +1737,7 @@ export class WorldLayout {
     return clamp01(longitudinal * lateral);
   }
 
-  /** Exact legacy Neva water field inside the original terrain patch. */
+  /** Canonical Neva water field combining loop distance with southern river/estuary detail. */
   private static nevaWaterSignedDistance(x: number, z: number): number {
     const patch = WORLD_ISLAND_DEFINITIONS["island.neva"].terrainPatch;
     if (
@@ -1684,7 +1750,13 @@ export class WorldLayout {
       const dz = Math.max(patch.bounds.minZ - z, 0, z - patch.bounds.maxZ);
       return Math.hypot(dx, dz) + 0.000001;
     }
-    const coast = z - this.coastlineZ(x);
+    const loopDistance = signedDistanceToNevaCoast(x, z);
+    let coast = loopDistance;
+    if (z > 20 && x >= -183 && x <= 183) {
+      const southDist = z - this.coastlineZ(x);
+      const southWeight = Math.min(1, Math.max(0, (z - 20) / 30)) * Math.min(1, Math.max(0, (183 - Math.abs(x)) / 2));
+      coast = THREE.MathUtils.lerp(loopDistance, southDist, southWeight);
+    }
     const river = this.riverWaterSignedDistance(x, z);
     const eligibleRiver = z <= this.coastlineZ(x) + 1.5 ? river : Number.NEGATIVE_INFINITY;
     const hardUnion = Math.max(coast, eligibleRiver);
@@ -1756,6 +1828,11 @@ export class WorldLayout {
     return this.marineSampleAt(x, z).signedShoreDistance;
   }
 
+  /** Baseline across the padded headwater mesh; waterSignedDistance owns wet/dry truth. */
+  public static waterSurfaceElevation(x: number, z: number): number {
+    return isInHeadwaterBounds(x, z) ? headwaterElevationAt(z) : 0;
+  }
+
   public static isBridgeDeck(x: number, z: number): boolean {
     return (
       Math.abs(x - BRIDGE_CENTER.x) <= BRIDGE_HALF_SPAN + 0.000001 &&
@@ -1777,6 +1854,19 @@ export class WorldLayout {
   }
 
   /** Walkable harbor pier plus mooring slips. Hull water stays sailable. */
+  /** Authoring bounds for the timber stairs climbing from the harbor apron onto the pier deck. */
+  public static isPierStairs(x: number, z: number): boolean {
+    const dock = this.landmark("dock");
+    const southEdge = dock.z - HARBOR_PIER_DECK.halfLengthZ;
+    const stairBottomZ = southEdge - HARBOR_PIER_DECK.stairRun - 1.4;
+    return (
+      Math.abs(x - dock.x) <= HARBOR_PIER_DECK.stairHalfWidthX &&
+      z <= southEdge + 0.05 &&
+      z >= stairBottomZ
+    );
+  }
+
+  /** Walkable harbor pier deck. Shore stairs and rowboat slip are included; skiff mooring is on natural beach. */
   public static isPierDeck(x: number, z: number): boolean {
     const slipWidth = 2.35;
     const hullKeepout = HARBOR_PIER_DECK.hullKeepout;
@@ -1786,16 +1876,10 @@ export class WorldLayout {
       Math.abs(z - dock.z) <= HARBOR_PIER_DECK.halfLengthZ &&
       Math.hypot(x - HARBOR_DOCK.boatPosition.x, z - HARBOR_DOCK.boatPosition.z) > hullKeepout &&
       Math.hypot(x - HARBOR_SKIFF_MOORING.boatPosition.x, z - HARBOR_SKIFF_MOORING.boatPosition.z) > hullKeepout;
-    const southEdge = dock.z - HARBOR_PIER_DECK.halfLengthZ;
-    const onShoreStairs =
-      Math.abs(x - dock.x) <= HARBOR_PIER_DECK.stairHalfWidthX &&
-      z <= southEdge + 0.25 &&
-      z >= southEdge - HARBOR_PIER_DECK.stairRun;
     return (
       onVisualPier
-      || onShoreStairs
+      || this.isPierStairs(x, z)
       || this.isPierSlip(x, z, HARBOR_DOCK.playerPosition, HARBOR_DOCK.boatPosition, slipWidth, hullKeepout)
-      || this.isPierSlip(x, z, HARBOR_SKIFF_MOORING.playerPosition, HARBOR_SKIFF_MOORING.boatPosition, slipWidth, hullKeepout)
     );
   }
 
@@ -1827,6 +1911,7 @@ export class WorldLayout {
 
   public static isWater(x: number, z: number): boolean {
     return this.waterSignedDistance(x, z) > 0
+      && !this.isInterior(x, z)
       && !this.isBridgeDeck(x, z)
       && !this.isBridgeApproach(x, z)
       && !this.isPierDeck(x, z);
@@ -1834,18 +1919,23 @@ export class WorldLayout {
 
   public static fishingHabitatAt(x: number, z: number): FishingHabitatId | null {
     if (!this.isWater(x, z)) return null;
+    if (isInHeadwaterBounds(x, z) && z < NEVA_HEADWATERS.endZ) return null;
     const marine = this.marineSampleAt(x, z);
     if (marine.ecologyWeights["ecology.sunreach"] > marine.ecologyWeights["ecology.neva"]) {
       if (marine.reefInfluence > 0.08 || marine.signedShoreDistance <= 58) return "coast";
       return "offshore";
     }
     const coastDistance = z - this.coastlineZ(x);
-    if (coastDistance <= 0) return "river";
+    if (coastDistance <= 0) {
+      if (this.riverBankSample(x, z).channel > 0.05) return "river";
+      if (marine.signedShoreDistance <= 65) return "coast";
+      return "offshore";
+    }
     // Lake is the authored estuary lagoon, not a global nearshore carp band.
     // Open sea and beaches classify as coast; the Act 5 story school at
     // coastlineZ(18)+12 stays lake via estuary influence.
     if (coastDistance <= 24 && this.estuaryInfluence(x, z) > 0.08) return "lake";
-    if (coastDistance <= 130) return "coast";
+    if (coastDistance <= 130 || marine.signedShoreDistance <= 65) return "coast";
     return "offshore";
   }
 
@@ -2113,17 +2203,17 @@ export class WorldLayout {
     if (this.isInterior(x, z)) return true;
     const islandId = this.islandAt(x, z);
     if (islandId === "island.sunreach") return !this.isWater(x, z);
-    return (
-      x >= WORLD_BOUNDS.minX && x <= WORLD_BOUNDS.maxX &&
-      z >= WORLD_BOUNDS.minZ && z <= WORLD_BOUNDS.maxZ &&
-      (!this.isWater(x, z) || this.isBridgeDeck(x, z) || this.isPierDeck(x, z))
-    );
+    if (islandId === "island.neva") {
+      return !this.isWater(x, z) || this.isBridgeDeck(x, z) || this.isPierDeck(x, z);
+    }
+    return false;
   }
 
   public static isSailable(x: number, z: number): boolean {
     return (
       x >= SAILABLE_BOUNDS.minX && x <= SAILABLE_BOUNDS.maxX &&
       z >= SAILABLE_BOUNDS.minZ && z <= SAILABLE_BOUNDS.maxZ &&
+      !(isInHeadwaterBounds(x, z) && z < NEVA_HEADWATERS.endZ) &&
       this.isWater(x, z) && !this.isBridgeDeck(x, z) && !this.isPierDeck(x, z)
     );
   }
@@ -2184,6 +2274,34 @@ export class WorldLayout {
     return THREE.MathUtils.lerp(height, targetHeight, boxWeight(x, z, centerX, centerZ, halfWidth, halfDepth, feather));
   }
 
+  /** Keep existing working footprints and their approach corridors on their original land. */
+  private static nevaWorkingGroundProtection(x: number, z: number): number {
+    let protection = Math.max(
+      boxWeight(x, z, -65, -55, 18, 14, 8),
+      boxWeight(x, z, 63.5, -63, 10, 10, 8)
+    );
+    if (protection >= 1) return 1;
+    for (const pad of WORLD_ARCHITECTURE_PADS) {
+      const dx = x - pad.center.x;
+      const dz = z - pad.center.z;
+      const margin = Math.max(pad.frontageClearanceMeters, pad.frontApproachMeters) + 1;
+      const outer = Math.max(...pad.envelope) + margin + 8;
+      if (Math.abs(dx) > outer || Math.abs(dz) > outer) continue;
+      const cosine = Math.cos(pad.rotationY);
+      const sine = Math.sin(pad.rotationY);
+      protection = Math.max(protection, boxWeight(
+        dx * cosine + dz * sine, -dx * sine + dz * cosine,
+        0, 0, pad.envelope[0] + margin, pad.envelope[1] + margin, 8
+      ));
+    }
+    const route = this.nearestRouteDistance(x, z);
+    if (!NEVA_FOOTHILL_TRAILS.some((trail) => trail.id === route.route.id)) {
+      const fullWidth = route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters + 2;
+      protection = Math.max(protection, 1 - smoothstep(fullWidth, fullWidth + 8, route.distance));
+    }
+    return protection;
+  }
+
   /** Authored landform before route grading. Never calls terrainHeight. */
   public static naturalTerrainHeight(x: number, z: number): number {
     if (this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
@@ -2201,10 +2319,19 @@ export class WorldLayout {
       Math.cos((x + z) * 0.009) * 0.42;
     let height = 1.8 + westernRidge + northernRidge + easternUplands + lighthouseHeadland + harborShoulder + farmBasin + authoredPlanes;
 
+    const landform = sampleNevaLandforms(x, z);
+    const trailBench = nevaTrailBenchAt(x, z);
+    const workingProtection = landform.minimumElevation > height || trailBench.influence > 0
+      ? this.nevaWorkingGroundProtection(x, z)
+      : 0;
+    height += Math.max(0, landform.minimumElevation - height) * (1 - workingProtection);
+
     const riverSection = this.riverSectionAt(z);
     const riverSignedLateral = x - riverSection.centerX;
     const riverSide: RiverSide = riverSignedLateral < 0 ? "left" : "right";
-    const riverDistance = Math.abs(riverSignedLateral);
+    const riverDistance = z < NEVA_HEADWATERS.source.z
+      ? Math.hypot(x - NEVA_HEADWATERS.source.x, z - NEVA_HEADWATERS.source.z)
+      : Math.abs(riverSignedLateral);
     const riverWidth = riverSide === "left"
       ? riverSection.leftWaterWidth
       : riverSection.rightWaterWidth;
@@ -2218,7 +2345,7 @@ export class WorldLayout {
       - (1 - smoothstep(0.25, Math.max(1.8, riverWidth * 0.48), thalwegDistance)) * 0.24;
     const riverBankTop = Math.min(
       height,
-      0.42 + riverDeposition * 0.32 + smoothstep(-180, 82, z) * 0.2
+      riverSection.surfaceElevation + 0.42 + riverDeposition * 0.32 + smoothstep(-180, 82, z) * 0.2
     );
     if (riverDistance <= riverWidth + riverBankRun + riverFloodplain) {
       const bankRise = smoothstep(riverWidth - 0.35, riverWidth + riverBankRun, riverDistance);
@@ -2229,77 +2356,126 @@ export class WorldLayout {
         riverDistance
       );
       height = THREE.MathUtils.lerp(lowerToUpper, height, floodplainBlend);
+      if (z < NEVA_HEADWATERS.endZ) {
+        // The declared edge meets the elevated water surface, rather than leaving
+        // a dry-sign strip submerged beside the spring. Lower reaches stay exact.
+        const headwaterBlend = 1 - smoothstep(-124, NEVA_HEADWATERS.endZ, z);
+        const channelHeight = THREE.MathUtils.lerp(riverBed, riverSection.surfaceElevation,
+          smoothstep(0, riverWidth, riverDistance));
+        const bankHeight = THREE.MathUtils.lerp(riverSection.surfaceElevation,
+          riverSection.surfaceElevation + 0.65,
+          smoothstep(riverWidth, riverWidth + riverBankRun, riverDistance));
+        const headwaterHeight = THREE.MathUtils.lerp(
+          riverDistance < riverWidth ? channelHeight : bankHeight,
+          Math.max(height, landform.minimumElevation), floodplainBlend
+        );
+        height = THREE.MathUtils.lerp(height, headwaterHeight, headwaterBlend);
+      }
     }
 
-    const coastDistance = z - this.coastlineZ(x);
+    const loopDistance = signedDistanceToNevaCoast(x, z);
+    let coastDistance = loopDistance;
+    if (z > 20 && x >= -183 && x <= 183) {
+      const southDist = z - this.coastlineZ(x);
+      const southWeight = Math.min(1, Math.max(0, (z - 20) / 30)) * Math.min(1, Math.max(0, (183 - Math.abs(x)) / 2));
+      coastDistance = THREE.MathUtils.lerp(loopDistance, southDist, southWeight);
+    }
     const coastProfile = this.coastProfile(x);
     if (coastDistance > 0) {
       const nearshoreShelf = coastProfile.rockShelf * (1 - smoothstep(0.2, 8, coastDistance)) * 0.28;
       const coastalShelf = -0.48 + nearshoreShelf - Math.min(16, coastDistance * 0.11);
       const mouth = WORLD_LAYOUT_V5.riverMouth;
-      const channelCrossSection = 1 - smoothstep(
-        riverWidth - 0.8,
-        riverWidth + 3.8,
-        riverDistance
-      );
-      const channelContinuation = 1 - smoothstep(0, 24, Math.max(0, z - mouth.z));
-      const channelDepth = riverSection.bedElevation - Math.min(0.42, Math.max(0, z - mouth.z) * 0.018);
-      const channelBlend = this.estuaryInfluence(x, z) * channelCrossSection * channelContinuation;
-      height = THREE.MathUtils.lerp(coastalShelf, Math.min(coastalShelf, channelDepth), channelBlend);
+      if (z > 40 && Math.abs(x - mouth.x) < 30) {
+        const channelCrossSection = 1 - smoothstep(
+          riverWidth - 0.8,
+          riverWidth + 3.8,
+          riverDistance
+        );
+        const channelContinuation = 1 - smoothstep(0, 24, Math.max(0, z - mouth.z));
+        const channelDepth = riverSection.bedElevation - Math.min(0.42, Math.max(0, z - mouth.z) * 0.018);
+        const channelBlend = this.estuaryInfluence(x, z) * channelCrossSection * channelContinuation;
+        height = THREE.MathUtils.lerp(coastalShelf, Math.min(coastalShelf, channelDepth), channelBlend);
+      } else {
+        height = coastalShelf;
+      }
     } else if (coastDistance > -34) {
       const landward = -coastDistance;
       const shoreInfluence = 1 - smoothstep(24, 34, landward);
       const broadPlane = Math.sin(x * 0.081 + landward * 0.28) * 0.055;
 
-      // Sand beaches rise slowly from the waterline before blending into the
-      // inland landform. Their broad width gives the 600 m terrain grid enough
-      // samples to read as a beach instead of one vertical triangle row.
+      let beachWeight = coastProfile.beach;
+      let rockShelfWeight = coastProfile.rockShelf;
+      let cliffWeight = coastProfile.cliff;
+      let beachWidth = coastProfile.beachWidthMeters;
+      let rockToeWidth = coastProfile.rockToeWidthMeters;
+      let cliffRiseStart = coastProfile.cliffRiseStartMeters;
+      let cliffRiseEnd = coastProfile.cliffRiseEndMeters;
+
+      if (z < -140) {
+        beachWeight = 0.40;
+        rockShelfWeight = 0.45;
+        cliffWeight = 0.15;
+        beachWidth = 9.0;
+        rockToeWidth = 6.0;
+        cliffRiseStart = 3.5;
+        cliffRiseEnd = 12.0;
+      } else if (x < -140 && z >= -140) {
+        beachWeight = 0.65;
+        rockShelfWeight = 0.35;
+        cliffWeight = 0;
+        beachWidth = 12.0;
+        rockToeWidth = 6.0;
+      } else if (x > 120 && z >= -140) {
+        beachWeight = 0.25;
+        rockShelfWeight = 0.55;
+        cliffWeight = 0.20;
+        rockToeWidth = 5.0;
+        cliffRiseStart = 4.0;
+        cliffRiseEnd = 10.0;
+      }
+
       const beachGrade = 0.025
-        + Math.min(landward, coastProfile.beachWidthMeters) * 0.045
+        + Math.min(landward, beachWidth) * 0.045
         + broadPlane;
       const beachHeight = THREE.MathUtils.lerp(
         beachGrade,
         height,
         smoothstep(
-          coastProfile.beachWidthMeters * 0.72,
-          coastProfile.beachWidthMeters + 8,
+          beachWidth * 0.72,
+          beachWidth + 8,
           landward
         )
       );
 
-      // Rocky coast keeps a low, irregular toe at the water. Terraces are
-      // deliberately shallow so they read as broad stone planes rather than
-      // stacked retaining walls.
       const shelfTerraces =
         smoothstep(2.8, 4.4, landward) * 0.11
         + smoothstep(7.2, 9.4, landward) * 0.16;
       const shelfGrade = 0.08
-        + Math.min(landward, coastProfile.rockToeWidthMeters) * 0.055
+        + Math.min(landward, rockToeWidth) * 0.055
         + shelfTerraces
         + broadPlane;
       const shelfHeight = THREE.MathUtils.lerp(
         shelfGrade,
         height,
         smoothstep(
-          coastProfile.rockToeWidthMeters * 0.82,
-          coastProfile.rockToeWidthMeters + 12,
+          rockToeWidth * 0.82,
+          rockToeWidth + 12,
           landward
         )
       );
 
-      // Cliffs begin behind a walkable rock/sand toe. This preserves the
-      // lighthouse headland silhouette while removing the repeated sheer wall
-      // directly at sea level seen around the harbor and ordinary coast.
-      const cliffLip = 8.8 + coastProfile.headland * 5.2 + coastProfile.rockShelf * 1.3;
+      const cliffLip = z < -140
+        ? 3.8 + coastProfile.headland * 2.2 + rockShelfWeight * 0.8
+        : 8.8 + coastProfile.headland * 5.2 + rockShelfWeight * 1.3;
       const cliffToeHeight = 0.12
-        + Math.min(landward, coastProfile.cliffRiseStartMeters) * 0.06
+        + Math.min(landward, cliffRiseStart) * 0.06
         + broadPlane;
       const cliffFaceHeight = THREE.MathUtils.lerp(
         cliffToeHeight,
         cliffLip,
         smoothstep(
-          coastProfile.cliffRiseStartMeters,
-          coastProfile.cliffRiseEndMeters,
+          cliffRiseStart,
+          cliffRiseEnd,
           landward
         )
       );
@@ -2307,33 +2483,38 @@ export class WorldLayout {
         cliffFaceHeight,
         height,
         smoothstep(
-          coastProfile.cliffRiseEndMeters,
-          coastProfile.cliffRiseEndMeters + 9,
+          cliffRiseEnd,
+          cliffRiseEnd + 9,
           landward
         )
       );
       const authoredShoreHeight =
-        beachHeight * coastProfile.beach
-        + shelfHeight * coastProfile.rockShelf
-        + cliffHeight * coastProfile.cliff;
+        beachHeight * beachWeight
+        + shelfHeight * rockShelfWeight
+        + cliffHeight * cliffWeight;
       height = THREE.MathUtils.lerp(height, authoredShoreHeight, shoreInfluence * 0.98);
 
-      // Broad, asymmetric silt shelves soften the dry banks immediately before
-      // the mouth while leaving the canonical water sign untouched.
-      const bankDistance = riverDistance - riverWidth;
-      const bankShelf = 1 - smoothstep(0.4, 7.8, Math.max(0, bankDistance));
-      const bankSide = riverSide === "left" ? 1 : -1;
-      const siltHeight = 0.12 + landward * 0.048 + bankSide * 0.055;
-      const siltBlend = this.estuaryInfluence(x, z)
-        * bankShelf
-        * smoothstep(-0.2, 2.8, bankDistance)
-        * (0.48 + riverDeposition * 0.32);
-      height = THREE.MathUtils.lerp(height, Math.min(height, siltHeight), siltBlend);
+      if (z > 20 && Math.abs(x - WORLD_LAYOUT_V5.riverMouth.x) < 30) {
+        const bankDistance = riverDistance - riverWidth;
+        const bankShelf = 1 - smoothstep(0.4, 7.8, Math.max(0, bankDistance));
+        const bankSide = riverSide === "left" ? 1 : -1;
+        const siltHeight = 0.12 + landward * 0.048 + bankSide * 0.055;
+        const siltBlend = this.estuaryInfluence(x, z)
+          * bankShelf
+          * smoothstep(-0.2, 2.8, bankDistance)
+          * (0.48 + riverDeposition * 0.32);
+        height = THREE.MathUtils.lerp(height, Math.min(height, siltHeight), siltBlend);
 
-      // The coast profile owns the banks, but it must not refill the river
-      // channel as it approaches the shoreline.
-      const channelRestoration = 1 - smoothstep(riverWidth - 0.4, riverWidth + 3.8, riverDistance);
-      height = THREE.MathUtils.lerp(height, riverBed, channelRestoration);
+        const channelRestoration = 1 - smoothstep(riverWidth - 0.4, riverWidth + 3.8, riverDistance);
+        height = THREE.MathUtils.lerp(height, riverBed, channelRestoration);
+      }
+    }
+
+    // Contour benches are canonical geometry, including their wide shoulder cut.
+    // Keep their fill out of water and retain the original farm/road entry surface.
+    if (trailBench.influence > 0 && this.riverWaterSignedDistance(x, z) < -1.2) {
+      height = THREE.MathUtils.lerp(height, trailBench.elevation,
+        trailBench.influence * (1 - workingProtection));
     }
 
     height = this.applyPlateau(height, x, z, 1.2, -65, -55, 17, 13.5, 9);
@@ -2353,7 +2534,7 @@ export class WorldLayout {
     height = this.applyPlateau(height, x, z, 0.0, FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z, 4.5, 3.8, 2.0);
 
     // The bridge foundation belongs on the riverbed. The approaches rise smoothly
-    // to meet its deck at entrySurfaceY (1.4m) and connect flush to the banks.
+    // to meet the authored deck entrySurfaceY and connect flush to the banks.
     const bridgeLateralDistance = Math.abs(z - BRIDGE_CENTER.z);
     const bridgeAcross = 1 - smoothstep(
       BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 0.4,
@@ -2499,6 +2680,27 @@ export class WorldLayout {
         source: "bridge"
       };
     }
+    if (this.isPierStairs(x, z)) {
+      const dock = this.landmark("dock");
+      const southEdge = dock.z - HARBOR_PIER_DECK.halfLengthZ;
+      const stairBaseZ = southEdge - HARBOR_PIER_DECK.stairRun;
+      const approachBaseZ = stairBaseZ - 1.4;
+      const deckHeight = this.pierDeckSurfaceY();
+      const stairBaseHeight = this.terrainHeight(dock.x, dock.z) + dock.yOffset + 1.89;
+      if (z >= stairBaseZ) {
+        const t = THREE.MathUtils.clamp((z - stairBaseZ) / HARBOR_PIER_DECK.stairRun, 0, 1);
+        return {
+          height: THREE.MathUtils.lerp(stairBaseHeight, deckHeight, t),
+          source: "pier"
+        };
+      }
+      const t = THREE.MathUtils.clamp((z - approachBaseZ) / 1.4, 0, 1);
+      const groundHeight = sampleTraversalBasePlane(x, approachBaseZ);
+      return {
+        height: THREE.MathUtils.lerp(groundHeight, stairBaseHeight, t),
+        source: "pier"
+      };
+    }
     if (this.isPierDeck(x, z)) {
       return { height: this.pierDeckSurfaceY(), source: "pier" };
     }
@@ -2531,7 +2733,7 @@ export class WorldLayout {
 
     const center = this.rawTraversalSurfaceSample(x, z);
     let normal: TraversalSurfaceSample["normal"] = { x: 0, y: 1, z: 0 };
-    if (center.source === "terrain" || center.source === "road") {
+    if (center.source === "terrain" || center.source === "road" || this.isPierStairs(x, z)) {
       const safeDistance = Math.max(0.01, sampleDistance);
       const left = this.rawTraversalSurfaceSample(x - safeDistance, z).height;
       const right = this.rawTraversalSurfaceSample(x + safeDistance, z).height;
@@ -2698,7 +2900,13 @@ export class WorldLayout {
         + drainage.moisturePotential * 0.48
       );
     }
-    const coastDistance = z - this.coastlineZ(x);
+    const loopDistance = signedDistanceToNevaCoast(x, z);
+    let coastDistance = loopDistance;
+    if (z > 20 && x >= -183 && x <= 183) {
+      const southDist = z - this.coastlineZ(x);
+      const southWeight = Math.min(1, Math.max(0, (z - 20) / 30)) * Math.min(1, Math.max(0, (183 - Math.abs(x)) / 2));
+      coastDistance = THREE.MathUtils.lerp(loopDistance, southDist, southWeight);
+    }
     const coastalWetness = 1 - smoothstep(
       0.16,
       this.coastProfile(x).wetBandWidthMeters,
@@ -2741,25 +2949,59 @@ export class WorldLayout {
     const farm = this.farmSoilInfluence(x, z);
     const wet = this.shorelineWetness(x, z);
     const estuary = this.estuaryInfluence(x, z);
-    const coastDistance = z - this.coastlineZ(x);
+    const loopDistance = signedDistanceToNevaCoast(x, z);
+    let coastDistance = loopDistance;
+    if (z > 20 && x >= -183 && x <= 183) {
+      const southDist = z - this.coastlineZ(x);
+      const southWeight = Math.min(1, Math.max(0, (z - 20) / 30)) * Math.min(1, Math.max(0, (183 - Math.abs(x)) / 2));
+      coastDistance = THREE.MathUtils.lerp(loopDistance, southDist, southWeight);
+    }
     const riverFringe = coastDistance <= 0
       ? Math.max(river.lowerBank, river.upperBank * 0.68, river.floodplain * river.deposition * 0.72)
       : 0;
     const normalY = sampledNormalY ?? this.terrainNormalY(x, z);
     const coastProfile = this.coastProfile(x);
-    const coastBandWidth = Math.max(22, coastProfile.beachWidthMeters + 6);
+    let beachProp = coastProfile.beach;
+    let rockShelfProp = coastProfile.rockShelf;
+    let cliffProp = coastProfile.cliff;
+    let beachWidth = coastProfile.beachWidthMeters;
+
+    if (z < -140) {
+      beachProp = 0.40;
+      rockShelfProp = 0.45;
+      cliffProp = 0.15;
+    } else if (x < -140 && z >= -140) {
+      beachProp = 0.65;
+      rockShelfProp = 0.35;
+      cliffProp = 0;
+      beachWidth = 12.0;
+    } else if (x > 120 && z >= -140) {
+      beachProp = 0.25;
+      rockShelfProp = 0.55;
+      cliffProp = 0.20;
+    }
+
+    const coastBandWidth = Math.max(22, beachWidth + 6);
     const coastBand = coastDistance <= 0 ? smoothstep(-coastBandWidth, -0.12, coastDistance) : 0;
     const slopeCliff = clamp01((0.76 - normalY) / 0.3);
+    const mountainExposure = sampleNevaLandforms(x, z).exposure;
+    const mountainCliff = mountainExposure
+      * (0.18 + (1 - smoothstep(0.6, 0.92, normalY)) * 0.82)
+      * (1 - Math.max(path, shoulder) * 0.94);
+    const springStone = headwaterSpringInfluence(x, z) * 0.82
+      * (1 - river.channel) * (1 - Math.max(path, shoulder) * 0.94);
     const cliff = clamp01(
-      coastBand * coastProfile.cliff * (0.28 + slopeCliff * 0.92)
-      + coastBand * coastProfile.rockShelf * slopeCliff * 0.48
+      coastBand * cliffProp * (0.28 + slopeCliff * 0.92)
+      + coastBand * rockShelfProp * slopeCliff * 0.48
+      + mountainCliff
+      + springStone
     ) * (1 - estuary * 0.76);
     const siltShelf = estuary
       * Math.max(river.lowerBank, river.floodplain)
       * (0.35 + river.deposition * 0.65)
       * dryRoute;
     const beach = coastBand
-      * (coastProfile.beach + coastProfile.rockShelf * 0.24)
+      * (beachProp + rockShelfProp * 0.24)
       * (1 - cliff * 0.82)
       * (1 - estuary * 0.58);
     const meadowPattern = clamp01(
@@ -2990,7 +3232,29 @@ export class WorldLayout {
     return pathGeometryTemplateCache.clone();
   }
 
+  /**
+   * The same road ribbon without the per-vertex surface field attributes.
+   * Those attributes are a renderer concern and cost a full terrain sample per
+   * vertex — several seconds — while collision and traversal only ever read
+   * positions and indices, which are identical in both forms.
+   */
+  public static buildPathCollisionGeometry(): THREE.BufferGeometry {
+    pathCollisionGeometryCache ??= this.buildPathGeometryBase();
+    return pathCollisionGeometryCache.clone();
+  }
+
   private static buildPathGeometryTemplate(): THREE.BufferGeometry {
+    // Surface fields are added to a copy so the field-free base stays reusable
+    // for collision and traversal.
+    const geometry = this.buildPathCollisionGeometry();
+    attachSurfaceFieldAttributes(
+      geometry,
+      (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)
+    );
+    return geometry;
+  }
+
+  private static buildPathGeometryBase(): THREE.BufferGeometry {
     const source = buildOrganicRoadGeometry({
       routes: COMPILED_WORLD_ROUTES,
       junctions: WORLD_ROUTE_JUNCTIONS,
@@ -3041,10 +3305,6 @@ export class WorldLayout {
       for (const patchGeometry of patchGeometries) patchGeometry.dispose();
     }
     source.dispose();
-    attachSurfaceFieldAttributes(
-      geometry,
-      (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)
-    );
     return geometry;
   }
 
@@ -3151,15 +3411,23 @@ export class WorldLayout {
         ],
         index * 3
       );
-      const slopeFaceting = 1 - smoothstep(
-        normalPolicy.fullyFacetedNormalY,
-        normalPolicy.continuityStartNormalY,
-        normalY
-      );
       const semanticFaceting = smoothstep(
         normalPolicy.cliffWeightStart,
         normalPolicy.cliffWeightFull,
         weights.cliff
+      );
+      // Faceting belongs to rock, so slope alone only earns the full treatment
+      // where the surface is also semantically a cliff. Steep sand and soil
+      // keep a hint of facet and stay readable as soft ground; without this a
+      // river bank shades as hard chevrons on the regular terrain grid.
+      const slopeFaceting = (1 - smoothstep(
+        normalPolicy.fullyFacetedNormalY,
+        normalPolicy.continuityStartNormalY,
+        normalY
+      )) * THREE.MathUtils.lerp(
+        normalPolicy.softSurfaceFacetingScale,
+        1,
+        semanticFaceting
       );
       indexedFaceting[index] = Math.max(slopeFaceting, semanticFaceting);
     }

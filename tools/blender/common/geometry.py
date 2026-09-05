@@ -6,8 +6,9 @@ import random
 import math
 from collections.abc import Iterable
 
+import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 from .materials import get_or_create_material
 
@@ -319,16 +320,24 @@ def _section_origin(sections) -> Vector:
     return total / len(sections)
 
 
-def _build_mesh(name, origin, vertices, faces, token, parent, *, flat=True, bevel=0.0):
+def _build_mesh(name, origin, vertices, faces, token, parent, *, flat=True, bevel=0.0, recalc_normals=False):
     """Link one authored vertex/face soup as a mesh object seated at `origin`.
 
-    Vertices are authored relative to `origin` so the object's location stays
-    meaningful; `_bind_character_meshes` reads it to place hand sockets.
+    Vertices are authored relative to `origin` so object transforms retain the
+    intended pivot for attachment and animation. Set `recalc_normals` when the
+    face winding is generated rather than hand-checked, so the solid still
+    survives the backface culling every palette material turns on.
     """
     mesh = bpy.data.meshes.new(f"{name}_mesh")
     mesh.from_pydata([tuple(vertex) for vertex in vertices], [], faces)
     mesh.validate()
-    mesh.update()
+    mesh.update(calc_edges=recalc_normals)
+    if recalc_normals:
+        editable = bmesh.new()
+        editable.from_mesh(mesh)
+        bmesh.ops.recalc_face_normals(editable, faces=editable.faces)
+        editable.to_mesh(mesh)
+        editable.free()
     obj = bpy.data.objects.new(name, mesh)
     collection = parent.users_collection[0] if parent.users_collection else bpy.context.scene.collection
     collection.objects.link(obj)
@@ -669,6 +678,24 @@ def add_marker(name, location, parent, *, marker_type="interaction"):
     return marker
 
 
+def add_grip_marker(name, location, parent, *, fingers, contact_normal):
+    """An anatomical palm frame: +Y along fingers, +Z toward held material."""
+    y_axis = Vector(fingers).normalized()
+    z_axis = Vector(contact_normal)
+    z_axis -= y_axis * z_axis.dot(y_axis)
+    if z_axis.length_squared < 1e-8:
+        raise ValueError(f"{name}: palm normal must not be parallel to fingers")
+    z_axis.normalize()
+    x_axis = y_axis.cross(z_axis).normalized()
+    marker = add_marker(name, location, parent, marker_type="grip")
+    marker.rotation_mode = "QUATERNION"
+    # glTF rebases an empty's local axes as well as its world transform.
+    # Postmultiply Blender Rx(-90) so the EXPORTED +Y/+Z retain this contract.
+    marker.rotation_quaternion = Matrix((x_axis, -z_axis, y_axis)).transposed().to_quaternion()
+    marker["neva_grip_frame"] = "palm-y-fingers-z-contact-v1"
+    return marker
+
+
 def add_collision_box(name, location, dimensions, parent, *, rotation=(0.0, 0.0, 0.0)):
     marker = add_marker(name, location, parent, marker_type="collision")
     marker.rotation_euler = rotation
@@ -716,3 +743,213 @@ def join_meshes(objects: Iterable[bpy.types.Object], name: str):
     objects[0].name = name
     objects[0].data.name = f"{name}_mesh"
     return objects[0]
+
+
+_CAUDAL_FORMS = ("forked", "lunate", "rounded", "square", "heterocercal")
+
+
+def _caudal_outline(form: str, span: float, height: float, rays: int):
+    """Trace a caudal fin once, from the bottom of its base around to the top.
+
+    Returned points are (y, z) in the fin's own plane with the peduncle
+    attachment at the origin, so the caller only has to place the object.
+    """
+    if form not in _CAUDAL_FORMS:
+        raise ValueError(f"unknown caudal form {form!r}; expected one of {_CAUDAL_FORMS}")
+    upper = height * (0.62 if form == "heterocercal" else 0.5)
+    lower = height * (0.30 if form == "heterocercal" else 0.5)
+    base_half = height * 0.16
+
+    points = [(0.0, -base_half)]
+    for index in range(rays + 1):
+        position = -1.0 + 2.0 * index / rays
+        magnitude = abs(position)
+        if form == "forked":
+            # A shallow notch: the lobes reach three times further than the fork.
+            reach = 0.34 + 0.66 * magnitude
+        elif form == "lunate":
+            # Tuna and billfish: a deep crescent whose lobes sweep hard aft.
+            reach = 0.16 + 0.84 * magnitude**0.62
+        elif form == "rounded":
+            reach = math.sqrt(max(0.0, 1.0 - magnitude**2.6))
+        elif form == "square":
+            reach = 1.0 - 0.10 * magnitude
+        else:
+            reach = 0.30 + (0.70 * magnitude**0.8 if position > 0 else 0.55 * magnitude)
+        points.append((reach * span, position * (upper if position >= 0 else lower)))
+    points.append((0.0, upper * 0.32))
+    return points
+
+
+def add_caudal_fin(
+    name,
+    attach,
+    span,
+    height,
+    form,
+    token,
+    parent,
+    *,
+    thickness=0.012,
+    rays=6,
+    flat=True,
+):
+    """Author one tail fin as a solid fan of rays seated on the peduncle.
+
+    Two crossing triangular prisms make a four-pointed star, not a tail. A fin
+    is a thin lamina whose *outline* carries the whole read, so it is built as
+    an explicit fan from an anchor tucked just inside the body: the silhouette
+    is exact, the notch stays a notch, and the result is still a closed volume
+    that survives the backface culling every palette material turns on.
+
+    The fish families author forward along +Y, so `span` runs aft along +Y and
+    `height` is the vertical extent in Z.
+    """
+    outline = _caudal_outline(form, span, height, rays)
+    count = len(outline)
+    half = thickness * 0.5
+    inset = span * 0.06
+
+    vertices = [(-half, -inset, 0.0)]
+    vertices.extend((-half, y, z) for y, z in outline)
+    vertices.append((half, -inset, 0.0))
+    vertices.extend((half, y, z) for y, z in outline)
+
+    back = count + 1
+    faces = []
+    for index in range(count):
+        following = (index + 1) % count
+        faces.append((0, 1 + index, 1 + following))
+        faces.append((back, back + 1 + following, back + 1 + index))
+        faces.append((1 + index, 1 + following, back + 1 + following, back + 1 + index))
+
+    return _build_mesh(
+        name, Vector(attach), vertices, faces, token, parent, flat=flat, recalc_normals=True
+    )
+
+
+def add_leaf_blade(
+    name,
+    base,
+    tip,
+    width,
+    token,
+    parent,
+    *,
+    thickness=0.010,
+    cup=0.20,
+    bend=(0.0, 0.0, 0.0),
+    stations=4,
+    flat=True,
+):
+    """Author one leaf as a tapered ribbon with a raised midrib.
+
+    A leaf drawn as a single flat quad disappears the moment the camera reaches
+    its edge, and a triangular prism reads as a shard rather than a blade. This
+    lofts a four-sided cross-section -- two edges, a midrib ridge and a keel --
+    along a quadratic bend from `base` to `tip`, so the leaf keeps a silhouette
+    from every angle and still closes into a solid.
+    """
+    if stations < 2:
+        raise ValueError(f"{name}: a leaf blade needs at least two stations")
+    start = Vector(base)
+    end = Vector(tip)
+    control = (start + end) * 0.5 + Vector(bend)
+    origin = start
+
+    def point_at(t: float) -> Vector:
+        inverse = 1.0 - t
+        return inverse * inverse * start + 2.0 * inverse * t * control + t * t * end
+
+    vertices = []
+    for index in range(stations):
+        t = index / stations
+        centre = point_at(t)
+        tangent = (point_at(min(1.0, t + 0.02)) - point_at(max(0.0, t - 0.02)))
+        if tangent.length <= 1e-9:
+            tangent = end - start
+        tangent = tangent.normalized()
+        side = tangent.cross(Vector((0.0, 0.0, 1.0)))
+        if side.length <= 1e-6:
+            side = tangent.cross(Vector((0.0, 1.0, 0.0)))
+        side = side.normalized()
+        normal = side.cross(tangent).normalized()
+        # Widest a little past the base, drawn to a point at the tip.
+        half_width = width * 0.5 * math.sin(math.pi * min(1.0, 0.12 + 0.88 * t))
+        ridge = normal * (cup * half_width + thickness * 0.5)
+        keel = normal * (cup * half_width - thickness * 0.5)
+        for offset in (-side * half_width, ridge, side * half_width, keel):
+            vertices.append(centre + offset - origin)
+    vertices.append(end - origin)
+
+    faces = [(0, 3, 2, 1)]
+    for index in range(stations - 1):
+        ring, following = index * 4, (index + 1) * 4
+        for step in range(4):
+            nxt = (step + 1) % 4
+            faces.append((ring + step, ring + nxt, following + nxt, following + step))
+    apex = stations * 4
+    last = (stations - 1) * 4
+    for step in range(4):
+        faces.append((last + step, last + (step + 1) % 4, apex))
+
+    return _build_mesh(
+        name, origin, vertices, faces, token, parent, flat=flat, recalc_normals=True
+    )
+
+
+def add_flower_head(
+    name,
+    centre,
+    radius,
+    disc_token,
+    back_token,
+    petal_token,
+    parent,
+    *,
+    petals=12,
+    nod=0.0,
+    yaw=0.0,
+    petal_reach=1.40,
+):
+    """Author a composite flower head that nods instead of staring at the sky.
+
+    A ring of petals authored flat in the XY plane reads as nothing from a
+    game camera, and its own centre disc hides it from above. This tilts the
+    whole head by `nod` and places every petal inside that tilted plane, so the
+    ring stays welded to the disc and presents its face to the player. Lifted
+    from the sunflower stand, which already got this right.
+    """
+    cx, cy, cz = centre
+    offset_y, offset_z = math.cos(yaw), math.sin(yaw)
+
+    def placed(local_x: float, local_y: float, local_z: float):
+        return (
+            cx + local_x * offset_y - local_y * offset_z,
+            cy + local_x * offset_z + local_y * offset_y,
+            cz + local_z,
+        )
+
+    add_cylinder(
+        f"{name}_disc", (cx, cy, cz), radius, radius * 0.44, disc_token, parent,
+        vertices=10, rotation=(nod, 0, yaw), bevel=radius * 0.09,
+    )
+    add_cylinder(
+        f"{name}_back", placed(0.0, radius * 0.22, -radius * 0.15), radius * 1.13,
+        radius * 0.20, back_token, parent, vertices=10, rotation=(nod, 0, yaw),
+    )
+    ring = radius * petal_reach
+    for petal in range(petals):
+        theta = petal * math.tau / petals
+        add_tri_prism(
+            f"{name}_petal_{petal:02d}",
+            placed(
+                -math.sin(theta) * ring,
+                math.cos(theta) * ring * math.cos(nod),
+                math.cos(theta) * ring * math.sin(nod),
+            ),
+            (radius * 0.54, radius * 1.17, radius * 0.14),
+            petal_token,
+            parent,
+            rotation=(nod, 0, theta + yaw),
+        )

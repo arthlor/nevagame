@@ -161,6 +161,17 @@ export function computeAssetInputHash(
     animationSourceHash = hashFiles([sourcePath], repoRoot);
   }
 
+  const sourceBlend = asset.sourceProvenance?.sourceBlend ?? asset.parameters?.sourceBlend;
+  let sourceBlendHash = null;
+  if (sourceBlend) {
+    const root = fs.realpathSync(repoRoot);
+    const sourcePath = fs.realpathSync(path.resolve(repoRoot, sourceBlend));
+    if (!sourcePath.startsWith(`${root}${path.sep}`) || !fs.statSync(sourcePath).isFile()) {
+      throw new Error(`Unsafe Blender source path: ${sourceBlend}`);
+    }
+    sourceBlendHash = sha256(fs.readFileSync(sourcePath));
+  }
+
   return sha256(
     stableStringify({
       cacheVersion: ART_CACHE_VERSION,
@@ -169,6 +180,7 @@ export function computeAssetInputHash(
       paletteVersion: palette?.version ?? 1,
       paletteTokens,
       animationSourceHash,
+      sourceBlendHash,
       optimizeConfig,
       toolchainHash: computeAssetToolchainHash(asset, repoRoot),
     })

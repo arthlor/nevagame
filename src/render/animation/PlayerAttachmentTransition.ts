@@ -3,7 +3,8 @@ import * as THREE from "three";
 export type AttachmentSide = "left" | "right";
 
 export function attachmentSideFromLocalX(localX: number): AttachmentSide {
-  return localX > 0 ? "right" : "left";
+  // With +Z forward and +Y up, anatomical left is +X.
+  return localX >= 0 ? "left" : "right";
 }
 
 export function attachmentClip(

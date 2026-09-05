@@ -1,9 +1,11 @@
 import * as THREE from "three";
-import { WORLD_BOUNDS, WORLD_LAYOUT_V5, WorldLayout } from "../../world/WorldLayout";
+import { WORLD_BOUNDS, WORLD_LAYOUT_V5, WorldLayout, WATER_SURFACE } from "../../world/WorldLayout";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
-import { waterHeight, type WaterConditions } from "./WaterSurface";
+import { WATER_WAVE_CONFIG, type WaterConditions } from "./WaterSurface";
+import { WATER_WAVE_FUNCTION_GLSL, WATER_WAVE_UNIFORMS_GLSL, WATER_NOISE_GLSL } from "./waveGlsl";
+import { createWaterProfileMap, SHORE_MASK_METERS_PER_TEXEL } from "./FacetedWater";
 
 export interface ShoreFoamPatch {
   source: "coast";
@@ -129,11 +131,21 @@ function appendPatch(
   indices.push(base, base + 2, base + 1, base + 2, base + 3, base + 1);
 }
 
+export interface ShoreFoamOptions {
+  waterProfileMap?: THREE.DataTexture;
+  waterProfileBounds?: THREE.Vector4;
+}
+
+function vector(values: readonly [number, number, number]): THREE.Vector3 {
+  return new THREE.Vector3(values[0], values[1], values[2]);
+}
+
 export class ShoreFoam {
   public readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
-  private readonly basePositions: Float32Array;
+  public readonly waterProfileMap: THREE.DataTexture;
+  private readonly ownsProfileMap: boolean;
 
-  constructor() {
+  constructor(options: ShoreFoamOptions = {}) {
     const positions: number[] = [];
     const uvs: number[] = [];
     const phases: number[] = [];
@@ -145,7 +157,6 @@ export class ShoreFoam {
 
     const geometry = new THREE.BufferGeometry();
     const positionAttribute = new THREE.Float32BufferAttribute(positions, 3);
-    positionAttribute.setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute("position", positionAttribute);
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("patchPhase", new THREE.Float32BufferAttribute(phases, 1));
@@ -153,7 +164,23 @@ export class ShoreFoam {
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
-    this.basePositions = new Float32Array(positionAttribute.array);
+
+    const profileBounds = options.waterProfileBounds ?? new THREE.Vector4(
+      WATER_SURFACE.centerX - WATER_SURFACE.width * 0.5,
+      WATER_SURFACE.centerZ - WATER_SURFACE.depth * 0.5,
+      WATER_SURFACE.width,
+      WATER_SURFACE.depth
+    );
+
+    if (options.waterProfileMap) {
+      this.waterProfileMap = options.waterProfileMap;
+      this.ownsProfileMap = false;
+    } else {
+      const profileWidth = Math.max(2, Math.round(WATER_SURFACE.width / SHORE_MASK_METERS_PER_TEXEL) + 1);
+      const profileHeight = Math.max(2, Math.round(WATER_SURFACE.depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
+      this.waterProfileMap = createWaterProfileMap(profileBounds, profileWidth, profileHeight);
+      this.ownsProfileMap = true;
+    }
 
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -163,6 +190,24 @@ export class ShoreFoam {
       uniforms: {
         uTime: { value: 0 },
         uRoughness: { value: 0.2 },
+        uWindSpeed: { value: 0 },
+        uWindDirection: { value: new THREE.Vector2(0, 1) },
+        uWaterProfileMap: { value: this.waterProfileMap },
+        uWaterProfileBounds: { value: profileBounds },
+        uPrimaryAmplitude: { value: vector(WATER_WAVE_CONFIG.primary.amplitude) },
+        uPrimaryFrequency: { value: vector(WATER_WAVE_CONFIG.primary.frequency) },
+        uPrimarySpeed: { value: vector(WATER_WAVE_CONFIG.primary.speed) },
+        uCrossAmplitude: { value: vector(WATER_WAVE_CONFIG.cross.amplitude) },
+        uCrossFrequency: { value: vector(WATER_WAVE_CONFIG.cross.frequency) },
+        uCrossSpeed: { value: vector(WATER_WAVE_CONFIG.cross.speed) },
+        uDetailAmplitude: { value: vector(WATER_WAVE_CONFIG.detail.amplitude) },
+        uDetailFrequency: { value: vector(WATER_WAVE_CONFIG.detail.frequency) },
+        uDetailSpeed: { value: vector(WATER_WAVE_CONFIG.detail.speed) },
+        uRoughnessGain: { value: vector(WATER_WAVE_CONFIG.roughnessGain) },
+        uOceanWindGain: { value: WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond },
+        uFoamHeightOffset: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.foamHeightOffsetMeters },
+        uSwashSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.swashSpeed },
+        uSwashAmplitude: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.swashAmplitudeMeters },
         uMaxAlpha: { value: SHORE_FOAM_STYLE.maxAlpha },
         uDaylight: { value: 1 },
         uKeyLightStrength: { value: 1 },
@@ -174,17 +219,24 @@ export class ShoreFoam {
         uFogDistanceDesaturation: { value: CANONICAL_RENDER_CONFIG.fog.distanceDesaturation }
       },
       vertexShader: `
-        uniform float uTime;
-        uniform float uRoughness;
+        ${WATER_WAVE_UNIFORMS_GLSL}
+        uniform float uFoamHeightOffset;
+
         in float patchPhase;
         in float patchExposure;
         out vec2 vUv;
         out float vPhase;
         out float vExposure;
         out vec3 vWorldPosition;
+
+        ${WATER_WAVE_FUNCTION_GLSL}
+
         void main() {
+          vec4 baseWorldPosition = modelMatrix * vec4(position, 1.0);
+          vec4 profile = profileAt(baseWorldPosition.xz);
+          float height = waveHeight(baseWorldPosition.xz, profile);
           vec3 displaced = position;
-          displaced.y += sin(uTime * 0.38 + patchPhase) * (0.004 + uRoughness * 0.006);
+          displaced.y = height + uFoamHeightOffset + sin(uTime * 0.38 + patchPhase) * (0.004 + uRoughness * 0.006);
           vUv = uv;
           vPhase = patchPhase;
           vExposure = patchExposure;
@@ -204,14 +256,27 @@ export class ShoreFoam {
         uniform float uMaxAlpha;
         uniform float uDaylight;
         uniform float uKeyLightStrength;
+        uniform float uSwashSpeed;
+        uniform float uSwashAmplitude;
         in vec2 vUv;
         in float vPhase;
         in float vExposure;
         in vec3 vWorldPosition;
         out vec4 outColor;
+
+        ${WATER_NOISE_GLSL}
+
         void main() {
+          // Swash motion: foam advances and retreats along across-shore direction
+          float swash = sin(uTime * uSwashSpeed + vPhase * 1.3) * uSwashAmplitude;
+          float acrossCoord = vUv.y + swash;
+
+          // Inner edge broken with procedural gradient noise
+          float noiseCoord = nevaGradientNoise(vWorldPosition.xz * 0.35 + vec2(vPhase, uTime * 0.15));
+          float brokenCoord = acrossCoord + (noiseCoord - 0.5) * 0.18;
+
           float alongEdge = smoothstep(0.02, 0.25, vUv.x) * (1.0 - smoothstep(0.75, 0.98, vUv.x));
-          float acrossEdge = smoothstep(0.02, 0.34, vUv.y) * (1.0 - smoothstep(0.66, 0.98, vUv.y));
+          float acrossEdge = smoothstep(0.02, 0.34, brokenCoord) * (1.0 - smoothstep(0.66, 0.98, brokenCoord));
           float staticShard = sin(vUv.x * 11.0 + vUv.y * 4.7 + vPhase) * 0.5 + 0.5;
           float breakup = smoothstep(0.22, 0.78, staticShard);
           float pulse = 0.9 + sin(uTime * 0.34 + vPhase) * 0.1;
@@ -236,17 +301,15 @@ export class ShoreFoam {
   }
 
   public update(timeSeconds: number, conditions: WaterConditions): void {
-    this.mesh.material.uniforms.uTime.value = timeSeconds;
-    this.mesh.material.uniforms.uRoughness.value = THREE.MathUtils.clamp(conditions.seaRoughness, 0, 1);
-    const positions = this.mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
-    const heightOffset = CANONICAL_RENDER_CONFIG.waterSurface.shoreline.foamHeightOffsetMeters;
-    for (let index = 0; index < positions.count; index += 1) {
-      const sourceOffset = index * 3;
-      const x = this.basePositions[sourceOffset];
-      const z = this.basePositions[sourceOffset + 2];
-      positions.setY(index, waterHeight(x, z, timeSeconds, conditions) + heightOffset);
-    }
-    positions.needsUpdate = true;
+    const uniforms = this.mesh.material.uniforms;
+    const windRadians = THREE.MathUtils.degToRad(conditions.windDirectionDeg);
+    uniforms.uTime.value = timeSeconds;
+    uniforms.uRoughness.value = THREE.MathUtils.clamp(conditions.seaRoughness, 0, 1);
+    uniforms.uWindSpeed.value = Math.max(0, conditions.windSpeed);
+    (uniforms.uWindDirection.value as THREE.Vector2).set(
+      Math.sin(windRadians),
+      Math.cos(windRadians)
+    );
   }
 
   public updateLighting(frame: LightingFrame): void {
@@ -266,5 +329,8 @@ export class ShoreFoam {
   public dispose(): void {
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
+    if (this.ownsProfileMap) {
+      this.waterProfileMap.dispose();
+    }
   }
 }

@@ -306,23 +306,43 @@
 @layer neva-ui {
 #ui-container .hud-top-left-container {
   top: var(--ui-safe-top) !important;
-  right: var(--ui-safe-right) !important;
-  left: auto !important;
+  left: var(--ui-safe-left) !important;
+  right: auto !important;
   width: min(360px, 42vw) !important;
 }
 
 #ui-container .hud-top-right-cluster {
   top: var(--ui-safe-top) !important;
-  right: auto !important;
-  left: var(--ui-safe-left) !important;
+  right: var(--ui-safe-right) !important;
+  left: auto !important;
   width: min(330px, 40vw) !important;
 }
 
 #ui-container .hud-bottom-left-container {
   left: var(--ui-safe-left) !important;
   bottom: var(--ui-safe-bottom) !important;
+  right: auto !important;
   width: auto !important;
   max-width: min(330px, 36vw);
+}
+
+#ui-container .hud-bottom-right-container {
+  position: absolute;
+  right: var(--ui-safe-right) !important;
+  bottom: var(--ui-safe-bottom) !important;
+  left: auto !important;
+  top: auto !important;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+  max-width: min(300px, 40vw);
+}
+
+#ui-container .hud-bottom-right-container .interactive,
+#ui-container .hud-bottom-right-container .micro-menu-purse-bar {
+  pointer-events: auto;
 }
 
 #ui-container .hud-play-cluster {
@@ -428,16 +448,31 @@
   display: flex !important;
   align-items: flex-start !important;
   gap: 6px !important;
-  width: auto !important;
+  width: 100% !important;
   max-width: 100% !important;
 }
 
+/* The top-right rail is one column. Each card used to set its own width, so the
+   almanac (330px), hazard banner (290px) and quest tracker (300px) ended on
+   three different right edges inside the same 330px cluster. The cluster owns
+   the rail width now and every card fills it, flush on both sides. */
 #ui-container .hud-top-right-main {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 5px;
   min-width: 0;
+  width: 100%;
+}
+
+#ui-container .hud-top-right-main > .hud-clock-widget,
+#ui-container .hud-top-right-main > .weather-hazard-banner,
+#ui-container .hud-top-right-main > .forecast-popover,
+#ui-container .hud-top-right-main .collapsible-tracker-group,
+#ui-container .hud-top-right-main .quest-tracker-hud-wood {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
 }
 
 #ui-container .hud-weather-chip {
@@ -738,9 +773,13 @@
   border-left-color: var(--coast-danger) !important;
 }
 
-#ui-container .hud-toast-pill--reward,
-#ui-container .hud-toast-pill--success {
+#ui-container .hud-toast-pill--reward {
   border-left-color: var(--coast-ochre) !important;
+  box-shadow: var(--coast-shadow-soft), 0 0 12px rgba(199, 147, 69, 0.35) !important;
+}
+
+#ui-container .hud-toast-pill--success {
+  border-left-color: var(--coast-success) !important;
 }
 
 #ui-container .toast-repeat-badge {
@@ -783,6 +822,146 @@
   from { opacity: 0; translate: 0 8px; scale: 0.992; }
   to { opacity: 1; translate: 0 0; scale: 1; }
 }
+}
+
+@layer neva-ui {
+/* Tidebook HUD: compact medieval instruments and painted tools, with the world left open. */
+#ui-container .tidebook-hud {
+  --tidebook-ivory: #e9ddc3;
+  --tidebook-muted: #c0b296;
+  --tidebook-ink: #261e17;
+  --tidebook-seaglass: #72a9af;
+  --tidebook-work: #a58b4b;
+  --tidebook-danger: #b56551;
+  --tidebook-serif: Georgia, "Times New Roman", serif;
+  --tidebook-tool-width: 54px;
+  --tidebook-tool-height: 58px;
+  position: absolute; inset: 0; color: var(--tidebook-ivory); pointer-events: none;
+  text-shadow: 0 1px 3px #121411;
+}
+#ui-container .tidebook-art { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; }
+#ui-container .tidebook-hud :is(.tidebook-vitals, .tidebook-almanac, .tidebook-utilities) { padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#ui-container .tidebook-hud :is(.tidebook-navigation, .tidebook-dial, .tidebook-calendar, .tidebook-tool-slot, .tidebook-utility-tab, .tidebook-wheat-profile) {
+  appearance: none; position: relative; margin: 0; padding: 0; border: 0 !important; border-radius: 0 !important;
+  background: none !important; box-shadow: none !important; color: inherit; cursor: pointer; font: inherit; pointer-events: auto; -webkit-tap-highlight-color: transparent;
+}
+#ui-container .tidebook-hud button:focus-visible { outline: 2px solid var(--tidebook-ivory) !important; outline-offset: 3px; }
+#ui-container .tidebook-hud :is(.tidebook-dial, .tidebook-calendar, .tidebook-tool-slot, .tidebook-utility-tab):hover { filter: brightness(1.18); }
+#ui-container .tidebook-hud .hud-top-left-container { top: max(24px, env(safe-area-inset-top)) !important; left: max(24px, env(safe-area-inset-left)) !important; width: 255px !important; max-width: 29vw; }
+#ui-container .tidebook-hud .hud-top-left { position: static !important; inset: auto !important; width: 100%; padding: 0; background: none; }
+#ui-container .tidebook-hud .collapsible-tracker-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+#ui-container .tidebook-hud .tidebook-quest { position: relative; width: 100%; padding: 0 0 0 12px !important; border: 0 !important; border-left: 1px solid #b09a68 !important; background: rgba(22,25,21,.78) !important; box-shadow: none !important; clip-path: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; overflow: visible; }
+#ui-container .tidebook-quest .quest-tracker-header { padding: 0; border: 0; background: none; }
+#ui-container .tidebook-quest .quest-tracker-toggle { display: block; width: 100%; min-height: 44px; padding: 7px 10px 5px 0 !important; margin: 0; border: 0; background: none; text-align: left; }
+#ui-container .tidebook-quest .quest-tracker-copy { display: block; min-width: 0; }
+#ui-container .tidebook-quest :is(.quest-tracker-icon, .quest-collapse-chevron) { display: none; }
+#ui-container .tidebook-quest .quest-title { display: block; margin: 0; font: 500 16px/1.25 var(--tidebook-serif) !important; font-variant: normal; letter-spacing: 0; color: var(--tidebook-ivory) !important; }
+#ui-container .tidebook-quest .quest-objective-text { display: block; margin: 6px 0 0; color: #d5cbb7 !important; font: 11px/1.45 var(--font-sans) !important; }
+#ui-container .tidebook-quest .quest-tracker-content { position: relative; margin: 0; padding: 0 12px 9px 0; border: 0; background: none; }
+#ui-container .tidebook-quest .quest-location-hint { margin: 0; gap: 5px; }
+#ui-container .tidebook-quest .quest-location-name { color: var(--tidebook-muted) !important; font-size: 10px !important; line-height: 1.3; }
+#ui-container .tidebook-quest .location-pin { color: var(--tidebook-muted); }
+#ui-container .tidebook-quest .quest-turnin-chip { font: 10px var(--font-sans); margin-left: 6px; color: #c3d9b2; }
+#ui-container .tidebook-quest .quest-progress-wrap { margin: 2px 0 5px; }
+#ui-container .tidebook-quest .quest-progress-meter { height: 3px; }
+#ui-container .tidebook-quest .quest-progress-count { font-size: 10px !important; }
+#ui-container .tidebook-quest.collapsed .quest-objective-text { display: none; }
+#ui-container .tidebook-hud .contracts-tracker-hud { width: 100%; margin: 0; padding: 0 8px !important; background: rgba(22,25,21,.65) !important; border: 0 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#ui-container .tidebook-hud .contracts-tracker-hud .quest-tracker-toggle { min-height: 30px; padding: 2px !important; }
+#ui-container .tidebook-hud .contracts-tracker-hud .quest-objective-text { display: none; }
+#ui-container .tidebook-hud .contracts-tracker-hud .quest-title { font: 11px var(--font-sans); color: var(--tidebook-muted); }
+#ui-container .tidebook-hud .contracts-tracker-content { max-height: 170px; overflow: auto; }
+#ui-container .tidebook-hud .tidebook-navigation { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: min(340px, 31vw); height: 65px; zoom: var(--ui-scale, 1); z-index: 11; color: var(--tidebook-ivory); font-family: var(--tidebook-serif); }
+#ui-container .tidebook-navigation-rail { position: absolute; top: 22px; left: 0; height: 24px; opacity: .8; }
+#ui-container .tidebook-region { position: absolute; top: 0; left: 5%; right: 5%; font-size: 14px; text-align: center; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
+#ui-container .tidebook-cardinals { position: absolute; top: 45px; left: 8%; right: 8%; height: 17px; }
+#ui-container .tidebook-cardinals > span { position: absolute; transform: translateX(-50%); font-size: 11px; text-shadow: 0 1px 3px #000, 0 0 5px #000; }
+#ui-container .tidebook-navigation-pointer { position: absolute; width: 12px; height: 12px; left: calc(50% - 6px); top: 29px; }
+#ui-container .tidebook-navigation-markers { position: absolute; inset: 61px 8% auto; opacity: 0; transition: opacity 140ms; }
+#ui-container .tidebook-navigation-markers > span { position: absolute; transform: translateX(-50%); }
+#ui-container .tidebook-navigation:is(:hover, :focus-visible) .tidebook-navigation-markers { opacity: 1; }
+#ui-container .tidebook-hud .hud-top-right-cluster { top: max(20px, env(safe-area-inset-top)) !important; right: max(24px, env(safe-area-inset-right)) !important; width: 165px !important; max-width: 27vw; }
+#ui-container .tidebook-hud .hud-top-right-main { position: relative; width: 100%; gap: 0; }
+#ui-container .tidebook-hud .tidebook-almanac { position: relative; width: 100%; height: 80px; display: block; }
+#ui-container .tidebook-hud .tidebook-dial { position: absolute; left: 0; top: 0; width: 61px; height: 68px; }
+#ui-container .tidebook-dial-face { position: absolute; inset: 0; }
+#ui-container .tidebook-clock-hand { position: absolute; left: 6%; top: 4%; width: 88%; height: 80%; pointer-events: none; }
+#ui-container .tidebook-clock-hand > .tidebook-art { position: absolute; width: 6px; height: 6px; top: 4px; left: calc(50% - 3px); }
+#ui-container .tidebook-night-mark { position: absolute; width: 17px; height: 17px; left: 36%; top: 25%; }
+#ui-container .tidebook-hud .tidebook-calendar { position: absolute; right: 0; top: 0; width: 96px; height: 64px; text-align: right; }
+#ui-container .tidebook-calendar-copy { display: flex; align-items: flex-end; flex-direction: column; gap: 3px; font-family: var(--tidebook-serif); text-shadow: 0 1px 3px #000, 0 0 5px #000; }
+#ui-container .tidebook-season { white-space: nowrap; font-size: 13px; }
+#ui-container .tidebook-time { font-size: 21px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+#ui-container .tidebook-weather { font-size: 11px; color: var(--tidebook-muted); line-height: 1.2; }
+#ui-container .tidebook-purse { position: absolute; right: 0; top: 77px; width: 100%; height: 24px; text-align: right; }
+#ui-container .tidebook-gold { color: #e0c68b; font: 13px var(--tidebook-serif); font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000; }
+#ui-container .tidebook-gold-delta { position: absolute; top: 100%; right: 0; font: 11px var(--font-sans); }
+#ui-container .tidebook-gold-delta.is-gain { color: #c2ce9e; }
+#ui-container .tidebook-gold-delta.is-spend { color: #e3ac84; }
+#ui-container .tidebook-hud .weather-hazard-banner { margin-top: 34px; width: 240px !important; max-width: 32vw !important; align-self: flex-end; }
+#ui-container .tidebook-hud .forecast-popover { z-index: 40; }
+#ui-container .tidebook-hud .hud-bottom-left-container { width: 230px !important; max-width: 27vw; left: max(24px, env(safe-area-inset-left)) !important; bottom: max(26px, env(safe-area-inset-bottom)) !important; }
+#ui-container .tidebook-hud .hud-bottom-left { position: static !important; inset: auto !important; display: flex; flex-direction: column; align-items: flex-start; gap: 20px; width: 100%; }
+#ui-container .tidebook-vitals { position: relative; width: 230px; max-width: 100%; height: 60px; pointer-events: auto; }
+#ui-container .tidebook-hud .tidebook-wheat-profile { position: absolute; left: 0; top: 8px; width: 34px; height: 44px; opacity: .8; }
+#ui-container .tidebook-vital-row { position: absolute; left: 45px; right: 0; height: 26px; }
+#ui-container .tidebook-work { top: 0; }
+#ui-container .tidebook-sprint { top: 34px; }
+#ui-container .tidebook-vital-label { position: absolute; left: 0; font: 12px var(--tidebook-serif); color: var(--tidebook-ivory); }
+#ui-container .tidebook-hud .tidebook-vital-meter { position: absolute; left: 0; right: 0; top: 20px; width: auto; height: 4px; padding: 0; margin: 0; background: none; border: 0; box-shadow: none; }
+#ui-container .tidebook-hud .tidebook-vital-meter .chrome-meter-track { width: 100%; height: 4px !important; margin: 0; border: 0; border-radius: 0; background: rgba(12,17,15,.8) !important; box-shadow: 0 0 0 1px rgba(192,178,150,.25); }
+#ui-container .tidebook-hud .tidebook-vital-meter .chrome-meter-track > span { height: 100%; background: var(--tidebook-work); box-shadow: none; transition: width 140ms linear; }
+#ui-container .tidebook-hud .tidebook-sprint .chrome-meter-track > span { background: var(--tidebook-seaglass); }
+#ui-container .tidebook-hud .is-exhausted .chrome-meter-track > span { background: var(--tidebook-danger); }
+#ui-container .tidebook-work-value, #ui-container .tidebook-winded { position: absolute; right: 0; color: var(--tidebook-muted); font: 10px var(--font-sans); font-variant-numeric: tabular-nums; }
+#ui-container .tidebook-status-effects { position: absolute; left: 45px; bottom: calc(100% + 10px); display: flex; flex-wrap: wrap; gap: 8px; font: 10px var(--font-sans); color: var(--tidebook-muted); }
+#ui-container .tidebook-status-effect { display: inline-flex; align-items: center; gap: 3px; }
+#ui-container .tidebook-hud .coastal-chronicle { position: relative !important; inset: auto !important; margin-bottom: -6px; margin-left: 0; max-width: 100%; background: rgba(28,25,21,.9) !important; }
+#ui-container .tidebook-hud .coastal-chronicle.is-collapsed { background: transparent !important; }
+#ui-container .tidebook-hud .chronicle-toggle { color: var(--tidebook-muted); font-size: 9px; }
+#ui-container .tidebook-hud .hud-play-cluster { bottom: max(24px, env(safe-area-inset-bottom)) !important; max-width: none; gap: 8px; }
+#ui-container .tidebook-tool-belt { position: relative; display: block; width: calc(5 * var(--tidebook-tool-width) + 16px); padding: 0; background: none; border: 0; }
+#ui-container .tidebook-tool-slots { display: flex; gap: 4px; align-items: flex-end; width: 100%; }
+#ui-container .tidebook-hud .tidebook-tool-slot { flex: 0 0 var(--tidebook-tool-width); width: var(--tidebook-tool-width); height: var(--tidebook-tool-height); min-width: 0; min-height: 0; border: 1px solid #817257 !important; border-radius: 2px !important; background: rgba(27,26,21,.88) !important; transition: border-color 140ms, background-color 140ms; }
+#ui-container .tidebook-hud .tidebook-tool-slot.is-active { border-color: #c9b582 !important; border-bottom: 3px solid #c9b582 !important; background: rgba(56,58,43,.94) !important; }
+#ui-container .tidebook-tool-painting { position: absolute; left: 13%; top: 14%; width: 74%; height: 76%; object-fit: contain; }
+#ui-container .tidebook-slot-number { position: absolute; top: 3px; left: 5px; z-index: 1; font: 10px var(--tidebook-serif); color: var(--tidebook-muted); }
+#ui-container .tidebook-tool-slot.is-unavailable .tidebook-tool-painting { opacity: .4; filter: saturate(.45); }
+#ui-container .tidebook-tool-count { position: absolute; right: 3px; bottom: 3px; padding: 0 2px; background: #261c14; color: var(--tidebook-ivory); font: 10px var(--font-sans); font-variant-numeric: tabular-nums; }
+#ui-container .tidebook-slot-meter { position: absolute; left: 4px; right: 4px; height: 3px; bottom: 1px; background: #171513; }
+#ui-container .tidebook-slot-meter > span { display: block; height: 100%; background: var(--tidebook-seaglass); }
+#ui-container .tidebook-slot-meter.is-danger > span { background: var(--tidebook-danger); }
+#ui-container .tidebook-tool-readout { position: absolute; bottom: calc(100% + 8px); left: 50%; width: max-content; max-width: 260px; transform: translateX(-50%); pointer-events: none; }
+#ui-container .tidebook-tool-readout > strong { display: block; text-align: center; font: 13px/1.25 var(--tidebook-serif); color: var(--tidebook-ivory); text-shadow: 0 1px 3px #000, 0 0 4px #000; }
+#ui-container .tidebook-tool-detail { position: absolute; bottom: calc(100% + 6px); left: 50%; width: max-content; max-width: 250px; transform: translateX(-50%); padding: 5px 8px; background: #241c17; color: var(--tidebook-ivory); font: 11px/1.4 var(--font-sans); opacity: 0; }
+#ui-container .tidebook-tool-belt:is(:hover, :focus-within) .tidebook-tool-detail { opacity: 1; }
+#ui-container .tidebook-hud .hud-bottom-center { margin-bottom: 26px; }
+#ui-container .tidebook-hud .interaction-prompt { background: rgba(25,28,23,.9) !important; border: 1px solid #897a60 !important; border-radius: 2px !important; clip-path: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; font-family: var(--tidebook-serif); }
+#ui-container .tidebook-hud .hud-bottom-right-container { right: max(24px, env(safe-area-inset-right)) !important; bottom: max(24px, env(safe-area-inset-bottom)) !important; width: 150px; max-width: 24vw; }
+#ui-container .tidebook-utilities { position: relative; width: 100%; display: block; }
+#ui-container .tidebook-utility-tabs { display: flex; width: 100%; gap: 3px; }
+#ui-container .tidebook-hud .tidebook-utility-tab { flex: 1; height: 55px; border-bottom: 1px solid #817257 !important; background: rgba(27,26,21,.8) !important; }
+#ui-container .tidebook-utility-painting { position: absolute; top: 3px; left: 17%; width: 66%; height: 63%; }
+#ui-container .tidebook-utility-key { position: absolute; bottom: 3px; left: 0; width: 100%; font: 10px var(--tidebook-serif); text-align: center; color: var(--tidebook-ivory); }
+#ui-container .tidebook-utility-tab.is-full .tidebook-utility-key { color: #f0ad87; }
+#ui-container .tidebook-utility-tab.is-warning .tidebook-utility-key { text-decoration: underline; text-underline-offset: 3px; }
+#ui-container .tidebook-secondary-menu { display: flex; justify-content: flex-end; gap: 3px; padding: 0 0 5px; }
+#ui-container .tidebook-secondary-menu button { display: inline-flex; gap: 3px; align-items: center; min-height: 28px; padding: 3px 5px; border: 0; color: var(--tidebook-muted); background: rgba(24,23,20,.7); border-radius: 0; cursor: pointer; font: 9px var(--font-sans); }
+#ui-container .tidebook-secondary-menu button:disabled { opacity: .45; cursor: default; }
+#ui-container .tidebook-hud .hud-toast-container { bottom: calc(var(--ui-safe-bottom) + 112px) !important; }
+@media (max-width: 960px) {
+  #ui-container .tidebook-hud { --tidebook-tool-width: 48px; --tidebook-tool-height: 52px; }
+  #ui-container .tidebook-hud .hud-top-left-container { left: 14px !important; width: 220px !important; }
+  #ui-container .tidebook-hud .tidebook-navigation { width: 28vw; }
+  #ui-container .tidebook-hud .hud-top-right-cluster { right: 14px !important; width: 150px !important; }
+  #ui-container .tidebook-hud .hud-bottom-left-container { left: 14px !important; width: 195px !important; }
+  #ui-container .tidebook-hud .hud-bottom-right-container { right: 14px !important; width: 138px; }
+  #ui-container .tidebook-vital-row { left: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ui-container .tidebook-hud *, #ui-container .tidebook-hud *::before, #ui-container .tidebook-hud *::after { animation: none !important; transition: none !important; }
+}
+
 }
 
 /* Physical surfaces */
@@ -2337,6 +2516,14 @@
   -webkit-backdrop-filter: none !important;
 }
 
+#ui-container .start-screen__ready-note,
+#ui-container .start-screen__save-warning,
+#ui-container .start-screen__save-line,
+#ui-container .start-screen__error {
+  color: var(--coast-cream) !important;
+  text-shadow: 0 2px 8px rgba(3, 12, 16, 0.64) !important;
+}
+
 #ui-container .start-screen__actions {
   display: flex !important;
   flex-direction: column !important;
@@ -2712,6 +2899,14 @@
   line-height: 1.4 !important;
 }
 
+#ui-container .hint-card-progress {
+  background: rgba(244, 236, 217, 0.14) !important;
+}
+
+#ui-container .hint-card-progress-fill {
+  background: var(--coast-ochre) !important;
+}
+
 #ui-container .catch-summary {
   right: var(--ui-safe-right) !important;
   bottom: calc(var(--ui-safe-bottom) + 86px) !important;
@@ -3037,6 +3232,19 @@
 
 /* Touch fallback */
 @layer neva-ui {
+#ui-container[data-mobile-device="true"] .tidebook-hud { --tidebook-tool-width: 48px; --tidebook-tool-height: 52px; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .hud-top-left-container { left: max(12px, env(safe-area-inset-left)) !important; width: 210px !important; max-width: 30vw; }
+#ui-container[data-mobile-device="true"] .tidebook-quest .quest-title { font-size: 13px !important; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .tidebook-navigation { top: 12px; width: 28vw; zoom: 1; }
+#ui-container[data-mobile-device="true"] .tidebook-region { font-size: 12px; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .hud-top-right-cluster { left: auto !important; right: max(12px, env(safe-area-inset-right)) !important; width: 150px !important; }
+#ui-container[data-mobile-device="true"] .tidebook-hud :is(.hud-bottom-left-container, .hud-play-cluster, .hud-bottom-right-container) { bottom: var(--mobile-hud-lift) !important; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .hud-bottom-left-container { width: 180px !important; max-width: 25vw !important; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .hud-bottom-center { bottom: auto !important; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .hud-bottom-right-container { width: 138px; }
+#ui-container[data-mobile-device="true"] .tidebook-hud :is(.tidebook-secondary-menu button, .tidebook-wheat-profile) { min-width: 44px; min-height: 44px; }
+#ui-container[data-mobile-device="true"] .tidebook-hud .tidebook-secondary-menu { gap: 2px; }
+
 #ui-container[data-mobile-device="true"] .mobile-action-button,
 #ui-container[data-mobile-device="true"] .mobile-tool-button,
 #ui-container[data-mobile-device="true"] .mobile-joystick,
@@ -3291,11 +3499,40 @@
   #ui-container .modal-overlay.interactive { padding: 10px !important; }
   #ui-container .hud-top-left-container { width: min(290px, 46vw) !important; }
   #ui-container .hud-top-right-cluster { width: min(260px, 42vw) !important; }
+  #ui-container .hud-bottom-left-container { max-width: min(300px, 30vw) !important; }
+  #ui-container .planting-dock {
+    width: min(460px, 60vw) !important;
+    max-width: min(460px, 60vw) !important;
+  }
+  #ui-container .planting-seed-card {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 3px !important;
+  }
+  #ui-container .planting-dock-shell {
+    padding: 4px 6px !important;
+  }
+  #ui-container .planting-seeds-row {
+    gap: 3px !important;
+  }
+  #ui-container .hud-vitals-tray { min-width: 0 !important; width: 100% !important; }
+  #ui-container .hud-play-cluster {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    align-items: center !important;
+  }
+  #ui-container .hud-bottom-right-container {
+    max-width: 35vw !important;
+  }
+  #ui-container .micro-menu-btn {
+    width: 32px !important;
+    height: 32px !important;
+  }
   #ui-container .hud-weather-label,
   #ui-container .hud-clock-season .atlas-image,
   #ui-container .hud-context-note-detail { display: none !important; }
   #ui-container .hud-clock-widget { min-width: 215px; }
-  #ui-container .quest-tracker-hud-wood { width: min(235px, 38vw) !important; }
   #ui-container .hud-boat-panel { width: min(230px, 37vw) !important; }
   #ui-container .boat-cargo-slot { width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; }
   #ui-container .inventory-body { grid-template-columns: minmax(0, 1fr) 220px !important; }
@@ -3435,4 +3672,89 @@
   #ui-container .is-blocked::before,
   #ui-container .is-missing::before { content: "! "; }
 }
+}
+
+/* Slice D — Escape + Journal + Dialogue polish. */
+
+/* #20: total play-time line under the pause date (rendered only when present). */
+#ui-container .pause-playtime-line {
+  display: block;
+  color: var(--coast-cream-muted) !important;
+  font-size: 11px;
+}
+
+/* #21: Safe Return rides the secondary Chrome button language. */
+#ui-container .pause-safe-return-btn {
+  margin-top: 10px;
+}
+
+#ui-container .pause-safe-return-btn svg {
+  flex: none;
+}
+
+/* #22: reset-to-defaults row at the foot of each settings page. */
+#ui-container .pause-settings-reset {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* #23: per-tier show-all toggle on the records board. */
+#ui-container .journal-tier-toggle {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+#ui-container .journal-record-goal.is-achieved strong {
+  color: var(--coast-paper-ink) !important;
+}
+
+/* #24: rank badge + next-rank unlock line on the skills page. */
+#ui-container .journal-rank-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid rgba(139, 105, 45, 0.55);
+  border-radius: 999px;
+  color: var(--coast-paper-ink) !important;
+  background: rgba(199, 147, 69, 0.16);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+#ui-container .journal-next-unlock {
+  font-size: 11px;
+}
+
+/* #25: Chrome-styled collapsible replacing details/summary. */
+#ui-container .journal-collapsible-trigger {
+  margin-bottom: 10px;
+}
+
+#ui-container .journal-collapsible-mark {
+  display: inline-block;
+  width: 1.1em;
+  text-align: center;
+}
+
+/* #29: visited page dots read as buttons with a clear keyboard target. */
+#ui-container button.dialogue-dot {
+  padding: 0;
+  cursor: pointer;
+}
+
+#ui-container button.dialogue-dot:disabled {
+  cursor: default;
+}
+
+#ui-container .dialogue-dot.is-past {
+  background: rgba(244, 236, 217, 0.55) !important;
+}
+
+#ui-container button.dialogue-dot:focus-visible {
+  outline: 2px solid var(--coast-ochre);
+  outline-offset: 3px;
 }

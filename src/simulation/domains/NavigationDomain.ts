@@ -416,6 +416,61 @@ export class NavigationDomain {
     return { success: true };
   }
 
+  /** Flat fee for a tow to the nearest compatible mooring. */
+  public static readonly EMERGENCY_TOW_COST = 25;
+
+  /**
+   * Crude zero-fuel recovery. Safe Return refuses while carrying physical
+   * fish, so the tow is the cargo-safe counterpart: it docks the crewed boat
+   * at the nearest compatible mooring with cargo and fuel untouched, for a
+   * flat fee. No clock advance — the lost trip is the time cost.
+   */
+  public emergencyTow(): { success: boolean; reason?: string; cost?: number } {
+    const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before signaling a tow" };
+    const boatId = state.player.activeBoatId;
+    if (!boatId) return { success: false, reason: "Board a boat before signaling a tow" };
+    const boat = state.boats[boatId];
+    if (!boat) return { success: false, reason: "Boat not found" };
+    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+    if (!definition || definition.fuelCapacity <= 0) {
+      return { success: false, reason: "This boat needs no tow — row it home" };
+    }
+    if (boat.fuel > 0) return { success: false, reason: "The tank still has fuel — sail on" };
+    if (state.player.money < NavigationDomain.EMERGENCY_TOW_COST) {
+      return { success: false, reason: `Emergency tow needs ${NavigationDomain.EMERGENCY_TOW_COST} G` };
+    }
+    const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
+    state.player.money -= NavigationDomain.EMERGENCY_TOW_COST;
+    Object.assign(boat, {
+      x: mooring.boatPosition.x,
+      y: mooring.boatPosition.y,
+      z: mooring.boatPosition.z,
+      speed: 0,
+      isDocked: true,
+      dockedMarketId: mooring.marketId
+    });
+    state.player.activeBoatId = null;
+    Object.assign(state.player, {
+      x: mooring.playerPosition.x,
+      y: WorldLayout.traversalSurfaceHeight(
+        mooring.playerPosition.x,
+        mooring.playerPosition.z
+      ) + 0.5,
+      z: mooring.playerPosition.z,
+      traversal: { ...state.player.traversal, isGrounded: true }
+    });
+    this.refreshPlayerRegion();
+    events.emit("BoatDocked", { boatId, marketId: mooring.marketId, minute: state.clock.currentMinute });
+    events.emit("BoatDisembarked", { boatId, minute: state.clock.currentMinute });
+    events.emit("Notification", {
+      title: "Emergency tow",
+      message: "Towed to the nearest mooring · catch kept · refuel before sailing",
+      type: "warning"
+    });
+    return { success: true, cost: NavigationDomain.EMERGENCY_TOW_COST };
+  }
+
   public refuel(boatId?: BoatId): { success: boolean; reason?: string } {
     const { state } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fuel" };

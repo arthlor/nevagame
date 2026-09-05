@@ -26,6 +26,24 @@ export function accessibleFishingSupplyCount(
   );
 }
 
+/** Every chum the schools accept, in cast precedence: deep, then rich, then standard. */
+export const CHUM_ITEM_IDS = [
+  "item.chum_deep",
+  "item.chum_rich",
+  "item.chum_bucket"
+] as const;
+
+/** Total chum within reach across all three blends. */
+export function accessibleChumSupplyCount(
+  state: Readonly<GameState>,
+  vesselId: BoatId | null = state.player.activeBoatId ?? null
+): number {
+  return CHUM_ITEM_IDS.reduce(
+    (total, itemId) => total + accessibleFishingSupplyCount(state, itemId, vesselId),
+    0
+  );
+}
+
 /** Deterministic atomic preflight with satchel-first removal. */
 export function consumeAccessibleFishingSupply(
   state: GameState,

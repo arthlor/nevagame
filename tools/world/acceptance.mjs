@@ -13,11 +13,14 @@ const TSC = path.join(ROOT, "node_modules/.bin/tsc");
 const NEVA_PRESERVATION = JSON.parse(
   fs.readFileSync(path.join(ROOT, "tools/world/neva-layout9-preservation.json"), "utf8")
 );
-const SCENES = [
+const ALL_SCENES = [
   "bridge_river",
   "starter_farm",
   "harbor_market",
   "lighthouse_coast",
+  "mountain_skyline",
+  "river_source",
+  "western_overlook",
   "sunreach_departure",
   "sunreach_cove",
   "sunreach_terraces",
@@ -25,6 +28,9 @@ const SCENES = [
   "sunreach_reef"
 ];
 const OVERLAYS = {
+  mountain_skyline: ["habitat", "route", "density"],
+  river_source: ["river-profile", "wetness", "fishing-access"],
+  western_overlook: ["habitat", "route"],
   bridge_river: ["river-profile", "wetness", "erosion-deposition", "fishing-access"],
   starter_farm: ["district", "habitat", "route", "density", "opening"],
   harbor_market: ["district", "route", "density"],
@@ -36,6 +42,11 @@ const OVERLAYS = {
   sunreach_reef: ["marine", "habitat", "island"]
 };
 const args = new Set(process.argv.slice(2));
+const scopeIndex = process.argv.indexOf("--scope");
+const scope = scopeIndex < 0 ? "world" : process.argv[scopeIndex + 1];
+if (!["world", "starter-terrain"].includes(scope)) throw new Error(`[world:acceptance] Invalid --scope ${scope}`);
+if (scope === "starter-terrain" && args.has("--transition-only")) throw new Error("[world:acceptance] Starter terrain requires its land traversal; omit --transition-only");
+const SCENES = scope === "starter-terrain" ? ALL_SCENES.filter((scene) => !scene.startsWith("sunreach_")) : ALL_SCENES;
 const laneArgIndex = process.argv.indexOf("--lane");
 const requestedLane = laneArgIndex >= 0 ? process.argv[laneArgIndex + 1] : "both";
 if (!["software", "hardware", "both"].includes(requestedLane)) {
@@ -62,14 +73,19 @@ function inputManifest() {
     "src",
     "public",
     "assets/specs",
+    "assets/audio/audio-manifest.json",
     "art/palettes",
     "tools/world",
+    "tools/vite",
+    "tools/layout-editor",
+    "tools/art",
     "tools/blender/asset_budgets.json",
     "index.html",
     "package.json",
     "package-lock.json",
     "tsconfig.json",
     "vite.config.ts",
+    "vitest.config.ts",
     "playwright.config.ts"
   ];
   const files = [...new Set(roots.flatMap(filesBelow))].sort();
@@ -206,11 +222,11 @@ async function runSunreachCompositionAudit() {
   };
 }
 
-function validateCompositionAudit(audit) {
+function validateCompositionAudit(audit, layoutRevision) {
   const failures = [];
   for (const seed of audit.seeds) {
     const frozenHash = NEVA_PRESERVATION.compositionPlacementHashes[String(seed.seed)];
-    if (seed.placementHash !== frozenHash) {
+    if (layoutRevision !== 11 && seed.placementHash !== frozenHash) {
       failures.push(`seed ${seed.seed}: Neva placement ${seed.placementHash} != ${frozenHash}`);
     }
     if (seed.periodic22Ratio >= 1.35) failures.push(`seed ${seed.seed}: 22m ratio ${seed.periodic22Ratio}`);
@@ -264,9 +280,13 @@ async function runNevaPreservationAudit() {
     VITE_NODE,
     ["--script", "tools/world/run-neva-preservation-audit.ts"]
   ));
-  const failures = ["terrainWaterHash", "routeHash", "landmarkHash", "sampleCount"]
-    .filter((key) => current[key] !== NEVA_PRESERVATION[key])
-    .map((key) => `${key}: ${current[key]} != ${NEVA_PRESERVATION[key]}`);
+  // Layout 11 intentionally reshapes the north. Retain the historical whole-map
+  // snapshot and enforce pre-change working ground, lower river and Sunreach.
+  const failures = current.layoutRevision === 11
+    ? Object.entries(current.workingChecks).filter(([, passed]) => !passed).map(([key]) => `working preservation: ${key}`)
+    : ["terrainWaterHash", "routeHash", "landmarkHash", "sampleCount"]
+      .filter((key) => current[key] !== NEVA_PRESERVATION[key])
+      .map((key) => `${key}: ${current[key]} != ${NEVA_PRESERVATION[key]}`);
   if (failures.length > 0) {
     throw new Error(`[world:acceptance] Neva preservation gate failed:\n${failures.join("\n")}`);
   }
@@ -337,24 +357,32 @@ async function screenshot(page, filename) {
   await page.screenshot({ path: filename, animations: "disabled" });
 }
 
-async function captureScene(page, baseUrl, output, seed, scene) {
-  process.stdout.write(`[world:acceptance] capture ${seed}/${scene}\n`);
+async function captureScene(page, baseUrl, output, seed, scene, quality = "high") {
+  process.stdout.write(`[world:acceptance] capture ${seed}/${scene}/${quality}\n`);
+  const sceneOutput = quality === "high"
+    ? path.join(output, `seed-${seed}`, scene)
+    : path.join(output, `seed-${seed}`, scene, quality);
   const query = new URLSearchParams({
     worldAcceptance: "1",
     goldTest: scene,
     seed: String(seed),
     artMinute: "720",
     artWeather: "clear",
+    artQuality: quality,
     artTimeSeconds: "0"
   });
   await page.goto(`${baseUrl}/?${query}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  await page.waitForFunction(
-    () => window.__NEVA_RENDER_READY === true && Boolean(window.__NEVA_DEBUG),
-    undefined,
-    { timeout: 180_000 }
-  );
-  await settleFrames(page, 24);
-  const sceneOutput = path.join(output, `seed-${seed}`, scene);
+  try {
+    await page.waitForFunction(
+      () => window.__NEVA_RENDER_READY === true && Boolean(window.__NEVA_DEBUG),
+      undefined,
+      { timeout: 180_000 }
+    );
+  } catch (error) {
+    await screenshot(page, path.join(sceneOutput, "startup-failure.png"));
+    throw error;
+  }
+  await settleFrames(page, 60);
   await screenshot(page, path.join(sceneOutput, "gameplay-final.png"));
   const normal = await page.evaluate(() => window.__NEVA_DEBUG.renderDiagnostics());
 
@@ -383,7 +411,10 @@ async function captureScene(page, baseUrl, output, seed, scene) {
     window.__NEVA_DEBUG.setCaptureRenderMode("final");
   });
   process.stdout.write(`[world:acceptance] captured ${seed}/${scene}\n`);
-  return { normal, final, noPost, overlays };
+  if (final.world.qualityTier !== quality) {
+    throw new Error(`[world:acceptance] ${scene}: expected ${quality}, got ${final.world.qualityTier}`);
+  }
+  return { quality, normal, final, noPost, overlays };
 }
 
 async function syncHeldKeys(page, held, desiredKeys) {
@@ -400,7 +431,7 @@ async function syncHeldKeys(page, held, desiredKeys) {
   }
 }
 
-async function walkTo(page, target, telemetry, maxMs = 55_000) {
+async function walkTo(page, target, telemetry, maxMs = 55_000, footArrivalRadius = 1.4) {
   const held = new Set();
   const started = Date.now();
   let previousDistance = Number.POSITIVE_INFINITY;
@@ -411,7 +442,7 @@ async function walkTo(page, target, telemetry, maxMs = 55_000) {
       const dx = target.x - state.playerPosition.x;
       const dz = target.z - state.playerPosition.z;
       const distance = Math.hypot(dx, dz);
-      const arrivalRadius = state.mode === "boat-driving" ? 3.5 : 1.4;
+      const arrivalRadius = state.mode === "boat-driving" ? 3.5 : footArrivalRadius;
       if (distance <= arrivalRadius) {
         await syncHeldKeys(page, held, []);
         const render = await page.evaluate(() => window.__NEVA_DEBUG.renderDiagnostics());
@@ -502,6 +533,7 @@ async function movementSamples(page, baseUrl) {
   const movementDeadlineMs = 60 * 60_000;
   const farmToBridge = [];
   const riverToHarbor = [];
+  const mountainTrails = [];
   const assertMovementDeadline = () => {
     if (Date.now() - movementStarted > movementDeadlineMs) {
       throw new Error("movement samples exceeded the 60-minute acceptance deadline");
@@ -518,10 +550,45 @@ async function movementSamples(page, baseUrl) {
       { timeout: 180_000 }
     );
     const routeData = await page.evaluate(() => ({
+      farmWork: window.__NEVA_DEBUG.acceptanceRoute("farm-work-zone"),
+      farmEntry: window.__NEVA_DEBUG.acceptanceRoute("farm-entry"),
+      source: window.__NEVA_DEBUG.acceptanceRoute("farm-headwater-trail"),
+      overlook: window.__NEVA_DEBUG.acceptanceRoute("western-overlook-trail"),
       farmVillage: window.__NEVA_DEBUG.acceptanceRoute("farm-village"),
       villageHarbor: window.__NEVA_DEBUG.acceptanceRoute("village-harbor"),
       bridge: window.__NEVA_DEBUG.acceptanceBridgePosition()
     }));
+    const followMountainRoute = async (label, points, reverse = false) => {
+      const waypoints = waypointsAtSpacing(points, 0, points.length - 1, 2);
+      if (reverse) waypoints.reverse();
+      for (const [index, waypoint] of waypoints.entries()) {
+        assertMovementDeadline();
+        process.stdout.write(`[world:acceptance] movement ${label} ${index + 1}/${waypoints.length}\n`);
+        await walkTo(page, waypoint, mountainTrails, 55_000, 0.35);
+      }
+    };
+    // Branch before the workbench interaction spur, which terminates at the
+    // station's collider. Reach the south gate precisely before turning west.
+    const sourceGateway = routeData.source[0];
+    const gatewayIndex = routeData.farmWork.reduce((best, point, index, points) =>
+      Math.hypot(point.x - sourceGateway.x, point.z - sourceGateway.z)
+        < Math.hypot(points[best].x - sourceGateway.x, points[best].z - sourceGateway.z) ? index : best, 0);
+    const farmWorkPrefix = routeData.farmWork.slice(0, gatewayIndex + 1);
+    await followMountainRoute("farm-work-exit", farmWorkPrefix);
+    await followMountainRoute("source-out", routeData.source);
+    await followMountainRoute("source-return", routeData.source, true);
+    // The overlook branch joins the source path; reach that junction along the
+    // same trail rather than cutting across the newly raised hillside.
+    const junction = routeData.overlook[0];
+    const junctionIndex = routeData.source.reduce((best, point, index, points) =>
+      Math.hypot(point.x - junction.x, point.z - junction.z) < Math.hypot(points[best].x - junction.x, points[best].z - junction.z) ? index : best, 0);
+    const toJunction = routeData.source.slice(0, junctionIndex + 1);
+    await followMountainRoute("overlook-approach", toJunction);
+    await followMountainRoute("overlook-out", routeData.overlook);
+    await followMountainRoute("overlook-return", routeData.overlook, true);
+    await followMountainRoute("farm-return", toJunction, true);
+    await followMountainRoute("farm-work-return", farmWorkPrefix, true);
+    await followMountainRoute("farm-entry", routeData.farmEntry);
     const bridgeIndex = routeData.farmVillage.reduce((best, point, index, points) =>
       Math.hypot(point.x - routeData.bridge.x, point.z - routeData.bridge.z)
         < Math.hypot(points[best].x - routeData.bridge.x, points[best].z - routeData.bridge.z)
@@ -550,6 +617,16 @@ async function movementSamples(page, baseUrl) {
     }
   }
 
+
+  if (scope === "starter-terrain") {
+    const samples = [...mountainTrails, ...farmToBridge, ...riverToHarbor];
+    return {
+      scope, mountainTrails, farmToBridge, riverToHarbor,
+      continuousRealInput: true,
+      collisionContinuous: samples.length > 0 && samples.every((sample) => sample.grounded),
+      instanceRange: { min: Math.min(...samples.map((sample) => sample.instances)), max: Math.max(...samples.map((sample) => sample.instances)) }
+    };
+  }
 
   await page.goto(`${baseUrl}/?worldAcceptance=1&debug=1&debugStart=harbor-skiff`, {
     waitUntil: "domcontentloaded",
@@ -624,13 +701,14 @@ async function movementSamples(page, baseUrl) {
     || !sunreachExpansion.returnedToNeva || !sunreachExpansion.landCollisionContinuous) {
     throw new Error(`Sunreach movement acceptance failed: ${JSON.stringify(sunreachExpansion)}`);
   }
-  const allTelemetry = [...farmToBridge, ...riverToHarbor, ...outbound, ...islandWalk, ...inbound];
+  const allTelemetry = [...mountainTrails, ...farmToBridge, ...riverToHarbor, ...outbound, ...islandWalk, ...inbound];
   return {
+    mountainTrails,
     farmToBridge,
     riverToHarbor,
     sunreachExpansion,
     transitionOnly: args.has("--transition-only"),
-    collisionContinuous: [...farmToBridge, ...riverToHarbor, ...islandWalk].every((sample) => sample.grounded),
+    collisionContinuous: [...mountainTrails, ...farmToBridge, ...riverToHarbor, ...islandWalk].every((sample) => sample.grounded),
     instanceRange: {
       min: Math.min(...allTelemetry.map((sample) => sample.instances)),
       max: Math.max(...allTelemetry.map((sample) => sample.instances))
@@ -647,6 +725,7 @@ async function runLane(lane, baseUrl, output, seeds) {
   const errors = [];
   const requests = [];
   const sceneResults = [];
+  const tierResults = [];
   const cameraIdentitiesBySeed = new Map();
   try {
     if (args.has("--movement-only")) {
@@ -713,6 +792,25 @@ async function runLane(lane, baseUrl, output, seeds) {
         errors.push(`repeated scene camera identity for seed ${seed}: ${cameraIdentityCount}/${SCENES.length}`);
       }
     }
+    // Keep tier profiling bounded to the new relief and raised-water views.
+    for (const scene of ["mountain_skyline", "river_source"]) {
+      for (const quality of ["low", "medium"]) {
+        const page = await context.newPage();
+        page.on("pageerror", (error) => errors.push(`tier pageerror ${scene}/${quality}: ${error.message}`));
+        page.on("console", (message) => {
+          if (message.type() === "error") errors.push(`tier console ${scene}/${quality}: ${message.text()}`);
+        });
+        page.on("requestfailed", (request) => requests.push(`failed ${request.url()}: ${request.failure()?.errorText}`));
+        page.on("response", (response) => {
+          if (response.status() >= 400) requests.push(`http ${response.status()} ${response.url()}`);
+          if (response.url().includes("/@vite/client")) requests.push(`HMR request ${response.url()}`);
+        });
+        const result = await captureScene(page, baseUrl, output, 42, scene, quality);
+        writeJson(path.join(output, "seed-42", scene, quality, "scene-report.json"), result);
+        tierResults.push({ seed: 42, scene, ...result });
+        await page.close();
+      }
+    }
     const movementPage = await context.newPage();
     movementPage.on("pageerror", (error) => errors.push(`movement pageerror: ${error.message}`));
     movementPage.on("console", (message) => {
@@ -732,12 +830,18 @@ async function runLane(lane, baseUrl, output, seeds) {
       !gpu || gpu.softwareRenderer || gpu.blockedReason !== null || gpu.sampleCount === 0
     );
     if (hardwareBlocked) errors.push(`hardware GPU evidence blocked: ${JSON.stringify(gpu)}`);
-    const result = { lane, gpu, errors, requestErrors: requests, scenes: sceneResults, movement };
+    const result = { lane, gpu, errors, requestErrors: requests, scenes: sceneResults, tiers: tierResults, movement };
     writeJson(path.join(output, "lane-report.json"), result);
     if (errors.length > 0 || requests.length > 0) {
       throw new Error(`[world:acceptance] ${lane} lane failed with ${errors.length + requests.length} errors`);
     }
     return result;
+  } catch (error) {
+    writeJson(path.join(output, "failure-report.json"), {
+      lane, failure: String(error), errors, requestErrors: requests,
+      completedScenes: sceneResults, completedTiers: tierResults
+    });
+    throw error;
   } finally {
     await context.close();
     await browser.close();
@@ -765,7 +869,7 @@ async function main() {
     runCompositionAudit(),
     runSunreachCompositionAudit()
   ]);
-  validateCompositionAudit(audit);
+  validateCompositionAudit(audit, nevaPreservation.current.layoutRevision);
   validateSunreachCompositionAudit(sunreachAudit);
   writeJson(path.join(output, "composition-audit.json"), audit);
   writeJson(path.join(output, "sunreach-composition-audit.json"), sunreachAudit);
@@ -792,7 +896,10 @@ async function main() {
   const afterBuildDigest = manifestDigest(afterBuildManifest);
   if (afterBuildDigest !== digest) throw new Error(`[world:acceptance] Input digest drifted ${digest} -> ${afterBuildDigest}`);
   if (args.has("--skip-captures")) {
-    writeJson(path.join(output, "acceptance-report.json"), { digest, seeds, lanes: [], captureStatus: "skipped" });
+    writeJson(path.join(output, "acceptance-report.json"), {
+      digest, scope, seeds, lanes: [], captureStatus: "skipped",
+      checks: args.has("--skip-checks") ? "skipped" : "passed"
+    });
     return;
   }
 
@@ -818,18 +925,23 @@ async function main() {
   }
   const finalManifest = inputManifest();
   const finalDigest = manifestDigest(finalManifest);
-  if (finalDigest !== digest) throw new Error(`[world:acceptance] Capture input digest drifted ${digest} -> ${finalDigest}`);
   writeJson(path.join(output, "acceptance-report.json"), {
     digest,
+    finalDigest,
+    sourceStable: finalDigest === digest,
+    checks: args.has("--skip-checks") ? "skipped" : "passed",
+    scope,
     seeds,
     viewport: [1920, 1080],
     devicePixelRatio: 1,
     quality: "high",
+    representativeQualityTiers: ["low", "medium", "high"],
     minute: 720,
     weather: "clear",
     humanGameplayCameraApproval: "required",
     lanes: laneResults
   });
+  if (finalDigest !== digest) throw new Error(`[world:acceptance] Capture input digest drifted ${digest} -> ${finalDigest}`);
 }
 
 main().catch((error) => {

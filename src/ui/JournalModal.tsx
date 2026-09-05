@@ -1,6 +1,9 @@
 import React, { useRef, useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
-import type { JournalPagesDto, SkillProgressDto } from "../simulation/core/contracts";
+import type { JournalPagesDto, SkillProgressDto, AlmanacDto} from "../simulation/core/contracts";
+import type { SkillId } from "../simulation/core/types";
+import { ContentRegistry } from "../content/ContentRegistry";
+import { getNextRank } from "../content/progression";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
@@ -10,26 +13,30 @@ import { GameSheet, Meter } from "./coastal/CoastalUI";
 import { IconCompass, IconFish, IconJournal, IconSprout, IconTools } from "./components/HudIcons";
 import { RECORD_TIERS } from "../content/records";
 import { HowToPlayGuide } from "./components/HowToPlayGuide";
+import { AlmanacPage } from "./components/AlmanacPage";
 import { playUiSound } from "./audio/uiAudio";
 
-export type JournalFolio = "story" | "records" | "skills" | "guide";
+export type JournalFolio = "story" | "records" | "almanac" | "skills" | "guide";
 
 interface JournalModalProps {
   pages: JournalPagesDto;
   activeQuest: ActiveQuestDto | null;
   skills: SkillProgressDto[];
   onClose: () => void;
+  /** Omitted where the host cannot supply it; the folio then stays hidden. */
+  almanac?: AlmanacDto;
   initialFolio?: JournalFolio;
 }
 
 const FOLIOS: Array<{ id: JournalFolio; label: string; icon: React.ReactNode }> = [
   { id: "story", label: "Story", icon: <IconJournal size={14} aria-hidden="true" /> },
   { id: "records", label: "Records", icon: <IconFish size={14} aria-hidden="true" /> },
+  { id: "almanac", label: "Almanac", icon: <IconSprout size={14} aria-hidden="true" /> },
   { id: "skills", label: "Skills", icon: <IconTools size={14} aria-hidden="true" /> },
   { id: "guide", label: "Guide", icon: <IconCompass size={14} aria-hidden="true" /> }
 ];
 
-export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, skills, onClose, initialFolio = "story" }) => {
+export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, skills, almanac, onClose, initialFolio = "story" }) => {
   const [activeFolio, setActiveFolio] = useState<JournalFolio>(initialFolio);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
@@ -63,7 +70,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
             aria-label="Journal pages"
             onKeyDown={handleTabListKeyDown}
           >
-            {FOLIOS.map((folio) => (
+            {FOLIOS.filter((folio) => folio.id !== "almanac" || almanac).map((folio) => (
               <button
                 key={folio.id}
                 type="button"
@@ -93,6 +100,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
             <StoryPage activeQuest={activeQuest} completedStories={pages.completedStories} />
           )}
           {activeFolio === "records" && <RecordsPage pages={pages} />}
+          {activeFolio === "almanac" && almanac && <AlmanacPage almanac={almanac} />}
           {activeFolio === "skills" && <SkillsPage skills={skills} />}
           {activeFolio === "guide" && <HowToPlayGuide />}
         </div>
@@ -135,15 +143,41 @@ const StoryPage: React.FC<{
         <p className="journal-empty-copy">No active story errand. The coast is yours to explore.</p>
       )}
 
-      {completedStories.length > 0 && (
-        <details className="journal-completed-stories">
-          <summary>Completed stories · {completedStories.length}</summary>
-          <ul>
-            {completedStories.map((story) => (
-              <li key={story.questId}>✓ {story.title}</li>
-            ))}
-          </ul>
-        </details>
+      {completedStories.length > 0 && <CompletedStories stories={completedStories} />}
+    </section>
+  );
+};
+
+/**
+ * Chrome-styled collapsible for finished errands. A plain details/summary
+ * cannot carry the Chrome button language or the journal's sound cue.
+ */
+const CompletedStories: React.FC<{
+  stories: JournalPagesDto["completedStories"];
+}> = ({ stories }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={`journal-completed-stories${open ? " is-open" : ""}`}>
+      <ChromeButton
+        size="sm"
+        variant="secondary"
+        soundCue="cloth"
+        className="journal-collapsible-trigger"
+        aria-expanded={open}
+        aria-controls="journal-completed-list"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span aria-hidden="true" className="journal-collapsible-mark">
+          {open ? "▾" : "▸"}
+        </span>
+        Completed stories · {stories.length}
+      </ChromeButton>
+      {open && (
+        <ul id="journal-completed-list">
+          {stories.map((story) => (
+            <li key={story.questId} className="is-complete">{story.title}</li>
+          ))}
+        </ul>
       )}
     </section>
   );
@@ -157,44 +191,77 @@ const StoryPage: React.FC<{
  * game had no way to give once the story ran out.
  */
 const RecordsBoard: React.FC<{ records: JournalPagesDto["records"] }> = ({ records }) => {
+  const [expandedTiers, setExpandedTiers] = useState<ReadonlySet<string>>(new Set());
   if (records.length === 0) return null;
   const tiers = RECORD_TIERS
     .map((tier) => {
       const mine = records.filter((record) => record.tier === tier.id);
       const open = mine
         .filter((record) => !record.achieved)
-        .sort((a, b) => b.progress - a.progress)
-        .slice(0, 2);
-      return { tier, done: mine.filter((record) => record.achieved).length, total: mine.length, open };
+        .sort((a, b) => b.progress - a.progress);
+      const achieved = mine.filter((record) => record.achieved);
+      return {
+        tier,
+        done: achieved.length,
+        total: mine.length,
+        open,
+        achieved,
+        expanded: expandedTiers.has(tier.id)
+      };
     })
     .filter((row) => row.total > 0);
+
+  const toggleTier = (tierId: string) => {
+    setExpandedTiers((prev) => {
+      const next = new Set(prev);
+      if (next.has(tierId)) next.delete(tierId);
+      else next.add(tierId);
+      return next;
+    });
+  };
 
   return (
     <section aria-labelledby="journal-records-board" className="journal-records-board">
       <h3 id="journal-records-board"><IconCompass size={16} aria-hidden="true" /> Standing records</h3>
-      {tiers.map(({ tier, done, total, open }) => (
-        <article key={tier.id} className="journal-record-tier">
-          <div className="journal-record-tier-head">
-            <strong>{tier.title}</strong>
-            <span>{done} / {total}</span>
-          </div>
-          {open.length === 0 ? (
-            <p className="journal-empty-copy">Every record here stands to your name.</p>
-          ) : open.map((record) => (
-            <div key={record.id} className="journal-record-goal">
-              <div><strong>{record.title}</strong><span>{record.detail}</span></div>
-              <Meter
-                label={record.title}
-                value={Math.round(record.progress * 100)}
-                max={100}
-                showLabel={false}
-                valueText={record.currentLabel}
-                variant="gold"
-              />
+      {tiers.map(({ tier, done, total, open, achieved, expanded }) => {
+        const preview = open.slice(0, 2);
+        const visible = expanded ? [...open, ...achieved] : preview;
+        return (
+          <article key={tier.id} className="journal-record-tier">
+            <div className="journal-record-tier-head">
+              <strong>{tier.title}</strong>
+              <span>{done} / {total}</span>
             </div>
-          ))}
-        </article>
-      ))}
+            {visible.length === 0 ? (
+              <p className="journal-empty-copy">Every record here stands to your name.</p>
+            ) : visible.map((record) => (
+              <div key={record.id} className={`journal-record-goal${record.achieved ? " is-achieved" : ""}`}>
+                <div className={record.achieved ? "is-achieved" : undefined}><strong>{record.title}</strong><span>{record.detail}</span></div>
+                <Meter
+                  label={record.title}
+                  value={Math.round(record.progress * 100)}
+                  max={100}
+                  showLabel={false}
+                  valueText={record.currentLabel}
+                  variant="gold"
+                />
+              </div>
+            ))}
+            {total > 2 && (
+              <ChromeButton
+                size="sm"
+                variant="secondary"
+                soundCue="cloth"
+                className="journal-tier-toggle"
+                aria-expanded={expanded}
+                onClick={() => toggleTier(tier.id)}
+              >
+                {expanded ? "Show less" : `Show all ${total}`}
+              </ChromeButton>
+            )}
+          </article>
+        );
+      })}
     </section>
   );
 };
@@ -241,25 +308,64 @@ const RecordsPage: React.FC<{ pages: JournalPagesDto }> = ({ pages }) => (
   </section>
 );
 
+/** Which proficiency column feeds each skill's rank ladder. */
+const SKILL_UNLOCK_KEYS: Record<
+  SkillId,
+  "farmingUnlocks" | "fishingUnlocks" | "tradingUnlocks" | "processingUnlocks"
+> = {
+  farming: "farmingUnlocks",
+  fishing: "fishingUnlocks",
+  processing: "processingUnlocks",
+  trading: "tradingUnlocks"
+};
+
+/**
+ * Human name for a rank-unlock id, resolved from the registries that own it.
+ * Falls back to the bare id (prettified) rather than inventing a label.
+ */
+const unlockDisplayName = (id: string): string => {
+  const named =
+    ContentRegistry.crops.get(id) ??
+    ContentRegistry.rods.get(id) ??
+    ContentRegistry.markets.get(id) ??
+    ContentRegistry.recipes.get(id) ??
+    ContentRegistry.boats.get(id) ??
+    [...ContentRegistry.boats.values()].find((boat) => boat.id === id);
+  if (named) return named.name;
+  return id.replace(/^[a-z]+\./, "").replace(/[-_]/g, " ");
+};
+
 const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => (
   <section className="journal-page journal-skills-page" aria-label="Skills">
     <div className="journal-page-heading"><span>Skills</span><h2>Practice along the coast</h2></div>
     <div className="journal-skills-list">
       {skills.length === 0 ? (
         <p className="journal-empty-copy">No practice recorded yet.</p>
-      ) : skills.map((skill) => (
-        <article key={skill.skill} className="journal-skill-row">
-          <div><strong>{skill.label}</strong><span>{skill.rankName}</span></div>
-          <Meter
-            label={`${skill.label} progress`}
-            value={skill.progressPercent}
-            max={100}
-            showLabel={false}
-            valueText={skill.nextXp !== null ? `${skill.xp} XP · next ${skill.nextXp}` : `${skill.xp} XP · highest rank`}
-            variant="gold"
-          />
-        </article>
-      ))}
+      ) : skills.map((skill) => {
+        const next = getNextRank(skill.xp);
+        const unlockIds = next ? next[SKILL_UNLOCK_KEYS[skill.skill]].slice(0, 3) : [];
+        const unlockText = !next
+          ? "Highest rank"
+          : unlockIds.length > 0
+            ? `Next: ${next.rankName} · ${next.xpRequired.toLocaleString()} XP — unlocks ${unlockIds.map(unlockDisplayName).join(", ")}`
+            : `Next: ${next.rankName} · ${next.xpRequired.toLocaleString()} XP`;
+        return (
+          <article key={skill.skill} className="journal-skill-row">
+            <div>
+              <strong>{skill.label} <span className="journal-rank-badge">{skill.rankName}</span></strong>
+              <span className="journal-next-unlock">{unlockText}</span>
+            </div>
+            <Meter
+              label={`${skill.label} progress`}
+              value={skill.progressPercent}
+              max={100}
+              showLabel={false}
+              valueText={skill.nextXp !== null ? `${skill.xp} XP · next ${skill.nextXp}` : `${skill.xp} XP · highest rank`}
+              variant="gold"
+            />
+          </article>
+        );
+      })}
     </div>
   </section>
 );

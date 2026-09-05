@@ -2,7 +2,8 @@ import { useEffect, useRef, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
-  "[href]",
+  "a[href]",
+  "area[href]",
   "input:not([disabled])",
   "select:not([disabled])",
   "textarea:not([disabled])",
@@ -21,6 +22,39 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
 }
 
 /**
+ * Every mount pushes its connected opener so a remount chain (Pause ->
+ * Journal -> Pause) never loses the true return target: a remount captures
+ * only a doomed node from the same commit, while the original opener (for
+ * example the HUD menu button) stays connected underneath. Stale entries
+ * are pruned when consumed.
+ */
+const openerStack: HTMLElement[] = [];
+
+function pushOpener(): void {
+  const active = document.activeElement;
+  if (
+    active instanceof HTMLElement &&
+    active !== document.body &&
+    active !== document.documentElement &&
+    active.isConnected &&
+    openerStack.at(-1) !== active
+  ) {
+    openerStack.push(active);
+  }
+}
+
+function restoreNearestOpener(): void {
+  while (openerStack.length > 0) {
+    const candidate = openerStack.pop();
+    if (candidate?.isConnected) {
+      candidate.focus({ preventScroll: true });
+      return;
+    }
+  }
+  document.querySelector<HTMLElement>("#ui-container")?.focus({ preventScroll: true });
+}
+
+/**
  * Gives small, self-contained overlays the same keyboard and focus contract.
  * The callbacks are refs because GameApp re-renders the React tree every frame.
  */
@@ -33,6 +67,7 @@ export function useModalAccessibility<T extends HTMLElement>(
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    pushOpener();
     const previouslyFocused = document.activeElement instanceof HTMLElement &&
       document.activeElement !== document.body &&
       document.activeElement !== document.documentElement
@@ -77,19 +112,22 @@ export function useModalAccessibility<T extends HTMLElement>(
     document.addEventListener("keydown", handleKeyDown, true);
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
-      const restoreFocus = () => {
+      // Defer the restore decision one frame. Opening a stacked child
+      // (Pause -> Map) unmounts the parent in the same commit the child
+      // mounts in, so a synchronous restore would yank focus back to the
+      // parent's opener (for example the HUD menu button) before the child
+      // claims it. By the next frame the newly mounted overlay is present
+      // and owns initial focus. A close back to the world prefers the
+      // precise capture, then the nearest still-connected opener (a remount
+      // captures only a doomed same-commit node), then the UI root.
+      window.requestAnimationFrame(() => {
+        if (document.querySelector(".modal-overlay.interactive")) return;
         if (previouslyFocused?.isConnected) {
           previouslyFocused.focus({ preventScroll: true });
           return;
         }
-        // A child overlay can close into a still-active parent (for example
-        // Map back to Pause). Let the newly mounted parent claim focus instead
-        // of stealing it with the page-level fallback.
-        if (document.querySelector(".modal-overlay.interactive")) return;
-        document.querySelector<HTMLElement>("#ui-container")?.focus({ preventScroll: true });
-      };
-      restoreFocus();
-      window.requestAnimationFrame(restoreFocus);
+        restoreNearestOpener();
+      });
     };
   }, [dialogRef]);
 }

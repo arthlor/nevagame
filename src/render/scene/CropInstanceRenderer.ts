@@ -347,11 +347,12 @@ export class CropInstanceRenderer {
   public sync(
     state: Readonly<GameState>,
     timeSeconds: number,
-    weatherMotion?: Readonly<WeatherMotionSignal>
+    weatherMotion?: Readonly<WeatherMotionSignal>,
+    isFarmGisMode: boolean = false
   ): void {
     this.updateWind(timeSeconds, state, weatherMotion);
     const crops = Object.values(state.crops);
-    const signature = this.computeCropSignature(crops);
+    const signature = this.computeCropSignature(crops, isFarmGisMode);
     const animationActive = this.transitions.size > 0 || this.harvestTransitions.size > 0;
     if (
       signature === this.cropSignature
@@ -434,7 +435,7 @@ export class CropInstanceRenderer {
         this.updateBatch(batch, entries);
       }
     }
-    this.updateMoistureBatch(crops);
+    this.updateMoistureBatch(crops, state, isFarmGisMode);
   }
 
   private updateWind(
@@ -455,8 +456,8 @@ export class CropInstanceRenderer {
       : Math.min(1.6, 0.55 + state.weather.windSpeed * 0.12);
   }
 
-  private computeCropSignature(crops: readonly PlacedCropState[]): number {
-    let hash = crops.length ^ 0x811c9dc5;
+  private computeCropSignature(crops: readonly PlacedCropState[], isFarmGisMode: boolean = false): number {
+    let hash = (crops.length ^ (isFarmGisMode ? 0x5a5a5a5a : 0x811c9dc5)) >>> 0;
     for (const crop of crops) {
       const values = `${crop.id}|${crop.cropId}|${crop.stage}|${crop.farmId}|${crop.x}|${crop.z}|${crop.rotationRadians}|${crop.effectiveGrowthMinutes}|${cropMoistureBand(crop.moisture)}`;
       for (let index = 0; index < values.length; index += 1) {
@@ -529,7 +530,11 @@ export class CropInstanceRenderer {
     target.multiplyScalar(THREE.MathUtils.lerp(0.62, 1, transitionWeight));
   }
 
-  private updateMoistureBatch(crops: readonly PlacedCropState[]): void {
+  private updateMoistureBatch(
+    crops: readonly PlacedCropState[],
+    state?: Readonly<GameState>,
+    isFarmGisMode: boolean = false
+  ): void {
     const batch = this.moistureBatch;
     this.ensureBatchCapacity(batch, crops.length, "crop_disturbed_soil_instances_dynamic");
     batch.cropIds.length = 0;
@@ -545,10 +550,30 @@ export class CropInstanceRenderer {
       this.scale.set(definition.footprint.width * variation, 1, definition.footprint.depth * variation);
       this.matrix.compose(this.position, this.quaternion, this.scale);
       batch.mesh.setMatrixAt(index, this.matrix);
+
       const band = cropMoistureBand(crop.moisture);
-      this.color.set(
-        PALETTE_HEX[band === "wet" ? "soil_damp_01" : band === "dry" ? "soil_dry_01" : "soil_warm_01"]
-      );
+      if (isFarmGisMode) {
+        const farm = state?.farms[crop.farmId];
+        const fertility = farm?.soil.fertility ?? 50;
+        // GIS moisture base
+        const moistureHex =
+          band === "wet"
+            ? PALETTE_HEX.accent_teal_01
+            : band === "dry"
+              ? PALETTE_HEX.accent_ochre_01
+              : PALETTE_HEX.foliage_sage_01;
+        this.color.set(moistureHex);
+        // Modulate with fertility
+        if (fertility >= 80) {
+          this.color.lerp(new THREE.Color(PALETTE_HEX.stone_golden_01), 0.35);
+        } else if (fertility < 30) {
+          this.color.lerp(new THREE.Color(PALETTE_HEX.stone_cool_01), 0.45);
+        }
+      } else {
+        this.color.set(
+          PALETTE_HEX[band === "wet" ? "soil_damp_01" : band === "dry" ? "soil_dry_01" : "soil_warm_01"]
+        );
+      }
       batch.mesh.setColorAt(index, this.color);
       batch.cropIds.push(crop.id);
     }

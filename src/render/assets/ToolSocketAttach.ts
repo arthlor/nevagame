@@ -3,14 +3,10 @@ import { ASSET_IDS } from "./AssetCatalog.generated";
 /**
  * Shared cosmetic-prop attach pose for gameplay (WorldScene) and Art Yard.
  *
- * Socket axis (glTF / Three.js, identity world rotation at rest):
- *   +X right (outward of the right palm)
- *   +Y up
- *   +Z forward
- * Tools are authored with the GRIP at the origin and the handle along
- * Blender +Z (= glTF +Y). A 180 deg X rotation sends that handle along the
- * hanging fingers instead of world-up; watering-can uses identity so the
- * can body sits outward of the hip with the spout forward.
+ * CharacterEquipment docks an explicitly authored primary palm frame to
+ * the source hand socket (+Y fingers, +Z inward contact normal). These
+ * scales still apply. Position/Euler values cover body-mounted accessories
+ * and any prop without a primary hand contact frame.
  */
 export interface SocketAttachPose {
   readonly position: readonly [number, number, number];
@@ -61,5 +57,6 @@ export const SOCKET_ATTACH_BY_ASSET: Readonly<Record<string, SocketAttachPose>> 
 };
 
 export function socketAttachFor(assetId: string): SocketAttachPose {
+  if (assetId.startsWith("fish_")) return { ...IDENTITY_HOLD, scale: 1 };
   return SOCKET_ATTACH_BY_ASSET[assetId] ?? IDENTITY_HOLD;
 }

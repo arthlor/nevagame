@@ -11,6 +11,8 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_lofted_form,
+    add_grip_marker,
     add_marker,
     add_ring,
     add_tapered_beam,
@@ -1731,6 +1733,8 @@ def watering_can(spec: dict, root) -> None:
     (glTF +Z, forward), never through the forearm.
     """
     metal, dark, accent = spec["palette"]
+    add_grip_marker("tool_primary_grip", (-0.016, 0, 0), root,
+                    fingers=(0, -1, 0), contact_normal=(1, 0, 0))
     add_cylinder("watering_can_handle", (0, 0, 0), 0.016, 0.12, dark, root, vertices=6, bevel=0.003)
     add_cylinder(
         "watering_can_handle_top",
@@ -1788,25 +1792,38 @@ def sickle(spec: dict, root) -> None:
     blade curves in +X (away from the body on the right palm).
     """
     wood, metal = spec["palette"]
+    add_grip_marker("tool_primary_grip", (0.05, 0, 0), root,
+                    fingers=(0, 1, 0), contact_normal=(-1, 0, 0))
     grip = 0.16
-    add_tapered_beam("sickle_handle", (0, 0, -grip), (0, 0, 0.52 - grip), 0.055, 0.042, wood, root, vertices=7)
-    curve_points = [
-        (0, 0, 0.50 - grip),
-        (0.18, 0, 0.64 - grip),
-        (0.38, 0, 0.66 - grip),
-        (0.54, 0, 0.56 - grip),
-        (0.61, 0, 0.40 - grip),
+    # A 0.055 radius is an 11cm shaft: that is a fence post, not something a hand
+    # closes around.
+    add_tapered_beam("sickle_handle", (0, 0, -grip), (0, 0, 0.40 - grip), 0.026, 0.021, wood, root, vertices=7)
+    add_cylinder("sickle_ferrule", (0, 0, 0.38 - grip), 0.026, 0.045, metal, root, vertices=7, bevel=0.004)
+
+    # The blade is a lamina: broad across the crescent, thin through it. Four
+    # round beams gave a bent wire, which is why the tool read as a plank with a
+    # scribble floating over it.
+    blade_points = [
+        (0.012, 0.0, 0.400 - grip),
+        (0.160, 0.0, 0.512 - grip),
+        (0.330, 0.0, 0.552 - grip),
+        (0.470, 0.0, 0.512 - grip),
+        (0.542, 0.0, 0.410 - grip),
+        (0.522, 0.0, 0.300 - grip),
+        (0.438, 0.0, 0.236 - grip),
     ]
-    for index in range(len(curve_points) - 1):
-        add_tapered_beam(
+    for index in range(len(blade_points) - 1):
+        start, end = blade_points[index], blade_points[index + 1]
+        run, rise = end[0] - start[0], end[2] - start[2]
+        span = math.hypot(run, rise)
+        add_box(
             f"sickle_blade_{index}",
-            curve_points[index],
-            curve_points[index + 1],
-            0.040 - index * 0.006,
-            0.033 - index * 0.006,
+            ((start[0] + end[0]) * 0.5, 0.0, (start[2] + end[2]) * 0.5),
+            (span * 1.12, 0.011, 0.086 - index * 0.0112),
             metal,
             root,
-            vertices=4,
+            rotation=(0, -math.atan2(rise, run), 0),
+            bevel=0.004,
         )
 
 
@@ -1870,14 +1887,37 @@ def harvest_basket(spec: dict, root) -> None:
 def workstation_scoop(spec: dict, root) -> None:
     """Scoop with the grip at the origin. Handle along Blender +Z (glTF +Y)."""
     wood, metal = spec["palette"]
+    add_grip_marker("tool_primary_grip", (0.04, 0, 0), root,
+                    fingers=(0, 1, 0), contact_normal=(-1, 0, 0))
     grip = 0.14
-    add_tapered_beam("workstation_scoop_handle", (0, 0, -grip), (0, 0, 0.58 - grip), 0.045, 0.032, wood, root, vertices=7)
-    add_cylinder("workstation_scoop_ferrule", (0, 0, 0.45), 0.052, 0.08, metal, root, vertices=7, bevel=0.006)
-    add_box("workstation_scoop_floor", (0, -0.015, 0.51), (0.34, 0.12, 0.06), metal, root, bevel=0.018)
-    add_box("workstation_scoop_back", (0, 0.04, 0.60), (0.34, 0.04, 0.22), metal, root, bevel=0.018)
-    add_box("workstation_scoop_side_left", (-0.145, -0.005, 0.59), (0.05, 0.11, 0.20), metal, root, rotation=(0, 0, -0.12), bevel=0.014)
-    add_box("workstation_scoop_side_right", (0.145, -0.005, 0.59), (0.05, 0.11, 0.20), metal, root, rotation=(0, 0, 0.12), bevel=0.014)
-    add_box("workstation_scoop_front_lip", (0, -0.085, 0.56), (0.38, 0.04, 0.08), metal, root, bevel=0.014)
+    add_tapered_beam("workstation_scoop_handle", (0, 0, -grip), (0, 0, 0.50 - grip), 0.032, 0.026, wood, root, vertices=7)
+    add_cylinder("workstation_scoop_ferrule", (0, 0, 0.39), 0.038, 0.06, metal, root, vertices=7, bevel=0.005)
+
+    # A flat floor with an upright back panel reads as a small chair, not a
+    # scoop. The spec allows 0.34 across but only 0.16 of depth, so the bowl is
+    # a wide, shallow flare -- which is the shape a grain scoop actually has --
+    # lofted as one elliptical cup with an iron rim band around the mouth.
+    add_lofted_form(
+        "workstation_scoop_bowl",
+        (
+            ((0.0, 0.020, 0.436), 0.062, 0.034),
+            ((0.0, 0.006, 0.492), 0.124, 0.062),
+            ((0.0, -0.028, 0.578), 0.160, 0.078),
+        ),
+        wood,
+        root,
+        sides=10,
+    )
+    add_lofted_form(
+        "workstation_scoop_rim",
+        (
+            ((0.0, -0.026, 0.566), 0.161, 0.079),
+            ((0.0, -0.030, 0.590), 0.165, 0.081),
+        ),
+        metal,
+        root,
+        sides=10,
+    )
 
 
 def fishing_rod(spec: dict, root) -> None:
@@ -1903,8 +1943,10 @@ def fishing_rod(spec: dict, root) -> None:
     add_cylinder("rod_check_front", (0, 0, 0.25), 0.022, 0.008, brass, root, vertices=6)
     add_tapered_beam("rod_foregrip", (0, 0, 0.255), (0, 0, 0.36), 0.023, 0.018, wood_honey, root, vertices=6)
     # Authored anchors keep both hands and the live line independent from mesh bounds.
-    add_marker("rod_primary_grip", (0, 0, 0.0), root, marker_type="grip")
-    add_marker("rod_secondary_grip", (0.035, -0.095, 0.195), root, marker_type="grip")
+    add_grip_marker("rod_primary_grip", (0.024, 0, 0), root,
+                    fingers=(0, 1, 0), contact_normal=(-1, 0, 0))
+    add_grip_marker("rod_secondary_grip", (0.035, -0.095, 0.195), root,
+                    fingers=(0, 0, -1), contact_normal=(-1, 0, 0))
 
     # 3. Classic Coastal Fly/Centerpin Reel
     reel_y = -0.095

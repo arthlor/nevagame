@@ -1,4 +1,4 @@
-import type { PlayerTraversalState } from "../core/types";
+import type { CargoClass, PlayerTraversalState } from "../core/types";
 
 export const PLAYER_TRAVERSAL_TUNING = Object.freeze({
   // The animation controller scales phase from resolved travel; these values
@@ -18,6 +18,30 @@ export const PLAYER_TRAVERSAL_TUNING = Object.freeze({
   sprintRecoveryDelaySeconds: 0.65,
   sprintResumeThreshold: 18
 });
+
+/**
+ * A physical trade pack rides on the player's back, so it costs speed. The
+ * scale applies to walking and sprinting alike: the load does not care which
+ * gait you chose. Stackable satchel goods are weightless by design — only
+ * cargo that occupies the hands and back is represented here.
+ */
+export const CARRIED_LOAD_SPEED_SCALE: Readonly<Record<CargoClass, number>> = Object.freeze({
+  small: 0.92,
+  medium: 0.84,
+  large: 0.72,
+  gargantuan: 0.6
+});
+
+/** Speed multiplier for what the player is physically carrying; 1 when empty. */
+export function carriedLoadSpeedScale(cargoClass: CargoClass | null | undefined): number {
+  if (!cargoClass) return 1;
+  return CARRIED_LOAD_SPEED_SCALE[cargoClass] ?? 1;
+}
+
+/** The same load as the percentage slowdown a player reads on the HUD. */
+export function carriedLoadPenaltyPercent(cargoClass: CargoClass | null | undefined): number {
+  return Math.round((1 - carriedLoadSpeedScale(cargoClass)) * 100);
+}
 
 export interface TraversalStepInput {
   wantsSprint: boolean;
@@ -93,9 +117,11 @@ export function slopeGaitScale(
   if (moveLength < 0.001 || !Number.isFinite(normal.y)) return 1;
   const slope = 1 - clamp(normal.y, 0, 1);
   if (slope < 0.01) return 1;
-  const downhillLength = Math.hypot(-normal.x, -normal.z);
+  // For height y = h(x, z), the upward normal is (-dh/dx, 1, -dh/dz):
+  // its horizontal component points downhill, opposite the height gradient.
+  const downhillLength = Math.hypot(normal.x, normal.z);
   if (downhillLength < 0.001) return 1;
-  const alignment = (moveX * -normal.x + moveZ * -normal.z) / (moveLength * downhillLength);
+  const alignment = (moveX * normal.x + moveZ * normal.z) / (moveLength * downhillLength);
   const signed = alignment >= 0 ? 0.12 * alignment : 0.22 * alignment;
   return clamp(1 + slope * signed, 0.78, 1.14);
 }

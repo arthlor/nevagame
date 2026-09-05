@@ -215,6 +215,24 @@ export const ITEMS: Record<string, ItemDefinition> = {
     baseValue: 25,
     tags: ["chum", "sport-fishing"]
   },
+  "item.chum_rich": {
+    id: "item.chum_rich",
+    name: "Rich Chum Blend",
+    category: "fishing-supply",
+    description: "A double-strength chum that holds a school feeding twice as long. The strong scent is cast first when several chums are in reach.",
+    stackLimit: 50,
+    baseValue: 40,
+    tags: ["chum", "sport-fishing"]
+  },
+  "item.chum_deep": {
+    id: "item.chum_deep",
+    name: "Sinking Deep Chum",
+    category: "fishing-supply",
+    description: "Heavy chum weighted with scraps that sinks to the bottom feeders. Cast first when in reach; sinker species bite truer while its scent holds.",
+    stackLimit: 50,
+    baseValue: 45,
+    tags: ["chum", "sport-fishing"]
+  },
   "item.basic_lure": {
     id: "item.basic_lure",
     name: "Feather Lure",

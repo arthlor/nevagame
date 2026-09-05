@@ -8,8 +8,7 @@ import {
   IconTools,
   IconBoat,
   IconCompass,
-  IconBasket
-} from "./components/HudIcons";
+  IconBasket, HudIcon} from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForItem, atlasForPortrait } from "./chrome/uiAtlas";
@@ -29,6 +28,11 @@ export interface DialogueModalProps {
     reason?: string;
   };
   activeQuest: ActiveQuestDto | null;
+  /**
+   * Sound cue for the typewriter tick (played every 6th revealed character).
+   * Defaults to "click"; pass a softer cue to quiet the chatter.
+   */
+  typewriterTickCue?: string;
 }
 
 function prefersReducedMotion(): boolean {
@@ -62,7 +66,8 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   npcId,
   onClose,
   onTalkNpc,
-  activeQuest
+  activeQuest,
+  typewriterTickCue = "click"
 }) => {
   const npc = ContentRegistry.npcs.get(npcId);
   const [dialogueIndex, setDialogueIndex] = useState(0);
@@ -117,10 +122,10 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
       shown += 1;
       setRevealedChars(shown);
       tickCounter += 1;
-      if (tickCounter % 4 === 0 && shown < currentPageText.length) {
+      if (tickCounter % 6 === 0 && shown < currentPageText.length) {
         const char = currentPageText[shown - 1];
         if (char && char.trim().length > 0) {
-          playUiSound("click");
+          playUiSound(typewriterTickCue);
         }
       }
       if (shown >= currentPageText.length) {
@@ -128,7 +133,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
       }
     }, 18);
     return () => window.clearInterval(id);
-  }, [currentPageText, dialogueIndex]);
+  }, [currentPageText, dialogueIndex, typewriterTickCue]);
 
   useEffect(() => {
     if (isCompletion && !chimePlayedRef.current) {
@@ -206,7 +211,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             {atlasForPortrait(npc.id) ? (
               <AtlasImage src={atlasForPortrait(npc.id)} alt="" size={72} />
             ) : (
-              <span className="dialogue-avatar-icon">{npc.portraitIcon}</span>
+              <span className="dialogue-avatar-icon"><HudIcon name={npc.portraitIcon} size={26} /></span>
             )}
           </div>
           <div className="dialogue-speaker-info">
@@ -225,10 +230,20 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
           {totalPages > 1 && (
             <div className="dialogue-page-dots">
               {dialoguePages.map((_, i) => (
-                <span
+                <button
                   key={i}
-                  className={`dialogue-dot ${i === dialogueIndex ? "active" : ""}`}
+                  type="button"
+                  className={`dialogue-dot ${i === dialogueIndex ? "active" : ""}${i < dialogueIndex ? " is-past" : ""}`}
                   aria-current={i === dialogueIndex ? "step" : undefined}
+                  aria-label={`Page ${i + 1} of ${totalPages}`}
+                  disabled={i >= dialogueIndex}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (i < dialogueIndex) {
+                      setDialogueIndex(i);
+                      setRevealedChars(dialoguePages[i].length);
+                    }
+                  }}
                 />
               ))}
             </div>

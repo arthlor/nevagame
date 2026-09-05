@@ -21,10 +21,12 @@ import type {
   CommodityQuote,
   InteractionResult,
   MarketBoardDto,
-  MarketDemandSignal
+  MarketDemandSignal,
+  MarketDemandTrendDto
 } from "../core/contracts";
 import { previousRodId, ROD_PROGRESSION, rodFishingXpRequirement } from "../../content/rods";
 import { qualityRank } from "./domainRules";
+import { dayOfSeason } from "../core/GameClock";
 import {
   buildExpeditionBoard,
   type ExpeditionBoardDto
@@ -197,6 +199,51 @@ export class MarketDomain {
       steady: this.inspectScopedDemandSignal("market.village", "produce"),
       bold: this.inspectScopedDemandSignal("market.harbor", "sport-fish")
     });
+  }
+
+  /**
+   * Demand outlook for one commodity across a window of days, evaluated with
+   * the same `demandFromSupply` the stall prices with. Supply is pinned at the
+   * stall's current stock: tomorrow's stock depends on trade nobody has done
+   * yet, so this projects the seeded daily trend rather than predicting stock.
+   */
+  public inspectDemandTrend(
+    marketId: MarketId,
+    itemId: ItemId,
+    days: number = 5
+  ): MarketDemandTrendDto | null {
+    const { state } = this.context;
+    const market = state.markets[marketId];
+    const commodity = market?.commodities[itemId];
+    if (!market || !commodity) return null;
+
+    const window = Math.max(2, Math.min(14, Math.floor(days)));
+    const hourNow = state.clock.currentMinute / 60;
+    const toPercent = (demand: number): number => Math.round(demand * 100);
+
+    const points = Array.from({ length: window }, (_, dayOffset) => ({
+      dayOffset,
+      demandPercent: toPercent(
+        demandFromSupply(commodity, commodity.localSupply, hourNow + dayOffset * 24, state.worldSeed)
+      )
+    }));
+
+    const current = points[0].demandPercent;
+    const last = points[points.length - 1].demandPercent;
+    // A few points of drift is noise, not a trend worth calling.
+    const delta = last - current;
+    const item = ContentRegistry.items.get(itemId) ?? ContentRegistry.fishSpecies.get(itemId);
+
+    return {
+      marketId,
+      itemId,
+      itemName: item?.name ?? itemId,
+      points,
+      currentDemandPercent: current,
+      direction: delta >= 5 ? "rising" : delta <= -5 ? "falling" : "steady",
+      localSupply: commodity.localSupply,
+      targetSupply: commodity.targetSupply
+    };
   }
 
   private inspectScopedDemandSignal(
@@ -409,6 +456,7 @@ export class MarketDomain {
       marketId,
       name: marketDefinition.name,
       money: state.player.money,
+      dayInSeason: dayOfSeason(state.clock.dayCount),
       buyRows,
       sellRows,
       fishRows,

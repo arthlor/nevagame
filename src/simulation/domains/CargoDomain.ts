@@ -56,6 +56,13 @@ export class CargoDomain {
       firstCaughtMinute: state.clock.currentMinute
     };
     const record = state.journal.fishRecords[fish.speciesId];
+    // A landmark catch is named before the journal moves on: first of its
+    // kind, heaviest yet, or finest yet — in that priority.
+    const priorBest = record.catchCount > 0 ? record : null;
+    let catchRecord: "first" | "weight" | "quality" | undefined;
+    if (!priorBest) catchRecord = "first";
+    else if (fish.weightKg > (priorBest.largestWeightKg ?? 0)) catchRecord = "weight";
+    else if (qualityRank(fish.quality) > qualityRank(priorBest.bestQuality)) catchRecord = "quality";
     record.catchCount += 1;
     record.largestWeightKg = Math.max(record.largestWeightKg ?? 0, fish.weightKg);
     if (qualityRank(fish.quality) > qualityRank(record.bestQuality)) record.bestQuality = fish.quality;
@@ -74,6 +81,7 @@ export class CargoDomain {
       boatId: location.type === "boat-hold" || location.type === "boat-hook" ? location.containerId : undefined,
       weightKg: fish.weightKg,
       quality: fish.quality,
+      record: catchRecord,
       minute: state.clock.currentMinute
     });
     // FishLanded advances the authored land step first. Emitting the physical
@@ -120,6 +128,38 @@ export class CargoDomain {
     return { success: true, scraps: canGrantScraps ? scraps : 0 };
   }
 
+  /**
+   * Releases a living catch back to the water. Frees the slot with no
+   * material return — no sale, no scraps, no extra XP. Journal records and
+   * already-consumed school catch stand: landing, not keeping, is what the
+   * school and the records observe, so release can never farm either.
+   */
+  public release(
+    cargoId: FishCargoId,
+    marketId?: MarketId
+  ): { success: boolean; reason?: string } {
+    const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
+    const cargo = state.fishCargo[cargoId];
+    if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if (!this.navigation.canAccessFishCargo(cargo, marketId)) {
+      return { success: false, reason: "Move to the fish cargo before releasing it" };
+    }
+    if (cargo.freshness <= 0) {
+      return { success: false, reason: "The fish is spoiled — make scraps instead" };
+    }
+    this.clearPointers(cargo);
+    delete state.fishCargo[cargoId];
+    events.emit("FishReleased", {
+      cargoId,
+      speciesId: cargo.speciesId,
+      weightKg: cargo.weightKg,
+      quality: cargo.quality,
+      minute: state.clock.currentMinute
+    });
+    return { success: true };
+  }
+
   public tick(minutes: number, startMinute: number = this.context.state.clock.currentMinute - minutes): void {
     const { state } = this.context;
     advanceCargoFreshness(state, minutes, startMinute);
@@ -147,6 +187,8 @@ export class CargoDomain {
     const supplyIds: ItemId[] = [
       "item.bait_worms",
       "item.chum_bucket",
+      "item.chum_rich",
+      "item.chum_deep",
       "item.basic_lure",
       "item.crushed_ice",
       "item.boat_fuel"
@@ -168,7 +210,8 @@ export class CargoDomain {
           percent: Math.round((boat.durability / Math.max(1, maximum)) * 100)
         },
         occupiedSlots: cargoSlots.filter((slot) => slot.cargo !== null).length,
-        cargoSlots
+        cargoSlots,
+        stock: this.stockRows(boat.supplyInventoryId)
       };
     });
     const carried = state.player.carriedFishCargoId
@@ -187,6 +230,7 @@ export class CargoDomain {
         totalSlots: vessels.reduce((total, vessel) => total + vessel.cargoSlots.length, 0)
       },
       carriedCatch: carried ? buildCargoPresentation(carried) : null,
+      satchelStock: this.stockRows(state.player.inventoryId),
       supplies: supplyIds.map((itemId) => ({
         itemId,
         name: ContentRegistry.items.get(itemId)?.name ?? itemId,
@@ -194,6 +238,29 @@ export class CargoDomain {
       })),
       vessels
     };
+  }
+
+  /**
+   * Stackable goods in one inventory, merged per item and named for display.
+   * Used for the ledger's transfer rows; fish cargo is excluded because it
+   * occupies cargo slots and moves under its own rules.
+   */
+  private stockRows(inventoryId: string): Array<{ itemId: ItemId; name: string; count: number }> {
+    const inventory = this.context.state.inventories[inventoryId];
+    if (!inventory) return [];
+    const totals = new Map<string, number>();
+    for (const slot of inventory.slots) {
+      const quantity = InventoryManager.getSlotQuantity(slot);
+      if (!slot.itemId || quantity <= 0) continue;
+      totals.set(slot.itemId, (totals.get(slot.itemId) ?? 0) + quantity);
+    }
+    return [...totals.entries()]
+      .map(([itemId, count]) => ({
+        itemId: itemId as ItemId,
+        name: ContentRegistry.items.get(itemId)?.name ?? itemId,
+        count
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private findLandingLocation(cargoClass: CargoClass): CargoLocation | null {

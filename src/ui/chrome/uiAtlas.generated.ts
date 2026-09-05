@@ -3,6 +3,31 @@
 
 const ATLAS = "/assets/ui/atlas";
 
+/** Wayfarer HUD paintings: pewter, leather, paper and equipment. */
+export const UI_TIDEBOOK = {
+  "quest-panel": `${ATLAS}/tidebook-quest-panel.png`,
+  "tool-plaque": `${ATLAS}/tidebook-tool-plaque.png`,
+  "tool-plaque-selected": `${ATLAS}/tidebook-tool-plaque-selected.png`,
+  "clock-face": `${ATLAS}/tidebook-clock-face.png`,
+  "calendar-tag": `${ATLAS}/tidebook-calendar-tag.png`,
+  "purse-tag": `${ATLAS}/tidebook-purse-tag.png`,
+  "label-paper": `${ATLAS}/tidebook-label-paper.png`,
+  "navigation-rail": `${ATLAS}/tidebook-navigation-rail.png`,
+  "sea-dial": `${ATLAS}/tidebook-sea-dial.png`,
+  "pointer": `${ATLAS}/tidebook-pointer.png`,
+  "meter-frame": `${ATLAS}/tidebook-meter-frame.png`,
+  "hoe": `${ATLAS}/tidebook-hoe.png`,
+  "seeds": `${ATLAS}/tidebook-seeds.png`,
+  "water": `${ATLAS}/tidebook-water.png`,
+  "rod": `${ATLAS}/tidebook-rod.png`,
+  "harvest": `${ATLAS}/tidebook-harvest.png`,
+  "satchel": `${ATLAS}/tidebook-satchel.png`,
+  "journal": `${ATLAS}/tidebook-journal.png`,
+  "map": `${ATLAS}/tidebook-map.png`,
+} as const;
+
+export type TidebookSpriteKey = keyof typeof UI_TIDEBOOK;
+
 /** Catchable species, used in HUD cargo, journal, market and both fishing modes. */
 export const UI_FISH = {
   "fish.carp": `${ATLAS}/fish-carp.png`,
@@ -265,4 +290,4 @@ export type ChromeSpriteKey = keyof typeof UI_CHROME;
 /** Seamless paper tile behind every panel. Copied whole, not keyed. */
 export const UI_PARCHMENT_GRAIN = `${ATLAS}/parchment-grain.png`;
 
-export const UI_ATLAS_SPRITE_COUNT = 139;
+export const UI_ATLAS_SPRITE_COUNT = 158;

@@ -18,36 +18,71 @@
           <span class="hud-sep" aria-hidden="true">·</span>
           <span id="hud-view-badge">3/4 · 8m</span>
           <span class="hud-sep" aria-hidden="true">·</span>
+          <span id="hud-dims-badge">—</span>
+          <span class="hud-sep" aria-hidden="true">·</span>
           <span id="hud-tris-badge">—</span>
         </div>
 
-        <div class="stage-toolbar" aria-label="Camera">
+        <div class="stage-toolbar" aria-label="Viewport controls">
           <button type="button" data-cam="front" title="Front (1)">Front</button>
           <button type="button" data-cam="three-quarter" class="active" title="3/4 (2)">3/4</button>
           <button type="button" data-cam="side" title="Side (3)">Side</button>
           <button type="button" data-cam="rear" title="Rear (4)">Rear</button>
           <button type="button" data-cam="top" title="Top (5)">Top</button>
           <button type="button" id="cam-fit-btn" title="Fit (F)">Fit</button>
+          <button type="button" id="cam-eye-btn" title="Eye Level 1.6m (6)">Eye</button>
+          <span class="toolbar-sep" aria-hidden="true"></span>
+          <button type="button" id="origin-axes-btn" title="Origin XYZ Axes (O)">Axes</button>
+          <button type="button" id="help-btn" title="Keyboard Shortcuts (?)">Help</button>
           <button type="button" id="toggle-panel-btn" title="Toggle panel (Tab)">Hide</button>
         </div>
       </section>
 
       <aside class="yard-panel" id="yard-panel">
         <header class="panel-heading">
-          <h1>Art Yard</h1>
-          <a href="/" class="back-link">Game</a>
+          <div class="panel-heading-brand">
+            <h1>Art Yard</h1>
+            <span class="panel-badge">Studio</span>
+          </div>
+          <div class="panel-heading-actions">
+            <button type="button" id="copy-link-btn" class="header-action-btn" title="Copy shareable link">Share</button>
+            <a href="/" class="back-link">Game</a>
+          </div>
         </header>
 
-        <section class="panel-asset" aria-labelledby="sec-asset">
+        <nav class="panel-tab-nav" aria-label="Studio views">
+          <button type="button" class="tab-btn active" data-tab="assets" id="tab-btn-assets">Assets</button>
+          <button type="button" class="tab-btn" data-tab="inspect" id="tab-btn-inspect">Inspect</button>
+          <button type="button" class="tab-btn" data-tab="animate" id="tab-btn-animate">Animate</button>
+          <button type="button" class="tab-btn" data-tab="environment" id="tab-btn-environment">Environment</button>
+          <button type="button" class="tab-btn" data-tab="metrics" id="tab-btn-metrics">Metrics</button>
+        </nav>
+
+        <!-- Tab 1: Assets -->
+        <div class="tab-pane active" id="tab-content-assets" role="tabpanel" aria-labelledby="tab-btn-assets">
           <div class="section-title-row">
-            <h2 id="sec-asset">Asset</h2>
+            <h2>Catalog</h2>
             <span class="count-badge" id="asset-count-badge">0</span>
           </div>
 
+          <div class="category-chip-row" id="category-chips" aria-label="Category filters">
+            <button type="button" class="chip active" data-family="all">All</button>
+            <button type="button" class="chip" data-family="architecture">Architecture</button>
+            <button type="button" class="chip" data-family="prop">Prop</button>
+            <button type="button" class="chip" data-family="boat">Boat</button>
+            <button type="button" class="chip" data-family="vegetation">Vegetation</button>
+            <button type="button" class="chip" data-family="crop">Crop</button>
+            <button type="button" class="chip" data-family="fish">Fish</button>
+            <button type="button" class="chip" data-family="character">Character</button>
+            <button type="button" class="chip" data-family="rock">Rock</button>
+            <button type="button" class="chip" data-family="cloud">Cloud</button>
+            <button type="button" class="chip" data-family="showcase">Showcase</button>
+          </div>
+
           <div class="asset-filter-row">
-            <input id="asset-search" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter assets" />
+            <input id="asset-search" type="search" placeholder="Search catalog…" spellcheck="false" aria-label="Filter assets" />
             <select id="family-filter" aria-label="Family">
-              <option value="all" selected>All</option>
+              <option value="all" selected>All Families</option>
               <option value="showcase">Showcases</option>
               <option value="architecture">Architecture</option>
               <option value="prop">Prop</option>
@@ -62,128 +97,184 @@
           </div>
 
           <label class="sr-only" for="asset-select">Active asset</label>
-          <select id="asset-select" size="8" class="asset-select"></select>
+          <select id="asset-select" size="11" class="asset-select"></select>
 
           <div class="asset-nav-row">
             <button type="button" id="prev-asset-btn" title="Previous ([)">Prev</button>
             <button type="button" id="next-asset-btn" title="Next (])">Next</button>
-            <button type="button" id="copy-asset-id-btn" title="Copy ID">Copy ID</button>
+            <button type="button" id="copy-asset-id-btn" title="Copy asset ID">Copy ID</button>
           </div>
-        </section>
+        </div>
 
-        <section class="panel-fold" id="animation-section" style="display: none;" aria-labelledby="sec-anim">
-          <h2 id="sec-anim">Animation</h2>
-
-          <label class="field-label" for="clip-select">Clip</label>
-          <select id="clip-select"></select>
-
-          <label class="field-label" for="animation-context-select">Context</label>
-          <select id="animation-context-select">
-            <option value="auto">Automatic</option>
-            <option value="on-foot">On foot</option>
-            <option value="rowboat">Rowboat</option>
-            <option value="skiff">Skiff</option>
-          </select>
-
-          <div class="anim-control-row">
-            <button type="button" id="anim-play-toggle" class="anim-action-btn primary">Pause</button>
-            <button type="button" id="anim-step-back-btn" class="anim-action-btn" title="Step back 0.1s">−0.1s</button>
-            <button type="button" id="anim-step-fwd-btn" class="anim-action-btn" title="Step forward 0.1s">+0.1s</button>
-            <div class="speed-select-wrap">
-              <label for="anim-speed" class="sr-only">Speed</label>
-              <select id="anim-speed" title="Playback speed">
-                <option value="0.25">0.25×</option>
-                <option value="0.5">0.5×</option>
-                <option value="1.0" selected>1×</option>
-                <option value="1.5">1.5×</option>
-                <option value="2.0">2×</option>
-              </select>
+        <!-- Tab 2: Inspect -->
+        <div class="tab-pane" id="tab-content-inspect" role="tabpanel" aria-labelledby="tab-btn-inspect">
+          <div class="inspect-card">
+            <div class="inspect-stat-header">Physical Dimensions</div>
+            <div class="inspect-stat-grid">
+              <div class="stat-cell">
+                <span class="stat-label">Size (W × H × D)</span>
+                <span class="stat-val" id="dim-whd-val">—</span>
+              </div>
+              <div class="stat-cell">
+                <span class="stat-label">Clearance</span>
+                <span class="stat-val" id="dim-clearance-val">—</span>
+              </div>
+              <div class="stat-cell">
+                <span class="stat-label">Footprint Area</span>
+                <span class="stat-val" id="dim-footprint-val">—</span>
+              </div>
             </div>
           </div>
 
-          <div class="scrubber-row">
-            <label class="field-label" for="anim-scrubber">Time <output id="anim-time-output">0.00s / 0.00s</output></label>
-            <input id="anim-scrubber" type="range" min="0" max="1" step="0.001" value="0" />
+          <div class="field-group">
+            <label class="field-label" for="shading-select">Shading Mode</label>
+            <select id="shading-select">
+              <option value="lit" selected>Lit</option>
+              <option value="unlit">Unlit (Flat)</option>
+              <option value="wireframe_overlay">Wire overlay</option>
+              <option value="wireframe_pure">Wire</option>
+              <option value="vertex_colors">Vertex color</option>
+              <option value="normals">Normals</option>
+              <option value="lod0">LOD0</option>
+              <option value="lod1">LOD1</option>
+            </select>
           </div>
 
-          <label class="field-label" for="socket-prop-select">Hand prop</label>
-          <select id="socket-prop-select">
-            <option value="none">None</option>
-            <option value="tool_fishing_rod_a">Fishing rod</option>
-            <option value="tool_watering_can_a">Watering can</option>
-            <option value="tool_sickle_a">Sickle</option>
-            <option value="tool_seed_pouch_a">Seed pouch</option>
-            <option value="prop_harvest_basket_a">Harvest basket</option>
-            <option value="prop_crop_bundle_a">Crop bundle</option>
-            <option value="tool_workstation_scoop_a">Scoop</option>
-          </select>
-        </section>
-
-        <details class="panel-fold">
-          <summary>View</summary>
-          <label class="field-label" for="distance-range">Distance <output id="distance-output">8 m</output></label>
-          <input id="distance-range" type="range" min="1" max="80" step="1" value="8" />
-          <div class="chip-row" aria-label="Distance presets">
-            <button type="button" data-dist="2">2m</button>
-            <button type="button" data-dist="4">4m</button>
-            <button type="button" data-dist="8">8m</button>
-            <button type="button" data-dist="15">15m</button>
-            <button type="button" data-dist="30">30m</button>
-          </div>
-          <div class="turntable-row">
-            <label class="toggle-checkbox">
-              <input id="turntable-toggle" type="checkbox" />
-              <span>Rotate</span>
-            </label>
-            <div class="turntable-speed-wrap">
-              <label for="turntable-speed" class="field-label-sm">Speed</label>
-              <input id="turntable-speed" type="range" min="0.2" max="3" step="0.1" value="1.0" />
+          <div class="field-group">
+            <span class="field-label">Visual Overlays</span>
+            <div class="toggles-grid">
+              <label class="toggle-checkbox">
+                <input id="bounds-toggle" type="checkbox" />
+                <span>Bounds (B)</span>
+              </label>
+              <label class="toggle-checkbox">
+                <input id="sockets-toggle" type="checkbox" />
+                <span>Sockets (S)</span>
+              </label>
+              <label class="toggle-checkbox">
+                <input id="skeleton-toggle" type="checkbox" />
+                <span>Skeleton (K)</span>
+              </label>
+              <label class="toggle-checkbox">
+                <input id="origin-toggle" type="checkbox" />
+                <span>Origin (O)</span>
+              </label>
+              <label class="toggle-checkbox">
+                <input id="collision-toggle" type="checkbox" />
+                <span>Collision (C)</span>
+              </label>
+              <label class="toggle-checkbox">
+                <input id="shadows-toggle" type="checkbox" checked />
+                <span>Shadows</span>
+              </label>
             </div>
           </div>
-        </details>
 
-        <details class="panel-fold">
-          <summary>Shading</summary>
-          <label class="field-label" for="shading-select">Mode</label>
-          <select id="shading-select">
-            <option value="lit" selected>Lit</option>
-            <option value="wireframe_overlay">Wire overlay</option>
-            <option value="wireframe_pure">Wire</option>
-            <option value="vertex_colors">Vertex color</option>
-            <option value="normals">Normals</option>
-            <option value="lod0">LOD0</option>
-            <option value="lod1">LOD1</option>
-          </select>
-          <div class="flag-row">
-            <label class="toggle-checkbox">
-              <input id="bounds-toggle" type="checkbox" />
-              <span>Bounds</span>
-            </label>
-            <label class="toggle-checkbox">
-              <input id="collision-toggle" type="checkbox" />
-              <span>Collision</span>
-            </label>
-            <label class="toggle-checkbox">
-              <input id="shadows-toggle" type="checkbox" checked />
-              <span>Shadows</span>
-            </label>
+          <div class="inspect-sockets-section">
+            <div class="section-title-row">
+              <h2>Sockets Inspector</h2>
+              <span class="count-badge" id="sockets-count-badge">0</span>
+            </div>
+            <div id="sockets-list" class="sockets-inspector-list"></div>
+            <div id="sockets-empty-msg" class="empty-state-text">No sockets on active model</div>
           </div>
-        </details>
+        </div>
 
-        <details class="panel-fold">
-          <summary>Environment</summary>
-          <label class="field-label" for="time-range">Time <output id="time-output">12:00</output></label>
-          <input id="time-range" type="range" min="0" max="1439" step="1" value="720" />
-          <div class="chip-row" aria-label="Time presets">
-            <button type="button" data-time="480">8:00</button>
-            <button type="button" data-time="720">12:00</button>
-            <button type="button" data-time="1020">17:00</button>
-            <button type="button" data-time="1110">18:30</button>
-            <button type="button" data-time="1180">19:40</button>
-            <button type="button" data-time="1320">22:00</button>
+        <!-- Tab 3: Animate -->
+        <div class="tab-pane" id="tab-content-animate" role="tabpanel" aria-labelledby="tab-btn-animate">
+          <div id="no-anim-msg" class="empty-state-text">Selected asset has no skeletal animations.</div>
+
+          <section id="animation-section" style="display: none;" aria-labelledby="sec-anim-heading">
+            <h2 id="sec-anim-heading" class="sr-only">Animation Controls</h2>
+
+            <label class="field-label" for="clip-select">Clip</label>
+            <select id="clip-select"></select>
+
+            <div class="anim-settings-grid">
+              <div>
+                <label class="field-label" for="animation-mode-select">Playback</label>
+                <select id="animation-mode-select">
+                  <option value="runtime">Runtime context</option>
+                  <option value="raw">Raw clip</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="animation-context-select">Context</label>
+                <select id="animation-context-select">
+                  <option value="auto">Automatic</option>
+                  <option value="on-foot">On foot</option>
+                  <option value="rowboat">Rowboat</option>
+                  <option value="skiff">Skiff</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="anim-control-row">
+              <button type="button" id="anim-play-toggle" class="anim-action-btn primary">Pause</button>
+              <button type="button" id="anim-step-frame-back-btn" class="anim-action-btn" title="Step back 1 frame (-1f)">-1f</button>
+              <button type="button" id="anim-step-back-btn" class="anim-action-btn" title="Step back 0.1s">-0.1s</button>
+              <button type="button" id="anim-step-fwd-btn" class="anim-action-btn" title="Step forward 0.1s">+0.1s</button>
+              <button type="button" id="anim-step-frame-fwd-btn" class="anim-action-btn" title="Step forward 1 frame (+1f)">+1f</button>
+            </div>
+
+            <div class="anim-secondary-row">
+              <div class="speed-select-wrap">
+                <label for="anim-speed" class="field-label-sm">Speed</label>
+                <select id="anim-speed" title="Playback speed">
+                  <option value="0.25">0.25×</option>
+                  <option value="0.5">0.5×</option>
+                  <option value="1.0" selected>1×</option>
+                  <option value="1.5">1.5×</option>
+                  <option value="2.0">2×</option>
+                </select>
+              </div>
+              <label class="toggle-checkbox">
+                <input id="anim-loop-toggle" type="checkbox" checked />
+                <span>Loop Clip</span>
+              </label>
+            </div>
+
+            <div class="scrubber-row">
+              <label class="field-label" for="anim-scrubber">Time <output id="anim-time-output">0.00s / 0.00s</output></label>
+              <input id="anim-scrubber" type="range" min="0" max="1" step="0.001" value="0" />
+            </div>
+
+            <label class="field-label" for="socket-prop-select">Hand Prop</label>
+            <select id="socket-prop-select">
+              <option value="none">None</option>
+              <option value="tool_fishing_rod_a">Fishing rod</option>
+              <option value="tool_watering_can_a">Watering can</option>
+              <option value="tool_sickle_a">Sickle</option>
+              <option value="tool_seed_pouch_a">Seed pouch</option>
+              <option value="prop_harvest_basket_a">Harvest basket</option>
+              <option value="prop_crop_bundle_a">Crop bundle</option>
+              <option value="fish_trout_a">Trout cargo</option>
+              <option value="fish_tuna_a">Tuna cargo</option>
+              <option value="tool_workstation_scoop_a">Scoop</option>
+            </select>
+          </section>
+        </div>
+
+        <!-- Tab 4: Environment -->
+        <div class="tab-pane" id="tab-content-environment" role="tabpanel" aria-labelledby="tab-btn-environment">
+          <div class="field-group">
+            <label class="field-label" for="time-range">Time of Day <output id="time-output">12:00</output></label>
+            <input id="time-range" type="range" min="0" max="1439" step="1" value="720" />
+            <div class="chip-row" aria-label="Time presets">
+              <button type="button" data-time="480">8:00</button>
+              <button type="button" data-time="720">12:00</button>
+              <button type="button" data-time="1020">17:00</button>
+              <button type="button" data-time="1110">18:30</button>
+              <button type="button" data-time="1180">19:40</button>
+              <button type="button" data-time="1320">22:00</button>
+            </div>
           </div>
-          <label class="field-label" for="azimuth-range">Azimuth <output id="azimuth-output">45°</output></label>
-          <input id="azimuth-range" type="range" min="0" max="360" step="5" value="45" />
+
+          <div class="field-group">
+            <label class="field-label" for="azimuth-range">Sun Azimuth <output id="azimuth-output">45°</output></label>
+            <input id="azimuth-range" type="range" min="0" max="360" step="5" value="45" />
+          </div>
+
           <div class="env-row">
             <div>
               <label class="field-label" for="weather-select">Weather</label>
@@ -194,7 +285,7 @@
               </select>
             </div>
             <div>
-              <label class="field-label" for="ground-select">Ground</label>
+              <label class="field-label" for="ground-select">Ground Surface</label>
               <select id="ground-select">
                 <option value="grass" selected>Grass</option>
                 <option value="sand">Sand</option>
@@ -204,22 +295,77 @@
               </select>
             </div>
           </div>
+
           <label class="toggle-checkbox water-toggle">
             <input id="water-toggle" type="checkbox" />
-            <span>Water</span>
+            <span>Water Plane</span>
           </label>
-        </details>
 
-        <details class="panel-fold">
-          <summary>Metrics <span class="count-badge" id="source-badge">published</span></summary>
+          <div class="field-group">
+            <label class="field-label" for="distance-range">Camera Distance <output id="distance-output">8 m</output></label>
+            <input id="distance-range" type="range" min="1" max="80" step="1" value="8" />
+            <div class="chip-row" aria-label="Distance presets">
+              <button type="button" data-dist="2">2m</button>
+              <button type="button" data-dist="4">4m</button>
+              <button type="button" data-dist="8">8m</button>
+              <button type="button" data-dist="15">15m</button>
+              <button type="button" data-dist="30">30m</button>
+            </div>
+          </div>
+
+          <div class="turntable-row">
+            <label class="toggle-checkbox">
+              <input id="turntable-toggle" type="checkbox" />
+              <span>Rotate (T)</span>
+            </label>
+            <div class="turntable-speed-wrap">
+              <label for="turntable-speed" class="field-label-sm">Speed</label>
+              <input id="turntable-speed" type="range" min="0.2" max="3" step="0.1" value="1.0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Metrics -->
+        <div class="tab-pane" id="tab-content-metrics" role="tabpanel" aria-labelledby="tab-btn-metrics">
+          <div class="section-title-row">
+            <h2>Stage & Budgets</h2>
+            <span class="count-badge" id="source-badge">published</span>
+          </div>
           <div class="stage-input-row">
             <input id="stage-input" type="text" placeholder="published or run-…" spellcheck="false" aria-label="Art stage" />
             <button id="stage-apply" type="button">Apply</button>
           </div>
           <dl id="metrics-list" class="metrics-grid"></dl>
-        </details>
+        </div>
       </aside>
     </main>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <dialog id="shortcuts-modal" class="shortcuts-modal" aria-labelledby="shortcuts-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="shortcuts-title">Keyboard Shortcuts</h2>
+          <button type="button" id="close-shortcuts-btn" class="modal-close-btn" aria-label="Close shortcuts">Close</button>
+        </div>
+        <div class="shortcuts-list">
+          <div class="shortcut-item"><kbd>1</kbd>–<kbd>5</kbd><span>Camera angles (Front, 3/4, Side, Rear, Top)</span></div>
+          <div class="shortcut-item"><kbd>6</kbd><span>Eye-level camera (1.6m POV)</span></div>
+          <div class="shortcut-item"><kbd>F</kbd><span>Fit camera framing to bounds</span></div>
+          <div class="shortcut-item"><kbd>Space</kbd><span>Play / Pause animation (or toggle turntable)</span></div>
+          <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>Previous / Next asset</span></div>
+          <div class="shortcut-item"><kbd>W</kbd><span>Toggle wireframe overlay</span></div>
+          <div class="shortcut-item"><kbd>C</kbd><span>Toggle collision primitives</span></div>
+          <div class="shortcut-item"><kbd>B</kbd><span>Toggle bounding box</span></div>
+          <div class="shortcut-item"><kbd>S</kbd><span>Toggle authoring sockets</span></div>
+          <div class="shortcut-item"><kbd>K</kbd><span>Toggle skeleton rig helper</span></div>
+          <div class="shortcut-item"><kbd>O</kbd><span>Toggle origin XYZ axes</span></div>
+          <div class="shortcut-item"><kbd>T</kbd><span>Toggle turntable auto-rotation</span></div>
+          <div class="shortcut-item"><kbd>Tab</kbd><span>Show / Hide side panel</span></div>
+          <div class="shortcut-item"><kbd>?</kbd><span>Open keyboard shortcuts</span></div>
+          <div class="shortcut-item"><kbd>Esc</kbd><span>Close modal dialog</span></div>
+        </div>
+      </div>
+    </dialog>
 
     <script type="module" src="/src/art-yard/main.ts"></script>
   </body>

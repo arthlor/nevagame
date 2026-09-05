@@ -5,7 +5,9 @@ import type {
   BasicFishingState,
   BoatId,
   CargoClass,
+  FishBehavior,
   FishSchoolId,
+  FishSchoolState,
   FishSpeciesId,
   FishingEncounterState,
   FishInstance,
@@ -13,7 +15,12 @@ import type {
   GameState
 } from "../core/types";
 import { BasicFishingMinigame } from "../fishing/BasicFishingMinigame";
-import { FishingEncounter, sportFishingStartDistanceMeters } from "../fishing/FishingEncounter";
+import { castWindEffect, type CastWindEffect } from "../fishing/castWind";
+import {
+  FishingEncounter,
+  sportFishingMaxStartDistanceMeters,
+  sportFishingStartDistanceForWeight
+} from "../fishing/FishingEncounter";
 import {
   FISHING_TUNING,
   FISHING_STEER_INPUT_MAX,
@@ -26,13 +33,17 @@ import {
   consumeAccessibleFishingSupply
 } from "../fishing/FishingSupplies";
 import { isSpeciesInSeason, speciesSeasonWeight } from "../fishing/seasonalAvailability";
+
+/** Telemetry ratios are reported as -1..1 before being scaled to a percentage. */
+const clampUnit = (value: number): number =>
+  Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import { distance2d } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
-import { cargoClassFits, rodMeetsMinimum, rollSpeciesWeightKg } from "./domainRules";
-import type { SportFishingHudDto } from "../core/contracts";
+import { cargoClassFits, freeHandsBlocker, rodMeetsMinimum, rollSpeciesWeightKg } from "./domainRules";
+import type { SportFishingHudDto, WaterReadingDto } from "../core/contracts";
 import {
   FISHING_ECOLOGY_DEFINITIONS,
   type FishingEcologyId
@@ -53,6 +64,8 @@ const SCHOOL_POSITION_OFFSETS = Object.freeze([
   { x: 2.5, z: -4 }
 ]);
 export const BASIC_FISHING_WORK_COST = 15;
+/** Bite-reaction is a short input window; a hitch must not consume the whole cue. */
+const BITE_REACTION_MAX_STEP_SECONDS = 0.05;
 /**
  * Sport-fishing hook cost scales with the size of fish a school can yield, so a
  * lake trout is a light bite of the Work pool while a pelagic tuna costs more.
@@ -67,6 +80,103 @@ export const SPORT_FISHING_WORK_COST_BY_CLASS: Record<CargoClass, number> = {
 export const SPORT_FISHING_WORK_COST = SPORT_FISHING_WORK_COST_BY_CLASS.medium;
 /** Portion of the discounted hook cost returned when a hooked sport fish is lost. */
 export const SPORT_FISHING_WORK_REFUND_RATIO = 0.6;
+/** Fight seconds a species signature moment stays on the HUD after it fires. */
+export const SIGNATURE_MOMENT_SECONDS = 3;
+/**
+ * Characteristic behavior that triggers each sport species' one-per-fight
+ * signature moment. `"run"` matches either lateral run direction.
+ */
+const SIGNATURE_TRIGGER_BEHAVIOR: Record<string, "run" | FishBehavior> = {
+  "fish.trout": "surface",
+  "fish.catfish": "dive",
+  "fish.pike": "shake",
+  "fish.arowana": "surface",
+  "fish.tuna": "run",
+  "fish.sturgeon": "dive",
+  "fish.sailfish": "surface",
+  "fish.swordfish": "burst",
+  "fish.blue_marlin": "surface",
+  "fish.carp": "run",
+  "fish.amberjack": "run"
+};
+/** HUD copy for each signature moment, keyed by species id. */
+const SIGNATURE_MOMENT_COPY: Record<string, string> = {
+  "fish.trout": "The trout breaks the surface!",
+  "fish.catfish": "The catfish hangs deep and heavy.",
+  "fish.pike": "The pike shakes the hook violently!",
+  "fish.arowana": "The arowana leaps — a flash of gold!",
+  "fish.tuna": "The tuna runs — hold your line!",
+  "fish.sturgeon": "The sturgeon settles into the deep.",
+  "fish.sailfish": "The sailfish raises its sail!",
+  "fish.swordfish": "The swordfish surges with power!",
+  "fish.blue_marlin": "The marlin clears the water!",
+  "fish.carp": "The carp turns, slow and ponderous.",
+  "fish.amberjack": "The amberjack powers away!"
+};
+/**
+ * Chum cast precedence: one chum per cast, strongest scent first. Standard
+ * holds a frenzy 30 minutes, rich 60, deep 45 plus its sinker lean.
+ */
+const CHUM_CAST_PRECEDENCE = [
+  { itemId: "item.chum_deep", frenzyMinutes: 45, deep: true },
+  { itemId: "item.chum_rich", frenzyMinutes: 60, deep: false },
+  { itemId: "item.chum_bucket", frenzyMinutes: 30, deep: false }
+] as const;
+/** Sinker species feed this many times as confidently while deep chum holds. */
+export const DEEP_CHUM_SINKER_MULTIPLIER = 3;
+/** Pure hook-roll weight multiplier for the deep-chum lean. */
+export function deepChumWeightMultiplier(
+  minigameBehavior: string | undefined,
+  deepActive: boolean
+): number {
+  return deepActive && minigameBehavior === "sinker" ? DEEP_CHUM_SINKER_MULTIPLIER : 1;
+}
+/**
+ * Signature sport species per fishing ground: the fish a ground is known
+ * for. Familiarity is derived from journal catches of this species, so no
+ * ground ever needs stored memory of its own.
+ */
+export const GROUND_SIGNATURE_SPECIES: Record<string, string> = {
+  "ecology.neva:river": "fish.trout",
+  "ecology.neva:lake": "fish.trout",
+  "ecology.neva:coast": "fish.tuna",
+  "ecology.neva:offshore": "fish.blue_marlin",
+  "ecology.sunreach:coast": "fish.amberjack",
+  "ecology.sunreach:offshore": "fish.amberjack"
+};
+/** Familiarity from a signature species' lifetime landed count. Pure. */
+export function groundFamiliarityLevel(signatureCatchCount: number): 0 | 1 | 2 | 3 {
+  if (signatureCatchCount >= 12) return 3;
+  if (signatureCatchCount >= 6) return 2;
+  if (signatureCatchCount >= 2) return 1;
+  return 0;
+}
+/** Hook-roll weight multiplier for a familiar ground's signature species. Pure. */
+export function familiarityWeightMultiplier(level: number): number {
+  return 1 + 0.25 * Math.max(0, Math.min(3, level));
+}
+/** Water-reading brief words per familiarity level; level 0 stays silent. */
+export const FAMILIARITY_LABEL: Record<number, string> = {
+  1: "familiar water",
+  2: "well-known water",
+  3: "home water"
+};
+/** Calm-water ceiling for the Act 5 teaching fight's sea snapshot. */
+export const STARTER_SCHOOL_CALM_ROUGHNESS = 0.25;
+
+/**
+ * The Act 5 starter school by construction: trout-only, lake, Neva ecology.
+ * Matches both the relocated branch (`weight: 1`) and a fresh spawn of the
+ * same single-species pool, without new saved state.
+ */
+export function isStarterTeachingSchool(school: FishSchoolState): boolean {
+  return (
+    school.ecologyId === "ecology.neva" &&
+    school.habitatId === "lake" &&
+    school.speciesWeights.length === 1 &&
+    school.speciesWeights[0].speciesId === "fish.trout"
+  );
+}
 const NEVA_SCHOOL_POINTS = FISHING_ECOLOGY_DEFINITIONS["ecology.neva"].schoolSpawnPoints;
 export const SPORT_FISHING_REVIEW_POINTS = {
   trout: { ...NEVA_SCHOOL_POINTS[0], speciesId: "fish.trout" },
@@ -189,9 +299,31 @@ export function expireSpentSchools(state: GameState): void {
   }
 }
 
+/** Radius inside which a Skilled angler senses feeding, in metres. */
+const WATER_READING_NEARBY_METERS = 80;
+/** Radius inside which an Expert angler places the feeding water. */
+const WATER_READING_RANGED_METERS = 180;
+
+const waterWord = (value: string): string =>
+  value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
 export class FishingDomain {
   private encounter: FishingEncounter | null = null;
   private pendingLandSchoolId: FishSchoolId | null = null;
+  /**
+   * Transient one-per-fight signature-moment memory. Keyed by fish instance
+   * id so a stale entry from a resolved fight can never fire. Never
+   * serialized; a reloaded fight simply gets its moment again.
+   */
+  private signatureMoment: {
+    instanceId: string;
+    id: string;
+    copy: string;
+    startElapsedSeconds: number;
+  } | null = null;
 
   constructor(
     private readonly context: DomainContext,
@@ -252,6 +384,38 @@ export class FishingDomain {
     const lineIntegrityPercent = Math.min(100, Math.max(0, encounter.lineIntegrity));
     const behavior = fishingBehaviorReadout(encounter, profile);
     const windOpportunity = fishingWindOpportunity(encounter);
+
+    // Telemetry is a straight read of the numbers the encounter is already
+    // integrating each step: no second simulation, no smoothing of its own.
+    const dynamics = encounter.dynamics;
+    const rodDeflection = dynamics
+      ? clampUnit(dynamics.rodDirection / FISHING_STEER_INPUT_MAX)
+      : 0;
+    // The fight already scores this: a rod laid against the fish's run counters
+    // it, a rod laid with the run feeds slack. Same expression the physics uses.
+    const counterSwing = dynamics
+      ? clampUnit(-dynamics.rodDirection * encounter.fishDirection / FISHING_STEER_INPUT_MAX)
+      : 0;
+    const runFullScaleMeters = Math.max(
+      FISHING_TUNING.landingDistance + 1,
+      species
+        ? sportFishingMaxStartDistanceMeters(species.cargoClass)
+        : FISHING_TUNING.landingDistance + 1
+    );
+    const runSpan = runFullScaleMeters - FISHING_TUNING.landingDistance;
+    const runDistancePercent = Math.round(
+      Math.max(0, Math.min(1,
+        (encounter.distanceMeters - FISHING_TUNING.landingDistance) / Math.max(0.001, runSpan)
+      )) * 100
+    );
+    // A fish holding still is not running either way, so it gets no cue.
+    const counterSwingCue: "left" | "right" | null =
+      Math.abs(encounter.fishDirection) < 0.15
+        ? null
+        : encounter.fishDirection > 0
+          ? "left"
+          : "right";
+
     return {
       speciesId: encounter.fish.speciesId,
       speciesName: species?.name ?? "Sport fish",
@@ -262,6 +426,8 @@ export class FishingDomain {
       steeringMagnitude: FISHING_STEER_INPUT_MAX,
       showFirstTip: encounter.elapsedSeconds < 8,
       decision: sportFishingDecision(encounter, behavior.phase, maxSafeTension, landingWindow, windOpportunity),
+      signatureMoment: this.sampleSignatureMoment(encounter),
+      dragNotch: encounter.dragNotch ?? 1,
       tensionPercent,
       tensionBands: {
         slackEndPercent: FISHING_TUNING.minimumLandingTension,
@@ -273,8 +439,169 @@ export class FishingDomain {
       showLineWarning: lineIntegrityPercent <= 55,
       landingProgress: landingWindow
         ? Math.max(0, Math.min(1, landReadySeconds / FISHING_TUNING.landReadySeconds))
-        : null
+        : null,
+      telemetry: {
+        runDistanceMeters: Math.round(encounter.distanceMeters * 10) / 10,
+        landingDistanceMeters: FISHING_TUNING.landingDistance,
+        runDistancePercent,
+        waterDepthMeters: Math.round((dynamics?.depthMeters ?? 0) * 10) / 10,
+        rodDeflectionPercent: Math.round(rodDeflection * 100),
+        counterSwingPercent: Math.round(counterSwing * 100),
+        counterSwingCue
+      }
     };
+  }
+
+  /**
+   * Pulses the fight's signature moment once: when the fish first shows its
+   * characteristic behavior, the moment fires and stays on the HUD for
+   * SIGNATURE_MOMENT_SECONDS of fight time. Pure presentation derivation —
+   * it never touches stamina, tension, RNG, or the encounter outcome.
+   */
+  private sampleSignatureMoment(
+    encounter: Readonly<FishingEncounterState>
+  ): SportFishingHudDto["signatureMoment"] {
+    const trigger = SIGNATURE_TRIGGER_BEHAVIOR[encounter.fish.speciesId];
+    const copy = SIGNATURE_MOMENT_COPY[encounter.fish.speciesId];
+    if (!trigger || !copy) return null;
+    const fired =
+      trigger === "run"
+        ? encounter.behavior === "run-left" || encounter.behavior === "run-right"
+        : encounter.behavior === trigger;
+    if (fired && this.signatureMoment?.instanceId !== encounter.fish.instanceId) {
+      this.signatureMoment = {
+        instanceId: encounter.fish.instanceId,
+        id: `${encounter.fish.speciesId}:${trigger}`,
+        copy,
+        startElapsedSeconds: encounter.elapsedSeconds
+      };
+    }
+    const memory = this.signatureMoment;
+    if (
+      !memory ||
+      memory.instanceId !== encounter.fish.instanceId ||
+      encounter.elapsedSeconds - memory.startElapsedSeconds >= SIGNATURE_MOMENT_SECONDS
+    ) {
+      return null;
+    }
+    return { id: memory.id, copy: memory.copy };
+  }
+
+  /**
+   * Reads the water at the angler's feet. Pure query: no RNG, no Work, no
+   * mutation. Conditions and the local species pool are open to everyone;
+   * sensing a school needs Skilled hands, placing it needs Expert eyes, and
+   * naming its holding needs a Master. Never reveals a position.
+   */
+  public inspectWaterReading(): WaterReadingDto | null {
+    const { state } = this.context;
+    const access = WorldLayout.fishingAccessAt(state.player.x, state.player.z);
+    const habitatId = access.habitat;
+    if (!habitatId) return null;
+    const ecologyId = WorldLayout.fishingEcologyAt(
+      access.target?.x ?? state.player.x,
+      access.target?.z ?? state.player.z
+    ).id;
+    const ecologyName = FISHING_ECOLOGY_DEFINITIONS[ecologyId]?.label ?? ecologyId;
+    const likelySpeciesNames = this.listEligibleSportSpeciesIds(ecologyId, habitatId)
+      .map((speciesId) => ContentRegistry.fishSpecies.get(speciesId)?.name)
+      .filter((name): name is string => typeof name === "string")
+      .slice(0, 3);
+    const rankIndex = this.progression.getProficiencyLevel("fishing");
+    const familiar = this.groundFamiliarity(ecologyId, habitatId);
+    const familiarityLabel = familiar.level > 0 ? FAMILIARITY_LABEL[familiar.level] : null;
+
+    let schoolHint: WaterReadingDto["schoolHint"] = null;
+    if (rankIndex >= 2) {
+      let nearest: { distance: number; habitatId: string; speciesIds: string[] } | null = null;
+      for (const school of Object.values(state.world.activeSchools)) {
+        if (school.ecologyId !== ecologyId) continue;
+        const distance = distance2d(state.player, school);
+        if (distance > WATER_READING_RANGED_METERS) continue;
+        if (!nearest || distance < nearest.distance) {
+          nearest = {
+            distance,
+            habitatId: school.habitatId,
+            speciesIds: school.speciesWeights.map((entry) => entry.speciesId)
+          };
+        }
+      }
+      if (nearest && rankIndex >= 3) {
+        const band = nearest.distance <= 30
+          ? "close by" as const
+          : nearest.distance <= WATER_READING_NEARBY_METERS
+            ? "nearby" as const
+            : "far off" as const;
+        schoolHint = {
+          level: "ranged",
+          distanceBand: band,
+          habitatName: waterWord(nearest.habitatId)
+        };
+        if (rankIndex >= 4) {
+          schoolHint.speciesNames = nearest.speciesIds
+            .map((speciesId) => ContentRegistry.fishSpecies.get(speciesId)?.name)
+            .filter((name): name is string => typeof name === "string")
+            .slice(0, 3);
+        }
+      } else if (nearest && nearest.distance <= WATER_READING_NEARBY_METERS) {
+        schoolHint = { level: "nearby" };
+      }
+    }
+
+    const conditions =
+      `${waterWord(habitatId)} water · ${waterWord(state.clock.season)} ${waterWord(state.clock.timeOfDay)} · ${waterWord(state.weather.type)}`;
+    const pool = likelySpeciesNames.length > 0
+      ? ` — ${likelySpeciesNames.join(", ")} run here`
+      : "";
+    let hint = "";
+    if (schoolHint?.level === "nearby") hint = " — fish feeding nearby!";
+    else if (schoolHint?.level === "ranged") {
+      hint = ` — feeding ${schoolHint.distanceBand}, ${schoolHint.habitatName?.toLowerCase()} water`;
+      if (schoolHint.speciesNames && schoolHint.speciesNames.length > 0) {
+        hint += `. Likely: ${schoolHint.speciesNames.join(", ")}`;
+      }
+    }
+    if (familiarityLabel) hint += ` · ${familiarityLabel}`;
+    return {
+      ecologyId,
+      ecologyName,
+      habitatId,
+      habitatName: waterWord(habitatId),
+      season: state.clock.season,
+      timeOfDay: state.clock.timeOfDay,
+      weather: state.weather.type,
+      likelySpeciesNames,
+      familiarityLabel,
+      schoolHint,
+      brief: `${conditions}${pool}${hint}`
+    };
+  }
+
+  /**
+   * Familiarity for a ground, derived from journal catches of its signature
+   * species. No stored per-ground memory exists anywhere by design.
+   */
+  private groundFamiliarity(
+    ecologyId: string,
+    habitatId: string
+  ): { level: 0 | 1 | 2 | 3; signatureSpeciesId: string | null } {
+    const signatureSpeciesId = GROUND_SIGNATURE_SPECIES[`${ecologyId}:${habitatId}`] ?? null;
+    if (!signatureSpeciesId) return { level: 0, signatureSpeciesId: null };
+    const catches = this.context.state.journal.fishRecords[signatureSpeciesId]?.catchCount ?? 0;
+    return { level: groundFamiliarityLevel(catches), signatureSpeciesId };
+  }
+
+  /**
+   * Sets the angler's drag notch (0 light, 1 balanced, 2 heavy). Applies to
+   * the live fight immediately and to every later cast and hook.
+   */
+  public setDragNotch(notch: number): { success: boolean; reason?: string } {
+    if (notch !== 0 && notch !== 1 && notch !== 2) {
+      return { success: false, reason: "Drag runs Light, Balanced or Heavy" };
+    }
+    this.context.state.player.dragNotch = notch;
+    this.encounter?.setDragNotch(notch);
+    return { success: true };
   }
 
   public setInput(input: FishingControlInput): boolean {
@@ -302,6 +629,7 @@ export class FishingDomain {
   public cancelAll(): void {
     this.encounter = null;
     this.pendingLandSchoolId = null;
+    this.signatureMoment = null;
     this.context.state.sportFishing = null;
     this.context.state.basicFishing = null;
   }
@@ -351,6 +679,8 @@ export class FishingDomain {
   public startChargingCastBasic(): { success: boolean; reason?: string; reasonCode?: string } {
     const { state } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const access = WorldLayout.fishingAccessAt(state.player.x, state.player.z);
     const habitatId = access.habitat;
@@ -389,8 +719,24 @@ export class FishingDomain {
     return { success: true };
   }
 
+  /**
+   * The wind as this cast will feel it. Kept on the domain so the charged and
+   * the immediate cast paths read the same conditions through one owner.
+   */
+  private castWindForCurrentCast(castPower: number): CastWindEffect {
+    const { state } = this.context;
+    return castWindEffect({
+      windDirectionDeg: state.weather.windDirectionDeg,
+      windSpeed: state.weather.windSpeed,
+      castHeadingRadians: state.player.rotationY,
+      castPower
+    });
+  }
+
   public releaseCastBasic(castPower?: number): { success: boolean; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     if (!state.basicFishing) return { success: false, reason: "Not casting" };
     if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
       return { success: false, reason: "Not charging a cast" };
@@ -432,10 +778,11 @@ export class FishingDomain {
       rng,
       state.weather.type,
       state.clock.timeOfDay,
-      ecologyId
+      ecologyId,
+      this.castWindForCurrentCast(power)
     );
     const lureUsed = this.consumePreparedLure();
-    newState.willCatch = rod ? rng.chance(Math.min(1, rod.hookReliability + (lureUsed ? 0.18 : 0))) : false;
+    newState.willCatch = rod ? rng.chance(Math.min(1, rod.hookReliability + (lureUsed ? 0.18 : 0) + FISHING_TUNING.dragHookDelta[state.player.dragNotch ?? 1])) : false;
     state.basicFishing = newState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { ecologyId, habitatId, castPower: power, minute: state.clock.currentMinute });
@@ -527,6 +874,8 @@ export class FishingDomain {
   public castBasic(castPower: number = 0.75): { success: boolean; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
     const access = WorldLayout.fishingAccessAt(state.player.x, state.player.z);
     const habitatId = access.habitat;
@@ -564,11 +913,12 @@ export class FishingDomain {
       rng,
       state.weather.type,
       state.clock.timeOfDay,
-      ecologyId
+      ecologyId,
+      this.castWindForCurrentCast(castPower)
     );
     fishingState.phase = "casting" as BasicFishingPhase;
     const lureUsed = this.consumePreparedLure();
-    fishingState.willCatch = rng.chance(Math.min(1, rod.hookReliability + (lureUsed ? 0.18 : 0)));
+    fishingState.willCatch = rng.chance(Math.min(1, rod.hookReliability + (lureUsed ? 0.18 : 0) + FISHING_TUNING.dragHookDelta[state.player.dragNotch ?? 1]));
     state.basicFishing = fishingState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { ecologyId, habitatId, castPower, minute: state.clock.currentMinute });
@@ -621,6 +971,8 @@ export class FishingDomain {
   public chumSchool(schoolId: FishSchoolId): { success: boolean; reason?: string } {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "School disappeared" };
     if (distance2d(state.player, school) > SCHOOL_INTERACTION_RADIUS) {
@@ -629,11 +981,21 @@ export class FishingDomain {
     if (school.feedingFrenzyUntilMinute && state.clock.currentMinute <= school.feedingFrenzyUntilMinute) {
       return { success: false, reason: "This school is already feeding" };
     }
-    if (!consumeAccessibleFishingSupply(state, "item.chum_bucket")) {
-      return { success: false, reason: "You need a Chum Bucket within reach" };
+    // One chum per cast, strongest scent first: a carried specialty blend is
+    // a deliberate choice for this water, so it always goes over the bucket.
+    let cast: (typeof CHUM_CAST_PRECEDENCE)[number] | null = null;
+    for (const candidate of CHUM_CAST_PRECEDENCE) {
+      if (accessibleFishingSupplyCount(state, candidate.itemId) > 0) {
+        cast = candidate;
+        break;
+      }
     }
-    school.feedingFrenzyUntilMinute = state.clock.currentMinute + 30;
-    events.emit("FishSchoolChummed", { schoolId, ecologyId: school.ecologyId, habitatId: school.habitatId, frenzyMinutes: 30, minute: state.clock.currentMinute });
+    if (!cast || !consumeAccessibleFishingSupply(state, cast.itemId)) {
+      return { success: false, reason: "You need chum within reach" };
+    }
+    school.feedingFrenzyUntilMinute = state.clock.currentMinute + cast.frenzyMinutes;
+    if (cast.deep) school.deepChumUntilMinute = state.clock.currentMinute + cast.frenzyMinutes;
+    events.emit("FishSchoolChummed", { schoolId, ecologyId: school.ecologyId, habitatId: school.habitatId, frenzyMinutes: cast.frenzyMinutes, minute: state.clock.currentMinute });
     return { success: true };
   }
 
@@ -642,6 +1004,8 @@ export class FishingDomain {
   ): { success: boolean; encounter?: FishingEncounterState; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
@@ -683,7 +1047,7 @@ export class FishingDomain {
         state.player.x,
         state.player.z,
         bearing,
-        sportFishingStartDistanceMeters(species.cargoClass),
+        sportFishingMaxStartDistanceMeters(species.cargoClass),
         (x, z) => WorldLayout.isSailable(x, z)
       );
       return water ? [{ entry, species, water }] : [];
@@ -701,8 +1065,20 @@ export class FishingDomain {
     if (!workQuote.affordable) {
       return this.progression.insufficientWorkResult(workQuote, "Hooking this fish");
     }
+    const deepChumActive =
+      school.deepChumUntilMinute !== undefined &&
+      state.clock.currentMinute <= school.deepChumUntilMinute;
+    const familiar = this.groundFamiliarity(school.ecologyId, school.habitatId);
     const selected = rng.weighted(
-      viableSpecies.map((candidate) => ({ value: candidate, weight: candidate.entry.weight }))
+      viableSpecies.map((candidate) => ({
+        value: candidate,
+        weight:
+          candidate.entry.weight *
+          deepChumWeightMultiplier(candidate.species.minigameBehavior, deepChumActive) *
+          (familiar.signatureSpeciesId === candidate.species.id
+            ? familiarityWeightMultiplier(familiar.level)
+            : 1)
+      }))
     );
     const speciesId = selected.entry.speciesId;
     const speciesDef = selected.species;
@@ -728,14 +1104,34 @@ export class FishingDomain {
       fish,
       state.player.equippedRodId,
       rng,
-      water.distance,
+      // A heavy specimen starts farther out and a light one closer in, but
+      // never beyond the validated continuous-water reach: the water check
+      // passed for the full reach, so any shorter distance on the same
+      // bearing is also valid.
+      Math.min(
+        water.distance,
+        sportFishingStartDistanceForWeight(
+          speciesDef.cargoClass,
+          weightKg,
+          speciesDef.weightKg.min,
+          speciesDef.weightKg.max
+        )
+      ),
       { originX: state.player.x, originZ: state.player.z, bearingRadians: water.bearing,
         isWater: (x, z) => WorldLayout.isSailable(x, z) },
       {
         tackleSnapshot: { lureItemId: lureUsed ? "item.basic_lure" : null },
+        dragNotch: state.player.dragNotch ?? 1,
         seaConditionSnapshot: {
           weatherType: state.weather.type,
-          seaRoughness: state.weather.seaRoughness
+          // The Act 5 teaching fight reads the matching rule, not the
+          // weather: a trout-only starter school hooked while the maiden
+          // voyage is active snapshots calm water. The weather type stays
+          // truthful; only the deterministic drive pressure is forgiven.
+          seaRoughness:
+            isQuestActive(state.quests, "quest.act5_maiden_voyage") && isStarterTeachingSchool(school)
+              ? Math.min(state.weather.seaRoughness, STARTER_SCHOOL_CALM_ROUGHNESS)
+              : state.weather.seaRoughness
         }
       }
     );
@@ -920,7 +1316,7 @@ export class FishingDomain {
     }
 
     if (attempt.phase === "bite-reaction" || (attempt.phase as string) === "bite") {
-      attempt.remainingSeconds -= realDeltaSeconds;
+      attempt.remainingSeconds -= Math.min(realDeltaSeconds, BITE_REACTION_MAX_STEP_SECONDS);
       if (attempt.remainingSeconds <= 0) {
         // AFK never auto-lands, even when willCatch rolled true.
         this.resolveMissedBite(attempt);
@@ -1030,7 +1426,10 @@ export class FishingDomain {
 
     const quality = attempt.quality ?? "common";
     const speciesId = attempt.catchItemId;
+    let basicRecord: "first" | "quality" | undefined;
     if (!physicalCatch && speciesId && ContentRegistry.fishSpecies.has(speciesId)) {
+      const prior = state.journal.fishRecords[speciesId];
+      const priorCatches = prior?.catchCount ?? 0;
       state.journal.fishRecords[speciesId] ??= {
         discovered: true,
         catchCount: 0,
@@ -1041,6 +1440,8 @@ export class FishingDomain {
       record.discovered = true;
       record.catchCount = (record.catchCount ?? 0) + 1;
       const rank: Record<string, number> = { common: 0, fine: 1, exceptional: 2, trophy: 3 };
+      if (priorCatches === 0) basicRecord = "first";
+      else if ((rank[quality] ?? 0) > (rank[prior?.bestQuality ?? "common"] ?? 0)) basicRecord = "quality";
       if ((rank[quality] ?? 0) >= (rank[record.bestQuality ?? "common"] ?? 0)) {
         record.bestQuality = quality;
       }
@@ -1056,6 +1457,7 @@ export class FishingDomain {
       isPerfect: attempt.isPerfect,
       hasTreasure: attempt.hasTreasure,
       treasureLootItemIds,
+      record: basicRecord,
       minute: state.clock.currentMinute
     });
     return true;

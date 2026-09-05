@@ -93,7 +93,8 @@ test.describe("starter-farm donkey mount", () => {
     await clearSave(page);
     await page.reload();
     const startButton = page.getByTestId("startup-start-button");
-    await expect(startButton).toContainText("Enter Neva Land", { timeout: 30_000 });
+    await expect(startButton).toBeVisible({ timeout: 30_000 });
+    await expect(startButton).toBeEnabled();
     await startButton.click();
     await waitForRuntime(page);
 
@@ -108,6 +109,10 @@ test.describe("starter-farm donkey mount", () => {
     await expect.poll(async () => (await snapshot(page)).activeMountId, { timeout: 5_000 })
       .toBe("mount.donkey_starter");
     await expect.poll(async () => (await snapshot(page)).mode, { timeout: 5_000 }).toBe("mounted");
+    // Riding mode begins at attachment; movement is available after the
+    // authored mounting action releases its contextual interaction lock.
+    await expect.poll(async () => (await snapshot(page)).interactionTarget?.prompt, { timeout: 5_000 })
+      .toBe("[E] Dismount");
 
     const mountedStart = await snapshot(page);
     const staminaBefore = mountedStart.playerSprintStamina;
@@ -120,6 +125,18 @@ test.describe("starter-farm donkey mount", () => {
     await page.keyboard.up("KeyW");
     await page.keyboard.up("ShiftLeft");
     await expect.poll(async () => (await snapshot(page)).mode, { timeout: 5_000 }).toBe("mounted");
+    // Release input and let physical deceleration finish before checking that
+    // dismounting preserves the stopped mount's pose exactly.
+    let previousStoppedPose = (await snapshot(page)).starterDonkeyPosition;
+    let stoppedSamples = 0;
+    await expect.poll(async () => {
+      const current = (await snapshot(page)).starterDonkeyPosition;
+      const distance = current && previousStoppedPose
+        ? Math.hypot(current.x - previousStoppedPose.x, current.z - previousStoppedPose.z)
+        : Infinity;
+      previousStoppedPose = current;
+      return ++stoppedSamples < 2 ? Infinity : distance;
+    }, { timeout: 5_000, intervals: [100] }).toBeLessThan(0.0001);
     const mountedEnd = await snapshot(page);
     expect(Math.hypot(
       mountedEnd.playerPosition.x - mountedStart.playerPosition.x,
@@ -155,7 +172,7 @@ test.describe("starter-farm donkey mount", () => {
     expect(await page.evaluate(() => window.__NEVA_DEBUG?.saveNow() ?? false)).toBe(true);
     const savedDonkey = dismounted.starterDonkeyPosition;
     await page.reload();
-    await expect(page.getByTestId("startup-start-button")).toContainText("Continue Neva Land", { timeout: 30_000 });
+    await expect(page.getByTestId("startup-start-button")).toContainText("Continue", { timeout: 30_000 });
     await page.getByTestId("startup-start-button").click();
     await waitForRuntime(page);
     const restored = await snapshot(page);

@@ -147,6 +147,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       equippedRodId: "rod.willow",
       ownedRodIds: ["rod.willow"],
       preparedLureItemId: null,
+      dragNotch: 1,
       carriedFishCargoId: null,
       activeBoatId: null,
       activeMountId: null,

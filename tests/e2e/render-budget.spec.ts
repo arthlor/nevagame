@@ -37,6 +37,17 @@ test("production build stays within the representative render budget", async ({ 
   test.skip(browserName !== "chromium", "The representative render budget is measured once in Chromium");
   test.setTimeout(480_000);
 
+  const runtimeErrors: string[] = [];
+  page.on("pageerror", (error) => runtimeErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") runtimeErrors.push(message.text());
+  });
+  page.on("requestfailed", (request) => runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`));
+  page.on("response", (response) => {
+    if (response.status() >= 400) runtimeErrors.push(`${response.status()}: ${response.url()}`);
+  });
+
+  await page.addInitScript(() => window.localStorage.setItem("neva.graphics-quality.v1", "high"));
   await page.goto("/?debug=1&worldAcceptance=1");
 
   const diagnostics = page.getByTestId("diagnostics");
@@ -82,11 +93,20 @@ test("production build stays within the representative render budget", async ({ 
 
   // When this gate fails, the first question is always "which layer?" — so
   // answer it in the failure output rather than making someone go and measure.
-  const breakdown = await page.evaluate(() => {
+  const snapshot = await page.evaluate(() => {
     const debug = (window as unknown as { __NEVA_DEBUG?: { renderDiagnostics: () => unknown } }).__NEVA_DEBUG;
-    return debug ? (debug.renderDiagnostics() as { world?: { trianglesByGroup?: unknown } }).world?.trianglesByGroup : undefined;
+    const world = debug ? (debug.renderDiagnostics() as {
+      world?: { trianglesByGroup?: unknown; qualityTier?: string; pipeline?: unknown }
+    }).world : undefined;
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio },
+      qualityTier: world?.qualityTier,
+      pipeline: world?.pipeline,
+      trianglesByGroup: world?.trianglesByGroup
+    };
   });
-  if (breakdown) console.info(`[E2E] Triangles by scene group: ${JSON.stringify(breakdown)}`);
+  console.info(`[E2E] Render scenario: ${JSON.stringify(snapshot)}`);
+  console.info(`[E2E] Runtime errors: ${JSON.stringify(runtimeErrors)}`);
 
   console.info(
     `[E2E] Production render budget: ${drawCalls} draw calls, ${triangles} triangles` +
@@ -105,6 +125,9 @@ test("production build stays within the representative render budget", async ({ 
     ).toBeGreaterThan(0);
   }
 
+  expect(runtimeErrors).toEqual([]);
+  expect(snapshot.viewport).toEqual({ width: 1920, height: 1080, dpr: 1 });
+  expect(snapshot.qualityTier).toBe("high");
   expect(drawCalls).toBeLessThanOrEqual(highSceneBudget.drawCalls.preferredMax);
   expect(triangles).toBeLessThanOrEqual(highSceneBudget.visibleTriangles.targetMax);
 });

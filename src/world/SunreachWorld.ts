@@ -1,5 +1,5 @@
 import type { WorldDrainageSample, WorldRegionId } from "./WorldIslands";
-import { SUNREACH_ANCHORS, SUNREACH_COAST_LOOP } from "./WorldIslands";
+import { isInsideLoop, pointSegmentDistance, SUNREACH_ANCHORS, SUNREACH_COAST_LOOP } from "./WorldIslands";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
 
 function clamp01(value: number): number {
@@ -15,33 +15,12 @@ function radialWeight(x: number, z: number, centerX: number, centerZ: number, ra
   return 1 - smoothstep(radius, radius + feather, Math.hypot(x - centerX, z - centerZ));
 }
 
-function pointSegmentDistance(x: number, z: number, start: Readonly<WorldPoint>, end: Readonly<WorldPoint>): number {
-  const dx = end.x - start.x;
-  const dz = end.z - start.z;
-  const lengthSquared = dx * dx + dz * dz;
-  if (lengthSquared <= 0.000001) return Math.hypot(x - start.x, z - start.z);
-  const t = Math.max(0, Math.min(1, ((x - start.x) * dx + (z - start.z) * dz) / lengthSquared));
-  return Math.hypot(x - (start.x + dx * t), z - (start.z + dz * t));
-}
-
 function distanceToPolyline(x: number, z: number, points: readonly Readonly<WorldPoint>[]): number {
   let distance = Number.POSITIVE_INFINITY;
   for (let index = 0; index < points.length - 1; index++) {
     distance = Math.min(distance, pointSegmentDistance(x, z, points[index], points[index + 1]));
   }
   return distance;
-}
-
-function isInsideLoop(x: number, z: number, loop: readonly Readonly<WorldPoint>[]): boolean {
-  let inside = false;
-  for (let current = 0, previous = loop.length - 1; current < loop.length; previous = current++) {
-    const a = loop[current];
-    const b = loop[previous];
-    const crosses = (a.z > z) !== (b.z > z)
-      && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x;
-    if (crosses) inside = !inside;
-  }
-  return inside;
 }
 
 /** Positive in water, negative on Sunreach dry land. */

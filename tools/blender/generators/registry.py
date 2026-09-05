@@ -2,9 +2,10 @@
 
 from .architecture import farmhouse, fish_market, lighthouse, log_bridge, stone_bridge, village_building, windmill, working_dock
 from .boats import fishing_skiff, rowboat
-from .characters import coastal_worker, fauna_butterfly, fauna_chicken, fauna_cow, fauna_donkey, fauna_gull, fauna_rabbit, npc_character
+from .characters import fauna_butterfly, fauna_chicken, fauna_cow, fauna_donkey, fauna_gull, fauna_rabbit
 
 from .clouds import faceted_cloud
+from .imported import imported_blend
 from .crops import olive_crop, potato_crop, pumpkin_crop, sunflower_crop, tomato_crop, turnip_crop, wheat_crop
 from .fish import stylized_fish
 from .camp import fallen_log, fire_pit, path_stone_round, path_stone_slab, picnic_table, smoke_plume, trail_kiosk, trail_signpost, wood_bench
@@ -22,6 +23,7 @@ from .vegetation import apple_tree, bush, flower_drift, grass_clump, kelp_clump,
 
 
 GENERATORS = {
+    "imported_blend": imported_blend,
     "oak_tree": oak_tree,
     "olive_tree": olive_tree,
     "pine_tree": pine_tree,
@@ -86,8 +88,6 @@ GENERATORS = {
     "pumpkin_crop": pumpkin_crop,
     "stylized_fish": stylized_fish,
     "faceted_cloud": faceted_cloud,
-    "coastal_worker": coastal_worker,
-    "npc_character": npc_character,
     "fauna_cow": fauna_cow,
     "fauna_donkey": fauna_donkey,
     "fauna_chicken": fauna_chicken,

@@ -1,15 +1,28 @@
 import * as THREE from "three";
-import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { GROUND_POLYGON_CELL_GLSL } from "../materials/GroundPolygonCells";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { WATER_SURFACE } from "../../world/WorldLayout";
+import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
 import {
   WATER_WAVE_CONFIG,
   WaterSurface,
   waterSpatialProfile,
   type WaterConditions
 } from "./WaterSurface";
+import {
+  createHeadwaterUniforms,
+  WATER_HEADWATER_FUNCTION_GLSL,
+  WATER_HEADWATER_UNIFORMS_GLSL,
+  WATER_PROFILE_FUNCTION_GLSL,
+  WATER_PROFILE_UNIFORMS_GLSL,
+  WATER_WAVE_FUNCTION_GLSL,
+  WATER_WAVE_UNIFORMS_GLSL,
+  WATER_NOISE_GLSL
+} from "./waveGlsl";
+import { WATER_SHADING_UNIFORMS_GLSL, WATER_SURFACE_SHADING_GLSL } from "./waterShadingGlsl";
+import { NearWaterPatch } from "./NearWaterPatch";
 
 export interface WaterOptions {
   width?: number;
@@ -23,7 +36,7 @@ export interface WaterOptions {
 export const SHORE_MASK_RESOLUTION = 512;
 export const SHORE_MASK_METERS_PER_TEXEL = 750 / (SHORE_MASK_RESOLUTION - 1);
 
-function createWaterProfileMap(
+export function createWaterProfileMap(
   bounds: THREE.Vector4,
   width: number,
   height: number
@@ -55,199 +68,77 @@ function createWaterProfileMap(
 }
 
 const vertexShader = /* glsl */ `
-  uniform float uTime;
-  uniform float uRoughness;
-  uniform float uWindSpeed;
-  uniform vec2 uWindDirection;
-  uniform sampler2D uWaterProfileMap;
-  uniform vec4 uWaterProfileBounds;
-  uniform vec3 uPrimaryAmplitude;
-  uniform vec3 uPrimaryFrequency;
-  uniform vec3 uPrimarySpeed;
-  uniform vec3 uCrossAmplitude;
-  uniform vec3 uCrossFrequency;
-  uniform vec3 uCrossSpeed;
-  uniform vec3 uDetailAmplitude;
-  uniform vec3 uDetailFrequency;
-  uniform vec3 uDetailSpeed;
-  uniform vec3 uRoughnessGain;
-  uniform float uOceanWindGain;
+  ${WATER_WAVE_UNIFORMS_GLSL}
+  ${WATER_HEADWATER_UNIFORMS_GLSL}
 
   out vec3 vWorldPosition;
+  out vec3 vWaveNormal;
   out float vWaveHeight;
   out float vSignedWaterDistance;
   out vec3 vRegionWeights;
 
-  vec4 profileAt(vec2 worldPosition) {
-    vec2 uv = (worldPosition - uWaterProfileBounds.xy) / uWaterProfileBounds.zw;
-    return texture(uWaterProfileMap, clamp(uv, vec2(0.0), vec2(1.0)));
-  }
-
-  float weightedValue(vec3 values, vec3 weights) {
-    return dot(values, weights);
-  }
-
-  float bandHeight(
-    vec3 amplitude,
-    vec3 frequency,
-    vec3 speed,
-    vec3 weights,
-    float projectedPosition,
-    float phase
-  ) {
-    return sin(
-      projectedPosition * weightedValue(frequency, weights)
-      + uTime * weightedValue(speed, weights)
-      + phase
-    ) * weightedValue(amplitude, weights);
-  }
-
-  float waveHeight(vec2 worldPosition, vec4 profile) {
-    float riverWeight = profile.g;
-    float oceanWeight = profile.b;
-    float seaWeight = max(0.0, 1.0 - riverWeight - oceanWeight);
-    vec3 weights = vec3(riverWeight, seaWeight, oceanWeight);
-    float localAngle = profile.a * 6.28318530718 - 3.14159265359;
-    vec2 localDirection = vec2(cos(localAngle), sin(localAngle));
-    vec2 direction = normalize(mix(localDirection, uWindDirection, oceanWeight));
-    vec2 crossDirection = vec2(-direction.y, direction.x);
-    float primaryPosition = dot(worldPosition, direction);
-    float crossPosition = dot(worldPosition, crossDirection);
-    float detailPosition = dot(worldPosition, direction * 0.72 + crossDirection * 0.28);
-    float roughnessScale = 1.0
-      + uRoughness * weightedValue(uRoughnessGain, weights)
-      + uWindSpeed * oceanWeight * uOceanWindGain;
-    return (
-      bandHeight(uPrimaryAmplitude, uPrimaryFrequency, uPrimarySpeed, weights, primaryPosition, 0.0)
-      + bandHeight(uCrossAmplitude, uCrossFrequency, uCrossSpeed, weights, crossPosition, 1.7)
-      + bandHeight(uDetailAmplitude, uDetailFrequency, uDetailSpeed, weights, detailPosition, 4.1)
-    ) * roughnessScale;
-  }
+  ${WATER_WAVE_FUNCTION_GLSL}
+  ${WATER_HEADWATER_FUNCTION_GLSL}
 
   void main() {
     vec4 baseWorldPosition = modelMatrix * vec4(position, 1.0);
     vec4 profile = profileAt(baseWorldPosition.xz);
-    float height = waveHeight(baseWorldPosition.xz, profile);
+    float height;
+    vec3 waveNormal;
+    waveHeightAndNormal(baseWorldPosition.xz, profile, height, waveNormal);
+    vec2 headwater = nevaHeadwaterElevationAndGrade(baseWorldPosition.xz);
     vec3 displaced = position;
-    displaced.y += height;
+    displaced.y += headwater.x + height;
     vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
     float riverWeight = profile.g;
     float oceanWeight = profile.b;
     vRegionWeights = vec3(riverWeight, max(0.0, 1.0 - riverWeight - oceanWeight), oceanWeight);
     vSignedWaterDistance = profile.r * 32.0 - 16.0;
     vWorldPosition = worldPosition.xyz;
+    vWaveNormal = nevaWaterSurfaceNormal(waveNormal, headwater.y);
     vWaveHeight = height;
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }
 `;
 
 const fragmentShader = /* glsl */ `
-  uniform vec3 uShallowColor;
-  uniform vec3 uMidColor;
-  uniform vec3 uDeepColor;
-  uniform vec3 uFoamColor;
-  uniform vec3 uSunDirection;
-  uniform vec3 uSunColor;
-  uniform float uKeyLightStrength;
-  uniform float uDaylight;
-  uniform float uRoughness;
-  uniform vec3 uSkyColor;
-  uniform vec3 uFogColor;
-  uniform float uFogNear;
-  uniform float uFogFar;
-  uniform float uFogDistanceDesaturation;
-  uniform float uPolygonCellScale;
-  uniform float uPolygonColorVariation;
-  uniform float uPolygonNormalStrength;
-  uniform float uFresnelStrength;
-  uniform float uSunGlintStrength;
-  uniform float uShallowStartMeters;
-  uniform float uShallowEndMeters;
-  uniform float uShallowColorStrength;
-  uniform float uNearShoreNormalScale;
-  uniform float uDepthRampStartMeters;
-  uniform float uDepthRampEndMeters;
-  uniform float uDepthColorStrength;
-  uniform float uEdgeOpacity;
-  uniform float uBodyOpacity;
-  uniform float uOpacityRampMeters;
+  ${WATER_SHADING_UNIFORMS_GLSL}
+  ${WATER_PROFILE_UNIFORMS_GLSL}
+  ${WATER_HEADWATER_UNIFORMS_GLSL}
+
+  uniform vec2 uNearPatchCenter;
+  uniform float uNearPatchRadius;
 
   in vec3 vWorldPosition;
+  in vec3 vWaveNormal;
   in float vWaveHeight;
   in float vSignedWaterDistance;
   in vec3 vRegionWeights;
   out vec4 outColor;
 
   ${GROUND_POLYGON_CELL_GLSL}
+  ${WATER_NOISE_GLSL}
+  ${WATER_PROFILE_FUNCTION_GLSL}
+  ${WATER_HEADWATER_FUNCTION_GLSL}
+  ${WATER_SURFACE_SHADING_GLSL}
 
   void main() {
-    vec3 normal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
-    if (normal.y < 0.0) normal *= -1.0;
-    float waterDepth = max(0.0, vSignedWaterDistance);
-    float resolvedShoreNormalScale = mix(
-      uNearShoreNormalScale,
-      1.0,
-      smoothstep(uShallowStartMeters, uShallowEndMeters, waterDepth)
-    );
-    vec4 waterPolygonCell = nevaGroundPolygonCell(vWorldPosition.xz, uPolygonCellScale);
-    normal = normalize(normal + vec3(
-      waterPolygonCell.y - 0.5,
-      0.0,
-      waterPolygonCell.z - 0.5
-    ) * uPolygonNormalStrength * resolvedShoreNormalScale);
+    // When the high-tier near detail patch is active, discard base water
+    // fragments inside the inner radius to eliminate overdraw, double-blending,
+    // and geometric chord-clipping between coarse and fine meshes.
+    if (uNearPatchRadius > 0.5 && !nevaHeadwaterOwnsSurface(vWorldPosition.xz)) {
+      if (length(vWorldPosition.xz - uNearPatchCenter) < uNearPatchRadius) {
+        discard;
+      }
+    }
 
-    float shallowMix = 1.0 - smoothstep(uShallowStartMeters, uShallowEndMeters, waterDepth);
-    vec3 waterColor = mix(uMidColor, uShallowColor, shallowMix * uShallowColorStrength);
-    // Distance from the shoreline is the only depth cue a flat water plane
-    // has. Without it open sea and a river shallow read as the same teal.
-    float bodyDepth = smoothstep(uDepthRampStartMeters, uDepthRampEndMeters, waterDepth);
-    waterColor = mix(
-      waterColor,
-      uDeepColor,
-      clamp(max(vRegionWeights.z * 0.82, bodyDepth * uDepthColorStrength), 0.0, 1.0)
+    outColor = nevaShadeWaterSurface(
+      vWorldPosition,
+      normalize(vWaveNormal),
+      vWaveHeight,
+      vSignedWaterDistance,
+      vRegionWeights
     );
-    float waterFacetBand = step(0.34, waterPolygonCell.x) + step(0.7, waterPolygonCell.x);
-    waterColor *= mix(
-      1.0 - uPolygonColorVariation,
-      1.0 + uPolygonColorVariation,
-      waterFacetBand * 0.5
-    );
-
-    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-    float fresnel = pow(1.0 - max(dot(viewDirection, normal), 0.0), 2.5);
-    float sunLight = max(dot(normal, normalize(uSunDirection)), 0.0);
-    float sunGlint = pow(sunLight, 58.0) * uSunGlintStrength * uKeyLightStrength;
-    float facetVariation = 0.95 + 0.07 * step(0.0, normal.x + normal.z * 0.7);
-    float environmentLight = mix(0.24, 1.0, uDaylight);
-    vec3 color = waterColor * facetVariation * environmentLight;
-    color = mix(color, uSkyColor * environmentLight, fresnel * uFresnelStrength);
-    color = mix(color, uShallowColor * environmentLight, shallowMix * (1.0 - fresnel) * 0.08);
-    color += uSunColor * sunGlint;
-
-    float steepness = 1.0 - normal.y;
-    float roughOcean = vRegionWeights.z * smoothstep(0.62, 0.9, uRoughness);
-    float crest = smoothstep(0.16, 0.29, vWaveHeight) * smoothstep(0.018, 0.075, steepness);
-    float brokenA = sin(vWorldPosition.x * 0.31 + vWorldPosition.z * 0.17) * 0.5 + 0.5;
-    float brokenB = sin(vWorldPosition.x * -0.13 + vWorldPosition.z * 0.37 + 1.9) * 0.5 + 0.5;
-    float brokenMask = smoothstep(0.72, 0.91, brokenA * 0.62 + brokenB * 0.38);
-    float whitecap = roughOcean * crest * brokenMask;
-    float foamLight = clamp(mix(0.12, 0.92, uDaylight) + uKeyLightStrength * 0.08, 0.1, 1.0);
-    color = mix(color, uFoamColor * foamLight, whitecap * 0.34);
-
-    float cameraDistance = distance(cameraPosition, vWorldPosition);
-    float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);
-    float waterLuma = dot(color, vec3(0.299, 0.587, 0.114));
-    color = mix(color, vec3(waterLuma), fogFactor * uFogDistanceDesaturation);
-    color = mix(color, uFogColor, fogFactor * 0.82);
-    // Let the wet sand and riverbed show through the waterline instead of
-    // ending the water body on a hard opaque polygon edge.
-    float edgeOpacity = mix(
-      uEdgeOpacity,
-      uBodyOpacity,
-      smoothstep(0.0, max(0.001, uOpacityRampMeters), waterDepth)
-    );
-    float opacity = mix(edgeOpacity, uBodyOpacity, fogFactor);
-    outColor = vec4(color, opacity);
   }
 `;
 
@@ -255,11 +146,74 @@ function vector(values: readonly [number, number, number]): THREE.Vector3 {
   return new THREE.Vector3(values[0], values[1], values[2]);
 }
 
+/** Keep the ocean grid unchanged and spend extra rows only on the steep run. */
+export function createWaterGeometry(
+  width: number,
+  depth: number,
+  segmentsX: number,
+  segmentsZ: number,
+  centerX: number,
+  centerZ: number
+): THREE.PlaneGeometry {
+  const { bounds, elevationKnots } = NEVA_HEADWATERS;
+  const minZ = centerZ - depth * 0.5;
+  const maxZ = centerZ + depth * 0.5;
+  const touchesHeadwaters = centerX + width * 0.5 >= bounds.minX
+    && centerX - width * 0.5 <= bounds.maxX
+    && maxZ >= bounds.minZ && minZ <= bounds.maxZ;
+  const rows: number[] = [];
+  const refinementStart = Math.max(minZ, bounds.minZ);
+  const refinementEnd = Math.min(maxZ, bounds.maxZ);
+  for (let row = 0; row <= segmentsZ; row++) {
+    const z = minZ + row / segmentsZ * depth;
+    if (!touchesHeadwaters || z < refinementStart || z > refinementEnd) rows.push(z);
+  }
+  if (touchesHeadwaters) {
+    const boundaries = [refinementStart, refinementEnd, ...elevationKnots.map((knot) => knot.z)]
+      .filter((z) => z >= refinementStart && z <= refinementEnd)
+      .sort((a, b) => a - b);
+    const spacing = CANONICAL_RENDER_CONFIG.waterSurface.headwaters.maxRowSpacingMeters;
+    rows.push(refinementStart);
+    for (let index = 1; index < boundaries.length; index++) {
+      const start = boundaries[index - 1];
+      const end = boundaries[index];
+      const count = Math.max(1, Math.ceil((end - start) / spacing));
+      for (let step = 1; step <= count; step++) rows.push(start + (end - start) * step / count);
+    }
+  }
+  const orderedRows = [...new Set(rows)].sort((a, b) => a - b);
+  const geometry = new THREE.PlaneGeometry(width, depth, segmentsX, orderedRows.length - 1);
+  geometry.rotateX(-Math.PI / 2);
+  if (touchesHeadwaters) {
+    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+    const uv = geometry.getAttribute("uv") as THREE.BufferAttribute;
+    for (let row = 0; row < orderedRows.length; row++) {
+      for (let column = 0; column <= segmentsX; column++) {
+        const index = row * (segmentsX + 1) + column;
+        positions.setZ(index, orderedRows[row] - centerZ);
+        uv.setY(index, 1 - (orderedRows[row] - minZ) / depth);
+      }
+    }
+    positions.needsUpdate = true;
+    uv.needsUpdate = true;
+  }
+  geometry.computeBoundingBox();
+  // GPU displacement must participate in frustum bounds even though the
+  // underlying attribute stays at zero. One metre also encloses wave motion.
+  geometry.boundingBox!.min.y = -1;
+  geometry.boundingBox!.max.y = (touchesHeadwaters ? elevationKnots[0].elevation : 0) + 1;
+  geometry.boundingSphere = geometry.boundingBox!.getBoundingSphere(new THREE.Sphere());
+  return geometry;
+}
+
 export class FacetedWater {
   public mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   public readonly group = new THREE.Group();
   public readonly meshes: readonly THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>[];
-  private readonly waterProfileMap: THREE.DataTexture;
+  public readonly waterProfileMap: THREE.DataTexture;
+  public readonly waterProfileBounds: THREE.Vector4;
+  public readonly nearPatch: NearWaterPatch;
+  private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
   private conditions: WaterConditions = {
     seaRoughness: 0.2,
     windDirectionDeg: 0,
@@ -279,6 +233,7 @@ export class FacetedWater {
       width,
       depth
     );
+    this.waterProfileBounds = profileBounds;
 
     const profileWidth = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
     const profileHeight = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
@@ -288,12 +243,21 @@ export class FacetedWater {
       vertexShader,
       fragmentShader,
       uniforms: {
+        ...createHeadwaterUniforms(),
         uTime: { value: 0 },
+        uReducedMotion: { value: 0 },
         uRoughness: { value: 0.2 },
         uWindSpeed: { value: 0 },
         uWindDirection: { value: new THREE.Vector2(0, 1) },
         uWaterProfileMap: { value: this.waterProfileMap },
         uWaterProfileBounds: { value: profileBounds },
+        uReflectionMode: { value: 2 },
+        uNormalQuantization: { value: CANONICAL_RENDER_CONFIG.waterSurface.normalQuantizationSteps },
+        uNearPatchCenter: { value: new THREE.Vector2() },
+        uNearPatchRadius: { value: 0 },
+        uGlitterFocusNearMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFocusNearMeters },
+        uGlitterFocusFarMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFocusFarMeters },
+        uGlitterFarBroadening: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFarBroadening },
         uPrimaryAmplitude: { value: vector(WATER_WAVE_CONFIG.primary.amplitude) },
         uPrimaryFrequency: { value: vector(WATER_WAVE_CONFIG.primary.frequency) },
         uPrimarySpeed: { value: vector(WATER_WAVE_CONFIG.primary.speed) },
@@ -314,6 +278,7 @@ export class FacetedWater {
         uKeyLightStrength: { value: 1 },
         uDaylight: { value: 1 },
         uSkyColor: { value: new THREE.Color(PALETTE_HEX.sky_pale_01) },
+        uSkyHorizonColor: { value: new THREE.Color(PALETTE_HEX.horizon_warm_01) },
         uFogColor: { value: new THREE.Color(CANONICAL_RENDER_CONFIG.fog.colorHex) },
         uFogNear: { value: CANONICAL_RENDER_CONFIG.fog.near },
         uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far },
@@ -330,6 +295,11 @@ export class FacetedWater {
         uDepthRampStartMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.depthRampStartMeters },
         uDepthRampEndMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.depthRampEndMeters },
         uDepthColorStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.depthColorStrength },
+        uRapidsFoamStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsFoamStrength },
+        uRapidsGradeStart: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsGradeStart },
+        uRapidsGradeFull: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsGradeFull },
+        uRapidsCellScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsCellScaleMeters },
+        uRapidsFlowSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsFlowMetersPerSecond },
         uEdgeOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.edgeOpacity },
         uBodyOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.bodyOpacity },
         uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters }
@@ -337,7 +307,7 @@ export class FacetedWater {
       transparent: true,
       opacity: 0.96,
       depthWrite: true,
-      side: THREE.DoubleSide
+      side: THREE.FrontSide
     });
 
     const chunkCountX = width > 900 ? 2 : 1;
@@ -350,11 +320,11 @@ export class FacetedWater {
         ? remainingSegments
         : Math.max(1, Math.round(segmentsX / chunkCountX));
       consumedSegments += chunkSegmentsX;
-      const geometry = new THREE.PlaneGeometry(chunkWidth, depth, chunkSegmentsX, segmentsZ);
-      geometry.rotateX(-Math.PI / 2);
+      const chunkCenterX = centerX - width * 0.5 + chunkWidth * (chunkIndex + 0.5);
+      const geometry = createWaterGeometry(chunkWidth, depth, chunkSegmentsX, segmentsZ, chunkCenterX, centerZ);
       const chunk = new THREE.Mesh(geometry, material);
       chunk.position.set(
-        centerX - width * 0.5 + chunkWidth * (chunkIndex + 0.5),
+        chunkCenterX,
         0,
         centerZ
       );
@@ -368,9 +338,33 @@ export class FacetedWater {
     this.meshes = chunkMeshes;
     this.mesh = chunkMeshes[0];
     this.group.name = "faceted_water";
+
+    this.nearPatch = new NearWaterPatch({
+      waterProfileMap: this.waterProfileMap,
+      waterProfileBounds: this.waterProfileBounds
+    });
+    this.group.add(this.nearPatch.mesh);
+    this.setQuality(this.qualityTier);
   }
 
-  public update(timeSeconds: number, conditions: WaterConditions): void {
+  public setQuality(tier: QualityTier): void {
+    this.qualityTier = tier;
+    const tierConfig = CANONICAL_RENDER_CONFIG.waterSurface.quality[tier];
+    const mode = tierConfig.reflection === "flat" ? 0 : tierConfig.reflection === "skyGradient" ? 1 : 2;
+    this.mesh.material.uniforms.uReflectionMode.value = mode;
+    this.mesh.material.uniforms.uNormalQuantization.value = CANONICAL_RENDER_CONFIG.waterSurface.normalQuantizationSteps;
+    this.mesh.material.uniforms.uNearPatchRadius.value = tierConfig.nearPatch
+      ? CANONICAL_RENDER_CONFIG.waterSurface.nearPatch.innerFadeRadiusMeters
+      : 0;
+    this.nearPatch.setQuality(tier);
+  }
+
+  public update(
+    timeSeconds: number,
+    conditions: WaterConditions,
+    cameraTarget?: THREE.Vector3,
+    options?: { reducedMotion?: boolean }
+  ): void {
     this.conditions = {
       seaRoughness: THREE.MathUtils.clamp(conditions.seaRoughness, 0, 1),
       windDirectionDeg: conditions.windDirectionDeg,
@@ -379,12 +373,23 @@ export class FacetedWater {
     const uniforms = this.mesh.material.uniforms;
     const windRadians = THREE.MathUtils.degToRad(this.conditions.windDirectionDeg);
     uniforms.uTime.value = timeSeconds;
+    uniforms.uReducedMotion.value = options?.reducedMotion ? 1 : 0;
     uniforms.uRoughness.value = this.conditions.seaRoughness;
     uniforms.uWindSpeed.value = this.conditions.windSpeed;
     (uniforms.uWindDirection.value as THREE.Vector2).set(
       Math.sin(windRadians),
       Math.cos(windRadians)
     );
+
+    if (cameraTarget) {
+      const snappedX = Math.round(cameraTarget.x);
+      const snappedZ = Math.round(cameraTarget.z);
+      (uniforms.uNearPatchCenter.value as THREE.Vector2).set(snappedX, snappedZ);
+
+      if (this.nearPatch.mesh.visible) {
+        this.nearPatch.update(timeSeconds, this.conditions, cameraTarget, options);
+      }
+    }
   }
 
   public updateLighting(frame: LightingFrame): void {
@@ -410,10 +415,13 @@ export class FacetedWater {
     );
     uniforms.uDaylight.value = frame.daylight;
     (uniforms.uSkyColor.value as THREE.Color).copy(frame.skyTopColor);
+    (uniforms.uSkyHorizonColor.value as THREE.Color).copy(frame.skyHorizonColor);
     (uniforms.uFogColor.value as THREE.Color).copy(frame.fogColor);
     uniforms.uFogNear.value = frame.fogNear;
     uniforms.uFogFar.value = frame.fogFar;
     uniforms.uFogDistanceDesaturation.value = CANONICAL_RENDER_CONFIG.fog.distanceDesaturation;
+
+    this.nearPatch.updateLighting(frame);
   }
 
   public sample(x: number, z: number, timeSeconds: number): ReturnType<typeof WaterSurface.sample> {
@@ -424,5 +432,6 @@ export class FacetedWater {
     this.waterProfileMap.dispose();
     for (const mesh of this.meshes) mesh.geometry.dispose();
     this.mesh.material.dispose();
+    this.nearPatch.dispose();
   }
 }

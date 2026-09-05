@@ -270,14 +270,16 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.proficiencies.farming).toBe(0);
 
     // With the full Work cost available, harvest succeeds and reports its XP.
+    // Harvest costs 30 Work; XP is that cost scaled by the quality multiplier,
+    // so the common-quality floor is 30 and 50 - 30 = 20 Work remains.
     sim.state.player.workCapacity.current = 50;
     sim.state.player.proficiencies.farming = 0;
     const successResult = sim.harvestCrop(placedCropId);
     expect(successResult.success).toBe(true);
     expect(successResult.yield).toBeGreaterThanOrEqual(3);
     expect(sim.state.player.proficiencies.farming).toBe(successResult.xpGained);
-    expect(successResult.xpGained).toBeGreaterThanOrEqual(45);
-    expect(sim.state.player.workCapacity.current).toBe(5);
+    expect(successResult.xpGained).toBeGreaterThanOrEqual(30);
+    expect(sim.state.player.workCapacity.current).toBe(20);
   });
 
   it("does not advance RNG or mutate a mature crop when harvest output cannot fit", () => {

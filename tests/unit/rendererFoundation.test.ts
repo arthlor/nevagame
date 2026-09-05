@@ -6,7 +6,6 @@ import { buildStarterFarmGround } from "../../src/render/scene/StarterFarmGround
 import { FacetedWater, SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
 import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
-import { WaterSurface } from "../../src/render/water/WaterSurface";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 import { TERRAIN_SIZE_METERS } from "../../src/world/WorldLayout";
 import { createContactShadowMesh, setContactShadowOpacity } from "../../src/render/scene/ContactShadow";
@@ -27,7 +26,15 @@ describe("renderer foundation", () => {
     expect(CANONICAL_RENDER_CONFIG.gtao.resolutionScale).toBeLessThan(1);
     expect(CANONICAL_RENDER_CONFIG.shadows.castCharacters).toBe(true);
     expect(CANONICAL_RENDER_CONFIG.shadows.castRocks).toBe(true);
-    expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBe(1);
+    // Shadows stay dense enough to anchor, but not fully opaque: at intensity 1
+    // the dark palette families crushed to flat black silhouettes with no facet
+    // separation. The moon runs a lighter, broader recipe again.
+    expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBeGreaterThan(0.8);
+    expect(CANONICAL_RENDER_CONFIG.shadows.intensity).toBeLessThan(1);
+    expect(CANONICAL_RENDER_CONFIG.shadows.nightIntensity)
+      .toBeLessThan(CANONICAL_RENDER_CONFIG.shadows.intensity);
+    expect(CANONICAL_RENDER_CONFIG.shadows.nightRadius)
+      .toBeGreaterThan(CANONICAL_RENDER_CONFIG.shadows.radius);
     // Shadows only read when the key light dominates the hemisphere fill.
     expect(CANONICAL_RENDER_CONFIG.sun.intensity)
       .toBeGreaterThan(CANONICAL_RENDER_CONFIG.skyFill.intensity * 2.4);
@@ -65,7 +72,10 @@ describe("renderer foundation", () => {
   it("uses canonical turquoise depth bands and polygonal reflection normals", () => {
     const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
     const material = water.mesh.material;
-    expect(material.fragmentShader).toContain("nevaGroundPolygonCell(vWorldPosition.xz, uPolygonCellScale)");
+    // The shared shading chunk (waterShadingGlsl.ts) takes the world position
+    // as a parameter, so the cell lookup reads `worldPosition` rather than the
+    // `vWorldPosition` varying. Both water surfaces resolve through it.
+    expect(material.fragmentShader).toContain("nevaGroundPolygonCell(worldPosition.xz, uPolygonCellScale)");
     expect(material.fragmentShader).toContain("waterFacetBand = step(0.34, waterPolygonCell.x)");
     expect(material.fragmentShader).toContain("uPolygonNormalStrength");
     expect(material.uniforms.uPolygonCellScale.value).toBe(
@@ -105,14 +115,12 @@ describe("renderer foundation", () => {
     expect(first.mesh.material.uniforms.uMaxAlpha.value).toBeLessThanOrEqual(0.45);
 
     first.update(12, WATER_CONDITIONS);
-    const updatedPositions = first.mesh.geometry.getAttribute("position");
-    const x = updatedPositions.getX(0);
-    const z = updatedPositions.getZ(0);
-    expect(updatedPositions.getY(0)).toBeCloseTo(
-      WaterSurface.height(x, z, 12, WATER_CONDITIONS)
-        + CANONICAL_RENDER_CONFIG.waterSurface.shoreline.foamHeightOffsetMeters,
-      6
-    );
+    expect(first.mesh.material.uniforms.uTime.value).toBe(12);
+    expect(first.mesh.material.uniforms.uRoughness.value).toBe(WATER_CONDITIONS.seaRoughness);
+    expect(first.mesh.material.vertexShader).toContain("waveHeight(baseWorldPosition.xz, profile)");
+    expect(first.mesh.material.vertexShader).toContain("uFoamHeightOffset");
+    expect(first.mesh.material.fragmentShader).toContain("nevaGradientNoise");
+    expect(first.mesh.material.fragmentShader).toContain("uSwashSpeed");
     expect(first.mesh.position.y).toBe(0);
 
     first.dispose();

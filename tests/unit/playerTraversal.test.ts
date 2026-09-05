@@ -86,11 +86,15 @@ describe("player traversal", () => {
 
   it("slows uphill gait and gains a little downhill without leaving the authored clamp", () => {
     expect(slopeGaitScale({ x: 0, y: 1, z: 0 }, 0, 1)).toBe(1);
-    const uphill = slopeGaitScale({ x: 0, y: 0.92, z: 0.39 }, 0, 1);
-    const downhill = slopeGaitScale({ x: 0, y: 0.92, z: 0.39 }, 0, -1);
+    // The plane y = 0.35x + 0.2z rises along its height gradient.
+    const length = Math.hypot(0.35, 1, 0.2);
+    const normal = { x: -0.35 / length, y: 1 / length, z: -0.2 / length };
+    const uphill = slopeGaitScale(normal, 0.35, 0.2);
+    const downhill = slopeGaitScale(normal, -0.35, -0.2);
     expect(uphill).toBeGreaterThanOrEqual(0.78);
     expect(uphill).toBeLessThan(1);
     expect(downhill).toBeGreaterThan(1);
     expect(downhill).toBeLessThanOrEqual(1.14);
+    expect(slopeGaitScale(normal, -0.2, 0.35)).toBeCloseTo(1, 12);
   });
 });

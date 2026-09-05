@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 
 /**
  * Render-budget gate, run against a PRODUCTION build.
@@ -13,10 +15,16 @@ import { defineConfig, devices } from "@playwright/test";
  * slow enough that it should not be paid by every e2e run.
  */
 const port = Number(process.env.NEVA_BUDGET_PORT ?? 3388);
+fs.mkdirSync(path.resolve("output"), { recursive: true });
+const runDirectory = process.env.NEVA_BUDGET_RUN_DIR
+  ?? fs.mkdtempSync(path.resolve("output/render-budget-"));
+process.env.NEVA_BUDGET_RUN_DIR = runDirectory;
+const buildDirectory = path.join(runDirectory, "dist");
 
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "render-budget.spec.ts",
+  outputDir: path.join(runDirectory, "test-results"),
   timeout: 480_000,
   expect: { timeout: 450_000 },
   fullyParallel: false,
@@ -35,7 +43,7 @@ export default defineConfig({
     // `npx vite build`, not `npm run build`: the latter fires a `prebuild`
     // assets:sync in WRITE mode, which would regenerate committed artifacts
     // mid-run. CI verifies those separately via the :check scripts.
-    command: `npx tsc && npx vite build && npx vite preview --host 127.0.0.1 --port ${port} --strictPort`,
+    command: `npx tsc && npx vite build --outDir "${buildDirectory}" && npx vite preview --outDir "${buildDirectory}" --host 127.0.0.1 --port ${port} --strictPort`,
     port,
     timeout: 600_000,
     reuseExistingServer: process.env.NEVA_BUDGET_REUSE_SERVER === "1" && !process.env.CI
@@ -43,7 +51,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"], channel: "chrome" }
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        viewport: { width: 1920, height: 1080 },
+        deviceScaleFactor: 1
+      }
     }
   ]
 });

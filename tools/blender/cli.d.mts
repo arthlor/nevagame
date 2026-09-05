@@ -8,6 +8,25 @@ export interface ArtCliArgs {
   concurrency?: number | null;
   timeoutMs?: number;
   useCache?: boolean;
+  source?: string | null;
+}
+
+export interface SourceProvenance {
+  provider: "poly-pizza" | "quaternius";
+  modelId: string;
+  sourceUrl: string;
+  author: string;
+  license: "CC0-1.0" | "CC-BY-3.0";
+  licenseUrl: string;
+  sourceBlend: string;
+  /** SHA-256 of adapted sourceBlend bytes, not the provider download. */
+  sourceSha256: string;
+  /** Optional immutable provider-source capture bundle, verified as an all-or-none group. */
+  sourceCapture?: string;
+  sourceCaptureSha256?: string;
+  sourceCaptureReport?: string;
+  licenseEvidence?: string;
+  attribution: string;
 }
 
 export interface CatalogAsset {
@@ -57,6 +76,20 @@ export interface CatalogAsset {
     events?: Array<{ name: string; timeSeconds: number }>;
   }>;
   referenceAuthoring?: ReferenceAuthoring;
+  sourceProvenance?: SourceProvenance;
+  staticAuthoring?: {
+    sourceFile: string;
+    sourceSha256: string;
+    sourceNode: string;
+    scaleReference: { axis: "width" | "depth" | "height"; meters: number };
+    yawDegrees: number;
+    materialMap: Record<string, {
+      token: string;
+      value: number;
+      texturePolicy: "none" | "preserve";
+    }>;
+    addedGeometryNodes?: string[];
+  };
 }
 
 export interface ReferenceAuthoring {
@@ -117,7 +150,7 @@ export function cleanCache(
 ): { kept: number; removed: number };
 export function mayJoinStaticNode(node: unknown, spec: unknown): boolean;
 export function safeFilename(value: string): boolean;
-export function validateCatalog(): {
+export function validateCatalog(stagingSelection?: Pick<ArtCliArgs, "assets" | "families" | "all"> | null): {
   catalog: { assets: CatalogAsset[] };
   palette: { version: number; tokens: Record<string, unknown> };
   specHash: string;
@@ -126,7 +159,7 @@ export function validateGeneratorParameters(asset: {
   id: string;
   generator: string;
   parameters: Record<string, unknown>;
-}): true;
+}, repoRoot?: string, verifySourceFiles?: boolean): true;
 export function validateLodContract(asset: CatalogAsset): boolean;
 export function validateAnimationContract(asset: CatalogAsset): boolean;
 export function validateReferenceAuthoring(asset: CatalogAsset): true | null;
@@ -167,4 +200,30 @@ export function validateGlb(
   filename: string,
   spec: CatalogAsset,
   phase: string,
+  repoRoot?: string,
 ): Promise<Record<string, unknown>>;
+export function resolveAdmissionSource(source: string, extension: string, repoRoot?: string): string;
+export function validateSourceProvenance(asset: CatalogAsset, repoRoot?: string, verifySourceFiles?: boolean): SourceProvenance | null;
+export function validateStaticAuthoring(
+  asset: CatalogAsset,
+  repoRoot?: string,
+  verifySourceFiles?: boolean,
+): CatalogAsset["staticAuthoring"] | null;
+export function validateStaticSourceContract(
+  filename: string,
+  spec: CatalogAsset,
+  repoRoot?: string,
+): Promise<Record<string, unknown> | null>;
+export function validateAdmissionGlb(
+  filename: string,
+  spec: CatalogAsset,
+  palette: { tokens: Record<string, unknown> },
+  repoRoot?: string,
+): Promise<Record<string, unknown>>;
+export function admitAsset(
+  spec: CatalogAsset,
+  sourcePath: string,
+  catalog: { assets: CatalogAsset[]; downloadBudgetBytes: number },
+  palette: { tokens: Record<string, unknown> },
+  options?: { publish?: boolean; repoRoot?: string },
+): Promise<{ stage: string; report: { assets: Array<Record<string, unknown>> }; published: boolean }>;

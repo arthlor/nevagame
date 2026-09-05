@@ -4,6 +4,7 @@ import { audioSettings, AudioSettings } from "../audio/AudioSettings";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import {
+  IconBoat,
   IconCompass,
   IconEnergy,
   IconExpedition,
@@ -13,6 +14,7 @@ import {
 } from "./components/HudIcons";
 import { playUiSound } from "./audio/uiAudio";
 import { InterfaceSettings } from "./components/InterfaceSettings";
+import { uiScale } from "./uiScale";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
 import { ControlsReference } from "./components/ControlsReference";
@@ -22,6 +24,11 @@ export interface EscapeMenuModalProps {
   pause: PauseSummaryDto;
   onClose: () => void;
   onResetPlayerToSafePlace: () => void;
+  /**
+   * Recalls the vessel to its mooring. Reachable here because a stranded
+   * player often cannot walk back to the boat to arrange it in the world.
+   */
+  onEmergencyTow?: () => { success: boolean; reason?: string };
   onQuickSave: () => void;
   savingAvailable: boolean;
   onOpenInventory: () => void;
@@ -36,10 +43,41 @@ export interface EscapeMenuModalProps {
   onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
 }
 
+/** Map-pin mark for Safe Return. HudIcons carries no pin, so it lives here. */
+const IconPin: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path
+      d="M8 1.5a4 4 0 0 0-4 4c0 3-1.5 4.5-1.5 4.5h11S12 8.5 12 5.5a4 4 0 0 0-4-4Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+    <circle cx="8" cy="5.5" r="1.5" fill="currentColor" />
+  </svg>
+);
+
+/**
+ * Total play time is display-only. PauseSummaryDto does not carry it, so when
+ * the field is absent the line is omitted rather than invented.
+ */
+const formatPlayTime = (totalMinutes: number): string => {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = Math.floor(totalMinutes % 60);
+  return hours > 0 ? `${hours}h ${minutes}m at sea` : `${minutes}m at sea`;
+};
+
 export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   pause,
   onClose,
   onResetPlayerToSafePlace,
+  onEmergencyTow,
   onQuickSave,
   savingAvailable,
   onOpenInventory,
@@ -55,20 +93,28 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const safeReturnCancelRef = useRef<HTMLButtonElement>(null);
+  const [towNotice, setTowNotice] = useState<string | null>(null);
   const [page, setPage] = useState<PausePage>("menu");
   useModalAccessibility(modalRef, onClose);
 
   useEffect(() => {
-    if (page === "safe-return") safeReturnCancelRef.current?.focus();
+    if (page === "safe-return" || page === "emergency-tow") safeReturnCancelRef.current?.focus();
   }, [page]);
 
   const lastSaved = savingAvailable
     ? formatLastSaved(pause.lastSavedUtcMs)
     : "This session is not being saved";
+  const rawPlayMinutes = (pause as Partial<{ totalPlayMinutes: unknown }>).totalPlayMinutes;
+  const playTimeLabel =
+    typeof rawPlayMinutes === "number" && Number.isFinite(rawPlayMinutes) && rawPlayMinutes >= 0
+      ? formatPlayTime(rawPlayMinutes)
+      : null;
   const pageTitle = page === "menu"
     ? "Paused"
     : page === "safe-return"
       ? "Safe Return"
+      : page === "emergency-tow"
+        ? "Emergency Tow"
       : SETTINGS_PAGES.find((entry) => entry.id === page)?.label ?? "Settings";
 
   return (
@@ -105,6 +151,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                 <div>
                   <strong className="pause-region-title">{pause.regionLabel}</strong>
                   <span className="pause-date-sub">{pause.dateTimeLabel}</span>
+                  {playTimeLabel && <span className="pause-playtime-line">{playTimeLabel}</span>}
                 </div>
                 <Meter
                   className="pause-labor-meter"
@@ -155,9 +202,26 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                 </ChromeButton>
               </div>
 
-              <button type="button" className="pause-safe-return-link" onClick={() => setPage("safe-return")}>
-                Safe Return
-              </button>
+              <ChromeButton
+                variant="secondary"
+                size="sm"
+                className="pause-safe-return-btn"
+                onClick={() => setPage("safe-return")}
+              >
+                <IconPin size={14} /> Safe Return
+              </ChromeButton>
+
+              {onEmergencyTow && (
+                <ChromeButton
+                  variant="secondary"
+                  size="sm"
+                  className="pause-emergency-tow-btn"
+                  data-testid="pause-emergency-tow"
+                  onClick={() => setPage("emergency-tow")}
+                >
+                  <IconBoat size={14} /> Emergency Tow
+                </ChromeButton>
+              )}
             </>
           ) : page === "safe-return" ? (
             <section
@@ -180,6 +244,43 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                   onClick={onResetPlayerToSafePlace}
                 >
                   Use Safe Return
+                </ChromeButton>
+              </div>
+            </section>
+          ) : page === "emergency-tow" ? (
+            <section
+              className="pause-critical-sheet"
+              aria-labelledby="pause-emergency-tow-title"
+              aria-describedby="pause-emergency-tow-description"
+            >
+              <h2 id="pause-emergency-tow-title">Arrange a tow?</h2>
+              <p id="pause-emergency-tow-description">
+                A harbour crew brings your vessel back to its mooring for a flat fee.
+                Your cargo and fuel are left untouched.
+              </p>
+              {towNotice && (
+                <p className="pause-critical-notice" role="status" data-testid="pause-tow-notice">
+                  {towNotice}
+                </p>
+              )}
+              <div className="pause-critical-actions">
+                <ChromeButton ref={safeReturnCancelRef} onClick={() => setPage("menu")}>
+                  Not now
+                </ChromeButton>
+                <ChromeButton
+                  variant="danger"
+                  soundCue="confirm"
+                  data-testid="pause-confirm-tow"
+                  onClick={() => {
+                    const result = onEmergencyTow?.();
+                    if (!result) return;
+                    // A refused tow keeps the sheet open with the reason, so the
+                    // player is not dropped back to the menu without an answer.
+                    if (result.success) setPage("menu");
+                    else setTowNotice(result.reason ?? "That tow could not be arranged");
+                  }}
+                >
+                  Call for a tow
                 </ChromeButton>
               </div>
             </section>
@@ -207,7 +308,20 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                   />
                 )}
                 {page === "audio" && <AudioControls />}
-                {page === "interface" && <InterfaceSettings />}
+                {page === "interface" && (
+                  <>
+                    <InterfaceSettings />
+                    <div className="pause-settings-reset">
+                      <ChromeButton
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => uiScale.set("auto")}
+                      >
+                        Reset to defaults
+                      </ChromeButton>
+                    </div>
+                  </>
+                )}
                 {page === "controls" && <ControlsReference />}
               </div>
             </div>
@@ -219,7 +333,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
 };
 
 type SettingsPage = "graphics" | "audio" | "interface" | "controls";
-type PausePage = "menu" | "safe-return" | SettingsPage;
+type PausePage = "menu" | "safe-return" | "emergency-tow" | SettingsPage;
 
 const SETTINGS_PAGES: ReadonlyArray<{ id: SettingsPage; label: string }> = [
   { id: "graphics", label: "Graphics" },
@@ -292,6 +406,16 @@ export const GraphicsControls: React.FC<{
           );
         })}
       </div>
+      <div className="pause-settings-reset">
+        <ChromeButton
+          size="sm"
+          variant="secondary"
+          disabled={preference === "auto"}
+          onClick={() => onChange("auto")}
+        >
+          Reset to defaults
+        </ChromeButton>
+      </div>
     </section>
   );
 };
@@ -306,10 +430,36 @@ const AUDIO_ROWS: Array<{ label: string; level: AudioLevelKey; muted: AudioMuteK
   { label: "Ambience", level: "ambience", muted: "ambienceMuted" }
 ];
 
+/**
+ * Factory sound levels. Mirrors DEFAULT_AUDIO_SETTINGS in
+ * src/audio/AudioSettings.ts (which owns the values); kept local because this
+ * slice may not touch files outside the Escape/Journal/Dialogue modals.
+ */
+const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  master: 0.8,
+  music: 0.52,
+  sfx: 0.8,
+  ambience: 0.62,
+  masterMuted: false,
+  musicMuted: false,
+  sfxMuted: false,
+  ambienceMuted: false
+};
+
 export const AudioControls: React.FC = () => {
   const [settings, setSettings] = useState<AudioSettings>({ ...audioSettings.get() });
 
   useEffect(() => audioSettings.subscribe((next) => setSettings({ ...next })), []);
+
+  const isDefault =
+    settings.master === DEFAULT_AUDIO_SETTINGS.master &&
+    settings.music === DEFAULT_AUDIO_SETTINGS.music &&
+    settings.sfx === DEFAULT_AUDIO_SETTINGS.sfx &&
+    settings.ambience === DEFAULT_AUDIO_SETTINGS.ambience &&
+    !settings.masterMuted &&
+    !settings.musicMuted &&
+    !settings.sfxMuted &&
+    !settings.ambienceMuted;
 
   return (
     <section className="audio-settings" aria-labelledby="audio-settings-title">
@@ -346,6 +496,16 @@ export const AudioControls: React.FC = () => {
           </div>
         );
       })}
+      <div className="pause-settings-reset">
+        <ChromeButton
+          size="sm"
+          variant="secondary"
+          disabled={isDefault}
+          onClick={() => setSettings({ ...audioSettings.set({ ...DEFAULT_AUDIO_SETTINGS }) })}
+        >
+          Reset to defaults
+        </ChromeButton>
+      </div>
     </section>
   );
 };

@@ -66,6 +66,7 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
     depthWrite: false,
     side: THREE.DoubleSide,
     uniforms: {
+      uTime: { value: 0 },
       uOpacity: { value: 0 },
       uDaylight: { value: 1 },
       uKeyLightStrength: { value: 1 },
@@ -86,6 +87,7 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
       }
     `,
     fragmentShader: `
+      uniform float uTime;
       uniform float uOpacity;
       uniform float uDaylight;
       uniform float uKeyLightStrength;
@@ -99,12 +101,14 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
       in vec3 vWorldPosition;
       out vec4 outColor;
       void main() {
+        float rippleBand = sin(vUv.y * 28.0 - (uTime - vUv.x * 2.0) * 5.0) * 0.5 + 0.5;
+        float ripple = mix(0.85, 1.15, rippleBand);
         float tapered = smoothstep(0.0, 0.22, vUv.y) * (1.0 - smoothstep(0.72, 1.0, vUv.y));
         float crossFade = smoothstep(0.0, 0.34, vUv.x) * (1.0 - smoothstep(0.66, 1.0, vUv.x));
-        float alpha = uOpacity * mix(0.46, 1.0, tapered) * mix(0.62, 1.0, crossFade);
+        float alpha = uOpacity * mix(0.46, 1.0, tapered) * mix(0.62, 1.0, crossFade) * ripple;
         if (alpha < 0.012) discard;
         float lightResponse = clamp(mix(0.14, 0.92, uDaylight) + uKeyLightStrength * 0.08, 0.12, 1.0);
-        vec3 color = mix(uWaterColor, uFoamColor, 0.54) * lightResponse;
+        vec3 color = mix(uWaterColor, uFoamColor, 0.54 + 0.12 * rippleBand) * lightResponse;
         float fogFactor = smoothstep(uFogNear, uFogFar, distance(cameraPosition, vWorldPosition));
         float wakeLuma = dot(color, vec3(0.299, 0.587, 0.114));
         color = mix(color, vec3(wakeLuma), fogFactor * uFogDistanceDesaturation);
@@ -199,7 +203,7 @@ export class BoatWakePool {
     entry.mesh.geometry = kind === "hull" ? this.hullGeometry : this.paddleGeometry;
     entry.mesh.position.set(
       x,
-      WaterSurface.sample(x, z, timeSeconds, conditions).height - 0.165,
+      WaterSurface.sample(x, z, timeSeconds, conditions).height + 0.015,
       z
     );
     entry.mesh.rotation.set(0, headingRadians, 0);
@@ -223,11 +227,12 @@ export class BoatWakePool {
         entry.z,
         timeSeconds,
         entry.conditions
-      ).height - 0.165;
+      ).height + 0.015;
       const expansion = entry.kind === "hull" ? 0.66 : 0.42;
       entry.mesh.scale.setScalar(entry.baseScale * (1 + eased * expansion));
       const peakOpacity = entry.kind === "hull" ? 0.34 : 0.24;
       entry.mesh.material.uniforms.uOpacity.value = (1 - eased) * peakOpacity;
+      entry.mesh.material.uniforms.uTime.value = timeSeconds;
     }
   }
 

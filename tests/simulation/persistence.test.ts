@@ -731,7 +731,7 @@ describe("Persistence & Offline Progression", () => {
     expect(WorldLayout.isWater(migrated.state.player.x, migrated.state.player.z)).toBe(false);
     expect(WorldLayout.isWalkable(migrated.state.player.x, migrated.state.player.z)).toBe(true);
     expect(migrated.state.player.y).toBeCloseTo(
-      WorldLayout.terrainHeight(migrated.state.player.x, migrated.state.player.z) + 0.5,
+      WorldLayout.traversalSurfaceHeight(migrated.state.player.x, migrated.state.player.z) + 0.5,
       6
     );
     expect(migrated.state.world.structures["struct.layout8_fixture"]).toMatchObject({
@@ -770,7 +770,7 @@ describe("Persistence & Offline Progression", () => {
     legacy.player.z = -55;
     const migrated = migrateSaveData({ schemaVersion: 23, savedAtUtcMs: 1, state: legacy });
     expect(migrated.state.player).toMatchObject({ x: -65, z: -55 });
-    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.terrainHeight(-65, -55) + 0.5, 6);
+    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(-65, -55) + 0.5, 6);
   });
 
   it("migrates the v11 layout fixture by re-grounding land truth and preserving unrelated state", () => {
@@ -800,7 +800,7 @@ describe("Persistence & Offline Progression", () => {
     });
     expect(migrated.state.player.proficiencies).toEqual(preserved.proficiencies);
     expect(migrated.state.player.y).toBeCloseTo(
-      WorldLayout.terrainHeight(preserved.playerX, preserved.playerZ) + 0.5,
+      WorldLayout.traversalSurfaceHeight(preserved.playerX, preserved.playerZ) + 0.5,
       6
     );
     const structure = migrated.state.world.structures["struct.fixture_workbench"];
@@ -922,7 +922,7 @@ describe("Persistence & Offline Progression", () => {
       rotationY: preserved.playerRotationY
     });
     expect(migrated.state.player.y).toBeCloseTo(
-      WorldLayout.terrainHeight(preserved.playerX, preserved.playerZ) + 0.5,
+      WorldLayout.traversalSurfaceHeight(preserved.playerX, preserved.playerZ) + 0.5,
       6
     );
     for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.starter_compost"]) {
@@ -987,7 +987,7 @@ describe("Persistence & Offline Progression", () => {
       rotationY: fixture.state.player.rotationY,
       money: fixture.state.player.money
     });
-    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.terrainHeight(playerX, playerZ) + 0.5, 6);
+    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(playerX, playerZ) + 0.5, 6);
     expect(migratedFixture).toMatchObject({
       x: fixture.state.world.structures["struct.coast_fixture"].x,
       z: fixture.state.world.structures["struct.coast_fixture"].z,
@@ -1353,10 +1353,16 @@ describe("Persistence & Offline Progression", () => {
     });
 
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(migrated.state.world.layoutRevision).toBe(10);
-    expect(migrated.state.player).toEqual(preserved.player);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toEqual({
+      ...preserved.player,
+      y: WorldLayout.traversalSurfaceHeight(preserved.player.x, preserved.player.z) + 0.5,
+      traversal: { ...preserved.player.traversal, isGrounded: true }
+    });
     expect(migrated.state.boats).toEqual(preserved.boats);
-    expect(migrated.state.mounts).toEqual(preserved.mounts);
+    expect(migrated.state.mounts).toEqual(Object.fromEntries(Object.entries(preserved.mounts).map(([id, mount]) => [
+      id, { ...mount, y: WorldLayout.traversalSurfaceHeight(mount.x, mount.z) }
+    ])));
     expect(migrated.state.crops).toEqual(preserved.crops);
     expect(migrated.state.inventories).toEqual(preserved.inventories);
     expect(migrated.state.fishCargo).toEqual(preserved.fishCargo);

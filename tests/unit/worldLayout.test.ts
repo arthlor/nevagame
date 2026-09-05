@@ -37,6 +37,7 @@ import {
 import { ASSET_BY_ID, ASSET_IDS, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { collisionPrimitivesForAsset } from "../../src/physics/CollisionCatalogAdapter";
 import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../../src/render/materials/SurfaceFieldAttributes";
+import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import {
   createWorldEnvironmentLayout,
   generateCausalCompositionPlacements,
@@ -171,8 +172,8 @@ describe("WorldLayout", () => {
     expect(WorldLayout.fishingHabitatAt(50, WorldLayout.coastlineZ(50) + 8)).toBe("coast");
     expect(WorldLayout.nearbyFishingHabitat(50, WorldLayout.coastlineZ(50) - 2)).toBe("coast");
     expect(WorldLayout.nearbyFishingHabitat(72, WorldLayout.coastlineZ(72) - 2)).not.toBe("lake");
-    expect(WORLD_BOUNDS).toEqual({ minX: -180, maxX: 180, minZ: -160, maxZ: 120 });
-    expect(SAILABLE_BOUNDS).toEqual({ minX: -260, maxX: 720, minZ: -240, maxZ: 300 });
+    expect(WORLD_BOUNDS).toEqual({ minX: -220, maxX: 200, minZ: -250, maxZ: 130 });
+    expect(SAILABLE_BOUNDS).toEqual({ minX: -270, maxX: 720, minZ: -300, maxZ: 300 });
     expect(WATER_SURFACE).toMatchObject({
       width: 1150,
       depth: 750,
@@ -287,13 +288,20 @@ describe("WorldLayout", () => {
       hasCliff: true
     });
     expect(geometry.index).toBeNull();
-    expect(geometry.userData.terrainNormalPolicy).toEqual({
-      continuityStartNormalY: 0.88,
-      fullyFacetedNormalY: 0.66,
-      cliffWeightStart: 0.08,
-      cliffWeightFull: 0.5,
-      facetedColorBlend: 0.7
-    });
+    // VisualRenderConfig owns these numbers; the geometry must carry that exact
+    // policy rather than a second copy of it.
+    const normalPolicy = CANONICAL_RENDER_CONFIG.terrainSurface.normals;
+    expect(geometry.userData.terrainNormalPolicy).toEqual({ ...normalPolicy });
+    // Faceting belongs to rock. Slope alone must not shade soft ground as a
+    // cliff face: a steep sand river bank shares its angle with stone but not
+    // its material, and full face-normal/face-colour shading on the regular
+    // terrain grid reads as sawtooth chevrons rather than as facets.
+    expect(normalPolicy.softSurfaceFacetingScale).toBeGreaterThan(0);
+    expect(normalPolicy.softSurfaceFacetingScale).toBeLessThan(1);
+    // The slope window has to be wide enough that a bank cannot cross it inside
+    // a single terrain vertex, which is what drew a hard seam down the bank.
+    expect(normalPolicy.continuityStartNormalY - normalPolicy.fullyFacetedNormalY)
+      .toBeGreaterThan(0.3);
 
     const positions = geometry.getAttribute("position");
     const normals = geometry.getAttribute("normal");
@@ -526,9 +534,10 @@ describe("WorldLayout", () => {
 
   it("grades typed dirt routes and adds deterministic nonnegative physical relief", () => {
     expect(WorldLayout.routeDefinitions().map((route) => route.kind)).toEqual([
-      // Neva regional, then the farmstead paths...
+      // Neva regional, then the farmstead paths, then western beach and northern bluff trails...
       "arterial", "lane", "arterial", "lane", "trail",
-      "lane", "trail", "lane",
+      "lane", "trail", "lane", "trail", "trail",
+      "trail", "trail",
       // ...then Sunreach: cove-terraces, terraces-scrub, scrub-ridge, scrub-reef.
       "arterial", "lane", "trail", "trail"
     ]);
@@ -641,13 +650,14 @@ describe("WorldLayout", () => {
 
     expect(authored.length).toBeGreaterThanOrEqual(43);
     expect(layoutDerived).toHaveLength(0);
-    // Counted per island: both generators hard-fail if they cannot hit their
-    // exact target, so an off-by-one here is a real placement regression. A
-    // whole-world total would let one island absorb the other's shortfall.
+    // Fixed-seed composition evidence, counted per island. Neva may reject
+    // candidates on mountain faces; its old target remains a ceiling, not a
+    // reason to fill steep terrain or transfer its density onto Sunreach.
     const causalCount = (islandId: string, category: string) => causal.filter((placement) =>
       placement.compositionTag?.islandId === islandId && placement.compositionTag?.category === category
     ).length;
-    expect(causalCount("island.neva", "tree")).toBe(235);
+    expect(causalCount("island.neva", "tree")).toBeLessThanOrEqual(235);
+    expect(causalCount("island.neva", "tree")).toBeGreaterThanOrEqual(180);
     expect(causalCount("island.neva", "bush")).toBe(115);
     expect(causalCount("island.neva", "rock")).toBe(72);
     expect(causalCount("island.neva", "reed")).toBeGreaterThan(10);
@@ -963,7 +973,9 @@ describe("WorldLayout", () => {
     // them rather than hardcoding, so bumping a revision cannot go stale here.
     expect(WORLD_LAYOUT_V5.revision).toBe(WORLD_LAYOUT_REVISION);
     const sections = [];
-    for (let z = -155; z <= 80; z += 5) sections.push(WorldLayout.riverSectionAt(z));
+    // The retained fishing river keeps its legacy bend contract. The new
+    // descending spring reach has separate elevation/cap coverage.
+    for (let z = -115; z <= 80; z += 5) sections.push(WorldLayout.riverSectionAt(z));
     const asymmetric = sections.filter((section) =>
       Math.abs(section.leftWaterWidth - section.rightWaterWidth) >= 0.6
       || Math.abs(section.leftBankRun - section.rightBankRun) >= 0.6
@@ -1025,10 +1037,14 @@ describe("WorldLayout", () => {
       "village-homestead",
       "village-harbor",
       "village-lighthouse",
-      "cliffside-coastal-walk"
+      "cliffside-coastal-walk",
+      "farm-headwater-trail",
+      "western-overlook-trail",
+      "western-beach-trail",
+      "northern-bluff-trail"
     ]);
     expect(routes.map((route) => route.kind)).toEqual([
-      "arterial", "lane", "arterial", "lane", "trail"
+      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail", "trail", "trail"
     ]);
     // Every route on every island, not just the Neva ones: road ribbons and
     // route terrain conformity are built from these samples.
@@ -1064,7 +1080,9 @@ describe("WorldLayout", () => {
   });
 
   it("compiles the farmstead paths into the canonical network with shared junctions and a door endpoint", () => {
-    expect(WORLD_ROUTE_NETWORK).toEqual([...WORLD_ROUTES, ...FARM_ROUTES, ...SUNREACH_ROUTES]);
+    expect(WORLD_ROUTE_NETWORK.map((route) => route.id)).toEqual([
+      ...WORLD_ROUTES.slice(0, 5), ...FARM_ROUTES, ...WORLD_ROUTES.slice(5), ...SUNREACH_ROUTES
+    ].map((route) => route.id));
     expect(FARM_ROUTES.map((route) => route.id)).toEqual([
       "farm-entry",
       "farm-work-zone",

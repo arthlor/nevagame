@@ -126,7 +126,7 @@ describe("Gameplay simulation fixes", () => {
     sim.state.basicFishing!.willCatch = true;
     sim.tick(10);
     expect(sim.state.basicFishing?.phase).toBe("bite-reaction");
-    sim.tick(2);
+    for (let i = 0; i < 40; i += 1) sim.tick(0.05);
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(sim.state.inventories[sim.state.player.inventoryId], "fish.perch")).toBe(0);
 
@@ -651,7 +651,7 @@ describe("Gameplay simulation fixes", () => {
     expect(reloaded.state.basicFishing).toMatchObject({ habitatId: "river", phase: "casting" });
     reloaded.tick(10);
     expect(reloaded.state.basicFishing?.phase).toBe("bite-reaction");
-    reloaded.tick(2);
+    for (let i = 0; i < 40; i += 1) reloaded.tick(0.05);
     expect(reloaded.state.basicFishing).toBeNull();
   });
 
@@ -842,6 +842,18 @@ describe("Gameplay simulation fixes", () => {
       WorldLayout.terrainHeight(HARBOR_FISH_TABLE.position.x, HARBOR_FISH_TABLE.position.z),
       6
     );
+  });
+
+  it("rank-gates mill and fish-table recipes that processingUnlocks list", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    sim.state.player.proficiencies.processing = 0;
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "fish.sardine", quantity: 2 }]);
+    movePlayerToProcessingFront(sim, HARBOR_FISH_TABLE.structureId);
+    expect(sim.startProcessingJob("recipe.cure_sardine", HARBOR_FISH_TABLE.structureId)).toMatchObject({
+      success: false,
+      reason: "Requires 1000 Processing XP"
+    });
+    expect(InventoryManager.getItemCount(inventory, "fish.sardine")).toBe(2);
   });
 
   it("processes fish scraps at the fish-table and rejects mill or workbench", () => {

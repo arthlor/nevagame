@@ -67,7 +67,7 @@ canvas LMB
   → GameApp.syncLayoutEditor
   → PlacementEditor (select / drag / rotate / copy / delete)
   → WorldScene.pickLayoutEditable  (userData.layoutEdit on discrete roots)
-  → POST /__neva_layout_editor/commit   (localhost, Vite serve only)
+  → POST /__neva_layout_editor/commit   (localhost, same-origin JSON, Vite serve only)
   → tools/layout-editor/patchPlacement.ts
   → allowlisted layout TypeScript
 ```
@@ -82,7 +82,27 @@ Shared contract (kinds, commit JSON, source file map, duplicate/delete policy) l
 | Pose after a successful drop | layout TypeScript | git source |
 | Player save | unchanged | not rewritten by the editor |
 
-Writes are **localhost-only** (`localhost`, `127.0.0.1`, `::1`). The plugin suppresses Vite HMR for ~2.5 s on files it just wrote so a drop does not immediately full-reload the game.
+Writes are **localhost-only** (`localhost`, `127.0.0.1`, `::1`) **and same-origin**: the
+plugin also requires an `application/json` content type, a loopback `Origin` when one is
+sent, and `Sec-Fetch-Site: same-origin` when the browser sends it. The `Host` header alone
+is whatever the browser dialled, so without those a page on any origin could post a
+`text/plain` form — no CORS preflight required — at a running dev server and rewrite
+`src/world`. Commits are also **serialized** server-side: each one is a read-modify-write
+over the same six files, so overlapping requests would otherwise plan against the
+pre-write tree and drop each other.
+
+A commit either lands in **every** file it touches or in none. Moving the farmhouse also
+moves the interior door; moving a harbor NPC also moves its world anchor. All changed
+files are parse-checked before any rename, and an earlier rename is rolled back from the
+captured previous content if a later one fails.
+
+Layout **ids are restricted to `[A-Za-z0-9_.-]`** (up to 180 characters). Ids are
+interpolated into generated TypeScript, so the charset — not the parse check — is what
+stops a commit body from closing a string literal and writing arbitrary code. Every
+published id already fits: `farm_hay_a`, `struct.starter_mill`, `fence_west_-4`,
+`authored.copy.prop_crate_a.1`.
+
+The plugin suppresses Vite HMR for ~2.5 s on files it just wrote so a drop does not immediately full-reload the game.
 
 ---
 
@@ -200,10 +220,14 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 
 # 8. What was built (and why)
 
+0. **DEV code stays out of production** — `GameApp` imports `PlacementEditor` dynamically
+   inside its `import.meta.env.DEV` branch. A static import kept the editor, its history
+   stack, `three-mesh-bvh`, and a module-scope `THREE.Mesh.prototype.raycast` patch in
+   every shipped build for a tool that cannot run there.
 1. **In-game posing instead of hand-editing TypeScript** — walk to the object, drop, get a git-visible layout change.
 2. **No new gameplay mode** — F2 is a DEV overlay. Simulation modes stay on-foot / farm-placement / boat / fishing.
 3. **Allowlisted source patcher** — only the six layout files below; numeric fields only; unsafe expressions rejected.
-4. **Vite serve plugin** — `POST /__neva_layout_editor/commit`, localhost only, HMR suppression after write.
+4. **Vite serve plugin** — `POST /__neva_layout_editor/commit`, localhost + same-origin JSON only, serialized commits, HMR suppression after write.
 5. **Presentation tags** — `userData.layoutEdit` on discrete roots; grass scatter stays untagged.
 6. **Select vs write** — click selects; source writes only on a real move, rotate, paste, or delete.
 7. **Copy/paste/delete** for props, fences, authored details, seeded pins, interior furniture; unique buildings refuse it.
@@ -258,8 +282,17 @@ the simulation predicate and the visual cue must agree.
 # 10. Tests
 
 ```bash
-npx vitest run tests/unit/layoutEditorPatch.test.ts tests/unit/terrainSnapping.test.ts tests/unit/historyManager.test.ts tests/unit/empirical_r2_terrain_history_stress.test.ts tests/unit/physicsWorld.test.ts
+npx vitest run tests/unit/layoutEditorSourceRoundTrip.test.ts tests/unit/layoutEditorPatch.test.ts tests/unit/terrainSnapping.test.ts tests/unit/historyManager.test.ts tests/unit/empirical_r2_terrain_history_stress.test.ts tests/unit/physicsWorld.test.ts
 ```
+
+`layoutEditorSourceRoundTrip.test.ts` runs every editable kind against the **shipped**
+layout sources, not fixtures, and asserts the x, z and rotation it asked for actually
+appear in written text. The patcher matches source by shape, so a refactor in
+`WorldLayout.ts` or `FarmLayout.ts` can silently stop a field from being written while the
+editor still reports "Wrote &lt;id&gt;" — that is exactly how the bridge lost its yaw. The
+same file pushes each allowlisted source through the write gate, which is how a parser
+that could not read `interface X extends Y` (and therefore rejected every farm commit)
+would now be caught.
 
 Patcher tests cover math (door follow / yaw), source edits (move, copy, delete,
 restore, overrides), duplicate extras (`practicalLight`, `grounding`,
@@ -280,12 +313,14 @@ Do not claim the editor is visually approved; the human confirms picks and drops
 - No `GameplayMode` named “layout” / “place”.
 - No silent `layoutRevision` bump; saves are not rewritten by a drop.
 - No `src/world` imports in `patchPlacement.ts` or the Vite plugin.
-- Production never constructs `PlacementEditor` and never serves the commit route.
+- Production never constructs `PlacementEditor`, never loads its module, and never serves the commit route.
 - Simulation remains the serializable gameplay authority; Three.js `userData` is a pick tag only.
 - Unique buildings, NPCs, landmarks, and architecture pads cannot be copied or deleted.
 - Duplicating a prop re-instantiates from the catalog and binds the same spawn features (lights, fauna, shadows, grounding, collision). It does not invent new gameplay interact points.
 - Grass/crop/boat/player/terrain stay undraggable.
 - Unstable architecture footprints refuse a write.
-- Commit endpoint stays POST + localhost + allowlisted files.
+- Commit endpoint stays POST + localhost + same-origin JSON + allowlisted files, and commits stay serialized and all-or-nothing across files.
+- Layout ids written into source stay inside `[A-Za-z0-9_.-]`.
+- The write gate parses with Babel directly. Do not route it back through recast: its `ast-types` cannot read `interface X extends Y`, which silently blocked every `FarmLayout.ts` commit.
 
 When adding a new movable object: tag it in `WorldScene`, add a kind (or reuse one), teach the patcher the exact source shape, add a fixture-style unit test, decide copy/delete, and update §4 and §9 of this file in the same change. Do not special-case presentation in `userData` to paper over a missing layout field.

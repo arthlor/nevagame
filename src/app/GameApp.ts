@@ -4,6 +4,7 @@ import * as THREE from "three";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Simulation } from "../simulation/Simulation";
+import type { EquippedToolId } from "../simulation/core/contracts";
 import {
   WorldScene,
   type BoatPresentationInput,
@@ -25,10 +26,12 @@ import { GameUI } from "../ui/GameUI";
 import {
   inferNoticeTone,
   NOTICE_DEFAULT_DURATION_MS,
+  ChronicleLog,
   NoticeQueue,
   type Notice,
   type NoticeTone
 } from "../ui/notifications";
+import type { ChronicleFilter } from "../ui/notifications";
 import { playNoticeSound } from "../ui/audio/uiAudio";
 
 const SALE_BATCH_WINDOW_MS = 600;
@@ -38,10 +41,11 @@ import {
   GraphicsQualitySettings,
   type GraphicsQualityPreference
 } from "../render/config/GraphicsQualitySettings";
-import { applyOfflineProgression } from "../persistence/offlineDelta";
+import { applyOfflineProgression, type OfflineProgressionSummary } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
+import type { CollisionDebugView } from "../diagnostics/CollisionDebugView";
 import { WorldLayout } from "../world/WorldLayout";
 import {
   WORLD_MARKET_LOCATIONS,
@@ -49,7 +53,8 @@ import {
 } from "../world/WorldGameplayLocations";
 import { WORLD_SAILING_ROUTES } from "../world/WorldMoorings";
 import { pickUnlockedStationRecipe } from "../simulation/domains/ProcessingDomain";
-import { formatGameDuration } from "../simulation/core/GameClock";
+import { NavigationDomain } from "../simulation/domains/NavigationDomain";
+import { formatClockTime, formatGameDuration } from "../simulation/core/GameClock";
 import { STARTER_DONKEY_ID } from "../simulation/mounts/Mounts";
 import {
   StartupTimeoutError,
@@ -64,7 +69,6 @@ const PHYSICS_STARTUP_TIMEOUT_MS = 30_000;
 // diagnostic. Generous, because this stage builds thousands of placements on
 // whatever hardware the player has.
 const WORLD_STARTUP_TIMEOUT_MS = 120_000;
-const FISHING_ROD_TOOL_SLOT = 5;
 
 function detectTouchDevice(): boolean {
   return typeof window !== "undefined" && (
@@ -99,7 +103,8 @@ import type {
   CropPlacementResult,
   GameCommand,
   InteractionResult,
-  InteractionTarget
+  InteractionTarget,
+  MarketDemandTrendDto
 } from "../simulation/core/contracts";
 import {
   IRRIGATION_COST,
@@ -110,7 +115,7 @@ import { FarmingActionController,
   type FarmingActionSnapshot,
   type FarmingPresentationAction
 } from "./FarmingActionController";
-import { PlacementEditor } from "./PlacementEditor";
+import type { PlacementEditor } from "./PlacementEditor";
 import { gameAudio, type AudioCueId } from "../audio/AudioManager";
 import { bindDomainAudio, syncWorldAudio } from "../audio/gameplayAudio";
 import { footstepBankForSurface, footstepSurfaceAt } from "../audio/footstepSurface";
@@ -294,6 +299,9 @@ const GOLD_TEST_PRESETS = {
   starter_farm: "farm",
   harbor_market: "harbor",
   lighthouse_coast: "coast",
+  mountain_skyline: "farm-mountains",
+  river_source: "river-source",
+  western_overlook: "western-overlook",
   sunreach_departure: "sunreach-departure",
   sunreach_cove: "sunreach-cove",
   sunreach_terraces: "sunreach-terraces",
@@ -358,6 +366,24 @@ const EMPTY_ASSET_COVERAGE_SUMMARY: AssetCoverageSummary = {
 };
 
 const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
+  "farm-mountains": {
+    playerPose: { x: -65, y: 1.7, z: -60.5, rotationY: Math.PI },
+    cameraPosition: { x: -70, y: 9, z: -42 },
+    cameraTarget: { x: -68, y: 7, z: -86 },
+    fovDegrees: 50
+  },
+  "river-source": {
+    playerPose: { x: -37, y: 21, z: -150, rotationY: Math.PI / 2 },
+    cameraPosition: { x: -14, y: 31, z: -116 },
+    cameraTarget: { x: -31, y: 14, z: -138 },
+    fovDegrees: 50
+  },
+  "western-overlook": {
+    playerPose: { x: -126, y: 18.5, z: -88, rotationY: 0 },
+    cameraPosition: { x: -137, y: 31, z: -92 },
+    cameraTarget: { x: -108, y: 9, z: -64 },
+    fovDegrees: 50
+  },
   bridge: {
     playerPose: { x: -24, y: 1.4, z: -7, rotationY: 0 },
     cameraPosition: { x: -34, y: 13.5, z: 15 },
@@ -411,6 +437,22 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
     cameraPosition: { x: 104, y: 15, z: 99 },
     cameraTarget: { x: HARBOR_DOCK.boatPosition.x, y: 0.8, z: HARBOR_DOCK.boatPosition.z },
     fovDegrees: 47
+  },
+  /**
+   * Open sea looking straight down the evening sun path. The other water views
+   * frame a shoreline, so none of them ever put the specular lobe on water:
+   * the sun sits over land, or the glint band falls behind a headland. Water is
+   * a hero system (art bible section 8) and its sun/moon glitter had no review
+   * camera at all, which is how a broken high-tier water shader reached the
+   * working tree unseen. Pair with artMinute=1020 (sun at 8.5 degrees
+   * elevation, azimuth -32.6) so the reflected view lands on the sun; the ray
+   * stays over water for 400 m.
+   */
+  "open-sea": {
+    playerPose: { x: 70, y: 0.5, z: 90, rotationY: 0 },
+    cameraPosition: { x: 80, y: 9.6, z: 50 },
+    cameraTarget: { x: 47.7, y: 0.6, z: 100.5 },
+    fovDegrees: 50
   },
   coast: {
     playerPose: { x: -68, y: 5, z: 54, rotationY: 0 },
@@ -490,10 +532,14 @@ export class GameApp {
   public inputRouter: InputRouter;
   public saveRepo: IndexedDbSaveRepository;
   private physicsWorld: PhysicsWorld | null = null;
+  private collisionDebugView: CollisionDebugView | null = null;
 
   private readonly modeController = new ModeController();
   private promptText: string | null = null;
   private readonly notices = new NoticeQueue();
+  /** Session activity log behind the bottom-left Coastal Chronicle. */
+  private readonly chronicle = new ChronicleLog();
+  private chronicleFilter: ChronicleFilter = "all";
   private saleBatch = { units: 0, gold: 0, lastMs: -Infinity };
   private activeMarketId: MarketId | null = null;
   private selectedCropId: string = "crop.wheat";
@@ -509,6 +555,18 @@ export class GameApp {
     isBracing: false,
     rodDirectionAngle: 0
   };
+  private basicFishingWidgetHold = false;
+  private dialogueTalkResult: {
+    npcId: string;
+    result: {
+      success: boolean;
+      dialogue?: string[];
+      isCompletion?: boolean;
+      questCompleted?: boolean;
+      rewardsGiven?: boolean;
+      reason?: string;
+    };
+  } | null = null;
   private basicCastSource: "interact" | "primary" | null = null;
   private isRunning: boolean = false;
   private lastTimeMs: number = 0;
@@ -573,7 +631,7 @@ export class GameApp {
   private lastPresentedPlayer: PresentedPlayerFrame | null = null;
   private lastBoatMotion: Readonly<Record<string, BoatMotionSample>> = {};
   private lockedInteractionTarget: ResolvedInteractionTarget | null = null;
-  private mountTransitionUntilMs = 0;
+  private mountTransitionRemainingSeconds = 0;
   private mountTransitionAction: "mount" | "dismount" | null = null;
   private readonly audioForward = new THREE.Vector3();
   private readonly canvasContainer: HTMLElement;
@@ -589,9 +647,15 @@ export class GameApp {
   private activeHint: { hintId: string; title: string; message: string; icon?: string } | null = null;
   private isFarmGisHeld: boolean = false;
   private pendingCatchCargo: FishCargoState | null = null;
-  private activeToolSlot: number = 1;
+  private pendingCatchRecord: "first" | "weight" | "quality" | null = null;
+  private activeTool: EquippedToolId = "hands";
 
-  private handleTalkNpc = (npcId: string) => this.sim.questDomain.talkToNpc(npcId);
+  private handleTalkNpc = (npcId: string) => {
+    if (this.dialogueTalkResult?.npcId === npcId) return this.dialogueTalkResult.result;
+    const result = this.sim.questDomain.talkToNpc(npcId);
+    this.dialogueTalkResult = { npcId, result };
+    return result;
+  };
 
   private dismissActiveHint = (hintId: string): void => {
     if (this.activeHint?.hintId === hintId) this.activeHint = null;
@@ -599,10 +663,13 @@ export class GameApp {
 
   private dismissPendingCatch = (): void => {
     this.pendingCatchCargo = null;
+    this.pendingCatchRecord = null;
   };
 
   private uiRoot: ReactDOM.Root | null = null;
   private layoutEditor: PlacementEditor | null = null;
+  /** Resolves once the DEV-only editor module has loaded; null in production. */
+  private layoutEditorReady: Promise<void> | null = null;
   private layoutEditorChipVisible = false;
 
 
@@ -647,14 +714,21 @@ export class GameApp {
       };
       const editorQuery = new URLSearchParams(window.location.search);
       this.layoutEditorChipVisible = editorQuery.has("place") || editorQuery.has("debug");
-      this.layoutEditor = new PlacementEditor(
-        this.worldScene,
-        () => this.renderUI(),
-        (tag, commit) => this.applyLayoutEditLiveSync(tag, commit),
-        () => this.refreshLayoutEditStaticWorld()
-      );
-      window.addEventListener("keydown", this.onLayoutEditorKeyDown);
-      window.addEventListener("keyup", this.onLayoutEditorKeyUp);
+      // Imported on demand so the editor — and the three-mesh-bvh terrain
+      // snapper it owns — never reaches the production bundle. A static import
+      // kept both, plus a module-scope `THREE.Mesh.prototype.raycast` patch, in
+      // every shipped build for a tool that cannot run there.
+      this.layoutEditorReady = import("./PlacementEditor").then(({ PlacementEditor }) => {
+        this.layoutEditor = new PlacementEditor(
+          this.worldScene,
+          () => this.renderUI(),
+          (tag, commit) => this.applyLayoutEditLiveSync(tag, commit),
+          () => this.refreshLayoutEditStaticWorld()
+        );
+        window.addEventListener("keydown", this.onLayoutEditorKeyDown);
+        window.addEventListener("keyup", this.onLayoutEditorKeyUp);
+        this.renderUI();
+      });
     }
     this.syncOverlayState();
     this.renderUI();
@@ -836,6 +910,7 @@ export class GameApp {
     }
     if (modal !== "dialogue") {
       this.activeDialogueNpcId = null;
+      this.dialogueTalkResult = null;
       this.worldScene.setDialogueNpc(null);
     }
     if (modal === null) this.modeController.closeActive();
@@ -870,7 +945,13 @@ export class GameApp {
       query.has("debug") || Boolean(benchmarkPreset) || Boolean(debugStart)
     );
 
-    if (benchmarkPreset) this.worldScene.setQuality("high");
+    if (benchmarkPreset) {
+      const artQuality = query.get("artQuality");
+      if (artQuality !== null && !["low", "medium", "high"].includes(artQuality)) {
+        throw new Error(`Unknown art quality tier: ${artQuality}`);
+      }
+      this.worldScene.setQuality(artQuality === "low" || artQuality === "medium" ? artQuality : "high");
+    }
     this.persistenceDisabled = Boolean(benchmarkPreset || debugStart);
     window.__NEVA_RENDER_READY = false;
     this.renderReadyFramesRemaining = 0;
@@ -995,7 +1076,7 @@ export class GameApp {
     // envelope. New Game never constructs from it and never writes over it
     // until the new world has finished loading and is ready to play.
     if (!this.persistenceDisabled && !shouldStartNewGame && !shouldPlayWithoutSaving && saveResult.status === "loaded") {
-      applyOfflineProgression(saveResult.envelope.state, Date.now());
+      const awaySummary = applyOfflineProgression(saveResult.envelope.state, Date.now());
       this.sim = new Simulation(saveResult.envelope.state);
       this.attachSimulationFeedback();
       this.durableWritesEnabled = true;
@@ -1005,6 +1086,7 @@ export class GameApp {
       this.inputRouter.setMode(this.mode);
       this.sim.clock.setPaused(false);
       this.syncOverlayState();
+      this.notifyAwaySummary(awaySummary);
 
       console.info("[GameApp] Loaded existing game save from IndexedDB.");
     } else if (this.persistenceDisabled || shouldPlayWithoutSaving) {
@@ -1131,6 +1213,11 @@ export class GameApp {
       )
     );
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
+    if (import.meta.env.DEV) {
+      const { CollisionDebugView } = await import("../diagnostics/CollisionDebugView");
+      this.collisionDebugView?.dispose();
+      this.collisionDebugView = new CollisionDebugView(this.worldScene.scene, this.canvasContainer);
+    }
     this.assetCoverage = getAssetCoverageSummary(this.sim.state.worldSeed);
     // Resolve the initial target before exposing boot-ready state. This keeps
     // contextual prompts usable on the first interactive frame after the
@@ -1173,7 +1260,7 @@ export class GameApp {
     this.attachDebugHarness();
     this.updateStartupState({ status: "ready" });
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("place")) {
-      this.setLayoutEditorActive(true);
+      void this.layoutEditorReady?.then(() => this.setLayoutEditorActive(true));
     }
     if (shouldCreateInitialSave && this.durableWritesEnabled) {
       this.requestAutosave();
@@ -1451,6 +1538,7 @@ export class GameApp {
       this.cancelChargingCastWithoutPause();
       this.basicCastSource = null;
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 };
+      this.basicFishingWidgetHold = false;
     });
   }
 
@@ -1466,14 +1554,24 @@ export class GameApp {
         const player = this.lastPresentedPlayer ?? this.sim.state.player;
         return { x: player.x, y: player.y, z: player.z };
       }),
-      this.sim.events.on("FishLanded", ({ speciesId, weightKg }) => {
+      this.sim.events.on("FishLanded", ({ cargoId, speciesId, weightKg, record }) => {
         this.worldScene.playSportFishingEndCue("landed");
         const speciesName = ContentRegistry.fishSpecies.get(speciesId)?.name ?? "fish";
-        this.notify(`Landed ${weightKg.toFixed(1)} kg ${speciesName}`, "reward", 3600);
+        const moment =
+          record === "first"
+            ? " — new species recorded!"
+            : record === "weight"
+              ? " — heaviest yet!"
+              : record === "quality"
+                ? " — finest yet!"
+                : "";
+        this.notify(`Landed ${weightKg.toFixed(1)} kg ${speciesName}${moment}`, "reward", 4200);
         this.worldScene.playPlayerAction("pickup");
         const carriedId = this.sim.state.player.carriedFishCargoId;
-        if (carriedId && this.sim.state.fishCargo[carriedId]) {
-          this.pendingCatchCargo = this.sim.state.fishCargo[carriedId];
+        const cargo = this.sim.state.fishCargo[cargoId] ?? (carriedId ? this.sim.state.fishCargo[carriedId] : null);
+        if (cargo) {
+          this.pendingCatchCargo = cargo;
+          this.pendingCatchRecord = record ?? null;
         }
         // Freshness has to be taught before the first sale, or the price
         // penalty reads as a bug rather than a system the player can plan for.
@@ -1481,7 +1579,7 @@ export class GameApp {
           "hint.cargo_freshness",
           "The Catch Is Perishable",
           "Fish lose freshness from the moment they are landed, and buyers pay less for a tired catch. Ice slows it; a direct run to the harbor beats a full hold.",
-          "❄"
+          "waves"
         );
       }),
       this.sim.events.on("FishEscaped", ({ reason }) => {
@@ -1502,9 +1600,11 @@ export class GameApp {
         if (hasTreasure) this.notify("Sunken treasure spotted", "info", 1800);
         this.worldScene.playPlayerAction("reel");
       }),
-      this.sim.events.on("BasicFishingResolved", ({ catchItemId, reason }) => {
+      this.sim.events.on("BasicFishingResolved", ({ catchItemId, reason, record }) => {
         if (catchItemId) {
           this.worldScene.playPlayerAction("pickup");
+          if (record === "first") this.notify("New species recorded in the journal", "reward", 3200);
+          else if (record === "quality") this.notify("Finest of its kind yet", "reward", 3200);
         } else if (reason === "escaped") {
           this.worldScene.playPlayerAction("slack");
         } else if (reason !== "cancelled") {
@@ -1556,7 +1656,7 @@ export class GameApp {
           "hint.season_turn",
           "The Season Turns",
           "Different fish run in different seasons, and the market pays differently for them. Check the chart and the ledger — what was scarce may now be in reach.",
-          "❧"
+          "sprout"
         );
       }),
       this.sim.events.on("MountBoarded", ({ mountId }) => {
@@ -1605,7 +1705,8 @@ export class GameApp {
   private loop = (nowMs: number): void => {
     if (!this.isRunning) return;
 
-    const deltaSeconds = Math.min(0.1, (nowMs - this.lastTimeMs) / 1000);
+    const elapsedSeconds = Math.max(0, (nowMs - this.lastTimeMs) / 1000);
+    const deltaSeconds = Math.min(0.1, elapsedSeconds);
     this.lastTimeMs = nowMs;
 
     // FPS calculation
@@ -1629,6 +1730,13 @@ export class GameApp {
 
     if (!this.benchmarkView && this.graphicsQuality.sampleFrame(deltaSeconds, nowMs)) {
       this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
+    }
+
+    // Keep the transient input lock on the same unpaused elapsed time as the
+    // attachment animation. A wall deadline expired behind the pause menu.
+    if (!this.sim.clock.isPaused()) {
+      this.mountTransitionRemainingSeconds = Math.max(0,
+        this.mountTransitionRemainingSeconds - elapsedSeconds);
     }
 
     // Apply mouse orbit before fixed-step movement so simultaneous WASD uses
@@ -1702,7 +1810,10 @@ export class GameApp {
       this.sim,
       presentationTimeSeconds,
       presentedPlayer,
-      boatPresentationInput
+      boatPresentationInput,
+      // Physics intentionally drops excess hitch time. Gaits cover only that
+      // resolved travel while action clips retain their full elapsed time.
+      elapsedSeconds > 0 ? deltaSeconds / elapsedSeconds : 1
     );
     for (const event of this.worldScene.drainPlayerAnimationEvents()) {
       if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
@@ -1807,6 +1918,9 @@ export class GameApp {
     }
 
     // 6. Render 3D Scene
+    if (this.physicsWorld) {
+      this.collisionDebugView?.update(this.physicsWorld, this.gameCamera.camera, this.sim.state.player, nowMs);
+    }
     this.worldScene.render(this.gameCamera.camera, deltaSeconds);
     if (this.renderReadyFramesRemaining > 0) {
       this.renderReadyFramesRemaining -= 1;
@@ -1897,6 +2011,7 @@ export class GameApp {
   private applyBasicFishingInput(): void {
     if (this.mode !== "basic-fishing" || !this.sim.state.basicFishing) {
       this.basicCastSource = null;
+      this.basicFishingWidgetHold = false;
       return;
     }
     if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
@@ -1908,7 +2023,8 @@ export class GameApp {
     }
     const input = this.inputRouter.getInputState();
     const attempt = this.sim.state.basicFishing;
-    const isHolding = attempt.phase === "minigame" && input.fishing.isReeling;
+    const isHolding = attempt.phase === "minigame"
+      && (input.fishing.isReeling || this.basicFishingWidgetHold);
     if (isHolding !== Boolean(attempt.isHolding)) {
       this.sim.execute({
         type: "fishing.control-basic",
@@ -1970,7 +2086,28 @@ export class GameApp {
 
   private notify(text: string, tone: NoticeTone, durationMs: number = NOTICE_DEFAULT_DURATION_MS): void {
     const notice = this.notices.push(text, performance.now(), { tone, durationMs });
-    if (notice && notice.count === 1) playNoticeSound(tone);
+    if (!notice) return;
+    // Toasts expire; the Chronicle keeps them, so it is fed from the same call.
+    this.chronicle.record(notice, this.sim.state.clock.currentMinute);
+    if (notice.count === 1) playNoticeSound(tone);
+  }
+
+  /**
+   * Surfaces the offline summary discarded by the load path until now: what
+   * matured, withered, finished, spoiled, or expired while away. One combined
+   * notice — the stack only shows two at once.
+   */
+  private notifyAwaySummary(summary: OfflineProgressionSummary): void {
+    if (summary.simulatedGameMinutes <= 0) return;
+    const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+    const parts: string[] = [];
+    if (summary.cropsMaturedCount > 0) parts.push(count(summary.cropsMaturedCount, "crop ready", "crops ready"));
+    if (summary.cropsWitheredCount > 0) parts.push(count(summary.cropsWitheredCount, "crop withered", "crops withered"));
+    if (summary.jobsCompletedCount > 0) parts.push(count(summary.jobsCompletedCount, "job done", "jobs done"));
+    if (summary.cargoSpoiledCount > 0) parts.push(`${summary.cargoSpoiledCount} catch spoiled`);
+    if (summary.contractsExpiredCount > 0) parts.push(count(summary.contractsExpiredCount, "contract expired", "contracts expired"));
+    if (parts.length === 0) return;
+    this.notify(`While you were away · ${parts.join(" · ")}`, "info", 6000);
   }
 
   private currentNotices(): Notice[] {
@@ -1979,6 +2116,7 @@ export class GameApp {
 
   public openDialogueModal(npcId: string): void {
     if (this.mode === "basic-fishing" || this.mode === "mounted") return;
+    this.dialogueTalkResult = null;
     this.activeDialogueNpcId = npcId;
     this.worldScene.setDialogueNpc(npcId);
     this.setActiveModal("dialogue");
@@ -1989,7 +2127,7 @@ export class GameApp {
     hintId: string,
     title: string,
     message: string,
-    icon: string = "✦"
+    icon: string = "sparkle"
   ): void {
     if (this.sim.questDomain.isHintShown(hintId)) return;
     this.activeHint = { hintId, title, message, icon };
@@ -2041,7 +2179,27 @@ export class GameApp {
       fertilizeWork.affordable &&
       InventoryManager.hasItems(inventory, [{ itemId: "item.basic_fertilizer", quantity: 1 }])
     );
-    if (inspection.actions.canHarvest && this.activeToolSlot === 1) {
+    if (this.activeTool === "fertilizer") {
+      return {
+        id: `crop:${crop.id}:fertilize`,
+        entityId: crop.farmId,
+        kind: "planting-plot",
+        action: canFertilize ? "fertilize" : "inspect",
+        distanceMeters,
+        priority: 0,
+        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: canFertilize
+          ? `[E] Fertilize soil · ${fertilizeWork.cost} Work · Right-click inspect`
+          : farm?.soil.fertility === 100
+            ? "Soil is fully nourished · Right-click inspect"
+            : !fertilizeWork.affordable
+              ? `Need ${fertilizeWork.cost} Work to fertilize · Right-click inspect`
+              : "No fertilizer in the satchel · Right-click inspect"
+      };
+    }
+    if (inspection.actions.canHarvest && (this.activeTool === "hands" || this.activeTool === "harvest")) {
       return {
         id: `crop:${crop.id}:harvest`,
         entityId: crop.id,
@@ -2066,10 +2224,10 @@ export class GameApp {
         worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
         modes: ["on-foot"],
         requiresLineOfSight: true,
-        prompt: `[1] Equip Hand Tools to harvest ${inspection.name} · Right-click inspect`
+        prompt: `[5] Equip Harvest Basket to harvest ${inspection.name} · Right-click inspect`
       };
     }
-    if (inspection.actions.canWater && this.activeToolSlot === 3) {
+    if (inspection.actions.canWater && this.activeTool === "watering-can") {
       return {
         id: `crop:${crop.id}:water`,
         entityId: crop.id,
@@ -2112,6 +2270,7 @@ export class GameApp {
       };
     }
     if (!inspection.work.affordable) {
+      const ready = inspection.work.readyAtMinute == null ? "later" : formatClockTime(inspection.work.readyAtMinute);
       return {
         id: `crop:${crop.id}:insufficient-work`,
         entityId: crop.id,
@@ -2122,7 +2281,7 @@ export class GameApp {
         worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
         modes: ["on-foot"],
         requiresLineOfSight: true,
-        prompt: `${inspection.name} · Need ${inspection.work.cost} Work · ${inspection.work.availableWork} available · Right-click inspect`
+        prompt: `${inspection.name} · Need ${inspection.work.cost} Work · ${inspection.work.availableWork} available · ready ${ready} · Right-click inspect`
       };
     }
     return {
@@ -2319,7 +2478,7 @@ export class GameApp {
     const fishingHabitat = WorldLayout.nearbyFishingHabitat(p.x, p.z);
     if (
       fishingHabitat &&
-      this.activeToolSlot === FISHING_ROD_TOOL_SLOT &&
+      this.activeTool === "fishing-rod" &&
       (this.mode === "on-foot" || this.mode === "boat-driving")
     ) {
       candidates.push({
@@ -2330,6 +2489,17 @@ export class GameApp {
         priority: 3,
         modes: ["on-foot", "boat-driving"],
         prompt: `[E] Cast line · ${this.sim.quoteWorkCost(15, "fishing").cost} Work`
+      });
+      // Reading the water is the quiet verb beside the cast: conditions and
+      // the local pool for everyone, school sense for seasoned anglers.
+      candidates.push({
+        id: `fishing-habitat:${fishingHabitat}:read-water`,
+        kind: "fishing-habitat",
+        action: "read-water",
+        distanceMeters: 0,
+        priority: 5,
+        modes: ["on-foot", "boat-driving"],
+        prompt: `[R] Read the water`
       });
     }
 
@@ -2353,6 +2523,25 @@ export class GameApp {
           modes: ["on-foot", "boat-driving"],
           requiresLineOfSight: false,
           prompt: `[E] Refuel ${def.name}`
+        });
+      }
+      // A dead motor with the player aboard is a tow prompt, not a dead end.
+      // Safe Return refuses with fish aboard; the tow keeps the catch.
+      const towedBoatId = this.mode === "boat-driving" ? this.sim.state.player.activeBoatId : null;
+      const towedBoat = towedBoatId ? this.sim.state.boats[towedBoatId] : null;
+      const towedDef = towedBoat ? ContentRegistry.boats.get(towedBoat.boatTypeId) : null;
+      if (towedBoat && towedDef && towedDef.fuelCapacity > 0 && towedBoat.fuel <= 0) {
+        candidates.push({
+          id: `boat:${towedBoat.id}:tow`,
+          entityId: towedBoat.id,
+          kind: "dock",
+          action: "tow",
+          distanceMeters: 0,
+          priority: 0,
+          worldPosition: { x: towedBoat.x, y: towedBoat.y, z: towedBoat.z },
+          modes: ["boat-driving"],
+          requiresLineOfSight: false,
+          prompt: `[E] Emergency tow · ${NavigationDomain.EMERGENCY_TOW_COST} G · catch kept`
         });
       }
     }
@@ -2445,7 +2634,7 @@ export class GameApp {
           modes: ["on-foot", "boat-driving"],
           prompt: frenzy
             ? `[E] Hook Sport Fish · ~${this.sim.quoteWorkCost(this.sim.quoteSchoolHookWork(school.id), "fishing").cost} Work · [R] ${p.preparedLureItemId ? "Lure armed" : "Arm lure"}`
-            : `[E] Chum School · Chum Bucket · [R] ${p.preparedLureItemId ? "Lure armed" : "Arm lure"}`
+            : `[E] Chum School · Strongest chum in reach · [R] ${p.preparedLureItemId ? "Lure armed" : "Arm lure"}`
         });
       }
     }
@@ -2651,7 +2840,7 @@ export class GameApp {
     }
 
     if (
-      this.activeToolSlot === FISHING_ROD_TOOL_SLOT &&
+      this.activeTool === "fishing-rod" &&
       (this.mode === "on-foot" || this.mode === "boat-driving") &&
       WorldLayout.nearbyFishingHabitat(this.sim.state.player.x, this.sim.state.player.z)
     ) {
@@ -2717,6 +2906,15 @@ export class GameApp {
         }
         break;
       }
+      case "tow": {
+        const result = this.sim.execute({ type: "boat.emergency-tow" });
+        if (!result.success) this.notify(result.reason ?? "Could not arrange a tow", "danger");
+        else {
+          this.notify(`Towed to the nearest mooring · catch kept`, "success", 3200);
+          this.requestAutosave();
+        }
+        break;
+      }
       case "board":
       case "dock":
         this.toggleBoatBoard(picked.entityId);
@@ -2753,6 +2951,11 @@ export class GameApp {
       case "cast":
         this.handleCastFishing("interact");
         break;
+      case "read-water": {
+        const reading = this.sim.inspectWaterReading();
+        this.setToast(reading?.brief ?? "No readable water here", 4600);
+        break;
+      }
       case "trade": {
         const nearbyMarket = this.sim.getNearbyMarketId();
         if (!nearbyMarket) {
@@ -2807,6 +3010,11 @@ export class GameApp {
 
   private attachDebugHarness(): void {
     if (!import.meta.env.DEV && !this.worldAcceptance) return;
+    (window as unknown as Record<string, unknown>).__NEVA_PROBE = {
+      scene: this.worldScene.scene,
+      renderer: this.worldScene.renderer,
+      camera: this.gameCamera.camera
+    };
     window.__NEVA_DEBUG = {
       execute: (command) => this.sim.execute(command),
       advanceGameMinutes: (minutes) => this.sim.advanceGameMinutes(minutes),
@@ -3050,61 +3258,46 @@ export class GameApp {
   }
 
   private selectToolSlot(slot: number): void {
+    if (this.modeController.blocksHudOverlaysAndTools || this.activeModal) return;
+    const selected = this.sim.inspectWorldHud(this.selectedCropId).contextualHotbar.find((entry) => entry.slot === slot);
+    if (!selected) return;
+    if (selected.action.type === "input") {
+      this.inputRouter.dispatchVirtualAction(selected.action.action);
+      return;
+    }
     if (this.sim.state.player.activeMountId) {
       this.notify("Dismount first", "warning");
       return;
     }
-    this.activeToolSlot = slot;
-    // The tool belt now names the armed slot and its contents underneath the
-    // hotbar, so the old "Equipped: ..." toast for every keypress was noise
-    // that pushed real messages off the stack. Only problems still speak up.
-    switch (slot) {
-      case 1: {
-        if (this.mode === "farm-placement") this.exitCropPlacement();
-        break;
-      }
-      case 2: {
-        const playerInv = this.sim.state.inventories[this.sim.state.player.inventoryId];
-        let targetCropId: string | null = this.selectedCropId;
-        const selectedCrop = targetCropId ? ContentRegistry.crops.get(targetCropId) : undefined;
-        if (!selectedCrop || !playerInv || InventoryManager.getItemCount(playerInv, selectedCrop.seedItemId) <= 0) {
-          targetCropId = null;
-          for (const crop of ContentRegistry.crops.values()) {
-            if (playerInv && InventoryManager.getItemCount(playerInv, crop.seedItemId) > 0) {
-              targetCropId = crop.id;
-              break;
-            }
+    const tool = selected.action.tool;
+    if (tool === "seeds") {
+      const playerInv = this.sim.state.inventories[this.sim.state.player.inventoryId];
+      let targetCropId: string | null = this.selectedCropId;
+      const selectedCrop = targetCropId ? ContentRegistry.crops.get(targetCropId) : undefined;
+      if (!selectedCrop || !playerInv || InventoryManager.getItemCount(playerInv, selectedCrop.seedItemId) <= 0) {
+        targetCropId = null;
+        for (const crop of ContentRegistry.crops.values()) {
+          if (playerInv && InventoryManager.getItemCount(playerInv, crop.seedItemId) > 0) {
+            targetCropId = crop.id;
+            break;
           }
         }
-        if (targetCropId) {
-          this.enterCropPlacement(targetCropId);
-        } else {
-          this.notify("No seeds in the satchel. Visit the village stall.", "warning", 2200);
-        }
-        break;
       }
-      case 3: {
-        if (this.mode === "farm-placement") this.exitCropPlacement();
-        break;
+      if (!targetCropId) {
+        this.notify("No seeds in the satchel. Visit the village stall.", "warning", 2200);
+        return;
       }
-      case 4: {
-        if (this.mode === "farm-placement") this.exitCropPlacement();
-        const playerInv = this.sim.state.inventories[this.sim.state.player.inventoryId];
-        const worms = playerInv ? InventoryManager.getItemCount(playerInv, "item.bait_worms") : 0;
-        if (worms <= 0) {
-          this.notify("No bait left — dig soil or buy at the pier", "warning", 2000);
-        }
-        break;
-      }
-      case 5: {
-        if (this.mode === "farm-placement") this.exitCropPlacement();
-        break;
-      }
+      this.enterCropPlacement(targetCropId);
+    } else {
+      if (this.mode === "farm-placement") this.exitCropPlacement();
+      this.activeTool = tool;
+      if (!selected.ready) this.notify(selected.detail, "warning", 2000);
     }
   }
 
   private enterCropPlacement(cropId: string): void {
     if (this.sim.state.sportFishing || this.sim.state.basicFishing) return;
+    this.activeTool = "seeds";
     if (this.sim.state.player.activeMountId) {
       this.notify("Dismount before planting", "warning");
       return;
@@ -3132,7 +3325,7 @@ export class GameApp {
       "hint.farming_plant",
       "Field Cultivation",
       "Left-click prepared soil to plant. Leave room between crops.",
-      "✧"
+      "sprout"
     );
   }
 
@@ -3254,6 +3447,29 @@ export class GameApp {
       return;
     }
     this.inspectedCrop = this.sim.inspectCrop(cropId);
+  }
+
+  private getInspectedCropProjectedPosition(): { x: number; y: number; visible: boolean } | null {
+    if (!this.inspectedCrop) return null;
+    const placed = this.sim.state.crops[this.inspectedCrop.placedCropId];
+    if (!placed) return null;
+    const world = farmLocalToWorld(placed.farmId, placed);
+    const canvas = this.worldScene?.renderer?.domElement;
+    if (!canvas || !this.gameCamera?.camera) return null;
+    const bounds = canvas.getBoundingClientRect();
+    const y = WorldLayout.terrainHeight(world.x, world.z) + 0.35;
+    const projected = new THREE.Vector3(world.x, y, world.z).project(this.gameCamera.camera);
+    return {
+      x: bounds.left + ((projected.x + 1) * 0.5) * bounds.width,
+      y: bounds.top + ((1 - projected.y) * 0.5) * bounds.height,
+      visible:
+        projected.z >= -1 &&
+        projected.z <= 1 &&
+        projected.x >= -1.2 &&
+        projected.x <= 1.2 &&
+        projected.y >= -1.2 &&
+        projected.y <= 1.2
+    };
   }
 
   private cancelFarmingAction(): boolean {
@@ -3387,6 +3603,11 @@ export class GameApp {
       this.notify("Dismount first", "warning");
       return;
     }
+    const handsBlocker = this.sim.inspectFreeHands();
+    if (handsBlocker && action !== "pickup" && action !== "place" && action !== "dock") {
+      this.notify(handsBlocker, "warning");
+      return;
+    }
     this.facePlayerToward(x, z);
     const started = this.farmingActions.start(
       action,
@@ -3489,16 +3710,17 @@ export class GameApp {
         if (action === "harvest") {
           this.setToast(
             result.yield
-              ? `${cropName} · ${result.yield} harvested · ${result.quality ?? "common"} · +${result.xpGained ?? 0} Farming XP`
+              ? `${cropName} · ${result.yield} harvested · ${result.quality ?? "common"} grade · +${result.xpGained ?? 0} Farming XP`
               : result.reason ?? "Crop cleared"
           );
-          // Harvest is the most expensive routine action (45 Work). Teach the
+          // Harvest is one of the dearest routine actions (30 Work). Teach the
           // resource at the first moment it visibly moves, rather than letting
           // a new player either never notice it or hit the wall confused.
+          // Grade boosts harvest XP only; market price follows demand.
           this.showContextualHint(
             "hint.work_capacity",
             "Work Capacity",
-            "Harvesting is the costliest task. Work refills as the day passes — spend it on what pays.",
+            "Harvesting is dear and watering is cheap — and a fine grade earns extra XP, not extra gold. Work refills as the day passes — spend it on what pays.",
             "◷"
           );
         } else {
@@ -3592,16 +3814,16 @@ export class GameApp {
       ? authoredDuration
       : 0.8;
     this.mountTransitionAction = action;
-    this.mountTransitionUntilMs = performance.now() + durationSeconds * 1000;
+    this.mountTransitionRemainingSeconds = durationSeconds;
     this.lockedInteractionTarget = null;
     this.promptText = null;
   }
 
-  private isMountTransitionActive(nowMs: number = performance.now()): boolean {
+  private isMountTransitionActive(): boolean {
     if (!this.mountTransitionAction) return false;
-    if (nowMs < this.mountTransitionUntilMs) return true;
+    if (this.mountTransitionRemainingSeconds > 0) return true;
     this.mountTransitionAction = null;
-    this.mountTransitionUntilMs = 0;
+    this.mountTransitionRemainingSeconds = 0;
     return false;
   }
 
@@ -3750,7 +3972,7 @@ export class GameApp {
       this.setToast("Dismount before fishing");
       return;
     }
-    if (this.activeToolSlot !== FISHING_ROD_TOOL_SLOT) {
+    if (this.activeTool !== "fishing-rod") {
       this.setToast("Equip your fishing rod to cast");
       return;
     }
@@ -3828,6 +4050,7 @@ export class GameApp {
 
   private renderUI(): void {
     if (!this.uiRoot) return;
+    const worldHud = this.sim.inspectWorldHud(this.selectedCropId);
 
     if (this.mode === "sport-fishing" && !this.sim.activeFishingEncounter) {
       // Encounter finished
@@ -3835,6 +4058,7 @@ export class GameApp {
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 };
     }
     if (this.mode === "basic-fishing" && !this.sim.state.basicFishing) {
+      this.basicFishingWidgetHold = false;
       this.restoreGameplayModeFromState();
     }
 
@@ -3890,9 +4114,15 @@ export class GameApp {
           ? { x: placementTarget.worldX, z: placementTarget.worldZ }
           : null,
         promptText: this.promptText,
-        worldHud: this.sim.inspectWorldHud(this.selectedCropId),
+        worldHud,
         notices: this.currentNotices(),
+        chronicleEntries: this.chronicle.list(this.chronicleFilter),
+        chronicleFilter: this.chronicleFilter,
+        onSelectChronicleFilter: (filter: ChronicleFilter) => {
+          this.chronicleFilter = filter;
+        },
         inspectedCrop: this.inspectedCrop,
+        inspectedCropPosition: this.getInspectedCropProjectedPosition(),
         onDismissCropInspection: () => {
           this.inspectedCrop = null;
         },
@@ -3929,13 +4159,43 @@ export class GameApp {
           return { valid: result.success, reason: result.reason };
         },
         onInspectSatchel: () => this.sim.inspectSatchel(),
+        onInspectAlmanac: () => this.sim.inspectAlmanac(),
+        onInspectDemandTrend: (marketId: string, itemId: string) =>
+          this.sim.query({
+            type: "market.demand-trend",
+            marketId: marketId as never,
+            itemId: itemId as never
+          }) as MarketDemandTrendDto | null,
+        onInspectItem: (itemId: string) => this.sim.inspectItem(itemId as never),
+        onSortSatchel: () => {
+          const result = this.sim.execute({ type: "inventory.sort-satchel" });
+          return { success: result.success, reason: result.reason };
+        },
+        onTransferStores: (
+          itemId: string,
+          quantity: number,
+          boatId: string,
+          direction: "to-hold" | "to-satchel"
+        ) => {
+          const result = this.sim.execute({
+            type: "inventory.transfer",
+            itemId: itemId as never,
+            quantity,
+            boatId: boatId as never,
+            direction
+          });
+          return { success: result.success, reason: result.reason };
+        },
         onInspectSeedBelt: () => this.sim.inspectSeedBelt(),
         selectedPlantCropId: this.selectedCropId,
         onCancelPlacement: () => this.exitCropPlacement(),
         isFarmGisHeld: this.isFarmGisHeld,
-        activeToolSlot: this.activeToolSlot,
+        activeToolSlot: worldHud.contextualHotbar.find((slot) =>
+          slot.action.type === "equip-tool" && slot.action.tool === this.activeTool
+        )?.slot ?? 0,
         onSelectToolSlot: (slot: number) => this.selectToolSlot(slot),
         landedCatch: this.pendingCatchCargo,
+        landedCatchRecord: this.pendingCatchRecord,
         onDismissCatchSummary: this.dismissPendingCatch,
 
         sportFishingHud: this.sim.inspectSportFishingHud(),
@@ -3947,6 +4207,10 @@ export class GameApp {
             rodDirectionAngle: input.rodDirectionAngle
           };
           this.applySportFishingInput();
+        },
+        onSetBasicFishingHold: (holding: boolean) => {
+          this.basicFishingWidgetHold = holding;
+          this.applyBasicFishingInput();
         },
         onHookBasicFishingBite: () => {
           if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
@@ -4034,6 +4298,11 @@ export class GameApp {
           else if (res.scraps) this.notify(`Discarded for ${res.scraps} fish scraps`, "info");
           else this.notify("Discarded spoiled fish", "info");
         },
+        onReleaseFishCargo: (marketId: MarketId, cargoId: string) => {
+          const res = this.sim.execute({ type: "cargo.release", cargoId, marketId });
+          if (!res.success) this.notify(res.reason ?? "Could not release fish", "danger");
+          else this.notify("Released back to the water · records kept", "success", 2600);
+        },
         onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => {
           const res = this.sim.execute({ type: "contract.deliver-items", contractId, itemId, quantity });
           if (!res.success) this.setToast(res.reason ?? "Could not deliver items");
@@ -4051,6 +4320,14 @@ export class GameApp {
         },
         onResetPlayerToSafePlace: () => {
           this.handleResetPlayerToSafePlace();
+        },
+        onEmergencyTow: () => {
+          const result = this.sim.execute({ type: "boat.emergency-tow" });
+          if (result.success) {
+            this.notify("Towed to the nearest mooring · catch kept", "success", 3200);
+            this.requestAutosave();
+          }
+          return { success: result.success, reason: result.reason };
         },
         onAdvanceHours: (hours: number) => {
           this.sim.advanceGameMinutes(hours * 60);
@@ -4136,7 +4413,7 @@ export class GameApp {
     this.renderReadyFramesRemaining = 0;
     this.cancelDoorTransition();
     this.mountTransitionAction = null;
-    this.mountTransitionUntilMs = 0;
+    this.mountTransitionRemainingSeconds = 0;
     this.clearFarmGisHold();
     this.inputRouter.setJumpBlocked(false);
     window.removeEventListener("resize", this.onResize);
@@ -4148,6 +4425,8 @@ export class GameApp {
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.resizeObserver.disconnect();
     this.inputRouter.dispose();
+    this.collisionDebugView?.dispose();
+    this.collisionDebugView = null;
     this.physicsWorld?.dispose();
     this.physicsWorld = null;
     this.worldScene.dispose();

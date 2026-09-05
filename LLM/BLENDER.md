@@ -190,6 +190,116 @@ LOD/animation/reference contracts, and published GLB metrics. It does not run
 family generators or prove authored geometry semantics beyond the exported
 artifact contract.
 
+## Adapted external Blender sources
+
+Explicitly requested provider assets may become offline authoring inputs, never
+direct runtime downloads. Adapt them to the existing catalog identity, palette,
+dimensions/pivot, collision, LOD, budgets, and animation/socket contracts first.
+Use the registered `imported_blend` generator with exactly `sourceBlend` and
+`sourceCollection` parameters. Keep the durable derivative under
+`art/imported/poly-pizza/`, with the export collection named for its catalog ID.
+The importer exports only that collection through the shared Blender pipeline;
+normal selected or full generation regenerates it instead of reverting to an
+unrelated procedural model.
+
+The schema owns the closed build-time `sourceProvenance` object, required for
+`imported_blend`: provider/model identity, author, source and license URLs,
+supported license, attribution, and adapted Blender source path/digest. Its
+`sourceSha256` hashes the **adapted `sourceBlend` bytes**, not the original
+download. The path must match `parameters.sourceBlend`, stay repository-local
+after resolving symlinks, and remain outside published destinations. A changed
+source at the same path invalidates the cache and fails a stale provenance
+digest. Update the digest only after verifying that adapted source. These
+authoring fields remain absent from the runtime catalog projection; retain any
+required attribution in the game's credits before shipping a CC-BY derivative.
+
+For an already exported, catalog-conforming derivative replacing an existing
+published ID, the selected admission command is:
+
+```bash
+node tools/blender/cli.mjs admit --asset <catalog-id> --source output/<adapted-export>.glb --no-publish
+```
+
+It accepts exactly one ID and a repository-contained staged GLB, never a source
+under `public/` or `generated/glb/`. It checks provenance, Khronos conformance,
+required hierarchy, palette declarations, rest bounds/pivot, attributes,
+LOD/skin/animation and unchanged min/max budgets. Admission preserves source
+GLB bytes, reports compression from actual extensions, and explicitly records
+that it did not run Blender scene validation. Omit `--no-publish` only for the
+requested cutover: it reuses selected atomic publication and preserves
+unselected files/manifest entries. No full `art:sync` is needed. Staging is
+mechanical evidence, not approval of deformation or appearance; retain the Art
+Yard and human game review gates.
+
+Regeneration uses lossless Meshopt compression only for `imported_blend` and
+checks decoded semantic parity. It must not quantize, reorder, join, weld, or
+reconstruct the imported skin. The ordinary family-generator optimization path
+is unchanged. Source authoring owns valid bind transforms, normalized weights,
+target-compatible motion and LOD deformation; packaging cannot repair them.
+Static imported sources follow the same rule for LOD0 topology, UVs, exported
+split normals, smoothing boundaries, material-region identity and embedded
+textures. A catalog `staticAuthoring` contract pins the immutable original,
+declares one uniform scale reference and yaw, and maps every provider material
+region explicitly. Solid regions carry the canonical linear palette color once
+in `COLOR_0` with a neutral material factor. `texturePolicy: preserve` retains
+the original base/normal texture bytes, UV/alpha/double-sided state and uses a
+neutral scalar factor without a palette-colored `COLOR_0` multiplier. The
+registered exporter restores the immutable source sampler state after Blender
+serialization without changing image or geometry bytes. Every preserved-texture
+primitive in both LODs keeps `TEXCOORD_0` and its base-color map. Solid emissive
+regions export token × declared value as both their vertex color and glTF
+emissive factor, with palette-owned emissive strength.
+
+### Offline curated-source preparation
+
+The `adapt_*` helpers under `tools/blender/` prepare reviewed source captures;
+they do not publish, change the catalog, or admit arbitrary bundle members.
+Run them in a fresh background Blender process with a new directory under
+`output/`, never in the artist's active scene. Read the selected helper and
+capture report first: supported source identities, material mappings and
+dependency exclusions are deliberately narrow. Preserve the reports alongside
+the candidate. A helper report's input `sourceSha256` identifies the capture;
+catalog provenance must instead hash the final durable adapted `.blend`.
+
+- **Humanoids — `adapt_imported_humanoid.py`:** read the selected catalog `humanoidAuthoring` contract, verify the immutable original source hash, and prepare it in a fresh background Blender process. Original glTF timestamps own source clip timing. Uniform stature scale and coordinate conversion preserve anatomy, topology, source deforming bones, bind transforms, UVs, normalized weights and selective split normals. Exact source part/material mappings select palette tokens; unmapped regions fail. Role clothing and missing peaceful Neva actions are authored around the retained source rig. Never fit a body or copy pose arrays onto the obsolete donor skeleton. The preparation writes a staged Blender library, GLB and mechanical report; the registered `imported_blend` generator remains the publication path.
+- **Humanoid comparison — `compare_humanoid_contract.mjs`:** `--asset <id> --candidate <GLB> --report <JSON>` compares the decoded candidate against that catalog entry's immutable source. It checks one uniform coordinate transform, source bind hierarchy, oriented LOD0 triangles, UVs, normals, named-joint weights, material-region mapping and palette application. It also compares retained native performance samples and original durations. Numeric limits belong to the verifier and account for Blender/glTF representation precision. Any bounded native loop-closure repair must be declared separately from preserved source motion. The preparation's all-frame deformation report covers both LODs, distinguishes actual open seams from nearby vertices on overlapping closed surfaces, and rejects evaluated apron/body triangle intersections. Garment fitting follows a cloth envelope across gaps between limbs rather than wrapping into the underlying crotch groove. Neither report certifies runtime foot planting, grips, seats or appearance.
+- **Humanoid export fidelity — `common/humanoid_export.py`:** the source preparation and registered exporter share the declared solid-palette color repair. It restores omitted later-primitive vertex colors without altering any other exported bytes, then ordinary validation and lossless optimization run. Preparation records removed source degenerate triangles explicitly; the independent comparator verifies their original area before accepting the declared omission. Unkeyed source animation properties retain the original node defaults rather than inheriting the last authored action's pose.
+- **Humanoid binding and review:** catalog `humanoidRig` owns semantic source names, bind-space endpoints, sole/palm frames and bend directions. Animation entries own cadence, contact intervals and simulation commit markers; generator/source evidence stays out of the browser projection. Validate each selected character and semantic determinism before publishing the validated set atomically. The generated action checklist records the evidence for every catalog action, and leaves integrated human review pending. Source, durable Blender input, generated/public GLB and cache/manifests must agree before handoff.
+- **Selected offline builds:** `generate --no-publish` and `determinism` validate the whole catalog schema and contracts, but open/hash Blender source files only for selected assets. Unfinished unrelated sources therefore cannot block an isolated equipment stage. Normal catalog validation, admission and publication still verify every source file/hash; this does not permit missing inputs in a published set.
+- **Static sources — `adapt_polypizza_static.py`:** imports only the immutable
+  GLB and exact node pinned by the selected catalog `staticAuthoring` contract.
+  It applies the declared coordinate yaw and one uniform, ground-centered scale;
+  LOD0 retains every source triangle, UV, split normal, smooth/hard boundary and
+  source material-region identity. Solid material mappings bake exact palette
+  token × declared value with no invented height/normal tint. Textured mappings
+  retain source base/normal maps and alpha state without adding `COLOR_0`.
+  Declared accessory nodes such as the cottage lantern remain separate from the
+  source surface. LOD1 may simplify source geometry while preserving data layers;
+  it never replaces leaf cards or rebuilds all normals as flat.
+- **Static comparison — `compare_static_source_contract.mjs`:** `--asset <id>
+  --candidate <GLB> --report <JSON>` compares decoded LOD0 geometry, UVs,
+  normals, uniform transform, source material regions and the per-region solid
+  or texture-preservation policy against the catalog-pinned original. Only exact
+  `addedGeometryNodes` are excluded from source-surface equality and remain
+  separately counted and color-checked. The same decoded comparison runs inside
+  raw, optimized, cache, admission and published validation, so the manual JSON
+  report is durable evidence rather than the only enforcement point. A Khronos
+  warning may pass only when the immutable source emits the same approved
+  source-preservation warning code; candidates may not add warning classes.
+- **Cow — `adapt_polypizza_cow.py`:** retains the reviewed donor anatomy and
+  skeleton with uniform metre-space normalization, and bakes only the peaceful
+  performances selected by its `SOURCE_CLIPS` mapping into the catalog's named
+  actions and same-named NLA tracks. Catalog durations/loop metadata remain the
+  contract; combat and unrelated source actions are not retained. Its sampled
+  deformation and loop-seam proof is captured before mesh cleanup/LOD reduction,
+  so final exported LOD deformation still requires review. The adapter defaults
+  to the immutable repository source capture and adjacent identity/license audit
+  under `art/imported/poly-pizza/sources/`; callers may override the path only
+  when reviewing a new source candidate. Static and cow
+  helpers save Blender libraries/reports only; humanoid output additionally
+  includes a staged GLB for decoded comparison. All continue through the
+  registered `imported_blend` validation/export/publication path above.
+
 ---
 
 # 4. Reference-Guided Assets
@@ -210,14 +320,14 @@ artifact contract.
 
 # 5. Art Yard and Runtime Integration
 
-`/__neva_art_yard` is the only asset-review surface. It uses the canonical runtime catalog, `AssetLoader`, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` and remains development-only.
+`/__neva_art_yard` and `/art-yard` provide the asset-review surface. It uses the canonical runtime catalog, `AssetLoader`, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig`, served via Vite in development and emitted as a static production route with pre-rendered catalog metrics for live deployment.
 
 - A successful selected publish makes the asset available automatically.
 - `?asset=<catalog-id>` opens the selected asset directly.
-- Orbit, distance/LOD, wireframe, bounds, collision, animation, lighting, weather, ground, and water controls remain diagnostics for the human.
+- Orbit, distance/LOD, eye POV (1.6m), shading (lit, unlit flat albedo, wire overlay, pure wire, vertex colors, normals, LOD0, LOD1), physical dimensions/clearance/footprint, authoring sockets, skeleton rig, origin axes tripod, bounds, collision, animation scrubbing/frame-stepping, lighting, weather, ground, and water controls remain diagnostics for the human.
 - Player context clips are previewed atomically with the required donkey, rowboat, or skiff companion and companion-inclusive bounds. Mounted gaits synchronize rider and animal phases; boarding/docking use the matching craft variant; `reel` layers over selectable on-foot, rowboat, or skiff bases. Timeline scrubbing seeks each action deterministically rather than changing mixer-global time.
 - The normal game is the final visual judge. Integrate the catalog ID through the existing loader/placement/batching path; do not create a direct loader or local asset registry.
-- Compatible repeated static assets use the existing batching/instancing path. Do not fold skinned, morph-target, dynamic, or LOD descendants into static batching.
+- Compatible repeated static assets use the existing batching/instancing path. Do not fold skinned, morph-target, or dynamic descendants into static batching. Production static LOD pieces use the existing per-instance level tracking and catalog switch distances; do not flatten them without preserving level selection. DEV keeps prefabs unmerged for layout-editor picking.
 - For a story-relevant asset or zone, the integrated review also checks that its practical role and relationship to the current quest beat read at gameplay distance. This is visual/environmental evidence only; quest progression remains owned by simulation/content code.
 
 Mechanical success permits the agent to say `generated`, `validated`, `published`, and `integrated` only when those gates passed. It does not permit `visually approved`, `final`, or `production-ready` before human game review.
@@ -233,6 +343,12 @@ Mechanical success permits the agent to say `generated`, `validated`, `published
 - `generated/reports/asset-manifest.json` and `public/assets/models/asset-manifest.json` describe published truth.
 - `generated/reports/asset_budget_report.json` describes the latest published generation quality state.
 - Partial publishes merge selected assets and preserve all unselected manifest assets. Full-catalog publication alone may remove stale manifest-owned files.
+- Manifest `aggregateBytes` reports the complete on-demand asset library; it is
+  not the initial playable download. `downloadBudgetBytes` gates the code bundle
+  through `tools/ci/check-download-budget.mjs`, while that same check applies the
+  separate committed total-`dist` ratchet. Asset admission enforces each
+  catalog asset's own geometry, material and texture contracts without comparing
+  the full library to the code-only budget.
 
 Do not paste full reports or logs into the task. Report only selected asset IDs, integration point, the mechanical result, actionable error excerpts if any, save impact, and `Awaiting human game review`.
 

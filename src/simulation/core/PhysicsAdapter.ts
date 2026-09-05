@@ -36,6 +36,7 @@ export type PhysicsContactSurface =
 export interface PlayerMotionSample {
   velocity: { x: number; y: number; z: number };
   speedMetersPerSecond: number;
+  /** Signed tangential acceleration; braking is negative. Never serialized. */
   accelerationMetersPerSecondSquared: number;
   turnRateRadiansPerSecond: number;
   isGrounded: boolean;

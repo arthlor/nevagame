@@ -3,16 +3,35 @@ import path from "node:path";
 import { parse, print, types } from "recast";
 import * as babelParser from "@babel/parser";
 
+const LAYOUT_PARSER_PLUGINS: babelParser.ParserPlugin[] = [
+  "typescript",
+  "jsx",
+  "decorators-legacy",
+  "exportDefaultFrom"
+];
+
+/**
+ * Parse a layout source purely to prove it is still valid TypeScript.
+ *
+ * This deliberately calls Babel rather than routing through recast: recast's
+ * bundled `ast-types` does not know Babel 8's `TSInterfaceHeritage`, so
+ * `interface FarmsteadAnchor extends FarmPoint` made `FarmLayout.ts`
+ * unparseable and every farm-kind commit was rejected at the write gate with a
+ * "syntax validation failed" error against a file that was perfectly fine.
+ */
+export function parseLayoutSource(source: string): void {
+  babelParser.parse(source, {
+    sourceType: "module",
+    plugins: LAYOUT_PARSER_PLUGINS,
+    tokens: true
+  });
+}
+
 export const tsParser = {
   parse(source: string) {
     return babelParser.parse(source, {
       sourceType: "module",
-      plugins: [
-        "typescript",
-        "jsx",
-        "decorators-legacy",
-        "exportDefaultFrom"
-      ],
+      plugins: LAYOUT_PARSER_PLUGINS,
       tokens: true
     });
   }
@@ -33,10 +52,39 @@ import {
   type LayoutEditKind
 } from "../../src/layout-editor/layoutEdit";
 
+/** Declared array that owns each editable kind, so id lookups cannot cross collections. */
+const FARM_SCOPE_BY_KIND: Readonly<Record<"farmstead" | "farm-prop" | "farm-structure", string>> = {
+  farmstead: "STARTER_FARMSTEAD_ANCHORS",
+  "farm-prop": "STARTER_PROP_ANCHORS",
+  "farm-structure": "STARTER_STRUCTURE_ANCHORS"
+};
+const ARCHITECTURE_PAD_SCOPE = "WORLD_ARCHITECTURE_PADS";
+const INTERIOR_PROP_SCOPE = "FARMHOUSE_INTERIOR_PROPS";
+
 const b = types.builders;
 const n = types.namedTypes;
 
 const SAFE_EXPR = /^[0-9+\-*/().,\sMathPIatan2_]+$/;
+
+/**
+ * Layout ids are interpolated into generated TypeScript, so the charset is the
+ * boundary that keeps a commit body from closing a string literal and writing
+ * arbitrary code into `src/world`. Every published id fits this shape
+ * (`farm_hay_a`, `struct.starter_mill`, `fence_west_-4`, `authored.copy.x.1`).
+ */
+const SAFE_LAYOUT_ID = /^[A-Za-z0-9_.-]{1,180}$/;
+
+export function isSafeLayoutId(value: unknown): value is string {
+  return typeof value === "string" && SAFE_LAYOUT_ID.test(value);
+}
+
+/** Validated string literal for an id about to be written into layout source. */
+function layoutIdLiteral(id: string): string {
+  if (!isSafeLayoutId(id)) {
+    throw new LayoutEditPatchError(`Unsafe layout id: ${JSON.stringify(id)}`);
+  }
+  return JSON.stringify(id);
+}
 
 export interface LayoutSourceFiles {
   farmLayout: string;
@@ -125,17 +173,54 @@ function replaceSlice(source: string, start: number, end: number, next: string):
   return `${source.slice(0, start)}${next}${source.slice(end)}`;
 }
 
-function findIdObject(source: string, id: string): { start: number; end: number; text: string } {
-  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`id:\\s*"${escaped}"\\s*,`);
-  const match = pattern.exec(source);
-  if (!match || match.index === undefined) {
-    throw new LayoutEditPatchError(`Could not find id "${id}"`);
+/**
+ * Locate the object literal that owns `id: "<id>"`.
+ *
+ * `scopeConstName` narrows the search to one declared array so an id that
+ * repeats across sibling collections (`well` exists in two farm layouts) can
+ * never resolve to the wrong one just because of declaration order. The
+ * ambiguity guard then refuses to guess when a scope still holds two matches,
+ * and the containment guard refuses when the nearest preceding brace belonged
+ * to a nested object rather than the element itself.
+ */
+function findIdObject(
+  source: string,
+  id: string,
+  scopeConstName?: string
+): { start: number; end: number; text: string } {
+  let offset = 0;
+  let haystack = source;
+  if (scopeConstName !== undefined) {
+    const open = findConstArrayOpen(source, scopeConstName);
+    const scope = extractBalanced(source, open);
+    offset = open;
+    haystack = scope.text;
   }
-  const start = source.lastIndexOf("{", match.index);
-  if (start < 0) throw new LayoutEditPatchError(`Could not find object start for "${id}"`);
-  const extracted = extractBalanced(source, start);
-  return { start, end: extracted.end, text: extracted.text };
+  const pattern = new RegExp(`id:\\s*"${escapeRegExp(id)}"\\s*,`, "g");
+  const matches = [...haystack.matchAll(pattern)];
+  if (matches.length === 0) {
+    throw new LayoutEditPatchError(
+      scopeConstName === undefined
+        ? `Could not find id "${id}"`
+        : `Could not find id "${id}" in ${scopeConstName}`
+    );
+  }
+  if (matches.length > 1) {
+    throw new LayoutEditPatchError(
+      `Ambiguous layout id "${id}" (${matches.length} matches`
+      + `${scopeConstName === undefined ? "" : ` in ${scopeConstName}`}) — refusing to guess`
+    );
+  }
+  const matchIndex = matches[0]!.index!;
+  const localStart = haystack.lastIndexOf("{", matchIndex);
+  if (localStart < 0) throw new LayoutEditPatchError(`Could not find object start for "${id}"`);
+  const extracted = extractBalanced(haystack, localStart);
+  if (extracted.end <= matchIndex) {
+    throw new LayoutEditPatchError(
+      `Object start for "${id}" resolved to a nested literal — layout shape changed`
+    );
+  }
+  return { start: offset + localStart, end: offset + extracted.end, text: extracted.text };
 }
 
 function patchObjectXzRotation(
@@ -182,7 +267,7 @@ function patchFarmhouseDoorFollow(
   interior: string,
   newWorld: { x: number; z: number; rotationY: number }
 ): string {
-  const farmhouse = findIdObject(farmLayout, "farmhouse");
+  const farmhouse = findIdObject(farmLayout, "farmhouse", FARM_SCOPE_BY_KIND.farmstead);
   const xMatch = farmhouse.text.match(/\bx:\s*([^,\n]+)/);
   const zMatch = farmhouse.text.match(/\bz:\s*([^,\n]+)/);
   const rotMatch = farmhouse.text.match(/\brotationY:\s*([^,\n]+)/);
@@ -253,7 +338,7 @@ function upsertRecordLiteral(
 ): string {
   const brace = findExportedObjectBrace(source, constName);
   const block = extractBalanced(source, brace);
-  const entryNeedle = `"${id}":`;
+  const entryNeedle = `${layoutIdLiteral(id)}:`;
   if (block.text.includes(entryNeedle)) {
     const entryStart = block.text.indexOf(entryNeedle);
     const valueBrace = block.text.indexOf("{", entryStart);
@@ -264,9 +349,10 @@ function upsertRecordLiteral(
   const inner = block.text.slice(1, -1).replace(/\s*$/, "");
   const trimmedInner = inner.trim();
   const separator = trimmedInner.length === 0 || trimmedInner.endsWith(",") ? "\n" : ",\n";
+  const idLiteral = layoutIdLiteral(id);
   const insertion = trimmedInner.length === 0
-    ? `\n  "${id}": ${entry},\n`
-    : `${inner}${separator}  "${id}": ${entry},\n`;
+    ? `\n  ${idLiteral}: ${entry},\n`
+    : `${inner}${separator}  ${idLiteral}: ${entry},\n`;
   return replaceSlice(source, brace, block.end, `{${insertion}}`);
 }
 
@@ -282,7 +368,7 @@ function upsertFenceOverride(source: string, commit: LayoutEditCommit): string {
 }
 
 function patchPad(source: string, padId: string, commit: LayoutEditCommit): string {
-  const found = findIdObject(source, padId);
+  const found = findIdObject(source, padId, ARCHITECTURE_PAD_SCOPE);
   let next = found.text;
   const centerIndex = next.indexOf("center:");
   if (centerIndex < 0) throw new LayoutEditPatchError(`Pad ${padId} is missing center`);
@@ -331,30 +417,41 @@ function patchNamedConstXz(
   return replaceSlice(source, brace, block.end, next);
 }
 
+function findLandmarkLiteralBrace(source: string, id: string): number {
+  const needle = `${id}: {`;
+  const index = source.indexOf(needle);
+  if (index < 0) throw new LayoutEditPatchError(`Missing landmark ${id}`);
+  return source.indexOf("{", index);
+}
+
 function patchLandmarkLiteral(
   source: string,
   id: "lighthouse" | "dock" | "bridge",
   commit: LayoutEditCommit
 ): string {
   if (id === "bridge") {
+    // The bridge literal reads its xz from BRIDGE_CENTER, so position lands there
+    // and only the yaw lives in the landmark table. Both writes go through
+    // `replaceFieldValue`, which throws when a field moves or is renamed —
+    // a silent regex miss used to drop the rotation and still report success.
     const marker = "const BRIDGE_CENTER = Object.freeze({";
     const markerIndex = source.indexOf(marker);
     if (markerIndex < 0) throw new LayoutEditPatchError("Missing BRIDGE_CENTER");
-    const brace = source.indexOf("{", markerIndex);
-    const block = extractBalanced(source, brace);
-    let next = replaceFieldValue(block.text, "x", formatWorldCoord(commit.x));
-    next = replaceFieldValue(next, "z", formatWorldCoord(commit.z));
-    let patched = replaceSlice(source, brace, block.end, next);
-    patched = patched.replace(
-      /(bridge:\s*\{\s*x:\s*BRIDGE_CENTER\.x,\s*z:\s*BRIDGE_CENTER\.z,\s*yOffset:\s*0\.1,\s*rotationY:\s*)([^,]+)/,
-      `$1${formatRadians(commit.rotationY)}`
+    const centerBrace = source.indexOf("{", markerIndex);
+    const center = extractBalanced(source, centerBrace);
+    let nextCenter = replaceFieldValue(center.text, "x", formatWorldCoord(commit.x));
+    nextCenter = replaceFieldValue(nextCenter, "z", formatWorldCoord(commit.z));
+    const patched = replaceSlice(source, centerBrace, center.end, nextCenter);
+    const literalBrace = findLandmarkLiteralBrace(patched, "bridge");
+    const literal = extractBalanced(patched, literalBrace);
+    const nextLiteral = replaceFieldValue(
+      literal.text,
+      "rotationY",
+      formatRadians(commit.rotationY)
     );
-    return patched;
+    return replaceSlice(patched, literalBrace, literal.end, nextLiteral);
   }
-  const needle = `${id}: {`;
-  const index = source.indexOf(needle);
-  if (index < 0) throw new LayoutEditPatchError(`Missing landmark ${id}`);
-  const brace = source.indexOf("{", index);
+  const brace = findLandmarkLiteralBrace(source, id);
   const block = extractBalanced(source, brace);
   const next = patchObjectXzRotation(block.text, commit.x, commit.z, commit.rotationY);
   return replaceSlice(source, brace, block.end, next);
@@ -525,7 +622,7 @@ function formatAuthoredPlacementSnippet(commit: LayoutEditCommit): string {
   if (commit.practicalLight === true) {
     fields.push("practicalLight: true");
   }
-  return `authoredPlacement("${commit.id}", { ${fields.join(", ")} }),`;
+  return `authoredPlacement(${layoutIdLiteral(commit.id)}, { ${fields.join(", ")} }),`;
 }
 
 function duplicateAuthoredPlacement(source: string, commit: LayoutEditCommit): string {
@@ -534,7 +631,7 @@ function duplicateAuthoredPlacement(source: string, commit: LayoutEditCommit): s
     const objStart = found.text.indexOf("{");
     const obj = extractBalanced(found.text, objStart);
     const patchedObj = patchObjectXzRotation(obj.text, commit.x, commit.z, commit.rotationY);
-    const call = `authoredPlacement("${commit.id}", ${patchedObj})`;
+    const call = `authoredPlacement(${layoutIdLiteral(commit.id)}, ${patchedObj})`;
     return insertAuthoredPlacementAfter(source, found.end, call);
   }
   return insertSnippetIntoConstArray(source, "AUTHORED_DETAIL_PLACEMENTS", formatAuthoredPlacementSnippet(commit));
@@ -559,10 +656,10 @@ function duplicateNamedObject(
 ): string {
   if (!commit.duplicateFrom) throw new LayoutEditPatchError("Missing duplicate source id");
   try {
-    const found = findIdObject(source, commit.duplicateFrom);
+    const found = findIdObject(source, commit.duplicateFrom, constName);
     let next = found.text.replace(
-      new RegExp(`id:\\s*"${commit.duplicateFrom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`),
-      `id: "${commit.id}"`
+      new RegExp(`id:\\s*"${escapeRegExp(commit.duplicateFrom)}"`),
+      `id: ${layoutIdLiteral(commit.id)}`
     );
     next = patchObjectXzRotation(next, localX, localZ, commit.rotationY);
     if (commit.y !== undefined && /\by\s*:/.test(next)) {
@@ -589,7 +686,7 @@ function formatFarmPropSnippet(commit: LayoutEditCommit, localX: number, localZ:
     throw new LayoutEditPatchError("Copy needs the farm prop type after the original was removed");
   }
   const scale = commit.scale ? formatWorldCoord(commit.scale[0]!) : "1";
-  return `{ id: "${commit.id}", type: "${commit.propType}", x: ${formatWorldCoord(localX)}, z: ${formatWorldCoord(localZ)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} },`;
+  return `{ id: ${layoutIdLiteral(commit.id)}, type: "${commit.propType}", x: ${formatWorldCoord(localX)}, z: ${formatWorldCoord(localZ)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} },`;
 }
 
 function formatInteriorPropSnippet(commit: LayoutEditCommit): string {
@@ -598,7 +695,7 @@ function formatInteriorPropSnippet(commit: LayoutEditCommit): string {
   }
   const scale = commit.scale ? formatWorldCoord(commit.scale[0]!) : "1";
   const y = commit.y !== undefined ? formatWorldCoord(commit.y) : "0";
-  return `{ id: "${commit.id}", assetId: "${commit.assetId}", x: ${formatWorldCoord(commit.x)}, y: ${y}, z: ${formatWorldCoord(commit.z)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} },`;
+  return `{ id: ${layoutIdLiteral(commit.id)}, assetId: "${commit.assetId}", x: ${formatWorldCoord(commit.x)}, y: ${y}, z: ${formatWorldCoord(commit.z)}, rotationY: ${formatRadians(commit.rotationY)}, scale: ${scale} },`;
 }
 
 function insertDuplicate(files: LayoutSourceFiles, commit: LayoutEditCommit): LayoutSourceFiles {
@@ -623,7 +720,7 @@ function insertDuplicate(files: LayoutSourceFiles, commit: LayoutEditCommit): La
       next.farmLayout = insertSnippetIntoConstArray(
         next.farmLayout,
         "FARM_FENCE_EXTRAS",
-        `{ id: "${commit.id}", x: ${formatWorldCoord(local.x)}, z: ${formatWorldCoord(local.z)}, rotationY: ${formatRadians(commit.rotationY)} },`
+        `{ id: ${layoutIdLiteral(commit.id)}, x: ${formatWorldCoord(local.x)}, z: ${formatWorldCoord(local.z)}, rotationY: ${formatRadians(commit.rotationY)} },`
       );
       break;
     }
@@ -679,7 +776,7 @@ function restoreLayoutEdit(files: LayoutSourceFiles, commit: LayoutEditCommit): 
         next.farmLayout = insertSnippetIntoConstArray(
           next.farmLayout,
           "FARM_FENCE_EXTRAS",
-          `{ id: "${commit.id}", x: ${formatWorldCoord(local.x)}, z: ${formatWorldCoord(local.z)}, rotationY: ${formatRadians(commit.rotationY)} },`
+          `{ id: ${layoutIdLiteral(commit.id)}, x: ${formatWorldCoord(local.x)}, z: ${formatWorldCoord(local.z)}, rotationY: ${formatRadians(commit.rotationY)} },`
         );
       }
       break;
@@ -757,7 +854,7 @@ function removeAuthoredPlacementCall(source: string, id: string): string {
 function upsertStringArrayId(source: string, constName: string, id: string): string {
   const open = findConstArrayOpen(source, constName);
   const block = extractBalanced(source, open);
-  const needle = `"${id}"`;
+  const needle = layoutIdLiteral(id);
   if (block.text.includes(needle)) return source;
   return insertSnippetIntoConstArray(source, constName, `${needle},`);
 }
@@ -816,7 +913,7 @@ export function applyLayoutEditToSources(
     case "farm-prop":
     case "farm-structure": {
       const local = writeFarmLocal(next.farmLayout, { ...commit, rotationY });
-      const found = findIdObject(next.farmLayout, commit.id);
+      const found = findIdObject(next.farmLayout, commit.id, FARM_SCOPE_BY_KIND[commit.kind]);
       const patched = patchObjectXzRotation(found.text, local.x, local.z, local.rotationY);
       next.farmLayout = replaceSlice(next.farmLayout, found.start, found.end, patched);
       if (commit.kind === "farmstead" && commit.id === "farmhouse") {
@@ -883,7 +980,7 @@ export function applyLayoutEditToSources(
       next.environment = upsertPlacementOverride(next.environment, { ...commit, rotationY });
       break;
     case "interior-prop": {
-      const found = findIdObject(next.interior, commit.id);
+      const found = findIdObject(next.interior, commit.id, INTERIOR_PROP_SCOPE);
       let patched = patchObjectXzRotation(found.text, commit.x, commit.z, rotationY);
       if (commit.y !== undefined) patched = replaceFieldValue(patched, "y", formatWorldCoord(commit.y));
       next.interior = replaceSlice(next.interior, found.start, found.end, patched);
@@ -924,9 +1021,7 @@ export function isLayoutEditCommit(value: unknown): value is LayoutEditCommit {
   return (
     typeof record.kind === "string"
     && kinds.includes(record.kind as LayoutEditKind)
-    && typeof record.id === "string"
-    && record.id.length > 0
-    && record.id.length < 180
+    && isSafeLayoutId(record.id)
     && typeof record.x === "number"
     && Number.isFinite(record.x)
     && typeof record.z === "number"
@@ -937,10 +1032,7 @@ export function isLayoutEditCommit(value: unknown): value is LayoutEditCommit {
     && (record.remove === undefined || record.remove === true)
     && (record.restore === undefined || record.restore === true)
     && !(record.restore === true && (record.remove === true || record.duplicateFrom !== undefined))
-    && (record.duplicateFrom === undefined
-      || (typeof record.duplicateFrom === "string"
-        && record.duplicateFrom.length > 0
-        && record.duplicateFrom.length < 180))
+    && (record.duplicateFrom === undefined || isSafeLayoutId(record.duplicateFrom))
     && (record.assetId === undefined
       || (typeof record.assetId === "string" && /^[a-z0-9_]+$/i.test(record.assetId)))
     && (record.scale === undefined
@@ -972,21 +1064,28 @@ export function readLayoutSources(rootDirectory: string): LayoutSourceFiles {
   };
 }
 
+/** Reject content that would not parse, before any of it reaches disk. */
+function assertParses(filePath: string, content: string): void {
+  try {
+    parseLayoutSource(content);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    throw new LayoutEditPatchError(`Post-mutation syntax validation failed for ${filePath}: ${errorMsg}`);
+  }
+}
+
+function tempPathFor(filePath: string): string {
+  return `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 /**
  * Validate and atomically write a source file.
  * Creates a temp file, validates that it parses as TypeScript without errors,
  * and atomically renames it over the target destination.
  */
 export function atomicWriteSourceFile(filePath: string, content: string): void {
-  // Validate AST structure before committing to disk
-  try {
-    parse(content, { parser: tsParser });
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    throw new LayoutEditPatchError(`Post-mutation syntax validation failed for ${filePath}: ${errorMsg}`);
-  }
-
-  const tempPath = `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  assertParses(filePath, content);
+  const tempPath = tempPathFor(filePath);
   try {
     fs.writeFileSync(tempPath, content, "utf8");
     fs.renameSync(tempPath, filePath);
@@ -998,24 +1097,57 @@ export function atomicWriteSourceFile(filePath: string, content: string): void {
   }
 }
 
+/**
+ * Write every changed layout file, or none of them.
+ *
+ * A single commit can touch two files (moving the farmhouse also moves the
+ * interior door; moving a harbor NPC also moves its world anchor). Validating
+ * each one only as it was written left the first file replaced on disk when the
+ * second failed, so the sources disagreed about the same drop. Parse-check the
+ * whole set first, then rename them in, and roll the earlier renames back from
+ * the captured previous content if a later one fails.
+ */
 export function writeLayoutSources(
   rootDirectory: string,
   files: LayoutSourceFiles
 ): string[] {
-  const written: string[] = [];
-  const write = (relative: string, contents: string, previous: string): void => {
-    if (contents === previous) return;
-    const absolute = path.join(rootDirectory, relative);
-    atomicWriteSourceFile(absolute, contents);
-    written.push(absolute);
-  };
   const previous = readLayoutSources(rootDirectory);
-  write(LAYOUT_EDITOR_SOURCE_FILES.farmLayout, files.farmLayout, previous.farmLayout);
-  write(LAYOUT_EDITOR_SOURCE_FILES.worldLayout, files.worldLayout, previous.worldLayout);
-  write(LAYOUT_EDITOR_SOURCE_FILES.worldAnchors, files.worldAnchors, previous.worldAnchors);
-  write(LAYOUT_EDITOR_SOURCE_FILES.environment, files.environment, previous.environment);
-  write(LAYOUT_EDITOR_SOURCE_FILES.interior, files.interior, previous.interior);
-  write(LAYOUT_EDITOR_SOURCE_FILES.npcs, files.npcs, previous.npcs);
+  const keys = Object.keys(LAYOUT_EDITOR_SOURCE_FILES) as Array<keyof LayoutSourceFiles>;
+  const pending = keys
+    .filter((key) => files[key] !== previous[key])
+    .map((key) => ({
+      absolute: path.join(rootDirectory, LAYOUT_EDITOR_SOURCE_FILES[key]),
+      contents: files[key],
+      previous: previous[key]
+    }));
+  if (pending.length === 0) return [];
+
+  for (const file of pending) assertParses(file.absolute, file.contents);
+
+  const written: string[] = [];
+  try {
+    for (const file of pending) {
+      const tempPath = tempPathFor(file.absolute);
+      try {
+        fs.writeFileSync(tempPath, file.contents, "utf8");
+        fs.renameSync(tempPath, file.absolute);
+      } catch (err) {
+        try {
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        } catch {}
+        throw err;
+      }
+      written.push(file.absolute);
+    }
+  } catch (err) {
+    for (const file of pending) {
+      if (!written.includes(file.absolute)) continue;
+      try {
+        fs.writeFileSync(file.absolute, file.previous, "utf8");
+      } catch {}
+    }
+    throw err;
+  }
   return written;
 }
 

@@ -31,6 +31,7 @@ export interface SpriteInput {
   file?: string;
   buffer?: Buffer;
   path?: string;
+  trim?: boolean;
 }
 
 export interface PackResult {

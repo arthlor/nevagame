@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { FarmForecastDto } from "../../simulation/core/contracts";
 import { formatWeatherLabel, WeatherIcon } from "../weatherPresentation";
 import { ChromeClose } from "../chrome/Chrome";
@@ -7,12 +7,30 @@ import { GameSheet } from "../coastal/CoastalUI";
 interface FarmForecastPopoverProps {
   forecast: FarmForecastDto;
   onClose: () => void;
+  /** When false, Escape is left for an open modal instead of closing this popover. */
+  captureEscape?: boolean;
 }
 
 export const FarmForecastPopover: React.FC<FarmForecastPopoverProps> = ({
   forecast,
-  onClose
+  onClose,
+  captureEscape = true
 }) => {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!captureEscape) return;
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onCloseRef.current();
+    };
+    window.addEventListener("keydown", handleWindowKeyDown, true);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown, true);
+  }, [captureEscape]);
+
   return (
     <GameSheet
       id="farm-forecast-popover"

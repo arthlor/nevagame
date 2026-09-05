@@ -1,4 +1,4 @@
-import type { CargoClass, RodClass } from "../core/types";
+import type { CargoClass, PlayerState, RodClass } from "../core/types";
 import type { SeededRng } from "../core/Rng";
 
 const CARGO_CLASS_RANK: Record<CargoClass, number> = {
@@ -22,6 +22,11 @@ const QUALITY_RANK: Record<string, number> = {
   exceptional: 2,
   trophy: 3
 };
+
+/** Physical carry occupies both hands until a cargo transaction releases it. */
+export function freeHandsBlocker(player: Pick<PlayerState, "carriedFishCargoId">): string | null {
+  return player.carriedFishCargoId ? "Sell or release the carried fish before using tools" : null;
+}
 
 export function cargoClassFits(fishClass: CargoClass, slotMax: CargoClass): boolean {
   return CARGO_CLASS_RANK[fishClass] <= CARGO_CLASS_RANK[slotMax];

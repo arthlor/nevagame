@@ -5,7 +5,7 @@ import { InventoryManager } from "../inventory/InventoryManager";
 import { CarryLocationType, FishCargoState, GameState } from "../core/types";
 import { WorldLayout } from "../../world/WorldLayout";
 
-function cargoSupplyInventory(state: GameState, cargo: FishCargoState) {
+function cargoSupplyInventory(state: GameState, cargo: Pick<FishCargoState, "location">) {
   if (cargo.location.type === "player") {
     return state.inventories[state.player.inventoryId];
   }
@@ -14,7 +14,7 @@ function cargoSupplyInventory(state: GameState, cargo: FishCargoState) {
   return boat ? state.inventories[boat.supplyInventoryId] : undefined;
 }
 
-function cargoHasBuiltInIce(state: GameState, cargo: FishCargoState): boolean {
+function cargoHasBuiltInIce(state: GameState, cargo: Pick<FishCargoState, "location">): boolean {
   if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
   const boat = state.boats[cargo.location.containerId];
   if (!boat) return false;
@@ -45,7 +45,7 @@ export function getStorageFreshnessModifier(locationType: CarryLocationType, has
 }
 
 /** Inventory whose loose ice is actually cooling this cargo, or undefined if none / built-in. */
-export function resolveCargoIceInventory(state: GameState, cargo: FishCargoState) {
+export function resolveCargoIceInventory(state: GameState, cargo: Pick<FishCargoState, "location">) {
   if (cargo.location.type === "cold-storage") return undefined;
   if (cargoHasBuiltInIce(state, cargo)) return undefined;
   const supply = cargoSupplyInventory(state, cargo);
@@ -62,7 +62,7 @@ export function resolveCargoIceInventory(state: GameState, cargo: FishCargoState
   return undefined;
 }
 
-export function resolveCargoHasIce(state: GameState, cargo: FishCargoState): boolean {
+export function resolveCargoHasIce(state: GameState, cargo: Pick<FishCargoState, "location">): boolean {
   if (cargo.location.type === "cold-storage") return false;
   if (cargoHasBuiltInIce(state, cargo)) return true;
   return resolveCargoIceInventory(state, cargo) !== undefined;

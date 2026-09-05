@@ -13,6 +13,7 @@ import {
 } from "../assets/AssetCatalog";
 import { AssetHotSwapper } from "../assets/AssetHotSwapper";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
+import { configureConservativeSkinnedBounds } from "./CharacterCullingBounds";
 
 const PRELOAD_ASSET_IDS: readonly AssetId[] = ASSET_CATALOG.map((asset) => asset.id);
 const DEFAULT_PRELOAD_CONCURRENCY = 6;
@@ -107,6 +108,8 @@ export class AssetLoader {
         (gltf) => {
           try {
             const root = gltf.scene;
+            const spec = ASSET_BY_ID.get(assetId);
+            if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
             const collisionNodes: string[] = [];
             let hasSkinnedMeshes = false;
             root.traverse((child) => {
@@ -129,8 +132,9 @@ export class AssetLoader {
             root.userData.collisionNodes = collisionNodes;
             root.userData.assetId = assetId;
             root.userData.hasSkinnedMeshes = hasSkinnedMeshes;
-            const spec = ASSET_BY_ID.get(assetId);
-            if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
+            if (spec.family === "character" && hasSkinnedMeshes) {
+              configureConservativeSkinnedBounds(root);
+            }
             const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];
             if (missingLodNodes.length > 0) {
               root.userData.runtimeLodLevels = null;

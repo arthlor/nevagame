@@ -19,6 +19,40 @@ export interface NpcStationBeatSample {
   walking: boolean;
 }
 
+/** Transient presentation clock: dialogue and culled actors pause in place. */
+export interface NpcStationBeatState {
+  elapsedSeconds: number;
+  sample: NpcStationBeatSample;
+}
+
+export function createNpcStationBeatState(): NpcStationBeatState {
+  return { elapsedSeconds: 0, sample: { dx: 0, dz: 0, heading: 0, walking: false } };
+}
+
+export function advanceNpcStationBeat(
+  spec: NpcStationBeatSpec | undefined,
+  state: NpcStationBeatState,
+  deltaSeconds: number,
+  paused: boolean,
+  canOccupy: (dx: number, dz: number) => boolean
+): NpcStationBeatSample {
+  if (!spec || paused || deltaSeconds <= 0) return { ...state.sample, walking: false };
+  const elapsed = state.elapsedSeconds + deltaSeconds;
+  // Follow the authored path, including any corners crossed during the frame.
+  // Endpoint-only checks can jump across an unsupported bank at low frame rates.
+  const steps = Math.max(1, Math.ceil(deltaSeconds * spec.walkSpeedMetersPerSecond / 0.12));
+  for (let index = 1; index <= steps; index += 1) {
+    const alongPath = sampleNpcStationBeat(spec, state.elapsedSeconds + deltaSeconds * index / steps);
+    if (!canOccupy(alongPath.dx, alongPath.dz)) {
+      return { ...state.sample, walking: false };
+    }
+  }
+  const next = sampleNpcStationBeat(spec, elapsed);
+  state.elapsedSeconds = elapsed;
+  state.sample = next;
+  return next;
+}
+
 export const NPC_STATION_BEATS: Readonly<Record<string, NpcStationBeatSpec>> = {
   "npc.elspeth": {
     waypoints: [

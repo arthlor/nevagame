@@ -61,6 +61,7 @@ const GROUND_NIGHT = new THREE.Color(
 const STORM_SKY = new THREE.Color(PALETTE_HEX.rock_coastal_dark_01);
 const STORM_HORIZON = new THREE.Color(PALETTE_HEX.stone_cool_01);
 const SUN_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.sun.colorHex);
+const SUN_GOLDEN = new THREE.Color(CANONICAL_RENDER_CONFIG.sun.horizonColorHex);
 
 function createLightingFrame(): LightingFrame {
   return {
@@ -247,8 +248,14 @@ export function deriveLightingFrame(
     frame.moonDirection
   );
   const solarHeight = sunDirection.y;
-  const daylight = smooth01((solarHeight + 0.08) / 0.28);
-  const twilight = 1 - smooth01(Math.abs(solarHeight) / 0.24);
+  const daylight = smooth01(
+    (solarHeight - config.sun.daylightZeroSolarHeight)
+      / Math.max(0.001, config.sun.daylightFullSolarHeight - config.sun.daylightZeroSolarHeight)
+  );
+  // Proximity to the horizon, in solar height rather than clock time. One
+  // envelope owns both the warm sky band and the golden-hour key colour, so the
+  // two can never disagree about when the sun is low.
+  const twilight = 1 - smooth01(Math.abs(solarHeight) / config.twilight.solarWidth);
   const clockAmbient = clockWindowAmbient(minuteOfDay, config.skyFill.dawnDuskEdgeAmbient);
   const ambientDaylight = Math.max(daylight, clockAmbient);
   const twilightExposure = smooth01(
@@ -296,10 +303,10 @@ export function deriveLightingFrame(
     + twilight * config.skyFill.twilightFillLift * (1 - ambientDaylight)
     + lightning * 0.48;
 
-  const sunColor = frame.sunColor.set(config.sun.horizonColorHex).lerp(
-    SUN_DAY,
-    smooth01(Math.max(0, solarHeight) * 1.7)
-  );
+  // Anchored on the day key and pulled toward gold by horizon proximity, so
+  // noon is bit-identical to the approved daylight baseline and only the low-sun
+  // window changes colour.
+  const sunColor = frame.sunColor.copy(SUN_DAY).lerp(SUN_GOLDEN, twilight);
   const moonColor = frame.moonColor.set(config.moon.colorHex);
   const skyFillColor = frame.skyFillColor.copy(SKY_FILL_NIGHT).lerp(SKY_DAY, ambientDaylight);
   const skyTopColor = frame.skyTopColor.copy(SKY_NIGHT)
@@ -527,6 +534,12 @@ export class LightingRig {
     const moonOwnsShadows = frame.moonIntensity > frame.sunIntensity;
     this.sun.castShadow = !moonOwnsShadows && frame.sunIntensity > 0.01;
     this.moon.castShadow = moonOwnsShadows && frame.moonIntensity > 0.01;
+    // Moonlight is a weaker, softer key than the sun, so the shadow it casts is
+    // lighter and broader. These are per-light scalars, so switching between the
+    // two recipes costs nothing.
+    const shadows = CANONICAL_RENDER_CONFIG.shadows;
+    this.moon.shadow.intensity = shadows.nightIntensity;
+    this.moon.shadow.radius = shadows.nightRadius;
     // The shadow camera follows the snapped focus above, and the player/mount
     // are live casters. Refreshing less often leaves the current light-space
     // camera sampling a depth map rendered from the previous focus, which

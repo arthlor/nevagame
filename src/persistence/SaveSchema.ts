@@ -16,7 +16,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 29;
+export const CURRENT_SCHEMA_VERSION = 32;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -99,8 +99,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 26
+    (schemaVersion >= 32
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 31
+      ? state.world.layoutRevision !== 11
+      : schemaVersion >= 26
+      ? state.world.layoutRevision !== 10
       : schemaVersion >= 24
       ? state.world.layoutRevision !== 9
       : schemaVersion >= 17
@@ -352,6 +356,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !Array.isArray(school.speciesWeights) ||
       school.speciesWeights.length === 0 ||
       (school.feedingFrenzyUntilMinute !== undefined && !isSafeInteger(school.feedingFrenzyUntilMinute, school.spawnedAtMinute)) ||
+      (school.deepChumUntilMinute !== undefined && !isSafeInteger(school.deepChumUntilMinute, school.spawnedAtMinute)) ||
       school.speciesWeights.some(
         (entry) =>
           !isRecord(entry) ||

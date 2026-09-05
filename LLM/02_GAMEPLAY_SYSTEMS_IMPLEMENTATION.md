@@ -418,7 +418,7 @@ interface InventorySlot { itemId?: ItemId; quantity?: number; }
 ```
 Rules: finite slots, defined stack limits, atomic transactions, no silent item loss. Any transaction validates inputs/output capacity first, then mutates once; failure leaves state unchanged.
 
-MVP stations: `Hand Mill`, `Workbench`, harbor **Fish Cleaning Table** at `HARBOR_FISH_TABLE` (`struct.harbor_fish_table`, `stationType: "fish-table"`). New-game station `y` is terrain height.
+MVP stations: `Hand Mill`, `Workbench`, harbor **Fish Cleaning Table** at `HARBOR_FISH_TABLE` (`struct.harbor_fish_table`, `stationType: "fish-table"`). New-game station `y` is terrain height. Harbor arterial and coastal routes terminate at `HARBOR_MARKET_APRON` (`x: 64.5, z: 54.5`) in front of the fish market stall counter, keeping the route corridor, fish-cleaning table, and shore-stairs approaches unobstructed by building collision.
 ```ts
 interface ProcessingJobState {
   id: ProcessingJobId;
@@ -457,13 +457,15 @@ Sardine → Fish Scraps                (fish-table)
 
 # 6. Basic Fishing
 
-Purpose: engaging early and accessible fishing loop, Fishing XP, common fish/ingredients, low-risk income, and bait utility. Requires rod + valid water (Bait Worms optional: wait time cut ~40% **and** rarity weights biased toward rarer species before `rng.weighted`). Fishing supplies resolve from the satchel and then the active vessel during play, or the explicitly selected vessel in expedition planning; remote unselected vessel inventories are not accessible. A crafted lure must be explicitly armed before casting, is consumed only after a valid paid cast begins, and improves that cast's hook reliability. Wait is also multiplied by authored weather and time-of-day modifiers in `FishingTuning`.
+Purpose: engaging early and accessible fishing loop, Fishing XP, common fish/ingredients, low-risk income, and bait utility. Requires rod + valid water (Bait Worms optional: wait time cut ~40% **and** rarity weights biased toward rarer species before `rng.weighted`). Fishing supplies resolve from the satchel and then the active vessel during play, or the explicitly selected vessel in expedition planning; remote unselected vessel inventories are not accessible. A crafted lure must be explicitly armed before casting, is consumed only after a valid paid cast begins, and improves that cast's hook reliability. Wait is also multiplied by authored weather, time-of-day, and wind modifiers in `FishingTuning`.
+
+**Wind on the cast.** The wind takes a bank cast three ways, all from one owner (`src/simulation/fishing/castWind.ts`, numbers in `FISHING_TUNING.castWind`). It is read relative to the caster, not the world, so the same blow is a tailwind or a headwind depending on which way the angler turns to face the water. A tailwind carries the cast further and a headwind drops it short; a crosswind sets the bobber down off the aim line, further on a harder cast. Bite wait follows a well rather than a slope: a ripple fishes best, and both a glassy calm and a hard blow are worse than it. The reading is pure and takes no RNG, so the same cast in the same conditions always lands the same way. `castLateralDriftMeters` is presentation-facing simulation state; it carries no save migration because it is optional and derived at cast time.
 
 ### 6.1 State Machine & 5 Phases
 `Idle → Charging-Cast → Waiting-Bite → Bite-Reaction → Minigame → Caught|Escaped → Idle`
 
-1. **Charging-Cast**: Holding action key charges casting power meter ($0.0 \rightarrow 1.0 \rightarrow 0.0$). Releasing casts bobber ($3\text{m} - 12\text{m}$). Deeper casts lower bite wait times, reduce trash odds, and boost high quality tiers.
-2. **Waiting-Bite**: Bobber floats in 3D water. Wait time influenced by bait (`item.bait_worms` cuts wait by ~40%), cast depth, weather, and time of day.
+1. **Charging-Cast**: Holding action key charges casting power meter ($0.0 \rightarrow 1.0 \rightarrow 0.0$). Releasing casts bobber ($3\text{m} - 12\text{m}$, then scaled by any tail or head wind). Deeper casts lower bite wait times, reduce trash odds, and boost high quality tiers.
+2. **Waiting-Bite**: Bobber floats in 3D water. Wait time influenced by bait (`item.bait_worms` cuts wait by ~40%), cast depth, weather, time of day, and the wind.
 3. **Bite-Reaction**: Visual alert ("!") and sound cue. Player has a reaction window ($1.2\text{s} - 1.5\text{s}$) to hook the fish ("HIT!").
 4. **Green Catch-Bar Minigame**:
    - **Physics**: Normalized vertical track ($0.0 - 1.0$). Holding action key applies upward thrust ($+2.8\,\text{u/s}^2$); releasing applies downward gravity ($-1.9\,\text{u/s}^2$). Elastic bounce on bottom floor.
@@ -483,6 +485,8 @@ Basic fishing blocks inventory except while `phase === "caught"`. Sport-fishing 
 `WorldLayout.fishingAccessAt()` is the single spatial rule for ordinary bank fishing. It combines walkable support, the current side-aware bank slope, a reachable water target on the same side of the channel, and a reserved approach/casting clearing. Bridge-lesson and authored pier access remain explicit supported cases. `nearbyFishingHabitat()` is a compatibility query over that result; callers must not recreate access from river center distance or a water mask.
 
 The authored world retains at least three stable river-access components, including the bridge lesson area. Structural vegetation and rocks must yield to their approach and casting envelopes, while the route and district fields keep the access legible from normal traversal. A visually wet bank is not automatically fishable, and presentation cannot move a cast target across land to manufacture access.
+
+Neva's river begins at the finite mountain spring defined by `src/world/NevaHeadwaters.ts`. Its elevated headwater reach is scenic water: `WorldLayout.isSailable()` excludes it and `fishingHabitatAt()` returns no habitat there. The downstream river-access reserves, bridge lesson, harbor waterline, and Sunreach access keep their existing gameplay roles. This terrain change adds no fishing progression gate, species, reward, or capability; recovery of saved upper-river boats and ongoing catches follows the migration contract in `01` §6.1.
 
 Fishing locality is content and simulation truth. Every species declares its
 allowed `ecologyIds`; school spawn, basic casts, quest objectives, and catch
@@ -512,7 +516,7 @@ interface FishSpeciesDefinition {
   tags: string[];
 }
 ```
-Sport fishing requires an active chummed school, a compatible rod, no conflicting mode, a non-expired school, and at least one species that both the equipped rod and the current carry/active-vessel capacity can accept. Species that exceed the rod's `maximumCargoClass`, fail its minimum class, or cannot be stowed are filtered before the species RNG draw. Landing remains automatic; there is no keep/release decision UI. A lure is optional, must be explicitly armed, is consumed only after a valid paid hook succeeds, and makes the resulting fight modestly more forgiving without changing quality or minimum tells.
+Sport fishing requires an active chummed school, a compatible rod, no conflicting mode, a non-expired school, and at least one species that both the equipped rod and the current carry/active-vessel capacity can accept. Species that exceed the rod's `maximumCargoClass`, fail its minimum class, or cannot be stowed are filtered before the species RNG draw. Landing immediately stows into the player carry slot or active boat cargo hold. Stowed living catch can be released (`cargo.release`) to free space; release preserves honest accounting: the school's catch potential remains consumed, journal catch records stand, and no sale, scraps, or bonus XP are awarded (spoiled fish with freshness $\le 0$ cannot be released and must be discarded as scraps). A lure is optional, must be explicitly armed, is consumed only after a valid paid hook succeeds, and makes the resulting fight modestly more forgiving without changing quality or minimum tells.
 
 ```ts
 interface FishSchoolState {
@@ -524,6 +528,7 @@ interface FishSchoolState {
   spawnedAtMinute: GameMinute;
   expiresAtMinute: GameMinute;
   feedingFrenzyUntilMinute?: GameMinute;
+  deepChumUntilMinute?: GameMinute;
   remainingCatchPotential: number;
   speciesWeights: Array<{ speciesId: FishSpeciesId; weight: number }>;
 }
@@ -604,7 +609,13 @@ interface FishBehaviorProfile {
 ```
 The encounter owns coupled line extension, rod-blank load, retrieval/payout, fish effort, inertia, heading/depth response and fatigue. `FishingTuning` owns shared constants and the single species-aware depth-bound helper used by both motion and save validation; authored profiles own species strength, timing, movement and behavior weights. Reel attempts stall under load and restrict automatic drag; yield overrides retrieval; lifting stores up to 1.25 normalized rod load and deliberately weakens simultaneous winding. Releasing the lift while winding returns the stored load as retrieval, especially during recovery. Rod direction responds gradually. Persistent head shakes ring tension and consume line integrity; bracing reduces the shake component but can still overload the rod. Hook-time `seaRoughness` adds a bounded deterministic drive modifier, and a prepared-lure snapshot reduces drive/shake pressure; neither changes behavior duration or the minimum tell/recovery clocks. The fish endpoint and the full angler-to-fish reach must remain on one continuous water path after the permitted short shoreline lead; a fish cannot run behind an island while the taut line cuts across land. Rest can recover limited stamina; line damage does not heal during the fight. Landing requires at least 12 normalized tension and less than the equipped rod's safe limit, alongside the fatigue/distance thresholds and sustained 0.55-second hold. Save/reload preserves the exact accumulated landing hold and never manufactures completion merely because the fish is inside the landing window.
 
-Schema v19 introduced `FishingEncounterState.dynamics`, including position/velocity components, spool length, response state, behavior timing, a private seeded RNG state and the 60 Hz step remainder. Schema v28 backfills absent rod-load, fish-speed, head-shake, and landing-hold values, begins validating every dynamics field, and adds tackle/sea-condition snapshots while preserving every already-persisted fight value exactly. Unreachable pre-v24 distances may shorten to a continuous water reach only in their owning migration. Presentation consumes the encounter through one shared sample; it cannot move fish to manufacture camera readability or decide outcomes. Its transient terminal bridge is driven only by `FishLanded` or `FishEscaped` and distinguishes landed, escaped, snapped, and failed-stow feedback without serializing presentation state; both terminal events fire only after the active encounter is cleared, so their autosave cannot resurrect a resolved fight.
+Fight starts scale with specimen weight through `sportFishingStartDistanceForWeight`, shifting the cargo class base across `[base - spread, base + spread]` (small $\pm 5$, medium $\pm 7$, large $\pm 8$, gargantuan $\pm 10$ m) bounded by continuous validated water reach. Anglers can adjust line drag across three notches (`dragNotch`: 0=Light, 1=Balanced, 2=Heavy): light drag pays line sooner ($0.85\times$ tension threshold) with $+0.03$ hook reliability; heavy drag holds firmer ($1.15\times$ threshold) with $-0.03$ reliability. Mid-fight changes take effect immediately on the next fixed step.
+
+Species signature moments pulse once per encounter on the first characteristic behavior trigger (`trout:surface`, `pike:shake`, `arowana:leap`, `tuna:run`, `sturgeon:burst`, `marlin:burst`, `sailfish:surface`), lasting `SIGNATURE_MOMENT_SECONDS` without mutating fight dynamics or RNG, and are omitted when `reducedMotion` is set. Landmark catches flag `"first"`, `"weight"`, or `"quality"` records before updating the journal.
+
+Reading the water (`inspectWaterReading()`) provides query-only environmental awareness at bank access points: Novice players read current conditions and local species run; Skilled (3,000 XP) senses nearby surface feeding; Expert (7,500 XP) senses directional distance bands; Master (15,000 XP) identifies species holding in the school. Ground familiarity (0–3) is derived without persistent per-spot state from `journal.fishRecords` counts, granting a $1.00\times$ to $1.75\times$ hook roll bias toward that ground's signature species.
+
+Schema v19 introduced `FishingEncounterState.dynamics`, including position/velocity components, spool length, response state, behavior timing, a private seeded RNG state and the 60 Hz step remainder. Schema v28 backfills absent rod-load, fish-speed, head-shake, and landing-hold values, begins validating every dynamics field, and adds tackle/sea-condition snapshots while preserving every already-persisted fight value exactly. Schema v30 adds the optional `deepChumUntilMinute` timestamp to `activeSchools`. Unreachable pre-v24 distances may shorten to a continuous water reach only in their owning migration. Presentation consumes the encounter through one shared sample; it cannot move fish to manufacture camera readability or decide outcomes. Its transient terminal bridge is driven only by `FishLanded` or `FishEscaped` and distinguishes landed, escaped, snapped, and failed-stow feedback without serializing presentation state; both terminal events fire only after the active encounter is cleared, so their autosave cannot resurrect a resolved fight.
 
 Species MUST feel behaviorally distinct:
 - Carp: low stamina, weak bursts, long rests, slow turns.
@@ -649,6 +660,8 @@ interface FishInstance {
 Weight uses a non-uniform distribution: most near species average, rare values near maximum.
 
 # 10. Physical Cargo & Freshness
+
+A player-carried fish occupies both hands. `domainRules.freeHandsBlocker` owns the shared eligibility rule consumed by farming, processing and fishing entry points; their commit paths reject competing tool actions before consuming Work, inventory or RNG. Crop inspection and application animation preflight report the same blocker. Cargo remains visible and unchanged until an explicit cargo transaction frees the hands; tool use never hides or automatically discards it. This does not change cargo capacity, economy tuning or saved state.
 
 ```ts
 interface FishCargoState {
@@ -729,7 +742,7 @@ economy constraints.
 
 Boat entry and exit remain presentation over simulation-owned transactions. The rowboat uses a pelvis-contact marker on its physical bench, while the chairless skiff uses a root-aligned standing driver station with planted deck support. Rowboat/skiff boarding and docking variants may preserve the player's initial world pose, follow the moving craft, and converge to those anchors, but they do not change boat state, controls, or persistence.
 
-Emergency Tow / hook-class gameplay is **not live** — see Deferred.
+Crude Emergency Tow is live: a crewed motor boat with an empty tank can be towed to the nearest compatible mooring for a 25 G flat fee (`boat.emergency-tow`), cargo and fuel untouched. External-hook class as a distinct verb remains deferred — see below.
 
 ## 11A. On-Foot Traversal
 
@@ -747,6 +760,8 @@ interface PlayerTraversalState {
 Movement input requests sprint; fixed-step traversal rules own stamina drain, recovery delay, exhaustion, and grounded state. Rapier resolves the physical pose through `PhysicsAdapter`, then the simulation commits the validated frame. The renderer may display movement/action feedback but may not mutate traversal or invent a second stamina resource. Any traversal-state schema change requires a deterministic save migration and fixture coverage.
 
 `PLAYER_TRAVERSAL_TUNING` in `src/simulation/navigation/PlayerTraversal.ts` owns on-foot speed, acceleration, deceleration, and sprint stamina response. Catalog locomotion reference speeds and the animation controller must stay calibrated to those resolved travel speeds; presentation may vary phase/playback from actual travel, but it must not preserve an obsolete faster gait by making the feet slide or over-cranking cadence.
+
+`slopeGaitScale()` uses the horizontal component of the upward support normal as downhill: movement against the height gradient gains the bounded downhill response, movement along it receives the uphill penalty, and contour travel is neutral. `PhysicsAdapter` reports signed tangential acceleration from resolved movement, so braking is negative and constant-speed turning is not forward acceleration. This motion evidence is transient presentation input, not additional saved traversal state.
 
 ## 11B. Mounts (LIVE)
 
@@ -856,7 +871,7 @@ Sea risk:
 ```text
 riskScore = weatherSeaRoughness × boatVulnerability × offshoreDistanceFactor
 ```
-Effects: slower control, greater repair probability, harder fishing, warnings. Sport fishing snapshots weather type and `seaRoughness` at hook time, then applies a bounded deterministic pressure modifier without shortening minimum tells or changing the condition mid-fight. Avoid arbitrary instant destruction.
+Effects: slower control, greater repair probability, harder fishing, warnings. Sport fishing snapshots weather type and `seaRoughness` at hook time, then applies a bounded deterministic pressure modifier without shortening minimum tells or changing the condition mid-fight. The Act 5 teaching fight is the one exception: a trout-only starter school hooked while `quest.act5_maiden_voyage` is active snapshots roughness capped at calm (0.25) with the weather type left truthful, so the first sport fish teaches the matching rule instead of the weather. Avoid arbitrary instant destruction.
 
 # 13. Markets & Pricing
 
@@ -881,7 +896,7 @@ Demand clamp: **0.65x–1.60x** (UI may show 65–160%).
 producePrice = basePrice × demandModifier × seasonalModifier
 fishPrice = speciesBasePrice × weightModifier × qualityModifier × freshnessModifier × demandModifier × seasonalModifier
 ```
-LIVE: produce **quality does not affect sale price** (quality is computed and journaled only). Fish quality **does** affect price. Example Blue Marlin: `140 × 1.35 × 1.10 × 0.95 × 1.25 × 1.05 ≈ 259`. UI must explain components.
+LIVE: produce **quality does not affect sale price** (quality is computed and journaled only; harvest feedback labels it a grade that boosts Farming XP, so the mastery track pays in progression, not gold). Fish quality **does** affect price. Example Blue Marlin: `140 × 1.35 × 1.10 × 0.95 × 1.25 × 1.05 ≈ 259`. UI must explain components.
 
 Selling raises local supply; repeated dumping gradually lowers price, while town throughput restores it toward the centered market. Never crash price dramatically from one ordinary sale. Single and bulk trades are priced as the exact sum of deterministic one-unit marginal fills, including across clamp boundaries, so one bulk fill and the same sequence of one-unit fills pay the same total. Trading XP is derived from total realized revenue with no per-click minimum.
 
@@ -900,7 +915,7 @@ interface WorkCapacityState {
 ```
 Work is a deliberate hard resource for manual physical production. Planting, watering, harvesting, fertilizing, irrigation, processing start, basic-fishing cast, and sport-fishing hook require their **full discounted cost**. A failed affordability check spends nothing and cannot consume items, advance gameplay RNG, create state, award XP, or emit success events. Work recovers at 200 per in-game hour while playing and 100 per in-game hour through bounded offline progression, capped at 1,000. Proficiency reduces the relevant action cost by 5% per rank, capped at 35%. Traversal, boats, cargo handling, trading, quests, and dialogue do not cost Work.
 
-Base Work costs are: plant 10, water 5, harvest 45, fertilize 8, irrigate 8, processing-job start 35, basic-fishing cast 15, and sport-fishing hook by the school's worst possible cargo class: small 18 / medium 28 / large 36 / gargantuan 44. The worst-case discounted quote is checked before the species roll; an unaffordable attempt spends nothing and advances no gameplay RNG, while an affordable attempt spends the rolled fish's actual class cost. Bait, lure, and chum remain item costs; Work is charged only on the actual cast or hook. If a hooked fish escapes, snaps the line, or cannot be stowed after a won fight, 60% of the discounted hook cost is refunded.
+Base Work costs are: plant 12, water 5, harvest 30, fertilize 8, irrigate 8, processing-job start 35, basic-fishing cast 15, and sport-fishing hook by the school's worst possible cargo class: small 18 / medium 28 / large 36 / gargantuan 44. The worst-case discounted quote is checked before the species roll; an unaffordable attempt spends nothing and advances no gameplay RNG, while an affordable attempt spends the rolled fish's actual class cost. Bait, lure, and chum remain item costs; Work is charged only on the actual cast or hook. If a hooked fish escapes, snaps the line, or cannot be stowed after a won fight, 60% of the discounted hook cost is refunded.
 
 The single cost authority returns base cost, discounted cost, floored available Work for display, shortage, affordability, and the estimated in-game ready minute. Action prompts show the discounted Work cost. An insufficient result uses `insufficient-work` and reports required Work, available Work, and ready time. Partial payment is forbidden.
 
@@ -936,7 +951,7 @@ Generator MUST validate feasibility, use the template-owned delivery market for 
 
 Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match.
 
-The board's width scales with Trading rank through `contractSlotsForRank` — 2 slots below rank 3, 3 at ranks 3-4, 4 at rank 5 and above — so proficiency buys a real choice between orders instead of whatever two slots happened to roll.
+The board's width scales with Trading rank through `contractSlotsForRank` — 3 slots below rank 5, 4 at rank 5 and above — so proficiency buys a real choice between orders instead of whatever the slots happened to roll.
 
 Contract money is fixed at generation from a **rest-demand market reference**, then multiplied by the template premium. Produce reference includes the delivery market's current seasonal factor. Fish reference includes the contract's minimum quality, minimum freshness, and minimum or average weight modifiers. Live demand is deliberately excluded so accepting or rerolling during a demand spike cannot manipulate the fixed reward. If an expired partially fulfilled produce contract cannot return items because the satchel is full, its money refund uses the same rest reference rather than raw item value.
 
@@ -973,6 +988,10 @@ Farm UI: temporary seed-belt extension; crop stage/time, moisture, and one immed
 Market UI: ledger sections for wares, goods, fish hold, and contextual contracts. A selected market ticket shows the domain quote, owned amount, plain demand signal, and one clear action; fish quotes show the ordered domain-owned breakdown. Catch-time UI never estimates value.
 
 Boat UI: hull, applicable fuel, physical cargo-slot silhouettes, and sea warning; cargo UI MUST map to physical slots and rowboats never show fuel.
+
+Contextual toolbar entries execute their simulation-published actions rather than assigning fixed tool meanings to numbered slots. Farming exposes hand tools, seeds, watering, fertilizer, and harvest; angling and maritime expose rod/lure preparation plus existing supplies/storage access; exploration opens the existing satchel, chart, expedition board, stores, and journal. No ration, lantern, water-reservoir, player wetness, or warmth mechanic is implied by a control or status chip when no such simulation system exists. Weather warnings remain weather information, not invented player debuffs.
+
+Vessel slot type comes from the boat definition. The HUD's ice indicator queries the same location-based built-in and accessible loose-ice rule as cargo freshness, including empty bays; the UI must not infer hooks from slot number or reproduce preservation formulas. These are presentation contracts and do not change saved state, storage capacity, ice consumption, or freshness tuning.
 
 Forecast: anchored, non-modal Now / +2h / +5h conditions with qualitative rain, wind, and sea readings.
 
@@ -1119,7 +1138,7 @@ The preceding sections are the **LIVE** implementation authority. The items belo
 - **Drought weather.** The weather enum has **no** `drought`. Growth weather buffs are `light-rain`, `heavy-rain`, and `storm` at **1.05**; other types are 1.00. Storm restores crop moisture like heavy rain.
 - **Authored ice location table.** LIVE ice is a slot `hasIce` flag or `item.crushed_ice` in satchel / boat supply, which forces storage modifier **0.4** wherever that ice resolves. The carried/hold/ice-box/cold-storage table is the design target, not a live per-location ice lookup.
 - **Mandatory sport lure gate.** A lure is **not** required to hook a chummed school. Explicit preparation, successful-hook consumption, and fight forgiveness are live; making lure possession mandatory remains deferred.
-- **External hook verb and Emergency Tow.** The skiff purchase and persisted second vessel are live. External-hook class as a distinct live verb and zero-fuel Emergency Tow are not live.
+- **External hook verb.** The skiff purchase and persisted second vessel are live, as is the crude zero-fuel Emergency Tow above. External-hook class as a distinct live verb remains deferred.
 - **Branching dialogue, persistent transcripts, and separate lore codex.** The eighteen-quest chain, contextual intro/completion/idle/milestone dialogue, quest titles/objectives, completed quest history, and feature/knowledge unlocks are live. Branches, relationship variables, dialogue page saves, a transcript, and a separate `loreDiscoveries` state are not live; do not add them opportunistically.
   **Parallel quest tracks are not branching and remain in scope.** A track is its own linear `nextQuestId` chain with its own cursor, activated by an explicit state predicate (`QuestTrackDefinition.unlock`). No quest has two possible outcomes and no dialogue offers a choice; the player simply carries more than one thread. The validator enforces this by walking one chain per track and rejecting a `nextQuestId` that crosses tracks. Only `track.main` currently exists.
 - **NPC schedules and romance.** Named NPC roles and fixed authored anchors are live. Daily schedules, relationship progression, romance, and large companion/story systems remain out of scope for the MVP.

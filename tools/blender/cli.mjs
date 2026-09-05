@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup, join, meshopt, prune, weld } from "@gltf-transform/functions";
+import { dedup, getBounds, join, meshopt, prune, weld } from "@gltf-transform/functions";
 import { validateBytes } from "gltf-validator";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 
@@ -40,10 +40,12 @@ import {
 
 import {
   optimizeAsset,
+  compressImportedAsset,
   optimizeAndGenerateLods,
   mayJoinStaticNode,
   DEFAULT_OPTIMIZE_CONFIG,
 } from "./optimize.mjs";
+import { compareStaticDocuments } from "./compare_static_source_contract.mjs";
 
 const CLI_PATH = fileURLToPath(import.meta.url);
 const HERE = path.dirname(CLI_PATH);
@@ -75,20 +77,108 @@ const ART_YARD_URL = "http://localhost:3000/__neva_art_yard";
 const STAGE_PATTERN = /^run-[A-Za-z0-9_-]+$/;
 const BLENDER_LOG_BUFFER_BYTES = 16 * 1024 * 1024;
 const FAILURE_EXCERPT_LINES = 30;
+const INHERITED_STATIC_WARNING_CODES = new Set([
+  "IMAGE_FEATURES_UNSUPPORTED",
+  "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+]);
 
 const readJson = (filename) => JSON.parse(fs.readFileSync(filename, "utf8"));
 const safeFilename = (value) => path.basename(value) === value && value.endsWith(".glb");
 
-function readGenerationInputs() {
+function paletteTokenForMaterial(material) {
+  const token = material?.extras?.neva_palette_token ?? material?.name;
+  return typeof token === "string" ? token : null;
+}
+
+const srgbChannelToLinear = (value) =>
+  value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+
+function staticComparisonPalette(repoRoot = ROOT) {
+  const document = readJson(path.join(repoRoot, "art/palettes/neva.palette.json"));
+  return Object.fromEntries(Object.entries(document.tokens).map(([token, value]) => {
+    const hex = value.hex.replace(/^#/, "");
+    const linear = [0, 2, 4].map((offset) =>
+      srgbChannelToLinear(Number.parseInt(hex.slice(offset, offset + 2), 16) / 255));
+    return [token, {
+      linear,
+      roughness: value.roughness,
+      metalness: value.metalness,
+      emissiveStrength: value.emissiveStrength ?? 0,
+    }];
+  }));
+}
+
+async function validateStaticSourceContract(filename, spec, repoRoot = ROOT) {
+  if (!spec.staticAuthoring) return null;
+  const source = resolveAdmissionSource(spec.staticAuthoring.sourceFile, ".glb", repoRoot);
+  const sourceSha256 = sha256(fs.readFileSync(source));
+  if (sourceSha256 !== spec.staticAuthoring.sourceSha256) {
+    throw new Error(`${spec.id}: immutable static source hash differs from staticAuthoring`);
+  }
+  await MeshoptDecoder.ready;
+  const io = new NodeIO()
+    .registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+  const [sourceDocument, candidateDocument] = await Promise.all([
+    io.read(source),
+    io.read(filename),
+  ]);
+  const result = compareStaticDocuments(
+    sourceDocument,
+    candidateDocument,
+    spec,
+    staticComparisonPalette(repoRoot),
+  );
+  if (!result.passed) {
+    throw new Error(`${spec.id}: decoded static source contract failed: ${result.issues.join("; ")}`);
+  }
   return {
-    specHash: sha256(fs.readFileSync(CATALOG_PATH)),
-    paletteHash: sha256(fs.readFileSync(PALETTE_PATH)),
-    toolchainHash: computeToolchainHash(),
+    passed: true,
+    sourceSha256,
+    sourceRegionCount: result.sourceRegionCount,
+    candidateRegionCount: result.candidateRegionCount,
+    uniformScale: result.transform.uniformScale,
+    maximumPositionErrorMeters: Math.max(0, ...result.surfaces.map((row) => row.positionMeters)),
+    maximumNormalErrorDegrees: Math.max(
+      0,
+      ...result.surfaces.map((row) => row.normalRadians * 180 / Math.PI),
+    ),
+    maximumUvError: Math.max(0, ...result.surfaces.map((row) => row.uv)),
   };
 }
 
-function assertGenerationInputsUnchanged(expected, phase) {
-  const current = readGenerationInputs();
+async function inheritedStaticSourceWarnings(spec, repoRoot = ROOT) {
+  if (!spec.staticAuthoring) return new Set();
+  const source = resolveAdmissionSource(spec.staticAuthoring.sourceFile, ".glb", repoRoot);
+  const bytes = fs.readFileSync(source);
+  const report = await validateBytes(new Uint8Array(bytes), {
+    uri: path.basename(source),
+    externalResourceFunction: async () => new Uint8Array(),
+  });
+  const errors = report.issues.messages.filter((issue) => issue.severity === 0);
+  if (errors.length) {
+    throw new Error(
+      `${spec.id}: immutable static source fails Khronos validation\n` +
+      errors.map((issue) => `${issue.code}: ${issue.message}`).join("\n"),
+    );
+  }
+  return new Set(
+    report.issues.messages
+      .filter((issue) => issue.severity === 1 && INHERITED_STATIC_WARNING_CODES.has(issue.code))
+      .map((issue) => issue.code),
+  );
+}
+
+function readGenerationInputs(repoRoot = ROOT) {
+  return {
+    specHash: sha256(fs.readFileSync(path.join(repoRoot, "assets/specs/asset-catalog.json"))),
+    paletteHash: sha256(fs.readFileSync(path.join(repoRoot, "art/palettes/neva.palette.json"))),
+    toolchainHash: computeToolchainHash(path.join(repoRoot, "tools/blender")),
+  };
+}
+
+function assertGenerationInputsUnchanged(expected, phase, repoRoot = ROOT) {
+  const current = readGenerationInputs(repoRoot);
   const changed = Object.keys(expected).filter((key) => expected[key] !== current[key]);
   if (changed.length) {
     throw new Error(
@@ -103,8 +193,11 @@ const integer = (min, max) => ({ kind: "integer", min, max });
 const choice = (...values) => ({ kind: "choice", values });
 const tuple3 = (min, max) => ({ kind: "tuple3", min, max });
 const boolean = () => ({ kind: "boolean" });
+const repositoryFile = (extension) => ({ kind: "repositoryFile", extension });
+const nonemptyString = () => ({ kind: "nonemptyString" });
 
 const PARAMETER_CONTRACTS = Object.freeze({
+  imported_blend: { sourceBlend: repositoryFile(".blend"), sourceCollection: nonemptyString() },
   oak_tree: { height: number(3, 10), spread: number(1, 5), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10) },
   olive_tree: { height: number(3, 8), spread: number(1, 4), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10), fruitCount: integer(0, 30) },
   pine_tree: { height: number(4, 12), spread: number(1, 4), tiers: integer(5, 12), lean: number(-0.4, 0.4), branchesPerTier: integer(3, 8), rootCount: integer(3, 8) },
@@ -255,22 +348,6 @@ const PARAMETER_CONTRACTS = Object.freeze({
     depth: number(1, 14),
     height: number(1, 16)
   },
-  coastal_worker: {
-    height: number(1.5, 2.4),
-    headRatio: number(4.0, 7.0),
-    handScale: number(0.8, 1.4),
-    animationSource: choice("anim/Unreal-Godot/UAL1_Standard.glb"),
-  },
-  npc_character: {
-    role: choice("gardener", "handyman", "dockmaster", "merchant"),
-    height: number(1.5, 2.4),
-    headRatio: number(4.0, 7.0),
-    handScale: number(0.8, 1.4),
-    style: choice("chibi-storybook"),
-    animationSource: choice("anim/Unreal-Godot/UAL1_Standard.glb"),
-  },
-
-
   grass_clump: { bladeCount: integer(4, 50), height: number(0.1, 3), spread: number(0.1, 3), bladeWidth: number(0.01, 0.5) },
   wildflower_clump: { stemCount: integer(2, 30), height: number(0.1, 3), spread: number(0.1, 3), petals: integer(3, 12) },
   flower_drift: { blossomCount: integer(3, 12), height: number(0.1, 1.2), spread: number(0.1, 1.2), blossomSize: number(0.02, 0.2) },
@@ -374,7 +451,7 @@ const PRIMARY_BINDING_GENERATORS = Object.freeze(
   new Set(["farmhouse", "lighthouse", "stone_bridge", "working_dock", "fish_market"]),
 );
 
-function validateGeneratorParameters(asset) {
+function validateGeneratorParameters(asset, repoRoot = ROOT, verifySourceFiles = true) {
   const contract = PARAMETER_CONTRACTS[asset.generator];
   if (!contract) throw new Error(`${asset.id}: missing registered parameter contract for generator ${asset.generator}`);
   const parameters = asset.parameters;
@@ -392,9 +469,55 @@ function validateGeneratorParameters(asset) {
     else if (rule.kind === "choice") valid = rule.values.includes(value);
     else if (rule.kind === "tuple3") valid = Array.isArray(value) && value.length === 3 && value.every((entry) => typeof entry === "number" && Number.isFinite(entry) && entry >= rule.min && entry <= rule.max);
     else if (rule.kind === "boolean") valid = typeof value === "boolean";
+    else if (rule.kind === "nonemptyString") valid = typeof value === "string" && value.trim().length > 0 && value.length <= 160;
+    else if (rule.kind === "repositoryFile") {
+      valid = typeof value === "string" && !path.isAbsolute(value);
+      if (valid) {
+        validateAdmissionSourcePath(value, rule.extension, repoRoot);
+        if (verifySourceFiles) resolveAdmissionSource(value, rule.extension, repoRoot);
+      }
+    }
     if (!valid) throw new Error(`${asset.id}: invalid generator parameter ${key}`);
   }
   return true;
+}
+
+function validateStaticAuthoring(asset, repoRoot = ROOT, verifySourceFiles = true) {
+  const authoring = asset.staticAuthoring;
+  if (!authoring) return null;
+  if (asset.generator !== "imported_blend") {
+    throw new Error(`${asset.id}: staticAuthoring requires the imported_blend generator`);
+  }
+  const source = validateAdmissionSourcePath(authoring.sourceFile, ".glb", repoRoot);
+  if (verifySourceFiles) {
+    const resolved = resolveAdmissionSource(authoring.sourceFile, ".glb", repoRoot);
+    if (sha256(fs.readFileSync(resolved)) !== authoring.sourceSha256) {
+      throw new Error(`${asset.id}: staticAuthoring sourceSha256 does not match sourceFile`);
+    }
+  }
+  const tokenPolicies = new Map();
+  for (const [sourceMaterial, mapping] of Object.entries(authoring.materialMap)) {
+    if (!sourceMaterial.trim()) throw new Error(`${asset.id}: staticAuthoring has an empty source material name`);
+    if (!asset.palette.includes(mapping.token)) {
+      throw new Error(`${asset.id}: staticAuthoring maps ${sourceMaterial} to undeclared token ${mapping.token}`);
+    }
+    const previous = tokenPolicies.get(mapping.token);
+    if (previous && previous !== mapping.texturePolicy) {
+      throw new Error(`${asset.id}: staticAuthoring token ${mapping.token} mixes texture policies`);
+    }
+    tokenPolicies.set(mapping.token, mapping.texturePolicy);
+  }
+  if (new Set(tokenPolicies.values()).size > 1) {
+    throw new Error(
+      `${asset.id}: one static source mesh cannot mix solid COLOR_0 and texture-preserving policies`,
+    );
+  }
+  for (const node of authoring.addedGeometryNodes ?? []) {
+    if (!asset.requiredNodes.includes(node)) {
+      throw new Error(`${asset.id}: staticAuthoring added geometry node ${node} must be required`);
+    }
+  }
+  return { ...authoring, sourceFile: source };
 }
 
 function validateLodContract(asset) {
@@ -508,6 +631,29 @@ function validateAnimationContract(asset) {
     if (clip.referenceSpeedMetersPerSecond !== undefined && !clip.loop) {
       throw new Error(`${asset.id}: ${clip.name} reference speed requires a looping clip`);
     }
+    if (asset.humanoidRig && (!clip.contacts || !clip.motionSource)) {
+      throw new Error(`${asset.id}: ${clip.name} requires source motion provenance and authored contact intervals`);
+    }
+    for (const side of ["left", "right"]) {
+      let previousEnd = -1;
+      for (const interval of clip.contacts?.[side] ?? []) {
+        if (interval.start < 0 || interval.end <= interval.start || interval.end > clip.durationSeconds + 0.000001 || interval.start < previousEnd) {
+          throw new Error(`${asset.id}: ${clip.name} ${side} contact intervals must be ordered, disjoint and inside the clip`);
+        }
+        previousEnd = interval.end;
+      }
+      const footstep = clip.events?.find((event) => event.name === `footstep_${side}`);
+      if (asset.humanoidRig && footstep && !clip.contacts[side].some((interval) => Math.abs(interval.start - footstep.timeSeconds) <= 0.000001)) {
+        throw new Error(`${asset.id}: ${clip.name} ${side} footstep must match an authored contact onset`);
+      }
+    }
+    const motion = clip.motionSource;
+    if (motion?.kind === "native" && Math.abs(motion.sourceDurationSeconds - clip.durationSeconds) > 0.00001) {
+      throw new Error(`${asset.id}: ${clip.name} native motion must retain original seconds`);
+    }
+    if (motion?.loopClosureStartSeconds !== undefined && (motion.loopClosureEndSeconds !== clip.durationSeconds || motion.loopClosureStartSeconds >= motion.loopClosureEndSeconds || motion.loopClosureEndSeconds - motion.loopClosureStartSeconds > clip.durationSeconds * 0.15 + 0.000001)) {
+      throw new Error(`${asset.id}: ${clip.name} source loop repair must declare a bounded final window`);
+    }
     const eventNames = new Set();
 
     for (const event of clip.events ?? []) {
@@ -528,8 +674,9 @@ function validateAnimationContract(asset) {
       throw new Error(`${asset.id}: optional clip ${clip.name} requires a distinct required fallback clip`);
     }
   }
-  if (asset.family === "character") {
-    const requiredClips = asset.generator === "npc_character" ? REQUIRED_NPC_CLIPS : REQUIRED_CHARACTER_CLIPS;
+    if (asset.family === "character") {
+    const isNpc = asset.id.startsWith("char_npc_");
+    const requiredClips = isNpc ? REQUIRED_NPC_CLIPS : REQUIRED_CHARACTER_CLIPS;
     const missing = requiredClips.filter((name) => !clips.has(name) || clips.get(name).optional);
     if (missing.length) throw new Error(`${asset.id}: missing required animation clips: ${missing.join(", ")}`);
   }
@@ -707,7 +854,96 @@ function referenceBriefMarkdown(asset) {
   ].join("\n");
 }
 
-function validateCatalog() {
+function validateAdmissionSourcePath(source, extension, repoRoot = ROOT) {
+  if (typeof source !== "string" || !source) throw new Error("Admission source path is required");
+  const resolved = path.resolve(repoRoot, source);
+  if (!resolved.startsWith(`${path.resolve(repoRoot)}${path.sep}`)) throw new Error("Admission source must remain inside the repository (including symlinks)");
+  if (path.extname(resolved) !== extension) throw new Error(`Admission source must be a ${extension} file`);
+  if (["public", "generated/glb"].some((relative) => resolved.startsWith(`${path.resolve(repoRoot, relative)}${path.sep}`))) {
+    throw new Error("Admission source cannot be a published/runtime destination");
+  }
+  return resolved;
+}
+
+function resolveAdmissionSource(source, extension, repoRoot = ROOT) {
+  const resolved = validateAdmissionSourcePath(source, extension, repoRoot);
+  const root = fs.realpathSync(repoRoot);
+  const real = fs.realpathSync(resolved);
+  const inside = (filename, directory) => filename.startsWith(`${directory}${path.sep}`);
+  if (!inside(resolved, path.resolve(repoRoot)) || !inside(real, root)) {
+    throw new Error("Admission source must remain inside the repository (including symlinks)");
+  }
+  if (path.extname(real) !== extension || !fs.statSync(real).isFile()) {
+    throw new Error(`Admission source must be a ${extension} file`);
+  }
+  for (const relative of ["public", "generated/glb"]) {
+    const directory = path.join(root, relative);
+    const actualDirectory = fs.existsSync(directory) ? fs.realpathSync(directory) : directory;
+    if (inside(resolved, path.join(path.resolve(repoRoot), relative)) || inside(real, actualDirectory)) {
+      throw new Error("Admission source cannot be a published/runtime destination");
+    }
+  }
+  return real;
+}
+
+function validateSourceProvenance(asset, repoRoot = ROOT, verifySourceFiles = true) {
+  const provenance = asset.sourceProvenance;
+  if (!provenance) {
+    if (asset.generator === "imported_blend") throw new Error(`${asset.id}: imported_blend requires verified sourceProvenance`);
+    return null;
+  }
+  const schema = readJson(SCHEMA_PATH);
+  const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema.$defs.sourceProvenance);
+  if (!validate(provenance)) throw new Error(`${asset.id}: invalid sourceProvenance`);
+  if (provenance.provider === "poly-pizza" && provenance.sourceUrl !== `https://poly.pizza/m/${provenance.modelId}`) {
+    throw new Error(`${asset.id}: sourceProvenance modelId does not match sourceUrl`);
+  }
+  if (provenance.provider === "quaternius" && !/^https:\/\/quaternius\.com\/packs\/[a-z0-9]+\.html$/.test(provenance.sourceUrl)) {
+    throw new Error(`${asset.id}: Quaternius provenance must identify the original pack page`);
+  }
+  const licenseUrl = provenance.license === "CC0-1.0"
+    ? "https://creativecommons.org/publicdomain/zero/1.0/"
+    : "https://creativecommons.org/licenses/by/3.0/";
+  if (provenance.licenseUrl !== licenseUrl) throw new Error(`${asset.id}: sourceProvenance license URL mismatch`);
+  if (path.isAbsolute(provenance.sourceBlend)) throw new Error(`${asset.id}: sourceBlend must be repository-relative`);
+  if (asset.parameters?.sourceBlend && provenance.sourceBlend !== asset.parameters.sourceBlend) {
+    throw new Error(`${asset.id}: sourceProvenance must identify the catalog sourceBlend`);
+  }
+  validateAdmissionSourcePath(provenance.sourceBlend, ".blend", repoRoot);
+  if (!verifySourceFiles) return provenance;
+  const source = resolveAdmissionSource(provenance.sourceBlend, ".blend", repoRoot);
+  if (sha256(fs.readFileSync(source)) !== provenance.sourceSha256) {
+    throw new Error(`${asset.id}: sourceBlend SHA-256 mismatch; update provenance only after verifying the adapted source`);
+  }
+  if (provenance.sourceCapture) {
+    for (const field of ["sourceCapture", "sourceCaptureReport", "licenseEvidence"]) {
+      if (path.isAbsolute(provenance[field])) throw new Error(`${asset.id}: ${field} must be repository-relative`);
+    }
+    const capture = resolveAdmissionSource(provenance.sourceCapture, ".blend", repoRoot);
+    if (sha256(fs.readFileSync(capture)) !== provenance.sourceCaptureSha256) {
+      throw new Error(`${asset.id}: sourceCapture SHA-256 mismatch`);
+    }
+    const captureReportPath = resolveAdmissionSource(provenance.sourceCaptureReport, ".json", repoRoot);
+    const captureReport = readJson(captureReportPath);
+    const reportLicense = provenance.license === "CC0-1.0" ? "CC0 1.0" : "CC BY 3.0";
+    if (captureReport.modelId !== provenance.modelId
+      || captureReport.sourceUrl !== provenance.sourceUrl
+      || captureReport.sourceBlend !== provenance.sourceCapture
+      || captureReport.sourceSha256 !== provenance.sourceCaptureSha256
+      || !Array.isArray(captureReport.license)
+      || !captureReport.license.includes(reportLicense)) {
+      throw new Error(`${asset.id}: sourceCapture report does not match source provenance`);
+    }
+    const licensePath = resolveAdmissionSource(provenance.licenseEvidence, ".txt", repoRoot);
+    const licenseEvidence = fs.readFileSync(licensePath, "utf8");
+    for (const evidence of [provenance.modelId, provenance.sourceUrl, provenance.licenseUrl]) {
+      if (!licenseEvidence.includes(evidence)) throw new Error(`${asset.id}: licenseEvidence is incomplete`);
+    }
+  }
+  return provenance;
+}
+
+function validateCatalog(stagingSelection = null) {
   const catalog = readJson(CATALOG_PATH);
   const schema = readJson(SCHEMA_PATH);
   const palette = readJson(PALETTE_PATH);
@@ -717,6 +953,10 @@ function validateCatalog() {
   if (!validate(catalog)) {
     throw new Error(`Asset catalog schema errors:\n${ajv.errorsText(validate.errors, { separator: "\n" })}`);
   }
+  // A selected, nonpublishing build does not consume other assets' Blender
+  // libraries. Their schemas/contracts still validate; admission/publication
+  // and the default catalog check continue to verify every source file/hash.
+  const sourceIds = stagingSelection ? new Set(selectAssets(catalog, stagingSelection).map((asset) => asset.id)) : null;
 
   const ids = new Set();
   const files = new Set();
@@ -736,10 +976,12 @@ function validateCatalog() {
     for (const token of asset.palette) {
       if (!palette.tokens[token]) throw new Error(`${asset.id}: unknown palette token ${token}`);
     }
-    validateGeneratorParameters(asset);
+    validateGeneratorParameters(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
+    validateStaticAuthoring(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
     validateLodContract(asset);
     validateAnimationContract(asset);
     validateReferenceAuthoring(asset);
+    validateSourceProvenance(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
     ids.add(asset.id);
     files.add(asset.file);
   }
@@ -767,13 +1009,22 @@ function parseArgs(argv) {
     concurrency: null,
     timeoutMs: 180000,
     useCache: true,
+    source: null,
   };
   let index = 0;
   if (argv[0] && !argv[0].startsWith("-")) args.command = argv[index++];
   while (index < argv.length) {
     const flag = argv[index++];
-    if (flag === "--asset") args.assets.push(argv[index++]);
-    else if (flag === "--family") args.families.push(argv[index++]);
+    if (flag === "--asset" || flag === "--family") {
+      const value = argv[index++];
+      if (!value || value.startsWith("--")) throw new Error(`${flag} requires a value`);
+      (flag === "--asset" ? args.assets : args.families).push(value);
+    }
+    else if (flag === "--source") {
+      if (args.source !== null) throw new Error("--source may only be supplied once");
+      args.source = argv[index++];
+      if (!args.source || args.source.startsWith("--")) throw new Error("--source requires a GLB path");
+    }
     else if (flag === "--all") args.all = true;
     else if (flag === "--no-publish") args.publish = false;
     else if (flag === "--strict") args.strict = true;
@@ -782,6 +1033,16 @@ function parseArgs(argv) {
     else if (flag === "--no-cache" || flag === "--force") args.useCache = false;
     else if (flag === "--help" || flag === "-h") args.command = "help";
     else throw new Error(`Unknown argument: ${flag}`);
+  }
+  if (args.command === "admit") {
+    if (args.assets.length !== 1 || args.families.length || args.all || !args.source) {
+      throw new Error("admit requires exactly one --asset ID and --source PATH; --family and --all are not supported");
+    }
+    if (args.strict || args.concurrency !== null || !args.useCache || args.timeoutMs !== 180000) {
+      throw new Error("admit only supports --asset, --source, and --no-publish");
+    }
+  } else if (args.source !== null) {
+    throw new Error("--source is only supported by the admit command");
   }
   return args;
 }
@@ -960,7 +1221,8 @@ async function semanticHash(bytes) {
         meshopt.filter,
       );
       accessorView = new DataView(decoded.buffer, decoded.byteOffset, decoded.byteLength);
-      stride = meshopt.byteStride;
+      // Codec blocks need not match accessor elements (packed buffer views
+      // can contain several shapes). Accessor/view layout still owns stride.
       sourceStart = 0;
     }
     const start = sourceStart + (accessor.byteOffset ?? 0);
@@ -978,6 +1240,7 @@ async function semanticHash(bytes) {
   delete semantic.buffers;
   semantic.bufferViews = (semantic.bufferViews ?? []).map((bufferView) => {
     const copy = { ...bufferView };
+    delete copy.buffer;
     delete copy.byteOffset;
     delete copy.byteLength;
     delete copy.byteStride;
@@ -996,9 +1259,10 @@ async function semanticHash(bytes) {
   return sha256(Buffer.from(JSON.stringify({ semantic, accessorData })));
 }
 
-async function validateGlb(filename, spec, phase) {
+async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
   const bytes = fs.readFileSync(filename);
   const animationClips = animationContractClips(spec);
+  const inheritedWarnings = await inheritedStaticSourceWarnings(spec, repoRoot);
   const report = await validateBytes(new Uint8Array(bytes), {
     uri: spec.file,
     externalResourceFunction: async () => new Uint8Array(),
@@ -1006,6 +1270,7 @@ async function validateGlb(filename, spec, phase) {
   const errors = report.issues.messages.filter((issue) => issue.severity === 0);
   const warnings = report.issues.messages.filter((issue) => {
     if (issue.severity !== 1) return false;
+    if (inheritedWarnings.has(issue.code)) return false;
     // Identity LOD empties parent skinned groups so runtime can switch levels.
     // Parent transforms are unused; Khronos still warns NODE_SKINNED_MESH_NON_ROOT.
     if (
@@ -1056,6 +1321,16 @@ async function validateGlb(filename, spec, phase) {
           }
         }
       }
+      if (spec.humanoidRig) {
+        for (const [semantic, name] of Object.entries(spec.humanoidRig.bones)) {
+          if (nodes.filter((node) => node.name === name).length !== 1) throw new Error(`${spec.id}: ${phase} missing unique semantic bone ${semantic} (${name})`);
+        }
+        for (const side of ["left", "right"]) {
+          const wrist = nodes.find((node) => node.name === spec.humanoidRig.bones[`hand_${side}`]);
+          const grip = nodes.findIndex((node) => node.name === spec.humanoidRig.grips[side]);
+          if (grip < 0 || !wrist.children?.includes(grip)) throw new Error(`${spec.id}: ${phase} ${side} palm grip must be a direct wrist child`);
+        }
+      }
     }
     const animationsByName = new Map((json.animations ?? []).map((animation) => [animation.name, animation]));
     for (const clip of animationClips) {
@@ -1095,6 +1370,36 @@ async function validateGlb(filename, spec, phase) {
   let trianglePrimitives = 0;
   let vertexColorPrimitives = 0;
   let normalPrimitives = 0;
+  const preservedTextureTokens = new Set(
+    Object.values(spec.staticAuthoring?.materialMap ?? {})
+      .filter((mapping) => mapping.texturePolicy === "preserve")
+      .map((mapping) => mapping.token),
+  );
+  if (spec.staticAuthoring) {
+    const expectedRegions = new Set(Object.keys(spec.staticAuthoring.materialMap));
+    const actualRegions = new Set();
+    for (const material of json.materials ?? []) {
+      const sourceRegion = material.extras?.neva_source_material;
+      const token = paletteTokenForMaterial(material);
+      if (typeof sourceRegion !== "string" || !expectedRegions.has(sourceRegion)) {
+        throw new Error(`${spec.id}: ${phase} material ${material.name ?? "<unnamed>"} lost its source-region identity`);
+      }
+      if (actualRegions.has(sourceRegion)) {
+        throw new Error(`${spec.id}: ${phase} duplicates source material region ${sourceRegion}`);
+      }
+      if (material.name !== sourceRegion) {
+        throw new Error(`${spec.id}: ${phase} source material ${sourceRegion} has unstable name ${material.name}`);
+      }
+      if (spec.staticAuthoring.materialMap[sourceRegion].token !== token) {
+        throw new Error(`${spec.id}: ${phase} source material ${sourceRegion} maps to the wrong palette token`);
+      }
+      actualRegions.add(sourceRegion);
+    }
+    const missingRegions = [...expectedRegions].filter((region) => !actualRegions.has(region));
+    if (missingRegions.length) {
+      throw new Error(`${spec.id}: ${phase} lost source material regions: ${missingRegions.join(", ")}`);
+    }
+  }
   const meshTriangles = (json.meshes ?? []).map((mesh) => {
     let count = 0;
     for (const primitive of mesh.primitives ?? []) {
@@ -1111,10 +1416,31 @@ async function validateGlb(filename, spec, phase) {
           throw new Error(`${spec.id}: ${phase} triangle primitive is missing NORMAL`);
         }
         normalPrimitives += 1;
-        if (typeof primitive.attributes?.COLOR_0 !== "number") {
+        const material = typeof primitive.material === "number"
+          ? json.materials?.[primitive.material]
+          : null;
+        const materialToken = paletteTokenForMaterial(material);
+        const preservesSourceTexture = preservedTextureTokens.has(materialToken);
+        if (preservesSourceTexture && typeof primitive.attributes?.TEXCOORD_0 !== "number") {
+          throw new Error(`${spec.id}: ${phase} textured material ${materialToken} is missing TEXCOORD_0`);
+        }
+        if (
+          preservesSourceTexture &&
+          typeof material?.pbrMetallicRoughness?.baseColorTexture?.index !== "number"
+        ) {
+          throw new Error(`${spec.id}: ${phase} textured material ${materialToken} lost its base-color map`);
+        }
+        if (typeof primitive.attributes?.COLOR_0 !== "number" && !preservesSourceTexture) {
           throw new Error(`${spec.id}: ${phase} triangle primitive is missing semantic COLOR_0`);
         }
-        vertexColorPrimitives += 1;
+        if (typeof primitive.attributes?.COLOR_0 === "number" && preservesSourceTexture) {
+          throw new Error(
+            `${spec.id}: ${phase} textured material ${materialToken} must not multiply source albedo by COLOR_0`,
+          );
+        }
+        if (!preservesSourceTexture) {
+          vertexColorPrimitives += 1;
+        }
         if (typeof primitive.material !== "number") {
           throw new Error(`${spec.id}: ${phase} triangle primitive is missing its palette material`);
         }
@@ -1123,10 +1449,12 @@ async function validateGlb(filename, spec, phase) {
     }
     return count;
   });
-  const doubleSidedMaterials = (json.materials ?? []).filter((material) => material.doubleSided === true);
-  if (doubleSidedMaterials.length) {
+  const invalidDoubleSidedMaterials = (json.materials ?? []).filter(
+    (material) => material.doubleSided === true && !preservedTextureTokens.has(paletteTokenForMaterial(material)),
+  );
+  if (invalidDoubleSidedMaterials.length) {
     throw new Error(
-      `${spec.id}: ${phase} GLB contains ${doubleSidedMaterials.length} unnecessary double-sided materials`,
+      `${spec.id}: ${phase} GLB contains ${invalidDoubleSidedMaterials.length} unnecessary double-sided materials`,
     );
   }
   // Deduplication may make many authored nodes share one mesh. Count each node
@@ -1212,6 +1540,7 @@ async function validateGlb(filename, spec, phase) {
   if (materials > spec.budget.materialsMax) {
     throw new Error(`${spec.id}: ${materials} exported materials violate declared budget`);
   }
+  const staticSourceContract = await validateStaticSourceContract(filename, spec, repoRoot);
   return {
     nodes: json.nodes?.length ?? 0,
     meshes: json.meshes?.length ?? 0,
@@ -1222,7 +1551,7 @@ async function validateGlb(filename, spec, phase) {
     trianglePrimitives,
     vertexColorPrimitives,
     normalPrimitives,
-    doubleSidedMaterials: 0,
+    doubleSidedMaterials: (json.materials ?? []).filter((material) => material.doubleSided === true).length,
     artContractStatus: "passed",
     extensions: json.extensionsUsed ?? [],
     bytes: bytes.length,
@@ -1231,12 +1560,127 @@ async function validateGlb(filename, spec, phase) {
     vertexColorSpace: "linear-srgb",
     qualityStatus: triangles >= spec.budget.trianglesTarget ? "on_target" : "below_target",
     animationClips: animationMetrics,
+    ...(inheritedWarnings.size ? { inheritedSourceWarnings: [...inheritedWarnings].sort() } : {}),
+    ...(staticSourceContract ? { staticSourceContract } : {}),
   };
 }
 
 
 async function readAssetCache(plan, spec) {
   return readAssetCacheModule(plan, spec, validateGlb);
+}
+
+async function validateAdmissionGlb(filename, spec, palette, repoRoot = ROOT) {
+  const result = await validateGlb(filename, spec, "admission", repoRoot);
+  const bytes = fs.readFileSync(filename);
+  const { json } = parseGlb(bytes);
+  for (const name of spec.requiredNodes) {
+    if (json.nodes.filter((node) => node.name === name).length !== 1) {
+      throw new Error(`${spec.id}: admission requires exactly one node ${name}`);
+    }
+  }
+  const paletteTokensUsed = [...new Set((json.materials ?? []).map(paletteTokenForMaterial))];
+  if (paletteTokensUsed.some((token) => !token || !spec.palette.includes(token) || !palette.tokens[token])) {
+    throw new Error(`${spec.id}: admission contains an undeclared palette material`);
+  }
+  if ((json.buffers ?? []).some((buffer) => buffer.uri) || (json.images ?? []).some((image) => image.uri)) {
+    throw new Error(`${spec.id}: admitted GLB must be self-contained`);
+  }
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+  const document = await io.readBinary(new Uint8Array(bytes));
+  const root = document.getRoot().listNodes().find((node) => node.getName() === spec.rootNode);
+  const owned = new Set();
+  root.traverse((node) => owned.add(node));
+  if (document.getRoot().listNodes().some((node) => node.getMesh() && !owned.has(node))) {
+    throw new Error(`${spec.id}: admission contains meshes outside the catalog root`);
+  }
+  // These are exported rest-geometry bounds, not proof of posed deformation.
+  const bounds = getBounds(root);
+  const dimensions = [bounds.max[0] - bounds.min[0], bounds.max[2] - bounds.min[2], bounds.max[1] - bounds.min[1]];
+  const expected = [spec.dimensions.width, spec.dimensions.depth, spec.dimensions.height];
+  for (let axis = 0; axis < 3; axis++) {
+    if (!Number.isFinite(dimensions[axis]) || dimensions[axis] < expected[axis] * 0.25 || dimensions[axis] > expected[axis] * 1.35) {
+      throw new Error(`${spec.id}: admission bounds are incompatible with catalog dimensions`);
+    }
+  }
+  if (spec.pivot === "ground_center" && (bounds.min[1] < -0.12 || bounds.min[1] > 0.18)) {
+    throw new Error(`${spec.id}: admission ground pivot is invalid`);
+  }
+  return { ...result, dimensions, bounds, boundsSpace: "gltf-y-up", paletteTokensUsed };
+}
+
+async function admitAsset(spec, sourcePath, catalog, palette, options = {}) {
+  const repoRoot = options.repoRoot ?? ROOT;
+  const publish = options.publish !== false;
+  if (spec.generator !== "imported_blend") throw new Error("admit requires a catalog-declared imported_blend generator");
+  validateGeneratorParameters(spec, repoRoot);
+  const provenance = validateSourceProvenance(spec, repoRoot);
+  if (!provenance) throw new Error(`${spec.id}: admission requires verified sourceProvenance`);
+  const source = resolveAdmissionSource(sourcePath, ".glb", repoRoot);
+  const sourceHash = sha256(fs.readFileSync(source));
+  const inputs = readGenerationInputs(repoRoot);
+  const manifestPaths = ["generated/reports/asset-manifest.json", "public/assets/models/asset-manifest.json"]
+    .map((filename) => path.join(repoRoot, filename));
+  const manifestHashes = manifestPaths.map((filename) => sha256(fs.readFileSync(filename)));
+  if (manifestHashes[0] !== manifestHashes[1]) throw new Error("Cannot admit while generated/public manifests differ");
+  const previous = readJson(manifestPaths[0]);
+  if (!previous.assets?.some((entry) => entry.id === spec.id && entry.file === spec.file)) {
+    throw new Error(`${spec.id}: admission requires an existing published catalog identity`);
+  }
+  const started = Date.now();
+  const stagingRoot = path.join(repoRoot, "generated/.staging");
+  fs.mkdirSync(stagingRoot, { recursive: true });
+  const stage = fs.mkdtempSync(path.join(stagingRoot, "run-"));
+  const raw = path.join(stage, "raw", spec.file);
+  const optimizedDir = path.join(stage, "optimized");
+  const admitted = path.join(optimizedDir, spec.file);
+  copyAtomically(source, raw);
+  const rawResult = await validateAdmissionGlb(raw, spec, palette, repoRoot);
+  if (rawResult.fileHash !== sourceHash) throw new Error(`${spec.id}: source GLB changed while staging`);
+  // The exporter owns compression. Never quantize, join, or transform a skin
+  // during admission: keep its inverse binds, joint weights and clips exact.
+  copyAtomically(raw, admitted);
+  const result = await validateAdmissionGlb(admitted, spec, palette, repoRoot);
+  if (result.fileHash !== sourceHash) throw new Error(`${spec.id}: admission changed source bytes`);
+  const entry = {
+    id: spec.id, file: spec.file, family: spec.family, generator: spec.generator,
+    seed: spec.seed, requiredNodes: spec.requiredNodes, collision: spec.collision,
+    lod: spec.lod, readDistanceMeters: spec.readDistanceMeters, budget: spec.budget,
+    ...(spec.referenceAuthoring ? { referenceAuthoring: referenceAuthoringSummary(spec) } : {}),
+    cacheHit: false,
+    inputHash: sha256(stableStringify({ spec, sourceGlbSha256: sourceHash, sourceBlendSha256: provenance.sourceSha256, ...inputs })),
+    durationMs: Date.now() - started,
+    warnings: result.qualityStatus === "below_target" ? [`${result.triangles} triangles are below quality target ${spec.budget.trianglesTarget}`] : [],
+    ...result,
+    admission: {
+      packaging: "preserve-bytes",
+      sourceGlbSha256: sourceHash,
+      sourceBlendSha256: provenance.sourceSha256,
+      compression: result.extensions.filter((extension) => extension === "EXT_meshopt_compression" || extension === "KHR_draco_mesh_compression"),
+      blenderSceneValidation: "not-run",
+    },
+  };
+  const report = {
+    version: 2, generatedAt: new Date().toISOString(), ...inputs,
+    blenderVersion: "not-invoked (catalog source export)", vertexColorSpace: "linear-srgb",
+    durationMs: Date.now() - started, aggregateBytes: result.bytes,
+    summary: summarizeAssets([entry]), assets: [entry],
+    publication: publish ? "pending-publication" : "staged-only",
+  };
+  fs.writeFileSync(path.join(stage, "asset-report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  fs.writeFileSync(path.join(stage, "asset-report.md"), markdownReport(report));
+  assertGenerationInputsUnchanged(inputs, "during admission", repoRoot);
+  validateSourceProvenance(spec, repoRoot);
+  if (sha256(fs.readFileSync(source)) !== sourceHash || manifestPaths.some((filename, index) => sha256(fs.readFileSync(filename)) !== manifestHashes[index])) {
+    throw new Error(`${spec.id}: source or published manifest changed during admission; restage from stable inputs`);
+  }
+  if (publish) publishStage(report, optimizedDir, [spec], catalog, false, repoRoot);
+  console.log(`[NEVA ART] ${publish ? "Admitted" : "Staged (public assets unchanged)"} ${spec.id}: ${admitted}`);
+  // The stage viewer requires a complete catalog; single-asset admission is
+  // a mechanical candidate until selected publication makes its review usable.
+  if (publish) console.log(`[NEVA ART] Art Yard: ${artYardUrl(spec.id)}`);
+  return { stage, report, published: publish };
 }
 
 function summarizeAssets(results) {
@@ -1302,8 +1746,14 @@ async function buildStage(context, assets, blenderInfo) {
     }
     const raw = path.join(rawDir, spec.file);
     const rawValidation = await validateGlb(raw, spec, "raw");
-    await optimizeAsset(raw, optimized, spec);
+    // Imported sources already own their bind/animation data. Compress only:
+    // generic quantization/joining can change an authored skin's transforms.
+    if (spec.generator === "imported_blend") await compressImportedAsset(raw, optimized);
+    else await optimizeAsset(raw, optimized, spec);
     const final = await validateGlb(optimized, spec, "optimized");
+    if (spec.generator === "imported_blend" && final.semanticHash !== rawValidation.semanticHash) {
+      throw new Error(`${spec.id}: imported source compression changed decoded semantics`);
+    }
     const blenderAsset = blenderReport.assets.find((entry) => entry.id === spec.id);
     if (!blenderAsset || blenderAsset.artContractStatus !== "passed") {
       throw new Error(`${spec.id}: Blender did not report a passing semantic art contract`);
@@ -1336,6 +1786,10 @@ async function buildStage(context, assets, blenderInfo) {
           : [],
       ...final,
       semanticHash: rawValidation.semanticHash,
+      ...(spec.generator === "imported_blend" ? {
+        packaging: "lossless-compression-only",
+        compression: final.extensions.filter((extension) => extension === "EXT_meshopt_compression" || extension === "KHR_draco_mesh_compression"),
+      } : {}),
     });
     const result = results[results.length - 1];
     try {
@@ -1345,6 +1799,7 @@ async function buildStage(context, assets, blenderInfo) {
     }
   }
   const summary = summarizeAssets(results);
+  for (const spec of assets) validateSourceProvenance(spec);
   console.log(
     `[NEVA ART] Mechanical validation passed for ${summary.assetCount} selected assets (${summary.cacheHits} cache hits, ${summary.cacheMisses} generated)`,
   );
@@ -1370,6 +1825,12 @@ function markdownReport(report) {
   const rows = report.assets.map((asset) =>
     `| ${asset.id} | ${asset.family} | ${asset.referenceAuthoring?.status ?? "catalog-only"} | ${asset.triangles} / ${asset.packagedTriangles ?? asset.triangles} / ${asset.budget.trianglesTarget} | ${asset.qualityStatus} | ${asset.materials} | ${asset.bytes} | ${asset.fileHash.slice(0, 12)} |`,
   );
+  const publication = {
+    published: "published atomically to generated/glb and public/assets/models",
+    "pending-publication": "validated staging candidate; atomic publication pending",
+    "staged-only": "validated staging candidate; public assets unchanged",
+    determinism: "determinism-only staging candidates; public assets unchanged",
+  }[report.publication] ?? "state unavailable; consult the invoking command output";
   return [
     "# Neva asset pipeline report", "",
     `- Blender: ${report.blenderVersion}`,
@@ -1382,7 +1843,7 @@ function markdownReport(report) {
     `- COLOR_0 space: ${report.vertexColorSpace}`,
     `- Geometry density: ${report.summary.onTarget} on target, ${report.summary.belowTarget} below target`,
     `- Incremental cache: ${report.summary.cacheHits} hits, ${report.summary.cacheMisses} misses`,
-    "- Publication: direct atomic copy to generated/glb and public/assets/models", "",
+    `- Publication: ${publication}`, "",
     "| Asset | Family | Reference brief | LOD0 / packaged / target tris | Density status | Materials | Bytes | SHA-256 |",
     "| --- | --- | --- | ---: | --- | ---: | ---: | --- |", ...rows, "",
   ].join("\n");
@@ -1416,11 +1877,15 @@ function promoteFilesAtomically(copies, removals, backupRoot) {
   }
 }
 
-function publishStage(report, optimizedDir, selected, catalog, strict) {
-  fs.mkdirSync(GENERATED_DIR, { recursive: true });
-  fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-  fs.mkdirSync(REPORT_DIR, { recursive: true });
-  const previous = fs.existsSync(MANIFEST_PATH) ? readJson(MANIFEST_PATH) : { assets: [] };
+function publishStage(report, optimizedDir, selected, catalog, strict, repoRoot = ROOT) {
+  const generatedDir = path.join(repoRoot, "generated/glb");
+  const publicDir = path.join(repoRoot, "public/assets/models");
+  const reportDir = path.join(repoRoot, "generated/reports");
+  const manifestPath = path.join(reportDir, "asset-manifest.json");
+  fs.mkdirSync(generatedDir, { recursive: true });
+  fs.mkdirSync(publicDir, { recursive: true });
+  fs.mkdirSync(reportDir, { recursive: true });
+  const previous = fs.existsSync(manifestPath) ? readJson(manifestPath) : { assets: [] };
   const selectedFiles = new Set(selected.map((asset) => asset.file));
   const allSelected = selected.length === catalog.assets.length;
   const stale = allSelected
@@ -1448,6 +1913,7 @@ function publishStage(report, optimizedDir, selected, catalog, strict) {
   });
   const manifest = {
     ...report,
+    publication: "published",
     aggregateBytes: merged.reduce((sum, asset) => sum + asset.bytes, 0),
     summary: summarizeAssets(merged),
     assets: merged,
@@ -1464,24 +1930,24 @@ function publishStage(report, optimizedDir, selected, catalog, strict) {
   for (const asset of selected) {
     const source = path.join(optimizedDir, asset.file);
     copies.push(
-      { source, destination: path.join(GENERATED_DIR, asset.file) },
-      { source, destination: path.join(PUBLIC_DIR, asset.file) },
+      { source, destination: path.join(generatedDir, asset.file) },
+      { source, destination: path.join(publicDir, asset.file) },
     );
   }
   copies.push(
-    { source: stagedManifest, destination: MANIFEST_PATH },
-    { source: stagedMarkdown, destination: path.join(REPORT_DIR, "asset-report.md") },
-    { source: stagedQualityReport, destination: QUALITY_REPORT_PATH },
-    { source: stagedManifest, destination: PUBLIC_MANIFEST_PATH },
+    { source: stagedManifest, destination: manifestPath },
+    { source: stagedMarkdown, destination: path.join(reportDir, "asset-report.md") },
+    { source: stagedQualityReport, destination: path.join(reportDir, "asset_budget_report.json") },
+    { source: stagedManifest, destination: path.join(publicDir, "asset-manifest.json") },
   );
   const removals = stale.flatMap((entry) => [
-    path.join(GENERATED_DIR, entry.file),
-    path.join(PUBLIC_DIR, entry.file),
+    path.join(generatedDir, entry.file),
+    path.join(publicDir, entry.file),
   ]);
   promoteFilesAtomically(copies, removals, path.join(path.dirname(optimizedDir), "backup"));
   for (const asset of report.assets) {
-    const generated = fs.readFileSync(path.join(GENERATED_DIR, asset.file));
-    const published = fs.readFileSync(path.join(PUBLIC_DIR, asset.file));
+    const generated = fs.readFileSync(path.join(generatedDir, asset.file));
+    const published = fs.readFileSync(path.join(publicDir, asset.file));
     if (sha256(generated) !== sha256(published)) throw new Error(`${asset.id}: public/generated hash mismatch`);
   }
 }
@@ -1652,13 +2118,14 @@ export function validatePublishedManifest(
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.command === "help") {
-    console.log("Usage:\n  node tools/blender/cli.mjs [brief|generate|validate|sync|determinism|list] (--asset ID | --family NAME | --all) [--no-publish] [--strict]\n  node tools/blender/cli.mjs test-builders");
+    console.log("Usage:\n  node tools/blender/cli.mjs [brief|generate|validate|sync|determinism|list] (--asset ID | --family NAME | --all) [--no-publish] [--strict]\n  node tools/blender/cli.mjs admit --asset ID --source PATH [--no-publish]\n  node tools/blender/cli.mjs test-builders");
     return;
   }
   if (args.strict && args.command !== "generate") {
     throw new Error("--strict is only supported by the generate command");
   }
-  const { catalog, palette, specHash } = validateCatalog();
+  const offlineStaging = args.command === "determinism" || (args.command === "generate" && !args.publish);
+  const { catalog, palette, specHash } = validateCatalog(offlineStaging ? args : null);
   if (args.command === "test-builders") {
     if (args.assets.length || args.families.length || args.all) throw new Error("test-builders does not accept asset selection");
     runBuilderTests(resolveBlender().blender);
@@ -1675,6 +2142,10 @@ async function main() {
     throw new Error("brief requires --asset or --family; --all is not supported because only reference-guided assets have briefs");
   }
   const selected = selectAssets(catalog, args);
+  if (args.command === "admit") {
+    await admitAsset(selected[0], args.source, catalog, palette, { publish: args.publish });
+    return;
+  }
   if (args.command === "list") {
     for (const asset of selected) console.log(`${asset.id}\t${asset.family}\t${asset.file}`);
     return;
@@ -1715,6 +2186,9 @@ async function main() {
   };
   const first = await buildStage(context, selected, blenderInfo);
   assertGenerationInputsUnchanged(generationInputs, "during the first build");
+  first.report.publication = args.command === "determinism"
+    ? "determinism"
+    : args.publish ? "pending-publication" : "staged-only";
   fs.writeFileSync(path.join(stage, "asset-report.json"), `${JSON.stringify(first.report, null, 2)}\n`);
   fs.writeFileSync(path.join(stage, "asset-report.md"), markdownReport(first.report));
   if (args.strict && first.report.summary.belowTarget > 0) {
@@ -1779,6 +2253,12 @@ export {
   safeFilename,
   selectAssets,
   validateCatalog,
+  admitAsset,
+  resolveAdmissionSource,
+  validateSourceProvenance,
+  validateStaticAuthoring,
+  validateStaticSourceContract,
+  validateAdmissionGlb,
   validateGlb,
   validateGeneratorParameters,
   validateAnimationContract,

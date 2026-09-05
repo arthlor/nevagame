@@ -1,5 +1,6 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import type { HoldStoresDto, WorldHudCargoDto } from "../../simulation/core/contracts";
+import { playUiSound } from "../audio/uiAudio";
 import { IconBoat, IconFish, IconLedger } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
 import { ChromeButton, ChromeClose, ChromeQuality } from "../chrome/Chrome";
@@ -7,14 +8,44 @@ import { GameSheet, ItemSlot, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
 
+export type LedgerTransferDirection = "to-hold" | "to-satchel";
+
 interface LogisticsLedgerModalProps {
   stores: HoldStoresDto;
   onClose: () => void;
+  /** Moves one stack between the satchel and a vessel's stores. */
+  onTransfer?: (
+    itemId: string,
+    quantity: number,
+    boatId: string,
+    direction: LedgerTransferDirection
+  ) => { success: boolean; reason?: string };
 }
 
-export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stores, onClose }) => {
+export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
+  stores,
+  onClose,
+  onTransfer
+}) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const [transferNotice, setTransferNotice] = useState<string | null>(null);
   useModalAccessibility(modalRef, onClose);
+
+  const runTransfer = (
+    itemId: string,
+    quantity: number,
+    boatId: string,
+    direction: LedgerTransferDirection
+  ): void => {
+    const result = onTransfer?.(itemId, quantity, boatId, direction);
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    setTransferNotice(
+      result.success
+        ? `Moved ${quantity} ${direction === "to-hold" ? "to the hold" : "to the satchel"}`
+        : result.reason ?? "That move was refused"
+    );
+  };
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
@@ -109,10 +140,45 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stor
                       />
                     ))}
                 </div>
+
+                {onTransfer && (
+                  <div
+                    className="ledger-transfer"
+                    data-testid={`ledger-transfer-${vessel.boatId}`}
+                    aria-label={`Move goods between the satchel and ${vessel.name}`}
+                  >
+                    <TransferColumn
+                      title="Satchel"
+                      emptyLabel="Nothing stackable in the satchel."
+                      rows={stores.satchelStock}
+                      actionLabel="Stow"
+                      testIdPrefix={`stow-${vessel.boatId}`}
+                      onMove={(itemId, count) =>
+                        runTransfer(itemId, count, vessel.boatId, "to-hold")
+                      }
+                    />
+                    <TransferColumn
+                      title={`${vessel.name} stores`}
+                      emptyLabel="This vessel is carrying no stores."
+                      rows={vessel.stock}
+                      actionLabel="Take"
+                      testIdPrefix={`take-${vessel.boatId}`}
+                      onMove={(itemId, count) =>
+                        runTransfer(itemId, count, vessel.boatId, "to-satchel")
+                      }
+                    />
+                  </div>
+                )}
               </section>
             ))}
           </div>
         </div>
+
+        {transferNotice && (
+          <p className="ledger-transfer-notice" role="status" data-testid="ledger-transfer-notice">
+            {transferNotice}
+          </p>
+        )}
 
         <footer className="modal-footer">
           <ChromeButton onClick={onClose}>Close</ChromeButton>
@@ -121,6 +187,46 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({ stor
     </div>
   );
 };
+
+/**
+ * One side of the transfer panel. Each row moves its whole stack on a single
+ * press, which is the common case; the count is on the button so the player
+ * knows what a press will do before making it.
+ */
+const TransferColumn: React.FC<{
+  title: string;
+  emptyLabel: string;
+  actionLabel: string;
+  testIdPrefix: string;
+  rows: ReadonlyArray<{ itemId: string; name: string; count: number }>;
+  onMove: (itemId: string, count: number) => void;
+}> = ({ title, emptyLabel, actionLabel, testIdPrefix, rows, onMove }) => (
+  <section className="ledger-transfer-column">
+    <h4 className="ledger-transfer-title">{title}</h4>
+    {rows.length === 0 ? (
+      <p className="ledger-transfer-empty">{emptyLabel}</p>
+    ) : (
+      <ul className="ledger-transfer-list">
+        {rows.map((row) => (
+          <li key={row.itemId} className="ledger-transfer-row">
+            <AtlasImage src={atlasForItem(row.itemId)} alt="" size={20} />
+            <span className="ledger-transfer-name">{row.name}</span>
+            <span className="ledger-transfer-count">{row.count}</span>
+            <ChromeButton
+              size="sm"
+              className="ledger-transfer-btn"
+              data-testid={`${testIdPrefix}-${row.itemId}`}
+              aria-label={`${actionLabel} ${row.count} ${row.name}`}
+              onClick={() => onMove(row.itemId, row.count)}
+            >
+              {actionLabel}
+            </ChromeButton>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+);
 
 const CargoSlot: React.FC<{ cargo: WorldHudCargoDto; slotNumber: number }> = ({ cargo, slotNumber }) => (
   <ItemSlot

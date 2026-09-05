@@ -278,4 +278,32 @@ describe("Hunt fixes 2026", () => {
     expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act4_restore_rowboat");
     expect(sim.state.quests.unlockedFeatureIds.includes("boat.player_rowboat")).toBe(false);
   });
+
+  it("produce contracts omit minQuality because harvested items have no quality field", () => {
+    for (const template of ContentRegistry.contractTemplates.values()) {
+      if (template.type === "produce") {
+        expect(template.minQuality, template.id).toBeUndefined();
+      }
+    }
+    const sim = new Simulation();
+    const produce = sim.state.contracts.filter((contract) => contract.type === "produce");
+    expect(produce.length).toBeGreaterThan(0);
+    expect(produce.every((contract) => contract.minQuality === undefined)).toBe(true);
+  });
+
+  it("item deliveries ignore a leftover minQuality on produce because inventory stacks store no quality", () => {
+    const sim = new Simulation();
+    const contract = sim.state.contracts.find((candidate) => candidate.type === "produce" && candidate.targetItemIdOrSpecies === "produce.wheat");
+    expect(contract).toBeDefined();
+    contract!.minQuality = "fine";
+    contract!.quantityRequired = 1;
+    contract!.quantityFulfilled = 0;
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 1 }]);
+    commitPlayerPose(sim, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z);
+    expect(sim.deliverItemsToContract(contract!.id, "produce.wheat", 1)).toMatchObject({
+      success: true,
+      completed: true
+    });
+  });
 });

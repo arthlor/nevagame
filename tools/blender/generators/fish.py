@@ -7,11 +7,28 @@ import math
 import bmesh
 import bpy
 
-from common.geometry import add_ico, add_tri_prism, apply_vertex_values
+from common.geometry import add_box, add_caudal_fin, add_ico, add_tri_prism, apply_vertex_values
 from common.materials import get_or_create_material
 
 
 FRAME_RATE = 25.0
+
+# A tail is the one silhouette cue a player reads at fishing distance, so each
+# species gets the caudal form it actually has rather than a shared star.
+CAUDAL_FORMS = {
+    "trout": "forked",
+    "catfish": "rounded",
+    "pike": "forked",
+    "arowana": "square",
+    "sturgeon": "heterocercal",
+    "tuna": "lunate",
+    "sailfish": "lunate",
+    "swordfish": "lunate",
+    "blue_marlin": "lunate",
+    "sardine": "forked",
+    "sea_bream": "forked",
+    "amberjack": "lunate",
+}
 
 
 def _motion_node(name: str, parent, location=(0.0, 0.0, 0.0)):
@@ -85,6 +102,13 @@ def _longitudinal_profile(species: str, position: float, tail_peduncle: float) -
         nose = 0.08 + 0.96 * _smoothstep(-1.0, -0.50, position)
         shoulder = 1.06 - 0.10 * max(0.0, position)
         rear = 1.0 - (1.0 - tail_peduncle) * _smoothstep(0.10, 1.0, position)
+        return min(nose, shoulder, rear)
+    if species == "sea_bream":
+        # Deep and laterally compressed, with the steep forehead that separates a
+        # bream from every torpedo-shaped fish in the catalog.
+        nose = 0.30 + 0.74 * _smoothstep(-1.0, -0.72, position)
+        shoulder = 1.10 - 0.16 * max(0.0, position + 0.30)
+        rear = 1.0 - (1.0 - tail_peduncle) * _smoothstep(-0.10, 1.0, position)
         return min(nose, shoulder, rear)
     if species in {"swordfish", "blue_marlin"}:
         nose = 0.10 + 0.96 * _smoothstep(-1.0, -0.58, position)
@@ -197,13 +221,16 @@ def stylized_fish(spec: dict, root) -> None:
         "arowana": 0.16,
         "sturgeon": 0.12,
     }.get(species, 0.14)
+    # The nose vertex sits at -length * 0.515. Seat the jaw so its front lands on
+    # that point instead of overshooting it, which is what turned the snout into
+    # a pelican pouch on every species.
     add_ico(
         f"{species}_jaw",
-        (0, -length * (0.455 if species == "catfish" else 0.47), -height * 0.24),
+        (0, -length * (0.515 - jaw_length), -height * 0.30),
         (
-            girth * (0.48 if species == "catfish" else 0.32 if is_trout else 0.40),
+            girth * (0.46 if species == "catfish" else 0.30 if is_trout else 0.38),
             length * jaw_length,
-            height * 0.16,
+            height * 0.13,
         ),
         belly,
         root,
@@ -226,7 +253,7 @@ def stylized_fish(spec: dict, root) -> None:
     # thin X extrusion, preserving their side-view silhouette.
     vertical_fin_rotation = (0, 0, math.pi / 2)
     inverted_vertical_fin_rotation = (math.pi, 0, math.pi / 2)
-    tail_y = length * 0.54
+    tail_y = length * 0.505
     tail_height = height * {
         "trout": 0.82,
         "catfish": 0.78,
@@ -241,25 +268,20 @@ def stylized_fish(spec: dict, root) -> None:
         "sea_bream": 0.92,
         "amberjack": 1.02,
     }[species]
-    tail_length = length * (0.23 if is_trout or species == "catfish" else 0.28)
-    add_tri_prism(
-        f"{species}_tail_upper",
-        (0, tail_y, tail_height * 0.25),
-        (tail_length, girth * 0.14, tail_height),
-        accent,
+    tail_span = length * (0.21 if is_trout or species == "catfish" else 0.27)
+    add_caudal_fin(
+        f"{species}_tail",
+        (0, tail_y, 0.0),
+        tail_span,
+        tail_height * 2.0,
+        CAUDAL_FORMS[species],
+        dorsal,
         root,
-        rotation=vertical_fin_rotation,
-    )
-    add_tri_prism(
-        f"{species}_tail_lower",
-        (0, tail_y, -tail_height * 0.25),
-        (tail_length, girth * 0.14, tail_height),
-        accent,
-        root,
-        rotation=inverted_vertical_fin_rotation,
+        thickness=girth * 0.11,
+        rays=6,
     )
 
-    dorsal_y = -length * (0.02 if is_trout else 0.13)
+    dorsal_y = length * {"trout": -0.02, "pike": 0.24, "arowana": 0.08}.get(species, -0.13)
     dorsal_height = height * {
         "trout": 0.56,
         "catfish": 0.46,
@@ -274,14 +296,35 @@ def stylized_fish(spec: dict, root) -> None:
         "sea_bream": 0.74,
         "amberjack": 0.78,
     }[species] * params["finScale"]
-    add_tri_prism(
-        f"{species}_dorsal_fin",
-        (0, dorsal_y, height * 0.88),
-        (length * (0.44 if species == "sailfish" else 0.28 if is_trout else 0.22), girth * 0.12, dorsal_height),
-        dorsal,
-        root,
-        rotation=vertical_fin_rotation,
-    )
+    if species == "sailfish":
+        # The sail runs most of the back and peaks a third of the way along it;
+        # one short triangle over the shoulder reads as an ordinary dorsal.
+        segments = 9
+        sail_length = length * 0.62
+        for index in range(segments):
+            progress = index / (segments - 1)
+            panel = dorsal_height * (0.34 + 0.66 * math.sin(math.pi * (0.20 + 0.68 * progress)))
+            add_box(
+                f"sailfish_sail_{index:02d}",
+                (
+                    0,
+                    -length * 0.30 + progress * sail_length,
+                    height * 0.86 + panel * 0.5,
+                ),
+                (girth * 0.11, sail_length / (segments - 1) * 1.06, panel),
+                dorsal,
+                root,
+                bevel=0.0,
+            )
+    else:
+        add_tri_prism(
+            f"{species}_dorsal_fin",
+            (0, dorsal_y, height * 0.88),
+            (length * (0.28 if is_trout else 0.22), girth * 0.12, dorsal_height),
+            dorsal,
+            root,
+            rotation=vertical_fin_rotation,
+        )
 
     pectoral_y = -length * (0.17 if is_trout else 0.22)
     pectoral_reach = girth * (
@@ -294,15 +337,17 @@ def stylized_fish(spec: dict, root) -> None:
             f"{species}_pectoral_{side}",
             (x, pectoral_y, -height * 0.10),
             (pectoral_reach, height * 0.09, length * (0.22 if is_trout else 0.31)),
-            accent,
+            dorsal,
             root,
             rotation=(-math.pi / 2, 0, 0),
         )
-        eye_y = -length * (0.37 if is_trout else 0.39)
-        eye_z = height * (0.30 if species == "catfish" else 0.36 if is_trout else 0.32)
-        eye_x = x * (0.76 if is_trout else 0.83)
-        eye_r = girth * (0.14 if is_trout else 0.10)
-        eye_d = eye_r * 0.75
+        # Sitting proud of the flank and carrying a highlight is what makes an eye
+        # read; the old dorsal-coloured bead sank into the back at any distance.
+        eye_y = -length * (0.38 if is_trout else 0.40)
+        eye_z = height * (0.34 if species == "catfish" else 0.42 if is_trout else 0.40)
+        eye_x = x * (0.86 if is_trout else 0.92)
+        eye_r = girth * (0.17 if is_trout else 0.13)
+        eye_d = eye_r * 0.62
         add_ico(
             f"{species}_eye_{side}",
             (eye_x, eye_y, eye_z),
@@ -312,12 +357,22 @@ def stylized_fish(spec: dict, root) -> None:
             subdivisions=1,
         )
         add_ico(
+            f"{species}_eye_glint_{side}",
+            (eye_x + (-1 if x < 0 else 1) * eye_d * 0.55, eye_y - eye_r * 0.34, eye_z + eye_r * 0.32),
+            (eye_r * 0.40, eye_d * 0.40, eye_r * 0.40),
+            belly,
+            root,
+            subdivisions=1,
+        )
+        # The gill cover is a line on the flank. Buried at 0.64 of the half-girth
+        # it sat inside the body and only surfaced as a smear.
+        add_ico(
             f"{species}_gill_plate_{side}",
-            (x * 0.64, -length * 0.29, height * 0.015),
+            (x * 0.94, -length * 0.29, height * 0.015),
             (
-                girth * 0.10,
-                length * 0.085,
-                height * (0.40 if is_trout else 0.48),
+                girth * 0.045,
+                length * 0.020,
+                height * (0.34 if is_trout else 0.38),
             ),
             accent,
             root,
@@ -327,7 +382,7 @@ def stylized_fish(spec: dict, root) -> None:
             f"{species}_pelvic_{side}",
             (x * 0.50, length * 0.05, -height * 0.72),
             (girth * 0.38, height * 0.07, length * 0.16),
-            accent,
+            dorsal,
             root,
             rotation=(-math.pi / 2, 0, 0),
         )
@@ -337,7 +392,7 @@ def stylized_fish(spec: dict, root) -> None:
         (length * (0.34 if species in {"arowana", "catfish"} else 0.20),
          girth * 0.11,
          height * (0.30 if is_trout else 0.42)),
-        accent,
+        dorsal,
         root,
         rotation=inverted_vertical_fin_rotation,
     )
@@ -347,26 +402,28 @@ def stylized_fish(spec: dict, root) -> None:
             "trout_adipose_fin",
             (0, length * 0.28, height * 0.76),
             (length * 0.12, girth * 0.09, height * 0.20),
-            accent,
+            dorsal,
             root,
             rotation=vertical_fin_rotation,
         )
-        spot_r = girth * 0.16
-        spot_d = girth * 0.10
-        for index in range(7):
-            angle = index * 2.39996
-            add_ico(
-                f"trout_spot_{index:02d}",
-                (
-                    math.cos(angle) * girth * 0.84,
-                    -length * 0.15 + index * length * 0.052,
-                    height * (0.10 + 0.11 * (index % 2)),
-                ),
-                (spot_r, spot_d, spot_r),
-                accent,
-                root,
-                subdivisions=1,
-            )
+        # cos(angle) * girth swept the spots through the whole body width, so most
+        # of them ended up inside the fish. Project them onto both flanks instead.
+        spot_r = girth * 0.075
+        spot_d = girth * 0.030
+        for side_sign in (-1, 1):
+            for index in range(9):
+                add_ico(
+                    f"trout_spot_{'l' if side_sign < 0 else 'r'}_{index:02d}",
+                    (
+                        side_sign * girth * 0.94,
+                        -length * 0.28 + index * length * 0.068,
+                        height * (0.08 + 0.20 * (index % 3) / 2.0),
+                    ),
+                    (spot_d, spot_r, spot_r),
+                    accent,
+                    root,
+                    subdivisions=1,
+                )
     elif is_pelagic:
         # Pelagic fish keep a narrow caudal peduncle and paired finlets so their
         # high-speed silhouette reads even when the fish is far from the boat.
@@ -374,7 +431,7 @@ def stylized_fish(spec: dict, root) -> None:
             y = length * (0.16 + index * 0.065)
             finlet_size = (length * 0.07, girth * 0.07, height * 0.18)
             add_tri_prism(
-                f"tuna_finlet_{index:02d}",
+                f"{species}_finlet_{index:02d}",
                 (0, y, height * 0.84),
                 finlet_size,
                 accent,
@@ -382,7 +439,7 @@ def stylized_fish(spec: dict, root) -> None:
                 rotation=vertical_fin_rotation,
             )
             add_tri_prism(
-                f"tuna_finlet_lower_{index:02d}",
+                f"{species}_finlet_lower_{index:02d}",
                 (0, y, -height * 0.84),
                 finlet_size,
                 accent,
@@ -418,7 +475,7 @@ def stylized_fish(spec: dict, root) -> None:
             for index in range(marking_count):
                 add_ico(
                     f"{species}_mark_{'left' if side < 0 else 'right'}_{index:02d}",
-                    (side * girth * 0.91,
+                    (side * girth * 0.99,
                      -length * 0.22 + index * length * 0.07,
                      height * (0.10 if index % 2 == 0 else -0.06)),
                     (girth * 0.055, length * 0.025, height * 0.13),
@@ -441,7 +498,7 @@ def stylized_fish(spec: dict, root) -> None:
     for obj in list(bpy.context.scene.objects):
         if obj.type != "MESH" or obj.parent is not root:
             continue
-        if obj.name in {f"{species}_tail_upper", f"{species}_tail_lower"}:
+        if obj.name == f"{species}_tail":
             _reparent_preserving_world(obj, tail_pivot)
         else:
             _reparent_preserving_world(obj, motion_root)

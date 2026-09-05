@@ -92,6 +92,7 @@ describe("HUD notification rendering", () => {
     id: 1,
     text: "Sold for 40 G",
     tone: "reward",
+    category: "general",
     count: 1,
     createdMs: 0,
     expiresMs: 10_000,

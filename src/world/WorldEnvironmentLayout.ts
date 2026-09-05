@@ -437,7 +437,8 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -60, z: 65, rotationY: 2.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.coast.rest-fire-pit", { assetId: "prop_fire_pit_a", x: -62, z: 60, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.woodland.habitat-snag", { assetId: "tree_dead_a", x: -151, z: -118, rotationY: 0.4, scale: [1, 1, 1] }),
-  authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -145, z: -119, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
+  // The old toe became a steep face; the broad western summit supports the whole rock.
+  authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -126, z: -116, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.coast.headland-spire", { assetId: "rock_spire_a", x: -115, z: 72, rotationY: 0.3, scale: [1, 1, 1], grounding: [0.65, 0.73], clearanceRadiusMeters: 1.4 }),
 
   // Marine plants are rooted on the bed. Only the buoy and lily leaves use waterline height.
@@ -470,7 +471,18 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 43.1, z: -47.5, rotationY: -1.8326, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-east", { assetId: "prop_lamp_post_a", x: 64.4, z: -47.4, rotationY: 2.618, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-mill", { assetId: "prop_lamp_post_a", x: 44.3, z: -64.7, rotationY: 0.12, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.harbor", { assetId: "prop_lamp_post_a", x: 68.8, z: 57.6, rotationY: -4.1888, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.harbor", { assetId: "prop_lamp_post_a", x: 68.9, z: 57.4, rotationY: -4.1888, scale: [1, 1, 1], practicalLight: true }),
+  // The village carried three lamps against sixteen structures, so most of it
+  // went dark after dusk while the starter farm stayed warm. These fill the
+  // gaps along the routes players actually walk: the northern approach past the
+  // roadside stall, the market frontage, the eastern cottage cluster, and the
+  // orchard track. Static placements join the shared batches, and the per-tier
+  // `practicalLightBudget` still caps how many are lit at once, so coverage
+  // improves without adding either draw calls or active point lights.
+  authoredPlacement("authored.prop.lamp.village-north", { assetId: "prop_lamp_post_a", x: 51.4, z: -19.6, rotationY: 1.2217, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-market", { assetId: "prop_lamp_post_a", x: 61.2, z: -55.8, rotationY: -0.9599, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-garden", { assetId: "prop_lamp_post_a", x: 70.6, z: -60.4, rotationY: 2.0944, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.orchard-track", { assetId: "prop_lamp_post_a", x: 103.5, z: -55.2, rotationY: -1.5708, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.crate.harbor", { assetId: "prop_crate_wood_a", x: 69, z: 65.1, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.barrel.harbor", { assetId: "prop_barrel_wood_a", x: 81.9, z: 66.9, rotationY: 0.1, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.trap.harbor", { assetId: "prop_lobster_trap_a", x: 81.5, z: 66, rotationY: 0.65, scale: [1, 1, 1] }),
@@ -561,7 +573,7 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredArchitecturePlacement("authored.village.barn", "building_barn_b", "village.barn"),
 
   // Forest fallen log on the inland meadow slope
-  authoredPlacement("authored.forest.fallen-log", { assetId: "prop_fallen_log_a", x: 28.7, z: -22.3, rotationY: 0.6, scale: [1, 1, 1] }),
+  authoredPlacement("authored.forest.fallen-log", { assetId: "prop_fallen_log_a", x: 26, z: -20.1, rotationY: 0.6, scale: [1, 1, 1] }),
   // Driftwood log washed up on the beach west of harbor
   authoredPlacement("authored.coast.driftwood-log", { assetId: "prop_driftwood_log_a", x: 30, z: WorldLayout.coastlineZ(30) - 3, rotationY: 0.8, scale: [1, 1, 1] }),
   // Beach grass tuft near the driftwood
@@ -863,10 +875,10 @@ function generateCausalStructuralPlacements(
   accepted.push(...landmarks);
   accepted.push(...generateRouteFrameSpecimens(worldSeed, [...existing, ...accepted]));
   for (const spec of specs) {
-    const candidateMultiplier = spec.category === "tree" ? 20
-      : spec.category === "bush" ? 25
-        : spec.category === "reed" ? 30
-          : 45;
+    const candidateMultiplier = spec.category === "tree" ? 36
+      : spec.category === "bush" ? 36
+        : spec.category === "reed" ? 36
+          : 50;
     const candidateCount = spec.targetCount * candidateMultiplier;
     for (let address = 0; address < candidateCount; address++) {
       if (accepted.filter((placement) => placement.compositionTag?.category === spec.category).length >= spec.targetCount) break;
@@ -1338,7 +1350,7 @@ function scatterGroundCover(
       : category === "pebbles"
         ? "rock"
         : "short-cover";
-  const attemptMultiplier = category === "pebbles" ? 240 : category === "bushes" ? 150 : 90;
+  const attemptMultiplier = category === "pebbles" ? 240 : 180;
   for (let attempt = 0; attempt < count * attemptMultiplier && placements.length < count; attempt++) {
     const candidateAddress = category === "flowers" ? Math.floor(attempt / 3) : attempt;
     const candidateSlot = category === "flowers" ? attempt % 3 : 0;

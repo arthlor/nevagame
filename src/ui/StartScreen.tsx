@@ -423,6 +423,7 @@ export const StartScreen: FC<StartScreenProps> = ({
             as="section"
             id="start-screen-options"
             className="start-screen__dialog start-screen__options"
+            family="physical"
             tone="scroll"
             role="dialog"
             aria-modal="true"
@@ -497,6 +498,7 @@ export const StartScreen: FC<StartScreenProps> = ({
           <GameSheet
             as="section"
             className="start-screen__dialog start-screen__new-game-dialog"
+            family="physical"
             tone="scroll"
             role="dialog"
             aria-modal="true"
@@ -555,6 +557,7 @@ export const StartScreen: FC<StartScreenProps> = ({
           <GameSheet
             as="section"
             className="start-screen__dialog start-screen__new-game-dialog"
+            family="physical"
             tone="scroll"
             role="dialog"
             aria-modal="true"

@@ -39,9 +39,10 @@ import { MarketDomain } from "./domains/MarketDomain";
 import { ContractDomain } from "./domains/ContractDomain";
 import { QuestDomain, reconcileInactiveQuestChain, reconcileSatisfiedQuestObjectives } from "./domains/QuestDomain";
 import { buildWorldHudDto } from "./presentation/WorldHudPresentation";
-import { buildSatchelDto } from "./presentation/SatchelPresentation";
+import { freeHandsBlocker } from "./domains/domainRules";
+import { buildItemInspectionDto, buildSatchelDto } from "./presentation/SatchelPresentation";
 import { buildWorldMapDto } from "./presentation/WorldMapPresentation";
-import { buildJournalPagesDto } from "./presentation/JournalPresentation";
+import { buildAlmanacDto, buildJournalPagesDto } from "./presentation/JournalPresentation";
 import { buildPauseSummaryDto } from "./presentation/PausePresentation";
 import type { ExpeditionBoardDto } from "./expeditions/buildExpeditionOpportunities";
 import { InventoryManager } from "./inventory/InventoryManager";
@@ -57,11 +58,13 @@ import type {
   GameQueryResult,
   InteractionResult,
   JournalPagesDto,
+  AlmanacDto,
   HoldStoresDto,
   ProcessingJobInspectionDto,
   PauseSummaryDto,
   SeedBeltDto,
   SatchelDto,
+  ItemInspectionDto,
   SkillProgressDto,
   WorldHudDto,
   WorldMapDto,
@@ -130,6 +133,10 @@ export class Simulation {
     return this.fishingDomain.activeEncounter;
   }
 
+  public inspectFreeHands(): string | null {
+    return freeHandsBlocker(this.state.player);
+  }
+
   public getState(): Readonly<GameState> {
     this.persistRng();
     return this.state;
@@ -143,12 +150,23 @@ export class Simulation {
         return this.navigationDomain.facePlayerTarget(command.x, command.z);
       case "player.reset-safe":
         return this.resetPlayerToSafeSpawn();
+      case "inventory.sort-satchel":
+        return this.sortSatchel();
+      case "inventory.transfer":
+        return this.transferBetweenSatchelAndHold(
+          command.itemId,
+          command.quantity,
+          command.boatId,
+          command.direction
+        );
       case "boat.board":
         return this.boardBoat(command.boatId);
       case "boat.dock":
         return this.dockActiveBoat();
       case "boat.refuel":
         return this.navigationDomain.refuel(command.boatId);
+      case "boat.emergency-tow":
+        return this.navigationDomain.emergencyTow();
       case "mount.board":
         return this.boardMount(command.mountId);
       case "mount.dismount":
@@ -198,12 +216,16 @@ export class Simulation {
         return this.hookSportFish(command.schoolId);
       case "fishing.toggle-lure":
         return this.fishingDomain.togglePreparedLure();
+      case "fishing.set-drag":
+        return this.fishingDomain.setDragNotch(command.notch);
       case "fishing.control":
         return this.setSportFishingInput(command.input)
           ? { success: true }
           : { success: false, reason: "No active fishing encounter" };
       case "cargo.discard":
         return this.discardFishCargo(command.cargoId, command.marketId);
+      case "cargo.release":
+        return this.releaseFishCargo(command.cargoId, command.marketId);
       case "market.sell-item":
         return this.sellItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.sell-produce-bulk":
@@ -248,10 +270,14 @@ export class Simulation {
         return this.inspectHoldStores();
       case "inventory.get-satchel":
         return this.inspectSatchel();
+      case "inventory.inspect-item":
+        return this.inspectItem(query.itemId);
       case "world.get-map":
         return this.inspectWorldMap();
       case "journal.get-pages":
         return this.inspectJournalPages();
+      case "journal.get-almanac":
+        return this.inspectAlmanac();
       case "world.get-pause":
         return this.inspectPauseSummary();
       case "weather.get-farm-forecast":
@@ -260,6 +286,8 @@ export class Simulation {
         return this.inspectSportFishingHud();
       case "progression.get-skills":
         return this.inspectSkillProgress();
+      case "market.demand-trend":
+        return this.marketDomain.inspectDemandTrend(query.marketId, query.itemId, query.days);
       case "market.get-board":
         return this.marketDomain.inspectBoard(query.marketId);
       case "market.quote-sale":
@@ -861,6 +889,13 @@ export class Simulation {
     return this.cargoDomain.discard(cargoId, marketId);
   }
 
+  public releaseFishCargo(
+    cargoId: FishCargoId,
+    marketId?: MarketId
+  ): { success: boolean; reason?: string } {
+    return this.cargoDomain.release(cargoId, marketId);
+  }
+
   // ==========================================
   // CONTRACT DELIVERY
   // ==========================================
@@ -915,6 +950,58 @@ export class Simulation {
     return this.marketDomain.inspectExpeditionBoard();
   }
 
+  /**
+   * Moves a stack of goods between the satchel and a vessel's stores. The move
+   * is atomic in both directions: the goods are taken out first, and if the
+   * destination cannot hold them they are put straight back, so a failed
+   * transfer can never lose cargo or duplicate it.
+   */
+  public transferBetweenSatchelAndHold(
+    itemId: ItemId,
+    quantity: number,
+    boatId: BoatId,
+    direction: "to-hold" | "to-satchel"
+  ): InteractionResult {
+    const requested = Math.floor(quantity);
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { success: false, reason: "Choose how many to move" };
+    }
+    const boat = this.state.boats[boatId];
+    if (!boat) return { success: false, reason: "That vessel is not registered" };
+
+    const satchel = this.state.inventories[this.state.player.inventoryId];
+    const hold = this.state.inventories[boat.supplyInventoryId];
+    if (!satchel || !hold) return { success: false, reason: "Those stores are unavailable" };
+
+    const source = direction === "to-hold" ? satchel : hold;
+    const destination = direction === "to-hold" ? hold : satchel;
+    const held = InventoryManager.getItemCount(source, itemId);
+    if (held <= 0) {
+      return {
+        success: false,
+        reasonCode: "not-held",
+        reason: direction === "to-hold" ? "Not in the satchel" : "Not in the hold"
+      };
+    }
+
+    // Move what is actually there rather than refusing an over-large request.
+    const moving = Math.min(requested, held);
+    const batch = [{ itemId, quantity: moving }];
+    if (!InventoryManager.removeItemsAtomically(source, batch)) {
+      return { success: false, reason: "Those goods could not be taken out" };
+    }
+    if (!InventoryManager.addItemsAtomically(destination, batch)) {
+      // Put it back exactly as it was: a full destination must cost nothing.
+      InventoryManager.addItemsAtomically(source, batch);
+      return {
+        success: false,
+        reasonCode: "no-room",
+        reason: direction === "to-hold" ? "The hold is full" : "The satchel is full"
+      };
+    }
+    return { success: true, quantity: moving };
+  }
+
   public inspectHoldStores(): HoldStoresDto {
     return this.cargoDomain.inspectHoldStores();
   }
@@ -923,8 +1010,75 @@ export class Simulation {
     return buildSatchelDto(this.state);
   }
 
+  public inspectItem(itemId: ItemId): ItemInspectionDto | null {
+    return buildItemInspectionDto(this.state, itemId);
+  }
+
+  /**
+   * Tidies the satchel: merges part-stacks of the same item up to their stack
+   * limit, then orders what remains by category, name and quantity, leaving the
+   * empty slots at the end. Item totals are preserved exactly — this only moves
+   * goods between slots, so it can never create or destroy anything.
+   */
+  public sortSatchel(): InteractionResult {
+    const inventory = this.state.inventories[this.state.player.inventoryId];
+    if (!inventory) return { success: false, reason: "No satchel to sort" };
+
+    const before = new Map<string, number>();
+    for (const slot of inventory.slots) {
+      const quantity = InventoryManager.getSlotQuantity(slot);
+      if (!slot.itemId || quantity <= 0) continue;
+      before.set(slot.itemId, (before.get(slot.itemId) ?? 0) + quantity);
+    }
+    if (before.size === 0) return { success: false, reason: "The satchel is already empty" };
+
+    const entries = [...before.entries()].map(([itemId, quantity]) => {
+      const definition = ContentRegistry.items.get(itemId);
+      const species = ContentRegistry.fishSpecies.get(itemId);
+      return {
+        itemId,
+        quantity,
+        category: definition?.category ?? (species ? "fish" : "item"),
+        name: definition?.name ?? species?.name ?? itemId,
+        stackLimit: Math.max(1, definition?.stackLimit ?? 1)
+      };
+    });
+    entries.sort((a, b) =>
+      a.category.localeCompare(b.category)
+      || a.name.localeCompare(b.name)
+      || b.quantity - a.quantity
+    );
+
+    // Lay the merged stacks back out from the first slot. A satchel that cannot
+    // hold its own contents once merged is left untouched rather than truncated.
+    const rebuilt: Array<{ itemId: string; quantity: number } | null> = [];
+    for (const entry of entries) {
+      let remaining = entry.quantity;
+      while (remaining > 0) {
+        const take = Math.min(remaining, entry.stackLimit);
+        rebuilt.push({ itemId: entry.itemId, quantity: take });
+        remaining -= take;
+      }
+    }
+    if (rebuilt.length > inventory.slots.length) {
+      return { success: false, reason: "The satchel is too full to tidy" };
+    }
+
+    for (let index = 0; index < inventory.slots.length; index += 1) {
+      const next = rebuilt[index] ?? null;
+      inventory.slots[index] = next
+        ? { itemId: next.itemId as ItemId, quantity: next.quantity }
+        : {};
+    }
+    return { success: true, quantity: rebuilt.length };
+  }
+
   public inspectWorldMap(): WorldMapDto {
     return buildWorldMapDto(this.state);
+  }
+
+  public inspectAlmanac(): AlmanacDto {
+    return buildAlmanacDto(this.state);
   }
 
   public inspectJournalPages(): JournalPagesDto {
@@ -957,6 +1111,10 @@ export class Simulation {
 
   public inspectSportFishingHud() {
     return this.fishingDomain.inspectSportFishingHud();
+  }
+
+  public inspectWaterReading() {
+    return this.fishingDomain.inspectWaterReading();
   }
 
   public inspectSkillProgress(): SkillProgressDto[] {

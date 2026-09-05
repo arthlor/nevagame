@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FishCargoState, GameAction, GameMode, GameState, MarketId } from "../simulation/core/types";
 import { HUD } from "./HUD";
 import { InventoryModal } from "./InventoryModal";
@@ -10,9 +10,11 @@ import { JournalFolio, JournalModal } from "./JournalModal";
 import { EscapeMenuModal } from "./EscapeMenuModal";
 import { WorldMapModal } from "./components/WorldMapModal";
 import { LogisticsLedgerModal } from "./components/LogisticsLedgerModal";
-import { CatchSummaryToast } from "./components/CatchInspectionModal";
+import { CatchInspectionModal, CatchSummaryToast } from "./components/CatchInspectionModal";
+import { CropInspection } from "./components/CropInspection";
 import { PlantingSeedBar } from "./components/PlantingSeedBar";
 import { FarmGISLegend } from "./components/FarmGISLegend";
+import { buildTrophyCatchDto } from "../simulation/fishing/trophyCatch";
 import {
   DebugOverlay,
   type DebugCameraDiagnostics,
@@ -26,6 +28,7 @@ import type { ExpeditionBoardDto } from "../simulation/expeditions/buildExpediti
 import type { AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import type { ActiveModal } from "../app/ModeController";
 import type { FarmingActionSnapshot } from "../app/FarmingActionController";
+import { FarmingActionStatus } from "./components/FarmingActionStatus";
 import type { StartupState } from "../app/StartupState";
 import type {
   CommodityQuote,
@@ -37,18 +40,18 @@ import type {
   MarketDemandSignal,
   PauseSummaryDto,
   SatchelDto,
+  ItemInspectionDto,
+  MarketDemandTrendDto,
   SeedBeltDto,
   SkillProgressDto,
   SportFishingHudDto,
+  TrophyCatchDto,
   WorldHudDto,
-  WorldMapDto
-} from "../simulation/core/contracts";
-import type { Notice } from "./notifications";
-import { IconSprout } from "./components/HudIcons";
+  WorldMapDto,
+  AlmanacDto} from "../simulation/core/contracts";
+import type { ChronicleEntry, ChronicleFilter, Notice } from "./notifications";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
-import { GameSheet, Meter } from "./coastal/CoastalUI";
-import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForAction, atlasForCrop, atlasForGrowth } from "./chrome/uiAtlas";
+import { GameSheet } from "./coastal/CoastalUI";
 import { StartScreen } from "./StartScreen";
 import { PlacementEditorHud } from "./PlacementEditorHud";
 import { MobileControls, MobileOrientationGate } from "./MobileControls";
@@ -86,6 +89,7 @@ export interface GameUIProps {
   toastMessage?: string | null;
   notices?: readonly Notice[];
   inspectedCrop: CropInspectionDto | null;
+  inspectedCropPosition?: { x: number; y: number; visible: boolean } | null;
   onDismissCropInspection?: () => void;
   farmingAction: FarmingActionSnapshot | null;
   activeModal: ActiveModal;
@@ -105,6 +109,15 @@ export interface GameUIProps {
   onDismissHint?: (hintId: string) => void;
   onSelectPlantCrop: (cropId: string) => void;
   onInspectPlanting: (cropId: string) => { valid: boolean; reason?: string };
+  onInspectItem?: (itemId: string) => ItemInspectionDto | null;
+  onSortSatchel?: () => { success: boolean; reason?: string };
+  onTransferStores?: (
+    itemId: string,
+    quantity: number,
+    boatId: string,
+    direction: "to-hold" | "to-satchel"
+  ) => { success: boolean; reason?: string };
+  onInspectDemandTrend?: (marketId: MarketId, itemId: string) => MarketDemandTrendDto | null;
   onInspectSatchel: () => SatchelDto;
   onInspectSeedBelt: () => SeedBeltDto;
   selectedPlantCropId?: string | null;
@@ -112,7 +125,8 @@ export interface GameUIProps {
   isFarmGisHeld?: boolean;
   activeToolSlot?: number;
   onSelectToolSlot?: (slot: number) => void;
-  landedCatch?: FishCargoState | null;
+  landedCatch?: FishCargoState | TrophyCatchDto | null;
+  landedCatchRecord?: "first" | "weight" | "quality" | null;
   onDismissCatchSummary?: () => void;
   sportFishingHud: SportFishingHudDto | null;
   onSetFishingInput: (input: {
@@ -121,6 +135,8 @@ export interface GameUIProps {
     isBracing: boolean;
     rodDirectionAngle: number;
   }) => void;
+  onSetFishingDrag?: (notch: 0 | 1 | 2) => void;
+  onSetBasicFishingHold?: (holding: boolean) => void;
   onHookBasicFishingBite?: () => void;
   onDismissBasicFishingModal?: () => { success: boolean; reason?: string; reasonCode?: string };
   onDiscardBasicCatch?: () => void;
@@ -141,6 +157,7 @@ export interface GameUIProps {
   onInspectJournalPages: () => JournalPagesDto;
   onInspectPauseSummary: () => PauseSummaryDto;
   onInspectSkillProgress: () => SkillProgressDto[];
+  onInspectAlmanac?: () => AlmanacDto;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyItem: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyRod: (marketId: MarketId, rodId: string) => void;
@@ -148,6 +165,7 @@ export interface GameUIProps {
   onSellFishCargo: (marketId: MarketId, cargoId: string) => void;
   onSellAllFishCargo: (marketId: MarketId) => void;
   onDiscardFishCargo: (marketId: MarketId, cargoId: string) => void;
+  onReleaseFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
   onDeliverFishCargo: (contractId: string, cargoId: string) => void;
   onQuickSave: () => void;
@@ -156,6 +174,10 @@ export interface GameUIProps {
   onConfirmNewGame?: () => void;
   onDismissNewGameConfirm?: () => void;
   onResetPlayerToSafePlace: () => void;
+  onEmergencyTow?: () => { success: boolean; reason?: string };
+  chronicleEntries?: readonly ChronicleEntry[];
+  chronicleFilter?: ChronicleFilter;
+  onSelectChronicleFilter?: (filter: ChronicleFilter) => void;
   onAdvanceHours: (hours: number) => void;
   onGrantMoney: (amount: number) => void;
   onToggleWeather: () => void;
@@ -204,6 +226,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   toastMessage,
   notices,
   inspectedCrop,
+  inspectedCropPosition = null,
   onDismissCropInspection,
   farmingAction,
   activeModal,
@@ -216,6 +239,10 @@ export const GameUI: React.FC<GameUIProps> = ({
   onDismissHint,
   onSelectPlantCrop,
   onInspectPlanting,
+  onInspectItem,
+  onSortSatchel,
+  onTransferStores,
+  onInspectDemandTrend,
   onInspectSatchel,
   onInspectSeedBelt,
   selectedPlantCropId = null,
@@ -224,9 +251,12 @@ export const GameUI: React.FC<GameUIProps> = ({
   activeToolSlot = 1,
   onSelectToolSlot,
   landedCatch = null,
+  landedCatchRecord = null,
   onDismissCatchSummary,
   sportFishingHud,
   onSetFishingInput,
+  onSetFishingDrag,
+  onSetBasicFishingHold,
   onHookBasicFishingBite,
   onDismissBasicFishingModal,
   onDiscardBasicCatch,
@@ -242,6 +272,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onInspectJournalPages,
   onInspectPauseSummary,
   onInspectSkillProgress,
+  onInspectAlmanac,
   onBuySeed,
   onBuyItem,
   onBuyRod,
@@ -249,6 +280,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onSellFishCargo,
   onSellAllFishCargo,
   onDiscardFishCargo,
+  onReleaseFishCargo,
   onDeliverContractItems,
   onDeliverFishCargo,
   onQuickSave,
@@ -257,6 +289,10 @@ export const GameUI: React.FC<GameUIProps> = ({
   onConfirmNewGame,
   onDismissNewGameConfirm,
   onResetPlayerToSafePlace,
+  onEmergencyTow,
+  chronicleEntries,
+  chronicleFilter,
+  onSelectChronicleFilter,
   onAdvanceHours,
   onGrantMoney,
   onToggleWeather,
@@ -288,6 +324,27 @@ export const GameUI: React.FC<GameUIProps> = ({
   const showDiagnostics =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
   const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("story");
+  const [showTrophyModal, setShowTrophyModal] = useState(false);
+  const prevLandedCatchId = useRef<string | null>(null);
+
+  const trophyCatchDto = useMemo<TrophyCatchDto | null>(() => {
+    if (!landedCatch) return null;
+    if ("qualityStars" in landedCatch) return landedCatch;
+    return buildTrophyCatchDto(landedCatch, landedCatchRecord);
+  }, [landedCatch, landedCatchRecord]);
+
+  useEffect(() => {
+    if (landedCatch) {
+      const currentId = "id" in landedCatch ? landedCatch.id : landedCatch.cargoId;
+      if (currentId !== prevLandedCatchId.current) {
+        prevLandedCatchId.current = currentId;
+        setShowTrophyModal(true);
+      }
+    } else {
+      prevLandedCatchId.current = null;
+      setShowTrophyModal(false);
+    }
+  }, [landedCatch]);
 
   // Debug sessions need the diagnostic surface while the real runtime boots;
   // the boot-ready attribute is the synchronization point for browser checks.
@@ -341,8 +398,14 @@ export const GameUI: React.FC<GameUIProps> = ({
           activeToolSlot={activeToolSlot}
           onSelectToolSlot={onSelectToolSlot}
           onOpenMenu={() => onSetActiveModal("pause")}
+          onOpenModal={onSetActiveModal}
           onInspectFarmForecast={onInspectFarmForecast}
           isPlacementActive={mode === "farm-placement"}
+          touchChrome={mobileTouchDevice}
+          captureForecastEscape={!activeModal}
+          chronicleEntries={chronicleEntries}
+          chronicleFilter={chronicleFilter}
+          onSelectChronicleFilter={onSelectChronicleFilter}
         />
       )}
 
@@ -366,6 +429,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       {mode !== "sport-fishing" && inspectedCrop && (
         <CropInspection
           inspection={inspectedCrop}
+          projectedPosition={inspectedCropPosition}
           onClose={onDismissCropInspection}
         />
       )}
@@ -381,6 +445,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           selectedCropId={selectedPlantCropId}
           onSelectCrop={onSelectPlantCrop}
           onCancel={onCancelPlacement}
+          currentSeason={worldHud.clock.seasonLabel}
         />
       )}
 
@@ -398,6 +463,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       {state.basicFishing && !activeModal && (
         <BasicFishingMinigameWidget
           fishingState={state.basicFishing}
+          onHoldChange={onSetBasicFishingHold}
           onHookBite={onHookBasicFishingBite}
           onDismissModal={onDismissBasicFishingModal}
           onOpenSatchel={() => onSetActiveModal("inventory")}
@@ -406,13 +472,34 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {mode === "sport-fishing" && sportFishingHud && !activeModal && (
-        <FishingHUD hud={sportFishingHud} onSetInput={onSetFishingInput} />
+        <FishingHUD
+          hud={sportFishingHud}
+          onSetInput={onSetFishingInput}
+          onSetDrag={onSetFishingDrag}
+        />
       )}
 
-      {mode !== "sport-fishing" && landedCatch && onDismissCatchSummary && (
+      {mode !== "sport-fishing" && landedCatch && onDismissCatchSummary && !showTrophyModal && (
         <CatchSummaryToast
-          cargo={landedCatch}
+          cargo={"qualityStars" in landedCatch ? undefined : landedCatch}
+          catchData={trophyCatchDto}
           onDismiss={onDismissCatchSummary}
+          onClick={() => setShowTrophyModal(true)}
+        />
+      )}
+
+      {showTrophyModal && trophyCatchDto && (
+        <CatchInspectionModal
+          catchData={trophyCatchDto}
+          onDismiss={() => {
+            setShowTrophyModal(false);
+            onDismissCatchSummary?.();
+          }}
+          onOpenHoldOrSatchel={() => {
+            setShowTrophyModal(false);
+            onDismissCatchSummary?.();
+            onSetActiveModal("inventory");
+          }}
         />
       )}
 
@@ -431,6 +518,8 @@ export const GameUI: React.FC<GameUIProps> = ({
           onClose={() => onSetActiveModal(null)}
           onSelectPlantCrop={onSelectPlantCrop}
           onInspectPlanting={onInspectPlanting}
+          onInspectItem={onInspectItem}
+          onSortSatchel={onSortSatchel}
         />
       )}
 
@@ -440,6 +529,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onSellItem={onSellItem}
           onSellAllProduce={onSellAllProduce}
           onInspectCommodity={onInspectCommodity}
+          onInspectDemandTrend={onInspectDemandTrend}
           onBuySeed={onBuySeed}
           onBuyItem={onBuyItem}
           onBuyRod={onBuyRod}
@@ -447,6 +537,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onSellFishCargo={onSellFishCargo}
           onSellAllFishCargo={onSellAllFishCargo}
           onDiscardFishCargo={onDiscardFishCargo}
+          onReleaseFishCargo={onReleaseFishCargo}
           onDeliverContractItems={onDeliverContractItems}
           onDeliverFishCargo={onDeliverFishCargo}
           onClose={() => onSetActiveModal(null)}
@@ -462,7 +553,11 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {activeModal === "ledger" && (
-        <LogisticsLedgerModal stores={onInspectHoldStores()} onClose={() => onSetActiveModal(null)} />
+        <LogisticsLedgerModal
+          stores={onInspectHoldStores()}
+          onClose={() => onSetActiveModal(null)}
+          onTransfer={onTransferStores}
+        />
       )}
 
       {activeModal === "expedition" && plannerUnlocked && (
@@ -474,6 +569,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           pages={onInspectJournalPages()}
           activeQuest={activeQuest ?? null}
           skills={onInspectSkillProgress()}
+          almanac={onInspectAlmanac?.()}
           initialFolio={journalInitialFolio}
           onClose={() => {
             setJournalInitialFolio("story");
@@ -495,6 +591,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           pause={onInspectPauseSummary()}
           onClose={() => onSetActiveModal(null)}
           onResetPlayerToSafePlace={onResetPlayerToSafePlace}
+          onEmergencyTow={onEmergencyTow}
           onQuickSave={onQuickSave}
           savingAvailable={savingAvailable}
           onOpenInventory={() => onSetActiveModal("inventory")}
@@ -572,6 +669,7 @@ const SaveRecoverySheet: React.FC<{
         ref={modalRef}
         as="section"
         className="critical-save-sheet"
+        family="physical"
         tone="scroll"
         role="alertdialog"
         aria-modal="true"
@@ -600,108 +698,4 @@ const SaveRecoverySheet: React.FC<{
   );
 };
 
-const titleCase = (value: string): string =>
-  value.replace(/(^|[-_])\w/g, (match) => match.replace(/[-_]/, "").toUpperCase());
-
-export const CropInspection: React.FC<{
-  inspection: CropInspectionDto;
-  onClose?: () => void;
-}> = ({ inspection, onClose }) => {
-  const moistureTone =
-    inspection.moisture.band === "wet"
-      ? "wet"
-      : inspection.moisture.band === "normal"
-        ? "ideal"
-        : "dry";
-  return (
-    <GameSheet
-      family="ink"
-      as="section"
-      className="crop-inspection interactive"
-      tone="slate"
-      flourish={false}
-      corners={false}
-      rivets={false}
-      role="region"
-      aria-label={`${inspection.name} crop inspection`}
-      tabIndex={0}
-      data-testid="crop-inspection"
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && onClose) {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-    >
-      <header className="crop-inspection-title">
-        <div className="crop-title-group">
-          <IconSprout size={18} className="crop-title-icon" />
-          <strong>{inspection.name}</strong>
-        </div>
-        <div className="crop-header-right">
-          <span className={`crop-stage-chip stage-${inspection.stage}`}>{titleCase(inspection.stage)}</span>
-          {onClose && <ChromeClose onClick={onClose} label="Close crop inspection" className="crop-inspection-close-btn" />}
-        </div>
-      </header>
-
-      <div className="crop-inspect-layout">
-        <div className="crop-inspect-plate">
-          <AtlasImage src={atlasForCrop(inspection.cropId) ?? atlasForGrowth(inspection.stage)} alt="" />
-        </div>
-        <dl className="crop-inspection-grid">
-          <div className="crop-meta-item">
-            <dt>Stage</dt>
-            <dd className="crop-growth-status">{inspection.stageTimingLabel}</dd>
-          </div>
-          <div className="crop-meta-item">
-            <dt>Moisture</dt>
-            <dd className={`moisture-badge moisture-${moistureTone}`}>{titleCase(inspection.moisture.band)}</dd>
-          </div>
-          <div className="crop-meta-item crop-next-action">
-            <dt>Next</dt>
-            <dd>
-              <strong>{inspection.immediateAction.label}</strong>
-              {inspection.immediateAction.cost != null && <span>{inspection.immediateAction.cost} Work</span>}
-              {inspection.immediateAction.blockerReason && <span>{inspection.immediateAction.blockerReason}</span>}
-            </dd>
-          </div>
-        </dl>
-      </div>
-
-    </GameSheet>
-  );
-};
-
-const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: string }> = {
-  plant: { title: "Planting seeds…" },
-  water: { title: "Watering soil…" },
-  fertilize: { title: "Fertilizing soil…" },
-  harvest: { title: "Harvesting crop…" },
-  "processing-start": { title: "Starting processing…" },
-  "processing-collect": { title: "Collecting yield…" },
-  pickup: { title: "Picking up…" },
-  place: { title: "Placing…" },
-  workstation: { title: "Working…" },
-  cast: { title: "Casting…" },
-  board: { title: "Boarding…" },
-  dock: { title: "Docking…" }
-};
-
-const FarmingActionStatus: React.FC<{ action: FarmingActionSnapshot }> = ({ action }) => {
-  const meta = ACTION_LABELS[action.action] ?? { title: "Working…" };
-  const percent = Math.round(action.progress * 100);
-
-  return (
-    <GameSheet family="ink" tone="slate" corners className={`farming-action-status action-${action.action}`} role="status" aria-live="polite" data-testid="farming-action-status">
-      <Meter
-        className="farming-action-meter"
-        label={meta.title}
-        icon={<AtlasImage src={atlasForAction(action.action)} className="farming-action-icon" size={22} aria-hidden="true" />}
-        value={percent}
-        max={100}
-        valueText={`${percent}%`}
-        variant="gold"
-      />
-    </GameSheet>
-  );
-};
+export { CropInspection, type CropInspectionProps } from "./components/CropInspection";

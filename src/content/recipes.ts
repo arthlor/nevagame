@@ -33,6 +33,32 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 10,
     tags: ["chum", "sport-fishing"]
   },
+  "recipe.craft_chum_rich": {
+    id: "recipe.craft_chum_rich",
+    name: "Mix Rich Chum Blend",
+    stationType: "workbench",
+    inputs: [
+      { itemId: "item.ground_grain", quantity: 3 },
+      { itemId: "item.bait_worms", quantity: 3 }
+    ],
+    outputs: [{ itemId: "item.chum_rich", quantity: 1 }],
+    durationMinutes: 15,
+    minimumSkill: { skill: "processing", xp: 500 },
+    tags: ["chum", "sport-fishing"]
+  },
+  "recipe.craft_chum_deep": {
+    id: "recipe.craft_chum_deep",
+    name: "Mix Sinking Deep Chum",
+    stationType: "workbench",
+    inputs: [
+      { itemId: "item.ground_grain", quantity: 2 },
+      { itemId: "item.fish_scraps", quantity: 2 }
+    ],
+    outputs: [{ itemId: "item.chum_deep", quantity: 1 }],
+    durationMinutes: 15,
+    minimumSkill: { skill: "processing", xp: 500 },
+    tags: ["chum", "sport-fishing"]
+  },
   "recipe.craft_lure": {
     id: "recipe.craft_lure",
     name: "Tie Feather Lure",
@@ -133,6 +159,8 @@ export const LIVE_RECIPE_IDS = new Set<RecipeDefinition["id"]>([
   "recipe.wheat_to_grain",
   "recipe.barley_to_grain",
   "recipe.craft_chum",
+  "recipe.craft_chum_rich",
+  "recipe.craft_chum_deep",
   "recipe.craft_lure",
   "recipe.fish_to_fertilizer",
   "recipe.compost_worms",

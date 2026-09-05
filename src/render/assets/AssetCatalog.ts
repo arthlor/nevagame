@@ -33,6 +33,35 @@ export interface RuntimeAnimationClipSpec {
   optional?: boolean;
   fallbackClip?: string;
   events?: readonly RuntimeAnimationEventSpec[];
+  contacts?: Partial<Record<"left" | "right", readonly RuntimeContactInterval[]>>;
+}
+
+export interface RuntimeContactInterval {
+  start: number;
+  end: number;
+}
+
+export type HumanoidBoneSemantic =
+  | "root" | "pelvis" | "hips" | "spine" | "spine_02" | "chest" | "neck" | "head"
+  | "clavicle_left" | "upper_arm_left" | "forearm_left" | "hand_left"
+  | "clavicle_right" | "upper_arm_right" | "forearm_right" | "hand_right"
+  | "thigh_left" | "shin_left" | "foot_left"
+  | "thigh_right" | "shin_right" | "foot_right";
+
+export interface RuntimeHumanoidRig {
+  bones: Partial<Record<HumanoidBoneSemantic, string>>;
+  forwardAxis: "+Z";
+  legs: Record<"left" | "right", {
+    /** Endpoint in the shin's local bind frame, independent of foot parenting. */
+    shinTip: readonly [number, number, number];
+    /** Authored sole contact point in the foot's local frame. */
+    soleOffset: readonly [number, number, number];
+    soleNormal: readonly [number, number, number];
+    /** Preferred knee bend direction in model/root coordinates. */
+    bendDirection: readonly [number, number, number];
+  }>;
+  arms: Record<"left" | "right", { bendDirection: readonly [number, number, number] }>;
+  grips: Record<"left" | "right", string>;
 }
 
 export interface RuntimeAnimationEventSpec {
@@ -57,6 +86,7 @@ export interface RuntimeAssetSpec {
   socketNodes: readonly string[] | null;
   animationClips: readonly RuntimeAnimationClipSpec[] | null;
   additionalAnimationClips: readonly RuntimeAnimationClipSpec[] | null;
+  humanoidRig?: RuntimeHumanoidRig | null;
 }
 
 const knownIds = new Set<string>(Object.values(ASSET_IDS));

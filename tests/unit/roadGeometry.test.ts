@@ -217,8 +217,8 @@ describe("Organic road geometry", () => {
     expect(first.getAttribute("color").itemSize).toBe(4);
     const roadColors = first.getAttribute("color");
     const opacities = Array.from({ length: roadColors.count }, (_, index) => roadColors.getW(index));
-    expect(Math.min(...opacities)).toBeLessThan(0.1);
-    expect(Math.max(...opacities)).toBe(1);
+    expect(opacities.reduce((minimum, opacity) => Math.min(minimum, opacity), Infinity)).toBeLessThan(0.1);
+    expect(opacities.reduce((maximum, opacity) => Math.max(maximum, opacity), -Infinity)).toBe(1);
     expect(Array.from(first.getAttribute("normal").array)).toEqual(
       Array.from(second.getAttribute("normal").array)
     );

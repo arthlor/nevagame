@@ -5,7 +5,10 @@ import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { Simulation } from "../../src/simulation/Simulation";
 import { PLAYER_TRAVERSAL_TUNING, slopeGaitScale } from "../../src/simulation/navigation/PlayerTraversal";
-import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
+import {
+  HARBOR_DOCK,
+  HARBOR_MARKET_APRON
+} from "../../src/world/WorldAnchors";
 import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import {
   BRIDGE_WORLD_PROFILE,
@@ -232,10 +235,10 @@ describe("PhysicsWorld", () => {
     const diagonalPhysics = await PhysicsWorld.create();
     const straight = new Simulation();
     const diagonal = new Simulation();
-    // Keep the intent-normalization probe off the now-physical road crown;
-    // road traversal/collision is covered by the dedicated route tests below.
-    placePlayer(straight, -120, -100);
-    placePlayer(diagonal, -120, -100);
+    // Isolate intent normalization on the canonical flat interior floor;
+    // outdoor terrain slopes correctly produce direction-dependent travel.
+    placePlayer(straight, FARMHOUSE_INTERIOR_DOOR.enterSpawn.x, FARMHOUSE_INTERIOR_DOOR.enterSpawn.z);
+    placePlayer(diagonal, FARMHOUSE_INTERIOR_DOOR.enterSpawn.x, FARMHOUSE_INTERIOR_DOOR.enterSpawn.z);
     const straightStart = { x: straight.state.player.x, z: straight.state.player.z };
     const diagonalStart = { x: diagonal.state.player.x, z: diagonal.state.player.z };
     let firstStepDistance = 0;
@@ -361,6 +364,32 @@ describe("PhysicsWorld", () => {
     );
   });
 
+  it("reports signed acceleration through launch, braking, and rest", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    placePlayer(sim, FARMHOUSE_INTERIOR_DOOR.enterSpawn.x, FARMHOUSE_INTERIOR_DOOR.enterSpawn.z);
+    let time = 0;
+    const step = (z: number) => {
+      const result = physics.step(sim.state, { x: 0, z, sprint: false }, "on-foot", 1 / 60, time);
+      time += 1 / 60;
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      return result.playerMotion;
+    };
+    try {
+      expect(step(1).accelerationMetersPerSecondSquared).toBeGreaterThan(0);
+      for (let index = 0; index < 35; index++) step(1);
+      const braking = step(0);
+      expect(braking.speedMetersPerSecond).toBeGreaterThan(0);
+      expect(braking.accelerationMetersPerSecondSquared).toBeLessThan(0);
+      for (let index = 0; index < 30; index++) step(0);
+      const resting = step(0);
+      expect(resting.speedMetersPerSecond).toBeLessThan(0.001);
+      expect(Math.abs(resting.accelerationMetersPerSecondSquared)).toBeLessThan(0.001);
+    } finally {
+      physics.dispose();
+    }
+  });
+
   it("keeps players out of the river and blocks catalog-projected farmhouse walls", async () => {
     const farmhouseCollision = landmarkCollision(ASSET_IDS.HOUSE_FARMHOUSE_A, "farmhouse");
     const physics = await PhysicsWorld.create(farmhouseCollision);
@@ -425,13 +454,12 @@ describe("PhysicsWorld", () => {
     const dockLayout = WorldLayout.landmark("dock");
     expect(bridgePeak!.center.y).toBeGreaterThan(bridgeEdge!.center.y);
     // The invariant that matters for traversal is that the walkable surface
-    // the player is placed on equals the top of the box they collide with.
-    // That holds exactly, at the deck entry and at the crown. It is NOT the
-    // same as `BRIDGE_WORLD_PROFILE.entrySurfaceY`: the authored bridge
-    // collider now enters at 1.2179 while that constant still declares 1.4,
-    // so the road gateway is built ~18 cm above the deck it meets.
+    // the player is placed on equals the top of the box they collide with,
+    // including the shared bridge profile entry height.
     const bridgeAnchor = WORLD_LAYOUT_V5.anchors.bridge;
     expect(WorldLayout.traversalSurfaceHeight(bridgeEdge!.center.x, bridgeAnchor.z))
+      .toBeCloseTo(bridgeEdge!.center.y + bridgeEdge!.halfExtents.y, 6);
+    expect(BRIDGE_WORLD_PROFILE.entrySurfaceY)
       .toBeCloseTo(bridgeEdge!.center.y + bridgeEdge!.halfExtents.y, 6);
     expect(WorldLayout.traversalSurfaceHeight(bridgePeak!.center.x, bridgeAnchor.z))
       .toBeCloseTo(bridgePeak!.center.y + bridgePeak!.halfExtents.y, 6);
@@ -786,6 +814,7 @@ describe("PhysicsWorld", () => {
     const interiorX = FARMHOUSE_INTERIOR_DOOR.enterSpawn.x;
     const interiorZ = FARMHOUSE_INTERIOR_DOOR.enterSpawn.z;
     const interiorY = FARMHOUSE_INTERIOR_DOOR.enterSpawn.y;
+    expect(WorldLayout.isWater(interiorX, interiorZ)).toBe(false);
     sim.state.player.x = interiorX;
     sim.state.player.y = interiorY;
     sim.state.player.z = interiorZ;
@@ -802,6 +831,16 @@ describe("PhysicsWorld", () => {
     // capsule contact resolves its center a few centimeters below that target.
     expect(sim.state.player.y).toBeGreaterThan(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.4);
     expect(sim.state.player.y).toBeLessThan(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.6);
+    for (let index = 0; index < 90; index++) {
+      const moving = physics.step(sim.state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
+      expect(sim.commitPhysicsFrame(moving.frame).success).toBe(true);
+    }
+    expect(sim.state.player.z).toBeGreaterThan(interiorZ + 1);
+    expect(WorldLayout.isInterior(sim.state.player.x, sim.state.player.z)).toBe(true);
+    expect(WorldLayout.isWater(sim.state.player.x, sim.state.player.z)).toBe(false);
+    expect(sim.state.player.y).toBeGreaterThan(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.4);
+    expect(sim.state.player.y).toBeLessThan(FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.6);
+    physics.dispose();
   });
 
   it("keeps player attached to active boat during non-driving modes like sport-fishing and menus", async () => {
@@ -1053,6 +1092,115 @@ describe("PhysicsWorld", () => {
     expect(boat.x).toBeGreaterThan(80.5);
     expect(boat.z).toBeGreaterThan(startZ + 4);
     expect(WorldLayout.isSailable(boat.x, boat.z)).toBe(true);
+    physics.dispose();
+  });
+
+  it("walks continuously from the harbor shore up the dock stairs onto the pier deck", async () => {
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const physics = await PhysicsWorld.create(dockCollision);
+    const sim = new Simulation();
+    const dock = WorldLayout.landmark("dock");
+    placePlayer(sim, dock.x, 61.5);
+    sim.state.player.traversal.isGrounded = true;
+    const startY = sim.state.player.y;
+    const deckSurface = WorldLayout.pierDeckSurfaceY();
+
+    for (let frameIndex = 0; frameIndex < 300; frameIndex++) {
+      const result = physics.step(
+        sim.state,
+        { x: 0, z: 1, sprint: false },
+        "on-foot",
+        1 / 60,
+        frameIndex / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      expect(result.playerMotion.isGrounded).toBe(true);
+      expect(result.playerMotion.isCollisionBlocked).toBe(false);
+      if (sim.state.player.z >= 66) {
+        break;
+      }
+    }
+
+    expect(sim.state.player.z).toBeGreaterThanOrEqual(66);
+    expect(sim.state.player.y).toBeCloseTo(deckSurface + 0.5, 1);
+    expect(sim.state.player.y).toBeGreaterThan(startY + 0.5);
+    physics.dispose();
+  });
+
+  it("walks continuously down the dock stairs from the pier deck back onto the shore", async () => {
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const physics = await PhysicsWorld.create(dockCollision);
+    const sim = new Simulation();
+    const dock = WorldLayout.landmark("dock");
+    placePlayer(sim, dock.x, 66.5);
+    sim.state.player.traversal.isGrounded = true;
+    const startY = sim.state.player.y;
+
+    for (let frameIndex = 0; frameIndex < 300; frameIndex++) {
+      const result = physics.step(
+        sim.state,
+        { x: 0, z: -1, sprint: false },
+        "on-foot",
+        1 / 60,
+        frameIndex / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      expect(result.playerMotion.isGrounded).toBe(true);
+      expect(result.playerMotion.isCollisionBlocked).toBe(false);
+      if (sim.state.player.z <= 61.5) {
+        break;
+      }
+    }
+
+    expect(sim.state.player.z).toBeLessThanOrEqual(61.5);
+    expect(sim.state.player.y).toBeLessThan(startY - 0.5);
+    physics.dispose();
+  });
+
+  it("walks the village-harbor route to the market apron without colliding with the fish market", async () => {
+    const fishMarketCollision = landmarkCollision(ASSET_IDS.BUILDING_FISH_MARKET_A, "fish-market");
+    const physics = await PhysicsWorld.create(fishMarketCollision);
+    const sim = new Simulation();
+    const route = COMPILED_WORLD_ROUTES.find((r) => r.route.id === "village-harbor")!;
+    expect(route).toBeDefined();
+
+    const pathPoints = route.samples.map((s) => s.point);
+    const startIndex = Math.max(0, pathPoints.length - 12);
+    const approachPoint = pathPoints[startIndex];
+    placePlayer(sim, approachPoint.x, approachPoint.z);
+    sim.state.player.traversal.isGrounded = true;
+
+    const remainingDistance = routeLength(pathPoints.slice(startIndex));
+    const totalFrames = framesForWalkingDistance(remainingDistance);
+
+    for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+      let nearestIndex = startIndex;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (let i = startIndex; i < pathPoints.length; i++) {
+        const dist = Math.hypot(sim.state.player.x - pathPoints[i].x, sim.state.player.z - pathPoints[i].z);
+        if (dist < nearestDistance) {
+          nearestDistance = dist;
+          nearestIndex = i;
+        }
+      }
+      const target = pathPoints[Math.min(pathPoints.length - 1, nearestIndex + 2)];
+      const dx = target.x - sim.state.player.x;
+      const dz = target.z - sim.state.player.z;
+      const dirLength = Math.hypot(dx, dz);
+      const result = physics.step(
+        sim.state,
+        dirLength > 0.15 ? { x: dx / dirLength, z: dz / dirLength, sprint: false } : { x: 0, z: 0, sprint: false },
+        "on-foot",
+        1 / 60,
+        frameIndex / 60
+      );
+      expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      expect(result.playerMotion.isCollisionBlocked).toBe(false);
+    }
+
+    const lastPoint = pathPoints[pathPoints.length - 1];
+    expect(Math.hypot(sim.state.player.x - lastPoint.x, sim.state.player.z - lastPoint.z)).toBeLessThan(0.6);
+    expect(Math.hypot(sim.state.player.x - HARBOR_MARKET_APRON.x, sim.state.player.z - HARBOR_MARKET_APRON.z)).toBeLessThan(0.6);
     physics.dispose();
   });
 });

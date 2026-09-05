@@ -37,7 +37,8 @@ export interface DomainEvents {
   FishSchoolSpawned: { schoolId: FishSchoolId; ecologyId: FishingEcologyId; x: number; z: number; species: FishSpeciesId[]; minute: GameMinute };
   FishSchoolChummed: { schoolId: FishSchoolId; ecologyId: FishingEcologyId; habitatId: string; frenzyMinutes: number; minute: GameMinute };
   FishHooked: { speciesId: FishSpeciesId; ecologyId: FishingEcologyId; habitatId: string; weightKg: number; minute: GameMinute };
-  FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; ecologyId: FishingEcologyId; boatId?: BoatId; weightKg: number; quality: FishQuality; minute: GameMinute };
+  FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; ecologyId: FishingEcologyId; boatId?: BoatId; weightKg: number; quality: FishQuality; record?: "first" | "weight" | "quality"; minute: GameMinute };
+  FishReleased: { cargoId: FishCargoId; speciesId: FishSpeciesId; weightKg: number; quality: FishQuality; minute: GameMinute };
   FishEscaped: { speciesId: FishSpeciesId; reason: "escaped" | "snapped" | "no-cargo-space"; minute: GameMinute };
   BasicFishingStarted: { ecologyId: FishingEcologyId; habitatId: string; castPower: number; minute: GameMinute };
   BasicFishingBiteAlert: { ecologyId: FishingEcologyId; habitatId: string; speciesId: FishSpeciesId; minute: GameMinute };
@@ -52,6 +53,7 @@ export interface DomainEvents {
     isPerfect?: boolean;
     hasTreasure?: boolean;
     treasureLootItemIds?: ItemId[];
+    record?: "first" | "quality";
     reason?: "missed" | "escaped" | "inventory-full" | "cancelled";
     minute: GameMinute;
   };

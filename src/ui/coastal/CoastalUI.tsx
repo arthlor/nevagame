@@ -9,9 +9,16 @@ import {
   type ChromeSlotProps
 } from "../chrome/Chrome";
 
+/**
+ * Every surface in the game is the same dark instrument panel by default. The
+ * paper variant used to be the default, which split the interface in two: a
+ * slate HUD in front of a cream folio. `physical` is still available for a
+ * surface that genuinely wants to read as paper, but nothing gets it by
+ * accident.
+ */
 export const GameSheet = React.forwardRef<HTMLElement, ChromePanelProps & {
   family?: "physical" | "ink";
-}>(({ family = "physical", className = "", ...props }, ref) => (
+}>(({ family = "ink", className = "", ...props }, ref) => (
   <ChromePanel
     ref={ref}
     className={`game-sheet game-sheet--${family} ${className}`.trim()}

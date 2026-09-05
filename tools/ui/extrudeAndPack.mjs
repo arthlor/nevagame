@@ -238,6 +238,21 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
       throw new Error(`Sprite ${sprite.name || sprite.id} has no buffer or path`);
     }
 
+    // Long authored frames retain square source files for publication, but
+    // their atlas viewports must follow the painted silhouette's aspect ratio.
+    if (sprite.trim) {
+      const { data, info } = await sharp(inputBuf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      let left = info.width, top = info.height, right = -1, bottom = -1;
+      for (let y = 0; y < info.height; y += 1) {
+        for (let x = 0; x < info.width; x += 1) {
+          if (data[(y * info.width + x) * 4 + 3] === 0) continue;
+          left = Math.min(left, x); top = Math.min(top, y);
+          right = Math.max(right, x); bottom = Math.max(bottom, y);
+        }
+      }
+      if (right < left) throw new Error(`Cannot trim empty sprite ${sprite.file}`);
+      inputBuf = await sharp(inputBuf).extract({ left, top, width: right - left + 1, height: bottom - top + 1 }).png().toBuffer();
+    }
     const dilated = await dilateSpriteEdges(inputBuf, extrude);
     const spriteName = sprite.name || sprite.id || path.basename(sprite.file || "", ".png");
 
@@ -522,7 +537,8 @@ export function loadAtlasSprites() {
           id: sprite.id,
           name: sprite.id,
           file: sprite.file,
-          path: path.join(ROOT, raw.atlasDir || "assets/ui/atlas", sprite.file)
+          path: path.join(ROOT, raw.atlasDir || "assets/ui/atlas", sprite.file),
+          trim: sheet.output?.trim ?? false
         });
       }
     }

@@ -132,7 +132,18 @@ const sportHud: SportFishingHudDto = {
   tensionWord: "Good",
   lineIntegrityPercent: 100,
   showLineWarning: false,
-  landingProgress: null
+  landingProgress: null,
+  signatureMoment: null,
+  dragNotch: 1,
+  telemetry: {
+    runDistanceMeters: 11.4,
+    landingDistanceMeters: 3,
+    runDistancePercent: 62,
+    waterDepthMeters: 2.1,
+    rodDeflectionPercent: 0,
+    counterSwingPercent: 0,
+    counterSwingCue: null
+  }
 };
 
 const damagedSportHud: SportFishingHudDto = {

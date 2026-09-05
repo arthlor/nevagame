@@ -5,6 +5,7 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { Rng } from "../core/Rng";
 import { MinigameFishBehavior } from "../../content/types";
 import type { FishingEcologyId } from "../../world/WorldIslands";
+import type { CastWindEffect } from "./castWind";
 
 export interface BasicFishingMinigameConfig {
   gravity: number;
@@ -78,13 +79,15 @@ export class BasicFishingMinigame {
     rng: Rng,
     weatherType: WeatherTag = "clear",
     timeOfDay: TimeWindowId = "day",
-    ecologyId: FishingEcologyId = "ecology.neva"
+    ecologyId: FishingEcologyId = "ecology.neva",
+    /** Pure wind reading for this cast; omitted only by callers with no caster. */
+    wind: CastWindEffect | null = null
   ): BasicFishingState {
     const barHeight = this.calculateBarHeight(rodId, fishingProficiencyRank);
     const hasTreasure = rng.chance(0.18);
     const treasureY = hasTreasure ? rng.range(0.15, 0.85) : 0;
 
-    // Bait, cast power, weather, and time of day affect bite wait.
+    // Bait, cast power, weather, time of day and the wind affect bite wait.
     const baseWait = rng.range(4.0, 7.5);
     const baitMultiplier = hasBait ? 0.6 : 1.0;
     const powerMultiplier = 1.0 - (castPower * 0.25); // high power cuts wait by up to 25%
@@ -95,9 +98,13 @@ export class BasicFishingMinigame {
         * powerMultiplier
         * this.weatherWaitMultiplier(weatherType)
         * this.timeOfDayWaitMultiplier(timeOfDay)
+        * (wind?.waitMultiplier ?? 1)
     );
 
-    const castDistanceMeters = 3.0 + castPower * 9.0; // 3m to 12m
+    // A tailwind carries the cast, a headwind drops it short, and a crosswind
+    // sets it down off the aim line. `castWind.ts` owns those numbers.
+    const castDistanceMeters = (3.0 + castPower * 9.0) * (wind?.distanceScale ?? 1); // ~3m to 12m
+    const castLateralDriftMeters = wind?.lateralDriftMeters ?? 0;
 
     return {
       ecologyId,
@@ -108,6 +115,7 @@ export class BasicFishingMinigame {
       willCatch: false,
       castPower,
       castDistanceMeters,
+      castLateralDriftMeters,
       isChargingCast: false,
       castChargeDirection: 1,
       biteReactionWindowSeconds: rng.range(1.2, 1.5),
@@ -323,13 +331,26 @@ export class BasicFishingMinigame {
     state.fishY = Math.max(0.02, Math.min(0.98, nextY));
   }
 
+  /**
+   * The cast-power thresholds that actually move catch quality. Exported so the
+   * cast meter can mark the same bands the roll uses, instead of a second set
+   * of numbers that only looks meaningful.
+   */
+  public static readonly CAST_QUALITY_THRESHOLDS = Object.freeze({
+    /** At or above this, the cast can roll up to fine. */
+    good: 0.5,
+    /** At or above this, the cast can roll up to exceptional. */
+    prime: 0.85
+  });
+
   public static determineQuality(castPower: number, isPerfect: boolean, rng: Rng): FishQuality {
     let qualityTier = 0; // 0 = common, 1 = fine, 2 = exceptional, 3 = trophy
+    const { good, prime } = BasicFishingMinigame.CAST_QUALITY_THRESHOLDS;
 
-    if (castPower >= 0.85) {
+    if (castPower >= prime) {
       if (rng.chance(0.55)) qualityTier = 2;
       else qualityTier = 1;
-    } else if (castPower >= 0.50) {
+    } else if (castPower >= good) {
       if (rng.chance(0.40)) qualityTier = 1;
     }
 

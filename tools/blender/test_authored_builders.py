@@ -28,7 +28,13 @@ from common.authored import (
     add_shingle_rows,
     add_timber_corner_frame,
 )
-from common.geometry import add_box, apply_vertex_values
+from common.geometry import (
+    add_box,
+    add_caudal_fin,
+    add_flower_head,
+    add_leaf_blade,
+    apply_vertex_values,
+)
 from common.materials import get_or_create_material, hex_to_linear_rgba
 from common.pipeline import clean_scene, create_root
 
@@ -51,6 +57,12 @@ def build_signature():
     add_timber_corner_frame("test_timber", 1.6, 1.2, 0.2, 1.4, TOKENS[1], root, post_w=0.12)
     add_mullioned_window("test_window", (0, -0.7, 1.0), 0.5, 0.6, TOKENS[1], TOKENS[0], TOKENS[1], root)
     add_banded_tapered_tower("test_bands", 0.0, 1.8, 0.6, 0.35, TOKENS, root, bands=4, sides=8)
+    # Every caudal form, because the notch is exactly where a fan degenerates.
+    for index, form in enumerate(("forked", "lunate", "rounded", "square", "heterocercal")):
+        add_caudal_fin(f"test_caudal_{form}", (index * 0.6, 0, 2), 0.30, 0.44, form, TOKENS[0], root)
+    add_leaf_blade("test_leaf_straight", (0, 0, 3), (0, 0.5, 3.2), 0.18, TOKENS[1], root)
+    add_leaf_blade("test_leaf_bent", (0, 0, 3), (0.4, 0.2, 2.7), 0.22, TOKENS[1], root, bend=(0.05, 0, 0.18))
+    add_flower_head("test_flower", (0, 0, 4), 0.14, TOKENS[0], TOKENS[1], TOKENS[0], root, petals=8, nod=0.6, yaw=0.9)
     multi_material = add_box("test_multi_material", (0, 0, 0.5), (0.5, 0.5, 0.5), TOKENS[0], root)
     multi_material.data.materials.append(get_or_create_material(TOKENS[1]))
     multi_material.data.polygons[0].material_index = 1
@@ -62,6 +74,9 @@ def build_signature():
         "test_rope", "test_arch", "test_root", "test_fastener",
         "test_timber", "test_window", "test_bands",
         "test_multi_material",
+        "test_caudal_forked", "test_caudal_lunate", "test_caudal_rounded",
+        "test_caudal_square", "test_caudal_heterocercal",
+        "test_leaf_straight", "test_leaf_bent", "test_flower",
     }
     for prefix in prefixes:
         if not any(obj.name.startswith(prefix) for obj in meshes):
@@ -104,7 +119,7 @@ def main() -> None:
     second = build_signature()
     if first != second:
         raise AssertionError("Authored builders are not deterministic")
-    print(f"[NEVA ART] Authored builder tests passed for 9 builders, COLOR_0, and {len(first)} meshes")
+    print(f"[NEVA ART] Authored builder tests passed for 12 builders, COLOR_0, and {len(first)} meshes")
 
 
 if __name__ == "__main__":

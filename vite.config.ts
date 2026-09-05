@@ -7,6 +7,7 @@ import { defineConfig, type Plugin } from "vite";
 import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugin";
 import { artYardPlugin } from "./tools/vite/artYardPlugin";
 import { layoutEditorPlugin } from "./tools/vite/layoutEditorPlugin";
+import { productionArtifactsPlugin } from "./tools/vite/productionArtifactsPlugin";
 
 /** Serve `/assets/audio/*.mp3` from disk so ingest during a running Vite session is audible. */
 function runtimeAudioPlugin(rootDirectory: string): Plugin {
@@ -35,6 +36,7 @@ function runtimeAudioPlugin(rootDirectory: string): Plugin {
 
 export default defineConfig({
   plugins: [
+    productionArtifactsPlugin(),
     runtimeAudioPlugin(__dirname),
     runtimeAssetCatalogPlugin(__dirname),
     artYardPlugin(__dirname),
@@ -68,6 +70,10 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        artYard: path.resolve(__dirname, "tools/art-yard/viewer.html")
+      },
       output: {
         manualChunks(id) {
           if (id.includes("node_modules/three")) return "three";

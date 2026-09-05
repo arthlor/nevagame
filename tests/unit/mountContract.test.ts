@@ -15,6 +15,7 @@ import {
   worldToFarmLocal
 } from "../../src/world/FarmLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { loadHumanoidAsset } from "../helpers/humanoidAssets";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const publishedManifest = JSON.parse(
@@ -82,7 +83,7 @@ describe("starter donkey asset and placement contract", () => {
     ]));
   });
 
-  it("keeps mounted tiers distinct from on-foot travel and aligns humanoid and mount gait clips to the 30 fps grid", () => {
+  it("keeps mounted tiers distinct, matches source locomotion timing and aligns mount gait clips to the 30 fps grid", async () => {
     const donkey = ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)!;
     const player = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A)!;
     const donkeyClips = new Map((donkey.animationClips ?? []).map((clip) => [clip.name, clip]));
@@ -101,8 +102,13 @@ describe("starter donkey asset and placement contract", () => {
     expect(donkeyClips.get("walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
     expect(donkeyClips.get("trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
     expect(donkeyClips.get("gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
-    expect(playerClips.get("walk")?.durationSeconds).toBe(1);
-    expect(playerClips.get("run")?.durationSeconds).toBe(0.6);
+    const playerAsset = await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A);
+    const sourceClips = playerAsset.userData.animationClips as Array<{ name: string; duration: number }>;
+    for (const name of ["walk", "run"]) {
+      const duration = playerClips.get(name)?.durationSeconds;
+      expect(duration).toBeGreaterThan(0);
+      expect(sourceClips.find((clip) => clip.name === name)?.duration).toBeCloseTo(duration!, 6);
+    }
     expect(playerClips.get("mounted_walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
     expect(playerClips.get("mounted_trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
     expect(playerClips.get("mounted_gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);

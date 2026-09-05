@@ -334,5 +334,63 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
     rewardBaseMultiplier: 1.7,
     rewardSkill: "fishing",
     requiredXp: 3000
+  },
+
+  // --- Trophy, seasonal and courier orders: the quality/weight/freshness axes ---
+  {
+    id: "contract.pike_trophy_order",
+    type: "quality-target",
+    requesterName: "Lakeside Taxidermist",
+    deliveryMarketId: "market.harbor",
+    itemOrSpeciesPool: ["fish.pike"],
+    quantityRange: [1, 1],
+    minQuality: "exceptional",
+    minWeightKgRange: [12, 16],
+    minFreshness: 70,
+    durationMinutes: 1440,
+    rewardBaseMultiplier: 2.0,
+    rewardSkill: "fishing",
+    requiredXp: 3000
+  },
+  {
+    id: "contract.swordfish_trophy",
+    type: "quality-target",
+    requesterName: "Offshore Smokehouse",
+    deliveryMarketId: "market.harbor",
+    itemOrSpeciesPool: ["fish.swordfish"],
+    quantityRange: [1, 1],
+    minQuality: "exceptional",
+    minFreshness: 75,
+    durationMinutes: 2880,
+    rewardBaseMultiplier: 2.3,
+    rewardSkill: "fishing",
+    requiredXp: 30000
+  },
+  {
+    id: "contract.arowana_summer_prize",
+    type: "quality-target",
+    requesterName: "Collector's Agent",
+    deliveryMarketId: "market.harbor",
+    itemOrSpeciesPool: ["fish.arowana"],
+    quantityRange: [1, 1],
+    minQuality: "exceptional",
+    minFreshness: 75,
+    durationMinutes: 2880,
+    rewardBaseMultiplier: 2.2,
+    rewardSkill: "fishing",
+    requiredXp: 7500
+  },
+  {
+    id: "contract.trout_first_light",
+    type: "fresh-fish",
+    requesterName: "Harbor Innkeeper",
+    deliveryMarketId: "market.harbor",
+    itemOrSpeciesPool: ["fish.trout"],
+    quantityRange: [2, 3],
+    minFreshness: 90,
+    durationMinutes: 480,
+    rewardBaseMultiplier: 1.8,
+    rewardSkill: "fishing",
+    requiredXp: 1000
   }
 ];

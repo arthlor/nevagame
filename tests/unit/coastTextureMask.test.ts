@@ -14,11 +14,13 @@ function expectedGreenMaskByte(weights: {
   beach: number;
   wetShoreline: number;
   cliff: number;
+  path: number;
+  shoulder: number;
 }): number {
   const vegetationShare = weights.grass + weights.meadow;
   const shoreShare = weights.beach + weights.wetShoreline + weights.cliff;
   return Math.round(
-    THREE.MathUtils.clamp(vegetationShare * (1 - smoothstep(0.08, 0.42, shoreShare)), 0, 1) * 255
+    THREE.MathUtils.clamp(vegetationShare * (1 - smoothstep(0.08, 0.42, shoreShare)) + weights.path + weights.shoulder, 0, 1) * 255
   );
 }
 
@@ -62,12 +64,25 @@ describe("coast texture mask bake", () => {
     const geometry = WorldLayout.buildTerrainGeometry();
     const terrainGreenMask = geometry.getAttribute("terrainGreenMask");
     const positions = geometry.getAttribute("position");
+    const patch = WorldLayout.terrainPatches().find((entry) => entry.id === "terrain.neva")!;
+    const sampledPlane = new THREE.PlaneGeometry(patch.sizeMeters, patch.sizeMeters, patch.resolution, patch.resolution);
+    sampledPlane.rotateX(-Math.PI / 2);
+    const sampledPositions = sampledPlane.getAttribute("position");
+    for (let index = 0; index < sampledPositions.count; index++) {
+      sampledPositions.setY(index, WorldLayout.terrainBaseHeight(sampledPositions.getX(index), sampledPositions.getZ(index)));
+    }
+    sampledPlane.computeVertexNormals();
+    const sampledNormals = sampledPlane.getAttribute("normal");
+    const gridStep = patch.sizeMeters / patch.resolution;
 
     let matched = false;
     for (let index = 0; index < positions.count; index += 4096) {
       const x = positions.getX(index);
       const z = positions.getZ(index);
-      const weights = WorldLayout.terrainSurfaceWeights(x, z);
+      const column = Math.round((x + patch.sizeMeters / 2) / gridStep);
+      const row = Math.round((z + patch.sizeMeters / 2) / gridStep);
+      const normalY = Math.abs(sampledNormals.getY(row * (patch.resolution + 1) + column));
+      const weights = WorldLayout.terrainSurfaceWeights(x, z, normalY);
       const shoreShare = weights.beach + weights.wetShoreline + weights.cliff;
       if (shoreShare <= 0 || shoreShare >= 0.42) continue;
 
@@ -75,10 +90,10 @@ describe("coast texture mask bake", () => {
       const baked = Math.round(terrainGreenMask.getX(index) * 255);
       expect(baked).toBe(expected);
       matched = true;
-      break;
     }
 
     expect(matched).toBe(true);
     geometry.dispose();
+    sampledPlane.dispose();
   });
 });

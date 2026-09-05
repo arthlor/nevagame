@@ -121,7 +121,7 @@ describe("game loop cadence", () => {
     expect(sim.state.crops[cropId]).toBeDefined();
   });
 
-  it("refills contracts to at most two active listings and honors requiredXp", () => {
+  it("refills contracts to at most three active listings and honors requiredXp", () => {
     const sim = new Simulation();
     sim.state.contracts = [];
     sim.state.player.proficiencies.farming = 0;
@@ -129,7 +129,7 @@ describe("game loop cadence", () => {
     sim.advanceGameMinutes(1);
     const active = sim.state.contracts.filter((contract) => contract.status === "active");
     expect(active.length).toBeGreaterThanOrEqual(1);
-    expect(active.length).toBeLessThanOrEqual(2);
+    expect(active.length).toBeLessThanOrEqual(3);
     expect(active.every((contract) => {
       const template = ContentRegistry.contractTemplates.get(contract.templateId);
       return (template?.requiredXp ?? 0) === 0;
@@ -139,7 +139,7 @@ describe("game loop cadence", () => {
     for (const contract of active) contract.status = "expired";
     sim.advanceGameMinutes(1);
     const afterXp = sim.state.contracts.filter((contract) => contract.status === "active");
-    expect(afterXp.length).toBeLessThanOrEqual(2);
+    expect(afterXp.length).toBeLessThanOrEqual(3);
     expect(afterXp.every((contract) => {
       const template = ContentRegistry.contractTemplates.get(contract.templateId);
       if (!template) return false;
@@ -177,7 +177,7 @@ describe("game loop cadence", () => {
     sim.advanceGameMinutes(1);
 
     const active = sim.state.contracts.filter((contract) => contract.status === "active");
-    expect(active).toHaveLength(2);
+    expect(active).toHaveLength(3);
     expect(active.some((contract) => contract.type === "produce")).toBe(true);
     expect(active.some((contract) => {
       return contract.type === "fresh-fish" && contract.targetItemIdOrSpecies === "fish.trout";

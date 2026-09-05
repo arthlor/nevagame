@@ -15,9 +15,11 @@ import type {
 import {
   advancePlayerTraversal,
   PLAYER_TRAVERSAL_TUNING,
+  carriedLoadSpeedScale,
   slopeGaitScale
 } from "../simulation/navigation/PlayerTraversal";
 import type { StaticCollisionProxy } from "./StaticCollision";
+import type { CollisionDebugSnapshot } from "./CollisionDebug";
 import { collisionPrimitivesForAsset } from "./CollisionCatalogAdapter";
 import {
   WorldLayout
@@ -63,7 +65,7 @@ let roadColliderGeometryCache: { vertices: Float32Array; indices: Uint32Array } 
 
 function sharedRoadColliderGeometry(): { vertices: Float32Array; indices: Uint32Array } {
   if (roadColliderGeometryCache) return roadColliderGeometryCache;
-  const geometry = WorldLayout.buildPathGeometry();
+  const geometry = WorldLayout.buildPathCollisionGeometry();
   const position = geometry.getAttribute("position");
   const index = geometry.getIndex();
   if (!index) {
@@ -129,12 +131,16 @@ function bridgeAwareTraversalSurfaceHeightForMove(
 
   const leadingX = targetX + (moveX / moveLength) * leadingEdgeDistance;
   const leadingZ = targetZ + (moveZ / moveLength) * leadingEdgeDistance;
-  const bridgeSurfaceAhead =
+  const elevatedSurfaceAhead =
     WorldLayout.isBridgeDeck(targetX, targetZ) ||
     WorldLayout.isBridgeApproach(targetX, targetZ) ||
     WorldLayout.isBridgeDeck(leadingX, leadingZ) ||
-    WorldLayout.isBridgeApproach(leadingX, leadingZ);
-  if (!bridgeSurfaceAhead) return targetHeight;
+    WorldLayout.isBridgeApproach(leadingX, leadingZ) ||
+    WorldLayout.isPierDeck(targetX, targetZ) ||
+    WorldLayout.isPierStairs(targetX, targetZ) ||
+    WorldLayout.isPierDeck(leadingX, leadingZ) ||
+    WorldLayout.isPierStairs(leadingX, leadingZ);
+  if (!elevatedSurfaceAhead) return targetHeight;
 
   return Math.max(
     targetHeight,
@@ -197,13 +203,15 @@ function resolveWalkableSlide(
   currentZ: number,
   moveX: number,
   moveZ: number,
-  allowInterior: boolean = true
+  allowInterior: boolean = true,
+  desiredMoveX: number = moveX,
+  desiredMoveZ: number = moveZ
 ): { x: number; z: number; limited: boolean } {
   const isStableWalkable = (x: number, z: number): boolean =>
     WorldLayout.isWalkable(x, z) &&
     !WorldLayout.isWater(x, z) &&
     (allowInterior || !WorldLayout.isInterior(x, z)) &&
-    (WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
+    (WorldLayout.isInterior(x, z) || WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.isPierStairs(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
 
   if (isStableWalkable(currentX + moveX, currentZ + moveZ)) {
     return { x: moveX, z: moveZ, limited: false };
@@ -245,8 +253,20 @@ function resolveWalkableSlide(
     tangentSlideZ = tangentZ * dot;
   }
 
+  const moveLength = Math.hypot(moveX, moveZ);
+  const desiredMoveLength = Math.hypot(desiredMoveX, desiredMoveZ);
+  const tangentSlideLength = Math.hypot(tangentSlideX, tangentSlideZ);
+  const tangentTravelScale = tangentSlideLength > 0.000001
+    ? Math.max(moveLength, desiredMoveLength) / tangentSlideLength
+    : 0;
+  const tangentTravelX = tangentSlideX * tangentTravelScale;
+  const tangentTravelZ = tangentSlideZ * tangentTravelScale;
+
   const candidates = [
     { x: tangentSlideX, z: tangentSlideZ },
+    // Preserve the attempted travel distance after removing the blocked
+    // normal component, while keeping the tangent's forward direction.
+    { x: tangentTravelX, z: tangentTravelZ },
     { x: tangentSlideX * 0.7, z: tangentSlideZ * 0.7 },
     { x: moveX, z: 0 },
     { x: 0, z: moveZ },
@@ -255,12 +275,20 @@ function resolveWalkableSlide(
     { x: 0, z: moveZ * 0.5 },
     { x: moveX * 0.25, z: moveZ * 0.25 }
   ];
-  let best = { x: 0, z: 0, distanceSquared: 0 };
+  let best = { x: 0, z: 0, alignment: 0, distanceSquared: 0 };
   for (const candidate of candidates) {
     if (Math.hypot(candidate.x, candidate.z) <= 0.000001) continue;
-    if (!isStableWalkable(currentX + candidate.x, currentZ + candidate.z)) continue;
+    const stable = isStableWalkable(currentX + candidate.x, currentZ + candidate.z);
+    const alignment = candidate.x * desiredMoveX + candidate.z * desiredMoveZ;
+    if (!stable) continue;
+    if (alignment <= 0) continue;
     const distanceSquared = candidate.x * candidate.x + candidate.z * candidate.z;
-    if (distanceSquared > best.distanceSquared) best = { ...candidate, distanceSquared };
+    if (
+      alignment > best.alignment ||
+      (alignment === best.alignment && distanceSquared > best.distanceSquared)
+    ) {
+      best = { ...candidate, alignment, distanceSquared };
+    }
   }
   return { x: best.x, z: best.z, limited: true };
 }
@@ -277,6 +305,7 @@ export class PhysicsWorld implements PhysicsAdapter {
   private readonly terrainColliders: RAPIER.Collider[];
   private playerVelocityX = 0;
   private playerVelocityZ = 0;
+  private previousResolvedPlayerSpeed = 0;
   private playerVerticalVelocity = 0;
   private playerRotationY = 0;
   private playerGrounded = true;
@@ -287,6 +316,10 @@ export class PhysicsWorld implements PhysicsAdapter {
   private jumpBufferRemainingSeconds = 0;
   private coyoteTimeRemainingSeconds: number = PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds;
   private readonly staticPropBodies: RAPIER.RigidBody[] = [];
+  private readonly debugColliderIds = new Map<number, string>();
+  private debugWalking = false;
+  private debugBlocked = false;
+  private debugWalkabilityLimited = false;
 
   private constructor(rapier: typeof RAPIER, staticCollision: readonly StaticCollisionProxy[]) {
     this.rapier = rapier;
@@ -355,7 +388,11 @@ export class PhysicsWorld implements PhysicsAdapter {
 
   /** DEV layout editor: rebuild authored prop/building colliders from current presentation poses. */
   public replaceStaticCollision(proxies: readonly StaticCollisionProxy[]): void {
+    this.debugWalking = false;
+    this.debugBlocked = false;
+    this.debugWalkabilityLimited = false;
     for (const body of this.staticPropBodies) {
+      for (let i = 0; i < body.numColliders(); i++) this.debugColliderIds.delete(body.collider(i).handle);
       this.world.removeRigidBody(body);
     }
     this.staticPropBodies.length = 0;
@@ -376,12 +413,64 @@ export class PhysicsWorld implements PhysicsAdapter {
           .setTranslation(centerX, centerY, centerZ)
           .setRotation(proxy.rotation)
       );
-      this.world.createCollider(
+      const collider = this.world.createCollider(
         this.rapier.ColliderDesc.cuboid(hx, hy, hz).setFriction(0.9),
         body
       );
+      if (import.meta.env.DEV) this.debugColliderIds.set(collider.handle, proxy.id);
       this.staticPropBodies.push(body);
     }
+  }
+
+  /** Read live Rapier geometry, never mesh bounds or a second collision model. */
+  public collisionDebugSnapshot(center: { x: number; y: number; z: number }, radius = 25): CollisionDebugSnapshot {
+    const snapshot: CollisionDebugSnapshot = {
+      colliders: [], contacts: [], walking: this.debugWalking,
+      blocked: this.debugBlocked, walkabilityLimited: this.debugWalkabilityLimited
+    };
+    if (!import.meta.env.DEV) return snapshot;
+    const identify = (collider: RAPIER.Collider): string => {
+      if (collider.handle === this.playerCollider.handle) return this.playerColliderMounted ? "player:mounted-capsule" : "player:capsule";
+      const authored = this.debugColliderIds.get(collider.handle);
+      if (authored) return authored;
+      const terrainIndex = this.terrainColliders.findIndex((entry) => entry.handle === collider.handle);
+      if (terrainIndex >= 0) return `terrain:${WorldLayout.terrainPatches()[terrainIndex].id}`;
+      for (const [id, boat] of this.boatBodies) {
+        const index = boat.colliders.findIndex((entry) => entry.handle === collider.handle);
+        if (index >= 0) return `${id}:hull-${index}`;
+      }
+      return collider.shapeType() === this.rapier.ShapeType.TriMesh ? "world:road-surface" : `collider:${collider.handle}`;
+    };
+    this.world.forEachCollider((collider) => {
+      if (!collider.isEnabled() || collider.isSensor()) return;
+      const kind = collider.shapeType();
+      if (kind !== this.rapier.ShapeType.Cuboid && kind !== this.rapier.ShapeType.Capsule) return;
+      const projection = collider.projectPoint(center, true);
+      if (!projection) return;
+      const nearest = projection.point;
+      const distance = Math.hypot(nearest.x - center.x, nearest.y - center.y, nearest.z - center.z);
+      if (distance > radius) return;
+      snapshot.colliders.push({
+        handle: collider.handle, id: identify(collider), distance,
+        position: { ...collider.translation() }, rotation: { ...collider.rotation() },
+        shape: kind === this.rapier.ShapeType.Cuboid
+          ? { kind: "box", halfExtents: { ...collider.halfExtents() } }
+          : { kind: "capsule", radius: collider.radius(), halfHeight: collider.halfHeight() }
+      });
+    });
+    snapshot.colliders.sort((a, b) => a.distance - b.distance);
+    if (this.debugWalking) {
+      for (let i = 0; i < this.controller.numComputedCollisions(); i++) {
+        const contact = this.controller.computedCollision(i);
+        if (!contact?.collider) continue;
+        snapshot.contacts.push({
+          handle: contact.collider.handle, id: identify(contact.collider),
+          point: { ...contact.witness1 }, normal: { ...contact.normal1 },
+          lateral: Math.abs(contact.normal1.y) < 0.65
+        });
+      }
+    }
+    return snapshot;
   }
 
   public dispose(): void {
@@ -623,6 +712,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.playerBody.setTranslation(expectedCenter, true);
       this.playerVelocityX = 0;
       this.playerVelocityZ = 0;
+      this.previousResolvedPlayerSpeed = 0;
       this.playerVerticalVelocity = 0;
       this.playerRotationY = player.rotationY;
       this.playerGrounded = isMounted || player.traversal.isGrounded === true;
@@ -683,13 +773,21 @@ export class PhysicsWorld implements PhysicsAdapter {
       : mountedGait === "trot"
         ? MOUNT_TUNING.trotSpeedMetersPerSecond
         : MOUNT_TUNING.walkSpeedMetersPerSecond;
+    // A physical trade pack is carried on the back, so it slows both gaits. A
+    // mount carries the load instead of the player, so it is exempt.
+    const carriedCargo = player.carriedFishCargoId
+      ? state.fishCargo[player.carriedFishCargoId] ?? null
+      : null;
+    const loadScale = isMounted ? 1 : carriedLoadSpeedScale(carriedCargo?.cargoClass ?? null);
     const speed = (isMounted
       ? mountedSpeed
       : traversalStep.isSprinting
         ? PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond
-        : PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond) * gaitScale;
+        : PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond) * gaitScale * loadScale;
     const targetVelocityX = inputX * speed;
     const targetVelocityZ = inputZ * speed;
+    const desiredMoveX = targetVelocityX * safeDt;
+    const desiredMoveZ = targetVelocityZ * safeDt;
     const acceleration = inputLength > 0.001
       ? isMounted
         ? MOUNT_TUNING.accelerationMetersPerSecondSquared
@@ -697,8 +795,6 @@ export class PhysicsWorld implements PhysicsAdapter {
       : isMounted
         ? MOUNT_TUNING.decelerationMetersPerSecondSquared
         : PLAYER_TRAVERSAL_TUNING.decelerationMetersPerSecondSquared;
-    const previousVelocityX = this.playerVelocityX;
-    const previousVelocityZ = this.playerVelocityZ;
     const previousRotationY = this.playerRotationY;
     const steeredVelocity = steerVelocityToward(
       this.playerVelocityX,
@@ -715,7 +811,15 @@ export class PhysicsWorld implements PhysicsAdapter {
     let moveZ = this.playerVelocityZ * safeDt;
     const requestedMoveDistance = Math.hypot(moveX, moveZ);
     let walkabilityLimited = false;
-    const requestedWalkableMove = resolveWalkableSlide(current.x, current.z, moveX, moveZ, !isMounted);
+    const requestedWalkableMove = resolveWalkableSlide(
+      current.x,
+      current.z,
+      moveX,
+      moveZ,
+      !isMounted,
+      desiredMoveX,
+      desiredMoveZ
+    );
     moveX = requestedWalkableMove.x;
     moveZ = requestedWalkableMove.z;
     walkabilityLimited = requestedWalkableMove.limited;
@@ -772,7 +876,15 @@ export class PhysicsWorld implements PhysicsAdapter {
       y: computedMovement.y,
       z: computedMovement.z
     };
-    const resolvedWalkableMove = resolveWalkableSlide(current.x, current.z, movement.x, movement.z, !isMounted);
+    const resolvedWalkableMove = resolveWalkableSlide(
+      current.x,
+      current.z,
+      movement.x,
+      movement.z,
+      !isMounted,
+      desiredMoveX,
+      desiredMoveZ
+    );
     movement.x = resolvedWalkableMove.x;
     movement.z = resolvedWalkableMove.z;
     walkabilityLimited ||= resolvedWalkableMove.limited;
@@ -835,7 +947,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.playerVelocityZ = resolvedVelocityZ;
     }
 
-    const resolvedSpeed = Math.hypot(resolvedVelocityX, resolvedVelocityZ);
+    let resolvedSpeed = Math.hypot(resolvedVelocityX, resolvedVelocityZ);
     if (inputLength > 0.001) {
       // Face the velocity we actually resolved, not the desired input vector.
       // During a sharp turn or reversal the velocity arcs and decelerates first;
@@ -863,10 +975,16 @@ export class PhysicsWorld implements PhysicsAdapter {
       WorldLayout.isBridgeDeck(current.x, current.z) &&
       WorldLayout.isBridgeDeck(resolved.x, resolved.z) &&
       resolvedMoveDistance >= requestedMoveDistance * 0.75;
+    const onPierOrStairs = (x: number, z: number) =>
+      WorldLayout.isPierDeck(x, z) || WorldLayout.isPierStairs(x, z);
+    const advancingAcrossPierStep =
+      (onPierOrStairs(current.x, current.z) || onPierOrStairs(resolved.x, resolved.z)) &&
+      (resolvedMoveDistance >= requestedMoveDistance * 0.15 || movement.y > 0.005);
     const collisionBlocked = requestedMoveDistance > 0.0001 &&
       (walkabilityLimited || hitBlockingSurface) &&
       resolvedMoveDistance + 0.0001 < requestedMoveDistance * 0.9 &&
-      !advancingAcrossBridgeStep;
+      !advancingAcrossBridgeStep &&
+      !advancingAcrossPierStep;
     if (collisionBlocked && resolvedMoveDistance < requestedMoveDistance * 0.1) {
       // Rapier can return a few millimetres of contact-skin correction while
       // the player is pressing squarely into a wall. It is not travel and
@@ -875,7 +993,16 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.playerVelocityZ = 0;
       resolvedVelocityX = 0;
       resolvedVelocityZ = 0;
+      resolvedSpeed = 0;
     }
+
+    const resolvedAcceleration = (resolvedSpeed - this.previousResolvedPlayerSpeed) / safeDt;
+    if (import.meta.env.DEV) {
+      this.debugWalking = true;
+      this.debugBlocked = collisionBlocked;
+      this.debugWalkabilityLimited = walkabilityLimited;
+    }
+    this.previousResolvedPlayerSpeed = resolvedSpeed;
 
     const groundY = WorldLayout.traversalSurfaceSample(resolved.x, resolved.z).height;
 
@@ -938,10 +1065,9 @@ export class PhysicsWorld implements PhysicsAdapter {
           z: resolvedVelocityZ
         },
         speedMetersPerSecond: resolvedSpeed,
-        accelerationMetersPerSecondSquared: Math.hypot(
-          resolvedVelocityX - previousVelocityX,
-          resolvedVelocityZ - previousVelocityZ
-        ) / safeDt,
+        // Tangential acceleration retains braking's sign. Vector-delta length
+        // mislabels braking and constant-speed turning as forward acceleration.
+        accelerationMetersPerSecondSquared: resolvedAcceleration,
         turnRateRadiansPerSecond: Math.atan2(
           Math.sin(this.playerRotationY - previousRotationY),
           Math.cos(this.playerRotationY - previousRotationY)
@@ -1415,6 +1541,9 @@ export class PhysicsWorld implements PhysicsAdapter {
     dt: number,
     timeSeconds: number
   ): PhysicsStepResult {
+    this.debugWalking = false;
+    this.debugBlocked = false;
+    this.debugWalkabilityLimited = false;
     // Clean up any stale boat bodies that were removed from state
     for (const [id, boat] of this.boatBodies) {
       if (!state.boats[id]) {
@@ -1482,9 +1611,7 @@ export class PhysicsWorld implements PhysicsAdapter {
               z: Math.cos(activeBoat.headingRadians) * activeBoat.speed
             },
         speedMetersPerSecond: Math.abs(activeBoat.speed),
-        accelerationMetersPerSecondSquared: Math.abs(
-          activeBoatMotion?.accelerationMetersPerSecondSquared ?? 0
-        ),
+        accelerationMetersPerSecondSquared: activeBoatMotion?.accelerationMetersPerSecondSquared ?? 0,
         turnRateRadiansPerSecond: activeBoatMotion?.yawRateRadiansPerSecond ?? 0,
         isGrounded: true,
         groundNormal: { x: 0, y: 1, z: 0 },

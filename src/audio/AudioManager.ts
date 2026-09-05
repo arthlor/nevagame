@@ -186,16 +186,16 @@ export class AudioManager {
     if (enabled) {
       this.actionLoops.set(cueId, finitePosition(position) ?? true);
     } else {
+      // Disable must stop the loop node even when the context is suspended
+      // (hidden tab). Still-requested enables stay in actionLoops and resume on visibility.
       this.actionLoops.delete(cueId);
+      this.stopLoopCue(cueId);
+      return;
     }
     if (!this.context || this.context.state !== "running") {
       return;
     }
-    if (enabled) {
-      void this.startLoopCue(cueId, finitePosition(position));
-      return;
-    }
-    this.stopLoopCue(cueId);
+    void this.startLoopCue(cueId, finitePosition(position));
   }
 
   startAmbience(): void {

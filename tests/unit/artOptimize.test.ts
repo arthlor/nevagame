@@ -37,8 +37,8 @@ describe("glTF Optimization Pipeline & Derived LOD Generation", () => {
     expect(mayJoinStaticNode(mockNode("SOCKET_hand_r"), { requiredNodes: ["SOCKET_hand_r"] })).toBe(false);
 
     // Character hierarchies protected
-    expect(mayJoinStaticNode(mockNode("arm_l"), { generator: "coastal_worker" })).toBe(false);
-    expect(mayJoinStaticNode(mockNode("head"), { generator: "npc_character" })).toBe(false);
+    expect(mayJoinStaticNode(mockNode("arm_l"), { family: "character", generator: "imported_blend" })).toBe(false);
+    expect(mayJoinStaticNode(mockNode("head"), { family: "character", generator: "npc_character" })).toBe(false);
 
     // Rowboat oars and windmill dynamic meshes protected
     expect(mayJoinStaticNode(mockNode("rowboat_oar_left"), { generator: "rowboat" })).toBe(false);

@@ -1,4 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { isProcessingRecipeUnlocked, PROFICIENCY_RANKS } from "../../content/progression";
 import { LIVE_RECIPE_IDS } from "../../content/recipes";
 import type { RecipeDefinition } from "../../content/types";
 import type { InventoryState, ProcessingJobId, RecipeId, StationType } from "../core/types";
@@ -7,6 +8,7 @@ import { formatClockTime, formatGameDuration } from "../core/GameClock";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
+import { freeHandsBlocker } from "./domainRules";
 import { assessProcessingStationApproach } from "../../world/ProcessingStationApproach";
 
 export { PROCESSING_STATION_INTERACTION_RADIUS } from "../../world/ProcessingStationApproach";
@@ -21,7 +23,9 @@ export function pickUnlockedStationRecipe(
     (recipe) => recipe.stationType === stationType && LIVE_RECIPE_IDS.has(recipe.id)
   );
   const unlocked = recipes.filter(
-    (recipe) => !recipe.minimumSkill || processingXp >= recipe.minimumSkill.xp
+    (recipe) =>
+      isProcessingRecipeUnlocked(processingXp, recipe.id)
+      && (!recipe.minimumSkill || processingXp >= recipe.minimumSkill.xp)
   );
   return unlocked.find((recipe) => InventoryManager.hasItems(inventory, recipe.inputs)) ?? unlocked[0];
 }
@@ -35,9 +39,18 @@ export class ProcessingDomain {
   public start(recipeId: RecipeId, stationId: string): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     const recipe = ContentRegistry.recipes.get(recipeId);
     if (!recipe) return { success: false, reason: "Unknown recipe" };
     if (!LIVE_RECIPE_IDS.has(recipe.id)) return { success: false, reason: "That recipe is not available yet" };
+    if (!isProcessingRecipeUnlocked(state.player.proficiencies.processing, recipe.id)) {
+      const rank = PROFICIENCY_RANKS.find((candidate) => candidate.processingUnlocks.includes(recipe.id));
+      return {
+        success: false,
+        reason: rank ? `Requires ${rank.xpRequired} Processing XP` : "That recipe is not unlocked yet"
+      };
+    }
     const station = state.world.structures[stationId];
     if (!station) return { success: false, reason: "Station not found" };
     const approach = assessProcessingStationApproach(stationId, state.player, station);
@@ -80,6 +93,8 @@ export class ProcessingDomain {
   public collect(jobId: ProcessingJobId): { success: boolean; reason?: string } {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
     const job = state.processingJobs[jobId];
     if (!job || job.status !== "complete") return { success: false, reason: "Job not complete" };
     const station = state.world.structures[job.stationId];

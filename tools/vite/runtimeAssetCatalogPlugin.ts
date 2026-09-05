@@ -24,8 +24,25 @@ const OPTIONAL_RUNTIME_ASSET_FIELDS = [
   "rigNode",
   "socketNodes",
   "animationClips",
-  "additionalAnimationClips"
+  "additionalAnimationClips",
+  "humanoidRig"
 ] as const;
+
+const RUNTIME_CLIP_FIELDS = [
+  "name", "durationSeconds", "commitMarkerSeconds", "loop",
+  "referenceSpeedMetersPerSecond", "optional", "fallbackClip", "events", "contacts"
+] as const;
+
+function runtimeField(asset: Record<string, unknown>, field: string): unknown {
+  const value = asset[field] ?? null;
+  if ((field === "animationClips" || field === "additionalAnimationClips") && Array.isArray(value)) {
+    // Source clip identity and recipe evidence belong to authoring reports.
+    return value.map((clip: Record<string, unknown>) => Object.fromEntries(
+      RUNTIME_CLIP_FIELDS.filter((key) => clip[key] !== undefined).map((key) => [key, clip[key]])
+    ));
+  }
+  return value;
+}
 
 function readCatalog(catalogPath: string): { assets?: Array<Record<string, unknown>> } {
   return JSON.parse(fs.readFileSync(catalogPath, "utf8")) as {
@@ -87,6 +104,7 @@ export function runtimeAssetCatalogPlugin(rootDirectory: string): Plugin {
         }
         response.statusCode = 200;
         response.setHeader("Content-Type", "model/gltf-binary");
+        response.setHeader("Content-Length", fs.statSync(source).size);
         response.setHeader("Cache-Control", "no-store");
         fs.createReadStream(source).pipe(response);
       });
@@ -131,7 +149,7 @@ export function runtimeAssetCatalogPlugin(rootDirectory: string): Plugin {
           .digest("hex");
         return Object.fromEntries([
           ...REQUIRED_RUNTIME_ASSET_FIELDS.map((field) => [field, asset[field]]),
-          ...OPTIONAL_RUNTIME_ASSET_FIELDS.map((field) => [field, asset[field] ?? null]),
+          ...OPTIONAL_RUNTIME_ASSET_FIELDS.map((field) => [field, runtimeField(asset, field)]),
           ["contentHash", contentHash]
         ]);
       });

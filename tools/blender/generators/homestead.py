@@ -61,20 +61,27 @@ def apiary_hive(spec: dict, root) -> None:
         # Frame rebate lip reads as the joint between boxes.
         add_box(f"hive_rebate_{index}", (0, 0, z + 0.008), (width + 0.022, depth + 0.022, 0.016), frame, root, bevel=0.006)
 
+    # A Langstroth hive wears a flat telescoping cover, and a gable perched two
+    # boxes above the stack read as a slab hovering over the hive. Seat the
+    # cover on the inner board with a real skirt down its sides.
     lid_z = base_z + super_h * 3
     add_box("hive_inner_cover", (0, 0, lid_z + 0.02), (width + 0.03, depth + 0.03, 0.04), frame, root, bevel=0.008)
+    cover_z = lid_z + 0.040
+    add_box("hive_cover_top", (0, 0, cover_z + 0.026), (width + 0.09, depth + 0.09, 0.052), roof, root, bevel=0.010)
+    add_box("hive_cover_flashing", (0, 0, cover_z - 0.044), (width + 0.105, depth + 0.105, 0.014), metal, root, bevel=0.005)
     for side_index, sign in enumerate((-1, 1)):
         add_box(
-            f"hive_roof_slope_{side_index}",
-            (sign * width * 0.27, 0, lid_z + 0.105),
-            (width * 0.62, depth + 0.08, 0.035), roof, root,
-            rotation=(0, sign * math.radians(-19), 0), bevel=0.010,
+            f"hive_cover_skirt_x_{side_index}", (sign * (width + 0.09) * 0.5, 0, cover_z - 0.016),
+            (0.016, depth + 0.09, 0.062), roof, root, bevel=0.006,
         )
-    add_box("hive_roof_ridge", (0, 0, lid_z + 0.145), (0.07, depth + 0.09, 0.045), metal, root, bevel=0.010)
-    add_box("hive_roof_band", (0, 0, lid_z + 0.055), (width + 0.10, depth + 0.10, 0.030), metal, root, bevel=0.008)
+        add_box(
+            f"hive_cover_skirt_y_{side_index}", (0, sign * (depth + 0.09) * 0.5, cover_z - 0.016),
+            (width + 0.09, 0.016, 0.062), roof, root, bevel=0.006,
+        )
 
-    # A weighting stone keeps the telescoping lid on in wind.
-    add_ico("hive_lid_stone", (rng.uniform(-0.05, 0.05), 0.06, lid_z + 0.185), (0.055, 0.048, 0.032), frame, root)
+    # A weighting stone keeps the telescoping cover on in wind. It can only sit
+    # there because the cover is now flat.
+    add_ico("hive_lid_stone", (rng.uniform(-0.05, 0.05), 0.06, cover_z + 0.082), (0.055, 0.048, 0.032), frame, root)
 
 
 def potting_bench(spec: dict, root) -> None:
@@ -172,10 +179,12 @@ def garden_hoe(spec: dict, root) -> None:
     # Ferrule, swan neck, then the blade set at a working angle to the shaft.
     add_cylinder("hoe_ferrule", (0.010, 0, 0.145), 0.026, 0.085, metal, root, vertices=8, bevel=0.006)
     add_beam("hoe_neck", (0.008, 0, 0.115), (-0.052, 0, 0.052), 0.015, metal, root, vertices=6)
-    add_box("hoe_blade", (-0.105, 0, 0.028), (0.135, 0.175, 0.020), metal, root,
-            rotation=(0, math.radians(22), 0), bevel=0.006)
-    add_box("hoe_blade_edge", (-0.160, 0, 0.014), (0.040, 0.175, 0.010), metal, root,
-            rotation=(0, math.radians(22), 0), bevel=0.004)
+    # The blade has to be obviously wider than the shaft it hangs off, and set
+    # far enough back that it is not swallowed by the shaft's own shadow.
+    add_box("hoe_blade", (-0.118, 0, 0.038), (0.155, 0.235, 0.022), metal, root,
+            rotation=(0, math.radians(26), 0), bevel=0.006)
+    add_box("hoe_blade_edge", (-0.186, 0, 0.008), (0.052, 0.235, 0.011), metal, root,
+            rotation=(0, math.radians(26), 0), bevel=0.004)
 
 
 def wheelbarrow(spec: dict, root) -> None:
@@ -330,7 +339,10 @@ def milk_churn(spec: dict, root) -> None:
 
     add_cylinder("churn_foot", (0, 0, base_z + 0.020), base_r + 0.012, 0.040, brass, root, vertices=12, bevel=0.008)
     add_cylinder("churn_body", (0, 0, base_z + 0.045 + body_h * 0.5), base_r, body_h, metal, root, vertices=12, bevel=0.010)
-    add_box("churn_band", (0, 0, base_z + 0.045 + body_h * 0.42), (base_r * 2.06, base_r * 2.06, 0.055), cream, root, bevel=0.0)
+    # A square box circumscribing a round body pokes out at four corners, which
+    # is why the painted band read as a tray stabbed through the churn.
+    add_cylinder("churn_band", (0, 0, base_z + 0.045 + body_h * 0.42), base_r * 1.035, 0.055, cream, root,
+                 vertices=12, bevel=0.006)
     shoulder_z = base_z + 0.045 + body_h
     add_cone("churn_shoulder", (0, 0, shoulder_z + 0.075), base_r, base_r * 0.52, 0.15, metal, root, vertices=12)
     neck_z = shoulder_z + 0.15

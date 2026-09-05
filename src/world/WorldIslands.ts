@@ -142,8 +142,39 @@ function terrainPatch(
   };
 }
 
-const NEVA_COAST_LOOP = [
-  { x: -180, z: 89 },
+export function pointSegmentDistance(
+  x: number,
+  z: number,
+  start: Readonly<WorldPoint>,
+  end: Readonly<WorldPoint>
+): number {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const lengthSquared = dx * dx + dz * dz;
+  if (lengthSquared <= 0.000001) return Math.hypot(x - start.x, z - start.z);
+  const t = Math.max(0, Math.min(1, ((x - start.x) * dx + (z - start.z) * dz) / lengthSquared));
+  return Math.hypot(x - (start.x + dx * t), z - (start.z + dz * t));
+}
+
+export function isInsideLoop(
+  x: number,
+  z: number,
+  loop: readonly Readonly<WorldPoint>[]
+): boolean {
+  let inside = false;
+  for (let current = 0, previous = loop.length - 1; current < loop.length; previous = current++) {
+    const a = loop[current];
+    const b = loop[previous];
+    const crosses = (a.z > z) !== (b.z > z)
+      && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+export const NEVA_COAST_LOOP = [
+  // Southern coast (preserving authored shoreline points)
+  { x: -184, z: 89 },
   { x: -130, z: 96 },
   { x: -92, z: 94 },
   { x: -52, z: 87 },
@@ -153,10 +184,46 @@ const NEVA_COAST_LOOP = [
   { x: 72, z: 68 },
   { x: 94, z: 73 },
   { x: 130, z: 82 },
-  { x: 180, z: 88 },
-  { x: 180, z: -160 },
-  { x: -180, z: -160 }
+  { x: 184, z: 88 },
+  // Eastern coast bluffs (facing the open channel to Sunreach)
+  { x: 184, z: 45 },
+  { x: 182, z: 0 },
+  { x: 176, z: -50 },
+  { x: 172, z: -100 },
+  { x: 160, z: -150 },
+  { x: 140, z: -190 },
+  { x: 100, z: -218 },
+  // Northern sea cliffs (behind the mountain summits)
+  { x: 50, z: -228 },
+  { x: 0, z: -234 },
+  { x: -50, z: -236 },
+  { x: -100, z: -232 },
+  { x: -145, z: -218 },
+  // Western coast (beaches and rock shelves past western foothills)
+  { x: -175, z: -180 },
+  { x: -188, z: -140 },
+  { x: -192, z: -90 },
+  { x: -190, z: -40 },
+  { x: -188, z: 10 },
+  { x: -184, z: 50 }
 ] as const;
+
+/** Positive in water, negative on Neva dry land. */
+export function signedDistanceToNevaCoast(x: number, z: number): number {
+  let distance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < NEVA_COAST_LOOP.length; index++) {
+    distance = Math.min(
+      distance,
+      pointSegmentDistance(
+        x,
+        z,
+        NEVA_COAST_LOOP[index],
+        NEVA_COAST_LOOP[(index + 1) % NEVA_COAST_LOOP.length]
+      )
+    );
+  }
+  return isInsideLoop(x, z, NEVA_COAST_LOOP) ? -distance : distance;
+}
 
 /**
  * Authored envelope for the warm-dry island. Fine shoreline character is
@@ -206,7 +273,7 @@ export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<W
     biomeId: "biome.neva_temperate",
     label: "Neva",
     terrainPatch: NEVA_TERRAIN_PATCH,
-    authoredBounds: Object.freeze({ minX: -180, maxX: 180, minZ: -160, maxZ: 120 }),
+    authoredBounds: Object.freeze({ minX: -220, maxX: 200, minZ: -250, maxZ: 130 }),
     coastLoop: NEVA_COAST_LOOP,
     fishingEcologyId: "ecology.neva",
     regions: ["region.village", "region.farm", "region.coast", "region.harbor", "region.offshore"] as const,
@@ -217,7 +284,7 @@ export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<W
     biomeId: "biome.sunreach_warm_dry",
     label: "Sunreach Isle",
     terrainPatch: SUNREACH_TERRAIN_PATCH,
-    authoredBounds: Object.freeze({ minX: 340, maxX: 654, minZ: -90, maxZ: 205 }),
+    authoredBounds: Object.freeze({ minX: 330, maxX: 670, minZ: -100, maxZ: 220 }),
     coastLoop: SUNREACH_COAST_LOOP,
     fishingEcologyId: "ecology.sunreach",
     regions: [

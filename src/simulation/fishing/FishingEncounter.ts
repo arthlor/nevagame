@@ -14,6 +14,35 @@ export function sportFishingStartDistanceMeters(cargoClass: CargoClass): number 
   return { small: 30, medium: 45, large: 50, gargantuan: 55 }[cargoClass];
 }
 
+/**
+ * Weight spread around the class base, in metres. A heavy specimen starts
+ * farther out and a light one closer in, so the fight reads its weight
+ * before it is landed. Bounded so the class base stays representative.
+ */
+const START_DISTANCE_SPREAD_METERS: Record<CargoClass, number> = {
+  small: 5, medium: 7, large: 8, gargantuan: 10
+};
+
+/**
+ * Start distance for a rolled specimen: the class base shifted by where the
+ * weight falls inside its species range. Pure and deterministic.
+ */
+export function sportFishingStartDistanceForWeight(
+  cargoClass: CargoClass,
+  weightKg: number,
+  minWeightKg: number,
+  maxWeightKg: number
+): number {
+  const base = sportFishingStartDistanceMeters(cargoClass);
+  const spread = START_DISTANCE_SPREAD_METERS[cargoClass];
+  const fraction = clamp((weightKg - minWeightKg) / Math.max(0.001, maxWeightKg - minWeightKg), 0, 1);
+  return base + (fraction - 0.5) * 2 * spread;
+}
+
+export function sportFishingMaxStartDistanceMeters(cargoClass: CargoClass): number {
+  return sportFishingStartDistanceMeters(cargoClass) + START_DISTANCE_SPREAD_METERS[cargoClass];
+}
+
 export interface FishingWaterConstraint {
   originX: number;
   originZ: number;
@@ -37,7 +66,7 @@ export class FishingEncounter {
     rng: Rng,
     startDistanceMeters = 30,
     water?: FishingWaterConstraint,
-    snapshot?: Pick<FishingEncounterState, "tackleSnapshot" | "seaConditionSnapshot">
+    snapshot?: Pick<FishingEncounterState, "tackleSnapshot" | "seaConditionSnapshot" | "dragNotch">
   ) {
     const species = ContentRegistry.fishSpecies.get(fish.speciesId);
     if (!species) throw new Error(`Unknown species ID ${fish.speciesId}`);
@@ -58,6 +87,7 @@ export class FishingEncounter {
       lineTension: 35, lineIntegrity: 100, fishDirection: 0,
       behavior: "rest", behaviorUntilSeconds: 2.4, elapsedSeconds: 0,
       rodDirectionAngle: 0, isReeling: false, isSlacking: false, isBracing: false,
+      dragNotch: snapshot?.dragNotch ?? 1,
       slackTimerSeconds: 0, snapTimerSeconds: 0, result: "active"
     };
     // A private persisted stream prevents unrelated world RNG draws from changing a fight.
@@ -79,6 +109,7 @@ export class FishingEncounter {
     encounter.inertia = clamp((profile.inertia ?? 0.35) + (encounter.weightScale - 1) * 0.08, 0.08, 1.1);
     state.tackleSnapshot ??= { lureItemId: null };
     state.seaConditionSnapshot ??= { weatherType: "clear", seaRoughness: 0 };
+    state.dragNotch ??= 1;
     // Backfill any dynamics field a pre-rebuild save predates (rodLoad, fishSpeed,
     // shake oscillator, landReadySeconds) while keeping every persisted value.
     state.dynamics = {
@@ -120,6 +151,12 @@ export class FishingEncounter {
       -FISHING_STEER_INPUT_MAX,
       FISHING_STEER_INPUT_MAX
     );
+  }
+
+  /** Mid-fight drag change: takes effect on the next step, persists with the fight. */
+  public setDragNotch(notch: 0 | 1 | 2): void {
+    if (this.state.result !== "active") return;
+    this.state.dragNotch = notch;
   }
 
   public tick(deltaSeconds: number): FishingEncounterState["result"] {
@@ -238,7 +275,7 @@ export class FishingEncounter {
       : 0;
     m.payoutMetersPerSecond = s.isSlacking
       ? 1.8 + drive * 1.25
-      : Math.max(0, s.lineTension - this.rod.maxSafeTension * T.dragThresholdRatio)
+      : Math.max(0, s.lineTension - this.rod.maxSafeTension * T.dragThresholdRatio * T.dragThresholdScale[s.dragNotch ?? 1])
         * T.dragPayoutRate * (s.isBracing ? 0.3 : 1) * (s.isReeling ? 0.12 : 1);
     const oldLineLength = m.lineLengthMeters;
     m.lineLengthMeters = clamp(oldLineLength + (m.payoutMetersPerSecond - m.retrievalMetersPerSecond) * dt, T.minimumLineLength, T.maximumDistance + 5);

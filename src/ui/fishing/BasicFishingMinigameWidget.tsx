@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { BasicFishingState } from "../../simulation/core/types";
+import { BasicFishingMinigame } from "../../simulation/fishing/BasicFishingMinigame";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { IconFish } from "../components/HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
@@ -10,6 +11,7 @@ import { playUiSound } from "../audio/uiAudio";
 
 interface BasicFishingMinigameWidgetProps {
   fishingState: BasicFishingState;
+  onHoldChange?: (holding: boolean) => void;
   onHookBite?: () => void;
   onDismissModal?: () => { success: boolean; reason?: string; reasonCode?: string };
   onOpenSatchel?: () => void;
@@ -18,6 +20,7 @@ interface BasicFishingMinigameWidgetProps {
 
 export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProps> = ({
   fishingState,
+  onHoldChange,
   onHookBite,
   onDismissModal,
   onOpenSatchel,
@@ -42,7 +45,13 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   const species = catchItemId ? ContentRegistry.fishSpecies.get(catchItemId) : undefined;
   const speciesName = species?.name || "Fish";
 
+  const { good: CAST_GOOD, prime: CAST_PRIME } = BasicFishingMinigame.CAST_QUALITY_THRESHOLDS;
+  const castBand: "short" | "good" | "prime" =
+    castPower >= CAST_PRIME ? "prime" : castPower >= CAST_GOOD ? "good" : "short";
+
   const prevPhaseRef = useRef(phase);
+  const onHoldChangeRef = useRef(onHoldChange);
+  onHoldChangeRef.current = onHoldChange;
   const [inventoryBlocked, setInventoryBlocked] = useState(false);
 
   useEffect(() => {
@@ -52,6 +61,29 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     if (phase === "caught") playUiSound("chime");
     if (phase === "escaped") playUiSound("click");
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "minigame") onHoldChangeRef.current?.(false);
+  }, [phase]);
+
+  useEffect(() => () => {
+    onHoldChangeRef.current?.(false);
+  }, []);
+
+  const setMinigameHold = (holding: boolean) => {
+    onHoldChangeRef.current?.(holding);
+  };
+
+  const minigameHoldProps = {
+    onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setMinigameHold(true);
+    },
+    onPointerUp: () => setMinigameHold(false),
+    onPointerCancel: () => setMinigameHold(false),
+    onLostPointerCapture: () => setMinigameHold(false)
+  };
 
   const collectCatch = () => {
     const result = onDismissModal?.();
@@ -72,6 +104,45 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
             variant="gold"
             data-testid="cast-power-meter"
           />
+          {/* The sweet spot marks the power bands the quality roll actually
+              uses, so releasing on the gold band is a real decision. */}
+          <div className="cast-sweet-spot-track" aria-hidden="true">
+            <span
+              className="cast-sweet-spot-band is-good"
+              style={{
+                left: `${CAST_GOOD * 100}%`,
+                width: `${(CAST_PRIME - CAST_GOOD) * 100}%`
+              }}
+            />
+            <span
+              className="cast-sweet-spot-band is-prime"
+              style={{
+                left: `${CAST_PRIME * 100}%`,
+                width: `${(1 - CAST_PRIME) * 100}%`
+              }}
+            />
+            <span className="cast-sweet-spot-needle" style={{ left: `${castPower * 100}%` }} />
+          </div>
+          <div className="cast-power-zones">
+            <span
+              className={`cast-zone${castBand === "short" ? " is-active" : ""}`}
+              data-testid="cast-band-short"
+            >
+              Short
+            </span>
+            <span
+              className={`cast-zone is-good${castBand === "good" ? " is-active" : ""}`}
+              data-testid="cast-band-good"
+            >
+              Good
+            </span>
+            <span
+              className={`cast-zone is-prime${castBand === "prime" ? " is-active" : ""}`}
+              data-testid="cast-band-prime"
+            >
+              Prime
+            </span>
+          </div>
           <div className="cast-hint">Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</div>
         </GameSheet>
       </div>
@@ -82,6 +153,11 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     return (
       <div className="basic-fishing-container">
         <GameSheet family="ink" tone="slate" corners className="bite-alert-banner" data-testid="bite-alert">
+          <div className="bite-bobber" data-testid="bite-bobber" aria-hidden="true">
+            <span className="bite-bobber-ripple" />
+            <span className="bite-bobber-ripple bite-bobber-ripple--delayed" />
+            <span className="bite-bobber-float" />
+          </div>
           <div className="bite-exclamation">!</div>
           <div className="bite-text">Bite!</div>
           <div className="cast-hint">Hook set — press <KeyHint keyName="Space" glow /></div>
@@ -94,7 +170,14 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   if (phase === "minigame") {
     return (
       <div className="basic-fishing-container">
-        <GameSheet family="ink" tone="slate" corners className="minigame-card" data-testid="reeling-minigame">
+        <GameSheet
+          family="ink"
+          tone="slate"
+          corners
+          className="minigame-card"
+          data-testid="reeling-minigame"
+          {...minigameHoldProps}
+        >
           <div className="minigame-header">
             <span className="minigame-species-name">Reeling Fish</span>
             {isPerfect && <span className="perfect-badge">Perfect</span>}
@@ -160,7 +243,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
 
           <div className="minigame-footer-hint">
-            Hold <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel
+            Hold the card or <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel
           </div>
         </GameSheet>
       </div>
@@ -182,7 +265,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
 
           {isPerfect && (
-            <div className="perfect-badge" style={{ fontSize: "12px", padding: "4px 10px" }}>
+            <div className="perfect-badge perfect-badge--summary">
               Perfect catch
             </div>
           )}
@@ -230,6 +313,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               {!atlasForFish(catchItemId) && <IconFish size={22} aria-hidden="true" />}
             </div>
             <p className="cast-hint">The fish slipped the hook.</p>
+            <p className="escape-tip">Try keeping the green bar over the fish and matching its movement.</p>
           </div>
           <ChromeButton className="dismiss-button dismiss-secondary" onClick={onDismissModal}>
             Dismiss

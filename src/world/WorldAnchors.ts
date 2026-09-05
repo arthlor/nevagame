@@ -3,7 +3,7 @@
  * Keep this module free of Three.js so simulation can consume it directly.
  */
 
-export const WORLD_LAYOUT_REVISION = 10 as const;
+export const WORLD_LAYOUT_REVISION = 12 as const;
 
 export const WORLD_SPAWN = {
   playerPosition: { x: -65, z: -60.5 },
@@ -34,6 +34,9 @@ export const HARBOR_MARKET = {
   scale: 0.84
 } as const;
 
+/** Open harbor apron in front of the Fish Market stall counter where routes terminate. */
+export const HARBOR_MARKET_APRON = { x: 64.5, z: 54.5 } as const;
+
 export const HARBOR_DOCK = {
   marketId: "market.harbor",
   // After landmark yaw π/2, catalog pile half-extent Z becomes world X.
@@ -57,10 +60,10 @@ export const HARBOR_DOCK = {
  */
 export const HARBOR_PIER_DECK = {
   halfWidthX: 2.7,
-  halfLengthZ: 7.1,
+  halfLengthZ: 7.0,
   hullKeepout: 2.25,
-  /** Asset-space walkable plank top. World Y = terrain(dock) + yOffset + this. */
-  deckSurfaceAssetY: 2.6,
+  /** Asset-space walkable plank top matching catalog collision top (2.5 + 0.18 = 2.68). */
+  deckSurfaceAssetY: 2.68,
   /** Shore stairs extend along world −Z from the south deck edge. */
   stairRun: 1.75,
   stairHalfWidthX: 1.75

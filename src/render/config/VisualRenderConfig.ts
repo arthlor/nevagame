@@ -3,7 +3,15 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
 
 export type QualityTier = "low" | "medium" | "high";
 
-const QUALITY_TIERS: readonly QualityTier[] = ["low", "medium", "high"];
+export const QUALITY_TIERS: readonly QualityTier[] = ["low", "medium", "high"];
+
+export type WaterReflectionQuality = "flat" | "skyGradient" | "skyGradient+sun";
+
+export interface WaterSurfaceTierQuality {
+  readonly reflection: WaterReflectionQuality;
+  readonly nearPatch: boolean;
+  readonly detailNormal: boolean;
+}
 
 const SHARED_GROUND_WETNESS = {
   riseSeconds: 3,
@@ -30,8 +38,14 @@ export interface VisualRenderConfig {
     maxElevationDeg: number;
     noonAzimuthDeg: number;
     colorHex: string;
+    /** Low-sun key colour, reached as the sun approaches the horizon. */
     horizonColorHex: string;
     intensity: number;
+    /** Solar height at which the key reaches full strength. */
+    daylightFullSolarHeight: number;
+    /** Solar height at which the key has fully set, below the horizon so the
+     * warm low-sun key survives the last minutes on either side of it. */
+    daylightZeroSolarHeight: number;
   };
   moon: {
     colorHex: string;
@@ -68,6 +82,8 @@ export interface VisualRenderConfig {
   twilight: {
     /** Extends the dawn/dusk ambient ramp beyond label boundaries without a hard edge. */
     ambientShoulderMinutes: number;
+    /** Solar-height half-width of the horizon band that owns golden-hour colour. */
+    solarWidth: number;
     /** Moon stays up until the sun is this far above the horizon. */
     moonHoldSolarHeight: number;
     moonFadeWidth: number;
@@ -78,6 +94,9 @@ export interface VisualRenderConfig {
   shadows: {
     type: THREE.ShadowMapType;
     intensity: number;
+    /** Shadow opacity and softness while the moon owns the shadow pass. */
+    nightIntensity: number;
+    nightRadius: number;
     bias: number;
     normalBias: number;
     radius: number;
@@ -105,6 +124,7 @@ export interface VisualRenderConfig {
       rainDropCount: number;
       rainSplashCount: number;
       fireflyCount: number;
+      waterSurface: WaterSurfaceTierQuality;
     }
   >;
   contact: {
@@ -174,6 +194,12 @@ export interface VisualRenderConfig {
       cliffWeightStart: number;
       cliffWeightFull: number;
       facetedColorBlend: number;
+      /**
+       * How much of the slope-driven faceting survives on ground the world does
+       * not consider a cliff. Steep soil and sand share their angle with rock
+       * but not their material.
+       */
+      softSurfaceFacetingScale: number;
     };
     wetness: {
       riseSeconds: number;
@@ -220,12 +246,44 @@ export interface VisualRenderConfig {
     polygonCellScaleMeters: number;
     polygonColorVariationStrength: number;
     polygonNormalStrength: number;
+    normalQuantizationSteps: number;
     fresnelStrength: number;
     sunGlintStrength: number;
+    /**
+     * Sun-glitter lobe width vs. camera distance. Beyond the far distance the
+     * 3.2 m polygon cells fall below a pixel, so a tight lobe aliases into
+     * crawling speckle; broadening it there averages the facets into a stable
+     * path instead. Narrow band = crisper near shards, more distant shimmer.
+     */
+    glitterFocusNearMeters: number;
+    glitterFocusFarMeters: number;
+    /** Lobe-exponent multiplier at and beyond glitterFocusFarMeters. */
+    glitterFarBroadening: number;
     /** Shore distance at which the open-water body colour is fully reached. */
     depthRampStartMeters: number;
     depthRampEndMeters: number;
     depthColorStrength: number;
+    headwaters: {
+      /** Only the bounded headwater band receives these extra water rows. */
+      maxRowSpacingMeters: number;
+      rapidsFoamStrength: number;
+      rapidsGradeStart: number;
+      rapidsGradeFull: number;
+      rapidsCellScaleMeters: number;
+      rapidsFlowMetersPerSecond: number;
+    };
+    quality: Record<QualityTier, WaterSurfaceTierQuality>;
+    nearPatch: {
+      sizeMeters: number;
+      segments: number;
+      innerFadeRadiusMeters: number;
+      outerFadeRadiusMeters: number;
+      detailBandAmplitude: number;
+      detailBandFrequency: number;
+      detailBandSpeed: number;
+      detailNormalStrength: number;
+      detailNormalScrollSpeed: number;
+    };
     shoreline: {
       shallowStartMeters: number;
       shallowEndMeters: number;
@@ -236,6 +294,8 @@ export interface VisualRenderConfig {
       edgeOpacity: number;
       bodyOpacity: number;
       opacityRampMeters: number;
+      swashSpeed: number;
+      swashAmplitudeMeters: number;
     };
   };
   practicalLights: {
@@ -306,22 +366,42 @@ export interface VisualRenderConfig {
     clearDayFar: number;
     distanceDesaturation: number;
   };
+  /**
+   * Emissive response. Drawn as additive glow sprites parented to the practical
+   * lights rather than a fullscreen bloom pass: low and medium tiers render with
+   * no `EffectComposer` at all, so a real bloom chain would cost a pass and a
+   * render target on exactly the hardware that can least afford one. The sprites
+   * are capped by `quality[tier].practicalLightBudget`, so this is at most four
+   * extra draws on high. There is no luminance threshold in this approach.
+   */
   bloom: {
     enabled: boolean;
     strength: number;
-    threshold: number;
+    glowSizeMeters: number;
   };
   grade: {
     saturation: number;
     contrast: number;
     warmth: number;
   };
+  /**
+   * Canopy sway. Ground cover, clouds and the windmill already move; the trees
+   * that dominate every gameplay frame did not, which read as a photograph
+   * rather than a place. Applied as a vertex offset inside the shared vegetation
+   * variant material, so it adds no draw call, attribute or material.
+   */
+  vegetationWind: {
+    /** Lateral canopy travel in meters at full wind. */
+    amplitudeMeters: number;
+    /** Model height below which the trunk stays planted. */
+    trunkHoldMeters: number;
+    /** Height above the trunk hold over which sway reaches full strength. */
+    canopySpanMeters: number;
+  };
   motion: {
     locomotionBlendSeconds: number;
     actionBlendSeconds: number;
     recoveryBlendSeconds: number;
-    locomotionPlaybackMinimum: number;
-    locomotionPlaybackMaximum: number;
     groundingMaxFootOffsetMeters: number;
     groundingMaxTiltRadians: number;
     groundingBodyTiltScale: number;
@@ -365,14 +445,24 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     maxElevationDeg: 35,
     noonAzimuthDeg: 45,
     colorHex: PALETTE_HEX.horizon_warm_01,
-    horizonColorHex: PALETTE_HEX.emissive_window_01,
+    horizonColorHex: PALETTE_HEX.horizon_gold_01,
     // The key must out-run the hemisphere fill or shadowed ground stays as
     // bright as lit ground and the world reads as an unlit diorama.
-    intensity: 3.05
+    intensity: 3.05,
+    // The old ramp reached full strength only at a solar height of 0.2 and hit
+    // zero at -0.08, so the key was down to a fifth of its strength exactly when
+    // it was lowest and warmest. That deleted the golden hour: the warm colour
+    // was there, but nothing was left to cast it. Full strength now arrives just
+    // above the horizon and the falloff finishes below it.
+    daylightFullSolarHeight: 0.07,
+    daylightZeroSolarHeight: -0.1
   },
   moon: {
     colorHex: PALETTE_HEX.sky_pale_01,
-    intensity: 0.92,
+    // Day runs a 3:1 key-to-fill ratio; night ran 1.5:1, which is why moonlit
+    // trees read as flat silhouettes with no lit side. Total night brightness is
+    // held roughly constant - this is a ratio change, not a lift.
+    intensity: 1.1,
     cloudAttenuationFloor: 0.68,
     stormAttenuation: 0.45,
     discSize: 24
@@ -392,7 +482,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     // Held in proportion to the daytime fill: a night ambient that nearly
     // matches day flattens the moonlit world as badly as an over-bright fill
     // flattens noon.
-    nightIntensity: 0.62,
+    nightIntensity: 0.52,
     twilightFillLift: 0.3,
     twilightZenithHorizonMix: 0.28,
     twilightExposureHold: 0.4,
@@ -400,14 +490,25 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   twilight: {
     ambientShoulderMinutes: 90,
+    solarWidth: 0.24,
     moonHoldSolarHeight: 0.16,
     moonFadeWidth: 0.26,
-    practicalHoldDaylight: 0.22,
+    // Re-centred on the wider daylight ramp above: window lights are half up at
+    // the moment of sunset and fully up once the key has gone.
+    practicalHoldDaylight: 0.36,
     practicalFadeWidth: 0.55
   },
   shadows: {
     type: THREE.PCFSoftShadowMap,
-    intensity: 1,
+    // Fully opaque shadows crushed dark palette families - coastal rock and dark
+    // wood read as flat black silhouettes with no facet separation. Letting a
+    // little ambient into the shadow recovers that range without raising the
+    // hemisphere fill, which would flatten the lit surfaces instead.
+    intensity: 0.86,
+    // Moonlight is a far weaker, far softer key than the sun; reusing the day
+    // recipe gave 01:00 a razor-hard opaque cast.
+    nightIntensity: 0.55,
+    nightRadius: 4.2,
     // Bias is tuned for the wider shadow cameras below: an 84 m ortho at 2048
     // is ~0.082 m per texel, and at a 35 degree sun the depth slope across one
     // texel on open terrain is what produced the diagonal acne streaks.
@@ -437,7 +538,12 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       groundCoverDensityScale: 0.24,
       rainDropCount: 140,
       rainSplashCount: 20,
-      fireflyCount: 28
+      fireflyCount: 28,
+      waterSurface: {
+        reflection: "flat",
+        nearPatch: false,
+        detailNormal: false
+      }
     },
     medium: {
       shadowMapSize: 1536,
@@ -452,7 +558,12 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       groundCoverDensityScale: 0.48,
       rainDropCount: 240,
       rainSplashCount: 32,
-      fireflyCount: 48
+      fireflyCount: 48,
+      waterSurface: {
+        reflection: "skyGradient",
+        nearPatch: false,
+        detailNormal: false
+      }
     },
     high: {
       shadowMapSize: 2048,
@@ -469,7 +580,12 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       groundCoverDensityScale: 0.6,
       rainDropCount: 360,
       rainSplashCount: 48,
-      fireflyCount: 72
+      fireflyCount: 72,
+      waterSurface: {
+        reflection: "skyGradient+sun",
+        nearPatch: true,
+        detailNormal: true
+      }
     }
   },
   contact: {
@@ -530,10 +646,20 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     roughnessVariation: 0.025,
     normals: {
       continuityStartNormalY: 0.88,
-      fullyFacetedNormalY: 0.66,
+      // Widened from 0.66: a river bank crosses the old window inside a single
+      // 1.56 m terrain vertex, so faceting snapped from off to full along one
+      // grid line and drew a hard chevron seam down the bank.
+      fullyFacetedNormalY: 0.54,
       cliffWeightStart: 0.08,
       cliffWeightFull: 0.5,
-      facetedColorBlend: 0.7
+      facetedColorBlend: 0.7,
+      // Slope alone must not turn soft ground into a cliff face. The river
+      // banks by the farmhouse road measured cliff weight 0 with slope faceting
+      // 1, so sand was being shaded with the full rock treatment: flat face
+      // normals and flat face colour on a regular grid, which reads as sawtooth
+      // rather than as stone. Real cliffs are unaffected - they reach full
+      // faceting through the semantic cliff weight instead.
+      softSurfaceFacetingScale: 0.3
     },
     wetness: SHARED_GROUND_WETNESS,
     roughness: {
@@ -576,11 +702,55 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     polygonCellScaleMeters: 3.2,
     polygonColorVariationStrength: 0.075,
     polygonNormalStrength: 0.11,
+    normalQuantizationSteps: 0,
     fresnelStrength: 0.26,
-    sunGlintStrength: 0.13,
+    // Re-tuned with the faceted-normal glitter. The previous 0.13 was set
+    // against a smooth-normal lobe, which concentrates all its energy in one
+    // small mirror highlight; spread across a facet-broken path the same value
+    // reads as nothing at all.
+    sunGlintStrength: 0.55,
+    glitterFocusNearMeters: 34,
+    glitterFocusFarMeters: 170,
+    glitterFarBroadening: 0.24,
     depthRampStartMeters: 14,
     depthRampEndMeters: 96,
     depthColorStrength: 0.78,
+    headwaters: {
+      maxRowSpacingMeters: 0.75,
+      rapidsFoamStrength: 0.52,
+      rapidsGradeStart: 0.15,
+      rapidsGradeFull: 0.65,
+      rapidsCellScaleMeters: 1.3,
+      rapidsFlowMetersPerSecond: 1.8
+    },
+    quality: {
+      low: {
+        reflection: "flat",
+        nearPatch: false,
+        detailNormal: false
+      },
+      medium: {
+        reflection: "skyGradient",
+        nearPatch: false,
+        detailNormal: false
+      },
+      high: {
+        reflection: "skyGradient+sun",
+        nearPatch: true,
+        detailNormal: true
+      }
+    },
+    nearPatch: {
+      sizeMeters: 120,
+      segments: 128,
+      innerFadeRadiusMeters: 42,
+      outerFadeRadiusMeters: 58,
+      detailBandAmplitude: 0.024,
+      detailBandFrequency: 0.38,
+      detailBandSpeed: 1.6,
+      detailNormalStrength: 0.08,
+      detailNormalScrollSpeed: 0.45
+    },
     shoreline: {
       shallowStartMeters: 0.2,
       shallowEndMeters: 13,
@@ -589,7 +759,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       foamHeightOffsetMeters: 0.024,
       edgeOpacity: 0.3,
       bodyOpacity: 0.965,
-      opacityRampMeters: 6.5
+      opacityRampMeters: 6.5,
+      swashSpeed: 0.55,
+      swashAmplitudeMeters: 0.22
     }
   },
   practicalLights: {
@@ -664,21 +836,27 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     distanceDesaturation: 0.2
   },
   bloom: {
-    enabled: false,
-    strength: 0.12,
-    threshold: 0.96
+    enabled: true,
+    // Restrained on purpose. A halo that reads as a distinct circle rather than
+    // as light in the air is the "heavy bloom" section 16 prohibits; at this
+    // strength and size it sits just inside the lantern's own pool of light.
+    strength: 0.3,
+    glowSizeMeters: 1.35
   },
   grade: {
     saturation: 1,
     contrast: 1,
     warmth: 0.04
   },
+  vegetationWind: {
+    amplitudeMeters: 0.14,
+    trunkHoldMeters: 1.6,
+    canopySpanMeters: 5.5
+  },
   motion: {
     locomotionBlendSeconds: 0.16,
     actionBlendSeconds: 0.1,
     recoveryBlendSeconds: 0.18,
-    locomotionPlaybackMinimum: 0.45,
-    locomotionPlaybackMaximum: 1.85,
     groundingMaxFootOffsetMeters: 0.16,
     groundingMaxTiltRadians: THREE.MathUtils.degToRad(14),
     groundingBodyTiltScale: 0.25,

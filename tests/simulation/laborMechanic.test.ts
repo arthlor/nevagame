@@ -135,7 +135,7 @@ describe("Work Capacity mechanic", () => {
       expect(result).toMatchObject({
         success: false,
         reasonCode: "insufficient-work",
-        requiredWork: 10,
+        requiredWork: 12,
         availableWork: 0
       });
       expect(InventoryManager.getItemCount(inventory, "seed.wheat")).toBe(seedsBefore);
@@ -184,12 +184,12 @@ describe("Work Capacity mechanic", () => {
     it("rejects a fractional near miss and consumes the exact plant cost atomically", () => {
       const sim = new Simulation();
       const pos = movePlayerToStarterFarm(sim, 0, 0);
-      sim.state.player.workCapacity.current = 9.8;
+      sim.state.player.workCapacity.current = 11.8;
       const blocked = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(blocked.reasonCode).toBe("insufficient-work");
-      expect(sim.state.player.workCapacity.current).toBe(9.8);
+      expect(sim.state.player.workCapacity.current).toBe(11.8);
 
-      sim.state.player.workCapacity.current = 10;
+      sim.state.player.workCapacity.current = 12;
       const exact = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(exact.success).toBe(true);
       expect(sim.state.player.workCapacity.current).toBe(0);

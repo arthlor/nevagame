@@ -1,5 +1,6 @@
-import React, { useRef, useState } from "react";
-import type { SatchelDto } from "../simulation/core/contracts";
+import React, { useEffect, useRef, useState } from "react";
+import type { ItemInspectionDto, SatchelDto } from "../simulation/core/contracts";
+import { ItemInspectCard } from "./components/ItemInspectCard";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
@@ -19,24 +20,147 @@ interface InventoryModalProps {
   onClose: () => void;
   onSelectPlantCrop: (cropId: string) => void;
   onInspectPlanting: (cropId: string) => { valid: boolean; reason?: string };
+  /** Rich card data for one item. Absent in contexts that do not inspect. */
+  onInspectItem?: (itemId: string) => ItemInspectionDto | null;
+  /** Tidies the satchel in the simulation and returns whether it changed. */
+  onSortSatchel?: () => { success: boolean; reason?: string };
 }
 
 type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
 
-export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose, onSelectPlantCrop, onInspectPlanting }) => {
+/**
+ * Whether a slot survives the search box. Matching runs over the item name, its
+ * category label and the crop a seed grows, so "wheat" finds both the seed and
+ * the grain. An empty slot never matches: a searched grid shows results only.
+ */
+export function matchesSatchelSearch(
+  slot: Pick<SatchelDto["slots"][number], "itemId" | "name" | "categoryLabel" | "cropName">,
+  rawQuery: string
+): boolean {
+  const query = rawQuery.trim().toLowerCase();
+  if (query.length === 0) return true;
+  if (!slot.itemId) return false;
+  return `${slot.name} ${slot.categoryLabel ?? ""} ${slot.cropName ?? ""}`
+    .toLowerCase()
+    .includes(query);
+}
+
+/** Footer hint shows only for the first few satchel opens (per browser). */
+const SATCHEL_TIP_STORAGE_KEY = "neva:satchel-footer-tip-opens";
+const SATCHEL_TIP_MAX_OPENS = 3;
+
+const readSatchelTipOpens = (): number => {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return SATCHEL_TIP_MAX_OPENS;
+    return Number(window.localStorage.getItem(SATCHEL_TIP_STORAGE_KEY) ?? 0) || 0;
+  } catch {
+    return SATCHEL_TIP_MAX_OPENS;
+  }
+};
+
+export const InventoryModal: React.FC<InventoryModalProps> = ({
+  satchel,
+  onClose,
+  onSelectPlantCrop,
+  onInspectPlanting,
+  onInspectItem,
+  onSortSatchel
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortNotice, setSortNotice] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<
+    { item: ItemInspectionDto; anchor: { x: number; y: number } } | null
+  >(null);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory>("all");
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(() => {
     const firstOccupied = satchel.slots.findIndex((slot) => slot.itemId !== null && slot.quantity > 0);
     return firstOccupied >= 0 ? firstOccupied : null;
   });
+  const [showFooterTip, setShowFooterTip] = useState<boolean>(() => readSatchelTipOpens() < SATCHEL_TIP_MAX_OPENS);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
+  // #19: count satchel opens; the footer hint survives only the first 3.
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      const opens = Number(window.localStorage.getItem(SATCHEL_TIP_STORAGE_KEY) ?? 0) || 0;
+      window.localStorage.setItem(SATCHEL_TIP_STORAGE_KEY, String(opens + 1));
+      setShowFooterTip(opens < SATCHEL_TIP_MAX_OPENS);
+    } catch {
+      // Private-mode storage failure: leave the default visibility as-is.
+    }
+  }, []);
+
   const allSlots = satchel.slots;
   const selectedSlot = selectedSlotIndex !== null ? allSlots[selectedSlotIndex] ?? null : null;
   const planting = selectedSlot?.cropId ? onInspectPlanting(selectedSlot.cropId) : null;
+
+  // #18: with a category filter active, non-matching slots are hidden entirely
+  // (not rendered), so the grid and screen readers only see the filter result.
+  const query = searchTerm.trim().toLowerCase();
+  const isFilterActive = activeCategory !== "all" || query.length > 0;
+  const visibleEntries = allSlots
+    .map((slot, index) => ({ slot, index }))
+    .filter(({ slot }) => {
+      if (!matchesSatchelSearch(slot, searchTerm)) return false;
+      if (activeCategory === "all") return true;
+      return slot.itemId !== null && slot.inventoryCategory === activeCategory;
+    });
+  // #16: arrow-key navigation moves over occupied slots only; empty slots stay
+  // rendered (visual grid) but are never a nav stop.
+  const navigableEntries = visibleEntries.filter(
+    ({ slot }) => slot.itemId !== null && slot.quantity > 0
+  );
+
+  /**
+   * #17: market value shown ONLY from a price signal already on the DTO slot.
+   * SatchelDto currently carries no price field, so this renders nothing new
+   * (fish keep their demand note) rather than inventing gold.
+   */
+  const selectedMarketValue: number | null = (() => {
+    if (!selectedSlot?.itemId) return null;
+    const priced = selectedSlot as unknown as {
+      unitPrice?: unknown;
+      totalPrice?: unknown;
+      marketValue?: unknown;
+    };
+    if (typeof priced.totalPrice === "number" && Number.isFinite(priced.totalPrice)) {
+      return Math.max(0, Math.round(priced.totalPrice));
+    }
+    if (typeof priced.unitPrice === "number" && Number.isFinite(priced.unitPrice)) {
+      return Math.max(0, Math.round(priced.unitPrice * selectedSlot.quantity));
+    }
+    if (typeof priced.marketValue === "number" && Number.isFinite(priced.marketValue)) {
+      return Math.max(0, Math.round(priced.marketValue));
+    }
+    return null;
+  })();
+
+  const showInspectCard = (itemId: string | null, x: number, y: number): void => {
+    if (!itemId || !onInspectItem) return;
+    const item = onInspectItem(itemId);
+    if (!item) return;
+    setHovered({ item, anchor: { x, y } });
+  };
+
+  const moveInspectCard = (x: number, y: number): void => {
+    setHovered((current) => (current ? { ...current, anchor: { x, y } } : current));
+  };
+
+  const hideInspectCard = (): void => setHovered(null);
+
+  const handleSortSatchel = (): void => {
+    const result = onSortSatchel?.();
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    // The satchel is re-read from the simulation on the next render, so the
+    // notice is the only thing this component has to hold onto.
+    setSortNotice(result.success ? "Satchel tidied" : result.reason ?? "Nothing to tidy");
+    setSelectedSlotIndex(null);
+  };
 
   const handlePlantSelected = (): void => {
     if (selectedSlot?.cropId) {
@@ -60,27 +184,31 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose
   };
 
   const handleGridKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
-    const total = allSlots.length;
-    if (total === 0) return;
+    if (navigableEntries.length === 0) return;
     const columns = columnsInGrid();
-    const current = selectedSlotIndex ?? 0;
-    let next = current;
+    const pos = Math.max(
+      0,
+      navigableEntries.findIndex((entry) => entry.index === selectedSlotIndex)
+    );
+    let nextPos = pos;
 
     switch (event.key) {
-      case "ArrowRight": next = Math.min(total - 1, current + 1); break;
-      case "ArrowLeft": next = Math.max(0, current - 1); break;
-      case "ArrowDown": next = Math.min(total - 1, current + columns); break;
-      case "ArrowUp": next = Math.max(0, current - columns); break;
-      case "Home": next = 0; break;
-      case "End": next = total - 1; break;
+      case "ArrowRight": nextPos = Math.min(navigableEntries.length - 1, pos + 1); break;
+      case "ArrowLeft": nextPos = Math.max(0, pos - 1); break;
+      case "ArrowDown": nextPos = Math.min(navigableEntries.length - 1, pos + columns); break;
+      case "ArrowUp": nextPos = Math.max(0, pos - columns); break;
+      case "Home": nextPos = 0; break;
+      case "End": nextPos = navigableEntries.length - 1; break;
       default: return;
     }
 
     event.preventDefault();
     event.stopPropagation();
-    if (next === selectedSlotIndex) return;
-    setSelectedSlotIndex(next);
-    (gridRef.current?.children[next] as HTMLElement | undefined)?.focus();
+    const next = navigableEntries[nextPos];
+    if (!next || next.index === selectedSlotIndex) return;
+
+    setSelectedSlotIndex(next.index);
+    document.getElementById(`inventory-slot-${next.index}`)?.focus();
   };
 
   const selectCategory = (category: InventoryCategory): void => {
@@ -90,11 +218,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose
       slot.itemId !== null && (category === "all" || slot.inventoryCategory === category)
     );
     setSelectedSlotIndex(firstRelevant >= 0 ? firstRelevant : null);
-  };
-
-  const isSlotMatchingCategory = (slot: SatchelDto["slots"][number]): boolean => {
-    if (activeCategory === "all") return true;
-    return slot.inventoryCategory === activeCategory;
   };
 
   return (
@@ -186,35 +309,72 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose
           </button>
         </div>
 
+        <div className="inventory-toolbar">
+          <label className="inventory-search" htmlFor="inventory-search-input">
+            <span className="inventory-search-label">Search</span>
+            <input
+              id="inventory-search-input"
+              type="search"
+              className="inventory-search-input"
+              data-testid="inventory-search"
+              placeholder="Find in satchel"
+              value={searchTerm}
+              autoComplete="off"
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </label>
+          {onSortSatchel && (
+            <ChromeButton
+              className="inventory-sort-btn"
+              soundCue="click"
+              data-testid="inventory-sort"
+              aria-label="Tidy the satchel: merge stacks and group by kind"
+              onClick={handleSortSatchel}
+            >
+              Tidy
+            </ChromeButton>
+          )}
+        </div>
+        {sortNotice && (
+          <p className="inventory-sort-notice" role="status" data-testid="inventory-sort-notice">
+            {sortNotice}
+          </p>
+        )}
+
         <ChromeDivider ornate={false} />
 
         <div className="modal-body inventory-body">
           <div className="inventory-grid-wrap">
             {/* A flat list of cells is a listbox, not a grid: role="grid"
                 without rows is an incomplete structure for screen readers. */}
+            <p className="inventory-filter-status" role="status">
+              {isFilterActive
+                ? `Showing ${visibleEntries.length} of ${allSlots.length} slots · ${
+                    query.length > 0 ? `"${searchTerm.trim()}"` : activeCategory
+                  }`
+                : `${allSlots.length} slots`}
+            </p>
             <div
               className="inventory-grid"
               id="inventory-items"
               ref={gridRef}
               role="listbox"
-              aria-label="Satchel items"
+              aria-label={isFilterActive ? `Satchel items, ${visibleEntries.length} shown in ${activeCategory}` : "Satchel items"}
               aria-labelledby={`inventory-tab-${activeCategory}`}
               onKeyDown={handleGridKeyDown}
             >
-              {allSlots.map((slot, index) => {
+              {visibleEntries.map(({ slot, index }) => {
                 const isSelected = selectedSlotIndex === index;
-                const isMatching = isSlotMatchingCategory(slot);
                 if (!slot.itemId) {
                   return (
                     <ItemSlot
                       key={`empty-${index}`}
                       id={`inventory-slot-${index}`}
-                      className="inventory-slot"
+                      className="inventory-slot is-empty-structural"
                       role="option"
-                      aria-selected={isSelected}
-                      selected={isSelected}
-                      onSelect={() => setSelectedSlotIndex(index)}
-                      tabIndex={selectedSlotIndex === index || (selectedSlotIndex === null && index === 0) ? 0 : -1}
+                      aria-selected={false}
+                      aria-disabled="true"
+                      tabIndex={-1}
                       label="Empty slot"
                     />
                   );
@@ -224,16 +384,29 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose
                   <ItemSlot
                     key={`${slot.itemId}-${index}`}
                     id={`inventory-slot-${index}`}
-                    className={`inventory-slot ${!isMatching ? "is-dimmed" : ""}`}
+                    className="inventory-slot"
                     filled
                     selected={isSelected}
                     quantity={slot.quantity > 1 ? slot.quantity : undefined}
-                    onSelect={() => setSelectedSlotIndex(index)}
+                    onSelect={() => {
+                      setSelectedSlotIndex(index);
+                    }}
                     label={`${slot.name}, count ${slot.quantity}`}
-                    title={`${slot.name} — ${slot.quantity}`}
                     role="option"
                     aria-selected={isSelected}
                     tabIndex={isSelected ? 0 : -1}
+                    onPointerEnter={(event: React.PointerEvent<HTMLElement>) =>
+                      showInspectCard(slot.itemId, event.clientX, event.clientY)
+                    }
+                    onPointerMove={(event: React.PointerEvent<HTMLElement>) =>
+                      moveInspectCard(event.clientX, event.clientY)
+                    }
+                    onPointerLeave={hideInspectCard}
+                    onFocus={(event: React.FocusEvent<HTMLElement>) => {
+                      const box = event.currentTarget.getBoundingClientRect();
+                      showInspectCard(slot.itemId, box.right, box.top);
+                    }}
+                    onBlur={hideInspectCard}
                   >
                     <AtlasImage
                       src={atlasForItem(slot.itemId) ?? atlasForFish(slot.itemId)}
@@ -269,7 +442,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose
                 <div className="inventory-selected-strip">
                   <span>{selectedSlot.categoryLabel ?? "item"}</span>
                   <strong>{selectedSlot.quantity} carried</strong>
-                  {selectedSlot.isFish && <span>Market value depends on the catch and current demand</span>}
+                  {selectedMarketValue !== null ? (
+                    <span>Market value ~{selectedMarketValue.toLocaleString()} G</span>
+                  ) : (
+                    selectedSlot.isFish && <span>Market value depends on the catch and current demand</span>
+                  )}
                 </div>
 
                 {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}
@@ -302,8 +479,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({ satchel, onClose
           </div>
         </div>
 
+        {hovered && <ItemInspectCard item={hovered.item} anchor={hovered.anchor} />}
+
         <footer className="modal-footer">
-          <span className="satchel-footer-tip">Arrow keys move through slots · Esc closes</span>
+          {showFooterTip && (
+            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">Arrow keys move through slots · Esc closes</span>
+          )}
           <ChromeButton onClick={onClose}>Close</ChromeButton>
         </footer>
       </GameSheet>

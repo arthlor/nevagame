@@ -55,7 +55,7 @@ describe("Neva art catalog", () => {
       new Set(Object.values(ASSET_IDS))
     );
     const runtimeFields = [
-      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "contentHash", "family", "file", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
+      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "contentHash", "family", "file", "humanoidRig", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
     ];
     for (const asset of ASSET_CATALOG) {
       expect(Object.keys(asset).sort()).toEqual(runtimeFields);
@@ -277,12 +277,13 @@ describe("Neva art catalog", () => {
 
   it("rejects incomplete, unknown, and out-of-range generator parameters", () => {
     const { catalog } = validateCatalog();
-    const oak = structuredClone(catalog.assets.find((asset) => asset.id === "tree_oak_a"));
-    if (!oak) throw new Error("tree_oak_a is required by the catalog fixture");
+    const oak = structuredClone(catalog.assets.find((asset) => asset.generator === "oak_tree"));
+    if (!oak) throw new Error("A procedural oak_tree asset is required by the generator fixture");
     expect(validateGeneratorParameters(oak)).toBe(true);
+    const rootCount = oak.parameters.rootCount;
     delete oak.parameters.rootCount;
     expect(() => validateGeneratorParameters(oak)).toThrow("missing generator parameters");
-    oak.parameters.rootCount = 6;
+    oak.parameters.rootCount = rootCount;
     oak.parameters.noise = 1;
     expect(() => validateGeneratorParameters(oak)).toThrow("unknown generator parameters");
     delete oak.parameters.noise;
@@ -302,14 +303,14 @@ describe("Neva art catalog", () => {
     expect(referenceBriefHash(oak)).toMatch(/^[a-f0-9]{64}$/);
     expect(referenceAuthoringSummary(oak)).toMatchObject({
       status: "ready",
-      sources: 3,
-      components: 5,
-      criticalFeatures: 4,
-      reviewViews: 8
+      sources: oak.referenceAuthoring.sources.length,
+      components: oak.referenceAuthoring.components.length,
+      criticalFeatures: oak.referenceAuthoring.criticalFeatures.length,
+      reviewViews: oak.referenceAuthoring.reviewViews.length
     });
     const markdown = referenceBriefMarkdown(oak);
     expect(markdown).toContain("# Reference authoring brief: tree_oak_a");
-    expect(markdown).toContain("catalog -> oak_tree -> validated Blender GLB -> atomic runtime publication");
+    expect(markdown).toContain(`catalog -> ${oak.generator} -> validated Blender GLB -> atomic runtime publication`);
     expect(markdown).toContain("Direct TypeScript factories");
     expect(referenceBriefMarkdown(oak)).toBe(markdown);
 
@@ -397,7 +398,12 @@ describe("Neva art catalog", () => {
     );
     const fish = catalog.assets.find((asset) => asset.id === "fish_trout_a");
     if (!fish) throw new Error("fish_trout_a is required by the catalog fixture");
-    const legacy = structuredClone(manifest);
+    const legacy = {
+      ...structuredClone(manifest),
+      specHash,
+      paletteHash,
+      toolchainHash: computeToolchainHash()
+    };
     const legacyOak = legacy.assets.find((asset: { id: string }) => asset.id === "tree_oak_a");
     delete legacyOak.vertexColorSpace;
 

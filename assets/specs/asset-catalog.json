@@ -7088,7 +7088,7 @@
         "materialsMax": 7
       },
       "pivot": "ground_center",
-      "collision": "box",
+      "collision": "compound",
       "instancing": false,
       "lod": "hero",
       "rootNode": "building_fish_market_a_root",
@@ -7113,16 +7113,29 @@
       },
       "collisionPrimitives": [
         {
-          "id": "main",
+          "id": "warehouse",
           "center": [
             0,
             2.45,
-            0.7
+            -0.7
           ],
           "halfExtents": [
-            3.95,
+            3.7,
             2.45,
-            5
+            2.7
+          ]
+        },
+        {
+          "id": "counter",
+          "center": [
+            0,
+            0.65,
+            2.3
+          ],
+          "halfExtents": [
+            2.6,
+            0.65,
+            0.45
           ]
         }
       ],
@@ -8262,7 +8275,7 @@
         "materialsMax": 3
       },
       "pivot": "ground_center",
-      "collision": "box",
+      "collision": "none",
       "instancing": true,
       "lod": "small",
       "rootNode": "prop_lamp_post_a_root",
@@ -8270,21 +8283,6 @@
         "prop_lamp_post_a_root"
       ],
       "readDistanceMeters": 30,
-      "collisionPrimitives": [
-        {
-          "id": "post",
-          "center": [
-            0,
-            0,
-            1.7
-          ],
-          "halfExtents": [
-            0.25,
-            0.25,
-            1.7
-          ]
-        }
-      ],
       "parameters": {
         "height": 3.4,
         "armLength": 0.55
@@ -9298,7 +9296,7 @@
         "height": 0.42
       },
       "palette": [
-        "metal_dark_01",
+        "metal_iron_01",
         "wood_dark_01",
         "accent_teal_01"
       ],
@@ -9314,7 +9312,8 @@
       "lod": "none",
       "rootNode": "tool_watering_can_a_root",
       "requiredNodes": [
-        "tool_watering_can_a_root"
+        "tool_watering_can_a_root",
+        "tool_primary_grip"
       ],
       "readDistanceMeters": 8,
       "parameters": {}
@@ -9332,7 +9331,7 @@
       },
       "palette": [
         "wood_honey_01",
-        "metal_dark_01"
+        "metal_iron_01"
       ],
       "budget": {
         "trianglesMin": 40,
@@ -9346,7 +9345,8 @@
       "lod": "none",
       "rootNode": "tool_sickle_a_root",
       "requiredNodes": [
-        "tool_sickle_a_root"
+        "tool_sickle_a_root",
+        "tool_primary_grip"
       ],
       "readDistanceMeters": 8,
       "parameters": {}
@@ -9430,7 +9430,7 @@
       },
       "palette": [
         "wood_honey_01",
-        "metal_dark_01"
+        "metal_iron_01"
       ],
       "budget": {
         "trianglesMin": 24,
@@ -9444,7 +9444,8 @@
       "lod": "none",
       "rootNode": "tool_workstation_scoop_a_root",
       "requiredNodes": [
-        "tool_workstation_scoop_a_root"
+        "tool_workstation_scoop_a_root",
+        "tool_primary_grip"
       ],
       "readDistanceMeters": 8,
       "parameters": {}
@@ -10505,7 +10506,8 @@
         "boat_skiff_hook_right",
         "boat_skiff_driver_station",
         "boat_skiff_fishing_station",
-        "COL_boat_skiff_a"
+        "COL_boat_skiff_a",
+        "boat_skiff_helm_grip"
       ],
       "readDistanceMeters": 60,
       "parameters": {
@@ -12013,26 +12015,26 @@
       "id": "char_player_a",
       "file": "char_player_a.glb",
       "family": "character",
-      "generator": "coastal_worker",
+      "generator": "imported_blend",
       "seed": 801,
       "dimensions": {
-        "width": 1.05,
-        "depth": 0.65,
-        "height": 2.15
+        "width": 1.9,
+        "depth": 0.8,
+        "height": 2.12
       },
       "palette": [
-        "plaster_warm_01",
-        "accent_teal_01",
-        "wood_dark_01",
+        "skin_warm_01",
+        "cloth_teal_01",
+        "cloth_slate_01",
+        "hair_brown_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "water_deep_01",
-        "leather_harness_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 7800,
-        "trianglesMax": 18000,
+        "trianglesTarget": 5000,
+        "trianglesMax": 20000,
         "materialsMax": 7
       },
       "pivot": "ground_center",
@@ -12064,19 +12066,60 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 1.666666667,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.666667
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.666667
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk_start",
           "durationSeconds": 0.233333,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "walk_start"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.066667
+              }
+            ],
+            "right": [
+              {
+                "start": 0.166667,
+                "end": 0.233333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1,
+          "durationSeconds": 1.333333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.6,
+          "referenceSpeedMetersPerSecond": 1.464675,
           "events": [
             {
               "name": "footstep_left",
@@ -12084,45 +12127,188 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.5
+              "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.333333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.633333,
+                "end": 1.3
+              }
+            ]
+          }
         },
         {
           "name": "run_start",
           "durationSeconds": 0.233333,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "run_start"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.166667,
+                "end": 0.233333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.233333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "run",
-          "durationSeconds": 0.6,
+          "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 4.4,
+          "referenceSpeedMetersPerSecond": 3.261,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0
+              "timeSeconds": 0.3
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.3
+              "timeSeconds": 0.7
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Run",
+            "sourceDurationSeconds": 0.8,
+            "loopClosureStartSeconds": 0.7000000000000001,
+            "loopClosureEndSeconds": 0.8,
+            "loopClosureWindowSeconds": 0.1
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.3,
+                "end": 0.633333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.2
+              },
+              {
+                "start": 0.7,
+                "end": 0.8
+              }
+            ]
+          }
         },
         {
           "name": "stop",
           "durationSeconds": 0.333333,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "stop"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.266667,
+                "end": 0.333333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.066667
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.233333
+              },
+              {
+                "start": 0.366667,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.033333
+              },
+              {
+                "start": 0.166667,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.033333
+              },
+              {
+                "start": 0.166667,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.233333
+              },
+              {
+                "start": 0.366667,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "jump_start",
@@ -12133,12 +12319,41 @@
               "name": "takeoff",
               "timeSeconds": 0.1
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "jump_start"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.233333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.233333
+              }
+            ]
+          }
         },
         {
           "name": "fall",
           "durationSeconds": 0.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "fall"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "land_soft",
@@ -12149,7 +12364,26 @@
               "name": "landing_contact",
               "timeSeconds": 0.066667
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "land_soft"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.033333,
+                "end": 0.333333
+              }
+            ],
+            "right": [
+              {
+                "start": 0.033333,
+                "end": 0.333333
+              }
+            ]
+          }
         },
         {
           "name": "land_hard",
@@ -12160,7 +12394,26 @@
               "name": "landing_contact",
               "timeSeconds": 0.066667
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "land_hard"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.066667,
+                "end": 0.466667
+              }
+            ],
+            "right": [
+              {
+                "start": 0.066667,
+                "end": 0.466667
+              }
+            ]
+          }
         },
         {
           "name": "plant",
@@ -12172,7 +12425,26 @@
               "name": "tool_contact",
               "timeSeconds": 0.333333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "plant"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.733333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.733333
+              }
+            ]
+          }
         },
         {
           "name": "water",
@@ -12184,7 +12456,26 @@
               "name": "tool_contact",
               "timeSeconds": 0.4
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "water"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.833333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.833333
+              }
+            ]
+          }
         },
         {
           "name": "harvest",
@@ -12196,7 +12487,26 @@
               "name": "tool_contact",
               "timeSeconds": 0.366667
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "harvest"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.8
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.8
+              }
+            ]
+          }
         },
         {
           "name": "pickup",
@@ -12208,18 +12518,57 @@
               "name": "transaction_commit",
               "timeSeconds": 0.333333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "pickup"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.633333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.633333
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "carry_walk",
-          "durationSeconds": 1,
+          "durationSeconds": 1.333333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.6,
+          "referenceSpeedMetersPerSecond": 1.464675,
           "events": [
             {
               "name": "footstep_left",
@@ -12227,25 +12576,67 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.5
+              "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_walk"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.633333,
+                "end": 1.3
+              }
+            ]
+          }
         },
         {
           "name": "carry_run",
-          "durationSeconds": 0.6,
+          "durationSeconds": 0.8,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 4.4,
+          "referenceSpeedMetersPerSecond": 3.261,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0
+              "timeSeconds": 0.3
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.3
+              "timeSeconds": 0.7
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_run"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.3,
+                "end": 0.633333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.2
+              },
+              {
+                "start": 0.7,
+                "end": 0.8
+              }
+            ]
+          }
         },
         {
           "name": "place",
@@ -12257,7 +12648,26 @@
               "name": "transaction_commit",
               "timeSeconds": 0.533333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "place"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.566667,
+                "end": 0.7
+              }
+            ],
+            "right": [
+              {
+                "start": 0.566667,
+                "end": 0.7
+              }
+            ]
+          }
         },
         {
           "name": "workstation",
@@ -12269,7 +12679,26 @@
               "name": "tool_contact",
               "timeSeconds": 0.533333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "workstation"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ]
+          }
         },
         {
           "name": "cast",
@@ -12281,32 +12710,151 @@
               "name": "cast_release",
               "timeSeconds": 0.566667
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "cast"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ]
+          }
         },
         {
           "name": "hookset",
           "durationSeconds": 0.566667,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "hookset"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.566667
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.566667
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "fishing_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "fishing_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "reel",
           "durationSeconds": 0.733333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "reel"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.733333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.733333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "slack",
           "durationSeconds": 0.8,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "slack"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.8
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.8
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "brace",
           "durationSeconds": 0.8,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "brace"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.8
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.8
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "board",
@@ -12318,7 +12866,16 @@
               "name": "transaction_commit",
               "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "board"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "board_skiff",
@@ -12330,7 +12887,16 @@
               "name": "transaction_commit",
               "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "board_skiff"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "dock",
@@ -12342,7 +12908,16 @@
               "name": "transaction_commit",
               "timeSeconds": 0.666667
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "dock"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "dock_skiff",
@@ -12354,12 +12929,31 @@
               "name": "transaction_commit",
               "timeSeconds": 0.666667
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "dock_skiff"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "rowboat_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "rowboat_idle"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "row",
@@ -12370,47 +12964,136 @@
               "name": "paddle_enter",
               "timeSeconds": 0.033333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "row"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "skiff_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "skiff_idle"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "skiff_fishing",
           "durationSeconds": 1.2,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "skiff_fishing"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.2
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.2
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "skiff_drive",
           "durationSeconds": 0.8,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "skiff_drive"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         }
       ],
       "additionalAnimationClips": [
         {
           "name": "mounted_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "mounted_idle"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "mounted_walk",
           "durationSeconds": 0.666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.7
+          "referenceSpeedMetersPerSecond": 1.7,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "mounted_walk"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "mounted_trot",
           "durationSeconds": 0.3,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 4.9
+          "referenceSpeedMetersPerSecond": 4.9,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "mounted_trot"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "mounted_gallop",
           "durationSeconds": 0.3,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 7.2
+          "referenceSpeedMetersPerSecond": 7.2,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "mounted_gallop"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          },
+          "events": []
         },
         {
           "name": "mount",
@@ -12421,7 +13104,16 @@
               "name": "seat_contact",
               "timeSeconds": 0.72
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "mount"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "mount_right",
@@ -12432,7 +13124,16 @@
               "name": "seat_contact",
               "timeSeconds": 0.72
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "mount_right"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "dismount",
@@ -12443,7 +13144,16 @@
               "name": "ground_contact",
               "timeSeconds": 0.68
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "dismount"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         },
         {
           "name": "dismount_right",
@@ -12454,15 +13164,22 @@
               "name": "ground_contact",
               "timeSeconds": 0.68
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "dismount_right"
+          },
+          "contacts": {
+            "left": [],
+            "right": []
+          }
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "height": 2.02,
-        "headRatio": 6.2,
-        "handScale": 1,
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_player_a.blend",
+        "sourceCollection": "char_player_a"
       },
       "lodLevels": [
         {
@@ -12480,7 +13197,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Player adventurer in A-pose with straw hat, utility vest, backpack, bedroll, and paired canteens",
+        "subject": "Adult coastal farmer using original Quaternius farmer anatomy and source skinning",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -12494,16 +13211,15 @@
             "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
           },
           {
-            "id": "character_isolated",
-            "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/character_isolated_1787317045933.jpg",
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://poly.pizza/m/7pn3R6hPvE",
             "use": [
               "silhouette",
               "proportion",
-              "structure",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Eight-way A-pose turnaround locking hat, vest, backpack, bedroll, side canteens, cuffed pants, and boots."
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
@@ -12511,136 +13227,108 @@
             "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the traveler silhouette",
-            "shape": "Faceted torso, limbs, and boots skinned to the rig",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
             "count": "1 body",
             "cues": [
-              "Proportions stay adult not chibi",
-              "Boots have thick soles"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "vest",
+            "id": "workwear",
             "parent": "body",
             "importance": "primary",
-            "role": "Reads as a utility vest over the shirt",
-            "shape": "Tan vest with four pockets and belt",
-            "count": "1 vest",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Four pockets are visible from the front",
-              "Belt buckle sits at the waist"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hat",
+            "id": "face",
             "parent": "body",
             "importance": "primary",
-            "role": "Identifies the traveler from every turnaround",
-            "shape": "Straw hat with hexagonal crown, brim, and band",
-            "count": "1 hat",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Brim is wide",
-              "Crown sits on the hair with no float gap"
-            ]
-          },
-          {
-            "id": "backpack",
-            "parent": "body",
-            "importance": "primary",
-            "role": "Breaks the rear silhouette",
-            "shape": "Framed pack with bedroll, straps, pouches, and paired canteens",
-            "count": "1 backpack",
-            "cues": [
-              "Bedroll sits on top",
-              "Canteens hang on both sides"
-            ]
-          },
-          {
-            "id": "hands",
-            "parent": "body",
-            "importance": "secondary",
-            "role": "Keeps gameplay sockets on the rig",
-            "shape": "Named hand meshes/markers plus five bone sockets",
-            "count": "2 hands",
-            "cues": [
-              "char_player_hand_left and right remain",
-              "Sockets stay bone-parented"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "Wide straw hat and backpack roll dominate front and back silhouettes.",
-          "A tan vest over a light shirt keeps a clear torso color block.",
-          "Thick boots and a belt stop the figure from reading as a capsule."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "Daylight under the hat brim and between pack and back.",
-          "Armpits and vest lapel gaps stay open."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
           "confidence": "high",
           "requirements": [
-            "Backpack straps continue over the shoulders out of camera.",
-            "Hat brim is a full disc, not a front-only card."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "straw_hat",
+            "id": "source_shape",
             "componentIds": [
-              "hat"
+              "body",
+              "face"
             ],
-            "requirement": "Wide-brim straw hat with band remains on the head.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "backpack_roll",
-            "componentIds": [
-              "backpack"
-            ],
-            "requirement": "Rear backpack keeps a horizontal bedroll and side pouches.",
-            "priority": "must"
-          },
-          {
-            "id": "joined_skin",
+            "id": "source_motion",
             "componentIds": [
               "body"
             ],
-            "requirement": "Character is joined by material into 2-6 skinned groups before armature bind.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
+            "priority": "must"
+          },
+          {
+            "id": "materials",
+            "componentIds": [
+              "workwear",
+              "face"
+            ],
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "height",
+            "parameter": "sourceBlend",
             "componentIds": [
               "body",
-              "hat",
-              "backpack"
+              "workwear",
+              "face"
             ],
-            "purpose": "Sets traveler scale and socket heights."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "hat",
-              "body"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Keeps an adult 6-head traveler under the hat."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands"
-            ],
-            "purpose": "Keeps gameplay hands readable without cartoon gloves."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "Missing hat or backpack on the turnaround.",
-          "73 separate skinned meshes instead of a handful of material groups.",
-          "Hat floating above the skull."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -12651,32 +13339,158 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
+      },
+      "sourceProvenance": {
+        "provider": "poly-pizza",
+        "modelId": "7pn3R6hPvE",
+        "sourceUrl": "https://poly.pizza/m/7pn3R6hPvE",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_player_a.blend",
+        "sourceSha256": "fd4e7b4f1bba828e5693f318a664db1efedbacdf0153614a11704688f61f24e9",
+        "attribution": "farmer by Quaternius, https://poly.pizza/m/7pn3R6hPvE. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/farmer.gltf",
+        "sourceSha256": "46d3e85fa8d848ee479ab8e4672c16724ee4ea51f3af5733705a153937f93555",
+        "heightMeters": 2.02,
+        "role": "farmer",
+        "materialMap": {
+          "Farmer_Body/Skin": "skin_warm_01",
+          "Farmer_Body/LightBlue": "cloth_teal_01",
+          "Farmer_Body/Brown": "canvas_cream_01",
+          "Farmer_Body/Beige": "canvas_cream_01",
+          "Farmer_Feet/Brown": "leather_harness_01",
+          "Farmer_Feet/Brown2": "leather_harness_01",
+          "Farmer_Head/Skin": "skin_warm_01",
+          "Farmer_Head/Eyebrows": "wood_dark_01",
+          "Farmer_Head/Beige": "canvas_cream_01",
+          "Farmer_Head/Red": "leather_harness_01",
+          "Farmer_Head/Eye": "wood_dark_01",
+          "Farmer_Pants/LightBlue": "cloth_teal_01"
+        },
+        "accessoryPalette": []
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              6.383127147957525e-07,
+              0.5111210329583777,
+              -6.258710193857154e-07
+            ],
+            "soleOffset": [
+              -1.2929099347941397e-06,
+              -0.0001236628320798877,
+              0.023125198465485924
+            ],
+            "soleNormal": [
+              5.590833951138684e-05,
+              0.005347459567500491,
+              -0.9999857006729805
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              -6.5211120695019e-07,
+              0.5111211747214249,
+              7.02440019741124e-07
+            ],
+            "soleOffset": [
+              1.2929007115192181e-06,
+              -0.00012366187103979992,
+              0.023125018690854714
+            ],
+            "soleNormal": [
+              -5.590837530380808e-05,
+              0.005347459580957948,
+              -0.9999857006729066
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_player_hand_socket_left",
+          "right": "char_player_hand_socket_right"
+        }
       }
     },
     {
       "id": "char_npc_elspeth_a",
       "file": "char_npc_elspeth_a.glb",
       "family": "character",
-      "generator": "npc_character",
+      "generator": "imported_blend",
       "seed": 831,
       "dimensions": {
-        "width": 1.05,
-        "depth": 0.65,
-        "height": 1.95
+        "width": 1.9,
+        "depth": 0.8,
+        "height": 1.98
       },
       "palette": [
-        "plaster_warm_01",
-        "foliage_sage_01",
-        "wood_dark_01",
+        "skin_light_01",
+        "cloth_olive_01",
+        "cloth_slate_01",
+        "hair_silver_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "foam_warm_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 7800,
-        "trianglesMax": 16000,
-        "materialsMax": 8
+        "trianglesTarget": 6000,
+        "trianglesMax": 20000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -12707,185 +13521,311 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 2.083333333,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 2.083333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 2.083333
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 2.083333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "talk_gesture",
           "durationSeconds": 2.933333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "talk_gesture"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 2.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 2.933333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333,
+          "durationSeconds": 1.666666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 0.975,
+          "referenceSpeedMetersPerSecond": 1.075504,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0
+              "timeSeconds": 0.0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.666667
+              "timeSeconds": 0.8
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.75
+              }
+            ],
+            "right": [
+              {
+                "start": 0.8,
+                "end": 1.625
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "role": "gardener",
-        "height": 1.88,
-        "headRatio": 4.75,
-        "handScale": 1.16,
-        "style": "chibi-storybook",
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_npc_elspeth_a.blend",
+        "sourceCollection": "char_npc_elspeth_a"
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable gardener silhouette",
+        "subject": "Adult coastal gardener using original Quaternius animated_woman anatomy and source skinning",
         "sources": [
           {
-            "id": "npc_chibi_storybook_turnaround",
-            "kind": "visual_reference",
-            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://poly.pizza/m/qJ2gsTUBHL",
             "use": [
-              "form_language",
               "silhouette",
               "proportion",
-              "materials",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
           {
-            "id": "head_face",
+            "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the friendly storybook expression and NPC identity",
-            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
-            "count": "1 connected head mass",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
+            "count": "1 body",
             "cues": [
-              "Face stays visible from front and three-quarter views",
-              "Hair frames the face without hiding the eyes"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "body_outfit",
-            "parent": "root",
+            "id": "workwear",
+            "parent": "body",
             "importance": "primary",
-            "role": "Communicates the compact coastal worker role before facial detail",
-            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
-            "count": "1 connected outfit silhouette",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Torso remains compact rather than fashion-proportioned",
-              "Gardener tools and apron read as one working costume"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hands_boots",
-            "parent": "root",
+            "id": "face",
+            "parent": "body",
             "importance": "primary",
-            "role": "Keeps gestures, sockets, and grounded stance readable in play",
-            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
-            "count": "2 arms and 2 legs",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Hands meet the authored sockets",
-              "Boot soles remain clearly grounded from every review angle"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "The head is visibly larger than the compact torso and short lower body.",
-          "The apron, bonnet, and gardening accents form a distinct elder-gardener outline.",
-          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "A clear gap separates the arms from the rounded torso in neutral pose.",
-          "The face and hand shapes remain unobstructed around the apron and hat."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
-          "confidence": "medium",
+          "confidence": "high",
           "requirements": [
-            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
-            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "readable_face",
+            "id": "source_shape",
             "componentIds": [
-              "head_face"
+              "body",
+              "face"
             ],
-            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "compact_role_silhouette",
+            "id": "source_motion",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body"
             ],
-            "requirement": "The NPC reads as a compact chibi storybook gardener before accessories are inspected.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
             "priority": "must"
           },
           {
-            "id": "grounded_contacts",
+            "id": "materials",
             "componentIds": [
-              "hands_boots"
+              "workwear",
+              "face"
             ],
-            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "style",
+            "parameter": "sourceBlend",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head_face"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Controls the expressive head scale against the NPC stature."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands_boots"
-            ],
-            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "The face disappears under the bonnet or hair mass.",
-          "The body returns to adult fashion proportions with long thin limbs.",
-          "The apron, tools, or boots read as floating disconnected ornaments."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -12909,34 +13849,166 @@
           "node": "char_npc_elspeth_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.62
+          "triangleRatioMax": 0.52
         }
-      ]
+      ],
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/animated_woman.glb",
+        "sourceSha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
+        "heightMeters": 1.88,
+        "role": "gardener",
+        "materialMap": {
+          "Casual_Body/White": "cloth_olive_01",
+          "Casual_Body/Skin": "skin_light_01",
+          "Casual_Feet/Skin": "skin_light_01",
+          "Casual_Feet/Grey": "leather_harness_01",
+          "Casual_Head/Skin": "skin_light_01",
+          "Casual_Head/Hair_Blond": "hair_silver_01",
+          "Casual_Head/Hair_Brown": "hair_silver_01",
+          "Casual_Head/Brown": "wood_dark_01",
+          "Casual_Legs/Orange": "cloth_slate_01"
+        },
+        "accessoryPalette": [
+          "canvas_cream_01",
+          "hair_silver_01",
+          "cloth_olive_01"
+        ],
+        "hairStyle": {
+          "style": "half_up_bun",
+          "hairToken": "hair_silver_01",
+          "tieToken": "cloth_olive_01"
+        }
+      },
+      "sourceProvenance": {
+        "provider": "poly-pizza",
+        "modelId": "qJ2gsTUBHL",
+        "sourceUrl": "https://poly.pizza/m/qJ2gsTUBHL",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_npc_elspeth_a.blend",
+        "sourceSha256": "91723074ac4355b33c9f6d0f2a1d1fcc14520ea6092349ca293ed066fff06104",
+        "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              -1.701499803682602e-10,
+              0.005348252503311836,
+              -6.880160751125861e-09
+            ],
+            "soleOffset": [
+              -2.095368908765216e-11,
+              -1.6749882072353457e-06,
+              0.00031318206688217044
+            ],
+            "soleNormal": [
+              6.69048034478611e-08,
+              0.005348212522444996,
+              -0.9999856982091346
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              4.119266205264775e-10,
+              0.005348252500928075,
+              -6.930496367443287e-09
+            ],
+            "soleOffset": [
+              -2.095368908765216e-11,
+              -1.6749882072354541e-06,
+              0.0003131820668821906
+            ],
+            "soleNormal": [
+              6.69048034478611e-08,
+              0.005348212522444996,
+              -0.9999856982091346
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_npc_elspeth_a_hand_socket_left",
+          "right": "char_npc_elspeth_a_hand_socket_right"
+        }
+      }
     },
     {
       "id": "char_npc_barnaby_a",
       "file": "char_npc_barnaby_a.glb",
       "family": "character",
-      "generator": "npc_character",
+      "generator": "imported_blend",
       "seed": 832,
       "dimensions": {
-        "width": 1.1,
-        "depth": 0.65,
-        "height": 2.05
+        "width": 1.9,
+        "depth": 0.8,
+        "height": 2.08
       },
       "palette": [
-        "plaster_warm_01",
-        "accent_ochre_01",
-        "wood_dark_01",
+        "skin_warm_01",
+        "cloth_ochre_01",
+        "cloth_slate_01",
+        "hair_brown_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "burlap_grain_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 7800,
-        "trianglesMax": 16000,
-        "materialsMax": 8
+        "trianglesTarget": 6000,
+        "trianglesMax": 20000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -12967,185 +14039,311 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 1.666666667,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 1.666667
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 1.666667
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "talk_gesture",
           "durationSeconds": 2.933333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "talk_gesture"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 2.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 2.933333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333,
+          "durationSeconds": 1.333333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 0.975,
+          "referenceSpeedMetersPerSecond": 1.432372,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0
+              "timeSeconds": 0.0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.666667
+              "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.333333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.633333,
+                "end": 1.3
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.233333
+              },
+              {
+                "start": 0.366667,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 0.033333
+              },
+              {
+                "start": 0.166667,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.033333
+              },
+              {
+                "start": 0.166667,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 0.233333
+              },
+              {
+                "start": 0.366667,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "role": "handyman",
-        "height": 1.98,
-        "headRatio": 4.9,
-        "handScale": 1.18,
-        "style": "chibi-storybook",
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_npc_barnaby_a.blend",
+        "sourceCollection": "char_npc_barnaby_a"
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable handyman silhouette",
+        "subject": "Adult coastal handyman using original Quaternius worker anatomy and source skinning",
         "sources": [
           {
-            "id": "npc_chibi_storybook_turnaround",
-            "kind": "visual_reference",
-            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://quaternius.com/packs/ultimatemodularcharacters.html",
             "use": [
-              "form_language",
               "silhouette",
               "proportion",
-              "materials",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
           {
-            "id": "head_face",
+            "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the friendly storybook expression and NPC identity",
-            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
-            "count": "1 connected head mass",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
+            "count": "1 body",
             "cues": [
-              "Face stays visible from front and three-quarter views",
-              "Hair frames the face without hiding the eyes"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "body_outfit",
-            "parent": "root",
+            "id": "workwear",
+            "parent": "body",
             "importance": "primary",
-            "role": "Communicates the compact coastal worker role before facial detail",
-            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
-            "count": "1 connected outfit silhouette",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Torso remains compact rather than fashion-proportioned",
-              "Handyman tools and apron read as one working costume"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hands_boots",
-            "parent": "root",
+            "id": "face",
+            "parent": "body",
             "importance": "primary",
-            "role": "Keeps gestures, sockets, and grounded stance readable in play",
-            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
-            "count": "2 arms and 2 legs",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Hands meet the authored sockets",
-              "Boot soles remain clearly grounded from every review angle"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "The head is visibly larger than the compact torso and short lower body.",
-          "The cap, apron, and tool accents form a distinct practical handyman outline.",
-          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "A clear gap separates the arms from the rounded torso in neutral pose.",
-          "The face and hand shapes remain unobstructed around the apron and cap."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
-          "confidence": "medium",
+          "confidence": "high",
           "requirements": [
-            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
-            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "readable_face",
+            "id": "source_shape",
             "componentIds": [
-              "head_face"
+              "body",
+              "face"
             ],
-            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "compact_role_silhouette",
+            "id": "source_motion",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body"
             ],
-            "requirement": "The NPC reads as a compact chibi storybook handyman before accessories are inspected.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
             "priority": "must"
           },
           {
-            "id": "grounded_contacts",
+            "id": "materials",
             "componentIds": [
-              "hands_boots"
+              "workwear",
+              "face"
             ],
-            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "style",
+            "parameter": "sourceBlend",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head_face"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Controls the expressive head scale against the NPC stature."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands_boots"
-            ],
-            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "The face disappears under the cap or hair mass.",
-          "The body returns to adult fashion proportions with long thin limbs.",
-          "The apron, tools, or boots read as floating disconnected ornaments."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -13169,34 +14367,183 @@
           "node": "char_npc_barnaby_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.62
+          "triangleRatioMax": 0.52
         }
-      ]
+      ],
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/worker.gltf",
+        "sourceSha256": "e49f8ec0f8a7de72dd26b1c01e6413c9a87a9116eeee21f9364ccd36bc286335",
+        "heightMeters": 1.98,
+        "role": "handyman",
+        "headSourceFile": "art/imported/poly-pizza/sources/casual_2.gltf",
+        "materialMap": {
+          "Worker_Body/Skin": "skin_warm_01",
+          "Worker_Body/Worker_Yellow": "cloth_ochre_01",
+          "Worker_Body/Worker_Vest": "cloth_ochre_01",
+          "Worker_Body/LightBrown": "cloth_ochre_01",
+          "Worker_Feet/Grey": "leather_harness_01",
+          "Worker_Feet/Black": "leather_harness_01",
+          "Casual2_Head/Skin": "skin_warm_01",
+          "Casual2_Head/Skin_Darker": "skin_warm_01",
+          "Casual2_Head/Eyebrows": "wood_dark_01",
+          "Casual2_Head/Hair": "hair_brown_01",
+          "Casual2_Head/Eye": "wood_dark_01",
+          "Worker_Legs/Brown": "cloth_slate_01",
+          "Worker_Legs/Brown2": "cloth_slate_01"
+        },
+        "headSourceSha256": "55c654d09a2a5ff6e3bd6158d4a1b462f181cd6f1e12a0f5e9d959f9c3abc438",
+        "accessoryPalette": [
+          "canvas_cream_01"
+        ],
+        "apronClearanceProfile": [
+          {
+            "heightMeters": 0.96,
+            "additionalForwardMeters": 0
+          },
+          {
+            "heightMeters": 1.03,
+            "additionalForwardMeters": 0.025
+          },
+          {
+            "heightMeters": 1.12,
+            "additionalForwardMeters": 0.025
+          },
+          {
+            "heightMeters": 1.19,
+            "additionalForwardMeters": 0
+          }
+        ]
+      },
+      "sourceProvenance": {
+        "provider": "quaternius",
+        "modelId": "ultimate-modular-men-worker",
+        "sourceUrl": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_npc_barnaby_a.blend",
+        "sourceSha256": "57956bab7dc3293e0f836624868b08358f09354e5ca202c08b64149551cb0f80",
+        "attribution": "worker by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              6.301117644880171e-07,
+              0.5111210356221413,
+              -6.12191120470673e-07
+            ],
+            "soleOffset": [
+              -1.477346830758286e-06,
+              -0.00014130362671150448,
+              0.026424062562997175
+            ],
+            "soleNormal": [
+              5.590834210445148e-05,
+              0.005347459567500157,
+              -0.9999857006729803
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              -6.579986753518785e-07,
+              0.5111209322926769,
+              7.019210048961333e-07
+            ],
+            "soleOffset": [
+              1.4773376987020637e-06,
+              -0.00014130266319072743,
+              0.026423882316174326
+            ],
+            "soleNormal": [
+              -5.590837788311649e-05,
+              0.005347459580957725,
+              -0.9999857006729064
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_npc_barnaby_a_hand_socket_left",
+          "right": "char_npc_barnaby_a_hand_socket_right"
+        }
+      }
     },
     {
       "id": "char_npc_silas_a",
       "file": "char_npc_silas_a.glb",
       "family": "character",
-      "generator": "npc_character",
+      "generator": "imported_blend",
       "seed": 833,
       "dimensions": {
-        "width": 1.12,
-        "depth": 0.7,
+        "width": 1.9,
+        "depth": 0.8,
         "height": 2.05
       },
       "palette": [
-        "plaster_warm_01",
-        "water_mid_01",
-        "leather_harness_01",
+        "skin_warm_01",
+        "cloth_slate_01",
+        "cloth_olive_01",
+        "hair_silver_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "foam_warm_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 8700,
-        "trianglesMax": 16000,
-        "materialsMax": 8
+        "trianglesTarget": 8000,
+        "trianglesMax": 20000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -13227,19 +14574,60 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 1.666666667,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.666667
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.666667
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "talk_gesture",
           "durationSeconds": 2.933333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "talk_gesture"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 2.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 2.933333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333,
+          "durationSeconds": 1.333333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 0.975,
+          "referenceSpeedMetersPerSecond": 1.413015,
           "events": [
             {
               "name": "footstep_left",
@@ -13247,165 +14635,250 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.666667
+              "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.333333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.633333,
+                "end": 1.3
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "role": "dockmaster",
-        "height": 1.95,
-        "headRatio": 4.85,
-        "handScale": 1.18,
-        "style": "chibi-storybook",
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_npc_silas_a.blend",
+        "sourceCollection": "char_npc_silas_a"
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable dockmaster silhouette",
+        "subject": "Adult coastal dockmaster using original Quaternius adventurer anatomy and source skinning",
         "sources": [
           {
-            "id": "npc_chibi_storybook_turnaround",
-            "kind": "visual_reference",
-            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://quaternius.com/packs/ultimatemodularcharacters.html",
             "use": [
-              "form_language",
               "silhouette",
               "proportion",
-              "materials",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
           {
-            "id": "head_face",
+            "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the friendly storybook expression and NPC identity",
-            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
-            "count": "1 connected head mass",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
+            "count": "1 body",
             "cues": [
-              "Face stays visible from front and three-quarter views",
-              "Hair frames the face without hiding the eyes"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "body_outfit",
-            "parent": "root",
+            "id": "workwear",
+            "parent": "body",
             "importance": "primary",
-            "role": "Communicates the compact coastal worker role before facial detail",
-            "shape": "Short rounded torso with broad coat, practical sleeves, and restrained color blocks",
-            "count": "1 connected outfit silhouette",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Torso remains compact rather than fashion-proportioned",
-              "Dockmaster coat and harbor accents read as one working costume"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hands_boots",
-            "parent": "root",
+            "id": "face",
+            "parent": "body",
             "importance": "primary",
-            "role": "Keeps gestures, sockets, and grounded stance readable in play",
-            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
-            "count": "2 arms and 2 legs",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Hands meet the authored sockets",
-              "Boot soles remain clearly grounded from every review angle"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "The head is visibly larger than the compact torso and short lower body.",
-          "The sou'wester, beard, and coat accents form a distinct harbor dockmaster outline.",
-          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "A clear gap separates the arms from the rounded torso in neutral pose.",
-          "The face and hand shapes remain unobstructed around the beard and hat."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
-          "confidence": "medium",
+          "confidence": "high",
           "requirements": [
-            "Rear hair, beard, and coat construction continue the front silhouette without hollow gaps.",
-            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "readable_face",
+            "id": "source_shape",
             "componentIds": [
-              "head_face"
+              "body",
+              "face"
             ],
-            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "compact_role_silhouette",
+            "id": "source_motion",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body"
             ],
-            "requirement": "The NPC reads as a compact chibi storybook dockmaster before accessories are inspected.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
             "priority": "must"
           },
           {
-            "id": "grounded_contacts",
+            "id": "materials",
             "componentIds": [
-              "hands_boots"
+              "workwear",
+              "face"
             ],
-            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "style",
+            "parameter": "sourceBlend",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head_face"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Controls the expressive head scale against the NPC stature."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands_boots"
-            ],
-            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "The face disappears under the sou'wester or beard mass.",
-          "The body returns to adult fashion proportions with long thin limbs.",
-          "The coat, harbor tools, or boots read as floating disconnected ornaments."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -13429,34 +14902,164 @@
           "node": "char_npc_silas_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.62
+          "triangleRatioMax": 0.52
         }
-      ]
+      ],
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/adventurer.gltf",
+        "sourceSha256": "21f7a61afb6bd6cef6961490c367594e3c2fc01ec1f041662131172ce763063e",
+        "heightMeters": 1.95,
+        "role": "dockmaster",
+        "omitParts": [
+          "Backpack"
+        ],
+        "materialMap": {
+          "Adventurer_Body/Skin": "skin_warm_01",
+          "Adventurer_Body/Green": "cloth_slate_01",
+          "Adventurer_Body/LightGreen": "cloth_slate_01",
+          "Adventurer_Feet/Grey": "leather_harness_01",
+          "Adventurer_Feet/Black": "leather_harness_01",
+          "Adventurer_Head/Skin": "skin_warm_01",
+          "Adventurer_Head/Eyebrows": "wood_dark_01",
+          "Adventurer_Head/Hair": "hair_silver_01",
+          "Adventurer_Head/Eye": "wood_dark_01",
+          "Adventurer_Legs/Brown": "cloth_olive_01",
+          "Adventurer_Legs/Brown2": "cloth_olive_01"
+        },
+        "accessoryPalette": [
+          "hair_silver_01"
+        ]
+      },
+      "sourceProvenance": {
+        "provider": "quaternius",
+        "modelId": "ultimate-modular-men-adventurer",
+        "sourceUrl": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_npc_silas_a.blend",
+        "sourceSha256": "684d892dc0900f285ed7ababdea60dc1e435955999b823140a85833c16a7396f",
+        "attribution": "adventurer by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              6.805501273077219e-07,
+              0.5111208873702886,
+              -6.080093188157165e-07
+            ],
+            "soleOffset": [
+              -1.340401096686094e-06,
+              -0.00012820519935012592,
+              0.023974630286355603
+            ],
+            "soleNormal": [
+              5.590833952514305e-05,
+              0.00534745956750038,
+              -0.9999857006729805
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              -6.401676178324766e-07,
+              0.5111208623842654,
+              6.924243841147092e-07
+            ],
+            "soleOffset": [
+              1.3403939083805885e-06,
+              -0.00012820442417422337,
+              0.023974485266564736
+            ],
+            "soleNormal": [
+              -5.59083778831165e-05,
+              0.005347459580957391,
+              -0.9999857006729063
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_npc_silas_a_hand_socket_left",
+          "right": "char_npc_silas_a_hand_socket_right"
+        }
+      }
     },
     {
       "id": "char_npc_maeve_a",
       "file": "char_npc_maeve_a.glb",
       "family": "character",
-      "generator": "npc_character",
+      "generator": "imported_blend",
       "seed": 834,
       "dimensions": {
-        "width": 1.05,
-        "depth": 0.65,
-        "height": 2.02
+        "width": 1.9,
+        "depth": 0.8,
+        "height": 2.04
       },
       "palette": [
-        "plaster_warm_01",
-        "accent_teal_01",
-        "wood_dark_01",
+        "skin_light_01",
+        "cloth_teal_01",
+        "cloth_slate_01",
+        "hair_brown_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "foam_warm_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 7900,
-        "trianglesMax": 16000,
-        "materialsMax": 8
+        "trianglesTarget": 6000,
+        "trianglesMax": 20000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -13487,185 +15090,311 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 2.083333333,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 2.083333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 2.083333
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 2.083333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "talk_gesture",
           "durationSeconds": 2.933333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "talk_gesture"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 2.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 2.933333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333,
+          "durationSeconds": 1.666666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 0.975,
+          "referenceSpeedMetersPerSecond": 1.109828,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0
+              "timeSeconds": 0.0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.666667
+              "timeSeconds": 0.8
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.75
+              }
+            ],
+            "right": [
+              {
+                "start": 0.8,
+                "end": 1.625
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0.0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0.0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "role": "merchant",
-        "height": 1.94,
-        "headRatio": 4.8,
-        "handScale": 1.16,
-        "style": "chibi-storybook",
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_npc_maeve_a.blend",
+        "sourceCollection": "char_npc_maeve_a"
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable merchant silhouette",
+        "subject": "Adult coastal market keeper using original Quaternius animated_woman anatomy and source skinning",
         "sources": [
           {
-            "id": "npc_chibi_storybook_turnaround",
-            "kind": "visual_reference",
-            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://poly.pizza/m/qJ2gsTUBHL",
             "use": [
-              "form_language",
               "silhouette",
               "proportion",
-              "materials",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
           {
-            "id": "head_face",
+            "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the friendly storybook expression and NPC identity",
-            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
-            "count": "1 connected head mass",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
+            "count": "1 body",
             "cues": [
-              "Face stays visible from front and three-quarter views",
-              "Hair frames the face without hiding the eyes"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "body_outfit",
-            "parent": "root",
+            "id": "workwear",
+            "parent": "body",
             "importance": "primary",
-            "role": "Communicates the compact coastal worker role before facial detail",
-            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
-            "count": "1 connected outfit silhouette",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Torso remains compact rather than fashion-proportioned",
-              "Merchant apron and market accents read as one working costume"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hands_boots",
-            "parent": "root",
+            "id": "face",
+            "parent": "body",
             "importance": "primary",
-            "role": "Keeps gestures, sockets, and grounded stance readable in play",
-            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
-            "count": "2 arms and 2 legs",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Hands meet the authored sockets",
-              "Boot soles remain clearly grounded from every review angle"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "The head is visibly larger than the compact torso and short lower body.",
-          "The bun, apron, and market accents form a distinct practical merchant outline.",
-          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "A clear gap separates the arms from the rounded torso in neutral pose.",
-          "The face and hand shapes remain unobstructed around the hair and apron."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
-          "confidence": "medium",
+          "confidence": "high",
           "requirements": [
-            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
-            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "readable_face",
+            "id": "source_shape",
             "componentIds": [
-              "head_face"
+              "body",
+              "face"
             ],
-            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "compact_role_silhouette",
+            "id": "source_motion",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body"
             ],
-            "requirement": "The NPC reads as a compact chibi storybook merchant before accessories are inspected.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
             "priority": "must"
           },
           {
-            "id": "grounded_contacts",
+            "id": "materials",
             "componentIds": [
-              "hands_boots"
+              "workwear",
+              "face"
             ],
-            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "style",
+            "parameter": "sourceBlend",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head_face"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Controls the expressive head scale against the NPC stature."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands_boots"
-            ],
-            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "The face disappears under the hair mass.",
-          "The body returns to adult fashion proportions with long thin limbs.",
-          "The apron, market tools, or boots read as floating disconnected ornaments."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -13689,15 +15418,145 @@
           "node": "char_npc_maeve_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.62
+          "triangleRatioMax": 0.52
         }
-      ]
+      ],
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/animated_woman.glb",
+        "sourceSha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
+        "heightMeters": 1.94,
+        "role": "market_keeper",
+        "materialMap": {
+          "Casual_Body/White": "cloth_teal_01",
+          "Casual_Body/Skin": "skin_light_01",
+          "Casual_Feet/Skin": "skin_light_01",
+          "Casual_Feet/Grey": "leather_harness_01",
+          "Casual_Head/Skin": "skin_light_01",
+          "Casual_Head/Hair_Blond": "hair_brown_01",
+          "Casual_Head/Hair_Brown": "hair_brown_01",
+          "Casual_Head/Brown": "wood_dark_01",
+          "Casual_Legs/Orange": "cloth_slate_01"
+        },
+        "accessoryPalette": [
+          "cloth_teal_01",
+          "hair_brown_01"
+        ],
+        "hairStyle": {
+          "style": "half_up_bun",
+          "hairToken": "hair_brown_01",
+          "tieToken": "cloth_teal_01"
+        }
+      },
+      "sourceProvenance": {
+        "provider": "poly-pizza",
+        "modelId": "qJ2gsTUBHL",
+        "sourceUrl": "https://poly.pizza/m/qJ2gsTUBHL",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_npc_maeve_a.blend",
+        "sourceSha256": "bd57642ce8fbc4af1e3f0cd4a15b10a09a61c3912fdc53dd36d4177efcbfba53",
+        "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              -2.865652953647213e-10,
+              0.0053482528962969,
+              -6.820223087352674e-09
+            ],
+            "soleOffset": [
+              -2.0953690497114988e-11,
+              -1.6748822304299984e-06,
+              0.0003131819700124213
+            ],
+            "soleNormal": [
+              6.690481693302548e-08,
+              0.005347875803847546,
+              -0.9999857000099462
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              2.955113177815008e-10,
+              0.005348252891159713,
+              -6.928700306747283e-09
+            ],
+            "soleOffset": [
+              -2.0953690497114988e-11,
+              -1.6748822304302152e-06,
+              0.0003131819700124413
+            ],
+            "soleNormal": [
+              6.690481693302548e-08,
+              0.005347875803847546,
+              -0.9999857000099462
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_npc_maeve_a_hand_socket_left",
+          "right": "char_npc_maeve_a_hand_socket_right"
+        }
+      }
     },
     {
       "id": "fauna_cow_a",
       "file": "fauna_cow_a.glb",
       "family": "prop",
-      "generator": "fauna_cow",
+      "generator": "imported_blend",
       "seed": 823,
       "dimensions": {
         "width": 1.2,
@@ -13727,7 +15586,9 @@
         "fauna_cow_a_motion_root",
         "fauna_cow_a_head_pivot",
         "fauna_cow_a_tail_pivot",
-        "COL_fauna_cow_a"
+        "COL_fauna_cow_a",
+        "LOD0",
+        "LOD1"
       ],
       "animationClips": [
         {
@@ -13748,8 +15609,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "scale": 1,
-        "hornScale": 1
+        "sourceBlend": "art/imported/poly-pizza/fauna_cow_a.blend",
+        "sourceCollection": "fauna_cow_a"
       },
       "collisionPrimitives": [
         {
@@ -13768,7 +15629,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chunky black-and-white dairy cow with pink snout, udder, and horns",
+        "subject": "Faceted black-and-white pasture cow with a white face, pale lower legs and quiet grazing motion",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -13782,16 +15643,15 @@
             "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
           },
           {
-            "id": "farm_animals_isolated",
-            "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_animals_isolated_1787317082748.jpg",
+            "id": "polypizza_source",
+            "kind": "structural_study",
+            "uri": "https://poly.pizza/m/26zM1outCr",
             "use": [
               "silhouette",
               "proportion",
-              "structure",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Isolated farm-animal sheet locking boxy masses, irregular spots, udder, and matte facet shading."
+            "notes": "Quaternius CC0 cow anatomy and peaceful idle/eating performances; uniform metre-space fitting preserves the source proportions."
           }
         ],
         "components": [
@@ -13800,11 +15660,11 @@
             "parent": "root",
             "importance": "primary",
             "role": "Carries the dairy-cow mass",
-            "shape": "Intersecting chest, barrel, and haunch volumes",
+            "shape": "Connected faceted chest, barrel and haunch anatomy",
             "count": "1 body",
             "cues": [
-              "Chunky not sleek",
-              "Spots are irregular masses"
+              "Natural cattle proportions remain under uniform fitting",
+              "Broad black hide is separated from the white facial and lower-leg regions"
             ]
           },
           {
@@ -13812,11 +15672,11 @@
             "parent": "body",
             "importance": "primary",
             "role": "Identifies the cow from every turnaround",
-            "shape": "Boxy head, pink snout, horns, and ears",
+            "shape": "Tapered white-faced head, muted warm muzzle, outward horns and ears",
             "count": "1 head",
             "cues": [
-              "Snout is pale, not the hide color",
-              "Short horns curve upward"
+              "White forehead remains readable against dark hide",
+              "Horn tips and ears remain distinct"
             ]
           },
           {
@@ -13824,95 +15684,85 @@
             "parent": "body",
             "importance": "secondary",
             "role": "Grounds the animal with thick limbs",
-            "shape": "Four tapered legs and hooves",
+            "shape": "Four anatomically tapered limbs with pale lower legs and dark hooves",
             "count": "4 legs",
             "cues": [
-              "Legs stay chunky",
-              "Hooves are a separate color block"
-            ]
-          },
-          {
-            "id": "udder",
-            "parent": "body",
-            "importance": "tertiary",
-            "role": "Reads as a dairy cow from the rear",
-            "shape": "Pink udder with four teats",
-            "count": "1 udder",
-            "cues": [
-              "Visible from rear and three-quarter",
-              "Teats stay sparse not noisy"
+              "Retain the source joint lengths",
+              "Hooves remain grounded in the rest pose"
             ]
           }
         ],
         "silhouette": [
-          "A long barrel body on four thick legs reads as a cow, not a horse.",
-          "A boxy head with horns and a pink snout dominates the front.",
-          "Irregular dark spots break the cream hide without becoming a texture."
+          "A long barrel and weight-bearing shoulders read as a pasture cow.",
+          "A white facial wedge, horns and ears identify the head from the approach.",
+          "Pale lower legs separate the four supports against the dark hide."
         ],
         "negativeSpace": [
           "Daylight stays between the legs and under the neck.",
-          "The udder hangs in the gap between rear legs."
+          "Horns and ears remain distinct in the side and three-quarter silhouette."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
           "confidence": "high",
           "requirements": [
-            "Spots continue onto the far side instead of existing only on camera faces.",
-            "All four legs and the tail exist from the rear view."
+            "Retain the complete source back, underside, tail and all four legs.",
+            "Keep the source skinning across the rear limbs; do not replace hidden anatomy with cards."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "chunky_masses",
+            "id": "natural_anatomy",
             "componentIds": [
               "body",
               "legs"
             ],
-            "requirement": "Body and legs are intersecting faceted masses, not one smooth mesh.",
+            "requirement": "Preserve the source body and limb proportions with uniform scaling, not envelope-driven stretching.",
             "priority": "must"
           },
           {
-            "id": "dairy_cues",
+            "id": "readable_head",
             "componentIds": [
+              "head"
+            ],
+            "requirement": "White face, warm muzzle, horns and ears remain distinct at gameplay distance.",
+            "priority": "must"
+          },
+          {
+            "id": "quiet_motion",
+            "componentIds": [
+              "body",
               "head",
-              "udder"
+              "legs"
             ],
-            "requirement": "Pink snout, horns, and udder remain from front and rear views.",
-            "priority": "must"
-          },
-          {
-            "id": "irregular_spots",
-            "componentIds": [
-              "body"
-            ],
-            "requirement": "Dark hide patches are large irregular clumps, not painted noise.",
+            "requirement": "Use only the existing idle, graze and look state names and durations, driven by peaceful source performances.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "scale",
+            "parameter": "sourceBlend",
             "componentIds": [
               "body",
               "head",
-              "legs",
-              "udder"
+              "legs"
             ],
-            "purpose": "Sets the whole cow uniformly without changing proportions."
+            "purpose": "Pins the curated palette-normalized rig, surfaces, grounded LODs and peaceful animation loops."
           },
           {
-            "parameter": "hornScale",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head"
+              "body",
+              "head",
+              "legs"
             ],
-            "purpose": "Scales horn length independently of the body mass."
+            "purpose": "Loads only the admitted cow collection through the shared scene validator and exporter."
           }
         ],
         "failureModes": [
-          "The cow becomes a smoothed blob or a horse with spots.",
-          "The udder or horns are missing from the rear or front.",
-          "Spots are thin cards that disappear in side view.",
-          "Legs become sticks instead of chunky intersecting masses."
+          "Nonuniform fitting distorts the cow into the old catalog envelope.",
+          "Required clips disappear, change timing or include combat motion.",
+          "Facial and hoof color blocks collapse into dark hide.",
+          "LOD reduction ungrounds the hooves or tears the skinned anatomy."
         ],
         "reviewViews": [
           "front",
@@ -13923,6 +15773,35 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
+      },
+      "lodLevels": [
+        {
+          "node": "LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "LOD1",
+          "distanceMeters": 34,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.6
+        }
+      ],
+      "sourceProvenance": {
+        "provider": "poly-pizza",
+        "modelId": "26zM1outCr",
+        "sourceUrl": "https://poly.pizza/m/26zM1outCr",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/fauna_cow_a.blend",
+        "sourceSha256": "776216d22f53886baa18c695760d3373db40dae3febc631c558c9be1cbee8939",
+        "sourceCapture": "art/imported/poly-pizza/sources/cow.blend",
+        "sourceCaptureSha256": "9b604e146dd1fae44e401859d8fd927c1c792026d924edccd4a1c537c4310370",
+        "sourceCaptureReport": "art/imported/poly-pizza/sources/cow-report.json",
+        "licenseEvidence": "art/imported/poly-pizza/sources/cow.LICENSE.txt",
+        "attribution": "\"Cow\" by Quaternius, https://poly.pizza/m/26zM1outCr. Licence at https://creativecommons.org/publicdomain/zero/1.0/"
       }
     },
     {
@@ -13974,7 +15853,9 @@
         "fauna_donkey_a_leg_rear_right_lower_pivot",
         "fauna_donkey_a_rider_socket",
         "fauna_donkey_a_stirrup_left_socket",
-        "fauna_donkey_a_stirrup_right_socket"
+        "fauna_donkey_a_stirrup_right_socket",
+        "fauna_donkey_a_rein_grip_left",
+        "fauna_donkey_a_rein_grip_right"
       ],
       "animationClips": [
         {
@@ -15749,7 +17630,7 @@
         "height": 0.35
       },
       "palette": [
-        "metal_dark_01",
+        "metal_iron_01",
         "metal_brass_01",
         "wood_warm_01"
       ],
@@ -15783,7 +17664,7 @@
       },
       "palette": [
         "wood_warm_01",
-        "metal_dark_01",
+        "metal_iron_01",
         "leather_harness_01"
       ],
       "budget": {
@@ -15932,7 +17813,7 @@
         "height": 0.8
       },
       "palette": [
-        "metal_dark_01",
+        "metal_iron_01",
         "metal_brass_01",
         "canvas_cream_01"
       ],
@@ -16553,7 +18434,7 @@
         "height": 2.36
       },
       "palette": [
-        "metal_dark_01",
+        "metal_iron_01",
         "wood_dark_01",
         "metal_brass_01",
         "burlap_grain_01"
@@ -16589,7 +18470,7 @@
       "palette": [
         "accent_red_01",
         "canvas_cream_01",
-        "metal_dark_01",
+        "metal_iron_01",
         "burlap_grain_01"
       ],
       "budget": {
@@ -19050,12 +20931,12 @@
       "id": "house_cottage_a",
       "file": "house_cottage_a.glb",
       "family": "architecture",
-      "generator": "village_building",
+      "generator": "imported_blend",
       "seed": 421,
       "dimensions": {
         "width": 6.2,
-        "depth": 5.4,
-        "height": 5.6
+        "depth": 4.024824,
+        "height": 5.89241
       },
       "palette": [
         "stone_warm_01",
@@ -19065,10 +20946,10 @@
         "emissive_window_01"
       ],
       "budget": {
-        "trianglesMin": 6000,
-        "trianglesTarget": 18000,
-        "trianglesMax": 32000,
-        "materialsMax": 5
+        "trianglesMin": 7000,
+        "trianglesTarget": 7258,
+        "trianglesMax": 7500,
+        "materialsMax": 9
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -19079,35 +20960,15 @@
         "house_cottage_a_root",
         "house_cottage_a_LOD0",
         "house_cottage_a_LOD1",
-        "COL_house_cottage_a"
+        "COL_house_cottage_a",
+        "cottage_a_lantern_glow",
+        "house_cottage_a_LOD0_lantern_surface",
+        "house_cottage_a_LOD1_lantern_surface"
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "width": 5,
-        "depth": 4.2,
-        "wallHeight": 2.55,
-        "roofPitchDeg": 38,
-        "foundationHeight": 0.7,
-        "roofOverhang": 0.42,
-        "roofCourses": 4,
-        "shingleRows": 8,
-        "shingleColumns": 8,
-        "masonryCourses": 3,
-        "masonryBlocks": 5,
-        "porchDepth": 0.72,
-        "porchPlanks": 6,
-        "wingOffset": 0,
-        "wingWidth": 0,
-        "wingDepth": 0,
-        "chimneyOffsetX": 1.6,
-        "chimneyHeight": 1.22,
-        "plinthScale": 1,
-        "porchWidthRatio": 0.7,
-        "doorWidth": 0.92,
-        "doorHeight": 1.78,
-        "roofForm": "front-gable",
-        "openingLayout": "cottage-front",
-        "variant": "cottage-a"
+        "sourceBlend": "art/imported/poly-pizza/house_cottage_a.blend",
+        "sourceCollection": "house_cottage_a"
       },
       "collisionPrimitives": [
         {
@@ -19140,7 +21001,7 @@
       ],
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Northeast village cottage with stone plinth, timber frame, and terracotta gable",
+        "subject": "Coastal timber-and-plaster cottage with warm terracotta dormers, masonry chimney and sheltered entry",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -19154,16 +21015,15 @@
             "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
           },
           {
-            "id": "farmhouse_isolated",
-            "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "id": "polypizza_source",
+            "kind": "structural_study",
+            "uri": "https://poly.pizza/m/dcPho4SUA3",
             "use": [
               "silhouette",
               "proportion",
-              "structure",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+            "notes": "The immutable Quaternius CC0 Fantasy House owns the LOD0 topology, split normals, UVs, and nine material regions. It is uniformly scaled to a 6.2 m source width, rotated to model-forward orientation, and extended only with a separately declared physical doorway lantern."
           }
         ],
         "components": [
@@ -19172,11 +21032,11 @@
             "parent": "root",
             "importance": "primary",
             "role": "Grounds the building with readable stone mass",
-            "shape": "Masonry courses with a water-table lip",
+            "shape": "Stone-edged ground storey with irregular masonry corners and threshold",
             "count": "1 plinth",
             "cues": [
-              "Stone reads as stacked blocks",
-              "Lip sits above the ground plane"
+              "Masonry grounds the walls",
+              "Entry threshold meets the ground"
             ]
           },
           {
@@ -19196,7 +21056,7 @@
             "parent": "frame",
             "importance": "primary",
             "role": "Gives the silhouette overlapping roof planes",
-            "shape": "Thick gable with fascia and ridge beam",
+            "shape": "Thick shingled gable with rounded dormers and timber ridge",
             "count": "1 roof",
             "cues": [
               "Planes have thickness",
@@ -19208,22 +21068,22 @@
             "parent": "frame",
             "importance": "secondary",
             "role": "Reads as a lived-in dwelling from the plaza",
-            "shape": "Door, shuttered windows, and a stone chimney",
+            "shape": "Recessed entry, framed warm windows, stone chimney and bracketed lantern",
             "count": "1 door cluster",
             "cues": [
-              "Shutters are boards, not stickers",
-              "Chimney breaks the ridge"
+              "Window frames have depth",
+              "Lantern is mounted beside the entry"
             ]
           }
         ],
         "silhouette": [
-          "A compact gabled cottage sits on a stone plinth, not a toy box.",
-          "Timber posts and a chimney break the plaster wall silhouette.",
-          "The roof holds two thick overlapping slopes with a ridge beam."
+          "A broad terracotta gable shelters a timber-framed coastal dwelling.",
+          "Dormers and a stone chimney break the roof outline.",
+          "The supported upper storey leaves a readable sheltered entry."
         ],
         "negativeSpace": [
-          "Windows keep dark recesses between shutter boards.",
-          "The door stays inset from the wall plane."
+          "Posts leave space beneath the projecting upper storey.",
+          "Entry and window frames retain visible depth."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
@@ -19235,77 +21095,59 @@
         },
         "criticalFeatures": [
           {
-            "id": "water_table",
+            "id": "grounded_masonry",
             "componentIds": [
               "plinth"
             ],
-            "requirement": "A stone water table lip grounds the walls above the dirt pad.",
+            "requirement": "Stone corners and the threshold meet the terrain without a floating foundation.",
             "priority": "must"
           },
           {
-            "id": "timber_posts",
+            "id": "timber_frame",
             "componentIds": [
-              "frame"
+              "frame",
+              "roof"
             ],
-            "requirement": "Corner posts and plates stay visible at gameplay distance.",
+            "requirement": "Beam thickness and overlapping shingles remain readable at gameplay distance.",
             "priority": "must"
           },
           {
-            "id": "shuttered_windows",
+            "id": "inhabited_entry",
             "componentIds": [
               "openings"
             ],
-            "requirement": "Windows have timber shutters, not flat glowing cards.",
+            "requirement": "A recessed entry and physically mounted warm lantern align with the declared forward direction.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "width",
+            "parameter": "sourceBlend",
             "componentIds": [
               "plinth",
               "frame",
-              "roof"
+              "roof",
+              "openings"
             ],
-            "purpose": "Sets cottage span, wall posts, and roof width."
+            "purpose": "Pins the adapted geometry, palette, footprint, LODs and marker placement."
           },
           {
-            "parameter": "depth",
+            "parameter": "sourceCollection",
             "componentIds": [
               "plinth",
               "frame",
-              "roof"
-            ],
-            "purpose": "Sets cottage depth and gable overhang."
-          },
-          {
-            "parameter": "wallHeight",
-            "componentIds": [
-              "frame",
+              "roof",
               "openings"
             ],
-            "purpose": "Sets wall, door, and window height."
-          },
-          {
-            "parameter": "roofPitchDeg",
-            "componentIds": [
-              "roof"
-            ],
-            "purpose": "Sets gable pitch without turning the roof into a spike."
-          },
-          {
-            "parameter": "variant",
-            "componentIds": [
-              "frame",
-              "openings"
-            ],
-            "purpose": "Selects cottage-a window and chimney layout."
+            "purpose": "Loads only the catalog-owned collection through shared validation and export."
           }
         ],
         "failureModes": [
-          "A smooth primitive box with a paper roof fails the farmhouse language.",
-          "Missing shutters or a missing water table reads as an unfinished placeholder.",
-          "Chibi squat proportions or candy plaster break the coastal village identity."
+          "Paper-thin roof or smooth box walls replace authored construction.",
+          "Entry faces away from the gameplay approach or the lantern floats.",
+          "Candy colors or shiny wood break the coastal palette.",
+          "Welding, retriangulation, or flat-normal reconstruction changes the immutable LOD0 source surface.",
+          "UV deletion, material-region collapse, or repeated palette multiplication breaks the authored shading."
         ],
         "reviewViews": [
           "front",
@@ -19316,6 +21158,78 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
+      },
+      "staticAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/fantasy_house.glb",
+        "sourceSha256": "39b9d7d4c85e170f64d066a3f762ab88689a614c270e95c52927908fb52fa36a",
+        "sourceNode": "House_2",
+        "scaleReference": {
+          "axis": "width",
+          "meters": 6.2
+        },
+        "yawDegrees": -90,
+        "materialMap": {
+          "Stone_Dark": {
+            "token": "stone_warm_01",
+            "value": 0.8,
+            "texturePolicy": "none"
+          },
+          "Wood": {
+            "token": "wood_honey_01",
+            "value": 0.79,
+            "texturePolicy": "none"
+          },
+          "Beige": {
+            "token": "plaster_cream_01",
+            "value": 0.96,
+            "texturePolicy": "none"
+          },
+          "Wood_Light": {
+            "token": "wood_honey_01",
+            "value": 0.98,
+            "texturePolicy": "none"
+          },
+          "Windows": {
+            "token": "emissive_window_01",
+            "value": 0.94,
+            "texturePolicy": "none"
+          },
+          "RoofTiles": {
+            "token": "roof_terracotta_01",
+            "value": 0.94,
+            "texturePolicy": "none"
+          },
+          "Wood_Side": {
+            "token": "wood_honey_01",
+            "value": 0.91,
+            "texturePolicy": "none"
+          },
+          "Stone": {
+            "token": "stone_warm_01",
+            "value": 0.87,
+            "texturePolicy": "none"
+          },
+          "Stone_Light": {
+            "token": "stone_warm_01",
+            "value": 0.96,
+            "texturePolicy": "none"
+          }
+        },
+        "addedGeometryNodes": [
+          "house_cottage_a_LOD0_lantern_surface",
+          "house_cottage_a_LOD1_lantern_surface"
+        ]
+      },
+      "sourceProvenance": {
+        "provider": "poly-pizza",
+        "modelId": "dcPho4SUA3",
+        "sourceUrl": "https://poly.pizza/m/dcPho4SUA3",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/house_cottage_a.blend",
+        "sourceSha256": "3c0f416162e74f331524ea3c24aaa75f1c9c62dadd54b51afeda8d83c3d023df",
+        "attribution": "\"Fantasy House\" by Quaternius, https://poly.pizza/m/dcPho4SUA3. Licence at https://creativecommons.org/publicdomain/zero/1.0/"
       }
     },
     {
@@ -19351,7 +21265,8 @@
         "house_cottage_b_root",
         "house_cottage_b_LOD0",
         "house_cottage_b_LOD1",
-        "COL_house_cottage_b"
+        "COL_house_cottage_b",
+        "cottage_b_lantern_glow"
       ],
       "readDistanceMeters": 30,
       "parameters": {
@@ -19625,7 +21540,8 @@
         "building_inn_a_root",
         "building_inn_a_LOD0",
         "building_inn_a_LOD1",
-        "COL_building_inn_a"
+        "COL_building_inn_a",
+        "inn_lantern_glow"
       ],
       "readDistanceMeters": 30,
       "parameters": {
@@ -20788,7 +22704,8 @@
         "house_cottage_c_root",
         "house_cottage_c_LOD0",
         "house_cottage_c_LOD1",
-        "COL_house_cottage_c"
+        "COL_house_cottage_c",
+        "cottage_c_lantern_glow"
       ],
       "readDistanceMeters": 30,
       "parameters": {
@@ -21068,7 +22985,8 @@
         "building_inn_b_root",
         "building_inn_b_LOD0",
         "building_inn_b_LOD1",
-        "COL_building_inn_b"
+        "COL_building_inn_b",
+        "inn_b_lantern_glow"
       ],
       "readDistanceMeters": 30,
       "parameters": {
@@ -22622,8 +24540,8 @@
       "palette": [
         "foliage_olive_01",
         "wood_warm_01",
-        "soil_shadow_01",
-        "foliage_sage_01"
+        "foliage_shadow_01",
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 20,
@@ -22658,8 +24576,8 @@
       "palette": [
         "foliage_olive_01",
         "wood_warm_01",
-        "soil_shadow_01",
-        "foliage_sage_01"
+        "foliage_shadow_01",
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 120,
@@ -22694,8 +24612,8 @@
       "palette": [
         "foliage_olive_01",
         "wood_warm_01",
-        "soil_shadow_01",
-        "foliage_sage_01"
+        "foliage_shadow_01",
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 300,
@@ -22730,8 +24648,8 @@
       "palette": [
         "foliage_olive_01",
         "wood_warm_01",
-        "soil_shadow_01",
-        "foliage_sage_01"
+        "foliage_shadow_01",
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 600,
@@ -22766,8 +24684,8 @@
       "palette": [
         "foliage_olive_01",
         "wood_warm_01",
-        "soil_shadow_01",
-        "foliage_sage_01"
+        "foliage_shadow_01",
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 500,
@@ -22800,10 +24718,10 @@
         "height": 1.25
       },
       "palette": [
-        "foliage_sage_01",
+        "foliage_olive_01",
         "wood_warm_01",
-        "soil_shadow_01",
-        "foliage_shadow_01"
+        "foliage_shadow_01",
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 160,
@@ -22952,7 +24870,7 @@
         "length": 0.68,
         "girth": 0.15,
         "finScale": 0.9,
-        "bodyDepth": 1.35,
+        "bodyDepth": 1.78,
         "bodySegments": 16,
         "radialSegments": 14,
         "tailPeduncle": 0.2
@@ -23029,26 +24947,27 @@
       "id": "char_npc_tomas_a",
       "file": "char_npc_tomas_a.glb",
       "family": "character",
-      "generator": "npc_character",
+      "generator": "imported_blend",
       "seed": 1631,
       "dimensions": {
-        "width": 1.05,
-        "depth": 0.65,
-        "height": 2.02
+        "width": 1.9,
+        "depth": 0.8,
+        "height": 2.04
       },
       "palette": [
-        "plaster_warm_01",
-        "water_mid_01",
-        "wood_dark_01",
+        "skin_warm_01",
+        "cloth_rust_01",
+        "cloth_slate_01",
+        "hair_brown_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "burlap_grain_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 7900,
-        "trianglesMax": 16000,
-        "materialsMax": 8
+        "trianglesTarget": 5500,
+        "trianglesMax": 20000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -23079,19 +24998,60 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 1.666666667,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.666667
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.666667
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "talk_gesture",
           "durationSeconds": 2.933333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "talk_gesture"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 2.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 2.933333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333,
+          "durationSeconds": 1.333333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 0.975,
+          "referenceSpeedMetersPerSecond": 1.405154,
           "events": [
             {
               "name": "footstep_left",
@@ -23099,165 +25059,250 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.666667
+              "timeSeconds": 0.633333
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.333333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0.633333,
+                "end": 1.3
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "role": "merchant",
-        "height": 1.94,
-        "headRatio": 4.8,
-        "handScale": 1.16,
-        "style": "chibi-storybook",
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_npc_tomas_a.blend",
+        "sourceCollection": "char_npc_tomas_a"
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable merchant silhouette",
+        "subject": "Adult coastal merchant using original Quaternius casual_2 anatomy and source skinning",
         "sources": [
           {
-            "id": "npc_chibi_storybook_turnaround",
-            "kind": "visual_reference",
-            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://quaternius.com/packs/ultimatemodularcharacters.html",
             "use": [
-              "form_language",
               "silhouette",
               "proportion",
-              "materials",
-              "detail_density"
+              "structure"
             ],
-            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
           {
-            "id": "head_face",
+            "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the friendly storybook expression and NPC identity",
-            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
-            "count": "1 connected head mass",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
+            "count": "1 body",
             "cues": [
-              "Face stays visible from front and three-quarter views",
-              "Hair frames the face without hiding the eyes"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "body_outfit",
-            "parent": "root",
+            "id": "workwear",
+            "parent": "body",
             "importance": "primary",
-            "role": "Communicates the compact coastal worker role before facial detail",
-            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
-            "count": "1 connected outfit silhouette",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Torso remains compact rather than fashion-proportioned",
-              "Merchant apron and market accents read as one working costume"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hands_boots",
-            "parent": "root",
+            "id": "face",
+            "parent": "body",
             "importance": "primary",
-            "role": "Keeps gestures, sockets, and grounded stance readable in play",
-            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
-            "count": "2 arms and 2 legs",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Hands meet the authored sockets",
-              "Boot soles remain clearly grounded from every review angle"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "The head is visibly larger than the compact torso and short lower body.",
-          "The bun, apron, and market accents form a distinct practical merchant outline.",
-          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "A clear gap separates the arms from the rounded torso in neutral pose.",
-          "The face and hand shapes remain unobstructed around the hair and apron."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
-          "confidence": "medium",
+          "confidence": "high",
           "requirements": [
-            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
-            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "readable_face",
+            "id": "source_shape",
             "componentIds": [
-              "head_face"
+              "body",
+              "face"
             ],
-            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "compact_role_silhouette",
+            "id": "source_motion",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body"
             ],
-            "requirement": "The NPC reads as a compact chibi storybook merchant before accessories are inspected.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
             "priority": "must"
           },
           {
-            "id": "grounded_contacts",
+            "id": "materials",
             "componentIds": [
-              "hands_boots"
+              "workwear",
+              "face"
             ],
-            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "style",
+            "parameter": "sourceBlend",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head_face"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Controls the expressive head scale against the NPC stature."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands_boots"
-            ],
-            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "The face disappears under the hair mass.",
-          "The body returns to adult fashion proportions with long thin limbs.",
-          "The apron, market tools, or boots read as floating disconnected ornaments."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -23281,34 +25326,158 @@
           "node": "char_npc_tomas_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.62
+          "triangleRatioMax": 0.52
         }
-      ]
+      ],
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/casual_2.gltf",
+        "sourceSha256": "55c654d09a2a5ff6e3bd6158d4a1b462f181cd6f1e12a0f5e9d959f9c3abc438",
+        "heightMeters": 1.94,
+        "role": "merchant",
+        "materialMap": {
+          "Casual2_Body/Skin": "skin_warm_01",
+          "Casual2_Body/LightBrown": "cloth_rust_01",
+          "Casual2_Feet/Red_Dark": "leather_harness_01",
+          "Casual2_Feet/White": "canvas_cream_01",
+          "Casual2_Head/Skin": "skin_warm_01",
+          "Casual2_Head/Skin_Darker": "skin_warm_01",
+          "Casual2_Head/Eyebrows": "wood_dark_01",
+          "Casual2_Head/Hair": "hair_brown_01",
+          "Casual2_Head/Eye": "wood_dark_01",
+          "Casual2_Legs/LightBlue": "cloth_slate_01"
+        },
+        "accessoryPalette": []
+      },
+      "sourceProvenance": {
+        "provider": "quaternius",
+        "modelId": "ultimate-modular-men-casual_2",
+        "sourceUrl": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_npc_tomas_a.blend",
+        "sourceSha256": "3968c655daf58227f7e7f1ff9fb26e535542a1bef74a2cf0c550b6808ef62f9a",
+        "attribution": "casual_2 by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              6.30809292245793e-07,
+              0.5111210328910603,
+              -6.186740584904203e-07
+            ],
+            "soleOffset": [
+              -1.3501493998646639e-06,
+              -0.00012913759779992898,
+              0.024148990672882394
+            ],
+            "soleNormal": [
+              5.590834465624749e-05,
+              0.005347459567500379,
+              -0.9999857006729802
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              -6.265575983321892e-07,
+              0.5111209012725351,
+              7.152250200426202e-07
+            ],
+            "soleOffset": [
+              1.350140346481621e-06,
+              -0.00012913663763748642,
+              0.024148811059799748
+            ],
+            "soleNormal": [
+              -5.5908385593529377e-05,
+              0.00534745958095728,
+              -0.9999857006729059
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_npc_tomas_a_hand_socket_left",
+          "right": "char_npc_tomas_a_hand_socket_right"
+        }
+      }
     },
     {
       "id": "char_npc_ines_a",
       "file": "char_npc_ines_a.glb",
       "family": "character",
-      "generator": "npc_character",
+      "generator": "imported_blend",
       "seed": 1632,
       "dimensions": {
-        "width": 1,
-        "depth": 0.65,
-        "height": 1.98
+        "width": 1.9,
+        "depth": 0.8,
+        "height": 2
       },
       "palette": [
-        "plaster_warm_01",
-        "foliage_olive_01",
-        "wood_dark_01",
+        "skin_light_01",
+        "cloth_olive_01",
+        "cloth_slate_01",
+        "hair_brown_01",
         "canvas_cream_01",
-        "metal_brass_01",
-        "foam_warm_01"
+        "leather_harness_01",
+        "wood_dark_01"
       ],
       "budget": {
         "trianglesMin": 2500,
-        "trianglesTarget": 7800,
-        "trianglesMax": 16000,
-        "materialsMax": 8
+        "trianglesTarget": 6000,
+        "trianglesMax": 20000,
+        "materialsMax": 7
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -23339,19 +25508,60 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 2.5,
-          "loop": true
+          "durationSeconds": 2.083333333,
+          "loop": true,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Idle_Neutral",
+            "sourceDurationSeconds": 2.083333333
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 2.083333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 2.083333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "talk_gesture",
           "durationSeconds": 2.933333,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "talk_gesture"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 2.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 2.933333
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333,
+          "durationSeconds": 1.666666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 0.975,
+          "referenceSpeedMetersPerSecond": 1.086946,
           "events": [
             {
               "name": "footstep_left",
@@ -23359,165 +25569,261 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.666667
+              "timeSeconds": 0.8
             }
-          ]
+          ],
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "Walk",
+            "sourceDurationSeconds": 1.666666667
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.75
+              }
+            ],
+            "right": [
+              {
+                "start": 0.8,
+                "end": 1.625
+              }
+            ]
+          }
         },
         {
           "name": "carry_idle",
           "durationSeconds": 1.6,
-          "loop": true
+          "loop": true,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "carry_idle"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 1.6
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_left",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_left"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         },
         {
           "name": "turn_right",
           "durationSeconds": 0.4,
-          "loop": false
+          "loop": false,
+          "motionSource": {
+            "kind": "authored",
+            "sourceTimebase": "seconds",
+            "recipe": "turn_right"
+          },
+          "contacts": {
+            "left": [
+              {
+                "start": 0,
+                "end": 0.066667
+              },
+              {
+                "start": 0.133333,
+                "end": 0.4
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.266667
+              },
+              {
+                "start": 0.333333,
+                "end": 0.4
+              }
+            ]
+          },
+          "events": []
         }
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "role": "gardener",
-        "height": 1.9,
-        "headRatio": 4.75,
-        "handScale": 1.16,
-        "style": "chibi-storybook",
-        "animationSource": "anim/Unreal-Godot/UAL1_Standard.glb"
+        "sourceBlend": "art/imported/poly-pizza/char_npc_ines_a.blend",
+        "sourceCollection": "char_npc_ines_a"
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Chibi storybook coastal village NPC with expressive face, compact workwear, and a readable gardener silhouette",
+        "subject": "Adult coastal grower using original Quaternius animated_woman anatomy and source skinning",
         "sources": [
           {
-            "id": "npc_chibi_storybook_turnaround",
-            "kind": "visual_reference",
-            "uri": "repo://output/imagegen/npc-chibi-storybook-turnaround.png",
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
             "use": [
               "form_language",
-              "silhouette",
-              "proportion",
               "materials",
               "detail_density"
             ],
-            "notes": "Original multi-view style study; use it as a proportion and material-block bar, not as a runtime source."
+            "notes": "Warm faceted coastal identity, matte workwear and gameplay readability."
+          },
+          {
+            "id": "quaternius_source",
+            "kind": "structural_study",
+            "uri": "https://poly.pizza/m/qJ2gsTUBHL",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure"
+            ],
+            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
           }
         ],
         "components": [
           {
-            "id": "head_face",
+            "id": "body",
             "parent": "root",
             "importance": "primary",
-            "role": "Carries the friendly storybook expression and NPC identity",
-            "shape": "Large faceted head with simple warm eyes, nose wedge, cheeks, and chunky hair",
-            "count": "1 connected head mass",
+            "role": "Source adult anatomy and coherent articulation",
+            "shape": "Original modular torso and limbs retain source proportions",
+            "count": "1 body",
             "cues": [
-              "Face stays visible from front and three-quarter views",
-              "Hair frames the face without hiding the eyes"
+              "No segment fitting",
+              "Source skin weights retained"
             ]
           },
           {
-            "id": "body_outfit",
-            "parent": "root",
+            "id": "workwear",
+            "parent": "body",
             "importance": "primary",
-            "role": "Communicates the compact coastal worker role before facial detail",
-            "shape": "Short rounded torso with broad apron, practical sleeves, and restrained color blocks",
-            "count": "1 connected outfit silhouette",
+            "role": "Recognizable coastal occupation",
+            "shape": "Matte source clothing with role-specific colors and work accessories",
+            "count": "1 outfit",
             "cues": [
-              "Torso remains compact rather than fashion-proportioned",
-              "Gardener tools and apron read as one working costume"
+              "Broad readable cloth planes",
+              "Skin and cloth use distinct palette families"
             ]
           },
           {
-            "id": "hands_boots",
-            "parent": "root",
+            "id": "face",
+            "parent": "body",
             "importance": "primary",
-            "role": "Keeps gestures, sockets, and grounded stance readable in play",
-            "shape": "Short sturdy limbs with oversized mitten hands and chunky planted boots",
-            "count": "2 arms and 2 legs",
+            "role": "Cohesive adult roster identity",
+            "shape": "Original source head proportions and retained hair silhouette",
+            "count": "1 head",
             "cues": [
-              "Hands meet the authored sockets",
-              "Boot soles remain clearly grounded from every review angle"
+              "Face remains legible",
+              "No chibi enlargement"
             ]
           }
         ],
         "silhouette": [
-          "The head is visibly larger than the compact torso and short lower body.",
-          "The bonnet, apron, and gardening accents form a distinct elder-gardener outline.",
-          "Broad hands and boots preserve a friendly storybook read at gameplay distance."
+          "Original adult head-to-body ratio remains intact.",
+          "Source arm and leg lengths change only by uniform scale.",
+          "Work clothing and accessories identify the coastal role."
         ],
         "negativeSpace": [
-          "A clear gap separates the arms from the rounded torso in neutral pose.",
-          "The face and hand shapes remain unobstructed around the apron and hat."
+          "Arms remain separated from torso.",
+          "Legs retain a natural stance."
         ],
         "hiddenSurfaces": {
           "strategy": "structural_continuity",
-          "confidence": "medium",
+          "confidence": "high",
           "requirements": [
-            "Rear hair and apron construction continue the front silhouette without hollow gaps.",
-            "Socket-bearing hands and feet retain connected volume behind the visible accessories."
+            "Original back and side surfaces are retained.",
+            "Modular seams remain coherent throughout every authored pose."
           ]
         },
         "criticalFeatures": [
           {
-            "id": "readable_face",
+            "id": "source_shape",
             "componentIds": [
-              "head_face"
+              "body",
+              "face"
             ],
-            "requirement": "The face and eyes read clearly without realistic-human detail or ink outlines.",
+            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
             "priority": "must"
           },
           {
-            "id": "compact_role_silhouette",
+            "id": "source_motion",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body"
             ],
-            "requirement": "The NPC reads as a compact chibi storybook gardener before accessories are inspected.",
+            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
             "priority": "must"
           },
           {
-            "id": "grounded_contacts",
+            "id": "materials",
             "componentIds": [
-              "hands_boots"
+              "workwear",
+              "face"
             ],
-            "requirement": "Hands, feet, and authored interaction sockets stay aligned in the neutral rig pose.",
+            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
             "priority": "must"
           }
         ],
         "parameterBindings": [
           {
-            "parameter": "style",
+            "parameter": "sourceBlend",
             "componentIds": [
-              "head_face",
-              "body_outfit",
-              "hands_boots"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Selects the compact NPC proportion and shared chibi storybook construction contract."
+            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
           },
           {
-            "parameter": "headRatio",
+            "parameter": "sourceCollection",
             "componentIds": [
-              "head_face"
+              "body",
+              "workwear",
+              "face"
             ],
-            "purpose": "Controls the expressive head scale against the NPC stature."
-          },
-          {
-            "parameter": "handScale",
-            "componentIds": [
-              "hands_boots"
-            ],
-            "purpose": "Keeps the hand gesture readable without breaking the socket contract."
+            "purpose": "Loads the catalog-owned collection into shared validation and export."
           }
         ],
         "failureModes": [
-          "The face disappears under the bonnet or hair mass.",
-          "The body returns to adult fashion proportions with long thin limbs.",
-          "The apron, tools, or boots read as floating disconnected ornaments."
+          "Nonuniform anatomy fitting changes original source proportions.",
+          "Source timing is inferred from an unrelated Blender scene frame rate.",
+          "Missing task actions reuse unrelated donor local curves."
         ],
         "reviewViews": [
           "front",
@@ -23526,8 +25832,7 @@
           "three_quarter",
           "gameplay_8m",
           "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
+          "gameplay_read_distance"
         ]
       },
       "lodLevels": [
@@ -23541,9 +25846,131 @@
           "node": "char_npc_ines_a_LOD1",
           "distanceMeters": 18,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.62
+          "triangleRatioMax": 0.52
         }
-      ]
+      ],
+      "sourceProvenance": {
+        "provider": "poly-pizza",
+        "modelId": "qJ2gsTUBHL",
+        "sourceUrl": "https://poly.pizza/m/qJ2gsTUBHL",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "sourceBlend": "art/imported/poly-pizza/char_npc_ines_a.blend",
+        "sourceSha256": "b55019884fc95ff3c944f2e9d106b1328665e846b900c35067c4322214c8ebeb",
+        "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
+      },
+      "humanoidAuthoring": {
+        "sourceFile": "art/imported/poly-pizza/sources/animated_woman.glb",
+        "sourceSha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
+        "heightMeters": 1.9,
+        "role": "grower",
+        "materialMap": {
+          "Casual_Body/White": "cloth_olive_01",
+          "Casual_Body/Skin": "skin_light_01",
+          "Casual_Feet/Skin": "skin_light_01",
+          "Casual_Feet/Grey": "leather_harness_01",
+          "Casual_Head/Skin": "skin_light_01",
+          "Casual_Head/Hair_Blond": "hair_brown_01",
+          "Casual_Head/Hair_Brown": "hair_brown_01",
+          "Casual_Head/Brown": "wood_dark_01",
+          "Casual_Legs/Orange": "cloth_slate_01"
+        },
+        "accessoryPalette": []
+      },
+      "humanoidRig": {
+        "bones": {
+          "root": "Root",
+          "pelvis": "Body",
+          "hips": "Hips",
+          "spine": "Abdomen",
+          "spine_02": "Torso",
+          "chest": "Chest",
+          "neck": "Neck",
+          "head": "Head",
+          "clavicle_left": "Shoulder.L",
+          "upper_arm_left": "UpperArm.L",
+          "forearm_left": "LowerArm.L",
+          "hand_left": "Wrist.L",
+          "clavicle_right": "Shoulder.R",
+          "upper_arm_right": "UpperArm.R",
+          "forearm_right": "LowerArm.R",
+          "hand_right": "Wrist.R",
+          "thigh_left": "UpperLeg.L",
+          "shin_left": "LowerLeg.L",
+          "foot_left": "Foot.L",
+          "thigh_right": "UpperLeg.R",
+          "shin_right": "LowerLeg.R",
+          "foot_right": "Foot.R"
+        },
+        "forwardAxis": "+Z",
+        "legs": {
+          "left": {
+            "shinTip": [
+              -5.3734648132984495e-11,
+              0.005348251956767635,
+              -6.662788507114796e-09
+            ],
+            "soleOffset": [
+              -2.095367932983261e-11,
+              -1.6750413827809098e-06,
+              0.0003131821370845854
+            ],
+            "soleNormal": [
+              6.690476921259542e-08,
+              0.005348381107466383,
+              -0.999985697307479
+            ],
+            "bendDirection": [
+              0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          },
+          "right": {
+            "shinTip": [
+              2.3730368451518874e-10,
+              0.005348251948188674,
+              -6.843942765809295e-09
+            ],
+            "soleOffset": [
+              -2.095367932983261e-11,
+              -1.6750413827815603e-06,
+              0.00031318213708471355
+            ],
+            "soleNormal": [
+              6.690476921259542e-08,
+              0.005348381107466383,
+              -0.999985697307479
+            ],
+            "bendDirection": [
+              -0.13864784453440623,
+              0,
+              0.9903417466743302
+            ]
+          }
+        },
+        "arms": {
+          "left": {
+            "bendDirection": [
+              0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          },
+          "right": {
+            "bendDirection": [
+              -0.5734623443633283,
+              0,
+              -0.8192319205190405
+            ]
+          }
+        },
+        "grips": {
+          "left": "char_npc_ines_a_hand_socket_left",
+          "right": "char_npc_ines_a_hand_socket_right"
+        }
+      }
     }
   ]
 }

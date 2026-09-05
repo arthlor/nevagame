@@ -145,6 +145,12 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
             <div>
               <h2 id="map-title" className="map-title">Nautical Chart of Neva & Sunreach</h2>
               <span className="map-subtitle">Roads, waterways, farms, and fishing notes</span>
+              {map.activeSchools.length > 0 && (
+                <span className="map-school-tally" data-testid="map-school-tally">
+                  {`${map.activeSchools.length} school${map.activeSchools.length === 1 ? "" : "s"} working`}
+                  {` · nearest ${map.activeSchools[0].distanceMeters} m`}
+                </span>
+              )}
             </div>
           </div>
 
@@ -352,6 +358,37 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
                   </g>
                 );
               })}
+
+              {/* Live schools sit under the player mark so they never hide it.
+                  A school is a passing opportunity, so it carries its own
+                  remaining time rather than reading as a fixed landmark. */}
+              <g className="map-school-layer" data-testid="map-school-layer">
+                {map.activeSchools.map((school) => {
+                  const at = worldPointToMapSvg({ x: school.x, z: school.z });
+                  return (
+                    <g
+                      key={school.schoolId}
+                      transform={`translate(${at.x}, ${at.y})`}
+                      className={`map-school${school.feeding ? " is-feeding" : ""}`}
+                      data-testid="map-school"
+                      data-feeding={school.feeding ? "true" : "false"}
+                    >
+                      <circle
+                        r="13"
+                        fill="rgba(56, 189, 248, 0.16)"
+                        stroke={school.feeding ? "#f0a020" : "#2f7d9a"}
+                        strokeWidth="1.6"
+                        strokeDasharray="4 3"
+                      />
+                      <circle r="3.4" fill={school.feeding ? "#f0a020" : "#2f7d9a"} />
+                      <title>
+                        {`${school.waterLabel} school · ${school.minutesRemaining} min left`}
+                        {school.feeding ? " · feeding" : ""}
+                      </title>
+                    </g>
+                  );
+                })}
+              </g>
 
               <g transform={`translate(${playerMapPosition.x}, ${playerMapPosition.y})`}>
                 <circle r="16" fill="none" stroke="#9a3528" strokeWidth="2" opacity="0.6" className="player-pulse-ring" />

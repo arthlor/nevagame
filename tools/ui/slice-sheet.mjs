@@ -145,6 +145,37 @@ async function writeDebugSheet(sheet, boxes, outputPath) {
     .toFile(outputPath);
 }
 
+export function resolveSpriteBoxes(sheetSpec, boxes) {
+  const expected = sheetSpec.expectedIslands ?? sheetSpec.sprites.length;
+  if (boxes.length !== expected) {
+    throw new Error(`Sheet "${sheetSpec.id}" detected ${boxes.length} icons but expects ${expected}. Re-run with --debug.`);
+  }
+  const used = new Set();
+  return sheetSpec.sprites.map((sprite, position) => {
+    const index = sprite.index ?? position;
+    if (!Number.isInteger(index) || index < 0 || index >= boxes.length || used.has(index)) {
+      throw new Error(`Invalid or duplicate island ${index} for ${sprite.file}`);
+    }
+    used.add(index);
+    return boxes[index];
+  });
+}
+
+/** Remove key-unmix spill on translucent edges without recoloring opaque paint. */
+export function cleanSpriteEdges(pixels, { alphaFloor, alphaBelow, excessAboveRedAndBlue }) {
+  const result = Buffer.from(pixels);
+  for (let offset = 0; offset < result.length; offset += 4) {
+    const alpha = result[offset + 3];
+    if (alpha < alphaFloor) {
+      result.fill(0, offset, offset + 4);
+    } else if (alpha < alphaBelow) {
+      const neighborChannel = Math.max(result[offset], result[offset + 2]);
+      if (result[offset + 1] - neighborChannel > excessAboveRedAndBlue) result[offset + 1] = neighborChannel;
+    }
+  }
+  return result;
+}
+
 async function sliceSheet(manifest, sheetSpec, { debug }) {
   const source = path.join(ROOT, sheetSpec.source);
   if (!fs.existsSync(source)) {
@@ -160,16 +191,17 @@ async function sliceSheet(manifest, sheetSpec, { debug }) {
     console.log(`[NEVA UI] Debug overlay: ${path.relative(ROOT, debugPath)}`);
   }
 
-  if (analysis.boxes.length !== sheetSpec.sprites.length) {
-    throw new Error(
-      `Sheet "${sheetSpec.id}" detected ${analysis.boxes.length} icons but declares ${sheetSpec.sprites.length}. ` +
-        `Re-run with --debug to inspect detection, or regenerate the sheet with cleaner separation.`
-    );
-  }
+  const boxes = resolveSpriteBoxes(sheetSpec, analysis.boxes);
 
   fs.mkdirSync(ATLAS_DIR, { recursive: true });
   for (const [index, sprite] of sheetSpec.sprites.entries()) {
-    const buffer = await extractSprite(analysis, analysis.boxes[index], output);
+    let buffer = await extractSprite(analysis, boxes[index], output);
+    if (output.edgeDespill) {
+      const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      buffer = await sharp(cleanSpriteEdges(data, output.edgeDespill), {
+        raw: { width: info.width, height: info.height, channels: 4 }
+      }).png({ compressionLevel: 9 }).toBuffer();
+    }
     fs.writeFileSync(path.join(ATLAS_DIR, sprite.file), buffer);
   }
 

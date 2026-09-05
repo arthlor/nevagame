@@ -81,6 +81,9 @@ export function calculateEffectiveGrowthDelta(
 export const POST_MATURE_MATURE_MINUTES = 12 * 60;
 /** Calendar minutes after mature before an annual withers. */
 export const POST_MATURE_WITHER_MINUTES = 24 * 60;
+/** Growth progress (fraction of baseGrowthMinutes) at which a crop reads as "growing". */
+export const SEEDED_STAGE_MAX_PROGRESS = 0.1;
+export const GROWING_STAGE_MIN_PROGRESS = 0.35;
 
 export function determineCropStage(
   effectiveGrowthMinutes: number,
@@ -90,8 +93,8 @@ export function determineCropStage(
   if (baseGrowthMinutes <= 0) return "mature";
   if (effectiveGrowthMinutes < baseGrowthMinutes) {
     const progressRatio = effectiveGrowthMinutes / baseGrowthMinutes;
-    if (progressRatio < 0.1) return "seeded";
-    if (progressRatio < 0.35) return "sprout";
+    if (progressRatio < SEEDED_STAGE_MAX_PROGRESS) return "seeded";
+    if (progressRatio < GROWING_STAGE_MIN_PROGRESS) return "sprout";
     return "growing";
   }
   const calendarPastMature = effectiveGrowthMinutes - baseGrowthMinutes;

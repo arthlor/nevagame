@@ -12,8 +12,8 @@ describe("player attachment presentation", () => {
     expect(attachmentClip("board")).toBe("board");
     expect(attachmentClip("board", { skiff: true })).toBe("board_skiff");
     expect(attachmentClip("dock", { skiff: true })).toBe("dock_skiff");
-    expect(attachmentClip("mount", { side: attachmentSideFromLocalX(-0.4) })).toBe("mount");
-    expect(attachmentClip("mount", { side: attachmentSideFromLocalX(0.4) })).toBe("mount_right");
+    expect(attachmentClip("mount", { side: attachmentSideFromLocalX(0.4) })).toBe("mount");
+    expect(attachmentClip("mount", { side: attachmentSideFromLocalX(-0.4) })).toBe("mount_right");
     expect(attachmentClip("dismount", { side: "right" })).toBe("dismount_right");
   });
 

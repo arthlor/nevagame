@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import baseline from "./neva-layout10-working-preservation.json";
+import { captureTerrainPreservation } from "./terrain-preservation";
 import {
   FARM_ROUTES,
   WORLD_BOUNDS,
@@ -43,10 +45,17 @@ const landmarks = Object.fromEntries(
     .map((id) => [id, WorldLayout.landmark(id)])
 );
 
+const working = captureTerrainPreservation(baseline.routeIds);
+const workingChecks = Object.fromEntries(Object.keys(baseline).map((key) => [
+  key,
+  hash(working[key as keyof typeof working]) === hash(baseline[key as keyof typeof baseline])
+]));
+
 process.stdout.write(`${JSON.stringify({
   layoutRevision: WORLD_LAYOUT_V5.revision,
   terrainWaterHash: hash(terrainWaterSamples),
   routeHash: hash(routes),
   landmarkHash: hash(landmarks),
-  sampleCount: terrainWaterSamples.length
+  sampleCount: terrainWaterSamples.length,
+  workingChecks
 })}\n`);

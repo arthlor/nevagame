@@ -169,15 +169,29 @@ Lighting target: warm directional sun, cool environment fill, medium-soft readab
 
 Recommended day setup: `1 directional sun + hemisphere/environment fill + restrained AO/contact solution + optional local emissives`. Sun angle **~25–50°**, subtly warm key/cool fill. Golden hour can push warmer/lower; normal gameplay preserves color accuracy.
 
+The golden hour is a property of the **key falloff curve**, not of the key colour alone. If the key's daylight ramp reaches zero at or above the horizon, the sun switches off exactly when it is lowest and warmest, and dawn/dusk collapse into a flat ambient lift with the warm colour nowhere to be seen. The ramp must therefore still carry meaningful key intensity as the sun crosses the horizon and finish its falloff below it. `VisualRenderConfig.sun` owns that curve (`daylightFullSolarHeight` / `daylightZeroSolarHeight`) and the low-sun key colour it interpolates toward; `tests/unit/lightingRig.test.ts` holds the dawn/dusk/day ordering invariants.
+
+One horizon-proximity envelope owns both the warm sky band and the golden-hour key colour, so the two can never disagree about when the sun is low. `VisualRenderConfig.twilight.solarWidth` owns its width. The key colour is anchored on the day key and pulled toward the low-sun token by that envelope, which keeps noon identical to the approved daylight baseline while only the low-sun window shifts.
+
 Avoid flat white noon, hard black shadows, unrealistic HDR contrast, ambient wash that erases facets, or orange grading as a substitute for lighting.
 
 Shadows: one primary directional system; soft penumbra; enough density to anchor buildings/rocks/boats/crates/fences/crops. Do not shadow every grass blade or make softness so broad things float.
 
+Shadow density is a range decision, not a binary. A fully opaque shadow crushes the dark palette families — coastal rock and dark wood read as flat black silhouettes with no facet separation, which §22 lists as a material failure. Letting a little ambient into the shadow recovers that range without raising the hemisphere fill, which would flatten the lit surfaces instead. `VisualRenderConfig.shadows.intensity` owns it.
+
+Moonlight is a weaker and far softer key than the sun and must not reuse the day shadow recipe: at day density and radius, a moonlit night casts a razor-hard opaque shadow, which §22 also lists as a lighting failure. `VisualRenderConfig.shadows.nightIntensity` / `nightRadius` own the moon-side recipe, applied by the lighting rig whenever the moon owns the shadow pass.
+
 `VisualRenderConfig.shadows` owns which asset families cast and the per-tier shadow-camera coverage; nothing else may gate casting. Two rules constrain those numbers. The shadow camera must span the ground the gameplay camera actually shows, not a bubble around the player — a coverage radius smaller than the visible ground reads to a player as "this world has no shadows at all", because the only shadows on screen are the handful near their feet. And the key light must stay well above the hemisphere fill: at comparable intensities a fully occluded surface is barely darker than a lit one, so shadows render correctly and still fail to read.
+
+**The key-over-fill rule applies to the night envelope as well as the day one.** A night that runs the moon at roughly the same strength as its hemisphere fill is fill-dominant, and moonlit trees, rocks and buildings read as flat silhouettes with no lit side — the same "unlit diorama" failure the daytime rule exists to prevent, arriving through the back door. Night must hold a key-dominant ratio in proportion to the day one. Raising night readability is a separate concern from the ratio and is served by exposure, not by lifting the fill.
+
+Faceting is a property of the **material**, not only of the slope. Steep ground and a rock cliff share an angle but not a surface: shading a sand or soil river bank with flat face normals and flat face colour on the regular terrain grid produces repeating chevrons that read as a rendering fault, not as stone. Slope-driven faceting must therefore be damped on ground the world does not classify as cliff, and the slope window must be wide enough that a bank cannot cross it inside a single terrain vertex, which otherwise draws a hard seam along one grid line. `VisualRenderConfig.terrainSurface.normals` owns the window and the soft-surface scale; real cliffs still reach full faceting through their semantic cliff weight.
 
 AO: soft/broad at beam/stone/foundation/crate/roof/boat/dock/rock/crop contacts. Never black creases or edge-outline every polygon.
 
 Atmosphere: subtle distance haze, reduced distant saturation/contrast, sky influence; maintain gameplay crispness. The clear-weather far plane is also what conceals the terrain plane's cut edge, so it must stay inside the terrain grid's extent; a far plane beyond the landform resolves the world's border against the sky and removes every depth cue at once. `VisualRenderConfig.fog` owns the numbers and `tests/unit/rendererFoundation.test.ts` holds the invariant.
+
+Local emissives — lit windows, lanterns, hearths — are a **time-of-day system, not a constant**. Palette emissive tokens author their strength for full dark; the renderer scales that toward zero as the key light comes up, so a window that glows convincingly at midnight does not read as a hole punched in the wall at noon. Emissive strength shares the practical lights' envelope, so a lit window and the pool of light it casts come up together. `PaletteMaterials` owns the scaling and `VisualRenderConfig.twilight` owns the envelope.
 
 Sky: simple pale-blue gradient + warm horizon + few large faceted cloud masses; sunset peach/amber horizon + cooler upper sky. Avoid visible photographic HDRI background.
 
@@ -196,10 +210,12 @@ interface VisualRenderConfig {
   shadows: { quality: "low" | "medium" | "high"; mapSize: number; softness: number; bias: number };
   ao: { enabled: boolean; strength: number; radiusMeters: number };
   atmosphere: { enabled: boolean; density: number; distanceDesaturation: number };
-  bloom: { enabled: boolean; strength: number; threshold: number };
+  bloom: { enabled: boolean; strength: number; /* see note */ };
   grade: { saturation: number; contrast: number; warmth: number };
 }
 ```
+
+**Emissive response is not a fullscreen bloom pass.** Low and medium tiers render with no `EffectComposer` at all, so a real bloom chain would cost a pass and a render target on exactly the hardware that can least afford one. The approved implementation is additive glow sprites parented to the practical lights, capped by the per-tier `practicalLightBudget`, which reads as restrained emissive bloom at gameplay distance for a bounded handful of draws. `bloom.strength` therefore scales sprite opacity and there is no luminance threshold. The same reasoning applies to `grade`: night desaturation and cooling are carried by the light and fill colours, which is free and physically motivated, rather than by a post-process the low tier cannot pay for.
 
 **Calibration procedure:** begin with ACESFilmic/equivalent, neutral project exposure near `1.0`, one warm directional key at roughly **25–50° elevation**, a softer/cooler fill, medium-soft shadowing, restrained broad AO, subtle atmospheric distance separation, and bloom effectively off except restrained emissive response. Tune the exact runtime values while validating bridge/farm/harbor/coast slices; once approved, store the chosen numbers in the canonical config and regression-test them.
 
@@ -227,6 +243,8 @@ The layers must agree spatially. A road cannot suppress grass at one width while
 
 Use authored meso landforms rather than indiscriminate height noise: shallow depressions, shelves, humps, banks, route cuts, terrace changes, and flattened working ground. The regular terrain grid must not be legible as the dominant pattern.
 
+The starter island rises from usable coastal terraces through rolling foothills into three asymmetric northern summits. Elongated ridges, offset peaks, lower saddles, and a distinct spring valley carry the silhouette; avoid flat radial mesas. Contour paths provide a climb to the rocky spring and a western overlook, while the tallest peaks frame the skyline. Working farms, village courtyards, foundations, the bridge, harbor, and lighthouse retain their local practical ground. Exact landforms and route grades belong to canonical world data, not presentation noise.
+
 `TERRAIN_RESOLUTION` in `src/world/WorldLayout.ts` owns the grid step, and the step is a legibility constraint rather than a free performance dial: it must resolve the narrowest authored feature the grid is asked to carry — river channel, beach, and graded road shoulder widths. A step that exceeds those widths turns each bank and waterline into a single hard triangle row no shader can recover.
 
 Ground richness uses three restrained scales:
@@ -245,6 +263,8 @@ Supporting maps may add meso/fine wear, value, and roughness only after they are
 The terrain material/shader is a specialization that consumes the canonical palette, renderer conditions, geometry, and derived surface fields. It must not own a second terrain vocabulary, route network, shoreline model, or gameplay state.
 
 Slope transitions expose earth/stone progressively on terrain that visually reads as a bank, cut, shelf, or cliff. Use broad filtered transitions with bounded deterministic irregularity; never visible contour bands or a universal angle table blindly applied to every district. Traversable slopes can remain grass-dominant while steep/exposed formations retain strong faceting and rock/soil identity.
+
+Northern mountain faces use this same exposure field and approved inland stone/soil palette. Sheltered foothills carry the strongest vegetation clusters; exposed summits, spring rock, and viewpoints retain open ground and readable silhouettes. Do not increase instance budgets to disguise a weak ridge shape.
 
 A compact control texture is allowed, but not mandated. Analytic fields, mesh attributes, or chunk data are equally valid when they preserve a single source, filtering, inspectability, determinism, and performance. Channel meanings/resolution are implementation contracts, not Art Bible constants.
 
@@ -302,28 +322,40 @@ Recommended shader layers:
 ```text
 shallow/deep color gradient
 + low-frequency world-space vertex waves
-+ faceted/quantized normals
-+ large polygonal color/normal cells
-+ Fresnel edge reflection
-+ soft sun highlight
-+ shore/collision foam mask
++ smooth analytic gradient normal + faceted polygon perturbation ("faceted but alive")
++ horizon-to-zenith sky reflection gradient
++ facet-scattered, roughness-weighted sun/moon glitter path
++ steepness-driven whitecaps
 + weather-driven amplitude
++ high-tier camera-following near-detail patch with scrolling normal
 ```
-Optional one subtle low-frequency scrolling normal. Avoid realistic high-frequency normals, SSR for MVP, tiny waves, noisy foam, mirror water. Low-resolution displaced geometry + flat/quantized normals is acceptable if it profiles best.
+Avoid realistic high-frequency normal noise, SSR, tiny ripples, noisy foam, mirror water. `VisualRenderConfig.waterSurface` owns tuning numbers, with quality tiered across low (flat reflection), medium (sky gradient reflection), and high (full gradient + sun/moon glitter + near-detail patch).
 
 Water color: shallow light turquoise/aqua → mid teal/blue-green → deep darker desaturated blue; brighter shore, large regions, no electric cyan.
 
-Waves: broad directional low-frequency displacement and faceted response; boat motion may sample simplified matching wave function.
+Waves: broad directional low-frequency displacement and faceted response; `WATER_WAVE_CONFIG` in `WaterSurface.ts` is the single numeric owner mirrored CPU↔GPU through `waveGlsl.ts`. Surface normals are evaluated analytically from the wave gradient rather than screen-space derivatives, giving smooth temporal response while retaining polygonal cell facets. On high quality, a camera-following near patch adds a subtle 4th wave band and scrolling normal that fades to zero at the rim to melt seamlessly into the base plane, respecting reduced motion.
 
-Shoreline: shallow-water band + wet-ground value shift + simple foam + contextual stones/reeds/driftwood. Filtered supporting-map breakup may continue from dry beach into the wet band only through the canonical shore weights; it cannot paint a second shoreline or replace physical stones and cover. Foam/splashes are warm white, chunky, angular, low-detail, high-contrast; use polygonal ribbons/shards for rocks/wakes, particles only as supplement.
+Two normals, two jobs. Fresnel, the sky gradient and whitecap steepness read the **smooth** analytic normal, so the horizon reflection cannot break up into noise. The sun/moon glitter reads the **faceted** normal instead. This is not a stylistic preference but the only way the highlight reads as water: our largest wave slope is about 0.01 rad, and a specular lobe on a surface that flat collapses into a single small round mirror highlight — a lens-flare blob, not a sun path. Real glitter is broad because each facet satisfies the mirror condition separately, so the polygon-cell perturbation is what scatters the lobe into the chunky angular path the concept art shows. Glitter strength is therefore tuned against that spread distribution, not against a point highlight. Far water compresses many cells into one pixel, so the lobe is *broadened* with camera distance (`glitterFocus*`) rather than faded: the path survives to the horizon and the facets average into it instead of crawling frame to frame.
+
+Both water surfaces resolve their colour through one shared fragment chunk, `waterShadingGlsl.ts`. The base plane and the near patch must agree exactly wherever they overlap or the rim shows a seam, so neither keeps its own copy of the shading body. `tests/unit/waterShaderLinkage.test.ts` statically link-checks every water shader stage — uniforms referenced but undeclared, uniforms declared but unbacked, varyings consumed but never written — because substring assertions on shader source cannot tell whether a program would compile, and a fragment stage referencing a vertex-only uniform once shipped a water surface that rendered nothing.
+
+The river begins at a finite rocky mountain spring and descends through readable rapids before joining the established lowland river. Water follows the canonical elevation profile; dry banks must hide no raised water sheets. The refined base surface owns the elevated reach, and the high-tier near patch blends back downstream on the common sea-level baseline. Broken, restrained foam follows downhill flow and breaks around open water instead of becoming a solid white ribbon. Preserve the calm downstream fishing reaches, bridge, estuary, and coastal palette. Inspect the spring, farm-facing skyline, and western overlook as additional integrated views; final visual acceptance remains human in-game review.
+
+Reviewing water: `?artView=open-sea&artMinute=1020&artWeather=clear` is the glitter camera — open sea looking down the evening sun path, the only review view where the specular lobe actually lands on water. The shoreline views (`rowboat`, `harbor`, `sunreach-cove`) put the sun over land or hide the glint band behind a headland.
+
+Shoreline: shallow-water band + wet-ground value shift + animated swash foam + contextual stones/reeds/driftwood. Shore foam displacement runs on the GPU via the shared wave chunk; foam advances and retreats with an authored swash cadence and broken inner edges. Foam/splashes are warm white, chunky, angular, low-detail, high-contrast; use polygonal ribbons/shards for rocks/wakes, particles only as supplement.
 
 # 9. Vegetation & Rocks
 
 Trees: trunk + few branch cues + several irregular low-sided faceted crown clusters. Avoid spherical blobs/high-density leaf cards. Important species: **3 minimum silhouette variants, 5 preferred**; vary height/lean/spread/crown count/width/trunk thickness/warm-cool greens. Conifers use layered angular wedge/cone masses.
 
+Keep Neva's original procedural tree family. The Poly Pizza tree replacement was rejected; imported house and character source restoration does not authorize replacing these trees.
+
 Grass: terrain color + clustered instanced chunky short cover + selected medium/taller meadow/reed patches. Broad blades/angular cards; no hair grass. Use yellow-green highlights + olive/sage shadows, with patch-level palette grouping and semantic suppression around roads/buildings/farms/steep exposed ground.
 
 Flowers: sparse clustered white/soft yellow + occasional warm red/orange; never uniform rainbow scatter.
+
+Wind: the canopy moves. Ground cover, drifting cloud masses and the mill rotor already respond to weather, and a frame full of frozen tree crowns above moving grass reads as a photograph rather than a place. Canopy sway is a vertex offset inside the shared vegetation variant material, so it adds no draw call, attribute or material and instances stay in one batch; it keeps the trunk planted and ramps motion into the crown so a tree bends rather than slides, and it takes its heading and strength from the same weather signal as the ground cover so a gust moves both together. `VisualRenderConfig.vegetationWind` owns the numbers. Amplitude must stay well under the softness of the shadow the tree casts, because the shadow depth material does not receive the offset.
 
 Rocks: large planes, angular silhouette, clear top/side values, little/no texture noise. Families: warm field stone, medium/large warm boulders, dark coastal, pale shoreline, masonry. Common categories need **3–6 variants**. Dark charcoal coastal rock should contrast teal water/white foam; inland can be ochre/golden.
 
@@ -419,18 +451,18 @@ Season-ready assets should support spring/summer/autumn/winter via color paramet
 
 # 13. Characters & Animation
 
-Characters must look as though they were authored by the same art team as the environment. The player/worker baseline stays premium faceted coastal low-poly; named NPCs may use the catalog-declared `chibi-storybook` variant: compact, animation-film-inspired storybook proportions with the same tactile materials, grounded contacts, and role-specific coastal clothing. Do not let either variant drift into realistic-human, glossy mobile-avatar, flat-toon, or generic anime language.
+Characters preserve the original licensed low-poly adult anatomy and recognizable silhouettes while sharing Neva's coastal clothing, palette and canonical lighting. The source-derived player and named NPCs form one cohesive humanoid family. Do not shorten limbs, inflate heads or fit their bodies to the obsolete chibi donor.
+
+Anatomical labels follow the character's facing direction, not the review camera: with runtime +Z forward and +Y up, left is +X and a positive Y turn is left. Source `.L`/`.R` bones, catalog bindings, contact intervals, hand sockets and companion attachment markers must agree with that measured anatomy. A passing reach-distance test cannot certify a swapped hand or reversed palm frame.
 
 ## 13.1 Proportions & Silhouette
-- Player/worker baseline: approximately **6–6.5 heads tall**; readable/stylized rather than realistic 7.5–8-head fashion proportions.
-- Chibi-storybook NPC variant: approximately **4.5–5 heads tall** across the visible head mass; use a compact torso, short sturdy limbs, broad hands, and a clearly readable head without collapsing into an extreme 3-head mascot.
-- Head: enlarge the NPC variant enough to carry expression at gameplay distance; hands **+10–20%** and feet **+5–10%** where needed for gesture/readability. Keep the silhouette authored rather than toy-round.
-- Torso/limbs use simplified broad forms, gentle taper, readable elbows/knees, and controlled planar changes. Avoid noodle limbs, oversized toy shoes, or superhero anatomy.
-- Silhouette must communicate role through practical clothing/tool shapes before facial detail. Validate at **8m/15m/30m** like environment assets.
+- Uniform scale sets character height; coordinate conversion sets model forward. Preserve the original limb ratios, head size, hands, feet and joint positions.
+- Torso/limbs retain simplified broad forms, gentle taper, readable elbows/knees and authored planar changes. Avoid noodle limbs, oversized toy shoes or superhero anatomy.
+- Silhouette communicates role through practical clothing, hair and tools before facial detail. Validate at **8m/15m/30m** like environment assets.
 
 ## 13.2 Face, Eyes & Skin
 - Face is built from a few soft/faceted planes: brow, nose wedge, cheek/jaw planes, simple ears, restrained mouth. No sculpted pore detail or realistic wrinkle normals.
-- Player eyes remain small/simple and readable. NPCs may use larger, warm, simple storybook eyes for expression and gameplay readability; avoid black ink outlines, glowing whites, or sticker-like contrast at distance.
+- Preserve the source eyes and facial proportions for readable expression; avoid black ink outlines, glowing whites, or sticker-like contrast at distance.
 - Facial expression relies on brows/eyes/mouth and modest blendshape/bone changes; no rubber-face deformation.
 - Skin is matte/satin stylized PBR with broad value variation only; starting roughness **~0.65–0.85**, low metalness, no waxy subsurface/plastic look.
 
@@ -441,23 +473,23 @@ Characters must look as though they were authored by the same art team as the en
 ## 13.4 Clothing & Materials
 - Practical coastal/farm clothing: canvas, linen, wool, simple leather, weathered workwear; muted blue, ochre, rust, cream, forest green, brown, restrained red/teal accents. No modern neon, glossy synthetic sportswear, ornate high-fantasy armor, or combat gear.
 - Folds are broad modeled planes/creases at shoulders, elbows, waist, knees, hems; do not paint high-frequency fabric wrinkles.
-- Reuse shared cloth/leather/metal palette/material families; character-specific textures should stay low-frequency and support identifiers, not carry the whole style.
+- Preserve source material regions and selective smooth/hard boundaries in both LODs. Apply explicit skin, hair, eye, cloth and footwear palette mappings once; skin uses canonical skin materials, not plaster. These source characters use solid colors, so no invented textures are needed. Material caching distinguishes explicit smooth shading from the default flat material; normal diagnostics display exported normals.
+- Reuse shared cloth/leather/metal palette/material families; any later character textures must stay low-frequency and support identifiers, not carry the whole style.
 
 ## 13.5 Budgets, Rigging & LOD
 - Character triangle and material budgets are catalog-owned; use the declared entry rather than a universal range. LOD1 is required when the catalog contract declares it and the character remains visible at distance.
 - Prefer the catalog-declared material cap and shared material families; do not introduce a second character budget table here.
-- Standard reusable humanoid rig; consistent naming/retargeting; minimal extra bones for coat tails, hair clumps, tools only where visibly useful.
-- The `chibi-storybook` NPC variant shares the standard humanoid rig, sockets, and animation contract; its catalog style parameter changes the proportion set and mesh placement together so interaction anchors do not drift.
-- Licensed source animation libraries may inform the canonical rig offline when a catalog entry declares the source. Retarget only motion whose relaxed pose, axes, proportions, and usable joint ranges transfer cleanly; otherwise use it as reference and author the performance directly on Neva's rig. Keep Neva's interaction clips and gameplay markers, and export in-place 30 FPS motion without shipping the source rig or mesh.
+- Preserve source deforming bones, rest transforms and weights, including fingers and independently parented feet. Catalog semantic bindings supply reusable runtime behavior without renaming or reducing the source skeleton.
+- Preserve suitable peaceful source idle/walk/run performances and their glTF timing; author missing interactions on the retained rig with catalog contacts, equipment and commit markers. Combat clips are excluded.
 - Preserve joint volume on the hero player and weight deformation across usable limb lengths; do not spend the character budget on disconnected joint ornaments while elbows, knees, shoulders, or hips collapse in the shipped clips.
 - LOD preserves head/hair/clothing silhouette, color blocks, hands/tools, then removes tertiary pieces.
 
 ## 13.6 Animation Language
 Animation is slightly exaggerated, clear, soft, and grounded; neither hyperreal mocap nor rubber-limb cartoon. Prioritize readable anticipation/contact/recovery on repeated verbs: walk/run, interact, plant, water, harvest, carry fish/crate, cast/reel/brace, board boat, dock/load. Keep foot contact and tool alignment believable. Reusable ambient library: foliage, cloth, smoke, water, boats, birds, splashes, signs, windmill.
 
-Repeated locomotion uses explicit contact/pass/recovery poses and an in-place stride calibrated to the catalog reference speed. Blender forward is `-Y`; glTF export and the runtime heading convention map that authored direction to model-local `+Z` (yaw zero also faces world `+Z`). A forward contact places the landing foot ahead, support carries it backward relative to the pelvis, and recovery folds and returns it forward; never repair this with a blanket whole-rig axis inversion. Imported motion is calibrated from a relaxed source pose and transferred at target-rig-safe amplitudes; source bind-pose axes are never copied directly. Compatible walk/run/carry and mounted transitions preserve normalized phase rather than restarting both legs during a crossfade. Authored walk/run starts are used only when their final pose exactly equals loop phase zero; otherwise locomotion crossfades directly without a false start clip. During moving stance phases, the visible feet are constrained after the authored pose and world transform against the canonical traversal surface; stance locks release during swing, airborne motion, vehicles, mounting, presentation discontinuities, and neutral idle. Human and animal idles retain an explicitly keyed, planted rest stance instead of being continuously warped to local floor samples. Quadruped gaits use explicit plant/load/toe-off/recovery phases, a verified model-forward axis, and clean non-gait leg keys rather than sinusoidal pendulum legs or an inherited first gait frame. This is presentation correction, never root-motion or save authority.
+Repeated locomotion uses explicit contact/pass/recovery poses and an in-place stride calibrated to the catalog reference speed. Blender forward is `-Y`; glTF export and the runtime heading convention map that authored direction to model-local `+Z` (yaw zero also faces world `+Z`). A forward contact places the landing foot ahead, support carries it backward relative to the pelvis, and recovery folds and returns it forward; never repair this with a blanket whole-rig axis inversion. Source motion stays on its original bind axes and anatomy; semantic runtime correction uses calibrated endpoints rather than assuming a donor bone orientation. Compatible walk/run/carry and mounted transitions preserve normalized phase rather than restarting both legs during a crossfade. Authored walk/run starts are used only when their final pose exactly equals loop phase zero; otherwise locomotion crossfades directly without a false start clip. During moving stance phases, the visible feet are constrained after the authored pose and world transform against the canonical traversal surface; stance locks release during swing, airborne motion, vehicles, mounting, presentation discontinuities, and neutral idle. Human and animal idles retain an explicitly keyed, planted rest stance instead of being continuously warped to local floor samples. Quadruped gaits use explicit plant/load/toe-off/recovery phases, a verified model-forward axis, and clean non-gait leg keys rather than sinusoidal pendulum legs or an inherited first gait frame. This is presentation correction, never root-motion or save authority.
 
-Interactions constrain the character to authored equipment markers after the base pose: both fishing hands use rod grips, carried cargo occupies the body-front two-hand hold rather than a backpack-side socket, rowboat oars remain boat/oarlock-owned while hands follow their moving grip markers, and mounted pelvis placement derives from the rig's rest pelvis rather than a copied character-specific offset. Mounted knees project forward and open around the animal's barrel while the lower legs fold back to authored stirrup sockets without thigh pedalling. The rowboat keeps pelvis contact on its physical bench, knees forward of the hips, and both feet braced against authored foot-stretcher supports through rowing; the chairless skiff uses a planted standing helm stance. Boarding, docking, mounting, and dismounting preserve the first visible world pose and converge to exact context anchors. Contact constraints should stabilize the authored performance, not erase anticipation, weight shift, or the interaction's simulation-owned commit timing.
+Interactions constrain the character to authored equipment markers after the base pose: both fishing hands use rod grips, carried cargo occupies the body-front two-hand hold rather than a backpack-side socket, rowboat oars remain boat/oarlock-owned while hands follow their moving grip markers, and mounted pelvis placement derives from the sampled post-mixer pelvis rather than a copied character-specific offset. Mounted knees project forward and open around the animal's barrel while the lower legs fold back to authored stirrup sockets without thigh pedalling. The rowboat keeps pelvis contact on its physical bench, knees forward of the hips, and both feet braced against authored foot-stretcher supports through rowing; the chairless skiff uses a planted standing helm stance. Boarding, docking, mounting, and dismounting preserve the first visible world pose and converge to exact context anchors. Contact constraints should stabilize the authored performance, not erase anticipation, weight shift, or the interaction's simulation-owned commit timing.
 
 **Character gold gate:** before producing a large NPC set, approve one player/worker character in neutral idle + walk + farming interaction + fishing interaction under the canonical gameplay camera and renderer. Judge it beside farm/harbor assets, not in an isolated studio render.
 
@@ -482,7 +514,7 @@ rowboat < skiff; ordinary fish stay compact and readable
 ```
 The production floor/quality target/hard maximum for each generated asset is defined in `assets/specs/asset-catalog.json`. The lower bound is a validity gate and the target is a quality-review trigger, not permission to inflate meshes: silhouette, authored planes, thickness, proportion, deformation, and gameplay-camera readability must explain the spend.
 
-Material budgets are also catalog-owned; current entries may use up to eight material groups where the asset contract requires it. Material reuse still matters strongly for draw calls, but this guide must not override an individual catalog cap.
+Material budgets are also catalog-owned. Imported source-derived LOD0 may exceed eight groups only when its explicit source-preservation contract requires one material identity per authored provider region; runtime loading and batching must retain those region boundaries. Material reuse still matters strongly for ordinary generated assets, but this guide must not override an individual catalog cap or merge source regions merely because they share a palette family.
 
 # 15. Runtime Export, Naming, Pivot & Collision
 
@@ -502,17 +534,21 @@ Three.js materials: prefer `MeshStandardMaterial`; custom shaders mainly for wat
 
 Use one consistent color pipeline: warm highlights, clean midtones, preserved accents, soft highlight rolloff, cooler fill/shadows, no crushed blacks. ACESFilmic/equivalent is acceptable if calibrated. Preserve cream plaster/foam/clouds/sunlit stone without clipping; no aggressive orange LUT.
 
-Allowed when measurable: subtle AO/GTAO-like grounding, very subtle emissive bloom, light global grading, optional extremely subtle vignette.
+Allowed when measurable: subtle AO/GTAO-like grounding, very subtle emissive bloom, light global grading, optional extremely subtle vignette. See §7.1 for why the emissive bloom and grading are implemented without a fullscreen pass.
 
 Avoid normal gameplay: **DOF, tilt-shift, heavy bloom, chromatic aberration, film grain, strong vignette, motion blur, sharpening halos**. Reference beauty effects are not target graphics.
 
 # 17. UI-to-World Relationship
 
-Neva has two related interface families. **World HUD** uses sparse translucent blue-charcoal ink plates, cream text, restrained ochre/brass emphasis, icon-led meters, and clipped silhouettes. **Physical interfaces** read as handled coastal objects: satchel, open field journal, nautical chart, market ticket/ledger, posted expedition notices, and a pause vignette over the live world. Both inherit Neva's warm, salt-weathered, faceted material cues without turning every surface into a wooden board.
+Neva has two related interface families. **World HUD** uses a minimalist medieval MMO treatment: muted brass edges, parchment-colored serif labels, small painted tool icons, a compact nautical clock, and slim Work/Sprint meters. The earlier ornate study at `art/references/neva-tidebook-hud.png` remains material inspiration only; its large leather panels, hinged plaques, hanging tags, and proportions are superseded by the minimalist direction. The quest tracker stays upper left, a short compass rail upper center, clock/weather and gold upper right, resources lower left, five compact action slots lower center, and small utility controls lower right. **Physical interfaces** continue to read as handled coastal objects: satchel, open field journal, nautical chart, market ticket/ledger, posted expedition notices, and a pause vignette over the live world.
+
+The normal HUD is implemented in `src/ui/HUD.tsx` and `src/ui/hud/`. Labels, amounts, weather, capacity, contracts, selected tool, and stance-specific loadouts come from the existing presentation/action contracts. Contracts begin folded and an empty Chronicle adds no control. The active tool gets a plain name above the belt and a brass bottom edge; details appear on hover or keyboard focus. Ledger/planner/menu actions remain accessible beside the utility controls. The small live clock pointer rotates and night state overlays its moon mark. Illustrated tools and instruments use the authored raster atlas; borders, meter fills, and semantic text remain ordinary DOM/CSS.
+
+The existing UI atlas manifest `assets/ui/ui-atlas.manifest.json` owns the Tidebook sheets and sprites. `tools/ui/slice-sheet.mjs` supports explicit `expectedIslands` and per-sprite `index` selections for sheets with unused studies; optional `output.edgeDespill` cleans only translucent keyed edges. `output.trim` requests alpha-trimmed packing through `tools/ui/extrudeAndPack.mjs`, while published source sprites remain square. `AtlasImage` clips the page image to each sprite frame, including when a non-square CSS viewport letterboxes a square icon. `ui:codegen`, `ui:publish`, and `ui:atlas` remain the single typed lookup and runtime publication path. These 2D HUD sprites do not enter the Blender catalog or change renderer configuration.
 
 The world remains primary. Normal play targets roughly 15–18% persistent HUD coverage and must stay below the 20–25% ceiling. Keep the player, current path, NPC, crop, bobber, fish, and vessel readable. Use compact edge clusters, one verb-first contextual prompt, and brief tool-name expansion; remove permanent empty objectives and unrelated HUD during sport fishing. True sheets use the modal stack, while forecast, field legend, contextual teaching, and HUD details stay non-modal.
 
-Text-heavy surfaces favor readable sans-serif copy with tabular numerals; serif is reserved for titles, story, and lore. Avoid nested cards, pill-tab rows, generic dashboards, widget sidebars, visible browser scrollbars, large form layouts, excessive rounded panels, rivets, filigree, glow, and redundant headings. State is carried by text, shape, icon, and structure as well as color. Focus is unmistakable; 44 px touch targets and safe areas apply to the landscape fallback. Interaction transitions use 120–180 ms and sheet transitions 220–300 ms; reduced motion removes typing, sliding, pulsing, and decorative movement.
+Text-heavy surfaces favor readable sans-serif copy with tabular numerals. Tidebook titles, tool numbers, calendar labels, and short meter captions use a restrained old-style serif; longer objectives and explanatory copy use the existing sans-serif. Keep metal ornament confined to the small compass and clock. Avoid nested cards, pill-tab rows, generic dashboards, widget sidebars, visible browser scrollbars, large form layouts, excessive rounded panels, added filigree, glow, and redundant headings. State is carried by text, shape, icon, and structure as well as color. Focus is unmistakable; 44 px touch targets and safe areas apply to the landscape fallback. The compact landscape HUD lifts above touch movement/action controls and keeps compact slots, while portrait retains the orientation gate. Interaction transitions use 120–180 ms and sheet transitions 220–300 ms; reduced motion removes typing, sliding, pulsing, and decorative movement.
 
 The stylesheet owner is `src/ui/coastal.css`. Its cascade order is explicit: legacy compatibility, tokens, primitives, HUD, surfaces, touch, responsive fit, and accessibility. New player-facing styling belongs in the appropriate semantic layer; legacy sheets remain lowest-priority compatibility inputs until their selectors have no remaining callers.
 
@@ -623,6 +659,10 @@ Low:     80k–350k target visible triangles, <=180 draws preferred; 600k / 240 
 Shadow-caster policy is owned by `VisualRenderConfig.shadows` and is enforced by family, not by a per-placement distance allowlist; the shadow frustum owns the per-frame cost. Static placements reach the sun pass through their shared batches, so a batch that casts costs one extra draw rather than one per instance. The upper values are ceilings, not quality scores; the lower target is a signal to review whether approved hero assets, vegetation density, and faceted forms are actually present. Profile, do not guess. `tools/blender/asset_budgets.json` owns these scene envelopes; `assets/specs/asset-catalog.json` owns asset budgets.
 
 Optimize in order: invisible geometry → material duplication → excessive texture resolution → distant LOD → tiny details. Do not immediately weaken hero silhouette.
+
+Production terrain and road surfaces use spatial `BatchedMesh` partitions in `WorldScene` so off-screen cells can be rejected per render pass without adding one draw per cell on multi-draw-capable devices. `spatialSurfaceBatch` retains every triangle, its winding, normals, palette/mask attributes, and original coordinates; it is not terrain simplification, distance-based membership, or world streaming. The DEV editor retains the original meshes. Gameplay support, collision, and persistence remain owned by `WorldLayout`, not these presentation partitions.
+
+Static prefab batches share compatible material identities across each island, rather than multiplying draws by spatial cell. Their player-anchored fog cells remain separate visibility records, combined with each instance's catalog LOD selection; ordinary per-pass frustum culling remains enabled. Casting and receiving policies partition batches independently, so a shadow-casting tree cannot promote non-casting props that share its material. Source-region material identities, transforms, and shader variation remain intact.
 
 Quality modes:
 - High: full approved cover density/shadows, better water, higher LOD distance.

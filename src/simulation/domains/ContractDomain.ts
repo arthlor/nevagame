@@ -206,8 +206,8 @@ export function refillContracts(
       targetItemIdOrSpecies: targetId,
       quantityRequired,
       quantityFulfilled: 0,
-      minQuality: asFishQuality(template.minQuality),
-      minFreshness: template.minFreshness,
+      minQuality: template.type === "produce" ? undefined : asFishQuality(template.minQuality),
+      minFreshness: template.type === "produce" ? undefined : template.minFreshness,
       minWeightKg,
       rewardMoney,
       rewardSkillXp: {

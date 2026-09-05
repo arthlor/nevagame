@@ -39,6 +39,27 @@ describe("PlayerPresentationBuffer", () => {
     expect(buffer.sample(0)?.x).toBe(20);
   });
 
+  it.each(["boarding", "docking", "dismounting", "teleport"] as const)(
+    "retains %s provenance through fixed steps before the first presented frame",
+    (reason) => {
+      const buffer = new PlayerPresentationBuffer();
+      buffer.reset(pose(0));
+      const previousSequence = buffer.sample(0)!.discontinuitySequence;
+      buffer.pushCanonicalPose(pose(2), { discontinuity: reason });
+      // The app still pushes stationary canonical samples while an attachment
+      // input lock or pause prevents movement. Rendering may follow several.
+      for (let step = 0; step < 3; step++) buffer.pushCanonicalPose(pose(2));
+      const firstPresented = buffer.sample(0.5)!;
+      expect(firstPresented.discontinuitySequence).toBe(previousSequence + 1);
+      expect(firstPresented.discontinuityReason).toBe(reason);
+      buffer.push(pose(2.01), stationaryPlayerMotion(pose(2.01)));
+      expect(buffer.sample(0.5)?.discontinuityReason).toBe(reason);
+      buffer.pushCanonicalPose(pose(4), { discontinuity: "recovery" });
+      expect(buffer.sample(0.5)?.discontinuityReason).toBe("recovery");
+      expect(buffer.sample(0.5)?.discontinuitySequence).toBe(previousSequence + 2);
+    }
+  );
+
   it("produces equivalent one-second movement at 60, 120, and 240 Hz render rates", () => {
     const sampleAtRate = (renderHz: number): number => {
       const fixed = 1 / 60;

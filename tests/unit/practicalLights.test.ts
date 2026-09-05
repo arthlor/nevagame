@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PALETTE_HEX } from "../../src/render/materials/PaletteTokens";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
+import catalog from "../../assets/specs/asset-catalog.json" with { type: "json" };
 import {
   isPracticalLightSourceName,
   selectNearestPracticalLightIndices,
@@ -35,6 +36,29 @@ describe("practical lights", () => {
         "wood_warm_01"
       ])
     ).toEqual(["farmhouse_lantern_glow", "lighthouse_lantern_beacon", "quest_waypoint_beacon"]);
+  });
+
+  it("gives every village dwelling a doorway lantern the runtime can find", () => {
+    // The village carried no practical lights of its own: only the farmhouse and
+    // the fish market declared a glow node, so after dusk the village went dark
+    // while the starter farm stayed warm. Barns, sheds, outhouses and market
+    // halls are deliberately excluded - see VILLAGE_LANTERN_VARIANTS.
+    const dwellings = [
+      "house_cottage_a",
+      "house_cottage_b",
+      "house_cottage_c",
+      "building_inn_a",
+      "building_inn_b"
+    ];
+    for (const id of dwellings) {
+      const asset = catalog.assets.find((entry) => entry.id === id);
+      expect(asset, `missing catalog entry ${id}`).toBeDefined();
+      const glow = asset!.requiredNodes?.filter((node) => isPracticalLightSourceName(node)) ?? [];
+      expect(glow, `${id} declares no practical-light node`).toHaveLength(1);
+      // A preserved node cannot merge into the shared batch, so it must not also
+      // drag a new material in behind it.
+      expect(asset!.palette).toContain("emissive_window_01");
+    }
   });
 
   it("enables the nearest lights up to the quality budget", () => {

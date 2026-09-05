@@ -6,6 +6,7 @@
   "atlasDir": "assets/ui/atlas",
   "runtimeDir": "public/assets/ui/atlas",
   "families": {
+    "tidebook": { "export": "UI_TIDEBOOK", "doc": "Wayfarer HUD paintings: pewter, leather, paper and equipment." },
     "fish": { "export": "UI_FISH", "doc": "Catchable species, used in HUD cargo, journal, market and both fishing modes." },
     "seed": { "export": "UI_SEEDS", "doc": "Plantable seed stock shown in the seed bar, inventory and market stall." },
     "produce": { "export": "UI_PRODUCE", "doc": "Harvested crop goods carried in inventory and traded at market." },
@@ -28,6 +29,238 @@
     "chrome": { "export": "UI_CHROME", "doc": "Panel ornament and trend indicators." }
   },
   "sheets": [
+    {
+      "id": "tidebook-panels",
+      "family": "tidebook",
+      "source": "assets/ui/sheets/tidebook-chrome-panels.png",
+      "detect": {
+        "keyLow": 24,
+        "keyHigh": 90,
+        "cellSize": 4,
+        "dilate": 2,
+        "minAreaRatio": 0.00035,
+        "gate": false
+      },
+      "output": {
+        "size": 512,
+        "coverage": 0.94,
+        "trim": true,
+        "edgeDespill": {
+          "alphaFloor": 8,
+          "alphaBelow": 250,
+          "excessAboveRedAndBlue": 24
+        }
+      },
+      "expectedIslands": 4,
+      "sprites": [
+        {
+          "id": "quest-panel",
+          "file": "tidebook-quest-panel.png",
+          "index": 0
+        },
+        {
+          "id": "tool-plaque",
+          "file": "tidebook-tool-plaque.png",
+          "index": 1
+        },
+        {
+          "id": "tool-plaque-selected",
+          "file": "tidebook-tool-plaque-selected.png",
+          "index": 2
+        },
+        {
+          "id": "clock-face",
+          "file": "tidebook-clock-face.png",
+          "index": 3
+        }
+      ]
+    },
+    {
+      "id": "tidebook-tags",
+      "family": "tidebook",
+      "source": "assets/ui/sheets/tidebook-chrome-tags.png",
+      "detect": {
+        "keyLow": 24,
+        "keyHigh": 90,
+        "cellSize": 4,
+        "dilate": 2,
+        "minAreaRatio": 0.00035,
+        "gate": false
+      },
+      "output": {
+        "size": 512,
+        "coverage": 0.94,
+        "trim": true,
+        "edgeDespill": {
+          "alphaFloor": 8,
+          "alphaBelow": 250,
+          "excessAboveRedAndBlue": 24
+        }
+      },
+      "expectedIslands": 4,
+      "sprites": [
+        {
+          "id": "calendar-tag",
+          "file": "tidebook-calendar-tag.png",
+          "index": 0
+        },
+        {
+          "id": "purse-tag",
+          "file": "tidebook-purse-tag.png",
+          "index": 1
+        },
+        {
+          "id": "label-paper",
+          "file": "tidebook-label-paper.png",
+          "index": 3
+        }
+      ]
+    },
+    {
+      "id": "tidebook-navigation",
+      "family": "tidebook",
+      "source": "assets/ui/sheets/tidebook-chrome-navigation.png",
+      "detect": {
+        "keyLow": 24,
+        "keyHigh": 90,
+        "cellSize": 4,
+        "dilate": 2,
+        "minAreaRatio": 0.00035,
+        "gate": false
+      },
+      "output": {
+        "size": 1024,
+        "coverage": 0.94,
+        "trim": true,
+        "edgeDespill": {
+          "alphaFloor": 8,
+          "alphaBelow": 250,
+          "excessAboveRedAndBlue": 24
+        }
+      },
+      "expectedIslands": 3,
+      "sprites": [
+        {
+          "id": "navigation-rail",
+          "file": "tidebook-navigation-rail.png",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "id": "tidebook-ornaments",
+      "family": "tidebook",
+      "source": "assets/ui/sheets/tidebook-chrome-navigation.png",
+      "detect": {
+        "keyLow": 24,
+        "keyHigh": 90,
+        "cellSize": 4,
+        "dilate": 2,
+        "minAreaRatio": 0.00035,
+        "gate": false
+      },
+      "output": {
+        "size": 512,
+        "coverage": 0.94,
+        "trim": true,
+        "edgeDespill": {
+          "alphaFloor": 8,
+          "alphaBelow": 250,
+          "excessAboveRedAndBlue": 24
+        }
+      },
+      "expectedIslands": 3,
+      "sprites": [
+        {
+          "id": "sea-dial",
+          "file": "tidebook-sea-dial.png",
+          "index": 1
+        },
+        {
+          "id": "pointer",
+          "file": "tidebook-pointer.png",
+          "index": 2
+        }
+      ]
+    },
+    {
+      "id": "tidebook-meter",
+      "family": "tidebook",
+      "source": "assets/ui/sheets/tidebook-chrome-meter.png",
+      "detect": {
+        "keyLow": 24,
+        "keyHigh": 90,
+        "cellSize": 4,
+        "dilate": 2,
+        "minAreaRatio": 0.00035,
+        "gate": false
+      },
+      "output": {
+        "size": 512,
+        "coverage": 0.94,
+        "trim": true,
+        "edgeDespill": {
+          "alphaFloor": 8,
+          "alphaBelow": 250,
+          "excessAboveRedAndBlue": 24
+        }
+      },
+      "expectedIslands": 1,
+      "sprites": [
+        {
+          "id": "meter-frame",
+          "file": "tidebook-meter-frame.png",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "id": "tidebook-items",
+      "family": "tidebook",
+      "source": "assets/ui/sheets/tidebook-items.png",
+      "detect": {
+        "keyLow": 24,
+        "keyHigh": 90,
+        "grid": {
+          "cols": 4,
+          "rows": 2
+        }
+      },
+      "sprites": [
+        {
+          "id": "hoe",
+          "file": "tidebook-hoe.png"
+        },
+        {
+          "id": "seeds",
+          "file": "tidebook-seeds.png"
+        },
+        {
+          "id": "water",
+          "file": "tidebook-water.png"
+        },
+        {
+          "id": "rod",
+          "file": "tidebook-rod.png"
+        },
+        {
+          "id": "harvest",
+          "file": "tidebook-harvest.png"
+        },
+        {
+          "id": "satchel",
+          "file": "tidebook-satchel.png"
+        },
+        {
+          "id": "journal",
+          "file": "tidebook-journal.png"
+        },
+        {
+          "id": "map",
+          "file": "tidebook-map.png"
+        }
+      ]
+    },
     {
       "id": "fish-a",
       "family": "fish",

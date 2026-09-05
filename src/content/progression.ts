@@ -66,7 +66,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.carrot", "crop.barley", "crop.corn", "crop.sunflower"],
     fishingUnlocks: ["rod.river"],
     tradingUnlocks: [],
-    processingUnlocks: ["recipe.craft_lure", "recipe.cure_sardine"]
+    processingUnlocks: ["recipe.craft_lure", "recipe.cure_sardine", "recipe.craft_chum_rich", "recipe.craft_chum_deep"]
   },
   {
     rankIndex: 2,
@@ -197,10 +197,12 @@ export function rankIndexForRequirement(requiredXp: number): number {
  * This is the scale axis the deleted `feature.contract_tier2` /
  * `contract_tier3` flags were gesturing at, expressed as something the player
  * can feel: a wider board means a real choice between orders rather than
- * taking whatever the two slots happened to roll.
+ * taking whatever the three slots happened to roll. The baseline is three so
+ * the early game already offers a produce/fishing choice; rank 5 adds a
+ * fourth for high-proficiency play.
  */
 export function contractSlotsForRank(tradingRankIndex: number, hasGuildCharter = false): number {
-  const base = tradingRankIndex >= 5 ? 4 : tradingRankIndex >= 3 ? 3 : 2;
+  const base = tradingRankIndex >= 5 ? 4 : 3;
   // The charter is the story's capstone, so it pays in the same currency the
   // rest of the trading ladder does: one more promise you can carry at once.
   return base + (hasGuildCharter ? 1 : 0);

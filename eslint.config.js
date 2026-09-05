@@ -59,6 +59,6 @@ export default [
     }
   },
   {
-    ignores: [".agents/**", "dist/**", "node_modules/**", "generated/**", "public/**"]
+    ignores: [".agents/**", ".claude/worktrees/**", "dist/**", "node_modules/**", "generated/**", "public/**", "output/**", "test-results/**"]
   }
 ];

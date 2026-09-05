@@ -3,7 +3,7 @@ import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { cargoClassFits, isProduceContractType, rodMeetsMinimum } from "../domains/domainRules";
-import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
+import { accessibleChumSupplyCount, accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 
 export interface ExpeditionOpportunityDto {
   id: string;
@@ -95,7 +95,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
         && cargoClassFits(fish.cargoClass, rod.maximumCargoClass));
     if (!state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) blockers.push("Rowboat access is required");
     if (!suitableOwnedRod) blockers.push("No owned rod suits this fish");
-    if (accessibleFishingSupplyCount(state, "item.chum_bucket", vesselId) === 0) blockers.push("Pack a chum bucket");
+    if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
     if (!matchingCargoSlotAvailable(state, contract.targetItemIdOrSpecies, vesselId)) blockers.push("No suitable cargo space is open");
     const safestBoat = Object.values(state.boats)
       .map((boat) => ContentRegistry.boats.get(boat.boatTypeId)?.safeSeaRoughness ?? 0)
@@ -136,7 +136,7 @@ function marketOpportunity(
   }
   if (tone === "bold") {
     if (!state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) blockers.push("Rowboat access is required");
-    if (accessibleFishingSupplyCount(state, "item.chum_bucket", vesselId) === 0) blockers.push("Pack a chum bucket");
+    if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
     if (!matchingCargoSlotAvailable(state, itemId, vesselId)) blockers.push("No suitable cargo space is open");
   }
   return {
@@ -205,7 +205,7 @@ export function buildExpeditionBoard(
             )
           }
         : null,
-      supplies: ["item.chum_bucket", "item.bait_worms", "item.basic_lure", "item.crushed_ice"].map((itemId) => ({
+      supplies: ["item.chum_bucket", "item.chum_rich", "item.chum_deep", "item.bait_worms", "item.basic_lure", "item.crushed_ice"].map((itemId) => ({
         itemId,
         count: packedCount(itemId)
       })),

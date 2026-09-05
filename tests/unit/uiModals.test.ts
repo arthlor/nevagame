@@ -27,6 +27,7 @@ function marketProps(sim: Simulation, marketId: MarketId) {
     onSellFishCargo: () => {},
     onSellAllFishCargo: () => {},
     onDiscardFishCargo: () => {},
+    onReleaseFishCargo: () => {},
     onDeliverContractItems: () => {},
     onDeliverFishCargo: () => {},
     onClose: () => {}

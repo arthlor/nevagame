@@ -1,57 +1,385 @@
 {
   "version": 1,
   "tokens": {
-    "sky_pale_01": { "hex": "#BFD9E6", "family": "sky", "roughness": 1, "metalness": 0 },
-    "horizon_warm_01": { "hex": "#F2C89C", "family": "sky", "roughness": 1, "metalness": 0 },
-    "water_shallow_01": { "hex": "#67C6C8", "family": "water", "roughness": 0.28, "metalness": 0 },
-    "water_mid_01": { "hex": "#3F9FAD", "family": "water", "roughness": 0.3, "metalness": 0 },
-    "water_deep_01": { "hex": "#276B7D", "family": "water", "roughness": 0.34, "metalness": 0 },
-    "foam_warm_01": { "hex": "#F6F3E8", "family": "foam", "roughness": 0.62, "metalness": 0 },
-    "grass_yellow_01": { "hex": "#B3B75A", "family": "foliage", "roughness": 0.86, "metalness": 0 },
-    "foliage_sage_01": { "hex": "#8E9E54", "family": "foliage", "roughness": 0.8, "metalness": 0 },
-    "foliage_olive_01": { "hex": "#667A3E", "family": "foliage", "roughness": 0.82, "metalness": 0 },
-    "foliage_shadow_01": { "hex": "#465B32", "family": "foliage", "roughness": 0.84, "metalness": 0 },
-    "foliage_pine_01": { "hex": "#405C38", "family": "foliage", "roughness": 0.84, "metalness": 0 },
-    "foliage_leaf_01": { "hex": "#7D8F43", "family": "foliage", "roughness": 0.8, "metalness": 0 },
-    "foliage_highlight_01": { "hex": "#A0A756", "family": "foliage", "roughness": 0.78, "metalness": 0 },
-    "wood_honey_01": { "hex": "#B8783F", "family": "wood", "roughness": 0.8, "metalness": 0.02 },
-    "wood_warm_01": { "hex": "#8D5D36", "family": "wood", "roughness": 0.82, "metalness": 0.02 },
-    "wood_dark_01": { "hex": "#563825", "family": "wood", "roughness": 0.86, "metalness": 0.02 },
-    "wood_weathered_01": { "hex": "#765C47", "family": "wood", "roughness": 0.88, "metalness": 0.02 },
-    "plaster_warm_01": { "hex": "#D9BE8D", "family": "plaster", "roughness": 0.88, "metalness": 0 },
-    "plaster_cream_01": { "hex": "#E8D5AC", "family": "plaster", "roughness": 0.9, "metalness": 0 },
-    "stone_golden_01": { "hex": "#C18A52", "family": "stone", "roughness": 0.9, "metalness": 0.02 },
-    "stone_warm_01": { "hex": "#A97855", "family": "stone", "roughness": 0.9, "metalness": 0.02 },
-    "stone_cool_01": { "hex": "#7D7C72", "family": "stone", "roughness": 0.92, "metalness": 0.02 },
-    "rock_coastal_dark_01": { "hex": "#34383E", "family": "rock", "roughness": 0.84, "metalness": 0.02 },
-    "soil_warm_01": { "hex": "#775333", "family": "soil", "roughness": 0.92, "metalness": 0 },
-    "soil_dry_01": { "hex": "#A17445", "family": "soil", "roughness": 0.94, "metalness": 0 },
-    "soil_damp_01": { "hex": "#5E4937", "family": "soil", "roughness": 0.9, "metalness": 0 },
-    "soil_shadow_01": { "hex": "#47372C", "family": "soil", "roughness": 0.94, "metalness": 0 },
-    "path_dust_01": { "hex": "#C1945B", "family": "soil", "roughness": 0.94, "metalness": 0 },
-    "sand_warm_01": { "hex": "#D0B178", "family": "stone", "roughness": 0.94, "metalness": 0 },
-    "shore_wet_01": { "hex": "#625B4B", "family": "stone", "roughness": 0.88, "metalness": 0 },
-    "roof_terracotta_01": { "hex": "#B94F36", "family": "roof", "roughness": 0.8, "metalness": 0.03 },
-    "roof_deep_red_01": { "hex": "#8F3C32", "family": "roof", "roughness": 0.82, "metalness": 0.03 },
-    "roof_warm_orange_01": { "hex": "#C96C3F", "family": "roof", "roughness": 0.8, "metalness": 0.03 },
-    "roof_turf_01": { "hex": "#6F853E", "family": "roof", "roughness": 0.84, "metalness": 0 },
-    "canvas_cream_01": { "hex": "#E8D8B4", "family": "cloth", "roughness": 0.9, "metalness": 0 },
-    "accent_red_01": { "hex": "#B84B3D", "family": "accent", "roughness": 0.68, "metalness": 0 },
-    "accent_ochre_01": { "hex": "#D59B45", "family": "accent", "roughness": 0.68, "metalness": 0 },
-    "accent_teal_01": { "hex": "#3F8D8C", "family": "accent", "roughness": 0.72, "metalness": 0 },
-    "metal_dark_01": { "hex": "#2B2D30", "family": "metal", "roughness": 0.58, "metalness": 0.28 },
-    "metal_brass_01": { "hex": "#A47B43", "family": "metal", "roughness": 0.48, "metalness": 0.32 },
-    "fish_belly_01": { "hex": "#E0E3D9", "family": "fish", "roughness": 0.6, "metalness": 0 },
-    "fish_trout_spot_01": { "hex": "#BF5973", "family": "fish", "roughness": 0.58, "metalness": 0 },
-    "fish_trout_back_01": { "hex": "#556F58", "family": "fish", "roughness": 0.58, "metalness": 0 },
-    "fish_tuna_back_01": { "hex": "#2E476B", "family": "fish", "roughness": 0.56, "metalness": 0 },
-    "wood_wet_01": { "hex": "#4A3321", "family": "wood", "roughness": 0.38, "metalness": 0.04 },
-    "burlap_grain_01": { "hex": "#D8C5A2", "family": "cloth", "roughness": 0.94, "metalness": 0 },
-    "leather_harness_01": { "hex": "#422818", "family": "leather", "roughness": 0.65, "metalness": 0.05 },
-    "animal_hide_white_01": { "hex": "#EAE6DC", "family": "fauna", "roughness": 0.88, "metalness": 0 },
-    "animal_hide_black_01": { "hex": "#28292B", "family": "fauna", "roughness": 0.85, "metalness": 0 },
-    "stone_moss_01": { "hex": "#636B42", "family": "stone", "roughness": 0.92, "metalness": 0.02 },
-    "emissive_window_01": { "hex": "#FFDF99", "family": "emissive", "roughness": 0.32, "metalness": 0, "emissiveStrength": 2 },
-    "emissive_lantern_01": { "hex": "#FFAE42", "family": "emissive", "roughness": 0.28, "metalness": 0, "emissiveStrength": 2.8 }
+    "sky_pale_01": {
+      "hex": "#BFD9E6",
+      "family": "sky",
+      "roughness": 1,
+      "metalness": 0
+    },
+    "horizon_warm_01": {
+      "hex": "#F2C89C",
+      "family": "sky",
+      "roughness": 1,
+      "metalness": 0
+    },
+    "horizon_gold_01": {
+      "hex": "#EFAF6B",
+      "family": "sky",
+      "roughness": 1,
+      "metalness": 0
+    },
+    "water_shallow_01": {
+      "hex": "#67C6C8",
+      "family": "water",
+      "roughness": 0.28,
+      "metalness": 0
+    },
+    "water_mid_01": {
+      "hex": "#3F9FAD",
+      "family": "water",
+      "roughness": 0.3,
+      "metalness": 0
+    },
+    "water_deep_01": {
+      "hex": "#276B7D",
+      "family": "water",
+      "roughness": 0.34,
+      "metalness": 0
+    },
+    "foam_warm_01": {
+      "hex": "#F6F3E8",
+      "family": "foam",
+      "roughness": 0.62,
+      "metalness": 0
+    },
+    "grass_yellow_01": {
+      "hex": "#B3B75A",
+      "family": "foliage",
+      "roughness": 0.86,
+      "metalness": 0
+    },
+    "foliage_sage_01": {
+      "hex": "#8E9E54",
+      "family": "foliage",
+      "roughness": 0.8,
+      "metalness": 0
+    },
+    "foliage_olive_01": {
+      "hex": "#667A3E",
+      "family": "foliage",
+      "roughness": 0.82,
+      "metalness": 0
+    },
+    "foliage_shadow_01": {
+      "hex": "#465B32",
+      "family": "foliage",
+      "roughness": 0.84,
+      "metalness": 0
+    },
+    "foliage_pine_01": {
+      "hex": "#405C38",
+      "family": "foliage",
+      "roughness": 0.84,
+      "metalness": 0
+    },
+    "foliage_leaf_01": {
+      "hex": "#7D8F43",
+      "family": "foliage",
+      "roughness": 0.8,
+      "metalness": 0
+    },
+    "foliage_highlight_01": {
+      "hex": "#A0A756",
+      "family": "foliage",
+      "roughness": 0.78,
+      "metalness": 0
+    },
+    "wood_honey_01": {
+      "hex": "#B8783F",
+      "family": "wood",
+      "roughness": 0.8,
+      "metalness": 0.02
+    },
+    "wood_warm_01": {
+      "hex": "#8D5D36",
+      "family": "wood",
+      "roughness": 0.82,
+      "metalness": 0.02
+    },
+    "wood_dark_01": {
+      "hex": "#563825",
+      "family": "wood",
+      "roughness": 0.86,
+      "metalness": 0.02
+    },
+    "wood_weathered_01": {
+      "hex": "#765C47",
+      "family": "wood",
+      "roughness": 0.88,
+      "metalness": 0.02
+    },
+    "plaster_warm_01": {
+      "hex": "#D9BE8D",
+      "family": "plaster",
+      "roughness": 0.88,
+      "metalness": 0
+    },
+    "plaster_cream_01": {
+      "hex": "#E8D5AC",
+      "family": "plaster",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "stone_golden_01": {
+      "hex": "#C18A52",
+      "family": "stone",
+      "roughness": 0.9,
+      "metalness": 0.02
+    },
+    "stone_warm_01": {
+      "hex": "#A97855",
+      "family": "stone",
+      "roughness": 0.9,
+      "metalness": 0.02
+    },
+    "stone_cool_01": {
+      "hex": "#7D7C72",
+      "family": "stone",
+      "roughness": 0.92,
+      "metalness": 0.02
+    },
+    "rock_coastal_dark_01": {
+      "hex": "#34383E",
+      "family": "rock",
+      "roughness": 0.84,
+      "metalness": 0.02
+    },
+    "soil_warm_01": {
+      "hex": "#775333",
+      "family": "soil",
+      "roughness": 0.92,
+      "metalness": 0
+    },
+    "soil_dry_01": {
+      "hex": "#A17445",
+      "family": "soil",
+      "roughness": 0.94,
+      "metalness": 0
+    },
+    "soil_damp_01": {
+      "hex": "#5E4937",
+      "family": "soil",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "soil_shadow_01": {
+      "hex": "#47372C",
+      "family": "soil",
+      "roughness": 0.94,
+      "metalness": 0
+    },
+    "path_dust_01": {
+      "hex": "#C1945B",
+      "family": "soil",
+      "roughness": 0.94,
+      "metalness": 0
+    },
+    "sand_warm_01": {
+      "hex": "#D0B178",
+      "family": "stone",
+      "roughness": 0.94,
+      "metalness": 0
+    },
+    "shore_wet_01": {
+      "hex": "#625B4B",
+      "family": "stone",
+      "roughness": 0.88,
+      "metalness": 0
+    },
+    "roof_terracotta_01": {
+      "hex": "#B94F36",
+      "family": "roof",
+      "roughness": 0.8,
+      "metalness": 0.03
+    },
+    "roof_deep_red_01": {
+      "hex": "#8F3C32",
+      "family": "roof",
+      "roughness": 0.82,
+      "metalness": 0.03
+    },
+    "roof_warm_orange_01": {
+      "hex": "#C96C3F",
+      "family": "roof",
+      "roughness": 0.8,
+      "metalness": 0.03
+    },
+    "roof_turf_01": {
+      "hex": "#6F853E",
+      "family": "roof",
+      "roughness": 0.84,
+      "metalness": 0
+    },
+    "canvas_cream_01": {
+      "hex": "#E8D8B4",
+      "family": "cloth",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "accent_red_01": {
+      "hex": "#B84B3D",
+      "family": "accent",
+      "roughness": 0.68,
+      "metalness": 0
+    },
+    "accent_ochre_01": {
+      "hex": "#D59B45",
+      "family": "accent",
+      "roughness": 0.68,
+      "metalness": 0
+    },
+    "accent_teal_01": {
+      "hex": "#3F8D8C",
+      "family": "accent",
+      "roughness": 0.72,
+      "metalness": 0
+    },
+    "metal_dark_01": {
+      "hex": "#2B2D30",
+      "family": "metal",
+      "roughness": 0.58,
+      "metalness": 0.28
+    },
+    "metal_brass_01": {
+      "hex": "#A47B43",
+      "family": "metal",
+      "roughness": 0.48,
+      "metalness": 0.32
+    },
+    "metal_iron_01": {
+      "hex": "#6E7175",
+      "family": "metal",
+      "roughness": 0.52,
+      "metalness": 0.3
+    },
+    "fish_belly_01": {
+      "hex": "#E0E3D9",
+      "family": "fish",
+      "roughness": 0.6,
+      "metalness": 0
+    },
+    "fish_trout_spot_01": {
+      "hex": "#BF5973",
+      "family": "fish",
+      "roughness": 0.58,
+      "metalness": 0
+    },
+    "fish_trout_back_01": {
+      "hex": "#556F58",
+      "family": "fish",
+      "roughness": 0.58,
+      "metalness": 0
+    },
+    "fish_tuna_back_01": {
+      "hex": "#2E476B",
+      "family": "fish",
+      "roughness": 0.56,
+      "metalness": 0
+    },
+    "wood_wet_01": {
+      "hex": "#4A3321",
+      "family": "wood",
+      "roughness": 0.38,
+      "metalness": 0.04
+    },
+    "burlap_grain_01": {
+      "hex": "#D8C5A2",
+      "family": "cloth",
+      "roughness": 0.94,
+      "metalness": 0
+    },
+    "leather_harness_01": {
+      "hex": "#422818",
+      "family": "leather",
+      "roughness": 0.65,
+      "metalness": 0.05
+    },
+    "animal_hide_white_01": {
+      "hex": "#EAE6DC",
+      "family": "fauna",
+      "roughness": 0.88,
+      "metalness": 0
+    },
+    "animal_hide_black_01": {
+      "hex": "#28292B",
+      "family": "fauna",
+      "roughness": 0.85,
+      "metalness": 0
+    },
+    "stone_moss_01": {
+      "hex": "#636B42",
+      "family": "stone",
+      "roughness": 0.92,
+      "metalness": 0.02
+    },
+    "emissive_window_01": {
+      "hex": "#FFDF99",
+      "family": "emissive",
+      "roughness": 0.32,
+      "metalness": 0,
+      "emissiveStrength": 2
+    },
+    "emissive_lantern_01": {
+      "hex": "#FFAE42",
+      "family": "emissive",
+      "roughness": 0.28,
+      "metalness": 0,
+      "emissiveStrength": 2.8
+    },
+    "skin_warm_01": {
+      "hex": "#C7946F",
+      "family": "skin",
+      "roughness": 0.76,
+      "metalness": 0
+    },
+    "skin_light_01": {
+      "hex": "#D5AC8C",
+      "family": "skin",
+      "roughness": 0.76,
+      "metalness": 0
+    },
+    "cloth_teal_01": {
+      "hex": "#448785",
+      "family": "cloth",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "cloth_olive_01": {
+      "hex": "#6D7A50",
+      "family": "cloth",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "cloth_ochre_01": {
+      "hex": "#AD8651",
+      "family": "cloth",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "cloth_slate_01": {
+      "hex": "#4E6068",
+      "family": "cloth",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "cloth_rust_01": {
+      "hex": "#A9634A",
+      "family": "cloth",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "hair_brown_01": {
+      "hex": "#4B372F",
+      "family": "hair",
+      "roughness": 0.88,
+      "metalness": 0
+    },
+    "hair_silver_01": {
+      "hex": "#ACA497",
+      "family": "hair",
+      "roughness": 0.88,
+      "metalness": 0
+    }
   }
 }

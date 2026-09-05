@@ -7,7 +7,13 @@ import math
 import bpy
 from mathutils import Vector
 
-from common.geometry import add_beam, add_tapered_beam, apply_vertex_values, seeded_rng
+from common.geometry import (
+    add_beam,
+    add_flower_head,
+    add_tapered_beam,
+    apply_vertex_values,
+    seeded_rng,
+)
 from common.materials import get_or_create_material
 
 
@@ -342,24 +348,28 @@ def _add_tomato_fruit(
 ) -> None:
     """Flattened faceted tomato with a star calyx."""
     cx, cy, cz = center
-    equator_z = cz - radius * 0.06
-    vertices = [(cx, cy, cz + radius * flatten * 0.90)]
-    for index in range(6):
-        angle = rotation + index * math.tau / 6
-        ring_radius = radius * (0.94 if index % 2 == 0 else 1.04)
-        vertices.append(
-            (
-                cx + math.cos(angle) * ring_radius,
-                cy + math.sin(angle) * ring_radius,
-                equator_z,
+    # One equator makes a bipyramid, which from a game camera reads as a red
+    # umbrella. Two shoulder rings round it into fruit for six more triangles.
+    vertices = [(cx, cy, cz + radius * flatten * 0.98)]
+    rings = ((radius * 0.62, radius * flatten * 0.52), (radius * 1.0, -radius * 0.10))
+    for ring_scale, ring_z in rings:
+        for index in range(6):
+            angle = rotation + index * math.tau / 6
+            ring_radius = ring_scale * (0.94 if index % 2 == 0 else 1.04)
+            vertices.append(
+                (
+                    cx + math.cos(angle) * ring_radius,
+                    cy + math.sin(angle) * ring_radius,
+                    cz + ring_z,
+                )
             )
-        )
-    vertices.append((cx, cy, cz - radius * flatten * 0.76))
+    vertices.append((cx, cy, cz - radius * flatten * 0.80))
     faces = []
     for index in range(6):
-        nxt = 1 + (index + 1) % 6
-        faces.append((0, 1 + index, nxt))
-        faces.append((7, nxt, 1 + index))
+        nxt = (index + 1) % 6
+        faces.append((0, 1 + index, 1 + nxt))
+        faces.append((1 + index, 7 + index, 7 + nxt, 1 + nxt))
+        faces.append((13, 7 + nxt, 7 + index))
     _add_custom_mesh(f"{name}_body", vertices, faces, fruit_token, root)
 
     calyx_vertices: list[tuple[float, float, float]] = []
@@ -415,35 +425,43 @@ def _add_star_flower(
     cx, cy, cz = center
     vertices: list[tuple[float, float, float]] = []
     faces: list[tuple[int, int, int]] = []
+    lift = radius * 0.045
     for petal in range(petals):
         angle = rotation + petal * math.tau / petals
         direction = (math.cos(angle), math.sin(angle))
         side = (-direction[1], direction[0])
-        start = len(vertices)
-        vertices.extend(
+        outline = (
+            (cx + direction[0] * radius * 0.14, cy + direction[1] * radius * 0.14, cz),
             (
-                (cx + direction[0] * radius * 0.14, cy + direction[1] * radius * 0.14, cz),
-                (
-                    cx + direction[0] * radius * 0.52 + side[0] * radius * 0.22,
-                    cy + direction[1] * radius * 0.52 + side[1] * radius * 0.22,
-                    cz + radius * 0.04,
-                ),
-                (cx + direction[0] * radius, cy + direction[1] * radius, cz + radius * 0.02),
-                (
-                    cx + direction[0] * radius * 0.52 - side[0] * radius * 0.22,
-                    cy + direction[1] * radius * 0.52 - side[1] * radius * 0.22,
-                    cz + radius * 0.04,
-                ),
-            )
+                cx + direction[0] * radius * 0.52 + side[0] * radius * 0.22,
+                cy + direction[1] * radius * 0.52 + side[1] * radius * 0.22,
+                cz + radius * 0.04,
+            ),
+            (cx + direction[0] * radius, cy + direction[1] * radius, cz + radius * 0.02),
+            (
+                cx + direction[0] * radius * 0.52 - side[0] * radius * 0.22,
+                cy + direction[1] * radius * 0.52 - side[1] * radius * 0.22,
+                cz + radius * 0.04,
+            ),
         )
+        # Two coplanar copies in opposite windings z-fight and still vanish edge
+        # on. A petal with real thickness survives backface culling from below.
+        start = len(vertices)
+        vertices.extend((x, y, z + lift) for x, y, z in outline)
+        vertices.extend((x, y, z - lift) for x, y, z in outline)
         faces.extend(
             (
                 (start, start + 1, start + 2),
                 (start, start + 2, start + 3),
-                (start, start + 2, start + 1),
-                (start, start + 3, start + 2),
+                (start + 4, start + 6, start + 5),
+                (start + 4, start + 7, start + 6),
+                (start, start + 4, start + 5, start + 1),
+                (start + 1, start + 5, start + 6, start + 2),
+                (start + 2, start + 6, start + 7, start + 3),
+                (start + 3, start + 7, start + 4, start),
             )
         )
+
     _add_custom_mesh(f"{name}_petals", vertices, faces, petal_token, root)
     _add_octahedron(
         f"{name}_center",
@@ -836,20 +854,29 @@ def _add_potato_crown(
             root,
             knee=0.04 + droop * 0.05,
         )
-        for leaflet_index in range(leaflets):
-            fan = (leaflet_index - (leaflets - 1) * 0.5) * 0.62
-            _add_folded_leaf(
-                f"{prefix}_leaf_{index:02d}_{leaflet_index:02d}",
-                tip,
-                spread * (0.42 + 0.04 * (index % 2)),
-                spread * 0.22,
-                angle + fan,
-                leaf_token,
-                root,
-                pitch=0.28 - droop * 0.16,
-                droop=droop,
-                cup=0.16,
+        # Every leaflet fanning off the stem tip built an agave rosette. A potato
+        # plant is a low bush: hang compound leaves in tiers down the stem.
+        for tier in range(3):
+            along = 0.42 + 0.28 * tier
+            node = (
+                base[0] + (tip[0] - base[0]) * along,
+                base[1] + (tip[1] - base[1]) * along,
+                base[2] + (tip[2] - base[2]) * along,
             )
+            for leaflet_index in range(leaflets):
+                fan = (leaflet_index - (leaflets - 1) * 0.5) * 0.70 + tier * 0.44
+                _add_folded_leaf(
+                    f"{prefix}_leaf_{index:02d}_{tier}{leaflet_index:02d}",
+                    node,
+                    spread * (0.25 + 0.03 * (index % 2)) * (1.0 - 0.14 * tier),
+                    spread * 0.15,
+                    angle + fan,
+                    leaf_token,
+                    root,
+                    pitch=0.28 - droop * 0.16,
+                    droop=droop,
+                    cup=0.16,
+                )
         tips.append(tip)
     return tips
 
@@ -938,12 +965,25 @@ def potato_crop(spec: dict, root) -> None:
             _add_star_flower(
                 f"potato_flower_{index:02d}",
                 (tip[0], tip[1], tip[2] + 0.012),
-                0.048,
+                0.072,
                 flower_token,
                 center_token,
                 root,
                 petals=5,
                 rotation=index * 0.31,
+            )
+        # Half-buried tubers at the soil line: without them nothing on the plant
+        # tells the player there is anything to lift.
+        for index in range(4):
+            angle = index * GOLDEN_ANGLE + 0.9
+            radius = 0.15 + 0.05 * (index % 2)
+            _add_octahedron(
+                f"potato_tuber_{index:02d}",
+                (math.cos(angle) * radius, math.sin(angle) * radius * 0.86, 0.030),
+                (0.062, 0.044, 0.038),
+                center_token,
+                root,
+                rotation=angle,
             )
     elif stage == "overripe":
         for index, tip in enumerate(tips[:4]):
@@ -1010,19 +1050,21 @@ def pumpkin_crop(spec: dict, root) -> None:
     soil_token = tokens[3] if len(tokens) > 3 else vine_token
     lobes = spec["parameters"]["lobes"]
     leaf_count = spec["parameters"]["leafCount"]
-    fruit_radius = 0.16
+    fruit_radius = 0.21
 
     for lobe in range(lobes):
         angle = lobe * math.tau / lobes + 0.12
         _add_octahedron(
             f"pumpkin_lobe_{lobe:02d}",
-            (math.cos(angle) * fruit_radius * 0.34, math.sin(angle) * fruit_radius * 0.34, 0.13),
-            (fruit_radius * 0.58, fruit_radius * 0.54, fruit_radius * 0.78),
+            # A gourd is wider than it is tall and sits on the soil; the old
+            # proportions left something smaller than its own leaves.
+            (math.cos(angle) * fruit_radius * 0.38, math.sin(angle) * fruit_radius * 0.38, 0.118),
+            (fruit_radius * 0.66, fruit_radius * 0.62, fruit_radius * 0.60),
             fruit_token,
             root,
             rotation=angle,
         )
-    add_tapered_beam("pumpkin_stem", (0.02, 0.0, 0.24), (0.05, 0.03, 0.34), 0.022, 0.012, vine_token, root, vertices=5)
+    add_tapered_beam("pumpkin_stem", (0.02, 0.0, 0.205), (0.05, 0.03, 0.295), 0.024, 0.013, vine_token, root, vertices=5)
 
     vine_points = (
         (0.08, 0.04, 0.06),
@@ -1098,12 +1140,12 @@ def sunflower_crop(spec: dict, root) -> None:
     settings = {
         "sprout": (0.28, 2, 0.0),
         "growing": (0.82, 4, 0.02),
-        "mature": (1.34, 5, 0.04),
-        "overripe": (1.12, 4, 0.34),
+        "mature": (1.34, 7, 0.04),
+        "overripe": (1.12, 6, 0.34),
         "withered": (0.70, 3, 0.72),
     }
     height, leaf_count, droop = settings[stage]
-    plant_count = 2 if stage in ("sprout", "withered") else 3
+    plant_count = 2 if stage in ("sprout", "withered") else 4
     for index in range(plant_count):
         angle = index * GOLDEN_ANGLE + 0.32
         base_radius = 0.08 + 0.09 * index
@@ -1146,15 +1188,23 @@ def sunflower_crop(spec: dict, root) -> None:
                 tip[1] + math.sin(angle) * (0.04 + droop * 0.12),
                 tip[2] + 0.03 - droop * 0.08,
             )
-            _add_star_flower(
+            # A flat star of petals lying face-up is hidden by its own centre
+            # disc from any game camera, which is why the mature crop had no
+            # flower at all. Use the nodding head the sunflower stand already
+            # gets right.
+            head_radius = 0.15 if stage == "mature" else 0.13 if stage == "overripe" else 0.10
+            add_flower_head(
                 f"sunflower_head_{index:02d}",
                 head_center,
-                0.18 if stage == "mature" else 0.15,
-                petal_token if stage != "withered" else stem_token,
+                head_radius,
                 center_token,
+                leaf_token,
+                petal_token if stage != "withered" else stem_token,
                 root,
-                petals=12,
-                rotation=angle,
+                petals=14 if stage == "mature" else 12,
+                nod=math.radians(46 + droop * 34),
+                yaw=angle,
+                petal_reach=1.34 if stage != "withered" else 1.10,
             )
 
 
@@ -1180,8 +1230,8 @@ def olive_crop(spec: dict, root) -> None:
     settings = {
         "sprout": (0.34, 2, 0.10, 0.0),
         "growing": (0.82, 4, 0.28, 0.0),
-        "mature": (1.42, 7, 0.54, 0.0),
-        "overripe": (1.30, 6, 0.58, 0.24),
+        "mature": (1.42, 9, 0.54, 0.0),
+        "overripe": (1.30, 8, 0.58, 0.24),
         "withered": (0.92, 4, 0.48, 0.72),
     }
     height, branches, spread, droop = settings[stage]
@@ -1197,22 +1247,42 @@ def olive_crop(spec: dict, root) -> None:
             attach[2] + height * (0.22 + 0.04 * (index % 3)) * (1.0 - droop * 0.5),
         )
         add_tapered_beam(f"olive_crop_branch_{index:02d}", attach, tip, 0.025, 0.010, wood_token, root, vertices=5)
-        for leaf_index in range(3 if stage != "withered" else 1):
+        # Leaves clasp along the branch rather than all bunching at the tip, so
+        # a mature tree reads as a canopy instead of five bare sticks.
+        leaf_total = 7 if stage in ("mature", "overripe") else 3 if stage != "withered" else 1
+        for leaf_index in range(leaf_total):
+            along = 0.42 + 0.52 * (leaf_index / max(1, leaf_total - 1))
+            attach_point = (
+                attach[0] + (tip[0] - attach[0]) * along,
+                attach[1] + (tip[1] - attach[1]) * along,
+                attach[2] + (tip[2] - attach[2]) * along,
+            )
             _add_folded_leaf(
                 f"olive_crop_leaf_{index:02d}_{leaf_index:02d}",
-                tip,
-                0.16,
-                0.055,
-                angle + (leaf_index - 1) * 0.52,
+                attach_point,
+                0.19,
+                0.068,
+                angle + (leaf_index - (leaf_total - 1) * 0.5) * 0.58,
                 leaf_token if stage != "withered" else dry_token,
                 root,
                 pitch=0.16,
                 droop=droop,
                 cup=0.10,
             )
-        if stage in ("mature", "overripe") and index < 5:
-            fruit_center = (tip[0], tip[1], tip[2] - 0.07 - 0.02 * (index % 2))
-            _add_octahedron(
-                f"olive_crop_fruit_{index:02d}", fruit_center,
-                (0.035, 0.025, 0.045), fruit_token, root, rotation=angle,
-            )
+        if stage in ("mature", "overripe"):
+            # Olives hang in small clusters inside the foliage. One isolated
+            # gem per branch tip read as charcoal stuck on a bare twig.
+            for fruit_index in range(3):
+                along = 0.58 + 0.16 * fruit_index
+                _add_octahedron(
+                    f"olive_crop_fruit_{index:02d}_{fruit_index:02d}",
+                    (
+                        attach[0] + (tip[0] - attach[0]) * along + math.cos(angle + fruit_index) * 0.028,
+                        attach[1] + (tip[1] - attach[1]) * along + math.sin(angle + fruit_index) * 0.028,
+                        attach[2] + (tip[2] - attach[2]) * along - 0.038 - 0.012 * fruit_index,
+                    ),
+                    (0.026, 0.020, 0.032),
+                    fruit_token,
+                    root,
+                    rotation=angle + fruit_index,
+                )

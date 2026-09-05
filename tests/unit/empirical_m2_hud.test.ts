@@ -174,7 +174,8 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("The Autumn Harvest");
       expect(html).toContain("Harvest ripe turnips for the storehouse");
       expect(html).toContain("3 / 5");
-      expect(html).toContain("📍");
+      // The delivery pin is drawn as an SVG mark.
+      expect(html).toContain("hud-svg-icon");
       expect(html).toContain("Village Farmstead");
       expect(html).toContain("chrome-meter--gold");
     });

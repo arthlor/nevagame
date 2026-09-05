@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { starterFarmsteadAnchor } from "../../src/world/FarmLayout";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 
 const e2eBaseUrl = process.env.NEVA_E2E_BASE_URL
   ?? `http://127.0.0.1:${process.env.NEVA_E2E_PORT ?? "3000"}`;
@@ -72,7 +73,7 @@ async function canvasPoint(page: Page, xRatio: number, yRatio: number) {
 async function enterWheatPlacement(page: Page): Promise<void> {
   await page.keyboard.press("KeyI");
   const inventory = page.locator(".modal-content");
-  await expect(inventory).toContainText("Guild Satchel");
+  await expect(inventory).toContainText("Satchel");
   await inventory.locator("[aria-label^='Wheat Seeds, count']").click();
   await page.getByRole("button", { name: "Plant Wheat" }).click();
 }
@@ -196,7 +197,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await page.waitForTimeout(450);
     const beforeOverlay = await readPosition(diagnostics);
     await page.keyboard.press("KeyI");
-    await expect(page.locator(".modal-content")).toContainText("Guild Satchel");
+    await expect(page.locator(".modal-content")).toContainText("Satchel");
     await hold(page, "KeyW", 500);
     const duringOverlay = await readPosition(diagnostics);
     expect(Math.hypot(duringOverlay.x - beforeOverlay.x, duringOverlay.z - beforeOverlay.z)).toBeLessThan(0.12);
@@ -224,7 +225,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     fs.mkdirSync(screenshotsDir, { recursive: true });
 
     await expect(page.locator(".hud-hotkey-ribbon-wood")).toHaveCount(0);
-    await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Fishing rod/);
+    await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Rod/);
     await expect(page.locator(".hud-navigation-bar")).toHaveCount(0);
     await expect(page.locator(".quest-tracker-hud-wood")).toHaveCount(1);
     await expect(page.locator(".quest-tracker-hud-wood")).toContainText("The Inherited Soil");
@@ -247,9 +248,14 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
       const rightBox = boxes[1];
       const beltBox = boxes[2];
       const vitalsBox = boxes[3];
-      const leftRight = leftBox.x + leftBox.width;
-      const leftBottom = leftBox.y + leftBox.height;
-      const rightLeft = rightBox.x;
+      // The coastal HUD pins the clock/purse cluster (`.hud-top-left`) to the
+      // right edge and the objective/menu cluster (`.hud-top-right`) to the
+      // left, so order the top clusters visually instead of by legacy name.
+      const visualLeft = leftBox.x <= rightBox.x ? leftBox : rightBox;
+      const visualRight = visualLeft === leftBox ? rightBox : leftBox;
+      const leftRight = visualLeft.x + visualLeft.width;
+      const leftBottom = Math.max(leftBox.y + leftBox.height, rightBox.y + rightBox.height);
+      const rightLeft = visualRight.x;
       const beltTop = beltBox.y;
       const beltBottom = beltBox.y + beltBox.height;
       const promptBox = await contextPrompt.boundingBox();
@@ -283,39 +289,40 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
 
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.getByRole("button", { name: "Open game menu" }).click();
-    const pause = page.getByRole("dialog", { name: "Pause" });
+    const pause = page.getByRole("dialog", { name: "Paused" });
     await expect(pause).toBeVisible();
-    await expect(pause.getByRole("button", { name: /^Inventory/ })).toBeVisible();
-    await expect(pause.getByRole("button", { name: /^Journal/ })).toBeVisible();
-    await expect(pause.getByRole("button", { name: /^Map/ })).toBeVisible();
-    await expect(pause.getByRole("button", { name: /^Ledger/ })).toBeVisible();
+
+    await expect(pause.getByRole("button", { name: /Satchel/ })).toBeVisible();
+    await expect(pause.getByRole("button", { name: /Field Journal/ })).toBeVisible();
+    await expect(pause.getByRole("button", { name: /Nautical Chart/ })).toBeVisible();
+    await expect(pause.getByRole("button", { name: /Hold & Stores/ })).toBeVisible();
     await page.screenshot({ path: path.join(screenshotsDir, "pause-menu.png") });
 
-    await pause.getByRole("button", { name: /^Journal/ }).click();
-    await expect(page.getByRole("dialog", { name: /Captain's journal/i })).toBeVisible();
+    await pause.getByRole("button", { name: /Field Journal/ }).click();
+    await expect(page.getByRole("dialog", { name: /Field Journal/ })).toBeVisible();
     await page.screenshot({ path: path.join(screenshotsDir, "journal.png") });
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: /Captain's journal/i })).not.toBeVisible();
+    await expect(page.getByRole("dialog", { name: /Field Journal/ })).not.toBeVisible();
     await expect(pause).toBeVisible();
 
-    await pause.getByRole("button", { name: /^Map/ }).click();
-    await expect(page.getByRole("dialog", { name: "Coastal map" })).toBeVisible();
+    await pause.getByRole("button", { name: /Nautical Chart/ }).click();
+    await expect(page.getByRole("dialog", { name: "Nautical Chart of Neva & Sunreach" })).toBeVisible();
     await page.screenshot({ path: path.join(screenshotsDir, "map.png") });
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Coastal map" })).not.toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Nautical Chart of Neva & Sunreach" })).not.toBeVisible();
     await expect(pause).toBeVisible();
     expect(await pause.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
-    await pause.getByRole("button", { name: /^Ledger/ }).click();
-    await expect(page.getByRole("dialog", { name: /Captain's ledger/i })).toBeVisible();
+    await pause.getByRole("button", { name: /Hold & Stores/ }).click();
+    await expect(page.getByRole("dialog", { name: "Hold & Stores" })).toBeVisible();
     await page.screenshot({ path: path.join(screenshotsDir, "ledger.png") });
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: /Captain's ledger/i })).not.toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Hold & Stores" })).not.toBeVisible();
     await expect(pause).toBeVisible();
     expect(await pause.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
-    await pause.getByRole("button", { name: /^Inventory/ }).click();
-    const inventory = page.getByRole("dialog", { name: "Guild Satchel" });
+    await pause.getByRole("button", { name: /Satchel/ }).click();
+    const inventory = page.getByRole("dialog", { name: "Satchel" });
     await expect(inventory).toBeVisible();
     await expect(inventory.locator(".inventory-slot").first()).toHaveAttribute("aria-pressed");
     await page.screenshot({ path: path.join(screenshotsDir, "inventory.png") });
@@ -369,15 +376,20 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
 
   test("walk, sprint, reversal, and stop keep resolved gait and presentation stable", async ({ page }) => {
     const diagnostics = await loadScenario(page, "farm");
+    const expectResolvedGait = async (gait: "walk" | "run", minimumSpeed: number) => {
+      // Sample one frame's speed, requested gait and clip together. Separate
+      // browser assertions can observe a later blocked frame at the farm gate.
+      await expect.poll(() => diagnostics.evaluate((element, expected) => ({
+        requestedGait: element.getAttribute("data-player-requested-gait"),
+        matchesAnimation: (element.getAttribute("data-player-animation") ?? "").includes(expected.gait),
+        aboveMinimumSpeed: Number(element.getAttribute("data-player-speed")) > expected.minimumSpeed
+      }), { gait, minimumSpeed })).toEqual({ requestedGait: gait, matchesAnimation: true, aboveMinimumSpeed: true });
+    };
     await page.keyboard.down("KeyW");
-    await expect.poll(() => numericAttribute(diagnostics, "data-player-speed")).toBeGreaterThan(2.8);
-    await expect(diagnostics).toHaveAttribute("data-player-requested-gait", "walk");
-    await expect(diagnostics).toHaveAttribute("data-player-animation", /walk/);
+    await expectResolvedGait("walk", PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 0.85);
 
     await page.keyboard.down("Shift");
-    await expect.poll(() => numericAttribute(diagnostics, "data-player-speed")).toBeGreaterThan(5.0);
-    await expect(diagnostics).toHaveAttribute("data-player-requested-gait", "run");
-    await expect(diagnostics).toHaveAttribute("data-player-animation", /run/);
+    await expectResolvedGait("run", PLAYER_TRAVERSAL_TUNING.sprintSpeedMetersPerSecond * 0.85);
     await page.keyboard.up("Shift");
     await page.keyboard.up("KeyW");
 
@@ -390,7 +402,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
         Math.cos(headingAfterReverse - headingBeforeReverse)
       ));
     }).toBeGreaterThan(2.2);
-    await expect.poll(() => numericAttribute(diagnostics, "data-player-speed")).toBeGreaterThan(2.8);
+    await expect.poll(() => numericAttribute(diagnostics, "data-player-speed")).toBeGreaterThan(PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 0.85);
 
     await expect.poll(() => diagnostics.evaluate((element) => {
       const numeric = (name: string): number => Number(element.getAttribute(name));
@@ -408,7 +420,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await page.emulateMedia({ reducedMotion: "reduce" });
     const diagnostics = await loadScenario(page, "farm");
     await page.keyboard.down("KeyW");
-    await expect.poll(() => numericAttribute(diagnostics, "data-player-speed")).toBeGreaterThan(2.8);
+    await expect.poll(() => numericAttribute(diagnostics, "data-player-speed")).toBeGreaterThan(PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond * 0.85);
     await expect(diagnostics).toHaveAttribute("data-player-animation", /walk/);
     await page.keyboard.up("KeyW");
   });
@@ -648,7 +660,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     test.skip(browserName !== "chromium", "Deep fishing flow is covered once in the Chrome project");
     const diagnostics = await loadScenario(page, "sport-fishing");
     await expect(diagnostics).toHaveAttribute("data-mode", "sport-fishing");
-    await expect(page.getByRole("region", { name: "Fishing encounter" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Sport fishing fight" })).toBeVisible();
     const screenshotsDir = path.resolve(process.cwd(), "output/playwright/ui-audit");
     fs.mkdirSync(screenshotsDir, { recursive: true });
     await page.screenshot({ path: path.join(screenshotsDir, "fishing-hud.png") });

@@ -1,509 +1,143 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as THREE from "three";
-import { Document, NodeIO } from "@gltf-transform/core";
+import { NodeIO, type Document } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
+import { MeshoptDecoder } from "meshoptimizer";
 import { beforeAll, describe, expect, it } from "vitest";
-import { ASSET_BY_ID, ASSET_IDS, type AssetId } from "../../src/render/assets/AssetCatalog";
+import { ASSET_BY_ID, type AssetId } from "../../src/render/assets/AssetCatalog";
+import { CHARACTER_ASSET_IDS } from "../helpers/humanoidAssets";
 
-const ROOT = path.resolve(import.meta.dirname, "../..");
+const rootDirectory = path.resolve(import.meta.dirname, "../..");
+const docs = new Map<AssetId, Document>();
+const rawCatalog = JSON.parse(fs.readFileSync(path.join(rootDirectory, "assets/specs/asset-catalog.json"), "utf8"));
 
-const CHARACTER_ASSET_IDS: AssetId[] = [
-  ASSET_IDS.CHAR_PLAYER_A,
-  ASSET_IDS.CHAR_NPC_ELSPETH_A,
-  ASSET_IDS.CHAR_NPC_BARNABY_A,
-  ASSET_IDS.CHAR_NPC_SILAS_A,
-  ASSET_IDS.CHAR_NPC_MAEVE_A
-];
+beforeAll(async () => {
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+  for (const id of CHARACTER_ASSET_IDS) docs.set(id, await io.read(path.join(rootDirectory, "public/assets/models", ASSET_BY_ID.get(id)!.file)));
+}, 120000);
 
-const REQUIRED_HUMANOID_BONES = [
-  "rig_root",
-  "rig_pelvis",
-  "rig_spine",
-  "rig_spine_02",
-  "rig_chest",
-  "rig_neck",
-  "rig_head",
-  "rig_clavicle_left",
-  "rig_upper_arm_left",
-  "rig_forearm_left",
-  "rig_hand_left",
-  "rig_clavicle_right",
-  "rig_upper_arm_right",
-  "rig_forearm_right",
-  "rig_hand_right",
-  "rig_thigh_left",
-  "rig_shin_left",
-  "rig_foot_left",
-  "rig_toe_left",
-  "rig_thigh_right",
-  "rig_shin_right",
-  "rig_foot_right",
-  "rig_toe_right"
-] as const;
-
-const SECONDARY_4_BONES = [
-  "rig_hat_brim",
-  "rig_backpack",
-  "rig_canteen_left",
-  "rig_canteen_right"
-] as const;
-
-const ALL_CANONICAL_BONES = [...REQUIRED_HUMANOID_BONES, ...SECONDARY_4_BONES] as const;
-
-const EXPECTED_SOCKET_SUFFIXES = [
-  "hand_socket_left",
-  "hand_socket_right",
-  "tool_socket",
-  "carry_socket",
-  "hip_socket"
-] as const;
-
-describe("Milestone 2 Empirical Challenger — Rigging, Skinning & Sockets Adversarial Verification", () => {
-  const loadedDocs = new Map<AssetId, Document>();
-
-  beforeAll(async () => {
-    await MeshoptDecoder.ready;
-    const io = new NodeIO()
-      .registerExtensions(ALL_EXTENSIONS)
-      .registerDependencies({
-        "meshopt.decoder": MeshoptDecoder,
-        "meshopt.encoder": MeshoptEncoder
-      });
-
-    for (const charId of CHARACTER_ASSET_IDS) {
-      const spec = ASSET_BY_ID.get(charId)!;
-      const glbPath = path.join(ROOT, "public/assets/models", spec.file);
-      expect(fs.existsSync(glbPath), `File not found: ${glbPath}`).toBe(true);
-      const doc = await io.read(glbPath);
-      loadedDocs.set(charId, doc);
+describe("actual exported humanoid geometry, bindings and actions", () => {
+  it.each(CHARACTER_ASSET_IDS)("%s retains a source rig and resolves every semantic bone and socket", (id) => {
+    const doc = docs.get(id)!;
+    const spec = ASSET_BY_ID.get(id)!;
+    const nodes = new Map(doc.getRoot().listNodes().map((node) => [node.getName(), node]));
+    const authoring = rawCatalog.assets.find((entry: { id: string }) => entry.id === id);
+    expect(authoring.generator).toBe("imported_blend");
+    expect(authoring.humanoidAuthoring.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(spec.humanoidRig).toBeTruthy();
+    for (const [semantic, name] of Object.entries(spec.humanoidRig!.bones)) {
+      expect(nodes.has(name), `${id}/${semantic}: ${name}`).toBe(true);
     }
-  }, 120000);
-
-  // --------------------------------------------------------------------------
-  // TEST 1: Skin & Armature Hierarchy Structure
-  // --------------------------------------------------------------------------
-  it("TC1: All character GLBs contain valid skins with every canonical joint, non-singular IBMs, and correct parent tree", () => {
-    for (const charId of CHARACTER_ASSET_IDS) {
-      const doc = loadedDocs.get(charId)!;
-      const root = doc.getRoot();
-
-      const skins = root.listSkins();
-      expect(skins.length, `Expected at least 1 skin in ${charId}`).toBeGreaterThan(0);
-
-      // Verify each skin in the glTF binds every canonical bone and has non-singular IBMs
-      for (const skin of skins) {
-        const joints = skin.listJoints();
-        expect(joints.length, `Expected ${ALL_CANONICAL_BONES.length} joints in ${charId} skin ${skin.getName()}, found ${joints.length}`).toBe(ALL_CANONICAL_BONES.length);
-
-        const jointNames = new Set(joints.map((j) => j.getName()));
-        for (const boneName of ALL_CANONICAL_BONES) {
-          expect(jointNames.has(boneName), `Missing bone ${boneName} in ${charId} skin ${skin.getName()}`).toBe(true);
-        }
-
-        // Check Inverse Bind Matrices (IBM)
-        const ibmAccessor = skin.getInverseBindMatrices();
-        expect(ibmAccessor, `Missing Inverse Bind Matrices accessor in ${charId}`).not.toBeNull();
-        expect(ibmAccessor!.getCount()).toBe(joints.length);
-        expect(ibmAccessor!.getElementSize()).toBe(16); // 4x4 matrix
-
-        const ibmArray = ibmAccessor!.getArray();
-        expect(ibmArray).not.toBeNull();
-        expect(ibmArray!.length).toBe(joints.length * 16);
-
-        // Verify each 4x4 matrix has finite numbers and non-zero determinant
-        for (let j = 0; j < joints.length; j++) {
-          const offset = j * 16;
-          const matElements: number[] = [];
-          for (let k = 0; k < 16; k++) {
-            const val = ibmArray![offset + k];
-            expect(Number.isFinite(val), `Non-finite IBM value at joint ${j} element ${k} in ${charId}`).toBe(true);
-            matElements.push(val);
-          }
-
-          const threeMat = new THREE.Matrix4().fromArray(matElements);
-          const det = threeMat.determinant();
-          expect(Number.isFinite(det), `Non-finite determinant at joint ${j} (${joints[j].getName()}) in ${charId}`).toBe(true);
-          expect(Math.abs(det), `Singular IBM (det == 0) at joint ${j} (${joints[j].getName()}) in ${charId}`).toBeGreaterThan(1e-7);
-        }
-      }
-
-      // Verify Canonical Bone Hierarchy Tree on node graph
-      const nodeMap = new Map(root.listNodes().map((n) => [n.getName(), n]));
-      const rigRoot = nodeMap.get("rig_root")!;
-      const pelvis = nodeMap.get("rig_pelvis")!;
-      const spine = nodeMap.get("rig_spine")!;
-      const spine02 = nodeMap.get("rig_spine_02")!;
-      const chest = nodeMap.get("rig_chest")!;
-      const neck = nodeMap.get("rig_neck")!;
-      const head = nodeMap.get("rig_head")!;
-      const backpack = nodeMap.get("rig_backpack")!;
-      const hatBrim = nodeMap.get("rig_hat_brim")!;
-
-      // Comparing glTF nodes directly makes a failure print the whole graph and
-      // blow the reporter's string limit, so assert on names.
-      const parentName = (node: typeof pelvis) => node.getParentNode()?.getName();
-      expect(parentName(pelvis)).toBe(rigRoot.getName());
-      expect(parentName(spine)).toBe(pelvis.getName());
-      expect(parentName(spine02)).toBe(spine.getName());
-      expect(parentName(chest)).toBe(spine02.getName());
-      expect(parentName(neck)).toBe(chest.getName());
-      expect(parentName(head)).toBe(neck.getName());
-      expect(parentName(hatBrim)).toBe(head.getName());
-      expect(parentName(backpack)).toBe(spine.getName());
-
-      for (const side of ["left", "right"]) {
-        const clavicle = nodeMap.get(`rig_clavicle_${side}`)!;
-        const upperArm = nodeMap.get(`rig_upper_arm_${side}`)!;
-        const forearm = nodeMap.get(`rig_forearm_${side}`)!;
-        const hand = nodeMap.get(`rig_hand_${side}`)!;
-        const thigh = nodeMap.get(`rig_thigh_${side}`)!;
-        const shin = nodeMap.get(`rig_shin_${side}`)!;
-        const foot = nodeMap.get(`rig_foot_${side}`)!;
-        const canteen = nodeMap.get(`rig_canteen_${side}`)!;
-
-        expect(parentName(clavicle)).toBe(chest.getName());
-        expect(parentName(upperArm)).toBe(clavicle.getName());
-        expect(parentName(forearm)).toBe(upperArm.getName());
-        expect(parentName(hand)).toBe(forearm.getName());
-        expect(parentName(thigh)).toBe(pelvis.getName());
-        expect(parentName(shin)).toBe(thigh.getName());
-        expect(parentName(foot)).toBe(shin.getName());
-        expect(parentName(nodeMap.get(`rig_toe_${side}`)!)).toBe(foot.getName());
-        expect(parentName(canteen)).toBe(backpack.getName());
+    const joints = doc.getRoot().listSkins()[0]!.listJoints();
+    // Finger deformation must survive source intake; a reduced donor skeleton fails.
+    expect(joints.some((joint) => /finger|thumb|index/i.test(joint.getName()))).toBe(true);
+    for (const side of ["left", "right"] as const) {
+      const foot = nodes.get(spec.humanoidRig!.bones[`foot_${side}`]!)!;
+      const shin = nodes.get(spec.humanoidRig!.bones[`shin_${side}`]!)!;
+      expect(foot.getParentNode()?.getName()).toBe(spec.humanoidRig!.bones.root);
+      expect(foot.getParentNode()?.getName()).not.toBe(shin.getName());
+      // Original sources use different local units; anatomical length is measured
+      // after the retained parent scale, just as the runtime limb solver does.
+      const shinWorld = new THREE.Matrix4().fromArray(shin.getWorldMatrix());
+      const ankle = new THREE.Vector3().fromArray(spec.humanoidRig!.legs[side].shinTip).applyMatrix4(shinWorld);
+      const knee = new THREE.Vector3().setFromMatrixPosition(shinWorld);
+      expect(ankle.distanceTo(knee)).toBeGreaterThan(0.1);
+    }
+    for (const name of spec.socketNodes ?? []) expect(nodes.has(name), `${id}/${name}`).toBe(true);
+    for (const skin of doc.getRoot().listSkins()) {
+      const inverse = skin.getInverseBindMatrices()!;
+      expect(inverse.getCount()).toBe(skin.listJoints().length);
+      const matrix = new THREE.Matrix4();
+      for (let index = 0; index < inverse.getCount(); index++) {
+        matrix.fromArray(inverse.getElement(index, []));
+        expect(matrix.elements.every(Number.isFinite)).toBe(true);
+        expect(Math.abs(matrix.determinant())).toBeGreaterThan(1e-9);
       }
     }
   });
 
-  // --------------------------------------------------------------------------
-  // TEST 2: Mathematical Rigor of Skin Weights & Influences
-  // --------------------------------------------------------------------------
-  it("TC2: Every vertex across all LOD0 and LOD1 primitives satisfies strict partition of unity, <= 4 influences, and no NaN/Inf", () => {
-    for (const charId of CHARACTER_ASSET_IDS) {
-      const doc = loadedDocs.get(charId)!;
-      const root = doc.getRoot();
-      const skin = root.listSkins()[0];
-      const joints = skin.listJoints();
-
-      let totalVerticesTested = 0;
-      let totalPrimitivesTested = 0;
-
-      for (const mesh of root.listMeshes()) {
-        for (const prim of mesh.listPrimitives()) {
-          const weightsAttr = prim.getAttribute("WEIGHTS_0");
-          const jointsAttr = prim.getAttribute("JOINTS_0");
-          const posAttr = prim.getAttribute("POSITION");
-
-          // Both skinning attributes must be present on character primitives
-          expect(weightsAttr, `Mesh ${mesh.getName()} primitive missing WEIGHTS_0 in ${charId}`).not.toBeNull();
-          expect(jointsAttr, `Mesh ${mesh.getName()} primitive missing JOINTS_0 in ${charId}`).not.toBeNull();
-          expect(posAttr, `Mesh ${mesh.getName()} primitive missing POSITION in ${charId}`).not.toBeNull();
-
-          const vertexCount = posAttr!.getCount();
-          expect(weightsAttr!.getCount()).toBe(vertexCount);
-          expect(jointsAttr!.getCount()).toBe(vertexCount);
-          expect(weightsAttr!.getElementSize()).toBe(4);
-          expect(jointsAttr!.getElementSize()).toBe(4);
-
-          const weightsArray = weightsAttr!.getArray()!;
-          const jointsArray = jointsAttr!.getArray()!;
-          const posArray = posAttr!.getArray()!;
-
-          const weightComponentType = weightsAttr!.getComponentType();
-          const weightNormalized = weightsAttr!.getNormalized();
-          const weightDivisor = weightComponentType === 5121 ? 255 : weightComponentType === 5123 ? 65535 : 1.0;
-
-          for (let v = 0; v < vertexCount; v++) {
-            const vOffset = v * 4;
-            let sumWeight = 0;
-            let nonZeroCount = 0;
-
-            for (let i = 0; i < 4; i++) {
-              const rawWeight = weightsArray[vOffset + i];
-              const jointIndex = jointsArray[vOffset + i];
-
-              expect(Number.isFinite(rawWeight), `Non-finite raw weight at vertex ${v} in ${mesh.getName()} (${charId})`).toBe(true);
-              expect(Number.isInteger(jointIndex), `Non-integer joint index at vertex ${v} in ${mesh.getName()} (${charId})`).toBe(true);
-
-              const normalizedWeight = weightNormalized || weightComponentType !== 5126 ? rawWeight / weightDivisor : rawWeight;
-
-              expect(normalizedWeight).toBeGreaterThanOrEqual(0.0);
-              expect(normalizedWeight).toBeLessThanOrEqual(1.0 + 1e-4);
-
-              if (normalizedWeight > 0.0001) {
-                nonZeroCount++;
-                expect(jointIndex).toBeGreaterThanOrEqual(0);
-                expect(jointIndex).toBeLessThan(joints.length);
-              }
-
-              sumWeight += normalizedWeight;
-            }
-
-            expect(nonZeroCount).toBeLessThanOrEqual(4);
-            expect(nonZeroCount).toBeGreaterThan(0);
-            expect(sumWeight).toBeCloseTo(1.0, 3);
-
-            // Bounding box vertex coordinate sanity
-            const pOffset = v * 3;
-            const px = posArray[pOffset];
-            const py = posArray[pOffset + 1];
-            const pz = posArray[pOffset + 2];
-            expect(Number.isFinite(px)).toBe(true);
-            expect(Number.isFinite(py)).toBe(true);
-            expect(Number.isFinite(pz)).toBe(true);
-
-            totalVerticesTested++;
-          }
-          totalPrimitivesTested++;
-        }
-      }
-
-      expect(totalPrimitivesTested).toBeGreaterThanOrEqual(2);
-      expect(totalVerticesTested).toBeGreaterThan(1500);
+  it.each(CHARACTER_ASSET_IDS)("%s preserves finite normalized weights, UVs, split normals and material regions in both LODs", (id) => {
+    const doc = docs.get(id)!;
+    const spec = ASSET_BY_ID.get(id)!;
+    const nodes = doc.getRoot().listNodes();
+    for (const lod of spec.lodLevels!) {
+      const lodNode = nodes.find((node) => node.getName() === lod.node);
+      expect(lodNode, `${id}/${lod.node}`).toBeTruthy();
     }
-  }, 60000);
-
-  // --------------------------------------------------------------------------
-  // TEST 3: Bone Influence Coverage Across Skeletal Regions
-  // --------------------------------------------------------------------------
-  it("TC3: Skeletal bone influences actively bind across all anatomical regions (head, torso, arms, legs)", () => {
-    for (const charId of CHARACTER_ASSET_IDS) {
-      const doc = loadedDocs.get(charId)!;
-      const root = doc.getRoot();
-      const skin = root.listSkins()[0];
-      const joints = skin.listJoints();
-      const jointNames = joints.map((j) => j.getName());
-
-      const activeBones = new Set<string>();
-
-      for (const mesh of root.listMeshes()) {
-        for (const prim of mesh.listPrimitives()) {
-          const weightsAttr = prim.getAttribute("WEIGHTS_0")!;
-          const jointsAttr = prim.getAttribute("JOINTS_0")!;
-
-          const vertexCount = weightsAttr.getCount();
-          const weightsArray = weightsAttr.getArray()!;
-          const jointsArray = jointsAttr.getArray()!;
-
-          const weightComponentType = weightsAttr.getComponentType();
-          const weightNormalized = weightsAttr.getNormalized();
-          const weightDivisor = weightComponentType === 5121 ? 255 : weightComponentType === 5123 ? 65535 : 1.0;
-
-          for (let v = 0; v < vertexCount; v++) {
-            for (let i = 0; i < 4; i++) {
-              const rawWeight = weightsArray[v * 4 + i];
-              const normalizedWeight = weightNormalized || weightComponentType !== 5126 ? rawWeight / weightDivisor : rawWeight;
-              if (normalizedWeight > 0.05) {
-                const jointIdx = jointsArray[v * 4 + i];
-                activeBones.add(jointNames[jointIdx]);
-              }
-            }
-          }
+    let vertices = 0;
+    const materials = new Set<string>();
+    let smoothedCorners = 0;
+    for (const node of nodes) {
+      if (!node.getSkin() || !node.getMesh()) continue;
+      const jointCount = node.getSkin()!.listJoints().length;
+      for (const primitive of node.getMesh()!.listPrimitives()) {
+        const position = primitive.getAttribute("POSITION")!;
+        const weights = primitive.getAttribute("WEIGHTS_0")!;
+        const joints = primitive.getAttribute("JOINTS_0")!;
+        const normals = primitive.getAttribute("NORMAL")!;
+        const uv = primitive.getAttribute("TEXCOORD_0")!;
+        expect(Boolean(position && weights && joints && normals && uv), `${id}/${node.getName()}`).toBe(true);
+        expect(weights.getCount()).toBe(position.getCount());
+        expect(normals.getCount()).toBe(position.getCount());
+        expect(uv.getCount()).toBe(position.getCount());
+        materials.add(primitive.getMaterial()!.getName());
+        const w: number[] = [], j: number[] = [], n: number[] = [];
+        for (let index = 0; index < position.getCount(); index++) {
+          weights.getElement(index, w); joints.getElement(index, j); normals.getElement(index, n);
+          expect(w.every((value) => Number.isFinite(value) && value >= 0 && value <= 1)).toBe(true);
+          expect(w.reduce((sum, value) => sum + value, 0)).toBeCloseTo(1, 4);
+          expect(j.every((value) => Number.isInteger(value) && value >= 0 && value < jointCount)).toBe(true);
+          expect(Math.hypot(...n)).toBeCloseTo(1, 3);
         }
-      }
-
-      // Essential anatomical bones that MUST have vertex influences
-      const essentialBones = [
-        "rig_head",
-        "rig_neck",
-        "rig_chest",
-        "rig_spine",
-        "rig_pelvis",
-        "rig_upper_arm_left",
-        "rig_upper_arm_right",
-        "rig_forearm_left",
-        "rig_forearm_right",
-        "rig_hand_left",
-        "rig_hand_right",
-        "rig_thigh_left",
-        "rig_thigh_right",
-        "rig_shin_left",
-        "rig_shin_right",
-        "rig_foot_left",
-        "rig_foot_right"
-      ];
-
-      for (const bone of essentialBones) {
-        expect(activeBones.has(bone), `Essential bone ${bone} has 0 vertex influences in ${charId}`).toBe(true);
+        const indices = primitive.getIndices();
+        const count = indices?.getCount() ?? position.getCount();
+        const p = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+        const face = new THREE.Vector3(), edge = new THREE.Vector3(), normal = new THREE.Vector3();
+        for (let index = 0; index < count; index += 3) {
+          const a = indices?.getScalar(index) ?? index;
+          const b = indices?.getScalar(index + 1) ?? index + 1;
+          const c = indices?.getScalar(index + 2) ?? index + 2;
+          p[0]!.fromArray(position.getElement(a, [])); p[1]!.fromArray(position.getElement(b, [])); p[2]!.fromArray(position.getElement(c, []));
+          face.subVectors(p[1]!, p[0]!).cross(edge.subVectors(p[2]!, p[0]!)).normalize();
+          normal.fromArray(normals.getElement(a, []));
+          if (face.lengthSq() > 0 && Math.abs(face.dot(normal)) < 0.995) smoothedCorners++;
+        }
+        vertices += position.getCount();
       }
     }
+    expect(vertices).toBeGreaterThan(1000);
+    expect(materials.size).toBeGreaterThanOrEqual(4);
+    expect(smoothedCorners, `${id} must retain selective source smoothing`).toBeGreaterThan(100);
+    expect([...materials].some((name) => name.startsWith("skin_"))).toBe(true);
   });
 
-  // --------------------------------------------------------------------------
-  // TEST 4: Socket Node Hierarchy & Matrix Transformations
-  // --------------------------------------------------------------------------
-  it("TC4: All 5 sockets are present, properly parented to bones, and transform synchronously under skeletal rotations", () => {
-    for (const charId of CHARACTER_ASSET_IDS) {
-      const spec = ASSET_BY_ID.get(charId)!;
-      const doc = loadedDocs.get(charId)!;
-      const root = doc.getRoot();
-
-      const prefix = charId === ASSET_IDS.CHAR_PLAYER_A ? "char_player" : charId;
-      const nodeMap = new Map(root.listNodes().map((n) => [n.getName(), n]));
-
-      // 1. Verify socket nodes exist
-      for (const suffix of EXPECTED_SOCKET_SUFFIXES) {
-        const socketName = `${prefix}_${suffix}`;
-        const socketNode = nodeMap.get(socketName);
-        expect(socketNode, `Missing socket ${socketName} in ${charId}`).toBeDefined();
-
-        // 2. Verify bone parenting in glTF node graph
-        const parentNode = socketNode!.getParentNode();
-        expect(parentNode, `Socket ${socketName} has no parent in ${charId}`).not.toBeNull();
-
-        if (suffix === "hand_socket_left") {
-          expect(parentNode!.getName()).toBe("rig_hand_left");
-        } else if (suffix === "hand_socket_right" || suffix === "tool_socket") {
-          expect(parentNode!.getName()).toBe("rig_hand_right");
-        } else if (suffix === "carry_socket") {
-          expect(parentNode!.getName()).toBe("rig_spine");
-        } else if (suffix === "hip_socket") {
-          expect(parentNode!.getName()).toBe("rig_pelvis");
-        }
+  it.each(CHARACTER_ASSET_IDS)("%s exports every peaceful catalog action with real tracks and exact timing", (id) => {
+    const spec = ASSET_BY_ID.get(id)!;
+    const clips = [...spec.animationClips!, ...(spec.additionalAnimationClips ?? [])];
+    const animations = docs.get(id)!.getRoot().listAnimations();
+    expect(animations.map((animation) => animation.getName()).sort()).toEqual(clips.map((clip) => clip.name).sort());
+    for (const clip of clips) {
+      const animation = animations.find((entry) => entry.getName() === clip.name)!;
+      expect(animation.listChannels().length).toBeGreaterThan(0);
+      let end = 0;
+      for (const sampler of animation.listSamplers()) {
+        const input = sampler.getInput()!;
+        const times = Array.from(input.getArray()! as ArrayLike<number>);
+        expect(times.every((time, index) => Number.isFinite(time) && time >= 0 && (index === 0 || time > times[index - 1]!))).toBe(true);
+        expect(Array.from(sampler.getOutput()!.getArray()!).every(Number.isFinite)).toBe(true);
+        end = Math.max(end, times.at(-1)!);
       }
-
-      // 3. Three.js Matrix Transformation Simulation
-      // Build Three.js node hierarchy for this character
-      const sceneRoot = new THREE.Group();
-      const threeNodes = new Map<string, THREE.Object3D>();
-
-      for (const node of root.listNodes()) {
-        const obj = node.getName().startsWith("rig_") ? new THREE.Bone() : new THREE.Group();
-        obj.name = node.getName();
-        const trans = node.getTranslation();
-        const rot = node.getRotation();
-        const scale = node.getScale();
-        obj.position.set(trans[0], trans[1], trans[2]);
-        obj.quaternion.set(rot[0], rot[1], rot[2], rot[3]);
-        obj.scale.set(scale[0], scale[1], scale[2]);
-        threeNodes.set(node.getName(), obj);
+      expect(end, `${id}/${clip.name}`).toBeCloseTo(clip.durationSeconds, 4);
+      for (const intervals of Object.values(clip.contacts ?? {})) for (const interval of intervals) {
+        expect(interval.start).toBeGreaterThanOrEqual(0);
+        expect(interval.end).toBeGreaterThan(interval.start);
+        expect(interval.end).toBeLessThanOrEqual(clip.durationSeconds + 1e-5);
       }
-
-      // Connect parent-child
-      for (const node of root.listNodes()) {
-        const obj = threeNodes.get(node.getName())!;
-        for (const child of node.listChildren()) {
-          const childObj = threeNodes.get(child.getName());
-          if (childObj) {
-            obj.add(childObj);
-          }
-        }
-      }
-
-      const rootNodeObj = threeNodes.get(spec.rootNode) || threeNodes.get(`${charId}_root`);
-      if (rootNodeObj) {
-        sceneRoot.add(rootNodeObj);
-      }
-
-      sceneRoot.updateMatrixWorld(true);
-
-      const toolSocket = threeNodes.get(`${prefix}_tool_socket`)!;
-      const carrySocket = threeNodes.get(`${prefix}_carry_socket`)!;
-      const hipSocket = threeNodes.get(`${prefix}_hip_socket`)!;
-      const handRight = threeNodes.get("rig_hand_right")!;
-      const spine = threeNodes.get("rig_spine")!;
-      const pelvis = threeNodes.get("rig_pelvis")!;
-
-      expect(toolSocket).toBeDefined();
-      expect(carrySocket).toBeDefined();
-      expect(hipSocket).toBeDefined();
-
-      const initialToolPos = new THREE.Vector3().setFromMatrixPosition(toolSocket.matrixWorld);
-      const initialCarryPos = new THREE.Vector3().setFromMatrixPosition(carrySocket.matrixWorld);
-      const initialHipPos = new THREE.Vector3().setFromMatrixPosition(hipSocket.matrixWorld);
-
-      // Apply rotation to hand bone
-      handRight.rotateX(Math.PI / 4);
-      handRight.rotateZ(Math.PI / 3);
-      sceneRoot.updateMatrixWorld(true);
-
-      const rotatedToolPos = new THREE.Vector3().setFromMatrixPosition(toolSocket.matrixWorld);
-      expect(rotatedToolPos.distanceTo(initialToolPos)).toBeGreaterThan(0.01);
-
-      // Apply rotation to spine
-      spine.rotateX(Math.PI / 6);
-      sceneRoot.updateMatrixWorld(true);
-
-      const rotatedCarryPos = new THREE.Vector3().setFromMatrixPosition(carrySocket.matrixWorld);
-      expect(rotatedCarryPos.distanceTo(initialCarryPos)).toBeGreaterThan(0.01);
-
-      // Apply rotation to pelvis
-      pelvis.rotateY(Math.PI / 4);
-      sceneRoot.updateMatrixWorld(true);
-
-      const rotatedHipPos = new THREE.Vector3().setFromMatrixPosition(hipSocket.matrixWorld);
-      expect(rotatedHipPos.distanceTo(initialHipPos)).toBeGreaterThan(0.01);
-    }
-  });
-
-  // --------------------------------------------------------------------------
-  // TEST 5: Action Clips & Animation Data Integrity
-  // --------------------------------------------------------------------------
-  it("TC5: Animation clips articulate required joints with valid keyframe times and finite transform values", () => {
-    for (const charId of CHARACTER_ASSET_IDS) {
-      const spec = ASSET_BY_ID.get(charId)!;
-      const doc = loadedDocs.get(charId)!;
-      const root = doc.getRoot();
-
-      const animations = root.listAnimations();
-      const expectedClips = [
-        ...(spec.animationClips || []),
-        ...(spec.additionalAnimationClips || [])
-      ];
-      const expectedCount = expectedClips.length;
-      expect(animations.length, `Expected ${expectedCount} animations in ${charId}, found ${animations.length}`).toBe(expectedCount);
-
-      const clipNames = new Set(animations.map((a) => a.getName()));
-      for (const specClip of expectedClips) {
-        expect(clipNames.has(specClip.name), `Missing animation clip ${specClip.name} in ${charId}`).toBe(true);
-      }
-
-      for (const anim of animations) {
-        const channels = anim.listChannels();
-        expect(channels.length, `Animation ${anim.getName()} has 0 channels in ${charId}`).toBeGreaterThan(0);
-
-        const targetNodeNames = new Set<string>();
-        for (const channel of channels) {
-          const targetNode = channel.getTargetNode();
-          expect(targetNode, `Channel in ${anim.getName()} has null target node`).not.toBeNull();
-          if (targetNode) {
-            targetNodeNames.add(targetNode.getName());
-          }
-
-          const sampler = channel.getSampler();
-          expect(sampler, `Channel in ${anim.getName()} has null sampler`).not.toBeNull();
-
-          const input = sampler!.getInput(); // Timestamps
-          const output = sampler!.getOutput(); // Values
-
-          expect(input, `Sampler input missing in ${anim.getName()}`).not.toBeNull();
-          expect(output, `Sampler output missing in ${anim.getName()}`).not.toBeNull();
-
-          const times = input!.getArray()!;
-          const values = output!.getArray()!;
-
-          expect(times.length).toBeGreaterThan(0);
-          expect(values.length).toBeGreaterThan(0);
-
-          // Verify monotonicity of keyframe timestamps
-          for (let t = 0; t < times.length; t++) {
-            expect(Number.isFinite(times[t])).toBe(true);
-            if (t > 0) {
-              expect(times[t]).toBeGreaterThanOrEqual(times[t - 1]);
-            }
-          }
-
-          // Verify finite values
-          for (let v = 0; v < values.length; v++) {
-            expect(Number.isFinite(values[v]), `Non-finite keyframe value in ${anim.getName()} channel`).toBe(true);
-          }
-        }
-
-        // Active clips should articulate multiple bones
-        if (anim.getName() === "walk" || anim.getName() === "idle") {
-          expect(targetNodeNames.size).toBeGreaterThanOrEqual(5);
-        }
+      if (clip.commitMarkerSeconds !== undefined) {
+        expect(clip.commitMarkerSeconds).toBeGreaterThan(0);
+        expect(clip.commitMarkerSeconds).toBeLessThanOrEqual(clip.durationSeconds);
       }
     }
   });

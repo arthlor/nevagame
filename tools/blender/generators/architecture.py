@@ -3507,7 +3507,13 @@ def _build_log_bridge(spec: dict, root) -> None:
 
 
 def village_building(spec: dict, root) -> None:
-    _finish_architecture(spec, root, _build_village_building)
+    variant = spec["parameters"].get("variant")
+    preserve = (
+        (village_lantern_node_name(variant),)
+        if variant in VILLAGE_LANTERN_VARIANTS
+        else ()
+    )
+    _finish_architecture(spec, root, _build_village_building, preserve_names=preserve)
 
 
 def _village_palette(palette: list[str]) -> tuple[str, str, str, str, str, str]:
@@ -3521,6 +3527,29 @@ def _village_palette(palette: list[str]) -> tuple[str, str, str, str, str, str]:
         # may append a window token without changing that construction order.
         return stone, wall, timber, timber, palette[3], palette[4] if len(palette) > 4 else timber
     return stone, wall, timber, timber, timber, timber
+
+
+# Village roles whose doorway carries a practical lantern: the dwellings, which
+# are the places the village is actually kept lit from after dark. Barns, sheds
+# and outhouses stay dark, which is both the honest read and one fewer preserved
+# node (a preserved node cannot merge into the shared batch, so each one costs a
+# draw call wherever it is visible).
+#
+# Market halls are deliberately excluded despite being lit-front buildings: their
+# palettes carry no emissive token, so a lantern there would add a sixth/seventh
+# material and break the asset's material budget for one small mesh.
+VILLAGE_LANTERN_VARIANTS = frozenset({
+    "cottage-a", "cottage-b", "cottage-c", "inn", "inn-b",
+})
+
+
+def village_lantern_node_name(variant: str) -> str:
+    """The runtime scans for names ending in `_glow` to attach a practical light.
+
+    Variant ids carry hyphens (`market-hall-b`) but the catalog's node-name schema
+    only allows `[A-Za-z][A-Za-z0-9_]*`, so the separator is normalised here.
+    """
+    return f"{variant.replace('-', '_')}_lantern_glow"
 
 
 _VILLAGE_PROFILES = {
@@ -4433,6 +4462,44 @@ def _build_village_building(spec: dict, root) -> None:
     door_x = wing_offset if profile["openingLayout"] == "cottage-side" else 0.0
     door_y = front_y - 0.06
     is_barn = profile["feature"] == "loading-lean-to"
+
+    # Doorway lantern. Named `*_lantern_glow` so the runtime attaches a practical
+    # point light to it, and preserved out of the material join by
+    # `village_building` so that name survives into the published GLB.
+    if variant in VILLAGE_LANTERN_VARIANTS:
+        lantern_side = -1.0 if door_x > 0 else 1.0
+        lantern_x = door_x + lantern_side * (door_w * 0.5 + 0.34)
+        # Keep the bracket on the wall even where the door sits near a corner.
+        lantern_reach = max(0.0, width * 0.5 - 0.24)
+        lantern_x = max(-lantern_reach, min(lantern_reach, lantern_x))
+        lantern_z = wall_base + door_h + 0.24
+        # Reuses the palette's existing window emissive rather than introducing a
+        # lantern token: a sixth material would break these assets' budgets.
+        lantern_glow = window_glow
+        add_box(
+            f"{variant}_lantern_bracket",
+            (lantern_x, front_y + 0.05, lantern_z + 0.20),
+            (0.05, 0.20, 0.05),
+            dark,
+            root,
+            bevel=0.008 if detail else 0.0,
+        )
+        add_box(
+            f"{variant}_lantern_frame",
+            (lantern_x, front_y - 0.06, lantern_z),
+            (0.24, 0.24, 0.32),
+            dark,
+            root,
+            bevel=0.014 if detail else 0.0,
+        )
+        add_ico(
+            village_lantern_node_name(variant),
+            (lantern_x, front_y - 0.06, lantern_z),
+            (0.10, 0.10, 0.14),
+            lantern_glow,
+            root,
+            subdivisions=2,
+        )
     if not profile["feature"].startswith("arcade"):
         add_box(f"{variant}_door_reveal", (door_x, door_y + 0.06, wall_base + door_h * 0.5), (door_w + 0.28, 0.24, door_h + 0.24), dark, root, bevel=0.014 if detail else 0.0)
         add_box(f"{variant}_door_frame", (door_x, door_y - 0.04, wall_base + door_h * 0.5), (door_w + 0.18, 0.16, door_h + 0.14), dark, root, bevel=0.014 if detail else 0.0)

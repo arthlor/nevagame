@@ -24,7 +24,11 @@ import {
   readLayoutSources
 } from "../../tools/layout-editor/patchPlacement";
 import { Simulation } from "../../src/simulation/Simulation";
-import { layoutEditorPlugin, isLocalLayoutEditorHost } from "../../tools/vite/layoutEditorPlugin";
+import {
+  layoutEditorPlugin,
+  isLocalLayoutEditorHost,
+  isSameOriginLayoutEditorRequest
+} from "../../tools/vite/layoutEditorPlugin";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import {
   debugRelocateProcessingStationApproach,
@@ -822,5 +826,49 @@ describe("layout editor vite plugin", () => {
     expect(isLocalLayoutEditorHost("127.0.0.1:3000")).toBe(true);
     expect(isLocalLayoutEditorHost("[::1]:3000")).toBe(true);
     expect(isLocalLayoutEditorHost("192.168.1.20:3000")).toBe(false);
+  });
+
+  it("accepts the request the game page itself sends", () => {
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "application/json",
+      secFetchSite: "same-origin",
+      origin: "http://localhost:3000"
+    })).toBe(true);
+    // Older clients omit Sec-Fetch-*; a loopback Origin and JSON body still pass.
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "application/json; charset=utf-8",
+      origin: "http://127.0.0.1:3000"
+    })).toBe(true);
+    expect(isSameOriginLayoutEditorRequest({ contentType: "application/json" })).toBe(true);
+  });
+
+  it("rejects a cross-site write dressed up as a localhost request", () => {
+    // The Host header is whatever the browser dialled, so it cannot tell a
+    // same-origin fetch from a form a hostile page posted at the dev server.
+    // A `text/plain` form is the shape that needs no CORS preflight.
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "text/plain",
+      secFetchSite: "cross-site",
+      origin: "https://evil.example"
+    })).toBe(false);
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "application/json",
+      secFetchSite: "cross-site",
+      origin: "https://evil.example"
+    })).toBe(false);
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "application/json",
+      origin: "https://evil.example"
+    })).toBe(false);
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "application/x-www-form-urlencoded",
+      secFetchSite: "same-origin",
+      origin: "http://localhost:3000"
+    })).toBe(false);
+    expect(isSameOriginLayoutEditorRequest({
+      contentType: "application/json",
+      secFetchSite: "same-site",
+      origin: "http://localhost:3000"
+    })).toBe(false);
   });
 });

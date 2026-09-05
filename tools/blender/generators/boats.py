@@ -7,7 +7,7 @@ import math
 import bmesh
 import bpy
 
-from common.geometry import add_beam, add_box, add_collision_primitives, add_cylinder, add_ico, add_marker, add_ring, add_tri_prism, apply_vertex_values, join_meshes
+from common.geometry import add_beam, add_box, add_collision_primitives, add_cylinder, add_grip_marker, add_ico, add_marker, add_ring, add_tri_prism, apply_vertex_values, join_meshes
 from common.materials import get_or_create_material
 from common.authored import add_catenary_rope, add_lattice, add_plank_field, add_rope_line
 from common.lod import consolidate_lod_level
@@ -365,16 +365,15 @@ def rowboat(spec: dict, root) -> None:
         dark, root, rotation=(math.radians(-12), 0, 0), bevel=0.018,
     )
     add_marker("boat_rowboat_rower_seat", (0, 0.18, 0.42), root, marker_type="pelvis_contact")
-    add_marker(
-        "boat_rowboat_foot_left_socket", (-0.16, -0.22, 0.08),
-        root, marker_type="foot_support",
-    )
-    add_marker(
-        "boat_rowboat_foot_right_socket", (0.16, -0.22, 0.08),
-        root, marker_type="foot_support",
-    )
-    for side_name, side in (("left", -1), ("right", 1)):
-        grip = (side * 0.29, -0.12, 0.72)
+    for side_name, side in (("left", 1), ("right", -1)):
+        support = add_marker(
+            f"boat_rowboat_foot_{side_name}_socket",
+            (side * 0.16, -0.23 + math.sin(math.radians(12)) * 0.10,
+             0.03 + math.cos(math.radians(12)) * 0.10), root, marker_type="foot_support",
+        )
+        support.rotation_euler = (math.radians(-12), 0, 0)
+    for side_name, side in (("left", 1), ("right", -1)):
+        grip = (side * 0.24, 0.02, 0.80)
         blade_center = (side * 0.70, 0.44, 0.50)
         blade_end = (side * 0.88, 0.52, 0.47)
         oar_root = add_marker(
@@ -397,8 +396,9 @@ def rowboat(spec: dict, root) -> None:
             part.parent = oar_root
             part.matrix_world = world_matrix
         join_meshes((shaft, blade), f"rowboat_oar_{side_name}")
-        add_marker(
-            f"boat_rowboat_oar_{side_name}_grip", (0, 0, 0), oar_root, marker_type="grip"
+        add_grip_marker(
+            f"boat_rowboat_oar_{side_name}_grip", (0, 0, 0.022), oar_root,
+            fingers=(-side * dy, side * dx, 0), contact_normal=(0, 0, -1),
         )
         add_ring(
             f"boat_rowboat_oarlock_{side_name}", (side * 0.78, 0.04, 0.57),
@@ -558,6 +558,12 @@ def fishing_skiff(spec: dict, root) -> None:
             )
     add_lattice("skiff_net", (beam * 0.42, 1.55, 1.02), 0.72, 0.92, canvas, root, columns=4, rows=4, depth=0.025, rotation=(0, math.radians(12), 0))
     add_box("skiff_rudder_blade", (0, half_length * 0.98, 0.18), (0.08, 0.46, 0.76), dark, root, bevel=0.022)
-    add_beam("skiff_tiller_arm", (0, half_length * 0.96, 0.68), (0, half_length * 0.72, 0.72), 0.045, dark, root, vertices=6)
+    # The helmsman stands on the raised stern deck; the handle must be above
+    # that deck and within arm reach, rather than underneath the pilot's feet.
+    tiller_grip = (-0.28, half_length * 0.60, 2.05)
+    add_beam("skiff_tiller_stock", (0, half_length * 0.96, 0.68), (0, half_length * 0.96, 2.05), 0.045, dark, root, vertices=6)
+    add_beam("skiff_tiller_arm", (0, half_length * 0.96, 2.05), tiller_grip, 0.045, dark, root, vertices=6)
+    add_grip_marker("boat_skiff_helm_grip", (tiller_grip[0], tiller_grip[1], tiller_grip[2] + 0.022), root,
+                    fingers=(1, 0, 0), contact_normal=(0, 0, -1))
     consolidate_lod_level(root, spec["id"])
     add_collision_primitives(spec, root)

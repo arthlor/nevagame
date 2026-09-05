@@ -96,7 +96,9 @@ export class PlayerPresentationBuffer {
       return;
     }
     this.previous = this.current;
-    this.current = copyFrame(pose, motion, "none", this.discontinuitySequence);
+    // The reason describes the sequence, not just one physics sample. Several
+    // stationary steps can arrive before render consumes a boarding event.
+    this.current = copyFrame(pose, motion, this.previous.discontinuityReason, this.discontinuitySequence);
     if (motion.speedMetersPerSecond > 0.1) this.facingTurn = null;
   }
 

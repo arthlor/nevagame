@@ -122,6 +122,8 @@
   align-items: center;
   gap: 12px;
   contain: layout style;
+  cursor: pointer;
+  touch-action: none;
 }
 
 .minigame-header {
@@ -865,4 +867,135 @@
 .green-catch-bar {
   background: linear-gradient(180deg, #34d399, #059669) !important;
   border-color: #a7f3d0 !important;
+}
+
+/* ==========================================================================
+   CAST SWEET SPOT (R4.1)
+   The bands mirror BasicFishingMinigame.CAST_QUALITY_THRESHOLDS, so what the
+   meter shows is the same power the quality roll reads.
+   ========================================================================== */
+.cast-sweet-spot-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  margin-top: 5px;
+  background: rgba(5, 8, 12, 0.86);
+  border: 1px solid rgba(212, 175, 55, 0.34);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.cast-sweet-spot-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.cast-sweet-spot-band.is-good {
+  background: rgba(52, 211, 153, 0.42);
+}
+
+.cast-sweet-spot-band.is-prime {
+  background: rgba(212, 175, 55, 0.72);
+  box-shadow: inset 0 0 6px rgba(255, 226, 150, 0.5);
+}
+
+.cast-sweet-spot-needle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  margin-left: -1.5px;
+  background: #ffffff;
+  border-radius: 1px;
+  box-shadow: 0 0 7px rgba(255, 255, 255, 0.8);
+}
+
+.cast-power-zones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.cast-zone {
+  padding: 2px 0;
+  color: rgba(226, 232, 240, 0.5);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: color 100ms ease, background-color 100ms ease, border-color 100ms ease;
+}
+
+.cast-zone.is-active {
+  color: #ffffff;
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+.cast-zone.is-good.is-active {
+  background: rgba(52, 211, 153, 0.22);
+  border-color: rgba(52, 211, 153, 0.55);
+}
+
+.cast-zone.is-prime.is-active {
+  color: #fff2be;
+  background: rgba(212, 175, 55, 0.26);
+  border-color: rgba(212, 175, 55, 0.7);
+}
+
+/* ==========================================================================
+   BOBBER BITE ALERT (R4.1)
+   A float going under with rings spreading off it, so the bite reads on the
+   water and not only as a word.
+   ========================================================================== */
+.bite-bobber {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 2px;
+}
+
+.bite-bobber-float {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  background: radial-gradient(circle at 35% 30%, #fff 0%, #ef4444 45%, #991b1b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  animation: bobberDip 0.7s ease-in-out infinite;
+}
+
+.bite-bobber-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border: 1.5px solid rgba(186, 230, 253, 0.75);
+  border-radius: 50%;
+  animation: bobberRipple 1.4s ease-out infinite;
+}
+
+.bite-bobber-ripple--delayed {
+  animation-delay: 0.7s;
+}
+
+@keyframes bobberDip {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(4px) scaleY(0.86); }
+}
+
+@keyframes bobberRipple {
+  0% { transform: scale(1); opacity: 0.85; }
+  100% { transform: scale(3.4); opacity: 0; }
 }

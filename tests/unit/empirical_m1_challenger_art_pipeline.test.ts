@@ -136,7 +136,7 @@ describe("Challenger 1 Empirical Suite: Subsystem 1 (Art Pipeline & Caching)", (
 
     it("handles registry generator mapping and errors on unregistered generators", () => {
       expect(generatorModuleFor("props", ROOT)).toBe("props.py");
-      expect(generatorModuleFor("coastal_worker", ROOT)).toBe("characters.py");
+      expect(generatorModuleFor("imported_blend", ROOT)).toBe("imported.py");
       expect(generatorModuleFor("rowboat", ROOT)).toBe("boats.py");
 
       expect(() => generatorModuleFor("completely_unknown_generator_xyz_999", ROOT)).toThrow(
@@ -584,8 +584,8 @@ exec "${process.execPath}" "${nodeWorkerScript}" "$@"
       expect(mayJoinStaticNode(nodeNamed("rowboat_hull"), { generator: "rowboat" })).toBe(true);
 
       // Characters and rigs
-      expect(mayJoinStaticNode(nodeNamed("spine"), { generator: "coastal_worker" })).toBe(false);
-      expect(mayJoinStaticNode(nodeNamed("head"), { generator: "npc_character" })).toBe(false);
+      expect(mayJoinStaticNode(nodeNamed("spine"), { family: "character", generator: "imported_blend" })).toBe(false);
+      expect(mayJoinStaticNode(nodeNamed("head"), { family: "character", generator: "npc_character" })).toBe(false);
 
       // Collision proxies
       expect(mayJoinStaticNode(nodeNamed("COL_hull_box"), { generator: "props" })).toBe(false);

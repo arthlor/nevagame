@@ -73,13 +73,27 @@ function lookup(map: Record<string, string>, key: string | null | undefined): Sp
   return map[key];
 }
 
+/**
+ * Hand-owned sprite reuse for items the art sheet has no cell for yet. The
+ * generated maps stay the authority; this only fills gaps until the owning
+ * brief ships proper cells. Never add a second copy of a generated key here.
+ */
+const ITEM_SPRITE_ALIASES: Record<string, string> = {
+  "item.chum_rich": "item.chum_bucket",
+  "item.chum_deep": "item.chum_bucket",
+  "seed.olive_sapling": "seed.olive_pit"
+};
+
 /** Any carryable item: seeds, produce, supplies, and fish held as goods. */
 export function atlasForItem(itemId: string | null | undefined): SpriteUrl | undefined {
   if (!itemId) return undefined;
+  const aliased = ITEM_SPRITE_ALIASES[itemId];
   return (
     lookup(UI_SEEDS, itemId) ??
+    (aliased ? lookup(UI_SEEDS, aliased) : undefined) ??
     lookup(UI_PRODUCE, itemId) ??
     lookup(UI_SUPPLIES, itemId) ??
+    (aliased ? lookup(UI_SUPPLIES, aliased) : undefined) ??
     lookup(UI_FISH, itemId)
   );
 }
@@ -102,7 +116,8 @@ export function atlasForCrop(cropId: string | null | undefined): SpriteUrl | und
 }
 
 export function atlasForSeedItem(itemId: string | null | undefined): SpriteUrl | undefined {
-  return lookup(UI_SEEDS, itemId);
+  if (!itemId) return undefined;
+  return lookup(UI_SEEDS, itemId) ?? lookup(UI_SEEDS, ITEM_SPRITE_ALIASES[itemId]);
 }
 
 export function qualitySpriteKey(quality: string | null | undefined): QualitySpriteKey {

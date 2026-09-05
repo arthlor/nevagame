@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   NPC_STATION_BEAT_RADIUS_METERS,
   NPC_STATION_BEATS,
+  advanceNpcStationBeat,
+  createNpcStationBeatState,
   assertNpcStationBeatRadius,
   sampleNpcStationBeat
 } from "../../src/render/scene/npcStationBeat";
@@ -12,6 +14,34 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 const TALK_RADIUS_METERS = 3.5;
 
 describe("npcStationBeat", () => {
+  it("pauses dialogue in place and resumes without replaying elapsed wall time", () => {
+    const spec = NPC_STATION_BEATS["npc.elspeth"];
+    const state = createNpcStationBeatState();
+    const before = advanceNpcStationBeat(spec, state, 0.25, false, () => true);
+    const paused = advanceNpcStationBeat(spec, state, 30, true, () => true);
+    expect(paused).toEqual({ ...before, walking: false });
+    expect(state.elapsedSeconds).toBe(0.25);
+    const resumed = advanceNpcStationBeat(spec, state, 1 / 60, false, () => true);
+    expect(Math.hypot(resumed.dx - before.dx, resumed.dz - before.dz)).toBeLessThanOrEqual(spec.walkSpeedMetersPerSecond / 60 + 1e-8);
+  });
+
+  it("retains the last supported pose instead of returning to the station anchor", () => {
+    const spec = NPC_STATION_BEATS["npc.elspeth"];
+    const state = createNpcStationBeatState();
+    const before = advanceNpcStationBeat(spec, state, 0.2, false, () => true);
+    const blocked = advanceNpcStationBeat(spec, state, 0.2, false, () => false);
+    expect(blocked).toEqual({ ...before, walking: false });
+    expect(state.elapsedSeconds).toBe(0.2);
+    expect(before.dx).toBeGreaterThan(0);
+  });
+
+  it("checks intermediate path support even when a long frame returns near its start", () => {
+    const state = createNpcStationBeatState();
+    const spec = { waypoints: [{ dx: 0, dz: 0 }, { dx: 1, dz: 0 }], pauseSeconds: 0, walkSpeedMetersPerSecond: 1 };
+    const result = advanceNpcStationBeat(spec, state, 2, false, (x) => x < 0.5);
+    expect(result.dx).toBe(0);
+    expect(state.elapsedSeconds).toBe(0);
+  });
   it("keeps every authored waypoint inside the station radius and far inside talk range", () => {
     expect(NPC_STATION_BEAT_RADIUS_METERS).toBeLessThan(TALK_RADIUS_METERS);
     for (const [npcId, spec] of Object.entries(NPC_STATION_BEATS)) {

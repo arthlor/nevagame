@@ -78,7 +78,13 @@ def get_or_create_material(token: str) -> bpy.types.Material:
         emission_color = principled.inputs.get("Emission Color") or principled.inputs.get("Emission")
         emission_strength = principled.inputs.get("Emission Strength")
         if emission_color is not None:
-            node_tree.links.new(vertex_color.outputs["Color"], emission_color)
+            # glTF has no vertex-color input for emissiveFactor. Linking
+            # COLOR_0 here makes Blender 5.2 export a white emissive material,
+            # even though the base color remains correct. Generated palette
+            # materials therefore use their canonical token color for emission;
+            # source regions that need a per-region value own a distinct
+            # explicit emission in their adapter.
+            emission_color.default_value = color
         if emission_strength is not None:
             emission_strength.default_value = strength
 

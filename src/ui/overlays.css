@@ -594,6 +594,181 @@
   box-shadow: 0 0 8px rgba(248, 113, 113, 0.8);
 }
 
+/* --------------------------------------------------------------------------
+   Sport fishing fight telemetry (R4.2)
+   Run distance, depth and rod lay, read straight off the encounter physics.
+   -------------------------------------------------------------------------- */
+#ui-container .fishing-telemetry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 7px;
+  background: rgba(5, 8, 12, 0.5);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 3px;
+}
+
+#ui-container .fishing-telemetry-run-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#ui-container .fishing-telemetry-run-head strong {
+  color: var(--mm-text-ivory);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+#ui-container .fishing-telemetry-run-track {
+  position: relative;
+  width: 100%;
+  height: 7px;
+  margin-top: 3px;
+  overflow: visible;
+  background: rgba(5, 8, 12, 0.86);
+  border: 1px solid rgba(212, 175, 55, 0.34);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+#ui-container .fishing-telemetry-run-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.5), rgba(56, 189, 248, 0.85));
+  transition: width 120ms linear;
+}
+
+#ui-container .fishing-telemetry-run-track.is-in-range .fishing-telemetry-run-fill {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.55), rgba(52, 211, 153, 0.9));
+}
+
+/* Where the fish comes within reach. Fixed at the left edge because the fill
+   is scaled from landing range outward. */
+#ui-container .fishing-telemetry-landing-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 0;
+  width: 2px;
+  background: var(--mm-gold-bright);
+  box-shadow: 0 0 5px var(--mm-gold-glow);
+}
+
+#ui-container .fishing-telemetry-run-note {
+  display: block;
+  margin-top: 3px;
+  color: var(--mm-text-muted);
+  font-size: 9px;
+}
+
+#ui-container .fishing-telemetry-run-track.is-in-range + .fishing-telemetry-run-note {
+  color: #6ee7b7;
+  font-weight: 700;
+}
+
+#ui-container .fishing-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+
+#ui-container .fishing-telemetry-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 3px 5px;
+  background: rgba(5, 8, 12, 0.5);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-telemetry-cell dt {
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#ui-container .fishing-telemetry-cell dd {
+  margin: 0;
+  color: var(--mm-text-ivory);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+#ui-container .fishing-counter-swing {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+#ui-container .fishing-counter-swing-label {
+  color: var(--mm-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#ui-container .fishing-counter-swing-track {
+  position: relative;
+  height: 6px;
+  background: rgba(5, 8, 12, 0.86);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  border-radius: 2px;
+}
+
+#ui-container .fishing-counter-swing-centre {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  background: rgba(212, 175, 55, 0.55);
+}
+
+#ui-container .fishing-counter-swing-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(148, 163, 184, 0.6);
+  transition: width 120ms linear;
+}
+
+#ui-container .fishing-counter-swing.tone-good .fishing-counter-swing-fill {
+  background: rgba(52, 211, 153, 0.85);
+}
+
+#ui-container .fishing-counter-swing.tone-danger .fishing-counter-swing-fill {
+  background: rgba(248, 113, 113, 0.85);
+}
+
+#ui-container .fishing-counter-swing-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mm-text-ivory);
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#ui-container .fishing-counter-swing-cue.is-idle {
+  color: var(--mm-text-muted);
+  font-weight: 500;
+}
+
 #ui-container .fishing-hud-lower {
   min-height: 50px;
   gap: 9px;
@@ -1140,6 +1315,15 @@
   text-align: center;
 }
 
+#ui-container .fishing-signature-moment {
+  margin: 0;
+  color: var(--coast-cream);
+  font-size: 10px;
+  font-style: italic;
+  line-height: 1.3;
+  text-align: center;
+}
+
 #ui-container .fishing-decision {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
@@ -1362,8 +1546,72 @@
   }
 }
 
+/* Lead-out: NoticeStack retains a dismissed notice with `.is-exiting` for
+   NOTICE_EXIT_MS so the fade-out can play before it leaves the DOM. */
+#ui-container .hud-toast-pill.is-exiting {
+  animation: mm-notice-exit 200ms ease-in forwards;
+}
+
+@keyframes mm-notice-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #ui-container .hud-toast-pill {
     animation: none !important;
+  }
+  /* No lead-out under reduced motion: the notice is already gone. */
+  #ui-container .hud-toast-pill.is-exiting {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
+/* ==========================================================================
+   CONTEXTUAL HINT — dwell progress
+   A thin bar depletes over the hint's visible duration. Purely decorative:
+   the dismiss timer owns the truth, so it hides under reduced motion.
+   ========================================================================== */
+#ui-container .hint-card-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 0 0 4px 4px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#ui-container .hint-card-progress-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--mm-gold-leaf);
+  transform-origin: left center;
+  animation-name: mm-hint-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes mm-hint-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui-container .hint-card-progress {
+    display: none !important;
   }
 }

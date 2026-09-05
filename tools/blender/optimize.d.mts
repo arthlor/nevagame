@@ -16,6 +16,7 @@ export function createNodeIO(): NodeIO;
 export function mayJoinStaticNode(
   node: Node | { getName?: () => string },
   spec?: {
+    family?: string;
     generator?: string;
     requiredNodes?: string[];
     lodLevels?: Array<unknown>;
@@ -28,6 +29,9 @@ export function optimizeAsset(
   spec?: Record<string, unknown>,
   options?: OptimizeConfig
 ): Promise<string | Uint8Array>;
+
+export function compressImportedAsset(source: string | Uint8Array, destination: string): Promise<string>;
+export function compressImportedAsset(source: string | Uint8Array, destination?: null): Promise<Uint8Array>;
 
 export function optimizeAndGenerateLods(
   sourceGlbPath: string,

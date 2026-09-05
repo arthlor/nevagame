@@ -114,6 +114,8 @@ export interface PlayerState {
   equippedRodId: RodId;
   ownedRodIds: RodId[];
   preparedLureItemId: ItemId | null;
+  /** Drag notch: 0 light (forgiving), 1 balanced, 2 heavy (decisive). */
+  dragNotch: 0 | 1 | 2;
   carriedFishCargoId?: FishCargoId | null;
   activeBoatId?: BoatId | null;
   activeMountId: MountId | null;
@@ -259,6 +261,8 @@ export interface FishSchoolState {
   spawnedAtMinute: GameMinute;
   expiresAtMinute: GameMinute;
   feedingFrenzyUntilMinute?: GameMinute;
+  /** Deep-chum scent holds separately from the frenzy: sinker species bite truer while it lasts. */
+  deepChumUntilMinute?: GameMinute;
   remainingCatchPotential: number;
   speciesWeights: Array<{ speciesId: FishSpeciesId; weight: number }>;
 }
@@ -338,6 +342,8 @@ export interface FishingEncounterState {
   isReeling: boolean;
   isSlacking: boolean;
   isBracing: boolean;
+  /** Drag notch snapshot at hook time (0 light, 1 balanced, 2 heavy); adjustable mid-fight. */
+  dragNotch?: 0 | 1 | 2;
   slackTimerSeconds: number;
   snapTimerSeconds: number;
   result: "active" | "landed" | "escaped" | "line-snapped";
@@ -367,7 +373,9 @@ export interface BasicFishingState {
 
   // Cast mechanics
   castPower?: number; // 0.0 .. 1.0
-  castDistanceMeters?: number; // 3 .. 12
+  castDistanceMeters?: number; // 3 .. 12, scaled by any tail/head wind
+  /** Metres the wind set the cast down to the caster's right; may be negative. */
+  castLateralDriftMeters?: number;
   isChargingCast?: boolean;
   castChargeDirection?: 1 | -1;
 

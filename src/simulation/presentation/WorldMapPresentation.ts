@@ -40,8 +40,26 @@ export function buildWorldMapDto(state: GameState): WorldMapDto {
     climateLabel: titleCase(farm.climateId),
     plantedCount: farm.placedCropIds.length
   }]));
+  // Live schools, nearest first. Expired ones are dropped rather than shown as
+  // stale marks the player would sail to for nothing.
+  const nowMinute = state.clock.currentMinute;
+  const activeSchools = Object.values(state.world.activeSchools)
+    .filter((school) => school.expiresAtMinute > nowMinute)
+    .map((school) => ({
+      schoolId: school.id,
+      x: school.x,
+      z: school.z,
+      radiusMeters: school.radius,
+      waterLabel: titleCase(school.habitatId.replace(/^habitat\./, "")),
+      minutesRemaining: Math.max(0, Math.round(school.expiresAtMinute - nowMinute)),
+      feeding: (school.feedingFrenzyUntilMinute ?? 0) > nowMinute,
+      distanceMeters: Math.round(Math.hypot(school.x - state.player.x, school.z - state.player.z))
+    }))
+    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
   return {
     player: { x: state.player.x, z: state.player.z },
+    activeSchools,
     fishingNotes,
     farms
   };

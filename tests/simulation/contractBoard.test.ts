@@ -79,8 +79,8 @@ describe("contract board", () => {
   });
 
   it("widens the board with Trading rank instead of a tier flag", () => {
-    expect(contractSlotsForRank(0)).toBe(2);
-    expect(contractSlotsForRank(2)).toBe(2);
+    expect(contractSlotsForRank(0)).toBe(3);
+    expect(contractSlotsForRank(2)).toBe(3);
     expect(contractSlotsForRank(3)).toBe(3);
     expect(contractSlotsForRank(4)).toBe(3);
     expect(contractSlotsForRank(5)).toBe(4);
