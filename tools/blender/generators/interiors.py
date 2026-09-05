@@ -16,6 +16,7 @@ from common.geometry import (
 from common.authored import (
     add_masonry_courses,
     add_plank_field,
+    add_profiled_vessel,
 )
 
 
@@ -334,10 +335,10 @@ def cozy_bed(spec: dict, root) -> None:
     # Mattress
     matt_h = 0.24
     matt_z = 0.44
-    add_box("bed_mattress", (0, 0, matt_z), (bed_w - 0.12, bed_d - 0.12, matt_h), canvas_cream, root, bevel=0.035)
+    add_box("bed_mattress", (0, 0, matt_z), (bed_w - 0.12, bed_d - 0.12, matt_h), canvas_cream, root, bevel=0.035, flat=False)
 
     # Soft Low-Poly Pillow
-    add_box("bed_pillow", (0, bed_d * 0.5 - 0.35, matt_z + matt_h * 0.5 + 0.06), (bed_w - 0.35, 0.45, 0.12), canvas_cream, root, rotation=(-0.08, 0, 0), bevel=0.03)
+    add_box("bed_pillow", (0, bed_d * 0.5 - 0.35, matt_z + matt_h * 0.5 + 0.06), (bed_w - 0.35, 0.45, 0.12), canvas_cream, root, rotation=(-0.08, 0, 0), bevel=0.03, flat=False)
 
     # Cozy Folded Quilt at Foot of Bed
     quilt_l = bed_d * 0.55
@@ -464,8 +465,10 @@ def dining_table(spec: dict, root) -> None:
     add_box("tabletop_trim_x2", (0, -depth * 0.5, table_h - top_t * 0.5), (width + 0.02, 0.03, top_t + 0.01), dark_wood, root, bevel=0.008)
 
     # Tabletop Props: Ceramic Fruit Bowl & Tea Mug
-    add_cylinder("table_ceramic_bowl", (-0.35, 0.05, table_h + 0.06), 0.16, 0.10, ceramic, root, vertices=8, bevel=0.012)
-    add_cylinder("table_tea_mug", (0.35, -0.12, table_h + 0.06), 0.06, 0.12, ceramic, root, vertices=6, bevel=0.008)
+    add_profiled_vessel("table_ceramic_bowl", (-.35, .05, table_h + .01),
+        ((0, .075), (.035, .120), (.10, .160)), .012, ceramic, root, sides=10)
+    add_profiled_vessel("table_tea_mug", (.35, -.12, table_h),
+        ((0, .050), (.018, .060), (.12, .060)), .008, ceramic, root, sides=8)
     add_ring("table_tea_mug_handle", (0.42, -0.12, table_h + 0.06), 0.035, 0.012, ceramic, root, major_segments=6, minor_segments=3, rotation=(0, math.pi / 2, 0))
 
     add_collision_primitives(spec, root)
@@ -619,19 +622,19 @@ def cozy_armchair(spec: dict, root) -> None:
 
     # Thick Soft Seat Cushion
     seat_z = foot_h + 0.32
-    add_box("armchair_cushion", (0, -0.04, seat_z), (width - 0.28, depth - 0.22, 0.16), fabric_accent, root, bevel=0.035)
+    add_box("armchair_cushion", (0, -0.04, seat_z), (width - 0.28, depth - 0.22, 0.16), fabric_accent, root, bevel=0.035, flat=False)
 
     # Rounded Armrests Left & Right
     arm_w = 0.18
     arm_h = 0.38
     arm_z = seat_z + 0.08
-    add_box("armchair_arm_left", (-width * 0.5 + arm_w * 0.5, -0.02, arm_z), (arm_w, depth - 0.08, arm_h), fabric, root, bevel=0.04)
-    add_box("armchair_arm_right", (width * 0.5 - arm_w * 0.5, -0.02, arm_z), (arm_w, depth - 0.08, arm_h), fabric, root, bevel=0.04)
+    add_box("armchair_arm_left", (-width * 0.5 + arm_w * 0.5, -0.02, arm_z), (arm_w, depth - 0.08, arm_h), fabric, root, bevel=0.04, flat=False)
+    add_box("armchair_arm_right", (width * 0.5 - arm_w * 0.5, -0.02, arm_z), (arm_w, depth - 0.08, arm_h), fabric, root, bevel=0.04, flat=False)
 
     # Padded Backrest
     back_t = 0.22
     back_h = 0.52
     back_z = seat_z + back_h * 0.5
-    add_box("armchair_backrest", (0, depth * 0.5 - back_t * 0.5, back_z), (width - 0.06, back_t, back_h), fabric, root, rotation=(-0.08, 0, 0), bevel=0.045)
+    add_box("armchair_backrest", (0, depth * 0.5 - back_t * 0.5, back_z), (width - 0.06, back_t, back_h), fabric, root, rotation=(-0.08, 0, 0), bevel=0.045, flat=False)
 
     add_collision_primitives(spec, root)

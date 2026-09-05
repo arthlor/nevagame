@@ -2,6 +2,7 @@
 
 import * as THREE from "three";
 import { PALETTE_HEX, PALETTE_SPECS, PaletteToken } from "./PaletteTokens";
+import { applyCoastalStoneSurface } from "./CoastalSurfaceMaterial";
 
 export interface MaterialOptions {
   vertexColors?: boolean;
@@ -135,6 +136,7 @@ export class PaletteMaterials {
     ].join("|");
     const existing = this.cache.get(key);
     if (existing) return existing;
+    if (token.startsWith("stone_coastal_")) applyCoastalStoneSurface(material);
     this.cache.set(key, material);
     this.registerEmissive(material);
     return material;

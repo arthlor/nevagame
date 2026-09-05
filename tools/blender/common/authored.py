@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import math
+import bpy
 
-from mathutils import Vector
+from mathutils import Euler, Vector
 
-from .geometry import add_beam, add_box, add_cone, add_tri_prism, seeded_rng
+from .geometry import add_beam, add_box, add_cone, add_conforming_shell, add_limb_tube, add_lofted_form, add_tri_prism, apply_vertex_values, graft_limb, seeded_rng
+from .materials import get_or_create_material
 
 
 def add_masonry_courses(
@@ -44,7 +46,7 @@ def add_masonry_courses(
                 if along > span * 0.5 - block_span * 0.25:
                     along -= span
                 jitter = rng.uniform(-0.025, 0.025)
-                token = tokens[(course + index) % len(tokens)]
+                token = tokens[(course // 2 + index // 3) % len(tokens)]
                 if axis == "x":
                     location = (cx + along, fixed, z + jitter)
                     dimensions = (block_span * 0.90, block_depth, course_height * 0.86)
@@ -131,7 +133,7 @@ def add_shingle_rows(
             z = wall_top + math.sin(pitch) * distance + 0.16
             for column in range(columns):
                 y = -depth * 0.5 - 0.30 + tile_depth * (column + 0.5)
-                token = tokens[(row + column + (1 if side > 0 else 0)) % len(tokens)]
+                token = tokens[(row // 3 + column // 4 + (1 if side > 0 else 0)) % len(tokens)]
                 add_box(
                     f"{prefix}_{'right' if side > 0 else 'left'}_{row:02d}_{column:02d}",
                     (x, y, z + rng.uniform(-0.012, 0.012)),
@@ -195,8 +197,23 @@ def add_lattice(prefix, center, width, height, token, parent, *, columns, rows, 
 
 
 def add_rope_line(prefix, points, radius, token, parent, *, vertices=6):
-    for index, (start, end) in enumerate(zip(points, points[1:])):
-        add_beam(f"{prefix}_{index:02d}", start, end, radius, token, parent, vertices=vertices)
+    return add_limb_tube(prefix, points, [radius] * len(points), token, parent, sides=vertices)
+
+
+def grow_branch(surface, start, end, radius, tip_radius, *, token=None):
+    """Grow from an outward-facing trunk opening toward an authored branch tip."""
+    start, end = Vector(start), Vector(end)
+    bpy.context.view_layer.update()
+    normal_matrix = surface.matrix_world.to_3x3().inverted().transposed()
+    candidates = [face for face in surface.data.polygons if len(face.vertices) == 4
+                  and (normal_matrix @ face.normal).normalized().dot((end - surface.matrix_world @ face.center).normalized()) > .01]
+    opening = min(candidates, key=lambda face: (surface.matrix_world @ face.center - start).length_squared)
+    shoulder = surface.matrix_world @ opening.center
+    outward = (normal_matrix @ opening.normal).normalized()
+    joint = shoulder + outward * radius * 1.5
+    bend = joint.lerp(end, .45)
+    return graft_limb(surface, [opening.index], [joint, bend, end], [radius, radius * .72, tip_radius],
+                      token=token, collar_radius=radius)
 
 
 def add_arch_ring(
@@ -257,31 +274,35 @@ def add_burlap_sack(prefix, center, dimensions, token, tie_token, parent, *, rot
     """Build a settled, bulged burlap cargo sack resting with realistic weight."""
     cx, cy, cz = center
     width, depth, height = dimensions
-    # Lower bulging base
-    add_box(
-        f"{prefix}_base", (cx, cy, cz + height * 0.38),
-        (width, depth, height * 0.76), token, parent,
-        rotation=rotation, bevel=0.035,
-    )
-    # Pinched neck
-    neck_z = cz + height * 0.78
-    add_box(
-        f"{prefix}_neck", (cx, cy, neck_z),
-        (width * 0.48, depth * 0.48, height * 0.12), token, parent,
-        rotation=rotation, bevel=0.0,
-    )
-    # Twine tie
-    add_box(
-        f"{prefix}_tie", (cx, cy, neck_z),
-        (width * 0.54, depth * 0.54, height * 0.05), tie_token, parent,
-        rotation=rotation, bevel=0.0,
-    )
-    # Ruffled gathered top
-    add_cone(
-        f"{prefix}_top", (cx, cy, cz + height * 0.90),
-        width * 0.28, 0.05, height * 0.20, token, parent,
-        vertices=6, rotation=rotation,
-    )
+    sections = [((cx + dx * width, cy + dy * depth, cz + z * height), width * w, depth * d)
+                for dx, dy, z, w, d in ((0, 0, 0, .34, .34), (-.025, .01, .12, .49, .48),
+                    (.015, -.015, .42, .50, .49), (.025, 0, .66, .38, .39),
+                    (.02, .01, .78, .19, .19), (.02, .01, .90, .28, .25),
+                    (.03, .01, .98, .20, .19))]
+    body = add_lofted_form(prefix + "_body", sections, token, parent, sides=10)
+    tie_sections = [((cx + .02 * width, cy + .01 * depth, cz + z * height), width * .19, depth * .19)
+                    for z in (.765, .795)]
+    tie = add_conforming_shell(prefix + "_tie", tie_sections, tie_token, parent,
+                               arc=(0, math.tau), offset=.003, thickness=min(width, depth) * .018, segments=10)
+    rotation_matrix = Euler(rotation).to_matrix()
+    origin = Vector(center)
+    for obj in (body, tie):
+        for vertex in obj.data.vertices:
+            world = vertex.co + obj.location
+            vertex.co = origin + rotation_matrix @ (world - origin) - obj.location
+        obj.data.update()
+    return body
+
+
+def add_profiled_vessel(name, center, profile, thickness, token, parent, *, sides=12):
+    """Revolve an authored (height, radius) profile with a real rim and interior."""
+    cx, cy, cz = center
+    if len(profile) < 2 or thickness <= 0 or any(radius <= thickness for _, radius in profile):
+        raise ValueError(f"{name}: vessel needs an open profile wider than its wall")
+    outer = [((cx, cy, cz + z), radius, radius) for z, radius in profile]
+    inner = [((cx, cy, cz + max(profile[0][0] + thickness, z)), radius - thickness, radius - thickness)
+             for z, radius in reversed(profile)]
+    return add_lofted_form(name, outer + inner, token, parent, sides=sides)
 
 
 def add_timber_corner_frame(
@@ -340,14 +361,13 @@ def add_mullioned_window(
 ):
     """Proud frame, glowing pane, cross mullions, and optional shutters facing -Y."""
     cx, cy, cz = location
-    add_box(
-        f"{prefix}_frame",
-        (cx, cy, cz),
-        (width + 0.14, 0.14, height + 0.14),
-        frame_token,
-        parent,
-        bevel=0.02,
-    )
+    # A frame surrounds an opening. A solid backing slab hid the glass and
+    # flattened the recess from the gameplay camera.
+    for side in (-1, 1):
+        add_box(f"{prefix}_jamb_{side}", (cx + side * (width / 2 + .035), cy, cz),
+                (.07, .14, height + .14), frame_token, parent, bevel=.012)
+        add_box(f"{prefix}_rail_{side}", (cx, cy, cz + side * (height / 2 + .035)),
+                (width, .14, .07), frame_token, parent, bevel=.012)
     add_box(
         f"{prefix}_glass",
         (cx, cy - 0.02, cz),
@@ -404,23 +424,18 @@ def add_banded_tapered_tower(
     bands,
     sides,
 ):
-    """Stack alternating palette bands as a tapered low-poly tower shaft."""
-    band_h = height / bands
-    for index in range(bands):
-        t0 = index / bands
-        t1 = (index + 1) / bands
-        r0 = radius_bottom + (radius_top - radius_bottom) * t0
-        r1 = radius_bottom + (radius_top - radius_bottom) * t1
-        add_cone(
-            f"{prefix}_{index:02d}",
-            (0, 0, base_z + band_h * (index + 0.5)),
-            r0,
-            r1,
-            band_h + 0.02,
-            tokens[index % len(tokens)],
-            parent,
-            vertices=sides,
-        )
+    """Continuous shaft; palette bands change color without overlapping drums."""
+    sections = [((0, 0, base_z + height * i / bands),
+                 radius_bottom + (radius_top - radius_bottom) * i / bands,
+                 radius_bottom + (radius_top - radius_bottom) * i / bands) for i in range(bands + 1)]
+    shaft = add_lofted_form(prefix, sections, tokens[0], parent, sides=sides, normal_mode="planar")
+    for token in tokens[1:]:
+        shaft.data.materials.append(get_or_create_material(token))
+    for polygon in shaft.data.polygons:
+        if polygon.index < bands * sides:
+            polygon.material_index = (polygon.index // sides) % len(tokens)
+    apply_vertex_values(shaft)
+    return shaft
 
 
 def add_mooring_cleat(prefix, center, length, token, parent, *, yaw=0.0):

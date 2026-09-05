@@ -12,12 +12,14 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_leaf_blade,
+    add_limb_tube,
     add_tapered_beam,
     add_tri_prism,
     apply_vertex_values,
     seeded_rng,
 )
-from common.authored import add_root_flare
+from common.authored import add_root_flare, grow_branch
 from common.lod import consolidate_lod_level, create_lod_roots
 from common.materials import get_or_create_material
 
@@ -80,10 +82,9 @@ def _oak_tree(spec: dict, root) -> None:
     fork = (gesture * 0.58, 0.05, height * 0.57)
     upper_joint = (gesture * 0.94, 0.02, height * 0.74)
     side_fork = (gesture * 0.48 - spread * 0.34, 0.10, height * 0.70)
-    add_tapered_beam("oak_trunk_lower", base, lower_joint, 0.58, 0.42, wood, root, vertices=8)
-    add_tapered_beam("oak_trunk_mid", lower_joint, fork, 0.44, 0.32, wood, root, vertices=8)
-    add_tapered_beam("oak_trunk_upper", fork, upper_joint, 0.30, 0.18, wood, root, vertices=8)
-    add_tapered_beam("oak_trunk_fork", fork, side_fork, 0.23, 0.11, wood, root, vertices=7)
+    trunk = add_limb_tube("oak_trunk", [base, lower_joint, fork, upper_joint], [.58, .42, .32, .18], wood, root, sides=8)
+    bpy.context.view_layer.update()
+    grow_branch(trunk, fork, side_fork, .23, .11)
     add_root_flare(
         "oak_root", (0, 0, 0), 1.08, 0.62, wood, root,
         count=params["rootCount"], seed=spec["seed"] + 1,
@@ -104,10 +105,7 @@ def _oak_tree(spec: dict, root) -> None:
             math.sin(angle) * spread * 0.50,
             height * (0.68 + 0.055 * (index % 3) + rng.uniform(-0.025, 0.025)),
         )
-        add_tapered_beam(
-            f"oak_branch_{index:02d}", start, end,
-            0.17 + rng.uniform(0.0, 0.025), 0.075, wood, root, vertices=7,
-        )
+        grow_branch(trunk, start, end, 0.17 + rng.uniform(0.0, 0.025), 0.075)
         twig_end = (
             end[0] + math.cos(angle + 0.48) * spread * 0.24,
             end[1] + math.sin(angle + 0.48) * spread * 0.20,
@@ -151,7 +149,7 @@ def _oak_tree(spec: dict, root) -> None:
             (spread * scale_x * rng.uniform(0.95, 1.05), spread * scale_y * rng.uniform(0.94, 1.04), height * scale_z * rng.uniform(0.95, 1.04)),
             shadow if index == 0 else leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.16, 0.16), rng.uniform(-0.16, 0.16), rng.uniform(-0.28, 0.28)),
-        )
+        normal_mode="rounded")
     for index in range(cluster_count - major_count):
         lobe_index = index % major_count
         lobe = major_centers[lobe_index]
@@ -168,7 +166,7 @@ def _oak_tree(spec: dict, root) -> None:
             (size, size * rng.uniform(0.76, 0.90), size * rng.uniform(0.66, 0.82)),
             shadow if index % 4 == 0 else leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.22, 0.22), rng.uniform(-0.22, 0.22), angle * 0.22),
-        )
+        normal_mode="rounded")
     if lod_index == 0:
         for index, lobe in enumerate(major_centers):
             for chip in range(3):
@@ -184,7 +182,7 @@ def _oak_tree(spec: dict, root) -> None:
                     (spread * 0.18, spread * 0.16, height * 0.055),
                     shadow if chip == 0 else leaves, root, subdivisions=2,
                     rotation=(0.12 * chip, -0.08 * index, angle),
-                )
+                normal_mode="rounded")
 
 
 def oak_tree(spec: dict, root) -> None:
@@ -208,8 +206,8 @@ def _olive_tree(spec: dict, root) -> None:
     lower = (gesture * 0.22, -0.05, height * 0.34)
     fork = (gesture * 0.54, 0.08, height * 0.53)
     crown = (gesture * 0.88, 0.0, height * 0.72)
-    add_tapered_beam("olive_trunk_lower", (0, 0, 0.07), lower, 0.52, 0.38, wood, root, vertices=8)
-    add_tapered_beam("olive_trunk_mid", lower, fork, 0.39, 0.27, wood, root, vertices=8)
+    trunk = add_limb_tube("olive_trunk", [(0, 0, .07), lower, fork, crown], [.52, .38, .27, .12], wood, root, sides=8)
+    bpy.context.view_layer.update()
     add_root_flare(
         "olive_root", (0, 0, 0), 0.94, 0.5, wood, root,
         count=params["rootCount"], seed=spec["seed"] + 1,
@@ -228,10 +226,7 @@ def _olive_tree(spec: dict, root) -> None:
             height * rng.uniform(0.64, 0.83),
         )
         branch_ends.append(end)
-        add_tapered_beam(
-            f"olive_branch_{index:02d}", start, end,
-            0.18 if index < 2 else 0.14, 0.055, wood, root, vertices=7,
-        )
+        grow_branch(trunk, start, end, .18 if index < 2 else .14, .055)
         if lod_index == 0:
             tip = (
                 end[0] + math.cos(angle + 0.46) * spread * 0.2,
@@ -257,7 +252,7 @@ def _olive_tree(spec: dict, root) -> None:
             root,
             subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.18, 0.18), rng.uniform(-0.18, 0.18), angle * 0.24),
-        )
+        normal_mode="rounded")
     if lod_index == 0:
         for index in range(params["fruitCount"]):
             angle = index * 2.39996 + 0.5
@@ -270,7 +265,7 @@ def _olive_tree(spec: dict, root) -> None:
                     height * (0.68 + 0.16 * ((index * 5) % 7) / 6),
                 ),
                 (0.055, 0.045, 0.065), fruit, root, subdivisions=1,
-            )
+            normal_mode="rounded")
 
 
 def olive_tree(spec: dict, root) -> None:
@@ -291,7 +286,7 @@ def _pine_tree(spec: dict, root) -> None:
     lean = params["lean"]
     lod_index = spec.get("_lodIndex", 0)
     wood, pine, highlight = spec["palette"]
-    add_cone("pine_trunk", (lean, 0, height * 0.43), 0.38, 0.16, height * 0.86, wood, root, vertices=8)
+    add_limb_tube("pine_trunk", [(0, 0, 0), (lean * .4, 0, height * .42), (lean, 0, height * .86)], [.38, .26, .16], wood, root, sides=8)
     add_root_flare("pine_root", (0, 0, 0), 0.72, 0.42, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
     _add_secondary_root_spokes(
         "pine_root_spoke", 0.72, 0.42, wood, root,
@@ -347,7 +342,8 @@ def _apple_tree(spec: dict, root) -> None:
     lod_index = spec.get("_lodIndex", 0)
     wood, leaves, fruit = spec["palette"][:3]
     blossom = spec["palette"][3] if len(spec["palette"]) > 3 else leaves
-    add_cone("apple_trunk", (0, 0, height * 0.34), 0.42, 0.20, height * 0.68, wood, root, vertices=8)
+    trunk = add_limb_tube("apple_trunk", [(0, 0, 0), (0, 0, height * .36), (0, 0, height * .68)], [.42, .30, .20], wood, root, sides=8)
+    bpy.context.view_layer.update()
     add_root_flare("apple_root", (0, 0, 0), 0.82, 0.48, wood, root, count=params["rootCount"], seed=spec["seed"] + 1)
     _add_secondary_root_spokes(
         "apple_root_spoke", 0.82, 0.48, wood, root,
@@ -358,11 +354,7 @@ def _apple_tree(spec: dict, root) -> None:
         angle = index * math.tau / params["branchCount"] + 0.4 + crown_phase + rng.uniform(-0.12, 0.12)
         branch_radius = spread * 0.55 * rng.uniform(0.92, 1.06)
         end = (math.cos(angle) * branch_radius, math.sin(angle) * branch_radius, height * (0.68 + 0.06 * (index % 2) + rng.uniform(-0.018, 0.018)))
-        add_beam(
-            f"apple_branch_{index:02d}", (0, 0, height * 0.47),
-            end,
-            0.11, wood, root, vertices=6,
-        )
+        grow_branch(trunk, (0, 0, height * .47), end, .11, .055)
         if lod_index == 0:
             add_beam(
                 f"apple_twig_{index:02d}", end,
@@ -380,7 +372,7 @@ def _apple_tree(spec: dict, root) -> None:
             (math.cos(angle) * radial, math.sin(angle) * radial * 0.8, center_z),
             (size, size * 0.86, size * 0.74), leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(0.1 * math.sin(index), 0.08 * math.cos(index), angle * 0.2),
-        )
+        normal_mode="rounded")
     for index in range(params["fruitCount"]):
         angle = index * 2.39996
         # Keep fruit inside the overlapping crown masses. The previous lower
@@ -393,7 +385,7 @@ def _apple_tree(spec: dict, root) -> None:
             f"apple_fruit_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72 + face_offset, fruit_z),
             (0.16, 0.15, 0.16), fruit, root, subdivisions=1,
-        )
+        normal_mode="rounded")
         add_cone(
             f"apple_stem_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72 + face_offset, fruit_z + 0.12),
@@ -407,7 +399,7 @@ def _apple_tree(spec: dict, root) -> None:
                 f"apple_fallen_{fallen:02d}",
                 (math.cos(f_angle) * f_rad, math.sin(f_angle) * f_rad, 0.07),
                 (0.14, 0.14, 0.12), fruit, root, subdivisions=1,
-            )
+            normal_mode="rounded")
         for bloom in range(max(4, params["fruitCount"] // 3)):
             angle = bloom * 2.39996 + 0.7
             radius = spread * (0.30 + 0.28 * ((bloom * 3) % 5) / 4)
@@ -416,7 +408,7 @@ def _apple_tree(spec: dict, root) -> None:
                 f"apple_blossom_{bloom:02d}",
                 (math.cos(angle) * radius, math.sin(angle) * radius * 0.78 + face_offset, height * (0.66 + 0.14 * (bloom % 3) / 2)),
                 (0.07, 0.07, 0.05), blossom, root, subdivisions=1,
-            )
+            normal_mode="rounded")
         for index in range(min(4, params["canopyClusters"])):
             angle = index * math.tau / 4 + 0.3
             add_ico(
@@ -424,7 +416,7 @@ def _apple_tree(spec: dict, root) -> None:
                 (math.cos(angle) * spread * 0.62, math.sin(angle) * spread * 0.50, height * 0.72),
                 (spread * 0.22, spread * 0.20, spread * 0.16), leaves, root, subdivisions=2,
                 rotation=(0.1, 0.08, angle),
-            )
+            normal_mode="rounded")
 
 
 def apple_tree(spec: dict, root) -> None:
@@ -452,7 +444,7 @@ def _bush(spec: dict, root) -> None:
             (0.62 + rng.uniform(-0.08, 0.08), 0.52 * rng.uniform(0.94, 1.06), 0.47 * rng.uniform(0.94, 1.05)),
             shadow if index == 0 else leaves, root, subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), angle),
-        )
+        normal_mode="rounded")
     for index in range(params["flowerCount"]):
         cluster_angle = crown_phase + (index % 2) * math.pi + rng.uniform(-0.26, 0.26)
         angle = cluster_angle + rng.uniform(-0.30, 0.30)
@@ -461,7 +453,7 @@ def _bush(spec: dict, root) -> None:
             f"bush_flower_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72, 0.68 + 0.12 * (index % 3)),
             (0.07, 0.07, 0.055), flower, root, subdivisions=1,
-        )
+        normal_mode="rounded")
     for index in range(params["leafTips"]):
         angle = index * 2.39996 + 0.4
         add_tri_prism(
@@ -537,26 +529,34 @@ def kelp_clump(spec: dict, root) -> None:
         lean_x, lean_y = math.cos(angle) * lean, math.sin(angle) * lean
         mid = (base[0] + lean_x * 0.42, base[1] + lean_y * 0.42, height * 0.48)
         tip = (base[0] + lean_x, base[1] + lean_y, height)
-        add_tapered_beam(
-            f"kelp_stalk_{index:02d}", base, mid, params["stalkRadius"], params["stalkRadius"] * 0.68,
-            stalk_token, root, vertices=5,
-        )
-        add_tapered_beam(
-            f"kelp_stalk_tip_{index:02d}", mid, tip, params["stalkRadius"] * 0.68, params["stalkRadius"] * 0.20,
-            shadow_token if index % 3 == 0 else stalk_token, root, vertices=5,
-        )
-        add_tri_prism(
+        add_limb_tube(f"kelp_stalk_{index:02d}", [base, mid, tip],
+                       [params["stalkRadius"], params["stalkRadius"] * .68, params["stalkRadius"] * .20], stalk_token, root, sides=5)
+        # Triangular prisms scattered around a stalk read as shards of glass.
+        # Kelp is a ribbon: long, tapered and curving up off the stipe.
+        blade_lean = (math.cos(angle) * 0.22, math.sin(angle) * 0.22)
+        add_leaf_blade(
             f"kelp_blade_lower_{index:02d}",
-            (mid[0] + lean_x * 0.18, mid[1] + lean_y * 0.18, mid[2] + height * 0.06),
-            (params["bladeWidth"] * 0.76, 0.045, height * 0.34),
-            blade_token, root, rotation=(rng.uniform(-0.16, 0.16), 0.12, angle + math.pi * 0.5),
+            (mid[0], mid[1], mid[2] - height * 0.04),
+            (mid[0] + blade_lean[0], mid[1] + blade_lean[1], mid[2] + height * 0.42),
+            params["bladeWidth"] * 0.80,
+            blade_token,
+            root,
+            thickness=0.014,
+            cup=0.26,
+            bend=(blade_lean[0] * 0.55, blade_lean[1] * 0.55, -height * 0.05),
+            stations=4,
         )
-        add_tri_prism(
+        add_leaf_blade(
             f"kelp_blade_upper_{index:02d}",
-            (tip[0] - lean_x * 0.06, tip[1] - lean_y * 0.06, tip[2] - height * 0.12),
-            (params["bladeWidth"], 0.05, height * 0.40),
-            shadow_token if index % 2 else blade_token, root,
-            rotation=(rng.uniform(-0.20, 0.20), 0.16, angle + math.pi * 0.5),
+            (tip[0], tip[1], tip[2] - height * 0.14),
+            (tip[0] + blade_lean[0] * 1.15, tip[1] + blade_lean[1] * 1.15, tip[2] + height * 0.34),
+            params["bladeWidth"],
+            shadow_token if index % 2 else blade_token,
+            root,
+            thickness=0.014,
+            cup=0.26,
+            bend=(blade_lean[0] * 0.7, blade_lean[1] * 0.7, -height * 0.04),
+            stations=4,
         )
 
 
@@ -665,8 +665,7 @@ def wildflower_clump(spec: dict, root) -> None:
             y + math.sin(lean_angle) * height * rng.uniform(0.10, 0.17),
             height,
         )
-        add_tapered_beam(f"flower_stem_{index:02d}_lower", (x, y, 0.01), joint, 0.016, 0.011, foliage, root, vertices=4)
-        add_tapered_beam(f"flower_stem_{index:02d}_upper", joint, tip, 0.011, 0.006, foliage, root, vertices=4)
+        add_limb_tube(f"flower_stem_{index:02d}", [(x, y, .01), joint, tip], [.016, .011, .006], foliage, root, sides=4)
         x, y = tip[0], tip[1]
         petal_count = params["petals"]
         for petal in range(petal_count):
@@ -676,11 +675,11 @@ def wildflower_clump(spec: dict, root) -> None:
                 (x + math.cos(petal_angle) * 0.055, y + math.sin(petal_angle) * 0.055, height),
                 (0.058, 0.034, 0.025), flower, root, subdivisions=1,
                 rotation=(rng.uniform(-0.18, 0.18), rng.uniform(-0.18, 0.18), petal_angle),
-            )
+            normal_mode="rounded")
         add_ico(
             f"flower_{index:02d}_center", (x, y, height + 0.012),
             (0.034, 0.034, 0.028), center, root, subdivisions=1,
-        )
+        normal_mode="rounded")
     for leaf_index in range(3):
         leaf_angle = gesture_angle + (-1.05, 0.22, 1.18)[leaf_index] + rng.uniform(-0.16, 0.16)
         leaf_height = params["height"] * rng.uniform(0.30, 0.42)

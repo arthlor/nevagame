@@ -1,0 +1,9 @@
+{
+  "routeIds": ["village-harbor", "cliffside-coastal-walk"],
+  "originalEndpoint": { "x": 64, "z": 60 },
+  "correctedEndpoint": { "x": 64.5, "z": 54.5 },
+  "anchors": [
+    { "id": "market.harbor", "height": 1.05 },
+    { "id": "fish-market", "height": 1.05 }
+  ]
+}

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from common.geometry import add_box, add_cone, add_cylinder, add_ico, add_ring, add_tri_prism, seeded_rng
-from common.authored import add_plank_field
+from common.authored import add_plank_field, add_profiled_vessel
 
 
 def wood_bookcase(spec: dict, root) -> None:
@@ -72,7 +72,8 @@ def wood_sideboard(spec: dict, root) -> None:
     add_box("sideboard_stile", (0, -depth * 0.5 - 0.010, body_z), (0.030, 0.026, carcass_h - 0.07), dark, root, bevel=0.006)
 
     add_box("sideboard_runner", (0, 0.02, leg_h + carcass_h + 0.048), (width * 0.66, depth * 0.52, 0.014), cream, root, bevel=0.0)
-    add_cylinder("sideboard_bowl", (-width * 0.22, 0.02, leg_h + carcass_h + 0.078), 0.085, 0.050, brass, root, vertices=10, bevel=0.010)
+    add_profiled_vessel("sideboard_bowl", (-width * .22, .02, leg_h + carcass_h + .053),
+                        ((0, .036), (.020, .067), (.050, .085)), .006, brass, root, sides=10)
 
 
 def floor_plant(spec: dict, root) -> None:
@@ -81,8 +82,8 @@ def floor_plant(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     pot_h = 0.34
 
-    add_cone("plant_pot_body", (0, 0, pot_h * 0.5 + 0.015), 0.150, 0.205, pot_h, terracotta, root, vertices=10)
-    add_cylinder("plant_pot_rim", (0, 0, pot_h + 0.020), 0.218, 0.050, terracotta, root, vertices=10, bevel=0.010)
+    add_profiled_vessel("plant_pot", (0, 0, 0),
+        ((.015, .150), (.320, .202), (.335, .218), (.385, .218)), .018, terracotta, root, sides=10)
     add_cylinder("plant_pot_foot", (0, 0, 0.012), 0.160, 0.024, shadow, root, vertices=10, bevel=0.006)
     # Soil sits below the rim, the way a potted plant is actually filled.
     add_cylinder("plant_soil", (0, 0, pot_h + 0.010), 0.190, 0.040, soil, root, vertices=10)

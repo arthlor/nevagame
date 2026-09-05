@@ -23,6 +23,7 @@ import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/Worl
 import { MAIN_QUEST_TRACK_ID } from "../simulation/core/QuestTypes";
 import { migrateTerrainLayout11 } from "./migrateTerrainLayout11";
 import { migrateTerrainLayout12 } from "./migrateTerrainLayout12";
+import { migrateTerrainLayout13 } from "./migrateTerrainLayout13";
 
 export type MigrationFunction = (data: unknown) => unknown;
 
@@ -1238,7 +1239,8 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
     };
   },
   31: (state: unknown) => migrateTerrainLayout11(state as GameState),
-  32: (state: unknown) => migrateTerrainLayout12(state as GameState)
+  32: (state: unknown) => migrateTerrainLayout12(state as GameState),
+  33: (state: unknown) => migrateTerrainLayout13(state as GameState)
 };
 
 

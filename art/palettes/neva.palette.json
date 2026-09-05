@@ -380,6 +380,66 @@
       "family": "hair",
       "roughness": 0.88,
       "metalness": 0
+    },
+    "sand_coastal_01": {
+      "hex": "#E3D4B3",
+      "family": "soil",
+      "roughness": 0.94,
+      "metalness": 0
+    },
+    "sand_coastal_wet_01": {
+      "hex": "#B8AF91",
+      "family": "soil",
+      "roughness": 0.67,
+      "metalness": 0
+    },
+    "foliage_coastal_sun_01": {
+      "hex": "#99B75A",
+      "family": "foliage",
+      "roughness": 0.83,
+      "metalness": 0
+    },
+    "foliage_coastal_01": {
+      "hex": "#587D43",
+      "family": "foliage",
+      "roughness": 0.86,
+      "metalness": 0
+    },
+    "foliage_coastal_shade_01": {
+      "hex": "#365D43",
+      "family": "foliage",
+      "roughness": 0.88,
+      "metalness": 0
+    },
+    "wood_coastal_01": {
+      "hex": "#98816A",
+      "family": "wood",
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "wood_coastal_dark_01": {
+      "hex": "#64594A",
+      "family": "wood",
+      "roughness": 0.93,
+      "metalness": 0
+    },
+    "stone_coastal_warm_01": {
+      "hex": "#938572",
+      "family": "stone",
+      "roughness": 0.92,
+      "metalness": 0
+    },
+    "stone_coastal_light_01": {
+      "hex": "#B0A18B",
+      "family": "stone",
+      "roughness": 0.93,
+      "metalness": 0
+    },
+    "sun_daylight_01": {
+      "hex": "#FFF2DA",
+      "family": "sky",
+      "roughness": 1,
+      "metalness": 0
     }
   }
 }

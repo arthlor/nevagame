@@ -154,10 +154,16 @@ describe("HUD tool belt", () => {
     const html = renderToString(
       React.createElement(HUD, { state, promptText: null, activeToolSlot: 2 })
     );
-    // Slots hold tools, so none of them may render as an empty well.
-    expect(html).not.toContain("chrome-slot is-empty  hud-hotbar-slot");
-    expect(html).toContain("hud-tool-belt-readout");
-    expect(html).toContain("Seeds");
+    const buttons = html.match(/<button\b[^>]*data-testid="tool-slot-\d"[^>]*>[\s\S]*?<\/button>/g) ?? [];
+    expect(buttons).toHaveLength(5);
+    for (let slot = 1; slot <= 5; slot += 1) {
+      const button = buttons.find((candidate) => candidate.includes(`data-testid="tool-slot-${slot}"`));
+      expect(button).toMatch(new RegExp(`aria-label="[^" ,][^"]+, slot ${slot}"`));
+      expect(button).toContain("tidebook-tool-painting");
+    }
+    const readout = html.match(/<div class="tidebook-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
+    expect(readout).toContain('aria-live="polite"');
+    expect(readout).toContain("<strong>Seed Belt</strong>");
   });
 
   it("marks a slot unavailable when it has nothing to use", () => {
@@ -170,10 +176,13 @@ describe("HUD tool belt", () => {
       }
     }
     const html = renderToString(
-      React.createElement(HUD, { state, promptText: null, activeToolSlot: 1 })
+      React.createElement(HUD, { state, promptText: null, activeToolSlot: 2 })
     );
-    expect(html).toContain('data-ready="false"');
-    expect(html).toContain("No seeds");
+    const seedButton = html.match(/<button\b[^>]*data-testid="tool-slot-2"[^>]*>/)?.[0];
+    expect(seedButton).toContain('data-ready="false"');
+    expect(seedButton).toContain('aria-pressed="true"');
+    const readout = html.match(/<div class="tidebook-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
+    expect(readout).toContain("No seeds");
   });
 });
 

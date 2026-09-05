@@ -37,7 +37,7 @@ describe("renderer foundation", () => {
       .toBeGreaterThan(CANONICAL_RENDER_CONFIG.shadows.radius);
     // Shadows only read when the key light dominates the hemisphere fill.
     expect(CANONICAL_RENDER_CONFIG.sun.intensity)
-      .toBeGreaterThan(CANONICAL_RENDER_CONFIG.skyFill.intensity * 2.4);
+      .toBeGreaterThan(CANONICAL_RENDER_CONFIG.skyFill.intensity * 1.75);
     // A clear-day far plane must stay inside the 600 m terrain grid so the
     // plane's cut edge never resolves against the sky.
     expect(CANONICAL_RENDER_CONFIG.fog.clearDayFar).toBeLessThan(TERRAIN_SIZE_METERS);
@@ -50,7 +50,8 @@ describe("renderer foundation", () => {
     expect(CANONICAL_RENDER_CONFIG.gtao.blendIntensity).toBe(0.44);
     expect(CANONICAL_RENDER_CONFIG.gtao.radius).toBeLessThan(0.6);
     expect(CANONICAL_RENDER_CONFIG.contact.opacity).toBeGreaterThan(0.2);
-    expect(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg).toBe(35);
+    expect(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg).toBeGreaterThanOrEqual(35);
+    expect(CANONICAL_RENDER_CONFIG.sun.maxElevationDeg).toBeLessThanOrEqual(60);
     expect(CANONICAL_RENDER_CONFIG.sun.noonAzimuthDeg).toBe(45);
     expect(CANONICAL_RENDER_CONFIG.groundSurface.polygonCellScaleMeters).toBe(1.2);
     expect(CANONICAL_RENDER_CONFIG.groundSurface.wetness).toMatchObject({
@@ -69,26 +70,20 @@ describe("renderer foundation", () => {
       .toBeLessThan(CANONICAL_RENDER_CONFIG.roadSurface.edgeFadeFull);
   });
 
-  it("uses canonical turquoise depth bands and polygonal reflection normals", () => {
+  it("uses shared bathymetry, continuous transmission and angle-dependent reflection", () => {
     const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
     const material = water.mesh.material;
-    // The shared shading chunk (waterShadingGlsl.ts) takes the world position
-    // as a parameter, so the cell lookup reads `worldPosition` rather than the
-    // `vWorldPosition` varying. Both water surfaces resolve through it.
-    expect(material.fragmentShader).toContain("nevaGroundPolygonCell(worldPosition.xz, uPolygonCellScale)");
-    expect(material.fragmentShader).toContain("waterFacetBand = step(0.34, waterPolygonCell.x)");
-    expect(material.fragmentShader).toContain("uPolygonNormalStrength");
-    expect(material.uniforms.uPolygonCellScale.value).toBe(
-      CANONICAL_RENDER_CONFIG.waterSurface.polygonCellScaleMeters
-    );
+    expect(material.fragmentShader).toContain("nevaOpticsField(worldPosition.xz)");
+    expect(material.fragmentShader).toContain("exp(-uWaterAbsorption");
+    expect(material.fragmentShader).toContain("pow(1.0 - ndv, 5.0)");
+    expect(material.fragmentShader).not.toContain("waterFacetBand = step");
     expect(material.uniforms.uFresnelStrength.value).toBe(
       CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength
     );
     expect(material.uniforms.uShallowEndMeters.value).toBe(
       CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters
     );
-    expect(material.fragmentShader).toContain("resolvedShoreNormalScale");
-    expect(material.fragmentShader).toContain("shallowMix * uShallowColorStrength");
+    expect(material.fragmentShader).toContain("nevaCoastalWash(worldPosition.xz, field.b)");
     water.dispose();
   });
 

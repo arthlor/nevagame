@@ -1,0 +1,11 @@
+Cow by Quaternius
+
+Poly Pizza model: 26zM1outCr
+Source page: https://poly.pizza/m/26zM1outCr
+
+License: CC0 1.0 Universal (Public Domain Dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The adjacent cow.blend is the immutable audited provider-source capture. The
+adjacent cow-report.json records its source model, collection, SHA-256 digest,
+license, scene structure, materials, rig, and animation inventory.

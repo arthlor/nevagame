@@ -26,11 +26,11 @@ function expectedGreenMaskByte(weights: {
 
 describe("coast texture mask bake", () => {
   it("keeps proportional greenMask when shore semantics are present but vegetation still dominates", () => {
-    const x = 72;
+    const x = 132;
     const shore = WorldLayout.coastlineZ(x);
     let found = false;
 
-    for (let dz = 14; dz >= 6; dz -= 1) {
+    for (let dz = 30; dz >= 6; dz -= 1) {
       const z = shore - dz;
       const weights = WorldLayout.terrainSurfaceWeights(x, z);
       const shoreShare = weights.beach + weights.wetShoreline + weights.cliff;

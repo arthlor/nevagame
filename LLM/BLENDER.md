@@ -5,6 +5,8 @@
 >
 > **Human/agent boundary:** Agents generate and mechanically integrate assets. The human reviews the result in the actual game and requests revisions. Routine agents do not create static previews, capture screenshots, score style, or iterate visually on the human's behalf.
 
+> **Harbor-coast production exception:** The approved coastal rebuild explicitly authorizes reference-frame inspection, iterative gameplay-camera captures, traversal recordings and browser measurements. These are required evidence for this environment task; they do not constitute human visual approval. The scoped direction and superseded visual constraints are owned by `04` §8.1. This exception does not change routine asset-task gates.
+
 ---
 
 # 0. Task-Class Read Order

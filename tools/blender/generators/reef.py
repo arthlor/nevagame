@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 
-from common.geometry import add_cone, add_cylinder, add_ico, add_tapered_beam, seeded_rng
+from common.geometry import add_cone, add_cylinder, add_ico, add_tapered_beam, add_lofted_form, add_limb_tube, seeded_rng
+from common.authored import grow_branch
 
 GOLDEN_ANGLE = 2.39996322972865332
 
@@ -16,29 +17,20 @@ def coral_pillar(spec: dict, root) -> None:
     height = 1.66
 
     add_ico("pillar_holdfast", (0, 0, 0.085), (0.38, 0.36, 0.13), rock, root)
-    lobes = 7
-    for index in range(lobes):
-        t = index / (lobes - 1)
-        z = 0.16 + (height - 0.30) * t
-        radius = 0.26 * (1.0 - 0.42 * t) * (1.0 + 0.18 * math.sin(index * 1.7))
-        token = teal if index % 3 != 2 else red
-        add_ico(
-            f"pillar_lobe_{index}", (rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03), z),
-            (radius, radius * rng.uniform(0.88, 1.05), radius * 0.72), token, root,
-            rotation=(rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), index * GOLDEN_ANGLE),
-        )
-        # Pinched waist between lobes: the growth ring of a pillar coral.
-        if index < lobes - 1:
-            add_cylinder(f"pillar_waist_{index}", (0, 0, z + (height - 0.30) / (lobes - 1) * 0.5),
-                         radius * 0.56, 0.045, cream, root, vertices=8)
+    sections = []
+    for index in range(13):
+        t = index / 12
+        radius = .26 * (1 - .42 * t) * (1 + .16 * math.sin(t * math.tau * 3))
+        sections.append(((.03 * math.sin(t * 3), .025 * math.sin(t * 4), .11 + 1.40 * t), radius, radius * .94))
+    sections.extend((((.01, -.01, 1.61), .15, .14), ((.01, -.01, 1.69), .05, .045)))
+    colony = add_lofted_form("pillar_colony", sections, teal, root, sides=10)
     # Two side branches, each springing from a lobe rather than mid-air.
     for index, base_t in enumerate((0.38, 0.62)):
         z = 0.16 + (height - 0.30) * base_t
         angle = index * 2.4 + 0.6
         tip = (math.cos(angle) * 0.30, math.sin(angle) * 0.28, z + 0.34)
-        add_tapered_beam(f"pillar_branch_{index}", (0, 0, z), tip, 0.075, 0.048, teal, root, vertices=6)
+        grow_branch(colony, (0, 0, z), tip, .075, .048, token=red if index else teal)
         add_ico(f"pillar_branch_tip_{index}", tip, (0.105, 0.100, 0.085), red if index else teal, root)
-    add_ico("pillar_crown", (0, 0, height - 0.05), (0.185, 0.175, 0.135), cream, root)
 
 
 def coral_staghorn(spec: dict, root) -> None:
@@ -57,14 +49,15 @@ def coral_staghorn(spec: dict, root) -> None:
             rotation=(0, 0, angle),
         )
     trunk_top = (0.02, 0.0, 0.46)
-    add_tapered_beam("staghorn_trunk", (0, 0, 0.08), trunk_top, 0.105, 0.070, teal, root, vertices=7)
+    colony = add_limb_tube("staghorn_colony", ((0, 0, .08), (.01, 0, .28), trunk_top),
+                           (.105, .087, .070), teal, root, sides=9)
 
     tips = []
     for index in range(3):
         angle = index * math.tau / 3 + 0.4
         reach = rng.uniform(0.34, 0.50)
         tip = (trunk_top[0] + math.cos(angle) * reach, math.sin(angle) * reach * 0.72, trunk_top[2] + rng.uniform(0.28, 0.44))
-        add_tapered_beam(f"staghorn_limb_{index}", trunk_top, tip, 0.062, 0.038, teal, root, vertices=6)
+        grow_branch(colony, trunk_top, tip, .062, .038)
         tips.append((tip, angle))
 
     for index, (tip, angle) in enumerate(tips):
@@ -76,7 +69,7 @@ def coral_staghorn(spec: dict, root) -> None:
                 tip[1] + math.sin(branch_angle) * reach * 0.72,
                 tip[2] + rng.uniform(0.14, 0.28),
             )
-            add_tapered_beam(f"staghorn_fork_{index}_{jindex}", tip, fork, 0.034, 0.020, ochre, root, vertices=6)
+            grow_branch(colony, tip, fork, .034, .020, token=ochre)
             # Pale blunt tip: the living growing edge of a staghorn.
             add_ico(f"staghorn_tip_{index}_{jindex}", fork, (0.038, 0.036, 0.042), cream, root)
         add_ico(f"staghorn_node_{index}", tip, (0.048, 0.046, 0.044), ochre, root)

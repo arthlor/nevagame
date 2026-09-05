@@ -120,6 +120,8 @@ def main() -> None:
     if first != second:
         raise AssertionError("Authored builders are not deterministic")
     print(f"[NEVA ART] Authored builder tests passed for 12 builders, COLOR_0, and {len(first)} meshes")
+    from test_surface_builders import test_surface_builders
+    test_surface_builders()
 
 
 if __name__ == "__main__":

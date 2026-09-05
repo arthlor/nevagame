@@ -42,6 +42,42 @@ export const POTATO_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   withered: ASSET_IDS.CROP_POTATO_WITHERED
 };
 
+export const BARLEY_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: ASSET_IDS.CROP_BARLEY_SEEDED,
+  sprout: ASSET_IDS.CROP_BARLEY_SPROUT,
+  growing: ASSET_IDS.CROP_BARLEY_GROWING,
+  mature: ASSET_IDS.CROP_BARLEY_MATURE,
+  overripe: ASSET_IDS.CROP_BARLEY_OVERRIPE,
+  withered: ASSET_IDS.CROP_BARLEY_WITHERED
+};
+
+export const CORN_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: ASSET_IDS.CROP_CORN_SEEDED,
+  sprout: ASSET_IDS.CROP_CORN_SPROUT,
+  growing: ASSET_IDS.CROP_CORN_GROWING,
+  mature: ASSET_IDS.CROP_CORN_MATURE,
+  overripe: ASSET_IDS.CROP_CORN_OVERRIPE,
+  withered: ASSET_IDS.CROP_CORN_WITHERED
+};
+
+export const FLAX_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: ASSET_IDS.CROP_FLAX_SEEDED,
+  sprout: ASSET_IDS.CROP_FLAX_SPROUT,
+  growing: ASSET_IDS.CROP_FLAX_GROWING,
+  mature: ASSET_IDS.CROP_FLAX_MATURE,
+  overripe: ASSET_IDS.CROP_FLAX_OVERRIPE,
+  withered: ASSET_IDS.CROP_FLAX_WITHERED
+};
+
+export const CARROT_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
+  seeded: ASSET_IDS.CROP_CARROT_SEEDED,
+  sprout: ASSET_IDS.CROP_CARROT_SPROUT,
+  growing: ASSET_IDS.CROP_CARROT_GROWING,
+  mature: ASSET_IDS.CROP_CARROT_MATURE,
+  overripe: ASSET_IDS.CROP_CARROT_OVERRIPE,
+  withered: ASSET_IDS.CROP_CARROT_WITHERED
+};
+
 export const SUNFLOWER_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   seeded: ASSET_IDS.CROP_SUNFLOWER_SEEDED,
   sprout: ASSET_IDS.CROP_SUNFLOWER_SPROUT,
@@ -61,29 +97,25 @@ export const OLIVE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
 };
 
 const APPLE_TREE_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
-  seeded: WHEAT_STAGE_ASSET.seeded,
-  sprout: WHEAT_STAGE_ASSET.sprout,
-  growing: WHEAT_STAGE_ASSET.growing,
-  mature: ASSET_IDS.TREE_APPLE_A,
-  overripe: ASSET_IDS.TREE_APPLE_A,
-  withered: WHEAT_STAGE_ASSET.withered
+  seeded: ASSET_IDS.CROP_APPLE_TREE_SEEDED,
+  sprout: ASSET_IDS.CROP_APPLE_TREE_SPROUT,
+  growing: ASSET_IDS.CROP_APPLE_TREE_GROWING,
+  mature: ASSET_IDS.CROP_APPLE_TREE_MATURE,
+  overripe: ASSET_IDS.CROP_APPLE_TREE_OVERRIPE,
+  withered: ASSET_IDS.CROP_APPLE_TREE_WITHERED
 };
 
 /**
- * Every playable crop has a presentation binding. Wheat, tomato, potato,
- * sunflower, and olive have dedicated Blender stage families. Barley, corn, and flax reuse the
- * wheat meshes and carrot reuses potato until those generators exist — these
- * are silhouette stand-ins, not distinct crop models. Apple uses the wheat
- * early stages plus the apple-tree mesh at mature/overripe.
+ * Every playable crop has a presentation binding with a dedicated 6-stage Blender family.
  */
 export const CROP_STAGE_ASSETS: Readonly<Record<string, Readonly<Record<CropStage, AssetId>>>> = {
   "crop.wheat": WHEAT_STAGE_ASSET,
   "crop.tomato": TOMATO_STAGE_ASSET,
   "crop.potato": POTATO_STAGE_ASSET,
-  "crop.barley": WHEAT_STAGE_ASSET,
-  "crop.corn": WHEAT_STAGE_ASSET,
-  "crop.carrot": POTATO_STAGE_ASSET,
-  "crop.flax": WHEAT_STAGE_ASSET,
+  "crop.barley": BARLEY_STAGE_ASSET,
+  "crop.corn": CORN_STAGE_ASSET,
+  "crop.carrot": CARROT_STAGE_ASSET,
+  "crop.flax": FLAX_STAGE_ASSET,
   "crop.apple_tree": APPLE_TREE_STAGE_ASSET,
   "crop.sunflower": SUNFLOWER_STAGE_ASSET,
   "crop.olive_tree": OLIVE_TREE_STAGE_ASSET

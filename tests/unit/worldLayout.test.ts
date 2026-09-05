@@ -537,7 +537,7 @@ describe("WorldLayout", () => {
       // Neva regional, then the farmstead paths, then western beach and northern bluff trails...
       "arterial", "lane", "arterial", "lane", "trail",
       "lane", "trail", "lane", "trail", "trail",
-      "trail", "trail",
+      "trail", "trail", "trail", "trail",
       // ...then Sunreach: cove-terraces, terraces-scrub, scrub-ridge, scrub-reef.
       "arterial", "lane", "trail", "trail"
     ]);
@@ -582,15 +582,14 @@ describe("WorldLayout", () => {
       (placement) => placement.compositionTag?.islandId !== "island.sunreach"
     );
     expect(second).toEqual(first);
-    expect(firstNeva.filter((placement) => placement.category === "grass")).toHaveLength(
-      GROUND_COVER_DENSITY.high.grass + HOMESTEAD_MEADOW_GRASS_COUNT
-    );
-    expect(firstNeva.filter((placement) => placement.category === "flowers")).toHaveLength(GROUND_COVER_DENSITY.high.flowers);
-    expect(firstNeva.filter((placement) => placement.category === "bushes")).toHaveLength(GROUND_COVER_DENSITY.high.bushes);
-    expect(firstNeva.filter((placement) => placement.category === "meadowTall")).toHaveLength(GROUND_COVER_DENSITY.high.meadowTall);
-    expect(firstNeva.filter((placement) => placement.category === "pebbles")).toHaveLength(GROUND_COVER_DENSITY.high.pebbles);
-    expect(firstNeva.filter((placement) => placement.category === "paving")).toHaveLength(GROUND_COVER_DENSITY.high.paving);
-    expect(firstNeva.filter((placement) => placement.category === "driftwood")).toHaveLength(GROUND_COVER_DENSITY.high.driftwood);
+    // The authored harbor removes scatter from open sand and clear passages.
+    // These remain ceilings, with most of the island's population preserved.
+    for(const [category,budget] of Object.entries(GROUND_COVER_DENSITY.high)) {
+      const count=firstNeva.filter((placement)=>placement.category===category).length;
+      const ceiling=budget+(category==="grass"?HOMESTEAD_MEADOW_GRASS_COUNT:0);
+      expect(count,category).toBeLessThanOrEqual(ceiling);
+      expect(count,category).toBeGreaterThan(ceiling*.75);
+    }
   }, 60_000);
 
   it("derives district rhythm and category density from deterministic causal fields", () => {
@@ -659,7 +658,7 @@ describe("WorldLayout", () => {
     expect(causalCount("island.neva", "tree")).toBeLessThanOrEqual(235);
     expect(causalCount("island.neva", "tree")).toBeGreaterThanOrEqual(180);
     expect(causalCount("island.neva", "bush")).toBe(115);
-    expect(causalCount("island.neva", "rock")).toBe(72);
+    expect(causalCount("island.neva", "rock")).toBe(66);
     expect(causalCount("island.neva", "reed")).toBeGreaterThan(10);
     expect(causalCount("island.sunreach", "tree")).toBe(48);
     expect(causalCount("island.sunreach", "bush")).toBe(62);
@@ -754,7 +753,10 @@ describe("WorldLayout", () => {
     const grassVariantCounts = ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"]
       .map((assetId) => groundCoverAssetCounts.get(assetId) ?? 0);
     const grassTotal = grassVariantCounts.reduce((sum, count) => sum + count, 0);
-    expect(grassTotal).toBe(GROUND_COVER_DENSITY.high.grass + HOMESTEAD_MEADOW_GRASS_COUNT);
+    const retainedCount = (category: string) => layout.groundCoverPlacements.filter(
+      (placement) => placement.category === category && placement.compositionTag?.islandId !== "island.sunreach"
+    ).length;
+    expect(grassTotal).toBe(retainedCount("grass"));
     expect(grassVariantCounts.every((count) => count / grassTotal > 0.28)).toBe(true);
     expect(grassVariantCounts.every((count) => count / grassTotal < 0.39)).toBe(true);
     const otherCover = Object.fromEntries(
@@ -764,17 +766,17 @@ describe("WorldLayout", () => {
     expect(otherCover.foliage_flower_drift_b).toBeGreaterThan(600);
     expect(otherCover.foliage_flower_drift_c).toBeGreaterThan(600);
     expect((otherCover.foliage_bush_a ?? 0) + (otherCover.foliage_bush_round_a ?? 0))
-      .toBe(GROUND_COVER_DENSITY.high.bushes);
+      .toBe(retainedCount("bushes"));
     expect(
       (otherCover.foliage_meadow_tall_a ?? 0)
         + (otherCover.foliage_meadow_tall_b ?? 0)
         + (otherCover.foliage_reeds_a ?? 0)
         + (otherCover.foliage_cattail_a ?? 0)
         + (otherCover.foliage_beach_grass_a ?? 0)
-    ).toBe(GROUND_COVER_DENSITY.high.meadowTall);
+    ).toBe(retainedCount("meadowTall"));
     expect(
       (otherCover.prop_path_slab_a ?? 0) + (otherCover.prop_path_slab_b ?? 0)
-    ).toBe(GROUND_COVER_DENSITY.high.paving);
+    ).toBe(retainedCount("paving"));
     expect(otherCover.prop_driftwood_a).toBeGreaterThan(0);
     expect(otherCover.prop_driftwood_b).toBeGreaterThan(0);
     expect(otherCover.prop_driftwood_c).toBeGreaterThan(0);
@@ -830,15 +832,15 @@ describe("WorldLayout", () => {
       const landwardDistance = WorldLayout.coastlineZ(placement.x) - placement.z;
       return landwardDistance >= 0.45 && landwardDistance <= 5.4;
     })).toBe(true);
-    expect(
-      layout.groundCoverPlacements.filter((placement) =>
+    const retainedCoastPebbles = layout.groundCoverPlacements.filter((placement) =>
         placement.category === "pebbles"
         && placement.id.startsWith("seeded-fill.ground-cover.coast.pebbles")
-      )
-    ).toHaveLength(Math.round(GROUND_COVER_DENSITY.high.pebbles * 0.42));
+      );
+    expect(retainedCoastPebbles.length).toBeGreaterThan(0);
+    expect(retainedCoastPebbles.length).toBeLessThanOrEqual(Math.round(GROUND_COVER_DENSITY.high.pebbles * 0.42));
 
     const coastalRocks = authored.filter((placement) => placement.assetId.startsWith("rock_coastal_"));
-    expect(coastalRocks).toHaveLength(5);
+    expect(coastalRocks).toHaveLength(3);
     for (const placement of coastalRocks) {
       expect(WorldLayout.terrainNormal(placement.x, placement.z).y).toBeGreaterThan(0.8);
       expect(isPlacementFootprintStable(placement, 0.8, 1.1)).toBe(true);
@@ -861,7 +863,7 @@ describe("WorldLayout", () => {
       expect(WorldLayout.farmSoilInfluence(rabbit.x, rabbit.z), rabbit.id).toBeLessThan(0.05);
       expect(WorldLayout.terrainNormal(rabbit.x, rabbit.z).y, rabbit.id).toBeGreaterThan(0.98);
     }
-    expect(authored.filter((placement) => placement.assetId === "prop_fishing_net_rack_a")).toHaveLength(1);
+    expect(authored.filter((placement) => placement.assetId === "prop_fishing_net_rack_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "house_cottage_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "house_cottage_b")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "house_cottage_c")).toHaveLength(1);
@@ -1038,13 +1040,15 @@ describe("WorldLayout", () => {
       "village-harbor",
       "village-lighthouse",
       "cliffside-coastal-walk",
+      "harbor-beach-path",
+      "harbor-rocky-landing",
       "farm-headwater-trail",
       "western-overlook-trail",
       "western-beach-trail",
       "northern-bluff-trail"
     ]);
     expect(routes.map((route) => route.kind)).toEqual([
-      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail", "trail", "trail"
+      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail", "trail", "trail", "trail", "trail"
     ]);
     // Every route on every island, not just the Neva ones: road ribbons and
     // route terrain conformity are built from these samples.

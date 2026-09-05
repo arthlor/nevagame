@@ -3,8 +3,18 @@ from __future__ import annotations
 import math
 import bpy
 from mathutils import Vector
-from common.geometry import add_box, add_collision_primitives, add_cone, add_cylinder, add_grip_marker, add_ico, add_marker, add_ring, add_tapered_beam, add_tri_prism
+from common.geometry import add_box, add_collision_primitives, add_cone, add_cylinder, add_grip_marker, graft_limb, add_ico, add_leaf_blade, add_limb_tube, add_lofted_form, add_marker, add_ring, add_tapered_beam, add_tri_prism, remember_rest_transform
 from common.authored import add_rope_line
+from common.creature import (
+    author_creature_clip,
+    bake_pivot_skin,
+    bind_creature_skin,
+    bone,
+    build_creature_armature,
+    decimate_skinned_lod,
+    join_creature_surface,
+    rest_creature_pose,
+)
 from common.lod import consolidate_lod_level, create_lod_roots
 
 FRAME_RATE = 30.0
@@ -83,6 +93,7 @@ def _author_fauna_action(spec: dict, clip_name: str, node, keyframes) -> None:
     clip = next((entry for entry in _animation_clips(spec) if entry["name"] == clip_name), None)
     if clip is None:
         return
+    remember_rest_transform(node)
     fauna_frame_rate = _fauna_frame_rate(spec)
     bpy.context.scene.render.fps = int(fauna_frame_rate)
     bpy.context.scene.render.fps_base = 1.0
@@ -122,7 +133,14 @@ def _author_fauna_tracks(spec: dict, clip_name: str, tracks) -> None:
     fauna_frame_rate = _fauna_frame_rate(spec)
     bpy.context.scene.render.fps = int(fauna_frame_rate)
     bpy.context.scene.render.fps_base = 1.0
-    for track_index, (node, keyframes) in enumerate(tracks):
+    expanded = []
+    for node, keyframes in tracks:
+        expanded.append((node, keyframes))
+        sibling = bpy.data.objects.get(node.name + "_lod1")
+        if sibling is not None:
+            expanded.append((sibling, keyframes))
+    for track_index, (node, keyframes) in enumerate(expanded):
+        remember_rest_transform(node)
         action_name = clip_name if track_index == 0 else f"{clip_name}_{node.name}"
         action = bpy.data.actions.new(name=action_name)
         action["neva_loop"] = clip.get("loop", False)
@@ -148,6 +166,24 @@ def _author_fauna_tracks(spec: dict, clip_name: str, tracks) -> None:
         nla_track.strips.new(clip_name, int(action.frame_range[0]), action)
         node.location = base_location
         node.rotation_euler = base_rotation
+
+
+def _creature_scaffold(spec: dict, root, pivots, bones):
+    """Build the node shape the runtime expects, plus the skeleton that deforms.
+
+    `WorldScene` resolves `<id>_motion_root`, `<id>_head_pivot`, `<id>_tail_pivot`
+    and the wing pivots by name, so those empties are authored at their historic
+    locations whether or not they still carry keys. On a skinned animal they are
+    inert markers -- exactly the arrangement the published cow already ships --
+    and the armature underneath does the deforming.
+    """
+    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
+    pivot_nodes = {
+        name: _fauna_motion_node(f"{spec['id']}_{name}", motion_root, location)
+        for name, location in pivots
+    }
+    rig = build_creature_armature(f"{spec['id']}_rig", bones, motion_root)
+    return motion_root, pivot_nodes, rig
 
 
 def fauna_cow(spec: dict, root) -> None:
@@ -241,6 +277,8 @@ def fauna_cow(spec: dict, root) -> None:
             _reparent_preserving_world(obj, tail_pivot)
         else:
             _reparent_preserving_world(obj, motion_root)
+    # The deforming body remains separate from the rigid feet and feathers.
+    _reparent_preserving_world(anatomy, root)
     consolidate_lod_level(motion_root, f"{spec['id']}_body")
     consolidate_lod_level(head_pivot, f"{spec['id']}_head")
     consolidate_lod_level(tail_pivot, f"{spec['id']}_tail")
@@ -264,6 +302,89 @@ def fauna_cow(spec: dict, root) -> None:
         (1.8, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
     ])
     add_collision_primitives(spec, root)
+
+
+def _donkey_anatomy(spec, parent, name):
+    from common.materials import get_or_create_material
+    s = spec["parameters"].get("scale", 1.0)
+    length = spec["parameters"].get("legLength", 1.0)
+    coat, mealy = spec["palette"][:2]
+    sections = [
+        (0, .73, 1.16, .14, .15), (0, .47, 1.16, .25, .22),
+        (0, .04, 1.14, .28, .23), (0, -.38, 1.12, .26, .23),
+        (0, -.60, 1.30, .19, .21), (0, -.78, 1.49, .14, .18),
+        (0, -.98, 1.58, .15, .14), (0, -1.17, 1.49, .12, .10),
+        (0, -1.35, 1.48, .09, .075),
+    ]
+    surface = add_limb_tube(name, [tuple(v * s for v in row[:3]) for row in sections],
+                            [(row[3] * s, row[4] * s) for row in sections], coat, parent, sides=12)
+    surface.data.materials.append(get_or_create_material(mealy))
+    for face in surface.data.polygons:
+        if face.center.y < -1.10 * s or (face.center.z < 1.02 * s and face.center.y > -.55 * s):
+            face.material_index = 1
+    bpy.context.view_layer.update()
+    limbs = {}
+    for label, x, y in (("front_left", -.24, -.42), ("front_right", .24, -.42),
+                         ("rear_left", -.24, .46), ("rear_right", .24, .46)):
+        target = Vector((x * s, y * s, 1.01 * s))
+        candidates = [face for face in surface.data.polygons
+                      if len(face.vertices) == 4 and face.center.z > .93 * s
+                      and face.normal.x * x > .03]
+        opening = min(candidates, key=lambda face: (face.center - target).length_squared).index
+        knee_y = y - .015 if label.startswith("front") else y + .04
+        knee_z = .50 * length + (0 if label.startswith("front") else .04)
+        limbs[label] = graft_limb(surface, [opening],
+            [(x * s, y * s, .89 * s), (x * s, knee_y * s, knee_z * s),
+             (x * s, y * s, .13 * s), (x * s, (y - .015) * s, .075 * s)],
+            [.105 * s, .075 * s, .052 * s, .055 * s], token=coat)
+    return {"surface": surface, "limbs": limbs}
+
+
+def _skin_donkey(spec, motion_root, levels):
+    s = spec["parameters"].get("scale", 1.0)
+    pivots = levels[0]
+    bpy.context.view_layer.update()
+    inverse = motion_root.matrix_world.inverted()
+    mapping = {"donkey_spine": motion_root, "donkey_head": pivots["head"]}
+    bones = [bone("donkey_spine", (0, .5 * s, 1.15 * s), (0, -.4 * s, 1.15 * s)),
+             bone("donkey_head", (0, -.78 * s, 1.44 * s), (0, -1.35 * s, 1.48 * s))]
+    for label, upper in pivots["legs"].items():
+        lower = pivots["lower_legs"][label]
+        hip = inverse @ upper.matrix_world.translation
+        knee = inverse @ lower.matrix_world.translation
+        foot = Vector((hip.x, hip.y, .075 * s))
+        bones.extend([bone("donkey_" + label, hip, knee), bone("donkey_lower_" + label, knee, foot)])
+        mapping["donkey_" + label] = upper
+        mapping["donkey_lower_" + label] = lower
+    rig = build_creature_armature(spec["id"] + "_rig", bones, motion_root)
+    surface = pivots["anatomy"]["surface"]
+    bind_creature_skin(surface, rig, bones)
+
+    def weights(indices, values):
+        for index in indices:
+            for group in list(surface.data.vertices[index].groups):
+                surface.vertex_groups[group.group].remove([index])
+            for name, value in values.items():
+                if value > 0:
+                    surface.vertex_groups[name].add([index], value, "REPLACE")
+
+    for vertex in surface.data.vertices:
+        head = max(0.0, min(1.0, (-vertex.co.y / s - .48) / .40))
+        weights([vertex.index], {"donkey_spine": 1 - head, "donkey_head": head})
+    for label, rings in pivots["anatomy"]["limbs"].items():
+        upper, lower = "donkey_" + label, "donkey_lower_" + label
+        for ring, values in zip(rings, [
+            {"donkey_spine": .70, upper: .30}, {upper: 1.0},
+            {upper: .5, lower: .5}, {lower: 1.0}, {lower: 1.0},
+        ]):
+            weights(ring, values)
+    for index, level in enumerate(levels[1:], 1):
+        old = level["anatomy"]["surface"]
+        parent, name = old.parent, old.name
+        bpy.data.objects.remove(old, do_unlink=True)
+        ratio = min(.50, spec["lodLevels"][index]["triangleRatioMax"])
+        level["anatomy"]["surface"] = decimate_skinned_lod(surface, rig, ratio, name, parent)
+    bake_pivot_skin(spec, rig, mapping, frame_rate=DONKEY_FRAME_RATE)
 
 
 def _build_donkey_lod(spec: dict, lod_root):
@@ -297,47 +418,8 @@ def _build_donkey_lod(spec: dict, lod_root):
 
     body_meshes = []
 
-    # 2. Torso / Barrel Anatomy
-    body_meshes.append(add_box(
-        named("chest"), (0.0, -0.38 * s, 1.12 * s), (0.52 * s, 0.46 * s, 0.46 * s),
-        coat, lod_root, bevel=0.06 * s if detail else 0.0,
-    ))
-    body_meshes.append(add_box(
-        named("ribcage"), (0.0, 0.04 * s, 1.14 * s), (0.56 * s, 0.52 * s, 0.46 * s),
-        coat, lod_root, bevel=0.06 * s if detail else 0.0,
-    ))
-    body_meshes.append(add_box(
-        named("croup"), (0.0, 0.48 * s, 1.16 * s), (0.50 * s, 0.46 * s, 0.44 * s),
-        coat, lod_root, bevel=0.06 * s if detail else 0.0, rotation=(math.radians(12), 0.0, 0.0),
-    ))
-
-    # Cream Underbelly & Chest Highlight
-    body_meshes.append(add_box(
-        named("belly_pale"), (0.0, 0.04 * s, 0.92 * s), (0.42 * s, 0.80 * s, 0.16 * s),
-        mealy, lod_root, bevel=0.04 * s if detail else 0.0,
-    ))
-    body_meshes.append(add_box(
-        named("chest_pale"), (0.0, -0.40 * s, 0.95 * s), (0.36 * s, 0.30 * s, 0.18 * s),
-        mealy, lod_root, bevel=0.04 * s if detail else 0.0,
-    ))
-
-    # Dorsal Stripe & Shoulder Cross
-    if detail:
-        body_meshes.append(add_box(
-            named("dorsal_stripe"), (0.0, 0.08 * s, 1.375 * s), (0.06 * s, 1.05 * s, 0.02 * s),
-            dark, lod_root, bevel=0.0,
-        ))
-        body_meshes.append(add_box(
-            named("shoulder_cross"), (0.0, -0.28 * s, 1.34 * s), (0.54 * s, 0.07 * s, 0.02 * s),
-            dark, lod_root, bevel=0.0,
-        ))
-
-    # 3. Neck & Upright Mane
-    neck = add_tapered_beam(
-        named("neck"), (0.0, -0.32 * s, 1.18 * s), (0.0, -0.76 * s, 1.44 * s),
-        0.23 * s, 0.17 * s, coat, lod_root, vertices=6 if detail else 4,
-    )
-    body_meshes.append(neck)
+    # One barrel-to-neck-to-muzzle surface. Pale regions share its vertices.
+    anatomy = _donkey_anatomy(spec, lod_root, named("anatomy"))
 
     mane_count = 6 if detail else 3
     for index in range(mane_count):
@@ -354,27 +436,6 @@ def _build_donkey_lod(spec: dict, lod_root):
 
     # 4. Authored Low-Poly Head & Snout (parented to head_pivot)
     head_meshes = []
-    head_meshes.append(add_box(
-        named("skull"), (0.0, -0.98 * s, 1.58 * s), (0.30 * s, 0.34 * s, 0.28 * s),
-        coat, lod_root, bevel=0.04 * s if detail else 0.0, rotation=(math.radians(14), 0.0, 0.0),
-    ))
-    head_meshes.append(add_box(
-        named("forehead"), (0.0, -0.96 * s, 1.66 * s), (0.24 * s, 0.26 * s, 0.12 * s),
-        coat, lod_root, bevel=0.02 * s if detail else 0.0, rotation=(math.radians(14), 0.0, 0.0),
-    ))
-    head_meshes.append(add_box(
-        named("cheeks"), (0.0, -0.94 * s, 1.44 * s), (0.26 * s, 0.26 * s, 0.14 * s),
-        coat, lod_root, bevel=0.03 * s if detail else 0.0,
-    ))
-    head_meshes.append(add_box(
-        named("muzzle_pale"), (0.0, -1.24 * s, 1.48 * s), (0.22 * s, 0.26 * s, 0.18 * s),
-        mealy, lod_root, bevel=0.03 * s if detail else 0.0, rotation=(math.radians(16), 0.0, 0.0),
-    ))
-    head_meshes.append(add_box(
-        named("chin_pale"), (0.0, -1.18 * s, 1.38 * s), (0.18 * s, 0.18 * s, 0.08 * s),
-        mealy, lod_root, bevel=0.02 * s if detail else 0.0,
-    ))
-
     if detail:
         head_meshes.append(add_tri_prism(
             named("forelock_tuft"), (0.0, -0.88 * s, 1.74 * s),
@@ -624,9 +685,12 @@ def _build_donkey_lod(spec: dict, lod_root):
             )
             lower_parts.append(hoof_mesh)
 
-        _reparent_preserving_world(upper_mesh, pivot)
+        bpy.data.objects.remove(upper_mesh, do_unlink=True)
         for mesh in lower_parts:
-            _reparent_preserving_world(mesh, lower)
+            if "hoof" in mesh.name:
+                _reparent_preserving_world(mesh, lower)
+            else:
+                bpy.data.objects.remove(mesh, do_unlink=True)
         leg_pivots[leg_name] = pivot
         lower_pivots[leg_name] = lower
 
@@ -649,6 +713,7 @@ def _build_donkey_lod(spec: dict, lod_root):
         "tail": tail_pivot,
         "legs": leg_pivots,
         "lower_legs": lower_pivots,
+        "anatomy": anatomy,
     }
 
 
@@ -808,15 +873,18 @@ def fauna_donkey(spec: dict, root) -> None:
     """Build the persistent starter donkey with a stable rider socket and gait clips."""
     motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
     pivots = None
+    levels = []
     if spec.get("lodLevels"):
         for lod_index, lod_root in create_lod_roots(spec, root):
             _reparent_preserving_world(lod_root, motion_root)
             lod_spec = {**spec, "parameters": dict(spec["parameters"]), "_lodIndex": lod_index}
             level_pivots = _build_donkey_lod(lod_spec, lod_root)
+            levels.append(level_pivots)
             if lod_index == 0:
                 pivots = level_pivots
     else:
         pivots = _build_donkey_lod(spec, root)
+        levels.append(pivots)
         for child in list(root.children):
             if child is motion_root:
                 continue
@@ -1023,6 +1091,7 @@ def fauna_donkey(spec: dict, root) -> None:
         (pivots["tail"], _donkey_identity(1.6)),
         *standing_tracks(1.6),
     ])
+    _skin_donkey(spec, motion_root, levels)
 
 
 def fauna_chicken(spec: dict, root) -> None:
@@ -1033,14 +1102,19 @@ def fauna_chicken(spec: dict, root) -> None:
     s = scale
     comb_scale = params.get("combScale", 1.0)
 
-    add_ico("chicken_body", (0, 0.02 * s, 0.38 * s), (0.32 * s, 0.40 * s, 0.30 * s), feather, root, subdivisions=2)
-    add_ico("chicken_breast", (0, -0.12 * s, 0.34 * s), (0.24 * s, 0.22 * s, 0.22 * s), feather, root, subdivisions=2)
+    anatomy = add_lofted_form(f"{spec['id']}_anatomy", [
+        ((0, .05 * s, .19 * s), .12 * s, .19 * s),
+        ((0, .03 * s, .30 * s), .25 * s, .34 * s),
+        ((0, .02 * s, .43 * s), .28 * s, .38 * s),
+        ((0, -.10 * s, .54 * s), .19 * s, .24 * s),
+        ((0, -.20 * s, .60 * s), .085 * s, .10 * s),
+        ((0, -.26 * s, .72 * s), .11 * s, .13 * s),
+        ((0, -.26 * s, .80 * s), .065 * s, .08 * s),
+    ], feather, root, sides=12)
     for wing, sign in (("left", -1), ("right", 1)):
-        add_ico(
-            f"chicken_wing_{wing}", (sign * 0.22 * s, 0.02 * s, 0.36 * s),
-            (0.10 * s, 0.18 * s, 0.14 * s), feather, root, subdivisions=2,
-            rotation=(0, sign * 0.35, 0),
-        )
+        add_leaf_blade(f"chicken_wing_{wing}", (sign * .23 * s, -.10 * s, .44 * s),
+                       (sign * .26 * s, .23 * s, .32 * s), .22 * s, feather, root,
+                       thickness=.035 * s, cup=.25, stations=4)
     for index, pitch in enumerate((28, 42, 55)):
         add_tri_prism(
             f"chicken_tail_{index}",
@@ -1049,8 +1123,6 @@ def fauna_chicken(spec: dict, root) -> None:
             dark if index else feather, root,
             rotation=(math.radians(pitch), 0, (index - 1) * 0.12),
         )
-    add_cone("chicken_neck", (0, -0.20 * s, 0.54 * s), 0.11 * s, 0.08 * s, 0.28 * s, feather, root, vertices=6)
-    add_ico("chicken_head", (0, -0.26 * s, 0.72 * s), (0.11 * s, 0.13 * s, 0.11 * s), feather, root, subdivisions=2)
     add_cone("chicken_beak", (0, -0.38 * s, 0.70 * s), 0.04 * s, 0.006 * s, 0.10 * s, beak_token, root, vertices=4, rotation=(math.pi / 2, 0, 0))
     add_ico("chicken_eye_left", (-0.08 * s, -0.30 * s, 0.74 * s), (0.018 * s, 0.018 * s, 0.018 * s), dark, root, subdivisions=1)
     add_ico("chicken_eye_right", (0.08 * s, -0.30 * s, 0.74 * s), (0.018 * s, 0.018 * s, 0.018 * s), dark, root, subdivisions=1)
@@ -1087,6 +1159,10 @@ def fauna_chicken(spec: dict, root) -> None:
     for obj in list(bpy.context.scene.objects):
         if obj.type != "MESH" or obj.parent is not root:
             continue
+        # Bind only the connected anatomy. Same-color tail feathers must stay
+        # with the rigid body parts, outside the neck's skin-weight solve.
+        if obj is anatomy:
+            continue
         if obj.name.startswith(head_prefixes):
             _reparent_preserving_world(obj, head_pivot)
         elif obj.name == "chicken_wing_left":
@@ -1119,176 +1195,445 @@ def fauna_chicken(spec: dict, root) -> None:
         (1.05, (math.radians(-7), 0.0, math.radians(-14)), (0.0, 0.0, 0.0)),
         (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
     ])
+    _reparent_preserving_world(anatomy, motion_root)
+    bones = [bone("chicken_spine", (0, .18 * s, .38 * s), (0, -.15 * s, .42 * s)),
+             bone("chicken_head", (0, -.18 * s, .54 * s), (0, -.26 * s, .77 * s))]
+    rig = build_creature_armature(spec["id"] + "_rig", bones, motion_root)
+    bind_creature_skin(anatomy, rig, bones)
+    for vertex in anatomy.data.vertices:
+        point = anatomy.matrix_world @ vertex.co
+        head = max(0.0, min(1.0, (point.z / s - .48) / .16))
+        for group in list(vertex.groups):
+            anatomy.vertex_groups[group.group].remove([vertex.index])
+        for name, value in (("chicken_spine", 1 - head), ("chicken_head", head)):
+            if value > 0:
+                anatomy.vertex_groups[name].add([vertex.index], value, "REPLACE")
+    bake_pivot_skin(spec, rig, {"chicken_spine": motion_root, "chicken_head": head_pivot},
+                    frame_rate=FAUNA_FRAME_RATE)
     add_collision_primitives(spec, root)
 
 
 def fauna_rabbit(spec: dict, root) -> None:
-    """Faceted meadow rabbit with idle, look, and hop clips."""
+    """Meadow rabbit as one skinned body: crouched spine, folded hind legs, ears.
+
+    The previous rabbit was six ico-spheres and four boxes floating at fixed
+    offsets, so the hop clip slid the whole pile upward as a unit. A rabbit hops
+    by loading and releasing its haunches, which needs a spine and hind legs that
+    actually bend.
+    """
     params = spec["parameters"]
     fur, dark, pink = spec["palette"][:3]
     s = params.get("scale", 0.55)
     ear = params.get("earLength", 1.0)
-    add_ico("rabbit_body", (0, 0.04 * s, 0.22 * s), (0.16 * s, 0.24 * s, 0.14 * s), fur, root, subdivisions=1)
-    add_ico("rabbit_haunch", (0, 0.14 * s, 0.2 * s), (0.14 * s, 0.12 * s, 0.12 * s), fur, root, subdivisions=1)
-    add_ico("rabbit_head", (0, -0.18 * s, 0.32 * s), (0.11 * s, 0.12 * s, 0.11 * s), fur, root, subdivisions=1)
-    add_ico("rabbit_muzzle", (0, -0.28 * s, 0.28 * s), (0.06 * s, 0.06 * s, 0.05 * s), pink, root, subdivisions=1)
-    add_ico("rabbit_eye_left", (-0.06 * s, -0.22 * s, 0.36 * s), (0.016 * s, 0.016 * s, 0.016 * s), dark, root, subdivisions=1)
-    add_ico("rabbit_eye_right", (0.06 * s, -0.22 * s, 0.36 * s), (0.016 * s, 0.016 * s, 0.016 * s), dark, root, subdivisions=1)
+
+    parts = [add_limb_tube("rabbit_body", [
+        (0, .270*s, .275*s), (0, .120*s, .330*s), (0, -.020*s, .320*s),
+        (0, -.150*s, .290*s), (0, -.200*s, .350*s), (0, -.260*s, .380*s),
+        (0, -.340*s, .360*s), (0, -.400*s, .330*s),
+    ], [.095*s, .150*s, .130*s, .100*s, .085*s, .098*s, .066*s, .032*s], fur, root, sides=10)]
+    parts.append(add_limb_tube(
+        "rabbit_muzzle",
+        [(0.0, -0.392 * s, 0.331 * s), (0.0, -0.438 * s, 0.322 * s)],
+        [0.030 * s, 0.016 * s],
+        pink,
+        root,
+        sides=5,
+    ))
+    parts.append(add_limb_tube(
+        "rabbit_tail",
+        [(0.0, 0.262 * s, 0.300 * s), (0.0, 0.318 * s, 0.335 * s), (0.0, 0.348 * s, 0.352 * s)],
+        [0.052 * s, 0.048 * s, 0.030 * s],
+        fur,
+        root,
+        sides=6,
+    ))
+
     for side, sign in (("left", -1), ("right", 1)):
-        add_box(
+        # A rabbit's ear is a cupped paddle, not a box: the blade's midrib gives
+        # it a front and a back so it still reads when the head turns.
+        parts.append(add_leaf_blade(
             f"rabbit_ear_{side}",
-            (sign * 0.05 * s, -0.16 * s, 0.48 * s),
-            (0.04 * s, 0.05 * s, 0.18 * s * ear),
+            (sign * 0.048 * s, -0.235 * s, 0.430 * s),
+            (sign * 0.076 * s, -0.190 * s, 0.430 * s + 0.330 * s * ear),
+            0.078 * s,
             fur,
             root,
-            rotation=(math.radians(-12), 0, sign * math.radians(8)),
-            bevel=0.0,
-        )
-        add_box(
+            thickness=0.012 * s,
+            cup=0.30,
+            bend=(sign * 0.012 * s, -0.020 * s, 0.0),
+            stations=4,
+        ))
+        parts.append(add_limb_tube(
+            f"rabbit_eye_{side}",
+            [(sign * 0.062 * s, -0.268 * s, 0.392 * s), (sign * 0.074 * s, -0.276 * s, 0.392 * s)],
+            [0.020 * s, 0.014 * s],
+            dark,
+            root,
+            sides=5,
+        ))
+        parts.append(add_limb_tube(
             f"rabbit_foreleg_{side}",
-            (sign * 0.06 * s, -0.08 * s, 0.08 * s),
-            (0.05 * s, 0.05 * s, 0.12 * s),
+            [
+                (sign * 0.060 * s, -0.110 * s, 0.255 * s),
+                (sign * 0.065 * s, -0.100 * s, 0.120 * s),
+                (sign * 0.065 * s, -0.125 * s, 0.012 * s),
+            ],
+            [0.046 * s, 0.036 * s, 0.030 * s],
             fur,
             root,
-            bevel=0.0,
-        )
-        add_box(
+            sides=6,
+        ))
+        # Folded hind leg: hip forward and high, hock behind, foot flat on the
+        # ground ahead of it. That fold is what makes a rabbit read as crouched.
+        parts.append(add_limb_tube(
             f"rabbit_hindleg_{side}",
-            (sign * 0.07 * s, 0.12 * s, 0.09 * s),
-            (0.07 * s, 0.08 * s, 0.14 * s),
+            [
+                (sign * 0.082 * s, 0.140 * s, 0.290 * s),
+                (sign * 0.088 * s, 0.180 * s, 0.135 * s),
+                (sign * 0.088 * s, 0.090 * s, 0.038 * s),
+                (sign * 0.088 * s, 0.010 * s, 0.014 * s),
+            ],
+            [0.072 * s, 0.054 * s, 0.044 * s, 0.032 * s],
             fur,
             root,
-            bevel=0.0,
-        )
-    add_tapered_beam("rabbit_tail", (0, 0.24 * s, 0.24 * s), (0, 0.3 * s, 0.28 * s), 0.03 * s, 0.04 * s, fur, root, vertices=5)
-    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
-    head_pivot = _fauna_motion_node(f"{spec['id']}_head_pivot", motion_root, (0.0, -0.16 * s, 0.3 * s))
-    for obj in list(bpy.context.scene.objects):
-        if obj.type != "MESH" or obj.parent is not root:
-            continue
-        if obj.name.startswith(("rabbit_head", "rabbit_muzzle", "rabbit_eye", "rabbit_ear")):
-            _reparent_preserving_world(obj, head_pivot)
-        else:
-            _reparent_preserving_world(obj, motion_root)
-    consolidate_lod_level(motion_root, f"{spec['id']}_body")
-    consolidate_lod_level(head_pivot, f"{spec['id']}_head")
-    _author_fauna_action(spec, "idle", motion_root, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.7, (math.radians(2), 0.0, 0.0), (0.0, 0.0, 0.01 * s)),
-        (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_fauna_action(spec, "look", head_pivot, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.4, (math.radians(-6), 0.0, math.radians(-18)), (0.0, 0.0, 0.0)),
-        (0.8, (math.radians(-4), 0.0, math.radians(16)), (0.0, 0.0, 0.0)),
-        (1.2, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_fauna_action(spec, "hop", motion_root, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.16, (math.radians(-8), 0.0, 0.0), (0.0, -0.04 * s, 0.08 * s)),
-        (0.32, (math.radians(6), 0.0, 0.0), (0.0, 0.0, 0.12 * s)),
-        (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
+            sides=6,
+        ))
+
+    bones = [
+        bone("spine", (0.0, 0.180 * s, 0.300 * s), (0.0, -0.120 * s, 0.310 * s)),
+        bone("neck", (0.0, -0.120 * s, 0.310 * s), (0.0, -0.220 * s, 0.350 * s), "spine"),
+        bone("head", (0.0, -0.220 * s, 0.350 * s), (0.0, -0.430 * s, 0.325 * s), "neck"),
+        bone("ear_left", (-0.048 * s, -0.235 * s, 0.420 * s), (-0.076 * s, -0.190 * s, 0.430 * s + 0.330 * s * ear), "head"),
+        bone("ear_right", (0.048 * s, -0.235 * s, 0.420 * s), (0.076 * s, -0.190 * s, 0.430 * s + 0.330 * s * ear), "head"),
+        bone("haunch", (0.0, 0.180 * s, 0.300 * s), (0.0, 0.290 * s, 0.290 * s)),
+        bone("tail", (0.0, 0.290 * s, 0.290 * s), (0.0, 0.350 * s, 0.352 * s), "haunch"),
+        bone("foreleg_left", (-0.060 * s, -0.110 * s, 0.255 * s), (-0.065 * s, -0.125 * s, 0.006 * s), "spine"),
+        bone("foreleg_right", (0.060 * s, -0.110 * s, 0.255 * s), (0.065 * s, -0.125 * s, 0.006 * s), "spine"),
+        bone("hindleg_left", (-0.082 * s, 0.140 * s, 0.290 * s), (-0.088 * s, 0.010 * s, 0.010 * s), "haunch"),
+        bone("hindleg_right", (0.082 * s, 0.140 * s, 0.290 * s), (0.088 * s, 0.010 * s, 0.010 * s), "haunch"),
+    ]
+    motion_root, pivots, rig = _creature_scaffold(
+        spec, root, (("head_pivot", (0.0, -0.16 * s, 0.3 * s)),), bones
+    )
+    surface = join_creature_surface(parts, f"{spec['id']}_surface", rig)
+    bind_creature_skin(surface, rig, bones)
+    rest_creature_pose(rig)
+
+    author_creature_clip(
+        spec, "idle", frame_rate=_fauna_frame_rate(spec),
+        object_tracks=((motion_root, [
+            (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            (0.7, (math.radians(2), 0.0, 0.0), (0.0, 0.0, 0.01 * s)),
+            (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        ]),),
+        bone_tracks=(
+            (rig, "ear_left", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.7, (math.radians(6), 0.0, math.radians(-4)), (0.0, 0.0, 0.0)),
+                (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "ear_right", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.7, (math.radians(-6), 0.0, math.radians(-4)), (0.0, 0.0, 0.0)),
+                (1.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+        ),
+    )
+    author_creature_clip(
+        spec, "look", frame_rate=_fauna_frame_rate(spec),
+        bone_tracks=(
+            (rig, "head", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.4, (math.radians(-6), 0.0, math.radians(-20)), (0.0, 0.0, 0.0)),
+                (0.8, (math.radians(-4), 0.0, math.radians(18)), (0.0, 0.0, 0.0)),
+                (1.2, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "neck", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.4, (0.0, 0.0, math.radians(-8)), (0.0, 0.0, 0.0)),
+                (0.8, (0.0, 0.0, math.radians(7)), (0.0, 0.0, 0.0)),
+                (1.2, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+        ),
+    )
+    # A hop is a load, a release and a landing. The body rise stays on the motion
+    # root so distance/pose logic still reads it, while the haunch and hind legs
+    # supply the crouch and extension that the old rigid translate had to fake.
+    author_creature_clip(
+        spec, "hop", frame_rate=_fauna_frame_rate(spec),
+        object_tracks=((motion_root, [
+            (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            (0.16, (math.radians(-8), 0.0, 0.0), (0.0, -0.04 * s, 0.08 * s)),
+            (0.32, (math.radians(6), 0.0, 0.0), (0.0, 0.0, 0.12 * s)),
+            (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        ]),),
+        bone_tracks=(
+            (rig, "hindleg_left", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(24), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.32, (math.radians(-16), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "hindleg_right", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(24), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.32, (math.radians(-16), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "foreleg_left", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(-30), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.32, (math.radians(18), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "foreleg_right", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(-30), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.32, (math.radians(18), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "spine", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(-10), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.32, (math.radians(8), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+        ),
+    )
     add_collision_primitives(spec, root)
 
 
 def fauna_gull(spec: dict, root) -> None:
-    """Coastal gull with flap and glide wing clips."""
+    """Coastal gull as one skinned body with a hinged wing pair and tail fan.
+
+    `WorldScene.loadAmbientFlyers` plays `glide` and `flap` at the same time and
+    at full weight, so the two clips must never touch the same transform. `glide`
+    stays on the motion root, exactly as before; `flap` moves to the wing bones.
+    Keeping them disjoint is what lets the runtime keep its cheap two-clip mixer.
+    """
     params = spec["parameters"]
     body_token, wing_token, beak_token = spec["palette"][:3]
     s = params.get("scale", 0.7)
     wing_span = params.get("wingSpan", 1.0)
-    add_ico("gull_body", (0, 0, 0.04 * s), (0.1 * s, 0.22 * s, 0.08 * s), body_token, root, subdivisions=1)
-    add_ico("gull_chest", (0, -0.06 * s, 0.02 * s), (0.08 * s, 0.1 * s, 0.07 * s), body_token, root, subdivisions=1)
-    add_ico("gull_head", (0, -0.22 * s, 0.08 * s), (0.06 * s, 0.07 * s, 0.06 * s), body_token, root, subdivisions=1)
-    add_cone("gull_beak", (0, -0.3 * s, 0.06 * s), 0.018 * s, 0.006 * s, 0.08 * s, beak_token, root, vertices=4, rotation=(math.pi / 2, 0, 0))
-    add_tapered_beam("gull_tail", (0, 0.2 * s, 0.04 * s), (0, 0.34 * s, 0.02 * s), 0.05 * s, 0.02 * s, body_token, root, vertices=4)
+
+    parts = [add_limb_tube(
+        "gull_body",
+        [
+            (0.0, 0.300 * s, 0.030 * s),
+            (0.0, 0.160 * s, 0.038 * s),
+            (0.0, 0.020 * s, 0.045 * s),
+            (0.0, -0.100 * s, 0.050 * s),
+            (0.0, -0.190 * s, 0.062 * s),
+            (0.0, -0.245 * s, 0.080 * s),
+            (0.0, -0.288 * s, 0.076 * s),
+        ],
+        [0.020 * s, 0.055 * s, 0.085 * s, 0.075 * s, 0.045 * s, 0.052 * s, 0.030 * s],
+        body_token,
+        root,
+        sides=10,
+    )]
+    # A gull's bill is a separate colour, not a separate animal: it lofts on from
+    # the last body ring so the join disappears into the head silhouette.
+    parts.append(add_limb_tube(
+        "gull_beak",
+        [
+            (0.0, -0.276 * s, 0.076 * s),
+            (0.0, -0.320 * s, 0.072 * s),
+            (0.0, -0.352 * s, 0.066 * s),
+        ],
+        [0.024 * s, 0.014 * s, 0.005 * s],
+        beak_token,
+        root,
+        sides=4,
+    ))
+    parts.append(add_leaf_blade(
+        "gull_tail", (0.0, 0.215 * s, 0.034 * s), (0.0, 0.400 * s, 0.024 * s),
+        0.17 * s, body_token, root, thickness=0.012 * s, cup=0.10, stations=3,
+    ))
     for side, sign in (("left", -1), ("right", 1)):
-        add_box(
+        parts.append(add_leaf_blade(
             f"gull_wing_{side}",
-            (sign * 0.22 * s * wing_span, 0.02 * s, 0.06 * s),
-            (0.32 * s * wing_span, 0.08 * s, 0.03 * s),
+            (sign * 0.05 * s, 0.0, 0.058 * s),
+            (sign * 0.38 * s * wing_span, 0.13 * s, 0.048 * s),
+            0.21 * s,
             wing_token,
             root,
-            bevel=0.0,
-        )
-    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
-    wing_left = _fauna_motion_node(f"{spec['id']}_wing_left_pivot", motion_root, (-0.08 * s, 0.0, 0.05 * s))
-    wing_right = _fauna_motion_node(f"{spec['id']}_wing_right_pivot", motion_root, (0.08 * s, 0.0, 0.05 * s))
-    for obj in list(bpy.context.scene.objects):
-        if obj.type != "MESH" or obj.parent is not root:
-            continue
-        if obj.name == "gull_wing_left":
-            _reparent_preserving_world(obj, wing_left)
-        elif obj.name == "gull_wing_right":
-            _reparent_preserving_world(obj, wing_right)
-        else:
-            _reparent_preserving_world(obj, motion_root)
-    consolidate_lod_level(motion_root, f"{spec['id']}_body")
-    consolidate_lod_level(wing_left, f"{spec['id']}_wing_left")
-    consolidate_lod_level(wing_right, f"{spec['id']}_wing_right")
-    _author_fauna_action(spec, "glide", motion_root, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.8, (math.radians(2), 0.0, 0.0), (0.0, 0.0, 0.012 * s)),
-        (1.6, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_fauna_action(spec, "flap", wing_left, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.12, (0.0, 0.0, math.radians(-38)), (0.0, 0.0, 0.0)),
-        (0.24, (0.0, 0.0, math.radians(22)), (0.0, 0.0, 0.0)),
-        (0.36, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_fauna_action(spec, "flap", wing_right, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.12, (0.0, 0.0, math.radians(38)), (0.0, 0.0, 0.0)),
-        (0.24, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
-        (0.36, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
+            thickness=0.014 * s,
+            cup=0.16,
+            bend=(0.0, -0.03 * s, 0.035 * s),
+            stations=6,
+        ))
+        parts.append(add_leaf_blade(
+            f"gull_wingtip_{side}",
+            (sign * 0.33 * s * wing_span, 0.11 * s, 0.050 * s),
+            (sign * 0.46 * s * wing_span, 0.20 * s, 0.040 * s),
+            0.085 * s,
+            beak_token,
+            root,
+            thickness=0.010 * s,
+            cup=0.10,
+            stations=4,
+        ))
+
+    bones = [
+        bone("spine", (0.0, 0.200 * s, 0.040 * s), (0.0, -0.100 * s, 0.048 * s)),
+        bone("neck", (0.0, -0.100 * s, 0.048 * s), (0.0, -0.220 * s, 0.070 * s), "spine"),
+        bone("head", (0.0, -0.220 * s, 0.070 * s), (0.0, -0.350 * s, 0.068 * s), "neck"),
+        bone("tail_fan", (0.0, 0.200 * s, 0.040 * s), (0.0, 0.400 * s, 0.024 * s), "spine"),
+        bone("wing_left", (0.0, 0.010 * s, 0.052 * s), (-0.440 * s * wing_span, 0.150 * s, 0.046 * s), "spine"),
+        bone("wing_right", (0.0, 0.010 * s, 0.052 * s), (0.440 * s * wing_span, 0.150 * s, 0.046 * s), "spine"),
+    ]
+    motion_root, pivots, rig = _creature_scaffold(
+        spec,
+        root,
+        (
+            ("wing_left_pivot", (-0.08 * s, 0.0, 0.05 * s)),
+            ("wing_right_pivot", (0.08 * s, 0.0, 0.05 * s)),
+        ),
+        bones,
+    )
+    surface = join_creature_surface(parts, f"{spec['id']}_surface", rig)
+    bind_creature_skin(surface, rig, bones)
+    rest_creature_pose(rig)
+
+    author_creature_clip(
+        spec,
+        "glide",
+        frame_rate=_fauna_frame_rate(spec),
+        object_tracks=((motion_root, [
+            (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            (0.8, (math.radians(2), 0.0, 0.0), (0.0, 0.0, 0.012 * s)),
+            (1.6, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        ]),),
+    )
+    author_creature_clip(
+        spec,
+        "flap",
+        frame_rate=_fauna_frame_rate(spec),
+        bone_tracks=(
+            (rig, "wing_left", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.12, (math.radians(-42), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.24, (math.radians(24), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.36, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            # Blender's zero-roll frame already mirrors between the two wing
+            # bones, so beating together needs the same sign, not opposite ones.
+            (rig, "wing_right", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.12, (math.radians(-42), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.24, (math.radians(24), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.36, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+        ),
+    )
     add_collision_primitives(spec, root)
 
 
 def fauna_butterfly(spec: dict, root) -> None:
-    """Meadow butterfly with a flap clip on paired wings."""
+    """Meadow butterfly built as one skinned body with hinged wing pairs.
+
+    The old build was a cylinder, a ball and two triangular prisms rotating
+    around empties, so at flap extremes the wings visibly separated from the
+    thorax. Body and wings are now one surface hinged on two bones at the
+    centreline, which is where a butterfly's wings actually meet.
+    """
     params = spec["parameters"]
     body_token, wing_token, accent_token = spec["palette"][:3]
     s = params.get("scale", 0.45)
     wing_span = params.get("wingSpan", 1.0)
-    add_cylinder("butterfly_body", (0, 0, 0.02 * s), 0.016 * s, 0.1 * s, body_token, root, vertices=5, rotation=(math.pi / 2, 0, 0))
-    add_ico("butterfly_head", (0, -0.055 * s, 0.028 * s), (0.02 * s, 0.02 * s, 0.02 * s), body_token, root, subdivisions=1)
+    thorax_z = 0.024 * s
+
+    parts = [add_limb_tube(
+        "butterfly_body",
+        [
+            (0.0, -0.062 * s, thorax_z + 0.002 * s),
+            (0.0, -0.030 * s, thorax_z + 0.003 * s),
+            (0.0, -0.004 * s, thorax_z),
+            (0.0, 0.034 * s, thorax_z - 0.002 * s),
+            (0.0, 0.072 * s, thorax_z - 0.004 * s),
+        ],
+        [0.011 * s, 0.019 * s, 0.024 * s, 0.015 * s, 0.005 * s],
+        body_token,
+        root,
+        sides=6,
+    )]
+
     for side, sign in (("left", -1), ("right", 1)):
-        add_tri_prism(
-            f"butterfly_wing_{side}",
-            (sign * 0.08 * s * wing_span, 0.0, 0.03 * s),
-            (0.14 * s * wing_span, 0.08 * s, 0.016 * s),
-            wing_token if sign < 0 else accent_token,
+        parts.append(add_limb_tube(
+            f"butterfly_antenna_{side}",
+            [
+                (sign * 0.006 * s, -0.058 * s, thorax_z + 0.008 * s),
+                (sign * 0.020 * s, -0.084 * s, thorax_z + 0.030 * s),
+                (sign * 0.030 * s, -0.098 * s, thorax_z + 0.044 * s),
+            ],
+            [0.0035 * s, 0.0022 * s, 0.0030 * s],
+            body_token,
             root,
-            rotation=(0, sign * math.radians(12), sign * math.radians(8)),
-        )
-    motion_root = _fauna_motion_node(f"{spec['id']}_motion_root", root)
-    wing_left = _fauna_motion_node(f"{spec['id']}_wing_left_pivot", motion_root, (-0.02 * s, 0.0, 0.02 * s))
-    wing_right = _fauna_motion_node(f"{spec['id']}_wing_right_pivot", motion_root, (0.02 * s, 0.0, 0.02 * s))
-    for obj in list(bpy.context.scene.objects):
-        if obj.type != "MESH" or obj.parent is not root:
-            continue
-        if obj.name == "butterfly_wing_left":
-            _reparent_preserving_world(obj, wing_left)
-        elif obj.name == "butterfly_wing_right":
-            _reparent_preserving_world(obj, wing_right)
-        else:
-            _reparent_preserving_world(obj, motion_root)
-    consolidate_lod_level(motion_root, f"{spec['id']}_body")
-    consolidate_lod_level(wing_left, f"{spec['id']}_wing_left")
-    consolidate_lod_level(wing_right, f"{spec['id']}_wing_right")
-    _author_fauna_action(spec, "flap", wing_left, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.08, (0.0, 0.0, math.radians(-50)), (0.0, 0.0, 0.0)),
-        (0.16, (0.0, 0.0, math.radians(18)), (0.0, 0.0, 0.0)),
-        (0.24, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_fauna_action(spec, "flap", wing_right, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.08, (0.0, 0.0, math.radians(50)), (0.0, 0.0, 0.0)),
-        (0.16, (0.0, 0.0, math.radians(-18)), (0.0, 0.0, 0.0)),
-        (0.24, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
+            sides=3,
+        ))
+        # Fore and hind wings overlap the way a resting butterfly's do, so the
+        # silhouette stays a butterfly rather than two lozenges.
+        parts.append(add_leaf_blade(
+            f"butterfly_forewing_{side}",
+            (sign * 0.010 * s, -0.016 * s, thorax_z + 0.006 * s),
+            (sign * 0.150 * s * wing_span, -0.052 * s, thorax_z + 0.012 * s),
+            0.076 * s,
+            wing_token,
+            root,
+            thickness=0.005 * s,
+            cup=0.10,
+            bend=(0.0, -0.010 * s, 0.004 * s),
+            stations=3,
+        ))
+        parts.append(add_leaf_blade(
+            f"butterfly_hindwing_{side}",
+            (sign * 0.010 * s, 0.010 * s, thorax_z + 0.002 * s),
+            (sign * 0.104 * s * wing_span, 0.058 * s, thorax_z - 0.002 * s),
+            0.060 * s,
+            accent_token,
+            root,
+            thickness=0.005 * s,
+            cup=0.08,
+            bend=(0.0, 0.010 * s, -0.003 * s),
+            stations=3,
+        ))
+
+    bones = [
+        bone("thorax", (0.0, -0.030 * s, thorax_z), (0.0, 0.050 * s, thorax_z)),
+        bone("wing_left", (0.0, -0.004 * s, thorax_z), (-0.110 * s * wing_span, -0.010 * s, thorax_z + 0.008 * s), "thorax"),
+        bone("wing_right", (0.0, -0.004 * s, thorax_z), (0.110 * s * wing_span, -0.010 * s, thorax_z + 0.008 * s), "thorax"),
+    ]
+    motion_root, pivots, rig = _creature_scaffold(
+        spec,
+        root,
+        (
+            ("wing_left_pivot", (-0.02 * s, 0.0, 0.02 * s)),
+            ("wing_right_pivot", (0.02 * s, 0.0, 0.02 * s)),
+        ),
+        bones,
+    )
+    surface = join_creature_surface(parts, f"{spec['id']}_surface", rig)
+    bind_creature_skin(surface, rig, bones)
+    rest_creature_pose(rig)
+
+    author_creature_clip(
+        spec,
+        "flap",
+        frame_rate=_fauna_frame_rate(spec),
+        bone_tracks=(
+            (rig, "wing_left", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.08, (math.radians(-58), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(20), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.24, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+            (rig, "wing_right", [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.08, (math.radians(-58), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.16, (math.radians(20), 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (0.24, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ]),
+        ),
+    )
     add_collision_primitives(spec, root)

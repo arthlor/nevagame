@@ -16,6 +16,8 @@ output/
 # Local scratch: AI reference dumps and one-off debug scripts
 npcs/
 neva-debug.ts
+tmp-*.ts
+.claude/
 
 # Quaternius Universal Animation Library (CC0). Only the glTF variants under
 # anim/Unreal-Godot/ are build inputs — the catalog's `animationSource` and

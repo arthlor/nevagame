@@ -43,7 +43,7 @@ async function loadScenario(
   const actionTimeScale = options.debugActionTimeScale
     ? `&debugActionTimeScale=${options.debugActionTimeScale}`
     : "";
-  await page.goto(`/?debug=1&debugStart=${scenario}${actionTimeScale}`);
+  await page.goto(`/?debug=1&debugStart=${scenario}&worldAcceptance=1${actionTimeScale}`);
   await expect(page.locator("#game-canvas")).toBeVisible();
   const diagnostics = page.getByTestId("diagnostics");
   await expect(diagnostics).toBeVisible({ timeout: 20_000 });
@@ -52,13 +52,45 @@ async function loadScenario(
   return diagnostics;
 }
 
-async function loadUiScenario(page: Page, scenario: string): Promise<Locator> {
-  await page.goto(`/?debug=1&debugStart=${scenario}`);
-  await expect(page.locator("#game-canvas")).toBeVisible();
-  const diagnostics = page.getByTestId("diagnostics");
-  await expect(diagnostics).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 20_000 });
-  return diagnostics;
+async function measureHudLayout(page: Page) {
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  return page.evaluate(() => {
+    const visible = (element: Element): boolean => {
+      for (let parent: Element | null = element; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+      }
+      const bounds = element.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    };
+    const clusters = [...document.querySelectorAll(".tidebook-hud > .hud-cluster, .tidebook-navigation")]
+      .filter(visible).map(element => {
+        const bounds = [element, ...element.querySelectorAll("*")]
+          .filter(descendant => descendant instanceof HTMLElement && visible(descendant))
+          .map(descendant => descendant.getBoundingClientRect());
+        const left = Math.min(...bounds.map(rectangle => rectangle.left));
+        const top = Math.min(...bounds.map(rectangle => rectangle.top));
+        const right = Math.max(...bounds.map(rectangle => rectangle.right));
+        const bottom = Math.max(...bounds.map(rectangle => rectangle.bottom));
+        return { name: element.getAttribute("class"), left, top, right, bottom, area: (right - left) * (bottom - top) };
+      });
+    const overlaps = clusters.flatMap((first, index) => clusters.slice(index + 1)
+      .filter(second => Math.min(first.right, second.right) - Math.max(first.left, second.left) > 1 && Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) > 1)
+      .map(second => [first.name, second.name]));
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>(".tidebook-hud button")].filter(visible).map(element => {
+      const bounds = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+      return { id: element.dataset.testid, name: element.getAttribute("aria-label"), disabled: element.disabled, width: bounds.width, height: bounds.height, reachable: hit === element || element.contains(hit) };
+    });
+    return {
+      clusters,
+      buttons,
+      overlaps,
+      outside: clusters.filter(bounds => bounds.left < -1 || bounds.top < -1 || bounds.right > innerWidth + 1 || bounds.bottom > innerHeight + 1),
+      coverageUpperBound: clusters.reduce((total, bounds) => total + bounds.area, 0) / (innerWidth * innerHeight)
+    };
+  });
 }
 
 async function canvasPoint(page: Page, xRatio: number, yRatio: number) {
@@ -214,78 +246,96 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     await expect.poll(async () => (await canvas.boundingBox())?.height).toBeCloseTo(720, 0);
   });
 
-  test("field-journal HUD stays compact and pause exposes contextual records", async ({ page }) => {
-    const diagnostics = await loadUiScenario(page, "farm");
-    const topLeft = page.locator(".hud-top-left");
-    const topRight = page.locator(".hud-top-right");
-    const toolBelt = page.getByRole("toolbar", { name: "Tool belt" }).last();
-    const vitals = page.locator(".hud-vitals");
-    const contextPrompt = page.locator("[data-testid=context-prompt]");
+  test("touch HUD keeps utility actions reachable through landscape and portrait rotation", async ({ browser }, testInfo) => {
+    test.setTimeout(180_000);
+    const context = await browser.newContext({ baseURL: e2eBaseUrl, viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
+    try {
+      const page = await context.newPage();
+      const diagnostics = await loadScenario(page, "farm");
+      await expect(page.locator("#ui-container")).toHaveAttribute("data-mobile-landscape", "true");
+      const landscape = await measureHudLayout(page);
+      const utilityIds = ["micro-btn-satchel", "micro-btn-journal", "micro-btn-map"];
+      const utilities = landscape.buttons.filter(button => utilityIds.includes(button.id ?? ""));
+      expect(utilities).toHaveLength(3);
+      expect(utilities.every(button => button.reachable && button.width >= 44 && button.height >= 44)).toBe(true);
+      const utilityBounds = await page.getByTestId("micro-menu-purse-bar").boundingBox();
+      const actionBounds = await page.locator(".mobile-action-cluster").boundingBox();
+      if (!utilityBounds || !actionBounds) throw new Error("Missing touch control bounds");
+      expect(utilityBounds.y + utilityBounds.height).toBeLessThanOrEqual(actionBounds.y - 9);
+      for (const [id, name] of [["micro-btn-satchel", "Satchel"], ["micro-btn-journal", "Field Journal"], ["micro-btn-map", "Nautical Chart of Neva & Sunreach"]]) {
+        await page.getByTestId(id).tap();
+        const dialog = page.getByRole("dialog", { name, exact: true });
+        await expect(dialog).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(dialog).not.toBeVisible();
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.getByRole("status", { name: "Landscape orientation required" })).toBeVisible();
+      const portrait = await measureHudLayout(page);
+      await testInfo.attach("touch-layout", { body: JSON.stringify({ landscape, portrait }, null, 2), contentType: "application/json" });
+      expect(portrait.buttons.find(button => button.id === "micro-btn-menu")?.reachable).toBe(true);
+      await expect(page.getByTestId("smart-contextual-toolbar")).not.toBeVisible();
+      await expect(page.getByTestId("micro-btn-satchel")).not.toBeVisible();
+      await expect(page.getByTestId("mobile-world-controls")).not.toBeVisible();
+      await page.getByTestId("micro-btn-menu").tap();
+      const pause = page.getByRole("dialog", { name: "Paused" });
+      await expect(pause).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(pause).not.toBeVisible();
+      await expect(page.getByRole("status", { name: "Landscape orientation required" })).toBeVisible();
+      const clock = page.getByRole("button", { name: "Open current conditions and farm forecast", exact: true });
+      await clock.tap();
+      await expect(page.locator(".forecast-popover")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".forecast-popover")).not.toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath("portrait-menu-clock.png") });
+      await page.setViewportSize({ width: 844, height: 390 });
+      await expect(page.getByRole("status", { name: "Landscape orientation required" })).not.toBeVisible();
+      await expect(page.getByTestId("smart-contextual-toolbar")).toBeVisible();
+      await expect(page.getByTestId("mobile-world-controls")).toBeVisible();
+      await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
+      const restored = await measureHudLayout(page);
+      expect(restored.buttons.filter(button => utilityIds.includes(button.id ?? "")).every(button => button.reachable)).toBe(true);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("field-journal HUD stays compact and pause exposes contextual records", async ({ page }, testInfo) => {
+    const diagnostics = await loadScenario(page, "farm");
+    const toolBelt = page.getByTestId("smart-contextual-toolbar");
     const screenshotsDir = path.resolve(process.cwd(), "output/playwright/ui-audit");
     fs.mkdirSync(screenshotsDir, { recursive: true });
 
-    await expect(page.locator(".hud-hotkey-ribbon-wood")).toHaveCount(0);
-    await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Rod/);
-    await expect(page.locator(".hud-navigation-bar")).toHaveCount(0);
-    await expect(page.locator(".quest-tracker-hud-wood")).toHaveCount(1);
-    await expect(page.locator(".quest-tracker-hud-wood")).toContainText("The Inherited Soil");
-    await page.screenshot({ path: path.join(screenshotsDir, "hud-desktop.png") });
-
+    await expect(toolBelt.locator("button[data-testid^=tool-slot-]")).toHaveCount(5);
+    await expect(toolBelt.locator("button[aria-pressed=true]")).toHaveCount(1);
+    await expect(page.getByTestId("tidebook-navigation")).toBeVisible();
+    await expect(page.locator(".tidebook-quest")).toContainText("The Inherited Soil");
+    await expect(page.getByTestId("hud-gold-purse")).toBeVisible();
+    const layouts = [];
     for (const viewport of [
+      { width: 1920, height: 1080 },
       { width: 1440, height: 900 },
+      { width: 1366, height: 768 },
+      { width: 1280, height: 720 },
       { width: 1050, height: 720 },
-      { width: 390, height: 844 }
+      { width: 820, height: 600 },
+      { width: 1280, height: 620 }
     ]) {
       await page.setViewportSize(viewport);
-      const boxes = await Promise.all([
-        topLeft.boundingBox(),
-        topRight.boundingBox(),
-        toolBelt.boundingBox(),
-        vitals.boundingBox()
-      ]);
-      if (!boxes[0] || !boxes[1] || !boxes[2] || !boxes[3]) throw new Error("HUD surface has no layout box");
-      const leftBox = boxes[0];
-      const rightBox = boxes[1];
-      const beltBox = boxes[2];
-      const vitalsBox = boxes[3];
-      // The coastal HUD pins the clock/purse cluster (`.hud-top-left`) to the
-      // right edge and the objective/menu cluster (`.hud-top-right`) to the
-      // left, so order the top clusters visually instead of by legacy name.
-      const visualLeft = leftBox.x <= rightBox.x ? leftBox : rightBox;
-      const visualRight = visualLeft === leftBox ? rightBox : leftBox;
-      const leftRight = visualLeft.x + visualLeft.width;
-      const leftBottom = Math.max(leftBox.y + leftBox.height, rightBox.y + rightBox.height);
-      const rightLeft = visualRight.x;
-      const beltTop = beltBox.y;
-      const beltBottom = beltBox.y + beltBox.height;
-      const promptBox = await contextPrompt.boundingBox();
-      const overlap = (
-        a: { x: number; y: number; width: number; height: number },
-        b: { x: number; y: number; width: number; height: number }
-      ) =>
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y;
-      if (viewport.width > 760) {
-        expect(leftRight).toBeLessThanOrEqual(rightLeft + 1);
-      } else {
-        expect(overlap(leftBox, rightBox)).toBe(false);
-      }
-      expect(beltTop).toBeGreaterThan(leftBottom);
-      expect(beltBottom).toBeLessThanOrEqual(viewport.height + 1);
-      expect(vitalsBox.y).toBeGreaterThan(leftBottom);
-      expect(overlap(vitalsBox, beltBox)).toBe(false);
-      expect(overlap(vitalsBox, leftBox)).toBe(false);
-      expect(overlap(vitalsBox, rightBox)).toBe(false);
-      if (promptBox) {
-        expect(promptBox.y + promptBox.height).toBeLessThanOrEqual(beltTop + 1);
-        expect(overlap(vitalsBox, promptBox)).toBe(false);
-      }
-      if (viewport.width === 390) {
-        await page.screenshot({ path: path.join(screenshotsDir, "hud-mobile-390.png") });
-      }
+      const layout = await measureHudLayout(page);
+      layouts.push({ viewport, ...layout });
+      expect(layout.clusters).toHaveLength(6);
+      expect(layout.outside, JSON.stringify(viewport)).toEqual([]);
+      expect(layout.overlaps, JSON.stringify(viewport)).toEqual([]);
+      expect(layout.coverageUpperBound, JSON.stringify(viewport)).toBeLessThan(0.25);
+      expect(layout.buttons.filter(button => !button.disabled && !button.reachable), JSON.stringify(viewport)).toEqual([]);
+      const canvas = await page.locator("#game-canvas").boundingBox();
+      expect(canvas?.width).toBeCloseTo(viewport.width, 0);
+      expect(canvas?.height).toBeCloseTo(viewport.height, 0);
     }
+    await testInfo.attach("desktop-hud-layouts", { body: JSON.stringify(layouts, null, 2), contentType: "application/json" });
+    await page.screenshot({ path: path.join(screenshotsDir, "hud-desktop.png") });
 
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.getByRole("button", { name: "Open game menu" }).click();

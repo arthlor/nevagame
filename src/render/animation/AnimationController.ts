@@ -304,6 +304,7 @@ export class HumanoidAnimator {
   };
   private activeBaseClip: PlayerAnimation = "idle";
   private baseStarted = false;
+  private hasEvaluatedPose = false;
   private restartAction = false;
   private previewClip: PlayerAnimation | null = null;
   private pendingPreviewPhase: number | null = null;
@@ -429,6 +430,7 @@ export class HumanoidAnimator {
     this.captureMixerPose();
     this.activeBaseClip = "idle";
     this.baseStarted = false;
+    this.hasEvaluatedPose = false;
     this.restartAction = false;
     this.previewClip = null;
     this.pendingPreviewPhase = null;
@@ -653,6 +655,7 @@ export class HumanoidAnimator {
     this.restoreMixerPose();
     this.mixer.update(dt);
     this.captureMixerPose();
+    this.hasEvaluatedPose = true;
     this.updateGrounding(dt, context, reducedMotion);
     const bodyGroundPitch = this.groundPitch * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
     const bodyGroundRoll = this.groundRoll * CANONICAL_RENDER_CONFIG.motion.groundingBodyTiltScale;
@@ -889,7 +892,7 @@ export class HumanoidAnimator {
       nextAction.clampWhenFinished = !spec?.loop;
       nextAction.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
       nextAction.setEffectiveTimeScale(scale).play();
-      if (this.previewClip) {
+      if (this.previewClip || !this.hasEvaluatedPose) {
         if (previousAction && previousAction !== nextAction) previousAction.stop();
         nextAction.stopFading().setEffectiveWeight(1);
       } else if (previousAction && previousAction !== nextAction) {
@@ -939,7 +942,7 @@ export class HumanoidAnimator {
       action.clampWhenFinished = !spec?.loop;
       action.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
       action.setEffectiveTimeScale(this.upperPlaybackScale).play();
-      if (this.previewClip) action.stopFading().setEffectiveWeight(1);
+      if (this.previewClip || !this.hasEvaluatedPose) action.stopFading().setEffectiveWeight(1);
       else action.fadeIn(blend);
     }
   }

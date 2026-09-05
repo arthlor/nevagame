@@ -1,3 +1,4 @@
+import { COASTAL_FIELD_GLSL, createCoastalUniforms, type CoastalUniforms } from "../water/CoastalOptics";
 import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
@@ -14,7 +15,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v23";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v24-coastal";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -124,6 +125,8 @@ uniform vec3 roadShoulderGrassColor;
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;
 ${SURFACE_FIELD_FRAGMENT_GLSL}
+${COASTAL_FIELD_GLSL}
+uniform vec3 roadCoastalSand;
 
 vec2 nevaRoadWorldUv(float sampleScale) {
   vec2 position = vRoadWorldPosition.xz / max(sampleScale, 0.001);
@@ -258,7 +261,11 @@ diffuseColor.rgb = mix(
   diffuseColor.rgb,
   roadDryColor,
   sharedRoadWetness * roadWetnessColorMix * roadSharedTransitionMix * sharedRoadBoundary
-);`,
+);
+vec4 coastalRoadField = nevaOpticsField(vRoadWorldPosition.xz);
+float coastalRoadWeight = coastalRoadField.a * (1.0 - smoothstep(13.0, 24.0, -coastalRoadField.b));
+diffuseColor.rgb = mix(diffuseColor.rgb, roadCoastalSand * mix(0.97, 1.0, roadSourceLuma), coastalRoadWeight);
+diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight);`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -320,6 +327,8 @@ export class RoadSurfaceMaterial {
     this.ownedExternalTextures.add(roadColorFallback);
     this.ownedExternalTextures.add(roadRoughnessFallback);
     this.shaderUniforms = {
+      ...createCoastalUniforms(null, new THREE.Vector4(0, 0, 1, 1)),
+      roadCoastalSand: { value: new THREE.Color(PALETTE_HEX.sand_coastal_01) },
       roadSourceColorTexture: { value: roadColorFallback },
       roadSourceRoughnessTexture: { value: roadRoughnessFallback },
       roadPolygonCellScale: { value: config.polygonCellScaleMeters },
@@ -370,6 +379,11 @@ export class RoadSurfaceMaterial {
       patchRoadSurfaceShader(shader as RoadSurfaceShaderSource, this.shaderUniforms);
     };
     this.material.customProgramCacheKey = () => ROAD_SURFACE_PROGRAM_CACHE_KEY;
+    this.material.needsUpdate = true;
+  }
+
+  public bindCoastalField(uniforms: CoastalUniforms): void {
+    Object.assign(this.shaderUniforms, uniforms);
     this.material.needsUpdate = true;
   }
 

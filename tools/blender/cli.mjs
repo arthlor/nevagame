@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { validateSurfaceContract } from "./surface_contract.mjs";
 import { fileURLToPath } from "node:url";
 
 import Ajv2020 from "ajv/dist/2020.js";
@@ -197,6 +198,10 @@ const repositoryFile = (extension) => ({ kind: "repositoryFile", extension });
 const nonemptyString = () => ({ kind: "nonemptyString" });
 
 const PARAMETER_CONTRACTS = Object.freeze({
+  coastal_palm: { height: number(4, 12), lean: number(0, 4), spread: number(2, 4.5), fronds: integer(8, 15), leafletPairs: integer(8, 20) },
+  coastal_understory: { height: number(0.4, 2.5), spread: number(0.4, 2), leaves: integer(7, 24), form: choice("paddle", "split", "shrub") },
+  coastal_rock: { width: number(1, 8), depth: number(1, 6), height: number(0.6, 5), shear: number(-0.3, 0.3), form: choice("cleft", "shelf", "spine") },
+  coastal_hut: { width: number(3, 6), depth: number(2.5, 5), wallHeight: number(2, 3.2), roofPitch: number(16, 36), form: choice("shelter", "store") },
   imported_blend: { sourceBlend: repositoryFile(".blend"), sourceCollection: nonemptyString() },
   oak_tree: { height: number(3, 10), spread: number(1, 5), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10) },
   olive_tree: { height: number(3, 8), spread: number(1, 4), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10), fruitCount: integer(0, 30) },
@@ -282,7 +287,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
     length: number(3, 20),
     width: number(2, 10),
     canopy: boolean(),
-    deckPlanks: integer(4, 20),
+    deckPlanks: integer(4, 40),
     pileRows: integer(2, 8),
   },
   fish_market: {
@@ -312,10 +317,15 @@ const PARAMETER_CONTRACTS = Object.freeze({
   rowboat: { length: number(2, 8), beam: number(1, 4), ribCount: integer(5, 16), innerPlanks: integer(5, 16), gunwaleSegments: integer(5, 16) },
   fishing_skiff: { length: number(4, 16), beam: number(1.5, 6), ribCount: integer(6, 20), mastHeight: number(3, 14), outerStrakes: integer(2, 7), hullSegments: integer(7, 18), deckBoards: integer(12, 50), sailRows: integer(4, 14) },
   wheat_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 24) },
+  barley_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 24) },
+  corn_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 8) },
+  flax_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stems: integer(0, 32) },
   tomato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), plants: integer(0, 12) },
   potato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
+  carrot_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), plants: integer(0, 12) },
   sunflower_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
   olive_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
+  apple_tree_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
   turnip_crop: { leafCount: integer(4, 10) },
   pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
   stylized_fish: {
@@ -977,6 +987,9 @@ function validateCatalog(stagingSelection = null) {
       if (!palette.tokens[token]) throw new Error(`${asset.id}: unknown palette token ${token}`);
     }
     validateGeneratorParameters(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
+    if (asset.surfaceAuthoring && asset.generator === "imported_blend") {
+      throw new Error(`${asset.id}: surfaceAuthoring is procedural-only; preserve imported source normals and colors`);
+    }
     validateStaticAuthoring(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
     validateLodContract(asset);
     validateAnimationContract(asset);
@@ -1259,10 +1272,47 @@ async function semanticHash(bytes) {
   return sha256(Buffer.from(JSON.stringify({ semantic, accessorData })));
 }
 
+// Khronos warns whenever a skinned mesh node has a parent, because a viewer must
+// ignore that parent's transform. Neva parents skinned surfaces to identity
+// empties -- LOD switch roots, the motion root, the creature rig -- so nothing is
+// actually being ignored. Prove that rather than assuming it: the warning stands
+// the moment a real transform appears anywhere up the chain.
+function skinnedMeshParentTransformsAreIdentity(json) {
+  const nodes = json.nodes ?? [];
+  const parents = new Map();
+  nodes.forEach((node, index) => {
+    for (const child of node.children ?? []) parents.set(child, index);
+  });
+  const isIdentity = (node) => {
+    if (node.matrix) return node.matrix.every((value, index) => Math.abs(value - (index % 5 === 0 ? 1 : 0)) < 1e-6);
+    const translation = node.translation ?? [0, 0, 0];
+    const rotation = node.rotation ?? [0, 0, 0, 1];
+    const scale = node.scale ?? [1, 1, 1];
+    return (
+      translation.every((value) => Math.abs(value) < 1e-6) &&
+      Math.abs(rotation[0]) < 1e-6 && Math.abs(rotation[1]) < 1e-6 &&
+      Math.abs(rotation[2]) < 1e-6 && Math.abs(Math.abs(rotation[3]) - 1) < 1e-6 &&
+      scale.every((value) => Math.abs(value - 1) < 1e-6)
+    );
+  };
+  const skinned = nodes
+    .map((node, index) => ({ node, index }))
+    .filter(({ node }) => typeof node.mesh === "number" && typeof node.skin === "number");
+  if (!skinned.length) return false;
+  return skinned.every(({ index }) => {
+    for (let cursor = parents.get(index); cursor !== undefined; cursor = parents.get(cursor)) {
+      if (!isIdentity(nodes[cursor])) return false;
+    }
+    return true;
+  });
+}
+
 async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
   const bytes = fs.readFileSync(filename);
   const animationClips = animationContractClips(spec);
   const inheritedWarnings = await inheritedStaticSourceWarnings(spec, repoRoot);
+  const { json } = parseGlb(bytes);
+  const inertSkinnedParents = skinnedMeshParentTransformsAreIdentity(json);
   const report = await validateBytes(new Uint8Array(bytes), {
     uri: spec.file,
     externalResourceFunction: async () => new Uint8Array(),
@@ -1271,13 +1321,7 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
   const warnings = report.issues.messages.filter((issue) => {
     if (issue.severity !== 1) return false;
     if (inheritedWarnings.has(issue.code)) return false;
-    // Identity LOD empties parent skinned groups so runtime can switch levels.
-    // Parent transforms are unused; Khronos still warns NODE_SKINNED_MESH_NON_ROOT.
-    if (
-      issue.code === "NODE_SKINNED_MESH_NON_ROOT" &&
-      spec.lodLevels?.length &&
-      animationClips.length
-    ) {
+    if (issue.code === "NODE_SKINNED_MESH_NON_ROOT" && animationClips.length && inertSkinnedParents) {
       return false;
     }
     return true;
@@ -1286,7 +1330,6 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
     const details = [...errors, ...warnings].map((issue) => `${issue.code}: ${issue.message}`).join("\n");
     throw new Error(`${spec.id}: Khronos ${phase} validation failed\n${details}`);
   }
-  const { json } = parseGlb(bytes);
   const nodes = json.nodes ?? [];
   const nodeNames = new Set(nodes.map((node) => node.name));
   const missing = spec.requiredNodes.filter((name) => !nodeNames.has(name));
@@ -1541,6 +1584,7 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
     throw new Error(`${spec.id}: ${materials} exported materials violate declared budget`);
   }
   const staticSourceContract = await validateStaticSourceContract(filename, spec, repoRoot);
+  const surfaceContract = await validateSurfaceContract(bytes, spec);
   return {
     nodes: json.nodes?.length ?? 0,
     meshes: json.meshes?.length ?? 0,
@@ -1562,6 +1606,7 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
     animationClips: animationMetrics,
     ...(inheritedWarnings.size ? { inheritedSourceWarnings: [...inheritedWarnings].sort() } : {}),
     ...(staticSourceContract ? { staticSourceContract } : {}),
+    ...(surfaceContract ? { surfaceContract } : {}),
   };
 }
 

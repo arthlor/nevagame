@@ -12,12 +12,13 @@ from common.lod import consolidate_lod_level, create_lod_roots
 
 def _shape_rock(rock, seed) -> None:
     rng = seeded_rng(seed)
+    lean = rng.uniform(.04, .09)
     for vertex in rock.data.vertices:
         radial = 1.0 + 0.10 * math.sin(vertex.co.x * 2.7 + vertex.co.y * 3.1 + seed)
         vertex.co.x *= radial
         vertex.co.y *= 1.0 + 0.09 * math.cos(vertex.co.z * 2.2 + seed)
         vertex.co.z *= 1.0 + 0.08 * math.sin(vertex.co.x * 1.8 + seed)
-        vertex.co.x += vertex.co.z * rng.uniform(0.04, 0.09)
+        vertex.co.x += vertex.co.z * lean
     world_min_z = min((rock.matrix_world @ vertex.co).z for vertex in rock.data.vertices)
     rock.location.z -= world_min_z
     bpy.context.view_layer.update()

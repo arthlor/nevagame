@@ -1,0 +1,6056 @@
+{
+  "sunreachSampling": {
+    "bounds": { "minX": 340, "maxX": 654, "minZ": -90, "maxZ": 205 },
+    "spacingMeters": 6
+  },
+  "workingGround": [
+    {
+      "id": "farm.starter_garden:0",
+      "x": -71,
+      "z": -60,
+      "height": 1.199906
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -71,
+      "z": -58,
+      "height": 1.2
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -71,
+      "z": -56,
+      "height": 1.2
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -71,
+      "z": -54,
+      "height": 1.2
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -71,
+      "z": -52,
+      "height": 1.2
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -71,
+      "z": -50,
+      "height": 1.2
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -69,
+      "z": -60,
+      "height": 1.190989
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -69,
+      "z": -58,
+      "height": 1.19097
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -69,
+      "z": -56,
+      "height": 1.19097
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -69,
+      "z": -54,
+      "height": 1.19097
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -69,
+      "z": -52,
+      "height": 1.19097
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -69,
+      "z": -50,
+      "height": 1.19097
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -67,
+      "z": -60,
+      "height": 1.173545
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -67,
+      "z": -58,
+      "height": 1.1732
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -67,
+      "z": -56,
+      "height": 1.1732
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -67,
+      "z": -54,
+      "height": 1.1732
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -67,
+      "z": -52,
+      "height": 1.1732
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -67,
+      "z": -50,
+      "height": 1.1732
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -65,
+      "z": -60,
+      "height": 1.163221
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -65,
+      "z": -58,
+      "height": 1.160674
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -65,
+      "z": -56,
+      "height": 1.160674
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -65,
+      "z": -54,
+      "height": 1.160674
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -65,
+      "z": -52,
+      "height": 1.160674
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -65,
+      "z": -50,
+      "height": 1.160674
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -63,
+      "z": -60,
+      "height": 1.161458
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -63,
+      "z": -58,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -63,
+      "z": -56,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -63,
+      "z": -54,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -63,
+      "z": -52,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -63,
+      "z": -50,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -61,
+      "z": -60,
+      "height": 1.161427
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -61,
+      "z": -58,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -61,
+      "z": -56,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -61,
+      "z": -54,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -61,
+      "z": -52,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -61,
+      "z": -50,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -59,
+      "z": -60,
+      "height": 1.16106
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -59,
+      "z": -58,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -59,
+      "z": -56,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -59,
+      "z": -54,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -59,
+      "z": -52,
+      "height": 1.16
+    },
+    {
+      "id": "farm.starter_garden:0",
+      "x": -59,
+      "z": -50,
+      "height": 1.16
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 60,
+      "z": -66,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 60,
+      "z": -64,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 60,
+      "z": -62,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 60,
+      "z": -60,
+      "height": 6.368
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 62,
+      "z": -66,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 62,
+      "z": -64,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 62,
+      "z": -62,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 62,
+      "z": -60,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 64,
+      "z": -66,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 64,
+      "z": -64,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 64,
+      "z": -62,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 64,
+      "z": -60,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 66,
+      "z": -66,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 66,
+      "z": -64,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 66,
+      "z": -62,
+      "height": 6.3
+    },
+    {
+      "id": "farm.player_homestead:0",
+      "x": 66,
+      "z": -60,
+      "height": 6.3
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -24,
+      "height": 4.234797
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -22,
+      "height": 4.233773
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -20,
+      "height": 4.217712
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -18,
+      "height": 4.195098
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -16,
+      "height": 4.174387
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -14,
+      "height": 4.161294
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 432,
+      "z": -12,
+      "height": 4.157344
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -24,
+      "height": 4.244418
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -22,
+      "height": 4.231642
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -20,
+      "height": 4.207447
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -18,
+      "height": 4.182268
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -16,
+      "height": 4.164577
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -14,
+      "height": 4.158387
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 434,
+      "z": -12,
+      "height": 4.157244
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -24,
+      "height": 4.245555
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -22,
+      "height": 4.223196
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -20,
+      "height": 4.194503
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -18,
+      "height": 4.170842
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -16,
+      "height": 4.159728
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -14,
+      "height": 4.158281
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 436,
+      "z": -12,
+      "height": 4.157205
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -24,
+      "height": 4.240651
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -22,
+      "height": 4.211595
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -20,
+      "height": 4.182002
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -18,
+      "height": 4.163395
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -16,
+      "height": 4.159245
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -14,
+      "height": 4.158236
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 438,
+      "z": -12,
+      "height": 4.157228
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -24,
+      "height": 4.232198
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -22,
+      "height": 4.199416
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -20,
+      "height": 4.172109
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -18,
+      "height": 4.160274
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -16,
+      "height": 4.159192
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -14,
+      "height": 4.158253
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 440,
+      "z": -12,
+      "height": 4.157314
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -24,
+      "height": 4.222323
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -22,
+      "height": 4.188399
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -20,
+      "height": 4.165649
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -18,
+      "height": 4.160068
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -16,
+      "height": 4.159202
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -14,
+      "height": 4.158333
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 442,
+      "z": -12,
+      "height": 4.157464
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -24,
+      "height": 4.212604
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -22,
+      "height": 4.179739
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -20,
+      "height": 4.162128
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -18,
+      "height": 4.160068
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -16,
+      "height": 4.159273
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -14,
+      "height": 4.158476
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 444,
+      "z": -12,
+      "height": 4.157678
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -24,
+      "height": 4.204044
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -22,
+      "height": 4.173571
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -20,
+      "height": 4.160892
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -18,
+      "height": 4.16013
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -16,
+      "height": 4.159408
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -14,
+      "height": 4.158683
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 446,
+      "z": -12,
+      "height": 4.157956
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -24,
+      "height": 4.197182
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -22,
+      "height": 4.169446
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -20,
+      "height": 4.1609
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -18,
+      "height": 4.160255
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -16,
+      "height": 4.159606
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -14,
+      "height": 4.158953
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 448,
+      "z": -12,
+      "height": 4.158299
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -24,
+      "height": 4.192334
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -22,
+      "height": 4.166909
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -20,
+      "height": 4.161014
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -18,
+      "height": 4.160443
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -16,
+      "height": 4.159867
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -14,
+      "height": 4.159288
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 450,
+      "z": -12,
+      "height": 4.158706
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -24,
+      "height": 4.189379
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -22,
+      "height": 4.165557
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -20,
+      "height": 4.16119
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -18,
+      "height": 4.160693
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -16,
+      "height": 4.160192
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -14,
+      "height": 4.159686
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 452,
+      "z": -12,
+      "height": 4.159177
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -24,
+      "height": 4.188163
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -22,
+      "height": 4.165097
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -20,
+      "height": 4.161428
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -18,
+      "height": 4.161006
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -16,
+      "height": 4.160579
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -14,
+      "height": 4.160148
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 454,
+      "z": -12,
+      "height": 4.159712
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -24,
+      "height": 4.188628
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -22,
+      "height": 4.165384
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -20,
+      "height": 4.161729
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -18,
+      "height": 4.161383
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -16,
+      "height": 4.16103
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -14,
+      "height": 4.160672
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 456,
+      "z": -12,
+      "height": 4.160309
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -24,
+      "height": 4.190829
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -22,
+      "height": 4.166457
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -20,
+      "height": 4.162092
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -18,
+      "height": 4.161821
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -16,
+      "height": 4.161543
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -14,
+      "height": 4.161258
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 458,
+      "z": -12,
+      "height": 4.160969
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -24,
+      "height": 4.194939
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -22,
+      "height": 4.168553
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -20,
+      "height": 4.162517
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -18,
+      "height": 4.162321
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -16,
+      "height": 4.162117
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -14,
+      "height": 4.161913
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 460,
+      "z": -12,
+      "height": 4.162088
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -24,
+      "height": 4.201234
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -22,
+      "height": 4.172101
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -20,
+      "height": 4.163003
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -18,
+      "height": 4.162882
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -16,
+      "height": 4.162834
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -14,
+      "height": 4.163342
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 462,
+      "z": -12,
+      "height": 4.164435
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -24,
+      "height": 4.209974
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -22,
+      "height": 4.177696
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -20,
+      "height": 4.163603
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -18,
+      "height": 4.163713
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -16,
+      "height": 4.164531
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -14,
+      "height": 4.165963
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 464,
+      "z": -12,
+      "height": 4.167955
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -24,
+      "height": 4.220987
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -22,
+      "height": 4.186048
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -20,
+      "height": 4.166208
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -18,
+      "height": 4.165615
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -16,
+      "height": 4.167363
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -14,
+      "height": 4.169699
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 466,
+      "z": -12,
+      "height": 4.172567
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -24,
+      "height": 4.233906
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -22,
+      "height": 4.199518
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -20,
+      "height": 4.173707
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -18,
+      "height": 4.168598
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -16,
+      "height": 4.171255
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -14,
+      "height": 4.174472
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 468,
+      "z": -12,
+      "height": 4.178193
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -24,
+      "height": 4.251948
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -22,
+      "height": 4.221681
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -20,
+      "height": 4.189242
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -18,
+      "height": 4.172909
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -16,
+      "height": 4.176129
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -14,
+      "height": 4.180204
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 470,
+      "z": -12,
+      "height": 4.184756
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -24,
+      "height": 4.278356
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -22,
+      "height": 4.254799
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -20,
+      "height": 4.217323
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -18,
+      "height": 4.185941
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -16,
+      "height": 4.18191
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -14,
+      "height": 4.186821
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 472,
+      "z": -12,
+      "height": 4.19218
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -24,
+      "height": 4.313694
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -22,
+      "height": 4.301057
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -20,
+      "height": 4.262341
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -18,
+      "height": 4.21649
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -16,
+      "height": 4.190047
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -14,
+      "height": 4.194246
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 474,
+      "z": -12,
+      "height": 4.200389
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -24,
+      "height": 4.357443
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -22,
+      "height": 4.36152
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -20,
+      "height": 4.327719
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -18,
+      "height": 4.272179
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -16,
+      "height": 4.220207
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -14,
+      "height": 4.202409
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 476,
+      "z": -12,
+      "height": 4.209309
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -24,
+      "height": 4.407415
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -22,
+      "height": 4.435273
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -20,
+      "height": 4.415026
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -18,
+      "height": 4.358199
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -16,
+      "height": 4.287161
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -14,
+      "height": 4.230859
+    },
+    {
+      "id": "farm.sunreach_terraces:0",
+      "x": 478,
+      "z": -12,
+      "height": 4.218868
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": -7,
+      "height": 4.154363
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": -5,
+      "height": 4.153077
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": -3,
+      "height": 4.7038
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": -1,
+      "height": 4.702536
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": 1,
+      "height": 4.701285
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": 3,
+      "height": 4.70005
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": 5,
+      "height": 4.698832
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 429,
+      "z": 7,
+      "height": 4.697635
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": -7,
+      "height": 4.15433
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": -5,
+      "height": 4.153107
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": -3,
+      "height": 4.703892
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": -1,
+      "height": 4.702689
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": 1,
+      "height": 4.7015
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": 3,
+      "height": 4.700325
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": 5,
+      "height": 4.699168
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 431,
+      "z": 7,
+      "height": 4.69803
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": -7,
+      "height": 4.15436
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": -5,
+      "height": 4.153201
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": -3,
+      "height": 4.70405
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": -1,
+      "height": 4.70291
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": 1,
+      "height": 4.701783
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": 3,
+      "height": 4.70067
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": 5,
+      "height": 4.699574
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 433,
+      "z": 7,
+      "height": 4.698496
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": -7,
+      "height": 4.154455
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": -5,
+      "height": 4.15336
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": -3,
+      "height": 4.704274
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": -1,
+      "height": 4.703198
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": 1,
+      "height": 4.702134
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": 3,
+      "height": 4.701084
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": 5,
+      "height": 4.70005
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 435,
+      "z": 7,
+      "height": 4.699033
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": -7,
+      "height": 4.154614
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": -5,
+      "height": 4.153586
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": -3,
+      "height": 4.704565
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": -1,
+      "height": 4.703554
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": 1,
+      "height": 4.702555
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": 3,
+      "height": 4.701568
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": 5,
+      "height": 4.700596
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 437,
+      "z": 7,
+      "height": 4.699641
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": -7,
+      "height": 4.154839
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": -5,
+      "height": 4.153877
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": -3,
+      "height": 4.704923
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": -1,
+      "height": 4.703978
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": 1,
+      "height": 4.703044
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": 3,
+      "height": 4.702121
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": 5,
+      "height": 4.701212
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 439,
+      "z": 7,
+      "height": 4.700319
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": -7,
+      "height": 4.155129
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": -5,
+      "height": 4.154236
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": -3,
+      "height": 4.705349
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": -1,
+      "height": 4.70447
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": 1,
+      "height": 4.703601
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": 3,
+      "height": 4.702743
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": 5,
+      "height": 4.701898
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 441,
+      "z": 7,
+      "height": 4.701067
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": -7,
+      "height": 4.155485
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": -5,
+      "height": 4.15466
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": -3,
+      "height": 4.705841
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": -1,
+      "height": 4.70503
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": 1,
+      "height": 4.704226
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": 3,
+      "height": 4.703433
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": 5,
+      "height": 4.702652
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 443,
+      "z": 7,
+      "height": 4.701884
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": -7,
+      "height": 4.155907
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": -5,
+      "height": 4.155152
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": -3,
+      "height": 4.706401
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": -1,
+      "height": 4.705656
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": 1,
+      "height": 4.70492
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": 3,
+      "height": 4.704192
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": 5,
+      "height": 4.703474
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 445,
+      "z": 7,
+      "height": 4.702776
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": -7,
+      "height": 4.156395
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": -5,
+      "height": 4.155709
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": -3,
+      "height": 4.707027
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": -1,
+      "height": 4.70635
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": 1,
+      "height": 4.705679
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": 3,
+      "height": 4.705017
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": 5,
+      "height": 4.704363
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 447,
+      "z": 7,
+      "height": 4.703932
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": -7,
+      "height": 4.156948
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": -5,
+      "height": 4.156332
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": -3,
+      "height": 4.707718
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": -1,
+      "height": 4.707109
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": 1,
+      "height": 4.706505
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": 3,
+      "height": 4.705908
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": 5,
+      "height": 4.705513
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 449,
+      "z": 7,
+      "height": 4.705742
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": -7,
+      "height": 4.157566
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": -5,
+      "height": 4.157019
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": -3,
+      "height": 4.708474
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": -1,
+      "height": 4.707933
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": 1,
+      "height": 4.707413
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": 3,
+      "height": 4.707174
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": 5,
+      "height": 4.708182
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 451,
+      "z": 7,
+      "height": 4.736518
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": -7,
+      "height": 4.158247
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": -5,
+      "height": 4.157771
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": -3,
+      "height": 4.7093
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": -1,
+      "height": 4.709105
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": 1,
+      "height": 4.709302
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": 3,
+      "height": 4.710371
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": 5,
+      "height": 4.712288
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 453,
+      "z": 7,
+      "height": 4.802739
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": -7,
+      "height": 4.158992
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": -5,
+      "height": 4.158767
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": -3,
+      "height": 4.710991
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": -1,
+      "height": 4.711623
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": 1,
+      "height": 4.712618
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": 3,
+      "height": 4.714502
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": 5,
+      "height": 4.743149
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 455,
+      "z": 7,
+      "height": 4.736416
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": -7,
+      "height": 4.160356
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": -5,
+      "height": 4.160994
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": -3,
+      "height": 4.714058
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": -1,
+      "height": 4.715499
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": 1,
+      "height": 4.717274
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": 3,
+      "height": 4.719127
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": 5,
+      "height": 4.720726
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 457,
+      "z": 7,
+      "height": 4.730309
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": -7,
+      "height": 4.163042
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": -5,
+      "height": 4.16453
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": -3,
+      "height": 4.718413
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": -1,
+      "height": 4.720646
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": 1,
+      "height": 4.723183
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": 3,
+      "height": 4.72598
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": 5,
+      "height": 4.728995
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 459,
+      "z": 7,
+      "height": 4.731435
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": -7,
+      "height": 4.166973
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": -5,
+      "height": 4.16929
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": -3,
+      "height": 4.723974
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": -1,
+      "height": 4.726979
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": 1,
+      "height": 4.730258
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": 3,
+      "height": 4.733769
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": 5,
+      "height": 4.737468
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 461,
+      "z": 7,
+      "height": 4.741318
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": -7,
+      "height": 4.172064
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": -5,
+      "height": 4.175191
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": -3,
+      "height": 4.730656
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": -1,
+      "height": 4.734412
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": 1,
+      "height": 4.738415
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": 3,
+      "height": 4.742619
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": 5,
+      "height": 4.746984
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 463,
+      "z": 7,
+      "height": 4.751468
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": -7,
+      "height": 4.178235
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": -5,
+      "height": 4.18215
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": -3,
+      "height": 4.738375
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": -1,
+      "height": 4.742863
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": 1,
+      "height": 4.747568
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": 3,
+      "height": 4.752446
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": 5,
+      "height": 4.757455
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 465,
+      "z": 7,
+      "height": 4.762555
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": -7,
+      "height": 4.185404
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": -5,
+      "height": 4.190087
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": -3,
+      "height": 4.74705
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": -1,
+      "height": 4.752248
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": 1,
+      "height": 4.757633
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": 3,
+      "height": 4.763163
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": 5,
+      "height": 4.768796
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 467,
+      "z": 7,
+      "height": 4.774491
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": -7,
+      "height": 4.193493
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": -5,
+      "height": 4.19892
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": -3,
+      "height": 4.7566
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": -1,
+      "height": 4.762484
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": 1,
+      "height": 4.768529
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": 3,
+      "height": 4.774689
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": 5,
+      "height": 4.780923
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 469,
+      "z": 7,
+      "height": 4.78719
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": -7,
+      "height": 4.202422
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": -5,
+      "height": 4.20857
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": -3,
+      "height": 4.766943
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": -1,
+      "height": 4.773492
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": 1,
+      "height": 4.780172
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": 3,
+      "height": 4.786939
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": 5,
+      "height": 4.793751
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 471,
+      "z": 7,
+      "height": 4.800568
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": -7,
+      "height": 4.212114
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": -5,
+      "height": 4.21896
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": -3,
+      "height": 4.778001
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": -1,
+      "height": 4.785191
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": 1,
+      "height": 4.792482
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": 3,
+      "height": 4.799832
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": 5,
+      "height": 4.807199
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 473,
+      "z": 7,
+      "height": 4.814542
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": -7,
+      "height": 4.222493
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": -5,
+      "height": 4.230011
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": -3,
+      "height": 4.789696
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": -1,
+      "height": 4.797501
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": 1,
+      "height": 4.80538
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": 3,
+      "height": 4.813288
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": 5,
+      "height": 4.821185
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 475,
+      "z": 7,
+      "height": 4.82903
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": -7,
+      "height": 4.233483
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": -5,
+      "height": 4.241648
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": -3,
+      "height": 4.801952
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": -1,
+      "height": 4.810347
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": 1,
+      "height": 4.818787
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": 3,
+      "height": 4.827228
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": 5,
+      "height": 4.835628
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 477,
+      "z": 7,
+      "height": 4.843949
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": -7,
+      "height": 4.245011
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": -5,
+      "height": 4.253797
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": -3,
+      "height": 4.814693
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": -1,
+      "height": 4.823651
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": 1,
+      "height": 4.832626
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": 3,
+      "height": 4.841573
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": 5,
+      "height": 4.850451
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 479,
+      "z": 7,
+      "height": 4.859221
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": -7,
+      "height": 4.257004
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": -5,
+      "height": 4.266384
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": -3,
+      "height": 4.827845
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": -1,
+      "height": 4.83734
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": 1,
+      "height": 4.846822
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": 3,
+      "height": 4.856248
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": 5,
+      "height": 4.865576
+    },
+    {
+      "id": "farm.sunreach_terraces:1",
+      "x": 481,
+      "z": 7,
+      "height": 4.874767
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 12,
+      "height": 4.69677
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 14,
+      "height": 5.247096
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 16,
+      "height": 5.278057
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 18,
+      "height": 5.277347
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 20,
+      "height": 5.244659
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 22,
+      "height": 5.243651
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 24,
+      "height": 5.242826
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 434,
+      "z": 26,
+      "height": 5.184872
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 12,
+      "height": 4.725869
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 14,
+      "height": 5.247881
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 16,
+      "height": 5.337286
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 18,
+      "height": 5.246437
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 20,
+      "height": 5.245501
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 22,
+      "height": 5.244645
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 24,
+      "height": 5.243871
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 436,
+      "z": 26,
+      "height": 5.238909
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 12,
+      "height": 4.782607
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 14,
+      "height": 5.115608
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 16,
+      "height": 5.113401
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 18,
+      "height": 5.247351
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 20,
+      "height": 5.246465
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 22,
+      "height": 5.245712
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 24,
+      "height": 5.244989
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 438,
+      "z": 26,
+      "height": 5.244296
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 12,
+      "height": 4.839153
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 14,
+      "height": 5.166619
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 16,
+      "height": 5.126574
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 18,
+      "height": 5.2299
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 20,
+      "height": 5.247551
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 22,
+      "height": 5.246849
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 24,
+      "height": 5.246176
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 440,
+      "z": 26,
+      "height": 5.245533
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 12,
+      "height": 4.727506
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 14,
+      "height": 5.113565
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 16,
+      "height": 5.185688
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 18,
+      "height": 5.24938
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 20,
+      "height": 5.248706
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 22,
+      "height": 5.248056
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 24,
+      "height": 5.247434
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 442,
+      "z": 26,
+      "height": 5.246915
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 12,
+      "height": 4.77629
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 14,
+      "height": 5.016091
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 16,
+      "height": 5.221405
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 18,
+      "height": 5.250572
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 20,
+      "height": 5.250118
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 22,
+      "height": 5.249828
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 24,
+      "height": 5.249677
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 444,
+      "z": 26,
+      "height": 5.249641
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 12,
+      "height": 4.720365
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 14,
+      "height": 5.133566
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 16,
+      "height": 5.252933
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 18,
+      "height": 5.252889
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 20,
+      "height": 5.253004
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 22,
+      "height": 5.253252
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 24,
+      "height": 5.253607
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 446,
+      "z": 26,
+      "height": 5.254045
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 12,
+      "height": 4.7035
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 14,
+      "height": 5.231087
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 16,
+      "height": 5.256285
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 18,
+      "height": 5.256831
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 20,
+      "height": 5.257504
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 22,
+      "height": 5.258278
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 24,
+      "height": 5.259128
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 448,
+      "z": 26,
+      "height": 5.26003
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 12,
+      "height": 4.706864
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 14,
+      "height": 5.260184
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 16,
+      "height": 5.26118
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 18,
+      "height": 5.262302
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 20,
+      "height": 5.263521
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 22,
+      "height": 5.26481
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 24,
+      "height": 5.266144
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 450,
+      "z": 26,
+      "height": 5.267498
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 12,
+      "height": 4.712272
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 14,
+      "height": 5.265934
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 16,
+      "height": 5.267524
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 18,
+      "height": 5.26921
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 20,
+      "height": 5.270962
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 22,
+      "height": 5.272753
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 24,
+      "height": 5.274558
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 452,
+      "z": 26,
+      "height": 5.276353
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 12,
+      "height": 4.718979
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 14,
+      "height": 5.273054
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 16,
+      "height": 5.275224
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 18,
+      "height": 5.277459
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 20,
+      "height": 5.27973
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 22,
+      "height": 5.28201
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 24,
+      "height": 5.284273
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 454,
+      "z": 26,
+      "height": 5.286497
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 12,
+      "height": 4.727958
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 14,
+      "height": 5.28139
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 16,
+      "height": 5.284186
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 18,
+      "height": 5.286955
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 20,
+      "height": 5.289731
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 22,
+      "height": 5.292486
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 24,
+      "height": 5.295195
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 456,
+      "z": 26,
+      "height": 5.297834
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 12,
+      "height": 4.75183
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 14,
+      "height": 5.215184
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 16,
+      "height": 5.28324
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 18,
+      "height": 5.297606
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 20,
+      "height": 5.300871
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 22,
+      "height": 5.304086
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 24,
+      "height": 5.307226
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 458,
+      "z": 26,
+      "height": 5.310268
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 12,
+      "height": 4.765302
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 14,
+      "height": 5.192777
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 16,
+      "height": 5.19684
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 18,
+      "height": 5.310778
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 20,
+      "height": 5.313055
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 22,
+      "height": 5.316715
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 24,
+      "height": 5.320271
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 460,
+      "z": 26,
+      "height": 5.323701
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 12,
+      "height": 4.806726
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 14,
+      "height": 5.189675
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 16,
+      "height": 5.375156
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 18,
+      "height": 5.334376
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 20,
+      "height": 5.328585
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 22,
+      "height": 5.330593
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 24,
+      "height": 5.334236
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 462,
+      "z": 26,
+      "height": 5.338038
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 12,
+      "height": 4.769104
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 14,
+      "height": 5.325128
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 16,
+      "height": 5.328393
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 18,
+      "height": 5.356071
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 20,
+      "height": 5.357948
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 22,
+      "height": 5.347593
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 24,
+      "height": 5.350213
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 464,
+      "z": 26,
+      "height": 5.353184
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 12,
+      "height": 4.782013
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 14,
+      "height": 5.339394
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 16,
+      "height": 5.344538
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 18,
+      "height": 5.347687
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 20,
+      "height": 5.359148
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 22,
+      "height": 5.421747
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 24,
+      "height": 5.367774
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 466,
+      "z": 26,
+      "height": 5.371165
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 12,
+      "height": 4.795675
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 14,
+      "height": 5.353541
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 16,
+      "height": 5.359299
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 18,
+      "height": 5.36492
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 20,
+      "height": 5.368846
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 22,
+      "height": 5.372792
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 24,
+      "height": 5.423481
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 468,
+      "z": 26,
+      "height": 5.400544
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 12,
+      "height": 4.810004
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 14,
+      "height": 5.368332
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 16,
+      "height": 5.374525
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 18,
+      "height": 5.380554
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 20,
+      "height": 5.386392
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 22,
+      "height": 5.391273
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 24,
+      "height": 5.394474
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 470,
+      "z": 26,
+      "height": 5.424078
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 12,
+      "height": 4.824912
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 14,
+      "height": 5.383681
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 16,
+      "height": 5.390286
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 18,
+      "height": 5.396701
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 20,
+      "height": 5.402899
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 22,
+      "height": 5.408854
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 24,
+      "height": 5.414369
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 472,
+      "z": 26,
+      "height": 5.422529
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 12,
+      "height": 4.840315
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 14,
+      "height": 5.3995
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 16,
+      "height": 5.406495
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 18,
+      "height": 5.413273
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 20,
+      "height": 5.419807
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 22,
+      "height": 5.426074
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 24,
+      "height": 5.432052
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 474,
+      "z": 26,
+      "height": 5.441186
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 12,
+      "height": 4.856128
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 14,
+      "height": 5.415704
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 16,
+      "height": 5.423065
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 18,
+      "height": 5.430181
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 20,
+      "height": 5.437028
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 22,
+      "height": 5.443584
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 24,
+      "height": 5.449826
+    },
+    {
+      "id": "farm.sunreach_terraces:2",
+      "x": 476,
+      "z": 26,
+      "height": 5.51172
+    }
+  ],
+  "anchors": [
+    {
+      "id": "struct.starter_mill",
+      "x": 57.8,
+      "z": -81.2,
+      "height": 6.5
+    },
+    {
+      "id": "struct.workbench",
+      "x": -75.1,
+      "z": -55.9,
+      "height": 1.2
+    },
+    {
+      "id": "struct.starter_compost",
+      "x": -76.2,
+      "z": -61.4,
+      "height": 1.2
+    },
+    {
+      "id": "struct.harbor_fish_table",
+      "x": 70.8,
+      "z": 61.8,
+      "height": 1.049004
+    },
+    {
+      "id": "struct.sunreach_hand_mill",
+      "x": 444,
+      "z": 21,
+      "height": 5.249954
+    },
+    {
+      "id": "struct.sunreach_workbench",
+      "x": 466,
+      "z": 17,
+      "height": 5.34618
+    },
+    {
+      "id": "struct.sunreach_fish_table",
+      "x": 382,
+      "z": 61,
+      "height": 0.863349
+    },
+    {
+      "id": "market.village",
+      "x": 53.2,
+      "z": -51.5,
+      "height": 6.401161
+    },
+    {
+      "id": "market.harbor",
+      "x": 64,
+      "z": 60,
+      "height": 1.144999
+    },
+    {
+      "id": "market.sunreach_cove",
+      "x": 373,
+      "z": 56,
+      "height": 0.9
+    },
+    {
+      "id": "farmhouse",
+      "x": -54.1,
+      "z": -49.5,
+      "yOffset": 0,
+      "rotationY": 3.1416,
+      "scale": 1.12,
+      "height": 1.16
+    },
+    {
+      "id": "well",
+      "x": -56.4,
+      "z": -55.7,
+      "yOffset": 0,
+      "rotationY": -0.5236,
+      "scale": 1,
+      "height": 1.16
+    },
+    {
+      "id": "bridge",
+      "x": -15.3,
+      "z": -6,
+      "yOffset": 0.35,
+      "rotationY": 0,
+      "scale": 1,
+      "height": -1.840149
+    },
+    {
+      "id": "fish-market",
+      "x": 64,
+      "z": 60,
+      "yOffset": 0,
+      "rotationY": 2.941592653589793,
+      "scale": 0.84,
+      "height": 1.144999
+    },
+    {
+      "id": "lighthouse",
+      "x": -92,
+      "z": 74,
+      "yOffset": 0,
+      "rotationY": 0.08,
+      "scale": 0.58,
+      "height": 13.667999
+    },
+    {
+      "id": "windmill",
+      "x": 57.8,
+      "z": -81.2,
+      "yOffset": 0,
+      "rotationY": -0.5236073464102069,
+      "scale": 0.62,
+      "height": 6.5
+    },
+    {
+      "id": "dock",
+      "x": 75.5,
+      "z": 71.6,
+      "yOffset": 0,
+      "rotationY": 1.5708,
+      "scale": 1,
+      "height": -1.013898
+    }
+  ],
+  "lowerRiver": [
+    {
+      "z": -116,
+      "centerX": -27.66337935568705,
+      "tangent": {
+        "x": 0.07637065181616162,
+        "z": 0.9970794971019987
+      },
+      "curvature": 0.0006517186419518779,
+      "leftWaterWidth": 5.41538124378361,
+      "rightWaterWidth": 5.628850789797536,
+      "bedElevation": -1.7015370286080347,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.4192484701360435,
+      "rightBankRun": 6.276906218918054,
+      "leftFloodplainWidth": 5.30002191540653,
+      "rightFloodplainWidth": 5.096132773647567,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -114,
+      "centerX": -27.50887573964497,
+      "tangent": {
+        "x": 0.07767389224634393,
+        "z": 0.9969788194657414
+      },
+      "curvature": 0.0006515212448472333,
+      "leftWaterWidth": 5.3539371870732815,
+      "rightWaterWidth": 5.713336367774238,
+      "bedElevation": -1.6754233045061449,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.741829767865271,
+      "rightBankRun": 5.9696859353664085,
+      "leftFloodplainWidth": 5.699408284023669,
+      "rightFloodplainWidth": 4.712107419208011,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -112,
+      "centerX": -27.3517422748192,
+      "tangent": {
+        "x": 0.07897673462371974,
+        "z": 0.9968764594412763
+      },
+      "curvature": 0.0006513205899849347,
+      "leftWaterWidth": 5.2934641514523175,
+      "rightWaterWidth": 5.796486791753065,
+      "bedElevation": -1.6497222643672347,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.059313204875336,
+      "rightBankRun": 5.667320757261585,
+      "leftFloodplainWidth": 6.092483015559939,
+      "rightFloodplainWidth": 4.334150946576981,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -110,
+      "centerX": -27.19197896120973,
+      "tangent": {
+        "x": 0.08027917243783396,
+        "z": 0.9967724185954868
+      },
+      "curvature": 0.0006511166824560073,
+      "leftWaterWidth": 5.235256831706535,
+      "rightWaterWidth": 5.876521856403514,
+      "bedElevation": -1.6249841534752778,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.364901633540686,
+      "rightBankRun": 5.376284158532679,
+      "leftFloodplainWidth": 6.470830593907517,
+      "rightFloodplainWidth": 3.9703551981658487,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -108,
+      "centerX": -27.02958579881657,
+      "tangent": {
+        "x": 0.08158119918852964,
+        "z": 0.9966666985201028
+      },
+      "curvature": 0.0006509095274340443,
+      "leftWaterWidth": 5.180609922621757,
+      "rightWaterWidth": 5.951661356395085,
+      "bedElevation": -1.6017592171142467,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.651797906235776,
+      "rightBankRun": 5.103049613108785,
+      "leftFloodplainWidth": 6.82603550295858,
+      "rightFloodplainWidth": 3.6288120163859814,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -106,
+      "centerX": -26.864562787639713,
+      "tangent": {
+        "x": 0.08288280838606171,
+        "z": 0.996559300831636
+      },
+      "curvature": 0.0006506991301784211,
+      "leftWaterWidth": 5.130818118983799,
+      "rightWaterWidth": 6.020125086397276,
+      "bedElevation": -1.5805977005681149,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.913204875335054,
+      "rightBankRun": 4.854090594918997,
+      "leftFloodplainWidth": 7.149682226605304,
+      "rightFloodplainWidth": 3.3176132436487458,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -104,
+      "centerX": -26.69690992767916,
+      "tangent": {
+        "x": 0.0841839935512911,
+        "z": 0.9964502271713104
+      },
+      "curvature": 0.0006504854960234233,
+      "leftWaterWidth": 5.087176115578482,
+      "rightWaterWidth": 6.080132841079586,
+      "bedElevation": -1.5620498491208552,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.142325393212968,
+      "rightBankRun": 4.635880577892412,
+      "leftFloodplainWidth": 7.433355248739864,
+      "rightFloodplainWidth": 3.0448507223655152,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -102,
+      "centerX": -26.52662721893491,
+      "tangent": {
+        "x": 0.08548474821581321,
+        "z": 0.9963394792049942
+      },
+      "curvature": 0.0006502686303709186,
+      "leftWaterWidth": 5.050978607191625,
+      "rightWaterWidth": 6.1299044151115165,
+      "bedElevation": -1.5466659080564407,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.33236231224397,
+      "rightBankRun": 4.454893035958125,
+      "leftFloodplainWidth": 7.668639053254438,
+      "rightFloodplainWidth": 2.818616294947655,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -100,
+      "centerX": -26.35371466140697,
+      "tangent": {
+        "x": 0.08678506592213314,
+        "z": 0.9962270586231288
+      },
+      "curvature": 0.000650048538735717,
+      "leftWaterWidth": 5.023520288609046,
+      "rightWaterWidth": 6.167659603162562,
+      "bedElevation": -1.5349961226588447,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.476518484802508,
+      "rightBankRun": 4.31760144304523,
+      "leftFloodplainWidth": 7.847118124041201,
+      "rightFloodplainWidth": 2.6470018038065373,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -98,
+      "centerX": -26.178172255095333,
+      "tangent": {
+        "x": 0.08808494022381219,
+        "z": 0.9961129671406589
+      },
+      "curvature": 0.000649825226671453,
+      "leftWaterWidth": 5.006095854616564,
+      "rightWaterWidth": 6.191618199902224,
+      "bedElevation": -1.52759073821204,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.567996763263036,
+      "rightBankRun": 4.230479273082823,
+      "leftFloodplainWidth": 7.96037694499233,
+      "rightFloodplainWidth": 2.538099091353529,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -96,
+      "centerX": -26,
+      "tangent": {
+        "x": 0.09055955044576153,
+        "z": 0.9958910421442003
+      },
+      "curvature": 0.0029993859140328536,
+      "leftWaterWidth": 5,
+      "rightWaterWidth": 6.2,
+      "bedElevation": -1.5438083219022798,
+      "thalwegOffset": -0.16099923548351475,
+      "leftBankRun": 7.77243383629969,
+      "rightBankRun": 5.0275661637003095,
+      "leftFloodplainWidth": 6.965542295374613,
+      "rightFloodplainWidth": 3.5344577046253867,
+      "leftErosion": 0.31798990397915,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.334228239598694,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -94,
+      "centerX": -25.814404432132964,
+      "tangent": {
+        "x": 0.09308439061668643,
+        "z": 0.9956582225962484
+      },
+      "curvature": 0.0006835395699680037,
+      "leftWaterWidth": 5.008820527773728,
+      "rightWaterWidth": 6.190377606065025,
+      "bedElevation": -1.528528211109491,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.56391602274384,
+      "rightBankRun": 4.238489575739903,
+      "leftFloodplainWidth": 7.955095494970112,
+      "rightFloodplainWidth": 2.5473101035136314,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -92,
+      "centerX": -25.626038781163434,
+      "tangent": {
+        "x": 0.09445120528396954,
+        "z": 0.9955294921901637
+      },
+      "curvature": 0.0006832744761389346,
+      "leftWaterWidth": 5.033999125236916,
+      "rightWaterWidth": 6.162910045196092,
+      "bedElevation": -1.5385996500947663,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.460912669485348,
+      "rightBankRun": 4.348359819215629,
+      "leftFloodplainWidth": 7.826913544248433,
+      "rightFloodplainWidth": 2.6823589444525444,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -90,
+      "centerX": -25.43490304709141,
+      "tangent": {
+        "x": 0.09581748603901753,
+        "z": 0.9953989197146854
+      },
+      "curvature": 0.0006830056589700433,
+      "leftWaterWidth": 5.073611313602567,
+      "rightWaterWidth": 6.119696748797201,
+      "bedElevation": -1.5544445254410266,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.298862807989503,
+      "rightBankRun": 4.521213004811197,
+      "leftFloodplainWidth": 7.625251494386937,
+      "rightFloodplainWidth": 2.894824318413763,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -88,
+      "centerX": -25.240997229916896,
+      "tangent": {
+        "x": 0.09718322544264131,
+        "z": 0.9952665073700434
+      },
+      "curvature": 0.0006827331259716472,
+      "leftWaterWidth": 5.125732614083685,
+      "rightWaterWidth": 6.062837148272344,
+      "bedElevation": -1.5752930456334744,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.085639306021285,
+      "rightBankRun": 4.7486514069106285,
+      "leftFloodplainWidth": 7.3599066919376,
+      "rightFloodplainWidth": 3.1743840209943137,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -86,
+      "centerX": -25.04432132963989,
+      "tangent": {
+        "x": 0.09854841607076431,
+        "z": 0.9951322573858931
+      },
+      "curvature": 0.0006824568847405099,
+      "leftWaterWidth": 5.188438547893279,
+      "rightWaterWidth": 5.994430675025514,
+      "bedElevation": -1.6003754191573116,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.829115031345677,
+      "rightBankRun": 5.022277299897944,
+      "leftFloodplainWidth": 7.0406764834523985,
+      "rightFloodplainWidth": 3.5107158477912233,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -84,
+      "centerX": -24.844875346260388,
+      "tangent": {
+        "x": 0.09991305051459475,
+        "z": 0.9949961720212135
+      },
+      "curvature": 0.0006821769429733771,
+      "leftWaterWidth": 5.2598046362443505,
+      "rightWaterWidth": 5.916576760460709,
+      "bedElevation": -1.6289218544977404,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.537162851727658,
+      "rightBankRun": 5.333692958157165,
+      "leftFloodplainWidth": 6.6773582154833075,
+      "rightFloodplainWidth": 3.8934975944015164,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -82,
+      "centerX": -24.642659279778393,
+      "tangent": {
+        "x": 0.10127712138084435,
+        "z": 0.9948582535641999
+      },
+      "curvature": 0.000681893308462972,
+      "leftWaterWidth": 5.337906400349905,
+      "rightWaterWidth": 5.831374835981922,
+      "bedElevation": -1.6601625601399623,
+      "thalwegOffset": 0,
+      "leftBankRun": 7.217655634932205,
+      "rightBankRun": 5.674500656072314,
+      "leftFloodplainWidth": 6.279749234582301,
+      "rightFloodplainWidth": 4.312407056422219,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -80,
+      "centerX": -24.437673130193907,
+      "tangent": {
+        "x": 0.10264062129189372,
+        "z": 0.9947185043321624
+      },
+      "curvature": 0.0006816059891079921,
+      "leftWaterWidth": 5.420819361422947,
+      "rightWaterWidth": 5.740924332993147,
+      "bedElevation": -1.693327744569179,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.878466248724303,
+      "rightBankRun": 6.036302668027409,
+      "leftFloodplainWidth": 5.857646887301356,
+      "rightFloodplainWidth": 4.757122029450357,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -78,
+      "centerX": -24.229916897506925,
+      "tangent": {
+        "x": 0.10400354288599832,
+        "z": 0.9945769266714165
+      },
+      "curvature": 0.0006813149928671414,
+      "leftWaterWidth": 5.506619040676483,
+      "rightWaterWidth": 5.6473246828983825,
+      "bedElevation": -1.7276476162705936,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.5274675608689305,
+      "rightBankRun": 6.4107012684064735,
+      "leftFloodplainWidth": 5.420848520192448,
+      "rightFloodplainWidth": 5.2173203090829565,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -76,
+      "centerX": -24.019390581717452,
+      "tangent": {
+        "x": 0.10536587881748512,
+        "z": 0.9944335229571752
+      },
+      "curvature": 0.0006810203278355537,
+      "leftWaterWidth": 5.593380959323516,
+      "rightWaterWidth": 5.5526753171016185,
+      "bedElevation": -1.7623523837294066,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.172532439131068,
+      "rightBankRun": 6.789298731593526,
+      "leftFloodplainWidth": 4.979151479807553,
+      "rightFloodplainWidth": 5.682679690917043,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -74,
+      "centerX": -23.806094182825483,
+      "tangent": {
+        "x": 0.10672762175691292,
+        "z": 0.9942882955934428
+      },
+      "curvature": 0.0006807220021743508,
+      "leftWaterWidth": 5.679180638577052,
+      "rightWaterWidth": 5.459075667006852,
+      "bedElevation": -1.7966722554308208,
+      "thalwegOffset": 0,
+      "leftBankRun": 5.821533751275696,
+      "rightBankRun": 7.163697331972591,
+      "leftFloodplainWidth": 4.542353112698644,
+      "rightFloodplainWidth": 6.142877970549643,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -72,
+      "centerX": -23.590027700831026,
+      "tangent": {
+        "x": 0.10808876439129288,
+        "z": 0.9941412470129
+      },
+      "curvature": 0.0006804200241695157,
+      "leftWaterWidth": 5.762093599650094,
+      "rightWaterWidth": 5.368625164018079,
+      "bedElevation": -1.829837439860038,
+      "thalwegOffset": 0,
+      "leftBankRun": 5.482344365067794,
+      "rightBankRun": 7.525499343927686,
+      "leftFloodplainWidth": 4.120250765417699,
+      "rightFloodplainWidth": 6.587592943577781,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -70,
+      "centerX": -23.371191135734072,
+      "tangent": {
+        "x": 0.10944929942424533,
+        "z": 0.993992379676797
+      },
+      "curvature": 0.0006801144021580329,
+      "leftWaterWidth": 5.840195363755649,
+      "rightWaterWidth": 5.2834232395392915,
+      "bedElevation": -1.8610781455022598,
+      "thalwegOffset": 0,
+      "leftBankRun": 5.1628371482723425,
+      "rightBankRun": 7.866307041842834,
+      "leftFloodplainWidth": 3.7226417845166933,
+      "rightFloodplainWidth": 7.006502405598484,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -68,
+      "centerX": -23.14958448753463,
+      "tangent": {
+        "x": 0.11080921957621118,
+        "z": 0.9938416960748383
+      },
+      "curvature": 0.0006798051446006819,
+      "leftWaterWidth": 5.911561452106721,
+      "rightWaterWidth": 5.205569324974487,
+      "bedElevation": -1.8896245808426886,
+      "thalwegOffset": 0,
+      "leftBankRun": 4.870884968654323,
+      "rightBankRun": 8.177722700102056,
+      "leftFloodplainWidth": 3.359323516547602,
+      "rightFloodplainWidth": 7.389284152208776,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -66,
+      "centerX": -22.925207756232687,
+      "tangent": {
+        "x": 0.11216851758461506,
+        "z": 0.9936891987250691
+      },
+      "curvature": 0.0006794922600256623,
+      "leftWaterWidth": 5.974267385916314,
+      "rightWaterWidth": 5.137162851727657,
+      "bedElevation": -1.9147069543665258,
+      "thalwegOffset": 0,
+      "leftBankRun": 4.614360693978713,
+      "rightBankRun": 8.45134859308937,
+      "leftFloodplainWidth": 3.0400933080623993,
+      "rightFloodplainWidth": 7.725615979005687,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -64,
+      "centerX": -22.698060941828256,
+      "tangent": {
+        "x": 0.11352718620406786,
+        "z": 0.9935348901737608
+      },
+      "curvature": 0.0006791757570873356,
+      "leftWaterWidth": 6.026388686397434,
+      "rightWaterWidth": 5.0803032512028,
+      "bedElevation": -1.9355554745589738,
+      "thalwegOffset": 0,
+      "leftBankRun": 4.401137192010497,
+      "rightBankRun": 8.678786995188803,
+      "leftFloodplainWidth": 2.7747485056130636,
+      "rightFloodplainWidth": 8.005175681586238,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -62,
+      "centerX": -22.46814404432133,
+      "tangent": {
+        "x": 0.11488521820651892,
+        "z": 0.9933787729952964
+      },
+      "curvature": 0.0006788556444994344,
+      "leftWaterWidth": 6.066000874763084,
+      "rightWaterWidth": 5.037089954803908,
+      "bedElevation": -1.9514003499052344,
+      "thalwegOffset": 0,
+      "leftBankRun": 4.239087330514652,
+      "rightBankRun": 8.851640180784372,
+      "leftFloodplainWidth": 2.573086455751567,
+      "rightFloodplainWidth": 8.217641055547457,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -60,
+      "centerX": -22.235457063711912,
+      "tangent": {
+        "x": 0.11624260638147894,
+        "z": 0.9932208497920493
+      },
+      "curvature": 0.0006785319310693863,
+      "leftWaterWidth": 6.091179472226272,
+      "rightWaterWidth": 5.0096223939349755,
+      "bedElevation": -1.9614717888905087,
+      "thalwegOffset": 0,
+      "leftBankRun": 4.13608397725616,
+      "rightBankRun": 8.961510424260096,
+      "leftFloodplainWidth": 2.444904505029888,
+      "rightFloodplainWidth": 8.352689896486368,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -58,
+      "centerX": -22,
+      "tangent": {
+        "x": 0.1270779426390758,
+        "z": 0.9918927343693065
+      },
+      "curvature": 0.019599130660358437,
+      "leftWaterWidth": 6.1,
+      "rightWaterWidth": 5,
+      "bedElevation": -2.065,
+      "thalwegOffset": -0.8969999999999999,
+      "leftBankRun": 4.1,
+      "rightBankRun": 9,
+      "leftFloodplainWidth": 2.4,
+      "rightFloodplainWidth": 8.4,
+      "leftErosion": 1,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 1,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -56,
+      "centerX": -21.720260455797646,
+      "tangent": {
+        "x": 0.1417221477367276,
+        "z": 0.9899064768153045
+      },
+      "curvature": 0.003077127766154649,
+      "leftWaterWidth": 6.090483345855246,
+      "rightWaterWidth": 5.013746278209088,
+      "bedElevation": -1.9798024708495323,
+      "thalwegOffset": -0.17806261535795798,
+      "leftBankRun": 4.14864067673985,
+      "rightBankRun": 8.947129699195814,
+      "leftFloodplainWidth": 2.4613295489328544,
+      "rightFloodplainWidth": 8.335498233018894,
+      "leftErosion": 0.3287518078115884,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.34473390762559825,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -54,
+      "centerX": -21.427832039402286,
+      "tangent": {
+        "x": 0.14738348551126285,
+        "z": 0.9890794246159158
+      },
+      "curvature": 0.0025847760203609746,
+      "leftWaterWidth": 6.063536188329577,
+      "rightWaterWidth": 5.052669950190611,
+      "bedElevation": -1.957252717201847,
+      "thalwegOffset": -0.10711155877367981,
+      "leftBankRun": 4.286370592982163,
+      "rightBankRun": 8.797423268497647,
+      "leftFloodplainWidth": 2.6349890085427274,
+      "rightFloodplainWidth": 8.152856387567132,
+      "leftErosion": 0.26508727895748985,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.2825852008870734,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -52,
+      "centerX": -21.124718256949663,
+      "tangent": {
+        "x": 0.15206338432056243,
+        "z": 0.9883707437743071
+      },
+      "curvature": 0.0020956194851083827,
+      "leftWaterWidth": 6.021562734785875,
+      "rightWaterWidth": 5.1132982719759585,
+      "bedElevation": -1.9278778546932613,
+      "thalwegOffset": -0.0522262859500145,
+      "leftBankRun": 4.5009015777610815,
+      "rightBankRun": 8.564237415477084,
+      "leftFloodplainWidth": 2.9054845980465815,
+      "rightFloodplainWidth": 7.876865218806168,
+      "leftErosion": 0.21421455042264492,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.23292372779353432,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -50,
+      "centerX": -20.81292261457551,
+      "tangent": {
+        "x": 0.15576778549138218,
+        "z": 0.98779370164175
+      },
+      "curvature": 0.001609193200470217,
+      "leftWaterWidth": 5.966967192587028,
+      "rightWaterWidth": 5.192158499596516,
+      "bedElevation": -1.8933275812564851,
+      "thalwegOffset": -0.016717254069302703,
+      "leftBankRun": 4.779945460110749,
+      "rightBankRun": 8.260928847705708,
+      "leftFloodplainWidth": 3.2560415519489707,
+      "rightFloodplainWidth": 7.509543924681153,
+      "leftErosion": 0.17877145048168003,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.19832451118449715,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -48,
+      "centerX": -20.49444861841556,
+      "tangent": {
+        "x": 0.15850161244947858,
+        "z": 0.987358718425535
+      },
+      "curvature": 0.0011249477899980662,
+      "leftWaterWidth": 5.902153769095917,
+      "rightWaterWidth": 5.285777889083674,
+      "bedElevation": -1.8552468588971223,
+      "thalwegOffset": -0.0010905063384313888,
+      "leftBankRun": 5.110711671146931,
+      "rightBankRun": 7.901337188553575,
+      "leftFloodplainWidth": 3.674242228802189,
+      "rightFloodplainWidth": 7.060561216175849,
+      "leftErosion": 0.1613560256215444,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.1813237392972219,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -46,
+      "centerX": -20.17129977460556,
+      "tangent": {
+        "x": 0.1602686228797535,
+        "z": 0.9870734362347248
+      },
+      "curvature": 0.0006422702642178607,
+      "leftWaterWidth": 5.829526671675431,
+      "rightWaterWidth": 5.3906836964688205,
+      "bedElevation": -1.8147370398196847,
+      "thalwegOffset": 0,
+      "leftBankRun": 5.482419233658902,
+      "rightBankRun": 7.4973703981968445,
+      "leftFloodplainWidth": 4.14305033809166,
+      "rightFloodplainWidth": 6.566791885800151,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -44,
+      "centerX": -19.845479589281243,
+      "tangent": {
+        "x": 0.16107130143620965,
+        "z": 0.9869427723296045
+      },
+      "curvature": 0.00016050380907414464,
+      "leftWaterWidth": 5.751490107688454,
+      "rightWaterWidth": 5.503403177783343,
+      "bedElevation": -1.7713833931602527,
+      "thalwegOffset": 0,
+      "leftBankRun": 5.8812727829256755,
+      "rightBankRun": 7.0638339316025265,
+      "leftFloodplainWidth": 4.645952639341069,
+      "rightFloodplainWidth": 6.037877396555083,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -42,
+      "centerX": -19.518991568578347,
+      "tangent": {
+        "x": 0.16091079123910784,
+        "z": 0.9869689545587562
+      },
+      "curvature": -0.0003210331664825473,
+      "leftWaterWidth": 5.670448284497871,
+      "rightWaterWidth": 5.62046358905863,
+      "bedElevation": -1.726360158054373,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.295486545899768,
+      "rightBankRun": 6.61360158054373,
+      "leftFloodplainWidth": 5.168222166569274,
+      "rightFloodplainWidth": 5.48859392826335,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -40,
+      "centerX": -19.193839218632608,
+      "tangent": {
+        "x": 0.15978686297981862,
+        "z": 0.9871515377180288
+      },
+      "curvature": -0.0008030284172601186,
+      "leftWaterWidth": 5.588805409466566,
+      "rightWaterWidth": 5.73839218632607,
+      "bedElevation": -1.6810030052592038,
+      "thalwegOffset": 0,
+      "leftBankRun": 6.7127723516153255,
+      "rightBankRun": 6.160030052592036,
+      "leftFloodplainWidth": 5.694365138993238,
+      "rightFloodplainWidth": 4.935236664162284,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -38,
+      "centerX": -18.872026045579762,
+      "tangent": {
+        "x": 0.15769792108768407,
+        "z": 0.9874874002662628
+      },
+      "curvature": -0.0012861573583369693,
+      "leftWaterWidth": 5.508965689957425,
+      "rightWaterWidth": 5.853716225617052,
+      "bedElevation": -1.6372426006256466,
+      "thalwegOffset": 0.003783875826896805,
+      "leftBankRun": 7.127262966087051,
+      "rightBankRun": 5.711023067754548,
+      "leftFloodplainWidth": 6.219544805687178,
+      "rightFloodplainWidth": 4.386995946389303,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16499795878744627,
+      "leftDeposition": 0.18487895976869753,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -36,
+      "centerX": -18.555555555555554,
+      "tangent": {
+        "x": 0.15464104706835477,
+        "z": 0.9879707215103103
+      },
+      "curvature": -0.0017710643424718087,
+      "leftWaterWidth": 5.433333333333334,
+      "rightWaterWidth": 5.962962962962963,
+      "bedElevation": -1.5980475733515271,
+      "thalwegOffset": 0.024681984339888236,
+      "leftBankRun": 7.531079832444254,
+      "rightBankRun": 5.279333168195028,
+      "leftFloodplainWidth": 6.740856155189183,
+      "rightFloodplainWidth": 3.8581888279692906,
+      "leftErosion": 0.16,
+      "rightErosion": 0.18871072726393975,
+      "leftDeposition": 0.20802713851956023,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -34,
+      "centerX": -18.246431254695718,
+      "tangent": {
+        "x": 0.15061208077457897,
+        "z": 0.9885929400540708
+      },
+      "curvature": -0.002258343398411245,
+      "leftWaterWidth": 5.364312546957175,
+      "rightWaterWidth": 6.062659654395191,
+      "bedElevation": -1.564568882792148,
+      "thalwegOffset": 0.06633727634709088,
+      "leftBankRun": 7.8883314352102385,
+      "rightBankRun": 4.903499045835557,
+      "leftFloodplainWidth": 7.212249605864127,
+      "rightFloodplainWidth": 3.3959728937125977,
+      "leftErosion": 0.16,
+      "rightErosion": 0.22958672965389135,
+      "leftDeposition": 0.2479299027573701,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -32,
+      "centerX": -17.946656649135985,
+      "tangent": {
+        "x": 0.14560574099018175,
+        "z": 0.9893426950206385
+      },
+      "curvature": -0.0027485181324442146,
+      "leftWaterWidth": 5.304307538191836,
+      "rightWaterWidth": 6.149333555945126,
+      "bedElevation": -1.5378319363547086,
+      "thalwegOffset": 0.1293578432917487,
+      "leftBankRun": 8.171803036826347,
+      "rightBankRun": 4.579486323287976,
+      "leftFloodplainWidth": 7.598075442023011,
+      "rightFloodplainWidth": 3.0069733144113306,
+      "leftErosion": 0.16,
+      "rightErosion": 0.28501975381765104,
+      "leftDeposition": 0.3020430930124689,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -30,
+      "centerX": -17.6582352450121,
+      "tangent": {
+        "x": 0.13961578726803098,
+        "z": 0.990205752329044
+      },
+      "curvature": -0.0032420205336548416,
+      "leftWaterWidth": 5.2557225144002,
+      "rightWaterWidth": 6.219511923644155,
+      "bedElevation": -1.5188556104726854,
+      "thalwegOffset": 0.21169976290501594,
+      "leftBankRun": 8.415196037510087,
+      "rightBankRun": 4.309569524445557,
+      "leftFloodplainWidth": 7.877331265030925,
+      "rightFloodplainWidth": 2.6776748198235794,
+      "leftErosion": 0.16,
+      "rightErosion": 0.35234872743628975,
+      "leftDeposition": 0.3677689958306638,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -28,
+      "centerX": -17.383170548459805,
+      "tangent": {
+        "x": 0.1326352254290876,
+        "z": 0.9911649191609715
+      },
+      "curvature": -0.0037391684793631605,
+      "leftWaterWidth": 5.220961682945155,
+      "rightWaterWidth": 6.269722013523666,
+      "bedElevation": -1.5086471640068728,
+      "thalwegOffset": 0.3085341101166724,
+      "leftBankRun": 8.592862509391434,
+      "rightBankRun": 4.116453794139745,
+      "leftFloodplainWidth": 8.064913598797895,
+      "rightFloodplainWidth": 2.4420736288504883,
+      "leftErosion": 0.16,
+      "rightErosion": 0.4288149905803442,
+      "leftDeposition": 0.44241463366176453,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -26,
+      "centerX": -17.123466065614824,
+      "tangent": {
+        "x": 0.12465655946354799,
+        "z": 0.9921999507068677
+      },
+      "curvature": -0.004240141814267346,
+      "leftWaterWidth": 5.2024292511895815,
+      "rightWaterWidth": 6.296491081615049,
+      "bedElevation": -1.5081978545807078,
+      "thalwegOffset": 0.4123025546155508,
+      "leftBankRun": 8.687583827253249,
+      "rightBankRun": 4.013495839942121,
+      "leftFloodplainWidth": 8.18434482566714,
+      "rightFloodplainWidth": 2.316464924729387,
+      "leftErosion": 0.16,
+      "rightErosion": 0.5115254729265634,
+      "leftDeposition": 0.5231558188092642,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -24,
+      "centerX": -16.78960905349794,
+      "tangent": {
+        "x": 0.19572807838984468,
+        "z": 0.9806582071903639
+      },
+      "curvature": -0.020375394765147065,
+      "leftWaterWidth": 5.203120713305898,
+      "rightWaterWidth": 6.293312757201646,
+      "bedElevation": -1.5667832647462276,
+      "thalwegOffset": 0.9830224622770918,
+      "leftBankRun": 8.675925925925926,
+      "rightBankRun": 4.017832647462277,
+      "leftFloodplainWidth": 8.162551440329217,
+      "rightFloodplainWidth": 2.3151577503429355,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -22,
+      "centerX": -16.430555555555554,
+      "tangent": {
+        "x": 0.16044553682391396,
+        "z": 0.9870446948914148
+      },
+      "curvature": -0.014840052932849526,
+      "leftWaterWidth": 5.225925925925926,
+      "rightWaterWidth": 6.2444444444444445,
+      "bedElevation": -1.5798148148148148,
+      "thalwegOffset": 0.946648148148148,
+      "leftBankRun": 8.5,
+      "rightBankRun": 4.148148148148148,
+      "leftFloodplainWidth": 8,
+      "rightFloodplainWidth": 2.4259259259259256,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -20,
+      "centerX": -16.133230452674898,
+      "tangent": {
+        "x": 0.13656842165424737,
+        "z": 0.9906306406561771
+      },
+      "curvature": -0.00900143013114702,
+      "leftWaterWidth": 5.266015089163237,
+      "rightWaterWidth": 6.158539094650205,
+      "bedElevation": -1.6027229080932783,
+      "thalwegOffset": 0.8827059327846364,
+      "leftBankRun": 8.2,
+      "rightBankRun": 4.377229080932785,
+      "leftFloodplainWidth": 8,
+      "rightFloodplainWidth": 2.620644718792867,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -18,
+      "centerX": -15.872942386831276,
+      "tangent": {
+        "x": 0.12453726502238731,
+        "z": 0.9922149311619654
+      },
+      "curvature": -0.0030148955047637274,
+      "leftWaterWidth": 5.317626886145405,
+      "rightWaterWidth": 6.047942386831275,
+      "bedElevation": -1.5512769599348588,
+      "thalwegOffset": 0.15256618075727602,
+      "leftBankRun": 7.870250948390809,
+      "rightBankRun": 4.672153635116597,
+      "leftFloodplainWidth": 7.019412921275299,
+      "rightFloodplainWidth": 2.8713305898491086,
+      "leftErosion": 0.16,
+      "rightErosion": 0.3201174099548709,
+      "leftDeposition": 0.3363050906702311,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -16,
+      "centerX": -15.625,
+      "tangent": {
+        "x": 0.12453726502238469,
+        "z": 0.9922149311619656
+      },
+      "curvature": 0.003014895504765466,
+      "leftWaterWidth": 5.40969387755102,
+      "rightWaterWidth": 5.850655976676385,
+      "bedElevation": -1.5911864111264944,
+      "thalwegOffset": -0.10857327591277288,
+      "leftBankRun": 6.692654679539702,
+      "rightBankRun": 5.6872946021119555,
+      "leftFloodplainWidth": 5.232836148736349,
+      "rightFloodplainWidth": 4.059720239926516,
+      "leftErosion": 0.2923390313051173,
+      "rightErosion": 0.16396501457725948,
+      "leftDeposition": 0.18396501457725947,
+      "rightDeposition": 0.3092825070973111,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -14,
+      "centerX": -15.364711934156379,
+      "tangent": {
+        "x": 0.13656842165424823,
+        "z": 0.9906306406561769
+      },
+      "curvature": 0.00900143013114529,
+      "leftWaterWidth": 5.503703703703703,
+      "rightWaterWidth": 5.649206349206349,
+      "bedElevation": -1.670496006750731,
+      "thalwegOffset": -0.24424954108627572,
+      "leftBankRun": 5.5276967930029155,
+      "rightBankRun": 6.865889212827987,
+      "leftFloodplainWidth": 3.685131195335277,
+      "rightFloodplainWidth": 5.574344023323615,
+      "leftErosion": 0.502740524781341,
+      "rightErosion": 0.17212827988338192,
+      "leftDeposition": 0.19212827988338194,
+      "rightDeposition": 0.514868804664723,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -12,
+      "centerX": -15.067386831275721,
+      "tangent": {
+        "x": 0.16044553682391227,
+        "z": 0.9870446948914152
+      },
+      "curvature": 0.01484005293284271,
+      "leftWaterWidth": 5.546343187480754,
+      "rightWaterWidth": 5.557836026826957,
+      "bedElevation": -1.684769803276984,
+      "thalwegOffset": -0.029793450739424243,
+      "leftBankRun": 5.9335276967930035,
+      "rightBankRun": 6.121865889212828,
+      "leftFloodplainWidth": 3.9556851311953354,
+      "rightFloodplainWidth": 4.221574344023324,
+      "leftErosion": 0.2254227405247813,
+      "rightErosion": 0.17889212827988338,
+      "leftDeposition": 0.1988921282798834,
+      "rightDeposition": 0.24431486880466471,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -10,
+      "centerX": -14.708333333333332,
+      "tangent": {
+        "x": 0.1957280783898472,
+        "z": 0.9806582071903635
+      },
+      "curvature": 0.020375394765138655,
+      "leftWaterWidth": 5.55,
+      "rightWaterWidth": 5.55,
+      "bedElevation": -1.7051851851851851,
+      "thalwegOffset": 0,
+      "leftBankRun": 6,
+      "rightBankRun": 6,
+      "leftFloodplainWidth": 4,
+      "rightFloodplainWidth": 4,
+      "leftErosion": 0.18,
+      "rightErosion": 0.18,
+      "leftDeposition": 0.2,
+      "rightDeposition": 0.2,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -8,
+      "centerX": -14.262860082304528,
+      "tangent": {
+        "x": 0.2415959063964156,
+        "z": 0.9703769463525473
+      },
+      "curvature": 0.02538159500001855,
+      "leftWaterWidth": 5.55,
+      "rightWaterWidth": 5.55,
+      "bedElevation": -1.7182167352537723,
+      "thalwegOffset": 0,
+      "leftBankRun": 6,
+      "rightBankRun": 6,
+      "leftFloodplainWidth": 4,
+      "rightFloodplainWidth": 4,
+      "leftErosion": 0.18,
+      "rightErosion": 0.18,
+      "leftDeposition": 0.2,
+      "rightDeposition": 0.2,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -6,
+      "centerX": -13.836628511966701,
+      "tangent": {
+        "x": 0.16323351347571785,
+        "z": 0.9865874619507249
+      },
+      "curvature": 0.003997084959493697,
+      "leftWaterWidth": 5.55,
+      "rightWaterWidth": 5.55,
+      "bedElevation": -1.7210996609714344,
+      "thalwegOffset": 0,
+      "leftBankRun": 6,
+      "rightBankRun": 6,
+      "leftFloodplainWidth": 4,
+      "rightFloodplainWidth": 4,
+      "leftErosion": 0.18,
+      "rightErosion": 0.18,
+      "leftDeposition": 0.2,
+      "rightDeposition": 0.2,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -4,
+      "centerX": -13.497398543184183,
+      "tangent": {
+        "x": 0.17121137504551615,
+        "z": 0.9852343198727008
+      },
+      "curvature": 0.003980661045803597,
+      "leftWaterWidth": 5.55,
+      "rightWaterWidth": 5.55,
+      "bedElevation": -1.729461918028935,
+      "thalwegOffset": 0,
+      "leftBankRun": 6,
+      "rightBankRun": 6,
+      "leftFloodplainWidth": 4,
+      "rightFloodplainWidth": 4,
+      "leftErosion": 0.18,
+      "rightErosion": 0.18,
+      "leftDeposition": 0.2,
+      "rightDeposition": 0.2,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": -2,
+      "centerX": -13.141519250780437,
+      "tangent": {
+        "x": 0.17915570062184705,
+        "z": 0.9838207331291078
+      },
+      "curvature": 0.003963551592889199,
+      "leftWaterWidth": 5.55,
+      "rightWaterWidth": 5.55,
+      "bedElevation": -1.7450746869860025,
+      "thalwegOffset": 0,
+      "leftBankRun": 6,
+      "rightBankRun": 6,
+      "leftFloodplainWidth": 4,
+      "rightFloodplainWidth": 4,
+      "leftErosion": 0.18,
+      "rightErosion": 0.18,
+      "leftDeposition": 0.2,
+      "rightDeposition": 0.2,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 0,
+      "centerX": -12.768990634755463,
+      "tangent": {
+        "x": 0.18706513504827535,
+        "z": 0.9823475124666273
+      },
+      "curvature": 0.003945772602087644,
+      "leftWaterWidth": 5.556837875293113,
+      "rightWaterWidth": 5.548920335480035,
+      "bedElevation": -1.765725514354637,
+      "thalwegOffset": -0.010163100650844052,
+      "leftBankRun": 5.967777117940933,
+      "rightBankRun": 6.05999656980874,
+      "leftFloodplainWidth": 3.977136149576614,
+      "rightFloodplainWidth": 4.102803176694641,
+      "leftErosion": 0.19564404370839616,
+      "rightErosion": 0.17889212827988338,
+      "leftDeposition": 0.1988921282798834,
+      "rightDeposition": 0.2152451885791459,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 2,
+      "centerX": -12.379812695109262,
+      "tangent": {
+        "x": 0.19493835563581255,
+        "z": 0.9808154961571547
+      },
+      "curvature": 0.00392734053390543,
+      "leftWaterWidth": 5.6262472973767785,
+      "rightWaterWidth": 5.537960953045772,
+      "bedElevation": -1.7857920241312095,
+      "thalwegOffset": -0.07780102500065618,
+      "leftBankRun": 5.738687702706512,
+      "rightBankRun": 6.489403482778946,
+      "leftFloodplainWidth": 3.810295395193014,
+      "rightFloodplainWidth": 4.819386302273866,
+      "leftErosion": 0.2899619802212473,
+      "rightErosion": 0.17212827988338192,
+      "leftDeposition": 0.19212827988338194,
+      "rightDeposition": 0.30715641592748866,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 4,
+      "centerX": -11.973985431841832,
+      "tangent": {
+        "x": 0.2027740730475614,
+        "z": 0.9792255487372161
+      },
+      "curvature": 0.003908272274278888,
+      "leftWaterWidth": 5.76964474468535,
+      "rightWaterWidth": 5.5153192508391555,
+      "bedElevation": -1.8079955302529955,
+      "thalwegOffset": -0.17122559793868788,
+      "leftBankRun": 5.391289641744516,
+      "rightBankRun": 7.145901482452021,
+      "leftFloodplainWidth": 3.549294356020894,
+      "rightFloodplainWidth": 5.879372065933447,
+      "leftErosion": 0.4014875637592091,
+      "rightErosion": 0.16396501457725948,
+      "leftDeposition": 0.18396501457725947,
+      "rightDeposition": 0.4158322649691626,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 6,
+      "centerX": -11.551508844953172,
+      "tangent": {
+        "x": 0.21057103211555797,
+        "z": 0.9775785597248892
+      },
+      "curvature": 0.0038885851005099844,
+      "leftWaterWidth": 5.911077170957672,
+      "rightWaterWidth": 5.492987815111947,
+      "bedElevation": -1.8367139298161708,
+      "thalwegOffset": -0.23056489405789674,
+      "leftBankRun": 5.135899809064939,
+      "rightBankRun": 7.633681900927273,
+      "leftFloodplainWidth": 3.3496858797238005,
+      "rightFloodplainWidth": 6.632842882051897,
+      "leftErosion": 0.4530313631126761,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.4660544258957076,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 8,
+      "centerX": -11.112382934443287,
+      "tangent": {
+        "x": 0.21832801258929302,
+        "z": 0.975875442317722
+      },
+      "curvature": 0.0038682966470258043,
+      "leftWaterWidth": 6.002024101238629,
+      "rightWaterWidth": 5.478627773488638,
+      "bedElevation": -1.87078340681454,
+      "thalwegOffset": -0.24804024856622037,
+      "leftBankRun": 5.025048435879575,
+      "rightBankRun": 7.849752401540022,
+      "leftFloodplainWidth": 3.256520489607519,
+      "rightFloodplainWidth": 6.938132543805203,
+      "leftErosion": 0.44971653077306784,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.46281851813561375,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 10,
+      "centerX": -10.656607700312176,
+      "tangent": {
+        "x": 0.22604382981556495,
+        "z": 0.9741171320751482
+      },
+      "curvature": 0.003847424870996592,
+      "leftWaterWidth": 6.093736363331207,
+      "rightWaterWidth": 5.464146890000336,
+      "bedElevation": -1.90513255145834,
+      "thalwegOffset": -0.2651425647944455,
+      "leftBankRun": 4.911898922051665,
+      "rightBankRun": 8.07030531273179,
+      "leftFloodplainWidth": 3.141468900003357,
+      "rightFloodplainWidth": 7.249736910695233,
+      "leftErosion": 0.44631473465682414,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.45949771716499493,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 12,
+      "centerX": -10.184183142559833,
+      "tangent": {
+        "x": 0.23371733534965533,
+        "z": 0.972304585588825
+      },
+      "curvature": 0.003825988018002595,
+      "leftWaterWidth": 6.183152629988922,
+      "rightWaterWidth": 5.450028532107012,
+      "bedElevation": -1.9386017472060795,
+      "thalwegOffset": -0.28119159248293135,
+      "leftBankRun": 4.800227103391132,
+      "rightBankRun": 8.332667584169716,
+      "leftFloodplainWidth": 3.000285321070122,
+      "rightFloodplainWidth": 7.557170652332917,
+      "leftErosion": 0.44282988380843424,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.4560958389558525,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 14,
+      "centerX": -9.695109261186264,
+      "tangent": {
+        "x": 0.24134741749790803,
+        "z": 0.9704387791443058
+      },
+      "curvature": 0.003804004587842732,
+      "leftWaterWidth": 6.267211573965292,
+      "rightWaterWidth": 5.436756067268639,
+      "bedElevation": -1.970031385549641,
+      "thalwegOffset": -0.29554122459092275,
+      "leftBankRun": 4.64107280722366,
+      "rightBankRun": 8.642358430398442,
+      "leftFloodplainWidth": 2.8675606726863823,
+      "rightFloodplainWidth": 7.849668375813247,
+      "leftErosion": 0.4392659547527288,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.45261676535385426,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 16,
+      "centerX": -9.189386056191466,
+      "tangent": {
+        "x": 0.2489330017921031,
+        "z": 0.968520707377376
+      },
+      "curvature": 0.003781493300516598,
+      "leftWaterWidth": 6.342851868013829,
+      "rightWaterWidth": 5.424812862945185,
+      "bedElevation": -1.9982618650903132,
+      "thalwegOffset": -0.30758128646250393,
+      "leftBankRun": 4.4977543553422175,
+      "rightBankRun": 8.92103319794569,
+      "leftFloodplainWidth": 2.7481286294518474,
+      "rightFloodplainWidth": 8.172904568493841,
+      "leftErosion": 0.43562698373355535,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.449064436501804,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 18,
+      "centerX": -8.667013527575444,
+      "tangent": {
+        "x": 0.2564730513961716,
+        "z": 0.9665513819283157
+      },
+      "curvature": 0.003758473062593536,
+      "leftWaterWidth": 6.407012184888053,
+      "rightWaterWidth": 5.414682286596624,
+      "bedElevation": -2.0221335906002667,
+      "thalwegOffset": -0.316739131288495,
+      "leftBankRun": 4.376187439159478,
+      "rightBankRun": 9.157413312745458,
+      "leftFloodplainWidth": 2.6468228659662314,
+      "rightFloodplainWidth": 8.510590446779227,
+      "leftErosion": 0.43191705883016485,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.44544284314373234,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 20,
+      "centerX": -8.127991675338189,
+      "tangent": {
+        "x": 0.26396656744597463,
+        "z": 0.9645318300972705
+      },
+      "curvature": 0.003734962933939986,
+      "leftWaterWidth": 6.456631197341479,
+      "rightWaterWidth": 5.4068477056829245,
+      "bedElevation": -2.04048697207022,
+      "thalwegOffset": -0.3224810381349383,
+      "leftBankRun": 4.282172468195093,
+      "rightBankRun": 9.340220200731764,
+      "leftFloodplainWidth": 2.568477056829244,
+      "rightFloodplainWidth": 8.77174314390252,
+      "leftErosion": 0.4281403119576027,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.44175601881575505,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 22,
+      "centerX": -7.57232049947971,
+      "tangent": {
+        "x": 0.2714125893231341,
+        "z": 0.9624630935038037
+      },
+      "curvature": 0.0037109820950370566,
+      "leftWaterWidth": 6.4886475781276225,
+      "rightWaterWidth": 5.40179248766406,
+      "bedElevation": -2.0521624237492886,
+      "thalwegOffset": -0.32431340992422925,
+      "leftBankRun": 4.221509851968716,
+      "rightBankRun": 9.458175287838609,
+      "leftFloodplainWidth": 2.5179248766405964,
+      "rightFloodplainWidth": 8.940250411198011,
+      "leftErosion": 0.4243009108014639,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.4380080319728577,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 24,
+      "centerX": -7,
+      "tangent": {
+        "x": 0.29377859886924823,
+        "z": 0.9558734931184258
+      },
+      "curvature": 0.033361294501176905,
+      "leftWaterWidth": 6.5,
+      "rightWaterWidth": 5.4,
+      "bedElevation": -2.125,
+      "thalwegOffset": -1.0379999999999998,
+      "leftBankRun": 4.2,
+      "rightBankRun": 9.5,
+      "leftFloodplainWidth": 2.5,
+      "rightFloodplainWidth": 9,
+      "leftErosion": 1,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 1,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 26,
+      "centerX": -6.337463556851312,
+      "tangent": {
+        "x": 0.32245618094627243,
+        "z": 0.9465843921011718
+      },
+      "curvature": 0.00772740935624636,
+      "leftWaterWidth": 6.495626822157434,
+      "rightWaterWidth": 5.426239067055394,
+      "bedElevation": -2.117257970589068,
+      "thalwegOffset": -1.0011470990714955,
+      "leftBankRun": 4.284548104956268,
+      "rightBankRun": 9.427113702623906,
+      "leftFloodplainWidth": 2.60204081632653,
+      "rightFloodplainWidth": 8.912536443148687,
+      "leftErosion": 0.9839465447849067,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.9843287699090757,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 28,
+      "centerX": -5.6384839650145775,
+      "tangent": {
+        "x": 0.33686889500982425,
+        "z": 0.9415515639490277
+      },
+      "curvature": 0.0066922306559648904,
+      "leftWaterWidth": 6.483381924198251,
+      "rightWaterWidth": 5.499708454810496,
+      "bedElevation": -2.090210016502507,
+      "thalwegOffset": -0.8492829431631234,
+      "leftBankRun": 4.521282798833819,
+      "rightBankRun": 9.223032069970847,
+      "leftFloodplainWidth": 2.8877551020408165,
+      "rightFloodplainWidth": 8.667638483965016,
+      "leftErosion": 0.8938865876006499,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.896413097419682,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 30,
+      "centerX": -4.9074344023323615,
+      "tangent": {
+        "x": 0.34925160148655937,
+        "z": 0.9370289850688043
+      },
+      "curvature": 0.005696768472087823,
+      "leftWaterWidth": 6.464577259475219,
+      "rightWaterWidth": 5.612536443148688,
+      "bedElevation": -2.0486056333045872,
+      "thalwegOffset": -0.6357454590299801,
+      "leftBankRun": 4.824742674591108,
+      "rightBankRun": 8.909620991253645,
+      "leftFloodplainWidth": 3.2369014459537486,
+      "rightFloodplainWidth": 8.291545189504374,
+      "leftErosion": 0.7550220136360821,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.760854822835223,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 32,
+      "centerX": -4.14868804664723,
+      "tangent": {
+        "x": 0.35967965793257467,
+        "z": 0.9330758509732776
+      },
+      "curvature": 0.004736818282319412,
+      "leftWaterWidth": 6.440524781341108,
+      "rightWaterWidth": 5.756851311953353,
+      "bedElevation": -1.9976088286810763,
+      "thalwegOffset": -0.4163535190066741,
+      "leftBankRun": 5.0644297354322525,
+      "rightBankRun": 8.508746355685131,
+      "leftFloodplainWidth": 3.530747479260171,
+      "rightFloodplainWidth": 7.908865679729075,
+      "leftErosion": 0.5960366099006338,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.6056547858553806,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 34,
+      "centerX": -3.366618075801749,
+      "tangent": {
+        "x": 0.36821931996954566,
+        "z": 0.9297389592789824
+      },
+      "curvature": 0.003807521239294317,
+      "leftWaterWidth": 6.412536443148689,
+      "rightWaterWidth": 5.924781341107872,
+      "bedElevation": -1.941695661633215,
+      "thalwegOffset": -0.23021832184138216,
+      "leftBankRun": 5.527521849907762,
+      "rightBankRun": 8.094818460502378,
+      "leftFloodplainWidth": 4.094140296025066,
+      "rightFloodplainWidth": 7.500339082238657,
+      "leftErosion": 0.439835394453703,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.45317264696671006,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 36,
+      "centerX": -2.5655976676384844,
+      "tangent": {
+        "x": 0.37492664389930436,
+        "z": 0.9270544815135754
+      },
+      "curvature": 0.002903565757612183,
+      "leftWaterWidth": 6.381924198250729,
+      "rightWaterWidth": 6.108454810495627,
+      "bedElevation": -1.8848357449859519,
+      "thalwegOffset": -0.09837639835688987,
+      "leftBankRun": 6.192176996147801,
+      "rightBankRun": 7.64742247086372,
+      "leftFloodplainWidth": 4.900182890825684,
+      "rightFloodplainWidth": 6.873619790019018,
+      "leftErosion": 0.3050692374738315,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.32161520801016885,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 38,
+      "centerX": -1.75,
+      "tangent": {
+        "x": 0.379846738268912,
+        "z": 0.9250494340447265
+      },
+      "curvature": 0.002019336792844668,
+      "leftWaterWidth": 6.35,
+      "rightWaterWidth": 6.300000000000001,
+      "bedElevation": -1.8306647386809185,
+      "thalwegOffset": -0.027417335215646394,
+      "leftBankRun": 6.9697110103388695,
+      "rightBankRun": 7.067976864171024,
+      "leftFloodplainWidth": 5.841387316934277,
+      "rightFloodplainWidth": 6.113294773618374,
+      "leftErosion": 0.2075838049197169,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.22645085718353314,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 40,
+      "centerX": -0.9241982507288635,
+      "tangent": {
+        "x": 0.38301327114136335,
+        "z": 0.923742839825886
+      },
+      "curvature": 0.0011490241045839266,
+      "leftWaterWidth": 6.318075801749272,
+      "rightWaterWidth": 6.491545189504373,
+      "bedElevation": -1.7826435587218519,
+      "thalwegOffset": -0.001296906816553552,
+      "leftBankRun": 7.711099653547403,
+      "rightBankRun": 6.471552764168988,
+      "leftFloodplainWidth": 6.737483578601126,
+      "rightFloodplainWidth": 5.36703459278393,
+      "leftErosion": 0.16175691367171915,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.1817150823938211,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 42,
+      "centerX": -0.09256559766763761,
+      "tangent": {
+        "x": 0.3844481618003492,
+        "z": 0.9231465814746499
+      },
+      "curvature": 0.0002867001302920203,
+      "leftWaterWidth": 6.287463556851312,
+      "rightWaterWidth": 6.6752186588921285,
+      "bedElevation": -1.7416180758017494,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.309037900874635,
+      "rightBankRun": 5.957725947521865,
+      "leftFloodplainWidth": 7.459183673469388,
+      "rightFloodplainWidth": 4.7492711370262395,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 44,
+      "centerX": 0.7405247813411081,
+      "tangent": {
+        "x": 0.384161406052692,
+        "z": 0.9232659498214038
+      },
+      "curvature": -0.000573622721548284,
+      "leftWaterWidth": 6.259475218658892,
+      "rightWaterWidth": 6.843148688046648,
+      "bedElevation": -1.7043002915451895,
+      "thalwegOffset": 0,
+      "leftBankRun": 8.850145772594754,
+      "rightBankRun": 5.491253644314869,
+      "leftFloodplainWidth": 8.112244897959183,
+      "rightFloodplainWidth": 4.189504373177843,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 46,
+      "centerX": 1.5706997084548102,
+      "tangent": {
+        "x": 0.38215100316467987,
+        "z": 0.9240998922087529
+      },
+      "curvature": -0.001437946261611802,
+      "leftWaterWidth": 6.235422740524781,
+      "rightWaterWidth": 6.987463556851312,
+      "bedElevation": -1.6734717282088647,
+      "thalwegOffset": 0.011998447876307494,
+      "leftBankRun": 9.315160349854228,
+      "rightBankRun": 5.086774221926765,
+      "leftFloodplainWidth": 8.673469387755103,
+      "rightFloodplainWidth": 3.702142814297467,
+      "leftErosion": 0.16,
+      "rightErosion": 0.17042782307691318,
+      "leftDeposition": 0.1901795415750819,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 48,
+      "centerX": 2.393586005830903,
+      "tangent": {
+        "x": 0.3784029701597759,
+        "z": 0.9256409628869392
+      },
+      "curvature": -0.0023122435479186357,
+      "leftWaterWidth": 6.216618075801749,
+      "rightWaterWidth": 7.100291545189505,
+      "bedElevation": -1.6560899155172426,
+      "thalwegOffset": 0.09337502725813057,
+      "leftBankRun": 9.678717201166181,
+      "rightBankRun": 4.776967930029155,
+      "leftFloodplainWidth": 9.112244897959185,
+      "rightFloodplainWidth": 3.3205383486117515,
+      "leftErosion": 0.16,
+      "rightErosion": 0.2350328413652466,
+      "leftDeposition": 0.2532463451422645,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 50,
+      "centerX": 3.2048104956268224,
+      "tangent": {
+        "x": 0.37289144631908155,
+        "z": 0.927874975016604
+      },
+      "curvature": -0.0032024102247323796,
+      "leftWaterWidth": 6.204373177842566,
+      "rightWaterWidth": 7.173760932944607,
+      "bedElevation": -1.6530438723840473,
+      "thalwegOffset": 0.24360276192077185,
+      "leftBankRun": 9.91545189504373,
+      "rightBankRun": 4.572886297376093,
+      "leftFloodplainWidth": 9.39795918367347,
+      "rightFloodplainWidth": 3.0874635568513122,
+      "leftErosion": 0.16,
+      "rightErosion": 0.34658893618926323,
+      "leftDeposition": 0.3621463424704713,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 52,
+      "centerX": 4,
+      "tangent": {
+        "x": 0.3584342861560191,
+        "z": 0.9335549595539756
+      },
+      "curvature": -0.018504061625984607,
+      "leftWaterWidth": 6.2,
+      "rightWaterWidth": 7.2,
+      "bedElevation": -1.7249999999999999,
+      "thalwegOffset": 1.115,
+      "leftBankRun": 10,
+      "rightBankRun": 4.5,
+      "leftFloodplainWidth": 9.5,
+      "rightFloodplainWidth": 3,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0
+    },
+    {
+      "z": 54,
+      "centerX": 4.7561481481481485,
+      "tangent": {
+        "x": 0.36210137000497755,
+        "z": 0.9321387224230727
+      },
+      "curvature": 0.007919209121380446,
+      "leftWaterWidth": 6.225481481481482,
+      "rightWaterWidth": 7.222933333333334,
+      "bedElevation": -1.7304612918442777,
+      "thalwegOffset": -1.0915066118221128,
+      "leftBankRun": 4.631829635375735,
+      "rightBankRun": 9.925503697957598,
+      "leftFloodplainWidth": 3.172540625812237,
+      "rightFloodplainWidth": 9.423014929743319,
+      "leftErosion": 0.9923637403808205,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.992545556086039,
+      "estuaryInfluence": 0.055393586005830886
+    },
+    {
+      "z": 56,
+      "centerX": 5.551407407407408,
+      "tangent": {
+        "x": 0.3758393446930285,
+        "z": 0.9266848369217633
+      },
+      "curvature": 0.00583576233445737,
+      "leftWaterWidth": 6.297185185185185,
+      "rightWaterWidth": 7.287466666666666,
+      "bedElevation": -1.7226948814608392,
+      "thalwegOffset": -0.7806593051503715,
+      "leftBankRun": 6.157420937174049,
+      "rightBankRun": 8.549610694510978,
+      "leftFloodplainWidth": 4.856499658931506,
+      "rightFloodplainWidth": 7.833745476722421,
+      "leftErosion": 0.7765481153821606,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.781868398349252,
+      "estuaryInfluence": 0.1982507288629738
+    },
+    {
+      "z": 58,
+      "centerX": 6.376,
+      "tangent": {
+        "x": 0.3855033342943451,
+        "z": 0.9227064426175546
+      },
+      "curvature": 0.0038406154622185116,
+      "leftWaterWidth": 6.408,
+      "rightWaterWidth": 7.3872,
+      "bedElevation": -1.710953186690971,
+      "thalwegOffset": -0.34121866122451927,
+      "leftBankRun": 8.09705692038672,
+      "rightBankRun": 6.743279097655231,
+      "leftFloodplainWidth": 7.257916209706732,
+      "rightFloodplainWidth": 5.772188336247722,
+      "leftErosion": 0.44520676820415794,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.45841613086596367,
+      "estuaryInfluence": 0.39358600583090386
+    },
+    {
+      "z": 60,
+      "centerX": 7.220148148148148,
+      "tangent": {
+        "x": 0.39124168327146897,
+        "z": 0.9202879686657366
+      },
+      "curvature": 0.0019052475173973321,
+      "leftWaterWidth": 6.550814814814815,
+      "rightWaterWidth": 7.515733333333333,
+      "bedElevation": -1.7172732781737174,
+      "thalwegOffset": -0.04247049165102326,
+      "leftBankRun": 9.427598056959267,
+      "rightBankRun": 5.8233440810859936,
+      "leftFloodplainWidth": 8.961028755439118,
+      "rightFloodplainWidth": 4.791527600089847,
+      "leftErosion": 0.19838442554811656,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.21747051065411377,
+      "estuaryInfluence": 0.6064139941690962
+    },
+    {
+      "z": 62,
+      "centerX": 8.074074074074073,
+      "tangent": {
+        "x": 0.393144414356812,
+        "z": 0.9194767367693646
+      },
+      "curvature": 1.3808689046642295e-15,
+      "leftWaterWidth": 6.718518518518518,
+      "rightWaterWidth": 7.666666666666666,
+      "bedElevation": -1.7546296296296295,
+      "thalwegOffset": 0,
+      "leftBankRun": 9.481481481481481,
+      "rightBankRun": 6.185185185185185,
+      "leftFloodplainWidth": 9.11111111111111,
+      "rightFloodplainWidth": 5.333333333333333,
+      "leftErosion": 0.16,
+      "rightErosion": 0.16,
+      "leftDeposition": 0.18,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0.8017492711370262
+    },
+    {
+      "z": 64,
+      "centerX": 8.928,
+      "tangent": {
+        "x": 0.3912416832714686,
+        "z": 0.9202879686657366
+      },
+      "curvature": -0.0019052475174007946,
+      "leftWaterWidth": 6.904,
+      "rightWaterWidth": 7.833600000000001,
+      "bedElevation": -1.8055695744700455,
+      "thalwegOffset": 0.03393292888264283,
+      "leftBankRun": 9.296,
+      "rightBankRun": 6.697156859535495,
+      "leftFloodplainWidth": 8.972,
+      "rightFloodplainWidth": 6.0323750297290495,
+      "leftErosion": 0.16,
+      "rightErosion": 0.19838442554838237,
+      "leftDeposition": 0.21747051065437326,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 0.9446064139941691
+    },
+    {
+      "z": 66,
+      "centerX": 9.772148148148148,
+      "tangent": {
+        "x": 0.38550333429434575,
+        "z": 0.9227064426175543
+      },
+      "curvature": -0.0038406154622199033,
+      "leftWaterWidth": 7.100148148148148,
+      "rightWaterWidth": 8.010133333333332,
+      "bedElevation": -1.8839902237280353,
+      "thalwegOffset": 0.21690030053062478,
+      "leftBankRun": 9.099851851851852,
+      "rightBankRun": 6.53404685253649,
+      "leftFloodplainWidth": 8.82488888888889,
+      "rightFloodplainWidth": 5.7432426244852985,
+      "leftErosion": 0.16,
+      "rightErosion": 0.4452067682043843,
+      "leftDeposition": 0.45841613086618466,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 68,
+      "centerX": 10.59674074074074,
+      "tangent": {
+        "x": 0.3758393446930288,
+        "z": 0.9266848369217631
+      },
+      "curvature": -0.005835762334456661,
+      "leftWaterWidth": 7.299851851851852,
+      "rightWaterWidth": 8.189866666666667,
+      "bedElevation": -1.973361548127493,
+      "thalwegOffset": 0.3913453802551495,
+      "leftBankRun": 8.900148148148148,
+      "rightBankRun": 5.671068254975397,
+      "leftFloodplainWidth": 8.67511111111111,
+      "rightFloodplainWidth": 4.463389861919255,
+      "leftErosion": 0.16,
+      "rightErosion": 0.776548115382052,
+      "leftDeposition": 0.7818683983491459,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 70,
+      "centerX": 11.392,
+      "tangent": {
+        "x": 0.36210137000497794,
+        "z": 0.9321387224230727
+      },
+      "curvature": -0.007919209121378286,
+      "leftWaterWidth": 7.496,
+      "rightWaterWidth": 8.366399999999999,
+      "bedElevation": -2.048090921473898,
+      "thalwegOffset": 0.5997220385811838,
+      "leftBankRun": 8.711927273717912,
+      "rightBankRun": 4.835563151941114,
+      "leftFloodplainWidth": 8.82923640128065,
+      "rightFloodplainWidth": 3.2511993025900705,
+      "leftErosion": 0.16,
+      "rightErosion": 0.9923637403807424,
+      "leftDeposition": 0.9925455560859626,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 72,
+      "centerX": 12.148148148148147,
+      "tangent": {
+        "x": 0.3440860455125019,
+        "z": 0.9389381200502878
+      },
+      "curvature": -0.010117217577289348,
+      "leftWaterWidth": 7.681481481481481,
+      "rightWaterWidth": 8.533333333333333,
+      "bedElevation": -2.0953703703703703,
+      "thalwegOffset": 0.7200370370370369,
+      "leftBankRun": 9.314814814814813,
+      "rightBankRun": 4.8,
+      "leftFloodplainWidth": 9.666666666666668,
+      "rightFloodplainWidth": 3.2,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 74,
+      "centerX": 12.855407407407409,
+      "tangent": {
+        "x": 0.3215411936534456,
+        "z": 0.9468955912791639
+      },
+      "curvature": -0.012451959665605626,
+      "leftWaterWidth": 7.849185185185185,
+      "rightWaterWidth": 8.684266666666666,
+      "bedElevation": -2.137296296296296,
+      "thalwegOffset": 0.8238456296296295,
+      "leftBankRun": 9.859851851851852,
+      "rightBankRun": 4.8,
+      "leftFloodplainWidth": 10.421333333333331,
+      "rightFloodplainWidth": 3.2,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 76,
+      "centerX": 13.504,
+      "tangent": {
+        "x": 0.2941766390786518,
+        "z": 0.955751068542635
+      },
+      "curvature": -0.014938692511375825,
+      "leftWaterWidth": 7.992,
+      "rightWaterWidth": 8.812800000000001,
+      "bedElevation": -2.173,
+      "thalwegOffset": 0.9122480000000002,
+      "leftBankRun": 10.324000000000002,
+      "rightBankRun": 4.8,
+      "leftFloodplainWidth": 11.064000000000002,
+      "rightFloodplainWidth": 3.2,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 78,
+      "centerX": 14.084148148148149,
+      "tangent": {
+        "x": 0.2616818946353246,
+        "z": 0.9651541773313044
+      },
+      "curvature": -0.017581674785657253,
+      "leftWaterWidth": 8.102814814814815,
+      "rightWaterWidth": 8.912533333333332,
+      "bedElevation": -2.2007037037037036,
+      "thalwegOffset": 0.9808423703703704,
+      "leftBankRun": 10.684148148148148,
+      "rightBankRun": 4.8,
+      "leftFloodplainWidth": 11.562666666666667,
+      "rightFloodplainWidth": 3.2,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 80,
+      "centerX": 14.586074074074077,
+      "tangent": {
+        "x": 0.22375340455231083,
+        "z": 0.9746457889670739
+      },
+      "curvature": -0.020368690679761603,
+      "leftWaterWidth": 8.174518518518518,
+      "rightWaterWidth": 8.977066666666667,
+      "bedElevation": -2.2186296296296297,
+      "thalwegOffset": 1.025226962962963,
+      "leftBankRun": 10.917185185185186,
+      "rightBankRun": 4.8,
+      "leftFloodplainWidth": 11.885333333333334,
+      "rightFloodplainWidth": 3.2,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    },
+    {
+      "z": 82,
+      "centerX": 15,
+      "tangent": {
+        "x": 0.09721329085355773,
+        "z": 0.9952635711616403
+      },
+      "curvature": -0.1925891680889431,
+      "leftWaterWidth": 8.2,
+      "rightWaterWidth": 9,
+      "bedElevation": -2.225,
+      "thalwegOffset": 1.041,
+      "leftBankRun": 11,
+      "rightBankRun": 4.8,
+      "leftFloodplainWidth": 12,
+      "rightFloodplainWidth": 3.2,
+      "leftErosion": 0.16,
+      "rightErosion": 1,
+      "leftDeposition": 1,
+      "rightDeposition": 0.18,
+      "estuaryInfluence": 1
+    }
+  ],
+  "routeIds": [
+    "farm-village",
+    "village-homestead",
+    "village-harbor",
+    "village-lighthouse",
+    "cliffside-coastal-walk",
+    "farm-entry",
+    "farm-work-zone",
+    "farm-home"
+  ],
+  "routeHash": "558a98168cf8d96adea2f6e9755d13c6e34d1789383054ed87a26a29fcdb85f3",
+  "sunreachHash": "a35c87c593cb183a092f80f663d88ad120c56c5171c1971d85863e906e918e5e",
+  "sunreachSampleCount": 2650
+}

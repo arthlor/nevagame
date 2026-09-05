@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createWaterDepthMap, createCoastalUniforms, WATER_OUTPUT_GLSL, type CoastalUniforms } from "./CoastalOptics";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { GROUND_POLYGON_CELL_GLSL } from "../materials/GroundPolygonCells";
@@ -139,6 +140,7 @@ const fragmentShader = /* glsl */ `
       vSignedWaterDistance,
       vRegionWeights
     );
+    ${WATER_OUTPUT_GLSL}
   }
 `;
 
@@ -211,6 +213,8 @@ export class FacetedWater {
   public readonly group = new THREE.Group();
   public readonly meshes: readonly THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>[];
   public readonly waterProfileMap: THREE.DataTexture;
+  public readonly depthMap: THREE.DataTexture;
+  public readonly coastalUniforms: CoastalUniforms;
   public readonly waterProfileBounds: THREE.Vector4;
   public readonly nearPatch: NearWaterPatch;
   private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
@@ -238,12 +242,15 @@ export class FacetedWater {
     const profileWidth = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
     const profileHeight = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
     this.waterProfileMap = createWaterProfileMap(profileBounds, profileWidth, profileHeight);
+    this.depthMap = createWaterDepthMap(profileBounds, profileWidth, profileHeight);
+    this.coastalUniforms = createCoastalUniforms(this.depthMap, profileBounds);
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       vertexShader,
       fragmentShader,
       uniforms: {
         ...createHeadwaterUniforms(),
+        ...this.coastalUniforms,
         uTime: { value: 0 },
         uReducedMotion: { value: 0 },
         uRoughness: { value: 0.2 },
@@ -311,7 +318,6 @@ export class FacetedWater {
     });
 
     const chunkCountX = width > 900 ? 2 : 1;
-    const chunkWidth = width / chunkCountX;
     const chunkMeshes: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>[] = [];
     let consumedSegments = 0;
     for (let chunkIndex = 0; chunkIndex < chunkCountX; chunkIndex += 1) {
@@ -319,8 +325,9 @@ export class FacetedWater {
       const chunkSegmentsX = chunkIndex === chunkCountX - 1
         ? remainingSegments
         : Math.max(1, Math.round(segmentsX / chunkCountX));
+      const chunkWidth = width * chunkSegmentsX / segmentsX;
+      const chunkCenterX = centerX - width * 0.5 + width * (consumedSegments + chunkSegmentsX * 0.5) / segmentsX;
       consumedSegments += chunkSegmentsX;
-      const chunkCenterX = centerX - width * 0.5 + chunkWidth * (chunkIndex + 0.5);
       const geometry = createWaterGeometry(chunkWidth, depth, chunkSegmentsX, segmentsZ, chunkCenterX, centerZ);
       const chunk = new THREE.Mesh(geometry, material);
       chunk.position.set(
@@ -341,9 +348,12 @@ export class FacetedWater {
 
     this.nearPatch = new NearWaterPatch({
       waterProfileMap: this.waterProfileMap,
-      waterProfileBounds: this.waterProfileBounds
+      waterProfileBounds: this.waterProfileBounds,
+      coastalUniforms: this.coastalUniforms,
+      baseGridSpacing: new THREE.Vector2(width/segmentsX, depth/segmentsZ)
     });
     this.group.add(this.nearPatch.mesh);
+    for (const mesh of [...this.meshes, this.nearPatch.mesh]) mesh.renderOrder = -100;
     this.setQuality(this.qualityTier);
   }
 
@@ -352,6 +362,8 @@ export class FacetedWater {
     const tierConfig = CANONICAL_RENDER_CONFIG.waterSurface.quality[tier];
     const mode = tierConfig.reflection === "flat" ? 0 : tierConfig.reflection === "skyGradient" ? 1 : 2;
     this.mesh.material.uniforms.uReflectionMode.value = mode;
+    this.coastalUniforms.uRippleNormalStrength.value = tierConfig.detailNormal
+      ? CANONICAL_RENDER_CONFIG.waterSurface.optics.rippleNormalStrength : 0;
     this.mesh.material.uniforms.uNormalQuantization.value = CANONICAL_RENDER_CONFIG.waterSurface.normalQuantizationSteps;
     this.mesh.material.uniforms.uNearPatchRadius.value = tierConfig.nearPatch
       ? CANONICAL_RENDER_CONFIG.waterSurface.nearPatch.innerFadeRadiusMeters
@@ -372,6 +384,8 @@ export class FacetedWater {
     };
     const uniforms = this.mesh.material.uniforms;
     const windRadians = THREE.MathUtils.degToRad(this.conditions.windDirectionDeg);
+    this.coastalUniforms.uCoastTime.value = timeSeconds;
+    this.coastalUniforms.uCoastReducedMotion.value = options?.reducedMotion ? 1 : 0;
     uniforms.uTime.value = timeSeconds;
     uniforms.uReducedMotion.value = options?.reducedMotion ? 1 : 0;
     uniforms.uRoughness.value = this.conditions.seaRoughness;
@@ -382,12 +396,13 @@ export class FacetedWater {
     );
 
     if (cameraTarget) {
-      const snappedX = Math.round(cameraTarget.x);
-      const snappedZ = Math.round(cameraTarget.z);
-      (uniforms.uNearPatchCenter.value as THREE.Vector2).set(snappedX, snappedZ);
-
       if (this.nearPatch.mesh.visible) {
         this.nearPatch.update(timeSeconds, this.conditions, cameraTarget, options);
+        // Complementary coverage must use the patch's actual lattice-snapped
+        // center; a separate one-meter snap creates a crescent of missing water.
+        (uniforms.uNearPatchCenter.value as THREE.Vector2).copy(
+          this.nearPatch.mesh.material.uniforms.uPatchCenter.value as THREE.Vector2
+        );
       }
     }
   }
@@ -430,6 +445,7 @@ export class FacetedWater {
 
   public dispose(): void {
     this.waterProfileMap.dispose();
+    this.depthMap.dispose();
     for (const mesh of this.meshes) mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.nearPatch.dispose();

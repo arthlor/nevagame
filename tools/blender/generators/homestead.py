@@ -16,11 +16,13 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_lofted_form,
+    add_conforming_shell,
     add_ring,
     add_tri_prism,
     seeded_rng,
 )
-from common.authored import add_plank_field, add_rope_line
+from common.authored import add_plank_field, add_rope_line, add_profiled_vessel
 
 
 def apiary_hive(spec: dict, root) -> None:
@@ -140,11 +142,11 @@ def rustic_watering_can(spec: dict, root) -> None:
     body_r, body_h = 0.085, 0.22
     base_z = 0.015
 
-    add_cylinder("can_body", (0, 0, base_z + body_h * 0.5), body_r, body_h, metal, root, vertices=10, bevel=0.008)
+    add_profiled_vessel("can_body", (0, 0, base_z),
+        ((0, body_r * .90), (.03, body_r), (body_h * .82, body_r),
+         (body_h, body_r * .52), (body_h + .082, body_r * .52)), .006, metal, root, sides=10)
     add_cylinder("can_base_rim", (0, 0, base_z + 0.012), body_r + 0.010, 0.024, brass, root, vertices=10, bevel=0.006)
-    add_cylinder("can_shoulder", (0, 0, base_z + body_h - 0.012), body_r + 0.008, 0.024, brass, root, vertices=10, bevel=0.006)
-    add_cylinder("can_neck", (0, -0.012, base_z + body_h + 0.045), body_r * 0.52, 0.075, metal, root, vertices=8, bevel=0.006)
-    add_ring("can_neck_lip", (0, -0.012, base_z + body_h + 0.082), body_r * 0.52, 0.010, brass, root, major_segments=8, minor_segments=4)
+    add_ring("can_neck_lip", (0, 0, base_z + body_h + 0.082), body_r * .52, .006, brass, root, major_segments=10, minor_segments=4)
 
     # The spout rises from the base so water can reach the rose: physically right.
     spout_start = (0, 0.06, base_z + 0.045)
@@ -278,9 +280,15 @@ def water_trough(spec: dict, root) -> None:
         add_box(f"trough_end_{index}", (sign * (length * 0.5 - 0.03), 0, floor_z + wall_h * 0.5),
                 (0.06, width, wall_h), wood, root, bevel=0.012)
         # Iron strap girdles: what stops a plank trough from splitting open.
-        add_box(f"trough_strap_{index}", (sign * length * 0.28, 0, floor_z + wall_h * 0.52),
-                (0.045, width + 0.03, wall_h * 0.86), metal, root, bevel=0.006)
-    add_box("trough_rim", (0, 0, floor_z + wall_h + 0.02), (length + 0.05, width + 0.05, 0.045), wood, root, bevel=0.012)
+        for side in (-1, 1):
+            add_box(f"trough_strap_{index}_{side}", (sign * length * .28, side * (width / 2 + .007), floor_z + wall_h * .5),
+                    (.045, .014, wall_h), metal, root, bevel=.004)
+        add_box(f"trough_strap_base_{index}", (sign * length * .28, 0, floor_z - .037),
+                (.045, width + .028, .014), metal, root, bevel=.004)
+        add_box(f"trough_rim_long_{index}", (0, sign * width / 2, floor_z + wall_h + .02),
+                (length + .05, .065, .045), wood, root, bevel=.01)
+        add_box(f"trough_rim_end_{index}", (sign * length / 2, 0, floor_z + wall_h + .02),
+                (.065, width - .065, .045), wood, root, bevel=.01)
 
     # Water sits below the rim with a rippled surface, not flush to the top.
     add_box("trough_water", (0, 0, floor_z + wall_h * 0.62), (length - 0.11, width - 0.11, 0.028), water, root, bevel=0.0)
@@ -338,15 +346,15 @@ def milk_churn(spec: dict, root) -> None:
     base_z = 0.02
 
     add_cylinder("churn_foot", (0, 0, base_z + 0.020), base_r + 0.012, 0.040, brass, root, vertices=12, bevel=0.008)
-    add_cylinder("churn_body", (0, 0, base_z + 0.045 + body_h * 0.5), base_r, body_h, metal, root, vertices=12, bevel=0.010)
-    # A square box circumscribing a round body pokes out at four corners, which
-    # is why the painted band read as a tray stabbed through the churn.
-    add_cylinder("churn_band", (0, 0, base_z + 0.045 + body_h * 0.42), base_r * 1.035, 0.055, cream, root,
-                 vertices=12, bevel=0.006)
     shoulder_z = base_z + 0.045 + body_h
-    add_cone("churn_shoulder", (0, 0, shoulder_z + 0.075), base_r, base_r * 0.52, 0.15, metal, root, vertices=12)
     neck_z = shoulder_z + 0.15
-    add_cylinder("churn_neck", (0, 0, neck_z + 0.045), base_r * 0.52, 0.09, metal, root, vertices=10, bevel=0.008)
+    add_lofted_form("churn_body", [((0, 0, z), r, r) for z, r in
+        ((.060, base_r * .95), (.09, base_r), (shoulder_z - .025, base_r),
+         (shoulder_z + .045, base_r * .88), (neck_z, base_r * .52),
+         (neck_z + .09, base_r * .52))], metal, root, sides=12)
+    band_z = base_z + .045 + body_h * .42
+    add_conforming_shell("churn_band", [((0, 0, z), base_r, base_r) for z in (band_z - .0275, band_z + .0275)],
+        cream, root, arc=(0, math.tau), offset=.001, thickness=.004, segments=12)
     add_ring("churn_neck_ring", (0, 0, neck_z + 0.020), base_r * 0.55, 0.014, brass, root, major_segments=10, minor_segments=4)
     add_cylinder("churn_lid", (0, 0, neck_z + 0.105), base_r * 0.58, 0.035, brass, root, vertices=10, bevel=0.008)
     add_cylinder("churn_lid_knob", (0, 0, neck_z + 0.140), base_r * 0.16, 0.045, brass, root, vertices=8, bevel=0.006)

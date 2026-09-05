@@ -56,10 +56,10 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     for (const id of layoutIds) expect(byId.get(id)?.disposition, id).toBe("static-world");
 
     const stageIds = Object.values(CROP_STAGE_ASSETS).flatMap((stages) => Object.values(stages));
-    // 19 before Sunreach; its sunflower and olive families add six stages each.
-    expect(new Set(stageIds).size).toBe(31);
+    // All 10 gameplay crops have dedicated 6-stage lifecycle assets (60 total unique stage assets).
+    expect(new Set(stageIds).size).toBe(60);
     for (const id of stageIds) {
-      expect(byId.get(id)?.disposition, id).toBe(id === ASSET_IDS.TREE_APPLE_A ? "static-world" : "conditional-world");
+      expect(byId.get(id)?.disposition, id).toBe("conditional-world");
     }
     for (const crop of ContentRegistry.crops.values()) {
       expect(CROP_STAGE_ASSETS[crop.id], crop.id).toBeDefined();
@@ -169,8 +169,8 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     const summary = getAssetCoverageSummary(42891);
     expect(summary.total).toBe(ASSET_CATALOG.length);
     expect(summary.byDisposition["progression-world"]).toBe(1);
-    // Every crop stage except the apple tree, which is also static world art.
-    expect(summary.byDisposition["conditional-world"]).toBe(30);
+    // All 60 dedicated crop stage assets across all 10 crops.
+    expect(summary.byDisposition["conditional-world"]).toBe(60);
     expect(summary.freshSaveVisible).toBeLessThan(summary.total);
   });
 });

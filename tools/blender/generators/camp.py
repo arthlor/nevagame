@@ -14,11 +14,12 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_limb_tube,
     add_tapered_beam,
     add_tri_prism,
     seeded_rng,
 )
-from common.authored import add_plank_field, add_shingle_rows
+from common.authored import add_plank_field, add_shingle_rows, grow_branch
 
 
 def fallen_log(spec: dict, root) -> None:
@@ -29,9 +30,7 @@ def fallen_log(spec: dict, root) -> None:
 
     joints = [(-length * 0.50, -0.06, 0.34), (-length * 0.16, 0.05, 0.38), (length * 0.18, 0.02, 0.33), (length * 0.50, -0.08, 0.25)]
     radii = (0.30, 0.315, 0.275, 0.205)
-    for index in range(3):
-        add_tapered_beam(f"log_trunk_{index}", joints[index], joints[index + 1], radii[index], radii[index + 1],
-                         dark if index % 2 == 0 else weathered, root, vertices=8)
+    trunk = add_limb_tube("log_trunk", joints, radii, dark, root, sides=8)
 
     # Root plate at the uphill end: what a wind-thrown tree tears up with it.
     add_cone("log_root_plate", (-length * 0.54, -0.06, 0.36), 0.31, 0.44, 0.20, weathered, root, vertices=8,
@@ -44,7 +43,7 @@ def fallen_log(spec: dict, root) -> None:
             0.055, 0.020, weathered, root, vertices=5,
         )
     # Broken limb props the far end off the ground.
-    add_tapered_beam("log_prop_limb", (length * 0.30, 0.08, 0.30), (length * 0.36, 0.34, 0.03), 0.075, 0.045, dark, root, vertices=6)
+    grow_branch(trunk, (length * .30, .08, .30), (length * .36, .34, .03), .075, .045)
     add_cone("log_break_end", (length * 0.53, -0.08, 0.25), 0.195, 0.075, 0.16, shadow, root, vertices=7,
              rotation=(0, math.radians(80), 0))
 
@@ -65,21 +64,23 @@ def smoke_plume(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     height = 2.72
 
-    puffs = 9
+    puffs = 12
     drift = 0.30
     for index in range(puffs):
         t = index / (puffs - 1)
         z = 0.10 + (height - 0.20) * t
-        # Radius grows and colour cools as the column rises and thins.
-        radius = 0.11 + 0.44 * t ** 0.85
-        token = warm if t < 0.22 else (cream if t < 0.62 else pale)
+        # Puffs have to overlap or the column reads as a stack of loose rocks,
+        # and only the very base carries any ember warmth -- a warm lower half
+        # made a chimney look like it was on fire.
+        radius = 0.17 + 0.40 * t ** 0.85
+        token = warm if t < 0.06 else (cream if t < 0.45 else pale)
         add_ico(
             f"smoke_puff_{index:02d}",
             (drift * t * t + rng.uniform(-0.05, 0.05), rng.uniform(-0.05, 0.05) + drift * 0.5 * t * t, z),
             (radius, radius * rng.uniform(0.86, 1.06), radius * rng.uniform(0.72, 0.95)),
             token, root, subdivisions=1,
             rotation=(rng.uniform(-0.4, 0.4), rng.uniform(-0.4, 0.4), index * 0.9),
-        )
+         flat=False)
         # Small trailing wisps shed off the column near the top.
         if t > 0.45:
             add_ico(
@@ -87,7 +88,7 @@ def smoke_plume(spec: dict, root) -> None:
                 (drift * t * t + rng.uniform(0.18, 0.34), rng.uniform(-0.20, 0.20), z + rng.uniform(-0.10, 0.10)),
                 (radius * 0.40, radius * 0.34, radius * 0.26), pale, root,
                 rotation=(rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), 0),
-            )
+             flat=False)
 
 
 def fire_pit(spec: dict, root) -> None:

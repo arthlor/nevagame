@@ -277,8 +277,19 @@ describe("Milestone M5 tactile overlays", () => {
     expect(hud).toContain("hud-toast-pill");
     expect(hud).toContain("Seeds planted.");
     expect(hud).toContain("hud-boat-panel");
-    expect(hud).toContain("kn");
-    expect(hud).toContain("chrome-slot");
+    expect(hud).toContain("Docked");
+    expect(hud).not.toContain('aria-label="Hold Bays &amp; Hooks"');
+
+    const boat = sim.state.boats["boat.player_rowboat"]!;
+    boat.isDocked = false;
+    boat.dockedMarketId = null;
+    boat.speed = 3;
+    const sailingHud = renderToString(
+      React.createElement(HUD, { state: sim.state, promptText: null, toastMessage: null })
+    );
+    expect(sailingHud).toContain("6 kn");
+    expect(sailingHud).toContain('aria-label="Hold Bays &amp; Hooks"');
+    expect(sailingHud).toContain("chrome-slot");
 
     sim.state.sportFishing = sportEncounter;
     sim.state.player.activeBoatId = null;
@@ -292,7 +303,7 @@ describe("Milestone M5 tactile overlays", () => {
     expect(fightHud).not.toContain("hud-boat-panel");
     // GameUI owns sport-fishing mode gating; the standalone HUD DTO still
     // includes the common work vitals when rendered directly.
-    expect(fightHud).toContain("hud-vitals");
+    expect(fightHud).toContain('data-testid="player-unit-frame"');
 
     const hint = renderToString(
       React.createElement(ContextualHintCard, {

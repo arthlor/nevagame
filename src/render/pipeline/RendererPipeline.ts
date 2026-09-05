@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { CoastalUniforms } from "../water/CoastalOptics";
 import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import type { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
@@ -50,13 +51,24 @@ interface ComposerRuntimeInternals {
   renderTarget2: THREE.WebGLRenderTarget;
 }
 
+export function bindGtaoSceneDepth(pass: GTAOPass, source: THREE.WebGLRenderTarget): void {
+  if (!source.depthTexture) throw new Error("GTAO requires the current scene depth texture");
+  const normalModeChanged = pass.gtaoMaterial.defines.NORMAL_VECTOR_TYPE !== 0;
+  pass.setGBuffer(source.depthTexture);
+  pass.depthRenderMaterial.uniforms.tDepth.value = source.depthTexture;
+  if (normalModeChanged) {
+    pass.gtaoMaterial.needsUpdate = true;
+    pass.pdMaterial.needsUpdate = true;
+  }
+}
+
 export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarget): RenderTargetDiagnostic {
   const bytesPerPixel = target.texture.type === THREE.FloatType ? 16
     : target.texture.type === THREE.HalfFloatType ? 8
       : 4;
   const colorBytes = target.width * target.height * bytesPerPixel * Math.max(1, target.samples || 1);
   const depthStencilBytes = target.depthBuffer
-    ? target.width * target.height * (target.stencilBuffer ? 4 : 3) * Math.max(1, target.samples || 1)
+    ? target.width * target.height * (target.depthTexture?.type === THREE.UnsignedShortType ? 2 : 4) * Math.max(1, target.samples || 1)
     : 0;
   return {
     id,
@@ -79,6 +91,9 @@ export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarg
  */
 export class RendererPipeline {
   private composer: EffectComposer | null = null;
+  private opaqueSnapshot: THREE.WebGLRenderTarget | null = null;
+  private coastalUniforms: CoastalUniforms | null = null;
+  private capturedWaterThisFrame = false;
   private gtaoPass: GTAOPass | null = null;
   private activeCamera: THREE.Camera | null = null;
   private initialization: Promise<void> | null = null;
@@ -107,6 +122,46 @@ export class RendererPipeline {
     this.gpuTimer = "createQuery" in context
       ? new GpuFrameTimer(context as WebGL2RenderingContext)
       : null;
+  }
+
+  /** Capture once after opaque geometry, before any water/translucent effects. */
+  public bindWaterCapture(meshes: readonly THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>[], uniforms: CoastalUniforms): void {
+    this.coastalUniforms = uniforms;
+    for (const mesh of meshes) {
+      const previous = mesh.onBeforeRender;
+      mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+        previous.call(mesh, renderer, scene, camera, geometry, material, group);
+        if (material === mesh.material && !scene.overrideMaterial) this.captureOpaqueWaterInput(camera);
+      };
+    }
+  }
+
+  private captureOpaqueWaterInput(camera: THREE.Camera): void {
+    if (this.capturedWaterThisFrame || !this.coastalUniforms || !this.composer) return;
+    const source = this.renderer.getRenderTarget();
+    const composer = this.composer as unknown as ComposerRuntimeInternals;
+    if (!source?.depthTexture || (source !== composer.renderTarget1 && source !== composer.renderTarget2)) return;
+    if (!this.opaqueSnapshot || this.opaqueSnapshot.width !== source.width || this.opaqueSnapshot.height !== source.height) {
+      this.opaqueSnapshot?.dispose();
+      this.opaqueSnapshot = new THREE.WebGLRenderTarget(source.width, source.height, {
+        type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(source.width, source.height, THREE.UnsignedIntType),
+        minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false
+      });
+      this.opaqueSnapshot.texture.name = "opaque_water_color";
+      this.renderer.initRenderTarget(this.opaqueSnapshot);
+    }
+    const snapshot = this.opaqueSnapshot;
+    this.renderer.copyTextureToTexture(source.texture, snapshot.texture);
+    this.renderer.copyTextureToTexture(source.depthTexture, snapshot.depthTexture!);
+    // r174 depth blits bind read/draw framebuffers; restore the active scene target.
+    this.renderer.setRenderTarget(source);
+    const uniforms = this.coastalUniforms;
+    uniforms.uOpaqueColor.value = snapshot.texture;
+    uniforms.uOpaqueDepth.value = snapshot.depthTexture;
+    uniforms.uOpticsViewport.value.set(source.width, source.height);
+    uniforms.uOpticsInverseProjection.value.copy(camera.projectionMatrixInverse);
+    uniforms.uSceneCaptureEnabled.value = 1;
+    this.capturedWaterThisFrame = true;
   }
 
   public setQuality(tier: QualityTier): void {
@@ -141,15 +196,19 @@ export class RendererPipeline {
   }
 
   public setCaptureRenderMode(mode: CaptureRenderMode): void {
+    if (mode === this.renderMode) return;
     this.renderMode = mode;
+    this.resetGtaoReuse();
   }
 
   public render(camera: THREE.Camera): void {
+    this.capturedWaterThisFrame = false;
+    if (this.coastalUniforms) this.coastalUniforms.uSceneCaptureEnabled.value = 0;
     this.renderer.info.reset();
     this.gpuTimer?.beginFrame();
     try {
       const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
-      if (this.renderMode === "no-post" || quality.ambientOcclusion !== "gtao") {
+      if (quality.ambientOcclusion !== "gtao") {
         this.renderer.render(this.scene, camera);
         return;
       }
@@ -158,7 +217,8 @@ export class RendererPipeline {
         this.renderer.render(this.scene, camera);
         return;
       }
-      this.prepareGtaoFrame(camera);
+      if (this.gtaoPass) this.gtaoPass.enabled = this.renderMode !== "no-post";
+      if (this.gtaoPass?.enabled) this.prepareGtaoFrame(camera);
       this.composer.render();
     } finally {
       this.gpuTimer?.endFrame();
@@ -180,7 +240,7 @@ export class RendererPipeline {
   }
 
   public isGtaoActive(): boolean {
-    return Boolean(this.composer && this.gtaoPass);
+    return Boolean(this.composer && this.gtaoPass && this.renderMode !== "no-post");
   }
 
   public diagnostics(): RendererPipelineDiagnostics {
@@ -190,8 +250,10 @@ export class RendererPipeline {
       targets.push(renderTargetDiagnostic("composer.primary", composer.renderTarget1));
       targets.push(renderTargetDiagnostic("composer.secondary", composer.renderTarget2));
     }
+    if (this.opaqueSnapshot) targets.push(renderTargetDiagnostic("water.opaqueSnapshot", this.opaqueSnapshot));
     if (this.gtaoPass) {
       const gtao = this.gtaoPass as unknown as GtaoPassRuntimeInternals;
+      targets.push(renderTargetDiagnostic("gtao.gather", this.gtaoPass.gtaoRenderTarget));
       targets.push(renderTargetDiagnostic("gtao.denoised", gtao.pdRenderTarget));
     }
     this.scene.traverse((object) => {
@@ -247,9 +309,13 @@ export class RendererPipeline {
       return;
     }
 
-    const composer = new EffectComposer(this.renderer);
+    const sceneTarget = new THREE.WebGLRenderTarget(1, 1, {
+      type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType)
+    });
+    const composer = new EffectComposer(this.renderer, sceneTarget);
     const renderPass = new RenderPass(this.scene, camera);
     const gtaoPass = new GTAOPass(this.scene, camera, this.width, this.height);
+    bindGtaoSceneDepth(gtaoPass, sceneTarget);
     const config = CANONICAL_RENDER_CONFIG.gtao;
     gtaoPass.blendIntensity = config.blendIntensity * this.gtaoBlendScale;
     gtaoPass.updateGtaoMaterial({
@@ -265,6 +331,7 @@ export class RendererPipeline {
     // frame, so motion never freezes when AO refreshes are skipped.
     const renderFreshGtao = gtaoPass.render.bind(gtaoPass);
     gtaoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      bindGtaoSceneDepth(gtaoPass, readBuffer);
       if (this.gtaoRefreshThisFrame || gtaoPass.output !== 0) {
         renderFreshGtao(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
         return;
@@ -313,6 +380,13 @@ export class RendererPipeline {
   }
 
   private disposeComposer(): void {
+    this.opaqueSnapshot?.dispose();
+    this.opaqueSnapshot = null;
+    if (this.coastalUniforms) {
+      this.coastalUniforms.uOpaqueColor.value = null;
+      this.coastalUniforms.uOpaqueDepth.value = null;
+      this.coastalUniforms.uSceneCaptureEnabled.value = 0;
+    }
     this.gtaoPass?.dispose();
     this.composer?.dispose();
     this.gtaoPass = null;

@@ -7,7 +7,7 @@ import math
 import bmesh
 import bpy
 
-from common.geometry import add_beam, add_box, add_collision_primitives, add_cylinder, add_grip_marker, add_ico, add_marker, add_ring, add_tri_prism, apply_vertex_values, join_meshes
+from common.geometry import add_beam, add_box, add_collision_primitives, add_cylinder, add_grip_marker, add_ico, add_marker, add_ring, add_tri_prism, apply_vertex_values, join_meshes, set_surface_normals
 from common.materials import get_or_create_material
 from common.authored import add_catenary_rope, add_lattice, add_plank_field, add_rope_line
 from common.lod import consolidate_lod_level
@@ -47,22 +47,8 @@ def _hull_half_width(y: float, half_length: float, beam: float, fullness: float 
 def _planked_hull(prefix: str, length: float, beam: float, segments: int, levels: int, tokens: tuple[str, str], root) -> None:
     half_length = length * 0.5
     segment_length = length / segments
-    for segment in range(segments):
-        y = -half_length + segment_length * (segment + 0.5)
-        width = _hull_half_width(y, half_length, beam)
-        next_width = _hull_half_width(y + segment_length * 0.5, half_length, beam)
-        yaw = math.atan2(next_width - width, segment_length * 0.5)
-        for side in (-1, 1):
-            for level in range(levels):
-                z = -0.22 + level * 0.28
-                x = side * width * (0.72 + level * 0.12)
-                roll = side * math.radians(10 + level * 5)
-                add_box(
-                    f"{prefix}_plank_{segment:02d}_{'l' if side < 0 else 'r'}_{level}",
-                    (x, y, z), (0.16, segment_length + 0.08, 0.34),
-                    tokens[(segment + level) % len(tokens)], root,
-                    rotation=(roll, 0, -side * yaw), bevel=0.035,
-                )
+    _add_continuous_skiff_shell(length, beam, segments, tokens[0], tokens[1], tokens[1], root,
+                                rowboat=True)
     add_beam(f"{prefix}_keel", (0, -half_length, -0.46), (0, half_length, -0.42), 0.11, tokens[1], root, vertices=7)
     for index in range(segments + 1):
         y = -half_length + index * segment_length
@@ -114,6 +100,7 @@ def _add_continuous_skiff_shell(
     dark: str,
     red: str,
     root,
+    *, rowboat=False,
 ) -> None:
     """Create one closed outer/inner working hull instead of box fragments."""
     vertices = []
@@ -122,6 +109,10 @@ def _add_continuous_skiff_shell(
     shell_thickness = max(0.11, beam * 0.05)
     for index in range(segments + 1):
         y, half_width, sheer, chine, keel = _skiff_station(length, beam, index, segments)
+        if rowboat:
+            # Retain the rowboat's seat, gunwale and waterline envelope.
+            half_width = _hull_half_width(y, length * .5, beam)
+            sheer, chine, keel = .52, -.22, -.43
         outer = (
             (-half_width, y, sheer),
             (-half_width * 0.72, y, chine),
@@ -163,7 +154,15 @@ def _add_continuous_skiff_shell(
         for band in range(4):
             faces.append((outer[band], outer[band + 1], inner[band + 1], inner[band]))
             materials.append(1)
-    _finish_authored_mesh("skiff_hull_shell", vertices, faces, materials, (honey, dark, red), root)
+    hull = _finish_authored_mesh("rowboat_hull_shell" if rowboat else "skiff_hull_shell",
+                                vertices, faces, materials, (honey, dark, red), root)
+    set_surface_normals(hull, "rounded", faces=range(segments * 10))
+    # Smoothing follows each strake length; the longitudinal chines and rim
+    # remain structural edges regardless of their palette region.
+    for edge in hull.data.edges:
+        a, b = edge.vertices
+        if abs(a - b) == 10:
+            edge.use_edge_sharp = True
 
 
 def _add_skiff_keel(length: float, beam: float, segments: int, token: str, root) -> None:

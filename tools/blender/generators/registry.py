@@ -6,7 +6,7 @@ from .characters import fauna_butterfly, fauna_chicken, fauna_cow, fauna_donkey,
 
 from .clouds import faceted_cloud
 from .imported import imported_blend
-from .crops import olive_crop, potato_crop, pumpkin_crop, sunflower_crop, tomato_crop, turnip_crop, wheat_crop
+from .crops import apple_tree_crop, barley_crop, carrot_crop, corn_crop, flax_crop, olive_crop, potato_crop, pumpkin_crop, sunflower_crop, tomato_crop, turnip_crop, wheat_crop
 from .fish import stylized_fish
 from .camp import fallen_log, fire_pit, path_stone_round, path_stone_slab, picnic_table, smoke_plume, trail_kiosk, trail_signpost, wood_bench
 from .furnishings import floor_plant, wood_bookcase, wood_side_table, wood_sideboard
@@ -22,7 +22,14 @@ from .rocks import faceted_rock, path_slab, pebble_cluster
 from .vegetation import apple_tree, bush, flower_drift, grass_clump, kelp_clump, oak_tree, olive_tree, pine_tree, reeds, wildflower_clump
 
 
+from .coastal import coastal_palm, coastal_understory, coastal_rock, coastal_hut
+
+
 GENERATORS = {
+    "coastal_palm": coastal_palm,
+    "coastal_understory": coastal_understory,
+    "coastal_rock": coastal_rock,
+    "coastal_hut": coastal_hut,
     "imported_blend": imported_blend,
     "oak_tree": oak_tree,
     "olive_tree": olive_tree,
@@ -79,11 +86,16 @@ GENERATORS = {
     "fishing_rod": fishing_rod,
     "rowboat": rowboat,
     "fishing_skiff": fishing_skiff,
+    "apple_tree_crop": apple_tree_crop,
     "wheat_crop": wheat_crop,
+    "barley_crop": barley_crop,
+    "corn_crop": corn_crop,
+    "flax_crop": flax_crop,
     "tomato_crop": tomato_crop,
     "sunflower_crop": sunflower_crop,
     "olive_crop": olive_crop,
     "potato_crop": potato_crop,
+    "carrot_crop": carrot_crop,
     "turnip_crop": turnip_crop,
     "pumpkin_crop": pumpkin_crop,
     "stylized_fish": stylized_fish,

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { COASTAL_FIELD_GLSL, createCoastalUniforms, type CoastalUniforms } from "../water/CoastalOptics";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
 import {
@@ -14,7 +15,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v22";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v24-coastal";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -194,6 +195,10 @@ vTerrainWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
     shader.fragmentShader,
     fragmentCommon,
     `${fragmentCommon}
+${COASTAL_FIELD_GLSL}
+uniform vec3 terrainCoastalSand;
+uniform vec3 terrainCoastalWetSand;
+uniform vec3 terrainCoastalFoam;
 uniform sampler2D terrainDetailTexture;
 uniform sampler2D terrainLeafyGrassColorTexture;
 uniform sampler2D terrainLeafyGrassRoughnessTexture;
@@ -617,6 +622,16 @@ diffuseColor.rgb = mix(
   terrainWetColor,
   terrainSharedWetness * terrainSharedTransition * 0.03
 );
+vec4 coastalField = nevaOpticsField(vTerrainWorldPosition.xz);
+vec3 coastalWash = nevaCoastalWash(vTerrainWorldPosition.xz, coastalField.b);
+float coastalSandWeight = coastalField.a * nevaSurfaceBeachWeight();
+float coastalDampness = coastalWash.y * (1.0 - smoothstep(0.08, 0.24, vTerrainWorldPosition.y));
+coastalDampness = max(coastalDampness, terrainWetness * 0.62);
+vec3 coastalSandColor = mix(terrainCoastalSand, terrainCoastalWetSand, coastalDampness);
+coastalSandColor *= mix(0.87, 1.06, terrainBeachValue) + terrainBeachFineDelta * 0.24;
+diffuseColor.rgb = mix(diffuseColor.rgb, coastalSandColor, coastalSandWeight);
+float landWash = coastalWash.x * coastalField.a * smoothstep(-0.02, 0.06, vTerrainWorldPosition.y);
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainCoastalFoam, landWash);
 float terrainFacetMask = max(
   max(vegetationMask, shoreMask * 0.55),
   max(pathUnderlayMix * 0.36, terrainShoreWeights.z * terrainShoreFacetStrength)
@@ -653,7 +668,7 @@ if (terrainDebugMode > 0.5 && terrainDebugMode < 1.5) {
 normal = nevaSurfaceFacetNormal(
   normal,
   terrainPolygonCell,
-  terrainPolygonFacetLightingStrength,
+  terrainPolygonFacetLightingStrength * (1.0 - coastalSandWeight),
   terrainFacetMask
 );`,
     "fragment"
@@ -713,7 +728,8 @@ roughnessFactor = mix(
   roughnessFactor,
   nevaSurfaceRoughness(terrainDryRoughness, terrainWetRoughness, terrainWetness),
   terrainSharedTransition * 0.08
-);`,
+);
+roughnessFactor = mix(roughnessFactor, mix(0.94, 0.69, coastalDampness), coastalSandWeight);`,
     "fragment"
   );
 
@@ -750,6 +766,10 @@ export class TerrainSurfaceMaterial {
     this.ownedExternalTextures.add(beachColorFallback);
     this.ownedExternalTextures.add(beachRoughnessFallback);
     this.shaderUniforms = {
+      ...createCoastalUniforms(null, new THREE.Vector4(0, 0, 1, 1)),
+      terrainCoastalSand: { value: new THREE.Color(PALETTE_HEX.sand_coastal_01) },
+      terrainCoastalWetSand: { value: new THREE.Color(PALETTE_HEX.sand_coastal_wet_01) },
+      terrainCoastalFoam: { value: new THREE.Color(PALETTE_HEX.foam_warm_01) },
       terrainDetailTexture: { value: this.detailTexture },
       terrainLeafyGrassColorTexture: { value: leafyGrassColorFallback },
       terrainLeafyGrassRoughnessTexture: { value: leafyGrassRoughnessFallback },
@@ -823,6 +843,11 @@ export class TerrainSurfaceMaterial {
       patchTerrainSurfaceShader(shader as TerrainSurfaceShaderSource, this.shaderUniforms);
     };
     this.material.customProgramCacheKey = () => TERRAIN_SURFACE_PROGRAM_CACHE_KEY;
+    this.material.needsUpdate = true;
+  }
+
+  public bindCoastalField(uniforms: CoastalUniforms): void {
+    Object.assign(this.shaderUniforms, uniforms);
     this.material.needsUpdate = true;
   }
 

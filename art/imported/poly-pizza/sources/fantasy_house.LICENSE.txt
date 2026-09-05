@@ -1,0 +1,11 @@
+Fantasy House by Quaternius
+
+Poly Pizza model: dcPho4SUA3
+Source page: https://poly.pizza/m/dcPho4SUA3
+Original GLB: https://static.poly.pizza/b8a2c719-5a70-4d6c-8049-90af7e3f89ee.glb
+
+License: CC0 1.0 Universal (Public Domain Dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The adjacent fantasy_house.glb is the unmodified original download. Its
+SHA-256 digest is owned by assets/specs/asset-catalog.json.

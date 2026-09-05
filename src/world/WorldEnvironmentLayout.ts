@@ -1,3 +1,4 @@
+import { createHarborCoastPlacements, retainLegacyHarborDressing, retainHarborGroundCover } from "./HarborCoastLayout";
 import {
   WorldLayout,
   WORLD_BOUNDS,
@@ -425,13 +426,13 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
 
   // Dry-land repair stock: these spare spans are not a second navigable dock or crossing.
   
-  authoredPlacement("authored.harbor.repair-platform", { assetId: "prop_dock_platform_a", x: 91, z: 53.5, rotationY: 0.25, scale: [1, 1, 1], clearanceRadiusMeters: 1.6 }),
+  authoredPlacement("authored.harbor.repair-platform", { assetId: "prop_dock_platform_a", x: 95, z: 50.5, rotationY: 0.25, scale: [1, 1, 1], clearanceRadiusMeters: 1.6 }),
   
   authoredPlacement("authored.harbor.spare-railing", { assetId: "prop_pier_railing_a", x: 68.4, z: 60.5, rotationY: -1.8326, scale: [1, 1, 1] }),
-  authoredPlacement("authored.harbor.anchor-store", { assetId: "prop_anchor_admiralty_a", x: 97, z: 56, rotationY: -0.2, scale: [1, 1, 1] }),
+  authoredPlacement("authored.harbor.anchor-store", { assetId: "prop_anchor_admiralty_a", x: 106, z: 55, rotationY: -0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.harbor.drying-rack", { assetId: "prop_fish_drying_rack_a", x: 85, z: 59, rotationY: 0.25, scale: [1, 1, 1], grounding: [1.1, 0.41], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.harbor.mooring-post", { assetId: "prop_mooring_post_a", x: 85, z: 68, rotationY: 0.3, scale: [1, 1, 1] }),
-  authoredPlacement("authored.harbor.yard-lantern", { assetId: "prop_dock_lantern_a", x: 88, z: 57.5, rotationY: 0.25, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.harbor.yard-lantern", { assetId: "prop_dock_lantern_a", x: 86, z: 56.5, rotationY: 0.25, scale: [1, 1, 1], practicalLight: true }),
 
   // A maintained stopping place on the lighthouse walk; no new fire/camping mechanic.
   authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -60, z: 65, rotationY: 2.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -448,9 +449,11 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.coast.seagrass", { assetId: "foliage_seagrass_tuft_a", x: 134, z: WorldLayout.coastlineZ(134) + 2, rotationY: 0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.coast.algae", { assetId: "foliage_algae_frond_a", x: 135.5, z: WorldLayout.coastlineZ(135.5) + 2.5, rotationY: -0.4, scale: [1, 1, 1] }),
   authoredPlacement("authored.coast.reef-rock", { assetId: "rock_reef_small_a", x: 137, z: WorldLayout.coastlineZ(137) + 3, rotationY: 0.5, scale: [1, 1, 1] }),
-  authoredPlacement("authored.coast.coral-pillar", { assetId: "prop_coral_pillar_a", x: 133, z: WorldLayout.coastlineZ(133) + 13, rotationY: 0.3, scale: [1, 1, 1] }),
-  authoredPlacement("authored.coast.coral-staghorn", { assetId: "prop_coral_staghorn_a", x: 135, z: WorldLayout.coastlineZ(135) + 12, rotationY: -0.4, scale: [1, 1, 1] }),
-  authoredPlacement("authored.coast.coral-table", { assetId: "prop_coral_table_a", x: 136.5, z: WorldLayout.coastlineZ(136.5) + 12.5, rotationY: 0.1, scale: [1, 1, 1] }),
+  // Keep the established reef IDs below the shallow shelf's trough envelope;
+  // the clear water now reveals the whole bed instead of hiding dry coral tips.
+  authoredPlacement("authored.coast.coral-pillar", { assetId: "prop_coral_pillar_a", x: 133, z: WorldLayout.coastlineZ(133) + 31, rotationY: 0.3, scale: [1, 1, 1] }),
+  authoredPlacement("authored.coast.coral-staghorn", { assetId: "prop_coral_staghorn_a", x: 137, z: WorldLayout.coastlineZ(137) + 27, rotationY: -0.4, scale: [1, 1, 1] }),
+  authoredPlacement("authored.coast.coral-table", { assetId: "prop_coral_table_a", x: 139, z: WorldLayout.coastlineZ(139) + 29, rotationY: 0.1, scale: [1, 1, 1] }),
   authoredPlacement("authored.farm.pumpkin-patch", { assetId: "prop_pumpkin_patch_a", x: -74.2, z: -53.3, rotationY: -1.5708, scale: [1, 1, 1] }),
   authoredPlacement("authored.tree.apple.orchard-a", { assetId: "tree_apple_a", x: 82, z: -44, rotationY: 0.22, scale: [1, 1, 1], grounding: [1.05, 0.74] }),
   authoredPlacement("authored.tree.apple.orchard-b", { assetId: "tree_apple_a", x: 88, z: -40, rotationY: -0.48, scale: [1, 1, 1], grounding: [1, 0.72] }),
@@ -1739,7 +1742,8 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
     ...generateSunreachCausalCompositionPlacements(worldSeed)
   ];
   const composed = [...existing, ...causalPlacements, ...sunreachPlacements];
-  const staticPlacements = [...composed, ...generateLandscapeDressing(composed)];
+  const staticPlacements = [...composed, ...generateLandscapeDressing(composed)].filter(retainLegacyHarborDressing);
+  staticPlacements.push(...createHarborCoastPlacements());
   for (const placement of staticPlacements) {
     if (!placement.grounding) continue;
     if (PLACEMENT_OVERRIDES[placement.id]) continue;
@@ -1756,7 +1760,7 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
     worldSeed,
     staticPlacements,
     groundCoverPlacements: [
-      ...generateGroundCoverPlacements(worldSeed),
+      ...generateGroundCoverPlacements(worldSeed).filter(retainHarborGroundCover),
       ...generateSunreachGroundCoverPlacements(worldSeed)
     ]
   };

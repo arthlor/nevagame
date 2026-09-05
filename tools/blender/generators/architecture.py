@@ -15,6 +15,7 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_limb_tube,
     add_marker,
     add_ring,
     seeded_rng,
@@ -30,6 +31,7 @@ from common.authored import (
     add_mooring_cleat,
     add_mullioned_window,
     add_plank_field,
+    add_profiled_vessel,
     add_timber_corner_frame,
 )
 from common.lod import consolidate_lod_level, create_lod_roots
@@ -500,10 +502,12 @@ def _architecture_shingle_rows(
             for column in range(columns + (1 if row % 2 else 0)):
                 y = center_y - roof_depth * 0.5 + tile_depth * (column + 0.5) + stagger
                 if len(tokens) >= 3:
-                    roll = rng.random()
+                    rng.random()  # Keep placement jitter independent of palette grouping.
+                    roll = seeded_rng(seed + (row // 3) * 193 + (column // 4) * 29 + side).random()
                     token = tokens[0] if roll < 0.84 else tokens[1] if roll < 0.95 else tokens[2]
                 elif len(tokens) == 2:
-                    token = tokens[0] if rng.random() < 0.88 else tokens[1]
+                    rng.random()
+                    token = tokens[0] if seeded_rng(seed + (row // 3) * 193 + (column // 4) * 29 + side).random() < .88 else tokens[1]
                 else:
                     token = tokens[0]
                 add_box(
@@ -1035,8 +1039,8 @@ def _farmhouse_chimney(ctx: dict, root) -> None:
     add_box("farmhouse_chimney_crown_upper", (chim_x, chim_y, chim_h + 0.20), (1.00, 0.94, 0.15), ctx["stone_tokens"][-1], root, bevel=0.025)
 
     # Cylindrical terracotta pot with lip
-    add_cylinder("farmhouse_chimney_pot", (chim_x, chim_y, chim_h + 0.52), 0.22, 0.54, roof, root, vertices=8, bevel=0.025)
-    add_cylinder("farmhouse_chimney_pot_rim", (chim_x, chim_y, chim_h + 0.77), 0.245, 0.06, roof, root, vertices=8, bevel=0.015)
+    add_profiled_vessel("farmhouse_chimney_pot", (chim_x, chim_y, chim_h + .25),
+        ((0, .22), (.47, .22), (.49, .245), (.55, .245)), .035, roof, root, sides=8)
 
 
 def _farmhouse_porch(ctx: dict, root) -> None:
@@ -2223,11 +2227,12 @@ def _bridge_arches(ctx: dict, root) -> None:
     ctx["arch_center_z"] = arch_center_z
     for a_idx, acx in enumerate(arch_centers):
         # Open Arch Barrel Vault Inner Lining (upper semicircular curve above water level)
-        for vl_idx in range(9 if detail else 5):
-            v_angle = math.pi * (vl_idx + 0.5) / 9
+        vault_segments = 9 if detail else 5
+        for vl_idx in range(vault_segments):
+            v_angle = math.pi * (vl_idx + 0.5) / vault_segments
             lx = acx + math.cos(v_angle) * (arch_radius - 0.02)
             lz = arch_center_z + math.sin(v_angle) * (arch_radius - 0.02)
-            seg_chord = (math.pi * arch_radius / 9) + 0.04
+            seg_chord = (math.pi * arch_radius / vault_segments) + 0.04
             add_box(
                 f"bridge_arch_vault_liner_{a_idx}_{vl_idx:02d}",
                 (lx, 0, lz),
@@ -3385,16 +3390,9 @@ def _build_log_bridge(spec: dict, root) -> None:
     stringer_points_x = (-length * 0.5, -length * 0.18, length * 0.18, length * 0.5)
     stringer_points_z = (0.25, 0.33, 0.33, 0.25)
     for side, name in ((-1, "left"), (1, "right")):
-        for segment in range(len(stringer_points_x) - 1):
-            add_beam(
-                f"log_bridge_stringer_{name}_{segment:02d}",
-                (stringer_points_x[segment], side * width * 0.34, stringer_points_z[segment]),
-                (stringer_points_x[segment + 1], side * width * 0.34, stringer_points_z[segment + 1]),
-                0.22,
-                dark,
-                root,
-                vertices=7,
-            )
+        add_limb_tube(f"log_bridge_stringer_{name}",
+            [(x, side * width * .34, z) for x, z in zip(stringer_points_x, stringer_points_z)],
+            (.22, .22, .22, .22), dark, root, sides=7)
         for band_index, x in enumerate((-length * 0.34, length * 0.34)):
             add_ring(
                 f"log_bridge_stringer_lashing_{name}_{band_index}",
@@ -3911,7 +3909,11 @@ def _lean_to_roof(
 
 
 def _add_side_window(prefix, x, y, z, width, height, frame, glass, mullion, root, *, side, shutters=False):
-    add_box(f"{prefix}_frame", (x, y, z), (0.14, width + 0.14, height + 0.14), frame, root, bevel=0.02)
+    for edge in (-1, 1):
+        add_box(f"{prefix}_jamb_{edge}", (x, y + edge * (width / 2 + .035), z),
+                (.14, .07, height + .14), frame, root, bevel=.012)
+        add_box(f"{prefix}_rail_{edge}", (x, y, z + edge * (height / 2 + .035)),
+                (.14, width, .07), frame, root, bevel=.012)
     add_box(f"{prefix}_glass", (x + side * 0.02, y, z), (0.04, width, height), glass, root, bevel=0.01)
     add_box(f"{prefix}_mullion_v", (x + side * 0.05, y, z), (0.05, 0.06, height), mullion, root, bevel=0.008)
     add_box(f"{prefix}_mullion_h", (x + side * 0.05, y, z), (0.05, width, 0.06), mullion, root, bevel=0.008)

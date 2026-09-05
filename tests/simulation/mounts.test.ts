@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter";
@@ -43,6 +43,8 @@ function setMountedPose(simulation: Simulation, x: number, z: number, rotationY 
     traversal: { ...simulation.state.player.traversal, isGrounded: true }
   });
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("starter donkey mount", () => {
   it("initializes one persistent starter donkey in every fresh save", () => {
@@ -166,38 +168,33 @@ describe("starter donkey mount", () => {
 
   it("rejects a dismount atomically when neither lateral side is safe", () => {
     const simulation = new Simulation();
-    let blockedPose: { x: number; z: number; rotationY: number } | null = null;
-    for (let z = 52; z <= 88 && !blockedPose; z += 0.5) {
-      for (let x = 48; x <= 112 && !blockedPose; x += 0.5) {
-        for (const rotationY of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
-          const center = {
-            x,
-            y: WorldLayout.traversalSurfaceHeight(x, z) + MOUNT_TUNING.playerPoseGroundOffsetMeters,
-            z,
-            rotationY
-          };
-          if (!isValidPlayerMountGround(center)) continue;
-          const [left, right] = mountDismountPoseCandidates(center);
-          if (!isValidPlayerMountGround(left) && !isValidPlayerMountGround(right)) {
-            blockedPose = { x, z, rotationY };
-            break;
-          }
-        }
-      }
-    }
-    expect(blockedPose).not.toBeNull();
-    setMountedPose(simulation, blockedPose!.x, blockedPose!.z, blockedPose!.rotationY);
+    placePlayerAtMount(simulation);
+    expect(simulation.boardMount().success).toBe(true);
+    expect(simulation.canDismountMount()).toBe(true);
     const [left, right] = mountDismountPoseCandidates(simulation.state.player);
+    const isWalkable = WorldLayout.isWalkable.bind(WorldLayout);
+    const blockedSides = vi.spyOn(WorldLayout, "isWalkable").mockImplementation((x, z) => {
+      if ([left, right].some((pose) => Math.hypot(pose.x - x, pose.z - z) < 0.000001)) return false;
+      return isWalkable(x, z);
+    });
+    expect(isValidPlayerMountGround(simulation.state.player)).toBe(true);
     expect(isValidPlayerMountGround(left)).toBe(false);
     expect(isValidPlayerMountGround(right)).toBe(false);
     const before = structuredClone(simulation.state);
+    const disembarked = vi.fn();
+    simulation.events.on("MountDisembarked", disembarked);
 
     expect(simulation.canDismountMount()).toBe(false);
-    expect(simulation.dismountMount()).toMatchObject({
+    expect(simulation.execute({ type: "mount.dismount" })).toMatchObject({
       success: false,
       reason: "There is no safe ground to dismount here"
     });
     expect(simulation.state).toEqual(before);
+    expect(disembarked).not.toHaveBeenCalled();
+    blockedSides.mockRestore();
+    expect(simulation.canDismountMount()).toBe(true);
+    expect(simulation.execute({ type: "mount.dismount" }).success).toBe(true);
+    expect(disembarked).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a mounted water pose and an unsafe dismount", () => {

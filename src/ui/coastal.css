@@ -3245,6 +3245,33 @@
 #ui-container[data-mobile-device="true"] .tidebook-hud :is(.tidebook-secondary-menu button, .tidebook-wheat-profile) { min-width: 44px; min-height: 44px; }
 #ui-container[data-mobile-device="true"] .tidebook-hud .tidebook-secondary-menu { gap: 2px; }
 
+#ui-container[data-mobile-device="true"][data-mobile-landscape="false"] .tidebook-hud :is(
+  .hud-top-left-container,
+  .tidebook-navigation,
+  .hud-bottom-left-container,
+  .hud-play-cluster,
+  .hud-toast-container,
+  .tidebook-utility-tabs,
+  .tidebook-secondary-menu button:not(.tidebook-menu-button)
+) {
+  display: none !important;
+}
+
+#ui-container[data-mobile-device="true"][data-mobile-landscape="false"] .tidebook-hud .hud-bottom-right-container {
+  top: max(20px, env(safe-area-inset-top)) !important;
+  bottom: auto !important;
+  left: max(12px, env(safe-area-inset-left)) !important;
+  right: auto !important;
+  width: 48px;
+  max-width: none !important;
+  z-index: 95;
+}
+
+#ui-container[data-mobile-device="true"][data-mobile-landscape="false"] .tidebook-hud .hud-top-right-cluster {
+  width: 165px !important;
+  max-width: none !important;
+}
+
 #ui-container[data-mobile-device="true"] .mobile-action-button,
 #ui-container[data-mobile-device="true"] .mobile-tool-button,
 #ui-container[data-mobile-device="true"] .mobile-joystick,

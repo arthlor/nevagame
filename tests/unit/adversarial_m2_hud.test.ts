@@ -106,14 +106,14 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.clock = clock.getState();
 
       const htmlLastDay = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlLastDay).toContain(`Spring ${DAYS_PER_SEASON}`);
+      expect(htmlLastDay.replace(/<!--.*?-->/g, "")).toContain(`Spring ${DAYS_PER_SEASON}`);
       expect(htmlLastDay).toContain("23:50");
 
       // Advance 20 minutes across midnight into Summer Day 1
       clock.advanceMinutes(20);
       state.clock = clock.getState();
       const htmlFirstDay = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlFirstDay).toContain("Summer 1");
+      expect(htmlFirstDay.replace(/<!--.*?-->/g, "")).toContain("Summer 1");
       expect(htmlFirstDay).toContain("00:10");
     });
   });
@@ -154,8 +154,8 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.windSpeed = 5;
       state.weather.seaRoughness = 0.2;
       const htmlStorm = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlStorm).toContain("hud-weather-chip--danger");
-      expect(htmlStorm).toContain("Storm Warning");
+      expect(htmlStorm).toContain('data-hazard-id="storm" data-severity="danger"');
+      expect(htmlStorm).toContain("Severe Coastal Storm");
 
       // Case B: Dense Fog (< 0.5 visibility) -> Caution
       state.weather.type = "fog";
@@ -163,8 +163,8 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.windSpeed = 4;
       state.weather.seaRoughness = 0.2;
       const htmlDenseFog = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlDenseFog).toContain("hud-weather-chip--caution");
-      expect(htmlDenseFog).toContain("Dense Fog");
+      expect(htmlDenseFog).toContain('data-hazard-id="dense-fog" data-severity="caution"');
+      expect(htmlDenseFog).toContain("Dense Maritime Fog");
 
       // Case C: Light Fog (>= 0.5 visibility, calm wind/sea) -> No alert chip
       state.weather.type = "fog";
@@ -172,35 +172,35 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.windSpeed = 4;
       state.weather.seaRoughness = 0.2;
       const htmlLightFog = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlLightFog).not.toContain("Dense Fog");
-      expect(htmlLightFog).not.toContain("Storm Warning");
+      expect(htmlLightFog).not.toContain('data-testid="weather-hazard-banner"');
 
       // Case D: Gale Winds (windSpeed >= 11) -> Caution
       state.weather.type = "cloudy";
       state.weather.windSpeed = 12.5; // ~24 kn
       state.weather.seaRoughness = 0.4;
       const htmlGale = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlGale).toContain("hud-weather-chip--caution");
-      expect(htmlGale).toContain("Gale Winds");
+      expect(htmlGale).toContain('data-hazard-id="squall" data-severity="caution"');
+      expect(htmlGale).toContain("Gale-Force Squall");
 
       // Case E: Rough Swell (seaRoughness >= 0.7) -> Caution
       state.weather.type = "clear";
       state.weather.windSpeed = 5;
       state.weather.seaRoughness = 0.85;
       const htmlSwell = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlSwell).toContain("hud-weather-chip--caution");
-      expect(htmlSwell).toContain("Rough Swell");
+      expect(htmlSwell).toContain('data-hazard-id="storm-waves" data-severity="caution"');
+      expect(htmlSwell).toContain("Hazardous Rough Swell");
 
       // Case F: Storm takes precedence over high wind and rough sea
       state.weather.type = "storm";
       state.weather.windSpeed = 15;
       state.weather.seaRoughness = 0.95;
       const htmlCombined = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(htmlCombined).toContain("hud-weather-chip--danger");
-      expect(htmlCombined).toContain("Storm Warning");
+      expect(htmlCombined).toContain('data-hazard-id="storm" data-severity="danger"');
+      expect(htmlCombined).toContain("Severe Coastal Storm");
       // Only 1 severe weather chip at a time
-      expect(htmlCombined).not.toContain("Gale Winds");
-      expect(htmlCombined).not.toContain("Rough Swell");
+      expect(htmlCombined.match(/data-testid="weather-hazard-banner"/g)).toHaveLength(1);
+      expect(htmlCombined).not.toContain('data-hazard-id="squall"');
+      expect(htmlCombined).not.toContain('data-hazard-id="storm-waves"');
     });
 
     it("handles temperature extremes: freezing, zero, sub-zero, scorching, and heatwaves", () => {
@@ -248,9 +248,12 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
             activeToolSlot: slot
           })
         );
-        expect(html).toContain(`data-testid="tool-slot-${slot}"`);
-        expect(html).toContain(`hud-hotbar-slot is-active`);
-        expect(html).toContain('aria-pressed="true"');
+        const buttons = html.match(/<button\b[^>]*data-testid="tool-slot-\d+"[^>]*>/g) ?? [];
+        expect(buttons).toHaveLength(5);
+        const selected = buttons.filter(button => button.includes('aria-pressed="true"'));
+        expect(selected).toHaveLength(1);
+        expect(selected[0]).toContain(`data-testid="tool-slot-${slot}"`);
+        expect(buttons.filter(button => button.includes('aria-pressed="false"'))).toHaveLength(4);
       }
     });
 

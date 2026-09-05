@@ -7,7 +7,7 @@ import math
 import bmesh
 import bpy
 
-from common.geometry import add_box, add_caudal_fin, add_ico, add_tri_prism, apply_vertex_values
+from common.geometry import add_box, add_caudal_fin, add_ico, add_tri_prism, apply_vertex_values, remember_rest_transform, set_surface_normals
 from common.materials import get_or_create_material
 
 
@@ -51,6 +51,7 @@ def _author_node_action(spec: dict, clip_name: str, node, keyframes) -> None:
     clip = next((entry for entry in spec.get("animationClips", []) if entry["name"] == clip_name), None)
     if clip is None:
         return
+    remember_rest_transform(node)
     bpy.context.scene.render.fps = int(FRAME_RATE)
     bpy.context.scene.render.fps_base = 1.0
     action = bpy.data.actions.new(name=clip_name)
@@ -198,6 +199,7 @@ def _add_profiled_body(species: str, params: dict, dorsal: str, belly: str, root
     body = bpy.data.objects.new(f"{species}_body", mesh)
     bpy.context.collection.objects.link(body)
     body.parent = root
+    set_surface_normals(body, "rounded")
     apply_vertex_values(body)
     return body
 

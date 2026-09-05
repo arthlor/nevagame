@@ -50,6 +50,16 @@
         "parameters"
       ],
       "properties": {
+        "surfaceAuthoring": {
+          "description": "Build-time procedural surface finish; never changes imported source attributes or runtime contracts.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["normalPolicy", "facetColors"],
+          "properties": {
+            "normalPolicy": { "const": "authored" },
+            "facetColors": { "const": "rest_face" }
+          }
+        },
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*$"

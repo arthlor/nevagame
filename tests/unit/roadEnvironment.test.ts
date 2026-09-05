@@ -1,17 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   FARM_ROUTES,
+  WORLD_BOUNDS,
   WORLD_ROUTE_NETWORK,
   WorldLayout
 } from "../../src/world/WorldLayout";
 import { STARTER_FARM_LAYOUT, worldToFarmLocal } from "../../src/world/FarmLayout";
 import {
   createWorldEnvironmentLayout,
+  generateGroundCoverPlacements,
   generateFarmPathPaverSamples,
   GROUND_COVER_DENSITY,
+  GRASS_MAX_PATH_INFLUENCE,
+  hasGroundCoverClearance,
   HOMESTEAD_MEADOW_GRASS_COUNT
 } from "../../src/world/WorldEnvironmentLayout";
 import { groundCoverActiveCount } from "../../src/render/config/VisualRenderConfig";
+import { sampleWorldComposition } from "../../src/world/WorldCompositionField";
+import { SeededRng } from "../../src/simulation/core/Rng";
+import { retainHarborGroundCover } from "../../src/world/HarborCoastLayout";
 
 describe("Organic road environment", () => {
   it("keeps quality density monotonic without changing the canonical high layout", () => {
@@ -24,15 +31,15 @@ describe("Organic road environment", () => {
     const first = createWorldEnvironmentLayout(42891);
     const second = createWorldEnvironmentLayout(42891);
     expect(second.groundCoverPlacements).toEqual(first.groundCoverPlacements);
-    // `GROUND_COVER_DENSITY.high` is Neva's tier. Sunreach carries its own
-    // 360/72/96 dry-scrub budget, so count the two islands separately rather
-    // than letting one absorb a shortfall in the other.
     const isSunreach = (placement: { compositionTag?: { islandId?: string } }) =>
       placement.compositionTag?.islandId === "island.sunreach";
-    expect(first.groundCoverPlacements.filter((placement) => !isSunreach(placement))).toHaveLength(
+    const generatedNevaCover = generateGroundCoverPlacements(42891);
+    expect(generatedNevaCover).toHaveLength(
       Object.values(GROUND_COVER_DENSITY.high).reduce((total, count) => total + count, 0)
         + HOMESTEAD_MEADOW_GRASS_COUNT
     );
+    expect(first.groundCoverPlacements.filter((placement) => !isSunreach(placement)))
+      .toEqual(generatedNevaCover.filter(retainHarborGroundCover));
     expect(first.groundCoverPlacements.filter(isSunreach)).toHaveLength(360 + 72 + 96);
 
     const shoulderCover = first.groundCoverPlacements.filter((placement) =>
@@ -57,13 +64,32 @@ describe("Organic road environment", () => {
     )).toBe(true);
   });
 
-  it("forms correlated grass and flower patches instead of even world scatter", () => {
-    // Patch formation is Neva's authored contract; Sunreach scatters its dry
-    // scrub far more sparsely by design, which would dilute the statistic.
-    const cover = createWorldEnvironmentLayout(42891).groundCoverPlacements
-      .filter((placement) => placement.compositionTag?.islandId !== "island.sunreach");
-    const grass = cover.filter((placement) => placement.category === "grass");
+  it("biases grass toward causal cover habitats and forms local flower clusters", () => {
+    const worldSeed = 42891;
+    const cover = generateGroundCoverPlacements(worldSeed);
+    const grass = cover.filter((placement) => placement.category === "grass" && !placement.id.includes("homestead"));
     const flowers = cover.filter((placement) => placement.category === "flowers");
+
+    const averageCoverDensity = (points: readonly { x: number; z: number }[]) => points.reduce(
+      (total, point) => total + sampleWorldComposition(worldSeed, point.x, point.z).density["short-cover"], 0
+    ) / points.length;
+    const grassDensity = averageCoverDensity(grass);
+    for (const controlSeed of [17, 83, 271]) {
+      const rng = new SeededRng(controlSeed);
+      const uniform: { x: number; z: number }[] = [];
+      for (let attempt = 0; attempt < 4096 * 100 && uniform.length < 4096; attempt++) {
+        const x = rng.range(WORLD_BOUNDS.minX + 5, WORLD_BOUNDS.maxX - 5);
+        const z = rng.range(WORLD_BOUNDS.minZ + 5, WORLD_BOUNDS.maxZ - 5);
+        if (!WorldLayout.isWalkable(x, z) || WorldLayout.isWater(x, z) || WorldLayout.isInterior(x, z)
+          || WorldLayout.terrainNormal(x, z).y <= 0.66 || !hasGroundCoverClearance(x, z)
+          || WorldLayout.pathInfluence(x, z) >= GRASS_MAX_PATH_INFLUENCE) continue;
+        const surface = WorldLayout.terrainSurfaceSample(x, z);
+        if (surface.farmInfluence >= 0.08 || surface.shorelineWetness >= 0.62) continue;
+        uniform.push({ x, z });
+      }
+      expect(uniform).toHaveLength(4096);
+      expect(grassDensity, `uniform-ground control ${controlSeed}`).toBeGreaterThan(averageCoverDensity(uniform) * 1.1);
+    }
 
     const nearbyFraction = (
       placements: typeof grass,
@@ -97,7 +123,6 @@ describe("Organic road environment", () => {
       return nearby / placements.length;
     };
 
-    expect(nearbyFraction(grass, 1.5)).toBeGreaterThan(0.72);
     expect(nearbyFraction(flowers, 1.1)).toBeGreaterThan(0.62);
   });
 

@@ -13,6 +13,8 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_lofted_form,
+    add_leaf_blade,
     add_ring,
     add_tapered_beam,
     add_tri_prism,
@@ -26,9 +28,9 @@ def item_carrot(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     root_len = 0.185
 
-    add_cone("carrot_body", (0, 0, -0.145 + root_len * 0.5), 0.048, 0.016, root_len, orange, root, vertices=8)
-    add_cone("carrot_tip", (0, 0, -0.145 - 0.020), 0.016, 0.002, 0.042, orange, root, vertices=6)
-    add_cylinder("carrot_shoulder", (0, 0, -0.145 + root_len - 0.006), 0.050, 0.020, orange, root, vertices=8, bevel=0.004)
+    add_lofted_form("carrot_root", [((x, 0, z), r, r * .94) for x, z, r in
+        ((.006, -.186, .002), (.003, -.145, .016), (0, -.07, .035),
+         (0, .024, .050), (0, .044, .030))], orange, root, sides=8)
     # Growth rings around the shoulder are the read that says "root vegetable".
     for index in range(3):
         add_ring(f"carrot_ring_{index}", (0, 0, -0.10 + index * 0.032), 0.042 - index * 0.007, 0.004, shadow, root,
@@ -80,8 +82,9 @@ def item_apple(spec: dict, root) -> None:
     """Apple with the dimpled stem well, a woody stalk, and one leaf on that stalk."""
     red, leaf, wood = spec["palette"]
 
-    add_ico("apple_body", (0, 0, -0.004), (0.058, 0.058, 0.052), red, root, subdivisions=1)
-    add_ico("apple_cheek", (0.018, -0.012, 0.002), (0.048, 0.046, 0.044), red, root, subdivisions=1)
+    add_lofted_form("apple_body", [((x, 0, z), r, r * .96) for x, z, r in
+        ((0, -.052, .014), (.004, -.032, .046), (.006, .005, .060),
+         (.004, .036, .048), (0, .043, .026), (0, .034, .008))], red, root, sides=10)
     # The pinched wells at top and bottom are what separate an apple from a ball.
     add_cone("apple_stem_well", (0, 0, 0.043), 0.030, 0.014, 0.018, wood, root, vertices=8)
     add_cone("apple_calyx", (0, 0, -0.049), 0.022, 0.008, 0.014, wood, root, vertices=6)
@@ -95,8 +98,9 @@ def item_bread_loaf(spec: dict, root) -> None:
     crust, flour, dark = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("bread_body", (0, 0, -0.012), (0.085, 0.115, 0.055), crust, root, subdivisions=1)
-    add_ico("bread_dome", (0, 0, 0.012), (0.072, 0.100, 0.045), crust, root, subdivisions=1)
+    add_lofted_form("bread_body", [((0, 0, z), w, d) for z, w, d in
+        ((-.055, .070, .100), (-.030, .085, .115), (.020, .077, .105),
+         (.046, .053, .080), (.050, .014, .042))], crust, root, sides=10)
     # Flat bottom crust: a loaf sits on a board, it does not roll.
     add_box("bread_base", (0, 0, -0.058), (0.155, 0.215, 0.018), dark, root, bevel=0.006)
     add_box("bread_flour_dust", (0, 0, 0.043), (0.115, 0.155, 0.010), flour, root, bevel=0.0)
@@ -138,17 +142,12 @@ def item_coin_pouch(spec: dict, root) -> None:
     leather, burlap, brass = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("pouch_body", (0, 0, -0.055), (0.115, 0.115, 0.100), leather, root, subdivisions=1)
-    # Lumps of coin pressing out from the inside.
-    for index in range(4):
-        angle = index * math.tau / 4 + 0.4
-        add_ico(
-            f"pouch_bulge_{index}", (math.cos(angle) * 0.070, math.sin(angle) * 0.070, -0.060 + rng.uniform(-0.020, 0.020)),
-            (0.052, 0.050, 0.044), leather, root,
-        )
-    add_cone("pouch_gather", (0, 0, 0.038), 0.098, 0.042, 0.075, leather, root, vertices=9)
+    add_lofted_form("pouch_body", [((x, y, z), w, d) for x, y, z, w, d in
+        ((0, 0, -.151, .073, .071), (-.003, .004, -.120, .109, .105),
+         (.004, -.005, -.055, .117, .111), (.004, 0, .005, .094, .090),
+         (0, 0, .062, .042, .042), (0, 0, .098, .056, .054),
+         (.003, 0, .120, .048, .044))], leather, root, sides=10)
     add_ring("pouch_drawstring", (0, 0, 0.062), 0.048, 0.011, burlap, root, major_segments=9, minor_segments=4)
-    add_cone("pouch_neck_ruffle", (0, 0, 0.098), 0.040, 0.058, 0.045, leather, root, vertices=9)
 
     # Two cord tails hanging from the drawstring, not floating beside it.
     for index, sign in enumerate((-1, 1)):

@@ -1,0 +1,934 @@
+{
+  "schemaVersion": 32,
+  "state": {
+    "schemaVersion": 32,
+    "worldSeed": 42891,
+    "clock": {
+      "currentMinute": 480,
+      "minutesPerRealSecond": 0.4,
+      "dayCount": 1,
+      "season": "spring",
+      "year": 1,
+      "timeOfDay": "day",
+      "isPaused": false
+    },
+    "player": {
+      "x": -65,
+      "y": 1.6642710828781129,
+      "z": -60.5,
+      "rotationY": 0,
+      "currentRegionId": "region.farm",
+      "inventoryId": "inv.player",
+      "equippedRodId": "rod.willow",
+      "ownedRodIds": [
+        "rod.willow"
+      ],
+      "preparedLureItemId": null,
+      "dragNotch": 1,
+      "carriedFishCargoId": null,
+      "activeBoatId": null,
+      "activeMountId": null,
+      "money": 100,
+      "traversal": {
+        "sprintStamina": 100,
+        "sprintRecoveryDelaySeconds": 0,
+        "sprintExhausted": false,
+        "isGrounded": true
+      },
+      "workCapacity": {
+        "current": 988,
+        "maximum": 1000,
+        "regeneratedAtMinute": 480
+      },
+      "proficiencies": {
+        "farming": 12,
+        "fishing": 0,
+        "processing": 0,
+        "trading": 0
+      }
+    },
+    "world": {
+      "layoutRevision": 12,
+      "currentSeed": 42891,
+      "activeSchools": {},
+      "fishingPressureByHabitat": {},
+      "structures": {
+        "struct.starter_mill": {
+          "id": "struct.starter_mill",
+          "type": "hand-mill",
+          "x": 57.8,
+          "y": 6.5,
+          "z": -81.2,
+          "rotationY": -3.6652
+        },
+        "struct.workbench": {
+          "id": "struct.workbench",
+          "type": "workbench",
+          "x": -75.1,
+          "y": 1.2,
+          "z": -55.9,
+          "rotationY": 0
+        },
+        "struct.starter_compost": {
+          "id": "struct.starter_compost",
+          "type": "compost-bin",
+          "x": -76.2,
+          "y": 1.2,
+          "z": -61.4,
+          "rotationY": 3.8416
+        },
+        "struct.harbor_fish_table": {
+          "id": "struct.harbor_fish_table",
+          "type": "fish-table",
+          "x": 70.8,
+          "y": 1.04900394648815,
+          "z": 61.8,
+          "rotationY": 4.7124
+        },
+        "struct.sunreach_hand_mill": {
+          "id": "struct.sunreach_hand_mill",
+          "type": "hand-mill",
+          "x": 444,
+          "y": 5.249954027209282,
+          "z": 21,
+          "rotationY": 2.35
+        },
+        "struct.sunreach_workbench": {
+          "id": "struct.sunreach_workbench",
+          "type": "workbench",
+          "x": 466,
+          "y": 5.346180417067038,
+          "z": 17,
+          "rotationY": -0.7
+        },
+        "struct.sunreach_fish_table": {
+          "id": "struct.sunreach_fish_table",
+          "type": "fish-table",
+          "x": 382,
+          "y": 0.8633494048564984,
+          "z": 61,
+          "rotationY": -1.5
+        }
+      },
+      "lastSchoolSpawnMinute": 0,
+      "storySchoolSpawned": false
+    },
+    "farms": {
+      "farm.starter_garden": {
+        "id": "farm.starter_garden",
+        "regionId": "region.farm",
+        "widthMeters": 12,
+        "depthMeters": 10,
+        "climateId": "temperate",
+        "soil": {
+          "fertility": 85,
+          "moistureRetention": 0.7
+        },
+        "placedCropIds": [
+          "placed_crop_zau64t_qcw"
+        ],
+        "placedStructureIds": [
+          "struct.starter_mill",
+          "struct.workbench",
+          "struct.starter_compost"
+        ],
+        "leaseCost": 0,
+        "leaseDueMinute": 0,
+        "accessType": "public"
+      },
+      "farm.player_homestead": {
+        "id": "farm.player_homestead",
+        "regionId": "region.farm",
+        "widthMeters": 7,
+        "depthMeters": 7,
+        "climateId": "temperate",
+        "soil": {
+          "fertility": 90,
+          "moistureRetention": 0.8
+        },
+        "placedCropIds": [],
+        "placedStructureIds": [],
+        "leaseCost": 50,
+        "leaseDueMinute": 10080,
+        "accessType": "private"
+      },
+      "farm.sunreach_terraces": {
+        "id": "farm.sunreach_terraces",
+        "regionId": "region.sunreach_terraces",
+        "widthMeters": 52,
+        "depthMeters": 51,
+        "climateId": "warm",
+        "soil": {
+          "fertility": 80,
+          "moistureRetention": 0.45
+        },
+        "placedCropIds": [],
+        "placedStructureIds": [
+          "struct.sunreach_hand_mill",
+          "struct.sunreach_workbench",
+          "struct.sunreach_fish_table"
+        ],
+        "leaseCost": 0,
+        "leaseDueMinute": 0,
+        "accessType": "public"
+      }
+    },
+    "crops": {
+      "placed_crop_zau64t_qcw": {
+        "id": "placed_crop_zau64t_qcw",
+        "cropId": "crop.wheat",
+        "farmId": "farm.starter_garden",
+        "x": 0,
+        "z": -3.5,
+        "rotationRadians": 5.254541739223245,
+        "plantedAtMinute": 480,
+        "lastUpdatedMinute": 480,
+        "effectiveGrowthMinutes": 0,
+        "moisture": 70,
+        "health": 100,
+        "stage": "seeded",
+        "averageMoistureAccum": 70,
+        "moistureSampleCount": 1
+      }
+    },
+    "inventories": {
+      "inv.player": {
+        "id": "inv.player",
+        "slotCount": 16,
+        "slots": [
+          {
+            "itemId": "seed.wheat",
+            "quantity": 9
+          },
+          {
+            "itemId": "seed.tomato",
+            "quantity": 6
+          },
+          {
+            "itemId": "seed.potato",
+            "quantity": 6
+          },
+          {
+            "itemId": "item.bait_worms",
+            "quantity": 10
+          },
+          {
+            "itemId": "item.compost_starter",
+            "quantity": 2
+          },
+          {
+            "itemId": "item.plant_matter",
+            "quantity": 8
+          },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      },
+      "inv.rowboat_supply": {
+        "id": "inv.rowboat_supply",
+        "slotCount": 4,
+        "slots": [
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    },
+    "processingJobs": {},
+    "basicFishing": null,
+    "sportFishing": null,
+    "boats": {
+      "boat.player_rowboat": {
+        "id": "boat.player_rowboat",
+        "boatTypeId": "boat.rowboat",
+        "x": 82.4,
+        "y": 0,
+        "z": 72,
+        "headingRadians": 0,
+        "speed": 0,
+        "fuel": 0,
+        "durability": 100,
+        "fishCargoSlotIds": [
+          null,
+          null
+        ],
+        "supplyInventoryId": "inv.rowboat_supply",
+        "upgrades": [],
+        "isDocked": true,
+        "dockedMarketId": "market.harbor"
+      }
+    },
+    "mounts": {
+      "mount.donkey_starter": {
+        "id": "mount.donkey_starter",
+        "mountTypeId": "mount.donkey",
+        "x": -57,
+        "y": 1.196932364595395,
+        "z": -65.4,
+        "rotationY": 0.41241044159738727,
+        "gallopStamina": 100,
+        "gallopRecoveryDelaySeconds": 0,
+        "gallopExhausted": false
+      }
+    },
+    "fishCargo": {},
+    "weather": {
+      "type": "clear",
+      "windDirectionDeg": 45,
+      "windSpeed": 4,
+      "precipitation": 0,
+      "cloudCover": 0.15,
+      "seaRoughness": 0.1,
+      "visibility": 1,
+      "temperatureC": 18,
+      "nextWeatherMinute": 840,
+      "nextWeatherType": "fog"
+    },
+    "markets": {
+      "market.village": {
+        "id": "market.village",
+        "name": "Village Produce Market",
+        "regionId": "region.village",
+        "commodities": {
+          "produce.wheat": {
+            "itemId": "produce.wheat",
+            "basePrice": 8,
+            "demandIndex": 1,
+            "localSupply": 50,
+            "targetSupply": 50,
+            "consumptionRate": 4,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.barley": {
+            "itemId": "produce.barley",
+            "basePrice": 10,
+            "demandIndex": 1,
+            "localSupply": 40,
+            "targetSupply": 40,
+            "consumptionRate": 3,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.corn": {
+            "itemId": "produce.corn",
+            "basePrice": 14,
+            "demandIndex": 1,
+            "localSupply": 30,
+            "targetSupply": 30,
+            "consumptionRate": 2.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.tomato": {
+            "itemId": "produce.tomato",
+            "basePrice": 12,
+            "demandIndex": 1,
+            "localSupply": 35,
+            "targetSupply": 35,
+            "consumptionRate": 3,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.potato": {
+            "itemId": "produce.potato",
+            "basePrice": 11,
+            "demandIndex": 1,
+            "localSupply": 60,
+            "targetSupply": 60,
+            "consumptionRate": 5,
+            "seasonalModifier": 1.15,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.carrot": {
+            "itemId": "produce.carrot",
+            "basePrice": 9,
+            "demandIndex": 1,
+            "localSupply": 45,
+            "targetSupply": 45,
+            "consumptionRate": 4,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.flax": {
+            "itemId": "produce.flax",
+            "basePrice": 16,
+            "demandIndex": 1,
+            "localSupply": 25,
+            "targetSupply": 25,
+            "consumptionRate": 2,
+            "seasonalModifier": 1.1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.apple": {
+            "itemId": "produce.apple",
+            "basePrice": 15,
+            "demandIndex": 1,
+            "localSupply": 30,
+            "targetSupply": 30,
+            "consumptionRate": 2.5,
+            "seasonalModifier": 1.3,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.olive": {
+            "itemId": "produce.olive",
+            "basePrice": 22,
+            "demandIndex": 1,
+            "localSupply": 18,
+            "targetSupply": 18,
+            "consumptionRate": 1.6,
+            "seasonalModifier": 1.1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.bait_worms": {
+            "itemId": "item.bait_worms",
+            "basePrice": 5,
+            "demandIndex": 1,
+            "localSupply": 80,
+            "targetSupply": 80,
+            "consumptionRate": 6,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.basic_fertilizer": {
+            "itemId": "item.basic_fertilizer",
+            "basePrice": 18,
+            "demandIndex": 1,
+            "localSupply": 20,
+            "targetSupply": 20,
+            "consumptionRate": 1.5,
+            "seasonalModifier": 1.25,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.compost_starter": {
+            "itemId": "item.compost_starter",
+            "basePrice": 10,
+            "demandIndex": 1,
+            "localSupply": 30,
+            "targetSupply": 30,
+            "consumptionRate": 2,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.ground_grain": {
+            "itemId": "item.ground_grain",
+            "basePrice": 12,
+            "demandIndex": 1,
+            "localSupply": 45,
+            "targetSupply": 45,
+            "consumptionRate": 3,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.plant_matter": {
+            "itemId": "item.plant_matter",
+            "basePrice": 2,
+            "demandIndex": 1,
+            "localSupply": 90,
+            "targetSupply": 90,
+            "consumptionRate": 6,
+            "seasonalModifier": 1.1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.salt_cured_fish": {
+            "itemId": "item.salt_cured_fish",
+            "basePrice": 34,
+            "demandIndex": 1,
+            "localSupply": 20,
+            "targetSupply": 20,
+            "consumptionRate": 2.2,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          }
+        }
+      },
+      "market.harbor": {
+        "id": "market.harbor",
+        "name": "Harbor Fish Market & Wholesaler",
+        "regionId": "region.harbor",
+        "commodities": {
+          "fish.carp": {
+            "itemId": "fish.carp",
+            "basePrice": 35,
+            "demandIndex": 1,
+            "localSupply": 20,
+            "targetSupply": 20,
+            "consumptionRate": 1.5,
+            "seasonalModifier": 1.1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.trout": {
+            "itemId": "fish.trout",
+            "basePrice": 50,
+            "demandIndex": 1,
+            "localSupply": 15,
+            "targetSupply": 15,
+            "consumptionRate": 1.2,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.perch": {
+            "itemId": "fish.perch",
+            "basePrice": 15,
+            "demandIndex": 1,
+            "localSupply": 40,
+            "targetSupply": 40,
+            "consumptionRate": 3,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.catfish": {
+            "itemId": "fish.catfish",
+            "basePrice": 75,
+            "demandIndex": 1,
+            "localSupply": 10,
+            "targetSupply": 10,
+            "consumptionRate": 0.8,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.pike": {
+            "itemId": "fish.pike",
+            "basePrice": 90,
+            "demandIndex": 1,
+            "localSupply": 8,
+            "targetSupply": 8,
+            "consumptionRate": 0.6,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.arowana": {
+            "itemId": "fish.arowana",
+            "basePrice": 220,
+            "demandIndex": 1,
+            "localSupply": 3,
+            "targetSupply": 3,
+            "consumptionRate": 0.2,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.mackerel": {
+            "itemId": "fish.mackerel",
+            "basePrice": 18,
+            "demandIndex": 1,
+            "localSupply": 50,
+            "targetSupply": 50,
+            "consumptionRate": 4,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.tuna": {
+            "itemId": "fish.tuna",
+            "basePrice": 160,
+            "demandIndex": 1,
+            "localSupply": 8,
+            "targetSupply": 8,
+            "consumptionRate": 0.8,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.sturgeon": {
+            "itemId": "fish.sturgeon",
+            "basePrice": 240,
+            "demandIndex": 1,
+            "localSupply": 4,
+            "targetSupply": 4,
+            "consumptionRate": 0.3,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.sailfish": {
+            "itemId": "fish.sailfish",
+            "basePrice": 280,
+            "demandIndex": 1,
+            "localSupply": 3,
+            "targetSupply": 3,
+            "consumptionRate": 0.25,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.swordfish": {
+            "itemId": "fish.swordfish",
+            "basePrice": 340,
+            "demandIndex": 1,
+            "localSupply": 2,
+            "targetSupply": 2,
+            "consumptionRate": 0.15,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.blue_marlin": {
+            "itemId": "fish.blue_marlin",
+            "basePrice": 480,
+            "demandIndex": 1,
+            "localSupply": 1,
+            "targetSupply": 1,
+            "consumptionRate": 0.1,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.chum_bucket": {
+            "itemId": "item.chum_bucket",
+            "basePrice": 25,
+            "demandIndex": 1,
+            "localSupply": 30,
+            "targetSupply": 30,
+            "consumptionRate": 2,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.chum_rich": {
+            "itemId": "item.chum_rich",
+            "basePrice": 40,
+            "demandIndex": 1,
+            "localSupply": 15,
+            "targetSupply": 15,
+            "consumptionRate": 1,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.chum_deep": {
+            "itemId": "item.chum_deep",
+            "basePrice": 45,
+            "demandIndex": 1,
+            "localSupply": 12,
+            "targetSupply": 12,
+            "consumptionRate": 1,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.crushed_ice": {
+            "itemId": "item.crushed_ice",
+            "basePrice": 15,
+            "demandIndex": 1,
+            "localSupply": 50,
+            "targetSupply": 50,
+            "consumptionRate": 3.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.boat_fuel": {
+            "itemId": "item.boat_fuel",
+            "basePrice": 30,
+            "demandIndex": 1,
+            "localSupply": 40,
+            "targetSupply": 40,
+            "consumptionRate": 2.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.bait_worms": {
+            "itemId": "item.bait_worms",
+            "basePrice": 5,
+            "demandIndex": 1,
+            "localSupply": 80,
+            "targetSupply": 80,
+            "consumptionRate": 4,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.fish_scraps": {
+            "itemId": "item.fish_scraps",
+            "basePrice": 4,
+            "demandIndex": 1,
+            "localSupply": 70,
+            "targetSupply": 70,
+            "consumptionRate": 5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.basic_lure": {
+            "itemId": "item.basic_lure",
+            "basePrice": 20,
+            "demandIndex": 1,
+            "localSupply": 25,
+            "targetSupply": 25,
+            "consumptionRate": 1.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          }
+        }
+      },
+      "market.sunreach_cove": {
+        "id": "market.sunreach_cove",
+        "name": "Sunreach Cove Market",
+        "regionId": "region.sunreach_cove",
+        "commodities": {
+          "seed.sunflower": {
+            "itemId": "seed.sunflower",
+            "basePrice": 7,
+            "demandIndex": 1,
+            "localSupply": 40,
+            "targetSupply": 40,
+            "consumptionRate": 2.5,
+            "seasonalModifier": 1.05,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "seed.olive_sapling": {
+            "itemId": "seed.olive_sapling",
+            "basePrice": 55,
+            "demandIndex": 1,
+            "localSupply": 12,
+            "targetSupply": 12,
+            "consumptionRate": 0.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.sunflower_seed": {
+            "itemId": "produce.sunflower_seed",
+            "basePrice": 13,
+            "demandIndex": 1,
+            "localSupply": 35,
+            "targetSupply": 35,
+            "consumptionRate": 2.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.olive": {
+            "itemId": "produce.olive",
+            "basePrice": 22,
+            "demandIndex": 1,
+            "localSupply": 28,
+            "targetSupply": 28,
+            "consumptionRate": 2,
+            "seasonalModifier": 1.15,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.tomato": {
+            "itemId": "produce.tomato",
+            "basePrice": 12,
+            "demandIndex": 1,
+            "localSupply": 28,
+            "targetSupply": 28,
+            "consumptionRate": 2.2,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "produce.corn": {
+            "itemId": "produce.corn",
+            "basePrice": 14,
+            "demandIndex": 1,
+            "localSupply": 24,
+            "targetSupply": 24,
+            "consumptionRate": 1.8,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.sardine": {
+            "itemId": "fish.sardine",
+            "basePrice": 12,
+            "demandIndex": 1,
+            "localSupply": 60,
+            "targetSupply": 60,
+            "consumptionRate": 5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.sea_bream": {
+            "itemId": "fish.sea_bream",
+            "basePrice": 55,
+            "demandIndex": 1,
+            "localSupply": 20,
+            "targetSupply": 20,
+            "consumptionRate": 1.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.amberjack": {
+            "itemId": "fish.amberjack",
+            "basePrice": 175,
+            "demandIndex": 1,
+            "localSupply": 6,
+            "targetSupply": 6,
+            "consumptionRate": 0.45,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.bait_worms": {
+            "itemId": "item.bait_worms",
+            "basePrice": 5,
+            "demandIndex": 1,
+            "localSupply": 80,
+            "targetSupply": 80,
+            "consumptionRate": 4,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.crushed_ice": {
+            "itemId": "item.crushed_ice",
+            "basePrice": 15,
+            "demandIndex": 1,
+            "localSupply": 55,
+            "targetSupply": 55,
+            "consumptionRate": 3.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.boat_fuel": {
+            "itemId": "item.boat_fuel",
+            "basePrice": 30,
+            "demandIndex": 1,
+            "localSupply": 55,
+            "targetSupply": 55,
+            "consumptionRate": 2.5,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.tuna": {
+            "itemId": "fish.tuna",
+            "basePrice": 160,
+            "demandIndex": 1,
+            "localSupply": 7,
+            "targetSupply": 7,
+            "consumptionRate": 0.7,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "fish.sailfish": {
+            "itemId": "fish.sailfish",
+            "basePrice": 280,
+            "demandIndex": 1,
+            "localSupply": 3,
+            "targetSupply": 3,
+            "consumptionRate": 0.25,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          },
+          "item.salt_cured_fish": {
+            "itemId": "item.salt_cured_fish",
+            "basePrice": 34,
+            "demandIndex": 1,
+            "localSupply": 34,
+            "targetSupply": 34,
+            "consumptionRate": 0.9,
+            "seasonalModifier": 1,
+            "lastTickMinute": 480,
+            "recentSalesVolume": 0
+          }
+        }
+      }
+    },
+    "contracts": [
+      {
+        "id": "contract.starter_wheat_1",
+        "templateId": "contract.wheat_supply",
+        "requesterId": "npc.elspeth",
+        "deliveryMarketId": "market.village",
+        "type": "produce",
+        "targetItemIdOrSpecies": "produce.wheat",
+        "quantityRequired": 6,
+        "quantityFulfilled": 0,
+        "rewardMoney": 65,
+        "rewardSkillXp": {
+          "skill": "farming",
+          "xp": 150
+        },
+        "expiresAtMinute": 1440,
+        "status": "active"
+      }
+    ],
+    "journal": {
+      "fishRecords": {},
+      "cropRecords": {},
+      "unlockedKnowledge": [
+        "knowledge.wheat_milling",
+        "knowledge.worm_composting"
+      ]
+    },
+    "quests": {
+      "activeActId": "act1_homestead",
+      "tracks": {
+        "track.main": {
+          "activeQuestId": "quest.act1_welcome",
+          "activeStepIndex": 0,
+          "stepProgress": {}
+        },
+        "track.tides": {
+          "activeQuestId": null,
+          "activeStepIndex": 0,
+          "stepProgress": {}
+        },
+        "track.homestead": {
+          "activeQuestId": null,
+          "activeStepIndex": 0,
+          "stepProgress": {}
+        },
+        "track.tradelanes": {
+          "activeQuestId": null,
+          "activeStepIndex": 0,
+          "stepProgress": {}
+        }
+      },
+      "focusedTrackId": "track.main",
+      "completedQuestIds": [],
+      "unlockedFeatureIds": [],
+      "hintsShown": {}
+    },
+    "metadata": {
+      "createdAtUtcMs": 1788531858935,
+      "lastSavedUtcMs": 1788531858935,
+      "totalPlayMinutes": 0,
+      "gameVersion": "0.1.0",
+      "rngState": 3663174997
+    }
+  },
+  "savedAtUtcMs": 1788508800000
+}

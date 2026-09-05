@@ -26,6 +26,14 @@ export interface VisualRenderConfig {
   exposure: number;
   nightExposure: number;
   qualityTier: QualityTier;
+  coastalStone: {
+    mineralScale: number;
+    mineralStrength: number;
+    grainScale: number;
+    grainStrength: number;
+    dampHeight: number;
+    dampStrength: number;
+  };
   transitions: {
     /** Presentation response for integer simulation-clock steps and explicit time skips. */
     timeOfDayResponseSeconds: number;
@@ -107,6 +115,7 @@ export interface VisualRenderConfig {
     castCharacters: boolean;
     castSmallProps: boolean;
     castRocks: boolean;
+    castAmbientFlyers: boolean;
   };
   quality: Record<
     QualityTier,
@@ -243,6 +252,14 @@ export interface VisualRenderConfig {
     roughnessVariation: number;
   };
   waterSurface: {
+    optics: {
+      absorptionPerMeter: readonly [number, number, number];
+      refractionPixels: number;
+      rippleNormalStrength: number;
+      swashPeriodSeconds: number;
+      swashReachMeters: number;
+      foamStrength: number;
+    };
     polygonCellScaleMeters: number;
     polygonColorVariationStrength: number;
     polygonNormalStrength: number;
@@ -393,6 +410,7 @@ export interface VisualRenderConfig {
   vegetationWind: {
     /** Lateral canopy travel in meters at full wind. */
     amplitudeMeters: number;
+    coastalAmplitudeMeters: number;
     /** Model height below which the trunk stays planted. */
     trunkHoldMeters: number;
     /** Height above the trunk hold over which sway reaches full strength. */
@@ -436,15 +454,23 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   exposure: 1.04,
   nightExposure: 1.24,
   qualityTier: "high",
+  coastalStone: {
+    mineralScale: 2.3,
+    mineralStrength: 0.20,
+    grainScale: 21,
+    grainStrength: 0.07,
+    dampHeight: 0.40,
+    dampStrength: 0.16
+  },
   transitions: {
     timeOfDayResponseSeconds: 0.75,
     qualitySecondsPerTier: 0.9,
     qualityRebuildIntervalSeconds: 0.12
   },
   sun: {
-    maxElevationDeg: 35,
+    maxElevationDeg: 50,
     noonAzimuthDeg: 45,
-    colorHex: PALETTE_HEX.horizon_warm_01,
+    colorHex: PALETTE_HEX.sun_daylight_01,
     horizonColorHex: PALETTE_HEX.horizon_gold_01,
     // The key must out-run the hemisphere fill or shadowed ground stays as
     // bright as lit ground and the world reads as an unlit diorama.
@@ -459,9 +485,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   moon: {
     colorHex: PALETTE_HEX.sky_pale_01,
-    // Day runs a 3:1 key-to-fill ratio; night ran 1.5:1, which is why moonlit
-    // trees read as flat silhouettes with no lit side. Total night brightness is
-    // held roughly constant - this is a ratio change, not a lift.
+    // Night keeps its existing moon/fill relationship; daytime coastal
+    // calibration must not erase the dark-hour silhouette structure.
     intensity: 1.1,
     cloudAttenuationFloor: 0.68,
     stormAttenuation: 0.45,
@@ -469,16 +494,16 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   skyFill: {
     skyColorHex: PALETTE_HEX.sky_pale_01,
-    groundColorHex: PALETTE_HEX.foliage_sage_01,
+    groundColorHex: PALETTE_HEX.sand_coastal_wet_01,
     clearDayHueOffset: 0.02,
     clearDaySaturationLift: 0.28,
     clearDayLightnessOffset: -0.17,
-    clearDayHorizonBlueMix: 0.2,
+    clearDayHorizonBlueMix: 0.72,
     nightSkyColorHex: PALETTE_HEX.water_deep_01,
     nightGroundColorHex: PALETTE_HEX.foliage_shadow_01,
     nightSkyColorStrength: 0.82,
     nightGroundColorStrength: 1.08,
-    intensity: 1.02,
+    intensity: 1.45,
     // Held in proportion to the daytime fill: a night ambient that nearly
     // matches day flattens the moonlit world as badly as an over-bright fill
     // flattens noon.
@@ -522,7 +547,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     followSnap: true,
     castCharacters: true,
     castSmallProps: true,
-    castRocks: true
+    castRocks: true,
+    castAmbientFlyers: false
   },
   quality: {
     low: {
@@ -699,21 +725,29 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     roughnessVariation: 0.02
   },
   waterSurface: {
+    optics: {
+      absorptionPerMeter: [0.32, 0.11, 0.075],
+      refractionPixels: 2.4,
+      rippleNormalStrength: 0.075,
+      swashPeriodSeconds: 10.8,
+      swashReachMeters: 1.3,
+      foamStrength: 0.78
+    },
     polygonCellScaleMeters: 3.2,
-    polygonColorVariationStrength: 0.075,
-    polygonNormalStrength: 0.11,
+    polygonColorVariationStrength: 0.008,
+    polygonNormalStrength: 0.016,
     normalQuantizationSteps: 0,
-    fresnelStrength: 0.26,
+    fresnelStrength: 0.92,
     // Re-tuned with the faceted-normal glitter. The previous 0.13 was set
     // against a smooth-normal lobe, which concentrates all its energy in one
     // small mirror highlight; spread across a facet-broken path the same value
     // reads as nothing at all.
-    sunGlintStrength: 0.55,
+    sunGlintStrength: 0.3,
     glitterFocusNearMeters: 34,
     glitterFocusFarMeters: 170,
     glitterFarBroadening: 0.24,
-    depthRampStartMeters: 14,
-    depthRampEndMeters: 96,
+    depthRampStartMeters: 1.4,
+    depthRampEndMeters: 8,
     depthColorStrength: 0.78,
     headwaters: {
       maxRowSpacingMeters: 0.75,
@@ -745,15 +779,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       segments: 128,
       innerFadeRadiusMeters: 42,
       outerFadeRadiusMeters: 58,
-      detailBandAmplitude: 0.024,
+      detailBandAmplitude: 0,
       detailBandFrequency: 0.38,
       detailBandSpeed: 1.6,
-      detailNormalStrength: 0.08,
+      detailNormalStrength: 0.032,
       detailNormalScrollSpeed: 0.45
     },
     shoreline: {
       shallowStartMeters: 0.2,
-      shallowEndMeters: 13,
+      shallowEndMeters: 1.8,
       shallowColorStrength: 0.9,
       nearShoreNormalScale: 0.48,
       foamHeightOffsetMeters: 0.024,
@@ -850,6 +884,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   vegetationWind: {
     amplitudeMeters: 0.14,
+    coastalAmplitudeMeters: 0.32,
     trunkHoldMeters: 1.6,
     canopySpanMeters: 5.5
   },

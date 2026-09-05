@@ -9,6 +9,8 @@ from common.geometry import (
     add_box,
     add_collision_primitives,
     add_cone,
+    add_conforming_shell,
+    add_limb_tube,
     add_cylinder,
     add_ico,
     add_lofted_form,
@@ -27,6 +29,7 @@ from common.authored import (
     add_lattice,
     add_masonry_courses,
     add_plank_field,
+    add_profiled_vessel,
     add_rope_line,
     add_shingle_rows,
 )
@@ -42,16 +45,8 @@ def water_well(spec: dict, root) -> None:
     seed = spec["seed"]
 
     basin_h = 0.92
-    add_cylinder(
-        "well_stone_basin",
-        (0, 0, basin_h * 0.5),
-        radius * 0.86,
-        basin_h,
-        stone,
-        root,
-        vertices=8,
-        bevel=0.05,
-    )
+    add_profiled_vessel("well_stone_basin", (0, 0, 0),
+        ((0, radius * .86), (basin_h, radius * .86)), .14, stone, root, sides=8)
     add_cylindrical_masonry(
         "well_stone_masonry",
         0.0,
@@ -220,16 +215,8 @@ def water_well(spec: dict, root) -> None:
 
     rope_points = [(0, 0, axle_z), (0.04, 0, axle_z - 0.50), (0.04, 0, basin_h + 0.42)]
     add_rope_line("well_bucket_rope", rope_points, 0.028, metal, root, vertices=6)
-    add_cylinder(
-        "well_bucket",
-        (0.04, 0, basin_h + 0.18),
-        0.20,
-        0.32,
-        wood,
-        root,
-        vertices=8,
-        bevel=0.016,
-    )
+    add_profiled_vessel("well_bucket", (.04, 0, basin_h + .02),
+        ((0, .16), (.32, .20)), .022, wood, root, sides=8)
     add_ring(
         "well_bucket_band",
         (0.04, 0, basin_h + 0.10),
@@ -671,16 +658,15 @@ def wood_barrel(spec: dict, root) -> None:
     height = spec["parameters"]["height"]
     radius = spec["parameters"]["radius"]
     staves = spec["parameters"]["staves"]
+    profile = [((0, 0, height * z), radius * r, radius * r)
+               for z, r in ((0, .84), (.18, .91), (.5, 1), (.82, .91), (1, .84))]
     for index in range(staves):
         angle = index * math.tau / staves
-        add_box(
-            f"barrel_stave_{index:02d}",
-            (math.cos(angle) * radius * 0.86, math.sin(angle) * radius * 0.86, height * 0.5),
-            (0.17, 0.10, height), wood, root,
-            rotation=(0, 0, angle), bevel=0.025,
-        )
+        add_conforming_shell(f"barrel_stave_{index:02d}", profile, wood, root,
+            arc=(angle + .006, angle + math.tau / staves - .006),
+            offset=-radius * .055, thickness=radius * .055, segments=1)
     for index, z in enumerate((height * 0.18, height * 0.50, height * 0.82)):
-        add_ring(f"barrel_band_{index}", (0, 0, z), radius * 0.91, 0.035, metal, root, major_segments=staves, minor_segments=4)
+        add_ring(f"barrel_band_{index}", (0, 0, z), radius * (1 if index == 1 else .91), 0.025, metal, root, major_segments=staves, minor_segments=4)
     add_cylinder("barrel_top", (0, 0, height - 0.02), radius * 0.84, 0.07, wood, root, vertices=staves)
     add_cylinder("barrel_bottom", (0, 0, 0.035), radius * 0.84, 0.07, wood, root, vertices=staves)
     add_ring("barrel_top_rim", (0, 0, height - 0.015), radius * 0.84, 0.025, metal, root, major_segments=staves, minor_segments=4)
@@ -1758,7 +1744,8 @@ def watering_can(spec: dict, root) -> None:
         rotation=(0, math.pi / 2, 0),
         bevel=0.002,
     )
-    add_cylinder("watering_can_body", (0.16, 0, 0.0), 0.11, 0.20, metal, root, vertices=10, bevel=0.014)
+    add_profiled_vessel("watering_can_body", (.16, 0, 0),
+        ((-.10, .095), (-.06, .110), (.065, .105), (.10, .070)), .009, metal, root, sides=10)
     add_beam("watering_can_carry_handle_a", (0.07, 0, 0.08), (0.14, 0, 0.24), 0.015, dark, root, vertices=6)
     add_beam("watering_can_carry_handle_b", (0.14, 0, 0.24), (0.25, 0, 0.08), 0.015, dark, root, vertices=6)
     add_cylinder("watering_can_lid", (0.16, 0, 0.11), 0.07, 0.035, accent, root, vertices=8, bevel=0.005)
@@ -1903,12 +1890,15 @@ def workstation_scoop(spec: dict, root) -> None:
             ((0.0, 0.020, 0.436), 0.062, 0.034),
             ((0.0, 0.006, 0.492), 0.124, 0.062),
             ((0.0, -0.028, 0.578), 0.160, 0.078),
+            ((0.0, -0.028, 0.578), 0.150, 0.068),
+            ((0.0, 0.006, 0.496), 0.114, 0.052),
+            ((0.0, 0.020, 0.448), 0.052, 0.024),
         ),
         wood,
         root,
         sides=10,
     )
-    add_lofted_form(
+    add_conforming_shell(
         "workstation_scoop_rim",
         (
             ((0.0, -0.026, 0.566), 0.161, 0.079),
@@ -1916,7 +1906,7 @@ def workstation_scoop(spec: dict, root) -> None:
         ),
         metal,
         root,
-        sides=10,
+        arc=(0, math.tau), offset=0, thickness=.006, segments=10,
     )
 
 
@@ -1931,8 +1921,8 @@ def fishing_rod(spec: dict, root) -> None:
 
     # 1. Butt Cap and Ergonomic Contoured Grip
     add_cylinder("rod_butt_cap", (0, 0, -0.34), 0.024, 0.04, brass, root, vertices=6, bevel=0.005)
-    add_tapered_beam("rod_rear_grip_lower", (0, 0, -0.32), (0, 0, -0.15), 0.022, 0.026, wood_honey, root, vertices=6)
-    add_tapered_beam("rod_rear_grip_upper", (0, 0, -0.15), (0, 0, 0.05), 0.026, 0.023, wood_honey, root, vertices=6)
+    add_limb_tube("rod_rear_grip", ((0, 0, -.32), (0, 0, -.15), (0, 0, .05)),
+                  (.022, .026, .023), wood_honey, root, sides=6)
     add_cylinder("rod_check_rear", (0, 0, 0.055), 0.024, 0.008, brass, root, vertices=6)
 
     # 2. Reel Seat and Compression Locking Hoods

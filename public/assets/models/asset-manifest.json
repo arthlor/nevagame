@@ -1,29 +1,29 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-05T16:45:18.403Z",
-  "specHash": "cae90b83b7fe96c57a74352dc6961a7f3d4cc38d96a2688ac28931d88b10e3f8",
-  "paletteHash": "1687faac9a1138aecae5b1b3dc9028bff9f6479fdec580021df468636946f36c",
-  "toolchainHash": "faef2d4fa6532a323ba2d7f4f40bac429e2bfdbd42ead747473c26ccbb4c3c48",
+  "generatedAt": "2026-09-05T19:54:37.263Z",
+  "specHash": "5778bd570e3b224b0d4d443ff9255e1246e41c23236573eb9c348a447fb68f61",
+  "paletteHash": "75afa4dc77fb1109ae8872e6d009f6853b2d4a7ea745bff76d64461900d3ba4f",
+  "toolchainHash": "d17bcfe17d702b1e475dbfe99c6a4dae534648ef17ab7e4dc95263127b35a0c1",
   "blenderVersion": "Blender 5.2.0 LTS",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 7381,
-  "aggregateBytes": 28057488,
+  "durationMs": 33152,
+  "aggregateBytes": 31724112,
   "summary": {
-    "assetCount": 215,
-    "referenceReady": 74,
+    "assetCount": 258,
+    "referenceReady": 87,
     "referenceDraft": 0,
-    "onTarget": 153,
-    "belowTarget": 62,
-    "triangles": 620176,
-    "packagedTriangles": 715525,
-    "productionMinimumTriangles": 177706,
-    "qualityTargetTriangles": 543612,
-    "hardMaximumTriangles": 1180630,
-    "fileSizeBytes": 28057488,
-    "trianglePrimitives": 1149,
-    "nodes": 5679,
-    "cacheHits": 12,
-    "cacheMisses": 203,
+    "onTarget": 193,
+    "belowTarget": 65,
+    "triangles": 724814,
+    "packagedTriangles": 841573,
+    "productionMinimumTriangles": 198386,
+    "qualityTargetTriangles": 629470,
+    "hardMaximumTriangles": 1379260,
+    "fileSizeBytes": 31724112,
+    "trianglePrimitives": 1352,
+    "nodes": 8172,
+    "cacheHits": 21,
+    "cacheMisses": 237,
     "artContractPassed": true
   },
   "assets": [
@@ -543,6 +543,202 @@
       "animationClips": []
     },
     {
+      "id": "building_coastal_shelter_a",
+      "file": "building_coastal_shelter_a.glb",
+      "family": "architecture",
+      "generator": "coastal_hut",
+      "seed": 8753,
+      "dimensions": [
+        5.440297603607178,
+        4.759999990463257,
+        4.00970458984375
+      ],
+      "bounds": {
+        "min": [
+          -2.720148801803589,
+          -2.384999990463257,
+          0
+        ],
+        "max": [
+          2.720148801803589,
+          2.375,
+          4.00970458984375
+        ]
+      },
+      "paletteTokensUsed": [
+        "wood_coastal_01",
+        "wood_coastal_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 19008,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_coastal_shelter_a_root",
+        "building_coastal_shelter_a_LOD0",
+        "building_coastal_shelter_a_LOD1",
+        "COL_building_coastal_shelter_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 36,
+      "durationMs": 456,
+      "inputHash": "640c51ef0bf371b8137cded382ba76d1f269916040d01bc47f3f7abbb04438b5",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 5000,
+        "trianglesMax": 14000,
+        "materialsMax": 3
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "2fc1fcd821f63c815ff2c00b0c4a9635865d4a5b5ae68ed6f8b89d82ac2e8fe2",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 14,
+      "meshes": 6,
+      "triangles": 5528,
+      "packagedTriangles": 8768,
+      "lodLevels": [
+        {
+          "node": "building_coastal_shelter_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 5528,
+          "ratio": 1
+        },
+        {
+          "node": "building_coastal_shelter_a_LOD1",
+          "distanceMeters": 38,
+          "triangles": 3240,
+          "ratio": 0.5861070911722142
+        }
+      ],
+      "materials": 3,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 256972,
+      "fileHash": "2bea6f95f42bbffb386e574dd451e5bc177ac6bed0ff43249f08c56aa6957f8c",
+      "semanticHash": "21feec3dd583ea2f3c035b0c0f433347403c69664ddad03aacfdbd75e75d8d4c",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 8768,
+        "interpolatedTriangles": 0,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "building_coastal_store_a",
+      "file": "building_coastal_store_a.glb",
+      "family": "architecture",
+      "generator": "coastal_hut",
+      "seed": 8770,
+      "dimensions": [
+        4.840297698974609,
+        4.359999656677246,
+        3.86981201171875
+      ],
+      "bounds": {
+        "min": [
+          -2.4201488494873047,
+          -2.184999942779541,
+          0
+        ],
+        "max": [
+          2.4201488494873047,
+          2.174999713897705,
+          3.86981201171875
+        ]
+      },
+      "paletteTokensUsed": [
+        "wood_coastal_01",
+        "wood_coastal_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 20160,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_coastal_store_a_root",
+        "building_coastal_store_a_LOD0",
+        "building_coastal_store_a_LOD1",
+        "COL_building_coastal_store_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 36,
+      "durationMs": 276,
+      "inputHash": "dd43c8f6a0b0fab2f7ed44ea82991372727c1b5c002ca1c76bf3585213de327e",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 5000,
+        "trianglesMax": 14000,
+        "materialsMax": 3
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "445b7bf48c9ad5ee6174abbf304e3d127f893f58b6eb9154c19ef1d127cd3436",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 16,
+      "meshes": 6,
+      "triangles": 5924,
+      "packagedTriangles": 9296,
+      "lodLevels": [
+        {
+          "node": "building_coastal_store_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 5924,
+          "ratio": 1
+        },
+        {
+          "node": "building_coastal_store_a_LOD1",
+          "distanceMeters": 38,
+          "triangles": 3372,
+          "ratio": 0.5692099932478055
+        }
+      ],
+      "materials": 3,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 271976,
+      "fileHash": "cb4455a1d2e948a4deb996c9dab56b0686385b3afa3482083f202866e9814cdf",
+      "semanticHash": "1343a098cc552f84e3a967a5255e72670f48d3a6fb74f145dfc49f1bdc10cb87",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 9296,
+        "interpolatedTriangles": 0,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
       "id": "building_fish_market_a",
       "file": "building_fish_market_a.glb",
       "family": "architecture",
@@ -637,6 +833,109 @@
       "semanticHash": "491b56035aaccc0440b2b2d7c3e4128ec0de91eb33f09284d777de845f3f7b37",
       "qualityStatus": "on_target",
       "animationClips": []
+    },
+    {
+      "id": "building_fish_market_coastal_a",
+      "file": "building_fish_market_coastal_a.glb",
+      "family": "architecture",
+      "generator": "fish_market",
+      "seed": 239,
+      "dimensions": [
+        9.578996181488037,
+        9.818094253540039,
+        7.725605487823486
+      ],
+      "bounds": {
+        "min": [
+          -4.586276531219482,
+          -5.579999923706055,
+          0
+        ],
+        "max": [
+          4.992719650268555,
+          4.238094329833984,
+          7.725605487823486
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_teal_01",
+        "canvas_cream_01",
+        "emissive_window_01",
+        "stone_coastal_light_01",
+        "wood_coastal_01",
+        "wood_coastal_dark_01",
+        "wood_dark_01"
+      ],
+      "vertexColorLoops": 57876,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_fish_market_coastal_a_root",
+        "building_fish_market_coastal_a_LOD0",
+        "building_fish_market_coastal_a_LOD1",
+        "COL_building_fish_market_coastal_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 685,
+      "inputHash": "4f75fbb3070c4a3bad6ef098e8e57bf04d41f05cebb352f6a45e4868aa6e68b7",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 7000,
+        "trianglesTarget": 20000,
+        "trianglesMax": 40000,
+        "materialsMax": 7
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "71f5f450a0bf47d7488708217c7615617dfc9e4675ec2ef7402426a230a3fa54",
+        "sources": 3,
+        "components": 7,
+        "criticalFeatures": 4,
+        "reviewViews": 7
+      },
+      "warnings": [],
+      "nodes": 20,
+      "meshes": 15,
+      "triangles": 20840,
+      "packagedTriangles": 26412,
+      "lodLevels": [
+        {
+          "node": "building_fish_market_coastal_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 20840,
+          "ratio": 1
+        },
+        {
+          "node": "building_fish_market_coastal_a_LOD1",
+          "distanceMeters": 24,
+          "triangles": 5572,
+          "ratio": 0.26737044145873323
+        }
+      ],
+      "materials": 5,
+      "trianglePrimitives": 15,
+      "vertexColorPrimitives": 15,
+      "normalPrimitives": 15,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_materials_emissive_strength",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 538948,
+      "fileHash": "49b9fc9e2716cbdee58b206784ec8b6eb218bce483323351ce84c1af0ca6fd40",
+      "semanticHash": "58e0de1f20fe9f9cd611b66346890dca5ff07698e66e1f3564f080a15b8aff77",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 15,
+        "triangles": 26412,
+        "interpolatedTriangles": 0,
+        "skinVertices": 0,
+        "deformation": []
+      }
     },
     {
       "id": "building_inn_a",
@@ -3295,189 +3594,120 @@
       "animationClips": []
     },
     {
-      "id": "crop_olive_tree_growing",
-      "file": "crop_olive_tree_growing.glb",
+      "id": "crop_apple_tree_growing",
+      "file": "crop_apple_tree_growing.glb",
       "family": "crop",
-      "generator": "olive_crop",
-      "seed": 1613,
+      "generator": "apple_tree_crop",
+      "seed": 1653,
       "dimensions": [
-        0.6553540825843811,
-        0.6631820201873779,
-        0.6777996718883514
+        1.3761297464370728,
+        1.2350788116455078,
+        1.2480669468641281
       ],
       "bounds": {
         "min": [
-          -0.3566218912601471,
-          -0.30987125635147095,
-          0.00906321406364441
+          -0.6750256419181824,
+          -0.555474579334259,
+          0.008667424321174622
         ],
         "max": [
-          0.298732191324234,
-          0.353310763835907,
-          0.6868628859519958
+          0.7011041045188904,
+          0.6796042323112488,
+          1.2567343711853027
         ]
       },
       "paletteTokensUsed": [
-        "foliage_olive_01",
+        "accent_red_01",
+        "canvas_cream_01",
+        "foliage_leaf_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 756,
+      "vertexColorLoops": 3360,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "crop_olive_tree_growing_root"
+        "crop_apple_tree_growing_root"
       ],
       "collision": "none",
       "lod": "small",
-      "readDistanceMeters": 22,
-      "durationMs": 5,
-      "inputHash": "8bbe8e22cb82c512d829c5454ce43224bd227e9646799d92d5ec937342ea2ee4",
+      "readDistanceMeters": 24,
+      "durationMs": 97,
+      "inputHash": "19986956101c43f09830e150ef11f91fdb7820180fe0da17481e01f4c356c8a6",
       "cacheHit": false,
       "budget": {
-        "trianglesMin": 300,
-        "trianglesTarget": 950,
-        "trianglesMax": 3000,
+        "trianglesMin": 180,
+        "trianglesTarget": 800,
+        "trianglesMax": 2400,
         "materialsMax": 4
       },
-      "warnings": [
-        "336 triangles are below quality target 950"
-      ],
-      "nodes": 19,
-      "meshes": 2,
-      "triangles": 336,
-      "packagedTriangles": 336,
+      "warnings": [],
+      "nodes": 57,
+      "meshes": 4,
+      "triangles": 1424,
+      "packagedTriangles": 1424,
       "lodLevels": [],
-      "materials": 2,
-      "trianglePrimitives": 2,
-      "vertexColorPrimitives": 2,
-      "normalPrimitives": 2,
+      "materials": 4,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 13056,
-      "fileHash": "92d5b8b17024276cca692d3c34fb97ae5be78e4a6c553f28ced65672783849d3",
-      "semanticHash": "826426d70297b43029327647da586bf185c0e84d970399bdf90763577a3396e2",
-      "qualityStatus": "below_target",
+      "bytes": 42720,
+      "fileHash": "ee2d8f4b40526adb3ed3aedfe7c7fd31217bec4f1b26989c9673ec6a660c5ef2",
+      "semanticHash": "9f6f1744fa0eb0761c8556de32258fce49217a460652a7c47993b8e0c2f9b371",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
-      "id": "crop_olive_tree_mature",
-      "file": "crop_olive_tree_mature.glb",
+      "id": "crop_apple_tree_mature",
+      "file": "crop_apple_tree_mature.glb",
       "family": "crop",
-      "generator": "olive_crop",
-      "seed": 1614,
+      "generator": "apple_tree_crop",
+      "seed": 1654,
       "dimensions": [
-        0.9640103280544281,
-        0.98093581199646,
-        1.1648170799016953
+        1.9698517322540283,
+        2.0063701272010803,
+        1.836710274219513
       ],
       "bounds": {
         "min": [
-          -0.47386568784713745,
-          -0.507512092590332,
-          0.009360924363136292
+          -0.9629473686218262,
+          -1.0288166999816895,
+          0.008865177631378174
         ],
         "max": [
-          0.49014464020729065,
-          0.47342371940612793,
-          1.1741780042648315
+          1.0069043636322021,
+          0.9775534272193909,
+          1.8455754518508911
         ]
       },
       "paletteTokensUsed": [
-        "foliage_olive_01",
-        "foliage_shadow_01",
-        "wood_warm_01"
-      ],
-      "vertexColorLoops": 3138,
-      "vertexColorSpace": "linear-srgb",
-      "requiredNodes": [
-        "crop_olive_tree_mature_root"
-      ],
-      "collision": "none",
-      "lod": "small",
-      "readDistanceMeters": 28,
-      "durationMs": 18,
-      "inputHash": "e6726f93470014412808b2e0b9f1ec5978c19539be27fd9b0bc35d96d8a78cbd",
-      "cacheHit": false,
-      "budget": {
-        "trianglesMin": 600,
-        "trianglesTarget": 1800,
-        "trianglesMax": 5000,
-        "materialsMax": 4
-      },
-      "warnings": [
-        "1292 triangles are below quality target 1800"
-      ],
-      "nodes": 84,
-      "meshes": 3,
-      "triangles": 1292,
-      "packagedTriangles": 1292,
-      "lodLevels": [],
-      "materials": 3,
-      "trianglePrimitives": 3,
-      "vertexColorPrimitives": 3,
-      "normalPrimitives": 3,
-      "doubleSidedMaterials": 0,
-      "artContractStatus": "passed",
-      "extensions": [
-        "EXT_meshopt_compression",
-        "KHR_mesh_quantization"
-      ],
-      "bytes": 39760,
-      "fileHash": "0eea960f7c75dab79ff514eb2885e162e1769acb1e1f6f0f243f7ce86afc9834",
-      "semanticHash": "e00af52a5934a4c292760dc7f802aece7f17e30458851f8f9ca9dc6bf3041891",
-      "qualityStatus": "below_target",
-      "animationClips": []
-    },
-    {
-      "id": "crop_olive_tree_overripe",
-      "file": "crop_olive_tree_overripe.glb",
-      "family": "crop",
-      "generator": "olive_crop",
-      "seed": 1615,
-      "dimensions": [
-        1.0547062158584595,
-        1.0725265145301819,
-        1.0203983038663864
-      ],
-      "bounds": {
-        "min": [
-          -0.5099501609802246,
-          -0.5534793138504028,
-          0.009292200207710266
-        ],
-        "max": [
-          0.5447560548782349,
-          0.519047200679779,
-          1.0296905040740967
-        ]
-      },
-      "paletteTokensUsed": [
-        "foliage_olive_01",
-        "foliage_shadow_01",
+        "accent_red_01",
+        "foliage_leaf_01",
         "wood_warm_01"
       ],
       "vertexColorLoops": 2796,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "crop_olive_tree_overripe_root"
+        "crop_apple_tree_mature_root"
       ],
       "collision": "none",
       "lod": "small",
-      "readDistanceMeters": 26,
-      "durationMs": 16,
-      "inputHash": "b5984a49d98b82c9d9347fd8df49cccb6da65bce75b1f75b5c53a263b02ac4d6",
+      "readDistanceMeters": 28,
+      "durationMs": 74,
+      "inputHash": "7c04f4e1d537d508dce6538909d92678a7cb020f5ebeeb738fcbaa175e073be0",
       "cacheHit": false,
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1600,
-        "trianglesMax": 4800,
+        "trianglesMin": 300,
+        "trianglesTarget": 1400,
+        "trianglesMax": 4000,
         "materialsMax": 4
       },
       "warnings": [
-        "1152 triangles are below quality target 1600"
+        "1152 triangles are below quality target 1400"
       ],
       "nodes": 75,
       "meshes": 3,
@@ -3494,265 +3724,64 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 35988,
-      "fileHash": "50358b7454cb058b0630fc9e09ab61b97122a4713677ad8b21c65eb704cc8933",
-      "semanticHash": "4b9e2e9c081845f0e6f5f22cf901f9fa219a45a7b19669a6bb9ff8c7957a290d",
+      "bytes": 35548,
+      "fileHash": "144a1f6704025842cdd32b079f6e0f32b8009d66a1f647ed5e0f9161c8af6d36",
+      "semanticHash": "7f082b85c37b7abf4cf448cb3dfa49d7ce845e70db3d9c6e695e2e6cb71d0334",
       "qualityStatus": "below_target",
       "animationClips": []
     },
     {
-      "id": "crop_olive_tree_seeded",
-      "file": "crop_olive_tree_seeded.glb",
+      "id": "crop_apple_tree_overripe",
+      "file": "crop_apple_tree_overripe.glb",
       "family": "crop",
-      "generator": "olive_crop",
-      "seed": 1611,
+      "generator": "apple_tree_crop",
+      "seed": 1655,
       "dimensions": [
-        0.21754572540521622,
-        0.3230883777141571,
-        0.049999999813735485
+        2.0874024629592896,
+        2.123997926712036,
+        1.7196447309106588
       ],
       "bounds": {
         "min": [
-          -0.09585795551538467,
-          -0.16436822712421417,
-          0.004999999888241291
+          -1.0171382427215576,
+          -1.0878647565841675,
+          -0.01899999938905239
         ],
         "max": [
-          0.12168776988983154,
-          0.15872015058994293,
-          0.054999999701976776
+          1.070264220237732,
+          1.0361331701278687,
+          1.7006447315216064
         ]
       },
       "paletteTokensUsed": [
-        "foliage_shadow_01"
-      ],
-      "vertexColorLoops": 96,
-      "vertexColorSpace": "linear-srgb",
-      "requiredNodes": [
-        "crop_olive_tree_seeded_root"
-      ],
-      "collision": "none",
-      "lod": "small",
-      "readDistanceMeters": 18,
-      "durationMs": 2,
-      "inputHash": "b400b277c8b59015ef9ff3b2b509e7a54464b592390de1280eeaa4252f450e7a",
-      "cacheHit": false,
-      "budget": {
-        "trianglesMin": 20,
-        "trianglesTarget": 80,
-        "trianglesMax": 400,
-        "materialsMax": 4
-      },
-      "warnings": [
-        "32 triangles are below quality target 80"
-      ],
-      "nodes": 5,
-      "meshes": 1,
-      "triangles": 32,
-      "packagedTriangles": 32,
-      "lodLevels": [],
-      "materials": 1,
-      "trianglePrimitives": 1,
-      "vertexColorPrimitives": 1,
-      "normalPrimitives": 1,
-      "doubleSidedMaterials": 0,
-      "artContractStatus": "passed",
-      "extensions": [
-        "EXT_meshopt_compression",
-        "KHR_mesh_quantization"
-      ],
-      "bytes": 3380,
-      "fileHash": "74f7393ea93d9b4f6f57c681bb0c99f10c3a9a8780e2df60e3908caf36f8fbb9",
-      "semanticHash": "a3e98c78dc958ebe25e45f30512d64667fc9c9280d321fffaa777c6f157a4c53",
-      "qualityStatus": "below_target",
-      "animationClips": []
-    },
-    {
-      "id": "crop_olive_tree_sprout",
-      "file": "crop_olive_tree_sprout.glb",
-      "family": "crop",
-      "generator": "olive_crop",
-      "seed": 1612,
-      "dimensions": [
-        0.46741583943367004,
-        0.24637547880411148,
-        0.23773200437426567
-      ],
-      "bounds": {
-        "min": [
-          -0.24513156712055206,
-          -0.0762326791882515,
-          0.007042843848466873
-        ],
-        "max": [
-          0.22228427231311798,
-          0.17014279961585999,
-          0.24477484822273254
-        ]
-      },
-      "paletteTokensUsed": [
-        "foliage_olive_01",
+        "accent_red_01",
+        "foliage_leaf_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 408,
+      "vertexColorLoops": 2724,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "crop_olive_tree_sprout_root"
+        "crop_apple_tree_overripe_root"
       ],
       "collision": "none",
       "lod": "small",
-      "readDistanceMeters": 18,
-      "durationMs": 4,
-      "inputHash": "e31252ef0d1e605382423a8258ae7e5eb187cf70b600c55b3456a9f8dce0c372",
-      "cacheHit": false,
-      "budget": {
-        "trianglesMin": 120,
-        "trianglesTarget": 420,
-        "trianglesMax": 1600,
-        "materialsMax": 4
-      },
-      "warnings": [
-        "184 triangles are below quality target 420"
-      ],
-      "nodes": 11,
-      "meshes": 2,
-      "triangles": 184,
-      "packagedTriangles": 184,
-      "lodLevels": [],
-      "materials": 2,
-      "trianglePrimitives": 2,
-      "vertexColorPrimitives": 2,
-      "normalPrimitives": 2,
-      "doubleSidedMaterials": 0,
-      "artContractStatus": "passed",
-      "extensions": [
-        "EXT_meshopt_compression",
-        "KHR_mesh_quantization"
-      ],
-      "bytes": 9276,
-      "fileHash": "4115cbfc0d3ab2b9200c0bb293fa2d7d8a3d18a870d89e4867c137acdcebd11b",
-      "semanticHash": "878689fc05256fd89ab562ac82497c7973bff26b73d93815e09acf31445fe578",
-      "qualityStatus": "below_target",
-      "animationClips": []
-    },
-    {
-      "id": "crop_olive_tree_withered",
-      "file": "crop_olive_tree_withered.glb",
-      "family": "crop",
-      "generator": "olive_crop",
-      "seed": 1616,
-      "dimensions": [
-        0.7235369682312012,
-        0.7463505864143372,
-        0.657071977853775
-      ],
-      "bounds": {
-        "min": [
-          -0.3351186513900757,
-          -0.38452234864234924,
-          0.008477061986923218
-        ],
-        "max": [
-          0.3884183168411255,
-          0.3618282377719879,
-          0.6655490398406982
-        ]
-      },
-      "paletteTokensUsed": [
-        "soil_shadow_01",
-        "wood_warm_01"
-      ],
-      "vertexColorLoops": 372,
-      "vertexColorSpace": "linear-srgb",
-      "requiredNodes": [
-        "crop_olive_tree_withered_root"
-      ],
-      "collision": "none",
-      "lod": "small",
-      "readDistanceMeters": 24,
-      "durationMs": 4,
-      "inputHash": "09227a25e2292f5d6e322ae5555a7943a9261242051c2570ecad80fc595a04e8",
-      "cacheHit": false,
-      "budget": {
-        "trianglesMin": 160,
-        "trianglesTarget": 800,
-        "trianglesMax": 2600,
-        "materialsMax": 4
-      },
-      "warnings": [
-        "176 triangles are below quality target 800"
-      ],
-      "nodes": 11,
-      "meshes": 2,
-      "triangles": 176,
-      "packagedTriangles": 176,
-      "lodLevels": [],
-      "materials": 2,
-      "trianglePrimitives": 2,
-      "vertexColorPrimitives": 2,
-      "normalPrimitives": 2,
-      "doubleSidedMaterials": 0,
-      "artContractStatus": "passed",
-      "extensions": [
-        "EXT_meshopt_compression",
-        "KHR_mesh_quantization"
-      ],
-      "bytes": 9232,
-      "fileHash": "6f9047b45bcee1441d3509fec784aac31fd8b4abd26f3b7af5ba46df7f1f879b",
-      "semanticHash": "3044f320d46275b5db6e0e6d240af2bdbc9b7c31c533f4e75425f33087f92420",
-      "qualityStatus": "below_target",
-      "animationClips": []
-    },
-    {
-      "id": "crop_potato_growing",
-      "file": "crop_potato_growing.glb",
-      "family": "crop",
-      "generator": "potato_crop",
-      "seed": 599,
-      "dimensions": [
-        0.6348755359649658,
-        0.6476554274559021,
-        0.5700807422399521
-      ],
-      "bounds": {
-        "min": [
-          -0.33006101846694946,
-          -0.3289346396923065,
-          0.01294030249118805
-        ],
-        "max": [
-          0.30481451749801636,
-          0.3187207877635956,
-          0.5830210447311401
-        ]
-      },
-      "paletteTokensUsed": [
-        "canvas_cream_01",
-        "foliage_olive_01",
-        "foliage_sage_01"
-      ],
-      "vertexColorLoops": 1092,
-      "vertexColorSpace": "linear-srgb",
-      "requiredNodes": [
-        "crop_potato_growing_root"
-      ],
-      "collision": "none",
-      "lod": "small",
-      "readDistanceMeters": 15,
-      "durationMs": 9,
-      "inputHash": "02506533dd12ff1a636bae16b091032533e09083d1b917c6b5ad2cfcc8125406",
+      "readDistanceMeters": 28,
+      "durationMs": 82,
+      "inputHash": "27c2d53641d12d9842619c69e6f686000e77f88535c85735cfefd5040e49ac42",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 300,
-        "trianglesTarget": 480,
-        "trianglesMax": 1100,
-        "materialsMax": 3
+        "trianglesTarget": 1400,
+        "trianglesMax": 4000,
+        "materialsMax": 4
       },
-      "warnings": [],
-      "nodes": 29,
+      "warnings": [
+        "1128 triangles are below quality target 1400"
+      ],
+      "nodes": 72,
       "meshes": 3,
-      "triangles": 484,
-      "packagedTriangles": 484,
+      "triangles": 1128,
+      "packagedTriangles": 1128,
       "lodLevels": [],
       "materials": 3,
       "trianglePrimitives": 3,
@@ -3764,63 +3793,734 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 19436,
-      "fileHash": "7644afdc2c20aa691e23681e2ff6c2abbcbec1894b62e72093aa12c929d8fa27",
-      "semanticHash": "0317320788209067964cdf69ede72dc72aa429f17c853d9c7b574bddb4a27de8",
+      "bytes": 34660,
+      "fileHash": "d206487c1e12eb10860c79a73338989ee0bf20010f9372bb5fd94ba8b384cd66",
+      "semanticHash": "7d940fdc44ffdf689a3486312e8d6ef9f091f50634449ccec201e785ab023581",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_apple_tree_seeded",
+      "file": "crop_apple_tree_seeded.glb",
+      "family": "crop",
+      "generator": "apple_tree_crop",
+      "seed": 1651,
+      "dimensions": [
+        0.17436451092362404,
+        0.17027129977941513,
+        0.38056187331676483
+      ],
+      "bounds": {
+        "min": [
+          -0.06124138459563255,
+          -0.10029960423707962,
+          -0.0005618780851364136
+        ],
+        "max": [
+          0.11312312632799149,
+          0.06997169554233551,
+          0.3799999952316284
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "foliage_leaf_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 236,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_apple_tree_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 18,
+      "durationMs": 40,
+      "inputHash": "310162ad6ffc240ee264b202b262a2484c8e1bf7e368a7eee12fd600b69c9fdb",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 30,
+        "trianglesTarget": 100,
+        "trianglesMax": 400,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 7,
+      "meshes": 4,
+      "triangles": 106,
+      "packagedTriangles": 106,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 10392,
+      "fileHash": "e5e995cf0de381a47e5fc52667ca6666a35a9cf2d3a63b1fdaa950b293cd0c66",
+      "semanticHash": "37b7d4e814bc9350b9e975623db68ec817cd2d1d3dfe3e69c2decc7e4b4df37c",
       "qualityStatus": "on_target",
       "animationClips": []
     },
     {
-      "id": "crop_potato_mature",
-      "file": "crop_potato_mature.glb",
+      "id": "crop_apple_tree_sprout",
+      "file": "crop_apple_tree_sprout.glb",
       "family": "crop",
-      "generator": "potato_crop",
-      "seed": 601,
+      "generator": "apple_tree_crop",
+      "seed": 1652,
       "dimensions": [
-        0.8574315905570984,
-        0.8206855058670044,
-        0.7384133189916611
+        0.6672389507293701,
+        0.6672389507293701,
+        0.7979104518890381
       ],
       "bounds": {
         "min": [
-          -0.4174323081970215,
-          -0.41810381412506104,
-          0.01288546621799469
+          -0.313619464635849,
+          -0.33361947536468506,
+          -0.000554502010345459
         ],
         "max": [
-          0.4399992823600769,
-          0.40258169174194336,
-          0.7512987852096558
+          0.3536194860935211,
+          0.33361947536468506,
+          0.7973559498786926
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "foliage_leaf_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 770,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_apple_tree_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 20,
+      "durationMs": 54,
+      "inputHash": "1345bdb969eba09e7ec81bd5c7caa0488de5b5f788f41314281fb50c89c313af",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 350,
+        "trianglesMax": 1200,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "338 triangles are below quality target 350"
+      ],
+      "nodes": 20,
+      "meshes": 4,
+      "triangles": 338,
+      "packagedTriangles": 338,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 16328,
+      "fileHash": "559522e0119cffe694138d93ed17616f316949eb95b47b2486f01063c4404724",
+      "semanticHash": "cb9254875828ac1920d2b5b5a92bd7d30206d68f570fecbab8107fad4512f6f2",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_apple_tree_withered",
+      "file": "crop_apple_tree_withered.glb",
+      "family": "crop",
+      "generator": "apple_tree_crop",
+      "seed": 1656,
+      "dimensions": [
+        1.830932855606079,
+        1.743403673171997,
+        1.3935568183660507
+      ],
+      "bounds": {
+        "min": [
+          -0.8700933456420898,
+          -0.8367360234260559,
+          0.008667245507240295
+        ],
+        "max": [
+          0.9608395099639893,
+          0.9066676497459412,
+          1.402224063873291
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_red_01",
+        "canvas_cream_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 990,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_apple_tree_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 24,
+      "durationMs": 60,
+      "inputHash": "513cc4de9a3ba43aa02e328e616c2bcf41d33a9accfb6743ef0d07498a0becc2",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 150,
+        "trianglesTarget": 600,
+        "trianglesMax": 2000,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "440 triangles are below quality target 600"
+      ],
+      "nodes": 26,
+      "meshes": 3,
+      "triangles": 440,
+      "packagedTriangles": 440,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 17848,
+      "fileHash": "c579861b7f465942fd48335b30d323e0f819fabaf13992628d52ae05ee078802",
+      "semanticHash": "7544a8aec0aba8f2e5ea684578f91ebfbf24a4282bc261f05db7d8c3012fae10",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_barley_growing",
+      "file": "crop_barley_growing.glb",
+      "family": "crop",
+      "generator": "barley_crop",
+      "seed": 571,
+      "dimensions": [
+        1.1268263459205627,
+        1.2036182284355164,
+        0.9432137608528137
+      ],
+      "bounds": {
+        "min": [
+          -0.5523892045021057,
+          -0.571053683757782,
+          0.014368951320648193
+        ],
+        "max": [
+          0.574437141418457,
+          0.6325645446777344,
+          0.9575827121734619
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_sage_01",
+        "grass_yellow_01"
+      ],
+      "vertexColorLoops": 3678,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_barley_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 143,
+      "inputHash": "e17ac80260502d306b0dfeeb7f6e06fc5e407a70c20a1158cfa7fe0135c33462",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 450,
+        "trianglesTarget": 1100,
+        "trianglesMax": 1800,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 98,
+      "meshes": 4,
+      "triangles": 1564,
+      "packagedTriangles": 1564,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 60256,
+      "fileHash": "4910b0972e601d07dab5abe5ce113f1c46866693e38cc51fffba3b6aa29ff5ef",
+      "semanticHash": "a5b857642c92a9f9ea9b8ed8e3e4943fa849b18fb41e7d669580fa0d19f89f35",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_barley_mature",
+      "file": "crop_barley_mature.glb",
+      "family": "crop",
+      "generator": "barley_crop",
+      "seed": 577,
+      "dimensions": [
+        1.1430699825286865,
+        1.2761236429214478,
+        1.347813367843628
+      ],
+      "bounds": {
+        "min": [
+          -0.5872156023979187,
+          -0.5964359641075134,
+          0.013364791870117188
+        ],
+        "max": [
+          0.5558543801307678,
+          0.6796876788139343,
+          1.3611781597137451
         ]
       },
       "paletteTokensUsed": [
         "accent_ochre_01",
         "canvas_cream_01",
-        "foliage_olive_01",
-        "foliage_sage_01"
+        "grass_yellow_01"
       ],
-      "vertexColorLoops": 1880,
+      "vertexColorLoops": 4200,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "crop_potato_mature_root"
+        "crop_barley_mature_root"
       ],
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 13,
-      "inputHash": "f41b32759cc24c9e7e4532fb0a5656bc101bff9af1d97523d019c81337762f4c",
+      "durationMs": 187,
+      "inputHash": "f0d5e11a0eb7a3a7c4a2abe2a7cbe02c8ff12ef8419e7b08ed6bba2d8a8d4822",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 750,
+        "trianglesTarget": 1300,
+        "trianglesMax": 1800,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 117,
+      "meshes": 5,
+      "triangles": 1744,
+      "packagedTriangles": 1744,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 75448,
+      "fileHash": "d55f52fc0a4a38e46ec835b2c82b4272db703fdbb63a49c2411d570e534933fa",
+      "semanticHash": "812eb88c3e0ae3dbd292a19f0511d020d13a09ae2dbf5cd36f1223f0029485ec",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_barley_overripe",
+      "file": "crop_barley_overripe.glb",
+      "family": "crop",
+      "generator": "barley_crop",
+      "seed": 587,
+      "dimensions": [
+        1.5413404703140259,
+        1.6694054007530212,
+        1.0435988903045654
+      ],
+      "bounds": {
+        "min": [
+          -0.7169152498245239,
+          -0.7641541957855225,
+          0.011280536651611328
+        ],
+        "max": [
+          0.824425220489502,
+          0.9052512049674988,
+          1.0548794269561768
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "canvas_cream_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 4200,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_barley_overripe_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 80,
+      "inputHash": "84a50445ca94178d0cb19abed76b2070932b837fea09e7a911063ac4abeefe49",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 700,
+        "trianglesTarget": 1300,
+        "trianglesMax": 1900,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 117,
+      "meshes": 5,
+      "triangles": 1744,
+      "packagedTriangles": 1744,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 73532,
+      "fileHash": "8508dc388f0be28070809de8469ebfb42a770fa467f8c0fbf314847c1aef1bd4",
+      "semanticHash": "1e4d88701ff15522a3ee6dceec6678a6ce7d76ce976682c6c2f3665855ebd470",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_barley_seeded",
+      "file": "crop_barley_seeded.glb",
+      "family": "crop",
+      "generator": "barley_crop",
+      "seed": 563,
+      "dimensions": [
+        0.382251113653183,
+        0.27196523547172546,
+        0.06236417940817773
+      ],
+      "bounds": {
+        "min": [
+          -0.1860344409942627,
+          -0.14756914973258972,
+          -0.0020000000949949026
+        ],
+        "max": [
+          0.1962166726589203,
+          0.12439608573913574,
+          0.06036417931318283
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_highlight_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 252,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_barley_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 38,
+      "inputHash": "c37b6a10e2e3c2a02f2baf4b8ecfeb2217cf98d8fb3a35df93bba3dc8c66cdba",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 60,
+        "trianglesMax": 200,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 13,
+      "meshes": 2,
+      "triangles": 96,
+      "packagedTriangles": 96,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 8316,
+      "fileHash": "1872e350e2adeac4332eadb0810649c8b6b74bc28dacb8f3bd18a4ffcf49a46f",
+      "semanticHash": "7a07afabb6dd83e18620c95476239ee6af637310686c59e7d7fad16d25e14a93",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_barley_sprout",
+      "file": "crop_barley_sprout.glb",
+      "family": "crop",
+      "generator": "barley_crop",
+      "seed": 569,
+      "dimensions": [
+        0.5939352512359619,
+        0.5552356243133545,
+        0.2941379249095917
+      ],
+      "bounds": {
+        "min": [
+          -0.29818427562713623,
+          -0.292199045419693,
+          0.013260483741760254
+        ],
+        "max": [
+          0.2957509756088257,
+          0.2630365788936615,
+          0.30739840865135193
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_highlight_01"
+      ],
+      "vertexColorLoops": 1560,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_barley_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 38,
+      "inputHash": "6bd0fb26f33cac2f0831a4ddce53c8122c80b3b216302ee6daac446b76b8be57",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 600,
+        "trianglesMax": 1000,
+        "materialsMax": 1
+      },
+      "warnings": [],
+      "nodes": 41,
+      "meshes": 2,
+      "triangles": 720,
+      "packagedTriangles": 720,
+      "lodLevels": [],
+      "materials": 1,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 24132,
+      "fileHash": "e98efbcca7f7625aa0e7e0ddf0e522f8778cae8fe4c333ee4fa203718ece9c96",
+      "semanticHash": "c240f84752214757131e24c9f8c674e9d1851b07e8e3a8aa9e0086b5df6fc7bb",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_barley_withered",
+      "file": "crop_barley_withered.glb",
+      "family": "crop",
+      "generator": "barley_crop",
+      "seed": 593,
+      "dimensions": [
+        1.7501558661460876,
+        1.540061593055725,
+        0.5704983025789261
+      ],
+      "bounds": {
+        "min": [
+          -0.793191134929657,
+          -0.8252663612365723,
+          0.007817372679710388
+        ],
+        "max": [
+          0.9569647312164307,
+          0.7147952318191528,
+          0.5783156752586365
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 2904,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_barley_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 50,
+      "inputHash": "2e4708f8e5439fbabd5083a48f1a5c7fda85af505e12ca205c5945048a3b4203",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 350,
+        "trianglesTarget": 800,
+        "trianglesMax": 1300,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 89,
+      "meshes": 5,
+      "triangles": 1240,
+      "packagedTriangles": 1240,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 54144,
+      "fileHash": "b605ef506af09edef1244b9348c64e9e4b74e54eec5cb93b9137e6d12dc0e86e",
+      "semanticHash": "c86c25eebf7d67ca0452b7688b49ca2d362f9eb2436abd1a86386ebf0cf55190",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_carrot_growing",
+      "file": "crop_carrot_growing.glb",
+      "family": "crop",
+      "generator": "carrot_crop",
+      "seed": 633,
+      "dimensions": [
+        0.6556766331195831,
+        0.58086958527565,
+        0.19835329055786133
+      ],
+      "bounds": {
+        "min": [
+          -0.2983219623565674,
+          -0.26413097977638245,
+          0.012154549360275269
+        ],
+        "max": [
+          0.35735467076301575,
+          0.3167386054992676,
+          0.2105078399181366
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_pine_01",
+        "foliage_sage_01"
+      ],
+      "vertexColorLoops": 1548,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_carrot_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 89,
+      "inputHash": "aebe79d2bf27f567e41ee4e7b52838f0db7a9d76aaeccb22d96bcbaa9106cb5b",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 350,
+        "trianglesTarget": 680,
+        "trianglesMax": 1200,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "648 triangles are below quality target 680"
+      ],
+      "nodes": 37,
+      "meshes": 2,
+      "triangles": 648,
+      "packagedTriangles": 648,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 20224,
+      "fileHash": "5141260480ff55637c6dd41182ceb64c5b9788a1cdf564ecd9e554e3ceacb7f5",
+      "semanticHash": "85cb424c48c3191eace134cd634fc927813946945b4b152c57f54733fbe577ae",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_carrot_mature",
+      "file": "crop_carrot_mature.glb",
+      "family": "crop",
+      "generator": "carrot_crop",
+      "seed": 639,
+      "dimensions": [
+        0.8494308888912201,
+        0.8175031840801239,
+        0.2728591151535511
+      ],
+      "bounds": {
+        "min": [
+          -0.3684197962284088,
+          -0.37544265389442444,
+          -0.019999999552965164
+        ],
+        "max": [
+          0.4810110926628113,
+          0.44206053018569946,
+          0.25285911560058594
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "foliage_pine_01",
+        "foliage_sage_01",
+        "roof_warm_orange_01"
+      ],
+      "vertexColorLoops": 2610,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_carrot_mature_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 73,
+      "inputHash": "24ec99ebf5b99a42782b0c3b70f5ba9b49ce656eec11bce445e850f9dc81fecb",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 500,
-        "trianglesTarget": 620,
-        "trianglesMax": 1800,
+        "trianglesTarget": 950,
+        "trianglesMax": 1600,
         "materialsMax": 4
       },
       "warnings": [],
-      "nodes": 39,
+      "nodes": 61,
       "meshes": 4,
-      "triangles": 824,
-      "packagedTriangles": 824,
+      "triangles": 1100,
+      "packagedTriangles": 1100,
       "lodLevels": [],
       "materials": 4,
       "trianglePrimitives": 4,
@@ -3832,62 +4532,263 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 29848,
-      "fileHash": "265b72400aa12705e06d99e9305725a7373e0cfd57fd521597a66336a3a649e1",
-      "semanticHash": "22c74acb6c6042d872a0da9a756e1275e5f33e4d27ab6fb5728d3bd8b0db1b95",
+      "bytes": 35052,
+      "fileHash": "050bf4e6debcfe177cd5f6808a94f626b3efed5e18de1745274cdfedbe2c1fbb",
+      "semanticHash": "caf63004d3d7ead634d245209703580435e92cef1fd73ea8bf9d3ac54320eee4",
       "qualityStatus": "on_target",
       "animationClips": []
     },
     {
-      "id": "crop_potato_overripe",
-      "file": "crop_potato_overripe.glb",
+      "id": "crop_carrot_overripe",
+      "file": "crop_carrot_overripe.glb",
       "family": "crop",
-      "generator": "potato_crop",
-      "seed": 607,
+      "generator": "carrot_crop",
+      "seed": 641,
       "dimensions": [
-        1.3830642700195312,
-        1.3395529389381409,
-        0.5168647766113281
+        0.7925764620304108,
+        0.8150083124637604,
+        0.6449999995529652
       ],
       "bounds": {
         "min": [
-          -0.6550382971763611,
-          -0.7041272521018982,
-          0.00852888822555542
+          -0.3835059702396393,
+          -0.4171968996524811,
+          -0.019999999552965164
         ],
         "max": [
-          0.7280259728431702,
-          0.6354256868362427,
-          0.5253936648368835
+          0.4090704917907715,
+          0.3978114128112793,
+          0.625
         ]
       },
       "paletteTokensUsed": [
+        "accent_ochre_01",
+        "canvas_cream_01",
         "foliage_olive_01",
         "grass_yellow_01",
-        "wood_warm_01"
+        "roof_warm_orange_01"
       ],
-      "vertexColorLoops": 1032,
+      "vertexColorLoops": 2430,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "crop_potato_overripe_root"
+        "crop_carrot_overripe_root"
       ],
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 10,
-      "inputHash": "e9a3f569e31c4ed47ab5f6df8ad233e85f3fc819225d7976ba9a72a40b5af513",
+      "durationMs": 99,
+      "inputHash": "677c098a6e1ace61cb7e9ad362ee6839be99d7abd2a175ef37283490788c8465",
       "cacheHit": false,
       "budget": {
-        "trianglesMin": 300,
-        "trianglesTarget": 460,
-        "trianglesMax": 1100,
+        "trianglesMin": 450,
+        "trianglesTarget": 900,
+        "trianglesMax": 1600,
+        "materialsMax": 5
+      },
+      "warnings": [],
+      "nodes": 65,
+      "meshes": 6,
+      "triangles": 1016,
+      "packagedTriangles": 1016,
+      "lodLevels": [],
+      "materials": 5,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 39152,
+      "fileHash": "8459000f77b15603a68219cbe83d823962b5267d05b79879857902324f0db809",
+      "semanticHash": "1b287406660bb9924c765a07f091080d116752a8692b11353a483114807dfb13",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_carrot_seeded",
+      "file": "crop_carrot_seeded.glb",
+      "family": "crop",
+      "generator": "carrot_crop",
+      "seed": 621,
+      "dimensions": [
+        0.1796674281358719,
+        0.219710573554039,
+        0.03520789882168174
+      ],
+      "bounds": {
+        "min": [
+          -0.09151313453912735,
+          -0.14144398272037506,
+          -0.004000000189989805
+        ],
+        "max": [
+          0.08815429359674454,
+          0.07826659083366394,
+          0.031207898631691933
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "foliage_sage_01"
+      ],
+      "vertexColorLoops": 414,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_carrot_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 45,
+      "inputHash": "c1acf73cd4474964f9f283c951197d8735525a988124aef6c98d4c60e55291d7",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 70,
+        "trianglesMax": 200,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 13,
+      "meshes": 3,
+      "triangles": 168,
+      "packagedTriangles": 168,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 10548,
+      "fileHash": "03d4f00f3d4b47a24214064b4674881efa1edac8e724b8040a308ca26fe091ef",
+      "semanticHash": "d85e672d227ca4f4056ac1440c884983d1227118cc8c103a0787eeda8345443a",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_carrot_sprout",
+      "file": "crop_carrot_sprout.glb",
+      "family": "crop",
+      "generator": "carrot_crop",
+      "seed": 627,
+      "dimensions": [
+        0.3582783490419388,
+        0.36501099169254303,
+        0.17081817239522934
+      ],
+      "bounds": {
+        "min": [
+          -0.15827502310276031,
+          -0.1935422122478485,
+          0.009653247892856598
+        ],
+        "max": [
+          0.20000332593917847,
+          0.17146877944469452,
+          0.18047142028808594
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_highlight_01",
+        "foliage_sage_01"
+      ],
+      "vertexColorLoops": 774,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_carrot_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 49,
+      "inputHash": "9a1ce3a464b10133d786ec8a79060e9e857c323327c2cf1dc906611842e536fd",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 150,
+        "trianglesTarget": 320,
+        "trianglesMax": 700,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 19,
+      "meshes": 2,
+      "triangles": 324,
+      "packagedTriangles": 324,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 12436,
+      "fileHash": "e901d8c5acc3cebd6965dd87dc70d160657768ee6c06f87affae5ddc0d2250c5",
+      "semanticHash": "f3c1dc62cb05f0625f63c33e468386d3a61244d2a609858d9307799d0417995f",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_carrot_withered",
+      "file": "crop_carrot_withered.glb",
+      "family": "crop",
+      "generator": "carrot_crop",
+      "seed": 647,
+      "dimensions": [
+        0.6951016783714294,
+        0.6921369433403015,
+        0.053599998354911804
+      ],
+      "bounds": {
+        "min": [
+          -0.33362168073654175,
+          -0.3260490596294403,
+          -0.019999999552965164
+        ],
+        "max": [
+          0.3614799976348877,
+          0.3660878837108612,
+          0.03359999880194664
+        ]
+      },
+      "paletteTokensUsed": [
+        "roof_warm_orange_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 1356,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_carrot_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 74,
+      "inputHash": "b86ab36ae71d02c8976872c3de0f4dbf1b74c1ecc12c72c2437ed085ba4c9a01",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 350,
+        "trianglesMax": 800,
         "materialsMax": 3
       },
       "warnings": [],
-      "nodes": 29,
+      "nodes": 33,
       "meshes": 3,
-      "triangles": 464,
-      "packagedTriangles": 464,
+      "triangles": 576,
+      "packagedTriangles": 576,
       "lodLevels": [],
       "materials": 3,
       "trianglePrimitives": 3,
@@ -3899,54 +4800,263 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 19084,
-      "fileHash": "f6decfcae9751c705d394d0cc9214f05514f366220ac80918203a0a913a6b43d",
-      "semanticHash": "b9040b03ad9927f400693c64beceddda4e17d9ae4d3147b8b401af40258cb615",
+      "bytes": 20456,
+      "fileHash": "3e2217a3fed979d28ac11790752da3dfda9a226294ded394a863b3da7b550761",
+      "semanticHash": "b81c3c6eb8d653460c9680608332f9d21fd4fa3b8be351e137bf4fbe302d86f6",
       "qualityStatus": "on_target",
       "animationClips": []
     },
     {
-      "id": "crop_potato_seeded",
-      "file": "crop_potato_seeded.glb",
+      "id": "crop_corn_growing",
+      "file": "crop_corn_growing.glb",
       "family": "crop",
-      "generator": "potato_crop",
-      "seed": 587,
+      "generator": "corn_crop",
+      "seed": 613,
       "dimensions": [
-        0.2764233499765396,
-        0.43260321021080017,
-        0.0780000020749867
+        1.1196109056472778,
+        1.053725004196167,
+        1.5367935299873352
       ],
       "bounds": {
         "min": [
-          -0.13488684594631195,
-          -0.21415062248706818,
-          0.004000000189989805
+          -0.5750148296356201,
+          -0.5698423385620117,
+          0.014609992504119873
         ],
         "max": [
-          0.14153650403022766,
-          0.218452587723732,
-          0.0820000022649765
+          0.5445960760116577,
+          0.4838826656341553,
+          1.551403522491455
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "foliage_highlight_01",
+        "foliage_leaf_01"
+      ],
+      "vertexColorLoops": 1350,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_corn_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 38,
+      "inputHash": "85b4160365ec13885f4ac36c7011a3aa33b4663cf1d1a453c2b1768ed81bbfcc",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 450,
+        "trianglesTarget": 1100,
+        "trianglesMax": 1600,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "612 triangles are below quality target 1100"
+      ],
+      "nodes": 43,
+      "meshes": 4,
+      "triangles": 612,
+      "packagedTriangles": 612,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 28080,
+      "fileHash": "5c26489220db8ad645b8d2e08788c49755f336e9a8aa43f41570568358ecad0f",
+      "semanticHash": "6cb008a2a25353118a320803fd3943aa3a6e611cf3be5b8ef592ee0815f27dac",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_corn_mature",
+      "file": "crop_corn_mature.glb",
+      "family": "crop",
+      "generator": "corn_crop",
+      "seed": 617,
+      "dimensions": [
+        1.639370620250702,
+        1.5235098004341125,
+        2.3990132212638855
+      ],
+      "bounds": {
+        "min": [
+          -0.8121045827865601,
+          -0.7556777596473694,
+          0.014341413974761963
+        ],
+        "max": [
+          0.8272660374641418,
+          0.7678320407867432,
+          2.4133546352386475
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "canvas_cream_01",
+        "foliage_highlight_01",
+        "foliage_leaf_01"
+      ],
+      "vertexColorLoops": 2106,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_corn_mature_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 127,
+      "inputHash": "2cf669c4ced5a9365f19dc7f69efa2165d6b093f17cdcda4e741db419948190f",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 750,
+        "trianglesTarget": 1400,
+        "trianglesMax": 1900,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "984 triangles are below quality target 1400"
+      ],
+      "nodes": 64,
+      "meshes": 5,
+      "triangles": 984,
+      "packagedTriangles": 984,
+      "lodLevels": [],
+      "materials": 4,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 40104,
+      "fileHash": "c774b9ee1114a2128922436a473305aa67acaa2b5a5e25ce751716328616bfa2",
+      "semanticHash": "fccafb2de67ac53b5dcff580082f1d154ced8f5f966d36dcb5607df83ac0718e",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_corn_overripe",
+      "file": "crop_corn_overripe.glb",
+      "family": "crop",
+      "generator": "corn_crop",
+      "seed": 619,
+      "dimensions": [
+        1.7222965359687805,
+        1.5777636170387268,
+        2.0446131825447083
+      ],
+      "bounds": {
+        "min": [
+          -0.835214376449585,
+          -0.7612833380699158,
+          0.012195765972137451
+        ],
+        "max": [
+          0.8870821595191956,
+          0.816480278968811,
+          2.0568089485168457
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "canvas_cream_01",
+        "wood_dark_01",
+        "wood_honey_01"
+      ],
+      "vertexColorLoops": 2106,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_corn_overripe_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 37,
+      "inputHash": "230a7be1ddbc83ae58f71b16abf2877bbd28118603b7565f830229e6c8bd3dda",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 700,
+        "trianglesTarget": 1300,
+        "trianglesMax": 1800,
+        "materialsMax": 4
+      },
+      "warnings": [
+        "984 triangles are below quality target 1300"
+      ],
+      "nodes": 64,
+      "meshes": 4,
+      "triangles": 984,
+      "packagedTriangles": 984,
+      "lodLevels": [],
+      "materials": 4,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 39916,
+      "fileHash": "6c1b533c49e2724cf3b6b9c6ffb05c48aea4b2c55f50019fabf52a8935f07fd2",
+      "semanticHash": "4553b8b5c5a9b3f04b8477bf14870c67c40973112d81d82ba85508055d6b6f1b",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_corn_seeded",
+      "file": "crop_corn_seeded.glb",
+      "family": "crop",
+      "generator": "corn_crop",
+      "seed": 601,
+      "dimensions": [
+        0.2592668831348419,
+        0.3719916045665741,
+        0.07629099092446268
+      ],
+      "bounds": {
+        "min": [
+          -0.12963344156742096,
+          -0.18599580228328705,
+          -0.0020000000949949026
+        ],
+        "max": [
+          0.12963344156742096,
+          0.18599580228328705,
+          0.07429099082946777
         ]
       },
       "paletteTokensUsed": [
         "foliage_highlight_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 192,
+      "vertexColorLoops": 168,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
-        "crop_potato_seeded_root"
+        "crop_corn_seeded_root"
       ],
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 4,
-      "inputHash": "ee8c3cdee98076a44cc9bfb761aec7f3c90e22cdbb05b15941a4048af2b90d53",
+      "durationMs": 39,
+      "inputHash": "c4a771ce4af1eaa0121645c12b4c593f89a4acd5ef717f6f790d8472b63d0d26",
       "cacheHit": false,
       "budget": {
-        "trianglesMin": 40,
-        "trianglesTarget": 64,
-        "trianglesMax": 200,
+        "trianglesMin": 30,
+        "trianglesTarget": 50,
+        "trianglesMax": 180,
         "materialsMax": 2
       },
       "warnings": [],
@@ -3965,9 +5075,1208 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 5972,
-      "fileHash": "21f91f615610fcd59d3cc7962a20e39bb3cb485d5984089416a36fee37a5c46d",
-      "semanticHash": "ca1033a23e16dcd82b337899ff23a349fb17c8c7496c4424951c45d466549ad9",
+      "bytes": 6904,
+      "fileHash": "3a53e6fe6b4f539dee916bbced51308079586ec6955baf94841a63f8eb3d75ff",
+      "semanticHash": "943c860014910124478c25ec7ed28f52d8613d5077edb0d4ad127a8a1cf205c1",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_corn_sprout",
+      "file": "crop_corn_sprout.glb",
+      "family": "crop",
+      "generator": "corn_crop",
+      "seed": 607,
+      "dimensions": [
+        0.4100024104118347,
+        0.42683523893356323,
+        0.39723290503025055
+      ],
+      "bounds": {
+        "min": [
+          -0.17698527872562408,
+          -0.2290477752685547,
+          0.014122262597084045
+        ],
+        "max": [
+          0.23301713168621063,
+          0.19778746366500854,
+          0.4113551676273346
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_highlight_01",
+        "foliage_leaf_01"
+      ],
+      "vertexColorLoops": 612,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_corn_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 25,
+      "inputHash": "9f7f282716d351bf4dfa2e712c43fc247265c1da94bdbadd8f71925b023dd982",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 150,
+        "trianglesTarget": 450,
+        "trianglesMax": 900,
+        "materialsMax": 2
+      },
+      "warnings": [
+        "276 triangles are below quality target 450"
+      ],
+      "nodes": 16,
+      "meshes": 2,
+      "triangles": 276,
+      "packagedTriangles": 276,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 11716,
+      "fileHash": "c9b1b3c369e5203b8e949e07f9349815af553b138152794fe164e897aa1bc7ed",
+      "semanticHash": "a420b299d1b190ff97e0e2ba8601a04ae364d4a3ad129ac382b97e9536860729",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_corn_withered",
+      "file": "crop_corn_withered.glb",
+      "family": "crop",
+      "generator": "corn_crop",
+      "seed": 631,
+      "dimensions": [
+        1.358759880065918,
+        1.2949228882789612,
+        1.1318002343177795
+      ],
+      "bounds": {
+        "min": [
+          -0.735440194606781,
+          -0.6954588890075684,
+          0.008727848529815674
+        ],
+        "max": [
+          0.623319685459137,
+          0.5994639992713928,
+          1.1405280828475952
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 900,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_corn_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 54,
+      "inputHash": "1547dc630fa8d090f989ec270b7ada5d95e8bb6753c153af614625d322928571",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 850,
+        "trianglesMax": 1400,
+        "materialsMax": 3
+      },
+      "warnings": [
+        "396 triangles are below quality target 850"
+      ],
+      "nodes": 22,
+      "meshes": 2,
+      "triangles": 396,
+      "packagedTriangles": 396,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 14156,
+      "fileHash": "14e76ae47eb31a876e875a2ab38559fa4e039d1027eef48dfbcdd9dff572bacf",
+      "semanticHash": "0e86cd21393a0d9588864383d94d268416010ec3660975185d2889d31a3eb4cb",
+      "qualityStatus": "below_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_flax_growing",
+      "file": "crop_flax_growing.glb",
+      "family": "crop",
+      "generator": "flax_crop",
+      "seed": 647,
+      "dimensions": [
+        0.9568148553371429,
+        0.889337956905365,
+        0.5941425710916519
+      ],
+      "bounds": {
+        "min": [
+          -0.5036376118659973,
+          -0.47133514285087585,
+          0.015534326434135437
+        ],
+        "max": [
+          0.45317724347114563,
+          0.41800281405448914,
+          0.6096768975257874
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_sage_01",
+        "sky_pale_01"
+      ],
+      "vertexColorLoops": 3816,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_flax_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 60,
+      "inputHash": "fa91ee5b2921f77e54ceb2a6e8e38929fc3d53abe230327d0fcaaf6d10f84b81",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 400,
+        "trianglesTarget": 1200,
+        "trianglesMax": 1900,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 97,
+      "meshes": 3,
+      "triangles": 1704,
+      "packagedTriangles": 1704,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 50420,
+      "fileHash": "8e53eb0ba7e5c458298678d5e3507f0cba4f5967f6de92500ba198f1b9c3432e",
+      "semanticHash": "5296db46f30eb15673ce5f7de40a83c24e0ac0ff03ff3fdb48b3039a4035286c",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_flax_mature",
+      "file": "crop_flax_mature.glb",
+      "family": "crop",
+      "generator": "flax_crop",
+      "seed": 653,
+      "dimensions": [
+        0.875879317522049,
+        0.9418757855892181,
+        0.8932164311408997
+      ],
+      "bounds": {
+        "min": [
+          -0.40314480662345886,
+          -0.4999141991138458,
+          0.015283167362213135
+        ],
+        "max": [
+          0.4727345108985901,
+          0.4419615864753723,
+          0.9084995985031128
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "foliage_leaf_01",
+        "foliage_sage_01",
+        "sky_pale_01"
+      ],
+      "vertexColorLoops": 3888,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_flax_mature_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 105,
+      "inputHash": "80b366d5c5d5212f674293f6ccdf58ac8bf371e8a3c48fe1dae7ca1737fcb890",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 700,
+        "trianglesTarget": 1400,
+        "trianglesMax": 2200,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 105,
+      "meshes": 4,
+      "triangles": 1680,
+      "packagedTriangles": 1680,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 52612,
+      "fileHash": "c85e1edfbc121da9cc6137a269cdd2c29bd8e0b13a18d5c67e36ac26eb4388b2",
+      "semanticHash": "b1a2293692164b33aaaa30545fab6ecdb05d72eb5395d2f79c1732449bba2ba2",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_flax_overripe",
+      "file": "crop_flax_overripe.glb",
+      "family": "crop",
+      "generator": "flax_crop",
+      "seed": 659,
+      "dimensions": [
+        0.925349771976471,
+        0.9996065497398376,
+        0.8114423602819443
+      ],
+      "bounds": {
+        "min": [
+          -0.42575061321258545,
+          -0.52874356508255,
+          0.01449061930179596
+        ],
+        "max": [
+          0.4995991587638855,
+          0.4708629846572876,
+          0.8259329795837402
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "foliage_sage_01"
+      ],
+      "vertexColorLoops": 4320,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_flax_overripe_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 160,
+      "inputHash": "c08d6625ae1515099a195cb345196bb550fa10e6f59f9a9624d34940f2f29aa7",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 600,
+        "trianglesTarget": 1200,
+        "trianglesMax": 2000,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 129,
+      "meshes": 3,
+      "triangles": 1856,
+      "packagedTriangles": 1856,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 60800,
+      "fileHash": "7a656e6d0fa55664d181b6a3079995bc69f03cb07477a16dc5f040af8354a223",
+      "semanticHash": "1e40f68a22ad4799769000f55e47480bbcd435c44c65ad91ce47bb80f012fe6b",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_flax_seeded",
+      "file": "crop_flax_seeded.glb",
+      "family": "crop",
+      "generator": "flax_crop",
+      "seed": 641,
+      "dimensions": [
+        0.3731808066368103,
+        0.2957386374473572,
+        0.038180082803592086
+      ],
+      "bounds": {
+        "min": [
+          -0.18711769580841064,
+          -0.14911748468875885,
+          -0.0020000000949949026
+        ],
+        "max": [
+          0.18606311082839966,
+          0.14662115275859833,
+          0.03618008270859718
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_sage_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 828,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_flax_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 56,
+      "inputHash": "5cd6cb3b8ca3f5a9b0ad8be7e5d6669e5569c5f94db1c1c095562b74f8f4097e",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 100,
+        "trianglesTarget": 250,
+        "trianglesMax": 450,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 25,
+      "meshes": 3,
+      "triangles": 336,
+      "packagedTriangles": 336,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 14928,
+      "fileHash": "e5dde0e22a2826a366039ecb425bd59eef6b5b9da78aa668e9329347287f9632",
+      "semanticHash": "ba21c972d845f9390b1ec07a5a54488e298286fff00fe4724c7734613a875ecb",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_flax_sprout",
+      "file": "crop_flax_sprout.glb",
+      "family": "crop",
+      "generator": "flax_crop",
+      "seed": 643,
+      "dimensions": [
+        0.5456397831439972,
+        0.5996125936508179,
+        0.23430721834301949
+      ],
+      "bounds": {
+        "min": [
+          -0.25365570187568665,
+          -0.3176276981830597,
+          0.015143048018217087
+        ],
+        "max": [
+          0.29198408126831055,
+          0.2819848954677582,
+          0.24945026636123657
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_highlight_01"
+      ],
+      "vertexColorLoops": 2496,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_flax_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 65,
+      "inputHash": "938bd9c85666f9924652a2a69a0d92be73a42d0df2410b186c9bdcff873ae7bb",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 200,
+        "trianglesTarget": 800,
+        "trianglesMax": 1400,
+        "materialsMax": 1
+      },
+      "warnings": [],
+      "nodes": 65,
+      "meshes": 2,
+      "triangles": 1152,
+      "packagedTriangles": 1152,
+      "lodLevels": [],
+      "materials": 1,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 35452,
+      "fileHash": "842480a2165703f0fddc3b958c60295502bce77ca3f9d6f6078afb898b6bd6cc",
+      "semanticHash": "fa288aebdd993bf0d19a9c8a7fbe5b27f8317cf687f890e82897ffa82c5727aa",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_flax_withered",
+      "file": "crop_flax_withered.glb",
+      "family": "crop",
+      "generator": "flax_crop",
+      "seed": 661,
+      "dimensions": [
+        1.0049927532672882,
+        1.0686208009719849,
+        0.46936705708503723
+      ],
+      "bounds": {
+        "min": [
+          -0.4718035161495209,
+          -0.5607300996780396,
+          0.013417720794677734
+        ],
+        "max": [
+          0.5331892371177673,
+          0.5078907012939453,
+          0.48278477787971497
+        ]
+      },
+      "paletteTokensUsed": [
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 2880,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_flax_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 45,
+      "inputHash": "7bc655bca2b18d90739aebd482d1c9840348913a20ec554ea972ce95a8c883cd",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 900,
+        "trianglesMax": 1500,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 81,
+      "meshes": 2,
+      "triangles": 1280,
+      "packagedTriangles": 1280,
+      "lodLevels": [],
+      "materials": 1,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 38684,
+      "fileHash": "d76e4d66179fe55a37607f5e6caf0d71fd112c0e547aa07243f2990386e86fe1",
+      "semanticHash": "fca3048eecf4cb8b889a06530e19c894159b82382b0d111adfffe4a670041208",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_olive_tree_growing",
+      "file": "crop_olive_tree_growing.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1613,
+      "dimensions": [
+        0.799315869808197,
+        0.8034553229808807,
+        0.6830736100673676
+      ],
+      "bounds": {
+        "min": [
+          -0.3982525169849396,
+          -0.41479408740997314,
+          0.00906321406364441
+        ],
+        "max": [
+          0.40106335282325745,
+          0.3886612355709076,
+          0.692136824131012
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 2322,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_olive_tree_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 22,
+      "durationMs": 83,
+      "inputHash": "81159d3518d00af112c0c2a92c30c346c9a49515ee22eec5e0e622e982499441",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 950,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 55,
+      "meshes": 2,
+      "triangles": 1020,
+      "packagedTriangles": 1020,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 30248,
+      "fileHash": "7c93dbb9d21ef7a8d733c36dc4dda9b4b62c7b794e26dbfa5327f93f1c2a48f2",
+      "semanticHash": "f88916ca852f7b84a880b36b575cfb6f076bfdeefeade20f85fa6005d4cb0008",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_olive_tree_mature",
+      "file": "crop_olive_tree_mature.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1614,
+      "dimensions": [
+        1.0200373530387878,
+        1.0182185769081116,
+        1.165175899863243
+      ],
+      "bounds": {
+        "min": [
+          -0.5111796259880066,
+          -0.5255789756774902,
+          0.009360924363136292
+        ],
+        "max": [
+          0.5088577270507812,
+          0.49263960123062134,
+          1.1745368242263794
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "foliage_shadow_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 4878,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_olive_tree_mature_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 28,
+      "durationMs": 29,
+      "inputHash": "356ef9e0fcce56d893af23b22fc0801e962f0d1acabd47da4e8826932467732b",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 600,
+        "trianglesTarget": 1800,
+        "trianglesMax": 5000,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 124,
+      "meshes": 3,
+      "triangles": 2012,
+      "packagedTriangles": 2012,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 57300,
+      "fileHash": "28af5d927297f1b7a160187aef41a162f11e2262e00f6a6350162ef30ed9951f",
+      "semanticHash": "fefedea00c07e27c74464efdf2a583487f2a0166ca3356450361fefa4ccc6753",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_olive_tree_overripe",
+      "file": "crop_olive_tree_overripe.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1615,
+      "dimensions": [
+        1.1223256587982178,
+        1.1164133548736572,
+        1.0326905041001737
+      ],
+      "bounds": {
+        "min": [
+          -0.5555418133735657,
+          -0.5747995972633362,
+          -0.003000000026077032
+        ],
+        "max": [
+          0.5667838454246521,
+          0.541613757610321,
+          1.0296905040740967
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "foliage_shadow_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 4536,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_olive_tree_overripe_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 26,
+      "durationMs": 103,
+      "inputHash": "a642fc2164e2add81adac682966b4fee13aa365e3ab8bc75ee906b2df8d1a3a4",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1600,
+        "trianglesMax": 4800,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 117,
+      "meshes": 3,
+      "triangles": 1864,
+      "packagedTriangles": 1864,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 52712,
+      "fileHash": "ee42531e04f0f1e3bb8545392da47750899cd1fc4305214faf11d1de8cea17d3",
+      "semanticHash": "fbf3feea0061cc16463783f2333c7842dc93fe87f95a7dc5625ec1684f6d1130",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_olive_tree_seeded",
+      "file": "crop_olive_tree_seeded.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1611,
+      "dimensions": [
+        0.2014269307255745,
+        0.20145783573389053,
+        0.15990673005580902
+      ],
+      "bounds": {
+        "min": [
+          -0.09271346777677536,
+          -0.09572891891002655,
+          -0.0012296885251998901
+        ],
+        "max": [
+          0.10871346294879913,
+          0.10572891682386398,
+          0.15867704153060913
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 216,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_olive_tree_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 18,
+      "durationMs": 44,
+      "inputHash": "5cec70dfde68064cc3146dc0413b49241fad0be3cc772262a3ffc3d3ede08c44",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 20,
+        "trianglesTarget": 80,
+        "trianglesMax": 400,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 6,
+      "meshes": 2,
+      "triangles": 92,
+      "packagedTriangles": 92,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 6584,
+      "fileHash": "9aa8cf4d82e8a23152a44d15415e702e4a4d9553504f2a59f34f6ffe56814bbb",
+      "semanticHash": "278e8e250af8793779dad2ed4344670108d14245cbca72c556935690d2d0b7eb",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_olive_tree_sprout",
+      "file": "crop_olive_tree_sprout.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1612,
+      "dimensions": [
+        0.5602383613586426,
+        0.5401948690414429,
+        0.2991739921271801
+      ],
+      "bounds": {
+        "min": [
+          -0.2801220417022705,
+          -0.26819902658462524,
+          0.007042843848466873
+        ],
+        "max": [
+          0.28011631965637207,
+          0.2719958424568176,
+          0.306216835975647
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 1104,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_olive_tree_sprout_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 18,
+      "durationMs": 8,
+      "inputHash": "d8b585316f449f366f697063b2b9ed6e4995188c6816aaf302e4dbb1d11088c3",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 420,
+        "trianglesMax": 1600,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 27,
+      "meshes": 2,
+      "triangles": 488,
+      "packagedTriangles": 488,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 17032,
+      "fileHash": "056718b930d8120c15366f0ccba88a02c29f9be102d89fe50849757ac843f203",
+      "semanticHash": "f6fab92d892496d74c15b9fe537cc541ffa170ff44ea9aa2dc6892798caa0bdb",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_olive_tree_withered",
+      "file": "crop_olive_tree_withered.glb",
+      "family": "crop",
+      "generator": "olive_crop",
+      "seed": 1616,
+      "dimensions": [
+        1.2468879222869873,
+        1.2349587082862854,
+        0.6574033796787262
+      ],
+      "bounds": {
+        "min": [
+          -0.6033235788345337,
+          -0.6330798864364624,
+          0.008477061986923218
+        ],
+        "max": [
+          0.6435643434524536,
+          0.601878821849823,
+          0.6658804416656494
+        ]
+      },
+      "paletteTokensUsed": [
+        "soil_shadow_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 1974,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_olive_tree_withered_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 24,
+      "durationMs": 12,
+      "inputHash": "6a5109bafbb503f2a3d73f57ccb75caea8a9a56e427fccdfef44a468ae20957c",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 160,
+        "trianglesTarget": 800,
+        "trianglesMax": 2600,
+        "materialsMax": 4
+      },
+      "warnings": [],
+      "nodes": 47,
+      "meshes": 2,
+      "triangles": 868,
+      "packagedTriangles": 868,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 25524,
+      "fileHash": "2baaea4f0004d888ee59c4aace4f9ebc3e4728de9b5b5e40bc50d503ae7dcf0a",
+      "semanticHash": "286d948673009381f61543aa05c70a45697980d883c2697f7c05a20aac4d46ca",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_potato_growing",
+      "file": "crop_potato_growing.glb",
+      "family": "crop",
+      "generator": "potato_crop",
+      "seed": 599,
+      "dimensions": [
+        0.36124102771282196,
+        0.379905641078949,
+        0.5564036816358566
+      ],
+      "bounds": {
+        "min": [
+          -0.1876063495874405,
+          -0.19814661145210266,
+          0.01294030249118805
+        ],
+        "max": [
+          0.17363467812538147,
+          0.1817590296268463,
+          0.5693439841270447
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "foliage_olive_01",
+        "foliage_sage_01"
+      ],
+      "vertexColorLoops": 2532,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_potato_growing_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 80,
+      "inputHash": "5c0231bd2bbbb0c1d3d232b1aa69a400144274db12e1fd6136c9318593b1e47d",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 480,
+        "trianglesMax": 1100,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 59,
+      "meshes": 3,
+      "triangles": 1084,
+      "packagedTriangles": 1084,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 33984,
+      "fileHash": "568549886833fb08a0bf4944740619b641409f8e665db0b97b6844fbf5ef7143",
+      "semanticHash": "5c42f4a14fa7e149b881a772363c240f53a1c4085f6b8cd5f4fb9dc775d123d1",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_potato_mature",
+      "file": "crop_potato_mature.glb",
+      "family": "crop",
+      "generator": "potato_crop",
+      "seed": 601,
+      "dimensions": [
+        0.5139831304550171,
+        0.4856517165899277,
+        0.7186681805178523
+      ],
+      "bounds": {
+        "min": [
+          -0.24193397164344788,
+          -0.25522851943969727,
+          -0.006000000052154064
+        ],
+        "max": [
+          0.2720491588115692,
+          0.2304231971502304,
+          0.7126681804656982
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "canvas_cream_01",
+        "foliage_olive_01",
+        "foliage_sage_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 3704,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_potato_mature_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 548,
+      "inputHash": "b97bb5408586ef393597cbe3fa7ae69d631db2097f67d0181e31bd663231db9e",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 680,
+        "trianglesMax": 1800,
+        "materialsMax": 5
+      },
+      "warnings": [],
+      "nodes": 79,
+      "meshes": 5,
+      "triangles": 1576,
+      "packagedTriangles": 1576,
+      "lodLevels": [],
+      "materials": 5,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 49780,
+      "fileHash": "06fd04f4f7f3fce398ccee93fa25f6376348316ff976dcbc3406cabaef4c6c92",
+      "semanticHash": "3e494a8b335bc515e2dcb1864194f94774c74af081e36bfbd2c7836b8a2699c4",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_potato_overripe",
+      "file": "crop_potato_overripe.glb",
+      "family": "crop",
+      "generator": "potato_crop",
+      "seed": 607,
+      "dimensions": [
+        1.0227419435977936,
+        0.9331849217414856,
+        0.38966582622379065
+      ],
+      "bounds": {
+        "min": [
+          -0.47693708539009094,
+          -0.48584824800491333,
+          -0.00800000037997961
+        ],
+        "max": [
+          0.5458048582077026,
+          0.44733667373657227,
+          0.38166582584381104
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "grass_yellow_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 2208,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_potato_overripe_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 94,
+      "inputHash": "6dfb90f57ce1254fe3bddf64a35da38cfac76fec38a23fb120b2cea934a41431",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 460,
+        "trianglesMax": 1100,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 54,
+      "meshes": 3,
+      "triangles": 952,
+      "packagedTriangles": 952,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 30792,
+      "fileHash": "4f2ddc17cf3fe5df06e52e0f69785580ff3d77255751338d81f5d49a2854e71b",
+      "semanticHash": "b542635448c8345c42835de7097008d850358db907949571a16fd2102b5f2fef",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "crop_potato_seeded",
+      "file": "crop_potato_seeded.glb",
+      "family": "crop",
+      "generator": "potato_crop",
+      "seed": 587,
+      "dimensions": [
+        0.24426300078630447,
+        0.1975792720913887,
+        0.07771361223421991
+      ],
+      "bounds": {
+        "min": [
+          -0.11636655777692795,
+          -0.12455163896083832,
+          -0.0020000000949949026
+        ],
+        "max": [
+          0.12789644300937653,
+          0.07302763313055038,
+          0.075713612139225
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_highlight_01",
+        "wood_warm_01"
+      ],
+      "vertexColorLoops": 216,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "crop_potato_seeded_root"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 40,
+      "inputHash": "e39caf288cd403dcfdaf3a758cb5c0ddb50b700681c694cf8c72e1dc0cf777a3",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 80,
+        "trianglesMax": 200,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 10,
+      "meshes": 2,
+      "triangles": 96,
+      "packagedTriangles": 96,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 7876,
+      "fileHash": "852f8a39930d9225f4cf3657080ff2bcf5e506a97c89452a5983af84e6bc8746",
+      "semanticHash": "70d5d94b981a95885dacaa276283490eea1c1a7b4f06bdbcb31f873f430dd7e7",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -3978,27 +6287,27 @@
       "generator": "potato_crop",
       "seed": 593,
       "dimensions": [
-        0.26285383105278015,
-        0.2727392166852951,
-        0.2768552824854851
+        0.14985673129558563,
+        0.15288934856653214,
+        0.2581300660967827
       ],
       "bounds": {
         "min": [
-          -0.13499148190021515,
-          -0.13969583809375763,
+          -0.0791773796081543,
+          -0.07727967947721481,
           0.013429917395114899
         ],
         "max": [
-          0.127862349152565,
-          0.13304337859153748,
-          0.2902851998806
+          0.07067935168743134,
+          0.07560966908931732,
+          0.2715599834918976
         ]
       },
       "paletteTokensUsed": [
         "foliage_highlight_01",
         "foliage_sage_01"
       ],
-      "vertexColorLoops": 624,
+      "vertexColorLoops": 1392,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_potato_sprout_root"
@@ -4006,8 +6315,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 7,
-      "inputHash": "f701427a7e4bed58abc98d881f47937108b47917219764e40ba5394b8ae5bd47",
+      "durationMs": 62,
+      "inputHash": "7cb3ff1758b9aa801b7d6a8aa8b2c4be4e83749c39fde3033b503d6ea61bd6ce",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 150,
@@ -4016,10 +6325,10 @@
         "materialsMax": 2
       },
       "warnings": [],
-      "nodes": 17,
+      "nodes": 33,
       "meshes": 2,
-      "triangles": 288,
-      "packagedTriangles": 288,
+      "triangles": 608,
+      "packagedTriangles": 608,
       "lodLevels": [],
       "materials": 2,
       "trianglePrimitives": 2,
@@ -4031,9 +6340,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 12712,
-      "fileHash": "2dc1efb5488a37759af7f0ba8a63650614e7ff18e8ca577431fe28dd2d29b853",
-      "semanticHash": "df6fbebb718e59de1a7b5c946305ced7d6d7d1e691b640ff4c5e018b888edd7b",
+      "bytes": 20304,
+      "fileHash": "8529ace34dc52e3d9c01017bad0e09946b430d46cc5cbc1ad071ee4a7b51ac05",
+      "semanticHash": "f4dddd944be8471a9d83b0c817b593c11b8d98b181d698fc3ffd116d84bba550",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4044,27 +6353,27 @@
       "generator": "potato_crop",
       "seed": 613,
       "dimensions": [
-        1.678577721118927,
-        1.7597076296806335,
-        0.2732882723212242
+        1.0899540185928345,
+        1.1543378829956055,
+        0.20389690599404275
       ],
       "bounds": {
         "min": [
-          -0.8621639013290405,
-          -0.9335254430770874,
-          0.004450686275959015
+          -0.5842285752296448,
+          -0.6085435748100281,
+          -0.0020000000949949026
         ],
         "max": [
-          0.8164138197898865,
-          0.8261821866035461,
-          0.2777389585971832
+          0.5057254433631897,
+          0.5457943081855774,
+          0.20189690589904785
         ]
       },
       "paletteTokensUsed": [
         "wood_dark_01",
         "wood_weathered_01"
       ],
-      "vertexColorLoops": 780,
+      "vertexColorLoops": 1812,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_potato_withered_root"
@@ -4072,8 +6381,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 7,
-      "inputHash": "dbbf3bdd81bb9052c8a41c45805ee20f82ae6196d76cdf1e7977e1bbf39d5918",
+      "durationMs": 67,
+      "inputHash": "62dc29f4bdaa54ff9fc9925d3dd238312ac5b2712677e1e848bc790e01fdb2d2",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 200,
@@ -4082,24 +6391,24 @@
         "materialsMax": 2
       },
       "warnings": [],
-      "nodes": 21,
-      "meshes": 2,
-      "triangles": 360,
-      "packagedTriangles": 360,
+      "nodes": 44,
+      "meshes": 3,
+      "triangles": 784,
+      "packagedTriangles": 784,
       "lodLevels": [],
       "materials": 2,
-      "trianglePrimitives": 2,
-      "vertexColorPrimitives": 2,
-      "normalPrimitives": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 14168,
-      "fileHash": "870bb124e685c12565debb651a9d5e19bc085d37ae30699a38e9a7bc0ab7aa99",
-      "semanticHash": "21539789918147c990145e90af49c3f25ea1bbe279f05becdafe9a1fddac3f08",
+      "bytes": 25288,
+      "fileHash": "cdca55002072b23d35a7bdd9c85dc532fe2c568e28d5b5be07b2f951cc755c6c",
+      "semanticHash": "f633c3b5045e819e4cc411c491416e5036c263f5c2acba241f0de2af1e85f7ae",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4140,8 +6449,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 9,
-      "inputHash": "563d576af771743ac8c496c108f364d2da473c1d8668364451e02e1b630aec13",
+      "durationMs": 6,
+      "inputHash": "5a01721fa81338c3d2cf2182bf20637c2382f095dbbb9fd9917b5b1985d28e3d",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 180,
@@ -4178,19 +6487,19 @@
       "generator": "sunflower_crop",
       "seed": 1603,
       "dimensions": [
-        0.9158447682857513,
-        0.9540504515171051,
-        0.8893380463123322
+        1.1958754360675812,
+        1.2505543231964111,
+        0.8893408328294754
       ],
       "bounds": {
         "min": [
-          -0.46560949087142944,
-          -0.5648003220558167,
-          0.014893561601638794
+          -0.7485925555229187,
+          -0.5977433323860168,
+          0.014890775084495544
         ],
         "max": [
-          0.4502352774143219,
-          0.38925012946128845,
+          0.4472828805446625,
+          0.6528109908103943,
           0.904231607913971
         ]
       },
@@ -4198,7 +6507,7 @@
         "foliage_highlight_01",
         "foliage_olive_01"
       ],
-      "vertexColorLoops": 828,
+      "vertexColorLoops": 2820,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_sunflower_growing_root"
@@ -4206,8 +6515,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 20,
-      "durationMs": 6,
-      "inputHash": "bceb084ad3c7a58c5c635934916a129232f083a86b17a80d65001aab0847ff8d",
+      "durationMs": 16,
+      "inputHash": "982c94c47db0034451a42715e476c0061b155c81baa48cd0ba789f5cc26678c2",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 340,
@@ -4215,13 +6524,11 @@
         "trianglesMax": 3200,
         "materialsMax": 4
       },
-      "warnings": [
-        "360 triangles are below quality target 1200"
-      ],
-      "nodes": 22,
+      "warnings": [],
+      "nodes": 66,
       "meshes": 2,
-      "triangles": 360,
-      "packagedTriangles": 360,
+      "triangles": 1200,
+      "packagedTriangles": 1200,
       "lodLevels": [],
       "materials": 2,
       "trianglePrimitives": 2,
@@ -4233,10 +6540,10 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 13952,
-      "fileHash": "dfc8be97b53ad8c0583b658115c440e8004b79bbf366cd7e7b71e1e5b4928836",
-      "semanticHash": "c8ff46d7aaa0a35a9ef2b685a0aee2d4eb2075a1a6e3763c2c5c65980155a613",
-      "qualityStatus": "below_target",
+      "bytes": 34044,
+      "fileHash": "db1e074ad218124a75083cd3b1c451eabf491fd1a487565cf70394ac3d4c0c63",
+      "semanticHash": "091a98779c5fd8fde63bba06a95fbfa9781c81461bba399e31f033d244afb686",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
@@ -4246,19 +6553,19 @@
       "generator": "sunflower_crop",
       "seed": 1604,
       "dimensions": [
-        0.9210603535175323,
-        0.9733023643493652,
+        1.20571967959404,
+        1.2591272592544556,
         1.5800900161266327
       ],
       "bounds": {
         "min": [
-          -0.4681679904460907,
-          -0.580061674118042,
+          -0.7555224895477295,
+          -0.6047773361206055,
           0.01450696587562561
         ],
         "max": [
-          0.45289236307144165,
-          0.39324069023132324,
+          0.4501971900463104,
+          0.6543499231338501,
           1.5945969820022583
         ]
       },
@@ -4268,7 +6575,7 @@
         "foliage_olive_01",
         "soil_shadow_01"
       ],
-      "vertexColorLoops": 2556,
+      "vertexColorLoops": 5220,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_sunflower_mature_root"
@@ -4276,8 +6583,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 24,
-      "durationMs": 19,
-      "inputHash": "212674fb5d56fc3da4e6893bd9b1907cc3e0c8c5e876c37f042cdb3b2526939b",
+      "durationMs": 35,
+      "inputHash": "39f2bf9cf62d5128b390175bcb3bbb8f6d92d001c32144148a259eafed77ac17",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 450,
@@ -4285,13 +6592,11 @@
         "trianglesMax": 5200,
         "materialsMax": 4
       },
-      "warnings": [
-        "1188 triangles are below quality target 2200"
-      ],
-      "nodes": 70,
+      "warnings": [],
+      "nodes": 136,
       "meshes": 5,
-      "triangles": 1188,
-      "packagedTriangles": 1188,
+      "triangles": 2380,
+      "packagedTriangles": 2380,
       "lodLevels": [],
       "materials": 4,
       "trianglePrimitives": 5,
@@ -4303,10 +6608,10 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 49272,
-      "fileHash": "03dda930e8b18e399c7e94a0a13bbbaf39018bfe78c42e4810e41beeb38acf73",
-      "semanticHash": "02fe8e83415e62b23104f92820018660893b5e010214e2722dcd9bf1669de741",
-      "qualityStatus": "below_target",
+      "bytes": 84100,
+      "fileHash": "fbb827397e08d68263749129f48f43fc35797bdf22004e31ea1b656e13cc0d56",
+      "semanticHash": "6fa3179399f55b35a0377b7c61f9c311ccd133f6e7cb7f03b4b103b9e8ba1a8a",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
@@ -4316,20 +6621,20 @@
       "generator": "sunflower_crop",
       "seed": 1605,
       "dimensions": [
-        1.0344122648239136,
-        1.0656514465808868,
-        1.2250775396823883
+        1.3745550513267517,
+        1.390354037284851,
+        1.286400467157364
       ],
       "bounds": {
         "min": [
-          -0.5066307187080383,
-          -0.6319304704666138,
+          -0.845954954624176,
+          -0.6961804032325745,
           0.012882083654403687
         ],
         "max": [
-          0.5277815461158752,
-          0.43372097611427307,
-          1.237959623336792
+          0.5286000967025757,
+          0.6941736340522766,
+          1.2992825508117676
         ]
       },
       "paletteTokensUsed": [
@@ -4338,7 +6643,7 @@
         "foliage_sage_01",
         "soil_shadow_01"
       ],
-      "vertexColorLoops": 2304,
+      "vertexColorLoops": 4800,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_sunflower_overripe_root"
@@ -4346,8 +6651,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 22,
-      "durationMs": 16,
-      "inputHash": "2782aec284ade70e4d29ccfb921b55ac8bdec0952720b77030be358405978c83",
+      "durationMs": 29,
+      "inputHash": "ff7879effe29c95b6cbe32751722b262a7ff615cd7cf2971600a998f19ef8f85",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 400,
@@ -4355,13 +6660,11 @@
         "trianglesMax": 5000,
         "materialsMax": 4
       },
-      "warnings": [
-        "1080 triangles are below quality target 2000"
-      ],
-      "nodes": 61,
+      "warnings": [],
+      "nodes": 121,
       "meshes": 5,
-      "triangles": 1080,
-      "packagedTriangles": 1080,
+      "triangles": 2200,
+      "packagedTriangles": 2200,
       "lodLevels": [],
       "materials": 4,
       "trianglePrimitives": 5,
@@ -4373,10 +6676,10 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 45412,
-      "fileHash": "cd706a6765c134532a026a1175d2782917e89a836837973866cd4da2a58ccbc8",
-      "semanticHash": "daa109d7a5e10f1e01e4b9a08b178f7f860001f68ab7039b6a73631bd5969880",
-      "qualityStatus": "below_target",
+      "bytes": 77936,
+      "fileHash": "2675e017f362466abb4f1b3dbcb60744d113ec5f4176c7d422343a0e28d81e4f",
+      "semanticHash": "0632669df1db352f1595628b8ec06b5b208c5bf3c28b1fc9853474ec3dcacd54",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
@@ -4386,26 +6689,27 @@
       "generator": "sunflower_crop",
       "seed": 1601,
       "dimensions": [
-        0.350218266248703,
-        0.3516167104244232,
-        0.03600000124424696
+        0.2142271175980568,
+        0.24200240522623062,
+        0.04486748902127147
       ],
       "bounds": {
         "min": [
-          -0.17724843323230743,
-          -0.12950223684310913,
-          0.007000000216066837
+          -0.1090201586484909,
+          -0.15610872209072113,
+          -0.004000000189989805
         ],
         "max": [
-          0.17296983301639557,
-          0.2221144735813141,
-          0.0430000014603138
+          0.10520695894956589,
+          0.08589368313550949,
+          0.04086748883128166
         ]
       },
       "paletteTokensUsed": [
+        "foliage_highlight_01",
         "soil_shadow_01"
       ],
-      "vertexColorLoops": 168,
+      "vertexColorLoops": 414,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_sunflower_seeded_root"
@@ -4413,37 +6717,35 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 18,
-      "durationMs": 2,
-      "inputHash": "e5ce0483527afdaff13f1c3b788b560a0560ed55a626a5e8fcea82252be68847",
+      "durationMs": 61,
+      "inputHash": "3747f5d49d6f16811455fe0072d0fbb476f9874ef586ea23b504341c85dd5849",
       "cacheHit": false,
       "budget": {
-        "trianglesMin": 40,
-        "trianglesTarget": 100,
-        "trianglesMax": 500,
+        "trianglesMin": 20,
+        "trianglesTarget": 80,
+        "trianglesMax": 300,
         "materialsMax": 4
       },
-      "warnings": [
-        "56 triangles are below quality target 100"
-      ],
-      "nodes": 8,
-      "meshes": 1,
-      "triangles": 56,
-      "packagedTriangles": 56,
+      "warnings": [],
+      "nodes": 13,
+      "meshes": 3,
+      "triangles": 168,
+      "packagedTriangles": 168,
       "lodLevels": [],
-      "materials": 1,
-      "trianglePrimitives": 1,
-      "vertexColorPrimitives": 1,
-      "normalPrimitives": 1,
+      "materials": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 4260,
-      "fileHash": "e6d8e2cab03fbcb193418359d88e4d870cfb95c40c2cb85f9cfa4954fd54e9ac",
-      "semanticHash": "82f3b42f1d13f3cfd1c9452693068a9663961e1c98075641780b9a73254e3902",
-      "qualityStatus": "below_target",
+      "bytes": 10604,
+      "fileHash": "25c979e55f38b979ef11f4ebc5e82a1d5a7f8396fa603f958f150ac03a846286",
+      "semanticHash": "5d4ff8f1d58a15895547b09314ce359d6e9aefdd0f101bc5b8dd2e5f39e6c0d7",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
@@ -4453,19 +6755,19 @@
       "generator": "sunflower_crop",
       "seed": 1602,
       "dimensions": [
-        0.6583599150180817,
-        0.31379544734954834,
+        0.6897634863853455,
+        0.7650701999664307,
         0.2721814513206482
       ],
       "bounds": {
         "min": [
           -0.3585505485534668,
-          -0.15097099542617798,
+          -0.48396414518356323,
           0.014087498188018799
         ],
         "max": [
-          0.29980936646461487,
-          0.16282445192337036,
+          0.33121293783187866,
+          0.28110605478286743,
           0.286268949508667
         ]
       },
@@ -4473,7 +6775,7 @@
         "foliage_highlight_01",
         "foliage_olive_01"
       ],
-      "vertexColorLoops": 312,
+      "vertexColorLoops": 1188,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_sunflower_sprout_root"
@@ -4481,8 +6783,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 18,
-      "durationMs": 3,
-      "inputHash": "0151948364bc5859354480ca4f68cc388a607a6c7a2fbeb75580a0d5a1e15fbc",
+      "durationMs": 8,
+      "inputHash": "9d327a5d6d23400ea2157a3fbab9464c3c086df0ace7fd2566f89f9de980bd41",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 120,
@@ -4490,13 +6792,11 @@
         "trianglesMax": 1800,
         "materialsMax": 4
       },
-      "warnings": [
-        "144 triangles are below quality target 500"
-      ],
-      "nodes": 9,
+      "warnings": [],
+      "nodes": 28,
       "meshes": 2,
-      "triangles": 144,
-      "packagedTriangles": 144,
+      "triangles": 516,
+      "packagedTriangles": 516,
       "lodLevels": [],
       "materials": 2,
       "trianglePrimitives": 2,
@@ -4508,10 +6808,10 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 8332,
-      "fileHash": "70b198d154393aaa001ab1ed6d28a1e278adc5c806fcba618c8459647516367a",
-      "semanticHash": "53e847b8bb5285d249cb45d095f3f9872d55cf13b13bf5582d4f1b1ed2524a18",
-      "qualityStatus": "below_target",
+      "bytes": 17372,
+      "fileHash": "c7aba2154f45d56f6e628b4b761ed0a85672b8d30f8a9daabbef2794ebc924ed",
+      "semanticHash": "4010ccaee6300e8691ee2c7fbb680b291473fb1ccba5c9f4f2bff6addd19a6dd",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
@@ -4521,20 +6821,20 @@
       "generator": "sunflower_crop",
       "seed": 1606,
       "dimensions": [
-        1.1202066540718079,
-        0.867644190788269,
-        0.7206301391124725
+        1.209471046924591,
+        1.3242839574813843,
+        0.7391403615474701
       ],
       "bounds": {
         "min": [
           -0.5555258989334106,
-          -0.4047248959541321,
+          -0.8208895921707153,
           0.011197894811630249
         ],
         "max": [
-          0.5646807551383972,
-          0.46291929483413696,
-          0.7318280339241028
+          0.6539451479911804,
+          0.503394365310669,
+          0.7503382563591003
         ]
       },
       "paletteTokensUsed": [
@@ -4542,7 +6842,7 @@
         "soil_shadow_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 1440,
+      "vertexColorLoops": 2736,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_sunflower_withered_root"
@@ -4550,8 +6850,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 20,
-      "durationMs": 11,
-      "inputHash": "3794306d4253d4ac3a84c0f06d1c811041de2dc6e7e23fce98fdc21a1caee0e2",
+      "durationMs": 18,
+      "inputHash": "5f9ff29b883275a441b015a8c505fbb38789d99835ee08122b3b44e1b9390223",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 220,
@@ -4559,13 +6859,11 @@
         "trianglesMax": 2800,
         "materialsMax": 4
       },
-      "warnings": [
-        "680 triangles are below quality target 900"
-      ],
-      "nodes": 39,
+      "warnings": [],
+      "nodes": 70,
       "meshes": 5,
-      "triangles": 680,
-      "packagedTriangles": 680,
+      "triangles": 1260,
+      "packagedTriangles": 1260,
       "lodLevels": [],
       "materials": 3,
       "trianglePrimitives": 5,
@@ -4577,10 +6875,10 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 31984,
-      "fileHash": "5bc4509addc717b6c803819de4cac2d845e819ff1a472261847cabb2d6271f9d",
-      "semanticHash": "80f93d9a99ff2723a38bc1f29182f285b9dc8a528474061336d55b5dbb5fd7f8",
-      "qualityStatus": "below_target",
+      "bytes": 48548,
+      "fileHash": "dadf378cf1437f9da7e69037d33d48357f9567f2fb7a52ce1b759ff377a0bde4",
+      "semanticHash": "4b492ce126216ff1142ab1d4f210660c64af34281054c001c36419a691f469dc",
+      "qualityStatus": "on_target",
       "animationClips": []
     },
     {
@@ -4590,28 +6888,29 @@
       "generator": "tomato_crop",
       "seed": 563,
       "dimensions": [
-        0.8802222311496735,
-        0.9176340103149414,
-        0.7310640513896942
+        0.7277433574199677,
+        0.7558099925518036,
+        0.8799999728798866
       ],
       "bounds": {
         "min": [
-          -0.46523407101631165,
-          -0.4513935148715973,
-          0.014484316110610962
+          -0.38236650824546814,
+          -0.3722453713417053,
+          -0.03999999910593033
         ],
         "max": [
-          0.4149881601333618,
-          0.4662404954433441,
-          0.7455483675003052
+          0.3453768491744995,
+          0.38356462121009827,
+          0.8399999737739563
         ]
       },
       "paletteTokensUsed": [
-        "canvas_cream_01",
+        "accent_ochre_01",
         "foliage_olive_01",
-        "foliage_sage_01"
+        "foliage_sage_01",
+        "wood_weathered_01"
       ],
-      "vertexColorLoops": 2920,
+      "vertexColorLoops": 2988,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_tomato_growing_root"
@@ -4619,34 +6918,34 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 20,
-      "inputHash": "7305a893eaff9259e26666998dfc737fc69565080d17853e267838dbc153bb32",
+      "durationMs": 79,
+      "inputHash": "a13f7922ab1d516485765d39be6cdd00d6b17763672beaa93c210b735861f81d",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 400,
         "trianglesTarget": 900,
         "trianglesMax": 1400,
-        "materialsMax": 3
+        "materialsMax": 4
       },
       "warnings": [],
-      "nodes": 66,
-      "meshes": 3,
-      "triangles": 1280,
-      "packagedTriangles": 1280,
+      "nodes": 68,
+      "meshes": 5,
+      "triangles": 1314,
+      "packagedTriangles": 1314,
       "lodLevels": [],
-      "materials": 3,
-      "trianglePrimitives": 3,
-      "vertexColorPrimitives": 3,
-      "normalPrimitives": 3,
+      "materials": 4,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 40632,
-      "fileHash": "dd50ce27c477d303b566c29778b19746f8993196fc2d49a90186edcf18393e20",
-      "semanticHash": "28fcf2e0cddacd2c68ff34a5854c84284fac20cba8b51c2d7eb0adfe8c9f2519",
+      "bytes": 45176,
+      "fileHash": "79abd7d02a993b4d8837c9dab6b4d6204ab47cae0512dbcc9906813cc6950496",
+      "semanticHash": "86020943aab7388d8f7305a9b5b3e74424469f06cb7463c28c0df67cb6f04737",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4657,29 +6956,30 @@
       "generator": "tomato_crop",
       "seed": 569,
       "dimensions": [
-        0.979890763759613,
-        1.0614007115364075,
-        1.0496766269207
+        0.8287678956985474,
+        0.887410432100296,
+        1.160000003874302
       ],
       "bounds": {
         "min": [
-          -0.4984717071056366,
-          -0.5222755074501038,
-          0.014347702264785767
+          -0.42151620984077454,
+          -0.43727704882621765,
+          -0.03999999910593033
         ],
         "max": [
-          0.48141905665397644,
-          0.5391252040863037,
-          1.0640243291854858
+          0.4072516858577728,
+          0.45013338327407837,
+          1.1200000047683716
         ]
       },
       "paletteTokensUsed": [
         "accent_red_01",
         "foliage_olive_01",
         "foliage_sage_01",
-        "roof_deep_red_01"
+        "roof_deep_red_01",
+        "wood_weathered_01"
       ],
-      "vertexColorLoops": 3600,
+      "vertexColorLoops": 3584,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_tomato_mature_root"
@@ -4687,34 +6987,34 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 27,
-      "inputHash": "204687811ec4c24e9aaa3d6d9291f49a6b54de13a7b743fbb7abd7dadbcf319b",
+      "durationMs": 95,
+      "inputHash": "908154d94fb71e082812e6fc5e559c0d97566700bbb4876848ac8da224f38595",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 700,
         "trianglesTarget": 1260,
         "trianglesMax": 1800,
-        "materialsMax": 4
+        "materialsMax": 5
       },
       "warnings": [],
-      "nodes": 83,
-      "meshes": 5,
-      "triangles": 1398,
-      "packagedTriangles": 1398,
+      "nodes": 84,
+      "meshes": 6,
+      "triangles": 1418,
+      "packagedTriangles": 1418,
       "lodLevels": [],
-      "materials": 4,
-      "trianglePrimitives": 5,
-      "vertexColorPrimitives": 5,
-      "normalPrimitives": 5,
+      "materials": 5,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 48924,
-      "fileHash": "33aad355afb2483d5202b58446f7b55666e418a34f87db541c0b393c580b5a62",
-      "semanticHash": "e1a78610915911c5379dcb69e400bab91074c620085e775e4dee93cc414e8910",
+      "bytes": 52012,
+      "fileHash": "fb6262e59088a8a10c9f80f772896ef25c2a9e253cdf5a6132a0bc003a8f1a4a",
+      "semanticHash": "34d4a915fbaecdaf8d71d2869deed2d03e02bac368712a5a1c216ea08790d29e",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4725,20 +7025,20 @@
       "generator": "tomato_crop",
       "seed": 571,
       "dimensions": [
-        1.1245730519294739,
-        1.2060012221336365,
-        0.8074493408203125
+        0.9492974877357483,
+        1.0078842341899872,
+        1.0799999609589577
       ],
       "bounds": {
         "min": [
-          -0.5769901871681213,
-          -0.5878444910049438,
-          0.009206771850585938
+          -0.48759010434150696,
+          -0.49123916029930115,
+          -0.03999999910593033
         ],
         "max": [
-          0.5475828647613525,
-          0.6181567311286926,
-          0.8166561126708984
+          0.46170738339424133,
+          0.516645073890686,
+          1.0399999618530273
         ]
       },
       "paletteTokensUsed": [
@@ -4747,7 +7047,7 @@
         "roof_deep_red_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 3120,
+      "vertexColorLoops": 3152,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_tomato_overripe_root"
@@ -4755,8 +7055,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 22,
-      "inputHash": "1911c2f9dc687dcb9aa9f2135d79741cf98105d81e45203b3faf9cba54212744",
+      "durationMs": 79,
+      "inputHash": "c9f75dc43dcdf949d145acbc1ae8313d2623f13fa94913c50f962e78229c3574",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 500,
@@ -4765,10 +7065,10 @@
         "materialsMax": 4
       },
       "warnings": [],
-      "nodes": 71,
+      "nodes": 72,
       "meshes": 5,
-      "triangles": 1190,
-      "packagedTriangles": 1190,
+      "triangles": 1204,
+      "packagedTriangles": 1204,
       "lodLevels": [],
       "materials": 4,
       "trianglePrimitives": 5,
@@ -4780,9 +7080,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 43196,
-      "fileHash": "3b8b4cb63725249108f7638557d31fb59b36fe988fde774704b05a6f4ef183fc",
-      "semanticHash": "1979c61564d4426d37298e2379789c8ee3c84b54279466aef196d508ae9affbe",
+      "bytes": 43540,
+      "fileHash": "c6951c4e431f20522d07e717f887eeb1b7710fc1ac474ed2d36aa44cb3552042",
+      "semanticHash": "3f7e0ea921e926c19794bf836c554f9abbb542bff5ee99168cf3125603c96c38",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4793,26 +7093,27 @@
       "generator": "tomato_crop",
       "seed": 547,
       "dimensions": [
-        0.40650446712970734,
-        0.27964796125888824,
-        0.05199999921023846
+        0.2124546691775322,
+        0.25325506925582886,
+        0.03966617165133357
       ],
       "bounds": {
         "min": [
-          -0.20357471704483032,
-          -0.14191016554832458,
-          0.009999999776482582
+          -0.10911989957094193,
+          -0.16403882205486298,
+          -0.004000000189989805
         ],
         "max": [
-          0.20292975008487701,
-          0.13773779571056366,
-          0.06199999898672104
+          0.10333476960659027,
+          0.08921624720096588,
+          0.035666171461343765
         ]
       },
       "paletteTokensUsed": [
-        "accent_ochre_01"
+        "accent_ochre_01",
+        "foliage_sage_01"
       ],
-      "vertexColorLoops": 144,
+      "vertexColorLoops": 414,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_tomato_seeded_root"
@@ -4820,34 +7121,34 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 3,
-      "inputHash": "743248e0627706e2a5afe52cd3d246da4dec1324e543948a2c0398bd57cd54fc",
+      "durationMs": 50,
+      "inputHash": "ad49be64980196e7305067299925e7bb3f1abd7b9e62ee4bb592ee0715f325c3",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 40,
-        "trianglesTarget": 48,
+        "trianglesTarget": 70,
         "trianglesMax": 200,
-        "materialsMax": 1
+        "materialsMax": 2
       },
       "warnings": [],
-      "nodes": 7,
-      "meshes": 1,
-      "triangles": 48,
-      "packagedTriangles": 48,
+      "nodes": 13,
+      "meshes": 3,
+      "triangles": 168,
+      "packagedTriangles": 168,
       "lodLevels": [],
-      "materials": 1,
-      "trianglePrimitives": 1,
-      "vertexColorPrimitives": 1,
-      "normalPrimitives": 1,
+      "materials": 2,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 4080,
-      "fileHash": "0798c3a40aa66b314898b8f6936d10470040c70db12a323635b5a63d9d87b2b7",
-      "semanticHash": "fb1d9d2abb9fda0a4c823632a3869b12e27d9fe44e92ae1fb7c76f2e90d8f022",
+      "bytes": 10536,
+      "fileHash": "d726fc735e3f28f683f5b8d1618bb432fea1fc27a9177d6256caf29be7f5bf50",
+      "semanticHash": "2ae086b2b915410827c96b5c8e4d730ed6a9e997e2eded2066a5a8367472d737",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4858,20 +7159,20 @@
       "generator": "tomato_crop",
       "seed": 557,
       "dimensions": [
-        0.6015591323375702,
-        0.5309924781322479,
-        0.30829665437340736
+        0.5505594313144684,
+        0.4919501543045044,
+        0.3160233423113823
       ],
       "bounds": {
         "min": [
-          -0.3077602982521057,
-          -0.3456937074661255,
-          0.014053430408239365
+          -0.2852376699447632,
+          -0.31608837842941284,
+          0.010326720774173737
         ],
         "max": [
-          0.2937988340854645,
-          0.18529877066612244,
-          0.32235008478164673
+          0.2653217613697052,
+          0.17586177587509155,
+          0.32635006308555603
         ]
       },
       "paletteTokensUsed": [
@@ -4886,8 +7187,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 7,
-      "inputHash": "b8d80e53478239262fe5b7f02008107725c0a33102c39d6430b6bdc09ec32c89",
+      "durationMs": 42,
+      "inputHash": "d8b7f2822bb496e033a251dffa6e3aa7c08d65ecf2bd3e369beb176128853ea7",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 150,
@@ -4911,9 +7212,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 11680,
-      "fileHash": "97ee8bec252458065939fda451ddadd29c306d9d6afe58967fe74fe4742a2bbd",
-      "semanticHash": "76522c99174518ad183196ff68e77ae5f39db08b0929104e3f99f4c096260338",
+      "bytes": 11636,
+      "fileHash": "12b5827ebd9d302467932f9c129ca4da662877d8629eff8795eb58c9cde49935",
+      "semanticHash": "b85681b3c0389d4affccfd3d773ca208e5ed28f64bc1e56276a3a9739bd055ad",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -4924,20 +7225,20 @@
       "generator": "tomato_crop",
       "seed": 577,
       "dimensions": [
-        1.2335315346717834,
-        1.3148062825202942,
-        0.46259573101997375
+        1.0406051278114319,
+        1.0990313291549683,
+        0.8199999704957008
       ],
       "bounds": {
         "min": [
-          -0.6329529285430908,
-          -0.640414297580719,
-          0.003642827272415161
+          -0.5331610441207886,
+          -0.5366178154945374,
+          -0.03999999910593033
         ],
         "max": [
-          0.6005786061286926,
-          0.6743919849395752,
-          0.4662385582923889
+          0.5074440836906433,
+          0.5624135136604309,
+          0.7799999713897705
         ]
       },
       "paletteTokensUsed": [
@@ -4945,7 +7246,7 @@
         "wood_dark_01",
         "wood_weathered_01"
       ],
-      "vertexColorLoops": 1296,
+      "vertexColorLoops": 1328,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_tomato_withered_root"
@@ -4953,8 +7254,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 12,
-      "inputHash": "a7f2ace37dade3678cb1aeaf7c158f038bd1c14fdbec13e2fb3632fb16f3493b",
+      "durationMs": 63,
+      "inputHash": "34dbf7c2fe94485446e4a648936c0181fd5d1ac9c589c8960a011244a50f45a6",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 200,
@@ -4963,24 +7264,24 @@
         "materialsMax": 3
       },
       "warnings": [],
-      "nodes": 37,
-      "meshes": 3,
-      "triangles": 576,
-      "packagedTriangles": 576,
+      "nodes": 38,
+      "meshes": 4,
+      "triangles": 590,
+      "packagedTriangles": 590,
       "lodLevels": [],
       "materials": 3,
-      "trianglePrimitives": 3,
-      "vertexColorPrimitives": 3,
-      "normalPrimitives": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 21740,
-      "fileHash": "470adaca4a20989f53c74d7f5cf07c824190256cd4d2db16c749bc3b68f09b12",
-      "semanticHash": "95f2e507bf6e930fa248dec3a688136d691d2571de0a3a1b18570d1d936bf9fb",
+      "bytes": 23692,
+      "fileHash": "f608128f1a7cd1737458c906eeebc17b8dd01234ae1ada0ac72edcd94598bdd1",
+      "semanticHash": "0d1fd90744c0905e0c7f542959ed74e784c1ae748a1aeea0b1ffbad18d005502",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -5021,8 +7322,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 8,
-      "inputHash": "f6688f6dab4b6bcc4bb210b1eb15d7db0d1c75297c24666d38461e523612f329",
+      "durationMs": 7,
+      "inputHash": "7c92937ad1841917b11dd99cfcf560da3e7a76123be74886be6fe3942f6115e7",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 180,
@@ -5087,8 +7388,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 40,
-      "inputHash": "f41b940aad7aecc10175c3c00a4ac9c9e7007a526bb3312747125f045f6aad5a",
+      "durationMs": 75,
+      "inputHash": "978eb5efbacdfb91c374b61dc2c0975e0f50bcbce83b1d868d67c2d28c48e0a5",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 450,
@@ -5154,8 +7455,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 32,
-      "inputHash": "32630c7d9892277377f5194113f13535a795ec271f3420bcdbcebfd7ed2ba98a",
+      "durationMs": 117,
+      "inputHash": "358423625e216c5db61d29e036ffb9ee3bc3604d91bb5cd63ff14c35bb1fb2e1",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 800,
@@ -5221,8 +7522,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 30,
-      "inputHash": "2346dcefd8fba24225fe5c064dec69ded0558c064a5e961eb19d4a865add489d",
+      "durationMs": 50,
+      "inputHash": "036fe904a9d4ad5221716f85c575f9d50e27eff1a45f41e4b8a3ebed3753934b",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 750,
@@ -5259,26 +7560,26 @@
       "generator": "wheat_crop",
       "seed": 501,
       "dimensions": [
-        0.46595291793346405,
-        0.4678386151790619,
-        0.06000000052154064
+        0.37374600768089294,
+        0.2923745959997177,
+        0.06932355067692697
       ],
       "bounds": {
         "min": [
-          -0.23921841382980347,
-          -0.1970592439174652,
-          0.014000000432133675
+          -0.1921493262052536,
+          -0.14757998287677765,
+          -0.0020000000949949026
         ],
         "max": [
-          0.22673450410366058,
-          0.2707793712615967,
-          0.07400000095367432
+          0.18159668147563934,
+          0.14479461312294006,
+          0.06732355058193207
         ]
       },
       "paletteTokensUsed": [
         "wood_warm_01"
       ],
-      "vertexColorLoops": 168,
+      "vertexColorLoops": 252,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "crop_wheat_seeded_root"
@@ -5286,8 +7587,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 29,
-      "inputHash": "3493695582e0bd984cb2372f26562b3d1f6614332721a601716e9286931166b8",
+      "durationMs": 40,
+      "inputHash": "31b0276c12521c61c9a65823516accbf82444cae04075088c797b830d2ef1175",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 40,
@@ -5296,24 +7597,24 @@
         "materialsMax": 1
       },
       "warnings": [],
-      "nodes": 8,
-      "meshes": 1,
-      "triangles": 56,
-      "packagedTriangles": 56,
+      "nodes": 13,
+      "meshes": 2,
+      "triangles": 96,
+      "packagedTriangles": 96,
       "lodLevels": [],
       "materials": 1,
-      "trianglePrimitives": 1,
-      "vertexColorPrimitives": 1,
-      "normalPrimitives": 1,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 4316,
-      "fileHash": "c955ec4911bf8667d92e803709a046821642b548b016040bbc85aa8d3f325734",
-      "semanticHash": "d7d7c81e101e749fcfa0234b05869090752e937b2e6fef9db68a2cef870c4c4c",
+      "bytes": 8124,
+      "fileHash": "3e21fed4ce9d90f4d3d3fc822c7e11717f83c2d3aee879cdced6c8354dbb1266",
+      "semanticHash": "62735a8ead3bde86e1f52a7d6ae65a95702cadbdcbedd4c475f6353ebea3d049",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -5351,8 +7652,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 31,
-      "inputHash": "298b6e0d72213e0b2e66c194068ae56a21de885a2b3feb197c9c92fe765e4d1e",
+      "durationMs": 90,
+      "inputHash": "29ad68cfc03519f24618db67a2cab30f67efe6dd1f23574dfb0ca06fb444ed4c",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 180,
@@ -5417,8 +7718,8 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 19,
-      "inputHash": "16ed63f88bfab7c97d3deaea1ebdc9107593c5208189dec3e3915093dc1ead6e",
+      "durationMs": 31,
+      "inputHash": "2ba2a11e90d3260e83acbf58cf3f84b7c18611c5e650b01c0a7b904be8a46465",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 400,
@@ -5447,6 +7748,90 @@
       "semanticHash": "e997620b84f9976c414759f38421ae7608f0c0faecc6b9257c631071f58ec6bb",
       "qualityStatus": "on_target",
       "animationClips": []
+    },
+    {
+      "id": "dock_harbor_coastal_a",
+      "file": "dock_harbor_coastal_a.glb",
+      "family": "architecture",
+      "generator": "working_dock",
+      "seed": 233,
+      "dimensions": [
+        16.000000476837158,
+        5.455999851226807,
+        3.2400002479553223
+      ],
+      "bounds": {
+        "min": [
+          -7.03000020980835,
+          -2.74399995803833,
+          0
+        ],
+        "max": [
+          8.970000267028809,
+          2.7119998931884766,
+          3.2400002479553223
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "wood_coastal_01",
+        "wood_coastal_dark_01",
+        "wood_dark_01"
+      ],
+      "vertexColorLoops": 11360,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "dock_harbor_coastal_a_root",
+        "COL_dock_harbor_coastal_a"
+      ],
+      "collision": "compound",
+      "lod": "hero",
+      "readDistanceMeters": 30,
+      "durationMs": 347,
+      "inputHash": "d35a20dfb6cc7c3992c4b0ac7a6e55139ba68fb98cb6de2e6149404f03eb5198",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 3000,
+        "trianglesMax": 12000,
+        "materialsMax": 6
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "8a1cdf9dd89b76db4633ab54326185b998b13d7bd1b116f7ec441646d1e17fd7",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 129,
+      "meshes": 4,
+      "triangles": 5360,
+      "packagedTriangles": 5360,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 167920,
+      "fileHash": "31ca589d8e73dd60b33d6ed4f2d133630b703b6022585b7b20591261a877c570",
+      "semanticHash": "3845763419db540103413f709ed866bf6fcbc98dcdbffee63323edc406526682",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 4,
+        "triangles": 5360,
+        "interpolatedTriangles": 72,
+        "skinVertices": 0,
+        "deformation": []
+      }
     },
     {
       "id": "dock_straight_a",
@@ -7992,6 +10377,301 @@
       "semanticHash": "3eb1bc39b61e8e1f52182cacee0000678c3931371b7f2b22cbc864500905bd69",
       "qualityStatus": "on_target",
       "animationClips": []
+    },
+    {
+      "id": "foliage_coastal_paddle_a",
+      "file": "foliage_coastal_paddle_a.glb",
+      "family": "vegetation",
+      "generator": "coastal_understory",
+      "seed": 8651,
+      "dimensions": [
+        2.2156009674072266,
+        1.9917000532150269,
+        1.4887309968471527
+      ],
+      "bounds": {
+        "min": [
+          -1.074441909790039,
+          -0.8993328809738159,
+          0.07446351647377014
+        ],
+        "max": [
+          1.1411590576171875,
+          1.092367172241211,
+          1.5631945133209229
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_coastal_01",
+        "foliage_coastal_shade_01",
+        "foliage_coastal_sun_01"
+      ],
+      "vertexColorLoops": 2004,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "foliage_coastal_paddle_a_root",
+        "foliage_coastal_paddle_a_LOD0",
+        "foliage_coastal_paddle_a_LOD1"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 3,
+      "inputHash": "898b00fbca7de91ba20cd32784aa0e0f75f7611169e5d84054c6517e3a27f5dc",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 160,
+        "trianglesTarget": 1500,
+        "trianglesMax": 6500,
+        "materialsMax": 3
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "b37b46bc076adeca2bc280951c3ae79faeba9b0c592a25a93644540df0e04bfd",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [
+        "756 triangles are below quality target 1500"
+      ],
+      "nodes": 9,
+      "meshes": 6,
+      "triangles": 756,
+      "packagedTriangles": 1016,
+      "lodLevels": [
+        {
+          "node": "foliage_coastal_paddle_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 756,
+          "ratio": 1
+        },
+        {
+          "node": "foliage_coastal_paddle_a_LOD1",
+          "distanceMeters": 32,
+          "triangles": 260,
+          "ratio": 0.3439153439153439
+        }
+      ],
+      "materials": 3,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 39104,
+      "fileHash": "fc765c91caa04889f0b820d192aca53a55ca58be67908ead2b36c38f1de3194f",
+      "semanticHash": "785782d50a8c9b87ca06393645308a44cdaf4994b69d35ad12a30bc7afc02f89",
+      "qualityStatus": "below_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 1016,
+        "interpolatedTriangles": 792,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "foliage_coastal_shrub_a",
+      "file": "foliage_coastal_shrub_a.glb",
+      "family": "vegetation",
+      "generator": "coastal_understory",
+      "seed": 8685,
+      "dimensions": [
+        1.4615797400474548,
+        1.5254641771316528,
+        0.6618008613586426
+      ],
+      "bounds": {
+        "min": [
+          -0.7607989311218262,
+          -0.7697763442993164,
+          0.16924262046813965
+        ],
+        "max": [
+          0.7007808089256287,
+          0.7556878328323364,
+          0.8310434818267822
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_coastal_01",
+        "foliage_coastal_shade_01",
+        "foliage_coastal_sun_01"
+      ],
+      "vertexColorLoops": 3906,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "foliage_coastal_shrub_a_root",
+        "foliage_coastal_shrub_a_LOD0",
+        "foliage_coastal_shrub_a_LOD1"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 0,
+      "inputHash": "b7d675d3235f52bdee75ca392da3abc2d54936ece06eba230f8ef2c6fcdefff2",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 160,
+        "trianglesTarget": 1500,
+        "trianglesMax": 6500,
+        "materialsMax": 3
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "877d5b58bd3ab300dac29e8bdc70c5bfd5483201389a3bb10178ba8855a6e355",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 9,
+      "meshes": 6,
+      "triangles": 1512,
+      "packagedTriangles": 1980,
+      "lodLevels": [
+        {
+          "node": "foliage_coastal_shrub_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 1512,
+          "ratio": 1
+        },
+        {
+          "node": "foliage_coastal_shrub_a_LOD1",
+          "distanceMeters": 32,
+          "triangles": 468,
+          "ratio": 0.30952380952380953
+        }
+      ],
+      "materials": 3,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 62108,
+      "fileHash": "712f0987198ec63d2b3bb746e51ea444165db543bd09326b8f7468f83818ee51",
+      "semanticHash": "5b01e537fa0fca1b4c04c83b74303cf7eac9a3fcbca3874bc576aaf2370bf5ee",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 1980,
+        "interpolatedTriangles": 1548,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "foliage_coastal_split_a",
+      "file": "foliage_coastal_split_a.glb",
+      "family": "vegetation",
+      "generator": "coastal_understory",
+      "seed": 8668,
+      "dimensions": [
+        2.428886651992798,
+        2.3586645126342773,
+        1.3225708901882172
+      ],
+      "bounds": {
+        "min": [
+          -1.1595418453216553,
+          -1.189549207687378,
+          0.07286849617958069
+        ],
+        "max": [
+          1.2693448066711426,
+          1.1691153049468994,
+          1.3954393863677979
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_coastal_01",
+        "foliage_coastal_shade_01",
+        "foliage_coastal_sun_01"
+      ],
+      "vertexColorLoops": 2336,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "foliage_coastal_split_a_root",
+        "foliage_coastal_split_a_LOD0",
+        "foliage_coastal_split_a_LOD1"
+      ],
+      "collision": "none",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 2,
+      "inputHash": "efb94cc00211b6f245d7a9ff0c0faee222ea64b72e63ae256440383024282975",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 160,
+        "trianglesTarget": 1500,
+        "trianglesMax": 6500,
+        "materialsMax": 3
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "d91242a0e9d21ece71092592bbb39953822558daeabd2b8e0d5196255129033f",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [
+        "924 triangles are below quality target 1500"
+      ],
+      "nodes": 9,
+      "meshes": 6,
+      "triangles": 924,
+      "packagedTriangles": 1184,
+      "lodLevels": [
+        {
+          "node": "foliage_coastal_split_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 924,
+          "ratio": 1
+        },
+        {
+          "node": "foliage_coastal_split_a_LOD1",
+          "distanceMeters": 32,
+          "triangles": 260,
+          "ratio": 0.2813852813852814
+        }
+      ],
+      "materials": 3,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 43072,
+      "fileHash": "cf9dcff518770b853cb8f9d1fdaba9f41fbe00d512d5a7a4819d197f377c9b11",
+      "semanticHash": "a4776f18ae9aa8df381b5dae9529cc3ebbd71f7cd483b928e0649707071fc307",
+      "qualityStatus": "below_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 1184,
+        "interpolatedTriangles": 928,
+        "skinVertices": 0,
+        "deformation": []
+      }
     },
     {
       "id": "foliage_flower_drift_a",
@@ -13082,19 +15762,19 @@
       "generator": "marker_buoy",
       "seed": 118,
       "dimensions": [
-        0.36000001430511475,
-        0.36000001430511475,
+        0.4320000112056732,
+        0.4320000112056732,
         2.8575000762939453
       ],
       "bounds": {
         "min": [
-          -0.18000000715255737,
-          -0.18000000715255737,
+          -0.2160000056028366,
+          -0.2160000056028366,
           0
         ],
         "max": [
-          0.18000000715255737,
-          0.18000000715255737,
+          0.2160000056028366,
+          0.2160000056028366,
           2.8575000762939453
         ]
       },
@@ -13102,9 +15782,9 @@
         "accent_red_01",
         "burlap_grain_01",
         "canvas_cream_01",
-        "metal_dark_01"
+        "metal_iron_01"
       ],
-      "vertexColorLoops": 1016,
+      "vertexColorLoops": 1196,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_marker_buoy_a_root"
@@ -13112,8 +15792,8 @@
       "collision": "none",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 11,
-      "inputHash": "73836bb2995b0e25e835bd9cd3ae44e6cca6ac37b3da561ed2e018e16884debf",
+      "durationMs": 70,
+      "inputHash": "c4df7edd3de1ea11665badbeb0001f44f664da207ac1314b7ff6a2e800f423d8",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 120,
@@ -13124,8 +15804,8 @@
       "warnings": [],
       "nodes": 17,
       "meshes": 4,
-      "triangles": 528,
-      "packagedTriangles": 528,
+      "triangles": 588,
+      "packagedTriangles": 588,
       "lodLevels": [],
       "materials": 4,
       "trianglePrimitives": 4,
@@ -13137,9 +15817,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 22664,
-      "fileHash": "8e013ae141f11bab2c27be0d27fc036931c9bed0cf97f2677f97529e45e81f84",
-      "semanticHash": "fe75a87622eb7efb5e392574a6d147c3c56d1ef6a37dd6658fc9767154996d54",
+      "bytes": 25492,
+      "fileHash": "af2a683a36a692b5b752200d66ab4ab5b7f0d4cbd9f2aa0a2da33f5c1da4ebe9",
+      "semanticHash": "f5d42e53c1eb2ff0ec31983f537c01d75cf0e9c558903cb3252d53d0601a9ce9",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -15939,6 +18619,301 @@
       "animationClips": []
     },
     {
+      "id": "rock_harbor_fractured_a",
+      "file": "rock_harbor_fractured_a.glb",
+      "family": "rock",
+      "generator": "coastal_rock",
+      "seed": 8702,
+      "dimensions": [
+        6.378488540649414,
+        3.279297351837158,
+        3.841596841812134
+      ],
+      "bounds": {
+        "min": [
+          -3.580157995223999,
+          -1.5929728746414185,
+          0
+        ],
+        "max": [
+          2.798330545425415,
+          1.6863244771957397,
+          3.841596841812134
+        ]
+      },
+      "paletteTokensUsed": [
+        "stone_coastal_light_01",
+        "stone_coastal_warm_01"
+      ],
+      "vertexColorLoops": 3276,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "rock_harbor_fractured_a_root",
+        "rock_harbor_fractured_a_LOD0",
+        "rock_harbor_fractured_a_LOD1",
+        "COL_rock_harbor_fractured_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 2,
+      "inputHash": "eb45edc4083d83625c6aa0f565220113151f295efbd7a02670dbb0845ea2daa3",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 1100,
+        "trianglesMax": 4000,
+        "materialsMax": 2
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "a5a285ae6dc2a777088c22df38c5b709955079951749aa851ea12aa36ef6c84a",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 8,
+      "meshes": 4,
+      "triangles": 1482,
+      "packagedTriangles": 1662,
+      "lodLevels": [
+        {
+          "node": "rock_harbor_fractured_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 1482,
+          "ratio": 1
+        },
+        {
+          "node": "rock_harbor_fractured_a_LOD1",
+          "distanceMeters": 38,
+          "triangles": 180,
+          "ratio": 0.1214574898785425
+        }
+      ],
+      "materials": 2,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 43084,
+      "fileHash": "57a943da704c24327bc14cd73d92afac0ccb32e81dffe514c9b013af177f0588",
+      "semanticHash": "39826c3010295755ad34764b35aa0b24fa72ce31cbdeb2074497ff903a7464f8",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 1662,
+        "interpolatedTriangles": 0,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "rock_harbor_fractured_b",
+      "file": "rock_harbor_fractured_b.glb",
+      "family": "rock",
+      "generator": "coastal_rock",
+      "seed": 8719,
+      "dimensions": [
+        5.797334432601929,
+        3.9559755325317383,
+        2.1276535987854004
+      ],
+      "bounds": {
+        "min": [
+          -3.46511173248291,
+          -1.8107223510742188,
+          0
+        ],
+        "max": [
+          2.3322227001190186,
+          2.1452531814575195,
+          2.1276535987854004
+        ]
+      },
+      "paletteTokensUsed": [
+        "stone_coastal_light_01",
+        "stone_coastal_warm_01"
+      ],
+      "vertexColorLoops": 2368,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "rock_harbor_fractured_b_root",
+        "rock_harbor_fractured_b_LOD0",
+        "rock_harbor_fractured_b_LOD1",
+        "COL_rock_harbor_fractured_b"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 1,
+      "inputHash": "e123b29b167d7d04d205810f46e45ae18620004458aec0268ffa42cac692f0cc",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 1100,
+        "trianglesMax": 4000,
+        "materialsMax": 2
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "0d1b25dad8269eb979ddefd7952c1c9ad675b1283bdf40c5946b3ae65dc82b9f",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [
+        "1080 triangles are below quality target 1100"
+      ],
+      "nodes": 8,
+      "meshes": 4,
+      "triangles": 1080,
+      "packagedTriangles": 1200,
+      "lodLevels": [
+        {
+          "node": "rock_harbor_fractured_b_LOD0",
+          "distanceMeters": 0,
+          "triangles": 1080,
+          "ratio": 1
+        },
+        {
+          "node": "rock_harbor_fractured_b_LOD1",
+          "distanceMeters": 38,
+          "triangles": 120,
+          "ratio": 0.1111111111111111
+        }
+      ],
+      "materials": 2,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 33668,
+      "fileHash": "051862a287102c569cd9a1d1b1bed8738ee58e50ea9b18ac004272062190d063",
+      "semanticHash": "e74f695f3ef91cacae9ab4e1a55b42b3f89978cd99cb96c6dc9ee1834951f3b5",
+      "qualityStatus": "below_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 1200,
+        "interpolatedTriangles": 0,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "rock_harbor_fractured_c",
+      "file": "rock_harbor_fractured_c.glb",
+      "family": "rock",
+      "generator": "coastal_rock",
+      "seed": 8736,
+      "dimensions": [
+        3.646824359893799,
+        2.685808539390564,
+        4.137104034423828
+      ],
+      "bounds": {
+        "min": [
+          -2.054629325866699,
+          -1.277786135673523,
+          0
+        ],
+        "max": [
+          1.5921950340270996,
+          1.408022403717041,
+          4.137104034423828
+        ]
+      },
+      "paletteTokensUsed": [
+        "stone_coastal_light_01",
+        "stone_coastal_warm_01"
+      ],
+      "vertexColorLoops": 1940,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "rock_harbor_fractured_c_root",
+        "rock_harbor_fractured_c_LOD0",
+        "rock_harbor_fractured_c_LOD1",
+        "COL_rock_harbor_fractured_c"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 2,
+      "inputHash": "d745f6ed7b92de5659991abdb01a1406a5440e7b6e2dc407e83bfa2ef58867e1",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 1100,
+        "trianglesMax": 4000,
+        "materialsMax": 2
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "87ee0aa35e5b15d2e81c621cd579f9129513d2b95114c275f63494f995702dbe",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [
+        "866 triangles are below quality target 1100"
+      ],
+      "nodes": 8,
+      "meshes": 4,
+      "triangles": 866,
+      "packagedTriangles": 986,
+      "lodLevels": [
+        {
+          "node": "rock_harbor_fractured_c_LOD0",
+          "distanceMeters": 0,
+          "triangles": 866,
+          "ratio": 1
+        },
+        {
+          "node": "rock_harbor_fractured_c_LOD1",
+          "distanceMeters": 38,
+          "triangles": 120,
+          "ratio": 0.13856812933025403
+        }
+      ],
+      "materials": 2,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 29732,
+      "fileHash": "5e28add29a44681d4f3b684cfa76403cd0f1085dbe4df2cb61473d3ae23b008b",
+      "semanticHash": "b5f3c7b7f0093e41ee7eaea27826e2ba59f3bdf04451d94b1fb9799b52ee361f",
+      "qualityStatus": "below_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 6,
+        "triangles": 986,
+        "interpolatedTriangles": 0,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
       "id": "rock_pebble_cluster_a",
       "file": "rock_pebble_cluster_a.glb",
       "family": "rock",
@@ -16804,6 +19779,305 @@
       "semanticHash": "7319a5d028cafc1336bf2445f328507180675c3b876245e2e54a3e0765aedff9",
       "qualityStatus": "on_target",
       "animationClips": []
+    },
+    {
+      "id": "tree_coastal_palm_a",
+      "file": "tree_coastal_palm_a.glb",
+      "family": "vegetation",
+      "generator": "coastal_palm",
+      "seed": 8600,
+      "dimensions": [
+        6.873042106628418,
+        6.877556085586548,
+        8.054553534835577
+      ],
+      "bounds": {
+        "min": [
+          -1.9456138610839844,
+          -3.4170749187469482,
+          -0.0258498452603817
+        ],
+        "max": [
+          4.927428245544434,
+          3.4604811668395996,
+          8.028703689575195
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_coastal_01",
+        "foliage_coastal_shade_01",
+        "foliage_coastal_sun_01",
+        "wood_coastal_01"
+      ],
+      "vertexColorLoops": 21402,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "tree_coastal_palm_a_root",
+        "tree_coastal_palm_a_LOD0",
+        "tree_coastal_palm_a_LOD1",
+        "COL_tree_coastal_palm_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 3,
+      "inputHash": "494301cc5dc9b866e51bc3500bf16b474d0424502a324f6161f0285bd2a49876",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 7000,
+        "trianglesMax": 14000,
+        "materialsMax": 4
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "1fad81ed6f877ddd9edaa52ca802f1f79070540429cbcf815771c9f7b6a28fe2",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 12,
+      "meshes": 8,
+      "triangles": 8028,
+      "packagedTriangles": 10822,
+      "lodLevels": [
+        {
+          "node": "tree_coastal_palm_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 8028,
+          "ratio": 1
+        },
+        {
+          "node": "tree_coastal_palm_a_LOD1",
+          "distanceMeters": 32,
+          "triangles": 2794,
+          "ratio": 0.34803188839063276
+        }
+      ],
+      "materials": 4,
+      "trianglePrimitives": 8,
+      "vertexColorPrimitives": 8,
+      "normalPrimitives": 8,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 315404,
+      "fileHash": "fca99d260be81148eb7c2d01c8b1d6abffaac3a7035056119cec262c373e811b",
+      "semanticHash": "4ba725dfd874eae48dd69c4247e1d4507c30ea1f3578b3b8f01618c7cc677f76",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 8,
+        "triangles": 10822,
+        "interpolatedTriangles": 9228,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "tree_coastal_palm_b",
+      "file": "tree_coastal_palm_b.glb",
+      "family": "vegetation",
+      "generator": "coastal_palm",
+      "seed": 8617,
+      "dimensions": [
+        6.7277814745903015,
+        7.352314472198486,
+        9.7598358951509
+      ],
+      "bounds": {
+        "min": [
+          -0.5158268809318542,
+          -3.874713659286499,
+          -0.03126877173781395
+        ],
+        "max": [
+          6.211954593658447,
+          3.4776008129119873,
+          9.728567123413086
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_coastal_01",
+        "foliage_coastal_shade_01",
+        "foliage_coastal_sun_01",
+        "wood_coastal_01"
+      ],
+      "vertexColorLoops": 24282,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "tree_coastal_palm_b_root",
+        "tree_coastal_palm_b_LOD0",
+        "tree_coastal_palm_b_LOD1",
+        "COL_tree_coastal_palm_b"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 3,
+      "inputHash": "60fd445fb68e933036e4a63ea6b078c5c27594fd16e895c54fe911f43b71cffc",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 7000,
+        "trianglesMax": 14000,
+        "materialsMax": 4
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "1226a305c85b315d3d67cb001740ee75cb7c1caa3540afd274c86e18d6cfa914",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [],
+      "nodes": 12,
+      "meshes": 8,
+      "triangles": 9144,
+      "packagedTriangles": 12262,
+      "lodLevels": [
+        {
+          "node": "tree_coastal_palm_b_LOD0",
+          "distanceMeters": 0,
+          "triangles": 9144,
+          "ratio": 1
+        },
+        {
+          "node": "tree_coastal_palm_b_LOD1",
+          "distanceMeters": 32,
+          "triangles": 3118,
+          "ratio": 0.3409886264216973
+        }
+      ],
+      "materials": 4,
+      "trianglePrimitives": 8,
+      "vertexColorPrimitives": 8,
+      "normalPrimitives": 8,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 354776,
+      "fileHash": "1bcc9fd1bef35c23b07fdb2ab93fd14a5cfb37f1644b3004ca02dc1c8ec5fb7b",
+      "semanticHash": "156cd14c2616d0de266250c2ba9bc9e96e38f4bce9f97ef0da2131bd0d05e219",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 8,
+        "triangles": 12262,
+        "interpolatedTriangles": 10452,
+        "skinVertices": 0,
+        "deformation": []
+      }
+    },
+    {
+      "id": "tree_coastal_palm_young",
+      "file": "tree_coastal_palm_young.glb",
+      "family": "vegetation",
+      "generator": "coastal_palm",
+      "seed": 8634,
+      "dimensions": [
+        5.477064609527588,
+        5.590454578399658,
+        5.761536743491888
+      ],
+      "bounds": {
+        "min": [
+          -2.1823384761810303,
+          -2.483694553375244,
+          -0.03297009691596031
+        ],
+        "max": [
+          3.2947261333465576,
+          3.106760025024414,
+          5.728566646575928
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_coastal_01",
+        "foliage_coastal_shade_01",
+        "foliage_coastal_sun_01",
+        "wood_coastal_01"
+      ],
+      "vertexColorLoops": 15642,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "tree_coastal_palm_young_root",
+        "tree_coastal_palm_young_LOD0",
+        "tree_coastal_palm_young_LOD1",
+        "COL_tree_coastal_palm_young"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 36,
+      "durationMs": 2,
+      "inputHash": "5fa1f2e4a195e2c42d4721f8b79b0181ad240336002a84f9897230bb080e4128",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 7000,
+        "trianglesMax": 14000,
+        "materialsMax": 4
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "briefHash": "e6d6cb40ad8c61dd0213fc25aeaf8340089f5bc1a88eaec18edcb61b85cd4b03",
+        "sources": 1,
+        "components": 3,
+        "criticalFeatures": 3,
+        "reviewViews": 8
+      },
+      "warnings": [
+        "6036 triangles are below quality target 7000"
+      ],
+      "nodes": 12,
+      "meshes": 8,
+      "triangles": 6036,
+      "packagedTriangles": 7942,
+      "lodLevels": [
+        {
+          "node": "tree_coastal_palm_young_LOD0",
+          "distanceMeters": 0,
+          "triangles": 6036,
+          "ratio": 1
+        },
+        {
+          "node": "tree_coastal_palm_young_LOD1",
+          "distanceMeters": 32,
+          "triangles": 1906,
+          "ratio": 0.3157720344599072
+        }
+      ],
+      "materials": 4,
+      "trianglePrimitives": 8,
+      "vertexColorPrimitives": 8,
+      "normalPrimitives": 8,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 237016,
+      "fileHash": "43c743ad711562d16ded25ab15c6a5850a30b4d10d825830aa700c233c474dc4",
+      "semanticHash": "3f0dc1e30fb730658446190a4a962b903abfb16378aa3859893a1d7b1db1bb3d",
+      "qualityStatus": "below_target",
+      "animationClips": [],
+      "surfaceContract": {
+        "primitives": 8,
+        "triangles": 7942,
+        "interpolatedTriangles": 6624,
+        "skinVertices": 0,
+        "deformation": []
+      }
     },
     {
       "id": "tree_dead_a",

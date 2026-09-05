@@ -19,7 +19,7 @@ import { GameCamera } from "../render/camera/GameCamera";
 import { InputRouter } from "../input/InputRouter";
 import { FISHING_STEER_INPUT_MAX } from "../simulation/fishing/FishingTuning";
 import { IndexedDbSaveRepository, type LoadGameResult } from "../persistence/IndexedDbSaveRepository";
-import { GameAction, MarketId, ProcessingJobState, FishCargoState } from "../simulation/core/types";
+import { GameAction, MarketId, ProcessingJobState, FishCargoState, WeatherTag } from "../simulation/core/types";
 import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { GameUI } from "../ui/GameUI";
@@ -212,6 +212,8 @@ export interface NevaDebugApi {
   setCaptureRenderMode: (mode: CaptureRenderMode) => void;
   setFieldOverlay: (mode: WorldFieldOverlay | null) => void;
   setWorldOnly: (worldOnly: boolean) => void;
+  /** Local, persistence-disabled comparisons without replacing the gameplay camera. */
+  setReviewEnvironment: (options: { minute: number; weather: WeatherTag; presentationTimeSeconds: number | null }) => void;
   acceptanceRoute: (routeId: string) => readonly { x: number; z: number; distance: number }[];
   acceptanceBridgePosition: () => { x: number; z: number };
 }
@@ -610,6 +612,7 @@ export class GameApp {
   private benchmarkCameraView: ArtViewPreset | null = null;
   private benchmarkLightingFocus: THREE.Vector3 | null = null;
   private benchmarkPresentationTimeSeconds: number | null = null;
+  private lastPresentationTimeSeconds = 0;
   private benchmarkGoldTestId: GoldTestId | null = null;
   private benchmarkWorldSeed = 42;
   private readonly worldAcceptance = localWorldAcceptanceRequested(new URLSearchParams(window.location.search));
@@ -1777,6 +1780,7 @@ export class GameApp {
     // 4. Synchronize 3D Visuals
     const state = this.sim.getState();
     const presentationTimeSeconds = this.benchmarkPresentationTimeSeconds ?? nowMs / 1000;
+    this.lastPresentationTimeSeconds = presentationTimeSeconds;
     const presentedPlayer = this.playerPresentation.sample(
       this.physicsAccumulatorSeconds * 60,
       deltaSeconds
@@ -3043,7 +3047,7 @@ export class GameApp {
           presentation: {
             minute: this.sim.state.clock.currentMinute,
             weather: this.sim.state.weather.type,
-            timeSeconds: this.benchmarkPresentationTimeSeconds ?? 0,
+            timeSeconds: this.lastPresentationTimeSeconds,
             fps: this.fps
           },
           world
@@ -3058,6 +3062,14 @@ export class GameApp {
       },
       setWorldOnly: (worldOnly) => {
         this.uiContainer.style.display = worldOnly ? "none" : "";
+      },
+      setReviewEnvironment: ({ minute, weather, presentationTimeSeconds }) => {
+        if (!this.worldAcceptance) throw new Error("Review environment requires persistence-disabled local world acceptance");
+        this.sim.setDebugMinute(minute);
+        this.sim.setDebugWeather(weather);
+        // Keep actor and mount clocks monotonic during normal-camera review.
+        // A fixed time is reserved for the pre-existing benchmark camera path.
+        if (this.benchmarkView) this.benchmarkPresentationTimeSeconds = presentationTimeSeconds;
       },
       acceptanceRoute: (routeId) => {
         const route = WorldLayout.compiledRouteNetwork().find((candidate) => candidate.route.id === routeId);

@@ -10,7 +10,7 @@
   --mobile-control-right: max(12px, env(safe-area-inset-right));
   --mobile-control-size: 48px;
   --mobile-joystick-size: clamp(112px, 18vw, 148px);
-  --mobile-cluster-height: calc(var(--mobile-control-size) * 2 + 8px);
+  --mobile-cluster-height: calc(var(--mobile-control-size) * 3 + 16px);
   --mobile-controls-stack: max(var(--mobile-joystick-size), var(--mobile-cluster-height));
   --mobile-hud-gap: 16px;
   --mobile-hud-lift: calc(var(--mobile-control-bottom) + var(--mobile-controls-stack) + var(--mobile-hud-gap));

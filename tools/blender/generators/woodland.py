@@ -18,6 +18,7 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_limb_tube,
     add_tapered_beam,
     add_tri_prism,
     seeded_rng,
@@ -34,20 +35,13 @@ def _tapered_trunk(prefix, base_radius, top_radius, height, lean, token, root, *
         t = index / sections
         # Lean accumulates with height, so the base stays planted.
         joints.append((math.sin(lean) * height * t * t, 0.0, height * t))
-    for index in range(sections):
-        t0, t1 = index / sections, (index + 1) / sections
-        add_tapered_beam(
-            f"{prefix}_{index}", joints[index], joints[index + 1],
-            base_radius + (top_radius - base_radius) * t0,
-            base_radius + (top_radius - base_radius) * t1,
-            token, root, vertices=vertices,
-        )
+    add_limb_tube(prefix, joints, [base_radius + (top_radius - base_radius) * i / sections for i in range(sections + 1)], token, root, sides=vertices)
     return joints[-1]
 
 
 def _canopy_blob(name, center, scale, token, root, *, rng, subdivisions=2):
     add_ico(name, center, scale, token, root, subdivisions=subdivisions,
-            rotation=(rng.uniform(-0.30, 0.30), rng.uniform(-0.30, 0.30), rng.uniform(0, math.pi)))
+            rotation=(rng.uniform(-0.30, 0.30), rng.uniform(-0.30, 0.30), rng.uniform(0, math.pi)), normal_mode="rounded")
 
 
 def broadleaf_oak(spec: dict, root) -> None:
@@ -249,7 +243,7 @@ def dead_tree(spec: dict, root) -> None:
         add_ico(
             f"snag_moss_{index}", (math.cos(angle) * 0.30, math.sin(angle) * 0.30, 0.10 + index * 0.14),
             (0.16, 0.14, 0.09), moss, root, rotation=(0, 0, angle),
-        )
+        normal_mode="rounded")
     add_box("snag_bark_scar", (-0.22, 0.10, height * 0.36), (0.10, 0.24, 1.05), dark, root,
             rotation=(0, math.radians(6), 0), bevel=0.0)
 
@@ -259,7 +253,7 @@ def cattail_reeds(spec: dict, root) -> None:
     olive, sage, brown, yellow = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("cattail_base_mud", (0, 0, 0.025), (0.17, 0.13, 0.045), brown, root)
+    add_ico("cattail_base_mud", (0, 0, 0.025), (0.17, 0.13, 0.045), brown, root, normal_mode="rounded")
     for index in range(9):
         angle = index * GOLDEN_ANGLE
         lean = rng.uniform(0.10, 0.34)
@@ -317,7 +311,7 @@ def lily_pad_cluster(spec: dict, root) -> None:
             f"lily_petal_{index}", (bx + math.cos(angle) * 0.040, by + math.sin(angle) * 0.040, 0.020),
             (0.030, 0.055, 0.010), cream, root, rotation=(math.radians(10), 0, angle),
         )
-    add_ico("lily_bloom_heart", (bx, by, 0.025), (0.016, 0.016, 0.008), ochre, root)
+    add_ico("lily_bloom_heart", (bx, by, 0.025), (0.016, 0.016, 0.008), ochre, root, normal_mode="rounded")
 
 
 def round_bush(spec: dict, root) -> None:
@@ -326,7 +320,7 @@ def round_bush(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     spread = 0.42
 
-    add_ico("bush_crown", (0, 0, 0.045), (0.13, 0.12, 0.055), bark, root)
+    add_ico("bush_crown", (0, 0, 0.045), (0.13, 0.12, 0.055), bark, root, normal_mode="rounded")
     tips = []
     for index in range(6):
         angle = index * GOLDEN_ANGLE
@@ -413,7 +407,7 @@ def mushroom_cluster(spec: dict, root) -> None:
     cap, stem, shadow = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("shroom_litter", (0, 0, 0.014), (0.125, 0.115, 0.026), shadow, root)
+    add_ico("shroom_litter", (0, 0, 0.014), (0.125, 0.115, 0.026), shadow, root, normal_mode="rounded")
     caps = ((0.0, 0.0, 0.115, 0.075), (-0.075, 0.045, 0.078, 0.052), (0.065, -0.052, 0.055, 0.038))
     for index, (px, py, height, radius) in enumerate(caps):
         add_cone(f"shroom_stem_{index}", (px, py, height * 0.44), radius * 0.36, radius * 0.28, height * 0.88, stem, root, vertices=7)
@@ -429,7 +423,7 @@ def mushroom_cluster(spec: dict, root) -> None:
                 f"shroom_spot_{index}_{spot}",
                 (px + math.cos(angle) * radius * 0.46, py + math.sin(angle) * radius * 0.46, height * 0.96),
                 (radius * 0.17, radius * 0.17, 0.006), stem, root,
-            )
+            normal_mode="rounded")
 
 
 def beach_grass_tuft(spec: dict, root) -> None:
@@ -437,7 +431,7 @@ def beach_grass_tuft(spec: dict, root) -> None:
     yellow, olive, sand = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("marram_hummock", (0, 0, 0.028), (0.19, 0.18, 0.055), sand, root)
+    add_ico("marram_hummock", (0, 0, 0.028), (0.19, 0.18, 0.055), sand, root, normal_mode="rounded")
     for index in range(14):
         angle = index * GOLDEN_ANGLE
         height = rng.uniform(0.22, 0.46)
@@ -457,7 +451,7 @@ def seagrass_tuft(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     drift = 0.42
 
-    add_ico("seagrass_root_mat", (0, 0, 0.018), (0.11, 0.075, 0.032), shadow, root)
+    add_ico("seagrass_root_mat", (0, 0, 0.018), (0.11, 0.075, 0.032), shadow, root, normal_mode="rounded")
     for index in range(12):
         angle = index * GOLDEN_ANGLE
         height = rng.uniform(0.24, 0.46)
@@ -478,11 +472,9 @@ def algae_frond(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     height = 0.74
 
-    add_ico("frond_holdfast", (0, 0, 0.030), (0.095, 0.080, 0.055), shadow, root)
+    add_ico("frond_holdfast", (0, 0, 0.030), (0.095, 0.080, 0.055), shadow, root, normal_mode="rounded")
     joints = [(0, 0, 0.05), (0.06, 0.02, 0.28), (0.02, -0.03, 0.50), (0.09, 0.01, height)]
-    for index in range(3):
-        add_tapered_beam(f"frond_stipe_{index}", joints[index], joints[index + 1],
-                         0.020 - index * 0.004, 0.016 - index * 0.004, olive, root, vertices=5)
+    add_limb_tube("frond_stipe", joints, [.020, .016, .012, .008], olive, root, sides=5)
     # Blades come off the stipe in pairs and hang outward from it.
     for index in range(5):
         t = 0.20 + index * 0.17
@@ -496,4 +488,4 @@ def algae_frond(spec: dict, root) -> None:
                 (0.055, 0.22, 0.016), pine if index % 2 else olive, root,
                 rotation=(math.radians(78), rng.uniform(-0.2, 0.2), angle),
             )
-    add_ico("frond_float_bladder", (0.08, 0.0, height - 0.03), (0.035, 0.032, 0.045), olive, root)
+    add_ico("frond_float_bladder", (0.08, 0.0, height - 0.03), (0.035, 0.032, 0.045), olive, root, normal_mode="rounded")

@@ -43,6 +43,8 @@ export function buildShoreFoamPatches(): ShoreFoamPatch[] {
     x <= WORLD_BOUNDS.maxX;
     x += SHORE_FOAM_STYLE.coastSpacing
   ) {
+    // The reference coast uses the continuous water/terrain swash field.
+    if (x >= 78 && x <= 164) { index += 1; continue; }
     const shoreline = WorldLayout.coastlineZ(x);
     if (
       Math.abs(x - mouth.x) < openingHalfWidth

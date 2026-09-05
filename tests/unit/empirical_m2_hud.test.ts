@@ -5,56 +5,31 @@ import { createInitialGameState } from "../../src/simulation/core/createInitialS
 import { LegacyHUD as HUD } from "./uiTestHelpers";
 import { QuestTrackerHUD } from "../../src/ui/QuestTrackerHUD";
 import { FarmForecastPopover } from "../../src/ui/components/FarmForecastPopover";
-import { CelestialTimeDial } from "../../src/ui/HudDecorations";
+import { buildWorldHudDto } from "../../src/simulation/presentation/WorldHudPresentation";
 import { playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
 import { dayOfSeason } from "../../src/simulation/core/GameClock";
 
 describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
-  describe("1. CelestialTimeDial Rotation Math & Astronomical Cycle", () => {
-    const calcRotation = (minute: number) => ((minute - 720) / 1440) * 360;
-
-    it("evaluates exact solar zenith at noon (12:00 = minute 720) -> 0°", () => {
-      const rotation = calcRotation(720);
-      expect(rotation).toBe(0);
-      const html = renderToString(React.createElement(CelestialTimeDial, { rotation, isNight: false }));
-      expect(html).toContain("rotate(0 27 27)");
-      expect(html).toContain("#243a5e"); // Day sky gradient stop
-    });
-
-    it("evaluates solar sunset / dusk (18:00 = minute 1080) -> +90°", () => {
-      const rotation = calcRotation(1080);
-      expect(rotation).toBe(90);
-      const html = renderToString(React.createElement(CelestialTimeDial, { rotation, isNight: true }));
-      expect(html).toContain("rotate(90 27 27)");
-      expect(html).toContain("#121b2d"); // Night/dusk sky gradient stop
-    });
-
-    it("evaluates lunar zenith at midnight (00:00 = minute 0) -> -180° (equivalent to 180°)", () => {
-      const rotation = calcRotation(0);
-      expect(rotation).toBe(-180);
-      const html = renderToString(React.createElement(CelestialTimeDial, { rotation, isNight: true }));
-      expect(html).toContain("rotate(-180 27 27)");
-      expect(html).toContain("#121b2d");
-    });
-
-    it("evaluates solar sunrise / dawn (06:00 = minute 360) -> -90° (270°)", () => {
-      const rotation = calcRotation(360);
-      expect(rotation).toBe(-90);
-      const html = renderToString(React.createElement(CelestialTimeDial, { rotation, isNight: false }));
-      expect(html).toContain("rotate(-90 27 27)");
-    });
-
-    it("evaluates end of day (24:00 = minute 1440) -> +180°", () => {
-      const rotation = calcRotation(1440);
-      expect(rotation).toBe(180);
-      const html = renderToString(React.createElement(CelestialTimeDial, { rotation, isNight: true }));
-      expect(html).toContain("rotate(180 27 27)");
+  describe("1. Live clock presentation from simulation time", () => {
+    it.each([
+      { minute: 720, timeOfDay: "day", rotation: 0, isNight: false },
+      { minute: 1080, timeOfDay: "dusk", rotation: 90, isNight: true },
+      { minute: 0, timeOfDay: "night", rotation: -180, isNight: true },
+      { minute: 360, timeOfDay: "dawn", rotation: -90, isNight: false },
+      { minute: 1439, timeOfDay: "night", rotation: 179.75, isNight: true }
+    ] as const)("renders minute $minute at $rotation degrees", ({ minute, timeOfDay, rotation, isNight }) => {
+      const state = createInitialGameState();
+      state.clock.currentMinute = minute;
+      state.clock.timeOfDay = timeOfDay;
+      const html = renderToString(React.createElement(HUD, { state, promptText: null }));
+      expect(html).toContain(`style="transform:rotate(${rotation}deg)"`);
+      expect(html.includes("tidebook-night-mark")).toBe(isNight);
     });
   });
 
-  describe("2. Top-Left Almanac Plaque & Conditions Presentation", () => {
+  describe("2. Almanac and conditions presentation", () => {
     it("renders digital clock, season, weather label, temperature in °C, and gold purse", () => {
       const state = createInitialGameState();
       state.clock.currentMinute = 815; // 13:35
@@ -72,23 +47,19 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
         })
       );
 
-      // Top-Left container
-      expect(html).toContain("hud-top-left-container");
-      expect(html).toContain("hud-almanac-panel");
-      // Digital Clock data-testid and formatted time
+      const normalizedHtml = html.replace(/<!-- -->/g, "");
+      const temperature = buildWorldHudDto(state).weather.temperatureC;
+      expect(html).toContain('data-testid="nautical-compass-almanac"');
       expect(html).toContain('data-testid="game-clock"');
       expect(html).toContain("13:35");
-      // Season and Day
-      // Derived from the shared owner so the assertion survives calendar retuning.
-      expect(html).toContain(`Summer ${dayOfSeason(state.clock.dayCount)}`);
-      // Temperature readout in °C
-      expect(html).toContain("22°C");
-      // Gold purse formatted balance
-      expect(html).toContain("1,250 G");
-      expect(html).toContain("hud-medallion-purse-svg");
+      expect(normalizedHtml).toContain(`Summer ${dayOfSeason(state.clock.dayCount)}`);
+      expect(html).toContain(`${temperature}°C`);
+      expect(html).toContain(`${temperature} degrees`);
+      expect(normalizedHtml).toContain("1,250 G");
+      expect(html).toContain('data-testid="hud-gold-purse"');
     });
 
-    it("toggles FarmForecastPopover and dispatches UI audio when clicked", () => {
+    it("routes the open UI cue to the audio manager", () => {
       const playOneShotSpy = vi.spyOn(gameAudio, "playOneShot").mockImplementation(() => {});
       const playBankSpy = vi.spyOn(gameAudio, "playBank").mockImplementation(() => {});
 
@@ -145,7 +116,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
     });
   });
 
-  describe("4. Top-Right Quest Tracker & Severe Weather Alerts", () => {
+  describe("4. Quest tracker and severe weather alerts", () => {
     it("renders active quest title, objective description, gold progress bar, and location pin", () => {
       const activeQuest: ActiveQuestDto = {
         questId: "quest.starter_harvest",
@@ -180,14 +151,14 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("chrome-meter--gold");
     });
 
-    it("renders Open Horizons fallback when activeQuest is null", () => {
+    it("omits the quest tracker when activeQuest is null", () => {
       const html = renderToString(
         React.createElement(QuestTrackerHUD, { activeQuest: null })
       );
       expect(html).toBe("");
     });
 
-    it("renders severe weather chips in Top-Right under storm and gale conditions", () => {
+    it("renders the storm hazard with danger severity", () => {
       const state = createInitialGameState();
       state.weather.type = "storm";
 
@@ -198,11 +169,13 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
         })
       );
 
-      expect(html).toContain("hud-weather-chip--danger");
-      expect(html).toContain("Storm Warning");
+      expect(html).toContain('data-testid="weather-hazard-banner"');
+      expect(html).toContain('data-hazard-id="storm"');
+      expect(html).toContain('data-severity="danger"');
+      expect(html).toContain("Severe Coastal Storm");
     });
 
-    it("renders game menu button and invokes onOpenMenu with sound", () => {
+    it("renders the game menu button with its accessible shortcut", () => {
       const state = createInitialGameState();
       const html = renderToString(
         React.createElement(HUD, {
@@ -212,7 +185,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
         })
       );
 
-      expect(html).toContain("hud-menu-button");
+      expect(html).toContain('data-testid="micro-btn-menu"');
       expect(html).toContain("Open game menu (Esc)");
     });
   });
@@ -230,12 +203,13 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
         })
       );
 
-      expect(html).toContain("hud-vitals-tray");
-      expect(html).toContain("hud-labor-meter");
-      expect(html).toContain("chrome-meter--labor");
-      // The HUD overhaul moved Work and Sprint into a horizontal vitals tray
-      // with the numeric readout lifted above it; they are no longer vertical.
-      expect(html).toContain("chrome-meter--horizontal");
+      expect(html).toContain('data-testid="player-unit-frame"');
+      const workMeter = html.match(/<[^>]+role="meter"[^>]+aria-label="Work"[^>]*>/)?.[0];
+      expect(workMeter).toBeDefined();
+      expect(workMeter).toContain('aria-valuenow="750"');
+      expect(workMeter).toContain('aria-valuemax="1000"');
+      expect(workMeter).toContain("chrome-meter--gold");
+      expect(workMeter).toContain("chrome-meter--horizontal");
     });
 
     it("renders Sprint stamina meter when sprinting or exhausted", () => {
@@ -322,13 +296,14 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       );
 
       expect(html).toContain("hud-play-cluster");
-      expect(html).toContain("hud-tool-belt");
+      expect(html).toContain('data-testid="smart-contextual-toolbar"');
+      const buttons = html.match(/<button\b[^>]*data-testid="tool-slot-\d"[^>]*>/g) ?? [];
+      expect(buttons).toHaveLength(5);
       for (let slot = 1; slot <= 5; slot++) {
-        expect(html).toContain(`data-testid="tool-slot-${slot}"`);
+        const button = buttons.find((candidate) => candidate.includes(`data-testid="tool-slot-${slot}"`));
+        expect(button).toBeDefined();
+        expect(button).toContain(`aria-pressed="${slot === 3}"`);
       }
-      // Slot 3 is active and selected
-      expect(html).toContain("hud-hotbar-slot is-active");
-      expect(html).toContain('aria-pressed="true"');
     });
 
     it("renders contextual prompt with KeycapBadge [E] and data-testid='context-prompt'", () => {

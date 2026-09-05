@@ -11,6 +11,7 @@ from mathutils import Vector
 from .materials import MATERIAL_SPECS
 from .humanoid_export import restore_solid_humanoid_colors
 from .static_export import restore_static_material_state
+from .geometry import authored_rest_transforms, finish_authored_surface
 
 
 def clean_scene() -> None:
@@ -25,10 +26,13 @@ def create_root(name: str) -> bpy.types.Object:
     return root
 
 
-def _scene_bounds(meshes: list[bpy.types.Object]) -> tuple[list[float], list[float]]:
+def _scene_bounds(meshes: list[bpy.types.Object], rest_transforms=None) -> tuple[list[float], list[float]]:
     points: list[Vector] = []
     for obj in meshes:
-        points.extend(obj.matrix_world @ Vector(corner) for corner in obj.bound_box)
+        if rest_transforms is None:
+            points.extend(obj.matrix_world @ Vector(corner) for corner in obj.bound_box)
+        else:
+            points.extend(rest_transforms[obj] @ vertex.co for vertex in obj.data.vertices)
     minimum = [min(point[index] for point in points) for index in range(3)]
     maximum = [max(point[index] for point in points) for index in range(3)]
     return minimum, maximum
@@ -140,8 +144,9 @@ def _prepare_imported_vertex_color_export(
     for the first material, but looks the layer up by its glTF semantic for
     subsequent materials and silently emits white when that name is absent.
     Naming the already-validated Blender layer ``COLOR_0`` makes both lookups
-    agree. This runs only in the isolated imported-source export process; the
-    durable authoring library and all decoded attribute values stay unchanged.
+    agree. Imported sources and opt-in procedural surface finishes use this
+    immediately before export; the durable authoring library and all decoded
+    attribute values stay unchanged.
     """
     asset_id = spec["id"]
     preserved_texture_tokens = _preserved_texture_tokens(spec)
@@ -262,6 +267,22 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
     if not meshes:
         raise RuntimeError(f"{asset_id}: generator produced no meshes")
 
+    surface_metrics = None
+    rest_transforms = None
+    if spec.get("surfaceAuthoring"):
+        if spec["generator"] == "imported_blend":
+            raise RuntimeError(f"{asset_id}: source-preserving imports cannot be surface-baked")
+        bpy.context.view_layer.update()
+        asset_root = bpy.data.objects[spec["rootNode"]]
+        rest_transforms = authored_rest_transforms(objects)
+        asset_inverse = rest_transforms[asset_root].inverted()
+        surface_metrics = {
+            obj.name: finish_authored_surface(obj, asset_root, object_to_asset=asset_inverse @ rest_transforms[obj]) for obj in meshes
+        }
+        for obj in objects:
+            if "_neva_rest_transform" in obj:
+                del obj["_neva_rest_transform"]
+
     node_names = [obj.name for obj in objects]
     if len(node_names) != len(set(node_names)):
         raise RuntimeError(f"{asset_id}: duplicate node names")
@@ -361,7 +382,7 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
     # material budget. The undeclared-token and material-cap checks above keep
     # the actual artifact constrained.
 
-    minimum, maximum = _scene_bounds(meshes)
+    minimum, maximum = _scene_bounds(meshes, rest_transforms)
     actual_dimensions = [maximum[index] - minimum[index] for index in range(3)]
     expected_dimensions = [
         spec["dimensions"]["width"], spec["dimensions"]["depth"], spec["dimensions"]["height"]
@@ -423,7 +444,7 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         for obj in objects:
             if obj.type == "ARMATURE": obj.data.pose_position = "POSE"
     imported_color_export = None
-    if spec.get("generator") == "imported_blend":
+    if spec.get("generator") == "imported_blend" or spec.get("surfaceAuthoring"):
         imported_color_export = _prepare_imported_vertex_color_export(spec, meshes)
     with bpy.context.temp_override(**export_override):
         bpy.ops.export_scene.gltf(
@@ -452,6 +473,7 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         "meshes": len(meshes),
         "triangles": triangle_count,
         "packagedTriangles": packaged_triangle_count,
+        "surfaceAuthoring": surface_metrics,
         "lodLevels": lod_metrics,
         "qualityStatus": quality_status,
         "budget": budget,

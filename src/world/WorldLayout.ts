@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { HARBOR_BEACH_PATH, HARBOR_LANDING_PATH, harborCoastElevation, harborCoastInfluence, harborSandInfluence, harborShoreOffset } from "./HarborCoast";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { CANONICAL_RENDER_CONFIG } from "../render/config/VisualRenderConfig";
 import { PALETTE_HEX, type PaletteToken } from "../render/materials/PaletteTokens";
@@ -265,7 +266,7 @@ export interface WorldRouteProfile {
 }
 
 export interface WorldLayoutDescriptor {
-  revision: 12;
+  revision: 13;
   anchors: {
     starterFarm: WorldPoint;
     playerSpawn: WorldPoint;
@@ -276,6 +277,9 @@ export interface WorldLayoutDescriptor {
     lighthouse: WorldPoint;
     fishMarket: WorldPoint;
     harborDock: WorldPoint;
+    harborBeach: WorldPoint;
+    harborSettlement: WorldPoint;
+    harborRockyLanding: WorldPoint;
     foothillGateway: WorldPoint;
     foothillFork: WorldPoint;
     mountainSpring: WorldPoint;
@@ -692,6 +696,8 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     ],
     linearSegmentIndices: [6, 7, 8, 9]
   },
+  { id: "harbor-beach-path", scope: "regional", kind: "trail", widthMeters: 2.8, points: [...HARBOR_BEACH_PATH] },
+  { id: "harbor-rocky-landing", scope: "regional", kind: "trail", widthMeters: 2.8, points: [...HARBOR_LANDING_PATH] },
   ...NEVA_FOOTHILL_TRAILS.map((trail): WorldRoute => ({
     id: trail.id,
     scope: "regional",
@@ -716,9 +722,9 @@ export const FARM_ROUTES: readonly WorldRoute[] = STARTER_FARM_LAYOUT.paths.map(
 }));
 
 export const WORLD_ROUTE_NETWORK: readonly WorldRoute[] = [
-  ...WORLD_ROUTES.filter((route) => !NEVA_FOOTHILL_TRAILS.some((trail) => trail.id === route.id)),
+  ...WORLD_ROUTES.slice(0, 5),
   ...FARM_ROUTES,
-  ...WORLD_ROUTES.filter((route) => NEVA_FOOTHILL_TRAILS.some((trail) => trail.id === route.id)),
+  ...WORLD_ROUTES.slice(5),
   ...SUNREACH_ROUTES
 ];
 
@@ -769,7 +775,7 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
     radiusMeters: 3.25,
     blendLengthMeters: 1.45,
     surface: "landmark-gateway",
-    routeIds: ["village-harbor", "cliffside-coastal-walk"]
+    routeIds: ["village-harbor", "cliffside-coastal-walk", "harbor-beach-path"]
   }
 ];
 
@@ -891,7 +897,7 @@ function pointInRotatedEnvelope(
 }
 
 export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
-  revision: 12,
+  revision: 13,
   anchors: {
     starterFarm: STARTER_FARM_LAYOUT.origin,
     playerSpawn: WORLD_SPAWN.playerPosition,
@@ -902,6 +908,9 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
     lighthouse: LIGHTHOUSE_GATEWAY,
     fishMarket: HARBOR_MARKET_APRON,
     harborDock: HARBOR_DOCK.boatPosition,
+    harborBeach: HARBOR_BEACH_PATH.at(-1)!,
+    harborSettlement: HARBOR_LANDING_PATH[0],
+    harborRockyLanding: HARBOR_LANDING_PATH.at(-1)!,
     foothillGateway: NEVA_FOOTHILL_TRAILS[0].points[0],
     foothillFork: NEVA_FOOTHILL_TRAILS[1].points[0],
     mountainSpring: NEVA_FOOTHILL_TRAILS[0].points.at(-1)!,
@@ -1500,7 +1509,7 @@ export class WorldLayout {
     const rockyInlets =
       Math.sin(x * 0.061 + 0.45) * 0.62
       + Math.sin(x * 0.023 - 0.8) * 0.34;
-    return authoredSpline + broadCoves + rockyInlets;
+    return authoredSpline + broadCoves + rockyInlets + harborShoreOffset(x);
   }
 
   public static coastProfile(x: number): CoastProfile {
@@ -1804,11 +1813,17 @@ export class WorldLayout {
     const flowX = 0.82 - reefInfluence * 0.28;
     const flowZ = 0.24 + openWaterExposure * 0.3;
     const flowLength = Math.hypot(flowX, flowZ);
+    const legacyDepth = signedShoreDistance > 0
+      ? Math.min(18, 0.45 + signedShoreDistance * (reefInfluence > 0.1 ? 0.045 : 0.075)) : 0;
+    const harborDistance = Math.max(0, z - this.coastlineZ(x));
+    const legacyHarborBed = -0.48 + this.coastProfile(x).rockShelf
+      * (1 - smoothstep(0.2, 8, harborDistance)) * 0.28 - Math.min(16, harborDistance * 0.11);
+    const harborBed = THREE.MathUtils.lerp(legacyHarborBed,
+      harborCoastElevation(x, z, this.coastlineZ(x)), harborCoastInfluence(x, z));
+    const harborDepth = signedShoreDistance > 0 ? Math.max(0, -harborBed) : 0;
     return {
       signedShoreDistance,
-      bathymetryMeters: signedShoreDistance > 0
-        ? Math.min(18, 0.45 + signedShoreDistance * (reefInfluence > 0.1 ? 0.045 : 0.075))
-        : 0,
+      bathymetryMeters: harborCoastInfluence(x, z) > 0 && z > this.coastlineZ(x) ? harborDepth : legacyDepth,
       coveShelter,
       openWaterExposure,
       reefInfluence,
@@ -2510,6 +2525,12 @@ export class WorldLayout {
       }
     }
 
+    // One continuous beach/seabed profile replaces the old shore step locally.
+    // Working pads below remain the final foundation authority.
+    const harborInfluence = harborCoastInfluence(x, z)
+      * (1 - smoothstep(25, 36, Math.max(0, -coastDistance)));
+    height = THREE.MathUtils.lerp(height, harborCoastElevation(x, z, this.coastlineZ(x)), harborInfluence);
+
     // Contour benches are canonical geometry, including their wide shoulder cut.
     // Keep their fill out of water and retain the original farm/road entry surface.
     if (trailBench.influence > 0 && this.riverWaterSignedDistance(x, z) < -1.2) {
@@ -2578,6 +2599,11 @@ export class WorldLayout {
     }
 
     return height;
+  }
+
+  /** Exact base triangle interpolation shared by the visible seabed and Rapier. */
+  public static terrainBaseSurfaceHeight(x: number, z: number): number {
+    return sampleTraversalBasePlane(x, z);
   }
 
   /** Graded landform without the exact worked-road relief collider. */
@@ -3019,8 +3045,8 @@ export class WorldLayout {
       ? 0.82 + estuary * 0.12 + river.channel * 0.04 + river.erosion * 0.02
       : 0;
     const remaining = clamp01(1 - Math.max(path, shoulder, drySoil, dampSoil, beach, riverbed, cliff));
-    return {
-      weights: normalizedSurfaceWeights({
+    const sandCover = harborSandInfluence(x, z, this.coastlineZ(x));
+    const oldWeights = normalizedSurfaceWeights({
         grass: remaining * (1 - meadowPattern * 0.44) * (1 - siltShelf * 0.58),
         meadow: remaining * meadowPattern * 0.44 * (1 - siltShelf * 0.72),
         drySoil,
@@ -3031,7 +3057,12 @@ export class WorldLayout {
         riverbed,
         wetShoreline: wet * (0.56 + coastProfile.rockShelf * 0.22 + estuary * 0.22),
         cliff
-      }),
+      });
+    const coastalWeights = Object.fromEntries(Object.entries(oldWeights).map(([key, value]) =>
+      [key, value * (1 - sandCover) + (key === "beach" ? sandCover : 0)]
+    )) as unknown as TerrainSurfaceWeights;
+    return {
+      weights: coastalWeights,
       farmInfluence: farm,
       shorelineWetness: wet,
       river

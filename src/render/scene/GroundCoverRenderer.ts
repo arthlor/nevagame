@@ -34,6 +34,8 @@ interface GroundCoverInstance {
   z: number;
   phase: number;
   matrix: THREE.Matrix4;
+  bounds: THREE.Sphere;
+  windScale: number;
 }
 
 interface InstancedSourceMesh {
@@ -50,6 +52,9 @@ interface InstancedAssetRecord {
   spatialIndex: GroundCoverSpatialIndex;
   meshes: InstancedSourceMesh[];
   visibleIndices: number[];
+  renderedIndices: number[];
+  candidateIndices: number[];
+  windPadding: number;
 }
 
 interface GroundCoverWindUniforms {
@@ -68,6 +73,7 @@ interface SourceMeshData {
 
 const VISIBILITY_REFRESH_DISTANCE_METERS = 0.55;
 const KEEP_DISTANCE_SCALE = 1.34;
+const CROSS_WIND_AMPLITUDE_RATIO = 0.1;
 
 const CATEGORY_DRAW_DISTANCE_SCALE: Readonly<Record<GroundCoverCategory, number>> = {
   grass: 0.84,
@@ -145,7 +151,7 @@ uniform float uMotionScale;`
   float bend = sway * rootWeight * (0.72 * wave + 0.28 * gust);
   transformed.xz += windDirection * bend;
   vec2 crossWind = vec2(-windDirection.y, windDirection.x);
-  transformed.xz += crossWind * sway * 0.10 * rootWeight * rootWeight
+  transformed.xz += crossWind * sway * ${CROSS_WIND_AMPLITUDE_RATIO.toFixed(3)} * rootWeight * rootWeight
     * sin(uTime * 1.72 + instancePhase * 9.0);
 }`
       );
@@ -185,6 +191,9 @@ export class GroundCoverRenderer {
   private readonly records: InstancedAssetRecord[] = [];
   private readonly lastRebuildFocus = new THREE.Vector2(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
   private readonly composedMatrix = new THREE.Matrix4();
+  private readonly viewProjection = new THREE.Matrix4();
+  private readonly frustum = new THREE.Frustum();
+  private readonly frustumSphere = new THREE.Sphere();
   private visibilityDirty = true;
   private qualityLevel: number;
 
@@ -231,6 +240,11 @@ export class GroundCoverRenderer {
       const category = orderedPlacements[0].category;
       const sway = groundCoverSwaysInWind(category);
       const windBounds = sway ? sourceHeightBounds(sourceMeshes) : null;
+      const sourceBounds = new THREE.Sphere().makeEmpty();
+      for (const sourceMesh of sourceMeshes) {
+        sourceMesh.geometry.computeBoundingSphere();
+        sourceBounds.union(sourceMesh.geometry.boundingSphere!.clone().applyMatrix4(sourceMesh.relative));
+      }
       const instances = orderedPlacements.map((placement) => {
         const position = new THREE.Vector3(
           placement.x,
@@ -239,11 +253,15 @@ export class GroundCoverRenderer {
         );
         const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), placement.rotationY);
         const scale = new THREE.Vector3(...placement.scale);
+        const matrix = new THREE.Matrix4().compose(position, rotation, scale);
         return {
           x: placement.x,
           z: placement.z,
           phase: groundCoverWindPhase(placement.id),
-          matrix: new THREE.Matrix4().compose(position, rotation, scale)
+          matrix,
+          bounds: sourceBounds.clone().applyMatrix4(matrix),
+          windScale: sourceMeshes.reduce((maximum, sourceMesh) => Math.max(maximum,
+            new THREE.Matrix4().multiplyMatrices(matrix, sourceMesh.relative).getMaxScaleOnAxis()), 0)
         };
       });
 
@@ -261,8 +279,6 @@ export class GroundCoverRenderer {
         );
         mesh.name = `${assetId}_instances_${meshIndex}`;
         mesh.count = 0;
-        // The rendered instance prefix is rebuilt around the player/world
-        // anchor, so the static full-world bounds would be stale and broad.
         mesh.frustumCulled = false;
         mesh.castShadow = false;
         // Short cover uses the shared key/fill and GTAO contact, not a second
@@ -281,7 +297,10 @@ export class GroundCoverRenderer {
         instances,
         spatialIndex: buildGroundCoverSpatialIndex(instances),
         meshes,
-        visibleIndices: []
+        visibleIndices: [],
+        renderedIndices: [],
+        candidateIndices: [],
+        windPadding: 0
       });
     }
     this.setQualityLevel(this.qualityLevel);
@@ -312,6 +331,7 @@ export class GroundCoverRenderer {
   public updateWind(signal: Readonly<WeatherMotionSignal>, timeSeconds: number, motionScale: number): void {
     const strength = groundCoverWindStrength(signal);
     for (const record of this.records) {
+      record.windPadding = GROUND_COVER_WIND_AMPLITUDE[record.category] * strength * Math.abs(motionScale) * Math.hypot(1, CROSS_WIND_AMPLITUDE_RATIO);
       for (const source of record.meshes) {
         const material = source.mesh.material;
         if (!(material instanceof THREE.Material)) continue;
@@ -371,8 +391,28 @@ export class GroundCoverRenderer {
       );
       if (groundCoverIndexListsEqual(record.visibleIndices, visibleIndices)) continue;
       record.visibleIndices = visibleIndices;
-      for (let visibleCount = 0; visibleCount < visibleIndices.length; visibleCount += 1) {
-        const instance = record.instances[visibleIndices[visibleCount]];
+    }
+  }
+
+  public updateRenderVisibility(camera: THREE.Camera): void {
+    camera.updateWorldMatrix(true, false);
+    this.group.updateWorldMatrix(true, false);
+    this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(this.group.matrixWorld);
+    this.frustum.setFromProjectionMatrix(this.viewProjection, camera.coordinateSystem);
+    for (const record of this.records) {
+      const candidates = record.candidateIndices;
+      candidates.length = 0;
+      for (const index of record.visibleIndices) {
+        const instance = record.instances[index];
+        this.frustumSphere.copy(instance.bounds);
+        this.frustumSphere.radius += record.windPadding * instance.windScale;
+        if (this.frustum.intersectsSphere(this.frustumSphere)) candidates.push(index);
+      }
+      if (groundCoverIndexListsEqual(record.renderedIndices, candidates)) continue;
+      record.candidateIndices = record.renderedIndices;
+      record.renderedIndices = candidates;
+      for (let visibleCount = 0; visibleCount < candidates.length; visibleCount += 1) {
+        const instance = record.instances[candidates[visibleCount]];
         for (const source of record.meshes) {
           this.composedMatrix.multiplyMatrices(instance.matrix, source.relative);
           source.mesh.setMatrixAt(visibleCount, this.composedMatrix);
@@ -380,7 +420,7 @@ export class GroundCoverRenderer {
         }
       }
       for (const source of record.meshes) {
-        source.mesh.count = visibleIndices.length;
+        source.mesh.count = candidates.length;
         source.mesh.instanceMatrix.needsUpdate = true;
         if (source.phaseAttribute) source.phaseAttribute.needsUpdate = true;
       }
@@ -391,6 +431,7 @@ export class GroundCoverRenderer {
     for (const record of this.records) {
       for (const source of record.meshes) {
         source.mesh.geometry.dispose();
+        source.mesh.dispose();
         const materials = Array.isArray(source.mesh.material)
           ? source.mesh.material
           : [source.mesh.material];

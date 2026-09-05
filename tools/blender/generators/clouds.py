@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import bpy
 
 from common.geometry import add_ico, apply_vertex_values, seeded_rng
@@ -22,16 +23,15 @@ def _token(spec: dict) -> str:
 
 def _shape_cloud_lobe(obj, seed: int, *, loft: float = 0.0) -> None:
     """Softly perturb vertices to give clean low-poly planar facets while keeping full bulbous roundness."""
-    rng = seeded_rng(seed)
+    phase = seeded_rng(seed).uniform(-math.pi, math.pi)
     for vertex in obj.data.vertices:
-        vertex.co.x *= 1.0 + rng.uniform(-0.05, 0.06)
-        vertex.co.y *= 1.0 + rng.uniform(-0.05, 0.06)
-        vertex.co.z *= 1.0 + rng.uniform(-0.04, 0.06)
-        if loft > 0.0 and vertex.co.z > 0.0:
-            vertex.co.z *= 1.0 + loft
-        vertex.co.x += rng.uniform(-0.004, 0.004)
-        vertex.co.y += rng.uniform(-0.004, 0.004)
-        vertex.co.z += rng.uniform(-0.004, 0.004)
+        # Broad coherent lobes preserve authored massing; no per-vertex chatter.
+        x, y, z = vertex.co
+        vertex.co.x *= 1 + .045 * math.sin(y * 1.3 + phase)
+        vertex.co.y *= 1 + .04 * math.cos(x * 1.1 + phase)
+        vertex.co.z *= 1 + .035 * math.sin(x + y + phase)
+        if z > 0:
+            vertex.co.z *= 1 + loft
     obj.data.update()
     apply_vertex_values(obj)
 
@@ -48,7 +48,7 @@ def _add_lobe(
     rotation: tuple[float, float, float],
     subdivisions: int,
 ) -> None:
-    obj = add_ico(name, location, scale, token, root, subdivisions=subdivisions, rotation=rotation)
+    obj = add_ico(name, location, scale, token, root, subdivisions=subdivisions, rotation=rotation, normal_mode="rounded")
     _shape_cloud_lobe(obj, seed, loft=loft)
 
 

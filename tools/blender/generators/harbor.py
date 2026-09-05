@@ -14,6 +14,8 @@ from common.geometry import (
     add_cone,
     add_cylinder,
     add_ico,
+    add_limb_tube,
+    add_conforming_shell,
     add_ring,
     add_tapered_beam,
     add_tri_prism,
@@ -26,6 +28,7 @@ from common.authored import (
     add_mooring_cleat,
     add_plank_field,
     add_rope_line,
+    grow_branch,
 )
 
 
@@ -281,9 +284,11 @@ def admiralty_anchor(spec: dict, root) -> None:
 
     add_ring("anchor_ring", (0, shank_top[1] + 0.045, shank_top[2] + 0.13), 0.140, 0.028, metal, root,
              major_segments=12, minor_segments=4, rotation=(0, math.radians(90), 0))
+    # Five segments and a shallow sag drew a straight pale strut corner to
+    # corner. More segments and real sag make it read as slack cable.
     add_catenary_rope(
-        "anchor_cable", (0.03, shank_top[1] + 0.06, shank_top[2] + 0.14), (0.42, shank_top[1] + 0.06, 0.030),
-        0.12, 0.032, rope, root, segments=5,
+        "anchor_cable", (0.03, shank_top[1] + 0.06, shank_top[2] + 0.14), (0.52, shank_top[1] + 0.30, 0.030),
+        0.34, 0.024, rope, root, segments=8,
     )
 
 
@@ -295,13 +300,15 @@ def marker_buoy(spec: dict, root) -> None:
     # Counterweight keel below the float is why a spar buoy floats upright.
     add_cone("buoy_keel", (0, 0, 0.055), 0.055, 0.085, 0.11, metal, root, vertices=8)
     add_cylinder("buoy_keel_shaft", (0, 0, 0.19), 0.032, 0.17, metal, root, vertices=6)
-    add_ico("buoy_float", (0, 0, float_z + 0.085), (0.155, 0.155, 0.145), red, root, subdivisions=1)
-    add_ring("buoy_float_band", (0, 0, float_z + 0.085), 0.150, 0.030, cream, root, major_segments=12, minor_segments=4)
-    add_cone("buoy_float_taper", (0, 0, float_z + 0.235), 0.115, 0.045, 0.11, red, root, vertices=8)
+    # The float has to have real bulk against a 2.6m mast, otherwise the whole
+    # thing reads as a lamp post rather than something that floats.
+    add_ico("buoy_float", (0, 0, float_z + 0.095), (0.190, 0.190, 0.168), red, root, subdivisions=2)
+    add_ring("buoy_float_band", (0, 0, float_z + 0.095), 0.184, 0.032, cream, root, major_segments=12, minor_segments=4)
+    add_cone("buoy_float_taper", (0, 0, float_z + 0.268), 0.150, 0.052, 0.14, red, root, vertices=8)
 
-    mast_base = float_z + 0.28
+    mast_base = float_z + 0.33
     mast_top = 2.62
-    add_tapered_beam("buoy_mast", (0, 0, mast_base), (0, 0, mast_top), 0.028, 0.018, metal, root, vertices=6)
+    add_tapered_beam("buoy_mast", (0, 0, mast_base), (0, 0, mast_top), 0.036, 0.024, metal, root, vertices=6)
     for index, z in enumerate((1.05, 1.62)):
         add_ring(f"buoy_mast_band_{index}", (0, 0, z), 0.030, 0.010, cream, root, major_segments=6, minor_segments=4)
 
@@ -320,16 +327,10 @@ def cargo_sack(spec: dict, root) -> None:
     burlap, cream, dark = spec["palette"]
     rng = seeded_rng(spec["seed"])
     add_burlap_sack("sack", (0, 0, 0.0), (0.36, 0.36, 0.68), burlap, dark, root)
-    # Sagging fold lines read as weight, not a smooth box.
-    for index in range(3):
-        add_box(
-            f"sack_fold_{index}", (0, 0, 0.10 + index * 0.13),
-            (0.372 - index * 0.020, 0.372 - index * 0.020, 0.028), dark, root,
-            rotation=(0, 0, rng.uniform(-0.10, 0.10)), bevel=0.0,
-        )
-    add_box("sack_stencil", (0, -0.176, 0.30), (0.16, 0.024, 0.11), cream, root, bevel=0.0)
-    add_ico("sack_bulge_left", (-0.145, 0.02, 0.16), (0.075, 0.085, 0.075), burlap, root)
-    add_ico("sack_bulge_right", (0.145, -0.02, 0.14), (0.075, 0.085, 0.075), burlap, root)
+    # A stencil follows the cloth; folds and weight come from the sack itself.
+    add_conforming_shell("sack_stencil",
+        (((.0054, -.0054, .2856), .18, .1764), ((.007, -.003, .36), .159, .159)),
+        cream, root, arc=(-.50, .50), offset=.002, thickness=.001, segments=3)
 
 
 def cargo_crate_large(spec: dict, root) -> None:
@@ -369,11 +370,7 @@ def driftwood_log(spec: dict, root) -> None:
         (length * 0.50, -0.06, 0.18),
     ]
     radii = (0.155, 0.185, 0.170, 0.120)
-    for index in range(3):
-        add_tapered_beam(
-            f"driftwood_trunk_{index}", joints[index], joints[index + 1], radii[index], radii[index + 1],
-            weathered if index % 2 == 0 else dark, root, vertices=7,
-        )
+    trunk = add_limb_tube("driftwood_trunk", joints, radii, weathered, root, sides=7)
     # Torn end grain, not a clean cut.
     add_cone("driftwood_break_end", (length * 0.54, -0.07, 0.17), 0.115, 0.045, 0.14, dark, root, vertices=6,
              rotation=(0, math.radians(78), 0))
@@ -385,7 +382,7 @@ def driftwood_log(spec: dict, root) -> None:
         base = (along, 0.02, 0.28)
         angle = rng.uniform(0.6, 2.4) + index * 1.5
         tip = (along + math.cos(angle) * 0.22, 0.02 + math.sin(angle) * 0.26, 0.30 + rng.uniform(0.06, 0.22))
-        add_tapered_beam(f"driftwood_stub_{index}", base, tip, 0.048, 0.020, dark, root, vertices=6)
+        grow_branch(trunk, base, tip, .048, .020, token=dark)
 
     # Splits along the grain: the signature of long-dried driftwood.
     for index in range(3):

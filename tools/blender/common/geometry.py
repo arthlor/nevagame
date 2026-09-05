@@ -44,6 +44,7 @@ def _finish_mesh(
     bevel: float = 0.0,
     flat: bool = True,
     vertex_values: bool = True,
+    normal_mode: str = "planar",
 ) -> bpy.types.Object:
     obj.name = name
     obj.data.name = f"{name}_mesh"
@@ -67,9 +68,152 @@ def _finish_mesh(
 
     for polygon in obj.data.polygons:
         polygon.use_smooth = not flat
+    set_surface_normals(obj, "rounded" if not flat else normal_mode)
     if vertex_values:
         apply_vertex_values(obj)
     return obj
+
+
+def set_surface_normals(obj, mode="rounded", *, faces=None):
+    """Record authored smoothing groups on faces, including across material slots.
+
+    FACE data survives object joining and decimation; object names and material
+    boundaries do not define a lighting seam. The export finish consumes this
+    private attribute after every LOD has been constructed.
+    """
+    if mode not in ("rounded", "planar"):
+        raise ValueError(f"Unknown surface normal mode: {mode}")
+    attribute = obj.data.attributes.get(".neva_surface")
+    if attribute is None:
+        attribute = obj.data.attributes.new(".neva_surface", "INT", "FACE")
+    for index in range(len(obj.data.polygons)) if faces is None else faces:
+        attribute.data[index].value = int(mode == "rounded")
+    return obj
+
+
+def remember_rest_transform(obj):
+    """Keep an object's authored basis before NLA evaluation can replace it."""
+    if "_neva_rest_transform" not in obj:
+        obj["_neva_rest_transform"] = [value for row in obj.matrix_basis for value in row]
+
+
+def authored_rest_transforms(objects):
+    """Resolve rest matrices without changing the active action or its pose."""
+    matrices = {}
+
+    def resolve(obj):
+        if obj in matrices:
+            return matrices[obj]
+        saved = obj.get("_neva_rest_transform")
+        basis = Matrix([saved[i:i + 4] for i in range(0, 16, 4)]) if saved else obj.matrix_basis.copy()
+        if obj.parent:
+            if obj.parent_type != "OBJECT":
+                raise ValueError(f"{obj.name}: procedural rest-space baking requires object-parented surfaces")
+            basis = resolve(obj.parent) @ obj.matrix_parent_inverse @ basis
+        matrices[obj] = basis
+        return basis
+
+    for obj in objects:
+        resolve(obj)
+    return matrices
+
+
+def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angle=math.radians(70)):
+    """Bake rest-space face color and normals within connected smoothing groups.
+
+    Geometry supplies the light response; COLOR_0 supplies only broad facet
+    values. No world light, component height, material seam or animated pose is
+    part of the bake. Planar faces and authored creases retain their own normal.
+    """
+    mesh = obj.data
+    mesh.update()
+    object_to_asset = object_to_asset if object_to_asset is not None else asset_root.matrix_world.inverted() @ obj.matrix_world
+    rest_normal = object_to_asset.to_3x3().inverted().transposed()
+    face_values = mesh.attributes.new(".neva_facet_value", "FLOAT", "FACE")
+    for polygon in mesh.polygons:
+        normal = (rest_normal @ polygon.normal).normalized()
+        face_values.data[polygon.index].value = .91 + .07 * max(-1.0, min(1.0, normal.z))
+    mesh.calc_loop_triangles()
+    warped = set()
+    for triangle in mesh.loop_triangles:
+        polygon = mesh.polygons[triangle.polygon_index]
+        if len(polygon.vertices) > 3 and triangle.normal.dot(polygon.normal) < .5:
+            warped.add(polygon.index)
+    if warped:
+        # A strongly folded quad has no single geometric normal. Split its
+        # planes before smoothing, while retaining one authored face color.
+        editable = bmesh.new()
+        editable.from_mesh(mesh)
+        editable.faces.ensure_lookup_table()
+        bmesh.ops.triangulate(editable, faces=[editable.faces[index] for index in sorted(warped)], quad_method="BEAUTY", ngon_method="BEAUTY")
+        editable.to_mesh(mesh)
+        editable.free()
+        mesh.update()
+        face_values = mesh.attributes[".neva_facet_value"]
+    groups = mesh.attributes.get(".neva_surface")
+    rounded = [bool(groups and groups.data[p.index].value) for p in mesh.polygons]
+    edge_faces = [[] for _ in mesh.edges]
+    vertex_faces = [[] for _ in mesh.vertices]
+    for polygon in mesh.polygons:
+        for loop_index in polygon.loop_indices:
+            loop = mesh.loops[loop_index]
+            edge_faces[loop.edge_index].append(polygon.index)
+            vertex_faces[loop.vertex_index].append(polygon.index)
+    neighbours = [set() for _ in mesh.polygons]
+    cosine = math.cos(sharp_angle)
+    for edge, faces in zip(mesh.edges, edge_faces):
+        if len(faces) != 2 or edge.use_edge_sharp:
+            continue
+        a, b = faces
+        if rounded[a] and rounded[b] and mesh.polygons[a].normal.dot(mesh.polygons[b].normal) >= cosine:
+            neighbours[a].add(b)
+            neighbours[b].add(a)
+    corner_normals = [None] * len(mesh.loops)
+    for vertex, faces in zip(mesh.vertices, vertex_faces):
+        remaining = set(faces)
+        while remaining:
+            first = min(remaining)
+            connected, pending = {first}, [first]
+            while pending:
+                current = pending.pop()
+                for neighbour in sorted(neighbours[current] & remaining):
+                    if neighbour not in connected:
+                        connected.add(neighbour)
+                        pending.append(neighbour)
+            remaining -= connected
+            normal = Vector((0, 0, 0))
+            loops = []
+            for face_index in sorted(connected):
+                polygon = mesh.polygons[face_index]
+                ring = list(polygon.vertices)
+                corner = ring.index(vertex.index)
+                incoming = mesh.vertices[ring[corner - 1]].co - vertex.co
+                outgoing = mesh.vertices[ring[(corner + 1) % len(ring)]].co - vertex.co
+                angle = incoming.angle(outgoing, 0.0)
+                normal += polygon.normal * angle
+                loops.append(polygon.loop_start + corner)
+            normal.normalize()
+            for loop_index in loops:
+                corner_normals[loop_index] = tuple(normal)
+    for polygon in mesh.polygons:
+        polygon.use_smooth = rounded[polygon.index]
+    mesh.normals_split_custom_set(corner_normals)
+
+    old = mesh.color_attributes.get("Color")
+    if old is not None:
+        mesh.color_attributes.remove(old)
+    color = mesh.color_attributes.new(name="Color", type="FLOAT_COLOR", domain="CORNER")
+    mesh.color_attributes.active_color = color
+    for polygon in mesh.polygons:
+        value = face_values.data[polygon.index].value
+        base = mesh.materials[polygon.material_index].diffuse_color
+        rgba = (base[0] * value, base[1] * value, base[2] * value, 1.0)
+        for loop_index in polygon.loop_indices:
+            color.data[loop_index].color = rgba
+    if groups is not None:
+        mesh.attributes.remove(groups)
+    mesh.attributes.remove(face_values)
+    return {"roundedFaces": sum(rounded), "planarFaces": len(rounded) - sum(rounded)}
 
 
 def apply_vertex_values(obj: bpy.types.Object) -> None:
@@ -132,13 +276,13 @@ def add_cone(name, location, radius1, radius2, depth, token, parent, *, vertices
     return _finish_mesh(_active_object(), name, token, parent, flat=flat)
 
 
-def add_ico(name, location, scale, token, parent, *, subdivisions=1, rotation=(0.0, 0.0, 0.0), flat=True):
+def add_ico(name, location, scale, token, parent, *, subdivisions=1, rotation=(0.0, 0.0, 0.0), flat=True, normal_mode="planar"):
     bpy.ops.mesh.primitive_ico_sphere_add(
         subdivisions=subdivisions, radius=1.0, location=location, rotation=rotation
     )
     obj = _active_object()
     obj.scale = scale
-    return _finish_mesh(obj, name, token, parent, flat=flat)
+    return _finish_mesh(obj, name, token, parent, flat=flat, normal_mode=normal_mode)
 
 
 def add_beam(name, start, end, radius, token, parent, *, vertices=6, flat=True):
@@ -198,6 +342,7 @@ def add_limb_tube(
     cap_start=True,
     cap_end=True,
     flat=True,
+    normal_mode="rounded",
 ):
     """Loft one continuous tube through a joint chain.
 
@@ -233,19 +378,26 @@ def add_limb_tube(
 
     vertices = []
     faces = []
+    side = None
+    previous_direction = None
     for index, (node, radius, direction) in enumerate(zip(nodes, radii, directions)):
-        # A stable reference axis keeps ring vertex order consistent between
-        # rings, which is what stops the tube from twisting along its length.
-        reference = Vector((0.0, 0.0, 1.0))
-        if abs(direction.dot(reference)) > 0.94:
-            reference = Vector((1.0, 0.0, 0.0))
-        side = direction.cross(reference).normalized()
+        # Transport the frame through bends. Choosing a fresh reference axis at
+        # each ring introduces a quarter-turn when a stem crosses the pole.
+        if side is None:
+            reference = Vector((0.0, 0.0, 1.0))
+            if abs(direction.dot(reference)) > 0.94:
+                reference = Vector((1.0, 0.0, 0.0))
+            side = direction.cross(reference).normalized()
+        else:
+            side = previous_direction.rotation_difference(direction) @ side
+        previous_direction = direction
         # (side, up, direction) must be right-handed or every side quad winds
         # inward and the tube renders inside-out.
         up = direction.cross(side).normalized()
         for step in range(sides):
             angle = (2.0 * math.pi * step) / sides
-            offset = (side * math.cos(angle) + up * math.sin(angle)) * radius
+            width, depth = (radius, radius) if isinstance(radius, (int, float)) else radius
+            offset = side * math.cos(angle) * width + up * math.sin(angle) * depth
             vertices.append(node + offset)
         if index > 0:
             base = (index - 1) * sides
@@ -266,7 +418,124 @@ def add_limb_tube(
     obj = bpy.data.objects.new(name, mesh)
     collection = parent.users_collection[0] if parent.users_collection else bpy.context.scene.collection
     collection.objects.link(obj)
-    return _finish_mesh(obj, name, token, parent, flat=flat)
+    obj = _finish_mesh(obj, name, token, parent, flat=flat, normal_mode=normal_mode)
+    if cap_start:
+        set_surface_normals(obj, "planar", faces=[len(faces) - int(cap_end) - 1])
+    if cap_end:
+        set_surface_normals(obj, "planar", faces=[len(faces) - 1])
+    return obj
+
+
+def graft_limb(surface, face_indices, points, radii, *, token=None, collar_radius=None):
+    """Extrude a limb/branch from a real opening in an existing surface.
+
+    The first ring reuses the opening's vertices. Adjacent limbs therefore share
+    positions, weights and normals at their root; this is construction, not a
+    proximity weld of independently closed objects. Call before skin binding.
+    The selected faces must form one disk with a single boundary.
+    """
+    mesh = surface.data
+    selected = set(face_indices)
+    if not selected or len(points) != len(radii) or not points:
+        raise ValueError("A graft needs an opening and one radius per section")
+    directed = set()
+    for index in selected:
+        ring = list(mesh.polygons[index].vertices)
+        for a, b in zip(ring, ring[1:] + ring[:1]):
+            if (b, a) in directed:
+                directed.remove((b, a))
+            else:
+                directed.add((a, b))
+    start = min(directed)[0]
+    boundary, current = [], start
+    while True:
+        boundary.append(current)
+        following = [b for a, b in directed if a == current]
+        if len(following) != 1:
+            raise ValueError("Graft opening must have one unambiguous boundary")
+        current = following[0]
+        if current == start:
+            break
+        if current in boundary:
+            raise ValueError("Graft opening is not a disk")
+    if len(boundary) != len(directed):
+        raise ValueError("Graft opening has multiple boundaries")
+    vertices = [v.co.copy() for v in mesh.vertices]
+    faces = [tuple(p.vertices) for p in mesh.polygons if p.index not in selected]
+    materials = [p.material_index for p in mesh.polygons if p.index not in selected]
+    attribute = mesh.attributes.get(".neva_surface")
+    groups = [attribute.data[p.index].value if attribute else 0 for p in mesh.polygons if p.index not in selected]
+    slots = list(mesh.materials)
+    material_index = mesh.polygons[min(selected)].material_index
+    if token is not None:
+        material = get_or_create_material(token)
+        if material not in slots:
+            slots.append(material)
+        material_index = slots.index(material)
+    if collar_radius is not None:
+        if len(boundary) != 4:
+            raise ValueError("A branch collar requires one quadrilateral opening")
+        a, b, c, d = [vertices[index] for index in boundary]
+        u_length = ((b - a).length + (c - d).length) * .5
+        v_length = ((d - a).length + (c - b).length) * .5
+        du, dv = min(.4, collar_radius / u_length), min(.4, collar_radius / v_length)
+        inset = []
+        for u, v in ((.5 - du, .5 - dv), (.5 + du, .5 - dv), (.5 + du, .5 + dv), (.5 - du, .5 + dv)):
+            inset.append(len(vertices))
+            vertices.append(a * (1 - u) * (1 - v) + b * u * (1 - v) + c * u * v + d * (1 - u) * v)
+        for step in range(4):
+            nxt = (step + 1) % 4
+            faces.append((boundary[step], boundary[nxt], inset[nxt], inset[step]))
+            materials.append(material_index)
+            groups.append(1)
+        boundary = inset
+    inverse = surface.matrix_world.inverted()
+    nodes = [inverse @ Vector(point) for point in points]
+    previous = boundary
+    center = sum((vertices[index] for index in boundary), Vector()) / len(boundary)
+    previous_direction = sum((mesh.polygons[index].normal * mesh.polygons[index].area for index in selected), Vector()).normalized()
+    side = vertices[boundary[0]] - center
+    side = (side - previous_direction * side.dot(previous_direction)).normalized()
+    up = previous_direction.cross(side)
+    # A rectangular opening does not have equally spaced polar angles. Keeping
+    # its authored angles prevents the first branch ring from folding its quads.
+    angles = [math.atan2((vertices[index] - center).dot(up), (vertices[index] - center).dot(side)) for index in boundary]
+    rings = [boundary]
+    for node_index, (node, radius) in enumerate(zip(nodes, radii)):
+        direction = node - center if node_index == len(nodes) - 1 else nodes[node_index + 1] - center
+        direction.normalize()
+        side = previous_direction.rotation_difference(direction) @ side
+        previous_direction = direction
+        up = direction.cross(side).normalized()
+        width, depth = (radius, radius) if isinstance(radius, (int, float)) else radius
+        ring = []
+        for angle in angles:
+            ring.append(len(vertices))
+            vertices.append(node + side * math.cos(angle) * width + up * math.sin(angle) * depth)
+        for step in range(len(ring)):
+            nxt = (step + 1) % len(ring)
+            faces.append((previous[step], previous[nxt], ring[nxt], ring[step]))
+            materials.append(material_index)
+            groups.append(1)
+        rings.append(ring)
+        previous, center = ring, node
+    faces.append(tuple(previous))
+    materials.append(material_index)
+    groups.append(0)
+    replacement = bpy.data.meshes.new(mesh.name + "_grafted")
+    replacement.from_pydata(vertices, [], faces)
+    replacement.update()
+    for material in slots:
+        replacement.materials.append(material)
+    surface.data = replacement
+    style = replacement.attributes.new(".neva_surface", "INT", "FACE")
+    for polygon, material_index, group in zip(replacement.polygons, materials, groups):
+        polygon.material_index = material_index
+        style.data[polygon.index].value = group
+    apply_vertex_values(surface)
+    if mesh.users == 0:
+        bpy.data.meshes.remove(mesh)
+    return rings
 
 
 # --- Body forms and conforming garments -------------------------------------
@@ -320,7 +589,7 @@ def _section_origin(sections) -> Vector:
     return total / len(sections)
 
 
-def _build_mesh(name, origin, vertices, faces, token, parent, *, flat=True, bevel=0.0, recalc_normals=False):
+def _build_mesh(name, origin, vertices, faces, token, parent, *, flat=True, bevel=0.0, recalc_normals=False, normal_mode="planar"):
     """Link one authored vertex/face soup as a mesh object seated at `origin`.
 
     Vertices are authored relative to `origin` so object transforms retain the
@@ -342,7 +611,7 @@ def _build_mesh(name, origin, vertices, faces, token, parent, *, flat=True, beve
     collection = parent.users_collection[0] if parent.users_collection else bpy.context.scene.collection
     collection.objects.link(obj)
     obj.location = origin
-    return _finish_mesh(obj, name, token, parent, flat=flat, bevel=bevel)
+    return _finish_mesh(obj, name, token, parent, flat=flat, bevel=bevel, normal_mode=normal_mode)
 
 
 def add_lofted_form(
@@ -356,6 +625,7 @@ def add_lofted_form(
     cap_top=True,
     flat=True,
     bevel=0.0,
+    normal_mode="rounded",
 ):
     """Loft one closed volume through authored elliptical cross-sections.
 
@@ -391,7 +661,12 @@ def add_lofted_form(
         base = (len(resolved) - 1) * sides
         faces.append(tuple(base + step for step in range(sides)))
 
-    return _build_mesh(name, origin, vertices, faces, token, parent, flat=flat, bevel=bevel)
+    obj = _build_mesh(name, origin, vertices, faces, token, parent, flat=flat, bevel=bevel, normal_mode=normal_mode)
+    if cap_bottom:
+        set_surface_normals(obj, "planar", faces=[len(faces) - int(cap_top) - 1])
+    if cap_top:
+        set_surface_normals(obj, "planar", faces=[len(faces) - 1])
+    return obj
 
 
 def add_conforming_shell(
@@ -894,7 +1169,7 @@ def add_leaf_blade(
         faces.append((last + step, last + (step + 1) % 4, apex))
 
     return _build_mesh(
-        name, origin, vertices, faces, token, parent, flat=flat, recalc_normals=True
+        name, origin, vertices, faces, token, parent, flat=flat, recalc_normals=True, normal_mode="rounded"
     )
 
 

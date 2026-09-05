@@ -2,6 +2,7 @@
 
 import * as THREE from "three";
 import { createSpatialSurfaceBatch } from "./spatialSurfaceBatch";
+import { RigidAnimationBatch } from "./RigidAnimationBatch";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -27,7 +28,7 @@ import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { CultivatedSurfaceMaterial } from "../materials/CultivatedSurfaceMaterial";
 import { RoadSurfaceMaterial } from "../materials/RoadSurfaceMaterial";
-import { updateVegetationWind, vegetationInstanceTintMaterial } from "../materials/VegetationTintMaterial";
+import { coastalVegetationDepthMaterial, disposeVegetationTintMaterials, updateVegetationWind, vegetationInstanceTintMaterial } from "../materials/VegetationTintMaterial";
 import {
   isTerrainDebugMode,
   TerrainSurfaceMaterial
@@ -696,6 +697,7 @@ export class WorldScene {
   private readonly faunaPresentations: FaunaPresentation[] = [];
   private donkeyPresentation: DonkeyPresentation | null = null;
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
+  private readonly rigidAnimationBatches = new Map<THREE.Object3D, RigidAnimationBatch>();
   private syncInFlight: boolean = false;
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
@@ -855,6 +857,9 @@ export class WorldScene {
     // 2. Sky and faceted animated water
     this.buildSky();
     this.water = new FacetedWater(WATER_SURFACE);
+    this.rendererPipeline.bindWaterCapture([...this.water.meshes, this.water.nearPatch.mesh], this.water.coastalUniforms);
+    this.terrainSurfaceMaterial.bindCoastalField(this.water.coastalUniforms);
+    this.roadSurfaceMaterial.bindCoastalField(this.water.coastalUniforms);
     this.scene.add(this.water.group);
     this.shoreFoam = new ShoreFoam({
       waterProfileMap: this.water.waterProfileMap,
@@ -1022,6 +1027,8 @@ export class WorldScene {
           float zenith = smoothstep(0.18, 0.9, vWorldDirection.y);
           color *= mix(1.0, 0.93, zenith);
           gl_FragColor = vec4(color, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }
       `
     });
@@ -1429,6 +1436,7 @@ export class WorldScene {
     };
     this.scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.BatchedMesh)) return;
+      if (object.layers.mask === 0) return;
       meshes += 1;
       if (object instanceof THREE.BatchedMesh) batched += 1;
       if (object instanceof THREE.InstancedMesh) instances += object.count;
@@ -1670,6 +1678,8 @@ export class WorldScene {
   }
 
   private unbindLayoutInstanceFeatures(root: THREE.Object3D): void {
+    this.rigidAnimationBatches.get(root)?.dispose();
+    this.rigidAnimationBatches.delete(root);
     for (let index = this.practicalLights.length - 1; index >= 0; index -= 1) {
       const practical = this.practicalLights[index];
       if (!practical || practical.root !== root) continue;
@@ -2271,6 +2281,14 @@ export class WorldScene {
     for (const root of spawnedRoots) this.applyVegetationInstanceVariation(root);
     if (import.meta.env.DEV) {
       for (const root of spawnedRoots) this.applyLayoutEditShadowFollow(root);
+    } else {
+      for (const root of spawnedRoots) {
+        const assetId = root.userData.assetId as AssetId | undefined;
+        if (assetId && (this.faunaKindForAsset(assetId)
+          || assetId === ASSET_IDS.FAUNA_GULL_A || assetId === ASSET_IDS.FAUNA_BUTTERFLY_A)) {
+          this.rigidAnimationBatches.set(root, new RigidAnimationBatch(root));
+        }
+      }
     }
     if (this.windmillRotor) this.batchCompatibleMeshes(this.windmillRotor, () => false);
 
@@ -2370,7 +2388,18 @@ export class WorldScene {
     if (spec?.family !== "vegetation") return;
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || Array.isArray(object.material)) return;
-      object.material = vegetationInstanceTintMaterial(object.material);
+      const weighted = Boolean(object.geometry.getAttribute("_neva_wind"));
+      object.material = vegetationInstanceTintMaterial(object.material, weighted);
+      if (weighted) {
+        object.customDepthMaterial = coastalVegetationDepthMaterial(object.material);
+        if (!object.geometry.userData.coastalWindBounds) {
+          object.geometry.computeBoundingBox();
+          object.geometry.computeBoundingSphere();
+          object.geometry.boundingBox?.expandByScalar(CANONICAL_RENDER_CONFIG.vegetationWind.coastalAmplitudeMeters);
+          if (object.geometry.boundingSphere) object.geometry.boundingSphere.radius += CANONICAL_RENDER_CONFIG.vegetationWind.coastalAmplitudeMeters;
+          object.geometry.userData.coastalWindBounds = true;
+        }
+      }
     });
   }
 
@@ -2378,6 +2407,10 @@ export class WorldScene {
     const assetId = root.userData.assetId as AssetId | undefined;
     const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
     if (!spec) return;
+    if (assetId === ASSET_IDS.FAUNA_GULL_A || assetId === ASSET_IDS.FAUNA_BUTTERFLY_A) {
+      this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castAmbientFlyers);
+      return;
+    }
     if (assetId === ASSET_IDS.FAUNA_DONKEY_A) {
       // Catalog family stays "prop" for the mount contract, but the ridden
       // donkey is a character silhouette rather than a small prop.
@@ -2617,6 +2650,7 @@ export class WorldScene {
       batched.computeBoundingSphere();
       batched.frustumCulled = true;
       batched.castShadow = sources[0].mesh.castShadow;
+      batched.customDepthMaterial = sources[0].mesh.customDepthMaterial;
       batched.receiveShadow = sources[0]?.mesh.receiveShadow ?? true;
       root.add(batched);
       for (const { chunk, bounds } of chunks.values()) {
@@ -3804,7 +3838,7 @@ export class WorldScene {
           const object = await AssetLoader.loadModel(assetId);
           object.userData.dynamicPresentation = true;
           object.scale.setScalar(kind === "butterfly" ? 3.4 : 1.45);
-          this.setShadowPolicy(object, false);
+          this.applyStaticShadowPolicy(object);
           this.environmentGroup.add(object);
           const clips = (object.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
           const mixer = clips.length > 0 ? new THREE.AnimationMixer(object) : null;
@@ -5231,6 +5265,8 @@ export class WorldScene {
     this.updateQualityTransition(deltaSeconds);
     this.updateDistanceManagedPresentation();
     this.groundCover.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
+    this.groundCover.updateRenderVisibility(camera);
+    for (const batch of this.rigidAnimationBatches.values()) batch.update();
     this.rendererPipeline.render(camera);
   }
 
@@ -5241,6 +5277,7 @@ export class WorldScene {
     // asset load happened to land before or after the last update.
     this.distanceVisibilityDirty = true;
     this.updateDistanceManagedPresentation();
+    for (const batch of this.rigidAnimationBatches.values()) batch.update();
     return this.rendererPipeline.prepareForCapture(camera);
   }
 
@@ -5276,6 +5313,7 @@ export class WorldScene {
     let instancedMeshes = 0;
     this.scene.traverseVisible((object) => {
       if (!(object instanceof THREE.Mesh)) return;
+      if (object.layers.mask === 0) return;
       if (object instanceof THREE.InstancedMesh && object.count === 0) return;
       visibleMeshes += 1;
       if (object.castShadow) shadowCasters += 1;
@@ -5359,6 +5397,8 @@ export class WorldScene {
    */
   public dispose(): void {
     this.detachPlayerFromDonkey();
+    for (const batch of this.rigidAnimationBatches.values()) batch.dispose();
+    this.rigidAnimationBatches.clear();
     this.playerAttachmentTransition = null;
     this.playerAnimation?.dispose();
     this.playerAnimation = null;
@@ -5387,6 +5427,7 @@ export class WorldScene {
     this.rainField.dispose();
     this.rainField.group.removeFromParent();
     this.disposeBatchedMeshes();
+    disposeVegetationTintMaterials();
     this.water.dispose();
     this.water.group.removeFromParent();
     this.shoreFoam.dispose();

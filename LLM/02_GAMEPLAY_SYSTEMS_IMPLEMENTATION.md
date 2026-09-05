@@ -408,7 +408,7 @@ Shared ranks/XP:
 ```
 XP sources: planting, successful harvest, crop care, farm contracts, advanced farm processing. Prevent repeat-plant/uproot and cheap reversible XP exploits.
 
-LIVE crop gates are `crop.minimumFarmingXp` (and a few `recipe.minimumSkill` values). Rank unlock tables (`farmingUnlocks`, `fishingUnlocks`, `tradingUnlocks`, `processingUnlocks`) exist in content data but are **unused** — see Deferred.
+`crop.minimumFarmingXp` owns crop access. Section 14 owns the shared progression-table contract, including live processing-rank and rod gates and validation against content requirements; do not treat every rank-unlock column as unused.
 
 # 5. Inventory & Processing
 
@@ -418,7 +418,7 @@ interface InventorySlot { itemId?: ItemId; quantity?: number; }
 ```
 Rules: finite slots, defined stack limits, atomic transactions, no silent item loss. Any transaction validates inputs/output capacity first, then mutates once; failure leaves state unchanged.
 
-MVP stations: `Hand Mill`, `Workbench`, harbor **Fish Cleaning Table** at `HARBOR_FISH_TABLE` (`struct.harbor_fish_table`, `stationType: "fish-table"`). New-game station `y` is terrain height. Harbor arterial and coastal routes terminate at `HARBOR_MARKET_APRON` (`x: 64.5, z: 54.5`) in front of the fish market stall counter, keeping the route corridor, fish-cleaning table, and shore-stairs approaches unobstructed by building collision.
+MVP stations: `Hand Mill`, `Workbench`, harbor **Fish Cleaning Table** at `HARBOR_FISH_TABLE` (`struct.harbor_fish_table`, `stationType: "fish-table"`). New-game station `y` is terrain height. The reference-led harbor coast connects the existing apron to the eastern beach and rocky fishing access through the shared `harbor-beach-path` and `harbor-rocky-landing` routes. Shore support and marine bathymetry share `WorldLayout` and its pure `HarborCoast` profile; visual sand/foam fields do not create another gameplay shoreline. Coastal shelters are environment assets, not new stations, rewards or progression gates. Saved terrain/collision recovery follows `01` §6.1. Harbor arterial and coastal routes terminate at `HARBOR_MARKET_APRON` (`x: 64.5, z: 54.5`) in front of the fish market stall counter, keeping the route corridor, fish-cleaning table, and shore-stairs approaches unobstructed by building collision.
 ```ts
 interface ProcessingJobState {
   id: ProcessingJobId;
@@ -798,13 +798,16 @@ Contract:
   is the intended boundary: the mount moves you between work sites, it does not
   let you work from the saddle.
 - **`MOUNT_TUNING` in `src/simulation/mounts/Mounts.ts` is the tuning owner** for
-  walk/trot speed, acceleration, pose offsets, board radius, ground tolerance,
+  walk/trot/gallop speed, gallop stamina and recovery, acceleration, pose offsets, board radius, ground tolerance,
   and maximum mountable slope. Do not scatter those numbers into presentation,
   input, or physics code.
-- The live donkey walk matches sustained on-foot walking and the trot is a
-  faster travel tier. Riding does not drain sprint stamina, so mounted travel
-  remains the sustained-travel advantage without forcing either gait beyond
-  the authored leg reach.
+- The donkey offers walk, sustained trot and a stamina-limited gallop. Riding
+  does not drain the player's sprint resource: `advanceMountGait` advances the
+  mount's own persisted gallop stamina, recovery delay and exhaustion at the
+  fixed traversal step. `PhysicsAdapter` returns that result and
+  `NavigationDomain` commits it to the active mount. Exhaustion prevents
+  galloping until the configured recovery threshold is reached; ordinary
+  movement remains available. Schema history belongs to `01` §6.1.
 - The mount mesh, animation, and rider attachment are presentation. Mount pose
   is committed from the validated physics frame exactly like the player pose;
   Three.js never owns mount position.
@@ -827,7 +830,8 @@ Contract:
   foot support; terrain contact solving does not modify mounted poses.
 
 Deferred for mounts: purchase/ownership progression, mount inventory or cargo,
-stamina, feeding, additional species, and mounted interaction verbs.
+feeding, additional species, and mounted interaction verbs. The gallop budget
+described above is live, not deferred.
 
 # 12. Weather & Sea Risk
 
@@ -929,7 +933,7 @@ Rod progression is live at the harbor: Willow → River → Heavy Sport → Offs
 
 # 15. Contracts, Journal & Legendary Fish
 
-Contracts replace repeatable arbitrary fetch quests. The authored story chain remains separate: its eighteen quests teach the connected farm-to-sea loop, stewardship postscript, and Sunreach extension, use named NPCs and locations, and advance through explicit `nextQuestId` links. A story objective may require completion of any feasible contract, but contract generation remains repeatable economy content and does not carry lore or choose story branches.
+Contracts replace repeatable arbitrary fetch quests. The authored story spine and parallel linear tracks remain separate; the Live story spine section and `src/content/{quests,questTracks}.ts` own their scope and content. They use named NPCs and locations and advance through explicit `nextQuestId` links. A story objective may require completion of any feasible contract, but contract generation remains repeatable economy content and does not carry lore or choose story branches.
 
 ```ts
 interface ContractTemplate {
@@ -1139,8 +1143,8 @@ The preceding sections are the **LIVE** implementation authority. The items belo
 - **Authored ice location table.** LIVE ice is a slot `hasIce` flag or `item.crushed_ice` in satchel / boat supply, which forces storage modifier **0.4** wherever that ice resolves. The carried/hold/ice-box/cold-storage table is the design target, not a live per-location ice lookup.
 - **Mandatory sport lure gate.** A lure is **not** required to hook a chummed school. Explicit preparation, successful-hook consumption, and fight forgiveness are live; making lure possession mandatory remains deferred.
 - **External hook verb.** The skiff purchase and persisted second vessel are live, as is the crude zero-fuel Emergency Tow above. External-hook class as a distinct live verb remains deferred.
-- **Branching dialogue, persistent transcripts, and separate lore codex.** The eighteen-quest chain, contextual intro/completion/idle/milestone dialogue, quest titles/objectives, completed quest history, and feature/knowledge unlocks are live. Branches, relationship variables, dialogue page saves, a transcript, and a separate `loreDiscoveries` state are not live; do not add them opportunistically.
-  **Parallel quest tracks are not branching and remain in scope.** A track is its own linear `nextQuestId` chain with its own cursor, activated by an explicit state predicate (`QuestTrackDefinition.unlock`). No quest has two possible outcomes and no dialogue offers a choice; the player simply carries more than one thread. The validator enforces this by walking one chain per track and rejecting a `nextQuestId` that crosses tracks. Only `track.main` currently exists.
+- **Branching dialogue, persistent transcripts, and separate lore codex.** The authored spine and parallel linear tracks, contextual intro/completion/idle/milestone dialogue, quest titles/objectives, completed quest history, and feature/knowledge unlocks are live. Branches, relationship variables, dialogue page saves, a transcript, and a separate `loreDiscoveries` state are not live; do not add them opportunistically.
+  **Parallel quest tracks are not branching and are live.** A track is its own linear `nextQuestId` chain with its own cursor, activated by an explicit state predicate (`QuestTrackDefinition.unlock`). No quest has two possible outcomes and no dialogue offers a choice; the player simply carries more than one thread. The validator enforces this by walking one chain per track and rejecting a `nextQuestId` that crosses tracks. `src/content/questTracks.ts` owns the current track registry and unlock predicates; the Live story spine section owns the main narrative scope.
 - **NPC schedules and romance.** Named NPC roles and fixed authored anchors are live. Daily schedules, relationship progression, romance, and large companion/story systems remain out of scope for the MVP.
 - **Physical character ragdoll.** `HumanoidRagdoll` remains standalone support;
   the no-combat MVP does not instantiate or step a live character ragdoll in
