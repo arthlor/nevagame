@@ -1725,11 +1725,12 @@ export function generateSunreachGroundCoverPlacements(worldSeed: number): Ground
   return placements;
 }
 
+const STATIC_PLACEMENTS_CACHE = new Map<string, readonly EnvironmentAssetPlacement[]>();
 const ENVIRONMENT_LAYOUT_CACHE = new Map<string, WorldEnvironmentLayout>();
 
-export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmentLayout {
+export function createWorldStaticPlacements(worldSeed: number): readonly EnvironmentAssetPlacement[] {
   const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;
-  const cached = ENVIRONMENT_LAYOUT_CACHE.get(cacheKey);
+  const cached = STATIC_PLACEMENTS_CACHE.get(cacheKey);
   if (cached) return cached;
   const coastalDressing = independentCoastalDressing(worldSeed);
   const existing = applyPlacementOverrides([
@@ -1756,14 +1757,30 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
       throw new Error(`[WorldEnvironmentLayout] Unstable authored footprint ${placement.id}`);
     }
   }
-  const layout = {
+  STATIC_PLACEMENTS_CACHE.set(cacheKey, staticPlacements);
+  return staticPlacements;
+}
+
+export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmentLayout {
+  const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;
+  const cached = ENVIRONMENT_LAYOUT_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const staticPlacements = createWorldStaticPlacements(worldSeed);
+  let cachedGroundCover: readonly GroundCoverPlacement[] | null = null;
+  const layout: WorldEnvironmentLayout = {
     worldSeed,
     staticPlacements,
-    groundCoverPlacements: [
-      ...generateGroundCoverPlacements(worldSeed).filter(retainHarborGroundCover),
-      ...generateSunreachGroundCoverPlacements(worldSeed)
-    ]
+    get groundCoverPlacements() {
+      if (!cachedGroundCover) {
+        cachedGroundCover = [
+          ...generateGroundCoverPlacements(worldSeed).filter(retainHarborGroundCover),
+          ...generateSunreachGroundCoverPlacements(worldSeed)
+        ];
+      }
+      return cachedGroundCover;
+    }
   };
   ENVIRONMENT_LAYOUT_CACHE.set(cacheKey, layout);
   return layout;
 }
+

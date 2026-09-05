@@ -6,7 +6,7 @@ import { WorldLayout } from "../world/WorldLayout";
 import { validLand, nearestPoint, groundPlayer, clearReach, repairAnglerReach, type Point } from "./terrainMigrationSupport";
 import { harborCoastContains } from "../world/HarborCoast";
 import { harborCoastCollisionProxies } from "../world/HarborCoastLayout";
-import { createWorldEnvironmentLayout } from "../world/WorldEnvironmentLayout";
+import { createWorldStaticPlacements } from "../world/WorldEnvironmentLayout";
 import { staticPoseIsClear } from "../physics/StaticCollision";
 
 function isNevaPoint(point: { x: number; z: number }): boolean {
@@ -16,7 +16,7 @@ function isNevaPoint(point: { x: number; z: number }): boolean {
 
 /** Layout 13: repair poses affected by harbor beach, landing rebuild, and island-wide terrain elevation changes. */
 export function migrateTerrainLayout13(previous: GameState): GameState {
-  const collision = harborCoastCollisionProxies(createWorldEnvironmentLayout(previous.worldSeed).staticPlacements);
+  const collision = harborCoastCollisionProxies(createWorldStaticPlacements(previous.worldSeed));
   const supported = (point: Point, mounted: boolean) => validLand(point, mounted)
     && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), mounted ? 0.7 : 0.4);
   const state: GameState = {
