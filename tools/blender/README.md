@@ -1,7 +1,8 @@
 # Neva art toolchain
 
-This is the short operational guide for routine asset work. `LLM/BLENDER.md`
-owns task routing and gate policy. The catalog and palette remain the production
+This is the short operational guide for routine asset work. root `AGENTS.md`
+owns task routing; `LLM/BLENDER.md` owns production operations and `03` §4
+owns proportional verification. The catalog and palette remain the production
 authorities; generators must not maintain parallel filename, parameter, or color
 lists.
 
@@ -36,6 +37,10 @@ Routine work does not run screenshots, static previews, determinism, strict
 density, benchmarks, full builds, or broad test suites. Typecheck only when
 runtime TypeScript changed.
 
+### Trade-pack Blender workshop
+
+`open_trade_pack_workshop.py` creates an editable workshop from explicit selected catalog IDs through the registered fish/crop pack generators. In Blender's Python console, load it with `runpy.run_path` and call its `build_workshop(asset_ids)` function. It preserves the previous scene, creates a separate workshop scene, and saves `art/workshops/trade-packs.blend`. The workshop is an editable inspection artifact; catalog parameters and registered generators remain the reproducible source, and the ordinary selected CLI owns GLB validation and publication. Crop packs are future-use assets, not a physical crop delivery mechanic.
+
 ## Shared-generator and release commands
 
 ```bash
@@ -61,8 +66,8 @@ npm run art:determinism -- --all
 npm run art:benchmark
 ```
 
-The visual-gold benchmark enforces no browser errors, ≤220 draw calls, and
-≤900,000 visible triangles per scene. Its lower triangle target floor is
+The visual-gold benchmark enforces no browser errors and its configured
+preferred scene limits from `tools/blender/asset_budgets.json`. Its lower triangle target floor is
 advisory. `art:generate:strict` and determinism retain their existing
 semantics and remain separate technical-art/release gates. `art:benchmark:extended`
 remains an explicit release diagnostic. Agents do not inspect generated images
@@ -72,8 +77,9 @@ The benchmark uses the Vite DEV server. DEV layout-editor picking intentionally
 keeps static prefabs unmerged and omits the baked static-shadow proxy, so its
 draw/triangle measurements are diagnostic and not production-equivalent proof.
 Do not relax `tools/blender/asset_budgets.json` to accommodate that path; record
-the result as an open technical render gate until a certified measurement path
-exists.
+the diagnostic result with its limits. Production budget measurements use
+`npm run test:budget`; frozen world acceptance uses `npm run world:acceptance`
+when in scope. See `LLM/03_PRODUCTION_ROADMAP_LLM_AGENT_PLAYBOOK.md` §4.
 
 ## What generation preserves
 
@@ -199,6 +205,31 @@ the command above writes the standalone review report.
 
 After validation, hash the final durable prepared Blender library for catalog provenance, generate the selected imported assets without publication, check semantic determinism, then use the existing atomic publication path. Human review remains in the integrated game.
 
+### Selected player and rowboat fitting
+
+`sample_rowboat_motion.mjs` samples the existing runtime
+`CharacterEquipment.rowboatOarRotation` function for offline Blender authoring.
+`fit_player_rowboat.py` fits only `char_player_a`'s rowing/idle actions and the
+boarding/docking endpoints to the catalog rowboat's seat, foot supports and
+moving palm frames. It applies the player's catalog material map to both LODs
+while preserving source geometry, UVs, normals, skinning, bind transforms and
+all unrelated actions. Run it in a fresh background Blender process:
+
+```bash
+node tools/blender/sample_rowboat_motion.mjs output/player-rowboat
+blender --background --factory-startup --python-exit-code 1 \
+  --python tools/blender/fit_player_rowboat.py -- --output-dir output/player-rowboat
+```
+
+The helper writes a staged Blender library and a contact/deformation report;
+it does not publish. After the report passes, retain the source backup, promote
+the selected library to the existing catalog `sourceBlend`, update its verified
+provenance digest, and run selected generation without publication, source
+comparison, semantic determinism and normal selected publication. Runtime palm
+and sole contact checks remain separate from the Blender bake and human review.
+The paired workshop scene is an editable review artifact; runtime continues to
+load the character and boat as separate catalog assets.
+
 ## Reference-guided authoring
 
 An image/study-guided asset must keep its closed `referenceAuthoring` object in
@@ -229,7 +260,9 @@ bounds, collision, animation, lighting, weather, ground, and water controls are
 diagnostics for the human. Player animation review can pair the donkey,
 rowboat, or skiff context atomically, includes that companion in bounds, layers
 `reel` over selectable lower-body bases, and seeks the paired actions
-deterministically. The route is not included in production builds.
+deterministically. Published Art Yard views/data are also emitted into the
+production build by `tools/vite/artYardPlugin.ts`; candidate-stage endpoints
+remain DEV-only. `LLM/BLENDER.md` §5 owns the routes.
 
 ## Cache, staging, and publication
 

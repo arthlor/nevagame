@@ -48,6 +48,8 @@ interface RoundTripCase {
 }
 
 const CASES: readonly RoundTripCase[] = [
+  { label: "NPC scheduled stop", commit: { kind: "npc", id: "npc.barnaby.day", ...WORLD_POSE }, expects: [WORLD_X, WORLD_Z, YAW] },
+  { label: "Harbor NPC scheduled stop", commit: { kind: "npc", id: "npc.maeve.dusk", ...WORLD_POSE }, expects: [WORLD_X, WORLD_Z, YAW] },
   {
     label: "landmark bridge",
     commit: { kind: "landmark", id: "bridge", ...WORLD_POSE },
@@ -165,6 +167,14 @@ function addedText(previous: LayoutSourceFiles, next: LayoutSourceFiles): string
 describe("layout editor writes land in the shipped layout sources", () => {
   const baseline = readLayoutSources(ROOT);
   const tempDirs: string[] = [];
+
+  it("editing a harbor schedule leaves home and other phases unchanged", () => {
+    const next = applyLayoutEditToSources(baseline, { kind: "npc", id: "npc.maeve.dusk", ...WORLD_POSE });
+    expect(next.worldAnchors).toBe(baseline.worldAnchors);
+    const originalDusk = baseline.npcs.split("\n").find((line) => line.includes('phase: "dusk"') && line.includes('locationName: "Village Market Hall"'))!;
+    const revisedDusk = next.npcs.split("\n").find((line) => line.includes('phase: "dusk"') && line.includes('locationName: "Village Market Hall"'))!;
+    expect(next.npcs.replace(revisedDusk, originalDusk)).toBe(baseline.npcs);
+  });
 
   afterAll(() => {
     for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });

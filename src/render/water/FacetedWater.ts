@@ -1,5 +1,6 @@
+import { runSync, runCooperatively } from "../../utils/CooperativeTask";
 import * as THREE from "three";
-import { createWaterDepthMap, createCoastalUniforms, WATER_OUTPUT_GLSL, type CoastalUniforms } from "./CoastalOptics";
+import { createWaterDepthMap, waterDepthMapSteps, createCoastalUniforms, WATER_OUTPUT_GLSL, type CoastalUniforms } from "./CoastalOptics";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { GROUND_POLYGON_CELL_GLSL } from "../materials/GroundPolygonCells";
@@ -37,14 +38,17 @@ export interface WaterOptions {
 export const SHORE_MASK_RESOLUTION = 512;
 export const SHORE_MASK_METERS_PER_TEXEL = 750 / (SHORE_MASK_RESOLUTION - 1);
 
-export function createWaterProfileMap(
-  bounds: THREE.Vector4,
-  width: number,
-  height: number
-): THREE.DataTexture {
+export function createWaterProfileMap(bounds: THREE.Vector4, width: number, height: number): THREE.DataTexture {
+  return runSync(waterProfileMapSteps(bounds, width, height));
+}
+
+export function* waterProfileMapSteps(
+  bounds: THREE.Vector4, width: number, height: number
+): Generator<void, THREE.DataTexture, void> {
   const data = new Uint8Array(width * height * 4);
   for (let row = 0; row < height; row += 1) {
     for (let column = 0; column < width; column += 1) {
+      if (column % 32 === 0) yield;
       const x = bounds.x + (column / (width - 1)) * bounds.z;
       const z = bounds.y + (row / (height - 1)) * bounds.w;
       const profile = waterSpatialProfile(x, z);
@@ -224,7 +228,24 @@ export class FacetedWater {
     windSpeed: 0
   };
 
-  constructor(options: WaterOptions = {}) {
+  public static async create(options: WaterOptions = {}, signal?: AbortSignal): Promise<FacetedWater> {
+    const width = options.width ?? WATER_SURFACE.width;
+    const depth = options.depth ?? WATER_SURFACE.depth;
+    const bounds = new THREE.Vector4(
+      (options.centerX ?? WATER_SURFACE.centerX) - width * 0.5,
+      (options.centerZ ?? WATER_SURFACE.centerZ) - depth * 0.5, width, depth
+    );
+    const columns = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
+    const rows = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
+    const profile = await runCooperatively(waterProfileMapSteps(bounds, columns, rows), signal);
+    try {
+      const depthMap = await runCooperatively(waterDepthMapSteps(bounds, columns, rows), signal);
+      try { signal?.throwIfAborted(); return new FacetedWater(options, { profile, depth: depthMap }); }
+      catch (error) { depthMap.dispose(); throw error; }
+    } catch (error) { profile.dispose(); throw error; }
+  }
+
+  constructor(options: WaterOptions = {}, prepared?: { profile: THREE.DataTexture; depth: THREE.DataTexture }) {
     const width = options.width ?? WATER_SURFACE.width;
     const depth = options.depth ?? WATER_SURFACE.depth;
     const segmentsX = options.segmentsX ?? WATER_SURFACE.segmentsX;
@@ -241,8 +262,8 @@ export class FacetedWater {
 
     const profileWidth = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
     const profileHeight = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
-    this.waterProfileMap = createWaterProfileMap(profileBounds, profileWidth, profileHeight);
-    this.depthMap = createWaterDepthMap(profileBounds, profileWidth, profileHeight);
+    this.waterProfileMap = prepared?.profile ?? createWaterProfileMap(profileBounds, profileWidth, profileHeight);
+    this.depthMap = prepared?.depth ?? createWaterDepthMap(profileBounds, profileWidth, profileHeight);
     this.coastalUniforms = createCoastalUniforms(this.depthMap, profileBounds);
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,

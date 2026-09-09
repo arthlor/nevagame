@@ -24,6 +24,19 @@ export type StructureId = string;
 export type SkillId = "farming" | "fishing" | "processing" | "trading";
 export type RodClass = "willow" | "river" | "heavy-sport" | "offshore" | "master";
 export type RodId = string;
+export type EquipmentId = string;
+export type EquipmentSlot = "head" | "outerwear" | "feet" | "watering-tool" | "harvest-tool";
+export type ClothingSlot = Extract<EquipmentSlot, "head" | "outerwear" | "feet">;
+export type EquipmentPresetId = "field" | "sea";
+export type WorkActionId =
+  | "farming.plant"
+  | "farming.water"
+  | "farming.harvest"
+  | "farming.fertilize"
+  | "farming.irrigate"
+  | "fishing.basic-cast"
+  | "fishing.sport-hook"
+  | "processing.start";
 export type FishBehaviorProfileId = string;
 export type ContractTemplateId = string;
 export type ContractId = string;
@@ -76,6 +89,7 @@ export type GameAction =
   | "use-primary-release"
   | "use-secondary"
   | "open-inventory"
+  | "open-character"
   | "open-map"
   | "open-journal"
   | "open-ledger"
@@ -113,6 +127,7 @@ export interface PlayerState {
   inventoryId: InventoryId;
   equippedRodId: RodId;
   ownedRodIds: RodId[];
+  equipment: PlayerEquipmentState;
   preparedLureItemId: ItemId | null;
   /** Drag notch: 0 light (forgiving), 1 balanced, 2 heavy (decisive). */
   dragNotch: 0 | 1 | 2;
@@ -123,6 +138,15 @@ export interface PlayerState {
   traversal: PlayerTraversalState;
   workCapacity: WorkCapacityState;
   proficiencies: Record<SkillId, number>; // XP
+}
+
+export interface PlayerEquipmentState {
+  /** Permanent, unique wardrobe entries. Equipment is never stored in satchel slots. */
+  ownedIds: EquipmentId[];
+  equipped: Record<EquipmentSlot, EquipmentId>;
+  /** Clothing-only presets. Tools and rods are deliberately excluded. */
+  presets: Record<EquipmentPresetId, Record<ClothingSlot, EquipmentId>>;
+  wardrobeCapacity: number;
 }
 
 /** Canonical traversal state. Work Capacity remains an unrelated economy resource. */
@@ -201,13 +225,29 @@ export interface ItemStack {
   quantity: number;
 }
 
+export type ProcessingWorkTier = "standard" | "masterwork";
+export type ProcessingPresentationKind = "existing" | "tailoring" | "toolmaking";
+export type RecipeResult =
+  | { kind: "items"; stacks: ItemStack[] }
+  | { kind: "equipment"; equipmentId: EquipmentId };
+
 export interface ProcessingJobState {
   id: ProcessingJobId;
   recipeId: RecipeId;
   stationId: StructureId;
   startedAtMinute: GameMinute;
   completesAtMinute: GameMinute;
-  status: "active" | "complete" | "collected";
+  status: "active" | "complete";
+  /** Immutable economic and presentation snapshot taken when the job commits. */
+  recipeName: string;
+  outputLabel: string;
+  result: RecipeResult;
+  workTier: ProcessingWorkTier;
+  presentationKind: ProcessingPresentationKind;
+  baseWork: number;
+  chargedWork: number;
+  xpReward: number;
+  effectiveDurationMinutes: number;
 }
 
 export interface BoatCargoSlotDefinition {
@@ -327,6 +367,11 @@ export interface FishingEncounterState {
     weatherType: WeatherTag;
     seaRoughness: number;
   };
+  /** Clothing effects are frozen when the fish is hooked and survive reload. */
+  equipmentEffects: {
+    lineIntegrityDamageMultiplier: number;
+    braceResistanceMultiplier: number;
+  };
   stamina: number;
   maxStamina: number;
   distanceMeters: number;
@@ -344,6 +389,13 @@ export interface FishingEncounterState {
   isBracing: boolean;
   /** Drag notch snapshot at hook time (0 light, 1 balanced, 2 heavy); adjustable mid-fight. */
   dragNotch?: 0 | 1 | 2;
+  /**
+   * Work the hook actually charged, after the proficiency discount in force at
+   * that moment. The lost-fight refund pays a share of *this* rather than
+   * re-deriving the cost later, which drifted whenever the fight crossed a
+   * discount tier. Optional for legacy in-memory and pre-v33 saved fights.
+   */
+  workCharged?: number;
   slackTimerSeconds: number;
   snapTimerSeconds: number;
   result: "active" | "landed" | "escaped" | "line-snapped";

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OBB } from "three/examples/jsm/math/OBB.js";
 import { describe, expect, it, vi } from "vitest";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { HARBOR_BEACH_PATH, HARBOR_LANDING_PATH } from "../../src/world/HarborCoast";
@@ -6,6 +7,9 @@ import { harborCoastCollisionProxies } from "../../src/world/HarborCoastLayout";
 import { createWorldEnvironmentLayout } from "../../src/world/WorldEnvironmentLayout";
 import catalog from "../../assets/specs/asset-catalog.json";
 import { staticPoseIsClear } from "../../src/physics/StaticCollision";
+import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter";
+import { boatAssetId } from "../../src/render/assets/AssetCatalog";
+import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../../src/world/WorldAnchors";
 import { createWaterDepthMap } from "../../src/render/water/CoastalOptics";
 import { FacetedWater } from "../../src/render/water/FacetedWater";
 import { coastalVegetationDepthMaterial, vegetationInstanceTintMaterial, disposeVegetationTintMaterials, updateVegetationWind } from "../../src/render/materials/VegetationTintMaterial";
@@ -58,6 +62,26 @@ describe("harbor coast shared support and optical fields", () => {
         const point={x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t};
         expect(WorldLayout.isWalkable(point.x,point.z)).toBe(true);
         expect(staticPoseIsClear(boxes,point,WorldLayout.traversalSurfaceHeight(point.x,point.z),1.4),JSON.stringify(point)).toBe(true);
+      }
+    }
+  });
+
+  it("keeps the published rowboat and skiff hulls clear of coastal rock through each fixed berth and departure",()=>{
+    const obb=(box:ReturnType<typeof projectAssetCollision>[number])=>new OBB(
+      new THREE.Vector3(box.center.x,box.center.y,box.center.z),
+      new THREE.Vector3(box.halfExtents.x,box.halfExtents.y,box.halfExtents.z),
+      new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(
+        new THREE.Quaternion(box.rotation.x,box.rotation.y,box.rotation.z,box.rotation.w)))
+    );
+    const rocks=harborCoastCollisionProxies().filter(box=>box.id.includes("rock-"));
+    expect(rocks.length).toBeGreaterThan(0);
+    for(const [type,mooring] of [["boat.rowboat",HARBOR_DOCK],["boat.skiff",HARBOR_SKIFF_MOORING]] as const){
+      for(const departure of [0,2,4,6]){
+        const root=new THREE.Object3D();root.position.set(mooring.boatPosition.x,mooring.boatPosition.y,mooring.boatPosition.z+departure);
+        const hulls=projectAssetCollision(boatAssetId(type),root,type);
+        expect(hulls.length).toBeGreaterThan(0);
+        for(const hull of hulls)for(const rock of rocks)
+          expect(obb(hull).intersectsOBB(obb(rock)),`${type} +${departure}m / ${rock.id}`).toBe(false);
       }
     }
   });

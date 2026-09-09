@@ -119,6 +119,24 @@ function refundAndExpireContract(state: GameState, contract: GameState["contract
   }
 }
 
+/**
+ * How many settled contracts stay on the board's history tail. Every reader
+ * filters to `status === "active"`, so completed and expired rows were pure
+ * growth: the array never shrank, and `SaveSchema` re-validated every element
+ * of it on each load.
+ */
+export const SETTLED_CONTRACT_HISTORY = 20;
+
+/** Trims the settled tail so a long save cannot accumulate contracts forever. */
+export function pruneSettledContracts(state: GameState): number {
+  const settled = state.contracts.filter((contract) => contract.status !== "active");
+  const excess = settled.length - SETTLED_CONTRACT_HISTORY;
+  if (excess <= 0) return 0;
+  const drop = new Set(settled.slice(0, excess));
+  state.contracts = state.contracts.filter((contract) => !drop.has(contract));
+  return excess;
+}
+
 export function contractTargetReferenceValue(
   state: GameState,
   template: ContractTemplateDefinition,
@@ -309,6 +327,7 @@ export class ContractDomain {
   public tick(): void {
     expireContracts(this.context.state);
     refillContracts(this.context.state, this.context.rng, this.context.nextEntityId);
+    pruneSettledContracts(this.context.state);
     this.context.persistRng();
   }
 

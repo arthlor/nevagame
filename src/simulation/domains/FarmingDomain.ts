@@ -1,4 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { onboardingGrowthMultiplier } from "../core/OnboardingPace";
 import {
   farmLocalToWorld,
   farmWellWorldAnchor,
@@ -27,6 +28,7 @@ import type { CropQuality, FarmId, GameState, PlacedCropId } from "../core/types
 import {
   advancePlacedCropGrowth,
   calculateCropQuality,
+  cropClimateQualityScore,
   calculateEffectiveGrowthDelta,
   calculateHarvestYield,
   GROWING_STAGE_MIN_PROGRESS
@@ -38,8 +40,15 @@ import { distance2d } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { isQuestActive } from "../core/QuestTypes";
 import { freeHandsBlocker } from "./domainRules";
+import {
+  annualPlantMatterBonus,
+  BASE_CROP_INTERACTION_REACH_METERS,
+  cropInteractionReachMeters,
+  cropQualityChanceMultiplier,
+  type CropInteractionAction
+} from "../equipment/EquipmentEffects";
 
-export const CROP_INTERACTION_RADIUS = 2.5;
+export const CROP_INTERACTION_RADIUS = BASE_CROP_INTERACTION_REACH_METERS;
 export const WET_MOISTURE_THRESHOLD = 85;
 export const FERTILIZER_ITEM_ID = "item.basic_fertilizer";
 export const FERTILITY_MIN = 10;
@@ -375,12 +384,12 @@ export class FarmingDomain {
     if (!InventoryManager.hasItems(playerInventory, [{ itemId: cropDef.seedItemId, quantity: 1 }])) {
       return { success: false, reason: "The seed is no longer available", reasonCode: "no-seed" };
     }
-    const workQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.plant, "farming");
+    const workQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.plant, "farming", "farming.plant");
     if (!workQuote.affordable) return this.progression.insufficientWorkResult(workQuote, "Planting");
     if (!InventoryManager.removeItemsAtomically(playerInventory, [{ itemId: cropDef.seedItemId, quantity: 1 }])) {
       return { success: false, reason: "The seed is no longer available", reasonCode: "no-seed" };
     }
-    const work = this.progression.trySpendWork(FARMING_ACTION_COST.plant, "farming", "Planting");
+    const work = this.progression.trySpendWork(FARMING_ACTION_COST.plant, "farming", "Planting", "farming.plant");
     if (!work.success) {
       InventoryManager.addItemsAtomically(playerInventory, [{ itemId: cropDef.seedItemId, quantity: 1 }]);
       return work;
@@ -417,12 +426,12 @@ export class FarmingDomain {
     if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
     const crop = state.crops[placedCropId];
     if (!crop) return { success: false, reason: "Crop not found" };
-    if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
+    if (!this.isNearCrop(crop, "water")) return { success: false, reason: "Move closer to the crop" };
     if (crop.stage === "withered") return { success: false, reason: "This crop has withered" };
     if (crop.moisture >= WET_MOISTURE_THRESHOLD) {
       return { success: false, reason: "The soil is already wet", reasonCode: "already-wet" };
     }
-    const work = this.progression.trySpendWork(FARMING_ACTION_COST.water, "farming", "Watering");
+    const work = this.progression.trySpendWork(FARMING_ACTION_COST.water, "farming", "Watering", "farming.water");
     if (!work.success) return work;
     crop.moisture = 100;
     this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.water);
@@ -437,7 +446,7 @@ export class FarmingDomain {
     if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
     const crop = state.crops[placedCropId];
     if (!crop) return { success: false, reason: "Crop not found" };
-    if (!this.isNearCrop(crop)) return { success: false, reason: "Move closer to the crop" };
+    if (!this.isNearCrop(crop, "harvest")) return { success: false, reason: "Move closer to the crop" };
     const cropDef = ContentRegistry.crops.get(crop.cropId);
     if (!cropDef) return { success: false, reason: "Crop not found" };
     if (crop.stage === "withered") {
@@ -452,7 +461,7 @@ export class FarmingDomain {
     const averageMoisture = crop.moistureSampleCount > 0
       ? crop.averageMoistureAccum / crop.moistureSampleCount
       : 50;
-    const climateScore = cropDef.preferredClimates.includes(farm.climateId) ? 1 : 0.6;
+    const climateScore = cropClimateQualityScore(cropDef, farm.climateId);
     const farmingProficiency = state.player.proficiencies.farming;
     const draftRng = new SeededRng(rng.getSeed(), rng.getState());
     const { quality } = calculateCropQuality(
@@ -462,22 +471,34 @@ export class FarmingDomain {
         soilFertility: farm.soil.fertility,
         farmingProficiency,
         rngRoll: draftRng.nextFloat(),
-        rareChanceMultiplier: 1
+        rareChanceMultiplier: cropQualityChanceMultiplier(state)
       },
       draftRng
     );
     const quantity = calculateHarvestYield(cropDef, crop.health, farmingProficiency, draftRng);
     const produceStack = [{ itemId: cropDef.harvestItemId, quantity }];
     const grantPlantMatter = !cropDef.regrows;
-    const plantMatterStack = [{ itemId: ANNUAL_PLANT_MATTER_ITEM_ID, quantity: ANNUAL_PLANT_MATTER_YIELD }];
+    const bonusPlantMatter = grantPlantMatter ? annualPlantMatterBonus(state) : 0;
     if (!InventoryManager.canAddItems(playerInventory, produceStack)) {
       return { success: false, reason: "The satchel is full" };
     }
-    const harvestStacks = grantPlantMatter && InventoryManager.canAddItems(playerInventory, [...produceStack, ...plantMatterStack])
-      ? [...produceStack, ...plantMatterStack]
+    let plantMatterQuantity = 0;
+    if (grantPlantMatter && InventoryManager.canAddItems(playerInventory, [
+      ...produceStack,
+      { itemId: ANNUAL_PLANT_MATTER_ITEM_ID, quantity: ANNUAL_PLANT_MATTER_YIELD }
+    ])) {
+      plantMatterQuantity = ANNUAL_PLANT_MATTER_YIELD;
+    }
+    const broadSickleByproductOmitted = bonusPlantMatter > 0 && !InventoryManager.canAddItems(playerInventory, [
+      ...produceStack,
+      { itemId: ANNUAL_PLANT_MATTER_ITEM_ID, quantity: plantMatterQuantity + bonusPlantMatter }
+    ]);
+    if (!broadSickleByproductOmitted) plantMatterQuantity += bonusPlantMatter;
+    const harvestStacks = plantMatterQuantity > 0
+      ? [...produceStack, { itemId: ANNUAL_PLANT_MATTER_ITEM_ID, quantity: plantMatterQuantity }]
       : produceStack;
 
-    const work = this.progression.trySpendWork(FARMING_ACTION_COST.harvest, "farming", "Harvesting");
+    const work = this.progression.trySpendWork(FARMING_ACTION_COST.harvest, "farming", "Harvesting", "farming.harvest");
     if (!work.success) return work;
 
     InventoryManager.addItemsAtomically(playerInventory, harvestStacks);
@@ -521,12 +542,28 @@ export class FarmingDomain {
       crop.averageMoistureAccum = crop.moisture;
       crop.moistureSampleCount = 1;
       this.context.persistRng();
-      return { success: true, yield: quantity, quality, xpGained };
+      return {
+        success: true,
+        yield: quantity,
+        quality,
+        xpGained,
+        reason: broadSickleByproductOmitted
+          ? "Broad Sickle byproduct omitted — the satchel is full"
+          : undefined
+      };
     }
 
     this.removePlacedCrop(placedCropId);
     this.context.persistRng();
-    return { success: true, yield: quantity, quality, xpGained };
+    return {
+      success: true,
+      yield: quantity,
+      quality,
+      xpGained,
+      reason: broadSickleByproductOmitted
+        ? "Broad Sickle byproduct omitted — the satchel is full"
+        : undefined
+    };
   }
 
   public applyFertilizer(farmId: FarmId): InteractionResult {
@@ -549,12 +586,12 @@ export class FarmingDomain {
     if (!InventoryManager.hasItems(playerInventory, [{ itemId: FERTILIZER_ITEM_ID, quantity: 1 }])) {
       return { success: false, reason: "No fertilizer in the satchel" };
     }
-    const workQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.fertilize, "farming");
+    const workQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.fertilize, "farming", "farming.fertilize");
     if (!workQuote.affordable) return this.progression.insufficientWorkResult(workQuote, "Fertilizing");
     if (!InventoryManager.removeItemsAtomically(playerInventory, [{ itemId: FERTILIZER_ITEM_ID, quantity: 1 }])) {
       return { success: false, reason: "No fertilizer in the satchel" };
     }
-    const work = this.progression.trySpendWork(FARMING_ACTION_COST.fertilize, "farming", "Fertilizing");
+    const work = this.progression.trySpendWork(FARMING_ACTION_COST.fertilize, "farming", "Fertilizing", "farming.fertilize");
     if (!work.success) {
       InventoryManager.addItemsAtomically(playerInventory, [{ itemId: FERTILIZER_ITEM_ID, quantity: 1 }]);
       return work;
@@ -636,7 +673,7 @@ export class FarmingDomain {
       });
       return { success: true, reason: "already-wet", reasonCode: "already-wet" };
     }
-    const work = this.progression.trySpendWork(FARMING_ACTION_COST.irrigate, "farming", "Irrigating");
+    const work = this.progression.trySpendWork(FARMING_ACTION_COST.irrigate, "farming", "Irrigating", "farming.irrigate");
     if (!work.success) return work;
     for (const crop of cropsToWater) {
       crop.moisture = 100;
@@ -660,32 +697,35 @@ export class FarmingDomain {
     const farm = state.farms[crop.farmId];
     if (!cropDef || !farm) return null;
     const remainingEffective = Math.max(0, cropDef.baseGrowthMinutes - crop.effectiveGrowthMinutes);
+    // Same multiplier as the tick, so a paced crop's countdown is honest.
     const currentRate = calculateEffectiveGrowthDelta(
       1,
       cropDef,
       farm.climateId,
       crop.moisture,
       farm.soil.fertility,
-      state.weather.type
+      state.weather.type,
+      onboardingGrowthMultiplier(crop.cropId, crop.farmId, state.quests)
     );
     const approximateMinutesRemaining = crop.stage === "mature" || crop.stage === "overripe" || crop.stage === "withered"
       ? null
       : Math.max(5, Math.ceil(remainingEffective / Math.max(0.01, currentRate) / 5) * 5);
-    const near = this.isNearCrop(crop);
-    const waterQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.water, "farming");
-    const harvestQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.harvest, "farming");
+    const waterNear = this.isNearCrop(crop, "water");
+    const harvestNear = this.isNearCrop(crop, "harvest");
+    const waterQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.water, "farming", "farming.water");
+    const harvestQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.harvest, "farming", "farming.harvest");
     const harvestable = crop.stage === "mature" || crop.stage === "overripe";
     const workQuote = harvestable ? harvestQuote : waterQuote;
     const handsBlocker = freeHandsBlocker(state.player);
-    const canWater = !handsBlocker && near && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD && waterQuote.affordable;
-    const canHarvest = !handsBlocker && near && (harvestable || crop.stage === "withered")
+    const canWater = !handsBlocker && waterNear && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD && waterQuote.affordable;
+    const canHarvest = !handsBlocker && harvestNear && (harvestable || crop.stage === "withered")
       && (crop.stage === "withered" || harvestQuote.affordable);
     const moistureBand = cropMoistureBand(crop.moisture);
     const workShortage = (quote: WorkCostQuote): string =>
       `Need ${quote.cost} Work · ${quote.availableWork} available · ready ${quote.readyAtMinute == null ? "later" : formatClockTime(quote.readyAtMinute)}`;
     const waterReason = canWater
       ? undefined
-      : handsBlocker ?? (!near
+      : handsBlocker ?? (!waterNear
         ? "Move closer"
         : !waterQuote.affordable
           ? workShortage(waterQuote)
@@ -694,7 +734,7 @@ export class FarmingDomain {
             : "Soil already wet");
     const harvestReason = canHarvest
       ? undefined
-      : handsBlocker ?? (!near
+      : handsBlocker ?? (!harvestNear
         ? "Move closer"
         : !harvestQuote.affordable && harvestable
           ? workShortage(harvestQuote)
@@ -733,6 +773,11 @@ export class FarmingDomain {
       name: cropDef.name,
       stage: crop.stage,
       approximateMinutesRemaining,
+      maturityProgress: Math.min(1, Math.max(0,
+        cropDef.baseGrowthMinutes > 0
+          ? crop.effectiveGrowthMinutes / cropDef.baseGrowthMinutes
+          : 1
+      )),
       stageTimingLabel: approximateMinutesRemaining == null
         ? crop.stage === "withered"
           ? "Withered"
@@ -790,7 +835,8 @@ export class FarmingDomain {
         cropDef,
         sampleFarmEnvironment(farm, state.weather),
         farm.soil.fertility,
-        minutes
+        minutes,
+        onboardingGrowthMultiplier(crop.cropId, crop.farmId, state.quests)
       );
       crop.lastUpdatedMinute = state.clock.currentMinute;
       if (nextStage === previousStage) continue;
@@ -803,9 +849,18 @@ export class FarmingDomain {
     }
   }
 
-  private isNearCrop(crop: GameState["crops"][string]): boolean {
+  public interactionReachMeters(action: CropInteractionAction): number {
+    return cropInteractionReachMeters(this.context.state, action);
+  }
+
+  public isCropInInteractionReach(placedCropId: PlacedCropId, action: CropInteractionAction): boolean {
+    const crop = this.context.state.crops[placedCropId];
+    return Boolean(crop && this.isNearCrop(crop, action));
+  }
+
+  private isNearCrop(crop: GameState["crops"][string], action: CropInteractionAction): boolean {
     const worldPosition = farmLocalToWorld(crop.farmId, crop);
-    return distance2d(this.context.state.player, worldPosition) <= CROP_INTERACTION_RADIUS;
+    return distance2d(this.context.state.player, worldPosition) <= this.interactionReachMeters(action);
   }
 
   private isNearFarm(farmId: FarmId): boolean {

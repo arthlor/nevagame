@@ -20,6 +20,7 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import type { ResolvedPhysicsFrame } from "../../src/simulation/core/PhysicsAdapter";
 import type { FishQuality } from "../../src/simulation/core/types";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 function commitPlayerPose(simulation: Simulation, x: number, z: number): void {
   const { player, boats } = simulation.state;
@@ -179,6 +180,7 @@ describe("Hunt fixes 2026", () => {
     sim.state.player.x = coast.x;
     sim.state.player.z = coast.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId)).toMatchObject({
       success: false,
       reason: "No cargo space for the fish in this school"
@@ -254,7 +256,30 @@ describe("Hunt fixes 2026", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(Array.isArray(migrated.state.journal.unlockedKnowledge)).toBe(true);
     expect(migrated.state.journal.fishRecords["fish.perch"]?.bestQuality).toBe("trophy");
+    expect(migrated.state.journal.fishRecords["fish.perch"]?.discovered).toBe(true);
+    expect(migrated.state.journal.fishRecords["fish.perch"]?.catchCount).toBe(1);
+    expect((migrated.state.journal.fishRecords["fish.perch"] as unknown as Record<string, unknown>).caughtCount).toBeUndefined();
     expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("does not silently erase malformed or conflicting legacy fish records", () => {
+    const base = createInitialGameState();
+    const malformed = {
+      schemaVersion: 21,
+      savedAtUtcMs: 1,
+      state: {
+        ...base,
+        schemaVersion: 21,
+        journal: { ...base.journal, fishRecords: null }
+      }
+    };
+    expect(() => migrateSaveData(malformed as never)).toThrow(/fishRecords/);
+
+    const conflicting = structuredClone(malformed);
+    (conflicting.state.journal as unknown as { fishRecords: unknown }).fishRecords = {
+      "fish.perch": { caughtCount: 1, catchCount: 2 }
+    };
+    expect(() => migrateSaveData(conflicting as never)).toThrow(/conflicting fish count/);
   });
 
   it("L6: dry inland cells are not a fishing habitat", () => {

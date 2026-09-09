@@ -1,4 +1,4 @@
-# Farm & Fishing Browser Game — Production Roadmap & LLM Agent Playbook (Compact)
+# Farm & Fishing Browser Game — Production Roadmap & LLM Agent Playbook
 
 > **Role:** Execution manual. Prevent feature/architecture drift, regressions, and premature complexity.
 
@@ -8,134 +8,106 @@ Build the smallest reliable increment that strengthens:
 `farm → process → prepare → sail → discover → fish → transport → sell → upgrade`.
 Do not optimize for code volume.
 
-Task-class authority/read order is routed by root `AGENTS.md` and
-`BLENDER.md`. Routine existing-asset work must not load this roadmap or every
-canonical file by default. Read this roadmap in full for milestone, release,
-gold-slice, cross-system, or gameplay sequencing work.
+Root `AGENTS.md` alone owns task-class reading. Routine assets use its scoped
+route; milestone, release and gameplay-sequencing tasks read this roadmap in
+full. Other tasks use the selected contract or validation sections.
 
 Identify subsystem ownership before coding; do not search/randomly modify files.
 
 # 1. Required Agent Preflight
 
-Before implementation, record:
-```text
-Subsystem
-Source of truth
-Persistent-state impact
-Save migration required
-Renderer impact
-UI impact
-Test impact
-Performance risk
-Dependencies required
-```
-If ownership is unclear, inspect architecture first.
+Identify the player outcome, owning subsystem/formula, affected callers,
+persistent-state impact and migration need, stale documentation, and relevant
+visual/performance risks. Inspect those owners before choosing the smallest
+complete change. Keep this brief for routine work; do not produce empty fields.
 
 # 2. Change Rules
 
-Agents MUST: prefer existing architecture; modify owning subsystem; avoid duplicate state/constants; keep state serializable; preserve deterministic simulation; add tests; run validation; visually verify WebGL/UI changes; report changed files and known issues.
+Use existing architecture, serializable state, seeded simulation RNG, atomic
+transactions and stable content IDs. Fix the owning subsystem and verify the
+changed behavior using §4. Add tests when they protect a meaningful contract or
+plausible regression. Preserve unrelated changes and existing evidence.
 
-Agents MUST NOT: silently add frameworks; rewrite architecture for convenience; add multiplayer/combat/unrelated features; remove tests to pass CI; weaken types/use `any` to hide errors; bypass migrations; duplicate content constants.
+Do not add frameworks or adjacent features, bypass migrations, weaken types or
+tests to get a pass, duplicate formulas, or treat presentation as gameplay truth.
 
 # 3. Standard Task Contract
 
-Every ticket includes:
-```md
-# Task: <short title>
-## Goal
-## Required Reading
-## Documents This Change Makes Stale
-## In Scope
-## Out of Scope
-## Invariants
-## Implementation Order
-## Acceptance Criteria
-## Required Tests
-- unit:
-- simulation:
-- integration:
-- e2e:
-## Human Game Review or Release Visual Verification
-## Save Compatibility
-Migration required: yes/no
-## Completion Report
-Changed files:
-Tests added:
-Screenshots:
-Known issues:
+A task needs a concrete outcome and acceptance evidence, not a mandatory long
+form. For work that needs a written plan, use:
+
+```text
+Outcome: what the player can do or understand afterward
+Owner and contract: state/formula/content source; invariants and affected callers
+Scope: smallest complete change and any consequential exclusions
+Save impact / migration: yes or no, with the preservation boundary if yes
+Docs: owning sections whose contract changes
+Acceptance: behavior to demonstrate, checks from §4, human review if applicable
 ```
+
+Label each statement as needed: **current contract**, **implemented behavior**,
+**proposal/deferred**, or **observed evidence**. An unchecked design target is
+not an implementation result. If a feature is not fun or comprehensible in
+play, passing code tests alone does not satisfy its product outcome (§32).
 
 # 4. Standard Validation Gate
 
-No phase is marked complete until its required checks pass. A recorded
-sub-gate, such as the human P0.75 visual decision, may authorize the scoped
-follow-on work named by that sub-gate without falsely closing the remaining
-technical or release gates:
-```text
-npm run typecheck
-npm run lint
-npm run test
-npm run build
-relevant npm run test:e2e
-relevant unit/integration/simulation tests
-manual/browser screenshot check
-save/load verification when persistent/user-facing
-```
-If a gate fails, fix it before adding features.
+This is the single task-to-verification matrix. Combine applicable rows; run
+only checks needed for the changed behavior and risk. Broaden when a failure or
+unresolved concern requires it. A phase closes only when all its required gates
+pass. A recorded human sub-gate may authorize its scoped follow-on work while
+independent technical or release gates remain open.
 
-Routine selected-asset work is an explicit exception to the broad milestone
-gate. It uses:
+| Change | Minimum relevant evidence | When to broaden |
+|---|---|---|
+| Documentation or copy | Diff, references and consistency with owning sources; content validation when membership is discussed | Runtime only if behavior changed; no build or broad suite for prose |
+| UI styling/presentation | Diff and affected layout/interaction states in the browser or the user's requested live review; focused semantic check when useful | Input, focus, responsive or DTO changes require their affected interaction checks; screenshots do not prove callbacks |
+| Gameplay/formula/content | Focused domain/content tests and direct typecheck; exercise changed callers and realistic failure/atomicity cases | Browser for changed player interaction; connected-loop playtest for a new mechanic or material balance change |
+| Save/schema/topology | §25: retained fixtures, migration/reload/idempotence and backup preservation, affected domain tests, typecheck | Continuous gameplay save/reload when the changed path crosses UI/world state |
+| Routine selected asset | `BLENDER.md` §1 selected generation/publication and integration; brief only when changed; typecheck only for runtime TS edits | Human reviews integrated visuals. No routine strict, double-generation, screenshot scoring or full-suite gate |
+| Shared generator/helper | `BLENDER.md` §2 affected-family generation, builder coverage where applicable, determinism and publication | Revisit affected gold slices when the visual contract materially changes |
+| Renderer/material/world performance | Relevant shader/config/geometry checks, affected gameplay-camera scenes and matching-quality production profiling | Tier fallbacks, memory, loading and affected traversal; frozen `world:acceptance` when world composition/topology is the task |
+| Audio | Manifest/source checks and focused lifecycle/trigger tests; actual listening for audible changes | Startup, suspend/resume, loop stop/cancel, repeated-cue load and mix under representative play |
+| DEV layout editor | `LAYOUT_EDITOR.md` checks for affected kinds, input and write targets | Add gameplay/save/physics checks only when their contracts change |
+| Milestone/release | Phase-specific acceptance plus the relevant full static/test/build, production budget and browser matrix gates | Art certification and human visual/product acceptance remain independent, explicitly recorded gates |
 
-```text
-npm run art:brief -- --asset ID       only when that image/study-guided brief changed
-npm run art:generate -- --asset ID    selected validation, optimization and atomic publish
-runtime integration
-npm run typecheck                     only when runtime TypeScript changed
-```
+**Commands and side effects.** In `package.json`, `predev`, `prebuild`,
+`pretypecheck` and `pretest` run `assets:sync`, which can regenerate and publish
+asset/UI adapters. Do not use those aliases for a read-only consistency check.
+Use the check-only order in `.github/workflows/ci.yml` before regeneration can
+hide drift. Direct checks include:
 
-No bare catalog command is allowed; use `--asset`, `--family`, or explicit
-release `--all`. Routine work does not run static previews, screenshots,
-determinism, strict density, benchmarks, full builds, broad tests, or agent-led
-visual scoring. The human checks the integrated result in the game.
-
-Shared-generator/helper work uses affected-family no-publish generation,
-builder tests when applicable, affected-family determinism, then one publish.
-The P0.75 visual-gold gate uses the current published set and gameplay-camera
-benchmark:
-
-```text
-npm run art:sync -- --all
-npm run art:validate -- --all
-npm run art:benchmark
+```bash
+npm run art:codegen:check
+npm run ui:codegen:check
+npm run ui:publish:check
+npm run ui:pack:check
+npm run content:validate
+npx tsc --noEmit
+npx vitest run <affected-test-path>
 ```
 
-Technical-art certification and release work additionally use:
+This is a command reference, not a requirement to run every line per task.
+`npx eslint <affected-paths>` checks selected code; `npx vite build` builds the
+current adapters without the `prebuild` regeneration hook. Asset CLI commands
+require explicit `--asset`, `--family` or authorized release `--all` selectors;
+publication and `art:sync` are mutations. `BLENDER.md` owns their full sequence.
 
-```text
-npm run art:generate:strict -- --all
-npm run art:validate -- --all
-npm run art:determinism -- --all
-npm run art:benchmark
-```
+**Performance lanes.** `npm run art:benchmark` uses the DEV Playwright setup;
+its unmerged editor scene is diagnostic evidence. `npm run test:budget` uses
+the isolated production build configured by `playwright.budget.config.ts`.
+`npm run world:acceptance` owns frozen multi-scene/world evidence as described
+in Art Pipeline §13.3. Do not compare DEV and production as equivalent or infer
+performance from FPS alone. Record actual quality, viewport/DPR, hardware,
+frame-time distribution, draws/triangles and memory for the affected scenario.
 
-Normal generation may report below-target quality debt; strict generation may
-not. A failed strict run does not mutate the published manifest.
-
-`npm run art:validate` validates the catalog schema, generator-parameter
-contracts, LOD/animation/reference contracts, and the published catalog/GLB
-metrics. It does not execute family generators or prove that generator
-geometry semantics are correct beyond the exported artifact contract. A
-reference-guided task validates only its selected catalog
-`referenceAuthoring` contract with `npm run art:brief` when the brief changes.
-A change to `tools/blender/common/authored.py` or a consuming family module must
-no-publish generate and determinism-check every impacted asset before
-publication.
-
-`npm run art:codegen:check` is the CI/review consistency gate; normal `dev`,
-`build`, `typecheck`, and `test` refresh the generated adapter automatically.
-The validated cache remains enabled for routine work. `/__neva_art_yard` is the
-sole development asset-review surface and the human performs visual approval in
-the integrated game.
+**Evidence boundaries.** Keep source/static, unit/simulation, browser,
+human visual/product, asset publication, and release evidence distinct in
+`IMPLEMENTATION_STATUS_CHECKLIST.md`. Name the command, scope, result and
+artifact; record source/input identity for costly or concurrent runs. A failed
+run stays failed even if a narrower retry passes. Do not date-stamp old results
+as current, infer an unrun gate from a neighboring pass, or inflate a historical
+human approval into approval of a changed scene.
 
 # 5. Phase Map
 
@@ -160,11 +132,11 @@ the integrated game.
 - canonical ground-surface foundation: class-aware terrain normals, semantic grass/meadow/soil/path/shore/cliff blending, bounded macro/meso variation, weather wetness through `VisualRenderConfig`, and optional world-space supporting maps remapped into palette families (never photographic RGB as final albedo, never a second route/meadow mask);
 - one authored route/profile owner shared by terrain grading/surface influence, road presentation, map projection, cover exclusion, and relevant collision queries; roads have route-kind width, worn core/ruts, soft shoulders, terrain integration, and shaped junctions;
 - deterministic causal composition fields for district, habitat, route framing, openings, and independent category densities; stable priority-prefix placement with core/edge/isolate/landmark/riparian roles, authored clearances, variant/palette grouping, instancing, draw-distance culling, and quality-tier counts;
-- approved stylized water prototype with faceting, 2–3 low-frequency wave layers, shallow→deep palette, Fresnel-like response, and graphic foam;
+- approved water prototype following `04` §8: shared low-frequency displacement, continuous depth/transmission, filtered reflection and arriving/spreading/fading surf;
 - approved vegetation/rock shading prototypes;
 - catalog-backed GLB loader with Meshopt decoding, source-scene cache/clones, and compatible static-prefab `THREE.BatchedMesh` consolidation; ground supporting maps currently ship as local WebP through `ExternalSurfaceTextures`; KTX2 remains preferred for later GLB-embedded textures;
 - generated typed asset IDs/family maps plus the runtime-only Vite catalog projection, with `npm run art:codegen:check` as the stale-adapter gate;
-- development-only interactive WebGL yard at `/__neva_art_yard` for orbit, declared read-distance/LOD, wireframe, collision-proxy, lighting, fog/storm, and staged-run review;
+- interactive WebGL yard at `/__neva_art_yard` (published views also ship in production; stage endpoints are DEV-only) for orbit, declared read-distance/LOD, wireframe, collision-proxy, lighting, fog/storm, and staged-run review;
 - screenshot harness with fixed camera/resolution/time/weather/seed;
 - separate **regression QA** (game vs approved game benchmark) and **style QA** (game vs graphics references, ignoring layout unless explicitly in scope).
 
@@ -181,24 +153,24 @@ the integrated game.
 **Purpose:** prove that the complete asset-production loop can reach the target aesthetic before mass production.
 
 Build and approve, in this order unless a human explicitly changes it:
-1. **Bridge + river:** landform-dominant terrain, integrated route approaches, grass/soil/slope/shore transitions, clustered vegetation/reeds, stone, timber, faceted water, foam, lighting, atmosphere.
+1. **Bridge + river:** landform-dominant terrain, integrated route approaches, grass/soil/slope/shore transitions, clustered vegetation/reeds, stone, timber, water and surf following `04` §8, lighting, atmosphere.
 2. **Starter farm:** farmhouse, field/crop, fence, path, tree, rocks, working props.
 3. **Harbor:** dock, rowboat, fish-market/warehouse language, rope/nets/crates, ocean water.
 4. **Coast/lighthouse:** cliffs, dark rocks, graphic foam, atmospheric perspective, sunset variant.
 
-The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones before the human visual-gold decision is accepted.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/blender/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` retains the 2026-08-24 reference images and records the 2026-08-27 human visual-gold decision for the bridge/farm/harbor/coast scope. That decision unlocks further authored-world expansion; it does not certify the full catalog or release readiness. Per-asset triangle target floors are advisory for this visual lane; production minimums, hard maximums, materials, nodes, palette, runtime validation, and the published 189-asset manifest remain enforced. Do not reopen a candidate-selection loop merely because the authored world grows; re-review proportionately when the renderer/material/terrain-normal/route-surface contract or those reference scenes materially change.
+The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones before the human visual-gold decision is accepted.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/blender/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` owns recorded baseline images and human decisions. Preserve their scope; `IMPLEMENTATION_STATUS_CHECKLIST.md` owns historical evidence and open gates. Re-review affected slices when their renderer, material, terrain, route or reference contract materially changes.
 
-**Visual Gold Decision:** the human-approved bridge, farm, harbor, and coast gameplay-camera slices are recorded in the existing baseline registry. This is the visual-direction decision that permits further authored-world expansion and does not invent numeric scores.
+**Visual Gold Decision:** human review of the bridge, farm, harbor and coast from the gameplay camera. Per-asset target floors are advisory for this visual decision; production minimums, hard maximums, material/node/palette contracts and runtime validation still apply.
 
-**P0.75 Technical Render Gate (open):** the current 189 published GLBs and manifest validate against the catalog, and `npm run art:benchmark` must have no browser errors, no more than 220 draw calls, and no more than 900,000 visible triangles in each measured scene. The lower per-scene/per-asset target floors are advisory in this lane and do not waive production minimums, hard maximums, material/node/palette contracts, or runtime validation. The current DEV layout-editor benchmark is intentionally unbatched, so its farm/coast over-budget result remains open evidence rather than a reason to relax `tools/blender/asset_budgets.json`.
+**Technical Render Gate:** validate the published set and measure the affected scenes against their machine-owned budgets. Keep DEV `art:benchmark` diagnostics and production `test:budget`/world evidence labeled separately (§4); an unbatched DEV failure does not establish a production pass or failure. Gate status belongs in the checklist.
 
-**Technical-Art Certification (open):** `npm run art:generate:strict` retains its existing below-target rejection semantics; `npm run art:validate` confirms the published set; representative clean-source determinism passes; and the benchmark is reproducible in the certified path. The current report records 31 below-target assets as visible technical debt. Release/P16 claims stay blocked until this lane and the independent gameplay/release evidence pass.
+**Technical-Art Certification:** strict generation, published-set validation, semantic determinism and reproducible render evidence follow `BLENDER.md` §2. Strict generation currently rejects below-target assets; the generated published report owns the debt. Reassessing an asset target requires a deliberate catalog change and supporting visual/performance evidence, never filler geometry or an undocumented gate waiver.
 
 # 7. P1 — Walkable World
 
 **Build:** player controller, on-foot camera, collision, interaction system, named NPC anchors, and a large authored multi-district world with northwest starter farm, northeast village hub (plaza/market, mill, inn, cottages, barn, homestead garden, orchard fringe), a side-aware longitudinal river corridor with a bridge gateway and usable fishing banks, southwest lighthouse cliffs, southeast harbor, coast, offshore boundary, arterial roads, scenic trails, causal vegetation/opening fields, and contextual prompts. World geometry may remain selectively content-light while districts are filled, but it MUST use the approved P0.5/P0.75 renderer/material foundation rather than a visually unrelated throwaway style. Story landmarks support the current quest spine without becoming gameplay authorities.
 
-**Avoid:** NPC schedules, complex animation, empty or purely decorative scale, unbounded runtime-procedural terrain, and decorative overbuild. Authored-world production may use the accepted 2026-08-27 visual-gold baseline registry, while P0.75 technical-art certification remains open with 31 below-target records; do not treat release or P16 as complete.
+**Avoid:** NPC schedules, complex animation, empty or purely decorative scale, unbounded runtime-procedural terrain, and decorative overbuild. Authored-world production follows the scope of recorded human approval in the baseline registry; independent certification status belongs in the checklist and generated reports.
 
 **Gate:** semantic input/`GameplayMode`, movement/collision/camera/resize, overlay pause/modal capture (pause is an overlay, not a gameplay mode), camera obstruction/line-of-sight handling, and representative screenshots. Physics returns a frame through the adapter and only the simulation commits it. Physics may sample presentation `WaterSurface` for boat bob; canonical `boat.y` stays waterline.
 
@@ -294,39 +266,23 @@ edits. The simulation test may prove quest state and dialogue payloads, but it
 does not replace browser proof of the actual modal, HUD, navigation, and
 save/reload experience.
 
-The P12 product gate was human-accepted on 2026-08-30 after a continuous manual
-playthrough reached the end of the authored quest chain. This permits focused
-post-P12 progression and playability work. Automated continuous browser
-save/reload proof and the Chromium/Firefox/WebKit matrix remain independent
-P15/P16 release-certification evidence; the human product decision does not
-claim those release gates passed.
+Recorded P12 human acceptance is indexed in `IMPLEMENTATION_STATUS_CHECKLIST.md` and authorizes the scope stated there. Automated continuous save/reload proof and the release browser matrix remain separate gates; a historical product decision does not close them.
 
 # 19. P13 — MVP Content Expansion
 
-After the accepted P12 product gate, expand to 8 crops/12 fish; add Apple Tree, Flax, Fishing Skiff, more contracts, market variety, journal detail, and only then optional side-story or lore entries. Any new narrative must introduce a meaningful place, practice, relationship, ecological condition, logistics decision, or capability; do not add exposition-only errands or behaviorally identical quest chains. Do not add new systems unless essential.
+Expand after the P12 product gate when a new crop, fish, recipe, contract,
+location or narrative changes preparation, ecology, logistics, market judgment
+or capability. Current membership and progression come from `src/content/`,
+including `quests.ts` and `questTracks.ts`; do not freeze a second content total
+here. `02` owns the gameplay and narrative contract.
 
-The live focused P13 narrative increment appends three linear stewardship
-quests to the accepted ten-quest spine: feasible contract completion → field
-pump installation and farm irrigation → fish-scrap fertilizer and a journal
-practice entry. It also adds deterministic steady/bold expedition choices and
-milestone NPC recognition. This is focused content/playability evidence, not a
-P13 completion or P15/P16 browser/release claim. The narrow current-tree gate
-is `tests/simulation/{questDomain,questExpansion,questContentValidation,expeditionOpportunities,gameLoopCadence,questPersistence,p12VerticalSlice}.test.ts`
-plus the Chrome-only `tests/e2e/p13Stewardship.spec.ts`. The browser route uses
-debug relocation to keep travel out of scope, but performs the contract,
-dialogue, pump, processing, fertilizer, journal, autosave, and reload actions
-through the actual game UI; it does not prove first-time-player comprehension,
-continuous traversal, a browser matrix, or release readiness.
-
-The next live P13 content increment is the registry-driven Sunreach expansion:
-a second warm-dry island/terrain patch, skiff-gated channel route, cove market,
-terrace farm, two NPCs, two crops, three local fish, two recipes, two contract
-templates, and five Act 7 quests. Its narrow mechanical gate is the v25/layout-9
-fixture migration plus `tests/unit/sunreachWorld.test.ts`,
-`tests/simulation/{persistence,questDomain}.test.ts`, the two 64-seed Neva and
-Sunreach composition audits, generated asset/UI publication checks, and
-typecheck. Completion remains separate from the continuous real-input
-harbor→Sunreach→ridge/reef→Neva browser route and human gameplay-camera review.
+**Gate:** validate new content and unlock predicates, affected domain behavior,
+old-save reconciliation and the connected player route. For an island or quest
+track, demonstrate departure/unlock → local activity → consequence/reward →
+return → save/reload using the real interaction path. Debug relocation may
+support a narrow UI test but cannot prove traversal or discovery. Human review
+covers comprehension, useful choices and repetition (§32); status and past
+stewardship/Sunreach runs belong in the checklist.
 
 # 20. P14 — Final Art, Audio & UX Polish
 
@@ -363,38 +319,19 @@ Use two distinct visual QA modes and never confuse them:
 1. **Regression QA — game vs approved game benchmark.** Same scene/state/camera/resolution/render config. Pixel/perceptual metrics such as SSIM/LPIPS, histogram/luminance, and screenshot diffs are appropriate for detecting unintended change.
 2. **Style-match QA — game vs supplied graphics references.** Layout, camera, staging, diorama/tabletop presentation, DOF, and scene borders are ignored unless the current task explicitly concerns them. Review geometry/facet language, silhouette/proportion, palette distribution, roughness/material response, lighting/AO/shadows, water/foam, vegetation, atmosphere, detail frequency, and realism drift. Do not require pixel similarity between different compositions.
 
-Maintain deterministic screenshot states such as:
-```text
-starter_empty
-farm_growing
-farm_mature
-basic_fishing
-sport_fishing_tuna
-sport_fishing_marlin
-boat_loaded
-harbor_market
-rain
-storm
-inventory
-journal
-dialogue_elspeth_welcome
-dialogue_barnaby_chum
-dialogue_maeve_harbor
-dialogue_silas_final_report
-bridge_river
-coastal_lighthouse
-```
-Use fixed camera/resolution/world state where applicable and review against `04` + Art Pipeline.
+Use existing fixed views and affected real-player routes; their definitions
+belong to the test/harness source rather than a second screenshot-name list.
+`04` §19 owns visual criteria, Art Pipeline §13 owns capture contracts, and §4
+here determines which evidence the task requires. Human game review remains
+the visual acceptance boundary for routine assets.
 
-Browser playtest covers: boot, input, visual/aesthetic gate, save, performance. Significant renderer/material/family-generator/shared-authored-construction changes also re-run the gold-standard slices. Reference-guided assets first pass their deterministic brief; its requested views are inspected by the human through Art Yard/game controls rather than static preview generation.
-
-World-composition remediation uses the additive `npm run world:acceptance` gate. It verifies generated adapters with check-only commands, hashes runtime/build inputs, builds and serves one static production bundle, runs separate 64-seed Neva-preservation and Sunreach causal-field audits, and writes only beneath `output/world-alignment/<digest>/`. It captures seed 42 plus joint stress seeds at the four accepted Neva views, the mountain skyline/spring/western overlook, and five Sunreach views (departure/channel, cove, terraces, wash/ridge, reef) in normal gameplay, world-only final, true same-content no-post, and relevant diagnostic-field modes. Its movement lane walks the complete spring and overlook routes in both directions, then follows farm→bridge→village→harbor and the continuous channel→cove→market/terraces/ridge/reef→harbor round trip after a single authored start setup. `--scope starter-terrain` limits captures and real-input traversal to the affected starter island while retaining static Sunreach preservation checks; it is not full multi-island acceptance. Historical preservation snapshots remain intact. The mountain revision additionally compares protected working-ground samples, anchors, existing routes, downstream river profiles, and Sunreach terrain/water against their pre-change fixture; intentional new mountain heights and causal placements require explicit current-layout expectations. It fails on preservation/hash drift, HMR, browser/network errors, zero world assets, repeated scene identity, or final/no-post content-count changes. Approved baselines, candidates, benchmark JSON, and snapshots are never rewritten by this gate.
-
-The software lane proves deterministic rendering behavior only. The hardware lane must identify a real GPU and return valid non-disjoint WebGL2 timer-query samples; FPS never substitutes for GPU timing. Composer/GTAO targets, shadows, formats, samples, depth/stencil state, estimated target bytes, and renderer geometry/texture memory are reported separately. Automated output can prove determinism, topology, coupling, performance evidence, and error-free capture, but the resulting gameplay-camera comparison remains a human review handoff.
-
-The protected-world audit reports raw historical equality separately from the current preservation contract. Replay the fixture's original sampling domain and use the bounded harbor correction defined in `01` §10; do not regenerate historical hashes or accept an arbitrary route/anchor delta. Mutation regressions must reject changes outside that explicit correction, and real Rapier traversal independently verifies its collision purpose. A passing preservation comparison alone does not certify a new layout migration, browser traversal, or integrated appearance.
-
-Mountain-skyline and spring captures also profile low and medium alongside the normal high-tier view through the existing benchmark controls (`artQuality`). Record the actual settled tier, draw/triangle counts, GPU samples, and memory with the captures. A skipped typecheck or changing worktree must remain an explicit incomplete gate, even when a static diagnostic bundle renders correctly.
+For world composition/topology, Art Pipeline §13.3 owns `world:acceptance`:
+frozen inputs/build, matching-content final/no-post views, preservation audits,
+real-input traversal, tier coverage and distinct software/hardware lanes.
+Preserve historical sampling domains and the bounded correction in `01` §10;
+a new layout must not erase its old fixtures. A narrower starter-terrain run
+cannot certify all islands. Source drift, skipped checks and failed lanes
+remain explicit limitations even if selected scenes render successfully.
 
 # 24. Coding & Formula Ownership
 
@@ -402,15 +339,15 @@ Prefer small modules, pure functions, explicit state machines, readonly definiti
 
 Every formula has one owner, e.g.:
 ```text
-crop growth → simulation/farming/calculateCropGrowth.ts
-fish value → simulation/economy/calculateFishValue.ts
-freshness → simulation/fishing/calculateFreshness.ts
-market demand and marginal quotes → simulation/economy/marketPricing.ts
-market hourly replay and supply recovery → simulation/economy/updateMarket.ts
+crop growth → src/simulation/farming/calculateCropGrowth.ts
+fish value → src/simulation/economy/calculateFishValue.ts
+freshness → src/simulation/fishing/calculateFreshness.ts
+market demand and marginal quotes → src/simulation/economy/marketPricing.ts
+market hourly replay and supply recovery → src/simulation/economy/updateMarket.ts
 ```
 UI consumes results; never reproduces formulas.
 
-Centralize tuning, e.g. `demandMin:0.65`, `demandMax:1.60`, `marketTickMinutes:60`.
+Link the owning tuning module; do not copy its current numeric configuration into task instructions.
 
 Dev startup validation: duplicate IDs, missing item/habitat/unlock, invalid crop time/yield/cargo class, negative prices, unresolvable recipes. Fail loudly.
 
@@ -448,19 +385,25 @@ Do not auto-add adjacent features. Example: weather task does **not** imply ligh
 
 Bug workflow: reproduce → identify owner → failing test when possible → root-cause fix → regression verify → neighboring tests. Never patch renderer symptoms for simulation bugs.
 
-Repository lint targets the current source and tooling, not nested agent worktrees or generated browser evidence; `eslint.config.js` owns these exclusions. Regression fixtures must exercise current catalog families and source-authored clip timing rather than removed generator names or donor-rig timings. Geometry and atlas checks keep complete value coverage without spreading large arrays into function arguments or performing millions of individual test-framework assertions.
+Regression coverage should exercise the real owner with independent expected
+outcomes. Keep the following boundaries when selecting or repairing tests:
 
-HUD server-render regressions follow the current semantic components rather than retired chrome selectors. Calendar text comparisons may remove React's adjacent-text comment separators without changing the expected date or time. Clock boundary cases render the live HUD from simulation time through `WorldHudPresentation`, with independent expected angles and night markers; testing a retired decoration with a copied formula does not cover that path. Local temperature presentation consumes the DTO rather than assuming the global weather temperature. Assert the specific selected tool button and unselected peers, the unavailable seed button and its selected readout, Work meter values, hazard identity/severity and priority, and both compact docked and expanded underway vessel states. Rendered HTML does not prove responsive bounds, input callbacks, or visual approval; those require the actual browser and current stylesheet rather than a separately hard-coded layout calculation. `tests/e2e/control-foundation.spec.ts` owns normal desktop HUD bounds/coverage and touch utility/menu access through orientation changes. Measure visible HTML descendants and hit targets, not off-viewport SVG atlas resources; report cluster-box coverage as a conservative bound, not painted-pixel occupancy. `tests/unit/viewport_budget_m1_adversarial.test.ts` retains only its large-content semantic checks. High-load, vessel and placement layouts need their own real-browser scenarios rather than reuse of a normal-HUD result.
+| Area | Contract to protect | Existing evidence owner |
+|---|---|---|
+| Tooling and generated data | Lint source/tooling, not nested worktrees or generated evidence. Preserve complete geometry/atlas coverage without pathological assertion loops. | `eslint.config.js`, existing builder/atlas suites |
+| Imported asset admission | Valid loop fixtures move and return to their start. Reject broken raw/Meshopt loops without altering source bytes, either published GLB destination or either manifest. | `tests/unit/artAdmission.test.ts` |
+| Browser traversal timing | Pace held input and progress checks on delivered fixed steps (`data-physics-steps` / `NevaDebugSnapshot.physicsStepCount`), never on wall-clock time. `GameApp` caps its physics accumulator, so a starved browser drops simulation time instead of catching it up: real elapsed time is not a measure of how much the player was allowed to move, spend or drain. Wall clock is valid only for detecting a page that has stopped stepping entirely. | `tests/e2e/p12VerticalSlice.spec.ts` step pacing and `StepWatchdog`; `control-foundation.spec.ts` `hold`/`waitForSteps` |
+| HUD semantics and interaction | Render current components/DTOs; assert selected and unselected tools, Work, seed blockers and vessel states. Clock expectations are independent of production formulas. SSR is not responsive/input proof. | `tests/unit/hud_m1.test.ts`, `tests/unit/viewport_budget_m1_adversarial.test.ts`, `tests/e2e/control-foundation.spec.ts` |
+| Responsive coverage | Measure visible HTML descendants/hit targets with current CSS, not atlas resources or copied geometry. Cluster bounds are conservative occupancy, not painted pixels. Add separate high-load/vessel/placement scenarios where affected. | Current browser scenarios and styles |
+| Source-rig animation | Load published Meshopt assets and compare bones/phase against an independent source-clip mixer across frame rates, hitches, pause, reduced motion and reset. Check semantic palms/equipment docking and fixed-length contacts. | Art Pipeline §10 and existing animation suites |
+| Cover distribution | Distinguish generated budgets from final harbor clearance; do not refill intentionally open sand. Compare habitat bias with independently seeded eligible-ground samples; clustering and density are different properties. | `HarborCoastLayout` and existing world/cover suites |
+| Atomic blocked dismount | Hold a valid mounted actor and control the two landing predicates. A refusal preserves saved state/events; restoring queries permits dismount. Real terrain traversal is separate. | Mount domain and Rapier traversal suites |
+| Production render budget | Record actual viewport/DPR, settled quality, diagnostics/errors and worst sampled draws/triangles. Geometry inventory is not per-pass visibility; build/size success cannot clear a render overrun. | `playwright.budget.config.ts`, production budget test |
 
-The source-rig challenger loads published catalog characters and tools through the Meshopt-aware test loader. Compare actual bone transforms and phase with an independent source-clip mixer through varied frame rates, hitches, pause, reduced motion and reset; test exported semantic palm parenting and the shared equipment docking path rather than constructing obsolete secondary bones or local auto-equip dictionaries. Equipment palm-frame metadata belongs to equipment markers, while character socket identity comes from `humanoidRig`. Existing stance/contact suites retain slope and fixed-length IK coverage.
-
-Ground-cover regressions distinguish generator budgets from the final authored harbor-clearance projection. Preserve exact per-island generation counts and compare final Neva membership with `HarborCoastLayout`'s filter; do not refill intentionally open sand to satisfy the old unfiltered count. Test grass habitat bias against independently seeded uniform samples on eligible dry, clear, walkable ground, excluding the deliberately concentrated homestead supplement. A fixed-radius neighbor fraction alone confounds grass correlation with world area and instance density; flower micro-clusters retain their separate proximity check. These statistical checks do not approve gameplay-camera appearance or performance.
-
-The atomic blocked-dismount regression keeps a valid mounted actor and controls only the two lateral landing predicates. It must reject the command without changing saved state or emitting a disembark event, then succeed after restoring normal ground queries. Do not search an evolving harbor grid for an accidental blocked pose; real terrain/bridge traversal remains separate Rapier coverage.
-
-The production render-budget test records the browser's actual viewport/DPR, settled quality, pipeline diagnostics, and runtime/network errors alongside worst sampled draw/triangle counts. Scene-group geometry inventory is not a per-pass visible-triangle measurement. A successful build or distribution-size check does not close an over-budget render result; preserve the failing gate while investigating the remaining rendering costs.
-
-`playwright.budget.config.ts` builds and serves a unique directory beneath `output/` and keeps its test artifacts there, so another build or Playwright task cannot replace an active benchmark's files. The Chromium project explicitly retains the intended 1920×1080/DPR-1 viewport after the device preset, and the test fixes the existing graphics preference to high in its isolated browser context before startup. Earlier runs using automatic quality or the device preset's smaller viewport are diagnostic only, not comparable high-tier baselines.
+The production budget configuration owns its isolated build/artifact directory
+and fixed high-tier viewport. Older auto-quality or different-viewport runs are
+diagnostics, not comparable baselines. Preserve failed results and current
+input scope in the checklist rather than appending run history to this playbook.
 
 # 29. Review Severity
 
@@ -472,46 +415,21 @@ Fix P0/P1 before feature work.
 
 # 30. Completion Report
 
-General coding tasks use the expanded report below. Routine selected-asset work
-instead reports only asset IDs, runtime integration point, mechanical generation
-status, TypeScript status when applicable, save impact, `Docs updated:`, and
-`Awaiting human game review`.
+Lead with changed behavior and why it matters, then give only relevant evidence:
 
-Expanded report:
-```md
-## Completion
-### What changed
-### Files changed
-### Docs updated
-(owning canonical documents updated in this change, or `none — no documented fact changed`; see the documentation contract in root `AGENTS.md`)
-### Gameplay behavior
-### Narrative evidence
-### Narrative content owner and save impact
-### Save compatibility
-### Tests added/updated
-### Validation run
-- typecheck:
-- lint:
-- unit:
-- integration:
-- e2e:
-- build:
-- art generate/validate/determinism when applicable:
-- art codegen/codegen:check:
-- art cache input hashes/hits/misses:
-- strict quality status and below-target debt:
-- published manifest vs latest candidate report:
-### Visual verification
-- interactive art yard route/stage and controls when applicable:
-### Performance notes
-### Known limitations
-### Next recommended task
-```
-Never claim success without actual validation results.
+- Owning files and `Docs updated:` paths, or `none — no documented fact changed`.
+- Checks actually run, their result and scope; link retained evidence when useful.
+- Save/migration impact for gameplay or persistence work.
+- Material gaps: browser, human game review, performance, publication or release.
+
+Routine selected-asset reports use the compact `BLENDER.md` handoff, including
+asset IDs, runtime integration, mechanical publication status, save impact,
+`Docs updated:` and `Awaiting human game review`. No empty screenshot field or
+mandatory full-suite checklist. Never claim success without relevant evidence.
 
 # 31. Reusable Agent Prompts
 
-**Asset generation:** `@LLM @tools check these for guidance, generate assets of <subject>` is a folder dump, not equal authority. Obey root `AGENTS.md`, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, owning family generator, isolated sheet if present, and the relevant Art Bible section. Do not start `threejs-game-director` for this prompt. Do not run `generate_all.py`. Resolve catalog ID → registered family generator → measure sheet identity into `parameters` → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → Art Yard. Completion report is the `BLENDER.md` handoff (Art Yard link, no screenshot field): `Awaiting human game review`. Leave `02` and ArcheAge unread for this prompt class.
+**Asset generation:** apply root `AGENTS.md`'s generate-asset contract and `BLENDER.md`'s selected production/handoff sequence. Folder attachments and external skills do not broaden the route or authorize provider calls.
 
 **Coding agent:** use scoped task-class reading; preserve no-combat, simulation authority, deterministic RNG, versioned persistence, finite inventory, physical fish cargo, farming/fishing interdependence, DOM text UI, GLB runtime assets, and capability progression. Routine assets follow the lean gate and await human game review; broader coding work runs its proportional validation gate.
 
@@ -522,6 +440,19 @@ Never claim success without actual validation results.
 # 32. Balance/Playtest Metrics
 
 Track: time to first harvest/fish/sport fish/boat; farm revenue/hour; basic-fishing revenue/hour; sport revenue/trip; trip duration; cargo utilization; freshness at sale; contract rate; demand variance; money earned/spent; time from dialogue to the next intended action; dialogue close/reopen errors; and whether players can recall why farming matters to fishing, why freshness matters, who helps them, and why the rowboat is earned. MVP may use development logs; no analytics backend required.
+
+Before accepting a new mechanic or substantial balance change, observe a representative player session and record:
+
+| Question | Evidence to seek |
+|---|---|
+| What meaningful choice changed? | Two plausible actions with understandable consequences; no single permanently dominant route |
+| How does it connect farming, preparation, fishing or trade? | A player uses the connection and can explain why it helped |
+| What repetition did it remove or justify? | Time/attention spent on repeated verbs, and whether the player wanted another trip |
+| What can the player still do after failure or depletion? | A useful free action, clear recovery path and attainable next goal after low Work, lost tackle/catch or poor sales |
+| Does the consequence read in the world? | Player notices weather, load, freshness or opportunity without inspecting formulas |
+
+These are product acceptance observations, not a mandate for a new analytics
+service or extra mechanics. Diagnose the failed loop before adding content.
 
 Maintain an economy sanity sheet per chain: inputs, real/game time, capacity, expected gross/net. Update balancing docs after major value changes.
 

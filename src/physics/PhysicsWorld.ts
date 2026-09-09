@@ -25,7 +25,7 @@ import {
   WorldLayout
 } from "../world/WorldLayout";
 import { nearestMooring } from "../world/WorldMoorings";
-import { MOUNT_TUNING, advanceMountGait, type MountGaitStepResult } from "../simulation/mounts/Mounts";
+import { MOUNT_TUNING, advanceMountGait, isMountableTraversalPoint, type MountGaitStepResult } from "../simulation/mounts/Mounts";
 
 interface BoatPhysicsBody {
   body: RAPIER.RigidBody;
@@ -52,6 +52,7 @@ const PLAYER_COLLIDER_CENTER_FROM_POSE_METERS =
   PLAYER_CAPSULE_RADIUS_METERS -
   PLAYER_POSE_GROUND_OFFSET_METERS;
 const PLAYER_GROUND_SNAP_METERS = 0.38;
+const MOUNT_GROUND_SNAP_METERS = 0.26;
 const PLAYER_APEX_VERTICAL_SPEED_METERS_PER_SECOND = 0.55;
 const PLAYER_HARD_LANDING_SPEED_METERS_PER_SECOND = 8.5;
 const PLAYER_LANDING_RESPONSE_MAX_SPEED_METERS_PER_SECOND = 15;
@@ -125,7 +126,7 @@ function bridgeAwareTraversalSurfaceHeightForMove(
 ): number {
   const targetX = currentX + moveX;
   const targetZ = currentZ + moveZ;
-  const targetHeight = WorldLayout.traversalSurfaceSample(targetX, targetZ).height;
+  const targetHeight = WorldLayout.traversalSurfaceHeight(targetX, targetZ);
   const moveLength = Math.hypot(moveX, moveZ);
   if (moveLength <= 0.000001) return targetHeight;
 
@@ -144,7 +145,7 @@ function bridgeAwareTraversalSurfaceHeightForMove(
 
   return Math.max(
     targetHeight,
-    WorldLayout.traversalSurfaceSample(leadingX, leadingZ).height
+    WorldLayout.traversalSurfaceHeight(leadingX, leadingZ)
   );
 }
 
@@ -178,14 +179,14 @@ function playerTraversalSurfaceHeightForMove(
   );
 }
 
-function groundEvidenceAt(
+function groundEvidenceFrom(
   x: number,
-  z: number
+  z: number,
+  sample: ReturnType<typeof WorldLayout.traversalSurfaceSample>
 ): {
   normal: { x: number; y: number; z: number };
   surface: PhysicsContactSurface;
 } {
-  const sample = WorldLayout.traversalSurfaceSample(x, z);
   if (sample.source === "interior") {
     return { normal: sample.normal, surface: "interior-floor" };
   }
@@ -194,7 +195,9 @@ function groundEvidenceAt(
   }
   return {
     normal: sample.normal,
-    surface: WorldLayout.terrainSurface(x, z)
+    // The sample already carries the normal of the surface under the actor;
+    // letting terrainSurface derive its own repeats four terrain height queries.
+    surface: WorldLayout.terrainSurface(x, z, sample.normal.y)
   };
 }
 
@@ -207,11 +210,22 @@ function resolveWalkableSlide(
   desiredMoveX: number = moveX,
   desiredMoveZ: number = moveZ
 ): { x: number; z: number; limited: boolean } {
-  const isStableWalkable = (x: number, z: number): boolean =>
-    WorldLayout.isWalkable(x, z) &&
-    !WorldLayout.isWater(x, z) &&
-    (allowInterior || !WorldLayout.isInterior(x, z)) &&
-    (WorldLayout.isInterior(x, z) || WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z) || WorldLayout.isPierDeck(x, z) || WorldLayout.isPierStairs(x, z) || WorldLayout.waterSignedDistance(x, z) <= -0.01);
+  const isStableWalkable = (x: number, z: number): boolean => {
+    if (!WorldLayout.isWalkable(x, z) || WorldLayout.isWater(x, z)) return false;
+    if (!allowInterior && WorldLayout.isInterior(x, z)) return false;
+    // Donkeys never board the harbor pier; on-foot travel still may.
+    if (!allowInterior && (WorldLayout.isPierDeck(x, z) || WorldLayout.isPierStairs(x, z))) {
+      return false;
+    }
+    return (
+      WorldLayout.isInterior(x, z) ||
+      WorldLayout.isBridgeDeck(x, z) ||
+      WorldLayout.isBridgeApproach(x, z) ||
+      WorldLayout.isPierDeck(x, z) ||
+      WorldLayout.isPierStairs(x, z) ||
+      WorldLayout.waterSignedDistance(x, z) <= -0.01
+    );
+  };
 
   if (isStableWalkable(currentX + moveX, currentZ + moveZ)) {
     return { x: moveX, z: moveZ, limited: false };
@@ -293,6 +307,21 @@ function resolveWalkableSlide(
   return { x: best.x, z: best.z, limited: true };
 }
 
+/** Everything `step` mutates about the player body, so a rejected commit can rewind it. */
+interface PlayerBodyRollback {
+  translation: { x: number; y: number; z: number };
+  velocityX: number;
+  velocityZ: number;
+  verticalVelocity: number;
+  rotationY: number;
+  grounded: boolean;
+  previousResolvedSpeed: number;
+  jumpBufferRemainingSeconds: number;
+  coyoteTimeRemainingSeconds: number;
+  committedPose: ResolvedPhysicsFrame["player"] | null;
+  committedAttachmentKey: string | null;
+}
+
 export class PhysicsWorld implements PhysicsAdapter {
   private readonly rapier: typeof RAPIER;
   private readonly world: RAPIER.World;
@@ -303,6 +332,7 @@ export class PhysicsWorld implements PhysicsAdapter {
   private readonly boatBodies = new Map<string, BoatPhysicsBody>();
   private readonly cameraSweepBallCache = new Map<number, RAPIER.Ball>();
   private readonly terrainColliders: RAPIER.Collider[];
+  private readonly terrainColliderHandles = new Set<number>();
   private playerVelocityX = 0;
   private playerVelocityZ = 0;
   private previousResolvedPlayerSpeed = 0;
@@ -313,6 +343,15 @@ export class PhysicsWorld implements PhysicsAdapter {
   private playerContactSurface: PhysicsContactSurface = "unknown";
   private lastResolvedPlayerPose: ResolvedPhysicsFrame["player"] | null = null;
   private lastPlayerAttachmentKey: string | null = null;
+  /**
+   * Pre-step body state captured by the most recent `step`, held until the host
+   * reports whether the simulation accepted the pose. Null between a reported
+   * outcome and the next step.
+   */
+  private stagedPlayerRollback: PlayerBodyRollback | null = null;
+  /** Recomputed whenever the body set changes; see `shouldStepDynamics`. */
+  private dynamicBodyCount = 0;
+  private dynamicBodyCountStale = true;
   private jumpBufferRemainingSeconds = 0;
   private coyoteTimeRemainingSeconds: number = PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds;
   private readonly staticPropBodies: RAPIER.RigidBody[] = [];
@@ -337,6 +376,9 @@ export class PhysicsWorld implements PhysicsAdapter {
     );
     this.controller = this.world.createCharacterController(CHARACTER_CONTROLLER_OFFSET_METERS);
     this.controller.setApplyImpulsesToDynamicBodies(false);
+    // Rapier defaults this on, but the walkability pass downstream now depends on
+    // the controller having already resolved obstacle sliding, so state it.
+    this.controller.setSlideEnabled(true);
     this.controller.setMaxSlopeClimbAngle((38 * Math.PI) / 180);
     this.controller.setMinSlopeSlideAngle((46 * Math.PI) / 180);
     this.controller.enableAutostep(0.42, 0.24, true);
@@ -353,6 +395,7 @@ export class PhysicsWorld implements PhysicsAdapter {
         .setFriction(0.86);
       return this.world.createCollider(terrain);
     });
+    for (const collider of this.terrainColliders) this.terrainColliderHandles.add(collider.handle);
     const road = sharedRoadColliderGeometry();
     this.world.createCollider(
       rapier.ColliderDesc.trimesh(road.vertices, road.indices).setFriction(0.9)
@@ -375,7 +418,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.controller.setMaxSlopeClimbAngle(
       mounted ? Math.acos(MOUNT_TUNING.maximumSlopeNormalY) : (38 * Math.PI) / 180
     );
-    if (mounted) this.controller.disableSnapToGround();
+    if (mounted) this.controller.enableSnapToGround(MOUNT_GROUND_SNAP_METERS);
     else this.controller.enableSnapToGround(PLAYER_GROUND_SNAP_METERS);
     this.world.updateSceneQueries();
   }
@@ -397,6 +440,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
     this.staticPropBodies.length = 0;
     this.ingestStaticCollision(proxies);
+    this.dynamicBodyCountStale = true;
     this.world.updateSceneQueries();
   }
 
@@ -473,6 +517,12 @@ export class PhysicsWorld implements PhysicsAdapter {
     return snapshot;
   }
 
+  /**
+   * Releases the Rapier world and everything allocated against it. `world.free`
+   * releases the bodies, colliders and controller itself; the caches cleared
+   * here are plain JS holding handles into freed WASM memory, so they are
+   * dropped too rather than left to be read back after disposal.
+   */
   public dispose(): void {
     for (const boat of this.boatBodies.values()) {
       for (const collider of boat.colliders) {
@@ -482,6 +532,12 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
     this.boatBodies.clear();
     this.cameraSweepBallCache.clear();
+    this.debugColliderIds.clear();
+    this.staticPropBodies.length = 0;
+    this.stagedPlayerRollback = null;
+    this.lastResolvedPlayerPose = null;
+    this.lastPlayerAttachmentKey = null;
+    this.dynamicBodyCountStale = true;
     this.world.free();
   }
 
@@ -539,6 +595,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       speed: Number.isFinite(speed) ? speed : 0
     };
     this.boatBodies.set(id, created);
+    this.dynamicBodyCountStale = true;
     return created;
   }
 
@@ -697,7 +754,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     const player = state.player;
     const isMounted = player.activeMountId !== null;
     this.ensurePlayerColliderProfile(isMounted);
-    const groundHeight = WorldLayout.traversalSurfaceSample(player.x, player.z).height;
+    const groundHeight = WorldLayout.traversalSurfaceHeight(player.x, player.z);
     const footAnchorY = isMounted
       ? groundHeight + MOUNT_TUNING.playerPoseGroundOffsetMeters
       : player.traversal.isGrounded
@@ -721,7 +778,11 @@ export class PhysicsWorld implements PhysicsAdapter {
         ? PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds
         : 0;
       if (this.playerGrounded) {
-        const groundEvidence = groundEvidenceAt(player.x, player.z);
+        const groundEvidence = groundEvidenceFrom(
+          player.x,
+          player.z,
+          WorldLayout.traversalSurfaceSample(player.x, player.z)
+        );
         this.playerGroundNormal = groundEvidence.normal;
         this.playerContactSurface = groundEvidence.surface;
       }
@@ -807,22 +868,10 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.playerVelocityZ = steeredVelocity.z;
 
     const current = this.playerBody.translation();
-    let moveX = this.playerVelocityX * safeDt;
-    let moveZ = this.playerVelocityZ * safeDt;
+    const moveX = this.playerVelocityX * safeDt;
+    const moveZ = this.playerVelocityZ * safeDt;
     const requestedMoveDistance = Math.hypot(moveX, moveZ);
     let walkabilityLimited = false;
-    const requestedWalkableMove = resolveWalkableSlide(
-      current.x,
-      current.z,
-      moveX,
-      moveZ,
-      !isMounted,
-      desiredMoveX,
-      desiredMoveZ
-    );
-    moveX = requestedWalkableMove.x;
-    moveZ = requestedWalkableMove.z;
-    walkabilityLimited = requestedWalkableMove.limited;
 
     if (isMounted) {
       this.jumpBufferRemainingSeconds = 0;
@@ -853,7 +902,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       );
     }
     const verticalVelocityBeforeCollision = this.playerVerticalVelocity;
-    const centerSurfaceY = WorldLayout.traversalSurfaceSample(current.x + moveX, current.z + moveZ).height;
+    const centerSurfaceY = WorldLayout.traversalSurfaceHeight(current.x + moveX, current.z + moveZ);
     const targetSurfaceY = isMounted
       ? mountedTraversalSurfaceHeightForMove(current.x, current.z, moveX, moveZ)
       : this.playerGrounded
@@ -888,6 +937,17 @@ export class PhysicsWorld implements PhysicsAdapter {
     movement.x = resolvedWalkableMove.x;
     movement.z = resolvedWalkableMove.z;
     walkabilityLimited ||= resolvedWalkableMove.limited;
+    // One slope sample on the destination — not on every slide candidate —
+    // keeps mounts off banks the commit validator would reject every frame.
+    if (
+      isMounted &&
+      (movement.x !== 0 || movement.z !== 0) &&
+      !isMountableTraversalPoint(current.x + movement.x, current.z + movement.z)
+    ) {
+      movement.x = 0;
+      movement.z = 0;
+      walkabilityLimited = true;
+    }
     const horizontalMovement = Math.hypot(movement.x, movement.z);
     const horizontalLimit = speed * safeDt;
     if (horizontalMovement > horizontalLimit && horizontalMovement > 0.000001) {
@@ -910,7 +970,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
 
     const resolvedSupport = !isMounted
-      ? WorldLayout.traversalSurfaceSample(current.x + movement.x, current.z + movement.z).height
+      ? WorldLayout.traversalSurfaceHeight(current.x + movement.x, current.z + movement.z)
       : centerSurfaceY;
     const resolvedFootFromBody = current.y + movement.y - (
       isMounted ? MOUNT_COLLIDER_CENTER_FROM_POSE_METERS : PLAYER_COLLIDER_CENTER_FROM_POSE_METERS
@@ -920,6 +980,14 @@ export class PhysicsWorld implements PhysicsAdapter {
         ? MOUNT_TUNING.playerPoseGroundOffsetMeters
         : PLAYER_POSE_GROUND_OFFSET_METERS)
     );
+    // Rapier's own grounded flag is not sufficient on stepped geometry. Measured
+    // over a dock stair climb it reports grounded on 71% of frames while the
+    // actor is demonstrably standing on a tread, against 99.5% on open ground:
+    // the controller loses contact across each riser. Trusting it alone would
+    // read as airborne for a third of every staircase, so the layout's own
+    // support evidence backs it up. Mounts are pinned to the traversal surface
+    // rather than integrated under gravity and have no way to recover from a
+    // spurious airborne frame, so they stay grounded outright.
     this.playerGrounded = isMounted || this.controller.computedGrounded() || (
       !jumpStarted &&
       this.playerVerticalVelocity <= 0 &&
@@ -1004,10 +1072,14 @@ export class PhysicsWorld implements PhysicsAdapter {
     }
     this.previousResolvedPlayerSpeed = resolvedSpeed;
 
-    const groundY = WorldLayout.traversalSurfaceSample(resolved.x, resolved.z).height;
+    // The resolved point is the one place the step needs a normal as well as a
+    // height. Sampling it once and sharing the result keeps the surrounding
+    // height-only queries off the four-neighbour path entirely.
+    const resolvedSample = WorldLayout.traversalSurfaceSample(resolved.x, resolved.z);
+    const groundY = resolvedSample.height;
 
     if (this.playerGrounded) {
-      const evidence = groundEvidenceAt(resolved.x, resolved.z);
+      const evidence = groundEvidenceFrom(resolved.x, resolved.z, resolvedSample);
       this.playerContactSurface = evidence.surface;
       this.playerGroundNormal = evidence.normal;
     }
@@ -1201,7 +1273,6 @@ export class PhysicsWorld implements PhysicsAdapter {
     const deltaX = Math.sin(physics.headingRadians) * physics.speed * safeDt;
     const deltaZ = Math.cos(physics.headingRadians) * physics.speed * safeDt;
     const requestedTravelDistance = Math.hypot(deltaX, deltaZ);
-    this.world.updateSceneQueries();
     let originX = boat.x;
     let originZ = boat.z;
     if (active) {
@@ -1463,7 +1534,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     to: { x: number; y: number; z: number },
     padding: number
   ): boolean {
-    if (collider === this.playerCollider || this.terrainColliders.includes(collider)) return false;
+    if (collider === this.playerCollider || this.terrainColliderHandles.has(collider.handle)) return false;
     if (this.isBoatCollider(collider)) return false;
     if (collider.containsPoint(to)) return true;
     const projection = collider.projectPoint(to, true);
@@ -1501,12 +1572,19 @@ export class PhysicsWorld implements PhysicsAdapter {
       undefined,
       this.playerCollider
     );
+    // Terrain is excluded at the query rather than after it. Projecting a point
+    // onto a heightfield scans its cells and costs 6.5 ms against Neva's two
+    // patches — around 40% of a 60 Hz frame — while `colliderBelongsToEndpoint`
+    // rejects terrain anyway, so every microsecond of it was discarded. Filtering
+    // here leaves the result identical and takes the query to 0.01 ms.
     const nearest = this.world.projectPoint(
       to,
       true,
       undefined,
       undefined,
-      this.playerCollider
+      this.playerCollider,
+      undefined,
+      (collider) => !this.terrainColliderHandles.has(collider.handle)
     );
     if (
       nearest &&
@@ -1552,12 +1630,33 @@ export class PhysicsWorld implements PhysicsAdapter {
         }
         this.world.removeRigidBody(boat.body);
         this.boatBodies.delete(id);
+        this.dynamicBodyCountStale = true;
       }
     }
+
+    // Open the commit transaction. Everything below stages a candidate pose; the
+    // host closes it through onCommitResult once the simulation has ruled.
+    const bodyTranslation = this.playerBody.translation();
+    this.stagedPlayerRollback = {
+      translation: { x: bodyTranslation.x, y: bodyTranslation.y, z: bodyTranslation.z },
+      velocityX: this.playerVelocityX,
+      velocityZ: this.playerVelocityZ,
+      verticalVelocity: this.playerVerticalVelocity,
+      rotationY: this.playerRotationY,
+      grounded: this.playerGrounded,
+      previousResolvedSpeed: this.previousResolvedPlayerSpeed,
+      jumpBufferRemainingSeconds: this.jumpBufferRemainingSeconds,
+      coyoteTimeRemainingSeconds: this.coyoteTimeRemainingSeconds,
+      committedPose: this.lastResolvedPlayerPose,
+      committedAttachmentKey: this.lastPlayerAttachmentKey
+    };
 
     let mountGaitStep: MountGaitStepResult | null = null;
     const boats: ResolvedPhysicsFrame["boats"] = {};
     const boatMotion: Record<string, BoatMotionSample> = {};
+    if (Object.keys(state.boats).length > 0) {
+      this.world.updateSceneQueries();
+    }
     for (const id of Object.keys(state.boats)) {
       const resolvedBoat = this.resolveBoat(state, id, input, mode, dt, timeSeconds);
       boats[id] = resolvedBoat.pose;
@@ -1638,7 +1737,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       mountGaitStep = resolvedPlayer.mountGait;
     }
 
-    this.world.step();
+    if (this.shouldStepDynamics()) this.world.step();
     this.lastResolvedPlayerPose = {
       ...player,
       traversal: { ...player.traversal }
@@ -1652,6 +1751,55 @@ export class PhysicsWorld implements PhysicsAdapter {
         }
       : undefined;
     return { frame: { player, boats, mountGait }, playerMotion, boatMotion };
+  }
+
+  /**
+   * The world holds only fixed and kinematic-position-based bodies, so
+   * `world.step()` integrates nothing: the character controller runs its own
+   * queries and no contact events are consumed. Stepping still pays for the full
+   * broad and narrow phase every frame, which is the harbor's most expensive
+   * physics cost once the pier props are ingested. The count is recomputed
+   * rather than assumed so that adding a genuine dynamic body re-enables the
+   * pipeline without anyone remembering this gate exists.
+   */
+  private shouldStepDynamics(): boolean {
+    if (this.dynamicBodyCountStale) {
+      let dynamic = 0;
+      this.world.forEachRigidBody((body) => {
+        if (body.isDynamic()) dynamic++;
+      });
+      this.dynamicBodyCount = dynamic;
+      this.dynamicBodyCountStale = false;
+    }
+    return this.dynamicBodyCount > 0;
+  }
+
+  /**
+   * Closes the transaction opened by the matching `step`. A rejected commit
+   * leaves `GameState` on the previous pose, so the body is rewound to match it
+   * and the last accepted pose is restored as the synchronisation baseline. That
+   * keeps `shouldSynchronizePlayerBody` quiet on the next frame, where it would
+   * otherwise see a mismatch and clear the player's velocity for a frame.
+   *
+   * Boats need no rewind: `resolveBoat` re-derives each hull from `GameState`
+   * every step rather than integrating its own retained pose.
+   */
+  public onCommitResult(success: boolean): void {
+    const rollback = this.stagedPlayerRollback;
+    this.stagedPlayerRollback = null;
+    if (success || !rollback) return;
+    this.playerBody.setTranslation(rollback.translation, true);
+    this.playerVelocityX = rollback.velocityX;
+    this.playerVelocityZ = rollback.velocityZ;
+    this.playerVerticalVelocity = rollback.verticalVelocity;
+    this.playerRotationY = rollback.rotationY;
+    this.playerGrounded = rollback.grounded;
+    this.previousResolvedPlayerSpeed = rollback.previousResolvedSpeed;
+    this.jumpBufferRemainingSeconds = rollback.jumpBufferRemainingSeconds;
+    this.coyoteTimeRemainingSeconds = rollback.coyoteTimeRemainingSeconds;
+    this.lastResolvedPlayerPose = rollback.committedPose;
+    this.lastPlayerAttachmentKey = rollback.committedAttachmentKey;
+    this.world.updateSceneQueries();
   }
 }
 

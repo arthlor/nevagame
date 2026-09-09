@@ -23,13 +23,17 @@ export interface KeyBindingGroup {
   readonly bindings: readonly KeyBinding[];
 }
 
-/** Tool belt slots 1-5, in order. Shared with the HUD so the two agree. */
+/**
+ * The tool belt is contextual — it holds farm tools on a farm and fishing gear
+ * at the water — so no fixed slot list can describe it. These are the farm
+ * tools, named because that is the belt a player meets first.
+ */
 export const TOOL_SLOT_NAMES = [
-  "Hoe",
+  "Hand Tools",
   "Seeds",
   "Watering Can",
-  "Bait",
-  "Rod"
+  "Fertilizer",
+  "Harvest Basket"
 ] as const;
 
 export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
@@ -49,11 +53,16 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
     id: "world",
     title: "Working the world",
     bindings: [
-      { keys: "E", action: "Contextual interaction — talk, board, harvest, cast" },
+      {
+        keys: "E",
+        action: "Contextual interaction — talk, board, harvest, cast",
+        note: "Takes out the tool the action needs"
+      },
       { keys: "LMB", action: "Use the equipped tool at the pointer" },
       {
         keys: "1 – 5",
-        action: `Tool belt — ${TOOL_SLOT_NAMES.join(", ")}`
+        action: `Tool belt — on a farm, ${TOOL_SLOT_NAMES.join(", ")}`,
+        note: "The belt changes with where you are standing"
       },
       { keys: "Alt", action: "Hold to read the soil overlay on a farm" },
       { keys: "F", action: "Open or close the farm forecast" }
@@ -64,7 +73,7 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
     title: "Fishing",
     bindings: [
       { keys: "E", action: "Hold to charge a cast, release to cast" },
-      { keys: "R", action: "Arm or put away a crafted lure", note: "Before casting or hooking" },
+      { keys: "R", action: "Arm or put away a Woven Lure", note: "Required before sport fishing" },
       { keys: "Space", action: "Hook the bite, then hold to keep pressure" },
       { keys: "W", action: "Reel in", note: "Sport fishing" },
       { keys: "S", action: "Give slack", note: "Sport fishing" },
@@ -76,6 +85,7 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
     title: "Menus",
     bindings: [
       { keys: "Esc", action: "Pause, or close the open screen" },
+      { keys: "C", action: "Character & Gear" },
       { keys: "I", action: "Satchel" },
       { keys: "J", action: "Field Journal" },
       { keys: "M", action: "Nautical chart" },

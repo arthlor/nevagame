@@ -25,11 +25,12 @@ export function createHarborCoastPlacements(): EnvironmentAssetPlacement[] {
       rotationY, scale: [scale, scale, scale], y: WorldLayout.terrainHeight(x, z) - burial,
       islandId: "island.neva" });
   };
-  // Open eastern beach closes into two offset groves. The working apron stays broad.
+  // Open eastern beach closes into two offset groves. The western crowns sit
+  // behind the normal camera boom, leaving the market approach visible in motion.
   const palms = [
     [125,65,0], [122,60,1], [117,56,0], [113,52,1], [108,52,0], [103,50,1],
-    [98,47,0], [92,46,1], [81,43,0], [77,47,1], [71,49,2],
-    [121,48,1], [114,44,0], [105,44,1], [96,42,0], [88,41,1], [79,42,0],
+    [98,47,0], [92,46,1], [82,40,0], [76,40,1], [70,41,2],
+    [121,48,1], [114,44,0], [105,44,1], [96,42,0], [88,41,1], [80,40.5,0],
     [116,67,2], [104,67,0], [100,63.5,2], [87,63,0], [136,72,1], [145,67,0], [139,59,2], [112,68.7,1], [103,64,0], [118,59,0]
   ] as const;
   const palmIds = ["tree_coastal_palm_a", "tree_coastal_palm_b", "tree_coastal_palm_young"];
@@ -54,7 +55,7 @@ export function createHarborCoastPlacements(): EnvironmentAssetPlacement[] {
   // Anchor/medium relationships leave a clear cast lane at (93,69) and open coves eastward.
   const rocks = [
     [97.7,71.8,0,1.05,.22], [101.2,74.5,1,.70,.28], [98.5,77.2,2,.58,.22],
-    [88.9,70.8,1,.60,.20], [119.4,79.3,0,1.13,.30], [115.6,81.4,1,.61,.28],
+    [103.5,80.5,1,.60,.20], [119.4,79.3,0,1.13,.30], [115.6,81.4,1,.61,.28],
     [122.8,80.8,2,.53,.25], [142,85.2,2,1.12,.34], [145,83.7,1,.84,.25],
     [140,87.9,0,.55,.22], [151,78,1,.62,.25]
   ] as const;

@@ -3,7 +3,7 @@
 
 > **Role:** Operational owner for the DEV-only in-game layout editor (the Place / F2 tool). It places and moves **already published GLBs** in the world. It is not the Blender catalog pipeline, Art Yard, or a `GameplayMode`.
 >
-> **Authority:** `01` still owns architecture invariants. This file owns how the editor is used, which files it may write, and how the client, Vite plugin, and live session stay aligned. If this file and `01` disagree, `01` wins; report the mismatch.
+> **Authority:** `01` still owns architecture invariants. This file owns how the editor is used, which files it may write, and how the client, Vite plugin, and live session stay aligned. Root `AGENTS.md` owns routing and conflict resolution.
 
 This is the tool people mean by “asset editor” in play: click a well, stall, fence, or tree in the running game and write its pose back into layout TypeScript.
 
@@ -20,7 +20,7 @@ It is **not**:
 - a GLB generator (that remains catalog → Blender → `art:generate`)
 - a license to invent weapons, combat, or extra HUD dashboards
 
-Simulation still owns canonical gameplay. A drop writes **layout source**. The same session also debug-relocates a few interact/sim poses so you can keep playing without a refresh. Other saves keep their stored structure coordinates until those saves are moved in-game.
+Simulation still owns canonical gameplay. A drop writes **layout source**. The same session also debug-relocates a few interact/sim poses so you can keep playing without a refresh. A drop does not migrate other saves. Before promoting a layout edit that changes reachability, collision, saved structure coordinates or canonical topology, apply the `01` §6/§6.1 preservation and migration protocol; a successful editor commit is not that proof.
 
 ---
 
@@ -122,7 +122,7 @@ Each spawned discrete object gets `userData.layoutEdit` (`LAYOUT_EDIT_USERDATA_K
 | `authored-detail` | authored trees, rocks, harbor posts | `authoredPlacement(...)` in `WorldEnvironmentLayout.ts` | yes |
 | `environment-override` | seeded/layout-derived instance after a move | `PLACEMENT_OVERRIDES` | paste as **authored** pin; delete via `PLACEMENT_REMOVED` |
 | `interior-prop` | farmhouse furniture | `FarmhouseInterior.ts` (keeps Y) | yes |
-| `npc` | Barnaby, Elspeth, Silas, Maeve | `npcs.ts`; harbor xz also in `WorldAnchors.ts` | no |
+| `npc` | Named NPCs and their scheduled stops | `npcs.ts`; home harbor xz also in `WorldAnchors.ts` | no |
 
 Farm kinds are authored in **farm-local** coordinates (`world − STARTER_FARM_LAYOUT.origin`). The HUD shows **world** xz.
 
@@ -187,7 +187,7 @@ On drag, rotate, drop, paste, delete, Escape deselect, and F2 exit:
    - produce stall → `VILLAGE_MARKET` + `market.village` interaction
    - fish-market landmark → `HARBOR_MARKET` + `market.harbor` interaction
    - mill / workbench / compost / fish table → `sim.debugRelocateStructure` + processing-station approach
-   - NPCs → content anchor + `relocateNpcPresentation`
+   - NPCs → addressed content anchor + `relocateNpcPresentation`; IDs ending in `.dawn`, `.day`, `.dusk` or `.night` edit only that scheduled stop in `npcs.ts`. Unsuffixed IDs edit home, including shared harbor anchors. The visible stop supplies the editor address, so moving it cannot overwrite home.
 
 Duplicated crates, lamps, trees, fences, and interior furniture do not gain new E-to-interact points. They keep pick tags, catalog collision, and the spawn presentation of the original (light, animation, grounding, shadows).
 
@@ -281,8 +281,13 @@ the simulation predicate and the visual cue must agree.
 
 # 10. Tests
 
+Select coverage by the changed contract (`03` §4). The command below covers
+source patching/round-trip behavior. Add terrain snapping, history, stress or
+physics suites only when their behavior changes; prose edits need no browser
+or physics run. Input/picking changes require the affected live editor flow.
+
 ```bash
-npx vitest run tests/unit/layoutEditorSourceRoundTrip.test.ts tests/unit/layoutEditorPatch.test.ts tests/unit/terrainSnapping.test.ts tests/unit/historyManager.test.ts tests/unit/empirical_r2_terrain_history_stress.test.ts tests/unit/physicsWorld.test.ts
+npx vitest run tests/unit/layoutEditorSourceRoundTrip.test.ts tests/unit/layoutEditorPatch.test.ts
 ```
 
 `layoutEditorSourceRoundTrip.test.ts` runs every editable kind against the **shipped**

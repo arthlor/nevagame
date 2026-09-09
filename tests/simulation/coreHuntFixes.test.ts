@@ -13,6 +13,7 @@ import { createInitialGameState } from "../../src/simulation/core/createInitialS
 import { pickUnlockedStationRecipe } from "../../src/simulation/domains/ProcessingDomain";
 import { MarketDomain } from "../../src/simulation/domains/MarketDomain";
 import type { FishingEncounterState } from "../../src/simulation/core/types";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 describe("Core hunt fixes", () => {
   let sim: Simulation;
@@ -85,6 +86,66 @@ describe("Core hunt fixes", () => {
       .toMatchObject({ success: true, reasonCode: "discarded" });
     expect(sim.state.basicFishing).toBeNull();
     expect(InventoryManager.getItemCount(inventory, catchItemId)).toBe(0);
+  });
+
+  it("rejects non-finite basic fishing input without poisoning the attempt", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    const before = structuredClone(sim.state);
+    const rngBefore = sim.rng.getState();
+
+    expect(sim.execute({ type: "fishing.cast-basic", castPower: Number.NaN })).toMatchObject({
+      success: false,
+      reasonCode: "invalid-cast-power"
+    });
+    expect(sim.state).toEqual(before);
+    expect(sim.rng.getState()).toBe(rngBefore);
+
+    expect(sim.castBasicFishing(0.5).success).toBe(true);
+    const attemptBefore = structuredClone(sim.state.basicFishing);
+    const activeRngBefore = sim.rng.getState();
+    sim.tick(Number.POSITIVE_INFINITY);
+    expect(sim.state.basicFishing).toEqual(attemptBefore);
+    expect(sim.rng.getState()).toBe(activeRngBefore);
+  });
+
+  it("rejects non-finite sport-fishing control without changing the fight", () => {
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    expect(sim.startDebugSportFishing("lake", lake.x, lake.z, "fish.trout")).toBe(true);
+    const encounterBefore = structuredClone(sim.state.sportFishing);
+    const rngBefore = sim.rng.getState();
+
+    expect(sim.execute({
+      type: "fishing.control",
+      input: { isReeling: true, isSlacking: false, isBracing: false, rodDirectionAngle: Number.NaN }
+    })).toMatchObject({ success: false });
+    expect(sim.state.sportFishing).toEqual(encounterBefore);
+    expect(sim.rng.getState()).toBe(rngBefore);
+  });
+
+  it("rolls treasure against a draft and restores RNG when the combined catch cannot fit", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    expect(sim.castBasicFishing()).toMatchObject({ success: true });
+    const attempt = sim.state.basicFishing!;
+    attempt.phase = "caught";
+    attempt.treasureCaught = true;
+
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    const filler = ContentRegistry.items.get("item.compost_starter")!;
+    inventory.slots = inventory.slots.map((_, index) =>
+      index === inventory.slots.length - 1
+        ? {}
+        : { itemId: filler.id, quantity: filler.stackLimit }
+    );
+    const inventoryBefore = structuredClone(inventory);
+    const rngBefore = sim.rng.getState();
+
+    expect(sim.execute({ type: "fishing.commit-basic" })).toMatchObject({ success: false, reasonCode: "inventory-full" });
+    expect(sim.state.basicFishing?.phase).toBe("caught");
+    expect(inventory).toEqual(inventoryBefore);
+    expect(sim.rng.getState()).toBe(rngBefore);
+    expect(sim.state.metadata.rngState).toBe(rngBefore);
   });
 
   it("keeps a full bite-reaction window after a hitch that overshoots the wait", () => {
@@ -246,10 +307,12 @@ describe("Core hunt fixes", () => {
   it("picks the workbench lure recipe when unlocked and inputs are present", () => {
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
     InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "item.plant_matter", quantity: 2 },
+      { itemId: "item.bait_worms", quantity: 2 },
       { itemId: "produce.flax", quantity: 1 },
       { itemId: "item.fish_scraps", quantity: 1 }
     ]);
-    expect(pickUnlockedStationRecipe("workbench", inventory, 0)?.id).toBe("recipe.craft_chum");
+    expect(pickUnlockedStationRecipe("workbench", inventory, 0)?.id).toBe("recipe.craft_lure_simple");
     expect(pickUnlockedStationRecipe("workbench", inventory, 3000)?.id).toBe("recipe.craft_lure");
   });
 
@@ -261,6 +324,7 @@ describe("Core hunt fixes", () => {
     sim.state.player.x = lake.x;
     sim.state.player.z = lake.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId).success).toBe(true);
     sim.state.world.activeSchools[schoolId].expiresAtMinute = sim.state.clock.currentMinute;
     sim.advanceGameMinutes(1);
@@ -281,6 +345,7 @@ describe("Core hunt fixes", () => {
     sim.state.player.x = lake.x;
     sim.state.player.z = lake.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId).success).toBe(true);
     sim.state.world.activeSchools[schoolId].expiresAtMinute = sim.state.clock.currentMinute;
     sim.state.metadata.lastSavedUtcMs = 0;
@@ -306,43 +371,25 @@ describe("Core hunt fixes", () => {
     expect(sim.state.player.money).toBe(money - (compost.cost ?? 0));
   });
 
-  it("consumes only an explicitly prepared sport lure without changing catch quality", () => {
-    const hookQuality = (seed: number, withLure: boolean): {
-      quality: string;
-      lureLeft: number;
-      lureSnapshot: string | null;
-    } => {
-      const state = structuredClone(sim.state);
-      state.worldSeed = seed;
-      state.metadata.rngState = undefined;
-      const candidate = new Simulation(state);
-      candidate.state.player.workCapacity.current = 1000;
-      const inventory = candidate.state.inventories[candidate.state.player.inventoryId];
-      InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
-      if (withLure) {
-        InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.basic_lure", quantity: 1 }]);
-        expect(candidate.execute({ type: "fishing.toggle-lure" }).success).toBe(true);
-      }
-      const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
-      const schoolId = candidate.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
-      candidate.state.player.x = lake.x;
-      candidate.state.player.z = lake.z;
-      expect(candidate.chumFishSchool(schoolId).success).toBe(true);
-      const hooked = candidate.hookSportFish(schoolId);
-      expect(hooked.success).toBe(true);
-      return {
-        quality: hooked.encounter!.fish.quality,
-        lureLeft: InventoryManager.getItemCount(inventory, "item.basic_lure"),
-        lureSnapshot: hooked.encounter!.tackleSnapshot.lureItemId
-      };
-    };
+  it("consumes and snapshots the explicitly prepared mandatory sport lure", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "item.chum_bucket", quantity: 1 },
+      { itemId: "item.basic_lure", quantity: 1 }
+    ]);
+    expect(sim.execute({ type: "fishing.toggle-lure" })).toMatchObject({ success: true, prepared: true });
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = sim.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    sim.state.player.x = lake.x;
+    sim.state.player.z = lake.z;
+    expect(sim.chumFishSchool(schoolId).success).toBe(true);
 
-    const plain = hookQuality(23, false);
-    const lured = hookQuality(23, true);
-    expect(plain.lureSnapshot).toBeNull();
-    expect(lured.lureLeft).toBe(0);
-    expect(lured.lureSnapshot).toBe("item.basic_lure");
-    expect(lured.quality).toBe(plain.quality);
+    const hooked = sim.hookSportFish(schoolId);
+
+    expect(hooked.success).toBe(true);
+    expect(InventoryManager.getItemCount(inventory, "item.basic_lure")).toBe(0);
+    expect(sim.state.player.preparedLureItemId).toBeNull();
+    expect(hooked.encounter!.tackleSnapshot.lureItemId).toBe("item.basic_lure");
   });
 
   it("drains underway skiff fuel during offline catch-up", () => {

@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = Number(process.env.NEVA_E2E_PORT ?? 3000);
 const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
+const useExternalServer = process.env.NEVA_E2E_EXTERNAL_SERVER === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -14,10 +15,15 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: e2eBaseUrl,
+    // A locator action with no timeout inherits the whole test budget, so the
+    // long acceptance routes would let one stale selector consume an hour before
+    // reporting. Actions are bounded independently of how long a route may run;
+    // waits that legitimately need longer pass their own explicit timeout.
+    actionTimeout: 15_000,
     trace: "on-first-retry",
     screenshot: "only-on-failure"
   },
-  webServer: {
+  webServer: useExternalServer ? undefined : {
     command: `npm run dev -- --host 127.0.0.1 --port ${e2ePort}`,
     port: e2ePort,
     reuseExistingServer: process.env.NEVA_E2E_REUSE_SERVER === "1" && !process.env.CI

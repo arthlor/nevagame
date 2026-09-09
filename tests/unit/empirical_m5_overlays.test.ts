@@ -44,6 +44,7 @@ const sportEncounter: FishingEncounterState = {
   rodId: "rod.willow",
   tackleSnapshot: { lureItemId: null },
   seaConditionSnapshot: { weatherType: "clear", seaRoughness: 0 },
+  equipmentEffects: { lineIntegrityDamageMultiplier: 1, braceResistanceMultiplier: 1 },
   stamina: 70,
   maxStamina: 100,
   distanceMeters: 8.5,
@@ -67,6 +68,7 @@ const cropInspection: CropInspectionDto = {
   cropId: "crop.wheat",
   name: "Wheat",
   stage: "growing",
+  maturityProgress: 0.5,
   approximateMinutesRemaining: 40,
   stageTimingLabel: "Ready in about 40 minutes",
   moisture: { value: 0.6, band: "normal" },
@@ -342,7 +344,7 @@ describe("Milestone M5 tactile overlays", () => {
     playUiSound("open");
     playUiSound("cloth");
     expect(playOneShotSpy).toHaveBeenCalledWith("quest-chime");
-    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
     playOneShotSpy.mockRestore();
     playBankSpy.mockRestore();
   });

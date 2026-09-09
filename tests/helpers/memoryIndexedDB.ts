@@ -29,6 +29,7 @@ export function installMemoryIndexedDB(): () => void {
         }
         const dbStores = stores;
         const db = {
+          close() {},
           objectStoreNames: {
             contains: (storeName: string) => dbStores.has(storeName)
           },
@@ -37,44 +38,57 @@ export function installMemoryIndexedDB(): () => void {
           },
           transaction(storeName: string, _mode?: string) {
             if (!dbStores.has(storeName)) dbStores.set(storeName, new Map());
-            const store = dbStores.get(storeName)!;
+            const original = dbStores.get(storeName)!;
+            const store = new Map(original);
+            let aborted = false;
+            let completed = false;
+            let pending = 0;
+            const finish = () => schedule(() => {
+              if (aborted || completed || pending) return;
+              completed = true;
+              if (_mode === "readwrite") {
+                original.clear();
+                for (const [key, value] of store) original.set(key, value);
+              }
+              tx.oncomplete?.();
+            });
             const tx: {
               oncomplete: (() => void) | null;
               onerror: (() => void) | null;
+              onabort: (() => void) | null;
               error: unknown;
+              abort: () => void;
               objectStore: () => {
                 put: (value: unknown, key: IDBValidKey) => void;
-                get: (key: IDBValidKey) => { result: unknown; onsuccess: (() => void) | null; onerror: (() => void) | null };
+                get: (key: IDBValidKey) => { result: unknown; transaction: unknown; onsuccess: (() => void) | null; onerror: (() => void) | null };
                 clear: () => void;
               };
             } = {
-              oncomplete: null,
-              onerror: null,
-              error: null,
+              oncomplete: null, onerror: null, onabort: null, error: null,
+              abort() { if (completed) throw new Error("Inactive transaction"); aborted = true; schedule(() => tx.onabort?.()); },
               objectStore() {
                 return {
-                  put(value: unknown, key: IDBValidKey) {
-                    store.set(key, structuredClone(value));
-                  },
+                  put(value: unknown, key: IDBValidKey) { store.set(key, structuredClone(value)); },
                   get(key: IDBValidKey) {
                     const req: {
-                      result: unknown;
-                      onsuccess: (() => void) | null;
-                      onerror: (() => void) | null;
-                    } = { result: undefined, onsuccess: null, onerror: null };
+                      result: unknown; transaction: unknown;
+                      onsuccess: (() => void) | null; onerror: (() => void) | null;
+                    } = { result: undefined, transaction: tx, onsuccess: null, onerror: null };
+                    pending++;
                     schedule(() => {
+                      if (aborted) return;
                       req.result = store.has(key) ? structuredClone(store.get(key)) : undefined;
                       req.onsuccess?.();
+                      pending--;
+                      finish();
                     });
                     return req;
                   },
-                  clear() {
-                    store.clear();
-                  }
+                  clear() { store.clear(); }
                 };
               }
             };
-            schedule(() => tx.oncomplete?.());
+            finish();
             return tx;
           }
         };

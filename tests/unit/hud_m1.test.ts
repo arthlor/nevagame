@@ -39,10 +39,27 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
     it("keeps authoritative Sprint visible at full stamina on foot", () => {
       const state = createInitialGameState();
       const hud = buildWorldHudDto(state);
-      expect(hud.sprint?.current).toBe(state.player.traversal.sprintStamina);
+      expect(hud.sprint?.current).toBe(Math.round(state.player.traversal.sprintStamina));
       expect(hud.sprint?.maximum).toBeGreaterThan(0);
       state.player.activeMountId = "mount.test" as never;
       expect(buildWorldHudDto(state).sprint).toBeNull();
+    });
+
+    it("rounds fractional Sprint for HUD readout without float noise", () => {
+      const state = createInitialGameState();
+      state.player.traversal.sprintStamina = 46.300000000000054;
+      const hud = buildWorldHudDto(state);
+      expect(hud.sprint?.current).toBe(46);
+
+      const html = renderToString(
+        React.createElement(PlayerUnitFrame, {
+          work: hud.work,
+          sprint: hud.sprint
+        })
+      );
+      expect(html).toContain("46 / 100");
+      expect(html).not.toContain("46.3");
+      expect(html).not.toMatch(/46\.\d{2,}/);
     });
     it("renders accessible Work and Sprint values, journal access, and status chips", () => {
       const state = createInitialGameState();
@@ -118,7 +135,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
   // R1: Nautical Compass Radar & Almanac
   // --------------------------------------------------------------------------
   describe("R1: Nautical Compass Radar & Celestial Almanac", () => {
-    it("renders the heading rail and live calendar with a rotating clock hand", () => {
+    it("renders the heading rail, live calendar, weather and authoritative position", () => {
       const state = createInitialGameState();
       state.player.rotationY = Math.PI / 2; // Facing East (90°)
       state.weather.windDirectionDeg = 180; // Wind from South
@@ -129,6 +146,8 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
           clock: hud.clock,
           weather: hud.weather,
           compass: hud.compass,
+          playerPosition: state.player,
+          onOpenMap: () => {},
           onToggleForecast: () => {}
         })
       );
@@ -140,7 +159,8 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(navigation).toContain(hud.compass.subRegionTitle);
       expect(navigation).toContain("Open nautical chart");
       expect(html).toContain("Wind 180°");
-      expect(html).toContain(`rotate(${hud.clock.dialRotation}deg)`);
+      expect(html).toContain('data-testid="world-minimap"');
+      expect(html).toContain(`rotate(${hud.compass.headingDegrees})`);
 
       // Celestial Clock readout
       expect(html).toContain("data-testid=\"game-clock\"");
@@ -193,7 +213,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
   // R1: Micro Menu & Gold Purse Bar
   // --------------------------------------------------------------------------
   describe("R1: Micro Menu & Gold Purse Bar", () => {
-    it("renders gold counter with formatted balance and 6-button quick access rack", () => {
+    it("renders the purse and five core actions, revealing expeditions after unlock", () => {
       const capacity = { satchelUsed: 8, satchelMax: 20, cargoUsed: 0, cargoMax: 1 };
       const html = renderToString(
         React.createElement(MicroMenuPurseBar, {
@@ -208,16 +228,15 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(purse).toContain("Purse: 3,450 gold");
       expect(htmlContainsText(html, "8/20")).toBe(true);
 
-      // 6 buttons
+      // Five core actions; the planner appears once it is unlocked.
       expect(html).toContain("data-testid=\"micro-btn-satchel\"");
       expect(html).toContain("data-testid=\"micro-btn-journal\"");
       expect(html).toContain("data-testid=\"micro-btn-map\"");
       expect(html).toContain("data-testid=\"micro-btn-ledger\"");
-      expect(html).toContain("data-testid=\"micro-btn-expeditions\"");
+      expect(html).not.toContain("data-testid=\"micro-btn-expeditions\"");
       expect(html).toContain("data-testid=\"micro-btn-menu\"");
 
-      expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-testid="micro-btn-expeditions"/);
-      expect(html).toContain("explore more of Neva to unlock");
+      expect(html.match(/data-testid="micro-btn-/g)).toHaveLength(5);
     });
 
     it("displays warning badge when satchel approaches maximum capacity", () => {
@@ -282,12 +301,12 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(stance).toBe("maritime");
 
       const hotbar = buildContextualHotbar(state, stance, null);
-      expect(hotbar).toHaveLength(5);
-      expect(hotbar[0].name).toBe("Vessel Helm");
+      expect(hotbar).toHaveLength(4);
+      expect(hotbar[0].name).toBe("Take the Helm");
       expect(hotbar[1].name).toBe("Fishing Rod");
-      expect(hotbar[2].name).toBe("Lure & Tackle");
-      expect(hotbar[3].name).toBe("Vessel Supplies");
-      expect(hotbar[4].name).toBe("Cargo Hold");
+      expect(hotbar[2].name).toBe("Woven Lure");
+      // One hold shortcut: Vessel Supplies and Cargo Hold both opened the ledger.
+      expect(hotbar[3].name).toBe("Cargo Hold");
 
       const html = renderToString(
         React.createElement(SmartContextualToolbar, {
@@ -297,7 +316,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
         })
       );
       expect(html).toContain("Maritime Stance");
-      expect(html).toContain("Vessel Helm");
+      expect(html).toContain("Take the Helm");
     });
 
     it("detects Explorer stance during open world exploration with expedition loadout", () => {
@@ -310,13 +329,10 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       const stance = detectContextualStance(state);
       expect(stance).toBe("explorer");
 
+      // Walking around has no tool to swap, and the five sockets that used to
+      // fill this stance were the bottom-right micro-menu a second time.
       const hotbar = buildContextualHotbar(state, stance, null);
-      expect(hotbar).toHaveLength(5);
-      expect(hotbar[0].name).toBe("Satchel [I]");
-      expect(hotbar[1].name).toBe("Nautical Chart [M]");
-      expect(hotbar[2].name).toBe("Expedition Board [P]");
-      expect(hotbar[3].name).toBe("Hold & Stores [L]");
-      expect(hotbar[4].name).toBe("Field Journal [J]");
+      expect(hotbar).toEqual([]);
 
       const html = renderToString(
         React.createElement(SmartContextualToolbar, {
@@ -325,7 +341,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
           activeSlot: 1
         })
       );
-      expect(html).toContain("Explorer Stance");
+      expect(html).toBe("");
     });
   });
 
@@ -436,13 +452,11 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(html).toContain("Wheat");
       expect(html).toContain("Sweet Corn");
 
-      // Seasonal compatibility icon
-      expect(html).toContain("seed-season-indicator");
-      expect(html).toContain("in-season"); // Wheat is spring
-
-      // Soil suitability and moisture hints in footer
-      expect(html).toContain("Coastal loam · Low nutrient depletion");
-      expect(html).toContain("Moderate moisture (15–20%)");
+      // Advice follows the supplied DTO instead of a second crop rule table.
+      expect(html).toContain("Thrives in");
+      expect(html).toContain("temperate");
+      expect(html).not.toContain("Growth penalty");
+      expect(html).not.toContain("moisture (");
     });
   });
 
@@ -463,6 +477,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
         currentStepIndex: 0,
         totalSteps: 2,
         objectiveDescription: "Deliver 5 bundles of wheat to the harbor",
+        objectiveType: "sell-item",
         targetQuantity: 5,
         currentProgress: 3,
         isStepComplete: false,
@@ -533,30 +548,25 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       state.player.activeBoatId = null;
       expect(detectContextualStance(state)).toBe("angling");
       const anglingHotbar = buildContextualHotbar(state, "angling", null);
-      expect(anglingHotbar).toHaveLength(5);
+      expect(anglingHotbar).toHaveLength(3);
       expect(anglingHotbar[0].name).toBe("Fishing Rod");
-      expect(anglingHotbar[1].name).toBe("Lure & Tackle");
-      expect(anglingHotbar[2].name).toBe("Bait Bucket");
-      expect(anglingHotbar[3].name).toBe("Keepnet / Hold");
-      expect(anglingHotbar[4].name).toBe("Stow Gear");
+      expect(anglingHotbar[1].name).toBe("Woven Lure");
+      expect(anglingHotbar[2].name).toBe("Stow Gear");
 
       // 3. Maritime: player boarded vessel
       state.player.activeBoatId = "boat.player_rowboat";
       expect(detectContextualStance(state)).toBe("maritime");
       const maritimeHotbar = buildContextualHotbar(state, "maritime", null);
-      expect(maritimeHotbar).toHaveLength(5);
-      expect(maritimeHotbar[0].name).toBe("Vessel Helm");
+      expect(maritimeHotbar).toHaveLength(4);
+      expect(maritimeHotbar[0].name).toBe("Take the Helm");
       expect(maritimeHotbar[1].name).toBe("Fishing Rod");
 
-      // 4. Explorer: player on open road away from farm and water
+      // 4. Explorer: nothing to swap on the open road, so no belt at all
       state.player.activeBoatId = null;
       state.player.x = 40;
       state.player.z = -100;
       expect(detectContextualStance(state)).toBe("explorer");
-      const explorerHotbar = buildContextualHotbar(state, "explorer", null);
-      expect(explorerHotbar).toHaveLength(5);
-      expect(explorerHotbar[0].name).toBe("Satchel [I]");
-      expect(explorerHotbar[4].name).toBe("Field Journal [J]");
+      expect(buildContextualHotbar(state, "explorer", null)).toEqual([]);
     });
 
     it("renders with frozen read-only DTOs without mutation errors", () => {
@@ -613,14 +623,14 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
         })
       );
 
-      expect(html).toContain("atlas-image tidebook-tool-painting");
+      expect(html).toContain("atlas-image guild-tool-painting");
       expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
       expect(html.match(/data-testid="tool-slot-/g)).toHaveLength(5);
       const stowed = renderToString(React.createElement(SmartContextualToolbar, {
         stance: "agronomy", hotbar, activeSlot: 0
       }));
       expect(stowed).not.toContain('aria-pressed="true"');
-      expect(stowed).not.toContain('class="tidebook-tool-readout"');
+      expect(stowed).not.toContain('class="guild-tool-readout"');
     });
 
     it("renders cast bar exact elapsed/total seconds timing, commit marker, and Work cost badge", () => {
@@ -759,8 +769,8 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
 
       // Canonical crops meta rendered
       expect(html).toContain("Flax");
-      expect(html).toContain("Temperate loam · Moderate nutrient feeder");
-      expect(html).toContain("Regular moisture (20%)");
+      expect(html).toContain("Thrives in");
+      expect(html).toContain("temperate");
     });
   });
 

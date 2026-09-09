@@ -25,6 +25,21 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+/**
+ * The same transform without the frame clamp.
+ *
+ * `worldPointToMapSvg` clamps into the illustration's borders so a mark never
+ * escapes the paper, which is right for drawing but wrong for measuring: two
+ * points that both clamp to the west edge come back with a bearing of zero.
+ * Anything deriving a direction or a distance uses this instead.
+ */
+export function worldPointToMapSvgUnclamped(point: WorldPoint): MapSvgPoint {
+  return {
+    x: WORLD_MAP_PROJECTION.originX + point.x * WORLD_MAP_PROJECTION.scaleX,
+    y: WORLD_MAP_PROJECTION.originY + point.z * WORLD_MAP_PROJECTION.scaleZ
+  };
+}
+
 export function worldPointToMapSvg(point: WorldPoint): MapSvgPoint {
   return {
     x: clamp(

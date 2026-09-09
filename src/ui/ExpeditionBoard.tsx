@@ -37,44 +37,55 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
         tabIndex={-1}
       >
         <header className="modal-header expedition-board-header">
-          <div>
+          <div className="expedition-title-group">
             <h2 id="expedition-title" className="modal-heading-with-mark">
               <IconExpedition size={19} aria-hidden="true" /> Expedition board
             </h2>
-            <span>Posted opportunities and what you still need</span>
+            <span className="expedition-subtitle">Posted opportunities and what you still need</span>
           </div>
           <ChromeClose onClick={onClose} label="Close expedition board" />
         </header>
 
         <div className="expedition-readiness-strip" aria-label="Current readiness">
           <div className="expedition-readiness-vessel">
-            <IconBoat size={18} aria-hidden="true" />
-            <span>Vessel</span>
-            <strong>{readiness.vessel?.name ?? "None"}</strong>
-            {readiness.vessel && (
-              <Meter
-                className="expedition-hull-meter"
-                label="Hull"
-                value={readiness.vessel.hullCurrent}
-                max={readiness.vessel.hullMaximum}
-                valueText={`${readiness.vessel.hullPercent}%`}
-                variant="hull"
-              />
-            )}
+            <div className="expedition-readiness-title">
+              <IconBoat size={18} aria-hidden="true" />
+              <span>Vessel</span>
+            </div>
+            <div className="expedition-vessel-status">
+              <strong>{readiness.vessel?.name ?? "None"}</strong>
+              {readiness.vessel && (
+                <Meter
+                  className="expedition-hull-meter"
+                  label="Hull"
+                  value={readiness.vessel.hullCurrent}
+                  max={readiness.vessel.hullMaximum}
+                  valueText={`${readiness.vessel.hullPercent}%`}
+                  variant="hull"
+                />
+              )}
+            </div>
           </div>
           <div className="expedition-readiness-supplies">
-            <IconFish size={18} aria-hidden="true" />
-            <span>Supplies</span>
-            {readiness.supplies.map(({ itemId, count }) => (
-              <span key={itemId} className={count > 0 ? "is-ready" : "is-missing"}>
-                <AtlasImage src={atlasForItem(itemId)} alt="" size={17} /> {count}
-              </span>
-            ))}
+            <div className="expedition-readiness-title">
+              <IconFish size={18} aria-hidden="true" />
+              <span>Supplies</span>
+            </div>
+            <div className="expedition-supplies-grid">
+              {readiness.supplies.map(({ itemId, count }) => (
+                <span key={itemId} className={`expedition-supply-pill ${count > 0 ? "is-ready" : "is-missing"}`} title={`Count: ${count}`}>
+                  <AtlasImage src={atlasForItem(itemId)} alt="" size={18} />
+                  <strong>{count}</strong>
+                </span>
+              ))}
+            </div>
           </div>
           <div className="expedition-readiness-weather">
-            <WeatherIcon type={readiness.weatherType} size={18} aria-hidden="true" />
-            <span>Weather</span>
-            <strong>{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</strong>
+            <div className="expedition-readiness-title">
+              <WeatherIcon type={readiness.weatherType} size={18} aria-hidden="true" />
+              <span>Weather</span>
+            </div>
+            <strong className="expedition-weather-val">{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</strong>
           </div>
         </div>
 

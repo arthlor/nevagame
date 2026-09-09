@@ -1,12 +1,12 @@
 import React, { useRef, useState } from "react";
 import type { MarketId } from "../../simulation/core/types";
-import type { MarketDemandSignal, WorldMapDto } from "../../simulation/core/contracts";
+import type { CompassMarkerDto, MarketDemandSignal, WorldMapDto } from "../../simulation/core/contracts";
 import {
   WorldLayout,
   type WorldPoint
 } from "../../world/WorldLayout";
 import { WORLD_CHART_NODES } from "../../world/WorldGameplayLocations";
-import { worldPointToMapSvg, worldRouteToMapSvgPath } from "../../world/WorldMapProjection";
+import { worldPointToMapSvg } from "../../world/WorldMapProjection";
 import { IconCoin, IconCompass, IconFish, IconSprout, IconWarning } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
 import { handleTabListKeyDown } from "../useTabListKeyboard";
@@ -14,10 +14,17 @@ import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForMapNode } from "../chrome/uiAtlas";
+import { WorldChartTerrain } from "./WorldChartTerrain";
 import { playUiSound } from "../audio/uiAudio";
 
 interface WorldMapModalProps {
   map: WorldMapDto;
+  /**
+   * Story targets, already resolved by `QuestDomain` and carried on the HUD
+   * compass. The chart draws the same marks the compass ribbon and the minimap
+   * do, so all three agree about where the errand is.
+   */
+  questMarkers?: ReadonlyArray<CompassMarkerDto>;
   onInspectMarketDemand: (marketId: MarketId) => MarketDemandSignal;
   onClose: () => void;
 }
@@ -71,14 +78,20 @@ const MAP_NODES: MapNode[] = WORLD_CHART_NODES.map((node) => ({
 }));
 
 const MAP_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "start" | "middle" | "end" }> = {
-  node_home_farm: { x: -14, y: 24, textAnchor: "end" },
-  node_uplands: { x: -14, y: -12, textAnchor: "end" },
-  node_village: { x: 16, y: 26, textAnchor: "start" },
-  node_crossing: { x: 16, y: -12, textAnchor: "start" },
-  node_river: { x: 14, y: 24, textAnchor: "start" },
-  node_harbor: { x: 16, y: 24, textAnchor: "start" },
-  node_lighthouse: { x: 16, y: 24, textAnchor: "start" },
-  node_offshore: { x: 0, y: -18, textAnchor: "middle" }
+  "chart.neva_farm": { x: -16, y: -17, textAnchor: "end" },
+  "chart.neva_homestead": { x: 22, y: -14, textAnchor: "start" },
+  "chart.neva_village": { x: 22, y: 27, textAnchor: "start" },
+  "chart.neva_mill": { x: 0, y: -20, textAnchor: "middle" },
+  "chart.neva_crossing": { x: 18, y: 23, textAnchor: "start" },
+  "chart.neva_river": { x: -17, y: 27, textAnchor: "end" },
+  "chart.neva_harbor": { x: 16, y: 24, textAnchor: "start" },
+  "chart.neva_lighthouse": { x: -10, y: 25, textAnchor: "end" },
+  "chart.neva_offshore": { x: 0, y: -18, textAnchor: "middle" },
+  "chart.sunreach_cove": { x: 18, y: 16, textAnchor: "start" },
+  "chart.sunreach_open_channel": { x: -18, y: 16, textAnchor: "end" },
+  "chart.sunreach_terraces": { x: 0, y: 24, textAnchor: "middle" },
+  "chart.sunreach_ridge": { x: 18, y: 16, textAnchor: "start" },
+  "chart.sunreach_shelf": { x: 0, y: 24, textAnchor: "middle" }
 };
 
 function mapLabelPosition(nodeId: string, x: number, y: number): { x: number; y: number; textAnchor: "start" | "middle" | "end" } {
@@ -99,7 +112,9 @@ function fishingInsight(map: WorldMapDto, node: MapNode): {
   return map.fishingNotes[`${node.fishingEcologyId ?? "ecology.neva"}:${node.fishingHabitat}`];
 }
 
-export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMarketDemand, onClose }) => {
+export const WorldMapModal: React.FC<WorldMapModalProps> = ({
+  map, questMarkers = [], onInspectMarketDemand, onClose
+}) => {
   const [activeLens, setActiveLens] = useState<MapLens>("geography");
   const [selectedNodeId, setSelectedNodeId] = useState<string>("chart.neva_village");
   const modalRef = useRef<HTMLDivElement>(null);
@@ -159,7 +174,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
 
 
 
-        <div className="map-modal-content">
+        <div className="map-modal-content" data-lens={activeLens}>
           <div className="map-lenses-bar" role="tablist" aria-label="Chart lenses" data-testid="map-lenses" onKeyDown={handleTabListKeyDown}>
             {(["geography", "markets", "fishing", "farmland"] as MapLens[]).map((lens) => (
               <button
@@ -186,76 +201,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
 
           <div className="map-canvas-container">
             <svg viewBox="0 0 1000 700" className="map-svg-canvas" role="img" aria-label="Map of Neva and Sunreach islands">
-              <defs>
-                <radialGradient id="waterGrad" cx="50%" cy="50%" r="70%">
-                  <stop offset="0%" stopColor="#7a9d96" />
-                  <stop offset="100%" stopColor="#5d817a" />
-                </radialGradient>
-                <radialGradient id="landGrad" cx="50%" cy="50%" r="60%">
-                  <stop offset="0%" stopColor="#eee0bc" />
-                  <stop offset="85%" stopColor="#ddcca0" />
-                  <stop offset="100%" stopColor="#c8b584" />
-                </radialGradient>
-                <filter id="shadowFilter" x="-10%" y="-10%" width="130%" height="130%">
-                  <feDropShadow dx="2" dy="4" stdDeviation="4" floodOpacity="0.35" />
-                </filter>
-              </defs>
-
-              <rect width="1000" height="700" fill="url(#waterGrad)" />
-
-              <g stroke="rgba(255, 255, 255, 0.12)" strokeWidth="0.75" strokeDasharray="4 8">
-                <line x1="0" y1="175" x2="1000" y2="175" />
-                <line x1="0" y1="350" x2="1000" y2="350" />
-                <line x1="0" y1="525" x2="1000" y2="525" />
-                <line x1="250" y1="0" x2="250" y2="700" />
-                <line x1="500" y1="0" x2="500" y2="700" />
-                <line x1="750" y1="0" x2="750" y2="700" />
-              </g>
-
-              <path
-                d="M 72,210 C 104,112 236,76 355,116 C 430,155 440,300 410,446 C 382,566 244,610 120,548 C 54,478 42,318 72,210 Z"
-                fill="url(#landGrad)"
-                stroke="#3e2723"
-                strokeWidth="3.5"
-                filter="url(#shadowFilter)"
-              />
-
-              <path
-                d="M 574,281 C 602,215 694,192 785,221 C 858,246 904,323 887,421 C 866,520 775,567 671,523 C 598,492 548,391 574,281 Z"
-                fill="url(#landGrad)"
-                stroke="#3e2723"
-                strokeWidth="3.5"
-                filter="url(#shadowFilter)"
-              />
-
-              <path
-                d="M 260,120 Q 247,295 226,515 Q 194,558 150,580"
-                fill="none"
-                stroke="#2a5860"
-                strokeWidth="18"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 260,120 Q 247,295 226,515 Q 194,558 150,580"
-                fill="none"
-                stroke="#4d8790"
-                strokeWidth="10"
-                strokeLinecap="round"
-              />
-
-              {WorldLayout.routeDefinitions().filter((route) => route.scope === "regional").map((route) => (
-                <path
-                  key={route.id}
-                  d={worldRouteToMapSvgPath(route.points)}
-                  fill="none"
-                  stroke={route.kind === "arterial" ? "#6b4428" : "#8b5a36"}
-                  strokeWidth={route.kind === "arterial" ? 5.5 : route.kind === "lane" ? 3.5 : 2.5}
-                  strokeDasharray={route.kind === "trail" ? "6 5" : undefined}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.85"
-                />
-              ))}
+              <WorldChartTerrain />
 
               {MAP_NODES.map((node) => {
                 const isSelected = selectedNodeId === node.id;
@@ -318,7 +264,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
                       preserveAspectRatio="xMidYMid meet"
                     />
 
-                    {activeLens === "markets" && nodeMarketInsight && (
+                    {activeLens === "markets" && isSelected && nodeMarketInsight && (
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="112" height="22" rx="4" fill="rgba(42, 28, 20, 0.92)" stroke="#c4a46a" strokeWidth="1" />
                         <text x="6" y="15" fill="#fbf7ee" fontSize="11" fontWeight="700">
@@ -327,7 +273,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
                       </g>
                     )}
 
-                    {activeLens === "fishing" && nodeFishingInsight && nodeFishingInsight.species.length > 0 && (
+                    {activeLens === "fishing" && isSelected && nodeFishingInsight && nodeFishingInsight.species.length > 0 && (
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="128" height="22" rx="4" fill="rgba(30, 48, 56, 0.92)" stroke="#5ea3ad" strokeWidth="1" />
                         <text x="6" y="15" fill="#e0f4f7" fontSize="11" fontWeight="700">
@@ -336,7 +282,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
                       </g>
                     )}
 
-                    {activeLens === "farmland" && nodeFarm && (
+                    {activeLens === "farmland" && isSelected && nodeFarm && (
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="115" height="22" rx="4" fill="rgba(40, 56, 32, 0.92)" stroke="#88aa6e" strokeWidth="1" />
                         <text x="6" y="15" fill="#f0fae8" fontSize="11" fontWeight="700">
@@ -390,6 +336,41 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
                 })}
               </g>
 
+              {/* The course line is drawn before the player mark so it runs
+                  under it, and every quest pin sits above the chart nodes it
+                  may share a position with. */}
+              <g className="map-quest-layer" data-testid="map-quest-layer">
+                {questMarkers.map((marker) => {
+                  const at = worldPointToMapSvg({ x: marker.x, z: marker.z });
+                  const focused = marker.kind === "quest";
+                  return (
+                    <g key={marker.id} data-testid="map-quest-mark" data-kind={marker.kind}>
+                      <line
+                        x1={playerMapPosition.x} y1={playerMapPosition.y}
+                        x2={at.x} y2={at.y}
+                        stroke={focused ? "#b8862b" : "#a8935f"}
+                        strokeWidth={focused ? 2.2 : 1.5}
+                        strokeDasharray={focused ? "9 6" : "4 6"}
+                        opacity={focused ? 0.8 : 0.5}
+                      />
+                      <g transform={`translate(${at.x}, ${at.y})`}>
+                        <path d="M0 -13 L9.5 0 L0 13 L-9.5 0 Z"
+                          fill={focused ? "#d9a63c" : "#c2ad84"}
+                          stroke="#4a3a12" strokeWidth="2" strokeLinejoin="round" />
+                        {focused && <path d="M0 -6.4 L4.7 0 L0 6.4 L-4.7 0 Z" fill="#fff6dd" opacity="0.6" />}
+                        <text y="-19" fill="#2c2118" fontSize="11" fontWeight="bold" textAnchor="middle">
+                          {marker.label}
+                        </text>
+                        <text y="26" fill="#5a4a2c" fontSize="10" textAnchor="middle">
+                          {`${marker.distanceMeters} m`}
+                        </text>
+                        <title>{`Objective · ${marker.label} · ${marker.distanceMeters} m`}</title>
+                      </g>
+                    </g>
+                  );
+                })}
+              </g>
+
               <g transform={`translate(${playerMapPosition.x}, ${playerMapPosition.y})`}>
                 <circle r="16" fill="none" stroke="#9a3528" strokeWidth="2" opacity="0.6" className="player-pulse-ring" />
                 <circle r="8" fill="#9a3528" stroke="#fbf7ee" strokeWidth="2" />
@@ -425,6 +406,11 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({ map, onInspectMark
             aria-labelledby={`map-lens-${activeLens}`}
             tabIndex={0}
           >
+            <label className="guild-chart-destination">Place
+              <select aria-label="Chart destination" value={selectedNodeId} onChange={(event) => setSelectedNodeId(event.target.value)}>
+                {MAP_NODES.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+              </select>
+            </label>
             <header className="sidebar-node-header">
               <AtlasImage src={atlasForMapNode(selectedNode.id)} alt="" size={40} className="sidebar-node-atlas" />
               <div>

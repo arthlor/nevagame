@@ -55,6 +55,30 @@ describe("BasicFishingMinigame - Stardew Valley Mechanics", () => {
       expect(state.castChargeDirection).toBe(-1);
       expect(state.castPower).toBeLessThanOrEqual(1.0);
     });
+
+    it("ignores non-finite timing deltas without changing cast state or RNG", () => {
+      const state = BasicFishingMinigame.createInitialState(
+        "river",
+        "fish.perch",
+        0.0,
+        "rod.willow",
+        0,
+        true,
+        rng
+      );
+      state.phase = "charging-cast";
+      state.isChargingCast = true;
+      const before = structuredClone(state);
+      const rngBefore = rng.getState();
+
+      BasicFishingMinigame.tickCastCharging(state, Number.NaN);
+      expect(state).toEqual(before);
+      expect(rng.getState()).toBe(rngBefore);
+
+      expect(BasicFishingMinigame.tick(state, Number.POSITIVE_INFINITY, rng)).toBe("active");
+      expect(state).toEqual(before);
+      expect(rng.getState()).toBe(rngBefore);
+    });
   });
 
   describe("Green Bar Physics & Momentum", () => {
@@ -214,6 +238,13 @@ describe("Simulation Basic Fishing Loop Integration", () => {
 
   beforeEach(() => {
     sim = new Simulation();
+    // A new game no longer starts with bait — Act 2's compost run is the
+    // player's first. These cases are about how bait is spent, so they stock
+    // it themselves rather than depending on the starting satchel.
+    InventoryManager.addItemsAtomically(
+      sim.state.inventories[sim.state.player.inventoryId],
+      [{ itemId: "item.bait_worms", quantity: 10 }]
+    );
   });
 
   it("completes full 5-phase loop from cast charging to bite, hook, and catch", () => {

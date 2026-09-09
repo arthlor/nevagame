@@ -5,6 +5,7 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { QUESTS } from "../../src/content/quests";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 describe("Fishing, cargo, quest, and habitat fixes", () => {
   let sim: Simulation;
@@ -125,6 +126,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     sim.state.player.x = lake.x;
     sim.state.player.z = lake.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId).success).toBe(true);
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
 
@@ -177,6 +179,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     sim.state.player.x = lake.x;
     sim.state.player.z = lake.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId).success).toBe(true);
 
     let validDuringEvent = false;
@@ -212,6 +215,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
       rodId: "rod.willow",
       tackleSnapshot: { lureItemId: null },
       seaConditionSnapshot: { weatherType: "clear", seaRoughness: 0 },
+      equipmentEffects: { lineIntegrityDamageMultiplier: 1, braceResistanceMultiplier: 1 },
       stamina: 10,
       maxStamina: 40,
       distanceMeters: 12,
@@ -255,6 +259,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     seeded.state.player.x = lake.x;
     seeded.state.player.z = lake.z;
     expect(seeded.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(seeded);
     expect(seeded.hookSportFish(schoolId).success).toBe(true);
 
     const blockingCargoId = "cargo.persist_blocker";
@@ -308,6 +313,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     candidate.state.player.x = lake.x;
     candidate.state.player.z = lake.z;
     expect(candidate.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(candidate);
 
     // Empty Work blocks hooking.
     const emptyResult = candidate.hookSportFish(schoolId);
@@ -330,5 +336,38 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(escaped).toEqual(["escaped"]);
     expect(candidate.state.sportFishing).toBeNull();
     expect(candidate.state.player.workCapacity.current).toBe(993);
+  });
+
+  it("refunds a lost fight against what the hook charged, not the discount in force later", () => {
+    const state = structuredClone(sim.state);
+    state.worldSeed = 0;
+    state.metadata.rngState = undefined;
+    const candidate = new Simulation(state);
+    const inventory = candidate.state.inventories[candidate.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }]);
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = candidate.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    candidate.state.player.x = lake.x;
+    candidate.state.player.z = lake.z;
+    expect(candidate.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(candidate);
+    candidate.state.player.proficiencies.fishing = 0;
+    candidate.state.player.workCapacity.current = 1000;
+
+    expect(candidate.hookSportFish(schoolId).success).toBe(true);
+    const charged = 1000 - candidate.state.player.workCapacity.current;
+    expect(candidate.state.sportFishing!.workCharged).toBe(charged);
+
+    // A contract or quest settling mid-fight grants XP synchronously, which can
+    // cross a proficiency rank and change what the cost *would* be quoted at.
+    candidate.state.player.proficiencies.fishing = 60_000;
+    const afterHook = candidate.state.player.workCapacity.current;
+
+    candidate.state.sportFishing!.lineTension = 0;
+    candidate.state.sportFishing!.slackTimerSeconds = 999;
+    candidate.tick(0.1);
+
+    expect(candidate.state.sportFishing).toBeNull();
+    expect(candidate.state.player.workCapacity.current - afterHook).toBe(Math.round(charged * 0.6));
   });
 });

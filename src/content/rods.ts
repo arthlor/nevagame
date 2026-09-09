@@ -31,6 +31,7 @@ export const RODS: Record<string, RodDefinition> = {
   "rod.willow": {
     id: "rod.willow",
     name: "Willow Branch Rod",
+    assetId: "tool_fishing_rod_a",
     rodClass: "willow",
     reelPower: 12,
     maxSafeTension: 80,
@@ -43,6 +44,7 @@ export const RODS: Record<string, RodDefinition> = {
   "rod.river": {
     id: "rod.river",
     name: "Reinforced River Rod",
+    assetId: "tool_fishing_rod_river_a",
     rodClass: "river",
     reelPower: 20,
     maxSafeTension: 85,
@@ -55,6 +57,7 @@ export const RODS: Record<string, RodDefinition> = {
   "rod.heavy_sport": {
     id: "rod.heavy_sport",
     name: "Heavy Sport Rod",
+    assetId: "tool_fishing_rod_heavy_sport_a",
     rodClass: "heavy-sport",
     reelPower: 32,
     maxSafeTension: 90,
@@ -67,6 +70,7 @@ export const RODS: Record<string, RodDefinition> = {
   "rod.offshore": {
     id: "rod.offshore",
     name: "Deep Offshore Rod",
+    assetId: "tool_fishing_rod_offshore_a",
     rodClass: "offshore",
     reelPower: 45,
     maxSafeTension: 92,
@@ -79,6 +83,7 @@ export const RODS: Record<string, RodDefinition> = {
   "rod.master": {
     id: "rod.master",
     name: "Master Maritimer Rod",
+    assetId: "tool_fishing_rod_master_a",
     rodClass: "master",
     reelPower: 60,
     maxSafeTension: 95,

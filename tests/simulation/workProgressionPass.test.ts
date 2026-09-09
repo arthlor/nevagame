@@ -53,7 +53,7 @@ describe("post-P12 Work economy and tackle progression", () => {
     };
     expect(sim.buyRodAtMarket("market.harbor", "rod.river")).toMatchObject({
       success: false,
-      reason: "Finish fishing before changing tackle"
+      reason: "Finish fishing before changing gear"
     });
     expect(sim.state.player.money).toBe(100);
     expect(sim.state.player.ownedRodIds).toEqual(["rod.willow"]);

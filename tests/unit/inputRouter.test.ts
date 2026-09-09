@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { deriveSemanticInput, HeldInputState } from "../../src/input/InputRouter";
+import { describe, expect, it, vi } from "vitest";
+import { deriveSemanticInput, HeldInputState, InputRouter } from "../../src/input/InputRouter";
 
 describe("semantic input mapping", () => {
   it.each([
@@ -80,6 +80,62 @@ describe("semantic input mapping", () => {
     expect(deriveSemanticInput(new Set(["AltRight"]), "farm-placement").farmGisHeld).toBe(true);
     expect(deriveSemanticInput(new Set(["KeyW"]), "on-foot").farmGisHeld).toBe(false);
     expect(deriveSemanticInput(new Set(), "on-foot").farmGisHeld).toBe(false);
+  });
+
+  it("interrupts an active pointer gesture when capture is cancelled", () => {
+    const previousWindow = (globalThis as { window?: unknown }).window;
+    const previousDocument = (globalThis as { document?: unknown }).document;
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    (globalThis as { window?: unknown }).window = { addEventListener, removeEventListener };
+    (globalThis as { document?: unknown }).document = { addEventListener, removeEventListener };
+    try {
+      const router = new InputRouter();
+      const heldInput = (router as unknown as { heldInput: HeldInputState }).heldInput;
+      heldInput.press("Mouse0");
+      const interrupt = vi.spyOn(router, "interrupt");
+      const onPointerCancel = (router as unknown as {
+        onPointerCancel: (event: PointerEvent) => void;
+      }).onPointerCancel;
+
+      onPointerCancel({ pointerType: "mouse", pointerId: 7 } as PointerEvent);
+
+      expect(heldInput.values.has("Mouse0")).toBe(false);
+      expect(interrupt).toHaveBeenCalledTimes(1);
+      router.dispose();
+    } finally {
+      if (previousWindow === undefined) delete (globalThis as { window?: unknown }).window;
+      else (globalThis as { window?: unknown }).window = previousWindow;
+      if (previousDocument === undefined) delete (globalThis as { document?: unknown }).document;
+      else (globalThis as { document?: unknown }).document = previousDocument;
+    }
+  });
+
+  it("does not lose the interruption callback when a layout pointer loses capture", () => {
+    const previousWindow = (globalThis as { window?: unknown }).window;
+    const previousDocument = (globalThis as { document?: unknown }).document;
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    (globalThis as { window?: unknown }).window = { addEventListener, removeEventListener };
+    (globalThis as { document?: unknown }).document = { addEventListener, removeEventListener };
+    try {
+      const router = new InputRouter();
+      (router as unknown as { layoutPointer: unknown }).layoutPointer = { id: 7, target: {} };
+      const interrupt = vi.spyOn(router, "interrupt");
+      const onLostPointerCapture = (router as unknown as {
+        onLostPointerCapture: (event: PointerEvent) => void;
+      }).onLostPointerCapture;
+
+      onLostPointerCapture({ pointerType: "mouse", pointerId: 7 } as PointerEvent);
+
+      expect(interrupt).toHaveBeenCalledTimes(1);
+      router.dispose();
+    } finally {
+      if (previousWindow === undefined) delete (globalThis as { window?: unknown }).window;
+      else (globalThis as { window?: unknown }).window = previousWindow;
+      if (previousDocument === undefined) delete (globalThis as { document?: unknown }).document;
+      else (globalThis as { document?: unknown }).document = previousDocument;
+    }
   });
 
 });

@@ -26,22 +26,38 @@ function cargoHasBuiltInIce(state: GameState, cargo: Pick<FishCargoState, "locat
   return slot?.hasIce === true;
 }
 
+/**
+ * How fast a catch loses freshness in each place it can sit, relative to open
+ * carry. Ice overrides the location entirely. These were bare literals inside
+ * the lookup below while `LLM/02` §10 printed the same table, so neither side
+ * owned them; `tests/unit/docTuningValues.test.ts` now holds the document to
+ * this constant.
+ */
+export const FRESHNESS_STORAGE_MODIFIERS = {
+  iced: 0.4,
+  player: 1.0,
+  "boat-hold": 0.8,
+  "boat-hook": 1.0,
+  "cold-storage": 0.15,
+  crate: 0.9
+} as const;
+
+/**
+ * Price kept at each freshness band, highest band first. A catch at or above a
+ * band's `atOrAbove` sells for its `multiplier`; below the last band it is
+ * spoiled and cannot be sold fresh.
+ */
+export const FRESHNESS_PRICE_BRACKETS = [
+  { atOrAbove: 90, multiplier: 1.0 },
+  { atOrAbove: 75, multiplier: 0.95 },
+  { atOrAbove: 50, multiplier: 0.8 },
+  { atOrAbove: 25, multiplier: 0.55 },
+  { atOrAbove: 1, multiplier: 0.3 }
+] as const;
+
 export function getStorageFreshnessModifier(locationType: CarryLocationType, hasIce: boolean = false): number {
-  if (hasIce) return 0.4; // Iced hold
-  switch (locationType) {
-    case "player":
-      return 1.0; // Open carry
-    case "boat-hold":
-      return 0.8; // Sheltered hold
-    case "boat-hook":
-      return 1.0; // External hook (wind/sun exposure)
-    case "cold-storage":
-      return 0.15; // Insulated cold room
-    case "crate":
-      return 0.9;
-    default:
-      return 1.0;
-  }
+  if (hasIce) return FRESHNESS_STORAGE_MODIFIERS.iced;
+  return FRESHNESS_STORAGE_MODIFIERS[locationType] ?? FRESHNESS_STORAGE_MODIFIERS.player;
 }
 
 /** Inventory whose loose ice is actually cooling this cargo, or undefined if none / built-in. */
@@ -155,10 +171,8 @@ export function calculateFreshnessLoss(
 }
 
 export function getFreshnessPriceMultiplier(freshness: number): number {
-  if (freshness >= 90) return 1.0;
-  if (freshness >= 75) return 0.95;
-  if (freshness >= 50) return 0.8;
-  if (freshness >= 25) return 0.55;
-  if (freshness > 0) return 0.3;
+  for (const bracket of FRESHNESS_PRICE_BRACKETS) {
+    if (freshness >= bracket.atOrAbove) return bracket.multiplier;
+  }
   return 0.0; // Spoilage - cannot sell as fresh
 }

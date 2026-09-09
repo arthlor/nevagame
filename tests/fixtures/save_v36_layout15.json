@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 36,
+  "savedAtUtcMs": 1788901200000,
+  "state": {
+    "schemaVersion": 36,
+    "worldSeed": 370037,
+    "world": {
+      "layoutRevision": 15
+    },
+    "processingJobs": {
+      "job_v36_mill": {
+        "id": "job_v36_mill",
+        "recipeId": "recipe.wheat_to_grain",
+        "stationId": "struct.starter_mill",
+        "startedAtMinute": 480,
+        "completesAtMinute": 485,
+        "status": "active"
+      },
+      "job_v36_collected": {
+        "id": "job_v36_collected",
+        "recipeId": "recipe.craft_lure_simple",
+        "stationId": "struct.workbench",
+        "startedAtMinute": 450,
+        "completesAtMinute": 460,
+        "status": "collected"
+      }
+    }
+  }
+}

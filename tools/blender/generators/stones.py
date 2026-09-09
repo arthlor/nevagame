@@ -102,6 +102,7 @@ def coastal_boulder(spec: dict, root) -> None:
             f"boulder_moss_{index}", (math.cos(angle) * 0.42, math.sin(angle) * 0.30, 0.92),
             (0.30, 0.26, 0.085), moss, root, rng=rng,
         )
+    add_collision_primitives(spec, root)
 
 
 def boulder_large(spec: dict, root) -> None:

@@ -1,3 +1,4 @@
+import { buildNearbyNpcBarks, npcAnchorAt, npcRecognitionLines } from "../../src/simulation/presentation/NpcPresentation";
 import { describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { PROFICIENCY_RANKS } from "../../src/content/progression";
@@ -11,6 +12,21 @@ import { Simulation } from "../../src/simulation/Simulation";
  * so the cast said almost nothing about anything the player had done.
  */
 describe("npc recognition", () => {
+  it("barks at the current station using the same earned lines as dialogue", () => {
+    const sim = new Simulation();
+    const npc = ContentRegistry.npcs.get("npc.silas")!;
+    sim.state.clock.timeOfDay = "dusk";
+    const anchor = npcAnchorAt(npc.id, sim.state.clock);
+    sim.state.player.x = anchor.x;
+    sim.state.player.z = anchor.z;
+    sim.state.player.proficiencies.fishing = PROFICIENCY_RANKS[4].xpRequired;
+    const bark = buildNearbyNpcBarks(sim.state).find((entry) => entry.npcId === npc.id)!;
+    expect(bark.lines).toEqual(npcRecognitionLines(npc, sim.state));
+    expect(bark.lines).not.toEqual(npc.idleDialogue);
+    sim.state.player.x = anchor.x + 8.01;
+    expect(buildNearbyNpcBarks(sim.state).some((entry) => entry.npcId === npc.id)).toBe(false);
+    sim.questDomain.dispose();
+  });
   it("gives every NPC something to notice", () => {
     ContentRegistry.initializeAndValidate();
     for (const npc of ContentRegistry.npcs.values()) {

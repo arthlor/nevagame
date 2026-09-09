@@ -13,19 +13,24 @@ import { dayOfSeason } from "../../src/simulation/core/GameClock";
 
 describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
   describe("1. Live clock presentation from simulation time", () => {
+    // The almanac used to be an analog dial whose hand was rotated inline and
+    // which carried a night mark. It reads the hour as text now, and the
+    // weather medallion is what carries day versus night: a clear day shows the
+    // sun alone, everything else layers a painted weather sprite over the ring.
     it.each([
-      { minute: 720, timeOfDay: "day", rotation: 0, isNight: false },
-      { minute: 1080, timeOfDay: "dusk", rotation: 90, isNight: true },
-      { minute: 0, timeOfDay: "night", rotation: -180, isNight: true },
-      { minute: 360, timeOfDay: "dawn", rotation: -90, isNight: false },
-      { minute: 1439, timeOfDay: "night", rotation: 179.75, isNight: true }
-    ] as const)("renders minute $minute at $rotation degrees", ({ minute, timeOfDay, rotation, isNight }) => {
+      { minute: 720, timeOfDay: "day", label: "12:00", isNight: false },
+      { minute: 1080, timeOfDay: "dusk", label: "18:00", isNight: true },
+      { minute: 0, timeOfDay: "night", label: "00:00", isNight: true },
+      { minute: 360, timeOfDay: "dawn", label: "06:00", isNight: false },
+      { minute: 1439, timeOfDay: "night", label: "23:59", isNight: true }
+    ] as const)("renders minute $minute as $label", ({ minute, timeOfDay, label, isNight }) => {
       const state = createInitialGameState();
       state.clock.currentMinute = minute;
       state.clock.timeOfDay = timeOfDay;
+      state.weather.type = "clear";
       const html = renderToString(React.createElement(HUD, { state, promptText: null }));
-      expect(html).toContain(`style="transform:rotate(${rotation}deg)"`);
-      expect(html.includes("tidebook-night-mark")).toBe(isNight);
+      expect(html).toContain(`<span data-testid="game-clock">${label}</span>`);
+      expect(html.includes("guild-weather-painting")).toBe(isNight);
     });
   });
 
@@ -64,7 +69,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       const playBankSpy = vi.spyOn(gameAudio, "playBank").mockImplementation(() => {});
 
       playUiSound("open");
-      expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
+      expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
 
       playOneShotSpy.mockRestore();
       playBankSpy.mockRestore();
@@ -130,6 +135,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
         currentStepIndex: 0,
         totalSteps: 2,
         objectiveDescription: "Harvest ripe turnips for the storehouse",
+        objectiveType: "harvest-crop",
         currentProgress: 3,
         targetQuantity: 5,
         isStepComplete: false,

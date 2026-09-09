@@ -140,15 +140,19 @@ vec3 nevaSurfaceWeightedPalette(
 }
 
 vec3 nevaSurfaceFacetNormal(vec3 baseNormal, vec4 cell, float strength, float mask) {
-  vec3 facetAxis = abs(baseNormal.y) > 0.92
+  // Standard normals are in view space. Anchor the relief to the land before
+  // rotating it back, so camera orbit cannot change the material's planes.
+  vec3 worldNormal = inverseTransformDirection(baseNormal, viewMatrix);
+  vec3 facetAxis = abs(worldNormal.y) > 0.92
     ? vec3(1.0, 0.0, 0.0)
     : vec3(0.0, 1.0, 0.0);
-  vec3 facetTangent = normalize(cross(facetAxis, baseNormal));
-  vec3 facetBitangent = cross(baseNormal, facetTangent);
-  return normalize(
-    baseNormal + mask * strength * (
+  vec3 facetTangent = normalize(cross(facetAxis, worldNormal));
+  vec3 facetBitangent = cross(worldNormal, facetTangent);
+  vec3 detailNormal = normalize(
+    worldNormal + mask * strength * (
       facetTangent * (cell.y - 0.5)
       + facetBitangent * (cell.z - 0.5)
     ) * 2.4
   );
+  return normalize((viewMatrix * vec4(detailNormal, 0.0)).xyz);
 }`;

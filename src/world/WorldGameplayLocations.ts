@@ -1,3 +1,4 @@
+import { WORLD_DISCOVERIES } from "../content/discoveries";
 import { PLAYER_HOMESTEAD_LAYOUT, STARTER_FARM_LAYOUT, SUNREACH_FARM_LAYOUT, starterStructureAnchor } from "./FarmLayout";
 import { HARBOR_FISH_TABLE, HARBOR_MARKET, VILLAGE_MARKET } from "./WorldAnchors";
 import { SUNREACH_ANCHORS, type WorldIslandId, type WorldRegionId } from "./WorldIslands";
@@ -203,6 +204,7 @@ export const WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarke
 });
 
 export const WORLD_CHART_NODES: readonly Readonly<WorldChartNode>[] = Object.freeze([
+  ...WORLD_DISCOVERIES.slice(0, 4).map((entry): WorldChartNode => ({ id: `chart.${entry.id}`, islandId: "island.neva", regionId: "region.coast", position: entry.position, label: entry.title, kind: "landmark" })),
   { id: "chart.neva_farm", islandId: "island.neva", regionId: "region.farm", position: STARTER_FARM_LAYOUT.origin, label: "Starter Homestead", kind: "farm", farmId: "farm.starter_garden" },
   { id: "chart.neva_homestead", islandId: "island.neva", regionId: "region.farm", position: PLAYER_HOMESTEAD_LAYOUT.origin, label: "Private Homestead", kind: "farm", farmId: "farm.player_homestead" },
   { id: "chart.neva_village", islandId: "island.neva", regionId: "region.village", position: VILLAGE_MARKET.position, label: "Village Market", kind: "market", marketId: "market.village" },

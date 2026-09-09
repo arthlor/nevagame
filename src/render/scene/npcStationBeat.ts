@@ -1,3 +1,5 @@
+import type { ClockState } from "../../simulation/core/types";
+
 export const NPC_STATION_BEAT_RADIUS_METERS = 1.2;
 export const NPC_STATION_WALK_SPEED_METERS_PER_SECOND = 1.45;
 
@@ -117,6 +119,22 @@ function wrapIndex(index: number, length: number): number {
   return ((index % length) + length) % length;
 }
 
+/** Each phase has its own local beat; all offsets remain relative to its station. */
+export const NPC_SCHEDULE_BEATS = Object.fromEntries(
+  Object.entries(NPC_STATION_BEATS).map(([id, home]) => [id, {
+    dawn: home,
+    day: { ...home, pauseSeconds: home.pauseSeconds + 0.4 },
+    dusk: { ...home, pauseSeconds: home.pauseSeconds + 1.2,
+      waypoints: home.waypoints.map(({ dx, dz }) => ({ dx: dx * 0.65, dz: dz * 0.65 })) },
+    night: { ...home, pauseSeconds: home.pauseSeconds + 4,
+      waypoints: home.waypoints.map(({ dx, dz }) => ({ dx: dx * 0.35, dz: dz * 0.35 })) }
+  }])
+) as Readonly<Record<string, Record<ClockState["timeOfDay"], NpcStationBeatSpec>>>;
+
+export function npcStationBeatAt(npcId: string, clock: Pick<ClockState, "timeOfDay">): NpcStationBeatSpec | undefined {
+  return NPC_SCHEDULE_BEATS[npcId]?.[clock.timeOfDay];
+}
+
 export function assertNpcStationBeatRadius(spec: NpcStationBeatSpec, radiusMeters = NPC_STATION_BEAT_RADIUS_METERS): void {
   for (const waypoint of spec.waypoints) {
     if (Math.hypot(waypoint.dx, waypoint.dz) > radiusMeters + 1e-6) {
@@ -129,7 +147,7 @@ export function assertNpcStationBeatRadius(spec: NpcStationBeatSpec, radiusMeter
 
 /**
  * Loops walk-then-pause around authored offsets. Distances stay inside the
- * talk radius so `npc.anchor` remains the canonical interaction point.
+ * talk radius of the clock-derived station returned by `npcAnchorAt`.
  */
 export function sampleNpcStationBeat(
   spec: NpcStationBeatSpec,

@@ -14,10 +14,10 @@ describe("uiAudio dispatcher", () => {
     expect(playOneShotSpy).toHaveBeenCalledWith("ui-confirm");
 
     playUiSound("open");
-    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
 
     playUiSound("cloth");
-    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-cloth");
 
     playUiSound("coins");
     expect(playOneShotSpy).toHaveBeenCalledWith("coins");

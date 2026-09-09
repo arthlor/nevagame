@@ -121,6 +121,13 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("terrainSparseGrassLuma");
     expect(shader.fragmentShader).toContain("vegetationMask * terrainExternalColorStrength");
     expect(shader.fragmentShader).toContain("terrainExternalRoughnessSignal");
+    const mapBlend = shader.fragmentShader.indexOf("terrainExternalRoughnessStrength\n);");
+    const finalRain = shader.fragmentShader.indexOf("terrainSurfaceRoughness = mix(terrainSurfaceRoughness, terrainWetRoughness");
+    expect(mapBlend).toBeGreaterThan(0);
+    expect(finalRain).toBeGreaterThan(mapBlend);
+    expect(shader.fragmentShader).toContain("terrainMeadowShare = nevaSurfaceMeadowWeight()");
+    expect(shader.fragmentShader).toContain("vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * terrainMeadowColorMix");
+    expect(shader.fragmentShader).toContain("inverseTransformDirection(baseNormal, viewMatrix)");
     expect(shader.fragmentShader).toContain("texture2D(terrainSparseGrassRoughnessTexture, terrainSparseGrassUv)");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCell");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");
@@ -165,7 +172,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.uniforms.terrainSparseGrassSampleScale.value).toBe(10.5);
     expect(shader.uniforms.terrainLeafyGrassRotation.value).toBe(0.61);
     expect(shader.uniforms.terrainSparseGrassRotation.value).toBe(-0.83);
-    expect(shader.uniforms.terrainExternalColorStrength.value).toBe(1);
+    expect(shader.uniforms.terrainExternalColorStrength.value).toBe(0.68);
     expect(shader.uniforms.terrainExternalRoughnessStrength.value).toBe(1);
     expect(shader.uniforms.terrainBeachFineSampleScale.value).toBe(6);
     expect(shader.uniforms.terrainBeachMesoSampleScale.value).toBe(14);

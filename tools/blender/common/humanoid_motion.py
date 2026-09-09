@@ -64,7 +64,9 @@ def grip_profile(name,t):
         return {side:('cup',amount) for side in ('left','right')}
     if name in ('cast','hookset','fishing_idle','reel','slack','brace','skiff_fishing','row'):
         return {side:('handle',1.) for side in ('left','right')}
-    if name in ('water','harvest','workstation','skiff_drive'):return {'right':('handle',1.)}
+    if name in ('water','harvest','workstation','craft_tool','skiff_drive'):return {'right':('handle',1.)}
+    if name=='craft_tailor':return {'left':('cup',1.),'right':('handle',1.)}
+    if name=='gear_check':return {side:('cup',1.) for side in ('left','right')}
     if name.startswith('mounted_'):return {side:('reins',1.) for side in ('left','right')}
     if name in ('mount','mount_right','dismount','dismount_right'):
         amount=ease(t) if name.startswith('mount') else 1-ease(t)
@@ -222,6 +224,19 @@ class Performer:
             elif name in ('pickup','place'): hands={'right':(-.20,-.44,.45),'left':(.20,-.44,.45)}
             elif name=='water': hands={'right':(-.22,-.47,1.00),'left':(.06,-.33,1.06)}
             else:hands={'right':(-.20,-.42,1.01),'left':(.20,-.40,1.06)}
+            hands={side:self.point('hand_'+side).lerp(Vector(v)*u,reach)/u for side,v in hands.items()}
+        elif name in ('craft_tailor','craft_tool','gear_check'):
+            reach=hump(t,.56 if name!='gear_check' else .52)
+            squat=.045*reach;lean=.10*reach
+            if name=='craft_tailor':
+                stitch=math.sin(phase)*.035
+                hands={'left':(.18,-.38,1.02+stitch),'right':(-.18,-.43,1.02-stitch)}
+            elif name=='craft_tool':
+                strike=hump(t,.54)
+                hands={'left':(.17,-.37,.98),'right':(-.20,-.39,1.00+.24*(1-strike))}
+            else:
+                lift=hump(t,.50)
+                hands={'left':(.17,-.36,.91+.18*lift),'right':(-.17,-.36,.91+.18*lift)}
             hands={side:self.point('hand_'+side).lerp(Vector(v)*u,reach)/u for side,v in hands.items()}
         elif name in ('cast','hookset','fishing_idle','reel','slack','brace','skiff_fishing'):
             hands=fishing.copy();lean=.04

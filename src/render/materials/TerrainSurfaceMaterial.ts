@@ -15,7 +15,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v24-coastal";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v25-meadow-regions";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -225,6 +225,7 @@ uniform float terrainPolygonCellScale;
 uniform float terrainSmallLayerRotation;
 uniform float terrainColorVariationStrength;
 uniform float terrainPaletteVariationStrength;
+uniform float terrainMeadowColorMix;
 uniform float terrainPolygonVariationStrength;
 uniform float terrainPolygonJaggedStrength;
 uniform float terrainPolygonFacetLightingStrength;
@@ -368,7 +369,8 @@ vec2 terrainSparseGrassUv = vec2(
   terrainSparseGrassPosition.x * terrainSparseGrassRotationSin
     + terrainSparseGrassPosition.y * terrainSparseGrassRotationCos
 );
-float terrainMeadowBlend = smoothstep(0.22, 0.8, terrainPaletteSignal);
+float terrainMeadowShare = nevaSurfaceMeadowWeight() / max(vegetationWeight, 0.001);
+float terrainMeadowBlend = smoothstep(0.22, 0.8, terrainMeadowShare * 0.65 + terrainLargeSignals.g * 0.35);
 vec3 terrainLeafyGrassSample = texture2D(
   terrainLeafyGrassColorTexture,
   terrainLeafyGrassUv
@@ -552,6 +554,12 @@ diffuseColor.rgb = mix(
   terrainExternalColor,
   vegetationMask * terrainExternalColorStrength
 );
+// Broad fertile/dry regions stay legible beneath clumps. Reuse the semantic
+// meadow ratio and existing large signal instead of adding fine color noise.
+float terrainShelteredGround = clamp(nevaSurfaceDampSoilWeight() + nevaSurfaceWetness() * 0.45, 0.0, 1.0);
+vec3 terrainMeadowRegion = mix(terrainPaletteOliveColor, terrainPaletteSageColor, terrainLargeSignals.g);
+terrainMeadowRegion = mix(terrainMeadowRegion, terrainPaletteGrassColor, terrainMeadowBlend * (1.0 - terrainShelteredGround) * 0.62);
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainMeadowRegion, vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * terrainMeadowColorMix);
 vec3 terrainShoreWeights = clamp(vTerrainShoreWeights, 0.0, 1.0);
 float terrainShoreWeight = clamp(
   terrainShoreWeights.x + terrainShoreWeights.y + terrainShoreWeights.z,
@@ -699,6 +707,9 @@ terrainSurfaceRoughness = mix(
   terrainExternalRoughness,
   terrainExternalRoughnessStrength
 );
+// Rain remains the final response after the dry supporting-map blend.
+terrainSurfaceRoughness = mix(terrainSurfaceRoughness, terrainWetRoughness, clamp(terrainWetness, 0.0, 1.0));
+terrainSurfaceRoughness = clamp(terrainSurfaceRoughness, terrainRoughnessMin, terrainRoughnessMax);
 roughnessFactor = mix(
   roughnessFactor,
   terrainSurfaceRoughness,
@@ -737,6 +748,7 @@ roughnessFactor = mix(roughnessFactor, mix(0.94, 0.69, coastalDampness), coastal
 }
 
 export class TerrainSurfaceMaterial {
+  private disposed = false;
   public readonly material: THREE.MeshStandardMaterial;
   public readonly detailTexture: THREE.DataTexture;
   private readonly config: TerrainSurfaceConfig;
@@ -796,6 +808,7 @@ export class TerrainSurfaceMaterial {
       terrainSmallLayerRotation: { value: config.smallLayerRotationRadians },
       terrainColorVariationStrength: { value: config.colorVariationStrength },
       terrainPaletteVariationStrength: { value: config.paletteVariationStrength },
+      terrainMeadowColorMix: { value: config.meadowColorMix },
       terrainPolygonVariationStrength: { value: config.polygonVariationStrength },
       terrainPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       terrainPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
@@ -887,6 +900,7 @@ export class TerrainSurfaceMaterial {
       jobs.map(async ({ uniformName, spec }) => {
         const texture = await loadSurfaceTexture(spec, loader);
         if (!texture) return;
+        if (this.disposed) { texture.dispose(); return; }
 
         const uniform = this.shaderUniforms[uniformName];
         const previous = uniform.value;
@@ -898,7 +912,7 @@ export class TerrainSurfaceMaterial {
         this.ownedExternalTextures.add(texture);
       })
     ).then(() => {
-      this.material.needsUpdate = true;
+      if (!this.disposed) this.material.needsUpdate = true;
     });
 
     return this.externalTextureLoadPromise;
@@ -941,6 +955,8 @@ export class TerrainSurfaceMaterial {
   }
 
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.material.dispose();
     this.detailTexture.dispose();
     for (const texture of this.ownedExternalTextures) texture.dispose();

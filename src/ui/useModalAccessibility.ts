@@ -121,7 +121,7 @@ export function useModalAccessibility<T extends HTMLElement>(
       // precise capture, then the nearest still-connected opener (a remount
       // captures only a doomed same-commit node), then the UI root.
       window.requestAnimationFrame(() => {
-        if (document.querySelector(".modal-overlay.interactive")) return;
+        if (document.querySelector(".modal-overlay.interactive, .dialogue-backdrop.interactive")) return;
         if (previouslyFocused?.isConnected) {
           previouslyFocused.focus({ preventScroll: true });
           return;

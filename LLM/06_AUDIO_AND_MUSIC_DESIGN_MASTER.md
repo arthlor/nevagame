@@ -14,7 +14,8 @@
 > Cues are triggered by the domain events in `01` §14 and must reinforce a real
 > state transition, never invent one. Adding a cue for a state that does not
 > exist is a request to change `02`, not a sound-design decision. Bus names,
-> cue IDs, and manifest fields are persistent contracts once shipped.
+> cue IDs and manifest fields are runtime integration contracts; changing them
+> requires aligned callers, not new gameplay save state by default.
 
 ---
 
@@ -46,38 +47,31 @@ Neva's audio landscape is designed to feel **warm, tactile, salt-weathered, and 
 
 # 2. Technical Audio Graph & WebAudio Architecture
 
-The game utilizes the WebAudio API through a centralized `AudioManager` graph. All game audio routes through a strict 7-sub-bus hierarchy into dynamic gain nodes, biquad filters, and master limiter stages.
+**Current implementation:** `src/audio/AudioManager.ts` owns the WebAudio
+lifecycle and graph, and `assets/audio/audio-manifest.json` owns sources, cue
+routing, banks and beds. Runtime bus IDs are defined by `AudioBusId`; use them
+when wiring a cue. `src/audio/gameplayAudio.ts` and `src/ui/audio/uiAudio.ts`
+own the gameplay/UI trigger adapters. Audio consumes committed outcomes and
+presentation samples; simulation never waits on playback or decoding.
 
-```
-                                  [ AUDIO SOURCES ]
-                                          │
-       ┌───────────┬──────────────┬───────┴──────┬──────────────┬───────────┐
-       ▼           ▼              ▼              ▼              ▼           ▼
-   [ MUSIC ]  [ AMBIENCE ]   [ WEATHER ]    [ SFX 3D ]     [ SFX 2D ]    [ UI ]
-    (Stereo)    (Stereo)     (Pos/Stereo)  (Positional)     (Stereo)    (Stereo)
-       │           │              │              │              │           │
-   LowPass (Occ)   │              │          PannerNode         │           │
-       │           │              │              │              │           │
-       ▼           ▼              ▼              ▼              ▼           ▼
-   ┌───────┐  ┌──────────┐  ┌───────────┐  ┌────────────┐  ┌──────────┐ ┌──────┐
-   │ Music │  │ Ambience │  │  Weather  │  │  World 3D  │  │Player/Fol│ │  UI  │
-   │  Bus  │  │   Bus    │  │    Bus    │  │    Bus     │  │   Bus    │ │ Bus  │
-   └───┬───┘  └────┬─────┘  └─────┬─────┘  └─────┬──────┘  └────┬─────┘ └──┬───┘
-       │           │              │              │              │          │
-       └───────────┴──────────────┼──────────────┴──────────────┴──────────┘
-                                  ▼
-                         [ DUCKING MATRIX ]
-                                  ▼
-                     [ MASTER BUS (-14 LUFS) ]
-                                  ▼
-                     [ DYNAMICS COMPRESSOR ]
-                                  ▼
-                     [ AUDIO CONTEXT DESTINATION ]
+**Design target:** the semantic graph below and §2.1 describe intended mixing
+roles. They do not claim the runtime already has separate foley/world/player
+buses, adaptive stems, occlusion or ducking. `normalizeBus.mjs` maps existing
+cue metadata into these mastering roles without renaming runtime buses.
+
+```text
+Music ───────────────┐
+Ambience ────────────┤
+Weather ─────────────┤
+World SFX (3D) ──────┼→ role gains / intended filters and ducking → master → output
+Player SFX (2D) ─────┤
+Foley ───────────────┤
+UI ─────────────────┘
 ```
 
-### 2.1 Bus Routing & Level Calibration
+### 2.1 Target Bus Roles & Level Calibration
 
-| Bus ID | Purpose | Calibration Target | Spatialization | Occlusion Filter | Ducking Behavior |
+| Target semantic role (not a runtime enum) | Purpose | Calibration Target | Spatialization | Occlusion Filter | Ducking Behavior |
 |---|---|---|---|---|---|
 | `bus.master` | Final stage summing | -14.0 LUFS | None | None | Master limiter ceiling (-0.5 dBFS) |
 | `bus.music` | Adaptive soundtrack | -20.0 LUFS | 2D Stereo | Yes (Dampened inside interiors) | Ducked by Dialogue (-4 dB), Catch Fanfare (-6 dB) |
@@ -88,7 +82,7 @@ The game utilizes the WebAudio API through a centralized `AudioManager` graph. A
 | `bus.foley` | Surface footsteps, body rustle, mount | -17.0 LUFS | 2D/3D Hybrid | Yes | None |
 | `bus.ui` | Inventory, menus, coins, journal, alerts | -15.0 LUFS | 2D Centered | No | Always prominent, bypasses all low-pass filters |
 
-### 2.2 Spatialization & Environmental Acoustics
+### 2.2 Target Spatialization & Environmental Acoustics
 - **Panner Node Model:** `HRTF` (High-tier) or `equalpower` (Fallback), using `inverse` distance attenuation.
   - `refDistance`: 2.0 meters (Full volume within 2m).
   - `maxDistance`: 45.0 meters (Audible boundary for shorelines, windmills, campfires).
@@ -98,6 +92,20 @@ The game utilizes the WebAudio API through a centralized `AudioManager` graph. A
   - `bus.ambience` switches to the cozy interior bed (crackling fireplace, soft wooden room tone).
 - **Subsurface & Underwater Acoustics:** When bobber or camera nears the waterline:
   - High frequencies roll off sharply ($f_c = 400\text{ Hz}$), underwater resonance and low bubbling emphasize aquatic weight.
+
+### 2.3 Implemented runtime lifecycle boundary
+
+`src/audio/AudioManager.ts` owns browser-context startup and visibility recovery.
+An unlock promise represents only the pending attempt, not permanent success:
+later input may retry a suspended context after an earlier successful start or
+a rejected visibility resume. Concurrent attempts share one resume operation,
+and an already running context does not need another. Visibility suspend/resume
+failures are handled without unhandled promise rejections; a completed resume
+cannot restart beds or action loops after disposal or while the page is hidden.
+Context unlock is separate from world-bed playback: title input may unlock audio, but ambience is requested only during the prepared-world reveal, after `syncWorldAudio` selects the saved location and weather. Mute and visibility remain authoritative, and audio failures never block startup. Existing cue IDs and music selection are reused.
+These lifecycle rules are implemented independently of the design-stage bus,
+cue, adaptive-score and listening targets below; they do not add or rename
+manifest cues or establish in-game mix approval.
 
 ---
 
@@ -150,7 +158,7 @@ The player's physical connection to the island is maintained through continuous 
 - **`sfx.mount.trot_grass`**: Muffled, soft rhythmic hoof strikes on meadow soil. (Bank: 4 variants).
 - **`sfx.mount.trot_wood_bridge`**: Resonant, hollow clopping over timber bridge and pier boards. (Bank: 4 variants).
 - **`sfx.mount.donkey_snort`**: Occasional soft, endearing donkey breath puff and head shake during idle or after long gallop.
-- **`sfx.mount.donkey_bray_rare`**: Playful, warm bray when fed an apple or upon reaching the homestead after a long journey.
+- **`sfx.mount.donkey_bray_rare`**: Playful, warm bray for a rare idle/homecoming moment if an explicit presentation trigger is authored. Mount feeding is not a live mechanic (`02` §11B); this cue must not imply one.
 
 ---
 
@@ -220,6 +228,8 @@ Workstations provide rhythmic, mechanical acoustic feedback that brings homestea
 - **`sfx.craft.hammer_nail`**: Solid iron hammer striking wooden dowels/nails with ringing resonance.
 - **`sfx.craft.chum_mix`**: Moist, dense sloshing and stirring sound as ground grain and bait worms are blended into bucket chum.
 - **`sfx.craft.lure_tie`**: Delicate twine pulling taut, feather trimming, and brass hook jingling.
+
+Current equipment-system runtime coverage is intentionally smaller than the target inventory above. `RecipeStarted` selects the wired spatial `craft-tailor` or `craft-tool` cue from the recipe's captured presentation kind; the simulation event fires only after the commit succeeds. `ProcessingJobReady` triggers the non-spatial UI cue `craft-ready`, because completion may occur while the player is far from the station and must not be localized at the player's current world position. `EquipmentEquipped` and `EquipmentPresetApplied` trigger the non-spatial `equipment-equip` cloth cue. These four manifest cues reuse admitted, normalized sources; they are registered and wired, but still require human listening/mix acceptance. The more specific saw, hammer, lure and station loops listed above remain specified targets until their own assets and callers exist.
 
 ### Harbor Fish Cleaning Table
 - **`sfx.craft.fish_table_drop`**: Heavy wet fish landing on the wooden cutting board with a distinct watery thud.
@@ -535,7 +545,7 @@ To prevent musical fatigue and allow the rich natural soundscapes to shine:
 
 # 5. Technical Asset Standards, Audio Manifest & Production Rules
 
-To guarantee flawless cross-browser performance, fast loading, and strict legal compliance, all audio assets must adhere to standardized specifications.
+Use these authoring standards, then verify actual loading, playback and mix on the target browsers. A file format alone does not establish performance or listening quality.
 
 ```
                            ASSET FORMAT STANDARD
@@ -548,59 +558,40 @@ To guarantee flawless cross-browser performance, fast loading, and strict legal 
 ```
 
 ### 5.1 Asset Delivery Guidelines
-1. **Mono for 3D Spatial Sources:** All spatialized world sounds (splashes, footstep impacts, tool chops, animal calls, workstation gears) MUST be authored in **Mono**. WebAudio PannerNodes require mono buffers to accurately compute spatial azimuth, elevation, and Doppler shifts.
+1. **Mono for 3D Spatial Sources:** All spatialized world sounds (splashes, footstep impacts, tool chops, animal calls, workstation gears) MUST be authored in **Mono**. This is Neva's authoring standard for consistent positional sources; it is not a claim that PannerNode requires mono input or implements Doppler.
 2. **Stereo for Beds and UI:** Environmental ambient loops, weather beds, UI clicks, and music stems MUST be authored in **Stereo**.
 3. **Seamless Looping:** Ambient beds and machine loops must have zero-crossing loop boundaries with baked-in crossfades (minimum 100ms) to eliminate audio clicks or pops.
 4. **Mastering & Headroom:** The exact integrated-loudness and true-peak targets are owned by the seven-bus table in §2.1. Do not introduce a second category table in tooling or status documentation.
 
-### 5.2 Audio Manifest Schema (`audio-manifest.json`)
-All audio cues must be registered in the centralized manifest with deterministic parameters:
+The live world adapter consumes `WorldAudioPresentation`: authored regional wind,
+surf, insect and harbor gains modulate the corresponding existing loops (the
+market recording supplies the harbor crowd layer). Dawn adds the existing dawn
+loop. Region, activity and clock phase select existing themes through a dwell
+state machine before the AudioManager crossfade. These are implemented routes;
+human listening and decode-memory measurements remain separate gates.
 
-```json
-{
-  "sources": [
-    {
-      "id": "sfx-fish-cast",
-      "title": "Fishing Rod Cast Whip",
-      "creator": "Neva Soundworks",
-      "sourceUrl": "project://fishing-cast.mp3",
-      "licenseUrl": "project",
-      "runtimeUrl": "/assets/audio/fishing-cast.mp3",
-      "sha256": "...",
-      "durationSeconds": 2.40,
-      "channels": 1
-    }
-  ],
-  "cues": {
-    "fishing-cast": {
-      "sourceId": "sfx-fish-cast",
-      "bus": "sfx_player_2d",
-      "offset": 0.0,
-      "duration": 2.40,
-      "gain": 0.50,
-      "spatial": true,
-      "poolSize": 3,
-      "pitchMin": 0.95,
-      "pitchMax": 1.05
-    }
-  },
-  "banks": {
-    "footstep-dirt": [
-      "footstep-dirt-a",
-      "footstep-dirt-b",
-      "footstep-dirt-c",
-      "footstep-dirt-d"
-    ]
-  },
-  "beds": {
-    "farm": ["ambience-wind", "ambience-insects", "ambience-birds"],
-    "village": ["ambience-wind", "ambience-birds", "ambience-market"],
-    "coast": ["ambience-wind", "ambience-waves", "ambience-seagulls"],
-    "water": ["ambience-wind", "ambience-waves", "ambience-seagulls"],
-    "interior": ["ambience-wind", "ambience-fireplace"]
-  }
-}
-```
+`gameplayAudio` wires apple harvest, fish-table processing, wind-driven mill
+ambience and cargo becoming ice-protected to existing cues. Icing is derived
+from the current storage protection rule, not a new action or domain event.
+Modal opening uses cloth; delegated pointer/focus entry uses the manifest's
+quiet `ui-hover` variant of the existing cloth source. No recording is added.
+
+### 5.2 Audio Manifest Schema (`audio-manifest.json`)
+`assets/audio/audio-manifest.json` is the source of truth. Read
+`AudioCueDefinition`/`AudioSourceDefinition` in `AudioManager.ts` and existing
+manifest entries before editing; the semantic role labels in §2.1 are not
+accepted runtime bus IDs by themselves.
+
+| Field group | Contract |
+|---|---|
+| Sources | Stable source ID, repository/runtime location, provenance/license and measured file metadata; retain evidence for every admitted recording |
+| Cues | Source reference, accepted runtime bus, valid source range, gain, spatial/loop policy, per-cue pool limit and supported pitch variation |
+| Banks and beds | References to existing cue IDs, selected by the current surface/world adapter; no new gameplay state implied by a named bank |
+
+Do not copy a hypothetical JSON schema into the manifest. Align new fields
+with the loader, normalization/validation tools and all triggering callers.
+A cue's manifest presence proves registration only; trigger and listening
+evidence are separate.
 
 `tools/audio/normalizeBus.mjs` is the implemented preparation path. It resolves
 each source from its live cue bus and `spatial` flag into the seven semantic
@@ -620,29 +611,68 @@ separate P14 gate.
 
 ---
 
-# 6. Implementation Checklist & Verification Matrix
+# 6. Production Priorities & Verification
 
-**Read the Status column literally.** `Spec Ready` means *this document
-specifies the cues* — it is not a claim that the subsystem is authored, wired,
-mixed, or verified in the game. No row here may be promoted to a roadmap gate.
-When a subsystem is actually implemented, record the evidence in
-`LLM/IMPLEMENTATION_STATUS_CHECKLIST.md` (with the narrowest proof: manifest
-entries, the code path that triggers the cue, and who heard it in the game) and
-change the row to `Implemented — see checklist`. Do not mark a row implemented
-from this file alone.
+The full cue inventory is a design vocabulary. Choose work by player impact
+and the existing runtime's gaps; do not produce every specified sound before
+checking repeated gameplay in context.
 
-| Subsystem | Core Audio Requirements | Verification Method | Status |
+## 6.1 Prioritize the playable loop
+
+| Priority | Scope | Existing trigger/registration to inspect | Acceptance before expanding |
 |---|---|---|---|
-| **Traversal & Foley** | 4-surface footstep banks (dirt, grass, wood, dock), sprint panting, donkey hooves | Walk across all 4 surfaces in starter world; verify bank variety and no phase cancel | [x] Spec Ready |
-| **Farming** | Hoe till, seed sow, watering can stream, crop rustle, sickle cut, apple drop, compost bubble | Plant, water, and harvest 3 wheat plots; verify hydration audio feedback | [x] Spec Ready |
-| **Workstations** | Hand mill stone crunch, workbench sawing, fish cleaning table fillet & scaling | Grind wheat in village mill; clean fish at harbor table; verify looping spatial sync | [x] Spec Ready |
-| **Basic Fishing** | Cast power whoosh, bobber plop, bite alert chime, catch bar thrust, treasure unlock, perfect fanfare | Complete full 5-phase fishing minigame; verify alert reaction chime and perfect jingle | [x] Spec Ready |
-| **Sport Fishing** | Reel slow/fast screech, rod creak, near-snap line whine, snap twang, surface breach splash | Hook tuna in frenzy school; hold line in 90% tension; verify danger whine and splash | [x] Spec Ready |
-| **Boating & Logistics** | Oar stroke water bite, skiff motor idle & accel, boat wake, heavy fish cargo carry & stow | Board rowboat; row 50m; stow 20kg tuna into hold; verify oarlock and hull slap | [x] Spec Ready |
-| **Economy & Trade** | Coin pouch jingle, scale balance rattle, contract stamp, market price tick toll | Sell produce at village stall; fulfill harbor contract; verify coin jingle feedback | [x] Spec Ready |
-| **Narrative & UI** | Dialogue open ducking, parchment page turns, quest complete chime, tactile UI clicks | Complete Elspeth Act 1 quest chain; verify dialogue foley and quest fanfare | [x] Spec Ready |
-| **Ambience & Weather**| 5 biome beds, day/night diurnal cycle, rain patter, howling storm, rolling thunder | Cycle through Clear → Light Rain → Storm; verify interior low-pass filter | [x] Spec Ready |
-| **Adaptive Music** | 4-stem coastal folk soundtrack, dynamic region crossfading, organic breathing gaps | Walk Farm → Village → Coast; verify stem crossfading and 2-min silence pauses | [x] Spec Ready |
+| 1 — Decision and outcome feedback | Cast, bite, fight pressure, catch/escape, blocked action, sale and quest reward | `bindDomainAudio` maps basic-fishing events and `FishLanded`/`FishEscaped`; manifest examples include `fishing-bite`, `fishing-snap`, `fishing-catch`, `ui-error`, `coins`, `quest-chime` | Player hears the correct event once; failure and success differ; urgent cues remain legible with music/weather and have a visual equivalent |
+| 2 — Repeated work and travel | Plant/water/harvest/process, footsteps, rowing, engine and reel | Existing farming events, surface banks and `syncWorldAudio`; boat and reel loops use existing runtime `boat`/`fishing` buses | Repetition remains pleasant; loops stop or change on mode/action/pause transitions; resume/disposal cannot leave duplicate sources |
+| 3 — Place, weather and music | Existing world beds first, then authored variations or adaptive music | `setWorldContext`, manifest `beds`/`weatherLoops`, current music selection and lifecycle | Region/weather transitions are coherent; startup/recovery and resource costs stay within the measured target-device budget; human approves the mix |
 
----
-*End of Audio & Music Design Master Specification — Neva Project.*
+These rows identify source wiring to inspect, not a fresh playback certificate.
+Dedicated strain/near-snap layers, mass-specific landings, station-specific
+loops, occlusion and adaptive stems remain specified work until the actual
+manifest, callers and listening evidence establish them. Do not rename a bus
+or create a gameplay condition simply to match a speculative cue name.
+
+## 6.2 Trigger and lifetime contract
+
+For each changed cue or loop, identify the source event/sample, runtime cue ID,
+bus, source range, start condition, stop/cancel condition and concurrency policy.
+Use committed domain outcomes for rewards/costs. Use presentation samples for
+continuous reel/boat motion; do not emit a gameplay action on an audio timer.
+`AudioManager` owns per-cue voice pools and loop cancellation; verify stop,
+pause, visibility recovery, disposal and repeated-start behavior in that owner.
+One-shot work sounds must not be described as station loops until wired as such.
+
+## 6.3 Loading and performance evidence
+
+Current source loading/caching and per-cue `poolSize` limits are implemented in
+`AudioManager` and the manifest. They do not establish a measured global voice,
+decoded-memory or streaming budget. Before expanding banks or long music beds:
+
+- Measure initial and deferred audio transfer, fetch/decode latency, peak
+  decoded-buffer memory, concurrent one-shots/loops and frame-time spikes in
+  representative play on the target device/browser.
+- Record initial banks versus later-loaded cues, cancellation/disposal behavior,
+  and the proposed limits in the existing runtime/config owner when implemented.
+  Keep a measured baseline and acceptance evidence in the status checklist.
+- Exercise casting/fighting in weather, repeated farming, boat travel and
+  pause/visibility recovery. Confirm critical cues remain audible and muted
+  settings remain respected. File normalization alone cannot prove this.
+
+No new streaming system, global budget constant or adaptive-music implementation
+is implied by this design requirement. Introduce one only for a measured need
+within the authorized audio task.
+
+## 6.4 Evidence states
+
+All cue descriptions in §3/§4 are **specified targets**. Record progress for a
+scoped cue set in `IMPLEMENTATION_STATUS_CHECKLIST.md` using separate evidence:
+
+| Evidence | What it establishes |
+|---|---|
+| Source admitted and normalization check | Provenance, prepared files and manifest/file parity |
+| Manifest entry plus triggering caller | Registered/wired implementation visible in source |
+| Focused tests | Only the exercised trigger, lifecycle or metadata behavior |
+| Actual browser listening | Playback and the named scenario on that browser/device |
+| Human mix approval | The reviewed mix and conditions, not every future cue or browser |
+
+Use `03` §4 for proportional checks. Preserve the implemented lifecycle boundary
+in §2.3; do not turn its test pass into approval of this entire design inventory.

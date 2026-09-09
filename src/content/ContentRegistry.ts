@@ -4,6 +4,7 @@ import {
   BoatDefinition,
   ContractTemplateDefinition,
   CropDefinition,
+  EquipmentDefinition,
   FishBehaviorProfile,
   FishSpeciesDefinition,
   ItemDefinition,
@@ -18,6 +19,7 @@ import { CROPS } from "./crops";
 import { ITEMS } from "./items";
 import { FISH_BEHAVIOR_PROFILES, FISH_SPECIES } from "./fish";
 import { RECIPES } from "./recipes";
+import { EQUIPMENT } from "./equipment";
 import { BOATS } from "./boats";
 import { RODS } from "./rods";
 import { MARKETS } from "./markets";
@@ -26,10 +28,11 @@ import { CONTRACT_TEMPLATES, CONTRACT_TYPES } from "./contracts";
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
 import { QUEST_TRACKS } from "./questTracks";
-import type { QuestTrackDefinition } from "../simulation/core/QuestTypes";
+import { MAIN_QUEST_TRACK_ID, QUEST_OBJECTIVE_TYPES, type QuestTrackDefinition } from "../simulation/core/QuestTypes";
 import { KNOWLEDGE_ENTRIES, type KnowledgeEntryDefinition } from "./knowledge";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
 import { FISHING_ECOLOGY_DEFINITIONS } from "../world/WorldIslands";
+import { PLAYER_SATCHEL_SLOT_COUNT } from "../simulation/inventory/InventoryLimits";
 
 export class ContentRegistry {
   public static readonly crops: ReadonlyMap<string, CropDefinition> = new Map(Object.entries(CROPS));
@@ -37,6 +40,7 @@ export class ContentRegistry {
   public static readonly fishSpecies: ReadonlyMap<string, FishSpeciesDefinition> = new Map(Object.entries(FISH_SPECIES));
   public static readonly fishBehaviors: ReadonlyMap<string, FishBehaviorProfile> = new Map(Object.entries(FISH_BEHAVIOR_PROFILES));
   public static readonly recipes: ReadonlyMap<string, RecipeDefinition> = new Map(Object.entries(RECIPES));
+  public static readonly equipment: ReadonlyMap<string, EquipmentDefinition> = new Map(Object.entries(EQUIPMENT));
   public static readonly boats: ReadonlyMap<string, BoatDefinition> = new Map(Object.entries(BOATS));
   public static readonly rods: ReadonlyMap<string, RodDefinition> = new Map(Object.entries(RODS));
   public static readonly markets: ReadonlyMap<string, MarketDefinition> = new Map(Object.entries(MARKETS));
@@ -100,12 +104,107 @@ export class ContentRegistry {
           throw new Error(`Recipe '${recipeId}' has invalid input quantity: ${input.quantity}`);
         }
       }
-      for (const output of recipe.outputs) {
-        if (!this.items.has(output.itemId)) {
-          throw new Error(`Recipe '${recipeId}' produces missing output itemId: '${output.itemId}'`);
+      if (recipe.result.kind === "items") {
+        if (recipe.result.stacks.length === 0) {
+          throw new Error(`Recipe '${recipeId}' must produce at least one item stack`);
         }
-        if (!Number.isSafeInteger(output.quantity) || output.quantity <= 0) {
-          throw new Error(`Recipe '${recipeId}' has invalid output quantity: ${output.quantity}`);
+        if (recipe.result.stacks.length > PLAYER_SATCHEL_SLOT_COUNT) {
+          throw new Error(`Recipe '${recipeId}' output batch cannot fit in an empty player satchel`);
+        }
+        const outputItemIds = new Set<string>();
+        for (const output of recipe.result.stacks) {
+          if (!this.items.has(output.itemId)) {
+            throw new Error(`Recipe '${recipeId}' produces missing output itemId: '${output.itemId}'`);
+          }
+          if (outputItemIds.has(output.itemId)) {
+            throw new Error(`Recipe '${recipeId}' repeats output itemId: '${output.itemId}'`);
+          }
+          outputItemIds.add(output.itemId);
+          if (!Number.isSafeInteger(output.quantity) || output.quantity <= 0) {
+            throw new Error(`Recipe '${recipeId}' has invalid output quantity: ${output.quantity}`);
+          }
+          const item = this.items.get(output.itemId)!;
+          if (output.quantity > item.stackLimit) {
+            throw new Error(`Recipe '${recipeId}' output batch exceeds '${output.itemId}' stack limit`);
+          }
+        }
+      } else if (!this.equipment.has(recipe.result.equipmentId)) {
+        throw new Error(`Recipe '${recipeId}' produces missing equipment '${recipe.result.equipmentId}'`);
+      }
+      if (recipe.workTier !== "standard" && recipe.workTier !== "masterwork") {
+        throw new Error(`Recipe '${recipeId}' has invalid Work tier '${String(recipe.workTier)}'`);
+      }
+      if (!["existing", "tailoring", "toolmaking"].includes(recipe.presentationKind)) {
+        throw new Error(`Recipe '${recipeId}' has invalid presentation kind '${String(recipe.presentationKind)}'`);
+      }
+    }
+
+    // Equipment is permanent and unique. Every non-starter piece must have one
+    // and only one authored recipe; starter pieces must never consume wardrobe
+    // capacity twice through a recipe result.
+    const equipmentRecipeCounts = new Map<string, number>();
+    for (const recipe of this.recipes.values()) {
+      if (recipe.result.kind !== "equipment") continue;
+      equipmentRecipeCounts.set(
+        recipe.result.equipmentId,
+        (equipmentRecipeCounts.get(recipe.result.equipmentId) ?? 0) + 1
+      );
+    }
+    for (const [equipmentId, equipment] of this.equipment) {
+      if (equipment.id !== equipmentId) throw new Error(`Equipment key '${equipmentId}' does not match its id`);
+      if (!equipment.name.trim() || !equipment.description.trim()) {
+        throw new Error(`Equipment '${equipmentId}' is missing player-facing copy`);
+      }
+      if (!equipment.presentation.assetId && !equipment.presentation.characterBaseLayer) {
+        throw new Error(`Equipment '${equipmentId}' has no presentation mapping`);
+      }
+      if (equipment.presentation.assetId && equipment.presentation.characterBaseLayer) {
+        throw new Error(`Equipment '${equipmentId}' cannot use both an asset and a starter base layer`);
+      }
+      const expectedSocket = equipment.slot === "head"
+        ? "head"
+        : equipment.slot === "outerwear"
+          ? "body"
+          : equipment.slot === "feet"
+            ? "feet"
+            : "tool";
+      if (equipment.presentation.socket !== expectedSocket) {
+        throw new Error(`Equipment '${equipmentId}' has an invalid presentation socket`);
+      }
+      if (
+        equipment.presentation.scale !== undefined &&
+        (
+          !equipment.presentation.assetId ||
+          !Number.isFinite(equipment.presentation.scale) ||
+          equipment.presentation.scale <= 0
+        )
+      ) {
+        throw new Error(`Equipment '${equipmentId}' has an invalid presentation scale`);
+      }
+      const baseLayer = equipment.presentation.characterBaseLayer;
+      if (baseLayer) {
+        if (!equipment.starter || !["head", "outerwear", "feet"].includes(equipment.slot)) {
+          throw new Error(`Equipment '${equipmentId}' has an invalid starter base-layer mapping`);
+        }
+        if (
+          baseLayer.nodeNames.length === 0 ||
+          baseLayer.materialNames.length === 0 ||
+          new Set(baseLayer.nodeNames).size !== baseLayer.nodeNames.length ||
+          new Set(baseLayer.materialNames).size !== baseLayer.materialNames.length ||
+          baseLayer.nodeNames.some((name) => !name.trim()) ||
+          baseLayer.materialNames.some((name) => !name.trim())
+        ) {
+          throw new Error(`Equipment '${equipmentId}' has an invalid starter base-layer region`);
+        }
+      }
+      const count = equipmentRecipeCounts.get(equipmentId) ?? 0;
+      if (equipment.starter && count !== 0) throw new Error(`Starter equipment '${equipmentId}' must not have a recipe`);
+      if (!equipment.starter && count !== 1) {
+        throw new Error(`Craftable equipment '${equipmentId}' must have exactly one recipe`);
+      }
+      for (const effect of equipment.effects) {
+        if ("multiplier" in effect && (!Number.isFinite(effect.multiplier) || effect.multiplier <= 0)) {
+          throw new Error(`Equipment '${equipmentId}' has an invalid effect multiplier`);
         }
       }
     }
@@ -151,6 +250,11 @@ export class ContentRegistry {
       for (const itemId of market.retail.itemIds) {
         if (!this.items.has(itemId)) throw new Error(`Market '${marketId}' retails missing item '${itemId}'`);
       }
+      for (const itemId of market.retail.workshopSupplyItemIds ?? []) {
+        if (!market.retail.itemIds.includes(itemId)) {
+          throw new Error(`Market '${marketId}' workshop supply '${itemId}' is not a retail item`);
+        }
+      }
       for (const cropId of market.retail.seedCropIds ?? []) {
         if (!this.crops.has(cropId)) throw new Error(`Market '${marketId}' stocks seed for missing crop '${cropId}'`);
       }
@@ -163,6 +267,17 @@ export class ContentRegistry {
     for (const [npcId, npc] of this.npcs.entries()) {
       if (!npc.name || !npc.anchor) {
         throw new Error(`NPC '${npcId}' is missing a valid name or anchor definition.`);
+      }
+      const phases = new Set<string>();
+      for (const slot of npc.schedule ?? []) {
+        if (!["dawn", "day", "dusk", "night"].includes(slot.phase) || phases.has(slot.phase)) {
+          throw new Error(`NPC '${npcId}' has an invalid or duplicate schedule phase '${slot.phase}'`);
+        }
+        phases.add(slot.phase);
+        if (![slot.position.x, slot.position.z, slot.position.rotationY].every(Number.isFinite)
+          || !slot.position.locationName) {
+          throw new Error(`NPC '${npcId}' has an invalid ${slot.phase} station`);
+        }
       }
     }
 
@@ -186,11 +301,12 @@ export class ContentRegistry {
     this.assertUniqueIds("quest", definitions);
     const questMap = new Map(definitions.map((quest) => [quest.id, quest]));
     const objectiveIds = new Set<string>();
-    const supportedTypes = new Set([
-      "talk-npc", "plant-crop", "water-crop", "harvest-crop", "craft-recipe",
-      "catch-basic-fish", "chum-school", "hook-sport-fish", "land-sport-fish",
-      "stow-cargo", "board-boat", "dock-boat", "sell-item", "sell-fish",
-      "purchase-upgrade", "complete-contract", "apply-fertilizer", "install-irrigation", "irrigate-farm"
+    const supportedTypes: ReadonlySet<string> = new Set(QUEST_OBJECTIVE_TYPES);
+    // Only these four are dispatched outside `QuestDomain.worldEvent()`. Every
+    // other type fans one happening across two or three candidate locations,
+    // which would bank the same action several times over.
+    const creditableTypes: ReadonlySet<string> = new Set([
+      "plant-crop", "water-crop", "harvest-crop", "craft-recipe"
     ]);
     const farms = new Set(Object.keys(WORLD_FARM_DEFINITIONS));
     const stations = new Set(Object.keys(WORLD_STATION_DEFINITIONS));
@@ -221,6 +337,18 @@ export class ContentRegistry {
         if (!supportedTypes.has(objective.type)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has unsupported type '${objective.type}'`);
         if (!Number.isSafeInteger(objective.targetQuantity) || objective.targetQuantity <= 0) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has an invalid target quantity`);
         if (objective.targetId) this.validateQuestTarget(quest.id, objective.type, objective.targetId, farms, boatIds);
+
+        if (objective.creditsEarlyActions) {
+          if (!creditableTypes.has(objective.type)) {
+            throw new Error(`Quest '${quest.id}' objective '${objective.id}' cannot credit early actions for type '${objective.type}'`);
+          }
+          if (!objective.location) {
+            throw new Error(`Quest '${quest.id}' objective '${objective.id}' must declare a location to credit early actions`);
+          }
+          if (quest.trackId !== MAIN_QUEST_TRACK_ID) {
+            throw new Error(`Quest '${quest.id}' objective '${objective.id}' may only credit early actions on the main track`);
+          }
+        }
 
         const location = objective.location;
         if (!location) continue;

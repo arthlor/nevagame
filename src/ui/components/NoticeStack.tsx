@@ -10,7 +10,7 @@ import {
 import { IconCoin, IconWarning, type IconProps, IconEnergy} from "./HudIcons";
 import { Notice as CoastalNotice } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
-import { atlasForCrop, atlasForFish } from "../chrome/uiAtlas";
+import { atlasForCrop, atlasForFish, atlasForItem } from "../chrome/uiAtlas";
 
 export interface NoticeStackProps {
   notices: readonly Notice[];
@@ -113,7 +113,7 @@ export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "
       const isPositive = delta.amount >= 0;
       const sign = isPositive ? "+" : "";
       const spriteSrc = delta.itemId
-        ? atlasForCrop(delta.itemId) ?? atlasForFish(delta.itemId)
+        ? atlasForItem(delta.itemId) ?? atlasForCrop(delta.itemId) ?? atlasForFish(delta.itemId)
         : undefined;
 
       return (

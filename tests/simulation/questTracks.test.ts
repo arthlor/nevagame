@@ -48,18 +48,98 @@ const sideEntry: QuestDefinition = {
   rewards: { money: 10 }
 };
 
+/**
+ * A location-less objective that needs two of the same world event. Every such
+ * objective in shipped content asks for exactly one, which hid the fact that a
+ * single catch was counted once per candidate location the event fanned out to.
+ */
+const countingQuest: QuestDefinition = {
+  id: "quest.test_counting",
+  trackId: SIDE_TRACK_ID,
+  actId: "act1_homestead",
+  actTitle: "Side",
+  questTitle: "Two of a Kind",
+  speakerId: "npc.silas",
+  introDialogue: ["Two, mind. Not one counted twice."],
+  completionDialogue: ["Two it is."],
+  objectives: [
+    {
+      id: "step.test_land_two",
+      type: "land-sport-fish",
+      description: "Land 2 trout",
+      targetId: "fish.trout",
+      targetQuantity: 2
+    }
+  ],
+  rewards: { money: 10 }
+};
+
 function registerSideTrack(): void {
   (ContentRegistry.questTracks as Map<string, QuestTrackDefinition>).set(SIDE_TRACK_ID, sideTrack);
   (ContentRegistry.quests as Map<string, QuestDefinition>).set(sideEntry.id, sideEntry);
+  (ContentRegistry.quests as Map<string, QuestDefinition>).set(countingQuest.id, countingQuest);
 }
 
 function unregisterSideTrack(): void {
   (ContentRegistry.questTracks as Map<string, QuestTrackDefinition>).delete(SIDE_TRACK_ID);
   (ContentRegistry.quests as Map<string, QuestDefinition>).delete(sideEntry.id);
+  (ContentRegistry.quests as Map<string, QuestDefinition>).delete(countingQuest.id);
 }
 
 describe("quest tracks", () => {
   afterEach(unregisterSideTrack);
+
+  it("counts one world event once against a location-less objective", () => {
+    registerSideTrack();
+    const sim = new Simulation();
+    questTrackProgress(sim.state.quests, SIDE_TRACK_ID).activeQuestId = countingQuest.id;
+    questTrackProgress(sim.state.quests, SIDE_TRACK_ID).activeStepIndex = 0;
+    questTrackProgress(sim.state.quests, SIDE_TRACK_ID).stepProgress = {};
+
+    // FishLanded offers itself under an ecology and a boat candidate so an
+    // objective can pin down where the landing happened. One landing is still
+    // one landing.
+    sim.events.emit("FishLanded", {
+      cargoId: "cargo.a",
+      speciesId: "fish.trout",
+      ecologyId: "ecology.neva",
+      boatId: "boat.player_rowboat",
+      weightKg: 2,
+      quality: "common",
+      minute: sim.state.clock.currentMinute
+    });
+    expect(questTrackProgress(sim.state.quests, SIDE_TRACK_ID).stepProgress).toEqual({
+      "step.test_land_two": 1
+    });
+
+    sim.events.emit("FishLanded", {
+      cargoId: "cargo.b",
+      speciesId: "fish.trout",
+      ecologyId: "ecology.neva",
+      weightKg: 2,
+      quality: "common",
+      minute: sim.state.clock.currentMinute
+    });
+    expect(questTrackProgress(sim.state.quests, SIDE_TRACK_ID).stepProgress).toEqual({
+      "step.test_land_two": 2
+    });
+  });
+
+  it("projects every running thread, focused first, for the tracker", () => {
+    registerSideTrack();
+    const sim = new Simulation();
+    questTrackProgress(sim.state.quests, SIDE_TRACK_ID).activeQuestId = sideEntry.id;
+    questTrackProgress(sim.state.quests, SIDE_TRACK_ID).activeStepIndex = 0;
+    questTrackProgress(sim.state.quests, SIDE_TRACK_ID).stepProgress = {};
+
+    const focusedFirst = sim.questDomain.getActiveQuestDtos();
+    expect(focusedFirst.map((dto) => dto.trackId)).toEqual([MAIN_QUEST_TRACK_ID, SIDE_TRACK_ID]);
+    expect(focusedFirst.every((dto) => dto.trackTitle.length > 0)).toBe(true);
+
+    expect(sim.execute({ type: "quest.focus-track", trackId: SIDE_TRACK_ID })).toMatchObject({ success: true });
+    expect(sim.questDomain.getActiveQuestDtos().map((dto) => dto.trackId))
+      .toEqual([SIDE_TRACK_ID, MAIN_QUEST_TRACK_ID]);
+  });
 
   it("starts a new game with only the main track running", () => {
     const sim = new Simulation();

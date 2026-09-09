@@ -9,10 +9,20 @@ import {
   IconBoat,
   IconCompass,
   IconBasket, HudIcon} from "./components/HudIcons";
+import {
+  EMPTY_DIALOGUE_REVEAL,
+  dialogueFooterLabel,
+  dialoguePageKey,
+  revealPageFully,
+  revealTo,
+  revealedCharsFor,
+  startPage,
+  type DialogueReveal
+} from "./dialogueTypewriter";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForItem, atlasForPortrait } from "./chrome/uiAtlas";
-import { ChromeButton } from "./chrome/Chrome";
+import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet, KeyHint } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 
@@ -34,6 +44,9 @@ export interface DialogueModalProps {
    */
   typewriterTickCue?: string;
 }
+
+/** Stable identity so an unresolved render never re-triggers page effects. */
+const EMPTY_PAGES: string[] = [];
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
@@ -59,6 +72,7 @@ function featureUnlockLabel(featureId: string): string {
   if (featureId === "boat.player_rowboat") return "Wooden Rowboat";
   if (featureId === "feature.expedition_planner") return "Expedition Board";
   if (featureId === "feature.irrigation_zone") return "Field Irrigation";
+  if (featureId === "feature.maritime_guild_charter") return "Maritime Guild Charter";
   return "New coastal opportunity";
 }
 
@@ -71,12 +85,15 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 }) => {
   const npc = ContentRegistry.npcs.get(npcId);
   const [dialogueIndex, setDialogueIndex] = useState(0);
-  const [dialoguePages, setDialoguePages] = useState<string[]>(() => npc?.idleDialogue ?? []);
+  // Resolved once per NPC. Pre-seeding this with `npc.idleDialogue` used to
+  // start the typewriter on text the modal was about to replace, which
+  // restarted the reveal and bounced the footer label back to "Show all".
+  const [resolved, setResolved] = useState<{ npcId: string; generation: number; pages: string[] } | null>(null);
   const [isCompletion, setIsCompletion] = useState(false);
   const [talkFailed, setTalkFailed] = useState(false);
   const [rewardsClaimed, setRewardsClaimed] = useState(false);
   const [completionQuest, setCompletionQuest] = useState<ActiveQuestDto | null>(null);
-  const [revealedChars, setRevealedChars] = useState(0);
+  const [reveal, setReveal] = useState<DialogueReveal>(EMPTY_DIALOGUE_REVEAL);
   const initializedNpcRef = useRef<string | null>(null);
   const chimePlayedRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -85,16 +102,22 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   useEffect(() => {
     if (initializedNpcRef.current === npcId) return;
     initializedNpcRef.current = npcId;
+    setDialogueIndex(0);
+    setReveal(EMPTY_DIALOGUE_REVEAL);
+    setTalkFailed(false);
+    setIsCompletion(false);
+    setRewardsClaimed(false);
+    setCompletionQuest(null);
+    chimePlayedRef.current = false;
     const questSnapshot = activeQuest;
     const res = onTalkNpc(npcId);
-    if (!res.success) {
-      setTalkFailed(true);
-      setDialoguePages([res.reason ?? "Move closer to talk to this person."]);
-    } else if (res.dialogue && res.dialogue.length > 0) {
-      setDialoguePages(res.dialogue);
-    } else if (npc) {
-      setDialoguePages(npc.idleDialogue);
-    }
+    const pages = !res.success
+      ? [res.reason ?? "Move closer to talk to this person."]
+      : res.dialogue && res.dialogue.length > 0
+        ? res.dialogue
+        : npc?.idleDialogue ?? [];
+    if (!res.success) setTalkFailed(true);
+    setResolved((prev) => ({ npcId, generation: (prev?.generation ?? 0) + 1, pages }));
     if (res.isCompletion && res.questCompleted) {
       setIsCompletion(true);
       setCompletionQuest(questSnapshot);
@@ -104,36 +127,68 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     }
   }, [activeQuest, npc, npcId, onTalkNpc]);
 
+  const isResolved = resolved?.npcId === npcId;
+  const dialoguePages = isResolved ? resolved.pages : EMPTY_PAGES;
   const totalPages = dialoguePages.length || 1;
   const currentPageText = dialoguePages[dialogueIndex] || "Good tide to you.";
   const isLastPage = dialogueIndex >= totalPages - 1;
+  const pageKey = dialoguePageKey(npcId, resolved?.generation ?? 0, dialogueIndex);
+  const revealedChars = revealedCharsFor(reveal, pageKey);
   const isTyping = revealedChars < currentPageText.length;
   const visibleText = currentPageText.slice(0, revealedChars);
+  const typewriterTimerRef = useRef<number | null>(null);
+  // Read through refs so a parent changing the cue mid-page cannot restart the
+  // reveal; the effect below depends on the page identity alone.
+  const pageTextRef = useRef(currentPageText);
+  pageTextRef.current = currentPageText;
+  const tickCueRef = useRef(typewriterTickCue);
+  tickCueRef.current = typewriterTickCue;
+  /** Set by the page-dot rewind to show an already-read page in full. */
+  const instantRevealKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (prefersReducedMotion()) {
-      setRevealedChars(currentPageText.length);
+    if (typewriterTimerRef.current !== null) {
+      window.clearInterval(typewriterTimerRef.current);
+      typewriterTimerRef.current = null;
+    }
+    // Nothing to type until the conversation has actually resolved. Starting
+    // early is what used to make the reveal restart when the text arrived.
+    if (!isResolved) return;
+
+    const pageText = pageTextRef.current;
+    if (prefersReducedMotion() || instantRevealKeyRef.current === pageKey) {
+      instantRevealKeyRef.current = null;
+      setReveal(revealPageFully(pageKey, pageText.length));
       return;
     }
-    setRevealedChars(0);
+    setReveal(startPage(pageKey));
     let shown = 0;
     let tickCounter = 0;
     const id = window.setInterval(() => {
       shown += 1;
-      setRevealedChars(shown);
+      setReveal((prev) => revealTo(prev, pageKey, shown));
       tickCounter += 1;
-      if (tickCounter % 6 === 0 && shown < currentPageText.length) {
-        const char = currentPageText[shown - 1];
+      if (tickCounter % 6 === 0 && shown < pageText.length) {
+        const char = pageText[shown - 1];
         if (char && char.trim().length > 0) {
-          playUiSound(typewriterTickCue);
+          playUiSound(tickCueRef.current);
         }
       }
-      if (shown >= currentPageText.length) {
+      if (shown >= pageText.length) {
         window.clearInterval(id);
+        if (typewriterTimerRef.current === id) {
+          typewriterTimerRef.current = null;
+        }
       }
     }, 18);
-    return () => window.clearInterval(id);
-  }, [currentPageText, dialogueIndex, typewriterTickCue]);
+    typewriterTimerRef.current = id;
+    return () => {
+      window.clearInterval(id);
+      if (typewriterTimerRef.current === id) {
+        typewriterTimerRef.current = null;
+      }
+    };
+  }, [isResolved, pageKey]);
 
   useEffect(() => {
     if (isCompletion && !chimePlayedRef.current) {
@@ -144,7 +199,11 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
 
   const handleNext = useCallback((playCue = false) => {
     if (isTyping) {
-      setRevealedChars(currentPageText.length);
+      if (typewriterTimerRef.current !== null) {
+        window.clearInterval(typewriterTimerRef.current);
+        typewriterTimerRef.current = null;
+      }
+      setReveal(revealPageFully(pageKey, currentPageText.length));
       if (playCue) playUiSound("click");
       return;
     }
@@ -155,7 +214,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     }
     if (playCue) playUiSound("page-turn");
     setDialogueIndex((prev) => prev + 1);
-  }, [currentPageText.length, isLastPage, isTyping, onClose]);
+  }, [currentPageText.length, isLastPage, isTyping, onClose, pageKey]);
 
   const handleSkipTalk = useCallback(() => {
     playUiSound("confirm");
@@ -173,6 +232,9 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         e.preventDefault();
         e.stopPropagation();
         handleSkipTalkRef.current();
+        return;
+      }
+      if (e.target instanceof Element && e.target.closest("button, input, select, textarea, a[href], [contenteditable='true']")) {
         return;
       }
       if (e.key === "Enter" || e.key === " " || e.key === "e" || e.key === "E") {
@@ -193,7 +255,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   if (!npc) return null;
 
   return (
-    <div className="dialogue-backdrop interactive" onClick={onClose}>
+    <div className="modal-overlay dialogue-backdrop interactive" onClick={onClose}>
       <GameSheet
         ref={dialogRef}
         as="div"
@@ -221,6 +283,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             </div>
             <span className="dialogue-district">{npc.district}</span>
           </div>
+          <ChromeClose onClick={onClose} label="Close conversation" />
         </header>
 
         <div className="dialogue-body" onClick={() => handleNext(true)}>
@@ -228,22 +291,35 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             {visibleText}
           </p>
           {totalPages > 1 && (
-            <div className="dialogue-page-dots">
-              {dialoguePages.map((_, i) => (
+            <div className="dialogue-page-dots" aria-label={`Page ${dialogueIndex + 1} of ${totalPages}`}>
+              {dialoguePages.map((_, i) => i < dialogueIndex ? (
                 <button
                   key={i}
                   type="button"
-                  className={`dialogue-dot ${i === dialogueIndex ? "active" : ""}${i < dialogueIndex ? " is-past" : ""}`}
-                  aria-current={i === dialogueIndex ? "step" : undefined}
-                  aria-label={`Page ${i + 1} of ${totalPages}`}
-                  disabled={i >= dialogueIndex}
+                  className="dialogue-dot is-past"
+                  aria-label={`Return to page ${i + 1}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (i < dialogueIndex) {
-                      setDialogueIndex(i);
-                      setRevealedChars(dialoguePages[i].length);
+                    if (typewriterTimerRef.current !== null) {
+                      window.clearInterval(typewriterTimerRef.current);
+                      typewriterTimerRef.current = null;
                     }
+                    // A page the player has already read is shown in full
+                    // rather than retyped. The old `setRevealedChars` here was
+                    // dead: the effect reset it to 0 on the very next commit.
+                    instantRevealKeyRef.current = dialoguePageKey(
+                      npcId,
+                      resolved?.generation ?? 0,
+                      i
+                    );
+                    setDialogueIndex(i);
                   }}
+                />
+              ) : (
+                <span
+                  key={i}
+                  className={`dialogue-dot${i === dialogueIndex ? " active" : ""}`}
+                  aria-hidden="true"
                 />
               ))}
             </div>
@@ -328,11 +404,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             >
               <KeyHint keyName="Space" glow={isTyping} />
               <span>
-                {isTyping
-                  ? "Show all"
-                  : isLastPage
-                  ? (talkFailed ? "Close" : isCompletion ? "Continue" : "Close")
-                  : "Next"}
+                {dialogueFooterLabel({ isTyping, isLastPage, talkFailed, isCompletion })}
               </span>
             </ChromeButton>
           </div>

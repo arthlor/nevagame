@@ -1,0 +1,360 @@
+{
+  "generatedAt": "2026-09-08T22:52:00+03:00",
+  "viewport": "1440x900 desktop; 844x390 and 390x844 touch/mobile",
+  "browser": "Chromium channel=chrome via Playwright direct API",
+  "supersededBy": "README.md is the current human-facing index; this manifest retains the first-pass capture records.",
+  "captured": [
+    {
+      "name": "00-start-title",
+      "filename": "00-start-title.png",
+      "description": "Title screen with new-game entry and Options",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "01-start-options-graphics",
+      "filename": "01-start-options-graphics.png",
+      "description": "Start-screen settings: Graphics",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "01-start-options-audio",
+      "filename": "01-start-options-audio.png",
+      "description": "Start-screen settings: Audio",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "01-start-options-interface",
+      "filename": "01-start-options-interface.png",
+      "description": "Start-screen settings: Interface",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "01-start-options-controls",
+      "filename": "01-start-options-controls.png",
+      "description": "Start-screen settings: Controls",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "02-start-loading",
+      "filename": "02-start-loading.png",
+      "description": "Startup loading progress and asset preparation",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "05-start-no-save-warning",
+      "filename": "05-start-no-save-warning.png",
+      "description": "Title screen when save storage is unavailable",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "06-start-no-save-confirm",
+      "filename": "06-start-no-save-confirm.png",
+      "description": "Confirmation before continuing without saving",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "07-start-existing-save",
+      "filename": "07-start-existing-save.png",
+      "description": "Title screen with current harbor-log summary and Continue",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "08-start-new-game-confirm",
+      "filename": "08-start-new-game-confirm.png",
+      "description": "Confirmation before replacing the current harbor log",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "10-hud-on-foot",
+      "filename": "10-hud-on-foot.png",
+      "description": "Normal player-facing on-foot HUD at the starter farm",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "11-hud-toolbar-expanded",
+      "filename": "11-hud-toolbar-expanded.png",
+      "description": "Expanded contextual tool belt after hover/focus",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "12-hud-farm-forecast",
+      "filename": "12-hud-farm-forecast.png",
+      "description": "Farm weather and forecast popover",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "13-hud-farm-gis-legend",
+      "filename": "13-hud-farm-gis-legend.png",
+      "description": "Field-sign overlay legend while holding Alt",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "14-hud-dialogue",
+      "filename": "14-hud-dialogue.png",
+      "description": "NPC dialogue modal with Elspeth",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "15-hud-pause",
+      "filename": "15-hud-pause.png",
+      "description": "Pause menu with resume, navigation, save, and recovery actions",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "16-hud-pause-settings-graphics",
+      "filename": "16-hud-pause-settings-graphics.png",
+      "description": "Pause settings: Graphics",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "16-hud-pause-settings-audio",
+      "filename": "16-hud-pause-settings-audio.png",
+      "description": "Pause settings: Audio",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "16-hud-pause-settings-interface",
+      "filename": "16-hud-pause-settings-interface.png",
+      "description": "Pause settings: Interface",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "16-hud-pause-settings-controls",
+      "filename": "16-hud-pause-settings-controls.png",
+      "description": "Pause settings: Controls",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "17-hud-safe-return",
+      "filename": "17-hud-safe-return.png",
+      "description": "Safe Return confirmation sheet",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "18-hud-emergency-tow",
+      "filename": "18-hud-emergency-tow.png",
+      "description": "Emergency Tow confirmation sheet",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "19-hud-journal-story",
+      "filename": "19-hud-journal-story.png",
+      "description": "Field Journal: Story folio",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "19-hud-journal-records",
+      "filename": "19-hud-journal-records.png",
+      "description": "Field Journal: Records folio",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "19-hud-journal-almanac",
+      "filename": "19-hud-journal-almanac.png",
+      "description": "Field Journal: Almanac folio",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "19-hud-journal-skills",
+      "filename": "19-hud-journal-skills.png",
+      "description": "Field Journal: Skills folio",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "19-hud-journal-guide",
+      "filename": "19-hud-journal-guide.png",
+      "description": "Field Journal: Guide folio",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "20-hud-chart-geography",
+      "filename": "20-hud-chart-geography.png",
+      "description": "Nautical Chart: Geography lens",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "20-hud-chart-markets",
+      "filename": "20-hud-chart-markets.png",
+      "description": "Nautical Chart: Markets lens",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "20-hud-chart-fishing",
+      "filename": "20-hud-chart-fishing.png",
+      "description": "Nautical Chart: Fishing lens",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "20-hud-chart-farmland",
+      "filename": "20-hud-chart-farmland.png",
+      "description": "Nautical Chart: Farmland lens",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "21-hud-satchel-all",
+      "filename": "21-hud-satchel-all.png",
+      "description": "Satchel inventory: All items",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "21-hud-satchel-field",
+      "filename": "21-hud-satchel-field.png",
+      "description": "Satchel inventory: Field category",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "21-hud-satchel-fishing",
+      "filename": "21-hud-satchel-fishing.png",
+      "description": "Satchel inventory: Fishing category",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "21-hud-satchel-supplies",
+      "filename": "21-hud-satchel-supplies.png",
+      "description": "Satchel inventory: Supplies category",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "21-hud-satchel-organize",
+      "filename": "21-hud-satchel-organize.png",
+      "description": "Satchel inventory search and organize controls",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "22-hud-farm-placement",
+      "filename": "22-hud-farm-placement.png",
+      "description": "Farm placement HUD with seed dock and placement instructions",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "28-hud-mounted",
+      "filename": "28-hud-mounted.png",
+      "description": "Mounted-on-donkey HUD and contextual controls",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "31-hud-market-buy",
+      "filename": "31-hud-market-buy.png",
+      "description": "Harbor Contracts market: Buy section",
+      "url": "http://127.0.0.1:3000/?debugStart=harbor&worldAcceptance=1"
+    },
+    {
+      "name": "31-hud-market-sell",
+      "filename": "31-hud-market-sell.png",
+      "description": "Harbor Contracts market: Sell",
+      "url": "http://127.0.0.1:3000/?debugStart=harbor&worldAcceptance=1"
+    },
+    {
+      "name": "31-hud-market-fish-hold",
+      "filename": "31-hud-market-fish-hold.png",
+      "description": "Harbor Contracts market: Fish hold",
+      "url": "http://127.0.0.1:3000/?debugStart=harbor&worldAcceptance=1"
+    },
+    {
+      "name": "32-hud-boat-driving",
+      "filename": "32-hud-boat-driving.png",
+      "description": "Boat-driving HUD while underway",
+      "url": "http://127.0.0.1:3000/?debugStart=boat-driving&worldAcceptance=1"
+    },
+    {
+      "name": "40-mobile-landscape-hud",
+      "filename": "40-mobile-landscape-hud.png",
+      "description": "Mobile landscape HUD with touch controls",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "41-mobile-landscape-pause",
+      "filename": "41-mobile-landscape-pause.png",
+      "description": "Mobile landscape pause menu",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "42-mobile-landscape-chart",
+      "filename": "42-mobile-landscape-chart.png",
+      "description": "Mobile landscape nautical chart",
+      "url": "http://127.0.0.1:3000/?debugStart=farm&worldAcceptance=1"
+    },
+    {
+      "name": "90-dev-diagnostics",
+      "filename": "90-dev-diagnostics.png",
+      "description": "DEV-only diagnostics overlay, explicitly excluded from player HUD",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=farm&worldAcceptance=1"
+    }
+  ],
+  "postCaptureAdditions": [
+    {
+      "name": "03-start-error-recovery",
+      "filename": "03-start-error-recovery.png",
+      "description": "Forced asset-abort startup retry state"
+    },
+    {
+      "name": "23-hud-basic-fishing-cast-charge",
+      "filename": "23-hud-basic-fishing-cast-charge.png",
+      "description": "Basic fishing cast-power charge state"
+    },
+    {
+      "name": "24-hud-basic-fishing-waiting-bite",
+      "filename": "24-hud-basic-fishing-waiting-bite.png",
+      "description": "Basic fishing waiting-for-bite state"
+    },
+    {
+      "name": "25-hud-basic-fishing-bite",
+      "filename": "25-hud-basic-fishing-bite.png",
+      "description": "Basic fishing bite alert"
+    },
+    {
+      "name": "26-hud-basic-fishing-reeling",
+      "filename": "26-hud-basic-fishing-reeling.png",
+      "description": "Basic fishing reeling minigame"
+    },
+    {
+      "name": "27-hud-basic-fishing-landed",
+      "filename": "27-hud-basic-fishing-landed.png",
+      "description": "Basic fishing landed catch"
+    },
+    {
+      "name": "27-hud-basic-fishing-escaped",
+      "filename": "27-hud-basic-fishing-escaped.png",
+      "description": "Basic fishing escaped catch"
+    },
+    {
+      "name": "09-hud-quest-tracker-collapsed",
+      "filename": "09-hud-quest-tracker-collapsed.png",
+      "description": "Collapsed active objective tracker"
+    },
+    {
+      "name": "09-hud-contracts-expanded",
+      "filename": "09-hud-contracts-expanded.png",
+      "description": "Expanded active contracts tracker"
+    },
+    {
+      "name": "37-hud-hold-and-stores",
+      "filename": "37-hud-hold-and-stores.png",
+      "description": "Hold and Stores logistics ledger"
+    },
+    {
+      "name": "43-mobile-portrait-orientation-gate-final",
+      "filename": "43-mobile-portrait-orientation-gate-final.png",
+      "description": "Portrait orientation gate"
+    },
+    {
+      "name": "91-dev-layout-editor-final",
+      "filename": "91-dev-layout-editor-final.png",
+      "description": "DEV-only Place/F2 layout editor"
+    },
+    {
+      "name": "38-hud-expedition-board",
+      "filename": "38-hud-expedition-board.png",
+      "description": "Expedition Board advanced save state"
+    },
+    {
+      "name": "39-hud-market-deliveries",
+      "filename": "39-hud-market-deliveries.png",
+      "description": "Market Deliveries advanced save state"
+    }
+  ],
+  "missing": [],
+  "notes": [
+    "README.md is the authoritative human-facing index for the merged 68-image pass."
+  ]
+}

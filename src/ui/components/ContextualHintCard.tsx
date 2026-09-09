@@ -138,21 +138,18 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       <div className="hint-card-body">
         <div className="hint-card-meta-row">
           <span className="hint-category-badge">{categoryMeta.label}</span>
-          <span className="hint-card-esc-badge">
-            <kbd>[Esc]</kbd> Dismiss
-          </span>
+          <ChromeClose
+            className="hint-card-close-btn"
+            label="Dismiss hint"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDismiss();
+            }}
+          />
         </div>
         <strong className="hint-card-title">{title}</strong>
         <p className="hint-card-message">{message}</p>
       </div>
-      <ChromeClose
-        className="hint-card-close-btn"
-        label="Dismiss hint"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleDismiss();
-        }}
-      />
       <div className="hint-card-progress" aria-hidden="true">
         <div
           key={hintId}

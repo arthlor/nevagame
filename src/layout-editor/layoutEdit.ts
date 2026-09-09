@@ -395,6 +395,12 @@ export function createInteriorPropTag(id: string, catalogAssetId?: string): Layo
   };
 }
 
+/** Scheduled stops have distinct editor addresses; the base ID edits home. */
+export function npcLayoutTarget(id: string): { npcId: string; phase?: "dawn" | "day" | "dusk" | "night" } {
+  const match = /^(npc\.[^.]+)\.(dawn|day|dusk|night)$/.exec(id);
+  return match ? { npcId: match[1], phase: match[2] as "dawn" | "day" | "dusk" | "night" } : { npcId: id };
+}
+
 export function createNpcTag(id: string): LayoutEditTag {
   const harbor = id in HARBOR_NPC_ANCHOR_IDS;
   return {

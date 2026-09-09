@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-09-08T19:32:33.262Z",
+  "captured": [
+    {
+      "name": "04-start-intro",
+      "filename": "04-start-intro.png",
+      "description": "First-entry cinematic intro prompt",
+      "url": "http://127.0.0.1:3000/"
+    },
+    {
+      "name": "29-hud-farming-action",
+      "filename": "29-hud-farming-action.png",
+      "description": "Farming action status during watering/harvesting recovery",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=motion-capture&worldAcceptance=1"
+    },
+    {
+      "name": "29-hud-crop-inspection",
+      "filename": "29-hud-crop-inspection.png",
+      "description": "Crop inspection drawer after a farming action",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=motion-capture&worldAcceptance=1"
+    },
+    {
+      "name": "30-hud-boat-console",
+      "filename": "30-hud-boat-console.png",
+      "description": "Maritime vessel console while rowing the Wooden Rowboat",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=harbor&worldAcceptance=1"
+    },
+    {
+      "name": "33-hud-sport-fishing",
+      "filename": "33-hud-sport-fishing.png",
+      "description": "Sport-fishing fight HUD with tension, energy, telemetry, and controls",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=sport-fishing&worldAcceptance=1"
+    },
+    {
+      "name": "34-hud-catch-summary",
+      "filename": "34-hud-catch-summary.png",
+      "description": "Catch summary toast after landing a sport fish",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=sport-fishing&worldAcceptance=1"
+    }
+  ],
+  "missing": [
+    {
+      "name": "basic-fishing-and-catch",
+      "description": "basic-fishing-and-catch",
+      "reason": "start charge failed: {\"success\":false,\"reason\":\"Move closer to fishable water\"}"
+    },
+    {
+      "name": "advanced-expedition",
+      "description": "advanced-expedition",
+      "reason": "page.waitForSelector: Timeout 300000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"game-clock\"]') to be visible\u001b[22m\n\u001b[2m    - waiting for \"http://127.0.0.1:3000/?worldAcceptance=1\" navigation to finish...\u001b[22m\n\u001b[2m    3 × navigated to \"http://127.0.0.1:3000/?worldAcceptance=1\"\u001b[22m\n\u001b[2m      - waiting for navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:3000/?worldAcceptance=1\"\u001b[22m\n\u001b[2m    - waiting for \"http://127.0.0.1:3000/?worldAcceptance=1\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:3000/?worldAcceptance=1\"\u001b[22m\n\u001b[2m    - waiting for navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:3000/?worldAcceptance=1\"\u001b[22m\n"
+    },
+    {
+      "name": "layout-editor",
+      "description": "layout-editor",
+      "reason": "locator.waitFor: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"diagnostics\"]') to be visible\u001b[22m\n"
+    },
+    {
+      "name": "mobile-portrait",
+      "description": "mobile-portrait",
+      "reason": "browser.newContext: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/9r/9f5h685n0v78tjygxcqd18b40000gn/T/playwright_chromiumdev_profile-5zfDaC --remote-debugging-pipe --no-startup-window\n<launched> pid=38778\n[pid=38778][err] Trying to load the allocator multiple times. This is *not* supported.\n[pid=38778][err] [38888:1280177:0908/222011.434636:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222011.435005:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280177:0908/222011.441440:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222011.441575:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280177:0908/222011.441793:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222011.441842:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280177:0908/222011.441984:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222011.442034:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280177:0908/222011.442176:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222011.442265:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280177:0908/222012.757482:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222012.758854:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280177:0908/222014.025947:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [38888:1280216:0908/222014.025997:ERROR:ui/display/mac/cv_display_link_mac.mm:195] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670\n[pid=38778][err] [39047:1280645:0908/222014.951824:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 \"paramErr: error in user parameter list\" (-50)\n[pid=38778][err] [38778:1280160:0908/222015.070960:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR\n[pid=38778][err] [38778:1280160:0908/222015.075481:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR\n[pid=38778][err] [38778:1280160:0908/222015.075928:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR\n[pid=38778][err] [38778:1280160:0908/222041.076267:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT\n[pid=38778][err] [38778:1280160:0908/222123.238325:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT\n[pid=38778][err] [38778:1280160:0908/222254.351677:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: QUOTA_EXCEEDED\n[pid=38778] <gracefully close start>"
+    }
+  ]
+}

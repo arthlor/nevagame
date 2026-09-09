@@ -103,6 +103,7 @@ export function computeAssetToolchainHash(asset, repoRoot = ROOT) {
     path.join(blenderDir, "bootstrap.py"),
     path.join(blenderDir, "generators/registry.py"),
     path.join(blenderDir, "generators", generatorModule),
+    ...(asset.generator === "fish_trade_pack" ? [path.join(blenderDir, "generators/fish.py")] : []),
     ...commonFiles,
     path.join(repoRoot, "assets/specs/asset-catalog.schema.json"),
     path.join(blenderDir, "asset_budgets.json"),

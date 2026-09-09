@@ -6,6 +6,7 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform vec3 uWaterAbsorption;
   uniform float uRefractionPixels;
   uniform float uRippleNormalStrength;
+  uniform vec3 uDistantSlope;
   uniform int uSceneCaptureEnabled;
   uniform sampler2D uOpaqueColor;
   uniform sampler2D uOpaqueDepth;
@@ -73,13 +74,17 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // leaks at culling/terrain-patch edges without drawing a second coastline.
     if (field.r + waveHeight < -0.06) discard;
     vec3 viewDirection = normalize(cameraPosition - worldPosition);
+    float cameraDistance = distance(cameraPosition, worldPosition);
     // Filter distant slopes before Fresnel magnifies sub-pixel wave bands at
     // grazing angles. Geometry and CPU buoyancy retain their shared heights.
-    float slopeFilter = mix(1.0, 0.12, smoothstep(30.0, 150.0, distance(cameraPosition, worldPosition)));
+    float slopeFilter = mix(1.0, uDistantSlope.z, smoothstep(uDistantSlope.x, uDistantSlope.y, cameraDistance));
+    // At a grazing view, tiny slopes sweep the reflection between sky and
+    // horizon. Average their response instead of drawing parallel bright bands.
+    slopeFilter *= mix(0.22, 1.0, smoothstep(0.04, 0.34, viewDirection.y));
     vec3 normal = normalize(mix(vec3(0.0, 1.0, 0.0), shadingNormal, slopeFilter));
     float pixelFootprint = max(length(dFdx(worldPosition.xz)), length(dFdy(worldPosition.xz)));
     float rippleFilter = (1.0 - smoothstep(0.25, 1.4, pixelFootprint))
-      * mix(1.0, 0.02, smoothstep(35.0, 170.0, distance(cameraPosition, worldPosition)));
+      * mix(1.0, 0.02, smoothstep(35.0, 170.0, cameraDistance));
     if (uRippleNormalStrength > 0.0) {
       vec3 ripple = nevaScrollingDetailNormal(worldPosition.xz * 5.0, uTime,
         0.46 * (1.0 - uReducedMotion), uRippleNormalStrength * rippleFilter);
@@ -146,7 +151,6 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     foam = clamp(max(foam, whitecap * 0.42), 0.0, 0.92);
     color = mix(color, uFoamColor * mix(0.17, 1.0, uDaylight), foam);
     alpha = mix(alpha, 1.0, foam);
-    float cameraDistance = distance(cameraPosition, worldPosition);
     float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);
     color = mix(color, uFogColor, fogFactor * 0.82);
     return vec4(color, captured ? 1.0 : mix(alpha, 1.0, fogFactor));

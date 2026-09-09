@@ -4,6 +4,7 @@ import { IconFish, IconRod, IconWarning } from "./components/HudIcons";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForBehavior, atlasForFish } from "./chrome/uiAtlas";
 import { ChromeButton } from "./chrome/Chrome";
+import { GuildcraftArt } from "./hud/GuildcraftArt";
 import { GameSheet, KeyHint } from "./coastal/CoastalUI";
 
 interface FishingHUDProps {
@@ -39,6 +40,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
   const holdRef = useRef<FishingHoldState>(EMPTY_HOLD);
   const onSetInputRef = useRef(onSetInput);
   const hudRef = useRef(hud);
+  const steeringHeld = useRef(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   onSetInputRef.current = onSetInput;
   hudRef.current = hud;
@@ -60,11 +62,12 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
   };
 
   const releaseAllHolds = () => {
-    if (!holdRef.current.isReeling && !holdRef.current.isSlacking && !holdRef.current.isBracing) return;
+    if (!holdRef.current.isReeling && !holdRef.current.isSlacking && !holdRef.current.isBracing && !steeringHeld.current) return;
+    steeringHeld.current = false;
     holdRef.current = EMPTY_HOLD;
     onSetInputRef.current({
       ...EMPTY_HOLD,
-      rodDirectionAngle: hudRef.current.rodDirectionAngle
+      rodDirectionAngle: 0
     });
   };
 
@@ -94,9 +97,9 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
         ? "good"
         : "neutral";
   useEffect(() => {
-    if (decision.action !== "neutral") return;
-    holdRef.current = EMPTY_HOLD;
-    onSetInputRef.current({ ...EMPTY_HOLD, rodDirectionAngle: 0 });
+    // A captured touch belongs to the action that was pressed. A new prompt
+    // must not leave that old action held behind a relabelled button.
+    releaseAllHolds();
   }, [decision.action]);
   const holdButtonProps = (action: keyof FishingHoldState) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -113,11 +116,12 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
+      steeringHeld.current = true;
       onSetInput({ ...holdRef.current, rodDirectionAngle: direction * hud.steeringMagnitude });
     },
-    onPointerUp: () => onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }),
-    onPointerCancel: () => onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }),
-    onLostPointerCapture: () => onSetInput({ ...holdRef.current, rodDirectionAngle: 0 })
+    onPointerUp: () => { steeringHeld.current = false; onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }); },
+    onPointerCancel: () => { steeringHeld.current = false; onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }); },
+    onLostPointerCapture: () => { steeringHeld.current = false; onSetInput({ ...holdRef.current, rodDirectionAngle: 0 }); }
   });
   const decisionTouchProps = decision.action === "steer-left"
     ? directionButtonProps(-1)
@@ -130,15 +134,10 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
           : holdButtonProps("isReeling");
 
   return (
-    <GameSheet
-      family="ink"
-      className={`fishing-hud-container fishing-hud-simple interactive${hud.tensionTone === "danger" ? " fishing-tension-danger" : ""}`}
-      role="region"
-      aria-label="Sport fishing fight"
-      data-testid="sport-fishing-hud"
-    >
+    <>
+    <section className="guild-fish-target" aria-label="Hooked fish">
       <header className="fishing-target-row">
-        <AtlasImage src={atlasForFish(hud.speciesId)} alt="" size={28} />
+        <span className="guild-fish-portrait"><AtlasImage src={atlasForFish(hud.speciesId)} alt="" size={60} /><GuildcraftArt art="ring" /></span>
         {!atlasForFish(hud.speciesId) && <IconFish size={20} aria-hidden="true" />}
         <div className="fishing-target-copy">
           <strong className="fishing-target-name">{hud.speciesName}</strong>
@@ -147,10 +146,18 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
         <strong className="fishing-energy-value">{hud.energyPercent}%</strong>
       </header>
 
-      <div className="fishing-energy-track" data-testid="fish-stamina" aria-label={`Fish energy ${hud.energyPercent}%`}>
+      <div className="fishing-energy-track" data-testid="fish-stamina" role="meter" aria-label="Fish energy" aria-valuemin={0} aria-valuemax={100} aria-valuenow={hud.energyPercent}>
         <div className="fishing-energy-fill" style={{ width: `${hud.energyPercent}%` }} />
       </div>
 
+    </section>
+    <GameSheet
+      family="ink"
+      className={`fishing-hud-container fishing-hud-simple interactive${hud.tensionTone === "danger" ? " fishing-tension-danger" : ""}`}
+      role="region"
+      aria-label="Sport fishing fight"
+      data-testid="sport-fishing-hud"
+    >
       {hud.showFirstTip && <p className="fishing-first-tip">Match the highlighted key to the fish.</p>}
       {hud.signatureMoment && (
         <p className="fishing-signature-moment" aria-live="polite" key={hud.signatureMoment.id}>
@@ -166,21 +173,6 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
         </div>
         {decision.key && <KeyHint keyName={decision.key} glow />}
       </section>
-
-      <div className="fishing-drag-row">
-        <span className="fishing-drag-label">Drag</span>
-        <ChromeButton
-          className="fishing-drag-btn"
-          soundCue="click"
-          aria-label={`Drag ${DRAG_LABEL[hud.dragNotch]}. Activate to change.`}
-          onClick={() => onSetDrag?.(((hud.dragNotch + 1) % 3) as 0 | 1 | 2)}
-        >
-          {DRAG_LABEL[hud.dragNotch]}
-        </ChromeButton>
-        <span className="fishing-drag-hint">
-          {hud.dragNotch === 0 ? "forgiving" : hud.dragNotch === 2 ? "decisive" : "steady"}
-        </span>
-      </div>
 
       <section className="fishing-tension" aria-label={`Line tension ${hud.tensionWord.toLowerCase()}`}>
         <div className="fishing-tension-head">
@@ -302,6 +294,9 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
         </section>
       )}
 
+      <div className="guild-fishing-bindings" aria-label="Fishing controls">
+        <span><KeyHint keyName="W" /> Reel</span><span><KeyHint keyName="S" /> Ease line</span><span><KeyHint keyName="Space" /> Brace</span>
+      </div>
       {isCoarsePointer && decision.action !== "neutral" && (
         <div className="fishing-touch-controls" aria-label="Fishing touch controls">
           <ChromeButton className="fishing-touch-control" {...decisionTouchProps}>
@@ -310,5 +305,13 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
         </div>
       )}
     </GameSheet>
+    {onSetDrag && <div className="guild-drag-control interactive" role="group" aria-label="Fishing drag">
+      <span>Drag</span><div className="guild-drag-notches">
+        {([0, 1, 2] as const).map((notch) => <ChromeButton key={notch} size="sm" aria-pressed={hud.dragNotch === notch}
+          className={`guild-drag-notch ${hud.dragNotch === notch ? "is-selected" : ""}`}
+          onClick={() => onSetDrag(notch)}>{DRAG_LABEL[notch]}</ChromeButton>)}
+      </div>
+    </div>}
+    </>
   );
 };

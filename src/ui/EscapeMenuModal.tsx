@@ -1,3 +1,4 @@
+import { handleRadioGroupKeyDown } from "./useTabListKeyboard";
 import React, { useEffect, useRef, useState } from "react";
 import type { PauseSummaryDto } from "../simulation/core/contracts";
 import { audioSettings, AudioSettings } from "../audio/AudioSettings";
@@ -146,24 +147,62 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
 
         <div className="modal-body pause-body">
           {page === "menu" ? (
-            <>
-              <div className="pause-vignette-status">
-                <div>
-                  <strong className="pause-region-title">{pause.regionLabel}</strong>
-                  <span className="pause-date-sub">{pause.dateTimeLabel}</span>
-                  {playTimeLabel && <span className="pause-playtime-line">{playTimeLabel}</span>}
+            <div className="pause-menu-grid">
+              <div className="pause-menu-info">
+                <div className="pause-vignette-status">
+                  <div>
+                    <strong className="pause-region-title">{pause.regionLabel}</strong>
+                    <span className="pause-date-sub">{pause.dateTimeLabel}</span>
+                    {playTimeLabel && <span className="pause-playtime-line">{playTimeLabel}</span>}
+                  </div>
+                  <Meter
+                    className="pause-labor-meter"
+                    label="Work"
+                    icon={<IconEnergy size={16} aria-hidden="true" />}
+                    value={pause.work.current}
+                    max={pause.work.maximum}
+                    variant="gold"
+                  />
                 </div>
-                <Meter
-                  className="pause-labor-meter"
-                  label="Work"
-                  icon={<IconEnergy size={16} aria-hidden="true" />}
-                  value={pause.work.current}
-                  max={pause.work.maximum}
-                  variant="gold"
-                />
+
+                <div className="pause-save-line" aria-live="polite">
+                  <div>
+                    <strong>Harbor log</strong>
+                    <span>{lastSaved}</span>
+                  </div>
+                  <ChromeButton size="sm" onClick={onQuickSave} disabled={!savingAvailable}>
+                    {savingAvailable ? "Save now" : "Saving unavailable"}
+                  </ChromeButton>
+                </div>
+
+                <details className="pause-recovery-disclosure">
+                  <summary>Recovery options</summary>
+                  <div className="pause-critical-actions-row">
+                    <ChromeButton
+                      variant="secondary"
+                      size="sm"
+                      className="pause-safe-return-btn"
+                      onClick={() => setPage("safe-return")}
+                    >
+                      <IconPin size={14} /> Safe Return
+                    </ChromeButton>
+
+                    {onEmergencyTow && (
+                      <ChromeButton
+                        variant="secondary"
+                        size="sm"
+                        className="pause-emergency-tow-btn"
+                        data-testid="pause-emergency-tow"
+                        onClick={() => setPage("emergency-tow")}
+                      >
+                        <IconBoat size={14} /> Emergency Tow
+                      </ChromeButton>
+                    )}
+                  </div>
+                </details>
               </div>
 
-              <nav className="pause-actions" aria-label="Pause menu actions">
+              <nav className="pause-actions pause-menu-nav" aria-label="Pause menu actions">
                 <ChromeButton variant="primary" soundCue="confirm" onClick={onClose}>
                   Resume <KeyHint keyName="Esc" />
                 </ChromeButton>
@@ -191,38 +230,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                 )}
                 <ChromeButton onClick={() => setPage("graphics")}>Settings</ChromeButton>
               </nav>
-
-              <div className="pause-save-line" aria-live="polite">
-                <div>
-                  <strong>Harbor log</strong>
-                  <span>{lastSaved}</span>
-                </div>
-                <ChromeButton size="sm" onClick={onQuickSave} disabled={!savingAvailable}>
-                  {savingAvailable ? "Save now" : "Saving unavailable"}
-                </ChromeButton>
-              </div>
-
-              <ChromeButton
-                variant="secondary"
-                size="sm"
-                className="pause-safe-return-btn"
-                onClick={() => setPage("safe-return")}
-              >
-                <IconPin size={14} /> Safe Return
-              </ChromeButton>
-
-              {onEmergencyTow && (
-                <ChromeButton
-                  variant="secondary"
-                  size="sm"
-                  className="pause-emergency-tow-btn"
-                  data-testid="pause-emergency-tow"
-                  onClick={() => setPage("emergency-tow")}
-                >
-                  <IconBoat size={14} /> Emergency Tow
-                </ChromeButton>
-              )}
-            </>
+            </div>
           ) : page === "safe-return" ? (
             <section
               className="pause-critical-sheet"
@@ -382,7 +390,7 @@ export const GraphicsControls: React.FC<{
       <p className="graphics-settings__hint">
         Auto adjusts detail gradually to keep movement smooth.
       </p>
-      <div className="graphics-quality-options" role="radiogroup" aria-label="Graphics quality">
+      <div className="graphics-quality-options" role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Graphics quality">
         {GRAPHICS_QUALITY_CHOICES.map((choice) => {
           const selected = preference === choice.value;
           return (
@@ -392,6 +400,7 @@ export const GraphicsControls: React.FC<{
               className={`graphics-quality-option${selected ? " is-selected" : ""}`}
               role="radio"
               aria-checked={selected}
+              tabIndex={selected ? 0 : -1}
               onClick={() => {
                 if (!selected) {
                   onChange(choice.value);

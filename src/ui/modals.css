@@ -2230,6 +2230,17 @@
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(212, 175, 55, 0.28);
 }
 
+.almanac-tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.almanac-tabpanel:focus-visible {
+  outline: none;
+}
+
 .almanac-list {
   display: flex;
   flex-direction: column;

@@ -9,6 +9,7 @@ import {
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import saveV29Layout10 from "../fixtures/save_v29_layout10.json";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 function lakePoint(): { x: number; z: number } {
   return SCHOOL_SPAWN_POINTS.find(
@@ -84,6 +85,7 @@ describe("specialty chum", () => {
     // of trout would acquit the lean of doing anything at all.
     const hooked: string[] = [];
     for (let fight = 0; fight < 3; fight += 1) {
+      armLureForTest(sim);
       expect(sim.hookSportFish(schoolId).success).toBe(true);
       hooked.push(sim.state.sportFishing!.fish.speciesId);
       sim.state.sportFishing!.stamina = 0;

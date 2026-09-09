@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AtlasImage } from "../chrome/AtlasImage";
-import { UI_MENU } from "../chrome/uiAtlas";
+import { UI_MENU, UI_STATUS } from "../chrome/uiAtlas";
 import { playUiSound } from "../audio/uiAudio";
 import { TidebookArt } from "./TidebookArt";
+import { GuildcraftArt } from "./GuildcraftArt";
+import type { ActiveModal } from "../../app/ModeController";
 
-export type ActiveModal = "inventory" | "market" | "journal" | "ledger" | "map" | "expedition" | "pause" | "dialogue";
+export type { ActiveModal } from "../../app/ModeController";
 
 export interface MicroMenuPurseBarProps {
   money: number;
@@ -26,9 +28,9 @@ export const TidebookPurse: React.FC<{ money: number }> = ({ money }) => {
     return () => window.clearTimeout(timeout);
   }, [money]);
   return (
-    <div className="tidebook-purse" aria-label={`Purse: ${money.toLocaleString()} gold`} data-testid="hud-gold-purse">
-      <span className="tidebook-gold">{money.toLocaleString()} G</span>
-      {delta != null && <span className={`tidebook-gold-delta ${delta > 0 ? "is-gain" : "is-spend"}`} role="status">
+    <div className="guild-purse" aria-label={`Purse: ${money.toLocaleString()} gold`} data-testid="hud-gold-purse">
+      <AtlasImage src={UI_STATUS.coin} size={20} aria-hidden="true" /><span className="guild-gold">{money.toLocaleString()} G</span>
+      {delta != null && <span className={`guild-gold-delta ${delta > 0 ? "is-gain" : "is-spend"}`} role="status">
         {delta > 0 ? "+" : ""}{delta.toLocaleString()} G
       </span>}
     </div>
@@ -41,43 +43,27 @@ export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
   const handleAction = (modal: ActiveModal) => { playUiSound("open"); onOpenModal(modal); };
   const full = capacity.satchelUsed >= capacity.satchelMax;
   const nearlyFull = capacity.satchelUsed >= capacity.satchelMax * 0.9;
-  return (
-    <div className={`micro-menu-purse-bar tidebook-utilities interactive ${className}`.trim()}
-      data-testid="micro-menu-purse-bar" role="region" aria-label="Capacities and system menu">
-      <nav className="tidebook-secondary-menu" aria-label="Additional panels">
-        <button type="button" onClick={() => handleAction("ledger")} title="Hold & Stores (L)"
-          aria-label="Open fleet hold and warehouse ledger" data-testid="micro-btn-ledger">
-          <AtlasImage src={UI_MENU.ledger} size={18} aria-hidden="true" /><span>L</span>
-          {capacity.cargoUsed > 0 && <span data-testid="cargo-capacity-badge">{capacity.cargoUsed}/{capacity.cargoMax}</span>}
-        </button>
-        <button type="button" onClick={() => handleAction("expedition")} disabled={!expeditionUnlocked}
-          title={expeditionUnlocked ? "Expedition Board (P)" : "Expeditions — explore more of Neva to unlock"}
-          aria-label="Open expedition planner" data-testid="micro-btn-expeditions">
-          <AtlasImage src={UI_MENU.expedition} size={18} aria-hidden="true" /><span>P</span>
-        </button>
-        <button type="button" className="tidebook-menu-button" onClick={() => handleAction("pause")} title="Open game menu (Esc)"
-          aria-label="Open game menu (Esc)" data-testid="micro-btn-menu">
-          <AtlasImage src={UI_MENU.menu} size={18} aria-hidden="true" /><span>Esc</span>
-        </button>
-      </nav>
-      <nav className="tidebook-utility-tabs" role="toolbar" aria-label="Quick panel access">
-        <button type="button" className={`tidebook-utility-tab ${full ? "is-full" : nearlyFull ? "is-warning" : ""}`}
-          onClick={() => handleAction("inventory")} title={`Satchel: ${capacity.satchelUsed} of ${capacity.satchelMax} slots (I)`}
-          aria-label="Open satchel inventory" data-testid="micro-btn-satchel">
-          <TidebookArt art="satchel" className="tidebook-utility-painting" />
-          <span className="tidebook-utility-key" data-testid="satchel-capacity-badge">{capacity.satchelUsed}/{capacity.satchelMax}</span>
-        </button>
-        <button type="button" className="tidebook-utility-tab" onClick={() => handleAction("journal")}
-          title="Field Journal & Quests (J)" aria-label="Open field journal and quests" data-testid="micro-btn-journal">
-          <TidebookArt art="journal" className="tidebook-utility-painting" />
-          <span className="tidebook-utility-key">J</span>
-        </button>
-        <button type="button" className="tidebook-utility-tab" onClick={() => handleAction("map")}
-          title="Nautical Chart (M)" aria-label="Open nautical chart" data-testid="micro-btn-map">
-          <TidebookArt art="map" className="tidebook-utility-painting" />
-          <span className="tidebook-utility-key">M</span>
-        </button>
-      </nav>
-    </div>
-  );
+  const items: Array<{ id: ActiveModal; label: string; key: string; art: string; test: string }> = [
+    { id: "inventory", label: "Open satchel inventory", key: "I", art: UI_MENU.backpack, test: "satchel" },
+    { id: "journal", label: "Open field journal and quests", key: "J", art: UI_MENU.journal, test: "journal" },
+    { id: "map", label: "Open nautical chart", key: "M", art: UI_MENU.compass, test: "map" },
+    { id: "ledger", label: "Open fleet hold and warehouse ledger", key: "L", art: UI_MENU.ledger, test: "ledger" },
+    ...(expeditionUnlocked ? [{ id: "expedition" as const, label: "Open expedition planner", key: "P", art: UI_MENU.expedition, test: "expeditions" }] : []),
+    { id: "pause", label: "Open game menu (Esc)", key: "Esc", art: UI_MENU.menu, test: "menu" }
+  ];
+  return <nav className={`micro-menu-purse-bar guild-utilities interactive ${className}`}
+    data-testid="micro-menu-purse-bar" aria-label="Capacities and system menu">
+    {items.map((item) => <button type="button" key={item.id}
+      className={`guild-utility ${item.id === "pause" ? "guild-menu-button" : ""} ${item.id === "inventory" && full ? "is-full" : item.id === "inventory" && nearlyFull ? "is-warning" : ""}`}
+      onClick={() => handleAction(item.id)} aria-label={item.label}
+      title={`${item.label} (${item.key})`} data-testid={`micro-btn-${item.test}`}>
+      <GuildcraftArt art="ring" className="guild-utility-rim" />
+      {item.id === "inventory" || item.id === "journal" || item.id === "map"
+        ? <TidebookArt art={item.id === "inventory" ? "satchel" : item.id} className="guild-utility-painting" />
+        : <AtlasImage src={item.art} className="guild-utility-painting" aria-hidden="true" />}
+      {item.id === "inventory" && <span className="guild-capacity" data-testid="satchel-capacity-badge">{capacity.satchelUsed}/{capacity.satchelMax}</span>}
+      {item.id === "ledger" && capacity.cargoUsed > 0 && <span className="guild-capacity" data-testid="cargo-capacity-badge">{capacity.cargoUsed}/{capacity.cargoMax}</span>}
+      <span className="guild-utility-key">{item.key}</span>
+    </button>)}
+  </nav>;
 };

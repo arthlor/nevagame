@@ -1,7 +1,8 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { execSync } from "node:child_process";
 
 import {
@@ -327,82 +328,96 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
   });
 
   describe("3. Check Mode (--check) Drift & Stale Detection", () => {
+    /**
+     * These cases prove the checker notices drift, which means introducing
+     * drift. Doing that to the tracked atlas and restoring it afterwards left
+     * the repo one interrupted run away from a corrupted manifest, and made
+     * the suite race anything else touching those files — a dev server running
+     * `assets:sync` on the same tree was enough to make a tampered check pass.
+     * `NEVA_ATLAS_ROOT` points the CLI at a throwaway copy instead. Only what
+     * `--check` actually reads is copied: it repacks from the sources in
+     * memory and never opens the published pages.
+     */
+    let atlasRoot = "";
+    const checkEnv = () => ({ ...process.env, NEVA_ATLAS_ROOT: atlasRoot });
+    const rootFile = (relative: string) => path.join(atlasRoot, relative);
+    const runCheck = () =>
+      execSync("node tools/ui/extrudeAndPack.mjs --check", {
+        encoding: "utf8",
+        stdio: "pipe",
+        env: checkEnv()
+      });
+    const expectCheckFails = (message: string) => {
+      let threw = false;
+      try {
+        runCheck();
+      } catch (err) {
+        const failure = err as { status?: number; stdout?: string; stderr?: string };
+        threw = true;
+        expect(failure.status).toBe(1);
+        expect(failure.stderr || failure.stdout).toContain(message);
+      }
+      expect(threw).toBe(true);
+    };
+
+    beforeAll(() => {
+      atlasRoot = fs.mkdtempSync(path.join(os.tmpdir(), "neva-atlas-check-"));
+      fs.cpSync(
+        path.join(process.cwd(), "assets/ui/atlas"),
+        rootFile("assets/ui/atlas"),
+        { recursive: true }
+      );
+      for (const relative of [
+        "assets/ui/ui-atlas.manifest.json",
+        "public/assets/ui/atlas/ui-atlas.json",
+        "src/ui/atlas/AtlasManifest.ts"
+      ]) {
+        fs.mkdirSync(path.dirname(rootFile(relative)), { recursive: true });
+        fs.copyFileSync(path.join(process.cwd(), relative), rootFile(relative));
+      }
+    });
+
+    afterAll(() => {
+      if (atlasRoot) fs.rmSync(atlasRoot, { recursive: true, force: true });
+    });
+
     it("passes cleanly when production manifests are up-to-date", () => {
-      const output = execSync("node tools/ui/extrudeAndPack.mjs --check", { encoding: "utf8" });
-      expect(output).toContain("[NEVA UI ATLAS] Atlas is up to date and validated.");
+      expect(runCheck()).toContain("[NEVA UI ATLAS] Atlas is up to date and validated.");
     });
 
     it("detects when JSON manifest is stale or modified and exits with non-zero error", () => {
-      const jsonPath = path.join(process.cwd(), "public/assets/ui/atlas/ui-atlas.json");
+      const jsonPath = rootFile("public/assets/ui/atlas/ui-atlas.json");
       const originalJson = fs.readFileSync(jsonPath, "utf8");
-
       try {
-        // Tamper with manifest
         const tampered = JSON.parse(originalJson);
         tampered.extrude = 999;
         fs.writeFileSync(jsonPath, JSON.stringify(tampered, null, 2), "utf8");
-
-        let threw = false;
-        try {
-          execSync("node tools/ui/extrudeAndPack.mjs --check", { encoding: "utf8", stdio: "pipe" });
-        } catch (err: any) {
-          threw = true;
-          expect(err.status).toBe(1);
-          expect(err.stderr || err.stdout).toContain("UI Atlas manifest is stale");
-        }
-        expect(threw).toBe(true);
+        expectCheckFails("UI Atlas manifest is stale");
       } finally {
-        // Restore original manifest
         fs.writeFileSync(jsonPath, originalJson, "utf8");
       }
     });
 
     it("detects when a manifest file is missing and exits with error", () => {
-      const jsonPath = path.join(process.cwd(), "public/assets/ui/atlas/ui-atlas.json");
-      const backupPath = path.join(process.cwd(), "public/assets/ui/atlas/ui-atlas.json.bak");
+      const jsonPath = rootFile("public/assets/ui/atlas/ui-atlas.json");
+      const backupPath = `${jsonPath}.bak`;
       fs.renameSync(jsonPath, backupPath);
-
       try {
-        let threw = false;
-        try {
-          execSync("node tools/ui/extrudeAndPack.mjs --check", { encoding: "utf8", stdio: "pipe" });
-        } catch (err: any) {
-          threw = true;
-          expect(err.status).toBe(1);
-          expect(err.stderr || err.stdout).toContain("UI Atlas manifests missing");
-        }
-        expect(threw).toBe(true);
+        expectCheckFails("UI Atlas manifests missing");
       } finally {
         fs.renameSync(backupPath, jsonPath);
       }
     });
 
     it("detects when an extra sprite is added to assets directory causing stale check", async () => {
-      const dummySpritePath = path.join(process.cwd(), "assets/ui/atlas/zz_dummy_stress_test.png");
-      const dummyBuf = await sharp({
-        create: {
-          width: 32,
-          height: 32,
-          channels: 4,
-          background: { r: 255, g: 0, b: 255, alpha: 1 }
-        }
-      }).png().toBuffer();
-      fs.writeFileSync(dummySpritePath, dummyBuf);
-
+      const dummySpritePath = rootFile("assets/ui/atlas/zz_dummy_stress_test.png");
+      fs.writeFileSync(dummySpritePath, await sharp({
+        create: { width: 32, height: 32, channels: 4, background: { r: 255, g: 0, b: 255, alpha: 1 } }
+      }).png().toBuffer());
       try {
-        let threw = false;
-        try {
-          execSync("node tools/ui/extrudeAndPack.mjs --check", { encoding: "utf8", stdio: "pipe" });
-        } catch (err: any) {
-          threw = true;
-          expect(err.status).toBe(1);
-          expect(err.stderr || err.stdout).toContain("UI Atlas manifest is stale");
-        }
-        expect(threw).toBe(true);
+        expectCheckFails("UI Atlas manifest is stale");
       } finally {
-        if (fs.existsSync(dummySpritePath)) {
-          fs.unlinkSync(dummySpritePath);
-        }
+        fs.rmSync(dummySpritePath, { force: true });
       }
     });
   });

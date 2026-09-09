@@ -51,3 +51,21 @@ export function fishSchoolMemberAssets(
 export function fishSpeciesAsset(speciesId: string): AssetId | null {
   return FISH_SCHOOL_ASSETS[speciesId] ?? null;
 }
+
+/** Physical catches use carriers; swimming and hooked fish keep their live models. */
+export const FISH_CARGO_PACK_ASSETS: Readonly<Record<string, AssetId>> = {
+  "fish.trout": ASSET_IDS.PROP_TRADE_PACK_TROUT_A,
+  "fish.catfish": ASSET_IDS.PROP_TRADE_PACK_CATFISH_A,
+  "fish.pike": ASSET_IDS.PROP_TRADE_PACK_PIKE_A,
+  "fish.arowana": ASSET_IDS.PROP_TRADE_PACK_AROWANA_A,
+  "fish.tuna": ASSET_IDS.PROP_TRADE_PACK_TUNA_A,
+  "fish.sturgeon": ASSET_IDS.PROP_TRADE_PACK_STURGEON_A,
+  "fish.sailfish": ASSET_IDS.PROP_TRADE_PACK_SAILFISH_A,
+  "fish.swordfish": ASSET_IDS.PROP_TRADE_PACK_SWORDFISH_A,
+  "fish.blue_marlin": ASSET_IDS.PROP_TRADE_PACK_BLUE_MARLIN_A,
+  "fish.amberjack": ASSET_IDS.PROP_TRADE_PACK_AMBERJACK_A
+};
+
+export function fishCargoPackAsset(speciesId: string): AssetId | null {
+  return FISH_CARGO_PACK_ASSETS[speciesId] ?? null;
+}

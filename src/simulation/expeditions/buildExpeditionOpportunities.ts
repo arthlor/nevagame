@@ -3,7 +3,11 @@ import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { cargoClassFits, isProduceContractType, rodMeetsMinimum } from "../domains/domainRules";
-import { accessibleChumSupplyCount, accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
+import {
+  accessibleChumSupplyCount,
+  accessibleFishingSupplyCount,
+  accessibleLureSupplyCount
+} from "../fishing/FishingSupplies";
 
 export interface ExpeditionOpportunityDto {
   id: string;
@@ -96,6 +100,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
     if (!state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) blockers.push("Rowboat access is required");
     if (!suitableOwnedRod) blockers.push("No owned rod suits this fish");
     if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
+    if (accessibleLureSupplyCount(state, vesselId) === 0) blockers.push("Pack a Woven Lure");
     if (!matchingCargoSlotAvailable(state, contract.targetItemIdOrSpecies, vesselId)) blockers.push("No suitable cargo space is open");
     const safestBoat = Object.values(state.boats)
       .map((boat) => ContentRegistry.boats.get(boat.boatTypeId)?.safeSeaRoughness ?? 0)
@@ -137,6 +142,7 @@ function marketOpportunity(
   if (tone === "bold") {
     if (!state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) blockers.push("Rowboat access is required");
     if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
+    if (accessibleLureSupplyCount(state, vesselId) === 0) blockers.push("Pack a Woven Lure");
     if (!matchingCargoSlotAvailable(state, itemId, vesselId)) blockers.push("No suitable cargo space is open");
   }
   return {

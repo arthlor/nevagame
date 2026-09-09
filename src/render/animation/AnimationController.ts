@@ -36,6 +36,9 @@ export type PlayerAnimation =
   | "carry_run"
   | "place"
   | "workstation"
+  | "craft_tailor"
+  | "craft_tool"
+  | "gear_check"
   | "cast"
   | "hookset"
   | "fishing_idle"
@@ -206,6 +209,9 @@ const AIRBORNE_CLIPS = new Set<PlayerAnimation>([
 const UPPER_BODY_ONE_SHOTS = new Set<PlayerAnimation>([
   "water",
   "workstation",
+  "craft_tailor",
+  "craft_tool",
+  "gear_check",
   "cast",
   "hookset"
 ]);
@@ -233,6 +239,9 @@ const ALL_PLAYER_ANIMATIONS: readonly PlayerAnimation[] = [
   "carry_run",
   "place",
   "workstation",
+  "craft_tailor",
+  "craft_tool",
+  "gear_check",
   "cast",
   "hookset",
   "fishing_idle",

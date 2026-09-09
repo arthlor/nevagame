@@ -521,8 +521,8 @@ body,
 }
 
 #ui-container[data-mobile-device="true"] .contextual-hint-card {
-  top: max(78px, calc(64px + env(safe-area-inset-top)));
-  max-width: min(36vw, 240px);
+  top: max(96px, calc(86px + env(safe-area-inset-top)));
+  max-width: min(42vw, 260px);
 }
 
 /* All existing modal families share a bounded flex column. Their body is the

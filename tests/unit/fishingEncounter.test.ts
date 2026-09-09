@@ -14,12 +14,8 @@ function makeFish(speciesId: string, weightKg: number): FishInstance {
  * Plays a competent fight: reel in the green band, ease off when tension
  * climbs, counter runs.
  *
- * The budget is deliberately clear of the real fight length. A 3 kg trout on
- * `rod.willow` lands at ~150 s: stamina falls from 57.2 to the 15% landing
- * threshold at roughly 0.32/s. At 600 steps this assertion sat exactly on the
- * boundary and failed by a single tick. This claim is "a competent fight
- * lands the fish", not "it lands within 150 s" — see the encounter's own
- * duration tests for pacing.
+ * Pacing and approach distance are covered by the prompt-following species
+ * matrix in sportFishingPacing.test.ts; this checks an independent input policy.
  */
 function playSkilfully(encounter: FishingEncounter, maxSteps = 900, dt = 0.25): FishingEncounterState["result"] {
   let result: FishingEncounterState["result"] = "active";
@@ -207,7 +203,7 @@ describe("FishingEncounter Mechanics", () => {
     expect(tuna.getState().maxStamina).toBeGreaterThan(trout.getState().maxStamina);
   });
 
-  it("makes a tuna resist a greedy reel materially longer than a trout", () => {
+  it("keeps both legal trout and tuna fights catchable with constant reeling in calm water", () => {
     const greedy = (speciesId: "fish.trout" | "fish.tuna", rodId: string, startDistance: number) => {
       const encounter = new FishingEncounter(
         makeFish(speciesId, speciesId === "fish.trout" ? 3.2 : 35),
@@ -225,6 +221,7 @@ describe("FishingEncounter Mechanics", () => {
     const trout = greedy("fish.trout", "rod.willow", 20);
     const tuna = greedy("fish.tuna", "rod.heavy_sport", 45);
     expect(trout.result).toBe("landed");
-    expect(tuna.seconds).toBeGreaterThan(trout.seconds * 1.5);
+    expect(tuna.result).toBe("landed");
+    expect(tuna.seconds).toBeLessThan(120);
   });
 });

@@ -5,6 +5,7 @@ import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
 
 interface ItemInspectCardProps {
   item: ItemInspectionDto;
+  detailsOnly?: boolean;
   /** Cursor position to float beside. Omit to render the card in flow. */
   anchor?: { x: number; y: number } | null;
 }
@@ -34,7 +35,7 @@ export function formatGrowthDuration(minutes: number): string {
 const CLIMATE_LABEL = (climate: string): string =>
   climate.replace(/^climate\./, "").replace(/[-_]/g, " ");
 
-export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor = null }) => {
+export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor = null, detailsOnly = false }) => {
   const [viewport, setViewport] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
@@ -67,12 +68,13 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
     <aside
       className={`item-inspect-card rarity--${rarityTier}${anchor ? " is-floating" : ""}`}
       style={floatStyle}
-      role="tooltip"
+      role={anchor ? "tooltip" : "region"}
+      aria-label={anchor ? undefined : "Item facts"}
       data-testid="item-inspect-card"
       data-rarity={rarityTier}
       data-floating={anchor ? "true" : "false"}
     >
-      <header className="item-inspect-head">
+      {!detailsOnly && <header className="item-inspect-head">
         <span className="item-inspect-sprite">
           <AtlasImage src={sprite} alt="" size={34} />
         </span>
@@ -87,7 +89,7 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
             )}
           </span>
         </span>
-      </header>
+      </header>}
 
       <dl className="item-inspect-stats">
         <div>
@@ -170,7 +172,7 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
         </section>
       )}
 
-      {item.loreText && <p className="item-inspect-lore">{item.loreText}</p>}
+      {!detailsOnly && item.loreText && <p className="item-inspect-lore">{item.loreText}</p>}
     </aside>
   );
 };

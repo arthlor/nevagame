@@ -51,12 +51,16 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
       "recipe.barley_to_grain",
       "recipe.sunflower_to_grain",
       "recipe.craft_chum",
+      "recipe.craft_lure_simple",
       "recipe.compost_worms",
       "recipe.fish_to_fertilizer",
       "recipe.perch_to_scraps",
       "recipe.mackerel_to_scraps",
       "recipe.carp_to_scraps",
-      "recipe.sardine_to_scraps"
+      "recipe.sardine_to_scraps",
+      "recipe.linen_roll",
+      "recipe.field_hat",
+      "recipe.furrow_boots"
     ]
   },
   {
@@ -66,7 +70,17 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.carrot", "crop.barley", "crop.corn", "crop.sunflower"],
     fishingUnlocks: ["rod.river"],
     tradingUnlocks: [],
-    processingUnlocks: ["recipe.craft_lure", "recipe.cure_sardine", "recipe.craft_chum_rich", "recipe.craft_chum_deep"]
+    processingUnlocks: [
+      "recipe.craft_lure",
+      "recipe.cure_sardine",
+      "recipe.craft_chum_rich",
+      "recipe.craft_chum_deep",
+      "recipe.oiled_canvas",
+      "recipe.tidewatch_cap",
+      "recipe.harvest_apron",
+      "recipe.copper_rose_can",
+      "recipe.broad_sickle"
+    ]
   },
   {
     rankIndex: 2,
@@ -75,14 +89,19 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.flax"],
     fishingUnlocks: ["rod.heavy_sport"],
     tradingUnlocks: [],
-    processingUnlocks: []
+    processingUnlocks: [
+      "recipe.deck_boots",
+      "recipe.oilskin_coat",
+      "recipe.long_spout_can",
+      "recipe.balanced_sickle"
+    ]
   },
   {
     rankIndex: 3,
     rankName: "Expert",
     xpRequired: 7500,
     farmingUnlocks: ["crop.apple_tree", "crop.olive_tree"],
-    fishingUnlocks: ["boat.skiff"],
+    fishingUnlocks: ["boat.skiff", "rod.offshore"],
     tradingUnlocks: [],
     processingUnlocks: []
   },
@@ -91,7 +110,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     rankName: "Master",
     xpRequired: 15000,
     farmingUnlocks: [],
-    fishingUnlocks: ["rod.offshore"],
+    fishingUnlocks: [],
     tradingUnlocks: [],
     processingUnlocks: []
   },

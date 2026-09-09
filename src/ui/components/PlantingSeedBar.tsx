@@ -1,5 +1,5 @@
-import { IconSprout, IconSnowflake, IconWateringCan} from "./HudIcons";
-import React from "react";
+import { IconSprout} from "./HudIcons";
+import React, { useEffect, useRef } from "react";
 import type { SeedBeltDto } from "../../simulation/core/contracts";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForSeedItem } from "../chrome/uiAtlas";
@@ -15,59 +15,13 @@ export interface PlantingSeedBarProps {
   className?: string;
 }
 
-// Maps crop growth seasons and soil preferences
-const CROP_SEASON_MAP: Record<string, { seasons: string[]; soilHint: string; moisturePref: string }> = {
-  "crop.wheat": {
-    seasons: ["spring", "summer", "autumn"],
-    soilHint: "Coastal loam · Low nutrient depletion",
-    moisturePref: "Moderate moisture (15–20%)"
-  },
-  "crop.barley": {
-    seasons: ["spring", "autumn"],
-    soilHint: "Well-drained soil · Fast maturation",
-    moisturePref: "Light moisture (15%)"
-  },
-  "crop.corn": {
-    seasons: ["summer"],
-    soilHint: "Rich fertile loam · High compost feeder",
-    moisturePref: "High moisture (25–30%)"
-  },
-  "crop.tomato": {
-    seasons: ["spring", "summer"],
-    soilHint: "Temperate clay loam · Regular irrigation",
-    moisturePref: "Moderate moisture (20%)"
-  },
-  "crop.potato": {
-    seasons: ["spring", "autumn", "winter"],
-    soilHint: "Sandy soil · Hardy tuber growth",
-    moisturePref: "Low moisture (12%)"
-  },
-  "crop.carrot": {
-    seasons: ["autumn", "winter", "spring"],
-    soilHint: "Deep loose topsoil · Cold resistant",
-    moisturePref: "Even moisture (18%)"
-  },
-  "crop.flax": {
-    seasons: ["spring", "summer"],
-    soilHint: "Temperate loam · Moderate nutrient feeder",
-    moisturePref: "Regular moisture (20%)"
-  },
-  "crop.apple_tree": {
-    seasons: ["spring", "autumn"],
-    soilHint: "Deep orchard soil · Long-term regrowing tree",
-    moisturePref: "Light moisture (10%)"
-  },
-  "crop.sunflower": {
-    seasons: ["summer"],
-    soilHint: "Sunny loam · Drought tolerant taproot",
-    moisturePref: "Moderate moisture (15%)"
-  },
-  "crop.olive_tree": {
-    seasons: ["summer", "autumn"],
-    soilHint: "Warm terraced grove · Resilient regrowing tree",
-    moisturePref: "Low moisture (8%)"
-  }
-};
+/** Resolve both browser key values and the physical digit code used by tests/controllers. */
+export function plantingSeedHotkeyIndex(event: Pick<KeyboardEvent, "key" | "code">): number | null {
+  const keyDigit = /^[1-9]$/.test(event.key) ? Number(event.key) - 1 : null;
+  if (keyDigit !== null) return keyDigit;
+  const codeMatch = /^Digit([1-9])$/.exec(event.code);
+  return codeMatch ? Number(codeMatch[1]) - 1 : null;
+}
 
 export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   seedBelt,
@@ -79,6 +33,38 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
 }) => {
   const availableSeeds = seedBelt.seeds;
   const selectedCrop = availableSeeds.find((seed) => seed.cropId === selectedCropId) ?? availableSeeds[0];
+  const availableSeedsRef = useRef(availableSeeds);
+  const onSelectCropRef = useRef(onSelectCrop);
+  const onCancelRef = useRef(onCancel);
+  availableSeedsRef.current = availableSeeds;
+  onSelectCropRef.current = onSelectCrop;
+  onCancelRef.current = onCancel;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable='true']")) {
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onCancelRef.current();
+        return;
+      }
+      const seedIndex = plantingSeedHotkeyIndex(e);
+      const seed = seedIndex === null ? undefined : availableSeedsRef.current[seedIndex];
+      if (seed) {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelectCropRef.current(seed.cropId);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, []);
 
   if (availableSeeds.length === 0) {
     return (
@@ -92,12 +78,6 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
       </div>
     );
   }
-
-  const seasonNormalized = currentSeason.toLowerCase();
-  const selectedCropMeta = selectedCrop ? CROP_SEASON_MAP[selectedCrop.cropId] : null;
-  const isSelectedInSeason = selectedCropMeta
-    ? selectedCropMeta.seasons.includes(seasonNormalized)
-    : true;
 
   return (
     <div
@@ -117,8 +97,6 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
         <div className="planting-seeds-row">
           {availableSeeds.map((seed, index) => {
             const isSelected = selectedCrop?.cropId === seed.cropId;
-            const meta = CROP_SEASON_MAP[seed.cropId];
-            const inSeason = meta ? meta.seasons.includes(seasonNormalized) : true;
             const hotkey = index < 9 ? `${index + 1}` : null;
 
             return (
@@ -127,13 +105,11 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
                   filled
                   quantity={seed.count}
                   selected={isSelected}
-                  className={`planting-seed-card ${isSelected ? "is-selected" : ""} ${
-                    inSeason ? "is-in-season" : "is-out-of-season"
-                  }`}
+                  className={`planting-seed-card ${isSelected ? "is-selected" : ""}`}
                   soundCue="cloth"
                   onSelect={() => onSelectCrop(seed.cropId)}
-                  label={`${seed.name}, ${seed.count} seeds${hotkey ? `, hotkey ${hotkey}` : ""}, ${inSeason ? "In season" : "Out of season"}`}
-                  title={`${seed.name} (${seed.count})${hotkey ? ` [${hotkey}]` : ""} — ${inSeason ? "In season" : "Out of season: Growth penalty"}`}
+                  label={`${seed.name}, ${seed.count} seeds${hotkey ? `, hotkey ${hotkey}` : ""}`}
+                  title={`${seed.name} (${seed.count})${hotkey ? ` [${hotkey}]` : ""}`}
                 >
                   {hotkey && (
                     <span className="seed-hotkey-badge" aria-hidden="true">
@@ -141,14 +117,6 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
                     </span>
                   )}
                   <AtlasImage src={atlasForSeedItem(seed.seedItemId)} alt="" size={28} />
-                  {/* Seasonal compatibility icon chip */}
-                  <span
-                    className={`seed-season-indicator ${inSeason ? "in-season" : "out-of-season"}`}
-                    title={inSeason ? "In season: standard growth" : "Out of season: growth slowed"}
-                    aria-hidden="true"
-                  >
-                    {inSeason ? "In season" : <IconSnowflake size={11} />}
-                  </span>
                 </ItemSlot>
               </div>
             );
@@ -168,22 +136,12 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
           <footer className="planting-dock-meta">
             <div className="planting-meta-left">
               <strong className="meta-value selected-crop-name">{selectedCrop.name}</strong>
-              <span className={`meta-season-tag ${isSelectedInSeason ? "is-optimal" : "is-suboptimal"}`}>
-                {isSelectedInSeason
-                  ? <><IconSprout size={12} aria-hidden="true" /> Favorable Season</>
-                  : <><IconSnowflake size={12} aria-hidden="true" /> Out of Season (Growth Slowed)</>}
-              </span>
             </div>
 
             <div className="planting-meta-right">
-              <span className="meta-soil-hint" title="Soil Suitability">
-                <><IconSprout size={12} aria-hidden="true" />{` ${selectedCropMeta?.soilHint ?? `Likes: ${selectedCrop.preferredClimates.join(", ")}`}`}</>
+              <span className="meta-soil-hint">
+                <IconSprout size={12} aria-hidden="true" /> Thrives in {selectedCrop.preferredClimates.map((climate) => climate.replace(/^climate\./, "").replace(/[-_]/g, " ")).join(", ") || "any climate"}
               </span>
-              {selectedCropMeta?.moisturePref && (
-                <span className="meta-moisture-hint" title="Water Needs">
-                  <><IconWateringCan size={12} aria-hidden="true" />{` ${selectedCropMeta.moisturePref}`}</>
-                </span>
-              )}
             </div>
           </footer>
         )}

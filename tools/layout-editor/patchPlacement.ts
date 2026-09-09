@@ -45,6 +45,7 @@ import {
   HARBOR_NPC_ANCHOR_IDS,
   layoutEditCanDelete,
   layoutEditCanDuplicate,
+  npcLayoutTarget,
   LAYOUT_EDITOR_SOURCE_FILES,
   PROCESSING_STATION_LAYOUT_IDS,
   transformPointWithPose,
@@ -458,12 +459,25 @@ function patchLandmarkLiteral(
 }
 
 function patchNpcLiteral(source: string, npcId: string, commit: LayoutEditCommit): string {
+  const target = npcLayoutTarget(npcId);
+  npcId = target.npcId;
   const escaped = npcId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`id:\\s*"${escaped}"\\s*,`);
   const match = pattern.exec(source);
   if (!match || match.index === undefined) throw new LayoutEditPatchError(`Missing NPC ${npcId}`);
   const start = source.lastIndexOf("{", match.index);
   const npcBlock = extractBalanced(source, start);
+  if (target.phase) {
+    const phaseIndex = npcBlock.text.indexOf(`phase: "${target.phase}"`);
+    if (phaseIndex < 0) throw new LayoutEditPatchError(`Missing ${target.phase} stop for ${npcId}`);
+    const positionIndex = npcBlock.text.indexOf("position:", phaseIndex);
+    const brace = npcBlock.text.indexOf("{", positionIndex);
+    if (positionIndex < 0 || brace < 0) throw new LayoutEditPatchError(`Missing position for ${npcId}`);
+    const position = extractBalanced(npcBlock.text, brace);
+    const patched = patchObjectXzRotation(position.text, commit.x, commit.z, commit.rotationY);
+    const nextNpc = replaceSlice(npcBlock.text, brace, position.end, patched);
+    return replaceSlice(source, start, npcBlock.end, nextNpc);
+  }
   const anchorIndex = npcBlock.text.indexOf("anchor:");
   if (anchorIndex < 0) throw new LayoutEditPatchError(`NPC ${npcId} is missing an anchor`);
   const brace = npcBlock.text.indexOf("{", anchorIndex);

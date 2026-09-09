@@ -191,6 +191,7 @@ export class GameCamera {
   private lastContactEvent: PlayerMotionSample["contactEvent"] = "none";
   private lastDiscontinuitySequence = -1;
   private fightTrauma = 0;
+  private rewardTrauma = 0;
   private fightTraumaPhase = 0;
   private reducedMotion = typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -201,6 +202,10 @@ export class GameCamera {
     this.currentLookAt.set(0, 1.1, 2.2);
   }
 
+  public addTrauma(amount: number): void {
+    if (!this.reducedMotion) this.rewardTrauma = Math.min(0.6, Math.max(this.rewardTrauma, amount));
+  }
+
   public setReducedMotion(enabled: boolean): void {
     this.reducedMotion = enabled;
   }
@@ -209,6 +214,16 @@ export class GameCamera {
    * Applies a deterministic, collision-independent framing used only by the
    * development art-direction captures. Gameplay always follows update().
    */
+  private arrivalView: { position: THREE.Vector3; target: THREE.Vector3; fov: number; age: number } | null = null;
+  private readonly arrivalLook = new THREE.Vector3();
+
+  public beginArrivalView(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }, fov = 50): void {
+    if (this.reducedMotion) return;
+    this.arrivalView = { position: new THREE.Vector3(position.x, position.y, position.z), target: new THREE.Vector3(target.x, target.y, target.z), fov, age: 0 };
+  }
+
+  public cancelArrivalView(): void { this.arrivalView = null; }
+
   public setFixedView(
     position: Readonly<{ x: number; y: number; z: number }>,
     target: Readonly<{ x: number; y: number; z: number }>,
@@ -523,9 +538,11 @@ export class GameCamera {
     if (mode === "sport-fishing" && !this.reducedMotion) {
       this.fightTrauma = Math.max(this.fightTrauma, (motionInput?.fightShakeAmplitude ?? 0) * 0.085);
     }
-    if (this.fightTrauma > 0.012 && !this.reducedMotion) {
+    this.rewardTrauma = this.reducedMotion ? 0 : Math.max(0, this.rewardTrauma - 1.2 * dt);
+    const visibleTrauma = Math.max(this.fightTrauma, this.rewardTrauma);
+    if (visibleTrauma > 0.012 && !this.reducedMotion) {
       this.fightTraumaPhase += dt;
-      const magnitude = this.fightTrauma * this.fightTrauma * 0.1;
+      const magnitude = visibleTrauma * visibleTrauma * 0.1;
       this.camera.position.x += Math.sin(this.fightTraumaPhase * 31.4) * magnitude;
       this.camera.position.y += Math.sin(this.fightTraumaPhase * 27.1) * magnitude * 0.42;
     } else if (this.reducedMotion) {
@@ -538,6 +555,19 @@ export class GameCamera {
       : damp(this.camera.fov, targetFov, CAMERA_TUNING.profileResponse, dt);
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(this.currentLookAt);
+    const arrival = this.arrivalView;
+    if (arrival && !this.reducedMotion) {
+      arrival.age += dt;
+      const phase = Math.min(1, arrival.age / 2);
+      const edge = Math.min(1, phase / 0.3, (1 - phase) / 0.3);
+      const blend = edge * edge * (3 - 2 * edge);
+      this.camera.position.lerp(arrival.position, blend);
+      this.arrivalLook.copy(this.currentLookAt).lerp(arrival.target, blend);
+      this.camera.lookAt(this.arrivalLook);
+      this.camera.fov += (responsiveVerticalFov(arrival.fov, this.camera.aspect) - this.camera.fov) * blend;
+      this.camera.updateProjectionMatrix();
+      if (phase >= 1) this.arrivalView = null;
+    }
   }
 
   /** Converts on-foot WASD intent into a horizontal world vector based on the current view. */

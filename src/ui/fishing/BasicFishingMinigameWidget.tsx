@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BasicFishingState } from "../../simulation/core/types";
+import type { BasicFishingState } from "../../simulation/core/types";
 import { BasicFishingMinigame } from "../../simulation/fishing/BasicFishingMinigame";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { IconFish } from "../components/HudIcons";
@@ -10,7 +10,7 @@ import { GameSheet, KeyHint, Meter } from "../coastal/CoastalUI";
 import { playUiSound } from "../audio/uiAudio";
 
 interface BasicFishingMinigameWidgetProps {
-  fishingState: BasicFishingState;
+  fishingState: Readonly<BasicFishingState>;
   onHoldChange?: (holding: boolean) => void;
   onHookBite?: () => void;
   onDismissModal?: () => { success: boolean; reason?: string; reasonCode?: string };

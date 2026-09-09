@@ -209,6 +209,58 @@ describe("PhysicsWorld", () => {
     expect(finalMotion?.speedMetersPerSecond).toBeLessThan(0.05);
   });
 
+  it("stops the player at an oak trunk and lets them past a sapling", async () => {
+    // The feedback this answers was "I walk through the trees". Drive the real
+    // catalog collider for a scattered oak, not a synthetic box.
+    const oakGround = WorldLayout.terrainHeight(0, 0);
+    const oakRoot = new THREE.Object3D();
+    oakRoot.position.set(0, oakGround, 3);
+    oakRoot.updateMatrixWorld(true);
+    const oak = projectAssetCollision(ASSET_IDS.TREE_OAK_A, oakRoot, "oak-under-test");
+    expect(oak.length, "tree_oak_a projected no collider").toBeGreaterThan(0);
+
+    const trunk = oak[0];
+    const physics = await PhysicsWorld.create(oak);
+    const sim = new Simulation();
+    placePlayer(sim);
+    let reachedTrunkFace = false;
+    let everInsideTrunk = false;
+    for (let index = 0; index < 180; index++) {
+      const frame = physics.step(sim.state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+      const { x, z } = sim.state.player;
+      // The claim that matters: the trunk's footprint is never occupied.
+      if (
+        Math.abs(x - trunk.center.x) < trunk.halfExtents.x
+        && Math.abs(z - trunk.center.z) < trunk.halfExtents.z
+      ) {
+        everInsideTrunk = true;
+      }
+      // Held short of the near face for at least a moment before sliding round.
+      if (frame.playerMotion.speedMetersPerSecond < 0.2 && z > 1.9 && z < 2.5) {
+        reachedTrunkFace = true;
+      }
+    }
+    expect(everInsideTrunk, "player walked through the trunk").toBe(false);
+    expect(reachedTrunkFace, "player was never held up by the trunk").toBe(true);
+
+    // Without the collider the same input carries the player well past it.
+    const open = await PhysicsWorld.create([]);
+    const unobstructed = new Simulation();
+    placePlayer(unobstructed);
+    for (let index = 0; index < 180; index++) {
+      const frame = open.step(unobstructed.state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
+      unobstructed.commitPhysicsFrame(frame.frame);
+    }
+    expect(unobstructed.state.player.z).toBeGreaterThan(sim.state.player.z + 1.5);
+
+    // A sapling is still scenery: nothing to collide with at all.
+    const saplingRoot = new THREE.Object3D();
+    saplingRoot.position.set(0, oakGround, 3);
+    saplingRoot.updateMatrixWorld(true);
+    expect(projectAssetCollision(ASSET_IDS.TREE_PINE_YOUNG_A, saplingRoot, "sapling")).toHaveLength(0);
+  });
+
   it("sweeps the camera against static world geometry while ignoring player bodies", async () => {
     const ground = WorldLayout.terrainHeight(0, 0);
     const physics = await PhysicsWorld.create([
@@ -429,12 +481,28 @@ describe("PhysicsWorld", () => {
           index / 60
         ).frame);
       }
+      // Settle with no input before asserting rest height: the assertion is
+      // about where the player comes to rest, not about the exact frame the
+      // sprint loop happened to stop on.
+      for (let index = 0; index < 30; index++) {
+        shoreSim.commitPhysicsFrame(shorePhysics.step(
+          shoreSim.state,
+          { x: 0, z: 0, sprint: false },
+          "on-foot",
+          1 / 60,
+          (120 + index) / 60
+        ).frame);
+      }
       expect(
         WorldLayout.isWater(shoreSim.state.player.x, shoreSim.state.player.z),
         JSON.stringify({ normal, start, final: shoreSim.state.player })
       ).toBe(false);
+      // Against the traversal surface, not raw terrain height: the two diverge
+      // on steep ground (by ~0.05 m at a 37 degree bank), and the traversal
+      // surface is the one the player is actually placed on.
+      expect(shoreSim.state.player.traversal.isGrounded).toBe(true);
       expect(shoreSim.state.player.y).toBeGreaterThanOrEqual(
-        WorldLayout.terrainHeight(shoreSim.state.player.x, shoreSim.state.player.z) + 0.49
+        WorldLayout.traversalSurfaceHeight(shoreSim.state.player.x, shoreSim.state.player.z) + 0.49
       );
     }
   });

@@ -1,5 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FishCargoState, GameAction, GameMode, GameState, MarketId } from "../simulation/core/types";
+import {
+  BasicFishingState,
+  EquipmentId,
+  EquipmentPresetId,
+  FishCargoState,
+  GameAction,
+  GameMode,
+  GameState,
+  MarketId,
+  RecipeId,
+  RodId
+} from "../simulation/core/types";
+import { NauticalCompassAlmanac } from "./hud/NauticalCompassAlmanac";
+import { NoticeStack } from "./components/NoticeStack";
 import { HUD } from "./HUD";
 import { InventoryModal } from "./InventoryModal";
 import { MarketModal } from "./MarketModal";
@@ -31,10 +44,12 @@ import type { FarmingActionSnapshot } from "../app/FarmingActionController";
 import { FarmingActionStatus } from "./components/FarmingActionStatus";
 import type { StartupState } from "../app/StartupState";
 import type {
+  CharacterEquipmentDto,
   CommodityQuote,
   CropInspectionDto,
   FarmForecastDto,
   HoldStoresDto,
+  InteractionResult,
   JournalPagesDto,
   MarketBoardDto,
   MarketDemandSignal,
@@ -42,6 +57,7 @@ import type {
   SatchelDto,
   ItemInspectionDto,
   MarketDemandTrendDto,
+  ProcessingStationDto,
   SeedBeltDto,
   SkillProgressDto,
   SportFishingHudDto,
@@ -54,6 +70,8 @@ import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet } from "./coastal/CoastalUI";
 import { StartScreen } from "./StartScreen";
 import { PlacementEditorHud } from "./PlacementEditorHud";
+import { CharacterScreen } from "./CharacterScreen";
+import { CraftingModal } from "./CraftingModal";
 import { MobileControls, MobileOrientationGate } from "./MobileControls";
 import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter";
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
@@ -77,6 +95,8 @@ const READY_STARTUP_STATE: StartupState = {
 
 export interface GameUIProps {
   state: GameState;
+  /** A detached presentation snapshot; the widget must never receive live sim state. */
+  basicFishingState: Readonly<BasicFishingState> | null;
   mode: GameMode;
   fps: number;
   renderStats: RenderStats;
@@ -96,6 +116,8 @@ export interface GameUIProps {
   onSetActiveModal: (modal: ActiveModal) => void;
   marketId: MarketId | null;
   activeQuest?: ActiveQuestDto | null;
+  activeQuests?: readonly ActiveQuestDto[];
+  onFocusTrack?: (trackId: string) => void;
   activeDialogueNpcId?: string | null;
   onTalkNpc?: (npcId: string) => {
     success: boolean;
@@ -125,6 +147,7 @@ export interface GameUIProps {
   isFarmGisHeld?: boolean;
   activeToolSlot?: number;
   onSelectToolSlot?: (slot: number) => void;
+  toolRevealToken?: number;
   landedCatch?: FishCargoState | TrophyCatchDto | null;
   landedCatchRecord?: "first" | "weight" | "quality" | null;
   onDismissCatchSummary?: () => void;
@@ -157,6 +180,14 @@ export interface GameUIProps {
   onInspectJournalPages: () => JournalPagesDto;
   onInspectPauseSummary: () => PauseSummaryDto;
   onInspectSkillProgress: () => SkillProgressDto[];
+  onInspectCharacter: () => CharacterEquipmentDto;
+  onEquipEquipment: (equipmentId: EquipmentId) => InteractionResult;
+  onEquipCharacterRod: (rodId: RodId) => InteractionResult;
+  onSaveEquipmentPreset: (presetId: EquipmentPresetId) => InteractionResult;
+  onApplyEquipmentPreset: (presetId: EquipmentPresetId) => InteractionResult;
+  craftingStationId?: string | null;
+  onInspectProcessingStation: (stationId: string) => ProcessingStationDto | null;
+  onStartProcessing: (recipeId: RecipeId, stationId: string) => InteractionResult;
   onInspectAlmanac?: () => AlmanacDto;
   onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => void;
   onBuyItem: (marketId: MarketId, itemId: string, quantity: number) => void;
@@ -185,6 +216,7 @@ export interface GameUIProps {
   assetCoverage: AssetCoverageSummary;
   startup?: StartupState;
   onStart?: () => void;
+  onSkipIntro?: () => void;
   onStartNewGame?: () => void;
   onStartWithoutSaving?: () => void;
   onRetry?: () => void;
@@ -214,6 +246,7 @@ export interface GameUIProps {
 
 export const GameUI: React.FC<GameUIProps> = ({
   state,
+  basicFishingState,
   mode,
   fps,
   renderStats,
@@ -233,6 +266,8 @@ export const GameUI: React.FC<GameUIProps> = ({
   onSetActiveModal,
   marketId,
   activeQuest,
+  activeQuests,
+  onFocusTrack,
   onTalkNpc,
   activeDialogueNpcId,
   activeHint,
@@ -250,6 +285,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   isFarmGisHeld = false,
   activeToolSlot = 1,
   onSelectToolSlot,
+  toolRevealToken = 0,
   landedCatch = null,
   landedCatchRecord = null,
   onDismissCatchSummary,
@@ -272,6 +308,14 @@ export const GameUI: React.FC<GameUIProps> = ({
   onInspectJournalPages,
   onInspectPauseSummary,
   onInspectSkillProgress,
+  onInspectCharacter,
+  onEquipEquipment,
+  onEquipCharacterRod,
+  onSaveEquipmentPreset,
+  onApplyEquipmentPreset,
+  craftingStationId = null,
+  onInspectProcessingStation,
+  onStartProcessing,
   onInspectAlmanac,
   onBuySeed,
   onBuyItem,
@@ -300,6 +344,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   assetCoverage,
   startup = READY_STARTUP_STATE,
   onStart = () => {},
+  onSkipIntro,
   onStartNewGame = () => {},
   onStartWithoutSaving = onStart,
   onRetry = () => {},
@@ -352,6 +397,7 @@ export const GameUI: React.FC<GameUIProps> = ({
     return (
       <div
         id="ui-container"
+      data-ui="guildcraft"
         data-mobile-device={mobileTouchDevice ? "true" : "false"}
         data-mobile-landscape={mobileLandscape ? "true" : "false"}
         style={{ width: "100%", height: "100%", position: "relative" }}
@@ -359,6 +405,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         <StartScreen
           startup={startup}
           onStart={onStart}
+          onSkipIntro={onSkipIntro}
           onStartNewGame={onStartNewGame}
           onStartWithoutSaving={onStartWithoutSaving}
           onRetry={onRetry}
@@ -375,6 +422,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   return (
     <div
       id="ui-container"
+      data-ui="guildcraft"
       tabIndex={-1}
       data-mobile-device={mobileTouchDevice ? "true" : "false"}
       data-mobile-landscape={mobileLandscape ? "true" : "false"}
@@ -391,12 +439,17 @@ export const GameUI: React.FC<GameUIProps> = ({
       {mode !== "sport-fishing" && (
         <HUD
           hud={worldHud}
+          playerPosition={state.player}
+          blocked={!!activeModal}
           promptText={promptText}
           toastMessage={toastMessage}
-          notices={notices}
+          notices={activeModal ? [] : notices}
           activeQuest={activeQuest}
+          activeQuests={activeQuests}
+          onFocusTrack={onFocusTrack}
           activeToolSlot={activeToolSlot}
           onSelectToolSlot={onSelectToolSlot}
+          toolRevealToken={toolRevealToken}
           onOpenMenu={() => onSetActiveModal("pause")}
           onOpenModal={onSetActiveModal}
           onInspectFarmForecast={onInspectFarmForecast}
@@ -449,7 +502,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {mode !== "sport-fishing" && activeHint && onDismissHint && (
+      {mode !== "sport-fishing" && mode !== "farm-placement" && activeHint && onDismissHint && (
         <ContextualHintCard
           hintId={activeHint.hintId}
           title={activeHint.title}
@@ -460,9 +513,9 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {state.basicFishing && !activeModal && (
+      {basicFishingState && !activeModal && (
         <BasicFishingMinigameWidget
-          fishingState={state.basicFishing}
+          fishingState={basicFishingState}
           onHoldChange={onSetBasicFishingHold}
           onHookBite={onHookBasicFishingBite}
           onDismissModal={onDismissBasicFishingModal}
@@ -470,6 +523,11 @@ export const GameUI: React.FC<GameUIProps> = ({
           onDiscardCatch={onDiscardBasicCatch}
         />
       )}
+
+      {mode === "sport-fishing" && !activeModal && <div className="guild-fishing-map interactive">
+        <NauticalCompassAlmanac clock={worldHud.clock} weather={worldHud.weather} compass={worldHud.compass}
+          playerPosition={state.player} onToggleForecast={() => onSetActiveModal("pause")} passive />
+      </div>}
 
       {mode === "sport-fishing" && sportFishingHud && !activeModal && (
         <FishingHUD
@@ -503,6 +561,8 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
+      {activeModal && notices && <NoticeStack notices={notices} className="guild-modal-notices" />}
+
       {activeModal === "dialogue" && activeDialogueNpcId && onTalkNpc && (
         <DialogueModal
           npcId={activeDialogueNpcId}
@@ -522,6 +582,30 @@ export const GameUI: React.FC<GameUIProps> = ({
           onSortSatchel={onSortSatchel}
         />
       )}
+
+      {activeModal === "character" && (
+        <CharacterScreen
+          character={onInspectCharacter()}
+          onClose={() => onSetActiveModal(null)}
+          onEquipEquipment={onEquipEquipment}
+          onEquipRod={onEquipCharacterRod}
+          onSavePreset={onSaveEquipmentPreset}
+          onApplyPreset={onApplyEquipmentPreset}
+          onOpenSatchel={() => onSetActiveModal("inventory")}
+          onOpenPause={() => onSetActiveModal("pause")}
+        />
+      )}
+
+      {activeModal === "crafting" && craftingStationId && (() => {
+        const station = onInspectProcessingStation(craftingStationId);
+        return station ? (
+          <CraftingModal
+            station={station}
+            onClose={() => onSetActiveModal(null)}
+            onStart={onStartProcessing}
+          />
+        ) : null;
+      })()}
 
       {activeModal === "market" && (
         <MarketModal
@@ -547,6 +631,9 @@ export const GameUI: React.FC<GameUIProps> = ({
       {activeModal === "map" && (
         <WorldMapModal
           map={onInspectWorldMap()}
+          questMarkers={worldHud.compass.nearbyMarkers.filter(
+            (marker) => marker.kind === "quest" || marker.kind === "quest-secondary"
+          )}
           onInspectMarketDemand={onInspectMarketDemand}
           onClose={() => onSetActiveModal(null)}
         />
@@ -568,6 +655,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         <JournalModal
           pages={onInspectJournalPages()}
           activeQuest={activeQuest ?? null}
+          activeQuests={activeQuests}
           skills={onInspectSkillProgress()}
           almanac={onInspectAlmanac?.()}
           initialFolio={journalInitialFolio}

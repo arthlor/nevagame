@@ -1,3 +1,5 @@
+import type { WorldAudioDto } from "../simulation/presentation/WorldAudioPresentation";
+import { WorldMusicRouting } from "../simulation/presentation/MusicRouting";
 import manifestJson from "../../assets/audio/audio-manifest.json";
 import { audioSettings, AudioSettings } from "./AudioSettings";
 import { computePlaybackRate, finiteAudioValue, setAudioParam, setAudioParamNow } from "./audioParams";
@@ -113,7 +115,7 @@ export class AudioManager {
   private readonly bankCursors = new Map<AudioBankId, number>();
   private unlockPromise: Promise<void> | null = null;
   private disposed = false;
-  private ambienceRequested = true;
+  private ambienceRequested = false;
   private variationSeed = 1;
   private bedId: AudioBedId = "farm";
   private weatherId = "clear";
@@ -133,12 +135,16 @@ export class AudioManager {
     if (this.disposed || typeof window === "undefined") {
       return Promise.resolve();
     }
+    if (this.context?.state === "running") {
+      return Promise.resolve();
+    }
     if (this.unlockPromise) {
       return this.unlockPromise;
     }
     this.unlockPromise = this.createAndResumeContext().catch((error: unknown) => {
-      this.unlockPromise = null;
       console.warn("Audio could not be started.", error);
+    }).finally(() => {
+      this.unlockPromise = null;
     });
     return this.unlockPromise;
   }
@@ -161,9 +167,13 @@ export class AudioManager {
   }
 
   private currentMusicCue: AudioCueId = "theme";
+  private worldAudio: WorldAudioDto | undefined;
+  private readonly musicRouting = new WorldMusicRouting();
+  private readonly actionLoopGains = new Map<AudioCueId, number>();
+  private readonly loopGainTargets = new Map<AudioCueId, number>();
 
-  setWorldContext(bedId: AudioBedId, weatherId: string): void {
-    const bedChanged = bedId !== this.bedId;
+  setWorldContext(bedId: AudioBedId, weatherId: string, presentation?: WorldAudioDto): void {
+    this.worldAudio = presentation;
     this.bedId = bedId;
     const weatherChanged = weatherId !== this.weatherId;
     this.weatherId = weatherId;
@@ -177,12 +187,11 @@ export class AudioManager {
     if (this.ambienceRequested) {
       this.syncBeds();
     }
-    if (bedChanged) {
-      this.syncMusic();
-    }
+    this.syncMusic();
   }
 
-  setActionLoop(cueId: AudioCueId, enabled: boolean, position?: AudioPosition): void {
+  setActionLoop(cueId: AudioCueId, enabled: boolean, position?: AudioPosition, gain = 1): void {
+    this.actionLoopGains.set(cueId, Math.max(0, Math.min(1, gain)));
     if (enabled) {
       this.actionLoops.set(cueId, finitePosition(position) ?? true);
     } else {
@@ -213,7 +222,7 @@ export class AudioManager {
     if (!this.context || this.context.state !== "running" || document.visibilityState === "hidden") {
       return;
     }
-    const targetCue: AudioCueId = "theme";
+    const targetCue = this.musicRouting.sample(this.worldAudio?.music ?? "theme", performance.now());
     if (this.currentMusicCue !== targetCue) {
       this.stopLoopCue(this.currentMusicCue);
       this.currentMusicCue = targetCue;
@@ -290,14 +299,22 @@ export class AudioManager {
   };
 
   private readonly handleVisibilityChange = (): void => {
-    if (!this.context) {
+    const context = this.context;
+    if (!context || this.disposed) {
       return;
     }
     if (document.visibilityState === "hidden") {
-      void this.context.suspend();
+      void context.suspend().catch((error: unknown) => {
+        if (!this.disposed && this.context === context) {
+          console.warn("Audio could not be suspended.", error);
+        }
+      });
       return;
     }
-    void this.context.resume().then(() => {
+    void this.unlock().then(() => {
+      if (this.disposed || this.context !== context || context.state !== "running" || document.visibilityState === "hidden") {
+        return;
+      }
       this.startTheme();
       if (this.ambienceRequested) {
         this.startAmbience();
@@ -334,8 +351,12 @@ export class AudioManager {
       this.musicGain.gain.value = 1;
       this.applySettings(audioSettings.get());
     }
-    if (this.context.state === "suspended") {
-      await this.context.resume();
+    const context = this.context;
+    if (context.state === "suspended") {
+      await context.resume();
+    }
+    if (this.disposed || this.context !== context || context.state !== "running") {
+      return;
     }
     this.startTheme();
     if (this.ambienceRequested) {
@@ -409,7 +430,9 @@ export class AudioManager {
   }
 
   private desiredBedCues(): AudioCueId[] {
-    const region = beds[this.bedId] ?? beds.farm;
+    const region = this.worldAudio
+      ? (Object.entries(this.worldAudio.layers).filter(([, gain]) => gain > 0).map(([id]) => id) as AudioCueId[])
+      : beds[this.bedId] ?? beds.farm;
     const weather = weatherLoops[this.weatherId] ?? [];
     return [...new Set([...region, ...weather])];
   }
@@ -419,6 +442,10 @@ export class AudioManager {
       return;
     }
     const desired = new Set(this.desiredBedCues());
+    // Invalidate pending decoded starts as well as live voices on a region change.
+    for (const cueId of this.loopStartGenerations.keys()) {
+      if (!desired.has(cueId) && !this.actionLoops.has(cueId) && cues[cueId]?.bus !== "music") this.stopLoopCue(cueId);
+    }
     for (const cueId of [...this.loops.keys()]) {
       if (this.actionLoops.has(cueId) || desired.has(cueId) || cues[cueId]?.bus === "music") {
         continue;
@@ -532,7 +559,14 @@ export class AudioManager {
     }
     const existing = this.loops.get(cueId);
     const resolved = finitePosition(position);
+    const layers = this.worldAudio?.layers as Partial<Record<AudioCueId, number>> | undefined;
+    const targetGain = cue.gain * (this.actionLoops.has(cueId) ? this.actionLoopGains.get(cueId) ?? 1 : layers?.[cueId] ?? 1);
     if (existing) {
+      if (this.loopGainTargets.get(cueId) !== targetGain) {
+        existing.gain.gain.cancelScheduledValues(context.currentTime);
+        existing.gain.gain.setTargetAtTime(targetGain, context.currentTime, 0.4);
+        this.loopGainTargets.set(cueId, targetGain);
+      }
       if (existing.panner && resolved) {
         this.applyPannerPosition(existing.panner, resolved, context.currentTime);
       }
@@ -563,7 +597,8 @@ export class AudioManager {
       source.loopEnd = Math.min(buffer.duration, cue.offset + cue.duration);
       setAudioParamNow(gain.gain, 0, context.currentTime, 0);
       const fadeSeconds = this.actionLoops.has(cueId) ? 0.12 : isMusic ? 3.2 : 1.2;
-      gain.gain.linearRampToValueAtTime(cue.gain, context.currentTime + fadeSeconds);
+      gain.gain.linearRampToValueAtTime(targetGain, context.currentTime + fadeSeconds);
+      this.loopGainTargets.set(cueId, targetGain);
       source.connect(gain);
       if (panner) {
         panner.panningModel = "HRTF";

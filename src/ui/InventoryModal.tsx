@@ -12,7 +12,7 @@ import {
   ChromeAlert
 } from "./chrome/Chrome";
 import { IconFish, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
-import { GameSheet, ItemSlot, Meter } from "./coastal/CoastalUI";
+import { GameSheet, ItemSlot } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 
 interface InventoryModalProps {
@@ -68,9 +68,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortNotice, setSortNotice] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<
-    { item: ItemInspectionDto; anchor: { x: number; y: number } } | null
-  >(null);
+  const [organizeOpen, setOrganizeOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory>("all");
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(() => {
     const firstOccupied = satchel.slots.findIndex((slot) => slot.itemId !== null && slot.quantity > 0);
@@ -115,42 +113,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     ({ slot }) => slot.itemId !== null && slot.quantity > 0
   );
 
-  /**
-   * #17: market value shown ONLY from a price signal already on the DTO slot.
-   * SatchelDto currently carries no price field, so this renders nothing new
-   * (fish keep their demand note) rather than inventing gold.
-   */
-  const selectedMarketValue: number | null = (() => {
-    if (!selectedSlot?.itemId) return null;
-    const priced = selectedSlot as unknown as {
-      unitPrice?: unknown;
-      totalPrice?: unknown;
-      marketValue?: unknown;
-    };
-    if (typeof priced.totalPrice === "number" && Number.isFinite(priced.totalPrice)) {
-      return Math.max(0, Math.round(priced.totalPrice));
+  useEffect(() => {
+    if (!navigableEntries.some(({ index }) => index === selectedSlotIndex)) {
+      setSelectedSlotIndex(navigableEntries[0]?.index ?? null);
     }
-    if (typeof priced.unitPrice === "number" && Number.isFinite(priced.unitPrice)) {
-      return Math.max(0, Math.round(priced.unitPrice * selectedSlot.quantity));
-    }
-    if (typeof priced.marketValue === "number" && Number.isFinite(priced.marketValue)) {
-      return Math.max(0, Math.round(priced.marketValue));
-    }
-    return null;
-  })();
+  }, [searchTerm, activeCategory, satchel, selectedSlotIndex]);
 
-  const showInspectCard = (itemId: string | null, x: number, y: number): void => {
-    if (!itemId || !onInspectItem) return;
-    const item = onInspectItem(itemId);
-    if (!item) return;
-    setHovered({ item, anchor: { x, y } });
-  };
-
-  const moveInspectCard = (x: number, y: number): void => {
-    setHovered((current) => (current ? { ...current, anchor: { x, y } } : current));
-  };
-
-  const hideInspectCard = (): void => setHovered(null);
+  const selectedInspection = selectedSlot?.itemId ? onInspectItem?.(selectedSlot.itemId) : null;
 
   const handleSortSatchel = (): void => {
     const result = onSortSatchel?.();
@@ -240,20 +209,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             <span id="inventory-title" className="modal-heading-with-mark">
               <IconSatchel size={22} aria-hidden="true" /> Satchel
             </span>
+            {/* One capacity readout. The meter beneath said the same thing and
+                was already hidden under the Guildcraft skin. */}
             <span className="inventory-capacity-pill" data-testid="inventory-capacity">
               {satchel.occupiedSlots} / {satchel.totalSlots} Slots
             </span>
           </div>
-
-          <Meter
-            className="inventory-capacity-meter"
-            label="Satchel capacity"
-            value={satchel.occupiedSlots}
-            max={Math.max(1, satchel.totalSlots)}
-            showLabel={false}
-            valueText={`${satchel.occupiedSlots} / ${satchel.totalSlots}`}
-            variant="gold"
-          />
 
           <ChromeClose onClick={onClose} label="Close satchel" />
         </header>
@@ -310,6 +271,21 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
         </div>
 
         <div className="inventory-toolbar">
+          <ChromeButton
+            className="inventory-organize-btn"
+            soundCue="click"
+            data-testid="inventory-organize"
+            aria-expanded={organizeOpen}
+            aria-controls="inventory-organize-tools"
+            onClick={() => setOrganizeOpen((open) => !open)}
+          >
+            Organize
+          </ChromeButton>
+          <div
+            id="inventory-organize-tools"
+            className="inventory-organize-tools"
+            hidden={!organizeOpen}
+          >
           <label className="inventory-search" htmlFor="inventory-search-input">
             <span className="inventory-search-label">Search</span>
             <input
@@ -334,6 +310,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               Tidy
             </ChromeButton>
           )}
+          </div>
         </div>
         {sortNotice && (
           <p className="inventory-sort-notice" role="status" data-testid="inventory-sort-notice">
@@ -354,6 +331,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   }`
                 : `${allSlots.length} slots`}
             </p>
+            {isFilterActive && visibleEntries.length === 0 && <p className="guild-empty-search" role="status">No items match your search.</p>}
             <div
               className="inventory-grid"
               id="inventory-items"
@@ -395,18 +373,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     role="option"
                     aria-selected={isSelected}
                     tabIndex={isSelected ? 0 : -1}
-                    onPointerEnter={(event: React.PointerEvent<HTMLElement>) =>
-                      showInspectCard(slot.itemId, event.clientX, event.clientY)
-                    }
-                    onPointerMove={(event: React.PointerEvent<HTMLElement>) =>
-                      moveInspectCard(event.clientX, event.clientY)
-                    }
-                    onPointerLeave={hideInspectCard}
-                    onFocus={(event: React.FocusEvent<HTMLElement>) => {
-                      const box = event.currentTarget.getBoundingClientRect();
-                      showInspectCard(slot.itemId, box.right, box.top);
-                    }}
-                    onBlur={hideInspectCard}
                   >
                     <AtlasImage
                       src={atlasForItem(slot.itemId) ?? atlasForFish(slot.itemId)}
@@ -420,7 +386,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             </div>
           </div>
 
-          <div className="inventory-details-card">
+          <div className="inventory-details-card" aria-live="polite">
             {selectedSlot?.itemId ? (
               <>
                 <div className="details-header">
@@ -442,14 +408,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 <div className="inventory-selected-strip">
                   <span>{selectedSlot.categoryLabel ?? "item"}</span>
                   <strong>{selectedSlot.quantity} carried</strong>
-                  {selectedMarketValue !== null ? (
-                    <span>Market value ~{selectedMarketValue.toLocaleString()} G</span>
-                  ) : (
-                    selectedSlot.isFish && <span>Market value depends on the catch and current demand</span>
-                  )}
                 </div>
-
-                {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}
 
                 {selectedSlot.cropId && planting?.valid && (
                   <div className="inventory-action-block">
@@ -469,6 +428,17 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     {planting.reason ?? "Planting is not available here"}
                   </ChromeAlert>
                 )}
+
+                {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}
+
+                {/* Agronomy and other numbers are for players who go looking;
+                    the default view answers "what is this and what is it for". */}
+                {selectedInspection && (
+                  <details className="inventory-item-details" data-testid="inventory-item-details">
+                    <summary>Details</summary>
+                    <ItemInspectCard item={selectedInspection} detailsOnly />
+                  </details>
+                )}
               </>
             ) : (
               <div className="details-placeholder">
@@ -479,11 +449,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           </div>
         </div>
 
-        {hovered && <ItemInspectCard item={hovered.item} anchor={hovered.anchor} />}
 
         <footer className="modal-footer">
           {showFooterTip && (
-            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">Arrow keys move through slots · Esc closes</span>
+            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">Pick an item to see what it is for · Organize to search or tidy · Arrow keys move through slots</span>
           )}
           <ChromeButton onClick={onClose}>Close</ChromeButton>
         </footer>

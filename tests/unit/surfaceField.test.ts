@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   attachSurfaceFieldAttributes,
+  withExposedRock,
   SURFACE_FIELD_ATTRIBUTE_NAMES
 } from "../../src/render/materials/SurfaceFieldAttributes";
 import {
@@ -70,6 +71,22 @@ describe("shared world surface field", () => {
           + WorldLayout.roadSurfaceSample(point.x, point.z).surfaceOffsetMeters
       );
     }
+  });
+
+  it("exposes rock without mutating canonical weights or repainting farm and road cores", () => {
+    const canonical = WorldLayout.terrainSurfaceSample(-92, WorldLayout.coastlineZ(-92) - 12);
+    const sample = { ...canonical, farmInfluence: 0, weights: {
+      ...Object.fromEntries(WEIGHT_KEYS.map(key => [key, 0])),
+      grass: 0.6, meadow: 0.2, cliff: 0.2
+    } } as typeof canonical;
+    const original = structuredClone(sample);
+    const exposed = withExposedRock(sample, 0.75);
+    expect(exposed.weights.cliff).toBeCloseTo(0.8);
+    expect(Object.values(exposed.weights).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+    expect(sample).toEqual(original);
+    expect(withExposedRock({ ...sample, farmInfluence: 1 }, 1).weights).toEqual(sample.weights);
+    const road = { ...sample, weights: { ...sample.weights, grass: 0, path: 0.6 } };
+    expect(withExposedRock(road, 1).weights).toEqual(road.weights);
   });
 
   it("packs finite, clamped vec4 attributes at the exact geometry vertex count", () => {

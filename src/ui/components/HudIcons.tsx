@@ -97,6 +97,19 @@ export const IconPin: React.FC<IconProps> = (props) => (
   </Svg>
 );
 
+/**
+ * Faceted waypoint gem, for the objective the story is currently pointing at.
+ * A quest pin has to win against every other mark on the compass ribbon, so
+ * this reads as a solid jewel rather than the neutral pin's outline.
+ */
+export const IconQuest: React.FC<IconProps> = (props) => (
+  <Svg {...props}>
+    <path d="M8 1.5 13.2 8 8 14.5 2.8 8 8 1.5Z" fill="currentColor" />
+    <path d="M8 1.5 13.2 8 8 14.5 2.8 8 8 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+    <path d="M8 3.6 11.4 8 8 12.4 4.6 8 8 3.6Z" fill="#fff" opacity="0.34" />
+  </Svg>
+);
+
 /** Crate, for a physical trade pack carried on the back. */
 export const IconPack: React.FC<IconProps> = (props) => (
   <Svg {...props}>
@@ -170,6 +183,19 @@ export const IconStar: React.FC<IconProps & { filled?: boolean }> = ({ filled = 
   </Svg>
 );
 
+/** Checkmark for completed objectives, ready turns-ins, and achieved milestones. */
+export const IconCheck: React.FC<IconProps> = (props) => (
+  <Svg {...props}>
+    <path
+      d="M3.2 8.4l3.2 3.2 6.4-6.8"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 /** Padlock, for a panel the player has not unlocked yet. */
 export const IconLock: React.FC<IconProps> = (props) => (
   <Svg {...props}>
@@ -219,7 +245,8 @@ export const HUD_ICON_BY_ID = {
   warning: IconWarning,
   energy: IconEnergy,
   satchel: IconSatchel,
-  boat: IconBoat
+  boat: IconBoat,
+  quest: IconQuest
 } as const satisfies Record<string, React.FC<IconProps>>;
 
 export type HudIconName = keyof typeof HUD_ICON_BY_ID;

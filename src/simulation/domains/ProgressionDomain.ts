@@ -1,8 +1,9 @@
 import { getNextRank, getRankForXp } from "../../content/progression";
-import type { GameMinute, SkillId, WorkCapacityState } from "../core/types";
+import type { GameMinute, SkillId, WorkActionId, WorkCapacityState } from "../core/types";
 import type { SkillProgressDto, WorkCostQuote } from "../core/contracts";
 import { formatClockTime } from "../core/GameClock";
 import type { DomainContext } from "./DomainContext";
+import { equipmentWorkMultiplier } from "../equipment/EquipmentEffects";
 
 export const LIVE_WORK_CAPACITY_REGEN_PER_HOUR = 200;
 export const OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR = 100;
@@ -59,9 +60,14 @@ export class ProgressionDomain {
     return Math.max(1, Math.round(baseCost * (1 - discount)));
   }
 
-  public quoteWorkCost(baseCost: number, skill?: SkillId): WorkCostQuote {
+  public quoteWorkCost(baseCost: number, skill?: SkillId, action?: WorkActionId): WorkCostQuote {
     const { state } = this.context;
-    const cost = this.getDiscountedActionCost(baseCost, skill);
+    const neutralCost = this.getDiscountedActionCost(baseCost, skill);
+    const equipmentMultiplier = equipmentWorkMultiplier(state, action);
+    const candidateCost = Math.max(1, Math.round(neutralCost * equipmentMultiplier));
+    const throughputFloor = Math.max(1, Math.ceil((neutralCost * 4) / 5));
+    const cost = Math.max(candidateCost, throughputFloor);
+    const throughputCapLimited = candidateCost < throughputFloor;
     const current = state.player.workCapacity.current;
     const affordable = current >= cost;
     const shortage = Math.max(0, cost - current);
@@ -70,7 +76,14 @@ export class ProgressionDomain {
       : Math.max(1, Math.ceil((shortage / LIVE_WORK_CAPACITY_REGEN_PER_HOUR) * 60));
     return {
       baseCost,
+      neutralCost,
       cost,
+      action: action ?? null,
+      equipmentMultiplier,
+      throughputFloor,
+      equipmentApplied: equipmentMultiplier < 1,
+      roundingLimited: equipmentMultiplier < 1 && candidateCost === neutralCost && !throughputCapLimited,
+      throughputCapLimited,
       availableWork: Math.max(0, Math.floor(current)),
       affordable,
       shortage,
@@ -81,7 +94,8 @@ export class ProgressionDomain {
   public trySpendWork(
     baseCost: number,
     skill: SkillId,
-    actionLabel: string
+    actionLabel: string,
+    action?: WorkActionId
   ): WorkCostQuote & {
     success: boolean;
     remaining: number;
@@ -89,7 +103,7 @@ export class ProgressionDomain {
     reasonCode?: "insufficient-work";
     requiredWork?: number;
   } {
-    const quote = this.quoteWorkCost(baseCost, skill);
+    const quote = this.quoteWorkCost(baseCost, skill, action);
     const { state } = this.context;
     if (!quote.affordable) {
       return this.insufficientWorkResult(quote, actionLabel);
@@ -142,6 +156,16 @@ export class ProgressionDomain {
         minute: state.clock.currentMinute
       });
     }
+  }
+
+  /**
+   * Returns Work to the pool. The only credit path besides regeneration, so
+   * refunds cannot drift from the ceiling or the clamp.
+   */
+  public creditWork(amount: number): void {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const capacity = this.context.state.player.workCapacity;
+    capacity.current = Math.min(capacity.maximum, capacity.current + amount);
   }
 
   public tickWorkCapacity(minutes: number): void {

@@ -1,8 +1,8 @@
 import type { SaveSummary } from "../persistence/IndexedDbSaveRepository";
 
-export type StartupStatus = "title" | "loading" | "error" | "revealing" | "ready";
+export type StartupStatus = "title" | "loading" | "error" | "intro" | "revealing" | "ready";
 
-export type StartupPhase = "waiting" | "save" | "assets" | "world" | "physics" | "complete";
+export type StartupPhase = "waiting" | "save" | "layout" | "assets" | "world" | "physics" | "presentation" | "commit" | "complete";
 export type StartupSaveStatus = "checking" | "available" | "empty" | "corrupt" | "incompatible" | "unavailable";
 export type StartupErrorCode =
   | "save-failed"
@@ -12,6 +12,7 @@ export type StartupErrorCode =
   | "world-failed"
   | "physics-startup-timeout"
   | "physics-failed"
+  | "presentation-startup-timeout"
   | "startup-failed";
 
 export interface StartupState {
@@ -26,6 +27,10 @@ export interface StartupState {
   errorPhase: StartupPhase | null;
   saveStatus: StartupSaveStatus;
   saveSummary: SaveSummary | null;
+  progress?: { kind: "indeterminate" } | { kind: "measured"; completed: number; total: number };
+  slow?: boolean;
+  degradedResources?: readonly string[];
+  recovery?: "reload" | "save";
 }
 
 export const createStartupState = (totalAssets: number): StartupState => ({

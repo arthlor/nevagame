@@ -9,6 +9,7 @@ import bpy
 from common.geometry import (
     add_beam,
     add_box,
+    add_collision_primitives,
     add_cone,
     add_cylinder,
     add_ico,
@@ -37,6 +38,8 @@ def _build_tree_lods(spec: dict, root, builder, reduce_parameters) -> None:
                 child.data.name = f"{child.name}_mesh"
         if spec.get("lodLevels"):
             consolidate_lod_level(lod_root, prefix)
+    # Once, on the asset root: a collider is not a level of detail.
+    add_collision_primitives(spec, root)
 
 
 def _add_secondary_root_spokes(prefix: str, radius: float, height: float, token: str, parent, *, count: int, seed: int) -> None:

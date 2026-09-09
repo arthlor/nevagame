@@ -1,3 +1,4 @@
+import { npcAnchorAt } from "../../src/simulation/presentation/NpcPresentation";
 import { describe, it, expect } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
@@ -189,10 +190,9 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(compostTurnIn.questId).toBe("quest.act2_harvest_and_compost");
     expect(compostTurnIn.isQuestReadyToTurnIn).toBe(true);
     expect(compostTurnIn.objectiveDescription).toBe("Talk to Barnaby to continue");
-    expect(compostTurnIn.targetLocation?.name).toBe("Farmhouse Workbench");
+    expect(compostTurnIn.targetLocation?.name).toBe(npcAnchorAt("npc.barnaby", sim.state.clock).locationName);
 
-    sim.state.player.x = -73.5;
-    sim.state.player.z = -58.8;
+    Object.assign(sim.state.player, { x: compostTurnIn.targetLocation!.x, z: compostTurnIn.targetLocation!.z });
     sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" });
 
     // Should transition to Act 2 Quest 2: Milling & Chum
@@ -228,8 +228,8 @@ describe("QuestDomain & Storyline Progression", () => {
       }
 
       const speaker = ContentRegistry.npcs.get(quest.speakerId)!;
-      sim.state.player.x = speaker.anchor.x;
-      sim.state.player.z = speaker.anchor.z;
+      sim.state.player.x = npcAnchorAt(speaker.id, sim.state.clock).x;
+      sim.state.player.z = npcAnchorAt(speaker.id, sim.state.clock).z;
       // Fund whatever this quest asks for at turn-in. Generic rather than a
       // per-quest special case, so a new commission does not silently make the
       // walk unfinishable — Act 9's charter costs money and cured fish.
@@ -304,8 +304,8 @@ describe("QuestDomain & Storyline Progression", () => {
   it("passes the explicit NPC target through a quest claim command", () => {
     const sim = new Simulation();
     const speaker = ContentRegistry.npcs.get("npc.elspeth")!;
-    sim.state.player.x = speaker.anchor.x;
-    sim.state.player.z = speaker.anchor.z;
+    sim.state.player.x = npcAnchorAt(speaker.id, sim.state.clock).x;
+    sim.state.player.z = npcAnchorAt(speaker.id, sim.state.clock).z;
     mainQuestTrack(sim.state.quests).activeQuestId = "quest.act1_welcome";
     mainQuestTrack(sim.state.quests).activeStepIndex = 0;
     mainQuestTrack(sim.state.quests).stepProgress = { "step.act1_welcome_talk": 1 };

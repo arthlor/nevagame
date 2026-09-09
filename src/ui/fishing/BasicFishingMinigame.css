@@ -2,9 +2,10 @@
 
 .basic-fishing-container {
   position: absolute;
-  right: 48px;
+  left: 50%;
+  right: auto;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   z-index: 120;
   display: flex;
   flex-direction: column;
@@ -17,8 +18,8 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-48%); }
-  to { opacity: 1; transform: translateY(-50%); }
+  from { opacity: 0; transform: translate(-50%, -48%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 /* Cast Power Meter */
@@ -372,7 +373,6 @@
 
 /* Neva field-journal skin for the legacy cast-and-reel encounter. */
 .basic-fishing-container {
-  right: 28px;
   font-family: var(--font-sans);
   color: var(--journal-ink);
 }
@@ -591,8 +591,9 @@
 
 @media (max-width: 768px) {
   .basic-fishing-container {
-    right: 12px;
-    left: 12px;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
   }
 }
 
@@ -651,9 +652,10 @@
 
 /* Active fishing UI treatment: Deep Slate & Gold theme */
 .basic-fishing-container {
-  right: calc(24px + env(safe-area-inset-right));
+  left: 50%;
+  right: auto;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   z-index: 45;
 }
 
@@ -817,8 +819,9 @@
 
 @media (max-width: 760px) {
   .basic-fishing-container {
-    right: var(--ui-safe-right, 14px);
-    left: var(--ui-safe-left, 14px);
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
   }
 
   .cast-power-card,

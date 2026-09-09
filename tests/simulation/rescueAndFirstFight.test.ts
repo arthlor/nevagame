@@ -5,6 +5,7 @@ import { NavigationDomain } from "../../src/simulation/domains/NavigationDomain"
 import { isStarterTeachingSchool } from "../../src/simulation/domains/FishingDomain";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { nearestMooring } from "../../src/world/WorldMoorings";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 function skiffAboardWithNoFuel(sim: Simulation): void {
   expect(sim.prepareDebugSkiffReview()).toBe(true);
@@ -105,6 +106,7 @@ describe("act 5 teaching fight", () => {
 
     sim.state.weather.type = "storm";
     sim.state.weather.seaRoughness = 0.9;
+    armLureForTest(sim);
     const hook = sim.hookSportFish(schoolId);
     expect(hook.success).toBe(true);
     expect(hook.encounter?.seaConditionSnapshot.weatherType).toBe("storm");
@@ -123,6 +125,7 @@ describe("act 5 teaching fight", () => {
 
     sim.state.weather.type = "storm";
     sim.state.weather.seaRoughness = 0.9;
+    armLureForTest(sim);
     const hook = sim.hookSportFish(schoolId);
     expect(hook.success).toBe(true);
     expect(hook.encounter?.seaConditionSnapshot.seaRoughness).toBe(0.9);

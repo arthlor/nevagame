@@ -1,3 +1,4 @@
+import { patchSeasonalTint } from "./SeasonalTint";
 import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { groundCoverWindStrength } from "../scene/groundCoverWind";
@@ -19,7 +20,7 @@ import { paletteTokenForLoadedMaterial } from "./PaletteMaterials";
  * (`batchingMatrix`). Instances therefore stay in a single batch and still
  * shade differently.
  */
-export const VEGETATION_TINT_PROGRAM_CACHE_KEY = "neva-vegetation-instance-tint-v2-wind";
+export const VEGETATION_TINT_PROGRAM_CACHE_KEY = "neva-vegetation-instance-tint-v3-wind-season";
 
 /** Value spread and warm/olive drift, both held inside the authored palette family. */
 export const VEGETATION_TINT_STRENGTH = Object.freeze({
@@ -153,6 +154,7 @@ export function vegetationInstanceTintMaterial(source: THREE.Material, weighted 
   variant.onBeforeCompile = (shader) => {
     const wind = CANONICAL_RENDER_CONFIG.vegetationWind;
     patchVegetationTintShader(shader, weighted);
+    if (tintFoliage) patchSeasonalTint(shader);
     // Wind remains shared across the whole tree, while chromatic variation is
     // restricted to catalog-declared foliage. Bark and other structural
     // materials therefore retain their source/palette color exactly.

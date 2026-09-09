@@ -8,6 +8,9 @@ const ITEM = "item.bait_worms" as ItemId;
 function firstBoat(sim: Simulation): BoatId {
   const id = Object.keys(sim.state.boats)[0];
   expect(id, "the starter save must register a vessel").toBeTruthy();
+  const boat = sim.state.boats[id as BoatId];
+  sim.state.player.x = boat.x;
+  sim.state.player.z = boat.z;
   return id as BoatId;
 }
 
@@ -122,6 +125,28 @@ describe("satchel <-> hold transfer", () => {
     });
     expect(result.success).toBe(false);
     expect(InventoryManager.getItemCount(satchelOf(sim), ITEM)).toBe(4);
+  });
+
+  it("refuses a registered docked vessel when it is outside the live access boundary", () => {
+    const sim = new Simulation();
+    const boatId = firstBoat(sim);
+    stockSatchel(sim, 4);
+    sim.state.player.x = 0;
+    sim.state.player.z = 0;
+    const before = {
+      satchel: structuredClone(satchelOf(sim)),
+      hold: structuredClone(holdOf(sim, boatId)),
+      rng: sim.rng.getState()
+    };
+
+    const result = sim.execute({
+      type: "inventory.transfer", itemId: ITEM, quantity: 1, boatId, direction: "to-hold"
+    });
+
+    expect(result).toMatchObject({ success: false, reasonCode: "boat-out-of-reach" });
+    expect(satchelOf(sim)).toEqual(before.satchel);
+    expect(holdOf(sim, boatId)).toEqual(before.hold);
+    expect(sim.rng.getState()).toBe(before.rng);
   });
 
   it("reports both stores as transfer rows on the ledger", () => {

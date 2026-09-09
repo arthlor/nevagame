@@ -10,7 +10,7 @@ import { playUiSound } from "./audio/uiAudio";
 import type { CommodityQuote, MarketBoardDto, MarketDemandTrendDto } from "../simulation/core/contracts";
 import { MarketDemandTrend } from "./components/MarketDemandTrend";
 
-type MarketLedgerSection = "buy" | "sell" | "hold";
+type MarketLedgerSection = "buy" | "sell" | "hold" | "deliveries";
 
 /** Bulk sales above this gold value require an explicit confirmation step. */
 const BULK_CONFIRM_THRESHOLD_G = 200;
@@ -126,6 +126,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [sellQty, setSellQty] = useState(1);
+  const [selectedBuyId, setSelectedBuyId] = useState<string | null>(null);
+  const [buyQty, setBuyQty] = useState(1);
   const [ledgerSection, setLedgerSection] = useState<MarketLedgerSection>(initialSection);
   const [buySortKey, setBuySortKey] = useState<"name" | "price">("name");
   const [buySortDir, setBuySortDir] = useState<1 | -1>(1);
@@ -140,6 +142,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const selectLedgerSection = (section: MarketLedgerSection) => {
     playUiSound("page-turn");
     setLedgerSection(section);
+    setBuyQty(1);
   };
 
   const fishCargoList = board?.fishRows ?? [];
@@ -181,6 +184,16 @@ export const MarketModal: React.FC<MarketModalProps> = ({
       setSellQty(1);
     }
   }, [ledgerSection, sortedSellables, selectedItemId]);
+
+  const selectedBuy = sortedBuyRows.find((row) => row.itemId === selectedBuyId)
+    ?? sortedBuyRows.find((row) => !row.locked && !row.blockerReason) ?? sortedBuyRows[0] ?? null;
+  const purchaseQuote = activeMarketId && selectedBuy && ledgerSection === "buy"
+    ? onInspectCommodity(activeMarketId, selectedBuy.itemId, "buy", buyQty) : null;
+  const purchaseBlocker = selectedBuy?.blockerReason
+    ?? (!purchaseQuote?.success ? purchaseQuote?.reason ?? "Choose an item" : undefined)
+    ?? (purchaseQuote?.available !== undefined && purchaseQuote.available < buyQty ? "Not enough in stock" : undefined)
+    ?? (purchaseQuote?.affordable === false ? "Not enough gold" : undefined);
+  const purchaseTotal = purchaseQuote?.success ? purchaseQuote.totalPrice : undefined;
 
   const selectedOwned =
     sortedSellables.find((row) => row.itemId === selectedItemId) ?? sortedSellables[0] ?? null;
@@ -260,7 +273,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
       <GameSheet
         ref={modalRef}
         as="div"
-        className="market-trading-modal"
+        className="market-trading-modal" data-section={ledgerSection}
         tone="slate"
         corners
         rivets={false}
@@ -302,7 +315,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             className={`market-ledger-marker ${ledgerSection === "buy" ? "is-active" : ""}`}
             onClick={() => selectLedgerSection("buy")}
           >
-            Wares
+            Buy
           </button>
           <button
             type="button"
@@ -312,9 +325,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             className={`market-ledger-marker ${ledgerSection === "sell" ? "is-active" : ""}`}
             onClick={() => selectLedgerSection("sell")}
           >
-            Your goods
+            Sell
           </button>
-          {activeMarketId === "market.harbor" && (
+          {fishCargoList.length > 0 || activeMarketId === "market.harbor" ? (
             <button
               type="button"
               id="market-section-hold"
@@ -325,13 +338,16 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             >
               Fish hold
             </button>
-          )}
+          ) : null}
+          <button type="button" id="market-section-deliveries" aria-current={ledgerSection === "deliveries" ? "page" : undefined}
+            aria-controls="market-contracts-title" className={`market-ledger-marker ${ledgerSection === "deliveries" ? "is-active" : ""}`}
+            onClick={() => selectLedgerSection("deliveries")}>Deliveries{activeContracts.length > 0 ? ` (${activeContracts.length})` : ""}</button>
         </nav>
 
         <ChromeDivider ornate={false} />
 
-        <div
-          className={`market-modal-grid${ledgerSection !== "sell" ? " is-single" : ""}`}
+        {ledgerSection !== "deliveries" && <div
+          className={`market-modal-grid${ledgerSection === "hold" ? " is-single" : ""}`}
         >
           <section
             className="market-left-panel"
@@ -339,98 +355,26 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             aria-labelledby={`market-section-${ledgerSection}`}
             tabIndex={0}
           >
-            {ledgerSection === "buy" && activeMarketId === "market.village" && (
+            {ledgerSection === "buy" && (<>
               <div className="market-seeds-section">
-                <h3 className="section-title">
-                  <IconSprout size={15} aria-hidden="true" /> Crop Seeds & Supplies
-                </h3>
-                <SortToggles
-                  ariaLabel="Sort wares"
-                  options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }]}
-                  activeKey={buySortKey}
-                  direction={buySortDir}
-                  onSelect={(key) => {
-                    playUiSound("click");
+                <SortToggles ariaLabel="Sort wares" options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }]}
+                  activeKey={buySortKey} direction={buySortDir} onSelect={(key) => {
                     if (key === buySortKey) setBuySortDir(buySortDir === 1 ? -1 : 1);
                     else { setBuySortKey(key); setBuySortDir(1); }
-                  }}
-                />
-                <div className="seed-stall-list">
-                  {sortedBuyRows.map((row) => {
-                    const unitPrice = row.quote.unitPrice ?? 0;
-                    return (
-                      <div className="seed-stall-card" key={row.itemId} title={row.description}>
-                        <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(row.itemId)} alt="" size={32} />
-                          <div>
-                            <strong>{row.name}</strong>
-                            <span className="seed-meta-sub">
-                              {row.locked ? row.blockerReason : `${row.owned} in satchel`}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="seed-card-actions">
-                          <ChromeButton
-                            size="sm"
-                            className="seed-buy-btn"
-                            soundCue="coins"
-                            disabled={row.disabled}
-                            title={row.blockerReason}
-                            onClick={() => onBuySeed(activeMarketId, row.itemId, 1)}
-                          >
-                            {row.blockerReason ?? `Buy 1 · ${unitPrice} G`}
-                          </ChromeButton>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  }} />
+                <div className="guild-wares-list" aria-label="Items for sale">
+                  {sortedBuyRows.map((row) => <button type="button" key={row.itemId}
+                    className={`guild-ware-row ${selectedBuy?.itemId === row.itemId ? "is-selected" : ""} ${row.locked ? "is-locked" : ""}`}
+                    aria-pressed={selectedBuy?.itemId === row.itemId} aria-label={`Select ${row.name}`}
+                    onClick={() => { playUiSound("click"); setSelectedBuyId(row.itemId); setBuyQty(1); }}>
+                    <AtlasImage src={atlasForItem(row.itemId)} size={52} aria-hidden="true" />
+                    <span><strong>{row.name}</strong><small>{row.blockerReason ?? `${row.owned} in satchel`}</small></span>
+                    <strong className="guild-ware-price">{row.quote.unitPrice ?? "—"} G</strong>
+                  </button>)}
+                  {sortedBuyRows.length === 0 && <p className="no-cargo-card">No wares are available at this counter.</p>}
                 </div>
               </div>
-            )}
-
-            {ledgerSection === "buy" && activeMarketId === "market.harbor" && (
-              <>
-              <div className="market-seeds-section">
-                <h3 className="section-title">Harbor Supplies</h3>
-                <SortToggles
-                  ariaLabel="Sort harbor supplies"
-                  options={[{ key: "name", label: "Name" }, { key: "price", label: "Price" }]}
-                  activeKey={buySortKey}
-                  direction={buySortDir}
-                  onSelect={(key) => {
-                    playUiSound("click");
-                    if (key === buySortKey) setBuySortDir(buySortDir === 1 ? -1 : 1);
-                    else { setBuySortKey(key); setBuySortDir(1); }
-                  }}
-                />
-                <div className="seed-stall-list">
-                  {sortedBuyRows.map((row) => {
-                    return (
-                      <div className="seed-stall-card" key={row.itemId} title={row.description}>
-                        <div className="seed-card-meta">
-                          <AtlasImage src={atlasForItem(row.itemId)} alt="" size={32} />
-                          <div>
-                            <strong>{row.name}</strong>
-                            <span className="seed-meta-sub">{row.owned} in satchel</span>
-                          </div>
-                        </div>
-                        <div className="seed-card-actions">
-                          <ChromeButton
-                            size="sm"
-                            className="seed-buy-btn"
-                            soundCue="coins"
-                            disabled={row.disabled}
-                            title={row.blockerReason}
-                            onClick={() => onBuyItem(activeMarketId, row.itemId, 1)}
-                          >
-                            {row.blockerReason ?? `Buy 1 · ${row.quote.unitPrice ?? 0} G`}
-                          </ChromeButton>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              {board.rodRows.length > 0 &&
               <div className="market-seeds-section" data-testid="harbor-tackle-shop">
                 <h3 className="section-title"><IconFish size={15} aria-hidden="true" /> Tackle</h3>
                 <div className="seed-stall-list">
@@ -459,7 +403,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                               size="sm"
                               disabled={!rod.equippable}
                               title={rod.blockerReason}
-                              onClick={() => onEquipRod(activeMarketId, rod.rodId)}
+                              onClick={() => onEquipRod(board.marketId, rod.rodId)}
                             >
                               {rod.blockerReason ?? "Equip"}
                             </ChromeButton>
@@ -471,7 +415,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                               soundCue="coins"
                               disabled={!rod.purchasable}
                               title={rod.blockerReason}
-                              onClick={() => onBuyRod(activeMarketId, rod.rodId)}
+                              onClick={() => onBuyRod(board.marketId, rod.rodId)}
                             >
                               {rod.blockerReason ?? `Buy & equip · ${rod.costMoney} G`}
                             </ChromeButton>
@@ -481,7 +425,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     );
                   })}
                 </div>
-              </div>
+              </div>}
               </>
             )}
 
@@ -589,7 +533,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             </div>
             )}
 
-            {ledgerSection === "hold" && activeMarketId === "market.harbor" && (
+            {ledgerSection === "hold" && (
               <div className="market-fish-cargo-section">
                 <div className="market-section-header-row">
                   <h3 className="section-title">
@@ -745,6 +689,40 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             )}
           </section>
 
+          {ledgerSection === "buy" && <aside className="market-right-panel">
+            {selectedBuy && <div className="guild-purchase-ticket" data-testid="market-buy-ticket">
+              <div className="guild-ticket-illustration"><AtlasImage src={atlasForItem(selectedBuy.itemId)} size={136} aria-hidden="true" /></div>
+              <h3>{selectedBuy.name}</h3><p>{selectedBuy.description}</p>
+              <dl className="guild-ticket-facts"><div><dt>Unit price</dt><dd>{purchaseQuote?.unitPrice ?? "—"} G</dd></div>
+                <div><dt>In satchel</dt><dd>{selectedBuy.owned}</dd></div></dl>
+              <div className="market-qty-stepper" data-testid="market-buy-qty">
+                <ChromeButton size="sm" aria-label="Buy fewer" disabled={buyQty <= 1} onClick={() => setBuyQty((n) => Math.max(1, n - 1))}>−</ChromeButton>
+                <input type="number" min={1} step={1} value={buyQty} aria-label="Quantity to buy" className="market-qty-input"
+                  onChange={(event) => { const n = Number(event.target.value); if (Number.isSafeInteger(n) && n >= 1) setBuyQty(n); }} />
+                <ChromeButton size="sm" aria-label="Buy more" disabled={buyQty >= Number.MAX_SAFE_INTEGER || (purchaseQuote?.available !== undefined && buyQty >= purchaseQuote.available)}
+                  onClick={() => setBuyQty((n) => n + 1)}>+</ChromeButton>
+              </div>
+              <div className="market-quick-qty-pills">
+                <button type="button" className={`market-quick-pill ${buyQty === 1 ? "is-active" : ""}`} onClick={() => setBuyQty(1)}>1</button>
+                <button type="button" className={`market-quick-pill ${buyQty === 5 ? "is-active" : ""}`} onClick={() => setBuyQty(5)}>5</button>
+                <button type="button" className={`market-quick-pill ${buyQty === 10 ? "is-active" : ""}`} onClick={() => setBuyQty(10)}>10</button>
+                {purchaseQuote?.available !== undefined && purchaseQuote.available > 0 && (
+                  <button type="button" className={`market-quick-pill ${buyQty === purchaseQuote.available ? "is-active" : ""}`} onClick={() => setBuyQty(purchaseQuote.available!)}>Max</button>
+                )}
+              </div>
+              <div className="guild-purchase-total">Total <strong data-testid="market-buy-total">{purchaseTotal?.toLocaleString() ?? "—"} G</strong></div>
+              {purchaseBlocker && <p className="guild-trade-blocker" role="status">{purchaseBlocker}</p>}
+              <ChromeButton variant="gold" soundCue="coins" data-testid="market-buy-confirm" disabled={!!purchaseBlocker || purchaseTotal === undefined}
+                onClick={() => {
+                  if (!activeMarketId || purchaseBlocker) return;
+                  if (selectedBuy.kind === "seed") onBuySeed(activeMarketId, selectedBuy.itemId, buyQty);
+                  else onBuyItem(activeMarketId, selectedBuy.itemId, buyQty);
+                }}>Buy {buyQty}</ChromeButton>
+              <span className="guild-ticket-destination">To your satchel</span>
+              {purchaseTotal !== undefined && purchaseQuote?.affordable !== false && <p className="guild-remaining-purse">Remaining purse <strong>{(board.money - purchaseTotal).toLocaleString()} G</strong></p>}
+            </div>}
+          </aside>}
+
           {ledgerSection === "sell" && (
           <aside className="market-right-panel">
             {selectedOwned && ticketPrice?.success && ticketPrice.unitPrice != null ? (
@@ -815,6 +793,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       Max
                     </ChromeButton>
                   </div>
+                  <div className="market-quick-qty-pills">
+                    <button type="button" className={`market-quick-pill ${clampedQty === 1 ? "is-active" : ""}`} onClick={() => setSellQty(1)}>1</button>
+                    {ownedCount >= 5 && <button type="button" className={`market-quick-pill ${clampedQty === 5 ? "is-active" : ""}`} onClick={() => setSellQty(5)}>5</button>}
+                    {ownedCount >= 10 && <button type="button" className={`market-quick-pill ${clampedQty === Math.floor(ownedCount / 2) ? "is-active" : ""}`} onClick={() => setSellQty(Math.floor(ownedCount / 2))}>Half</button>}
+                    <button type="button" className={`market-quick-pill ${clampedQty === ownedCount ? "is-active" : ""}`} onClick={() => setSellQty(ownedCount)}>All</button>
+                  </div>
                   <div className="market-ticket-live">
                     You receive <strong>{liveGold.toLocaleString()} G</strong>
                   </div>
@@ -847,13 +831,14 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               )}
           </aside>
           )}
-        </div>
+        </div>}
 
-        {activeContracts.length > 0 && (
+        {ledgerSection === "deliveries" && (
           <section className="market-contracts-footer" aria-labelledby="market-contracts-title">
             <h3 id="market-contracts-title" className="section-title">
               <IconJournal size={15} aria-hidden="true" /> Posted orders
             </h3>
+            {activeContracts.length === 0 && <p className="guild-empty-orders">No active orders to deliver at this counter.</p>}
             <div className="active-contracts-list">
               {activeContracts.map((contract) => (
                 <article key={contract.contractId} className="contract-mini-card">

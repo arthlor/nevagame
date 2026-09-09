@@ -1,9 +1,9 @@
+import { ContentRegistry } from "../content/ContentRegistry";
+import { buildWorldAudio } from "../simulation/presentation/WorldAudioPresentation";
 import type { SportFishingPresentationSample } from "../render/fishing/FishingPresentation";
 import type { EventBus } from "../simulation/core/EventBus";
-import type { GameMode, WeatherTag } from "../simulation/core/types";
-import { WorldLayout } from "../world/WorldLayout";
-import { WORLD_AMBIENCE_PROFILES } from "../world/WorldGameplayLocations";
-import { gameAudio, type AudioBedId } from "./AudioManager";
+import type { ClockState, GameMode, WeatherTag } from "../simulation/core/types";
+import { gameAudio } from "./AudioManager";
 
 interface AudioPosition {
   x: number;
@@ -11,33 +11,13 @@ interface AudioPosition {
   z: number;
 }
 
-const bedForPlayer = (x: number, z: number, mode: GameMode): AudioBedId => {
-  if (WorldLayout.isInterior(x, z)) {
-    return "interior";
-  }
-  if (mode === "boat-driving" || WorldLayout.isWater(x, z)) {
-    return "water";
-  }
-  const region = WorldLayout.regionAt(x, z);
-  const profile = WORLD_AMBIENCE_PROFILES.find((candidate) => candidate.regionId === region);
-  if (profile?.islandId === "island.sunreach") {
-    if (profile.harborGain >= 0.5 || profile.surfGain >= 0.55) return "coast";
-    if (profile.insectsGain >= 0.4) return "farm";
-    return "coast";
-  }
-  if (region === "region.coast") {
-    return "coast";
-  }
-  if (region === "region.village") {
-    return "village";
-  }
-  return "farm";
-};
-
 export const syncWorldAudio = (input: {
   position: AudioPosition;
   mode: GameMode;
   weather: WeatherTag;
+  clock: Pick<ClockState, "timeOfDay">;
+  icedCargoIds?: string[];
+  windmill?: { position: AudioPosition; gain: number };
   paused?: boolean;
   boat?: { throttle: number; x: number; y: number; z: number; isSkiff?: boolean };
   fishing?: {
@@ -48,7 +28,13 @@ export const syncWorldAudio = (input: {
     presentation?: Readonly<SportFishingPresentationSample>;
   };
 }): void => {
-  gameAudio.setWorldContext(bedForPlayer(input.position.x, input.position.z, input.mode), input.weather);
+  const presentation = buildWorldAudio(input.position, input.mode, input.clock);
+  gameAudio.setWorldContext(presentation.bed, input.weather, presentation);
+  gameAudio.setActionLoop("windmill", !input.paused && Boolean(input.windmill), input.windmill?.position, input.windmill?.gain ?? 0);
+  if (input.icedCargoIds) {
+    if (!input.paused && lastIcedCargoIds && input.icedCargoIds.some((id) => !lastIcedCargoIds!.has(id))) gameAudio.playOneShot("ice-shovel");
+    lastIcedCargoIds = new Set(input.icedCargoIds);
+  }
   const boatMoving = Boolean(input.boat && Math.abs(input.boat.throttle) > 0.12);
   const isSkiff = Boolean(input.boat?.isSkiff);
   gameAudio.setActionLoop(
@@ -85,6 +71,7 @@ export const syncWorldAudio = (input: {
 };
 
 const lastPlayed = new Map<string, number>();
+let lastIcedCargoIds: Set<string> | null = null;
 let lastSportInstance: string | null = null;
 let lastSurfaceCrossings = 0;
 
@@ -97,18 +84,29 @@ const playCooled = (cueId: Parameters<typeof gameAudio.playOneShot>[0], cooldown
 };
 
 export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPosition | undefined): () => void => {
+  lastIcedCargoIds = null;
   const play = (cueId: Parameters<typeof gameAudio.playOneShot>[0]): void => {
     gameAudio.playOneShot(cueId, getPosition());
   };
   const disposers = [
     events.on("CropPlanted", () => play("hoe-till")),
     events.on("CropWatered", () => play("watering")),
-    events.on("CropHarvested", () => {
+    events.on("CropHarvested", ({ cropId }) => {
+      if (cropId === "crop.apple_tree") play("apple-drop");
       play("harvest-cut");
       play("crop-rustle");
     }),
-    events.on("RecipeStarted", () => play("wood-saw")),
+    events.on("RecipeStarted", ({ recipeId }) => {
+      const recipe = ContentRegistry.recipes.get(recipeId);
+      if (recipe?.presentationKind === "tailoring") play("craft-tailor");
+      else if (recipe?.presentationKind === "toolmaking") play("craft-tool");
+      else play(recipe?.stationType === "fish-table" ? "fish-scale-scrape" : "wood-saw");
+    }),
+    events.on("ProcessingJobReady", () => play("craft-ready")),
     events.on("RecipeCompleted", () => play("ui-confirm")),
+    events.on("EquipmentEquipped", () => play("equipment-equip")),
+    events.on("EquipmentPresetApplied", () => play("equipment-equip")),
+    events.on("EquipmentPresetSaved", () => play("ui-confirm")),
     events.on("FishSchoolChummed", () => gameAudio.playBank("splash", getPosition())),
     events.on("BasicFishingStarted", () => play("fishing-cast")),
     events.on("BasicFishingBiteAlert", () => play("fishing-bite")),

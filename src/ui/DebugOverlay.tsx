@@ -38,6 +38,8 @@ export interface DebugCharacterDiagnostics {
   animationClip: string;
   actionTargetX: number | null;
   actionTargetZ: number | null;
+  /** Fixed movement steps delivered so far; the pacing signal for automated traversal. */
+  physicsStepCount: number;
 }
 
 interface DebugOverlayProps {
@@ -96,6 +98,7 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
       data-player-speed={character.speedMetersPerSecond.toFixed(4)}
       data-player-acceleration={character.accelerationMetersPerSecondSquared.toFixed(4)}
       data-player-collision-blocked={String(character.collisionBlocked)}
+      data-physics-steps={String(character.physicsStepCount)}
       data-player-requested-gait={character.requestedGait}
       data-player-animation={character.animationClip}
       data-action-target-x={character.actionTargetX?.toFixed(4) ?? "none"}

@@ -1,6 +1,7 @@
+import { buildEndgameRecordTracker } from "./WorldGuidancePresentation";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
-import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
+import { LURE_ITEM_ID, accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 import { resolveCargoHasIce } from "../fishing/calculateFreshness";
 import { PLAYER_TRAVERSAL_TUNING, carriedLoadPenaltyPercent } from "../navigation/PlayerTraversal";
 import type {
@@ -15,6 +16,7 @@ import type {
   HudIconId
 } from "../core/contracts";
 import type { FishCargoState, FishSchoolState, GameState } from "../core/types";
+import type { ActiveQuestDto } from "../core/QuestTypes";
 import { dayOfSeason } from "../core/GameClock";
 import { WorldLayout } from "../../world/WorldLayout";
 import { findFarmIdAtWorld } from "../../world/FarmLayout";
@@ -72,18 +74,74 @@ export function detectContextualStance(state: GameState): ContextualStanceId {
   return "explorer";
 }
 
-export function buildCompassMarkers(state: GameState, headingDeg: number): CompassMarkerDto[] {
+/** How many marks the compass ribbon and minimap will carry at once. */
+const COMPASS_MARKER_LIMIT = 8;
+
+/**
+ * A chart node this close to a quest target is the same place by another name
+ * — the village market is both `chart.neva_village` and, during Act 3, the
+ * objective. Drawing both puts two marks on one bearing, so the chart node
+ * yields to the quest pin.
+ */
+const QUEST_MARKER_SUPPRESSION_METERS = 6;
+
+function relativeBearing(dx: number, dz: number, headingDeg: number): number {
+  const worldAngleDeg = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
+  return ((worldAngleDeg - headingDeg + 540) % 360) - 180;
+}
+
+/**
+ * Compass marks for the HUD ribbon, the minimap and the chart.
+ *
+ * Quest marks are built first and are never distance-culled or truncated: the
+ * objective may sit on the far island, and a pin that vanishes past 350 m is
+ * worse than no pin at all because the player learns not to trust it. Chart
+ * nodes and fish schools then fill whatever room is left, nearest first.
+ */
+export function buildCompassMarkers(
+  state: GameState,
+  headingDeg: number,
+  activeQuests: readonly ActiveQuestDto[] = []
+): CompassMarkerDto[] {
   const { player } = state;
   const markers: CompassMarkerDto[] = [];
+  const questMarkers: CompassMarkerDto[] = [];
+
+  // `getActiveQuestDtos` returns the focused track first, so the first quest
+  // carrying a location is the one the tracker is pointing at.
+  let isFocusedQuest = true;
+  for (const quest of activeQuests) {
+    const target = quest.targetLocation;
+    if (!target) continue;
+    const dx = target.x - player.x;
+    const dz = target.z - player.z;
+    const dist = Math.hypot(dx, dz);
+    questMarkers.push({
+      id: `quest.${quest.trackId}`,
+      type: isFocusedQuest ? "quest" : "quest-secondary",
+      kind: isFocusedQuest ? "quest" : "quest-secondary",
+      x: target.x,
+      z: target.z,
+      label: target.name,
+      icon: isFocusedQuest ? "quest" : "pin",
+      distanceMeters: Math.round(dist),
+      relativeBearingDeg: Math.round(relativeBearing(dx, dz, headingDeg)),
+      inRange: dist <= 150
+    });
+    isFocusedQuest = false;
+  }
+
+  const suppressedByQuest = (x: number, z: number): boolean =>
+    questMarkers.some(
+      (marker) => Math.hypot(marker.x - x, marker.z - z) <= QUEST_MARKER_SUPPRESSION_METERS
+    );
 
   for (const node of WORLD_CHART_NODES) {
     const dx = node.position.x - player.x;
     const dz = node.position.z - player.z;
     const dist = Math.hypot(dx, dz);
     if (dist > 350) continue;
-
-    const worldAngleDeg = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
-    const relativeBearingDeg = ((worldAngleDeg - headingDeg + 540) % 360) - 180;
+    if (suppressedByQuest(node.position.x, node.position.z)) continue;
 
     let icon: HudIconId = "pin";
     if (node.kind === "farm") icon = "sprout";
@@ -95,13 +153,13 @@ export function buildCompassMarkers(state: GameState, headingDeg: number): Compa
     markers.push({
       id: node.id,
       type: node.kind,
-      kind: node.kind as any,
+      kind: node.kind,
       x: node.position.x,
       z: node.position.z,
       label: node.label,
       icon,
       distanceMeters: Math.round(dist),
-      relativeBearingDeg: Math.round(relativeBearingDeg),
+      relativeBearingDeg: Math.round(relativeBearing(dx, dz, headingDeg)),
       inRange: dist <= 150
     });
   }
@@ -114,8 +172,6 @@ export function buildCompassMarkers(state: GameState, headingDeg: number): Compa
       const dz = school.z - player.z;
       const dist = Math.hypot(dx, dz);
       if (dist <= 250) {
-        const worldAngleDeg = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
-        const relativeBearingDeg = ((worldAngleDeg - headingDeg + 540) % 360) - 180;
         markers.push({
           id: `school.${id}`,
           type: "fish-school",
@@ -125,7 +181,7 @@ export function buildCompassMarkers(state: GameState, headingDeg: number): Compa
           label: "Fish School",
           icon: "fish",
           distanceMeters: Math.round(dist),
-          relativeBearingDeg: Math.round(relativeBearingDeg),
+          relativeBearingDeg: Math.round(relativeBearing(dx, dz, headingDeg)),
           inRange: dist <= 150
         });
       }
@@ -133,7 +189,10 @@ export function buildCompassMarkers(state: GameState, headingDeg: number): Compa
   }
 
   markers.sort((a, b) => a.distanceMeters - b.distanceMeters);
-  return markers.slice(0, 8);
+  return [
+    ...questMarkers,
+    ...markers.slice(0, Math.max(0, COMPASS_MARKER_LIMIT - questMarkers.length))
+  ];
 }
 
 export function buildStatusChips(state: GameState): HudStatusChipDto[] {
@@ -204,11 +263,23 @@ export function buildHudContracts(state: GameState): HudContractDto[] {
   return result;
 }
 
+/**
+ * The tool belt only earns its place on screen when there is something to swap.
+ *
+ * Every slot here must be a tool the player holds or arms. Panel shortcuts do
+ * not belong on the belt: the bottom-right micro-menu already carries Satchel,
+ * Journal, Chart, Ledger and the expedition board, and duplicating them left the
+ * explorer stance a second copy of a menu that was visible at the same moment.
+ * So `explorer` returns nothing, and the fishing stances keep one hold shortcut
+ * rather than three sockets that all opened the ledger.
+ */
 export function buildContextualHotbar(
   state: GameState,
   stance: ContextualStanceId,
   selectedCropId: string | null
 ): ContextualHotbarSlotDto[] {
+  if (stance === "explorer") return [];
+
   const { player } = state;
   const inventory = state.inventories[player.inventoryId];
   const countOf = (itemId: string): number =>
@@ -224,12 +295,13 @@ export function buildContextualHotbar(
   }
   const seedName = armedCrop && armedSeeds > 0 ? armedCrop.name : fallbackCropName;
   const bait = accessibleFishingSupplyCount(state, BAIT_ITEM_ID);
-  const lureCount = accessibleFishingSupplyCount(state, "item.basic_lure");
+  const lureCount = accessibleFishingSupplyCount(state, LURE_ITEM_ID);
+  const lureName = ContentRegistry.items.get(LURE_ITEM_ID)?.name ?? "Woven Lure";
+  const lurePrepared = player.preparedLureItemId === LURE_ITEM_ID;
   const fertilizerCount = countOf("item.basic_fertilizer");
   const rod = ContentRegistry.rods.get(player.equippedRodId);
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDefinition = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
-  const carriedFishState = player.carriedFishCargoId ? state.fishCargo[player.carriedFishCargoId] : null;
   const rodSlot = {
     id: "tool.rod",
     action: { type: "equip-tool", tool: "fishing-rod" },
@@ -242,12 +314,18 @@ export function buildContextualHotbar(
   const lureSlot = {
     id: "tool.tackle",
     action: { type: "input", action: "fishing.toggle-lure" },
-    name: "Lure & Tackle",
-    detail: player.preparedLureItemId ? "Put away prepared lure" : lureCount > 0 ? "Prepare a lure" : "No lure",
+    name: lureName,
+    detail: lurePrepared
+      ? lureCount > 0
+        ? `${lureName} armed · put away`
+        : `${lureName} out of reach · return to supplies or put away`
+      : lureCount > 0
+        ? "Required for sport fishing · prepare"
+        : `No ${lureName} · craft or buy one`,
     icon: "lure",
     quantity: lureCount > 0 ? lureCount : null,
-    ready: Boolean(player.preparedLureItemId) || lureCount > 0,
-    active: Boolean(player.preparedLureItemId)
+    ready: lurePrepared || lureCount > 0,
+    active: lurePrepared
   } satisfies Omit<ContextualHotbarSlotDto, "slot" | "shortcutKey">;
 
   switch (stance) {
@@ -290,22 +368,10 @@ export function buildContextualHotbar(
         { ...rodSlot, slot: 1, shortcutKey: "1" },
         { ...lureSlot, slot: 2, shortcutKey: "2" },
         {
-          slot: 3, shortcutKey: "3", id: "tool.chum",
-          action: { type: "input", action: "open-ledger" },
-          name: "Bait Bucket", detail: bait > 0 ? `Earthworms (${bait}) · Manage supplies` : "Manage fishing supplies",
-          icon: "bait", quantity: bait > 0 ? bait : null, ready: true
-        },
-        {
-          slot: 4, shortcutKey: "4", id: "tool.keepnet",
-          action: { type: "input", action: "open-ledger" },
-          name: "Keepnet / Hold",
-          detail: carriedFishState ? `Carrying ${ContentRegistry.fishSpecies.get(carriedFishState.speciesId)?.name ?? "a fish"}` : "Inspect catch and storage",
-          icon: "fish", quantity: carriedFishState ? 1 : null, ready: true
-        },
-        {
-          slot: 5, shortcutKey: "5", id: "tool.stow_rod",
+          slot: 3, shortcutKey: "3", id: "tool.stow_rod",
           action: { type: "equip-tool", tool: "hands" },
-          name: "Stow Gear", detail: "Put away the fishing rod",
+          name: "Stow Gear",
+          detail: bait > 0 ? `Put away the rod · Earthworms (${bait})` : "Put away the fishing rod",
           icon: "stow", quantity: null, ready: true
         }
       ];
@@ -314,80 +380,38 @@ export function buildContextualHotbar(
         {
           slot: 1, shortcutKey: "1", id: "maritime.helm",
           action: { type: "equip-tool", tool: "hands" },
-          name: "Vessel Helm", detail: `Steer ${boatDefinition?.name ?? "boat"}`,
+          name: "Take the Helm", detail: `Stow gear and steer ${boatDefinition?.name ?? "the boat"}`,
           icon: "helm", quantity: null, ready: true
         },
         { ...rodSlot, slot: 2, shortcutKey: "2" },
         { ...lureSlot, slot: 3, shortcutKey: "3" },
         {
-          slot: 4, shortcutKey: "4", id: "maritime.supplies",
-          action: { type: "input", action: "open-ledger" },
-          name: "Vessel Supplies", detail: "Manage bait, ice and supplies",
-          icon: "hold", quantity: null, ready: true
-        },
-        {
-          slot: 5, shortcutKey: "5", id: "maritime.cargo",
+          slot: 4, shortcutKey: "4", id: "maritime.cargo",
           action: { type: "input", action: "open-ledger" },
           name: "Cargo Hold",
-          detail: activeBoat ? `Hold ${activeBoat.fishCargoSlotIds.filter(Boolean).length}/${activeBoat.fishCargoSlotIds.length}` : "Inspect storage",
-          icon: "hold", quantity: activeBoat ? activeBoat.fishCargoSlotIds.filter(Boolean).length : null, ready: true
-        }
-      ];
-    case "explorer":
-      return [
-        {
-          slot: 1, shortcutKey: "1", id: "explorer.satchel",
-          action: { type: "input", action: "open-inventory" },
-          name: "Satchel [I]", detail: "Open satchel inventory",
-          icon: "satchel", quantity: null, ready: true
-        },
-        {
-          slot: 2, shortcutKey: "2", id: "explorer.chart",
-          action: { type: "input", action: "open-map" },
-          name: "Nautical Chart [M]", detail: "Consult navigational map",
-          icon: "map", quantity: null, ready: true
-        },
-        {
-          slot: 3, shortcutKey: "3", id: "explorer.expedition",
-          action: { type: "input", action: "open-planning" },
-          name: "Expedition Board [P]", detail: "Plan supplies and a return route",
-          icon: "map", quantity: null, ready: state.quests.unlockedFeatureIds.includes("feature.expedition_planner")
-        },
-        {
-          slot: 4, shortcutKey: "4", id: "explorer.stores",
-          action: { type: "input", action: "open-ledger" },
-          name: "Hold & Stores [L]", detail: "Inspect catch and stored supplies",
-          icon: "hold", quantity: null, ready: true
-        },
-        {
-          slot: 5, shortcutKey: "5", id: "explorer.journal",
-          action: { type: "input", action: "open-journal" },
-          name: "Field Journal [J]", detail: "Open journal and quests",
-          icon: "journal", quantity: null, ready: true
+          detail: activeBoat
+            ? `Hold ${activeBoat.fishCargoSlotIds.filter(Boolean).length}/${activeBoat.fishCargoSlotIds.length} · Bait, ice and supplies`
+            : "Inspect storage and supplies",
+          icon: "hold",
+          quantity: activeBoat ? activeBoat.fishCargoSlotIds.filter(Boolean).length : null,
+          ready: true
         }
       ];
   }
 }
 
-export function buildWorldHudDto(state: GameState, selectedCropId: string | null = null): WorldHudDto {
+export function buildWorldHudDto(
+  state: GameState,
+  selectedCropId: string | null = null,
+  activeQuests: readonly ActiveQuestDto[] = []
+): WorldHudDto {
   const { clock, player, weather } = state;
   const inventory = state.inventories[player.inventoryId];
-  const countOf = (itemId: string): number =>
-    inventory ? InventoryManager.getItemCount(inventory, itemId) : 0;
-  const armedCrop = selectedCropId ? ContentRegistry.crops.get(selectedCropId) : undefined;
-  const armedSeeds = armedCrop ? countOf(armedCrop.seedItemId) : 0;
-  let seedTotal = 0;
-  let fallbackCropName: string | null = null;
-  for (const crop of ContentRegistry.crops.values()) {
-    const held = countOf(crop.seedItemId);
-    seedTotal += held;
-    if (held > 0 && !fallbackCropName) fallbackCropName = crop.name;
-  }
-  const seedName = armedCrop && armedSeeds > 0 ? armedCrop.name : fallbackCropName;
-  const bait = countOf(BAIT_ITEM_ID);
-  const rod = ContentRegistry.rods.get(player.equippedRodId);
-  const sprintCurrent = player.traversal.sprintStamina;
   const sprintMaximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;
+  const sprintCurrent = Math.max(
+    0,
+    Math.min(sprintMaximum, Math.round(player.traversal.sprintStamina))
+  );
   const showSprint =
     !player.activeBoatId &&
     !player.activeMountId &&
@@ -419,7 +443,7 @@ export function buildWorldHudDto(state: GameState, selectedCropId: string | null
   const headingCardinal = getHeadingCardinal(headingDegrees);
   const regionLabel =
     (WORLD_REGION_LABELS as Readonly<Record<string, string>>)[player.currentRegionId] ?? "Open Waters";
-  const compassMarkers = buildCompassMarkers(state, headingDegrees);
+  const compassMarkers = buildCompassMarkers(state, headingDegrees, activeQuests);
 
   // Status effects
   const statusEffects = buildStatusChips(state);
@@ -517,13 +541,6 @@ export function buildWorldHudDto(state: GameState, selectedCropId: string | null
           exhausted: player.traversal.sprintExhausted
         }
       : null,
-    hotbar: [
-      { slot: 1, detail: "Till and harvest", quantity: null, ready: true },
-      { slot: 2, detail: seedName ?? "No seeds", quantity: seedTotal > 0 ? seedTotal : null, ready: seedTotal > 0 },
-      { slot: 3, detail: "Water crops", quantity: null, ready: true },
-      { slot: 4, detail: bait > 0 ? "Earthworms" : "Empty", quantity: bait > 0 ? bait : null, ready: bait > 0 },
-      { slot: 5, detail: rod?.name ?? "No rod", quantity: null, ready: Boolean(rod) }
-    ],
     equippedRodId: player.equippedRodId,
     carriedFish: carriedFishState ? buildCargoPresentation(carriedFishState) : null,
     boat: boatDto,
@@ -542,6 +559,7 @@ export function buildWorldHudDto(state: GameState, selectedCropId: string | null
     statusEffects,
     capacity,
     activeContracts,
+    recordTracker: buildEndgameRecordTracker(state),
     contextualHotbar
   };
 }

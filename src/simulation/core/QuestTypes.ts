@@ -24,34 +24,49 @@ export type QuestActId =
   | "track_homestead"
   | "track_tradelanes";
 
-export type QuestObjectiveType =
-  | "talk-npc"
-  | "plant-crop"
-  | "water-crop"
-  | "harvest-crop"
-  | "craft-recipe"
-  | "catch-basic-fish"
-  | "chum-school"
-  | "hook-sport-fish"
-  | "land-sport-fish"
-  | "stow-cargo"
-  | "board-boat"
-  | "dock-boat"
-  | "sell-item"
-  | "sell-fish"
-  | "complete-contract"
-  | "apply-fertilizer"
-  | "install-irrigation"
-  | "irrigate-farm"
-  | "purchase-upgrade";
+/**
+ * Runtime list so content validation and the save validator read one source
+ * rather than each keeping a hand-maintained copy of the union.
+ */
+export const QUEST_OBJECTIVE_TYPES = [
+  "talk-npc",
+  "plant-crop",
+  "water-crop",
+  "harvest-crop",
+  "craft-recipe",
+  "catch-basic-fish",
+  "chum-school",
+  "hook-sport-fish",
+  "land-sport-fish",
+  "stow-cargo",
+  "board-boat",
+  "dock-boat",
+  "sell-item",
+  "sell-fish",
+  "complete-contract",
+  "apply-fertilizer",
+  "install-irrigation",
+  "irrigate-farm",
+  "purchase-upgrade"
+] as const;
 
-export type QuestLocationRequirement =
-  | { kind: "farm"; id: string }
-  | { kind: "station"; id: string }
-  | { kind: "habitat"; id: string }
-  | { kind: "ecology"; id: string }
-  | { kind: "market"; id: string }
-  | { kind: "boat"; id: string };
+export type QuestObjectiveType = (typeof QUEST_OBJECTIVE_TYPES)[number];
+
+export const QUEST_LOCATION_KINDS = [
+  "farm",
+  "station",
+  "habitat",
+  "ecology",
+  "market",
+  "boat"
+] as const;
+
+export type QuestLocationKind = (typeof QUEST_LOCATION_KINDS)[number];
+
+export interface QuestLocationRequirement {
+  kind: QuestLocationKind;
+  id: string;
+}
 
 export interface QuestObjectiveDefinition {
   id: string;
@@ -61,6 +76,13 @@ export interface QuestObjectiveDefinition {
   targetQuantity: number;
   locationAnchor?: { x: number; z: number; name: string };
   location?: QuestLocationRequirement;
+  /**
+   * Opt-in, tutorial only. An action matching this objective's exact gates
+   * performed *before* the step activates is banked once and applied when it
+   * does, so a player who works ahead is never asked to repeat themselves.
+   * `ContentRegistry` rejects this on objectives that cannot bank safely.
+   */
+  creditsEarlyActions?: boolean;
 }
 
 export interface QuestRewardDefinition {
@@ -128,7 +150,32 @@ export interface QuestState {
   completedQuestIds: QuestId[];
   unlockedFeatureIds: string[];
   hintsShown: Record<string, boolean>;
+  /** Banked pre-step actions, one record per distinct action shape. */
+  earlyActionCredits: QuestEarlyActionCredit[];
 }
+
+/**
+ * One banked action, stored as the *shape* of what the player did rather than
+ * as an objective id. The shape is re-matched against an objective's declared
+ * gates at activation, so retargeting an objective later can never redeem a
+ * credit that was earned against the old target.
+ */
+export interface QuestEarlyActionCredit {
+  type: QuestObjectiveType;
+  /** Absent when the action carried no target (e.g. watering any crop). */
+  targetId?: string;
+  /** Absent when the action carried no location. */
+  location?: QuestLocationRequirement;
+  quantity: number;
+}
+
+/**
+ * Frozen bounds shared by the runtime and `validateSaveEnvelope`. They are
+ * literals rather than content-derived so a later content edit cannot
+ * retroactively invalidate a stored save.
+ */
+export const MAX_EARLY_ACTION_CREDIT_RECORDS = 16;
+export const MAX_EARLY_ACTION_CREDIT_QUANTITY = 64;
 
 export const MAIN_QUEST_TRACK_ID: QuestTrackId = "track.main";
 
@@ -140,6 +187,22 @@ export function emptyQuestTrackProgress(): QuestTrackProgress {
 export function questTrackProgress(quests: QuestState, trackId: QuestTrackId): QuestTrackProgress {
   quests.tracks[trackId] ??= emptyQuestTrackProgress();
   return quests.tracks[trackId];
+}
+
+/** The ledger, created on demand so callers never handle undefined. */
+export function questEarlyActionCredits(quests: QuestState): QuestEarlyActionCredit[] {
+  quests.earlyActionCredits ??= [];
+  return quests.earlyActionCredits;
+}
+
+/** Whether two credits describe the same action, ignoring quantity. */
+export function sameEarlyActionShape(a: QuestEarlyActionCredit, b: QuestEarlyActionCredit): boolean {
+  return (
+    a.type === b.type &&
+    (a.targetId ?? null) === (b.targetId ?? null) &&
+    (a.location?.kind ?? null) === (b.location?.kind ?? null) &&
+    (a.location?.id ?? null) === (b.location?.id ?? null)
+  );
 }
 
 export function mainQuestTrack(quests: QuestState): QuestTrackProgress {
@@ -173,11 +236,16 @@ export interface ActiveQuestDto {
   currentStepIndex: number;
   totalSteps: number;
   objectiveDescription: string;
+  /** The live objective's shape, so presentation never re-derives it from content. */
+  objectiveType: QuestObjectiveType;
+  objectiveTargetId?: string;
   currentProgress: number;
   targetQuantity: number;
   isStepComplete: boolean;
   isQuestReadyToTurnIn: boolean;
   turnInBlockerReason?: string;
   targetLocation?: { x: number; z: number; name: string };
+  /** Metres from the player to `targetLocation`, absent when there is no target. */
+  targetDistanceMeters?: number;
   rewards?: QuestRewardDefinition;
 }

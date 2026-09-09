@@ -79,7 +79,8 @@ export const QUESTS: QuestDefinition[] = [
         targetId: "crop.wheat",
         targetQuantity: 3,
         locationAnchor: STARTER_FARM_ANCHOR,
-        location: { kind: "farm", id: "farm.starter_garden" }
+        location: { kind: "farm", id: "farm.starter_garden" },
+        creditsEarlyActions: true
       }
     ],
     rewards: {
@@ -109,7 +110,10 @@ export const QUESTS: QuestDefinition[] = [
         description: "Water your planted crops 3 times",
         targetQuantity: 3,
         locationAnchor: STARTER_FARM_ANCHOR,
-        location: { kind: "farm", id: "farm.starter_garden" }
+        location: { kind: "farm", id: "farm.starter_garden" },
+        // A watered crop cannot be watered again until its moisture decays, so
+        // without banking, watering during the sow step makes this unsatisfiable.
+        creditsEarlyActions: true
       }
     ],
     rewards: {
@@ -144,7 +148,9 @@ export const QUESTS: QuestDefinition[] = [
         targetId: "crop.wheat",
         targetQuantity: 3,
         locationAnchor: STARTER_FARM_ANCHOR,
-        location: { kind: "farm", id: "farm.starter_garden" }
+        location: { kind: "farm", id: "farm.starter_garden" },
+        // Wheat can ripen before this quest is turned in; a harvested crop is gone.
+        creditsEarlyActions: true
       },
       {
         id: "step.act2_compost_worms",
@@ -153,7 +159,10 @@ export const QUESTS: QuestDefinition[] = [
         targetId: "recipe.compost_worms",
         targetQuantity: 1,
         locationAnchor: { x: COMPOST_BIN.x, z: COMPOST_BIN.z, name: "Starter Compost Bin" },
-        location: { kind: "station", id: "struct.starter_compost" }
+        location: { kind: "station", id: "struct.starter_compost" },
+        // Starting stock is exactly two runs of this recipe and compost starter
+        // is purchase-only, so running it early without banking is a softlock.
+        creditsEarlyActions: true
       }
     ],
     rewards: {
@@ -319,7 +328,8 @@ export const QUESTS: QuestDefinition[] = [
       "Bring me 30 coins for the harbor permit and 1 Ground Grain for grease, and I'll clear her for departure!"
     ],
     completionDialogue: [
-      "She's cleared for sea! Step down to the wooden slip, press [E] to board, and take her out into the bay."
+      "She's cleared for sea! I've tucked two Woven Lures into your tackle roll. Arm one with [R] before you set a sport-fishing hook.",
+      "Step down to the wooden slip, press [E] to board, and take her out into the bay."
     ],
     objectives: [
       {
@@ -336,6 +346,7 @@ export const QUESTS: QuestDefinition[] = [
       items: [{ itemId: "item.ground_grain", quantity: 1 }]
     },
     rewards: {
+      items: [{ itemId: "item.basic_lure", quantity: 2 }],
       unlocksFeatureIds: ["boat.player_rowboat"],
       skillXp: [{ skill: "fishing", xp: 350 }]
     },
@@ -353,8 +364,8 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Call of the Deep",
     speakerId: "npc.silas",
     introDialogue: [
-      "This is what it's all about. Board your rowboat with your Chum Bucket and steer out toward the open water.",
-      "Look for circling gulls and water disturbances. Approach the school, cast your chum to ignite a frenzy, and hook the fish!",
+      "This is what it's all about. Board your rowboat with your Chum Bucket and Woven Lures, then steer out toward the open water.",
+      "Look for circling gulls and water disturbances. Approach the school, cast your chum to ignite a frenzy, arm a lure with [R], and hook the fish!",
       "Manage your line tension: reel when safe, slack when the line strains orange, and counter the runs with [A] and [D].",
       "Stow your catch in the boat hold, race back before freshness drops, and sell to Maeve!"
     ],
@@ -383,7 +394,7 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.act5_hook_sport_fish",
         type: "hook-sport-fish",
-        description: "Chum and hook a fish in an active school",
+        description: "Arm a Woven Lure and hook a fish in the chummed school",
         targetQuantity: 1,
         locationAnchor: LAKE_SCHOOL_ANCHOR,
         location: { kind: "habitat", id: "lake" }
@@ -669,7 +680,7 @@ export const QUESTS: QuestDefinition[] = [
     objectives: [
       { id: "step.act7_chum_sunreach", type: "chum-school", description: "Chum a Sunreach fish school", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
       { id: "step.act7_land_bream", type: "catch-basic-fish", description: "Land a Golden Sea Bream from Sunreach waters", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
-      { id: "step.act7_stow_bream", type: "catch-basic-fish", description: "Stow that Sea Bream aboard your skiff", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "boat", id: "boat.player_skiff" } },
+      { id: "step.act7_stow_bream", type: "catch-basic-fish", description: "Land a second Sea Bream while aboard your skiff", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "boat", id: "boat.player_skiff" } },
       { id: "step.act7_sell_bream", type: "sell-fish", description: "Sell the fresh Sea Bream at Sunreach Cove", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_COVE, location: { kind: "market", id: "market.sunreach_cove" } }
     ],
     rewards: { money: 240, skillXp: [{ skill: "fishing", xp: 900 }, { skill: "trading", xp: 500 }] },

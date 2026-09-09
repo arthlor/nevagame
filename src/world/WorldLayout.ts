@@ -1,3 +1,5 @@
+import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
+import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import * as THREE from "three";
 import { HARBOR_BEACH_PATH, HARBOR_LANDING_PATH, harborCoastElevation, harborCoastInfluence, harborSandInfluence, harborShoreOffset } from "./HarborCoast";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -19,21 +21,22 @@ import {
   RIVER_CROSSING,
   VILLAGE_MARKET,
   VILLAGE_PLAZA,
-  WORLD_SPAWN
+  WORLD_SPAWN,
+  WORLD_LAYOUT_REVISION
 } from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
   sampleRoadCrossSection,
   type RoadCrossSectionSample
 } from "./RoadGeometry";
-import { conformRoadGeometryToTerrain } from "./RoadTerrainConformity";
+import { roadTerrainConformitySteps } from "./RoadTerrainConformity";
 import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
 import { NEVA_FOOTHILL_TRAILS, nevaTrailBenchAt, sampleNevaLandforms } from "./NevaLandforms";
 import { NEVA_HEADWATERS, headwaterElevationAt, headwaterSpringInfluence, isInHeadwaterBounds } from "./NevaHeadwaters";
 import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
 import {
-  attachSurfaceFieldAttributes,
-  writeSurfaceFieldAttributes
+  writeSurfaceFieldAttributes,
+  withExposedRock
 } from "../render/materials/SurfaceFieldAttributes";
 import {
   FISHING_ECOLOGY_DEFINITIONS,
@@ -266,7 +269,7 @@ export interface WorldRouteProfile {
 }
 
 export interface WorldLayoutDescriptor {
-  revision: 13;
+  revision: typeof WORLD_LAYOUT_REVISION;
   anchors: {
     starterFarm: WorldPoint;
     playerSpawn: WorldPoint;
@@ -446,6 +449,17 @@ const BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y = Object.freeze([
   2.9103,
   2.708
 ]);
+// The dock stairs are an authored compound collision too, not a ramp. Mirror
+// the catalog `dock_straight_a` stair primitives so the kinematic actor stands
+// on the same discrete tread tops the physical boxes present; the ramp this
+// replaced floated up to 0.16 m above them in the middle of each tread. Asset
+// space runs +X south along world -Z after the landmark's half-pi yaw, so the
+// asset abscissa of a world point is `dock.z - z`.
+const PIER_STAIR_TREAD_TOPS_ASSET_Y = Object.freeze([2.61, 2.43, 2.25, 2.07, 1.89]);
+const PIER_STAIR_FIRST_TREAD_CENTER_ASSET_X = 7.16;
+const PIER_STAIR_TREAD_SPACING_METERS = 0.34;
+const PIER_STAIR_TREAD_HALF_DEPTH_METERS = 0.19;
+
 const BRIDGE_BOUNDARY_EPSILON = 0.001;
 
 interface TraversalRoadTriangle {
@@ -469,6 +483,7 @@ let cachedTraversalSurfaceQuery: {
   sampleDistance: number;
   result: TraversalSurfaceSample;
 } | null = null;
+
 
 function traversalCellKey(x: number, z: number): string {
   return `${Math.floor(x / TERRAIN_GRID_STEP_METERS)}:${Math.floor(z / TERRAIN_GRID_STEP_METERS)}`;
@@ -507,6 +522,24 @@ function sampleTraversalBasePlane(x: number, z: number): number {
   return u + v <= 1
     ? a + u * (d - a) + v * (b - a)
     : c + (1 - u) * (b - c) + (1 - v) * (d - c);
+}
+
+/**
+ * Asset-space top of the dock stair tread standing under `assetX`, or null when
+ * the point is south of the last tread. The authored boxes overlap by 0.04 m, so
+ * the search walks north to south and returns the first tread that reaches this
+ * far: in an overlap the higher box is the one a foot actually rests on, which
+ * is also what a downward ray against the compound collider reports.
+ */
+function pierStairTreadTopAssetY(assetX: number): number | null {
+  if (assetX <= HARBOR_PIER_DECK.halfLengthZ) return HARBOR_PIER_DECK.deckSurfaceAssetY;
+  for (let index = 0; index < PIER_STAIR_TREAD_TOPS_ASSET_Y.length; index++) {
+    const center = PIER_STAIR_FIRST_TREAD_CENTER_ASSET_X + index * PIER_STAIR_TREAD_SPACING_METERS;
+    if (assetX <= center + PIER_STAIR_TREAD_HALF_DEPTH_METERS) {
+      return PIER_STAIR_TREAD_TOPS_ASSET_Y[index];
+    }
+  }
+  return null;
 }
 
 function sharedTraversalRoadTriangleIndex(): Map<string, TraversalRoadTriangle[]> {
@@ -897,7 +930,7 @@ function pointInRotatedEnvelope(
 }
 
 export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
-  revision: 13,
+  revision: WORLD_LAYOUT_REVISION,
   anchors: {
     starterFarm: STARTER_FARM_LAYOUT.origin,
     playerSpawn: WORLD_SPAWN.playerPosition,
@@ -1254,7 +1287,7 @@ function routeIndexCell(value: number): number {
 }
 
 const ROUTE_SEGMENT_INDEX = buildRouteSegmentIndex(COMPILED_WORLD_ROUTES);
-const ROUTE_CANDIDATE_KEYS = new Set<number>();
+const ROUTE_CANDIDATE_CACHE = new Map<string, readonly number[]>();
 const FAR_FROM_ROUTES: RouteProjection = {
   distance: Number.POSITIVE_INFINITY,
   halfWidth: COMPILED_WORLD_ROUTES[0].halfWidth,
@@ -2708,24 +2741,14 @@ export class WorldLayout {
     }
     if (this.isPierStairs(x, z)) {
       const dock = this.landmark("dock");
-      const southEdge = dock.z - HARBOR_PIER_DECK.halfLengthZ;
-      const stairBaseZ = southEdge - HARBOR_PIER_DECK.stairRun;
-      const approachBaseZ = stairBaseZ - 1.4;
-      const deckHeight = this.pierDeckSurfaceY();
-      const stairBaseHeight = this.terrainHeight(dock.x, dock.z) + dock.yOffset + 1.89;
-      if (z >= stairBaseZ) {
-        const t = THREE.MathUtils.clamp((z - stairBaseZ) / HARBOR_PIER_DECK.stairRun, 0, 1);
-        return {
-          height: THREE.MathUtils.lerp(stairBaseHeight, deckHeight, t),
-          source: "pier"
-        };
-      }
-      const t = THREE.MathUtils.clamp((z - approachBaseZ) / 1.4, 0, 1);
-      const groundHeight = sampleTraversalBasePlane(x, approachBaseZ);
-      return {
-        height: THREE.MathUtils.lerp(groundHeight, stairBaseHeight, t),
-        source: "pier"
-      };
+      const groundHeight = sampleTraversalBasePlane(x, z);
+      const treadTopAssetY = pierStairTreadTopAssetY(dock.z - z);
+      // South of the last tread there is no authored box, so the beach shelf is
+      // the only support. The ramp used to blend down to it and sank the actor
+      // up to 0.08 m below the ground it was standing on.
+      if (treadTopAssetY === null) return { height: groundHeight, source: "terrain" };
+      const treadHeight = this.terrainHeight(dock.x, dock.z) + dock.yOffset + treadTopAssetY;
+      return { height: Math.max(treadHeight, groundHeight), source: "pier" };
     }
     if (this.isPierDeck(x, z)) {
       return { height: this.pierDeckSurfaceY(), source: "pier" };
@@ -2759,7 +2782,7 @@ export class WorldLayout {
 
     const center = this.rawTraversalSurfaceSample(x, z);
     let normal: TraversalSurfaceSample["normal"] = { x: 0, y: 1, z: 0 };
-    if (center.source === "terrain" || center.source === "road" || this.isPierStairs(x, z)) {
+    if (center.source === "terrain" || center.source === "road") {
       const safeDistance = Math.max(0.01, sampleDistance);
       const left = this.rawTraversalSurfaceSample(x - safeDistance, z).height;
       const right = this.rawTraversalSurfaceSample(x + safeDistance, z).height;
@@ -2782,8 +2805,13 @@ export class WorldLayout {
     return result;
   }
 
+  /**
+   * Height alone, without the four neighbour samples `traversalSurfaceSample`
+   * takes to build its normal. Every consumer that only anchors a foot, a prop
+   * or a placement wants this; the sampled height is identical either way.
+   */
   public static traversalSurfaceHeight(x: number, z: number): number {
-    return this.traversalSurfaceSample(x, z).height;
+    return this.rawTraversalSurfaceSample(x, z).height;
   }
 
   /** Y component of the terrain normal without allocating a Vector3. */
@@ -2816,31 +2844,41 @@ export class WorldLayout {
     const maxCellX = routeIndexCell(x + ROUTE_INDEX_PADDING_METERS);
     const minCellZ = routeIndexCell(z - ROUTE_INDEX_PADDING_METERS);
     const maxCellZ = routeIndexCell(z + ROUTE_INDEX_PADDING_METERS);
-    ROUTE_CANDIDATE_KEYS.clear();
-    for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
-      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-        for (const reference of ROUTE_SEGMENT_INDEX.get(routeIndexKey(cellX, cellZ)) ?? []) {
-          ROUTE_CANDIDATE_KEYS.add(reference.routeIndex * 10000 + reference.segmentIndex);
+    const rangeKey = `${minCellX}:${maxCellX}:${minCellZ}:${maxCellZ}`;
+    let candidates = ROUTE_CANDIDATE_CACHE.get(rangeKey);
+    if (!candidates) {
+      const keys = new Set<number>();
+      for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+        for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+          for (const reference of ROUTE_SEGMENT_INDEX.get(routeIndexKey(cellX, cellZ)) ?? []) {
+            keys.add(reference.routeIndex * 10000 + reference.segmentIndex);
+          }
         }
       }
+      candidates = [...keys];
+      if (ROUTE_CANDIDATE_CACHE.size >= 4096) ROUTE_CANDIDATE_CACHE.clear();
+      ROUTE_CANDIDATE_CACHE.set(rangeKey, candidates);
     }
 
     // Index miss means the point is outside every road corridor + padding, so
     // path/shoulder/grading influence is already zero. Scanning every segment
     // here was the cover-scatter timeout: 7k grass attempts × four height
     // samples each used to flatten the whole network.
-    if (ROUTE_CANDIDATE_KEYS.size === 0) {
+    if (candidates.length === 0) {
       cachedRouteQuery = { x, z, result: FAR_FROM_ROUTES };
       return FAR_FROM_ROUTES;
     }
 
     let bestDistance = Number.POSITIVE_INFINITY;
     let bestProjection: RouteProjection = FAR_FROM_ROUTES;
-    for (const packed of ROUTE_CANDIDATE_KEYS) {
+    for (const packed of candidates) {
       const routeIndex = Math.floor(packed / 10000);
       const segmentIndex = packed - routeIndex * 10000;
       const pRoute = routes[routeIndex];
       const seg = pRoute.segments[segmentIndex];
+      // Conservative axis bound preserves equal-distance ordering and the
+      // existing exact projection while rejecting segments that cannot win.
+      if (Math.max(seg.minX - x, x - seg.maxX, seg.minZ - z, z - seg.maxZ) > bestDistance + 1e-9) continue;
       const dx = seg.dx;
       const dz = seg.dz;
       const progress = clamp01(((x - seg.start.x) * dx + (z - seg.start.z) * dz) / seg.lengthSquared);
@@ -3148,8 +3186,17 @@ export class WorldLayout {
     return this.terrainSurfaceSample(x, z, sampledNormalY).weights;
   }
 
-  public static terrainSurface(x: number, z: number): TerrainSurface {
-    const weights = this.terrainSurfaceWeights(x, z);
+  /**
+   * Dominant surface material at a point. Pass `sampledNormalY` when the caller
+   * already holds the normal of the surface it is standing on: deriving one
+   * costs four extra terrain height samples and dominates this query. Over
+   * 11,643 sampled points the traversal normal and a freshly derived one pick a
+   * different material at 2 of them, both sitting exactly on the grass/cliff
+   * slope threshold, where the normal of the surface actually under the actor is
+   * the better evidence anyway.
+   */
+  public static terrainSurface(x: number, z: number, sampledNormalY?: number): TerrainSurface {
+    const weights = this.terrainSurfaceWeights(x, z, sampledNormalY);
     const entries: Array<[TerrainSurface, number]> = [
       ["grass", weights.grass], ["meadow", weights.meadow], ["dry-soil", weights.drySoil],
       ["damp-soil", weights.dampSoil], ["path", weights.path], ["shoulder", weights.shoulder],
@@ -3198,6 +3245,10 @@ export class WorldLayout {
     patch: Readonly<WorldTerrainPatchDefinition>,
     heightAt: (x: number, z: number) => number
   ): Float32Array {
+    return runSync(this.terrainHeightfieldSteps(patch, heightAt));
+  }
+
+  private static *terrainHeightfieldSteps(patch: Readonly<WorldTerrainPatchDefinition>, heightAt: (x: number, z: number) => number): Generator<void, Float32Array, void> {
     const resolution = patch.resolution;
     const samples = new Float32Array((resolution + 1) * (resolution + 1));
     for (let row = 0; row <= resolution; row++) {
@@ -3209,6 +3260,7 @@ export class WorldLayout {
         // Do not synthesize a bridge deck into the terrain collider. The
         // catalog bridge collision is the sole physical deck authority.
         samples[row * (resolution + 1) + column] = heightAt(x, z);
+        if (column % 32 === 0) yield;
       }
     }
     return samples;
@@ -3233,6 +3285,16 @@ export class WorldLayout {
    * the same grid, and rebuilding it per caller cost hundreds of milliseconds
    * of startup for an identical result. Callers must treat it as read-only.
    */
+  public static async prepareTraversal(signal?: AbortSignal): Promise<void> {
+    for (const patch of this.terrainPatches()) {
+      if (!terrainBaseHeightfieldCache.has(patch.id)) {
+        terrainBaseHeightfieldCache.set(patch.id, await runCooperatively(this.terrainHeightfieldSteps(patch,
+          (x, z) => this.terrainBaseHeight(x, z)), signal));
+      }
+    }
+    pathCollisionGeometryCache ??= await runCooperatively(this.pathGeometryBaseSteps(), signal);
+  }
+
   public static terrainBaseHeightfield(): Float32Array {
     return this.terrainBaseHeightfieldForPatch("terrain.neva");
   }
@@ -3274,18 +3336,72 @@ export class WorldLayout {
     return pathCollisionGeometryCache.clone();
   }
 
+  public static async buildPathGeometryAsync(signal?: AbortSignal): Promise<THREE.BufferGeometry> {
+    pathGeometryTemplateCache ??= await runCooperatively(this.pathGeometryTemplateSteps(), signal);
+    return pathGeometryTemplateCache.clone();
+  }
+
   private static buildPathGeometryTemplate(): THREE.BufferGeometry {
+    return runSync(this.pathGeometryTemplateSteps());
+  }
+
+  private static *pathGeometryTemplateSteps(): Generator<void, THREE.BufferGeometry, void> {
     // Surface fields are added to a copy so the field-free base stays reusable
     // for collision and traversal.
     const geometry = this.buildPathCollisionGeometry();
-    attachSurfaceFieldAttributes(
+    let completed = false;
+    try {
+    const positions = geometry.getAttribute("position");
+    const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
+    // Preserve canonical wear/shoulder identity through the supporting maps.
+    const roadProfile = new Uint8Array(positions.count * 2);
+    // Evaluate the joined footprint after conformity has inserted terrain-grid
+    // vertices. Junction arms otherwise carry alpha=1 out to their square ends.
+    // Only this render clone changes; collision positions and indices stay exact.
+    for (let index = 0; index < positions.count; index++) {
+      if (index % 32 === 0) yield;
+      const x = positions.getX(index);
+      const z = positions.getZ(index);
+      if (this.isBridgeDeck(x, z)) continue;
+      const route = this.nearestRouteDistance(x, z);
+      const section = sampleRoadCrossSection({
+        routeId: route.route.id,
+        routeKind: route.route.kind,
+        profile: WORLD_ROUTE_PROFILES[route.route.kind],
+        halfWidthMeters: route.halfWidth,
+        lateralDistanceMeters: route.distance,
+        distanceAlongRouteMeters: route.distanceAlongRoute
+      });
+      let coverage = 1 - smoothstep(0.08, 0.92, section.edgeGrassAmount);
+      for (const junction of WORLD_ROUTE_JUNCTIONS) {
+        const radius = Math.max(0.72, junction.radiusMeters * 0.74);
+        coverage = Math.max(coverage, 1 - smoothstep(
+          radius * 0.68, radius,
+          Math.hypot(x - junction.center.x, z - junction.center.z)
+        ));
+      }
+      colors.setW(index, coverage);
+      const wear = route.route.kind === "trail"
+        ? 1 - smoothstep(0.1, 0.8, section.normalizedCoreDistance)
+        : clamp01(section.wheelBand / 0.2);
+      roadProfile[index * 2] = Math.round(wear * 255);
+      roadProfile[index * 2 + 1] = Math.round(section.shoulderAmount * 255);
+    }
+    geometry.setAttribute("roadProfile", new THREE.Uint8BufferAttribute(roadProfile, 2, true));
+    yield* surfaceFieldAttributeSteps(
       geometry,
       (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)
     );
+    completed = true;
     return geometry;
+    } finally { if (!completed) geometry.dispose(); }
   }
 
   private static buildPathGeometryBase(): THREE.BufferGeometry {
+    return runSync(this.pathGeometryBaseSteps());
+  }
+
+  private static *pathGeometryBaseSteps(): Generator<void, THREE.BufferGeometry, void> {
     const source = buildOrganicRoadGeometry({
       routes: COMPILED_WORLD_ROUTES,
       junctions: WORLD_ROUTE_JUNCTIONS,
@@ -3306,7 +3422,8 @@ export class WorldLayout {
       heightAt: (x, z) => this.terrainHeight(x, z),
       isBridgeDeck: (x, z) => this.isBridgeDeck(x, z)
     });
-    const patchGeometries = this.terrainPatches().map((patch) => conformRoadGeometryToTerrain(source, {
+    const patchGeometries: THREE.BufferGeometry[] = [];
+    for (const patch of this.terrainPatches()) patchGeometries.push(yield* roadTerrainConformitySteps(source, {
       sizeMeters: patch.sizeMeters,
       resolution: patch.resolution,
       centerX: patch.center.x,
@@ -3339,9 +3456,17 @@ export class WorldLayout {
     return geometry;
   }
 
-  public static buildTerrainGeometry(
-    patchId: WorldTerrainPatchDefinition["id"] = "terrain.neva"
-  ): THREE.BufferGeometry {
+  public static buildTerrainGeometry(patchId: WorldTerrainPatchDefinition["id"] = "terrain.neva"): THREE.BufferGeometry {
+    return runSync(this.terrainGeometrySteps(patchId));
+  }
+
+  public static buildTerrainGeometryAsync(patchId: WorldTerrainPatchDefinition["id"], signal?: AbortSignal): Promise<THREE.BufferGeometry> {
+    return runCooperatively(this.terrainGeometrySteps(patchId), signal);
+  }
+
+  private static *terrainGeometrySteps(
+    patchId: WorldTerrainPatchDefinition["id"]
+  ): Generator<void, THREE.BufferGeometry, void> {
     const patch = this.terrainPatches().find((candidate) => candidate.id === patchId);
     if (!patch) throw new Error(`[WorldLayout] Unknown terrain patch ${patchId}`);
     const indexed = new THREE.PlaneGeometry(
@@ -3350,12 +3475,16 @@ export class WorldLayout {
       patch.resolution,
       patch.resolution
     );
+    let owned: THREE.BufferGeometry = indexed;
+    let completed = false;
+    try {
     indexed.rotateX(-Math.PI / 2);
     // The terrain material derives every lookup from world position, so the
     // plane's UV set is pure vertex-fetch bandwidth on a ~900k vertex mesh.
     indexed.deleteAttribute("uv");
     const indexedPositions = indexed.getAttribute("position") as THREE.BufferAttribute;
     for (let index = 0; index < indexedPositions.count; index++) {
+      if (index % 32 === 0) yield;
       const x = indexedPositions.getX(index) + patch.center.x;
       const z = indexedPositions.getZ(index) + patch.center.z;
       // Match Rapier's coarse landform. The shared fine road mesh owns the
@@ -3386,12 +3515,24 @@ export class WorldLayout {
 
     const normalPolicy = CANONICAL_RENDER_CONFIG.terrainSurface.normals;
     for (let index = 0; index < indexedPositions.count; index++) {
+      if (index % 32 === 0) yield;
       const x = indexedPositions.getX(index) + patch.center.x;
       const z = indexedPositions.getZ(index) + patch.center.z;
       const normalX = indexedNormals.getX(index);
       const normalY = Math.abs(indexedNormals.getY(index));
       const normalZ = indexedNormals.getZ(index);
-      const surfaceSample = this.terrainSurfaceSample(x, z, normalY);
+      const canonicalSample = this.terrainSurfaceSample(x, z, normalY);
+      // The lighthouse face is recessed behind its beach toe. Its material
+      // exposure follows the authored headland, rather than stopping at the
+      // narrow wet-shore band. Flat caps and protected working ground stay green.
+      const headlandExposure = patch.islandId === "island.neva"
+        ? this.coastProfile(x).headland
+          * smoothstep(30, 55, z)
+          * (1 - smoothstep(28, 65, this.coastlineZ(x) - z))
+          * (1 - smoothstep(0.58, 0.86, normalY))
+          * CANONICAL_RENDER_CONFIG.terrainSurface.shoreline.exposedHeadlandStrength
+        : 0;
+      const surfaceSample = withExposedRock(canonicalSample, headlandExposure);
       surfaceSamples[index] = surfaceSample;
       const weights = surfaceSample.weights;
       const routeUnderlayWeight = weights.path + weights.shoulder;
@@ -3481,6 +3622,7 @@ export class WorldLayout {
 
     const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
     if (geometry !== indexed) indexed.dispose();
+    owned = geometry;
     const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
     const normals = geometry.getAttribute("normal") as THREE.BufferAttribute;
     const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
@@ -3495,6 +3637,7 @@ export class WorldLayout {
     const faceColor = new THREE.Color();
     const vertexColor = new THREE.Color();
     for (let index = 0; index < positions.count; index += 3) {
+      if (index % 768 === 0) yield;
       a.fromBufferAttribute(positions, index);
       b.fromBufferAttribute(positions, index + 1);
       c.fromBufferAttribute(positions, index + 2);
@@ -3534,7 +3677,9 @@ export class WorldLayout {
     geometry.userData.terrainPatchCenter = { ...patch.center };
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
+    completed = true;
     return geometry;
+    } finally { if (!completed) owned.dispose(); }
   }
 
 }

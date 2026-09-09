@@ -27,6 +27,8 @@ describe("formatGameDuration / formatClockTime", () => {
 describe("processing job wait briefing", () => {
   it("exposes compost remaining minutes and ready clock from stored job bounds", () => {
     const sim = new Simulation();
+    // Steady state: the onboarding pace has ended, so the authored 360 applies.
+    sim.state.quests.completedQuestIds.push("quest.act2_harvest_and_compost");
     movePlayerToProcessingFront(sim, "struct.starter_compost");
     expect(sim.inspectProcessingJob("struct.starter_compost")).toBeNull();
 
@@ -61,6 +63,45 @@ describe("processing job wait briefing", () => {
       remainingMinutes: 0
     });
     expect(done?.waitBriefing).toBe("Bait Worms ready to collect");
+  });
+
+  it("quotes the onboarding-paced compost duration during the tutorial", () => {
+    const sim = new Simulation();
+    movePlayerToProcessingFront(sim, "struct.starter_compost");
+    expect(sim.startProcessingJob("recipe.compost_worms", "struct.starter_compost")).toMatchObject({
+      success: true
+    });
+
+    // 12 game minutes = 30 real seconds, from an 08:00 new-game clock.
+    const started = sim.inspectProcessingJob("struct.starter_compost");
+    expect(started).toMatchObject({
+      recipeId: "recipe.compost_worms",
+      status: "active",
+      remainingMinutes: 12,
+      readyClockLabel: "08:12"
+    });
+    expect(started?.startBriefing).toBe("Cultivate Bait Worms started · 12m · ready 08:12");
+
+    sim.advanceGameMinutes(12);
+    expect(sim.inspectProcessingJob("struct.starter_compost")).toMatchObject({
+      status: "complete",
+      remainingMinutes: 0
+    });
+  });
+
+  it("keeps a started job on the schedule it was given when the pace ends mid-job", () => {
+    const sim = new Simulation();
+    movePlayerToProcessingFront(sim, "struct.starter_compost");
+    expect(sim.startProcessingJob("recipe.compost_worms", "struct.starter_compost")).toMatchObject({
+      success: true
+    });
+    // The duration is captured into the job at start, so completing the gating
+    // quest mid-job cannot retroactively stretch the wait back to six hours.
+    sim.state.quests.completedQuestIds.push("quest.act2_harvest_and_compost");
+    expect(sim.inspectProcessingJob("struct.starter_compost")).toMatchObject({
+      status: "active",
+      remainingMinutes: 12
+    });
   });
 
   it("briefs mill jobs in minutes", () => {

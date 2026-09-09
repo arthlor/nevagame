@@ -1,3 +1,4 @@
+import { seasonAmbientTint, updateSeasonalTint } from "../materials/SeasonalTint";
 import * as THREE from "three";
 import type { GameState } from "../../simulation/core/types";
 import {
@@ -322,7 +323,9 @@ export function deriveLightingFrame(
   // the same daylight envelope, sun direction, fog, and hemisphere fill.
   skyTopColor.lerp(SKY_CLEAR_DAY, clearDaylight);
   skyHorizonColor.lerp(HORIZON_CLEAR_DAY, clearDaylight);
-  skyFillColor.lerp(SKY_CLEAR_DAY, clearDaylight * 0.32);
+  // Cooler hemisphere fill on clear days so ground shade carries summer sky,
+  // not the pale overcast ambient of cloudy weather.
+  skyFillColor.lerp(SKY_CLEAR_DAY, clearDaylight * 0.42);
   if (storm) {
     skyFillColor.lerp(STORM_SKY, 0.22);
     skyTopColor.lerp(STORM_SKY, 0.56);
@@ -510,6 +513,9 @@ export class LightingRig {
     }
     this.lastPresentationUpdateSeconds = timeSeconds;
     const frame = deriveLightingFrame(state, timeSeconds, this.frame, this.presentedMinuteOfDay);
+    updateSeasonalTint(state.clock);
+    frame.skyFillColor.multiply(seasonAmbientTint);
+    frame.groundFillColor.multiply(seasonAmbientTint);
     const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
     const texelSize = (quality.shadowCameraSize * 2) / quality.shadowMapSize;
     const shadowDirection = frame.moonIntensity > frame.sunIntensity

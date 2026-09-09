@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import type { CropInspectionDto } from "../../simulation/core/contracts";
 import { IconSprout } from "./HudIcons";
 import { ChromeClose } from "../chrome/Chrome";
-import { GameSheet } from "../coastal/CoastalUI";
+import { GameSheet, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForCrop, atlasForGrowth } from "../chrome/uiAtlas";
 
@@ -107,9 +107,21 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
           />
         </div>
         <dl className="crop-inspection-grid">
-          <div className="crop-meta-item">
+          <div className="crop-meta-item crop-growth-item">
             <dt>Stage</dt>
-            <dd className="crop-growth-status">{inspection.stageTimingLabel}</dd>
+            <dd className="crop-growth-status">
+              {/* Simulation-owned progress; the UI never re-derives growth. */}
+              <Meter
+                className="crop-growth-meter"
+                label="Growth"
+                value={Math.round(inspection.maturityProgress * 100)}
+                max={100}
+                variant="fishing"
+                showLabel={false}
+                valueText={inspection.stageTimingLabel}
+                data-testid="crop-growth-meter"
+              />
+            </dd>
           </div>
           <div className="crop-meta-item">
             <dt>Moisture</dt>

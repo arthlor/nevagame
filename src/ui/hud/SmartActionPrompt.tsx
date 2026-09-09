@@ -41,7 +41,10 @@ const KNOWN_VERBS = new Set([
   "sell",
   "deliver",
   "interact",
-  "release"
+  "release",
+  "chum",
+  "hook",
+  "enter"
 ]);
 
 function parseStructuredPrompt(

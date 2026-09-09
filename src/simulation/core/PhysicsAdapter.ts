@@ -109,4 +109,13 @@ export interface PhysicsAdapter {
     fixedDeltaSeconds: number,
     timeSeconds: number
   ): PhysicsStepResult;
+  /**
+   * Closes the transaction opened by `step`. A physics step stages a candidate
+   * pose that only becomes canonical once the simulation accepts it, so the host
+   * loop MUST report the outcome of its `physics.commit` back here. On rejection
+   * the adapter rewinds its own bodies to the last accepted pose; without that
+   * report the adapter stays permanently ahead of `GameState` and pays a
+   * velocity-clearing resynchronisation on the following frame.
+   */
+  onCommitResult?(success: boolean): void;
 }

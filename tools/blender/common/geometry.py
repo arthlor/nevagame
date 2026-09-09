@@ -127,6 +127,14 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
     """
     mesh = obj.data
     mesh.update()
+    palette_nodes = {"OUTPUT_MATERIAL", "BSDF_PRINCIPLED", "VERTEX_COLOR"}
+    if all(material.node_tree and all(node.type in palette_nodes for node in material.node_tree.nodes)
+           for material in mesh.materials):
+        # Primitive/bevel UV generation can vary in its final floating bit.
+        # Palette-only surfaces do not consume UVs; retaining them adds seams
+        # and makes irrelevant data part of the deterministic export contract.
+        for uv_layer in list(mesh.uv_layers):
+            mesh.uv_layers.remove(uv_layer)
     object_to_asset = object_to_asset if object_to_asset is not None else asset_root.matrix_world.inverted() @ obj.matrix_world
     rest_normal = object_to_asset.to_3x3().inverted().transposed()
     face_values = mesh.attributes.new(".neva_facet_value", "FLOAT", "FACE")

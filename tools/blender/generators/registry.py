@@ -8,6 +8,8 @@ from .clouds import faceted_cloud
 from .imported import imported_blend
 from .crops import apple_tree_crop, barley_crop, carrot_crop, corn_crop, flax_crop, olive_crop, potato_crop, pumpkin_crop, sunflower_crop, tomato_crop, turnip_crop, wheat_crop
 from .fish import stylized_fish
+from .trade_packs import fish_trade_pack, crop_trade_pack
+from .equipment import crafting_job_prop, equipment_sickle, equipment_watering_can, wearable_equipment
 from .camp import fallen_log, fire_pit, path_stone_round, path_stone_slab, picnic_table, smoke_plume, trail_kiosk, trail_signpost, wood_bench
 from .furnishings import floor_plant, wood_bookcase, wood_side_table, wood_sideboard
 from .harbor import admiralty_anchor, cargo_crate_large, cargo_sack, dock_lantern_post, dock_platform, driftwood_log, gangplank, hanging_signboard, marker_buoy, mooring_post, pier_railing
@@ -26,6 +28,12 @@ from .coastal import coastal_palm, coastal_understory, coastal_rock, coastal_hut
 
 
 GENERATORS = {
+    "wearable_equipment": wearable_equipment,
+    "equipment_watering_can": equipment_watering_can,
+    "equipment_sickle": equipment_sickle,
+    "crafting_job_prop": crafting_job_prop,
+    "fish_trade_pack": fish_trade_pack,
+    "crop_trade_pack": crop_trade_pack,
     "coastal_palm": coastal_palm,
     "coastal_understory": coastal_understory,
     "coastal_rock": coastal_rock,

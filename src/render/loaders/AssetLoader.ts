@@ -73,7 +73,7 @@ export class AssetLoader {
     return cloned;
   }
 
-  public static async loadCached(assetId: AssetId): Promise<THREE.Group> {
+  public static async loadCached(assetId: AssetId, onTransfer?: () => void, signal?: AbortSignal): Promise<THREE.Group> {
     if (this.modelCache.has(assetId)) {
       return this.modelCache.get(assetId)!;
     }
@@ -82,32 +82,23 @@ export class AssetLoader {
       return this.loadingPromises.get(assetId)!;
     }
 
+    signal?.throwIfAborted();
     const modelPath = assetUrl(assetId);
     const promise = new Promise<THREE.Group>((resolve, reject) => {
       const fail = (err: unknown) => {
         this.loadingPromises.delete(assetId);
         const error = new Error(`[AssetLoader] Failed to load ${assetId} from ${modelPath}`, { cause: err });
-        if (!import.meta.env.PROD) {
-          reject(error);
-          return;
-        }
-        console.error(`${error.message}; using diagnostic fallback`, err);
-        const fallback = new THREE.Group();
-        fallback.name = `missing_asset_${assetId}`;
-        fallback.userData.assetLoadFailure = { assetId, modelPath };
-        fallback.userData.assetId = assetId;
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(1, 1, 1),
-          new THREE.MeshStandardMaterial({ color: 0xff00ff, roughness: 0.8 })
-        );
-        fallback.add(mesh);
-        resolve(fallback);
+        reject(error);
       };
-      this.loader.load(
-        modelPath,
+      const decode = (bytes: ArrayBuffer) => this.loader.parse(
+        bytes, new URL(".", new URL(modelPath, window.location.href)).href,
         (gltf) => {
           try {
             const root = gltf.scene;
+            if (signal?.aborted) {
+              root.traverse(child => { if (child instanceof THREE.Mesh) { child.geometry.dispose(); for (const material of Array.isArray(child.material) ? child.material : [child.material]) material.dispose(); } });
+              throw signal.reason;
+            }
             const spec = ASSET_BY_ID.get(assetId);
             if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
             const collisionNodes: string[] = [];
@@ -152,9 +143,29 @@ export class AssetLoader {
             fail(error);
           }
         },
-        undefined,
         fail
       );
+      void (async () => {
+        const response = await fetch(modelPath, { signal });
+        if (!response.ok) throw new Error(`Scenery request failed (${response.status})`);
+        if (!response.body) { decode(await response.arrayBuffer()); return; }
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            signal?.throwIfAborted();
+            if (done) break;
+            chunks.push(value); size += value.byteLength; onTransfer?.();
+          }
+        } finally { reader.releaseLock(); }
+        const bytes = new Uint8Array(size);
+        let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+        signal?.throwIfAborted();
+        decode(bytes.buffer);
+      })().catch(fail);
     });
 
     this.loadingPromises.set(assetId, promise);
@@ -175,7 +186,9 @@ export class AssetLoader {
   public static async preload(
     assetIds: readonly AssetId[],
     onProgress?: (progress: AssetPreloadProgress) => void,
-    concurrency = DEFAULT_PRELOAD_CONCURRENCY
+    concurrency = DEFAULT_PRELOAD_CONCURRENCY,
+    signal?: AbortSignal,
+    onTransfer?: () => void
   ): Promise<void> {
     const uniqueAssetIds = [...new Set(assetIds)];
     const total = uniqueAssetIds.length;
@@ -183,9 +196,11 @@ export class AssetLoader {
     let cursor = 0;
     const worker = async (): Promise<void> => {
       while (cursor < total) {
+        signal?.throwIfAborted();
         const assetId = uniqueAssetIds[cursor];
         cursor += 1;
-        await this.loadCached(assetId);
+        await this.loadCached(assetId, onTransfer, signal);
+        signal?.throwIfAborted();
         completed += 1;
         onProgress?.({ assetId, completed, total });
       }

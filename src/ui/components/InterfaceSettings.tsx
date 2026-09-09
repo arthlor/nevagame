@@ -1,3 +1,4 @@
+import { handleRadioGroupKeyDown } from "../useTabListKeyboard";
 // src/ui/components/InterfaceSettings.tsx
 import React, { useEffect, useState } from "react";
 import { uiScale, type UiScalePreference } from "../uiScale";
@@ -39,7 +40,7 @@ export const InterfaceSettings: React.FC = () => {
           <span aria-hidden="true" /> Active: {Math.round(resolved * 100)}%
         </span>
       </div>
-      <div className="graphics-quality-options" role="radiogroup" aria-label="Interface scale">
+      <div className="graphics-quality-options" role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Interface scale">
         {CHOICES.map((choice) => {
           const selected = preference === choice.value;
           return (
@@ -49,6 +50,7 @@ export const InterfaceSettings: React.FC = () => {
               className={`graphics-quality-option${selected ? " is-selected" : ""}`}
               role="radio"
               aria-checked={selected}
+              tabIndex={selected ? 0 : -1}
               data-testid={`ui-scale-${choice.value}`}
               onClick={() => {
                 if (selected) return;

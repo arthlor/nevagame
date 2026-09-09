@@ -113,6 +113,25 @@ describe("ground-cover frustum submission", () => {
     expect(record.visibleIndices).toEqual(selected);
   });
 
+  it("grounds short-cover bases using the assembly height without changing geometry or shadows", async () => {
+    const { mesh } = await buildCover([[0, -10], [1, -10]]);
+    const shader = {
+      uniforms: { ...THREE.ShaderLib.standard.uniforms },
+      vertexShader: THREE.ShaderLib.standard.vertexShader,
+      fragmentShader: THREE.ShaderLib.standard.fragmentShader
+    };
+    const material = mesh.material as THREE.MeshStandardMaterial;
+    (material.onBeforeCompile as unknown as (s: typeof shader) => void)(shader);
+    expect(shader.vertexShader).toContain("vCoverHeight = rootedHeight");
+    expect(shader.fragmentShader).toContain("mix(coverRootShade, 1.0, smoothstep");
+    expect(shader.uniforms.coverRootShade.value).toBeGreaterThan(0.6);
+    expect(shader.uniforms.coverRootShade.value).toBeLessThan(1);
+    const height = mesh.geometry.getAttribute("windHeight");
+    expect(Math.min(...Array.from(height.array))).toBe(0);
+    expect(Math.max(...Array.from(height.array))).toBe(1);
+    expect(mesh.castShadow).toBe(false);
+  });
+
   it("releases the instance buffers as well as geometry and materials", async () => {
     const { cover, mesh } = await buildCover([[0, -10], [1, -10]]);
     const dispose = vi.spyOn(mesh, "dispose");

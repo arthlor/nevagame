@@ -1,8 +1,9 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { calculateFishPrice, getQualityMultiplier, type FishPriceBreakdown } from "../economy/calculateFishValue";
+import { calculateFishPrice, type FishPriceBreakdown } from "../economy/calculateFishValue";
 import { recordMarketPurchase, recordMarketSale, tickMarket } from "../economy/updateMarket";
 import {
   RETAIL_MARKUP,
+  WORKSHOP_SUPPLY_MARKUP,
   demandFromSupply,
   quoteCommodityPurchase,
   quoteCommoditySale,
@@ -15,6 +16,7 @@ import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
+import type { EquipmentDomain } from "./EquipmentDomain";
 import type {
   BulkSaleQuote,
   BuySeedReasonCode,
@@ -53,7 +55,8 @@ export class MarketDomain {
     private readonly context: DomainContext,
     private readonly navigation: NavigationDomain,
     private readonly cargo: CargoDomain,
-    private readonly progression: ProgressionDomain
+    private readonly progression: ProgressionDomain,
+    private readonly equipment: EquipmentDomain
   ) {}
 
   public getNearbyMarketId(): MarketId | null {
@@ -86,21 +89,18 @@ export class MarketDomain {
       return { success: false, reason: "You do not have enough of this item" };
     }
 
+    // Every satchel stack settles at the quote the board displayed. A fish
+    // *item* is a fungible stack with no per-instance quality, so it must not
+    // be priced off the species' best-ever journal record: that paid a
+    // permanent trophy multiplier on every later common catch and made the
+    // sale disagree with `inspectCommodity`, which never had a quality term.
+    // Per-instance quality belongs to the cargo lane, which `sellFish` prices
+    // through `calculateFishPrice`.
     const marketQuote = this.quoteSale(commodity, quantity);
-    const fish = ContentRegistry.fishSpecies.get(itemId);
-    const quality = fish
-      ? (state.journal.fishRecords[itemId]?.bestQuality ?? "common")
-      : "common";
-    const revenue = fish
-      ? marketQuote.marginalDemandModifiers.reduce(
-          (total, demand) => total + Math.max(
-            1,
-            Math.round(commodity.basePrice * commodity.seasonalModifier * demand * getQualityMultiplier(quality))
-          ),
-          0
-        )
-      : marketQuote.total;
-    InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity }]);
+    const revenue = marketQuote.total;
+    if (!InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity }])) {
+      return { success: false, reason: "Your satchel changed before the sale" };
+    }
     state.player.money += revenue;
     recordMarketSale(market, itemId, quantity);
     this.awardTradingXp(revenue, 0.1);
@@ -132,7 +132,7 @@ export class MarketDomain {
     }
     const marketQuote = commodity
       ? intent === "buy"
-        ? this.quotePurchase(commodity, quantity)
+        ? this.quotePurchase(marketId, commodity, quantity)
         : this.quoteSale(commodity, quantity)
       : null;
     const unitPrice = marketQuote?.unitPrice ?? Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP);
@@ -361,7 +361,7 @@ export class MarketDomain {
       };
     });
 
-    const fishingActive = Boolean(state.basicFishing || state.sportFishing);
+    const equipmentBlocker = this.equipment.equipBlocker();
     const retailRodIds = new Set(marketDefinition.retail.rodIds ?? []);
     const rodRows = retailRodIds.size > 0
       ? ROD_PROGRESSION.filter((rodId) => retailRodIds.has(rodId)).flatMap((rodId) => {
@@ -371,8 +371,8 @@ export class MarketDomain {
           const equipped = state.player.equippedRodId === rodId;
           const prerequisite = previousRodId(rodId);
           const requiredXp = rodFishingXpRequirement(rodId) ?? 0;
-          const blockerReason = fishingActive
-            ? "Finish fishing first"
+          const blockerReason = equipmentBlocker
+            ? equipmentBlocker
             : !owned && prerequisite !== null && !state.player.ownedRodIds.includes(prerequisite)
               ? "Previous rod required"
               : !owned && state.player.proficiencies.fishing < requiredXp
@@ -389,7 +389,7 @@ export class MarketDomain {
             owned,
             equipped,
             starter: prerequisite === null,
-            equippable: owned && !equipped && !fishingActive,
+            equippable: owned && !equipped && equipmentBlocker === null,
             purchasable: !owned && prerequisite !== null && blockerReason === undefined,
             blockerReason
           }];
@@ -539,7 +539,7 @@ export class MarketDomain {
       }
     }
     const cost = commodity
-      ? this.quotePurchase(commodity, quantity).total
+      ? this.quotePurchase(marketId, commodity, quantity).total
       : Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP) * quantity;
     if (state.player.money < cost) return failure("insufficient-funds", "Not enough money");
     const inventory = state.inventories[state.player.inventoryId];
@@ -577,7 +577,7 @@ export class MarketDomain {
     if (quantity > available) {
       return { success: false, reason: available <= 0 ? "Sold out" : `Only ${available} in stock` };
     }
-    const cost = this.quotePurchase(commodity, quantity).total;
+    const cost = this.quotePurchase(marketId, commodity, quantity).total;
     if (state.player.money < cost) return { success: false, reason: "Not enough money" };
     const inventory = state.inventories[state.player.inventoryId];
     const purchase = [{ itemId, quantity }];
@@ -601,9 +601,8 @@ export class MarketDomain {
     if (this.getNearbyMarketId() !== marketId) {
       return { success: false, reason: "Move closer to the harbor stall" };
     }
-    if (state.basicFishing || state.sportFishing) {
-      return { success: false, reason: "Finish fishing before changing tackle" };
-    }
+    const equipmentBlocker = this.equipment.equipBlocker();
+    if (equipmentBlocker) return { success: false, reason: equipmentBlocker };
     const rod = ContentRegistry.rods.get(rodId);
     const prerequisite = previousRodId(rodId);
     const requiredXp = rodFishingXpRequirement(rodId);
@@ -642,9 +641,8 @@ export class MarketDomain {
     if (!stallSellsTackle || this.getNearbyMarketId() !== marketId) {
       return { success: false, reason: "Change tackle at a stall that sells it" };
     }
-    if (state.basicFishing || state.sportFishing) {
-      return { success: false, reason: "Finish fishing before changing tackle" };
-    }
+    const equipmentBlocker = this.equipment.equipBlocker();
+    if (equipmentBlocker) return { success: false, reason: equipmentBlocker };
     if (!state.player.ownedRodIds.includes(rodId) || !ContentRegistry.rods.has(rodId)) {
       return { success: false, reason: "You do not own this rod" };
     }
@@ -821,11 +819,18 @@ export class MarketDomain {
     });
   }
 
-  private quotePurchase(commodity: Parameters<typeof quoteCommodityPurchase>[0], quantity: number): CommodityMarketQuote {
+  private quotePurchase(
+    marketId: MarketId,
+    commodity: Parameters<typeof quoteCommodityPurchase>[0],
+    quantity: number
+  ): CommodityMarketQuote {
+    const market = ContentRegistry.markets.get(marketId);
+    const workshopSupply = market?.retail.workshopSupplyItemIds?.includes(commodity.itemId) === true;
     return quoteCommodityPurchase(commodity, quantity, {
       absoluteHour: this.context.state.clock.currentMinute / 60,
       worldSeed: this.context.state.worldSeed,
-      minimumEffectiveModifier: this.bestWholesaleEffectiveModifier(commodity.itemId)
+      minimumEffectiveModifier: this.bestWholesaleEffectiveModifier(commodity.itemId),
+      ...(workshopSupply ? { retailMarkup: WORKSHOP_SUPPLY_MARKUP } : {})
     });
   }
 

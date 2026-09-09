@@ -99,12 +99,13 @@ export class NavigationDomain {
     }
     if (activeMountId) {
       const mount = state.mounts[activeMountId];
+      const commitGround = { heightToleranceMeters: MOUNT_TUNING.mountedCommitHeightToleranceMeters };
       if (
         !mount ||
-        !isValidMountPose(mount) ||
+        !isValidMountPose(mount, commitGround) ||
         frame.player.traversal.isGrounded !== true ||
-        !isValidPlayerMountGround(frame.player) ||
-        !isValidMountPose({ ...mount, ...mountPoseFromPlayer(frame.player) })
+        !isValidPlayerMountGround(frame.player, commitGround) ||
+        !isValidMountPose({ ...mount, ...mountPoseFromPlayer(frame.player) }, commitGround)
       ) {
         return { success: false, reason: "Physics returned an invalid mounted pose" };
       }
@@ -561,5 +562,29 @@ export class NavigationDomain {
     if (!boat) return false;
     if (state.player.activeBoatId === boat.id) return true;
     return Boolean(marketId && boat.isDocked && boat.dockedMarketId === marketId);
+  }
+
+  /**
+   * Supply stores are physical world containers. A player may use the active
+   * vessel while aboard it, or a docked vessel from its authored boarding
+   * boundary; expedition planning passes an explicit vessel through its own
+   * query path and does not use this live-access check.
+   */
+  public canAccessBoatStores(boatId: BoatId): boolean {
+    const { state } = this.context;
+    const boat = state.boats[boatId];
+    if (!boat || state.player.activeMountId) return false;
+    if (state.player.activeBoatId === boatId) return true;
+    if (state.player.activeBoatId && state.player.activeBoatId !== boatId) return false;
+    if (!boat.isDocked) return false;
+
+    const mooring = dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z);
+    return Boolean(
+      mooring &&
+      (
+        distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius ||
+        distance2d(state.player, boat) <= mooring.hullBoardRadius
+      )
+    );
   }
 }

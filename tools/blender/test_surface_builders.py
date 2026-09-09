@@ -64,6 +64,21 @@ def test_folded_face_color():
         assert normal.dot(tri.normal) >= -.001
 
 
+def test_uv_ownership():
+    clean_scene()
+    root = create_root("uv_owner_root")
+    plain = add_box("palette_box", (0, 0, 0), (1, 1, 1), "wood_honey_01", root)
+    assert len(plain.data.uv_layers) > 0
+    finish_authored_surface(plain, root)
+    assert not plain.data.uv_layers, "Unused primitive UVs leaked into a palette-only export"
+    textured = add_box("texture_box", (0, 0, 0), (1, 1, 1), "wood_honey_01", root)
+    material = textured.data.materials[0].copy()
+    material.node_tree.nodes.new("ShaderNodeTexImage")
+    textured.data.materials[0] = material
+    finish_authored_surface(textured, root)
+    assert len(textured.data.uv_layers) > 0, "Surface finishing removed a textured material's UVs"
+
+
 def signature():
     clean_scene()
     root = create_root("surface_test_root")
@@ -164,5 +179,6 @@ def signature():
 def test_surface_builders():
     test_animated_rest_space()
     test_folded_face_color()
+    test_uv_ownership()
     assert signature() == signature(), "Geometry, normals, colors or skin weights are nondeterministic"
     print("[NEVA ART] Surface builders passed: manifold grafts, winding, mixed normals, rest-face colors, LOD weights, determinism")

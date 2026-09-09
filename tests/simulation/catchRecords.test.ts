@@ -4,6 +4,7 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { BasicFishingMinigame } from "../../src/simulation/fishing/BasicFishingMinigame";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
 import type { FishQuality } from "../../src/simulation/core/types";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 function lakeTroutSchool(sim: Simulation): string {
   const lake = SCHOOL_SPAWN_POINTS.find(
@@ -18,6 +19,7 @@ function lakeTroutSchool(sim: Simulation): string {
 
 /** Wins the active fight instantly, with a fixed weight/quality for the record ladder. */
 function landWith(sim: Simulation, schoolId: string, weightKg: number, quality: FishQuality): void {
+  armLureForTest(sim);
   expect(sim.hookSportFish(schoolId).success).toBe(true);
   sim.state.sportFishing!.fish.weightKg = weightKg;
   sim.state.sportFishing!.fish.quality = quality;

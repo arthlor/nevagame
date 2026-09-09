@@ -1,3 +1,4 @@
+import { npcAnchorAt } from "../../src/simulation/presentation/NpcPresentation";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
@@ -65,7 +66,8 @@ function commitActiveBoatPose(simulation: Simulation, x: number, z: number, head
 function moveToNpc(simulation: Simulation, npcId: string): void {
   const npc = ContentRegistry.npcs.get(npcId);
   expect(npc).toBeDefined();
-  commitPlayerPose(simulation, npc!.anchor.x, npc!.anchor.z, npc!.anchor.rotationY);
+  const anchor = npcAnchorAt(npcId, simulation.state.clock);
+  commitPlayerPose(simulation, anchor.x, anchor.z, anchor.rotationY);
 }
 
 function moveToStation(simulation: Simulation, stationId: string): void {
@@ -280,6 +282,7 @@ describe("P12 new-save vertical slice", () => {
     talkTo(simulation, "npc.silas");
     expect(simulation.state.player.money).toBe(moneyBeforeCommission - 30);
     expect(simulation.state.quests.unlockedFeatureIds).toContain("boat.player_rowboat");
+    expect(InventoryManager.getItemCount(playerInventory(), "item.basic_lure")).toBe(2);
     expect(activeQuestId(simulation)).toBe("quest.act5_maiden_voyage");
 
     commitPlayerPose(simulation, HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z);
@@ -293,7 +296,9 @@ describe("P12 new-save vertical slice", () => {
     expect(lakeSchool).toBeDefined();
     expect(simulation.execute({ type: "fishing.chum-school", schoolId: lakeSchool!.id })).toMatchObject({ success: true });
     expect(activeQuestId(simulation)).toBe("quest.act5_maiden_voyage");
+    expect(simulation.execute({ type: "fishing.toggle-lure" })).toMatchObject({ success: true, prepared: true });
     expect(simulation.execute({ type: "fishing.hook-school", schoolId: lakeSchool!.id })).toMatchObject({ success: true });
+    expect(InventoryManager.getItemCount(playerInventory(), "item.basic_lure")).toBe(1);
     const cargoId = landSportFish(simulation);
     const cargo = simulation.state.fishCargo[cargoId];
     expect(cargo.location).toMatchObject({ type: "boat-hold", containerId: "boat.player_rowboat", slotIndex: 0 });

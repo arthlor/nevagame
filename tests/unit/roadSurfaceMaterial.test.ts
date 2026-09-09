@@ -26,6 +26,12 @@ describe("RoadSurfaceMaterial", () => {
 
     expect(shader.vertexShader).toContain("vRoadWorldPosition");
     expect(shader.vertexShader).toContain("vRoadOpacity");
+    expect(shader.vertexShader).toContain("attribute vec2 roadProfile");
+    expect(shader.fragmentShader).toContain("roadTrackWear * roadWearColorMix");
+    expect(shader.fragmentShader).toContain("roadTrackWear * roadWearRoughnessReduction");
+    expect(shader.fragmentShader).toContain("fwidth(roadEdgeField)");
+    expect(shader.fragmentShader).toContain("inverseTransformDirection(baseNormal, viewMatrix)");
+    expect(shader.fragmentShader).toContain("viewMatrix * vec4(detailNormal, 0.0)");
     expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0");
     expect(shader.vertexShader).toContain("vSurfaceCauses = max(surfaceCauses");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCell");
@@ -53,8 +59,8 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("roadExternalColorStrength");
     expect(shader.fragmentShader).toContain("roadExternalRoughnessStrength");
     expect(shader.fragmentShader).toContain("roadShoulderGrassColor");
-    expect(shader.fragmentShader).toContain("roadEdgeSignal = nevaGroundPolygonCellSignal");
-    expect(shader.fragmentShader).toContain("roadEdgeDistance = nevaGroundPolygonCellEdge");
+    expect(shader.fragmentShader).toContain("roadEdgeSignal = roadEdgeCell.x");
+    expect(shader.fragmentShader).toContain("roadEdgeDistance = roadEdgeCell.w");
     expect(shader.fragmentShader).toContain("roadEdgeBand = 1.0 - smoothstep(roadEdgeFadeFull, 1.0, vRoadOpacity)");
     expect(shader.fragmentShader).toContain("roadPolygonJaggedStrength * roadEdgeBand");
     expect(shader.fragmentShader).toContain("roadCoverage = smoothstep(");
@@ -82,7 +88,7 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.uniforms.roadSourceMesoSampleScale.value).toBe(8.5);
     expect(shader.uniforms.roadSourceRotation.value).toBe(0.37);
     expect(shader.uniforms.roadSourceLodBias.value).toBe(0.2);
-    expect(shader.uniforms.roadExternalColorStrength.value).toBe(1);
+    expect(shader.uniforms.roadExternalColorStrength.value).toBe(0.72);
     expect(shader.uniforms.roadExternalRoughnessStrength.value).toBe(1);
     expect(shader.fragmentShader).not.toContain("displacement");
     expect(road.material.flatShading).toBe(false);

@@ -1,3 +1,5 @@
+import { buildNewDiscoveries } from "./presentation/DiscoveryPresentation";
+import { npcAnchorAt, NPC_TALK_RADIUS } from "./presentation/NpcPresentation";
 // src/simulation/Simulation.ts
 
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -21,6 +23,7 @@ import {
   ProcessingJobId,
   RecipeId,
   SkillId,
+  WorkActionId,
   MountId,
   RodId
 } from "./core/types";
@@ -32,12 +35,13 @@ import type { DomainContext } from "./domains/DomainContext";
 import { deterministicCropRotation, FarmingDomain } from "./domains/FarmingDomain";
 import { ProcessingDomain } from "./domains/ProcessingDomain";
 import { ProgressionDomain } from "./domains/ProgressionDomain";
+import { EquipmentDomain } from "./domains/EquipmentDomain";
 import { NavigationDomain } from "./domains/NavigationDomain";
 import { CargoDomain } from "./domains/CargoDomain";
 import { FishingDomain } from "./domains/FishingDomain";
 import { MarketDomain } from "./domains/MarketDomain";
 import { ContractDomain } from "./domains/ContractDomain";
-import { QuestDomain, reconcileInactiveQuestChain, reconcileSatisfiedQuestObjectives } from "./domains/QuestDomain";
+import { QuestDomain, reconcileInactiveQuestChain, reconcileQuestCursors } from "./domains/QuestDomain";
 import { buildWorldHudDto } from "./presentation/WorldHudPresentation";
 import { freeHandsBlocker } from "./domains/domainRules";
 import { buildItemInspectionDto, buildSatchelDto } from "./presentation/SatchelPresentation";
@@ -70,16 +74,25 @@ import type {
   WorldMapDto,
   WorkCostQuote
 } from "./core/contracts";
+import { SimulationActionTimeline } from "./actions/ActionTimeline";
+
+export interface SimulationRuntimeOptions {
+  /** Developer-only presentation slowdown. It never changes save data. */
+  actionTimingScale?: number;
+}
 
 export class Simulation {
   public state: GameState;
   public rng: SeededRng;
   public clock: GameClock;
   public events: EventBus;
+  /** Transient, canonical command clock. It is deliberately not serialized. */
+  public readonly actionTimeline: SimulationActionTimeline;
   private readonly domainContext: DomainContext;
   private readonly progressionDomain: ProgressionDomain;
   private readonly farmingDomain: FarmingDomain;
   private readonly processingDomain: ProcessingDomain;
+  private readonly equipmentDomain: EquipmentDomain;
   private readonly navigationDomain: NavigationDomain;
   private readonly cargoDomain: CargoDomain;
   private readonly fishingDomain: FishingDomain;
@@ -87,7 +100,7 @@ export class Simulation {
   private readonly contractDomain: ContractDomain;
   public readonly questDomain: QuestDomain;
 
-  constructor(initialState?: GameState) {
+  constructor(initialState?: GameState, options: SimulationRuntimeOptions = {}) {
     ContentRegistry.initializeAndValidate();
     this.state = initialState || createInitialGameState();
     this.rng = new SeededRng(this.state.worldSeed + this.state.clock.currentMinute, this.state.metadata.rngState);
@@ -96,18 +109,22 @@ export class Simulation {
     this.clock.setPaused(false);
     this.state.clock = { ...this.clock.getState() };
     reconcileInactiveQuestChain(this.state);
-    reconcileSatisfiedQuestObjectives(this.state);
+    // Also redeems early-action credits, so a save taken mid-tutorial resolves
+    // its banked work on load rather than waiting for the next world event.
+    reconcileQuestCursors(this.state);
     this.events = new EventBus();
     this.domainContext = {
       state: this.state,
       rng: this.rng,
       events: this.events,
       nextEntityId: (prefix) => this.nextEntityId(prefix),
-      persistRng: () => this.persistRng()
+      persistRng: () => this.persistRng(),
+      isActionTimelineActive: () => this.actionTimeline?.isActive ?? false
     };
     this.progressionDomain = new ProgressionDomain(this.domainContext);
+    this.equipmentDomain = new EquipmentDomain(this.domainContext);
     this.farmingDomain = new FarmingDomain(this.domainContext, this.progressionDomain);
-    this.processingDomain = new ProcessingDomain(this.domainContext, this.progressionDomain);
+    this.processingDomain = new ProcessingDomain(this.domainContext, this.progressionDomain, this.equipmentDomain);
     this.navigationDomain = new NavigationDomain(this.domainContext);
     this.cargoDomain = new CargoDomain(this.domainContext, this.navigationDomain, this.progressionDomain);
     this.fishingDomain = new FishingDomain(this.domainContext, this.cargoDomain, this.progressionDomain);
@@ -115,7 +132,8 @@ export class Simulation {
       this.domainContext,
       this.navigationDomain,
       this.cargoDomain,
-      this.progressionDomain
+      this.progressionDomain,
+      this.equipmentDomain
     );
     this.contractDomain = new ContractDomain(
       this.domainContext,
@@ -125,6 +143,10 @@ export class Simulation {
       this.progressionDomain
     );
     this.questDomain = new QuestDomain(this.domainContext, this.progressionDomain);
+    this.actionTimeline = new SimulationActionTimeline(
+      (command) => this.execute(command),
+      options.actionTimingScale ?? 1
+    );
     this.persistRng();
   }
 
@@ -193,6 +215,14 @@ export class Simulation {
         return this.startProcessingJob(command.recipeId, command.stationId);
       case "processing.collect":
         return this.collectProcessingJob(command.jobId);
+      case "equipment.equip":
+        return this.equipmentDomain.equip(command.equipmentId);
+      case "equipment.equip-rod":
+        return this.equipmentDomain.equipRod(command.rodId);
+      case "equipment.save-preset":
+        return this.equipmentDomain.savePreset(command.presetId);
+      case "equipment.apply-preset":
+        return this.equipmentDomain.applyPreset(command.presetId);
       case "fishing.cast-basic":
         return this.castBasicFishing(command.castPower);
       case "fishing.start-charge-basic":
@@ -202,6 +232,9 @@ export class Simulation {
       case "fishing.hook-bite-basic":
         return this.hookBiteBasicFishing();
       case "fishing.control-basic":
+        if (typeof command.isHolding !== "boolean") {
+          return { success: false, reason: "Invalid fishing input" };
+        }
         this.setBasicFishingInput(command.isHolding);
         return { success: true };
       case "fishing.cancel-basic":
@@ -306,6 +339,10 @@ export class Simulation {
         return this.inspectSeedBelt();
       case "processing.inspect":
         return this.processingDomain.inspect(query.stationId);
+      case "processing.get-station":
+        return this.processingDomain.inspectStation(query.stationId);
+      case "equipment.get-character":
+        return this.equipmentDomain.inspectCharacter();
       case "crop.find-placement":
         return this.findPlantingPosition(query.farmId, query.cropId);
       case "quest.get-active":
@@ -321,11 +358,12 @@ export class Simulation {
 
   public getNearbyNpcId(): string | null {
     const { player } = this.state;
-    for (const [npcId, npc] of ContentRegistry.npcs.entries()) {
-      const dx = player.x - npc.anchor.x;
-      const dz = player.z - npc.anchor.z;
+    for (const npcId of ContentRegistry.npcs.keys()) {
+      const anchor = npcAnchorAt(npcId, this.state.clock);
+      const dx = player.x - anchor.x;
+      const dz = player.z - anchor.z;
       const dist = Math.hypot(dx, dz);
-      if (dist <= 3.5) {
+      if (dist <= NPC_TALK_RADIUS) {
         return npcId;
       }
     }
@@ -337,6 +375,7 @@ export class Simulation {
   // SIMULATION TICK
   // ==========================================
   public tick(realDeltaSeconds: number): void {
+    if (!Number.isFinite(realDeltaSeconds)) return;
     if (this.clock.isPaused()) {
       this.state.clock = { ...this.clock.getState() };
       return;
@@ -650,11 +689,15 @@ export class Simulation {
       this.state.player.ownedRodIds = ["rod.willow", "rod.river", "rod.heavy_sport"];
     }
     const inventory = this.state.inventories[this.state.player.inventoryId];
-    if (!InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.chum_bucket", quantity: 1 }])) {
+    if (!InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "item.chum_bucket", quantity: 1 },
+      { itemId: "item.basic_lure", quantity: 1 }
+    ])) {
       return false;
     }
     const schoolId = this.spawnFishSchool(habitatId, x, z, [speciesId]);
     if (!this.chumFishSchool(schoolId).success) return false;
+    if (!this.fishingDomain.togglePreparedLure().success) return false;
     return this.hookSportFish(schoolId).success;
   }
 
@@ -663,7 +706,14 @@ export class Simulation {
    * while the simulation remains the only owner allowed to mutate GameState.
    */
   public commitPhysicsFrame(frame: ResolvedPhysicsFrame): { success: boolean; reason?: string } {
-    return this.navigationDomain.commitPhysicsFrame(frame);
+    const result = this.navigationDomain.commitPhysicsFrame(frame);
+    if (result.success) {
+      for (const discovery of buildNewDiscoveries(this.state)) {
+        this.state.journal.unlockedKnowledge.push(discovery.id);
+        this.events.emit("PlaceDiscovered", { knowledgeId: discovery.id, title: discovery.title, view: discovery.view, minute: this.state.clock.currentMinute });
+      }
+    }
+    return result;
   }
 
   public setSportFishingInput(input: {
@@ -828,6 +878,18 @@ export class Simulation {
     return this.processingDomain.inspect(stationId);
   }
 
+  public inspectProcessingStation(stationId: string) {
+    return this.processingDomain.inspectStation(stationId);
+  }
+
+  public inspectCharacterEquipment() {
+    return this.equipmentDomain.inspectCharacter();
+  }
+
+  public cropInteractionReachMeters(action: "water" | "harvest" | "inspect"): number {
+    return this.farmingDomain.interactionReachMeters(action);
+  }
+
   // ==========================================
   // PROCESSING ACTIONS
   // ==========================================
@@ -943,7 +1005,11 @@ export class Simulation {
   }
 
   public inspectWorldHud(selectedCropId: string | null = null): WorldHudDto {
-    return buildWorldHudDto(this.state, selectedCropId);
+    // The compass needs the quest targets, and `QuestDomain` owns how a target
+    // is resolved (an objective anchor while the errand runs, the speaker's
+    // anchor once it is ready to turn in). Pass its answer in rather than
+    // letting the presentation layer re-derive it.
+    return buildWorldHudDto(this.state, selectedCropId, this.questDomain.getActiveQuestDtos());
   }
 
   public inspectExpeditionBoard(): ExpeditionBoardDto {
@@ -968,6 +1034,13 @@ export class Simulation {
     }
     const boat = this.state.boats[boatId];
     if (!boat) return { success: false, reason: "That vessel is not registered" };
+    if (!this.navigationDomain.canAccessBoatStores(boatId)) {
+      return {
+        success: false,
+        reasonCode: "boat-out-of-reach",
+        reason: "Move closer to the vessel before transferring stores"
+      };
+    }
 
     const satchel = this.state.inventories[this.state.player.inventoryId];
     const hold = this.state.inventories[boat.supplyInventoryId];
@@ -1156,8 +1229,8 @@ export class Simulation {
     this.progressionDomain.addProficiencyXp(skill, xpAmount);
   }
 
-  public quoteWorkCost(baseCost: number, skill: SkillId): WorkCostQuote {
-    return this.progressionDomain.quoteWorkCost(baseCost, skill);
+  public quoteWorkCost(baseCost: number, skill: SkillId, action?: WorkActionId): WorkCostQuote {
+    return this.progressionDomain.quoteWorkCost(baseCost, skill, action);
   }
 
   // ==========================================

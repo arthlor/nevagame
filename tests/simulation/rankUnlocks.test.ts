@@ -104,7 +104,7 @@ describe("rank unlocks", () => {
       "rod.willow": 0,
       "rod.river": 1000,
       "rod.heavy_sport": 3000,
-      "rod.offshore": 15000,
+      "rod.offshore": 7500,
       "rod.master": 60000
     });
   });

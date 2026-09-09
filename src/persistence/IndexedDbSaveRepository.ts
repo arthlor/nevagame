@@ -9,6 +9,7 @@ const DB_NAME = "neva_save_db";
 const STORE_NAME = "game_saves";
 const PRIMARY_KEY = "primary_save";
 const BACKUP_KEY = "backup_save";
+export const SAVE_OPERATION_TIMEOUT_MS = 10_000;
 
 export interface SaveSummary {
   dayCount: number;
@@ -72,28 +73,66 @@ export class IndexedDbSaveRepository {
 
   private openDb(): Promise<IDBDatabase | null> {
     return new Promise((resolve) => {
+      let settled = false;
+      const finish = (db: IDBDatabase | null) => {
+        if (settled) { db?.close(); return; }
+        settled = true;
+        clearTimeout(timer);
+        resolve(db);
+      };
+      const timer = setTimeout(() => finish(null), SAVE_OPERATION_TIMEOUT_MS);
       try {
         const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = (e: IDBVersionChangeEvent) => {
-          const target = e.target as IDBOpenDBRequest;
-          const db = target.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME);
-          }
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
         };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => {
-          console.error("[IndexedDbSaveRepository] Failed to open IndexedDB", request.error);
-          resolve(null);
+        request.onsuccess = () => {
+          request.result.onversionchange = () => {
+            this.forgetDb(request.result);
+            request.result.close();
+          };
+          finish(request.result);
         };
-      } catch (error) {
-        console.error("[IndexedDbSaveRepository] Failed to open IndexedDB", error);
-        resolve(null);
-      }
+        request.onblocked = () => finish(null);
+        request.onerror = () => finish(null);
+      } catch { finish(null); }
     });
   }
 
-  public async saveGame(state: GameState): Promise<boolean> {
+  private transaction<T>(
+    db: IDBDatabase,
+    mode: IDBTransactionMode,
+    operation: (store: IDBObjectStore, result: (value: T) => void) => void,
+    signal?: AbortSignal
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      signal?.throwIfAborted();
+      const tx = db.transaction(STORE_NAME, mode);
+      let value: T;
+      let settled = false;
+      const cleanup = () => { clearTimeout(timer); signal?.removeEventListener("abort", abort); };
+      const fail = (reason: unknown) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(reason);
+      };
+      const abort = () => {
+        try { tx.abort(); } catch { /* A completed transaction cannot be aborted. */ }
+        fail(signal?.reason ?? new Error("Save operation timed out"));
+      };
+      const timer = setTimeout(abort, SAVE_OPERATION_TIMEOUT_MS);
+      signal?.addEventListener("abort", abort, { once: true });
+      tx.oncomplete = () => { if (!settled) { settled = true; cleanup(); resolve(value); } };
+      tx.onerror = () => fail(tx.error ?? new Error("Save storage failed"));
+      tx.onabort = () => fail(tx.error ?? new Error("Save transaction aborted"));
+      try { operation(tx.objectStore(STORE_NAME), result => { value = result; }); }
+      catch (error) { try { tx.abort(); } catch { /* Already inactive. */ } fail(error); }
+    });
+  }
+
+  public async saveGame(state: GameState, signal?: AbortSignal): Promise<boolean> {
     const savedAtUtcMs = Date.now();
     // Freeze gameplay truth before any await so nested player/inventory/fishing
     // mutations during IDB cannot tear the envelope.
@@ -106,7 +145,7 @@ export class IndexedDbSaveRepository {
       state: snapshot
     };
 
-    return this.enqueue(() => this.persistEnvelope(state, envelope, savedAtUtcMs));
+    return this.enqueue(() => this.persistEnvelope(state, envelope, savedAtUtcMs, signal));
   }
 
   public async loadGame(): Promise<SaveEnvelope | null> {
@@ -119,9 +158,9 @@ export class IndexedDbSaveRepository {
    * truthful Continue/New Game action. It does not construct a Simulation or
    * touch the renderer, physics, or gameplay clock.
    */
-  public async inspectGame(): Promise<SaveInspection> {
+  public async inspectGame(signal?: AbortSignal): Promise<SaveInspection> {
     return this.enqueue(async () => {
-      const result = await this.readGameResult();
+      const result = await this.readGameResult(signal);
       return {
         result,
         summary: result.status === "loaded" ? this.summarize(result.envelope) : null
@@ -136,56 +175,42 @@ export class IndexedDbSaveRepository {
   public async clearSaves(): Promise<void> {
     return this.enqueue(async () => {
       const db = await this.getDb();
-      if (!db) {
-        return;
-      }
-      await new Promise<void>((resolve) => {
-        try {
-          const tx = db.transaction(STORE_NAME, "readwrite");
-          tx.objectStore(STORE_NAME).clear();
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => {
-            console.error("[IndexedDbSaveRepository] Failed to clear saves", tx.error);
-            resolve();
-          };
-        } catch (error) {
-          console.error("[IndexedDbSaveRepository] Failed to clear saves", error);
-          resolve();
-        }
-      });
+      if (!db) return;
+      await this.transaction<void>(db, "readwrite", store => { store.clear(); });
     });
   }
 
   private async persistEnvelope(
     liveState: GameState,
     envelope: SaveEnvelope,
-    savedAtUtcMs: number
+    savedAtUtcMs: number,
+    signal?: AbortSignal
   ): Promise<boolean> {
-    const db = await this.getDb();
-    if (!db) {
-      // Never treat RAM as a durable save, and never promote it into IndexedDB later.
-      // A later saveGame retries open — failed opens are not cached.
+    try {
+      signal?.throwIfAborted();
+      const db = await this.getDb();
+      if (!db || !validateSaveEnvelope(envelope)) return false;
+      signal?.throwIfAborted();
+      // Both slots change in the same transaction. A failed primary put cannot
+      // overwrite the backup, including when startup recovered from that backup.
+      await this.transaction<void>(db, "readwrite", store => {
+        const request = store.get(PRIMARY_KEY);
+        request.onsuccess = () => {
+          try {
+            const previous = this.migrateAndValidate(request.result);
+            if (previous && previous !== "incompatible") store.put(previous, BACKUP_KEY);
+            store.put(envelope, PRIMARY_KEY);
+          } catch {
+            request.transaction?.abort();
+          }
+        };
+      }, signal);
+      liveState.metadata.lastSavedUtcMs = savedAtUtcMs;
+      return true;
+    } catch (error) {
+      console.warn("[IndexedDbSaveRepository] Save was not committed", error);
       return false;
     }
-
-    if (!validateSaveEnvelope(envelope)) {
-      console.error("[IndexedDbSaveRepository] Refusing to persist an invalid save envelope");
-      return false;
-    }
-
-    const existing = await this.readAndMigrate(db, PRIMARY_KEY);
-    if (existing) {
-      const backedUp = await this.writeRawToDb(db, BACKUP_KEY, existing);
-      if (!backedUp) {
-        console.error("[IndexedDbSaveRepository] Failed to write backup save");
-        return false;
-      }
-    }
-
-    const written = await this.writeRawToDb(db, PRIMARY_KEY, envelope);
-    if (!written) return false;
-    liveState.metadata.lastSavedUtcMs = savedAtUtcMs;
-    return true;
   }
 
   private migrateAndValidate(raw: unknown): SaveEnvelope | "incompatible" | null {
@@ -221,36 +246,42 @@ export class IndexedDbSaveRepository {
       console.error("[IndexedDbSaveRepository] Save migration failed", error);
       return null;
     }
-    if (migrated.schemaVersion !== CURRENT_SCHEMA_VERSION) return null;
-    if (!validateSaveEnvelope(migrated)) return null;
-    return migrated;
+    try {
+      if (migrated.schemaVersion !== CURRENT_SCHEMA_VERSION) return null;
+      if (!validateSaveEnvelope(migrated)) return null;
+      return migrated;
+    } catch {
+      // A malformed primary must behave like any other corrupt slot so the
+      // caller can still attempt the backup before reporting the database as
+      // unavailable.
+      return null;
+    }
   }
 
-  private async readAndMigrate(db: IDBDatabase, key: string): Promise<SaveEnvelope | null> {
-    const result = this.migrateAndValidate(await this.readRawFromDb(db, key));
-    return result === "incompatible" ? null : result;
-  }
+  private async readGameResult(signal?: AbortSignal): Promise<LoadGameResult> {
+    try {
+      signal?.throwIfAborted();
+      const db = await this.getDb();
+      signal?.throwIfAborted();
+      if (!db) {
+        return { status: "unavailable" };
+      }
 
-  private async readGameResult(): Promise<LoadGameResult> {
-    const db = await this.getDb();
-    if (!db) {
-      return { status: "unavailable" };
-    }
+      const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY, signal);
+      const primary = this.migrateAndValidate(primaryRaw);
+      if (primary && primary !== "incompatible") return { status: "loaded", envelope: primary };
 
-    const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY);
-    const primary = this.migrateAndValidate(primaryRaw);
-    if (primary && primary !== "incompatible") return { status: "loaded", envelope: primary };
+      const backupRaw = await this.readRawFromDb(db, BACKUP_KEY, signal);
+      const backup = this.migrateAndValidate(backupRaw);
+      if (backup && backup !== "incompatible") {
+        console.warn("Primary save missing or corrupted. Restored from backup.");
+        return { status: "loaded", envelope: backup };
+      }
 
-    const backupRaw = await this.readRawFromDb(db, BACKUP_KEY);
-    const backup = this.migrateAndValidate(backupRaw);
-    if (backup && backup !== "incompatible") {
-      console.warn("Primary save missing or corrupted. Restored from backup.");
-      return { status: "loaded", envelope: backup };
-    }
-
-    if (primaryRaw == null && backupRaw == null) return { status: "empty" };
-    if (primary === "incompatible" || backup === "incompatible") return { status: "incompatible" };
-    return { status: "corrupt" };
+      if (primaryRaw == null && backupRaw == null) return { status: "empty" };
+      if (primary === "incompatible" || backup === "incompatible") return { status: "incompatible" };
+      return { status: "corrupt" };
+    } catch { return { status: "unavailable" }; }
   }
 
   private summarize(envelope: SaveEnvelope): SaveSummary {
@@ -264,37 +295,10 @@ export class IndexedDbSaveRepository {
     };
   }
 
-  private async writeRawToDb(db: IDBDatabase, key: string, data: SaveEnvelope): Promise<boolean> {
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        tx.objectStore(STORE_NAME).put(data, key);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => {
-          console.error("[IndexedDbSaveRepository] Failed to write save", tx.error);
-          resolve(false);
-        };
-      } catch (error) {
-        console.error("[IndexedDbSaveRepository] Failed to write save", error);
-        resolve(false);
-      }
-    });
-  }
-
-  private async readRawFromDb(db: IDBDatabase, key: string): Promise<unknown> {
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readonly");
-        const req = tx.objectStore(STORE_NAME).get(key);
-        req.onsuccess = () => resolve(req.result ?? null);
-        req.onerror = () => {
-          console.error("[IndexedDbSaveRepository] Failed to read save", req.error);
-          resolve(null);
-        };
-      } catch (error) {
-        console.error("[IndexedDbSaveRepository] Failed to read save", error);
-        resolve(null);
-      }
-    });
+  private async readRawFromDb(db: IDBDatabase, key: string, signal?: AbortSignal): Promise<unknown> {
+    return this.transaction<unknown>(db, "readonly", (store, result) => {
+      const request = store.get(key);
+      request.onsuccess = () => result(request.result ?? null);
+    }, signal);
   }
 }

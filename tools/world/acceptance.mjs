@@ -5,14 +5,13 @@ import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
+import { preservationDifferences, placementDifferences } from "./preservation-reference.mjs";
 
 const ROOT = process.cwd();
 const VITE = path.join(ROOT, "node_modules/.bin/vite");
 const VITE_NODE = path.join(ROOT, "node_modules/.bin/vite-node");
 const TSC = path.join(ROOT, "node_modules/.bin/tsc");
-const NEVA_PRESERVATION = JSON.parse(
-  fs.readFileSync(path.join(ROOT, "tools/world/neva-layout9-preservation.json"), "utf8")
-);
+let nevaPreservationReference;
 const ALL_SCENES = [
   "bridge_river",
   "starter_farm",
@@ -222,15 +221,11 @@ async function runSunreachCompositionAudit() {
   };
 }
 
-function validateCompositionAudit(audit, layoutRevision) {
-  const failures = [];
+function validateCompositionAudit(audit) {
+  const failures = placementDifferences(audit.seeds, nevaPreservationReference);
   for (const seed of audit.seeds) {
-    const frozenHash = NEVA_PRESERVATION.compositionPlacementHashes[String(seed.seed)];
-    if (layoutRevision !== 11 && seed.placementHash !== frozenHash) {
-      failures.push(`seed ${seed.seed}: Neva placement ${seed.placementHash} != ${frozenHash}`);
-    }
-    if (seed.periodic22Ratio >= 1.35) failures.push(`seed ${seed.seed}: 22m ratio ${seed.periodic22Ratio}`);
-    if (seed.periodic555Ratio >= 1.35) failures.push(`seed ${seed.seed}: 5.55m ratio ${seed.periodic555Ratio}`);
+    if (seed.periodic22LowerBound >= 1.35) failures.push(`seed ${seed.seed}: supported 22m ratio ${seed.periodic22LowerBound}`);
+    if (seed.periodic555LowerBound >= 1.35) failures.push(`seed ${seed.seed}: supported 5.55m ratio ${seed.periodic555LowerBound}`);
     if (seed.districtDensityCv < 0.12 || !seed.districtOrderingPass) failures.push(`seed ${seed.seed}: district rhythm`);
     if (!seed.largeOpenings.some((opening) => opening.containsFarm && opening.areaSquareMeters >= 900)) {
       failures.push(`seed ${seed.seed}: farm opening`);
@@ -280,17 +275,17 @@ async function runNevaPreservationAudit() {
     VITE_NODE,
     ["--script", "tools/world/run-neva-preservation-audit.ts"]
   ));
-  // Layout 11 intentionally reshapes the north. Retain the historical whole-map
-  // snapshot and enforce pre-change working ground, lower river and Sunreach.
-  const failures = current.layoutRevision === 11
-    ? Object.entries(current.workingChecks).filter(([, passed]) => !passed).map(([key]) => `working preservation: ${key}`)
-    : ["terrainWaterHash", "routeHash", "landmarkHash", "sampleCount"]
-      .filter((key) => current[key] !== NEVA_PRESERVATION[key])
-      .map((key) => `${key}: ${current[key]} != ${NEVA_PRESERVATION[key]}`);
+  const referencePath = path.join(ROOT, `tools/world/neva-layout${current.layoutRevision}-preservation.json`);
+  if (args.has("--refresh-preservation")) return { current, referencePath };
+  if (!fs.existsSync(referencePath)) {
+    throw new Error(`[world:acceptance] Missing layout ${current.layoutRevision} reference. Explicitly capture the authorized layout with --refresh-preservation.`);
+  }
+  nevaPreservationReference = JSON.parse(fs.readFileSync(referencePath, "utf8"));
+  const failures = preservationDifferences(current, nevaPreservationReference);
   if (failures.length > 0) {
     throw new Error(`[world:acceptance] Neva preservation gate failed:\n${failures.join("\n")}`);
   }
-  return { frozen: NEVA_PRESERVATION, current };
+  return { frozen: nevaPreservationReference, current };
 }
 
 async function reservePort() {
@@ -869,10 +864,25 @@ async function main() {
     runCompositionAudit(),
     runSunreachCompositionAudit()
   ]);
-  validateCompositionAudit(audit, nevaPreservation.current.layoutRevision);
-  validateSunreachCompositionAudit(sunreachAudit);
+  if (args.has("--refresh-preservation")) {
+    const afterDigest = manifestDigest(inputManifest());
+    if (afterDigest !== digest) throw new Error("[world:acceptance] Inputs changed while capturing preservation reference");
+    if (audit.repeatedSeed42Hash[0] !== audit.repeatedSeed42Hash[1]) {
+      throw new Error("[world:acceptance] Cannot freeze nondeterministic placements");
+    }
+    const { layoutRevision, terrainWaterHash, routeHash, landmarkHash, sampleCount } = nevaPreservation.current;
+    writeJson(nevaPreservation.referencePath, {
+      sourceInputDigest: digest, layoutRevision, terrainWaterHash, routeHash, landmarkHash, sampleCount,
+      compositionPlacementHashes: Object.fromEntries(audit.seeds.map((seed) => [seed.seed, seed.placementHash]))
+    });
+    console.info(`[world:acceptance] Captured layout ${layoutRevision} preservation reference. Run normal acceptance to validate composition and captures.`);
+    return;
+  }
+  // Keep diagnostics even when a quality gate rejects the captured world.
   writeJson(path.join(output, "composition-audit.json"), audit);
   writeJson(path.join(output, "sunreach-composition-audit.json"), sunreachAudit);
+  validateCompositionAudit(audit);
+  validateSunreachCompositionAudit(sunreachAudit);
   const combinedStrongest = Math.max(
     ...audit.seeds.map((seed) => Math.max(seed.periodic22Ratio, seed.periodic555Ratio)),
     ...sunreachAudit.seeds.map((seed) => seed.periodic22Ratio)

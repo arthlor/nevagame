@@ -25,12 +25,18 @@ import { WeatherHazardBanner } from "./components/WeatherHazardBanner";
 
 export interface HUDProps {
   hud: WorldHudDto;
+  playerPosition?: { x: number; z: number };
+  blocked?: boolean;
   promptText: string | null;
   toastMessage?: string | null;
   notices?: readonly Notice[];
   activeQuest?: ActiveQuestDto | null;
+  activeQuests?: readonly ActiveQuestDto[];
+  onFocusTrack?: (trackId: string) => void;
   activeToolSlot?: number;
   onSelectToolSlot?: (slot: number) => void;
+  /** Bumped when the world swapped a tool in, so the belt shows itself. */
+  toolRevealToken?: number;
   onOpenMenu?: () => void;
   onOpenModal?: (modal: ActiveModal) => void;
   onInspectFarmForecast: () => FarmForecastDto;
@@ -48,12 +54,17 @@ const EMPTY_NOTICES: readonly Notice[] = [];
 
 export const HUD: React.FC<HUDProps> = ({
   hud,
+  playerPosition,
+  blocked = false,
   promptText,
   toastMessage,
   notices,
   activeQuest = null,
+  activeQuests,
+  onFocusTrack,
   activeToolSlot = 1,
   onSelectToolSlot,
+  toolRevealToken = 0,
   onOpenMenu,
   onOpenModal,
   onInspectFarmForecast,
@@ -88,7 +99,7 @@ export const HUD: React.FC<HUDProps> = ({
   // F toggles the farm forecast
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== "KeyF" || event.repeat || event.defaultPrevented) return;
+      if (blocked || event.code !== "KeyF" || event.repeat || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select") || target?.isContentEditable) return;
       event.preventDefault();
@@ -97,7 +108,9 @@ export const HUD: React.FC<HUDProps> = ({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [blocked]);
+
+  useEffect(() => { if (blocked) setShowForecast(false); }, [blocked]);
 
   const handleToolClick = (slot: number) => {
     onSelectToolSlot?.(slot);
@@ -119,18 +132,19 @@ export const HUD: React.FC<HUDProps> = ({
   };
 
   return (
-    <div className="tidebook-hud">
-      <HudCluster
-        edge="top-left"
-        className="hud-top-left-container interactive"
-        aria-label="Active objectives"
-      >
-        <div className="hud-top-left">
-          <QuestTrackerHUD
-            activeQuest={activeQuest}
-            activeContracts={hud.activeContracts}
-          />
-        </div>
+    <div className="guildcraft-hud" aria-hidden={blocked || undefined} {...(blocked ? { inert: "" } : {})}>
+      <HudCluster edge="top-left" className="guild-status-anchor interactive" aria-label="Player resources">
+        <PlayerUnitFrame work={hud.work} sprint={hud.sprint} statusEffects={hud.statusEffects}
+          onOpenCharacterSheet={() => handleModalOpen("character")} />
+      </HudCluster>
+      <HudCluster className="guild-objectives interactive" aria-label="Active objectives">
+        <QuestTrackerHUD
+          activeQuest={activeQuest}
+          activeQuests={activeQuests}
+          onFocusTrack={onFocusTrack}
+          activeContracts={hud.activeContracts}
+          records={hud.recordTracker}
+        />
       </HudCluster>
 
       <TidebookNavigation compass={hud.compass} onOpenMap={() => handleModalOpen("map")} />
@@ -141,13 +155,15 @@ export const HUD: React.FC<HUDProps> = ({
       {/* Clock, weather and currency share the upper-right instrument. */}
       <HudCluster
         edge="top-right"
-        className="hud-top-right-cluster interactive"
+        className="guild-almanac-anchor interactive"
         aria-label="Navigation, weather, and active objectives"
       >
         <div className="hud-top-right">
           <div className="hud-top-right-main">
             {/* Nautical Compass & Celestial Almanac */}
             <NauticalCompassAlmanac
+              playerPosition={playerPosition}
+              onOpenMap={() => handleModalOpen("map")}
               clock={hud.clock}
               weather={hud.weather}
               compass={hud.compass}
@@ -175,8 +191,8 @@ export const HUD: React.FC<HUDProps> = ({
       </HudCluster>
 
       {/* Bottom-Left Cluster: Contextual Field Notes & Boat Driving Console */}
-      <HudCluster edge="bottom-left" className="hud-bottom-left-container">
-        <div className="hud-bottom-left">
+      <HudCluster edge="bottom-left" className="guild-notes-anchor">
+        <div className="guild-field-notes">
           {(work.showLowNotice || carriedFish) && (
             <aside className="hud-context-statuses interactive" aria-label="Current field notes">
               {work.showLowNotice && (
@@ -200,22 +216,27 @@ export const HUD: React.FC<HUDProps> = ({
                   data-testid="carried-trade-pack"
                   data-cargo-class={carriedFish.cargoClass}
                 >
-                  <span className="pack-shoulder-mark" aria-hidden="true"><IconPack size={13} /></span>
-                  <AtlasImage src={atlasForFish(carriedFish.speciesId)} alt="" size={24} />
-                  <span>{carriedFish.name}</span>
-                  <strong>{`${carriedFish.weightKg.toFixed(1)} kg`}</strong>
-                  <span className="hud-context-note-detail">
-                    {`${carriedFish.freshnessPercent}% · ${carriedFish.quality}`}
-                  </span>
-                  {carriedFish.carrySpeedPenaltyPercent > 0 && (
-                    <span
-                      className="pack-speed-penalty"
-                      data-testid="carried-pack-penalty"
-                      title="Carrying this on your back slows you down"
-                    >
-                      {`▼ ${carriedFish.carrySpeedPenaltyPercent}% speed`}
+                  <div className="pack-info-row">
+                    <span className="pack-shoulder-mark" aria-hidden="true"><IconPack size={13} /></span>
+                    <AtlasImage src={atlasForFish(carriedFish.speciesId)} alt="" size={24} />
+                    <span className="pack-species-name">{carriedFish.name}</span>
+                    <strong className="pack-weight">{`${carriedFish.weightKg.toFixed(1)} kg`}</strong>
+                  </div>
+                  <div className="pack-detail-row">
+                    <span className="hud-context-note-detail">
+                      {`${carriedFish.freshnessPercent}%`}
                     </span>
-                  )}
+                    <span className="pack-quality-label">{carriedFish.quality}</span>
+                    {carriedFish.carrySpeedPenaltyPercent > 0 && (
+                      <span
+                        className="pack-speed-penalty"
+                        data-testid="carried-pack-penalty"
+                        title="Carrying this on your back slows you down"
+                      >
+                        {`▼ ${carriedFish.carrySpeedPenaltyPercent}% speed`}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </aside>
@@ -236,19 +257,14 @@ export const HUD: React.FC<HUDProps> = ({
               headingCardinal={hud.compass.headingCardinal}
             />
           )}
-          <PlayerUnitFrame
-            work={hud.work}
-            sprint={hud.sprint}
-            statusEffects={hud.statusEffects}
-            onOpenCharacterSheet={() => handleModalOpen("journal")}
-          />
+
         </div>
       </HudCluster>
 
       {/* Bottom-Center Cluster: Smart Labor Action Prompts & Contextual Hotbar */}
-      <HudCluster edge="bottom-center" className="hud-play-cluster">
+      <HudCluster edge="bottom-center" className="hud-play-cluster guild-play-anchor">
         {!isPlacementActive && !basicFishingResultOpen && (basicFishingPhase || promptText) && (
-          <footer className="hud-bottom-center" aria-label="Contextual interactions">
+          <footer className="guild-interaction-anchor" aria-label="Contextual interactions">
             {basicFishingPhase ? (
               <div
                 className={`interaction-prompt fishing-phase-banner phase-${basicFishingPhase}`}
@@ -285,13 +301,16 @@ export const HUD: React.FC<HUDProps> = ({
           </footer>
         )}
 
-        {/* Smart Contextual Stance Toolbar */}
+        {/* Smart Contextual Stance Toolbar — renders nothing when the stance
+            has no tool worth swapping, which is most of the time on foot. */}
         {!isPlacementActive && (
           <SmartContextualToolbar
             stance={hud.stance}
             hotbar={hud.contextualHotbar}
             activeSlot={activeToolSlot}
             onSelectSlot={handleToolClick}
+            revealToken={toolRevealToken}
+            alwaysExpanded={touchChrome}
           />
         )}
       </HudCluster>
@@ -300,7 +319,7 @@ export const HUD: React.FC<HUDProps> = ({
       {!isPlacementActive && (
         <HudCluster
           edge="bottom-right"
-          className="hud-bottom-right-container interactive"
+          className="guild-utilities-anchor interactive"
           aria-label="Micro-menu and purse"
         >
           <MicroMenuPurseBar

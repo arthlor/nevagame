@@ -4,12 +4,13 @@ import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { GameClock } from "../simulation/core/GameClock";
 import { advancePlacedCropGrowth } from "../simulation/farming/calculateCropGrowth";
+import { onboardingGrowthMultiplier } from "../simulation/core/OnboardingPace";
 import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBoundedSegments";
 import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
 import { regenerateWorkCapacity, OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR } from "../simulation/domains/ProgressionDomain";
-import { expireContracts, refillContracts } from "../simulation/domains/ContractDomain";
+import { expireContracts, pruneSettledContracts, refillContracts } from "../simulation/domains/ContractDomain";
 import { expireSpentSchools } from "../simulation/domains/FishingDomain";
 import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
 import { sampleFarmEnvironment } from "../simulation/farming/FarmEnvironmentSample";
@@ -68,7 +69,8 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
         cropDef,
         sampleFarmEnvironment(farm, state.weather),
         farm.soil.fertility,
-        segmentMinutes
+        segmentMinutes,
+        onboardingGrowthMultiplier(cropState.cropId, cropState.farmId, state.quests)
       );
       if (previousStage !== "mature" && previousStage !== "overripe" && (newStage === "mature" || newStage === "overripe")) {
         summary.cropsMaturedCount += 1;
@@ -112,6 +114,9 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
     0,
     state.contracts.filter((contract) => contract.status === "expired").length - expiredBefore
   );
+  // After the delta is measured, never before: the count is a before/after
+  // comparison over the same array.
+  pruneSettledContracts(state);
 
   // Step 7: Market ticks
   for (const market of Object.values(state.markets)) {

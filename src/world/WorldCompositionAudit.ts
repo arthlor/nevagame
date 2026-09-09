@@ -18,6 +18,9 @@ export interface WorldCompositionSeedAudit {
   placementHash: string;
   periodic22Ratio: number;
   periodic555Ratio: number;
+  periodic22LowerBound: number;
+  periodic555LowerBound: number;
+  districtCategoryDensities: readonly { tree: number; bush: number }[];
   districtDensityCv: number;
   districtDensities: readonly [number, number, number, number];
   districtOrderingPass: boolean;
@@ -68,13 +71,28 @@ function placementHash(placements: readonly EnvironmentAssetPlacement[]): string
     .join("|"));
 }
 
-function periodicRatio(values: readonly number[], target: number, binWidth: number): number {
+/** Compare one spacing bin with its four neighbors. The raw ratio remains diagnostic.
+ * A one-sided 95% Wilson bound prevents sparse random bins from claiming a lattice.
+ * Treat this as a signal screen, not an independent-pair probability model.
+ */
+export function periodicSpacingEvidence(values: readonly number[], target: number, binWidth: number) {
   const countAt = (center: number): number => values.filter((value) => Math.abs(value - center) <= binWidth * 0.5).length;
   const targetCount = countAt(target);
-  const neighbors = [target - binWidth * 2, target - binWidth, target + binWidth, target + binWidth * 2]
-    .map(countAt);
-  const neighborMean = neighbors.reduce((sum, value) => sum + value, 0) / neighbors.length;
-  return (targetCount + 1) / (neighborMean + 1);
+  const neighborCount = [target - binWidth * 2, target - binWidth, target + binWidth, target + binWidth * 2]
+    .reduce((sum, center) => sum + countAt(center), 0);
+  const total = targetCount + neighborCount;
+  const ratio = (targetCount + 1) / (neighborCount / 4 + 1);
+  if (!total) return { ratio, lowerBound: 0, targetCount, neighborCount };
+  const z = 1.645;
+  const proportion = targetCount / total;
+  const lower = (proportion + z * z / (2 * total)
+    - z * Math.sqrt(proportion * (1 - proportion) / total + z * z / (4 * total * total)))
+    / (1 + z * z / total);
+  return { ratio, lowerBound: 4 * lower / (1 - lower), targetCount, neighborCount };
+}
+
+function periodicRatio(values: readonly number[], target: number, binWidth: number): number {
+  return periodicSpacingEvidence(values, target, binWidth).ratio;
 }
 
 function axisSeparations(placements: readonly EnvironmentAssetPlacement[], maximum: number): number[] {
@@ -97,16 +115,35 @@ function coefficientOfVariation(values: readonly number[]): number {
   return Math.sqrt(variance) / mean;
 }
 
-function districtDensity(seed: number, center: { x: number; z: number }): number {
-  const values: number[] = [];
+function districtCategoryDensity(seed: number, center: { x: number; z: number }) {
+  let tree = 0, bush = 0, count = 0;
   for (let x = center.x - 24; x <= center.x + 24; x += 6) {
     for (let z = center.z - 24; z <= center.z + 24; z += 6) {
       if (!WorldLayout.isWalkable(x, z) || WorldLayout.isWater(x, z)) continue;
       const sample = sampleWorldComposition(seed, x, z);
-      values.push(sample.density.tree * 0.68 + sample.density.bush * 0.32);
+      tree += sample.density.tree;
+      bush += sample.density.bush;
+      count += 1;
     }
   }
-  return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  return { tree: tree / Math.max(1, count), bush: bush / Math.max(1, count) };
+}
+
+/** Village canopy, harbor working edges, and sparse headland are distinct roles. */
+export function districtRhythmPass(densities: readonly { tree: number; bush: number }[]): boolean {
+  const [farm, village, harbor, headland] = densities;
+  const total = (district: { tree: number; bush: number }) => district.tree + district.bush;
+  // Compare canopy share across two different habitats, not absolute tree density:
+  // harbor scrub may vary without turning its working edge into village woodland.
+  const canopyShare = (district: { tree: number; bush: number }) => district.tree / Math.max(0.000001, total(district));
+  return total(village) > total(farm) && total(farm) > total(headland)
+    && harbor.bush > village.bush && village.bush > farm.bush
+    && canopyShare(village) > canopyShare(harbor);
+}
+
+function districtDensity(seed: number, center: { x: number; z: number }): number {
+  const { tree, bush } = districtCategoryDensity(seed, center);
+  return tree * 0.68 + bush * 0.32;
 }
 
 function openingComponents(seed: number): Array<{ areaSquareMeters: number; containsFarm: boolean; containsHeadland: boolean }> {
@@ -222,12 +259,15 @@ export function auditWorldCompositionSeed(seed: number): WorldCompositionSeedAud
   const reeds = structural.filter((placement) => placement.compositionTag?.category === "reed");
   const separations22 = axisSeparations(structural, 24);
   const separations555 = axisSeparations(reeds, 7);
-  const districtDensities: [number, number, number, number] = [
-    districtDensity(seed, { x: -65, z: -55 }),
-    districtDensity(seed, { x: 53, z: -52 }),
-    districtDensity(seed, { x: 68, z: 60 }),
-    districtDensity(seed, { x: -92, z: 74 })
+  const districtCategoryDensities = [
+    districtCategoryDensity(seed, { x: -65, z: -55 }),
+    districtCategoryDensity(seed, { x: 53, z: -52 }),
+    districtCategoryDensity(seed, { x: 68, z: 60 }),
+    districtCategoryDensity(seed, { x: -92, z: 74 })
   ];
+  const districtDensities = districtCategoryDensities.map(({ tree, bush }) => tree * 0.68 + bush * 0.32) as [number, number, number, number];
+  const spacing22 = periodicSpacingEvidence(separations22, 22, 0.5);
+  const spacing555 = periodicSpacingEvidence(separations555, 5.55, 0.35);
   const roles: Record<CompositionPlacementRole, number> = {
     core: 0,
     edge: 0,
@@ -244,13 +284,14 @@ export function auditWorldCompositionSeed(seed: number): WorldCompositionSeedAud
   return {
     seed,
     placementHash: placementHash(placements),
-    periodic22Ratio: periodicRatio(separations22, 22, 0.5),
-    periodic555Ratio: periodicRatio(separations555, 5.55, 0.35),
+    periodic22Ratio: spacing22.ratio,
+    periodic555Ratio: spacing555.ratio,
+    periodic22LowerBound: spacing22.lowerBound,
+    periodic555LowerBound: spacing555.lowerBound,
+    districtCategoryDensities,
     districtDensityCv: coefficientOfVariation(districtDensities),
     districtDensities,
-    districtOrderingPass: districtDensities[2] > districtDensities[1]
-      && districtDensities[1] > districtDensities[0]
-      && districtDensities[0] > districtDensities[3],
+    districtOrderingPass: districtRhythmPass(districtCategoryDensities),
     largeOpenings: openingComponents(seed),
     isolateRatio: structuralVegetation.filter((placement) => placement.compositionTag?.role === "isolate").length
       / Math.max(1, structuralVegetation.length),

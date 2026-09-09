@@ -23,11 +23,13 @@ describe("expedition opportunity query", () => {
     expect(first[0].kind).toBe("contract");
     expect(first[1].kind).toBe("contract");
     expect(first[1].blockers).toContain("Pack a chum bucket");
+    expect(first[1].blockers).toContain("Pack a Woven Lure");
     expect(first[1].blockers).toContain("No crushed ice is packed for the freshness target");
 
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
     expect(InventoryManager.addItemsAtomically(inventory, [
       { itemId: "item.chum_bucket", quantity: 1 },
+      { itemId: "item.basic_lure", quantity: 1 },
       { itemId: "item.crushed_ice", quantity: 1 }
     ])).toBe(true);
     const prepared = buildExpeditionOpportunities(sim.state, {
@@ -35,6 +37,7 @@ describe("expedition opportunity query", () => {
       bold: sim.inspectMarketDemand("market.harbor")
     });
     expect(prepared[1].blockers).not.toContain("Pack a chum bucket");
+    expect(prepared[1].blockers).not.toContain("Pack a Woven Lure");
     expect(prepared[1].blockers).not.toContain("No crushed ice is packed for the freshness target");
   });
 });

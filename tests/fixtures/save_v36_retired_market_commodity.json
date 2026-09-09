@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 36,
+  "savedAtUtcMs": 1788895048902,
+  "state": {
+    "schemaVersion": 36,
+    "worldSeed": 42891,
+    "world": {
+      "layoutRevision": 15
+    },
+    "markets": {
+      "market.sunreach_cove": {
+        "commodities": {
+          "item.basic_lure": {
+            "itemId": "item.basic_lure",
+            "basePrice": 20,
+            "demandIndex": 1.0327559229219332,
+            "localSupply": 20,
+            "targetSupply": 20,
+            "consumptionRate": 1.25,
+            "seasonalModifier": 1,
+            "lastTickMinute": 317015,
+            "recentSalesVolume": 0
+          }
+        }
+      }
+    }
+  }
+}

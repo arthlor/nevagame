@@ -81,7 +81,7 @@ function fixture() {
   return { root, asset, catalog, entries, manifest };
 }
 
-async function exportedGlb(root: string, options: { color?: boolean; material?: string; height?: number } = {}) {
+async function exportedGlb(root: string, options: { color?: boolean; material?: string; height?: number; loopEndY?: number } = {}) {
   const document = new Document();
   const buffer = document.createBuffer();
   const accessor = (type: "SCALAR" | "VEC3" | "VEC4" | "MAT4", array: Float32Array | Uint16Array) =>
@@ -111,8 +111,8 @@ async function exportedGlb(root: string, options: { color?: boolean; material?: 
     sceneRoot.addChild(document.createNode(name).addChild(document.createNode(`${name}_mesh`).setMesh(mesh).setSkin(skin)));
   }
   document.createScene().addChild(sceneRoot);
-  const sampler = document.createAnimationSampler().setInput(accessor("SCALAR", new Float32Array([0, 1])))
-    .setOutput(accessor("VEC3", new Float32Array([0, 0, 0, 0, 0.1, 0])));
+  const sampler = document.createAnimationSampler().setInput(accessor("SCALAR", new Float32Array([0, 0.5, 1])))
+    .setOutput(accessor("VEC3", new Float32Array([0, 0, 0, 0, 0.1, 0, 0, options.loopEndY ?? 0, 0])));
   document.createAnimation("idle").addSampler(sampler).addChannel(
     document.createAnimationChannel().setSampler(sampler).setTargetNode(bone).setTargetPath("translation"),
   );
@@ -265,6 +265,26 @@ describe("selected imported Blender admission", () => {
     const result = await admitAsset(asset, compressed, catalog, palette, { repoRoot: root, publish: false });
     expect(result.report.assets[0]!.admission).toMatchObject({ compression: ["EXT_meshopt_compression"] });
     expect(fs.readFileSync(path.join(result.stage, "optimized", asset.file))).toEqual(fs.readFileSync(compressed));
+  });
+
+  it.each([false, true])("rejects a broken idle loop without changing source or published bytes (compressed=%s)", async (compressed) => {
+    const { root, asset, catalog, manifest } = fixture();
+    const raw = await exportedGlb(root, { loopEndY: 0.1 });
+    const source = compressed ? path.join(root, "output/compressed.glb") : raw;
+    if (compressed) await compressImportedAsset(raw, source);
+    const original = fs.readFileSync(source);
+
+    await expect(admitAsset(asset, source, catalog, palette, { repoRoot: root })).rejects.toThrow("idle: loop seam 0.10000m");
+
+    expect(fs.readFileSync(source)).toEqual(original);
+    for (const directory of ["generated/glb", "public/assets/models"]) {
+      for (const spec of catalog.assets) {
+        expect(fs.readFileSync(path.join(root, directory, spec.file), "utf8")).toBe("old");
+      }
+    }
+    for (const filename of ["generated/reports/asset-manifest.json", "public/assets/models/asset-manifest.json"]) {
+      expect(fs.readFileSync(path.join(root, filename), "utf8")).toBe(manifest);
+    }
   });
 
   it("atomically publishes the selected bytes and preserves unrelated manifest entries and files", async () => {

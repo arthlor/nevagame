@@ -83,12 +83,11 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
           <section className="ledger-section stores-supplies" aria-labelledby="stores-supplies-title">
             <h3 id="stores-supplies-title">Supplies</h3>
             <div className="stores-supply-row">
-              {stores.supplies.map(({ itemId, name, count }, index) => (
+              {stores.supplies.map(({ itemId, name, count }) => (
                 <ItemSlot
                   key={itemId}
                   className={`stores-supply-slot ${count > 0 ? "is-occupied" : ""}`}
                   filled={count > 0}
-                  slotNumber={index + 1}
                   label={`${name}: ${count}`}
                 >
                   <AtlasImage src={atlasForItem(itemId)} alt="" size={26} />
@@ -219,7 +218,7 @@ const TransferColumn: React.FC<{
               aria-label={`${actionLabel} ${row.count} ${row.name}`}
               onClick={() => onMove(row.itemId, row.count)}
             >
-              {actionLabel}
+              {actionLabel} {row.count}
             </ChromeButton>
           </li>
         ))}

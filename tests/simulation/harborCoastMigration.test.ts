@@ -8,7 +8,7 @@ import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import { STARTER_DONKEY_ID, playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import fixture from "../fixtures/save_v32_layout12.json";
 
-const legacy=()=>structuredClone(fixture) as SaveEnvelope;
+const legacy=()=>structuredClone(fixture) as unknown as SaveEnvelope;
 beforeAll(()=>ContentRegistry.initializeAndValidate());
 
 describe("independent v32 harbor save recovery",()=>{
@@ -17,9 +17,13 @@ describe("independent v32 harbor save recovery",()=>{
     expect(before.schemaVersion).toBe(32);expect(before.state.world.layoutRevision).toBe(12);
     expect(validateSaveEnvelope(before)).toBe(true);
     const after=migrateSaveData(before);
-    expect(after.schemaVersion).toBe(33);expect(after.state.world.layoutRevision).toBe(13);
+    expect(after.schemaVersion).toBe(36);expect(after.state.world.layoutRevision).toBe(15);
     expect(validateSaveEnvelope(after)).toBe(true);
-    for(const key of ["crops","farms","inventories","fishCargo","markets","contracts","quests","journal","metadata","clock"] as const)
+    // Quests gain only the v35 credit ledger, empty for a legacy save.
+    expect(after.state.quests.earlyActionCredits).toEqual([]);
+    const { earlyActionCredits: _ledger, ...migratedQuests } = after.state.quests;
+    expect(migratedQuests, "quests").toEqual(before.state.quests);
+    for(const key of ["crops","farms","inventories","fishCargo","markets","contracts","journal","metadata","clock"] as const)
       expect(after.state[key],key).toEqual(before.state[key]);
     expect(before).toEqual(untouched);expect(migrateSaveData(after)).toEqual(after);
   });

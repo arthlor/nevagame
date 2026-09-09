@@ -5,6 +5,9 @@ import { GameSheet, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForAction } from "../chrome/uiAtlas";
 import { IconEnergy } from "./HudIcons";
+import { FARMING_ACTION_COST } from "../../simulation/domains/FarmingDomain";
+import { BASIC_FISHING_WORK_COST } from "../../simulation/domains/FishingDomain";
+import { PROCESSING_WORK_COST } from "../../simulation/domains/ProcessingDomain";
 
 export interface FarmingActionStatusProps {
   action: FarmingActionSnapshot;
@@ -26,13 +29,18 @@ export const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: str
   dock: { title: "Docking vessel…", hint: "Securing boat to pier" }
 };
 
+/**
+ * Derived from the simulation's own tables rather than restated here. The
+ * duplicate copy of this map is what let the planting interaction prompt drift
+ * to 10 Work while `FarmingDomain` charged 12.
+ */
 export const ACTION_WORK_COSTS: Partial<Record<FarmingActionSnapshot["action"], number>> = {
-  plant: 12,
-  water: 5,
-  harvest: 30,
-  fertilize: 8,
-  cast: 15,
-  workstation: 35
+  plant: FARMING_ACTION_COST.plant,
+  water: FARMING_ACTION_COST.water,
+  harvest: FARMING_ACTION_COST.harvest,
+  fertilize: FARMING_ACTION_COST.fertilize,
+  cast: BASIC_FISHING_WORK_COST,
+  workstation: PROCESSING_WORK_COST
 };
 
 const FALLBACK_TIMING = { durationMs: 2000, commitMs: 1000 };

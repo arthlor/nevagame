@@ -9,7 +9,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const CULTIVATED_SURFACE_PROGRAM_CACHE_KEY = "neva-cultivated-surface-r174-v1";
+export const CULTIVATED_SURFACE_PROGRAM_CACHE_KEY = "neva-cultivated-surface-r174-v2-world-facets";
 
 type CultivatedSurfaceConfig = VisualRenderConfig["groundSurface"];
 

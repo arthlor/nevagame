@@ -667,7 +667,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: min(230px, calc(100vw - 28px));
+  width: min(280px, calc(100vw - 28px));
   pointer-events: auto;
 }
 
@@ -4162,7 +4162,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
 #ui-container .hint-category-badge {
@@ -4175,21 +4176,6 @@
   padding: 1px 5px;
   border-radius: 3px;
   border: 1px solid rgba(212, 175, 55, 0.2);
-}
-
-#ui-container .hint-card-esc-badge {
-  font-size: 9.5px;
-  color: #64748b;
-}
-
-#ui-container .hint-card-esc-badge kbd {
-  font-family: var(--font-mono, monospace);
-  font-weight: 600;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1px 4px;
-  border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
 }
 
 /* Category-specific accent glows */
@@ -4382,7 +4368,9 @@
 #ui-container .catch-quality-badge-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 #ui-container .catch-stars {
@@ -4513,16 +4501,59 @@
    PHYSICAL TRADE PACK (R6.3)
    Stackable satchel goods are weightless chrome; a pack rides on the player's
    back and costs speed, so it is given its own weight on screen.
+   Now uses a two-row layout: info-row (icon + name + weight) on top,
+   detail-row (freshness + quality + speed penalty) below.
    ========================================================================== */
 #ui-container .hud-cargo-note.is-physical-pack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   border-left: 3px solid var(--mm-gold-leaf, #c5a059);
   padding-left: 7px;
 }
 
-#ui-container .hud-cargo-note.is-physical-pack .pack-shoulder-mark {
+#ui-container .pack-info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+#ui-container .pack-info-row .pack-shoulder-mark {
+  flex-shrink: 0;
   font-size: 13px;
   line-height: 1;
   opacity: 0.9;
+}
+
+#ui-container .pack-species-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+#ui-container .pack-weight {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#ui-container .pack-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 19px; /* align under species name, past icon */
+}
+
+#ui-container .pack-quality-label {
+  font-size: 11px;
+  color: var(--mm-text-muted);
+  text-transform: capitalize;
+  white-space: nowrap;
 }
 
 /* Heavier bands read heavier: the border warms as the class climbs. */
@@ -4534,7 +4565,7 @@
   align-items: center;
   gap: 3px;
   margin-left: auto;
-  padding: 1px 5px;
+  padding: 1px 6px;
   color: #fca5a5;
   font-size: 10px;
   font-weight: 700;
@@ -4726,4 +4757,88 @@
 #ui-container .meter-label,
 #ui-container .pause-work-meter .chrome-meter-label {
   white-space: nowrap;
+}
+
+/* ── Quest thread rail ───────────────────────────────────────────────
+   Carved tabs sunk into the tracker's timber frame, one per open thread.
+   Each tab is a shallow socket routed out of the wood: shadowed top edge,
+   lit bottom edge. The focused thread is raised proud of the frame with a
+   gold-leaf rim and a burnished face, the way a selected page-tab in a
+   guild ledger stands out from the ones behind it.                       */
+#ui-container .quest-thread-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 2px;
+  padding: 4px 3px 5px;
+  border-top: 1px solid rgba(0, 0, 0, 0.55);
+  border-bottom: 1px solid rgba(107, 68, 40, 0.45);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(107, 68, 40, 0.1) 100%);
+}
+
+#ui-container .quest-thread-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 8px 4px;
+  color: var(--mm-text-bronze);
+  font-family: var(--font-serif);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  background: var(--mm-timber-gradient);
+  border: 1px solid var(--mm-timber-light);
+  border-radius: 3px 3px 1px 1px;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.6),
+    inset 0 -1px 0 rgba(107, 68, 40, 0.5);
+  transition: color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+#ui-container .quest-thread-tab:hover {
+  color: var(--mm-gold-bright);
+}
+
+#ui-container .quest-thread-tab.is-current {
+  color: var(--mm-text-gold);
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #4a3122 0%, #2a1c13 100%);
+  border-color: var(--mm-gold-burnished);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 221, 154, 0.35),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+#ui-container .quest-thread-tab.is-ready:not(.is-current) {
+  color: var(--mm-gold-leaf);
+  border-color: var(--mm-gold-dark);
+}
+
+#ui-container .quest-thread-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#ui-container .quest-thread-seal {
+  display: inline-flex;
+  flex: 0 0 11px;
+  width: 11px;
+  height: 11px;
+}
+
+#ui-container .quest-thread-seal-art {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 3px var(--mm-gold-glow));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui-container .quest-thread-tab {
+    transition: none;
+  }
 }

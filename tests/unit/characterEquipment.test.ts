@@ -38,6 +38,23 @@ describe("character equipment presentation", () => {
     for (const angle of [parked.x, parked.y, parked.z]) expect(angle).toBeCloseTo(0, 10);
   });
 
+  it("pulls both handles together and lifts both blades for recovery", () => {
+    const positions = (phase: number) => ([1, -1] as const).map(sign => {
+      const rotation = rowboatOarRotation(phase, true, sign === 1 ? "left" : "right", new THREE.Euler());
+      return {
+        handle: new THREE.Vector3(-sign * 0.54, 0.14, 0.02).applyEuler(rotation),
+        blade: new THREE.Vector3(sign * 1.3, -0.34, -0.05).applyEuler(rotation)
+      };
+    });
+    for (const phase of [0, 0.125, 0.25, 0.5, 0.75]) {
+      const [left, right] = positions(phase);
+      expect(left.handle.z).toBeCloseTo(right.handle.z, 8);
+      expect(left.blade.y).toBeCloseTo(right.blade.y, 8);
+      expect(left.blade.x).toBeCloseTo(-right.blade.x, 8);
+    }
+    expect(positions(0.25)[0].blade.y).toBeLessThan(positions(0.75)[0].blade.y);
+  });
+
   it("rejects missing or unframed required tool grips instead of inventing a socket rotation", () => {
     const prop = new THREE.Group();
     expect(() => applyEquipmentSocketPose(prop, "tool_sickle_a")).toThrow("missing tool_primary_grip");

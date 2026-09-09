@@ -1,4 +1,4 @@
-# ArcheAge Farming System — Neva Adaptation Blueprint (Compact)
+# ArcheAge Farming System — Neva Adaptation Blueprint
 
 > **Role:** Farming inspiration/adaptation guide, subordinate to `01`, `02`, `04`, and the Art Pipeline. Every number, footprint, duration, modifier, capacity, and feature in this document is historical/reference-only unless `02` explicitly promotes it. Where this file's historical ArcheAge values conflict with canonical Neva values, **use `02`**; preserve the ArcheAge behavior only as design reference unless explicitly promoted. ArcheAge factions, lore, quests, terminology, and MMO social assumptions are not Neva story content; Neva's authored narrative is defined by `02` and presented through the connected coastal work loop.
 
@@ -52,15 +52,11 @@ ArcheAge reference behavior: water from well/pump, bucket animation, water arc, 
 **Neva canonical rule:** use `02` moisture/growth math. Do not add the extra ~10% time reduction unless `02` is explicitly updated; preserve the visual/audio feedback regardless.
 
 ## 3.3 Crop Stages
-Use canonical `02` lifecycle/thresholds exactly:
-```text
-seeded 0.00–0.10
-sprout 0.10–0.35
-growing 0.35–1.00
-mature 1.00–1.30
-overripe 1.30–1.60
-withered >1.60
-```
+Use `02` §2 and its crop-growth owner for the lifecycle. Growth progress
+selects early stages; post-maturity calendar time governs annual overripe and
+withered states, with a separate orchard regrowth contract. Do not reintroduce
+the retired progress-ratio maturity windows from this inspiration guide.
+
 Presentation guidance:
 - seeded: dirt mound/seeds;
 - sprout: bright shoots;

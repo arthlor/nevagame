@@ -229,7 +229,9 @@ export class RendererPipeline {
    * Warms the active render path before deterministic capture. Runtime frames
    * still own the final shadow-map update and post-process draw.
    */
-  public async prepareForCapture(camera: THREE.Camera): Promise<void> {
+  public prepareForCapture(camera: THREE.Camera): Promise<void> { return this.prepareForEntry(camera); }
+
+  public async prepareForEntry(camera: THREE.Camera): Promise<void> {
     const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
     if (quality.ambientOcclusion === "gtao" && (!this.composer || this.activeCamera !== camera)) {
       this.beginInitialization(camera);

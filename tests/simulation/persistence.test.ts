@@ -13,6 +13,7 @@ import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import type { GameState } from "../../src/simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
+import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
@@ -25,6 +26,8 @@ import saveV22Layout8 from "../fixtures/save_v22_layout8.json";
 import saveV23Layout8 from "../fixtures/save_v23_layout8.json";
 import saveV24Calendar30 from "../fixtures/save_v24_calendar30.json";
 import saveV25Layout9 from "../fixtures/save_v25_layout9.json";
+import saveV36Layout15 from "../fixtures/save_v36_layout15.json";
+import saveV36RetiredMarketCommodity from "../fixtures/save_v36_retired_market_commodity.json";
 import { DAYS_PER_SEASON, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
 
 function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
@@ -103,7 +106,38 @@ function questsAfterTrackMigration(legacyQuests: Record<string, unknown>): Recor
         stepProgress: (stepProgress as Record<string, number> | undefined) ?? {}
       }
     },
-    focusedTrackId: "track.main"
+    focusedTrackId: "track.main",
+    // Schema 35 adds the early-action credit ledger to every migrated save; a
+    // legacy fixture has nothing banked, so it arrives empty.
+    earlyActionCredits: []
+  };
+}
+
+function v36EquipmentMigrationFixture(): SaveEnvelope {
+  const state = createInitialGameState(saveV36Layout15.state.worldSeed);
+  state.schemaVersion = 36;
+  state.world.layoutRevision = saveV36Layout15.state.world.layoutRevision;
+  delete (state.player as unknown as { equipment?: unknown }).equipment;
+  state.processingJobs = structuredClone(saveV36Layout15.state.processingJobs) as never;
+  return {
+    schemaVersion: saveV36Layout15.schemaVersion,
+    savedAtUtcMs: saveV36Layout15.savedAtUtcMs,
+    state
+  };
+}
+
+function v36RetiredMarketCommodityFixture(): SaveEnvelope {
+  const state = createInitialGameState(saveV36RetiredMarketCommodity.state.worldSeed);
+  state.schemaVersion = 36;
+  state.world.layoutRevision = saveV36RetiredMarketCommodity.state.world.layoutRevision;
+  delete (state.player as unknown as { equipment?: unknown }).equipment;
+  const retired = saveV36RetiredMarketCommodity.state.markets["market.sunreach_cove"]
+    .commodities["item.basic_lure"];
+  state.markets["market.sunreach_cove"].commodities["item.basic_lure"] = structuredClone(retired);
+  return {
+    schemaVersion: saveV36RetiredMarketCommodity.schemaVersion,
+    savedAtUtcMs: saveV36RetiredMarketCommodity.savedAtUtcMs,
+    state
   };
 }
 
@@ -168,6 +202,31 @@ describe("Persistence & Offline Progression", () => {
       expect(loaded?.state.worldSeed).toBe(12345);
     });
 
+    it("persists fish journal records with their complete personal record", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const state = createInitialGameState(12345);
+      state.clock.currentMinute = 777;
+      state.journal.fishRecords["fish.perch"] = {
+        discovered: true,
+        catchCount: 3,
+        largestWeightKg: 2.4,
+        bestQuality: "fine",
+        firstCaughtMinute: 744
+      };
+
+      expect(await repo.saveGame(state)).toBe(true);
+      const loaded = await repo.loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status === "loaded") {
+        expect(loaded.envelope.state.journal.fishRecords["fish.perch"]).toEqual({
+          discovered: true,
+          catchCount: 3,
+          largestWeightKg: 2.4,
+          bestQuality: "fine",
+          firstCaughtMinute: 744
+        });
+      }
+    });
 
     it("clears overlay pause on save so restore is playable", async () => {
       const repo = new IndexedDbSaveRepository();
@@ -311,6 +370,100 @@ describe("Persistence & Offline Progression", () => {
 
       const loaded = await repo.loadGame();
       expect(loaded?.state.player.money).toBe(880);
+    });
+
+    it("recovers a v36 backup with its pending result intact and retired market entries removed", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const backup = v36EquipmentMigrationFixture();
+      const retired = saveV36RetiredMarketCommodity.state.markets["market.sunreach_cove"]
+        .commodities["item.basic_lure"];
+      backup.state.markets["market.sunreach_cove"].commodities["item.basic_lure"] = structuredClone(retired);
+      // Current validation rejects stale authored membership; the versioned migration must repair it first.
+      expect(validateSaveEnvelope(backup)).toBe(false);
+      await putRawSave("primary_save", { schemaVersion: 0, savedAtUtcMs: 1, state: {} });
+      await putRawSave("backup_save", backup);
+
+      const loaded = await repo.loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status !== "loaded") throw new Error(`Expected migrated backup, got ${loaded.status}`);
+      expect(loaded.envelope.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+      expect(loaded.envelope.state.processingJobs.job_v36_mill).toMatchObject({
+        outputLabel: "Ground Grain",
+        result: { kind: "items", stacks: [{ itemId: "item.ground_grain", quantity: 2 }] }
+      });
+      expect(
+        loaded.envelope.state.markets["market.sunreach_cove"].commodities["item.basic_lure"]
+      ).toBeUndefined();
+      expect(validateSaveEnvelope(loaded.envelope)).toBe(true);
+    });
+
+    it("loads a v36 slot containing a retired authored commodity instead of declaring it corrupt", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const legacy = v36RetiredMarketCommodityFixture();
+      legacy.state.player.money = 937;
+      await putRawSave("primary_save", legacy);
+
+      const loaded = await repo.loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status !== "loaded") throw new Error(`Expected migrated save, got ${loaded.status}`);
+      expect(loaded.envelope.state.player.money).toBe(937);
+      expect(
+        loaded.envelope.state.markets["market.sunreach_cove"].commodities["item.basic_lure"]
+      ).toBeUndefined();
+      expect(validateSaveEnvelope(loaded.envelope)).toBe(true);
+    });
+
+    it("falls back to the backup when the primary contains a malformed inventory slot", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const good: SaveEnvelope = {
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 2,
+        state: createInitialGameState()
+      };
+      good.state.player.money = 880;
+      const malformed = structuredClone(good);
+      (malformed.state.inventories[malformed.state.player.inventoryId].slots as unknown[])[0] = null;
+
+      expect(() => validateSaveEnvelope(malformed)).not.toThrow();
+      expect(validateSaveEnvelope(malformed)).toBe(false);
+      await putRawSave("primary_save", malformed);
+      await putRawSave("backup_save", good);
+
+      const loaded = await repo.loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status === "loaded") expect(loaded.envelope.state.player.money).toBe(880);
+    });
+
+    it("rejects malformed fish journal records and falls back to a valid backup", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const good: SaveEnvelope = {
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 2,
+        state: createInitialGameState()
+      };
+      good.state.player.money = 880;
+
+      const missingRecords = structuredClone(good);
+      delete (missingRecords.state.journal as Partial<typeof missingRecords.state.journal>).fishRecords;
+      expect(validateSaveEnvelope(missingRecords)).toBe(false);
+
+      const malformed = structuredClone(good);
+      malformed.state.journal.fishRecords["fish.perch"] = {
+        discovered: true,
+        catchCount: 1,
+        largestWeightKg: "not-a-weight"
+      } as never;
+      expect(validateSaveEnvelope(malformed)).toBe(false);
+
+      await putRawSave("primary_save", malformed);
+      await putRawSave("backup_save", good);
+
+      const loaded = await repo.loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status === "loaded") {
+        expect(loaded.envelope.state.player.money).toBe(880);
+        expect(loaded.envelope.state.journal.fishRecords).toEqual({});
+      }
     });
 
     it("deep-snapshots nested state before any await so later mutations cannot tear the save", async () => {
@@ -534,6 +687,24 @@ describe("Persistence & Offline Progression", () => {
     state.player.money = 100;
     state.inventories[state.player.inventoryId].slots[0].quantity = Infinity;
     expect(validateSaveEnvelope(envelope)).toBe(false);
+  });
+
+  it("rejects incomplete contracts and invalid persisted drag settings", () => {
+    const malformedContract = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: createInitialGameState()
+    };
+    malformedContract.state.contracts = [{ deliveryMarketId: "market.village" }] as never;
+    expect(validateSaveEnvelope(malformedContract)).toBe(false);
+
+    const invalidDrag = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: createInitialGameState()
+    };
+    (invalidDrag.state.player as unknown as { dragNotch: number }).dragNotch = 99;
+    expect(validateSaveEnvelope(invalidDrag)).toBe(false);
   });
 
   it("rejects missing and poisoned simulation branches before offline progression", () => {
@@ -1389,5 +1560,88 @@ describe("Persistence & Offline Progression", () => {
 
     const repeated = migrateSaveData(structuredClone(migrated));
     expect(repeated).toEqual(migrated);
+  });
+
+  it("migrates v36 equipment and pending jobs once, reloads them, and drops already-collected tombstones", () => {
+    const legacy = v36EquipmentMigrationFixture();
+    expect(validateSaveEnvelope(legacy)).toBe(true);
+
+    const migrated = migrateSaveData(legacy);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.player.equipment).toMatchObject({
+      ownedIds: [
+        "equipment.weathered_straw_hat",
+        "equipment.work_vest",
+        "equipment.mud_boots",
+        "equipment.tin_watering_can",
+        "equipment.farm_sickle"
+      ],
+      wardrobeCapacity: 20
+    });
+    expect(migrated.state.processingJobs.job_v36_collected).toBeUndefined();
+    expect(migrated.state.processingJobs.job_v36_mill).toMatchObject({
+      status: "active",
+      recipeName: "Mill Wheat into Ground Grain",
+      outputLabel: "Ground Grain",
+      result: { kind: "items", stacks: [{ itemId: "item.ground_grain", quantity: 2 }] },
+      workTier: "standard",
+      presentationKind: "existing",
+      baseWork: 35,
+      chargedWork: 35,
+      xpReward: 35,
+      effectiveDurationMinutes: 5
+    });
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+
+    const repeated = migrateSaveData(structuredClone(migrated));
+    expect(repeated).toEqual(migrated);
+
+    const reloaded = new Simulation(structuredClone(migrated.state));
+    const mill = reloaded.state.world.structures["struct.starter_mill"];
+    const front = getProcessingStationFrontPosition("struct.starter_mill", mill);
+    if (!front) throw new Error("Missing migrated mill front");
+    reloaded.state.player.x = front.x;
+    reloaded.state.player.z = front.z;
+    reloaded.advanceGameMinutes(5);
+    expect(reloaded.collectProcessingJob("job_v36_mill").success).toBe(true);
+    expect(
+      reloaded.state.inventories[reloaded.state.player.inventoryId].slots
+        .some((slot) => slot.itemId === "item.ground_grain" && slot.quantity === 2)
+    ).toBe(true);
+  });
+
+  it("retires only no-longer-authored v36 market entries while preserving live commodity state", () => {
+    const legacy = v36RetiredMarketCommodityFixture();
+    const preservedWorms = structuredClone(
+      legacy.state.markets["market.sunreach_cove"].commodities["item.bait_worms"]
+    );
+
+    const migrated = migrateSaveData(legacy);
+    expect(migrated.state.markets["market.sunreach_cove"].commodities["item.basic_lure"])
+      .toBeUndefined();
+    expect(migrated.state.markets["market.sunreach_cove"].commodities["item.bait_worms"])
+      .toEqual(preservedWorms);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+    expect(migrateSaveData(structuredClone(migrated))).toEqual(migrated);
+  });
+
+  it("normalizes overdue v36 work but rejects impossible pending-job timelines", () => {
+    const overdue = v36EquipmentMigrationFixture();
+    overdue.state.clock.currentMinute = 486;
+    expect(validateSaveEnvelope(overdue)).toBe(true);
+    const migrated = migrateSaveData(overdue);
+    expect(migrated.state.processingJobs.job_v36_mill.status).toBe("complete");
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+
+    const premature = v36EquipmentMigrationFixture();
+    premature.state.processingJobs.job_v36_mill.status = "complete";
+    expect(validateSaveEnvelope(premature)).toBe(true);
+    expect(() => migrateSaveData(premature)).toThrow("completes before its deadline");
+
+    const unbounded = v36EquipmentMigrationFixture();
+    unbounded.state.processingJobs.job_v36_mill.completesAtMinute = 10_000;
+    expect(validateSaveEnvelope(unbounded)).toBe(true);
+    expect(() => migrateSaveData(unbounded)).toThrow("invalid timeline");
   });
 });

@@ -159,9 +159,9 @@ describe("HUD tool belt", () => {
     for (let slot = 1; slot <= 5; slot += 1) {
       const button = buttons.find((candidate) => candidate.includes(`data-testid="tool-slot-${slot}"`));
       expect(button).toMatch(new RegExp(`aria-label="[^" ,][^"]+, slot ${slot}"`));
-      expect(button).toContain("tidebook-tool-painting");
+      expect(button).toContain("guild-tool-painting");
     }
-    const readout = html.match(/<div class="tidebook-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
+    const readout = html.match(/<div class="guild-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
     expect(readout).toContain('aria-live="polite"');
     expect(readout).toContain("<strong>Seed Belt</strong>");
   });
@@ -181,7 +181,7 @@ describe("HUD tool belt", () => {
     const seedButton = html.match(/<button\b[^>]*data-testid="tool-slot-2"[^>]*>/)?.[0];
     expect(seedButton).toContain('data-ready="false"');
     expect(seedButton).toContain('aria-pressed="true"');
-    const readout = html.match(/<div class="tidebook-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
+    const readout = html.match(/<div class="guild-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
     expect(readout).toContain("No seeds");
   });
 });

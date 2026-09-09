@@ -1,6 +1,5 @@
 // src/main.ts
 import "./ui/coastal.css";
-import { GameApp } from "./app/GameApp";
 import { uiScale } from "./ui/uiScale";
 
 function showFatalBootOverlay(error: unknown): void {
@@ -9,6 +8,7 @@ function showFatalBootOverlay(error: unknown): void {
     : String(error);
   console.error("[Neva] Failed to start game application:", error);
 
+  document.getElementById("neva-boot-shell")?.remove();
   const existing = document.getElementById("neva-fatal-boot");
   if (existing) existing.remove();
 
@@ -35,7 +35,7 @@ function showFatalBootOverlay(error: unknown): void {
   const retry = document.createElement("button");
   retry.type = "button";
   retry.className = "fatal-recovery-retry";
-  retry.textContent = "Try again";
+  retry.textContent = "Reload game";
   retry.addEventListener("click", () => window.location.reload());
 
   const details = document.createElement("details");
@@ -53,7 +53,8 @@ function showFatalBootOverlay(error: unknown): void {
   retry.focus();
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+async function boot(): Promise<void> {
+  await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0))));
   const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
   const uiContainer = document.getElementById("ui-root") as HTMLElement;
 
@@ -66,9 +67,14 @@ window.addEventListener("DOMContentLoaded", () => {
     // Publishes --ui-scale before the first UI render so the HUD never flashes
     // at the wrong size on load.
     uiScale.start();
+    const { GameApp } = await import("./app/GameApp");
     const app = new GameApp(canvas, uiContainer);
-    app.start().catch(showFatalBootOverlay);
+    await app.start();
+    requestAnimationFrame(() => document.getElementById("neva-boot-shell")?.remove());
   } catch (error) {
     showFatalBootOverlay(error);
   }
-});
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => void boot(), { once: true });
+else void boot();

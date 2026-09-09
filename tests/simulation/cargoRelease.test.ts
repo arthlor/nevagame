@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 function chummedLakeSchool(sim: Simulation): string {
   const lake = SCHOOL_SPAWN_POINTS.find(
@@ -17,6 +18,7 @@ function chummedLakeSchool(sim: Simulation): string {
 }
 
 function instantLand(sim: Simulation, schoolId: string): string {
+  armLureForTest(sim);
   expect(sim.hookSportFish(schoolId).success).toBe(true);
   sim.state.sportFishing!.stamina = 0;
   sim.state.sportFishing!.distanceMeters = 0.5;
@@ -56,6 +58,7 @@ describe("catch and release", () => {
     expect(sim.state.journal.fishRecords["fish.trout"].catchCount).toBe(1);
 
     // The freed slot hooks again.
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId).success).toBe(true);
 
     // Releasing twice fails cleanly.

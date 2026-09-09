@@ -34,14 +34,14 @@
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Sit under the top-left clock, not under the quest tracker. */
+/* Sit under the top-left vitals cluster, not under the quest tracker. */
 #ui-container .contextual-hint-card {
   position: absolute;
-  top: calc(118px + env(safe-area-inset-top, 0px));
+  top: calc(138px + env(safe-area-inset-top, 0px));
   right: auto;
   left: var(--ui-safe-left);
   z-index: 32;
-  width: min(280px, calc(100vw - 28px));
+  width: min(320px, calc(100vw - 28px));
   display: flex;
   align-items: flex-start;
   gap: 10px;

@@ -11,9 +11,11 @@ import type {
   FishSpeciesId,
   FishingEncounterState,
   FishInstance,
+  ItemId,
   FishQuality,
   GameState
 } from "../core/types";
+import { SeededRng, type Rng } from "../core/Rng";
 import { BasicFishingMinigame } from "../fishing/BasicFishingMinigame";
 import { castWindEffect, type CastWindEffect } from "../fishing/castWind";
 import {
@@ -29,6 +31,8 @@ import {
   fishingWindOpportunity
 } from "../fishing/FishingTuning";
 import {
+  LURE_ITEM_ID,
+  accessibleLureSupplyCount,
   accessibleFishingSupplyCount,
   consumeAccessibleFishingSupply
 } from "../fishing/FishingSupplies";
@@ -37,6 +41,12 @@ import { isSpeciesInSeason, speciesSeasonWeight } from "../fishing/seasonalAvail
 /** Telemetry ratios are reported as -1..1 before being scaled to a percentage. */
 const clampUnit = (value: number): number =>
   Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
+
+function validDragNotch(value: unknown): 0 | 1 | 2 | null {
+  if (value === undefined) return 1;
+  return value === 0 || value === 1 || value === 2 ? value : null;
+}
+
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
@@ -49,6 +59,7 @@ import {
   type FishingEcologyId
 } from "../../world/WorldIslands";
 import { isQuestActive } from "../core/QuestTypes";
+import { snapshotFishingEquipmentEffects } from "../equipment/EquipmentEffects";
 
 const SCHOOL_INTERACTION_RADIUS = 12;
 /** Floor so a shoulder-season-only school still has a selectable species pool. */
@@ -207,10 +218,16 @@ function sportFishingDecision(
   windOpportunity: number
 ): SportFishingHudDto["decision"] {
   if (landingWindow) {
-    return { fishAction: "Fish is at the boat", response: "Hold steady", action: "neutral", key: null, icon: "tiring", tone: "opportunity" };
+    return { fishAction: "Fish is within reach", response: "Hold steady", action: "neutral", key: null, icon: "tiring", tone: "opportunity" };
   }
-  if (encounter.lineTension >= maxSafeTension * 0.95) {
-    return { fishAction: "Line is overloaded", response: "Give line", action: "slack", key: "S", icon: "burst", tone: "danger" };
+  if (encounter.stamina <= encounter.maxStamina * FISHING_TUNING.landingStaminaRatio) {
+    if (encounter.lineTension >= maxSafeTension * FISHING_TUNING.landingTensionCeilRatio) {
+      return { fishAction: "Fish is ready to land", response: "Ease the line", action: "slack", key: "S", icon: "tiring", tone: "warning" };
+    }
+    return { fishAction: "Fish is tired", response: "Reel it closer", action: "reel", key: "W", icon: "tiring", tone: "opportunity" };
+  }
+  if (encounter.lineTension >= maxSafeTension * FISHING_TUNING.yieldCueTensionRatio) {
+    return { fishAction: "Line is tightening", response: "Give line", action: "slack", key: "S", icon: "burst", tone: "danger" };
   }
   if (encounter.lineTension < FISHING_TUNING.minimumLandingTension && encounter.slackTimerSeconds > 0.2) {
     return { fishAction: "Hook is going loose", response: "Reel in", action: "reel", key: "W", icon: "tiring", tone: "danger" };
@@ -605,6 +622,14 @@ export class FishingDomain {
   }
 
   public setInput(input: FishingControlInput): boolean {
+    if (
+      !input ||
+      typeof input !== "object" ||
+      typeof input.isReeling !== "boolean" ||
+      typeof input.isSlacking !== "boolean" ||
+      typeof input.isBracing !== "boolean" ||
+      !Number.isFinite(input.rodDirectionAngle)
+    ) return false;
     if (!this.encounter) return false;
     this.encounter.setInput(input);
     return true;
@@ -619,10 +644,10 @@ export class FishingDomain {
       state.player.preparedLureItemId = null;
       return { success: true, prepared: false };
     }
-    if (accessibleFishingSupplyCount(state, "item.basic_lure") <= 0) {
-      return { success: false, reason: "No Basic Lure is within reach" };
+    if (accessibleLureSupplyCount(state) <= 0) {
+      return { success: false, reason: "No Woven Lure is within reach" };
     }
-    state.player.preparedLureItemId = "item.basic_lure";
+    state.player.preparedLureItemId = LURE_ITEM_ID;
     return { success: true, prepared: true };
   }
 
@@ -636,11 +661,15 @@ export class FishingDomain {
 
   public tick(realDeltaSeconds: number): void {
     const { state, events } = this.context;
+    if (!Number.isFinite(realDeltaSeconds) || realDeltaSeconds <= 0) return;
     if (this.encounter) {
       this.encounter.setAnchor(state.player.x, state.player.z);
       const outcome = this.encounter.tick(realDeltaSeconds);
       if (outcome === "landed") {
         const encounterState = this.encounter.getState();
+        // Read before the fight is cleared: the charged Work lives on the
+        // persisted encounter, and a lost landing still owes a refund.
+        const chargedWork = state.sportFishing?.workCharged;
         // Cargo and quest listeners are synchronous. Clear the resolved fight
         // before landCaughtFish emits FishLanded so an autosave triggered by
         // that event can only observe a valid, non-active sport-fishing state.
@@ -653,7 +682,7 @@ export class FishingDomain {
         );
         if (!landing.success) {
           this.pendingLandSchoolId = null;
-          this.refundLostFightWork(encounterState.fish.speciesId);
+          this.refundLostFightWork(encounterState.fish.speciesId, chargedWork);
           events.emit("FishEscaped", {
             speciesId: encounterState.fish.speciesId,
             reason: "no-cargo-space",
@@ -662,7 +691,7 @@ export class FishingDomain {
         }
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();
-        this.refundLostFightWork(encounterState.fish.speciesId);
+        this.refundLostFightWork(encounterState.fish.speciesId, state.sportFishing?.workCharged);
         this.pendingLandSchoolId = null;
         this.encounter = null;
         state.sportFishing = null;
@@ -697,7 +726,11 @@ export class FishingDomain {
       return { success: false, reason: "There is no room for the catch" };
     }
 
-    const workQuote = this.progression.quoteWorkCost(BASIC_FISHING_WORK_COST, "fishing");
+    const workQuote = this.progression.quoteWorkCost(
+      BASIC_FISHING_WORK_COST,
+      "fishing",
+      "fishing.basic-cast"
+    );
     if (!workQuote.affordable) {
       return this.progression.insufficientWorkResult(workQuote, "Casting");
     }
@@ -735,13 +768,24 @@ export class FishingDomain {
 
   public releaseCastBasic(castPower?: number): { success: boolean; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
+    if (castPower !== undefined && (!Number.isFinite(castPower) || castPower < 0 || castPower > 1)) {
+      return { success: false, reason: "Cast power is invalid", reasonCode: "invalid-cast-power" };
+    }
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return { success: false, reason: handsBlocker };
     if (!state.basicFishing) return { success: false, reason: "Not casting" };
     if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
       return { success: false, reason: "Not charging a cast" };
     }
-    const power = Math.max(0.05, Math.min(1.0, castPower ?? state.basicFishing.castPower ?? 0.75));
+    const requestedPower = castPower ?? state.basicFishing.castPower ?? 0.75;
+    if (!Number.isFinite(requestedPower) || requestedPower < 0 || requestedPower > 1) {
+      return { success: false, reason: "Cast power is invalid", reasonCode: "invalid-cast-power" };
+    }
+    const power = Math.max(0.05, Math.min(1.0, requestedPower));
+    const dragNotch = validDragNotch(state.player.dragNotch);
+    if (dragNotch === null) {
+      return { success: false, reason: "Drag setting is invalid", reasonCode: "invalid-drag" };
+    }
     const habitatId = state.basicFishing.habitatId;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
 
@@ -752,7 +796,12 @@ export class FishingDomain {
       return { success: false, reason: "Nothing is biting in these conditions" };
     }
 
-    const work = this.progression.trySpendWork(BASIC_FISHING_WORK_COST, "fishing", "Casting");
+    const work = this.progression.trySpendWork(
+      BASIC_FISHING_WORK_COST,
+      "fishing",
+      "Casting",
+      "fishing.basic-cast"
+    );
     if (!work.success) {
       state.basicFishing = null;
       return work;
@@ -782,7 +831,12 @@ export class FishingDomain {
       this.castWindForCurrentCast(power)
     );
     const lureUsed = this.consumePreparedLure();
-    newState.willCatch = rod ? rng.chance(Math.min(1, rod.hookReliability + (lureUsed ? 0.18 : 0) + FISHING_TUNING.dragHookDelta[state.player.dragNotch ?? 1])) : false;
+    newState.willCatch = rod ? rng.chance(Math.min(
+      1,
+      rod.hookReliability
+        + (lureUsed ? FISHING_TUNING.preparedLureHookReliabilityBonus : 0)
+        + FISHING_TUNING.dragHookDelta[dragNotch]
+    )) : false;
     state.basicFishing = newState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { ecologyId, habitatId, castPower: power, minute: state.clock.currentMinute });
@@ -814,6 +868,7 @@ export class FishingDomain {
   }
 
   public setBasicFishingInput(isHolding: boolean): void {
+    if (typeof isHolding !== "boolean") return;
     if (this.context.state.basicFishing) {
       this.context.state.basicFishing.isHolding = isHolding;
     }
@@ -873,10 +928,17 @@ export class FishingDomain {
 
   public castBasic(castPower: number = 0.75): { success: boolean; reason?: string; reasonCode?: string } {
     const { state, rng, events } = this.context;
+    if (!Number.isFinite(castPower) || castPower < 0 || castPower > 1) {
+      return { success: false, reason: "Cast power is invalid", reasonCode: "invalid-cast-power" };
+    }
     if (state.player.activeMountId) return { success: false, reason: "Dismount before fishing" };
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return { success: false, reason: handsBlocker };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fishing" };
+    const dragNotch = validDragNotch(state.player.dragNotch);
+    if (dragNotch === null) {
+      return { success: false, reason: "Drag setting is invalid", reasonCode: "invalid-drag" };
+    }
     const access = WorldLayout.fishingAccessAt(state.player.x, state.player.z);
     const habitatId = access.habitat;
     if (!habitatId) return { success: false, reason: "Move closer to fishable water" };
@@ -892,7 +954,12 @@ export class FishingDomain {
       return { success: false, reason: "There is no room for the catch" };
     }
 
-    const work = this.progression.trySpendWork(BASIC_FISHING_WORK_COST, "fishing", "Casting");
+    const work = this.progression.trySpendWork(
+      BASIC_FISHING_WORK_COST,
+      "fishing",
+      "Casting",
+      "fishing.basic-cast"
+    );
     if (!work.success) return work;
     const hasBait = this.consumeBaitIfPresent();
 
@@ -918,7 +985,12 @@ export class FishingDomain {
     );
     fishingState.phase = "casting" as BasicFishingPhase;
     const lureUsed = this.consumePreparedLure();
-    fishingState.willCatch = rng.chance(Math.min(1, rod.hookReliability + (lureUsed ? 0.18 : 0) + FISHING_TUNING.dragHookDelta[state.player.dragNotch ?? 1]));
+    fishingState.willCatch = rng.chance(Math.min(
+      1,
+      rod.hookReliability
+        + (lureUsed ? FISHING_TUNING.preparedLureHookReliabilityBonus : 0)
+        + FISHING_TUNING.dragHookDelta[dragNotch]
+    ));
     state.basicFishing = fishingState;
     this.context.persistRng();
     events.emit("BasicFishingStarted", { ecologyId, habitatId, castPower, minute: state.clock.currentMinute });
@@ -1007,6 +1079,10 @@ export class FishingDomain {
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return { success: false, reason: handsBlocker };
     if (this.encounter || state.sportFishing || state.basicFishing) return { success: false, reason: "Already fighting a fish" };
+    const dragNotch = validDragNotch(state.player.dragNotch);
+    if (dragNotch === null) {
+      return { success: false, reason: "Drag setting is invalid", reasonCode: "invalid-drag" };
+    }
     const school = state.world.activeSchools[schoolId];
     if (!school) return { success: false, reason: "No active school" };
     if (state.clock.currentMinute >= school.expiresAtMinute || school.remainingCatchPotential <= 0) {
@@ -1017,6 +1093,23 @@ export class FishingDomain {
     }
     if (!school.feedingFrenzyUntilMinute || state.clock.currentMinute > school.feedingFrenzyUntilMinute) {
       return { success: false, reason: "School is not in a feeding frenzy! Chum it first." };
+    }
+    if (!state.player.preparedLureItemId) {
+      return {
+        success: false,
+        reason: "Prepare a Woven Lure before hooking a sport fish",
+        reasonCode: "lure-required"
+      };
+    }
+    if (
+      state.player.preparedLureItemId !== LURE_ITEM_ID ||
+      accessibleFishingSupplyCount(state, state.player.preparedLureItemId) <= 0
+    ) {
+      return {
+        success: false,
+        reason: "The prepared Woven Lure is no longer within reach",
+        reasonCode: "lure-unavailable"
+      };
     }
 
     const rodDef = ContentRegistry.rods.get(state.player.equippedRodId) ?? ContentRegistry.rods.get("rod.willow")!;
@@ -1061,7 +1154,11 @@ export class FishingDomain {
     const worstHookCost = Math.max(
       ...viableSpecies.map((candidate) => SPORT_FISHING_WORK_COST_BY_CLASS[candidate.species.cargoClass])
     );
-    const workQuote = this.progression.quoteWorkCost(worstHookCost, "fishing");
+    const workQuote = this.progression.quoteWorkCost(
+      worstHookCost,
+      "fishing",
+      "fishing.sport-hook"
+    );
     if (!workQuote.affordable) {
       return this.progression.insufficientWorkResult(workQuote, "Hooking this fish");
     }
@@ -1069,7 +1166,11 @@ export class FishingDomain {
       school.deepChumUntilMinute !== undefined &&
       state.clock.currentMinute <= school.deepChumUntilMinute;
     const familiar = this.groundFamiliarity(school.ecologyId, school.habitatId);
-    const selected = rng.weighted(
+    // Stage every hook draw until Work and the mandatory lure have both
+    // committed. A failed debit must not perturb future species, weight,
+    // quality, or encounter behavior.
+    const draftRng = new SeededRng(rng.getSeed(), rng.getState());
+    const selected = draftRng.weighted(
       viableSpecies.map((candidate) => ({
         value: candidate,
         weight:
@@ -1086,12 +1187,21 @@ export class FishingDomain {
     const work = this.progression.trySpendWork(
       SPORT_FISHING_WORK_COST_BY_CLASS[speciesDef.cargoClass],
       "fishing",
-      "Hooking this fish"
+      "Hooking this fish",
+      "fishing.sport-hook"
     );
     if (!work.success) return work;
-    const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, rng);
     const lureUsed = this.consumePreparedLure();
-    const quality = this.rollQuality(1);
+    if (!lureUsed) {
+      this.progression.creditWork(work.cost);
+      return {
+        success: false,
+        reason: "The prepared Woven Lure is no longer within reach",
+        reasonCode: "lure-unavailable"
+      };
+    }
+    const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, draftRng);
+    const quality = this.rollQuality(1, draftRng);
     const fish: FishInstance = {
       instanceId: this.context.nextEntityId("fish_inst"),
       speciesId,
@@ -1103,7 +1213,7 @@ export class FishingDomain {
     this.encounter = new FishingEncounter(
       fish,
       state.player.equippedRodId,
-      rng,
+      draftRng,
       // A heavy specimen starts farther out and a light one closer in, but
       // never beyond the validated continuous-water reach: the water check
       // passed for the full reach, so any shorter distance on the same
@@ -1120,8 +1230,9 @@ export class FishingDomain {
       { originX: state.player.x, originZ: state.player.z, bearingRadians: water.bearing,
         isWater: (x, z) => WorldLayout.isSailable(x, z) },
       {
-        tackleSnapshot: { lureItemId: lureUsed ? "item.basic_lure" : null },
-        dragNotch: state.player.dragNotch ?? 1,
+        tackleSnapshot: { lureItemId: lureUsed },
+        equipmentEffects: snapshotFishingEquipmentEffects(state),
+        dragNotch,
         seaConditionSnapshot: {
           weatherType: state.weather.type,
           // The Act 5 teaching fight reads the matching rule, not the
@@ -1138,6 +1249,8 @@ export class FishingDomain {
     state.sportFishing = this.encounter.getState() as FishingEncounterState;
     this.pendingLandSchoolId = schoolId;
     state.sportFishing.schoolId = schoolId;
+    state.sportFishing.workCharged = work.cost;
+    rng.setState(draftRng.getState());
     this.context.persistRng();
     events.emit("FishHooked", { speciesId, ecologyId: school.ecologyId, habitatId: school.habitatId, weightKg: fish.weightKg, minute: state.clock.currentMinute });
     return { success: true, encounter: this.encounter.getState() };
@@ -1233,13 +1346,14 @@ export class FishingDomain {
     return consumeAccessibleFishingSupply(this.context.state, "item.bait_worms");
   }
 
-  private consumePreparedLure(): boolean {
+  private consumePreparedLure(): ItemId | null {
     const { state } = this.context;
     const lureItemId = state.player.preparedLureItemId;
-    if (!lureItemId) return false;
+    if (!lureItemId) return null;
     const consumed = consumeAccessibleFishingSupply(state, lureItemId);
+    if (!consumed) return null;
     state.player.preparedLureItemId = null;
-    return consumed;
+    return lureItemId;
   }
 
   private commitSchoolCatch(): void {
@@ -1259,22 +1373,32 @@ export class FishingDomain {
   /**
    * A lost fight is not a wasted trip: hand back most of the Work the hook cost
    * so a snapped line or a slipped hook stings without emptying the pool.
+   *
+   * The refund is a share of what the hook actually charged, captured at hook
+   * time. Re-deriving the cost here instead paid against whatever discount tier
+   * the player happened to be in when the fish got away — and a contract or
+   * quest completing mid-fight grants XP synchronously, so those can differ.
    */
-  private refundLostFightWork(speciesId: FishSpeciesId): void {
+  private refundLostFightWork(speciesId: FishSpeciesId, chargedWork?: number): void {
+    const charged = Number.isFinite(chargedWork) && (chargedWork as number) > 0
+      ? (chargedWork as number)
+      : this.fallbackHookCost(speciesId);
+    if (charged <= 0) return;
+    this.progression.creditWork(Math.round(charged * SPORT_FISHING_WORK_REFUND_RATIO));
+  }
+
+  /** Pre-v33 fights carry no charged amount; price them as the hook would today. */
+  private fallbackHookCost(speciesId: FishSpeciesId): number {
     const species = ContentRegistry.fishSpecies.get(speciesId);
-    if (!species) return;
-    const spent = this.progression.getDiscountedActionCost(
+    if (!species) return 0;
+    return this.progression.getDiscountedActionCost(
       SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass],
       "fishing"
     );
-    const refund = Math.round(spent * SPORT_FISHING_WORK_REFUND_RATIO);
-    if (refund <= 0) return;
-    const capacity = this.context.state.player.workCapacity;
-    capacity.current = Math.min(capacity.maximum, capacity.current + refund);
   }
 
-  private rollQuality(workMultiplier: number): FishQuality {
-    const roll = this.context.rng.nextFloat();
+  private rollQuality(workMultiplier: number, rng: Rng = this.context.rng): FishQuality {
+    const roll = rng.nextFloat();
     const work = Math.max(0, Math.min(1, workMultiplier));
     const effectiveRoll = Math.min(1, roll * work);
     if (effectiveRoll > 0.92) return "trophy";
@@ -1286,7 +1410,7 @@ export class FishingDomain {
   private tickBasicFishing(realDeltaSeconds: number): void {
     const { state, events, rng } = this.context;
     const attempt = state.basicFishing;
-    if (!attempt || realDeltaSeconds <= 0) return;
+    if (!attempt || !Number.isFinite(realDeltaSeconds) || realDeltaSeconds <= 0) return;
 
     if (attempt.phase === "charging-cast") {
       if (attempt.isChargingCast !== false) {
@@ -1374,6 +1498,8 @@ export class FishingDomain {
       return false;
     }
 
+    const rngStateBefore = rng.getState();
+
     let treasureLootItemIds: string[] | undefined;
     const treasureStack: Array<{ itemId: string; quantity: number }> = [];
     if (attempt.treasureCaught) {
@@ -1391,6 +1517,8 @@ export class FishingDomain {
     const catchAndTreasure = [...catchStack, ...treasureStack];
     if (!InventoryManager.canAddItems(inventory, catchAndTreasure)) {
       attempt.phase = "caught";
+      rng.setState(rngStateBefore);
+      this.context.persistRng();
       return false;
     }
     let physicalBoatId: BoatId | undefined;
@@ -1405,6 +1533,8 @@ export class FishingDomain {
       }, false);
       if (!landing.success) {
         attempt.phase = "caught";
+        rng.setState(rngStateBefore);
+        this.context.persistRng();
         return false;
       }
       physicalBoatId = landing.boatId;

@@ -17,6 +17,7 @@ import { playUiSound } from "./audio/uiAudio";
 export interface StartScreenProps {
   startup: StartupState;
   onStart: () => void;
+  onSkipIntro?: () => void;
   onStartNewGame: () => void;
   onStartWithoutSaving: () => void;
   onRetry: () => void;
@@ -80,6 +81,7 @@ const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now()): string
 export const StartScreen: FC<StartScreenProps> = ({
   startup,
   onStart,
+  onSkipIntro,
   onStartNewGame,
   onStartWithoutSaving,
   onRetry,
@@ -98,10 +100,11 @@ export const StartScreen: FC<StartScreenProps> = ({
   const withoutSavingCancelRef = useRef<HTMLButtonElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
 
+  const dialogOpen = optionsOpen || newGameConfirmationOpen || withoutSavingConfirmationOpen;
   const isLoading = startup.status === "loading" || startup.status === "revealing";
   const isTitle = startup.status === "title";
   const isCheckingSave = isTitle && startup.saveStatus === "checking";
-  const hasMeasuredProgress = startup.totalAssets > 0;
+  const hasMeasuredProgress = startup.phase === "assets" && startup.totalAssets > 0;
   const loadedAssets = clamp(startup.loadedAssets, 0, Math.max(1, startup.totalAssets));
   const progressMax = Math.max(1, startup.totalAssets);
   const progressPercent = Math.max(0, Math.min(100, (loadedAssets / progressMax) * 100));
@@ -145,7 +148,7 @@ export const StartScreen: FC<StartScreenProps> = ({
   const restoreFocus = (): void => {
     const element = lastFocusedElement.current;
     lastFocusedElement.current = null;
-    if (element?.isConnected) element.focus();
+    window.requestAnimationFrame(() => { if (element?.isConnected) element.focus(); });
   };
 
   const closeOptions = (): void => {
@@ -251,7 +254,7 @@ export const StartScreen: FC<StartScreenProps> = ({
       <div className="start-screen__shade" aria-hidden="true" />
 
       {showUtilities && (
-        <div className="start-screen__utilities">
+        <div className="start-screen__utilities" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
           <button
             type="button"
             className="start-screen__utility-button"
@@ -271,25 +274,24 @@ export const StartScreen: FC<StartScreenProps> = ({
         </div>
       )}
 
-      <div className="start-screen__content">
+      <div className="start-screen__content" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
         <div className="start-screen__brand-lockup">
           <span className="start-screen__brand-rule" aria-hidden="true" />
           <h1 id="start-screen-title">Neva Land</h1>
-          <p className="start-screen__tagline">Grow a home. Follow the tide.</p>
-          <p id="start-screen-description" className="start-screen__description">
-            Soil, weather, and open water.
-          </p>
+          <p id="start-screen-description" className="start-screen__tagline">Grow a home. Follow the tide.</p>
         </div>
 
 
-        {startup.status === "error" ? (
+        {startup.status === "intro" ? (
+          <button type="button" className="start-screen__intro-skip" onClick={onSkipIntro}>Begin · press any key or tap</button>
+        ) : startup.status === "error" ? (
           <div
             className="start-screen__state start-screen__state--error"
             data-startup-error-code={startup.errorCode ?? undefined}
             data-startup-error-phase={startup.errorPhase ?? undefined}
           >
             <GameSheet className="start-screen__tray start-screen__recovery" tone="ghost">
-              <h2>The coast did not open</h2>
+              <h2>{startup.recovery === "save" ? "Your island is ready" : "The coast did not open"}</h2>
               <p className="start-screen__error" role="alert">
                 <span className="start-screen__icon-well" aria-hidden="true">
                   <AtlasImage src={UI_STATUS.warning} size={18} />
@@ -302,8 +304,9 @@ export const StartScreen: FC<StartScreenProps> = ({
                 data-testid="startup-retry-button"
                 onClick={onRetry}
               >
-                <span>Try again</span>
+                <span>{startup.recovery === "save" ? "Retry save" : "Reload game"}</span>
               </ChromeButton>
+              {startup.recovery === "save" && <ChromeButton className="start-screen__button" onClick={() => setWithoutSavingConfirmationOpen(true)}>Play without saving</ChromeButton>}
               {(startup.errorCode || startup.errorPhase) && (
                 <details className="start-screen__diagnostics">
                   <summary>Diagnostics</summary>
@@ -331,6 +334,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                       </span>
                     )}
                   </div>
+                  {startup.slow && <p>Still loading. This is taking longer than usual.</p>}
                   <div className={`start-screen__meter${hasMeasuredProgress ? "" : " is-indeterminate"}`}>
                     <span
                       className="start-screen__meter-fill"
@@ -346,6 +350,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                       aria-valuetext={hasMeasuredProgress ? `${startup.loadedAssets} of ${startup.totalAssets}` : "Starting"}
                     />
                   </div>
+                  <details className="start-screen__diagnostics"><summary>Diagnostics</summary><span>Phase: {startup.phase}</span>{startup.degradedResources?.map(resource => <span key={resource}>Procedural fallback: {resource}</span>)}</details>
                 </div>
               ) : isTitle && startup.saveStatus === "corrupt" ? (
                 <p className="start-screen__save-warning" role="status">
@@ -567,14 +572,14 @@ export const StartScreen: FC<StartScreenProps> = ({
           >
             <div className="start-screen__dialog-header">
               <h2 id="start-screen-no-save-title">Continue without saving?</h2>
-              <ChromeClose label="Return to title" onClick={closeWithoutSavingConfirmation} />
+              <ChromeClose label="Cancel" onClick={closeWithoutSavingConfirmation} />
             </div>
             <p id="start-screen-no-save-description" className="start-screen__dialog-copy">
               Save storage is unavailable. Progress from this session will be lost when you leave or reload.
             </p>
             <div className="start-screen__dialog-actions">
               <ChromeButton ref={withoutSavingCancelRef} onClick={closeWithoutSavingConfirmation}>
-                Return to title
+                Cancel
               </ChromeButton>
               <ChromeButton
                 variant="danger"

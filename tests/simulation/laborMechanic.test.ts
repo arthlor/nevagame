@@ -11,6 +11,10 @@ import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayou
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import type { WorkCapacityState } from "../../src/simulation/core/types";
+import { FARMING_ACTION_COST } from "../../src/simulation/domains/FarmingDomain";
+import { BASIC_FISHING_WORK_COST } from "../../src/simulation/domains/FishingDomain";
+import { PROCESSING_WORK_COST } from "../../src/simulation/domains/ProcessingDomain";
+import { ACTION_WORK_COSTS } from "../../src/ui/components/FarmingActionStatus";
 
 function movePlayerToStarterFarm(sim: Simulation, x: number = 0, z: number = 0): { x: number; z: number } {
   const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x, z });
@@ -192,6 +196,37 @@ describe("Work Capacity mechanic", () => {
       sim.state.player.workCapacity.current = 12;
       const exact = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(exact.success).toBe(true);
+      expect(sim.state.player.workCapacity.current).toBe(0);
+    });
+  });
+
+  describe("cost table integrity", () => {
+    it("keeps the presentation Work costs derived from the simulation tables", () => {
+      // The interaction prompt once quoted a hardcoded 10 for planting while
+      // FarmingDomain charged 12, so between 10 and 11 Work the prompt read as
+      // affordable and the action was refused.
+      expect(ACTION_WORK_COSTS.plant).toBe(FARMING_ACTION_COST.plant);
+      expect(ACTION_WORK_COSTS.water).toBe(FARMING_ACTION_COST.water);
+      expect(ACTION_WORK_COSTS.harvest).toBe(FARMING_ACTION_COST.harvest);
+      expect(ACTION_WORK_COSTS.fertilize).toBe(FARMING_ACTION_COST.fertilize);
+      expect(ACTION_WORK_COSTS.cast).toBe(BASIC_FISHING_WORK_COST);
+      expect(ACTION_WORK_COSTS.workstation).toBe(PROCESSING_WORK_COST);
+    });
+
+    it("charges planting exactly what the shared constant quotes", () => {
+      const sim = new Simulation();
+      const pos = movePlayerToStarterFarm(sim);
+      const quoted = sim.quoteWorkCost(FARMING_ACTION_COST.plant, "farming").cost;
+
+      // One short of the real cost must refuse. The prompt used to quote 10
+      // here, so 10 and 11 Work read as affordable and then failed.
+      sim.state.player.workCapacity.current = quoted - 1;
+      expect(sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z))
+        .toMatchObject({ reasonCode: "insufficient-work" });
+
+      sim.state.player.workCapacity.current = quoted;
+      expect(sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z))
+        .toMatchObject({ success: true });
       expect(sim.state.player.workCapacity.current).toBe(0);
     });
   });

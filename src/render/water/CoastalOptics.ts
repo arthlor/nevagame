@@ -1,3 +1,4 @@
+import { runSync } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
 import { harborCoastInfluence } from "../../world/HarborCoast";
@@ -5,8 +6,13 @@ import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 
 /** R: signed water-column depth, G: bed elevation, B: shore distance, A: coastal art weight. */
 export function createWaterDepthMap(bounds: THREE.Vector4, width: number, height: number): THREE.DataTexture {
+  return runSync(waterDepthMapSteps(bounds, width, height));
+}
+
+export function* waterDepthMapSteps(bounds: THREE.Vector4, width: number, height: number): Generator<void, THREE.DataTexture, void> {
   const data = new Uint16Array(width * height * 4);
   for (let row = 0; row < height; row++) for (let column = 0; column < width; column++) {
+    if (column % 32 === 0) yield;
     const x = bounds.x + column / (width - 1) * bounds.z;
     const z = bounds.y + row / (height - 1) * bounds.w;
     const bed = WorldLayout.terrainBaseSurfaceHeight(x, z);
@@ -36,6 +42,7 @@ export function createCoastalUniforms(depthMap: THREE.Texture | null, bounds: TH
     uWaterAbsorption: { value: new THREE.Vector3(...config.absorptionPerMeter) },
     uRefractionPixels: { value: config.refractionPixels },
     uRippleNormalStrength: { value: config.rippleNormalStrength },
+    uDistantSlope: { value: new THREE.Vector3(...config.distantSlope) },
     uSceneCaptureEnabled: { value: 0 }, uOpaqueColor: { value: null as THREE.Texture | null },
     uOpaqueDepth: { value: null as THREE.DepthTexture | null },
     uOpticsViewport: { value: new THREE.Vector2(1, 1) },

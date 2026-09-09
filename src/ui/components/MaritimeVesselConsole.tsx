@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { WorldHudBoatDto } from "../../simulation/core/contracts";
-import { IconBoat, IconFish, IconWarning, IconWave, IconHook, IconSnowflake} from "./HudIcons";
+import { IconBoat, IconFish, IconWarning, IconHook, IconSnowflake} from "./HudIcons";
 import { ItemSlot, Meter } from "../coastal/CoastalUI";
 import { ChromeQuality } from "../chrome/Chrome";
 import { AtlasImage } from "../chrome/AtlasImage";
@@ -39,18 +39,6 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
     if (pct < 70) return "hull-damaged";
     return "hull-sound";
   }, [boat.hull.percent, boat.hull.danger]);
-
-  const seaStateTone = useMemo(() => {
-    switch (boat.seaState) {
-      case "Rough":
-        return "rough";
-      case "Swell":
-        return "choppy";
-      case "Calm":
-      default:
-        return "calm";
-    }
-  }, [boat.seaState]);
 
   return (
     <section
@@ -105,13 +93,6 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
               </span>
               <span className="boat-bearing-label" title="Heading Bearing">
                 {`· ${String(resolvedHeadingDeg).padStart(3, "0")}° ${resolvedHeadingCard}`}
-              </span>
-              <span
-                className={`boat-sea-state sea-state--${seaStateTone}`}
-                title={`Sea State: ${boat.seaState}`}
-              >
-                <IconWave size={12} aria-hidden="true" />
-                {boat.seaState === "Swell" ? "Choppy" : boat.seaState}
               </span>
             </div>
 

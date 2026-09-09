@@ -13,7 +13,16 @@ export const FISHING_TUNING = Object.freeze({
   maximumDistance: 120,
   landingDistance: 3,
   landingStaminaRatio: 0.15,
+  /** Live fish hold an arc away from the angler; it closes as they exhaust. */
+  approachDistance: 2.4,
+  fightArcMeters: 14,
+  fullFightArcStaminaRatio: 0.5,
+  effortFatigueMultiplier: 1.8,
+  /** Controlled line pressure keeps the tired tail of a fight moving. */
+  pressureFatiguePerSecond: 1.6,
   minimumLandingTension: 12,
+  /** Cue yielding before a strong drive reaches the damage band. */
+  yieldCueTensionRatio: 0.85,
   slackTension: 8,
   /** A tired fish inside landing range must be held in the green band this long before it beaches. */
   landReadySeconds: 0.55,
@@ -27,6 +36,8 @@ export const FISHING_TUNING = Object.freeze({
   resistancePerPower: 0.14,
   dragThresholdRatio: 0.72,
   dragPayoutRate: 0.11,
+  yieldRecoveryMetersPerSecond: 1.8,
+  yieldSpeedMultiplier: 1.25,
   overloadDamageRate: 0.45,
   snapGraceSeconds: 1.1,
   /** Fast species still hold one readable command long enough for a player to react. */
@@ -60,6 +71,7 @@ export const FISHING_TUNING = Object.freeze({
   /** Bracing protects the hook during a shake, but still adds its normal tension load. */
   bracedShakeDamageMultiplier: 0.3,
   /** A prepared lure makes a hooked sport fish more readable without changing tell duration. */
+  preparedLureHookReliabilityBonus: 0.18,
   preparedLureDriveMultiplier: 0.9,
   preparedLureShakeDamageMultiplier: 0.8,
   /** Rough water adds bounded fight pressure; behavior clocks and minimum tells are untouched. */
@@ -134,6 +146,16 @@ export const approachFishing = (value: number, target: number, step: number): nu
   value + clampFishing(target - value, -step, step);
 export const fishingAngleDelta = (from: number, to: number): number =>
   Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+/** A fatigue-owned approach, not a presentation offset or a forced outward move. */
+export function fishingFightDistance(staminaRatio: number): number {
+  const progress = clampFishing(
+    (staminaRatio - FISHING_TUNING.landingStaminaRatio)
+      / (FISHING_TUNING.fullFightArcStaminaRatio - FISHING_TUNING.landingStaminaRatio), 0, 1
+  );
+  return FISHING_TUNING.approachDistance
+    + FISHING_TUNING.fightArcMeters * progress * progress * (3 - 2 * progress);
+}
 
 /** One species-aware depth contract shared by encounter motion and save validation. */
 export function fishingDepthBounds(

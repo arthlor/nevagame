@@ -58,20 +58,8 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
 
   const species = ContentRegistry.fishSpecies.get(speciesId);
   const speciesName = catchData?.speciesName ?? species?.name ?? "Sport fish";
-
-  return (
-    <GameSheet
-      family="ink"
-      as="aside"
-      className={`catch-summary interactive ${className}`.trim()}
-      tone="slate"
-      corners
-      role="status"
-      aria-live="polite"
-      data-testid="catch-summary"
-      onClick={onClick}
-      style={{ cursor: onClick ? "pointer" : "default" }}
-    >
+  const summary = (
+    <>
       <div className="catch-summary-icon" aria-hidden="true">
         <AtlasImage src={atlasForFish(speciesId)} alt="" size={40} />
         {!atlasForFish(speciesId) && <IconFish size={19} />}
@@ -83,9 +71,35 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
         </span>
         <div className="catch-summary-subline">
           <small>{freshness}% fresh</small>
-          {onClick && <span className="catch-summary-inspect-hint">Click to inspect</span>}
+          {onClick && <span className="catch-summary-inspect-hint">Inspect catch</span>}
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <GameSheet
+      family="ink"
+      as="aside"
+      className={`catch-summary interactive ${className}`.trim()}
+      tone="slate"
+      corners
+      role="status"
+      aria-live="polite"
+      data-testid="catch-summary"
+    >
+      {onClick ? (
+        <button
+          type="button"
+          className="catch-summary-open"
+          aria-label={`Inspect ${speciesName} catch`}
+          onClick={onClick}
+        >
+          {summary}
+        </button>
+      ) : (
+        <div className="catch-summary-open">{summary}</div>
+      )}
       <ChromeClose
         onClick={(e) => {
           e.stopPropagation();

@@ -10,9 +10,9 @@ export const MOUNT_TUNING = Object.freeze({
   // Every gait clears the rider's equivalent on foot. A trot that lost to a
   // sprint (3.7 against 3.8) made the donkey a downgrade; the trot is now the
   // free cruise and the gallop is the quota-gated burst.
-  walkSpeedMetersPerSecond: 1.7,
-  trotSpeedMetersPerSecond: 4.9,
-  gallopSpeedMetersPerSecond: 7.2,
+  walkSpeedMetersPerSecond: 2.3,
+  trotSpeedMetersPerSecond: 5.8,
+  gallopSpeedMetersPerSecond: 8.4,
   maximumGallopStamina: 100,
   // Roughly seven seconds of gallop, against the player's four and a half, so
   // the mount reads as a genuine advantage rather than a reskinned sprint.
@@ -26,12 +26,38 @@ export const MOUNT_TUNING = Object.freeze({
   dismountClearanceMeters: 1.25,
   boardRadiusMeters: 2.75,
   terrainHeightToleranceMeters: 0.32,
+  /**
+   * Physics may loft the rider a few metres while the capsule climbs a bridge
+   * box that sits ahead of the layout sample. Commit validation uses this
+   * larger band so those climb frames are not rejected as "invalid mounted
+   * pose"; boarding, dismount and save keep the tight tolerance above.
+   */
+  mountedCommitHeightToleranceMeters: 4,
   maximumSlopeNormalY: Math.cos((46 * Math.PI) / 180)
 });
 
 function hasMountableGroundNormal(x: number, z: number): boolean {
   return WorldLayout.traversalSurfaceSample(x, z).normal.y >= MOUNT_TUNING.maximumSlopeNormalY;
 }
+
+export function isMountableTraversalPoint(x: number, z: number): boolean {
+  if (
+    !WorldLayout.isWalkable(x, z) ||
+    WorldLayout.isWater(x, z) ||
+    WorldLayout.isInterior(x, z) ||
+    WorldLayout.isPierDeck(x, z) ||
+    WorldLayout.isPierStairs(x, z)
+  ) return false;
+  const elevated =
+    WorldLayout.isBridgeDeck(x, z) || WorldLayout.isBridgeApproach(x, z);
+  if (!elevated && WorldLayout.waterSignedDistance(x, z) > -0.01) return false;
+  return hasMountableGroundNormal(x, z);
+}
+
+export type MountGroundOptions = {
+  /** Defaults to `MOUNT_TUNING.terrainHeightToleranceMeters`. */
+  heightToleranceMeters?: number;
+};
 
 export function createStarterDonkeyState(): MountState {
   return {
@@ -100,20 +126,18 @@ export function advanceMountGait(
   };
 }
 
-export function isValidMountPose(mount: Readonly<MountState>): boolean {
+export function isValidMountPose(
+  mount: Readonly<MountState>,
+  options: MountGroundOptions = {}
+): boolean {
+  const heightTolerance = options.heightToleranceMeters ?? MOUNT_TUNING.terrainHeightToleranceMeters;
   if (
     mount.id !== STARTER_DONKEY_ID ||
     mount.mountTypeId !== STARTER_DONKEY_TYPE_ID ||
     ![mount.x, mount.y, mount.z, mount.rotationY].every(Number.isFinite)
   ) return false;
-  if (
-    !WorldLayout.isWalkable(mount.x, mount.z) ||
-    WorldLayout.isWater(mount.x, mount.z) ||
-    WorldLayout.isInterior(mount.x, mount.z) ||
-    WorldLayout.isPierDeck(mount.x, mount.z)
-  ) return false;
-  if (!hasMountableGroundNormal(mount.x, mount.z)) return false;
-  return Math.abs(mount.y - WorldLayout.traversalSurfaceHeight(mount.x, mount.z)) <= MOUNT_TUNING.terrainHeightToleranceMeters;
+  if (!isMountableTraversalPoint(mount.x, mount.z)) return false;
+  return Math.abs(mount.y - WorldLayout.traversalSurfaceHeight(mount.x, mount.z)) <= heightTolerance;
 }
 
 export function mountPoseFromPlayer(player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">): Pick<MountState, "x" | "y" | "z" | "rotationY"> {
@@ -144,17 +168,16 @@ export function isPlayerAtMountPose(
     Math.abs(player.y - expected.y) <= toleranceMeters;
 }
 
-export function isValidPlayerMountGround(player: Pick<PlayerState, "x" | "y" | "z">): boolean {
-  if (
-    ![player.x, player.y, player.z].every(Number.isFinite) ||
-    !WorldLayout.isWalkable(player.x, player.z) ||
-    WorldLayout.isWater(player.x, player.z) ||
-    WorldLayout.isInterior(player.x, player.z) ||
-    WorldLayout.isPierDeck(player.x, player.z)
-  ) return false;
-  if (!hasMountableGroundNormal(player.x, player.z)) return false;
-  return Math.abs(player.y - (WorldLayout.traversalSurfaceHeight(player.x, player.z) + MOUNT_TUNING.playerPoseGroundOffsetMeters)) <=
-    MOUNT_TUNING.terrainHeightToleranceMeters;
+export function isValidPlayerMountGround(
+  player: Pick<PlayerState, "x" | "y" | "z">,
+  options: MountGroundOptions = {}
+): boolean {
+  const heightTolerance = options.heightToleranceMeters ?? MOUNT_TUNING.terrainHeightToleranceMeters;
+  if (![player.x, player.y, player.z].every(Number.isFinite)) return false;
+  if (!isMountableTraversalPoint(player.x, player.z)) return false;
+  return Math.abs(
+    player.y - (WorldLayout.traversalSurfaceHeight(player.x, player.z) + MOUNT_TUNING.playerPoseGroundOffsetMeters)
+  ) <= heightTolerance;
 }
 
 export function mountDismountPoseCandidates(

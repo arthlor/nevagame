@@ -1,7 +1,7 @@
 // src/content/npcs.ts
 
 import type { NpcId } from "../simulation/core/QuestTypes";
-import type { SkillId } from "../simulation/core/types";
+import type { ClockState, SkillId } from "../simulation/core/types";
 import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog.generated";
 import { HARBOR_MAEVE_ANCHOR, HARBOR_MARKET, HARBOR_SILAS_ANCHOR } from "../world/WorldAnchors";
 import { SUNREACH_ANCHORS } from "../world/WorldIslands";
@@ -19,6 +19,8 @@ export interface NpcDefinition {
     rotationY: number;
     locationName: string;
   };
+  /** Omitted phases retain the authored home station. */
+  schedule?: Array<{ phase: ClockState["timeOfDay"]; position: NpcDefinition["anchor"] }>;
   idleDialogue: string[];
   recognitionDialogue?: Array<{
     id: string;
@@ -45,6 +47,9 @@ export const NPCS: NpcDefinition[] = [
       rotationY: Math.PI * 0.15,
       locationName: "Starter Garden Gate"
     },
+    schedule: [
+      { phase: "dusk", position: { x: 55.5, z: -42.5, rotationY: 1.2, locationName: "Village Inn Porch" } }
+    ],
     idleDialogue: [
       "The soil here is rich and eager for seed. Keep your fields watered, and Neva will feed you well.",
       "Nothing beats the warmth of fresh-baked bread made from home-grown grain.",
@@ -106,6 +111,10 @@ export const NPCS: NpcDefinition[] = [
       rotationY: Math.PI * 0.75,
       locationName: "Farmhouse Workbench"
     },
+    schedule: [
+      { phase: "day", position: { x: 48, z: -53, rotationY: 0.8, locationName: "Village Market" } },
+      { phase: "dusk", position: { x: 54, z: -39, rotationY: 1.5, locationName: "Village Inn Porch" } }
+    ],
     idleDialogue: [
       "Got some scraps? Throw 'em in the compost bin! Worms do the best work on this island.",
       "A sturdy bench and a handful of good grain can outfit any angler for sea.",
@@ -167,6 +176,10 @@ export const NPCS: NpcDefinition[] = [
       rotationY: -1.5708,
       locationName: "Harbor Pier"
     },
+    schedule: [
+      { phase: "dawn", position: { x: 76, z: 66, rotationY: -1.57, locationName: "Harbor Dock" } },
+      { phase: "dusk", position: { x: 55, z: -46, rotationY: 1.5, locationName: "Village Inn Porch" } }
+    ],
     idleDialogue: [
       "Check the tide and wind before casting, young one. The sea remembers every boat that leaves harbor.",
       "A good cedar skiff and a tight reel will take you further than all the gold in the market.",
@@ -220,6 +233,10 @@ export const NPCS: NpcDefinition[] = [
       rotationY: HARBOR_MARKET.rotationY,
       locationName: "Fish Market Stall"
     },
+    schedule: [
+      { phase: "dawn", position: { x: 59, z: -53, rotationY: -1.57, locationName: "Village Market Hall" } },
+      { phase: "dusk", position: { x: 59, z: -53, rotationY: -1.57, locationName: "Village Market Hall" } }
+    ],
     idleDialogue: [
       "Fresh catch always fetches top coin! Bring your fish in before the sun bakes 'em.",
       "Trophy mackerel and tuna pay the quality multiplier on the harbor board. Ice them or the grade is wasted.",
@@ -273,6 +290,10 @@ export const NPCS: NpcDefinition[] = [
       rotationY: -Math.PI * 0.35,
       locationName: "Sunreach Cove Landing"
     },
+    schedule: [
+      { phase: "dawn", position: { x: 355, z: 58, rotationY: -1.1, locationName: "Sunreach Dock" } },
+      { phase: "dusk", position: { x: 375, z: 59, rotationY: -1.1, locationName: "Sunreach Cove Market" } }
+    ],
     idleDialogue: [
       "The channel is calmest when the cove lies flat. Leave enough fuel for the crossing home.",
       "Tie up inside the marker buoys. The reef shelf begins just beyond them.",
@@ -318,6 +339,10 @@ export const NPCS: NpcDefinition[] = [
       rotationY: Math.PI * 0.8,
       locationName: "Sunreach Cistern Terrace"
     },
+    schedule: [
+      { phase: "dusk", position: { x: 376, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } },
+      { phase: "night", position: { x: 376, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } }
+    ],
     idleDialogue: [
       "These terraces hold water only when you give it to them carefully.",
       "Sunflowers turn quickly here. Olives take patience and a steady cistern.",

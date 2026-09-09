@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-09-08T19:39:50.997Z",
+  "captured": [
+    {
+      "name": "35-hud-catch-summary-final",
+      "filename": "35-hud-catch-summary-final.png",
+      "description": "Catch summary toast after landing a sport fish",
+      "url": "http://127.0.0.1:3000/?debug=1&debugStart=sport-fishing&worldAcceptance=1"
+    }
+  ],
+  "missing": [
+    {
+      "name": "catch-inspection",
+      "description": "catch-inspection",
+      "reason": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('catch-summary')\u001b[22m\n\u001b[2m    - waiting for navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:3000/?debug=1&debugStart=sport-fishing&worldAcceptance=1\"\u001b[22m\n"
+    },
+    {
+      "name": "layout-editor-final",
+      "description": "layout-editor-final",
+      "reason": "page.waitForFunction: Timeout 30000ms exceeded."
+    },
+    {
+      "name": "mobile-portrait-final",
+      "description": "mobile-portrait-final",
+      "reason": "page.waitForFunction: Timeout 30000ms exceeded."
+    }
+  ]
+}

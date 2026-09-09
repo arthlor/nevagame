@@ -24,7 +24,15 @@ import sharp from "sharp";
 import { MaxRectsPacker } from "maxrects-packer";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
-const ROOT = path.resolve(path.dirname(SCRIPT_PATH), "../..");
+/**
+ * Where the atlas reads its sources and manifests from. Defaults to the repo
+ * this script lives in; `NEVA_ATLAS_ROOT` points it at a copy instead, so the
+ * drift and stale-detection tests can tamper with a throwaway tree rather than
+ * editing tracked files in place and restoring them afterwards.
+ */
+const ROOT = process.env.NEVA_ATLAS_ROOT
+  ? path.resolve(process.env.NEVA_ATLAS_ROOT)
+  : path.resolve(path.dirname(SCRIPT_PATH), "../..");
 
 /**
  * Dilates RGB colors into adjacent alpha=0 transparent pixels for `radius` passes.

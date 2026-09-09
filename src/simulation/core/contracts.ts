@@ -24,12 +24,30 @@ import type {
   RodId,
   SkillId,
   TimeWindowId,
-  WeatherTag
+  WeatherTag,
+  WorkActionId,
+  ClothingSlot,
+  EquipmentId,
+  EquipmentPresetId,
+  EquipmentSlot,
+  ProcessingPresentationKind,
+  ProcessingWorkTier,
+  RecipeResult
 } from "./types";
 
 export interface WorkCostQuote {
   baseCost: number;
+  /** Rounded cost after proficiency and before equipment. This is the cap baseline. */
+  neutralCost?: number;
   cost: number;
+  action?: WorkActionId | null;
+  equipmentMultiplier?: number;
+  throughputFloor?: number;
+  equipmentApplied?: boolean;
+  /** True when an applicable effect cannot move this integer cost. */
+  roundingLimited?: boolean;
+  /** True when the 25% actions-per-Work cap, rather than rounding, sets the cost. */
+  throughputCapLimited?: boolean;
   availableWork: number;
   affordable: boolean;
   shortage: number;
@@ -229,6 +247,7 @@ export type CompassMarkerKind =
   | "market"
   | "landmark"
   | "quest"
+  | "quest-secondary"
   | "fish-school"
   | "water";
 
@@ -251,7 +270,8 @@ export type HudIconId =
   | "warning"
   | "energy"
   | "moon"
-  | "satchel";
+  | "satchel"
+  | "quest";
 
 export interface CompassMarkerDto {
   id: string;
@@ -300,6 +320,11 @@ export type ContextualHotbarAction =
       action: "open-inventory" | "open-map" | "open-journal" | "open-ledger" | "open-planning" | "fishing.toggle-lure";
     };
 
+/**
+ * One socket on the contextual tool belt. The belt is derived every frame from
+ * the player's stance, so a stance with nothing worth swapping (walking around)
+ * returns an empty array and the HUD renders no belt at all.
+ */
 export interface ContextualHotbarSlotDto {
   slot: 1 | 2 | 3 | 4 | 5;
   id: string;
@@ -308,14 +333,8 @@ export interface ContextualHotbarSlotDto {
   detail: string;
   icon?: string;
   quantity: number | null;
-  meter?: {
-    current: number;
-    maximum: number;
-    percent: number;
-    label?: string;
-    danger?: boolean;
-  } | null;
   ready: boolean;
+  /** Armed rather than merely equipped — a prepared lure, for instance. */
   active?: boolean;
   shortcutKey: string;
 }
@@ -368,12 +387,6 @@ export interface WorldHudDto {
     maximum: number;
     exhausted: boolean;
   } | null;
-  hotbar: ReadonlyArray<{
-    slot: 1 | 2 | 3 | 4 | 5;
-    detail: string;
-    quantity: number | null;
-    ready: boolean;
-  }>;
   equippedRodId: RodId;
   carriedFish: WorldHudCargoDto | null;
   boat: WorldHudBoatDto | null;
@@ -397,6 +410,7 @@ export interface WorldHudDto {
     cargoMax: number;
   };
   activeContracts: ReadonlyArray<HudContractDto>;
+  recordTracker?: readonly RecordMilestoneDto[];
   contextualHotbar: ReadonlyArray<ContextualHotbarSlotDto>;
 }
 
@@ -824,6 +838,11 @@ export interface CropInspectionDto {
   cropId: CropId;
   name: string;
   stage: CropStage;
+  /**
+   * Growth toward maturity, 0..1, clamped and simulation-owned. Presentation
+   * renders this rather than re-deriving growth from crop internals.
+   */
+  maturityProgress: number;
   approximateMinutesRemaining: number | null;
   stageTimingLabel: string;
   moisture: { value: number; band: CropMoistureBand };
@@ -875,6 +894,67 @@ export interface ProcessingJobInspectionDto {
   startBriefing: string;
 }
 
+export interface ProcessingRecipeRowDto {
+  recipeId: RecipeId;
+  name: string;
+  result: RecipeResult;
+  outputLabel: string;
+  inputs: ReadonlyArray<{ itemId: ItemId; name: string; required: number; owned: number; enough: boolean }>;
+  work: WorkCostQuote;
+  durationMinutes: number;
+  durationLabel: string;
+  workTier: ProcessingWorkTier;
+  presentationKind: ProcessingPresentationKind;
+  state: "quest-target" | "craftable" | "blocked" | "locked";
+  blockers: string[];
+}
+
+export interface ProcessingStationDto {
+  stationId: string;
+  stationType: string;
+  job: ProcessingJobInspectionDto | null;
+  recipes: ProcessingRecipeRowDto[];
+}
+
+export interface CharacterEquipmentItemDto {
+  id: EquipmentId;
+  name: string;
+  description: string;
+  slot: EquipmentSlot;
+  equipped: boolean;
+  effectLines: string[];
+  icon: string;
+  assetId: string | null;
+  scale?: number;
+}
+
+export interface CharacterRodDto {
+  id: RodId;
+  name: string;
+  equipped: boolean;
+  effectLines: string[];
+  assetId: string;
+}
+
+export interface CharacterEquipmentDto {
+  slots: ReadonlyArray<{
+    slot: EquipmentSlot | "rod";
+    label: string;
+    equippedId: EquipmentId | RodId;
+    equippedName: string;
+  }>;
+  ownedEquipment: CharacterEquipmentItemDto[];
+  ownedRods: CharacterRodDto[];
+  presets: ReadonlyArray<{
+    id: EquipmentPresetId;
+    label: string;
+    items: Record<ClothingSlot, EquipmentId>;
+  }>;
+  wardrobe: { used: number; reserved: number; capacity: number };
+  canEquip: boolean;
+  equipBlocker?: string;
+}
+
 export type GameCommand =
   | { type: "physics.commit"; frame: ResolvedPhysicsFrame }
   | { type: "player.face-target"; x: number; z: number }
@@ -896,6 +976,10 @@ export type GameCommand =
   | { type: "player.rest-until-dawn" }
   | { type: "processing.start"; recipeId: RecipeId; stationId: string }
   | { type: "processing.collect"; jobId: ProcessingJobId }
+  | { type: "equipment.equip"; equipmentId: EquipmentId }
+  | { type: "equipment.equip-rod"; rodId: RodId }
+  | { type: "equipment.save-preset"; presetId: EquipmentPresetId }
+  | { type: "equipment.apply-preset"; presetId: EquipmentPresetId }
   | { type: "fishing.cast-basic"; castPower?: number }
   | { type: "fishing.start-charge-basic" }
   | { type: "fishing.release-cast-basic"; castPower?: number }
@@ -961,6 +1045,8 @@ export type GameQuery =
   | { type: "crop.inspect"; placedCropId: PlacedCropId }
   | { type: "crop.get-seed-belt" }
   | { type: "processing.inspect"; stationId: string }
+  | { type: "processing.get-station"; stationId: string }
+  | { type: "equipment.get-character" }
   | { type: "crop.find-placement"; farmId: FarmId; cropId: string }
   | { type: "quest.get-active" }
   | { type: "npc.get-nearby" };
@@ -988,6 +1074,8 @@ export type GameQueryResult =
   | CropInspectionDto
   | SeedBeltDto
   | ProcessingJobInspectionDto
+  | ProcessingStationDto
+  | CharacterEquipmentDto
   | { success: boolean; x?: number; z?: number; reason?: string }
   | import("./QuestTypes").ActiveQuestDto
   | import("./QuestTypes").NpcId;

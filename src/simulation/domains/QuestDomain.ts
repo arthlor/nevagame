@@ -8,13 +8,19 @@ import type { DomainContext } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import {
   MAIN_QUEST_TRACK_ID,
+  MAX_EARLY_ACTION_CREDIT_QUANTITY,
+  MAX_EARLY_ACTION_CREDIT_RECORDS,
   activeQuestTrackIds,
+  questEarlyActionCredits,
   questTrackProgress,
+  sameEarlyActionShape,
   type ActiveQuestDto,
   type NpcId,
   type QuestDefinition,
+  type QuestEarlyActionCredit,
   type QuestId,
   type QuestLocationRequirement,
+  type QuestObjectiveDefinition,
   type QuestObjectiveType,
   type QuestTrackId
 } from "../core/QuestTypes";
@@ -22,7 +28,7 @@ import type { InteractionResult } from "../core/contracts";
 import type { GameState } from "../core/types";
 import { distance2d } from "./DomainContext";
 
-const NPC_TALK_RADIUS = 3.5;
+import { npcAnchorAt, npcRecognitionLines, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
 
 type ObjectiveEventLocation = QuestLocationRequirement;
 
@@ -49,7 +55,7 @@ export function reconcileInactiveQuestChain(state: GameState): boolean {
       progress.activeQuestId = nextQuest.id;
       progress.activeStepIndex = 0;
       progress.stepProgress = {};
-      reconcileSatisfiedQuestObjectives(state, track.id);
+      reconcileQuestCursors(state, track.id);
       activated = true;
       break;
     }
@@ -85,6 +91,11 @@ export function reconcileSatisfiedQuestObjectives(state: GameState, trackId?: Qu
       || (objective.type === "purchase-upgrade" && (
         state.quests.unlockedFeatureIds.includes(objective.targetId)
         || Object.values(state.boats).some((boat) => boat.id === objective.targetId || boat.boatTypeId === objective.targetId)
+        // Rods live in ownedRodIds, not unlockedFeatureIds, and MarketDomain
+        // refuses to sell one twice — so a player who bought the offshore rod
+        // before Act 9 asked for it could never fire RodPurchased again and
+        // the spine stopped dead one quest short of Act 10.
+        || state.player.ownedRodIds.includes(objective.targetId)
       ));
     if (!alreadySatisfied) break;
     progress.stepProgress[objective.id] = objective.targetQuantity;
@@ -96,8 +107,172 @@ export function reconcileSatisfiedQuestObjectives(state: GameState, trackId?: Qu
   return changed;
 }
 
+/**
+ * Whether an objective's declared gates accept an action of this shape.
+ *
+ * This is deliberately the same asymmetry `applyObjectiveEventToTrack` uses:
+ * an undeclared `targetId` or `location` on the objective accepts anything,
+ * a declared one must match exactly. Sharing the predicate is the correctness
+ * argument for the ledger — a shape the live path would have rejected is a
+ * shape the ledger will not bank, and a credit the ledger banked is a credit
+ * the live path would have accepted.
+ */
+function objectiveAcceptsAction(
+  objective: QuestObjectiveDefinition,
+  type: QuestObjectiveType,
+  targetId?: string,
+  location?: ObjectiveEventLocation
+): boolean {
+  if (objective.type !== type) return false;
+  if (objective.targetId !== undefined && objective.targetId !== targetId) return false;
+  if (objective.location && (
+    !location ||
+    objective.location.kind !== location.kind ||
+    objective.location.id !== location.id
+  )) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * The opt-in objective, if any, that is still ahead of the player and would
+ * accept this action. Returning `undefined` is what bounds the ledger: only
+ * shapes some future tutorial step is actually watching are ever banked.
+ */
+function pendingEarlyActionObjective(
+  state: GameState,
+  type: QuestObjectiveType,
+  targetId?: string,
+  location?: ObjectiveEventLocation
+): QuestObjectiveDefinition | undefined {
+  const completed = new Set(state.quests.completedQuestIds);
+  for (const quest of ContentRegistry.quests.values()) {
+    if (completed.has(quest.id)) continue;
+    const progress = Object.values(state.quests.tracks).find((track) => track.activeQuestId === quest.id);
+    for (let index = 0; index < quest.objectives.length; index += 1) {
+      const objective = quest.objectives[index];
+      if (!objective.creditsEarlyActions) continue;
+      // Already passed on the running quest — banking it would be a replay.
+      if (progress && index < progress.activeStepIndex) continue;
+      if (objectiveAcceptsAction(objective, type, targetId, location)) return objective;
+    }
+  }
+  return undefined;
+}
+
+/** Credits matching an objective's gates, most-specific ordering irrelevant. */
+function matchingCredits(
+  credits: readonly QuestEarlyActionCredit[],
+  objective: QuestObjectiveDefinition
+): QuestEarlyActionCredit[] {
+  return credits.filter((credit) =>
+    objectiveAcceptsAction(objective, credit.type, credit.targetId, credit.location)
+  );
+}
+
+/**
+ * Applies banked early actions to whichever opt-in objective is now active,
+ * advancing the cursor as each fills. Loops so one load can close a chain of
+ * banked steps — a banked harvest set and a banked compost together carry the
+ * cursor through both of Act 2's objectives.
+ */
+export function applyQuestEarlyActionCredits(
+  state: GameState,
+  trackId?: QuestTrackId,
+  onProgress?: (progress: { questId: QuestId; stepId: string; current: number; total: number }) => void
+): boolean {
+  if (trackId === undefined) {
+    let changed = false;
+    for (const id of Object.keys(state.quests.tracks)) {
+      if (applyQuestEarlyActionCredits(state, id, onProgress)) changed = true;
+    }
+    return changed;
+  }
+
+  const progress = questTrackProgress(state.quests, trackId);
+  const quest = progress.activeQuestId ? ContentRegistry.quests.get(progress.activeQuestId) : undefined;
+  if (!quest) return false;
+
+  const credits = questEarlyActionCredits(state.quests);
+  let changed = false;
+
+  for (let guard = 0; guard <= quest.objectives.length; guard += 1) {
+    const objective = quest.objectives[progress.activeStepIndex];
+    if (!objective?.creditsEarlyActions) break;
+
+    const need = objective.targetQuantity - (progress.stepProgress[objective.id] ?? 0);
+    if (need <= 0) break;
+
+    let spent = 0;
+    for (const credit of matchingCredits(credits, objective)) {
+      if (spent >= need) break;
+      const take = Math.min(need - spent, credit.quantity);
+      credit.quantity -= take;
+      spent += take;
+    }
+    if (spent <= 0) break;
+
+    for (let index = credits.length - 1; index >= 0; index -= 1) {
+      if (credits[index].quantity <= 0) credits.splice(index, 1);
+    }
+
+    const current = Math.min(
+      objective.targetQuantity,
+      (progress.stepProgress[objective.id] ?? 0) + spent
+    );
+    progress.stepProgress[objective.id] = current;
+    changed = true;
+    onProgress?.({ questId: quest.id, stepId: objective.id, current, total: objective.targetQuantity });
+
+    if (current < objective.targetQuantity) break;
+    if (progress.activeStepIndex >= quest.objectives.length - 1) break;
+    progress.activeStepIndex += 1;
+    progress.stepProgress = {};
+  }
+
+  return changed;
+}
+
+/**
+ * Drops credits no remaining objective is watching, so the ledger empties
+ * after the tutorial rather than riding along in every later save.
+ */
+export function pruneQuestEarlyActionCredits(state: GameState): boolean {
+  const credits = questEarlyActionCredits(state.quests);
+  const kept = credits.filter((credit) =>
+    pendingEarlyActionObjective(state, credit.type, credit.targetId, credit.location) !== undefined
+  );
+  if (kept.length === credits.length) return false;
+  state.quests.earlyActionCredits = kept;
+  return true;
+}
+
+/**
+ * The full cursor repair: already-satisfied objectives, then banked early
+ * actions, to a fixpoint, then prune. Safe to call at load, before the event
+ * bus exists.
+ */
+export function reconcileQuestCursors(state: GameState, trackId?: QuestTrackId): boolean {
+  let changed = false;
+  for (let guard = 0; guard < 8; guard += 1) {
+    let pass = false;
+    if (reconcileSatisfiedQuestObjectives(state, trackId)) pass = true;
+    if (applyQuestEarlyActionCredits(state, trackId)) pass = true;
+    if (!pass) break;
+    changed = true;
+  }
+  if (pruneQuestEarlyActionCredits(state)) changed = true;
+  return changed;
+}
+
 export class QuestDomain {
   private unsubscribeEvents: Array<() => void> = [];
+  /**
+   * Objectives already credited by the world event being dispatched, keyed
+   * `trackId:objectiveId`. See `worldEvent`.
+   */
+  private creditedThisWorldEvent: Set<string> | null = null;
 
   constructor(
     private readonly context: DomainContext,
@@ -114,7 +289,7 @@ export class QuestDomain {
       events.on("CropWatered", (e) => this.onObjectiveEvent("water-crop", undefined, 1, { kind: "farm", id: e.farmId })),
       events.on("CropHarvested", (e) => this.onObjectiveEvent("harvest-crop", e.cropId, 1, { kind: "farm", id: e.farmId })),
       events.on("RecipeCompleted", (e) => this.onObjectiveEvent("craft-recipe", e.recipeId, 1, { kind: "station", id: e.stationId })),
-      events.on("BasicFishingResolved", (e) => {
+      events.on("BasicFishingResolved", (e) => this.worldEvent(() => {
         if (e.catchItemId && e.reason !== "missed" && e.reason !== "escaped" && e.reason !== "cancelled") {
           this.onObjectiveEvent("catch-basic-fish", e.catchItemId, 1, { kind: "habitat", id: e.habitatId });
           this.onObjectiveEvent("catch-basic-fish", e.catchItemId, 1, { kind: "ecology", id: e.ecologyId });
@@ -122,16 +297,16 @@ export class QuestDomain {
             this.onObjectiveEvent("catch-basic-fish", e.catchItemId, 1, { kind: "boat", id: e.boatId });
           }
         }
-      }),
-      events.on("FishSchoolChummed", (e) => {
+      })),
+      events.on("FishSchoolChummed", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("chum-school", undefined, 1, { kind: "habitat", id: e.habitatId });
         this.onObjectiveEvent("chum-school", undefined, 1, { kind: "ecology", id: e.ecologyId });
-      }),
-      events.on("FishHooked", (e) => {
+      })),
+      events.on("FishHooked", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("hook-sport-fish", e.speciesId, 1, { kind: "habitat", id: e.habitatId });
         this.onObjectiveEvent("hook-sport-fish", e.speciesId, 1, { kind: "ecology", id: e.ecologyId });
-      }),
-      events.on("FishLanded", (e) => {
+      })),
+      events.on("FishLanded", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("land-sport-fish", e.speciesId, 1, { kind: "ecology", id: e.ecologyId });
         this.onObjectiveEvent(
           "land-sport-fish",
@@ -144,21 +319,21 @@ export class QuestDomain {
         if (!e.boatId) {
           this.onObjectiveEvent("stow-cargo", undefined, 1);
         }
-      }),
+      })),
       events.on("CargoLoaded", (e) => this.onObjectiveEvent("stow-cargo", undefined, 1, { kind: "boat", id: e.boatId })),
       events.on("BoatBoarded", (e) => this.onObjectiveEvent("board-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),
-      events.on("BoatDocked", (e) => {
+      events.on("BoatDocked", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "boat", id: e.boatId });
         this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "market", id: e.marketId });
-      }),
+      })),
       events.on("ItemSold", (e) => this.onObjectiveEvent("sell-item", e.itemId, e.quantity, { kind: "market", id: e.marketId })),
       events.on("FishSold", (e) => this.onObjectiveEvent("sell-fish", e.speciesId, 1, { kind: "market", id: e.marketId })),
-      events.on("ContractCompleted", (e) => {
+      events.on("ContractCompleted", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("complete-contract", e.templateId, 1);
         // Also by type, so a quest can ask for "any bulk order" rather than
         // one template the board may not roll for a long time.
         if (e.contractType !== e.templateId) this.onObjectiveEvent("complete-contract", e.contractType, 1);
-      }),
+      })),
       events.on("FarmFertilized", (e) => this.onObjectiveEvent("apply-fertilizer", e.farmId, 1, { kind: "farm", id: e.farmId })),
       events.on("IrrigationInstalled", (e) => this.onObjectiveEvent("install-irrigation", e.featureId, 1, { kind: "farm", id: e.farmId })),
       events.on("FarmIrrigated", (e) => this.onObjectiveEvent("irrigate-farm", e.farmId, 1, { kind: "farm", id: e.farmId })),
@@ -167,6 +342,30 @@ export class QuestDomain {
       events.on("NpcTalked", (e) => this.onObjectiveEvent("talk-npc", e.npcId, 1)),
       events.on("ProficiencyLeveledUp", () => this.evaluateTrackUnlocks())
     );
+  }
+
+  /**
+   * Scopes one world event's whole fan-out. Several of the events below offer
+   * the same happening under more than one candidate location — a basic catch
+   * arrives as habitat, ecology and boat; a contract as its template id and its
+   * type — so that an objective can pin down *where* it must happen. An
+   * objective that declares no location matched every one of those and counted
+   * a single catch two or three times, which silently halved any such step
+   * whose `targetQuantity` was above 1.
+   *
+   * Crediting each objective at most once per world event fixes that while
+   * keeping the authored cascade: a fan-out whose later candidate lands on the
+   * *next* step still advances it, which is how one skiff-side catch closes
+   * both Act 7 bream steps and a shore landing closes Act 5's land and stow.
+   */
+  private worldEvent(dispatch: () => void): void {
+    const outer = this.creditedThisWorldEvent;
+    this.creditedThisWorldEvent = new Set<string>();
+    try {
+      dispatch();
+    } finally {
+      this.creditedThisWorldEvent = outer;
+    }
   }
 
   private onPurchaseUpgrade(targetIds: string[]): void {
@@ -218,11 +417,25 @@ export class QuestDomain {
     const isLastStep = stepIndex === quest.objectives.length - 1
       || progress.activeStepIndex >= quest.objectives.length;
     const awaitingTurnIn = isLastStep && isStepComplete;
-    const turnIn = awaitingTurnIn ? this.canPayQuestTurnIn(quest) : null;
+    const turnIn = awaitingTurnIn ? this.canSettleQuestTurnIn(quest) : null;
     const isQuestReadyToTurnIn = Boolean(awaitingTurnIn && turnIn?.success);
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
     const speakerName = speaker?.name ?? "Townsperson";
+
+    const targetNpcId = awaitingTurnIn ? speaker?.id
+      : objective.type === "talk-npc" ? objective.targetId : undefined;
+    const targetAnchor = targetNpcId ? npcAnchorAt(targetNpcId, this.context.state.clock) : undefined;
+
+    // Once the errand is ready to hand in, the target becomes the speaker; while
+    // it is still blocked there is nowhere useful to point.
+    const targetLocation = awaitingTurnIn && speaker
+      ? turnIn?.success
+        ? { x: targetAnchor!.x, z: targetAnchor!.z, name: targetAnchor!.locationName }
+        : undefined
+      : targetAnchor
+        ? { x: targetAnchor.x, z: targetAnchor.z, name: targetAnchor.locationName }
+        : objective.locationAnchor;
 
     return {
       questId: quest.id,
@@ -239,17 +452,23 @@ export class QuestDomain {
         ? turnIn?.success
           ? `Talk to ${speakerName} to continue`
           : turnIn?.reason ?? "Prepare what this errand still needs"
-        : objective.description,
+        : objective.type === "talk-npc" && targetAnchor && targetNpcId
+          ? `Speak with ${ContentRegistry.npcs.get(targetNpcId)!.name} at the ${targetAnchor.locationName}`
+          : objective.description,
+      objectiveType: objective.type,
+      objectiveTargetId: objective.targetId,
       currentProgress,
       targetQuantity: objective.targetQuantity,
       isStepComplete,
       isQuestReadyToTurnIn,
       turnInBlockerReason: awaitingTurnIn && !turnIn?.success ? turnIn?.reason : undefined,
-      targetLocation: awaitingTurnIn && speaker
-        ? turnIn?.success
-          ? { x: speaker.anchor.x, z: speaker.anchor.z, name: speaker.anchor.locationName }
-          : undefined
-        : objective.locationAnchor,
+      targetLocation,
+      targetDistanceMeters: targetLocation
+        ? Math.hypot(
+            targetLocation.x - this.context.state.player.x,
+            targetLocation.z - this.context.state.player.z
+          )
+        : undefined,
       rewards: quest.rewards
     };
   }
@@ -263,43 +482,84 @@ export class QuestDomain {
     // One world event may legitimately satisfy an objective on more than one
     // track at once — harvesting a crop can advance the spine and a side
     // chain in the same tick — so every active track is offered the event.
+    let credited = false;
     for (const trackId of activeQuestTrackIds(this.context.state.quests)) {
-      this.applyObjectiveEventToTrack(trackId, type, targetId, amount, location);
+      if (this.applyObjectiveEventToTrack(trackId, type, targetId, amount, location)) credited = true;
     }
+    // Nothing wanted it now, but a tutorial step ahead of the player might.
+    if (!credited) this.bankEarlyActionCredit(type, targetId, amount, location);
   }
 
+  /**
+   * Banks an action no active objective accepted, so a player who works ahead
+   * of the tutorial is credited when the step finally activates rather than
+   * being asked to repeat an action the world may no longer allow.
+   */
+  private bankEarlyActionCredit(
+    type: QuestObjectiveType,
+    targetId?: string,
+    amount: number = 1,
+    location?: ObjectiveEventLocation
+  ): void {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const watched = pendingEarlyActionObjective(this.context.state, type, targetId, location);
+    if (!watched) return;
+
+    const bankKey = `credit:${type}:${targetId ?? ""}:${location?.kind ?? ""}:${location?.id ?? ""}`;
+    if (this.creditedThisWorldEvent?.has(bankKey)) return;
+    this.creditedThisWorldEvent?.add(bankKey);
+
+    const credits = questEarlyActionCredits(this.context.state.quests);
+    const shape: QuestEarlyActionCredit = { type, targetId, location, quantity: 0 };
+    const cap = Math.min(MAX_EARLY_ACTION_CREDIT_QUANTITY, watched.targetQuantity);
+    const existing = credits.find((credit) => sameEarlyActionShape(credit, shape));
+    if (existing) {
+      existing.quantity = Math.min(cap, existing.quantity + amount);
+      return;
+    }
+    if (credits.length >= MAX_EARLY_ACTION_CREDIT_RECORDS) return;
+    credits.push({ type, targetId, location, quantity: Math.min(cap, amount) });
+  }
+
+  /**
+   * Redeems banked actions against the step that just became active. Must run
+   * *after* `stepProgress` is cleared on advance, or the credit is written into
+   * a map that is about to be discarded.
+   */
+  private creditNewlyActiveStep(trackId: QuestTrackId): void {
+    applyQuestEarlyActionCredits(this.context.state, trackId, (progress) => {
+      this.context.events.emit("QuestProgressed", {
+        ...progress,
+        minute: this.context.state.clock.currentMinute
+      });
+    });
+  }
+
+  /** @returns whether this event was written into the track's progress. */
   private applyObjectiveEventToTrack(
     trackId: QuestTrackId,
     type: QuestObjectiveType,
     targetId?: string,
     amount: number = 1,
     location?: ObjectiveEventLocation
-  ): void {
+  ): boolean {
     const quest = this.getActiveQuest(trackId);
-    if (!quest) return;
+    if (!quest) return false;
 
     const quests = questTrackProgress(this.context.state.quests, trackId);
 
     const currentStep = quest.objectives[quests.activeStepIndex];
-    if (!currentStep) return;
+    if (!currentStep) return false;
 
-    if (currentStep.type !== type) return;
-
-    // Check target ID if specified (e.g. specific crop or recipe)
-    if (currentStep.targetId !== undefined && currentStep.targetId !== targetId) {
-      return;
-    }
-    if (currentStep.location && (
-      !location ||
-      currentStep.location.kind !== location.kind ||
-      currentStep.location.id !== location.id
-    )) {
-      return;
-    }
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!objectiveAcceptsAction(currentStep, type, targetId, location)) return false;
+    if (!Number.isFinite(amount) || amount <= 0) return false;
 
     const previous = quests.stepProgress[currentStep.id] ?? 0;
-    if (previous >= currentStep.targetQuantity) return;
+    if (previous >= currentStep.targetQuantity) return false;
+
+    const creditKey = `${trackId}:${currentStep.id}`;
+    if (this.creditedThisWorldEvent?.has(creditKey)) return false;
+    this.creditedThisWorldEvent?.add(creditKey);
 
     const current = Math.min(currentStep.targetQuantity, previous + amount);
     quests.stepProgress[currentStep.id] = current;
@@ -317,9 +577,12 @@ export class QuestDomain {
       if (quests.activeStepIndex < quest.objectives.length - 1) {
         quests.activeStepIndex += 1;
         quests.stepProgress = {};
+        // Strictly after the clear: the new step may already be paid for.
+        this.creditNewlyActiveStep(trackId);
       }
       // Last step completed; player turns in to quest.speakerId
     }
+    return true;
   }
 
 
@@ -340,7 +603,7 @@ export class QuestDomain {
       return { success: false, reason: `Unknown NPC: '${npcId}'` };
     }
 
-    if (distance2d(state.player, npc.anchor) > NPC_TALK_RADIUS) {
+    if (distance2d(state.player, npcAnchorAt(npcId, state.clock)) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Move closer to ${npc.name} to talk` };
     }
 
@@ -410,16 +673,7 @@ export class QuestDomain {
   }
 
   private getMilestoneDialogue(npc: NpcDefinition): string[] {
-    const { state } = this.context;
-    const matching = npc.recognitionDialogue?.filter((entry) =>
-      (entry.requiresCompletedQuestIds ?? []).every((id) => state.quests.completedQuestIds.includes(id)) &&
-      (entry.requiresFeatureIds ?? []).every((id) => state.quests.unlockedFeatureIds.includes(id)) &&
-      (entry.requiresKnowledgeIds ?? []).every((id) => state.journal.unlockedKnowledge.includes(id)) &&
-      (entry.requiresRankIndex === undefined
-        || getRankForXp(state.player.proficiencies[entry.requiresRankIndex.skill] ?? 0).rankIndex
-          >= entry.requiresRankIndex.rankIndex)
-    );
-    return matching?.at(-1)?.lines ?? npc.idleDialogue;
+    return npcRecognitionLines(npc, this.context.state);
   }
 
   public completeQuest(questId: QuestId, turnInNpcId?: NpcId): InteractionResult {
@@ -448,24 +702,12 @@ export class QuestDomain {
     }
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
-    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, speaker.anchor) > NPC_TALK_RADIUS) {
+    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, npcAnchorAt(speaker.id, state.clock)) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Return to ${speaker?.name ?? "the quest giver"} to turn this in` };
     }
 
-    const turnIn = this.canPayQuestTurnIn(quest);
+    const turnIn = this.canSettleQuestTurnIn(quest);
     if (!turnIn.success) return turnIn;
-
-    const inventory = state.inventories[state.player.inventoryId];
-    const costItems = quest.turnInCost?.items ?? [];
-    const rewardItems = quest.rewards.items ?? [];
-    const canFitRewards = rewardItems.length === 0 || (
-      costItems.length > 0
-        ? InventoryManager.canAddItemsAfterRemoving(inventory, costItems, rewardItems)
-        : InventoryManager.canAddItems(inventory, rewardItems)
-    );
-    if (!canFitRewards) {
-      return { success: false, reason: "The satchel has no room for this reward" };
-    }
 
     this.consumeQuestTurnIn(quest);
 
@@ -565,7 +807,7 @@ export class QuestDomain {
       progress.activeQuestId = nextQuest.id;
       progress.activeStepIndex = 0;
       progress.stepProgress = {};
-      reconcileSatisfiedQuestObjectives(state, trackId);
+      reconcileQuestCursors(state, trackId);
 
       return {
         completedActId: isNewAct ? completedQuest.actId : undefined,
@@ -629,7 +871,7 @@ export class QuestDomain {
       progress.activeQuestId = entry.id;
       progress.activeStepIndex = 0;
       progress.stepProgress = {};
-      reconcileSatisfiedQuestObjectives(state, track.id);
+      reconcileQuestCursors(state, track.id);
       events.emit("QuestStarted", {
         questId: entry.id,
         actId: entry.actId,
@@ -638,6 +880,7 @@ export class QuestDomain {
     }
   }
 
+  /** Whether the turn-in *cost* is payable. Does not consider reward room. */
   private canPayQuestTurnIn(quest: QuestDefinition): { success: boolean; reason?: string } {
     const { state } = this.context;
     const money = quest.turnInCost?.money ?? 0;
@@ -653,6 +896,29 @@ export class QuestDomain {
       return { success: false, reason: `Bring ${requirement} to finish this quest` };
     }
     return { success: true };
+  }
+
+  /**
+   * Everything that has to hold for a hand-in to actually settle: the cost is
+   * payable *and* the reward fits. The tracker reads this rather than the cost
+   * alone, so it can no longer show "Ready" for a turn-in that `completeQuest`
+   * will refuse for want of satchel room. `talkToNpc` still routes on the cost
+   * alone, so a player who walks up with a full satchel is told why instead of
+   * being handed the intro line a second time.
+   */
+  private canSettleQuestTurnIn(quest: QuestDefinition): { success: boolean; reason?: string } {
+    const payable = this.canPayQuestTurnIn(quest);
+    if (!payable.success) return payable;
+    const rewardItems = quest.rewards.items ?? [];
+    if (rewardItems.length === 0) return { success: true };
+    const inventory = this.context.state.inventories[this.context.state.player.inventoryId];
+    const costItems = quest.turnInCost?.items ?? [];
+    const rewardFits = costItems.length > 0
+      ? InventoryManager.canAddItemsAfterRemoving(inventory, costItems, rewardItems)
+      : InventoryManager.canAddItems(inventory, rewardItems);
+    return rewardFits
+      ? { success: true }
+      : { success: false, reason: "The satchel has no room for this reward" };
   }
 
   private consumeQuestTurnIn(quest: QuestDefinition): void {

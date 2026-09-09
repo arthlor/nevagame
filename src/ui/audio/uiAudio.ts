@@ -3,6 +3,7 @@ import { gameAudio } from "../../audio/AudioManager";
 import type { NoticeTone } from "../notifications";
 
 export type UiSoundCue =
+  | "hover"
   | "click"
   | "confirm"
   | "open"
@@ -23,6 +24,9 @@ export type UiSoundCue =
 export function playUiSound(cue: UiSoundCue | string): void {
   try {
     switch (cue) {
+      case "hover":
+        gameAudio.playOneShot("ui-hover");
+        break;
       case "click":
         gameAudio.playOneShot("ui-click");
         break;
@@ -31,7 +35,7 @@ export function playUiSound(cue: UiSoundCue | string): void {
         break;
       case "open":
       case "cloth":
-        gameAudio.playOneShot("ui-click");
+        gameAudio.playOneShot("ui-cloth");
         break;
       case "coins":
         gameAudio.playOneShot("coins");
@@ -80,4 +84,22 @@ const NOTICE_TONE_CUES: Record<NoticeTone, UiSoundCue | null> = {
 export function playNoticeSound(tone: NoticeTone): void {
   const cue = NOTICE_TONE_CUES[tone];
   if (cue) playUiSound(cue);
+}
+
+/** Delegated hover/focus cue survives React updates without per-control handlers. */
+export function bindUiHoverAudio(root: HTMLElement): () => void {
+  let lastAt = -Infinity;
+  const hover = (event: Event) => {
+    const target = event.target instanceof Element ? event.target.closest("button, a[href], [role=button]") : null;
+    if (!target || target.matches(":disabled, [aria-disabled=true]")) return;
+    const related = (event as PointerEvent).relatedTarget;
+    if (related instanceof Node && target.contains(related)) return;
+    const now = performance.now();
+    if (now - lastAt < 120) return;
+    lastAt = now;
+    playUiSound("hover");
+  };
+  root.addEventListener("pointerover", hover);
+  root.addEventListener("focusin", hover);
+  return () => { root.removeEventListener("pointerover", hover); root.removeEventListener("focusin", hover); };
 }

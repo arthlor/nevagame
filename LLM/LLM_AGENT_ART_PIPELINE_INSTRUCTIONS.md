@@ -1,4 +1,4 @@
-# LLM Agent Art Pipeline & Rendering Instructions (Compact)
+# LLM Agent Art Pipeline & Rendering Instructions
 
 > **Role:** Mandatory implementation guide for new/shared generators, renderer/material work, and release/gold-slice art gates. Routine existing-asset tasks follow the lean route in `BLENDER.md` and read only directly relevant sections here when needed. `04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` owns **what the game looks like**; this file owns **how agents produce it reliably**.
 
@@ -45,7 +45,7 @@ src/render/config/VisualRenderConfig.ts         live renderer + supporting-map s
 src/render/materials/ExternalSurfaceTextures.ts supporting-map provenance and load contract
 public/assets/textures/terrain/                 published ground supporting-map WebPs
 tools/vite/runtimeAssetCatalogPlugin.ts         virtual runtime-only catalog projection/HMR
-tools/vite/artYardPlugin.ts                     dev-only WebGL yard routes
+tools/vite/artYardPlugin.ts                     published yard + DEV stage routes
 src/art-yard/ + tools/art-yard/viewer.html      interactive asset review surface
 tests/visual/candidates/                        unapproved gameplay-camera captures
 ```
@@ -69,6 +69,10 @@ Procedural catalog entries may opt into `surfaceAuthoring: { normalPolicy: "auth
 Organic junctions use shared boundary loops (`graft_limb`) or deliberately matched attachments before skin binding. `join_meshes`/`join_creature_surface` are packaging operations, not continuity tests. Keep separately constructed boards, horns, clothing, handles, leaf blades and hardware separate. Reuse lofts, limb tubes, conforming shells and profiled vessels; make rims, hulls, blades and roof edges thick enough to read, with actual working openings. Existing species profiles, crop stages, wind attributes, mounted contacts and clip timing remain owned by their catalog/generator contracts.
 
 Tube and blade cross-sections transport their frames through bends instead of switching reference axes. Branch rings retain the opening's polar angles and use fitted collars; closed leaf caps must have consistent outward winding on both sides of a frond. Strongly folded polygons split into their actual planes before normal-group evaluation while retaining one original authored face color. The decoded procedural surface gate rejects averaged corner normals that oppose a triangle's winding, including secondary material primitives and reduced levels.
+
+Palette-only procedural surfaces discard unused automatic primitive/bevel UV layers before export. Their small floating-point variations have no appearance role and must not create vertex seams or destabilize semantic determinism. Materials with other node types retain their UVs, and source-preserving imports bypass this surface finish entirely.
+
+Runtime crop batches retain exported normals when merging palette regions and use those normals in their shared wind material; they must not replace them with derivative flat shading. Authored planar corners remain sharp in the normal attribute. This preserves one instanced batch per crop stage and the existing wind and lifecycle behavior. `tests/unit/cropAuthoredSurface.test.ts` checks the published stage GLBs through that runtime batching path.
 
 `art:test-builders` covers winding, manifold connected grafts, material-boundary normal continuity, intentional sharp edges, rest-space face colors and bounds under active animation, normalized reduced skin weights and deterministic builder output. `surface_contract.mjs`, called by the normal CLI validator, checks every decoded material primitive in raw and optimized GLBs, including skin weights before Three.js can normalize them. It also samples exported skin deformation and loop endpoints on all LODs after reduction. Animated imports without a humanoid fidelity contract receive those final deformation checks while retaining their source color policy; this closes the cow adapter's gap between source parity before cleanup and the exported reduced surface. Native humanoids retain their dedicated fidelity verifier. These checks do not certify appearance. Selected no-publish generation, semantic determinism and validated publication use the existing CLI; membership comes from the active catalog and registry. Preserve static instancing declarations and rigid-part batching, and measure the production cost of skinned surfaces under matching scene conditions.
 
@@ -111,7 +115,7 @@ Vertex colors are first-class. For the opt-in `rest_face` bake, multiply the lin
 
 Textures support, never define, style. Use for subtle roughness, stylized masks, AO/lightmaps, decals/signs/markings, and the ground supporting-map contract in section 6.2. Normal targets follow `04`: **128–256 tiny, 256–512 normal, 512–1024 hero, 2048 rare/shared exception**. Any broader 1K–2K architecture allowance is a ceiling, not the default. Avoid photogrammetry/photo bark-rock-grass as final albedo, noisy terrain, excessive resolution, high-frequency normals/micro scratches/scans. Processed CC0 supporting maps are allowed only as the Art Bible's low-frequency tiler: local reduced derivatives, world-space sampled, palette-remapped, and owned by `VisualRenderConfig` plus `ExternalSurfaceTextures`.
 
-Use shared palette tokens (`wood_warm_01`, `stone_warm_01`, `foliage_spring_01`, `water_shallow_01`, etc.). Do not scatter arbitrary runtime colors. `04` owns the canonical token vocabulary; this pipeline must expose it through one runtime material API such as `PaletteTokens.ts` + `PaletteMaterials.ts`.
+Use shared palette tokens (`wood_warm_01`, `stone_warm_01`, `foliage_spring_01`, `water_shallow_01`, etc.). Do not scatter arbitrary runtime colors. The palette JSON owns token definitions; `04` owns their visual use. This pipeline exposes them through one runtime material API such as `PaletteTokens.ts` + `PaletteMaterials.ts`.
 
 Minimum production behavior:
 ```ts
@@ -119,6 +123,8 @@ const wood = paletteMaterials.standard("wood_warm_01", { vertexColors: true });
 const stone = paletteMaterials.standard("stone_golden_01", { vertexColors: true });
 ```
 Implementation syntax may differ, but material requests must resolve through shared cached families. Builders/agents may apply deterministic bounded vertex-color/value variation; they MUST NOT create a new material instance/hex color for every prop. Debug-only colors are exempt. Asset-spec validation should reject unknown palette tokens.
+
+Seasonal presentation is derived by `simulation/presentation/SeasonPresentation` and consumed by `SeasonalTint` in foliage/cover shaders and `LightingRig`. The palette ramp lives only in `VisualRenderConfig`; shared uniforms add no instance attributes or geometry. `WindowMaterial` varies existing architecture-window emission by pad cohort under the same practical-light envelope, without adding practical lights.
 
 # 5. Lighting, Baking & Canonical Renderer Configuration
 
@@ -140,9 +146,11 @@ Bake static information where useful: lightmaps, AO, vertex AO, static shadow gr
 
 Water follows `04` §8: continuous depth absorption and real shallow-bed visibility, shared low-frequency displacement, angle-dependent sky reflection, filtered normal detail and arriving/spreading/fading surf. Dominant polygon-color cells and permanent intersection outlines are superseded for the coastal rebuild. `HarborCoast.ts` supplies the pure coastal profile to `WorldLayout`; marine queries and the derived `CoastalOptics` texture sample the same indexed terrain bed. Shore distance locates surf but never substitutes for depth. Broken wave packets and a common wetness/drying phase keep the beach wash continuous with the water without a permanent white intersection border. Keep these queries acyclic and preserve elevated headwater baselines.
 
-`RendererPipeline` owns the High-tier opaque color/depth snapshot, copied once immediately before the first water draw from the active scene target. Separate sampled textures prevent feedback; reconstruct underwater thickness with the camera inverse projection and reject refracted samples that are off-screen or in front of the water. Do not render the opaque world again for refraction. Lower tiers blend bathymetry-based transmission over the real opaque bed and skip the optional normal-noise evaluation. Distant optical slopes are filtered before grazing-angle Fresnel to suppress repetitive bright bands; CPU/GPU height bands remain unchanged. Both GLSL surfaces apply the normal tone-map/output-color conversion. The near patch uses the coarse water lattice, the same lattice-snapped center in both coverage masks, and complementary coverage, with normal-only fine detail; matching wave functions alone is insufficient if different triangle chords leave holes at the rim. Resize, quality changes and disposal release owned targets and clear sampler references. `VisualRenderConfig` owns optical and material tuning.
+`RendererPipeline` owns the High-tier opaque color/depth snapshot, copied once immediately before the first water draw from the active scene target. Separate sampled textures prevent feedback; reconstruct underwater thickness with the camera inverse projection and reject refracted samples that are off-screen or in front of the water. Do not render the opaque world again for refraction. Lower tiers blend bathymetry-based transmission over the real opaque bed and skip the optional normal-noise evaluation. Optical slopes are filtered by distance and grazing view angle before Fresnel to suppress repetitive bright bands; `waterSurface.optics.distantSlope` owns the distance response while CPU/GPU height bands remain unchanged. Both GLSL surfaces apply the normal tone-map/output-color conversion. The near patch uses the coarse water lattice, the same lattice-snapped center in both coverage masks, and complementary coverage, with normal-only fine detail; matching wave functions alone is insufficient if different triangle chords leave holes at the rim. Resize, quality changes and disposal release owned targets and clear sampler references. `VisualRenderConfig` owns optical and material tuning.
 
-`HarborCoastLayout.ts` authors the connected habitat through the existing catalog placement/culling path. New palms and understory use closed geometry and exported `_NEVA_WIND` weights; trunk and petiole bases remain anchored, and shadow materials use the same weighted deformation. Compatible geometry/materials retain instancing/batching and conservative animated bounds. Other tree families retain their established motion. New huts keep wall openings, floor/threshold collision and ordinary human scale. Existing coral IDs remain in `WorldEnvironmentLayout`, placed beyond the shallow wash shelf with their catalog heights fully submerged; transparent water must not expose formerly hidden dry coral tips. `CoastalSurfaceMaterial` supplies bounded mineral/roughness variation to the coastal stone tokens through the shared material cache; it does not bake lighting or add a separate color pipeline.
+`HarborCoastLayout.ts` authors the connected habitat through the existing catalog placement/culling path. New palms and understory use closed geometry and exported `_NEVA_WIND` weights; trunk and petiole bases remain anchored, and shadow materials use the same weighted deformation. Compatible geometry/materials retain instancing/batching and conservative animated bounds. On the market approach, reserve crown clearance behind the default camera boom as well as trunk clearance beside the footpath; validate this in moving traversal, since fixed views can miss canopy occlusion. Other tree families retain their established motion. New huts keep wall openings, floor/threshold collision and ordinary human scale. Existing coral IDs remain in `WorldEnvironmentLayout`, placed beyond the shallow wash shelf with their catalog heights fully submerged; transparent water must not expose formerly hidden dry coral tips. `CoastalSurfaceMaterial` supplies bounded mineral/roughness variation to the coastal stone tokens through the shared material cache; it does not bake lighting or add a separate color pipeline.
+
+Coastal rock placement must clear the catalog-projected rowboat and skiff hulls at the unchanged moorings and along their immediate departure lanes. A sailable terrain sample alone cannot establish that a new rock leaves the vessel usable. The harbor collision regression checks the published compound hulls against the same projected rock boxes used by runtime physics; existing physics owns recovery from a saved penetrating hull.
 
 Vegetation is generator-family based:
 ```text
@@ -164,9 +172,13 @@ Implement the Art Bible's five ground layers through one coordinated presentatio
 
 Representation is deliberately not prescribed. Analytic queries, vertex attributes, compact per-chunk control textures, or cached buffers are allowed. Select by measured update cost, texture/fill-rate cost, transition quality, diagnostics, and maintainability. If using a control texture, document channel semantics, world bounds, filtering, generation seed/input hash, invalidation, and memory in the owning implementation—not in a parallel art spec.
 
+Surface-detail tangent frames are constructed in world space and transformed back into the standard shader's view space, so camera orbit cannot rotate the apparent relief. Terrain rain roughness is applied after dry supporting-map blending.
+
 Terrain normals are class-aware. Normal continuity may cross non-feature triangulation edges in broad traversable grass/soil/path regions when flat triangles read as topology. It stops or transitions deliberately at authored ridges, terraces, cliffs, cuts, exposed banks, rock shelves, and hero landforms. Never globally smooth every surface or globally flat-shade the terrain as a shortcut.
 
 Road implementation requirements:
+- preserve the canonical wheel-wear and shoulder profile in normalized render-only `roadProfile` attributes. `RoadSurfaceMaterial` applies that wear after supporting-map color, couples it to roughness, and uses pixel-footprint filtering at the exposed coverage edge; `VisualRenderConfig.roadSurface` owns the strengths.
+- derive exposed junction coverage on the conformed render clone from the canonical route cross-section and junction core; keep collision positions and indices identical. Shore-facing headland rock exposure transfers grass/meadow weight to cliff only in render attributes, using canonical slope/coast signals and the strength owned by `VisualRenderConfig`; protect farm and route cores.
 - one authored route/profile owner for geometry, terrain grading, surface influence, map projection, cover exclusion, and relevant collision/interaction queries;
 - any deformation that materially changes the walkable surface is incorporated into the canonical height/normal query used by rendering, Rapier, placement, and affected anchors; cosmetic shader displacement stays below visible render/collision mismatch and never changes traversal;
 - route-kind widths, crown/depression/ruts, shoulders, feather, junctions, caps, bridge transitions, and steep-route cuts are explicit/profiled rather than scattered magic numbers;
@@ -179,6 +191,7 @@ Ground-cover implementation requirements:
 - one inspectable composition sample combining authored district envelopes, route projection, river/floodplain causes, openings, architecture/farm/landmark/fishing/coast clearances, and independent category-salted macro/meso fields;
 - independent category candidate streams and species hashes, deterministic priority inhibition, and explicit core/edge/isolate/landmark/riparian/route-frame roles; IDs derive from category/address/slot rather than accepted-array index;
 - semantic density plus authored exclusions/clearances, clustered patch signals, variant families, and patch-level palette grouping;
+- short grass and tall meadow cover reuse assembly-space wind height for a bounded base-to-tip value ramp, owned by `VisualRenderConfig.groundSurface`; retain flower colors, instancing, wind anchoring and bounds.
 - high-count uniform geometry uses `InstancedMesh`/the established batching path, with quality-tier counts and draw-distance culling;
 - distance selection and world-asset LOD membership are anchored to the player/world focus. Camera orbit, pitch, zoom, and look-ahead direction may not reshuffle instances or switch asset membership; ordinary off-screen frustum rejection remains allowed;
 - short cover generally receives light but does not cast dynamic shadows; reserve real shadows/contact for readable clumps and anchors;
@@ -215,7 +228,7 @@ Owners:
 - `src/render/config/VisualRenderConfig.ts` owns `terrainSurface.externalTextures`, `roadSurface.externalTexture`, polygon/edge/path-transition strengths, and roughness bounds. Tune numbers there; do not fork them into a parallel spec.
 - `src/render/materials/ExternalSurfaceTextures.ts` owns source name, source page, runtime URL, texture kind, wrap/filter/color-space, and the 1px fallback used while images decode.
 - `public/assets/textures/terrain/` stores the published local WebP derivatives. It is not an asset catalog and must not gain a filename-list authority.
-- Beach/wet shore use the same application model as meadows: remap the supporting map into palette bands, blend `mix(paletteBase, sourceColor, 0.76)`, then apply through semantic masks at full `colorStrength`. Vegetation and shore masks are derived from the packed surface field with a gradual crossfade (`vegetationMask`, `shoreMask`); shore also receives the meadow polygon value-band and `terrainShorePolygonTint` stack. Do not route beach through a second attenuated `beachColorMix` pass.
+- Beach/wet shore use the same application model as meadows: remap the supporting map into palette bands, blend palette base and remapped source through the shared `VisualRenderConfig`-owned strengths, then apply through semantic masks. Vegetation and shore masks are derived from the packed surface field with a gradual crossfade (`vegetationMask`, `shoreMask`); shore also receives the meadow polygon value-band and `terrainShorePolygonTint` stack. Do not route beach through a second attenuated `beachColorMix` pass.
 - `RoadSurfaceMaterial` consumes Grass Path 2 on the shared route mesh. Coverage, dither, and packed-core/shoulder response stay on this material.
 - `GroundPolygonCells.ts` owns the shared world-space Worley snippet so meadow mosaic and road-edge irregularity use the same field.
 
@@ -329,7 +342,7 @@ Reference-authoring and source-provenance data are build-time only. The Vite vir
 
 `npm run art:codegen` derives `src/render/assets/AssetCatalog.generated.ts` from the canonical catalog. It owns typed `ASSET_IDS`, family names, and family maps only; it is generated and must never be hand-edited. `npm run art:codegen:check` fails when the adapter is stale. The Vite runtime plugin may refresh codegen during development, while production consumes only the runtime projection.
 
-Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/blender/asset_budgets.json`. Every exported GLB MUST report triangle count, material groups, mesh/node count, file size, target status, bounds, and required-node coverage to `generated/reports/asset_budget_report.json`. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` retains its existing semantics and additionally rejects every below-target asset; it is the technical-art/release certification gate, separate from P0.75 visual-gold acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
+Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/blender/asset_budgets.json`. Every generated candidate reports triangle count, material groups, mesh/node count, file size, target status, bounds and required-node coverage in its run-local stage. Atomic publication promotes the combined quality state to `generated/reports/asset_budget_report.json`; a rejected candidate does not replace it. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` retains its existing semantics and additionally rejects every below-target asset; it is the technical-art/release certification gate, separate from P0.75 visual-gold acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
 
 Implemented command contract:
 ```bash
@@ -399,6 +412,8 @@ Rigged character production remains catalog-driven. `humanoidAuthoring` pins imm
 
 The registered `imported_blend` generator consumes the durable prepared Blender library. Imported derivatives use lossless compression, not welding or normal reconstruction that changes source seams. Validate source preservation, each action's timing and skin deformation in both LODs, and semantic determinism before atomic publication. A generated per-character action checklist records origin, timing, contacts, equipment and verification evidence; structure-only or donor-array equality cannot certify source fidelity or motion.
 
+The registered equipment families are authored by `tools/blender/generators/equipment.py`; clothing, hand tools, fishing rods and workstation presentation props remain separate catalog assets even when they share deterministic construction helpers. Catalog dimensions, palette tokens, socket intent, required nodes and budgets own each export. Runtime attachment metadata lives with the gameplay equipment definition and is resolved by the shared `CharacterEquipmentAssembler`; it may hide a named starter garment or attach a catalog GLB, but it must clone loader results per consumer and cannot mutate a cached character scene. The world avatar and Character preview therefore assemble the same assets without turning Three.js node visibility into gameplay ownership.
+
 Solid-color source regions receive their explicit palette mapping once. The registered imported exporter normalizes the validated active attribute name to `COLOR_0`, preventing Blender's later-material white substitution for static, fauna and humanoid derivatives; the humanoid-only byte repair remains a final invariant check. Texture-preserving static regions keep their original base/normal maps and carry no palette-colored `COLOR_0` multiplier. Native sparse animation channels retain the original glTF node defaults, including unkeyed fingers and wrists. Source cleanup must identify and measure any removed degenerate triangles, and the independent comparison rejects removal of visible geometry.
 
 Blender may serialize an imported texture node with explicit sampler filters even when the immutable source omitted them. The registered static export correction restores the source texture-info and sampler state while proving the embedded image and geometry chunks unchanged. Both static LODs require the preserved base map and `TEXCOORD_0`. Solid emissive source regions write the same token × region value to `COLOR_0` and `emissiveFactor`, with the palette's emissive strength; vertex color alone cannot tint glTF emission. The decoded static source comparator runs for generated, cached, admitted and published artifacts rather than remaining a manual review-only command.
@@ -459,21 +474,39 @@ tests/visual/candidates/
   harbor-candidate.png
   coast-candidate.png
 ```
-P0.75 `npm run art:benchmark` captures four fixed 1440×900 comparison images through Playwright (`farm`, `bridge`, `harbor`, `coast`), rejects browser errors and preferred upper-budget overruns (≤220 draw calls and ≤900,000 visible triangles per scene), and records measurements in `tests/visual/candidates/art-benchmark.json`. `NEVA_ART_EXTENDED=1 npm run art:benchmark` captures the full 14-view matrix: dawn, morning, noon, harbor, coast, sunset, night, light rain, storm, lightning, on-foot farmhouse, on-foot bridge, boat harbor night, and sport-fishing framing. The lower scene triangle target is diagnostic/advisory for this gate. The current human-approved references and the 2026-08-27 visual-gold decision are registered in `tests/visual/reference/approved-baselines.json`; new captures are comparison evidence, not a request to select replacement candidates unless a human explicitly reopens that gate. The benchmark runs against the Vite DEV server, where layout-editor picking intentionally disables static prefab merging and the baked shadow proxy; those DEV draw/triangle measurements are diagnostic and do not constitute production-equivalent certification. `art:benchmark:extended` remains an explicit release diagnostic. Agents do not capture or inspect these images during routine asset work and do not visually analyze release images unless the human requests it.
+`npm run art:benchmark` captures the fixed gameplay-camera views and reports
+errors, upper-budget checks and measurements under `tests/visual/candidates/`.
+`tests/e2e/art-pipeline.spec.ts` and `tools/blender/asset_budgets.json` own its
+views and limits; `art:benchmark:extended` adds the configured diagnostic views.
+The baseline registry owns approved comparisons and human decisions. Capture
+is evidence for review, not authorization to replace an approved baseline.
 
-The development-only Art Yard is served at `/__neva_art_yard` by Vite and is the sole asset-review surface. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. Character playback uses real elapsed time, respects catalog one-shot/loop settings, and offers raw-clip inspection alongside the shared production controller/contact context. Normal diagnostics show exported split normals rather than forcing flat shading. Mounted player clips are reviewed as a synchronized rider-and-mount pair so saddle contact, gait phase, and counter-motion remain visible in context. It is not included in the production build. The human performs visual approval in the actual integrated game.
+This benchmark runs against Vite DEV, whose editor intentionally keeps static
+prefabs unmerged and omits the baked shadow proxy. Label it diagnostic;
+production budget evidence uses `test:budget`, and frozen world comparisons
+use §13.3. `03` §4 owns which task needs each lane. Routine asset work does not
+run these captures; the scoped harbor review exception remains in `04` §8.1.
+
+
+The Art Yard is the asset-review surface; `tools/vite/artYardPlugin.ts` serves it during DEV and emits published views/data in production. `BLENDER.md` §5 owns its route contract. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. Character playback uses real elapsed time, respects catalog one-shot/loop settings, and offers raw-clip inspection alongside the shared production controller/contact context. Normal diagnostics show exported split normals rather than forcing flat shading. Mounted player clips are reviewed as a synchronized rider-and-mount pair so saddle contact, gait phase, and counter-motion remain visible in context. Candidate-stage endpoints are DEV-only. The human performs visual approval in the actual integrated game.
 
 ## 13.1 Regression QA — Game vs Approved Game
 Same scene/state/camera/resolution/config only. Where available compare screenshot diff, SSIM, LPIPS, histogram/luminance, palette distribution and silhouette/edge metrics. These detect unintended change; they do not define artistic quality. Intentional accepted changes update benchmarks only after review.
 
 ## 13.2 Style-Match QA — Game vs Supplied Graphics References
-Do **not** apply pixel-similarity thresholds across different compositions. Reference-image comparison intentionally ignores layout, camera angle, diorama/tabletop framing, depth of field/tilt-shift, scene borders and prop staging unless the task explicitly targets composition. Vision review scores geometry/faceting, silhouette/proportion, roughness/material response, palette/warm-cool distribution, lighting/shadows/AO, water/foam, vegetation/rocks, atmosphere, detail frequency, gameplay readability and realism/plastic drift.
+Do **not** apply pixel-similarity thresholds across different compositions. Reference-image comparison intentionally ignores layout, camera angle, diorama/tabletop framing, depth of field/tilt-shift, scene borders and prop staging unless the task explicitly targets composition. Qualitative review assesses geometry/faceting, silhouette/proportion, roughness/material response, palette/warm-cool distribution, lighting/shadows/AO, water/foam, vegetation/rocks, atmosphere, detail frequency, gameplay readability and realism/plastic drift.
 
 A game screenshot passes style QA when it plausibly belongs beside the references as a continuous playable world without copying their presentation.
 
 ## 13.3 Frozen World-Composition Acceptance
 
-`npm run world:acceptance` is the additive acceptance path for causal world, river, and composition changes. It records and revalidates a SHA-256 input digest, runs check-only generated-adapter verification, builds once, serves the static production bundle on a unique port, and writes only beneath `output/world-alignment/<digest>/`. It must not update candidate images, approved baselines, benchmark JSON, snapshots, catalog output, or published assets.
+`npm run world:acceptance` is the additive acceptance path for causal world, river, and composition changes. It records and revalidates a SHA-256 input digest, runs check-only generated-adapter verification, builds once, serves the static production bundle on a unique port, and writes only beneath `output/world-alignment/<digest>/`. Normal acceptance must not update candidate images, approved baselines, benchmark JSON, snapshots, catalog output, or published assets.
+
+Preservation loads `tools/world/neva-layout<revision>-preservation.json` for the live layout revision and fails on absent references or changed terrain, routes, landmarks, sampling or per-seed placements. After an explicitly authorized layout/reference change, `npm run world:acceptance -- --refresh-preservation` captures a revision-specific mechanical reference with input identity and deterministic placement hashes, retaining historical revisions. This explicit maintenance mode exits before build/captures and is not a composition, performance or visual approval; rerun normal acceptance afterward.
+
+Composition audits compare habitat roles separately: total vegetation increases from exposed headland to working farm to village; harbor low vegetation exceeds village low vegetation, while village canopy share exceeds the harbor's. The scalar density contrast remains a separate check. This follows `04` §11 rather than requiring one tree-heavy score to increase through every district.
+
+Neva spacing diagnostics retain raw histogram ratios alongside the supported lower bounds. The 1.35 repetition limit applies to a one-sided 95% Wilson lower bound for a spacing bin against its four neighboring bins; an isolated low-count excess cannot establish a lattice. This is an evidence screen, not a claim that spatial pairs are independent. Synthetic regular-lattice and supported-excess tests must still fail the screen. Placement hashes, openings, route/fishing clearance, isolate share and determinism remain independent gates.
 
 Capture modes are presentation diagnostics over identical world content: `final`; a same-quality `no-post` path that disables GTAO while retaining the High-tier scene-color/depth target and water optics; and named district, habitat, route, density, opening, river-profile, wetness, erosion/deposition, and fishing-access overlays. Lower tiers render directly. Final/no-post comparisons keep seed, camera, quality, cover, shadows, time, weather, DPR, and loaded assets identical and fail if content counts differ.
 
@@ -489,7 +522,7 @@ Routine asset work uses one agent and no parallel visual-review agents. The huma
 
 Every relevant agent MUST:
 1. follow the task-class read route in `BLENDER.md`;
-2. run the catalog reference brief first when supplied/reference evidence is part of the task;
+2. read the selected reference-authoring contract and rerun its brief only when changed;
 3. preserve visual vocabulary;
 4. prefer reusable systems over hacks;
 5. use deterministic seeds for generated art/world content;
@@ -506,7 +539,7 @@ Every relevant agent MUST:
 
 Unless explicitly approved, reject: photogrammetry/photo bark-rock-grass as final albedo; unprocessed photo-ground; noisy terrain/hyper-detailed PBR/micro normals; regular flat-shaded terrain topology dominating traversable ground; featureless globally smoothed terrain; hard floating road ribbons; independent road/terrain/cover masks; uniform ground-cover scatter; spherical foliage/realistic branching/ocean; excessive gloss; generic asset-store realism; perfectly straight forests/uniform spacing/rotations; thin architecture; high-frequency clutter; uncontrolled material proliferation/colors; per-scene exposure/tone-map/color hacks; toon/ink/black world outlines; high-poly invisible detail; runtime LLM world composition; diorama-only world design. Processed CC0 supporting maps remain under section 6.2 and are not a general photogrammetry exception.
 
-Required across final game: readable planes/silhouettes/chunky geometry/selective bevels/cohesive warm palette/handcrafted irregularity/low-frequency detail/asymmetry/stylized architecture/selectively smoothed traversable ground with faceted cliffs/cuts/rocks/clustered simplified vegetation/warm sun+cool fill/AO grounding/soft shadows/atmosphere/emissives/polygonal water/coherent roughness/consistent proportions/gameplay-camera readability.
+Required across final game: readable planes/silhouettes/chunky geometry/selective bevels/cohesive warm palette/handcrafted irregularity/low-frequency detail/asymmetry/stylized architecture/selectively smoothed traversable ground with faceted cliffs/cuts/rocks/clustered simplified vegetation/warm sun+cool fill/AO grounding/soft shadows/atmosphere/emissives/continuous depth and surf under `04` §8/coherent roughness/consistent proportions/gameplay-camera readability.
 
 # 16. Rendering Pipeline Target
 
@@ -515,17 +548,25 @@ Conceptual runtime:
 
 Post-processing remains subtle; never substitute bloom/vignette/chromatic aberration/sharpening/saturation for geometry/material/lighting quality.
 
+`WorldScene.prepareForEntry` and `RendererPipeline.prepareForEntry` own general first-frame preparation; capture remains a consumer through its compatibility wrapper. Startup awaits saved actors, attachments and active fishing presentation, camera/environment initialization, selected pipeline readiness and two complete frames behind the illustration. Required catalog GLBs reject consistently in development and production. Optional supporting-map failure retains the procedural path and is listed in startup diagnostics. Water maps, terrain rows, road conformity/surface attributes and cover candidates share deterministic generator computation between synchronous tools and cooperative startup builders; task yields change scheduling, never topology, seed order or density. Cancellation prevents further scene mutation and disposes late owned resources. GPU/driver compilation and upload stalls must be reported separately from application batching measurements.
+
 # 17. Gold-Standard Reference Slices
 
-Before full-world production, validate in order:
-1. **Bridge + river:** landform-dominant terrain, integrated road approaches, semantic grass/soil/slope/shore blending, clustered cover/reeds, stone, wood, water, lighting, atmosphere.
-2. **Farm:** building kit, crops, fences, paths, trees, clusters.
-3. **Harbor:** docks, boats, ropes, crates, ocean water, coastal architecture.
-4. **Coast/lighthouse:** cliffs, rocks, foam, atmospheric perspective, sunset.
-
-Do not mass-produce assets until these meet the visual-gold target. In the Roadmap this is P0.75, immediately after the P0.5 renderer/material foundation and before broad P1 world art production. The current four slices in `tests/visual/reference/approved-baselines.json` are human-approved and the 2026-08-27 visual-gold decision allows world expansion to reuse those generators/palettes/materials/rendering rules without another candidate-selection pass. This does not close technical-art certification: strict generation and determinism remain separate release gates, and the below-target records reported by `generated/reports/asset_budget_report.json` are not reauthored by this policy change. P14 is final coverage/polish, not the first real art pass.
+`03` §6.5/§6.75 owns renderer foundation, gold-slice order and the separate
+human/render/technical-art gates. `04` owns what the slices must look like.
+`tests/visual/reference/approved-baselines.json` owns approved images and
+recorded human decisions. The status checklist owns run evidence; generated
+reports own published budget disposition. Link those owners instead of copying
+dates, counts, pass claims or debt lists here. P14 completes coverage and polish
+after the visual direction is established.
 
 # 18. Definition of Done — Asset
+
+This is a contract checklist across mechanical readiness and eventual human
+acceptance. `BLENDER.md` supplies the task-specific commands; routine agents
+complete mechanical integration and hand off `Awaiting human game review`.
+Do not treat visual checklist items as an instruction to start an agent scoring
+loop or require release gates for one asset.
 
 - [ ] any supplied/reference evidence is represented by a valid `referenceAuthoring` contract and deterministic brief hash
 - [ ] component hierarchy, negative space, critical features, hidden-surface confidence, and generator bindings are implemented rather than merely described
@@ -556,7 +597,7 @@ Do not mass-produce assets until these meet the visual-gold target. In the Roadm
 - [ ] generated asset budget report has no hard violations
 - [ ] P0.75 visual-gold gate is accepted for the four gameplay-camera slices
 - [ ] technical-art strict/determinism gate passes when production or release certification is required
-- [ ] screenshot benchmark captured only for release/gold-slice acceptance
+- [ ] capture evidence provided when required by `03` §4 or the scoped `04` §8.1 environment review
 - [ ] integrated game is ready for human review
 - [ ] visual regression passes or approved
 - [ ] the zone's narrative promise is readable from gameplay cameras through people, routes, landmarks, and practical work cues; required quest progression does not depend on noticing decorative art

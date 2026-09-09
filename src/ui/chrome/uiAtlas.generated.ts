@@ -119,6 +119,13 @@ export const UI_SUPPLIES = {
   "item.plant_matter": `${ATLAS}/item-plant_matter.png`,
   "item.boat_fuel": `${ATLAS}/item-boat_fuel.png`,
   "item.crushed_ice": `${ATLAS}/item-crushed_ice.png`,
+  "item.hardwood_blank": `${ATLAS}/item-hardwood_blank.png`,
+  "item.tanned_leather": `${ATLAS}/item-tanned_leather.png`,
+  "item.tool_steel": `${ATLAS}/item-tool_steel.png`,
+  "item.linen_roll": `${ATLAS}/item-linen_roll.png`,
+  "item.copper_sheet": `${ATLAS}/item-copper_sheet.png`,
+  "item.brass_fittings": `${ATLAS}/item-brass_fittings.png`,
+  "item.oiled_canvas": `${ATLAS}/item-oiled_canvas.png`,
 } as const;
 
 export type SupplySpriteKey = keyof typeof UI_SUPPLIES;
@@ -204,6 +211,27 @@ export const UI_RODS = {
 
 export type RodSpriteKey = keyof typeof UI_RODS;
 
+/** Permanent character clothing and farming-tool equipment shown in the Character screen and crafting surfaces. */
+export const UI_EQUIPMENT = {
+  "equipment.weathered_straw_hat": `${ATLAS}/equipment-weathered_straw_hat.png`,
+  "equipment.work_vest": `${ATLAS}/equipment-work_vest.png`,
+  "equipment.mud_boots": `${ATLAS}/equipment-mud_boots.png`,
+  "equipment.tin_watering_can": `${ATLAS}/equipment-tin_watering_can.png`,
+  "equipment.field_hat": `${ATLAS}/equipment-field_hat.png`,
+  "equipment.tidewatch_cap": `${ATLAS}/equipment-tidewatch_cap.png`,
+  "equipment.harvest_apron": `${ATLAS}/equipment-harvest_apron.png`,
+  "equipment.oilskin_coat": `${ATLAS}/equipment-oilskin_coat.png`,
+  "equipment.furrow_boots": `${ATLAS}/equipment-furrow_boots.png`,
+  "equipment.deck_boots": `${ATLAS}/equipment-deck_boots.png`,
+  "equipment.copper_rose_watering_can": `${ATLAS}/equipment-copper_rose_watering_can.png`,
+  "equipment.long_spout_watering_can": `${ATLAS}/equipment-long_spout_watering_can.png`,
+  "equipment.broad_sickle": `${ATLAS}/equipment-broad_sickle.png`,
+  "equipment.balanced_sickle": `${ATLAS}/equipment-balanced_sickle.png`,
+  "equipment.farm_sickle": `${ATLAS}/equipment-farm_sickle.png`,
+} as const;
+
+export type EquipmentSpriteKey = keyof typeof UI_EQUIPMENT;
+
 /** Navigation icons for modal headers and the pause menu. */
 export const UI_MENU = {
   "backpack": `${ATLAS}/menu-backpack.png`,
@@ -287,7 +315,23 @@ export const UI_CHROME = {
 
 export type ChromeSpriteKey = keyof typeof UI_CHROME;
 
+/** Guildcraft HUD: hand-painted brass, leather, resource frames and avatar. */
+export const UI_GUILDCRAFT = {
+  "portrait": `${ATLAS}/guildcraft-portrait.png`,
+  "slot": `${ATLAS}/guildcraft-slot.png`,
+  "slot-selected": `${ATLAS}/guildcraft-slot-selected.png`,
+  "ring": `${ATLAS}/guildcraft-ring.png`,
+  "panel": `${ATLAS}/guildcraft-panel.png`,
+  "meter": `${ATLAS}/guildcraft-meter.png`,
+  "cartouche": `${ATLAS}/guildcraft-cartouche.png`,
+  "seal": `${ATLAS}/guildcraft-seal.png`,
+  "pointer": `${ATLAS}/guildcraft-pointer.png`,
+  "sun": `${ATLAS}/guildcraft-sun.png`,
+} as const;
+
+export type GuildcraftSpriteKey = keyof typeof UI_GUILDCRAFT;
+
 /** Seamless paper tile behind every panel. Copied whole, not keyed. */
 export const UI_PARCHMENT_GRAIN = `${ATLAS}/parchment-grain.png`;
 
-export const UI_ATLAS_SPRITE_COUNT = 158;
+export const UI_ATLAS_SPRITE_COUNT = 190;

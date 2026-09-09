@@ -1,3 +1,4 @@
+import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import { createHarborCoastPlacements, retainLegacyHarborDressing, retainHarborGroundCover } from "./HarborCoastLayout";
 import {
   WorldLayout,
@@ -144,9 +145,9 @@ function clamp01(value: number): number {
 
 /** Low, broad clumps make one meadow carpet instead of isolated dark spikes. */
 function grassClumpScale(variant: number): { horizontal: number; vertical: number } {
-  if (variant === 2) return { horizontal: 1.02, vertical: 0.84 };
-  if (variant === 1) return { horizontal: 1.08, vertical: 0.8 };
-  return { horizontal: 1.12, vertical: 0.72 };
+  if (variant === 2) return { horizontal: 1.2, vertical: 0.76 };
+  if (variant === 1) return { horizontal: 1.26, vertical: 0.72 };
+  return { horizontal: 1.3, vertical: 0.66 };
 }
 
 export type FarmPathPaverToken = "stone_warm_01" | "stone_golden_01";
@@ -401,6 +402,26 @@ function authoredArchitecturePlacement(
 }
 
 const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
+  // Trail rest stops and working village edges keep the arrival centers open.
+  authoredPlacement("authored.arrival.spring.cairn", { assetId: "rock_field_a", x: -35.6, z: -147.1, rotationY: 0.4, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -37.8, z: -147.1, rotationY: 6.2832, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.sign", { assetId: "prop_signpost_trail_a", x: -34, z: -153, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.overlook.bench", { assetId: "prop_bench_wood_a", x: -127.2, z: -91.8, rotationY: -1.309, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.overlook.cairn", { assetId: "rock_field_a", x: -125, z: -84, rotationY: 0.6, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.overlook.sign", { assetId: "prop_signpost_trail_a", x: -122, z: -88, rotationY: -1.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.beach.driftwood", { assetId: "prop_driftwood_log_a", x: -177, z: -65, rotationY: 0.8, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.beach.fire", { assetId: "prop_fire_pit_a", x: -172, z: -65, rotationY: 0, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.beach.sign", { assetId: "prop_signpost_trail_a", x: -172, z: -70, rotationY: -0.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.bluff.cairn", { assetId: "rock_field_a", x: -55, z: -220, rotationY: 1.1, scale: [0.9, 0.9, 0.9], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.bluff.bench", { assetId: "prop_bench_wood_a", x: -49, z: -220, rotationY: 3.1, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.bluff.sign", { assetId: "prop_signpost_trail_a", x: -49, z: -216, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 65, z: -56, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 66.5, z: -56.5, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.sacks", { assetId: "prop_cargo_sack_a", x: 64, z: -56.5, rotationY: -0.3, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 72, z: -56, rotationY: 1.6, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 66, z: -41, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.crate-inn", { assetId: "prop_crate_wood_a", x: 65, z: -41.5, rotationY: -0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+
   // Working village frontage and a neighboring orchard homestead. No additional shop/quest owners.
   authoredArchitecturePlacement("authored.village.approach-inn", "building_inn_a", "village.approach-inn"),
   authoredArchitecturePlacement("authored.village.cooperative-hall", "building_village_market_hall_a", "village.cooperative-hall"),
@@ -522,14 +543,11 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.farm.sunflowers.copy.5", { assetId: "foliage_sunflower_a", x: -71.2, z: -41.7, rotationY: 1.309, scale: [1, 1, 1] }),
   // Mushroom cluster under the large western oak (shade-dwelling)
   authoredPlacement("authored.farm.mushrooms", { assetId: "foliage_mushroom_cluster_a", x: -80, z: -49, rotationY: 0.2, scale: [0.9, 0.9, 0.9] }),
-  authoredPlacement("authored.spawn.bush-left", { assetId: "foliage_bush_a", x: -70.4, z: -63.6, rotationY: 0.55, scale: [1.38, 1.42, 1.38], grounding: [0.9, 0.7] }),
+  authoredPlacement("authored.spawn.bush-left", { assetId: "foliage_bush_a", x: -73.3, z: -66.3, rotationY: 0.55, scale: [1.38, 1.42, 1.38], grounding: [0.9, 0.7] }),
   authoredPlacement("authored.spawn.bush-right", { assetId: "foliage_bush_round_a", x: -59.8, z: -70.9, rotationY: -0.42, scale: [1.32, 1.36, 1.32], grounding: [0.82, 0.64] }),
   authoredPlacement("authored.spawn.rock-foreground", { assetId: "rock_field_a", x: -54.2, z: -73.3, rotationY: 0.38, scale: [1.05, 0.88, 1.02], grounding: [0.9, 0.62] }),
   // Animated rabbit groups beside familiar routes, with small grass clearings
   // for readable silhouettes. Spawn companions stay outside the crop beds.
-  authoredPlacement("authored.fauna.rabbit-spawn-east", { assetId: "fauna_rabbit_a", x: -63, z: -63.7, rotationY: -0.4, scale: [1.35, 1.35, 1.35], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-spawn-east-pair", { assetId: "fauna_rabbit_a", x: -61.2, z: -63.2, rotationY: -1.8, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-spawn-west", { assetId: "fauna_rabbit_a", x: -66.8, z: -64.1, rotationY: 0.7, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-spawn-west-pair", { assetId: "fauna_rabbit_a", x: -67.8, z: -65.8, rotationY: 2.2, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-meadow", { assetId: "fauna_rabbit_a", x: -55, z: -43, rotationY: 1.2, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-meadow-east", { assetId: "fauna_rabbit_a", x: -53.5, z: -43.8, rotationY: -0.8, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
@@ -863,14 +881,14 @@ function generateRouteFrameSpecimens(
   return placements;
 }
 
-function generateCausalStructuralPlacements(
+function* generateCausalStructuralPlacements(
   worldSeed: number,
   existing: readonly EnvironmentAssetPlacement[]
-): EnvironmentAssetPlacement[] {
+): Generator<void, EnvironmentAssetPlacement[], void> {
   const specs: readonly CausalStructuralSpec[] = [
     { category: "tree", targetCount: 235, salt: 0x1d17, spacing: 5.4, scaleRange: [0.74, 1.38], footprint: [1.2, 0.8] },
     { category: "bush", targetCount: 115, salt: 0x2b29, spacing: 2.5, scaleRange: [0.62, 1.24], footprint: [0.7, 0.58] },
-    { category: "reed", targetCount: 84, salt: 0x3c41, spacing: 1.7, scaleRange: [0.74, 1.08], footprint: [0.45, 0.38] },
+    { category: "reed", targetCount: 84, salt: 0x3c41, spacing: 1.2, scaleRange: [0.74, 1.08], footprint: [0.45, 0.38] },
     { category: "rock", targetCount: 72, salt: 0x4d53, spacing: 2.6, scaleRange: [0.72, 1.28], footprint: [0.9, 0.7] }
   ];
   const accepted: EnvironmentAssetPlacement[] = [];
@@ -884,6 +902,7 @@ function generateCausalStructuralPlacements(
           : 50;
     const candidateCount = spec.targetCount * candidateMultiplier;
     for (let address = 0; address < candidateCount; address++) {
+      if (address % 16 === 0) yield;
       if (accepted.filter((placement) => placement.compositionTag?.category === spec.category).length >= spec.targetCount) break;
       const point = structuralCandidatePosition(worldSeed, spec, address);
       const sample = sampleWorldComposition(worldSeed, point.x, point.z);
@@ -955,11 +974,6 @@ function generateCausalStructuralPlacements(
       } else if (WorldLayout.waterSignedDistance(candidate.x, candidate.z) > -0.12) {
         continue;
       }
-      if (spec.category === "reed" && accepted.some((other) => {
-        if (other.compositionTag?.category !== "reed") return false;
-        return Math.abs(Math.abs(other.x - candidate.x) - 5.55) <= 0.22
-          || Math.abs(Math.abs(other.z - candidate.z) - 5.55) <= 0.22;
-      })) continue;
       accepted.push(placement);
     }
   }
@@ -974,11 +988,15 @@ const CAUSAL_COMPOSITION_CACHE = new Map<string, readonly EnvironmentAssetPlacem
 
 /** Structural field output only; used by the 64-seed composition audit without generating ground cover. */
 export function generateCausalCompositionPlacements(worldSeed: number): readonly EnvironmentAssetPlacement[] {
+  return runSync(causalCompositionSteps(worldSeed));
+}
+
+function* causalCompositionSteps(worldSeed: number): Generator<void, readonly EnvironmentAssetPlacement[], void> {
   const cacheKey = islandCacheKey(worldSeed, "island.neva");
   const cached = CAUSAL_COMPOSITION_CACHE.get(cacheKey);
   if (cached) return cached;
   const base = [...AUTHORED_DETAIL_PLACEMENTS, ...independentCoastalDressing(worldSeed)];
-  const placements = generateCausalStructuralPlacements(worldSeed, base);
+  const placements = yield* generateCausalStructuralPlacements(worldSeed, base);
   CAUSAL_COMPOSITION_CACHE.set(cacheKey, placements);
   return placements;
 }
@@ -1324,7 +1342,7 @@ function sampleGroundCoverNormalY(x: number, z: number): number {
   return normalY;
 }
 
-function scatterGroundCover(
+function* scatterGroundCover(
   category: GroundCoverCategory,
   assetIds: readonly string[],
   count: number,
@@ -1344,7 +1362,7 @@ function scatterGroundCover(
     composition: WorldCompositionSample
   ) => number = () => 1,
   worldSeed: number = seed
-): GroundCoverPlacement[] {
+): Generator<void, GroundCoverPlacement[], void> {
   const placements: GroundCoverPlacement[] = [];
   const compositionCategory: CompositionCategory = category === "flowers"
     ? "flower"
@@ -1355,6 +1373,7 @@ function scatterGroundCover(
         : "short-cover";
   const attemptMultiplier = category === "pebbles" ? 240 : 180;
   for (let attempt = 0; attempt < count * attemptMultiplier && placements.length < count; attempt++) {
+    if (attempt % 16 === 0) yield;
     const candidateAddress = category === "flowers" ? Math.floor(attempt / 3) : attempt;
     const candidateSlot = category === "flowers" ? attempt % 3 : 0;
     const baseX = WORLD_BOUNDS.minX + 5
@@ -1368,7 +1387,7 @@ function scatterGroundCover(
       ? 0.08 + Math.pow(
         compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 20 + candidateSlot),
         1.7
-      ) * 0.45
+      ) * 1.1
       : 0;
     const x = baseX + Math.cos(driftAngle) * driftRadius;
     const z = baseZ + Math.sin(driftAngle) * driftRadius;
@@ -1376,7 +1395,7 @@ function scatterGroundCover(
     const selection = compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 2);
     const fieldDensity = composition.density[compositionCategory];
     const maximumDensity = category === "grass"
-      ? clamp01(0.2 + fieldDensity * 0.8)
+      ? clamp01(Math.pow(fieldDensity, 1.35) * 1.4)
       : category === "flowers"
         ? clamp01(0.025 + fieldDensity * fieldDensity * 1.5)
         : clamp01(0.5 + fieldDensity * 0.5);
@@ -1386,9 +1405,8 @@ function scatterGroundCover(
     const weight = densityWeight(x, z, surface, composition);
     const density = category === "grass"
       ? clamp01(
-        0.04
-        + weight * 0.16
-        + fieldDensity * 0.8
+        (weight * 0.16 + Math.pow(fieldDensity, 1.35) * 1.4)
+          * (1 - composition.opening * 0.55)
       )
       : category === "flowers"
         ? clamp01(0.02 + Math.pow(fieldDensity * (0.65 + weight * 0.35), 2) * 1.5)
@@ -1444,7 +1462,7 @@ function scatterGroundCover(
   return placements;
 }
 
-function scatterCoastGroundCover(
+function* scatterCoastGroundCover(
   category: "pebbles" | "driftwood",
   assetIds: readonly string[],
   count: number,
@@ -1453,9 +1471,10 @@ function scatterCoastGroundCover(
   predicate: (x: number, z: number) => boolean,
   scaleRange: readonly [number, number],
   worldSeed: number
-): GroundCoverPlacement[] {
+): Generator<void, GroundCoverPlacement[], void> {
   const placements: GroundCoverPlacement[] = [];
   for (let attempt = 0; attempt < count * 150 && placements.length < count; attempt++) {
+    if (attempt % 16 === 0) yield;
     const compositionCategory: CompositionCategory = category === "pebbles" ? "rock" : "short-cover";
     const x = WORLD_BOUNDS.minX + 6
       + compositionPriority(worldSeed, compositionCategory, attempt, seed, 0)
@@ -1497,6 +1516,10 @@ function scatterCoastGroundCover(
 }
 
 export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPlacement[] {
+  return runSync(generateGroundCoverPlacementsSteps(worldSeed));
+}
+
+function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void, GroundCoverPlacement[], void> {
   const high = GROUND_COVER_DENSITY.high;
   const meadowCoverGround = (
     x: number,
@@ -1509,7 +1532,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     && sampleGroundCoverNormalY(x, z) > 0.66
     && surface.farmInfluence < 0.08;
 
-  const grass = scatterGroundCover(
+  const grass = yield* scatterGroundCover(
     "grass",
     ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"],
     high.grass,
@@ -1524,7 +1547,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     (_x, _z, _surface, composition) => composition.density["short-cover"],
     worldSeed
   );
-  const homesteadGrass = scatterGroundCover(
+  const homesteadGrass = yield* scatterGroundCover(
     "grass",
     ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"],
     HOMESTEAD_MEADOW_GRASS_COUNT,
@@ -1542,7 +1565,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     (_x, _z, _surface, composition) => composition.density["short-cover"],
     worldSeed
   );
-  const flowers = scatterGroundCover(
+  const flowers = yield* scatterGroundCover(
     "flowers",
     ["foliage_flower_drift_a", "foliage_flower_drift_b", "foliage_flower_drift_c"],
     high.flowers,
@@ -1566,7 +1589,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     },
     worldSeed
   );
-  const bushes = scatterGroundCover(
+  const bushes = yield* scatterGroundCover(
     "bushes",
     ["foliage_bush_a", "foliage_bush_round_a"],
     high.bushes,
@@ -1595,7 +1618,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
       || surface.weights.meadow > 0.26
       || (waterDistance > -8 && waterDistance < -1.4);
   };
-  const meadowTall = scatterGroundCover(
+  const meadowTall = (yield* scatterGroundCover(
     "meadowTall",
     ["foliage_meadow_tall_a", "foliage_meadow_tall_b", "foliage_beach_grass_a"],
     high.meadowTall,
@@ -1611,7 +1634,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
       );
     },
     worldSeed
-  ).map((placement) => {
+  )).map((placement) => {
     const surface = sampleGroundCoverSurface(placement.x, placement.z);
     const wetness = surface.shorelineWetness;
     const waterDistance = WorldLayout.waterSignedDistance(placement.x, placement.z);
@@ -1632,10 +1655,10 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     };
   });
   const coastPebbleCount = Math.round(high.pebbles * 0.42);
-  const coastPebbles = scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainNormal(x, z).y > 0.68 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42, [0.74, 1.12], worldSeed);
+  const coastPebbles = yield* scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainNormal(x, z).y > 0.68 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42, [0.74, 1.12], worldSeed);
   const pathPebbleCount = Math.round(high.pebbles * 0.22);
-  const shoulderPebbles = scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z, surface) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && surface.farmInfluence < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32, worldSeed);
-  const pathPebbles = scatterGroundCover(
+  const shoulderPebbles = yield* scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z, surface) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && surface.farmInfluence < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32, worldSeed);
+  const pathPebbles = yield* scatterGroundCover(
     "pebbles",
     ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"],
     pathPebbleCount,
@@ -1652,7 +1675,7 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
     worldSeed
   );
   const paving = generateInstancedPathSlabs(high.paving, mixSeed(worldSeed, 0x3c71));
-  const driftwood = scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08], worldSeed);
+  const driftwood = yield* scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08], worldSeed);
   const placements = [
     ...grass,
     ...homesteadGrass,
@@ -1673,6 +1696,10 @@ export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPla
 }
 
 export function generateSunreachGroundCoverPlacements(worldSeed: number): GroundCoverPlacement[] {
+  return runSync(generateSunreachGroundCoverPlacementsSteps(worldSeed));
+}
+
+function* generateSunreachGroundCoverPlacementsSteps(worldSeed: number): Generator<void, GroundCoverPlacement[], void> {
   const bounds = WORLD_ISLAND_DEFINITIONS["island.sunreach"].authoredBounds;
   const specs = [
     { category: "grass" as const, composition: "short-cover" as const, count: 360, salt: 0x7311, assets: ["foliage_beach_grass_a", "foliage_meadow_tall_a"] as const, scale: [0.78, 1.12] as const },
@@ -1683,6 +1710,7 @@ export function generateSunreachGroundCoverPlacements(worldSeed: number): Ground
   for (const spec of specs) {
     let placed = 0;
     for (let address = 0; address < spec.count * 160 && placed < spec.count; address++) {
+      if (address % 16 === 0) yield;
       const x = bounds.minX + 3
         + islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 0)
           * (bounds.maxX - bounds.minX - 6);
@@ -1729,6 +1757,10 @@ const STATIC_PLACEMENTS_CACHE = new Map<string, readonly EnvironmentAssetPlaceme
 const ENVIRONMENT_LAYOUT_CACHE = new Map<string, WorldEnvironmentLayout>();
 
 export function createWorldStaticPlacements(worldSeed: number): readonly EnvironmentAssetPlacement[] {
+  return runSync(staticPlacementSteps(worldSeed));
+}
+
+function* staticPlacementSteps(worldSeed: number): Generator<void, readonly EnvironmentAssetPlacement[], void> {
   const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;
   const cached = STATIC_PLACEMENTS_CACHE.get(cacheKey);
   if (cached) return cached;
@@ -1737,7 +1769,7 @@ export function createWorldStaticPlacements(worldSeed: number): readonly Environ
     ...AUTHORED_DETAIL_PLACEMENTS,
     ...coastalDressing
   ]).filter((placement) => !PLACEMENT_REMOVED.includes(placement.id));
-  const causalPlacements = generateCausalCompositionPlacements(worldSeed);
+  const causalPlacements = yield* causalCompositionSteps(worldSeed);
   const sunreachPlacements = [
     ...SUNREACH_AUTHORED_PLACEMENTS,
     ...generateSunreachCausalCompositionPlacements(worldSeed)
@@ -1784,3 +1816,19 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
   return layout;
 }
 
+/** Startup prepares the lazy cover once, without blocking a browser task. */
+export async function prepareWorldEnvironmentLayout(worldSeed: number, signal?: AbortSignal): Promise<WorldEnvironmentLayout> {
+  const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;
+  const cached = ENVIRONMENT_LAYOUT_CACHE.get(cacheKey);
+  if (cached && Object.getOwnPropertyDescriptor(cached, "groundCoverPlacements")?.value) return cached;
+  signal?.throwIfAborted();
+  const staticPlacements = await runCooperatively(staticPlacementSteps(worldSeed), signal);
+  const groundCoverPlacements = [
+    ...(await runCooperatively(generateGroundCoverPlacementsSteps(worldSeed), signal)).filter(retainHarborGroundCover),
+    ...await runCooperatively(generateSunreachGroundCoverPlacementsSteps(worldSeed), signal)
+  ];
+  signal?.throwIfAborted();
+  const layout = { worldSeed, staticPlacements, groundCoverPlacements };
+  ENVIRONMENT_LAYOUT_CACHE.set(cacheKey, layout);
+  return layout;
+}

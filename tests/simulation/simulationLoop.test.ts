@@ -62,17 +62,43 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(collectMill.success).toBe(true);
     expect(InventoryManager.getItemCount(playerInv, "item.ground_grain")).toBe(2);
 
+    // 4b. Cultivate Bait Worms (Station: Compost Bin). A new game no longer
+    // starts with worms, so the chum recipe's bait has to be composted first —
+    // which is the order Act 2 teaches.
+    movePlayerToProcessingFront(sim, "struct.starter_compost");
+    const compostRes = sim.startProcessingJob("recipe.compost_worms", "struct.starter_compost");
+    expect(compostRes.success).toBe(true);
+    const compostJobId = Object.keys(sim.state.processingJobs).find((id) => id !== millJobId);
+    expect(compostJobId).toBeDefined();
+    // Onboarding pace: 12 minutes rather than the steady-state 360.
+    sim.advanceGameMinutes(13);
+    expect(sim.state.processingJobs[compostJobId!].status).toBe("complete");
+    expect(sim.collectProcessingJob(compostJobId!).success).toBe(true);
+    expect(InventoryManager.getItemCount(playerInv, "item.bait_worms")).toBe(25);
+
     // 5. Mix Chum Bucket (Station: Workbench)
     movePlayerToProcessingFront(sim, "struct.workbench");
     const chumRes = sim.startProcessingJob("recipe.craft_chum", "struct.workbench");
     expect(chumRes.success).toBe(true);
-    const chumJobId = Object.keys(sim.state.processingJobs)[0];
+    const chumJobId = Object.keys(sim.state.processingJobs).find(
+      (id) => id !== millJobId && id !== compostJobId
+    )!;
+    expect(chumJobId).toBeDefined();
 
     // Fast-forward 11 minutes
     sim.advanceGameMinutes(11);
     expect(sim.state.processingJobs[chumJobId].status).toBe("complete");
     sim.collectProcessingJob(chumJobId);
     expect(InventoryManager.getItemCount(playerInv, "item.chum_bucket")).toBe(1);
+
+    // 5b. Craft the mandatory sport lure from the renewable novice recipe.
+    const lureRes = sim.startProcessingJob("recipe.craft_lure_simple", "struct.workbench");
+    expect(lureRes.success).toBe(true);
+    const lureJobId = Object.keys(sim.state.processingJobs)[0];
+    sim.advanceGameMinutes(11);
+    expect(sim.state.processingJobs[lureJobId].status).toBe("complete");
+    expect(sim.collectProcessingJob(lureJobId).success).toBe(true);
+    expect(InventoryManager.getItemCount(playerInv, "item.basic_lure")).toBe(1);
 
     // 6. Spawn and Chum a Fish School
     const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
@@ -84,6 +110,7 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(sim.state.world.activeSchools[schoolId].feedingFrenzyUntilMinute).toBeDefined();
 
     // 7. Hook Sport Fish
+    expect(sim.execute({ type: "fishing.toggle-lure" })).toMatchObject({ success: true, prepared: true });
     const hookRes = sim.hookSportFish(schoolId);
     expect(hookRes.success).toBe(true);
     expect(sim.activeFishingEncounter).not.toBeNull();

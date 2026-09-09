@@ -54,6 +54,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       cropId: "crop.turnip",
       name: "White Turnip",
       stage: "growing",
+      maturityProgress: 0.5,
       approximateMinutesRemaining: 25,
       stageTimingLabel: "Harvest in 25m",
       moisture: { value: 0.65, band: "normal" },
@@ -350,7 +351,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         );
 
         expect(html).toContain('data-testid="catch-inspection-modal"');
-        expect(html).toContain("Trophy Catch Landed!");
+        expect(html).toContain("Catch landed");
         expect(html).toContain("COASTAL SPORT ANGLING");
         expect(html).toContain("Atlantic Salmon");
 
@@ -372,7 +373,9 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
 
         // Storage location and buttons
         expect(html).toContain("Stowed in boat hold");
-        expect(html).toContain("Inspect Hold");
+        expect(html).toContain("Open Satchel");
+        expect(html).toContain("[I]");
+        expect(html).not.toContain("[L]");
         expect(html).toContain("Continue Fishing");
       });
 
@@ -422,7 +425,8 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         expect(html).toMatch(/3\.2(<!-- -->)?\s*kg/);
         expect(html).toContain("Carried by hand");
         expect(html).toMatch(/92(<!-- -->)?%\s*fresh/);
-        expect(html).toContain("Click to inspect");
+        expect(html).toContain("Inspect catch");
+        expect(html).toContain('aria-label="Inspect');
       });
     });
   });
@@ -431,7 +435,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
   // F3.4 CONTEXTUAL HINT CARDS
   // =========================================================================
   describe("F3.4 Contextual Hint Cards", () => {
-    it("renders all 5 category insignia badges and visible [Esc] keycap badge", () => {
+    it("renders all 5 category insignia badges and a dismiss close control", () => {
       const categories: Array<{ cat: HintCategory; expectedLabel: string }> = [
         { cat: "boating", expectedLabel: "NAVIGATION" },
         { cat: "angling", expectedLabel: "ANGLING" },
@@ -455,8 +459,8 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         expect(html).toContain(`hint-category--${cat}`);
         expect(html).toContain(`data-category="${cat}"`);
         expect(html).toContain(expectedLabel);
-        expect(html).toContain("[Esc]");
-        expect(html).toContain("Dismiss");
+        expect(html).toContain('aria-label="Dismiss hint"');
+        expect(html).toContain("hint-card-close-btn");
       }
     });
 

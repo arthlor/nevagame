@@ -28,6 +28,23 @@ function stillPlayerMotion(): PlayerMotionSample {
 }
 
 describe("GameCamera", () => {
+  it("allows reward trauma on foot and removes it with reduced motion", () => {
+    const plain = new GameCamera();
+    const reward = new GameCamera();
+    const target = new THREE.Vector3(0, 0.5, 0);
+    plain.update(target, "on-foot", 1 / 60);
+    reward.update(target, "on-foot", 1 / 60);
+    reward.addTrauma(0.5);
+    plain.update(target, "on-foot", 1 / 60);
+    reward.update(target, "on-foot", 1 / 60);
+    expect(reward.camera.position.distanceTo(plain.camera.position)).toBeGreaterThan(0.001);
+    plain.setReducedMotion(true);
+    reward.setReducedMotion(true);
+    reward.addTrauma(0.5);
+    plain.update(target, "on-foot", 1 / 60);
+    reward.update(target, "on-foot", 1 / 60);
+    expect(reward.camera.position.toArray()).toEqual(plain.camera.position.toArray());
+  });
   it("maps on-foot movement to the horizontal camera basis", () => {
     const camera = new GameCamera();
     expect(camera.cameraRelativeMovement({ x: 0, z: -1 }, { x: 0, z: 0 })).toMatchObject({

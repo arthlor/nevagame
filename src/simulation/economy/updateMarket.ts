@@ -87,6 +87,19 @@ function applyMarketHour(
   state.recentSalesVolume = Math.max(0, state.recentSalesVolume * Math.pow(0.5, hours));
 }
 
+/**
+ * How far above target a stall's stock may be pushed by selling into it.
+ * `demandFromSupply` already bottoms out at DEMAND_MIN around 1.58x target, so
+ * everything past this ceiling is invisible to price and only lengthens the
+ * linear `relaxSupply` walk home — a few hundred units of a cheap staple could
+ * otherwise pin that commodity at the floor for hundreds of game hours.
+ */
+export const SUPPLY_GLUT_CEILING = 2;
+
+export function marketSupplyCeiling(targetSupply: number): number {
+  return Math.max(1, targetSupply) * SUPPLY_GLUT_CEILING;
+}
+
 export function recordMarketSale(
   market: MarketState,
   itemId: string,
@@ -94,7 +107,10 @@ export function recordMarketSale(
 ): void {
   const state = market.commodities[itemId];
   if (state) {
-    state.localSupply += quantity;
+    state.localSupply = Math.min(
+      marketSupplyCeiling(state.targetSupply),
+      state.localSupply + quantity
+    );
     state.recentSalesVolume += quantity;
   }
 }

@@ -38,7 +38,7 @@ function marketProps(sim: Simulation, marketId: MarketId) {
 }
 
 describe("Milestone M3 ornate modal presentation", () => {
-  it("renders inventory satchel with velvet slots, capacity gauge, and category ribbons", () => {
+  it("renders inventory satchel with velvet slots, one capacity readout, and category ribbons", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(InventoryModal, {
@@ -55,7 +55,13 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(html).toContain('data-testid="inventory-capacity"');
     expect(html).toContain("Field");
     expect(html).toContain("Supplies");
-    expect(html).toContain("Satchel capacity");
+    // Capacity is stated once. The gauge that used to sit under the pill said
+    // the same thing twice and was already hidden under the Guildcraft skin.
+    expect(html).not.toContain("Satchel capacity");
+    expect(html.match(/data-testid="inventory-capacity"/g)).toHaveLength(1);
+    // Search and Tidy live behind one Organize disclosure.
+    expect(html).toContain('data-testid="inventory-organize"');
+    expect(html).toContain('class="inventory-organize-tools" hidden');
   });
 
   it("renders market buy stall with shopkeeper header, purse, and stall tabs", () => {
@@ -73,7 +79,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(html).toContain("Wheat");
     expect(html).toContain("Fish Fertilizer");
     expect(html).toContain("Buy");
-    expect(html).toContain("Your goods");
+    expect(html).toContain("Sell");
     expect(html).not.toContain("Docked Fish");
   });
 
@@ -88,7 +94,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(html).toContain("Harbor Fish Market &amp; Wholesaler");
     expect(html).toContain("Crushed Ice");
     expect(html).toContain("Fish hold");
-    expect(html).toContain("Harbor Supplies");
+    expect(html).toContain("Buy");
     expect(html).not.toContain("Market Intelligence");
   });
 
@@ -101,12 +107,15 @@ describe("Milestone M3 ornate modal presentation", () => {
       })
     );
 
-    expect(emptySell).toContain("Bait Worms");
+    // A new game no longer starts with bait worms, so the sell list opens on
+    // the starting supplies instead. The claim is unchanged: only owned rows.
+    expect(emptySell).toContain("Compost Starter");
     expect(emptySell).not.toContain("Sell all produce");
     expect(emptySell).toContain('data-testid="market-sell-list"');
     expect(emptySell).toContain('data-testid="market-sell-ticket"');
     expect(emptySell).toContain("Sale ticket");
-    expect(emptySell).toContain('aria-label="Select Bait Worms"');
+    expect(emptySell).toContain('aria-label="Select Compost Starter"');
+    expect(emptySell).not.toContain('aria-label="Select Bait Worms"');
     expect(emptySell).not.toContain('aria-label="Select Harvested Barley"');
     expect(emptySell).not.toContain('aria-label="Select Harvested Wheat"');
     expect(emptySell).not.toContain("Trade Goods at this Stall");

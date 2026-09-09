@@ -33,6 +33,17 @@ export const CHUM_ITEM_IDS = [
   "item.chum_bucket"
 ] as const;
 
+/** The shipped lure family. Keep the stable item ID even when display copy changes. */
+export const LURE_ITEM_ID = "item.basic_lure";
+
+/** Total mandatory sport-fishing lure stock currently within reach. */
+export function accessibleLureSupplyCount(
+  state: Readonly<GameState>,
+  vesselId: BoatId | null = state.player.activeBoatId ?? null
+): number {
+  return accessibleFishingSupplyCount(state, LURE_ITEM_ID, vesselId);
+}
+
 /** Total chum within reach across all three blends. */
 export function accessibleChumSupplyCount(
   state: Readonly<GameState>,

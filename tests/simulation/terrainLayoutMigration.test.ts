@@ -21,13 +21,19 @@ const evidence = (id: string) => fixture.layout10Evidence.find((point) => point.
 const upperRiver = evidence("upper-river");
 
 function legacy(): SaveEnvelope {
-  return structuredClone({ schemaVersion: fixture.schemaVersion, savedAtUtcMs: fixture.savedAtUtcMs, state: fixture.state }) as SaveEnvelope;
+  return structuredClone({ schemaVersion: fixture.schemaVersion, savedAtUtcMs: fixture.savedAtUtcMs, state: fixture.state }) as unknown as SaveEnvelope;
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "farms", "inventories", "fishCargo", "markets", "contracts", "quests", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "farms", "inventories", "fishCargo", "markets", "contracts", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  // Quests pass through except for the v35 credit ledger, which every save
+  // gains on migration and which starts empty for a legacy fixture.
+  expect(after.quests.earlyActionCredits, "earlyActionCredits").toEqual([]);
+  const { earlyActionCredits: _added, ...migratedQuests } = after.quests;
+  const { earlyActionCredits: _absent, ...originalQuests } = before.quests;
+  expect(migratedQuests, "quests").toEqual(originalQuests);
   expect(after.player.workCapacity).toEqual(before.player.workCapacity);
   expect(after.player.proficiencies).toEqual(before.player.proficiencies);
   expect(after.player.money).toBe(before.player.money);

@@ -1,3 +1,4 @@
+import { runSync } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 
 import type { TerrainSurfaceSample } from "../../world/WorldLayout";
@@ -22,6 +23,23 @@ function quantize01(value: number): number {
   return Math.round(clamp01(value) * 255);
 }
 
+/** Material exposure only: never changes the canonical surface or support query. */
+export function withExposedRock(sample: TerrainSurfaceSample, exposure: number): TerrainSurfaceSample {
+  const amount = clamp01(exposure) * (1 - clamp01(sample.farmInfluence))
+    * (1 - clamp01((sample.weights.path + sample.weights.shoulder) * 2));
+  const grass = sample.weights.grass * amount;
+  const meadow = sample.weights.meadow * amount;
+  return {
+    ...sample,
+    weights: {
+      ...sample.weights,
+      grass: sample.weights.grass - grass,
+      meadow: sample.weights.meadow - meadow,
+      cliff: sample.weights.cliff + grass + meadow
+    }
+  };
+}
+
 /**
  * Writes the presentation-only surface field at the geometry's world-space
  * vertices. WorldLayout remains the semantic owner; this module only packs its
@@ -31,6 +49,10 @@ export function attachSurfaceFieldAttributes(
   geometry: THREE.BufferGeometry,
   sampleAt: (x: number, z: number, sampledNormalY?: number) => TerrainSurfaceSample
 ): void {
+  runSync(surfaceFieldAttributeSteps(geometry, sampleAt));
+}
+
+export function* surfaceFieldAttributeSteps(geometry: THREE.BufferGeometry, sampleAt: (x: number, z: number, sampledNormalY?: number) => TerrainSurfaceSample): Generator<void, void, void> {
   const positions = geometry.getAttribute("position");
   if (!positions) {
     throw new Error("[SurfaceFieldAttributes] A position attribute is required");
@@ -39,6 +61,7 @@ export function attachSurfaceFieldAttributes(
   const samples = new Array<TerrainSurfaceSample>(positions.count);
 
   for (let index = 0; index < positions.count; index += 1) {
+    if (index % 32 === 0) yield;
     const sampledNormalY = normals ? Math.abs(normals.getY(index)) : undefined;
     samples[index] = sampleAt(positions.getX(index), positions.getZ(index), sampledNormalY);
   }

@@ -52,7 +52,7 @@ export class HeldInputState {
 }
 
 const GAME_KEY_CODES = new Set([
-  "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyM", "KeyR", "Space",
+  "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyC", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyM", "KeyR", "Space",
   "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "KeyP",
   "Digit1", "Digit2", "Digit3", "Digit4", "Digit5"
 ]);
@@ -380,6 +380,9 @@ export class InputRouter {
           this.dispatch("interact");
         }
         break;
+      case "KeyC":
+        if (!this.layoutEditorActive) this.dispatch("open-character");
+        break;
       case "KeyI": this.dispatch("open-inventory"); break;
       case "KeyJ": this.dispatch("open-journal"); break;
       case "KeyL": this.dispatch("open-ledger"); break;
@@ -518,29 +521,44 @@ export class InputRouter {
 
   private onPointerCancel = (event: PointerEvent): void => {
     if (event.pointerType === "touch") {
+      const hadTouch = this.touchPointers.has(event.pointerId);
       this.releaseAllTouchPointers();
       this.clearVirtualInput();
+      if (hadTouch) this.interrupt();
       return;
     }
+    const hadPointerInput = this.heldInput.values.has("Mouse0")
+      || this.heldInput.values.has("Mouse2")
+      || this.layoutPointer?.id === event.pointerId
+      || this.orbitPointer?.id === event.pointerId;
     this.heldInput.release("Mouse0");
     this.heldInput.release("Mouse2");
     if (this.layoutPointer?.id === event.pointerId) this.releaseLayoutPointer();
     if (this.orbitPointer?.id === event.pointerId) this.releaseOrbitPointer();
+    if (hadPointerInput) this.interrupt();
   };
 
   private onLostPointerCapture = (event: PointerEvent): void => {
     if (event.pointerType === "touch") {
+      const hadTouch = this.touchPointers.has(event.pointerId);
       this.releaseTouchPointer(event.pointerId);
       if (this.touchPointers.size === 0) this.clearVirtualInput();
+      if (hadTouch) this.interrupt();
       return;
     }
+    const hadPointerInput = this.heldInput.values.has("Mouse0")
+      || this.heldInput.values.has("Mouse2")
+      || this.layoutPointer?.id === event.pointerId
+      || this.orbitPointer?.id === event.pointerId;
     if (this.layoutPointer?.id === event.pointerId) {
       this.heldInput.release("Mouse0");
       this.layoutPointer = null;
     }
-    if (this.orbitPointer?.id !== event.pointerId) return;
-    this.heldInput.release("Mouse2");
-    this.orbitPointer = null;
+    if (this.orbitPointer?.id === event.pointerId) {
+      this.heldInput.release("Mouse2");
+      this.orbitPointer = null;
+    }
+    if (hadPointerInput) this.interrupt();
   };
 
   private onWheel = (event: WheelEvent): void => {

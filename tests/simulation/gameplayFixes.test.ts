@@ -26,6 +26,7 @@ import { FERTILITY_RESTORE } from "../../src/simulation/domains/FarmingDomain";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
+import { armLureForTest } from "./sportFishingTestUtils";
 
 
 function movePlayerToProcessingFront(simulation: Simulation, stationId: string): void {
@@ -172,6 +173,8 @@ describe("Gameplay simulation fixes", () => {
 
   it("castBasicFishing full inventory does not consume bait", () => {
     const inv = sim.state.inventories[sim.state.player.inventoryId];
+    // New games start without bait; this case is about not spending it.
+    InventoryManager.addItemsAtomically(inv, [{ itemId: "item.bait_worms", quantity: 10 }]);
     for (const slot of inv.slots) {
       if (!slot.itemId) {
         slot.itemId = "seed.wheat";
@@ -252,6 +255,7 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.z = lake.z;
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     const hook = sim.hookSportFish(schoolId);
     expect(hook.success).toBe(true);
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
@@ -270,6 +274,7 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.x = coast.x;
     sim.state.player.z = coast.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     const hook = sim.hookSportFish(schoolId);
     expect(hook.success).toBe(false);
     expect(hook.reason).toMatch(/rod/i);
@@ -635,6 +640,7 @@ describe("Gameplay simulation fixes", () => {
     sim.state.player.x = lake.x;
     sim.state.player.z = lake.z;
     expect(sim.chumFishSchool(schoolId).success).toBe(true);
+    armLureForTest(sim);
     expect(sim.hookSportFish(schoolId).success).toBe(true);
     expect(sim.state.sportFishing?.result).toBe("active");
 
@@ -696,9 +702,13 @@ describe("Gameplay simulation fixes", () => {
   it("purchases, boards, docks, and reloads the progression skiff without changing the rowboat", () => {
     const initialMoney = 1200;
     sim.state.player.money = initialMoney;
-    sim.state.player.proficiencies.fishing = 15000;
+    sim.state.player.proficiencies.fishing = 7499;
     sim.state.player.x = HARBOR_SKIFF_MOORING.playerPosition.x;
     sim.state.player.z = HARBOR_SKIFF_MOORING.playerPosition.z;
+    expect(sim.execute({ type: "boat.purchase-skiff" })).toMatchObject({ success: false });
+    expect(sim.state.player.money).toBe(initialMoney);
+    expect(sim.state.boats["boat.player_skiff"]).toBeUndefined();
+    sim.state.player.proficiencies.fishing = 7500;
 
     const purchase = sim.execute({ type: "boat.purchase-skiff" });
     expect(purchase).toMatchObject({ success: true, cost: 850 });
@@ -1171,7 +1181,7 @@ describe("Gameplay simulation fixes", () => {
     expect(inv.slots.some((slot) => slot.itemId === "fish.trout")).toBe(false);
   });
 
-  it("processing start fails with inventory-full and does not consume inputs", () => {
+  it("lets a full satchel start an item job and checks output space only at collection", () => {
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
     for (const slot of inventory.slots) {
       slot.itemId = "item.compost_starter";
@@ -1179,17 +1189,22 @@ describe("Gameplay simulation fixes", () => {
     }
     inventory.slots[0] = { itemId: "produce.wheat", quantity: 10 };
     movePlayerToProcessingFront(sim, "struct.starter_mill");
-    const snapshot = inventory.slots.map((slot) => ({ ...slot }));
-    const full = sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill");
-    expect(full).toMatchObject({ success: false, reason: "inventory-full" });
-    expect(inventory.slots).toEqual(snapshot);
+    const started = sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill");
+    expect(started.success).toBe(true);
+    expect(InventoryManager.getItemCount(inventory, "produce.wheat")).toBe(8);
+    const job = Object.values(sim.state.processingJobs).find((candidate) => candidate.recipeId === "recipe.wheat_to_grain")!;
 
-    inventory.slots = inventory.slots.map(() => ({}));
-    expect(InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 2 }])).toBe(true);
-    const ok = sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill");
-    expect(ok.success).toBe(true);
-    expect(InventoryManager.getItemCount(inventory, "produce.wheat")).toBe(0);
-    expect(Object.values(sim.state.processingJobs).some((job) => job.recipeId === "recipe.wheat_to_grain")).toBe(true);
+    sim.advanceGameMinutes(job.effectiveDurationMinutes);
+    expect(sim.collectProcessingJob(job.id)).toMatchObject({
+      success: false,
+      reasonCode: "inventory-full"
+    });
+    expect(sim.state.processingJobs[job.id]?.status).toBe("complete");
+
+    inventory.slots[1] = {};
+    expect(sim.collectProcessingJob(job.id).success).toBe(true);
+    expect(InventoryManager.getItemCount(inventory, "item.ground_grain")).toBe(2);
+    expect(sim.state.processingJobs[job.id]).toBeUndefined();
   });
 
   it("migrates stacked sport trout items into cargo without discarding the save", () => {

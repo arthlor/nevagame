@@ -1,3 +1,4 @@
+import { runSync } from "../utils/CooperativeTask";
 import * as THREE from "three";
 
 interface RoadTerrainGrid {
@@ -54,6 +55,10 @@ export function conformRoadGeometryToTerrain(
   source: THREE.BufferGeometry,
   grid: RoadTerrainGrid
 ): THREE.BufferGeometry {
+  return runSync(roadTerrainConformitySteps(source, grid));
+}
+
+export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: RoadTerrainGrid): Generator<void, THREE.BufferGeometry, void> {
   const sourcePositions = source.getAttribute("position");
   const sourceColors = source.getAttribute("color");
   const sourceIndex = source.getIndex();
@@ -132,6 +137,7 @@ export function conformRoadGeometryToTerrain(
   };
 
   for (let triangle = 0; triangle < sourceIndex.count / 3; triangle++) {
+    if (triangle % 32 === 0) yield;
     const vertices = [0, 1, 2].map((corner): RoadVertex => {
       const index = sourceIndex.getX(triangle * 3 + corner);
       return [

@@ -23,13 +23,28 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <link rel="preload" as="image" href="/assets/ui/neva-title-background.webp" />
+    <style>
+      html,body { margin:0; background:#192b29; }
+      #neva-boot-shell { position:fixed; inset:0; z-index:10000; display:flex; flex-direction:column; justify-content:center; padding:7vw; color:#fff1d3; background:linear-gradient(90deg,#12201cbb,transparent),url('/assets/ui/neva-title-background.webp') center/cover; font-family:Georgia,serif; }
+      #neva-boot-shell h1 { font-size:clamp(48px,6vw,82px); margin:0 0 20px; font-weight:500; }
+      #neva-boot-shell p { font-size:20px; } #neva-boot-shell button { width:max-content; padding:12px 24px; font:inherit; }
+    </style>
   </head>
   <body>
+    <div id="neva-boot-shell" role="status"><h1>Neva Land</h1><p>Grow a home. Follow the tide.</p><p id="neva-boot-status">Opening the coast…</p></div>
+    <script>
+      window.nevaBootFailed = function () {
+        document.getElementById('neva-boot-status').textContent = 'The coast could not open. Check your connection and reload the game.';
+        var button = document.createElement('button'); button.textContent = 'Reload game'; button.onclick = function () { location.reload(); };
+        document.getElementById('neva-boot-shell').appendChild(button);
+      };
+    </script>
     <div id="canvas-container">
       <canvas id="game-canvas"></canvas>
     </div>
     <div id="ui-root"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/main.ts" onerror="window.nevaBootFailed()"></script>
   </body>
 </html>

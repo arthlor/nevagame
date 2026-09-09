@@ -3,7 +3,9 @@ export class StartupTimeoutError extends Error {
     public readonly code:
       | "asset-loading-stalled"
       | "world-startup-timeout"
-      | "physics-startup-timeout",
+      | "physics-startup-timeout"
+      | "presentation-startup-timeout"
+      | "save-failed",
     message: string
   ) {
     super(message);

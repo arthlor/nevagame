@@ -326,6 +326,47 @@ describe("Organic road geometry", () => {
     geometry.dispose();
   }, 60000);
 
+  it("keeps junction feathering cosmetic and joined cores opaque", () => {
+    const render = WorldLayout.buildPathGeometry();
+    const collision = WorldLayout.buildPathCollisionGeometry();
+    expect(render.getAttribute("position").array).toEqual(collision.getAttribute("position").array);
+    expect(render.index?.array).toEqual(collision.index?.array);
+    const positions = render.getAttribute("position");
+    const colors = render.getAttribute("color");
+    const original = collision.getAttribute("color");
+    const profile = render.getAttribute("roadProfile");
+    expect(profile.count).toBe(positions.count);
+    expect(profile.itemSize).toBe(2);
+    expect(profile.normalized).toBe(true);
+    expect(profile.array).toBeInstanceOf(Uint8Array);
+    expect(collision.getAttribute("roadProfile")).toBeUndefined();
+    let wornCore = 0;
+    let looseShoulder = 0;
+    let softened = 0;
+    let coreSamples = 0;
+    for (let index = 0; index < positions.count; index++) {
+      const alpha = colors.getW(index);
+      if (profile.getX(index) > 0.5 && profile.getY(index) < 0.2) wornCore++;
+      if (profile.getY(index) > 0.8 && profile.getX(index) < 0.1) looseShoulder++;
+      expect(alpha).toBeGreaterThanOrEqual(0);
+      expect(alpha).toBeLessThanOrEqual(1);
+      if (original.getW(index) > 0.99 && alpha < 0.8) softened++;
+      for (const junction of WORLD_ROUTE_JUNCTIONS) {
+        if (Math.hypot(positions.getX(index) - junction.center.x,
+          positions.getZ(index) - junction.center.z) < Math.max(0.72, junction.radiusMeters * 0.74) * 0.68) {
+          expect(alpha).toBeCloseTo(1);
+          coreSamples++;
+        }
+      }
+    }
+    expect(wornCore).toBeGreaterThan(0);
+    expect(looseShoulder).toBeGreaterThan(0);
+    expect(softened).toBeGreaterThan(0);
+    expect(coreSamples).toBeGreaterThan(0);
+    render.dispose();
+    collision.dispose();
+  }, 60000);
+
   it("removes buried road faces without changing the existing road-plus-base collision envelope", () => {
     const authored = authoredRoadGeometry();
     const conformed = WorldLayout.buildPathGeometry();

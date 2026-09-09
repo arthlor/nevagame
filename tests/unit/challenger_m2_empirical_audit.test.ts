@@ -130,6 +130,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         cropId: "crop.winter_carrot",
         name: "Winter Carrot",
         stage: "mature",
+        maturityProgress: 1,
         approximateMinutesRemaining: 0,
         stageTimingLabel: "2h 15m until harvest",
         moisture: { band: "wet", value: 85 },
@@ -187,6 +188,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         cropId: "crop.cabbage",
         name: "Savoy Cabbage",
         stage: "growing",
+        maturityProgress: 0.5,
         approximateMinutesRemaining: 60,
         stageTimingLabel: "Stage 2 of 3",
         moisture: { band: "normal", value: 50 },
@@ -414,6 +416,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
             cropId: "crop.wheat",
             name: "Spring Wheat",
             stage: "growing",
+            maturityProgress: 0.5,
             approximateMinutesRemaining: 45,
             stageTimingLabel: "Stage 2",
             moisture: { band: "wet", value: 80 },
@@ -477,7 +480,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
       expect(hintHtml).toContain('role="status"');
       expect(hintHtml).toContain('aria-live="polite"');
       expect(hintHtml).toContain("NAVIGATION");
-      expect(hintHtml).toContain("[Esc]");
+      expect(hintHtml).toContain('aria-label="Dismiss hint"');
 
       // 4. FarmGISLegend
       const gisHtml = renderToString(

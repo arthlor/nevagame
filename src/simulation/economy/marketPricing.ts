@@ -5,6 +5,8 @@ export const DEMAND_MIN = 0.65;
 export const DEMAND_MAX = 1.6;
 export const DEMAND_ELASTICITY = 0.6;
 export const RETAIL_MARKUP = 1.25;
+/** A visible raw-input spread: direct resale still loses, while processing may earn a modest margin. */
+export const WORKSHOP_SUPPLY_MARKUP = 1;
 export const DAILY_TREND_AMPLITUDE = 0.15;
 export const HOURLY_NOISE_AMPLITUDE = 0.025;
 
@@ -15,6 +17,8 @@ export interface MarketQuoteContext {
   worldSeed: number;
   /** Prevents a same-hour buy from undercutting the best wholesale quote elsewhere. */
   minimumEffectiveModifier?: number;
+  /** Overrides the standard retail spread for explicitly authored workshop inputs. */
+  retailMarkup?: number;
 }
 
 export interface CommodityMarketQuote {
@@ -126,10 +130,15 @@ function quoteCommodity(
       context.minimumEffectiveModifier ?? 0,
       marginalDemand * Math.max(0, commodity.seasonalModifier)
     );
-    const rawUnitPrice = commodity.basePrice * effectiveModifier * (side === "retail" ? RETAIL_MARKUP : 1);
+    const rawUnitPrice = commodity.basePrice * effectiveModifier * (
+      side === "retail" ? context.retailMarkup ?? RETAIL_MARKUP : 1
+    );
+    const wholesaleUnit = Math.max(1, Math.round(commodity.basePrice * effectiveModifier));
     total += side === "retail"
-      ? Math.max(1, Math.ceil(rawUnitPrice))
-      : Math.max(1, Math.round(rawUnitPrice));
+      // Low-value inputs can otherwise round the retail and wholesale price
+      // to the same integer. Keep a visible one-gold spread per marginal unit.
+      ? Math.max(wholesaleUnit + 1, Math.ceil(rawUnitPrice))
+      : wholesaleUnit;
     supply = nextSupply;
   }
 
@@ -168,4 +177,3 @@ export function quoteCommodityPurchase(
 ): CommodityMarketQuote {
   return quoteCommodity(commodity, quantity, context, "retail");
 }
-

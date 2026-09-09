@@ -1,7 +1,10 @@
+import { patchSeasonalTint } from "../materials/SeasonalTint";
+import { yieldToTask } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { ASSET_BY_ID, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
 import {
+  CANONICAL_RENDER_CONFIG,
   groundCoverActiveCountAtLevel,
   qualityTierLevel,
   qualityValueAtLevel,
@@ -116,7 +119,7 @@ function patchGroundCoverWind(
   const amplitude = GROUND_COVER_WIND_AMPLITUDE[category];
   if (amplitude <= 0) return material;
   material.userData.nevaGroundCoverWind = true;
-  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}`;
+  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}-root-season-v3`;
   material.onBeforeCompile = (shader) => {
     const uniforms: GroundCoverWindUniforms = {
       uTime: { value: 0 },
@@ -132,6 +135,7 @@ function patchGroundCoverWind(
         `#include <common>
 attribute float instancePhase;
 attribute float windHeight;
+varying float vCoverHeight;
 uniform float uTime;
 uniform vec2 uWindDir;
 uniform float uWindStrength;
@@ -143,6 +147,7 @@ uniform float uMotionScale;`
         `#include <begin_vertex>
 {
   float rootedHeight = clamp(windHeight, 0.0, 1.0);
+  vCoverHeight = rootedHeight;
   float rootWeight = pow(smoothstep(${GROUND_COVER_WIND_ROOT_LOCK.toFixed(3)}, ${GROUND_COVER_WIND_ROOT_RELEASE.toFixed(3)}, rootedHeight), 1.35);
   float wave = sin(uTime * (1.12 + instancePhase * 0.38) + instancePhase * 6.283185);
   float gust = sin(uTime * 0.37 + instancePhase * 4.1);
@@ -155,6 +160,16 @@ uniform float uMotionScale;`
     * sin(uTime * 1.72 + instancePhase * 9.0);
 }`
       );
+    if (category === "grass" || category === "meadowTall") {
+      // A restrained base-to-tip value ramp seats the clump in the meadow.
+      // Reuse the assembly-space wind height, never a per-blade dark decal.
+      shader.uniforms.coverRootShade = { value: CANONICAL_RENDER_CONFIG.groundSurface.shortCoverRootShade };
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying float vCoverHeight;\nuniform float coverRootShade;")
+        .replace("#include <color_fragment>", `#include <color_fragment>
+diffuseColor.rgb *= mix(coverRootShade, 1.0, smoothstep(0.04, 0.64, vCoverHeight));`);
+    }
+    if (category === "grass" || category === "meadowTall" || category === "bushes") patchSeasonalTint(shader);
     material.userData.nevaWindShader = shader;
   };
   return material;
@@ -174,12 +189,12 @@ function groundCoverMaterial(
   ) {
     const darkPalette = /shadow|olive|wood_dark/.test(cloned.name);
     const lift = darkPalette
-      ? 1.16
+      ? 1.04
       : category === "flowers"
         ? 1.05
         : category === "bushes"
           ? 1.08
-          : 1.1;
+          : 1;
     cloned.color.multiplyScalar(lift);
     cloned.roughness = Math.max(0.8, cloned.roughness);
   }
@@ -202,7 +217,7 @@ export class GroundCoverRenderer {
     this.group.name = "instanced_world_ground_cover";
   }
 
-  public async build(placements: readonly GroundCoverPlacement[]): Promise<void> {
+  public async build(placements: readonly GroundCoverPlacement[], signal?: AbortSignal): Promise<void> {
     const byAsset = new Map<string, GroundCoverPlacement[]>();
     for (const placement of placements) {
       const group = byAsset.get(placement.assetId) ?? [];
@@ -220,7 +235,9 @@ export class GroundCoverRenderer {
       if (!spec || !spec.instancing || spec.collision !== "none") {
         throw new Error(`[GroundCoverRenderer] ${assetId} must be a non-colliding instanced catalog asset`);
       }
+      await yieldToTask(signal);
       const source = await AssetLoader.loadModel(typedAssetId);
+      signal?.throwIfAborted();
       source.updateMatrixWorld(true);
       const rootInverse = source.matrixWorld.clone().invert();
       const sourceMeshes: SourceMeshData[] = [];
@@ -379,16 +396,26 @@ export class GroundCoverRenderer {
         anchorZ,
         drawDistance
       );
+      // Sparse, stable grass silhouettes bridge the near tier to the fog plane.
+      // They share the existing instance budget and material batches.
+      const farDistance = qualityValueAtLevel(this.qualityLevel, (quality) => quality.groundCoverFarDistanceMeters);
+      const farIndices = record.category === "grass" || record.category === "meadowTall"
+        ? queryGroundCoverSpatialIndex(record.spatialIndex, anchorX, anchorZ, farDistance)
+          .filter((index) => index % 8 === 0 && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) > keepDistance
+            && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) <= farDistance)
+          .sort((left, right) => left - right)
+          .slice(0, Math.floor(record.activeCount * 0.15)) : [];
       const visibleIndices = selectStableGroundCoverIndices(
         record.instances,
         anchorX,
         anchorZ,
         drawDistance,
-        record.activeCount,
+        record.activeCount - farIndices.length,
         record.visibleIndices,
         keepDistance,
         candidates
       );
+      visibleIndices.push(...farIndices);
       if (groundCoverIndexListsEqual(record.visibleIndices, visibleIndices)) continue;
       record.visibleIndices = visibleIndices;
     }

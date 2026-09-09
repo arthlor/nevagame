@@ -282,6 +282,25 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.workCapacity.current).toBe(20);
   });
 
+  it("uses the crop's explicit neutral climate for harvest quality", () => {
+    const source = new Simulation();
+    const placedCropId = matureCrop(source, "crop.potato");
+    const crop = source.state.crops[placedCropId];
+    crop.moisture = 100;
+    crop.averageMoistureAccum = 100;
+    crop.moistureSampleCount = 1;
+    crop.health = 100;
+    source.state.farms[crop.farmId].soil.fertility = 100;
+    source.state.player.proficiencies.farming = 100_000;
+
+    const neutral = new Simulation(structuredClone(source.state));
+    const poor = new Simulation(structuredClone(source.state));
+    poor.state.farms[crop.farmId].climateId = "arid";
+
+    expect(neutral.harvestCrop(placedCropId)).toMatchObject({ success: true, quality: "prize" });
+    expect(poor.harvestCrop(placedCropId)).toMatchObject({ success: true, quality: "exceptional" });
+  });
+
   it("does not advance RNG or mutate a mature crop when harvest output cannot fit", () => {
     const sim = new Simulation();
     const placedCropId = matureCrop(sim);
@@ -416,11 +435,10 @@ describe("NEVA farming correctness foundation", () => {
 
 describe("farming action commit controller", () => {
   it("commits exactly once at the marker and completes presentation afterward", () => {
-    const controller = new FarmingActionController();
     let commits = 0;
     const phases: string[] = [];
-    expect(controller.start("plant", { x: 0, y: 0, z: 0 }, 1000, {
-      commit: () => { commits += 1; return { success: true }; },
+    const controller = new FarmingActionController(() => { commits += 1; return { success: true }; });
+    expect(controller.start("plant", { x: 0, y: 0, z: 0 }, 1000, { type: "player.reset-safe" }, {
       phaseChanged: (snapshot) => phases.push(snapshot.phase)
     })).toBe(true);
     // Markers come from the authored player clips in the asset catalog, so
@@ -440,20 +458,16 @@ describe("farming action commit controller", () => {
   });
 
   it("cancels before commit but cannot roll back after commit", () => {
-    const early = new FarmingActionController();
     let earlyCommits = 0;
-    early.start("water", { x: 0, y: 0, z: 0 }, 0, {
-      commit: () => { earlyCommits += 1; return { success: true }; }
-    });
+    const early = new FarmingActionController(() => { earlyCommits += 1; return { success: true }; });
+    early.start("water", { x: 0, y: 0, z: 0 }, 0, { type: "player.reset-safe" });
     expect(early.cancelBeforeCommit(200)).toBe(true);
     early.update(800);
     expect(earlyCommits).toBe(0);
 
-    const late = new FarmingActionController();
     let lateCommits = 0;
-    late.start("harvest", { x: 0, y: 0, z: 0 }, 0, {
-      commit: () => { lateCommits += 1; return { success: true }; }
-    });
+    const late = new FarmingActionController(() => { lateCommits += 1; return { success: true }; });
+    late.start("harvest", { x: 0, y: 0, z: 0 }, 0, { type: "player.reset-safe" });
     const harvestCommitAt = Math.ceil(FARMING_ACTION_TIMINGS.harvest.commitMs);
     late.update(harvestCommitAt);
     expect(lateCommits).toBe(1);
@@ -463,11 +477,9 @@ describe("farming action commit controller", () => {
   });
 
   it("freezes action time while paused and resumes at the same authored marker", () => {
-    const controller = new FarmingActionController();
     let commits = 0;
-    controller.start("board", { x: 2, y: 0, z: 3, entityId: "boat.test" }, 0, {
-      commit: () => { commits += 1; return { success: true }; }
-    });
+    const controller = new FarmingActionController(() => { commits += 1; return { success: true }; });
+    controller.start("board", { x: 2, y: 0, z: 3, entityId: "boat.test" }, 0, { type: "player.reset-safe" });
     controller.update(300);
     controller.update(3_000, true);
     expect(controller.snapshot(3_000)?.progress).toBeCloseTo(300 / FARMING_ACTION_TIMINGS.board.durationMs, 5);
@@ -482,11 +494,13 @@ describe("farming action commit controller", () => {
   });
 
   it("enters non-reversible recovery after failed commit-time revalidation", () => {
-    const controller = new FarmingActionController();
     let attempts = 0;
     const phases: string[] = [];
-    controller.start("dock", { x: 0, y: 0, z: 0, entityId: "dock.test" }, 0, {
-      commit: () => { attempts += 1; return { success: false, reason: "Dock became occupied" }; },
+    const controller = new FarmingActionController(() => {
+      attempts += 1;
+      return { success: false, reason: "Dock became occupied" };
+    });
+    controller.start("dock", { x: 0, y: 0, z: 0, entityId: "dock.test" }, 0, { type: "player.reset-safe" }, {
       phaseChanged: (snapshot) => phases.push(`${snapshot.phase}:${snapshot.stage}`)
     });
     controller.update(FARMING_ACTION_TIMINGS.dock.commitMs);
@@ -504,17 +518,17 @@ describe("farming action commit controller", () => {
   });
 
   it("does not re-enter the timeline when a commit changes gameplay mode", () => {
-    const controller = new FarmingActionController();
     const phases: string[] = [];
     let interruptionResult: boolean | null = null;
     let commits = 0;
+    let controller: FarmingActionController;
+    controller = new FarmingActionController(() => {
+      commits += 1;
+      interruptionResult = controller.cancelBeforeCommit(FARMING_ACTION_TIMINGS.board.durationMs + 1);
+      return { success: true };
+    });
 
-    controller.start("board", { x: 0, y: 0, z: 0, entityId: "boat.test" }, 0, {
-      commit: () => {
-        commits += 1;
-        interruptionResult = controller.cancelBeforeCommit(FARMING_ACTION_TIMINGS.board.durationMs + 1);
-        return { success: true };
-      },
+    controller.start("board", { x: 0, y: 0, z: 0, entityId: "boat.test" }, 0, { type: "player.reset-safe" }, {
       phaseChanged: (snapshot) => phases.push(snapshot.phase)
     });
 

@@ -310,11 +310,12 @@ def _donkey_anatomy(spec, parent, name):
     length = spec["parameters"].get("legLength", 1.0)
     coat, mealy = spec["palette"][:2]
     sections = [
-        (0, .73, 1.16, .14, .15), (0, .47, 1.16, .25, .22),
-        (0, .04, 1.14, .28, .23), (0, -.38, 1.12, .26, .23),
-        (0, -.60, 1.30, .19, .21), (0, -.78, 1.49, .14, .18),
-        (0, -.98, 1.58, .15, .14), (0, -1.17, 1.49, .12, .10),
-        (0, -1.35, 1.48, .09, .075),
+        (0, .76, 1.17, .12, .16), (0, .60, 1.17, .24, .23),
+        (0, .38, 1.13, .31, .27), (0, .04, 1.10, .32, .28),
+        (0, -.27, 1.11, .30, .27), (0, -.46, 1.18, .25, .25),
+        (0, -.62, 1.35, .20, .22), (0, -.78, 1.50, .155, .19),
+        (0, -.94, 1.59, .17, .15), (0, -1.08, 1.55, .145, .13),
+        (0, -1.23, 1.48, .13, .105), (0, -1.37, 1.46, .11, .085),
     ]
     surface = add_limb_tube(name, [tuple(v * s for v in row[:3]) for row in sections],
                             [(row[3] * s, row[4] * s) for row in sections], coat, parent, sides=12)
@@ -331,12 +332,23 @@ def _donkey_anatomy(spec, parent, name):
                       if len(face.vertices) == 4 and face.center.z > .93 * s
                       and face.normal.x * x > .03]
         opening = min(candidates, key=lambda face: (face.center - target).length_squared).index
+        opening_vertices = set(surface.data.polygons[opening].vertices)
+        neighbors = [face for face in candidates if face.index != opening
+                     and len(opening_vertices.intersection(face.vertices)) == 2]
+        neighbor = min(neighbors, key=lambda face: (face.center - target).length_squared).index
         knee_y = y - .015 if label.startswith("front") else y + .04
         knee_z = .50 * length + (0 if label.startswith("front") else .04)
-        limbs[label] = graft_limb(surface, [opening],
-            [(x * s, y * s, .89 * s), (x * s, knee_y * s, knee_z * s),
+        # Six-sided connected limbs retain shoulder/haunch volume and a real
+        # knee transition instead of a four-corner taper from hip to hoof.
+        upper_radius = .125 if label.startswith("front") else .145
+        limbs[label] = graft_limb(surface, [opening, neighbor],
+            [(x * s, y * s, .89 * s), (x * s, y * s, .74 * s),
+             (x * s, knee_y * s, (knee_z + .06) * s),
+             (x * s, knee_y * s, knee_z * s),
+             (x * s, y * s, .29 * s),
              (x * s, y * s, .13 * s), (x * s, (y - .015) * s, .075 * s)],
-            [.105 * s, .075 * s, .052 * s, .055 * s], token=coat)
+            [upper_radius * s, upper_radius * .82 * s, .082 * s,
+             .085 * s, .057 * s, .061 * s, .064 * s], token=coat)
     return {"surface": surface, "limbs": limbs}
 
 
@@ -374,8 +386,9 @@ def _skin_donkey(spec, motion_root, levels):
     for label, rings in pivots["anatomy"]["limbs"].items():
         upper, lower = "donkey_" + label, "donkey_lower_" + label
         for ring, values in zip(rings, [
-            {"donkey_spine": .70, upper: .30}, {upper: 1.0},
-            {upper: .5, lower: .5}, {lower: 1.0}, {lower: 1.0},
+            {"donkey_spine": .70, upper: .30}, {upper: 1.0}, {upper: 1.0},
+            {upper: .85, lower: .15}, {upper: .5, lower: .5},
+            {lower: 1.0}, {lower: 1.0}, {lower: 1.0},
         ]):
             weights(ring, values)
     for index, level in enumerate(levels[1:], 1):
@@ -421,18 +434,12 @@ def _build_donkey_lod(spec: dict, lod_root):
     # One barrel-to-neck-to-muzzle surface. Pale regions share its vertices.
     anatomy = _donkey_anatomy(spec, lod_root, named("anatomy"))
 
-    mane_count = 6 if detail else 3
-    for index in range(mane_count):
-        progress = index / max(1, mane_count - 1)
-        my = (-0.34 - progress * 0.40) * s
-        mz = (1.35 + progress * 0.22) * s
-        body_meshes.append(add_tri_prism(
-            named(f"mane_{index}"),
-            (0.0, my, mz),
-            (0.06 * s, 0.08 * s, 0.16 * s),
-            dark, lod_root,
-            rotation=(0.0, math.radians(10), 0.0),
-        ))
+    body_meshes.append(add_limb_tube(named("mane_crest"),
+        [(0, y * s, z * s) for y, z in
+         ((-.32, 1.38), (-.43, 1.48), (-.54, 1.61), (-.67, 1.72), (-.80, 1.735))],
+        [(width * s, depth * s) for width, depth in
+         ((.025, .025), (.035, .050), (.038, .058), (.030, .05), (.018, .025))],
+        dark, lod_root, sides=8 if detail else 6))
 
     # 4. Authored Low-Poly Head & Snout (parented to head_pivot)
     head_meshes = []
@@ -442,29 +449,31 @@ def _build_donkey_lod(spec: dict, lod_root):
             (0.07 * s, 0.08 * s, 0.11 * s), dark, lod_root,
             rotation=(math.radians(-14), 0.0, 0.0),
         ))
-        head_meshes.append(add_box(
-            named("nostril_left"), (-0.05 * s, -1.36 * s, 1.48 * s),
-            (0.022 * s, 0.026 * s, 0.022 * s), dark, lod_root, bevel=0.0,
+        head_meshes.append(add_ico(
+            named("nostril_left"), (-0.068 * s, -1.372 * s, 1.48 * s),
+            (0.025 * s, 0.012 * s, 0.018 * s), dark, lod_root, subdivisions=1,
         ))
-        head_meshes.append(add_box(
-            named("nostril_right"), (0.05 * s, -1.36 * s, 1.48 * s),
-            (0.022 * s, 0.026 * s, 0.022 * s), dark, lod_root, bevel=0.0,
+        head_meshes.append(add_ico(
+            named("nostril_right"), (0.068 * s, -1.372 * s, 1.48 * s),
+            (0.025 * s, 0.012 * s, 0.018 * s), dark, lod_root, subdivisions=1,
         ))
         head_meshes.append(add_box(
             named("mouth_seam"), (0.0, -1.32 * s, 1.41 * s),
             (0.09 * s, 0.03 * s, 0.01 * s), dark, lod_root, bevel=0.0,
         ))
         for side, sign in (("left", -1.0), ("right", 1.0)):
-            head_meshes.append(add_box(
+            head_meshes.append(add_ico(
                 named(f"eye_ring_{side}"), (sign * 0.155 * s, -1.02 * s, 1.60 * s),
-                (0.018 * s, 0.06 * s, 0.05 * s), mealy, lod_root, bevel=0.003 * s,
-                rotation=(math.radians(14), sign * math.radians(-10), 0.0),
+                (0.018 * s, 0.045 * s, 0.032 * s), mealy, lod_root, subdivisions=2,
             ))
-            head_meshes.append(add_box(
-                named(f"eye_pupil_{side}"), (sign * 0.163 * s, -1.02 * s, 1.60 * s),
-                (0.012 * s, 0.032 * s, 0.032 * s), dark, lod_root, bevel=0.002 * s,
-                rotation=(math.radians(14), sign * math.radians(-10), 0.0),
+            head_meshes.append(add_ico(
+                named(f"eye_pupil_{side}"), (sign * 0.172 * s, -1.025 * s, 1.60 * s),
+                (0.012 * s, 0.025 * s, 0.023 * s), dark, lod_root, subdivisions=2,
             ))
+            head_meshes.append(add_limb_tube(named(f"eyelid_{side}"),
+                [(sign * .171 * s, y * s, z * s) for y, z in
+                 ((-1.058, 1.603), (-1.045, 1.624), (-1.018, 1.630), (-.990, 1.612))],
+                [.009 * s] * 4, coat, lod_root, sides=6))
 
     # 5. Long Cupped Ears (parented to ear pivots)
     ear_left_meshes = []
@@ -472,32 +481,29 @@ def _build_donkey_lod(spec: dict, lod_root):
     ear_h = 0.44 * ear_length * s
     for side, sign in (("left", -1.0), ("right", 1.0)):
         target_list = ear_left_meshes if side == "left" else ear_right_meshes
-        target_list.append(add_tri_prism(
-            named(f"ear_cup_{side}"),
-            (sign * 0.15 * s, -0.88 * s, 1.70 * s + ear_h * 0.40),
-            (0.13 * s, 0.08 * s, ear_h * 0.65), coat, lod_root,
-            rotation=(math.radians(-10), sign * math.radians(18), sign * math.radians(8)),
-        ))
-        target_list.append(add_tri_prism(
-            named(f"ear_tip_{side}"),
-            (sign * 0.18 * s, -0.88 * s, 1.70 * s + ear_h * 0.82),
-            (0.08 * s, 0.06 * s, ear_h * 0.28), dark, lod_root,
-            rotation=(math.radians(-12), sign * math.radians(20), sign * math.radians(8)),
-        ))
-        if detail:
-            target_list.append(add_box(
-                named(f"ear_inner_{side}"),
-                (sign * 0.145 * s, -0.905 * s, 1.70 * s + ear_h * 0.42),
-                (0.065 * s, 0.016 * s, ear_h * 0.52), mealy, lod_root, bevel=0.0,
-                rotation=(math.radians(-10), sign * math.radians(18), sign * math.radians(8)),
-            ))
+        # Shared rings give the ear a tapered rim instead of stacked wedges.
+        ear = add_lofted_form(named(f"ear_cup_{side}"), [
+            ((sign * .12 * s, -.88 * s, 1.69 * s), .035 * s, .030 * s),
+            ((sign * .15 * s, -.88 * s, 1.70 * s + ear_h * .28), .068 * s, .032 * s),
+            ((sign * .19 * s, -.87 * s, 1.70 * s + ear_h * .65), .057 * s, .024 * s),
+            ((sign * .215 * s, -.85 * s, 1.70 * s + ear_h * .90), .032 * s, .016 * s),
+            ((sign * .22 * s, -.84 * s, 1.70 * s + ear_h), .008 * s, .007 * s),
+        ], coat, lod_root, sides=8 if detail else 6)
+        from common.materials import get_or_create_material
+        ear.data.materials.append(get_or_create_material(mealy))
+        ear_sides = 8 if detail else 6
+        for face in ear.data.polygons:
+            if face.normal.y < -.65 and ear_sides <= face.index < 3 * ear_sides:
+                face.material_index = 1
+        target_list.append(ear)
 
     # 6. Tail (parented to tail_pivot)
     tail_meshes = [
-        add_tapered_beam(
-            named("tail_dock"), (0.0, 0.72 * s, 1.24 * s), (0.0, 0.94 * s, 0.84 * s),
-            0.042 * s, 0.022 * s, coat, lod_root, vertices=5,
-        ),
+        add_limb_tube(named("tail_dock"),
+            [(x * s, y * s, z * s) for x, y, z in
+             ((0, .72, 1.24), (.015, .83, 1.17), (.025, .92, .99), (0, .96, .83))],
+            [.042 * s, .036 * s, .025 * s, .022 * s], coat, lod_root,
+            sides=8 if detail else 6),
         add_ico(
             named("tail_switch"), (0.0, 0.96 * s, 0.76 * s),
             (0.09 * s, 0.08 * s, 0.15 * s), dark, lod_root, subdivisions=1,
@@ -511,33 +517,39 @@ def _build_donkey_lod(spec: dict, lod_root):
         ))
 
     # 7. Coastal Riding Saddle & Tack
-    saddle_blanket = add_box(
-        named("saddle_blanket"), (0.0, 0.04 * s, 1.37 * s),
-        (0.64 * s, 0.72 * s, 0.05 * s), mealy, lod_root, bevel=0.012 * s if detail else 0.0,
+    blanket_path = [(x * s, .04 * s, z * s) for x, z in
+                    ((-.35, 1.02), (-.32, 1.19), (-.22, 1.34), (0, 1.405),
+                     (.22, 1.34), (.32, 1.19), (.35, 1.02))]
+    saddle_blanket = add_limb_tube(
+        named("saddle_blanket"), blanket_path, [(.36 * s, .018 * s)] * 7,
+        mealy, lod_root, sides=8 if detail else 4,
     )
-    saddle_base = add_box(
-        named("saddle_seat"), (0.0, 0.04 * s, 1.42 * s),
-        (0.46 * s, 0.48 * s, 0.06 * s), leather, lod_root, bevel=0.014 * s if detail else 0.0,
-    )
+    saddle_base = add_limb_tube(named("saddle_seat"),
+        [(0, y * s, z * s) for y, z in
+         ((-.21, 1.455), (-.12, 1.435), (.04, 1.425), (.18, 1.45), (.25, 1.49))],
+        [(width * s, .028 * s) for width in (.13, .18, .21, .22, .19)],
+        leather, lod_root, sides=12 if detail else 8)
     body_meshes.extend([saddle_blanket, saddle_base])
 
     if detail:
-        saddle_trim = add_box(
-            named("saddle_trim"), (0.0, 0.04 * s, 1.355 * s),
-            (0.68 * s, 0.76 * s, 0.025 * s), teal, lod_root, bevel=0.006 * s,
+        saddle_trim = add_limb_tube(
+            named("saddle_trim"), [(x, y, z - .024 * s) for x, y, z in blanket_path],
+            [(.38 * s, .012 * s)] * 7, teal, lod_root, sides=8,
         )
-        saddle_pommel = add_box(
-            named("saddle_pommel"), (0.0, -0.16 * s, 1.47 * s),
-            (0.22 * s, 0.10 * s, 0.08 * s), leather, lod_root, bevel=0.015 * s,
-        )
-        saddle_cantle = add_box(
-            named("saddle_cantle"), (0.0, 0.22 * s, 1.48 * s),
-            (0.26 * s, 0.10 * s, 0.09 * s), leather, lod_root, bevel=0.015 * s,
-        )
-        saddle_girth = add_box(
-            named("saddle_girth"), (0.0, -0.02 * s, 1.12 * s),
-            (0.58 * s, 0.06 * s, 0.46 * s), leather, lod_root, bevel=0.008 * s,
-        )
+        saddle_pommel = add_limb_tube(named("saddle_pommel"),
+            [(x * s, -.19 * s, z * s) for x, z in
+             ((-.14, 1.45), (-.08, 1.49), (0, 1.51), (.08, 1.49), (.14, 1.45))],
+            [.025 * s] * 5, leather, lod_root, sides=8)
+        saddle_cantle = add_limb_tube(named("saddle_cantle"),
+            [(x * s, y * s, z * s) for x, y, z in
+             ((-.20, .18, 1.46), (-.16, .25, 1.50), (0, .28, 1.535),
+              (.16, .25, 1.50), (.20, .18, 1.46))],
+            [.027 * s] * 5, leather, lod_root, sides=8)
+        saddle_girth = add_limb_tube(named("saddle_girth"),
+            [(x * s, -.02 * s, z * s) for x, z in
+             ((-.30, 1.32), (-.34, 1.12), (-.26, .91), (0, .80),
+              (.26, .91), (.34, 1.12), (.30, 1.32))],
+            [(.030 * s, .009 * s)] * 7, leather, lod_root, sides=6)
         breastplate = add_box(
             named("breastplate"), (0.0, -0.34 * s, 1.20 * s),
             (0.52 * s, 0.12 * s, 0.04 * s), leather, lod_root, bevel=0.006 * s,
@@ -565,20 +577,22 @@ def _build_donkey_lod(spec: dict, lod_root):
             )
             body_meshes.extend([stirrup_leather, stirrup_iron])
 
-        bridle_headstall = add_box(
-            named("bridle_headstall"), (0.0, -0.92 * s, 1.62 * s),
-            (0.32 * s, 0.035 * s, 0.28 * s), leather, lod_root, bevel=0.005 * s,
-            rotation=(math.radians(14), 0.0, 0.0),
-        )
-        bridle_browband = add_box(
-            named("bridle_browband"), (0.0, -1.00 * s, 1.68 * s),
-            (0.31 * s, 0.035 * s, 0.035 * s), leather, lod_root, bevel=0.004 * s,
-        )
-        bridle_noseband = add_box(
-            named("bridle_noseband"), (0.0, -1.18 * s, 1.52 * s),
-            (0.24 * s, 0.035 * s, 0.18 * s), leather, lod_root, bevel=0.005 * s,
-            rotation=(math.radians(16), 0.0, 0.0),
-        )
+        # Narrow fitted straps leave the cheeks and forehead visible.
+        bridle_headstall = add_limb_tube(named("bridle_headstall"),
+            [(x * s, y * s, z * s) for x, y, z in
+             ((-.15, -.95, 1.48), (-.17, -.93, 1.59), (-.12, -.90, 1.71),
+              (0, -.88, 1.745), (.12, -.90, 1.71), (.17, -.93, 1.59), (.15, -.95, 1.48))],
+            [(.016 * s, .009 * s)] * 7, leather, lod_root, sides=6)
+        bridle_browband = add_limb_tube(named("bridle_browband"),
+            [(x * s, y * s, z * s) for x, y, z in
+             ((-.155, -.98, 1.65), (-.10, -1.02, 1.69), (0, -1.035, 1.71),
+              (.10, -1.02, 1.69), (.155, -.98, 1.65))],
+            [(.016 * s, .008 * s)] * 5, leather, lod_root, sides=6)
+        bridle_noseband = add_limb_tube(named("bridle_noseband"),
+            [(x * s, -1.22 * s, z * s) for x, z in
+             ((-.10, 1.42), (-.135, 1.48), (-.09, 1.565), (0, 1.59),
+              (.09, 1.565), (.135, 1.48), (.10, 1.42))],
+            [(.018 * s, .009 * s)] * 7, leather, lod_root, sides=6)
         head_meshes.extend([bridle_headstall, bridle_browband, bridle_noseband])
 
         for side, sign in (("left", 1.0), ("right", -1.0)):

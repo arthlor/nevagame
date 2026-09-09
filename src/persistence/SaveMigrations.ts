@@ -1,3 +1,6 @@
+import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
+import { migrateOnboardingCredits35 } from "./migrateOnboardingCredits35";
+import { migrateTerrainLayout15 } from "./migrateTerrainLayout15";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -10,6 +13,7 @@ import { WorldLayout } from "../world/WorldLayout";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
 import { DEFAULT_MINUTES_PER_REAL_SECOND, seasonAtMinute, GameClock } from "../simulation/core/GameClock";
+import { marketSupplyCeiling } from "../simulation/economy/updateMarket";
 import {
   createStarterDonkeyState,
   MOUNT_TUNING,
@@ -18,6 +22,7 @@ import {
 } from "../simulation/mounts/Mounts";
 import { ownedRodsThrough } from "../content/rods";
 import { WORK_CAPACITY_MAXIMUM } from "../simulation/domains/ProgressionDomain";
+import { PROCESSING_JOB_SNAPSHOT_LIMITS } from "../simulation/domains/ProcessingDomain";
 import { voidActiveContracts } from "../simulation/domains/ContractDomain";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
 import { MAIN_QUEST_TRACK_ID } from "../simulation/core/QuestTypes";
@@ -36,8 +41,54 @@ const LAYOUT_5_MILL = { x: 46, z: -58 } as const;
 /** Layout revision 6 mill pad, southwest of the packed plaza. Frozen for the v14 hop. */
 const LAYOUT_6_MILL = { x: 36, z: -76 } as const;
 
+/** Frozen v36 recipe payloads. Migration 37 must not reinterpret pending jobs through future content edits. */
+const V36_PROCESSING_SNAPSHOTS: Record<string, { name: string; outputLabel: string; result: unknown }> = {
+  "recipe.wheat_to_grain": { name: "Mill Wheat into Ground Grain", outputLabel: "Ground Grain", result: { kind: "items", stacks: [{ itemId: "item.ground_grain", quantity: 2 }] } },
+  "recipe.barley_to_grain": { name: "Mill Barley into Ground Grain", outputLabel: "Ground Grain", result: { kind: "items", stacks: [{ itemId: "item.ground_grain", quantity: 2 }] } },
+  "recipe.craft_chum": { name: "Mix Chum Bucket", outputLabel: "Chum Bucket", result: { kind: "items", stacks: [{ itemId: "item.chum_bucket", quantity: 1 }] } },
+  "recipe.craft_chum_rich": { name: "Mix Rich Chum Blend", outputLabel: "Rich Chum Blend", result: { kind: "items", stacks: [{ itemId: "item.chum_rich", quantity: 1 }] } },
+  "recipe.craft_chum_deep": { name: "Mix Sinking Deep Chum", outputLabel: "Sinking Deep Chum", result: { kind: "items", stacks: [{ itemId: "item.chum_deep", quantity: 1 }] } },
+  "recipe.craft_lure": { name: "Tie Woven Lure Batch", outputLabel: "Woven Lure", result: { kind: "items", stacks: [{ itemId: "item.basic_lure", quantity: 2 }] } },
+  "recipe.craft_lure_simple": { name: "Twist a Woven Lure", outputLabel: "Woven Lure", result: { kind: "items", stacks: [{ itemId: "item.basic_lure", quantity: 1 }] } },
+  "recipe.fish_to_fertilizer": { name: "Process Fish Scraps into Fertilizer", outputLabel: "Basic Fertilizer", result: { kind: "items", stacks: [{ itemId: "item.basic_fertilizer", quantity: 1 }] } },
+  "recipe.compost_worms": { name: "Cultivate Bait Worms", outputLabel: "Bait Worms", result: { kind: "items", stacks: [{ itemId: "item.bait_worms", quantity: 25 }] } },
+  "recipe.perch_to_scraps": { name: "Clean Perch into Scraps", outputLabel: "Fish Scraps", result: { kind: "items", stacks: [{ itemId: "item.fish_scraps", quantity: 2 }] } },
+  "recipe.mackerel_to_scraps": { name: "Clean Mackerel into Scraps", outputLabel: "Fish Scraps", result: { kind: "items", stacks: [{ itemId: "item.fish_scraps", quantity: 2 }] } },
+  "recipe.carp_to_scraps": { name: "Clean Carp into Scraps", outputLabel: "Fish Scraps", result: { kind: "items", stacks: [{ itemId: "item.fish_scraps", quantity: 2 }] } },
+  "recipe.sunflower_to_grain": { name: "Mill Sunflower Seed into Ground Grain", outputLabel: "Ground Grain", result: { kind: "items", stacks: [{ itemId: "item.ground_grain", quantity: 2 }] } },
+  "recipe.cure_sardine": { name: "Salt-Cure Sardines", outputLabel: "Salt-Cured Fish", result: { kind: "items", stacks: [{ itemId: "item.salt_cured_fish", quantity: 1 }] } },
+  "recipe.sardine_to_scraps": { name: "Clean Sardines into Scraps", outputLabel: "Fish Scraps", result: { kind: "items", stacks: [{ itemId: "item.fish_scraps", quantity: 2 }] } }
+};
+
 function finite(value: unknown, fallback: number = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Schema 36 saves can contain commodities that were authored while that
+ * schema was live but were retired before schema 37 shipped. Preserve every
+ * still-authored market value verbatim and remove only entries the owning
+ * market definition no longer exposes. Missing current entries are added by
+ * fillMissingMarketCommodities after the versioned migration completes.
+ */
+function reconcileV36MarketMembership(markets: unknown): unknown {
+  if (!isObjectRecord(markets)) return markets;
+  ContentRegistry.initializeAndValidate();
+  return Object.fromEntries(Object.entries(markets).map(([marketId, rawMarket]) => {
+    const definition = ContentRegistry.markets.get(marketId);
+    if (!definition || !isObjectRecord(rawMarket) || !isObjectRecord(rawMarket.commodities)) {
+      return [marketId, rawMarket];
+    }
+    const authoredItemIds = new Set(definition.commodities.map((commodity) => commodity.itemId));
+    const commodities = Object.fromEntries(
+      Object.entries(rawMarket.commodities).filter(([itemId]) => authoredItemIds.has(itemId))
+    );
+    return [marketId, { ...rawMarket, commodities }];
+  }));
 }
 
 function countInventoryTroutUnits(inventories: Record<string, Record<string, unknown>>): number {
@@ -818,10 +869,37 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
     if (!Array.isArray(journal.unlockedKnowledge)) {
       journal.unlockedKnowledge = [];
     }
-    const fishRecords = { ...((journal.fishRecords ?? {}) as Record<string, Record<string, unknown>>) };
+    // Fish records were introduced after the oldest journal shape, so an
+    // absent map is a valid legacy default. Once present, however, it must be
+    // an object; coercing null/arrays/primitives to an empty map would silently
+    // erase the player's fishing history instead of allowing backup recovery.
+    const rawFishRecords = journal.fishRecords;
+    if (rawFishRecords !== undefined && !isObjectRecord(rawFishRecords)) {
+      throw new Error("Save migration v22 failed: journal.fishRecords is malformed");
+    }
+    const fishRecords = { ...((rawFishRecords ?? {}) as Record<string, Record<string, unknown>>) };
     for (const [speciesId, record] of Object.entries(fishRecords)) {
       if (!record || typeof record !== "object") continue;
-      fishRecords[speciesId] = { ...record, bestQuality: remapQuality(record.bestQuality) as string };
+      if (
+        record.catchCount !== undefined &&
+        record.caughtCount !== undefined &&
+        record.catchCount !== record.caughtCount
+      ) {
+        throw new Error(`Save migration v22 failed: conflicting fish count for ${speciesId}`);
+      }
+      const recordCount = record.catchCount ?? record.caughtCount;
+      const normalized: Record<string, unknown> = {
+        ...record,
+        ...(record.catchCount === undefined && Object.prototype.hasOwnProperty.call(record, "caughtCount")
+          ? { catchCount: record.caughtCount }
+          : {}),
+        ...(record.discovered === undefined
+          ? { discovered: typeof recordCount === "number" && Number.isFinite(recordCount) && recordCount > 0 }
+          : {}),
+        bestQuality: remapQuality(record.bestQuality) as string
+      };
+      delete normalized.caughtCount;
+      fishRecords[speciesId] = normalized;
     }
     journal.fishRecords = fishRecords;
     let basicFishing = previous.basicFishing;
@@ -1240,7 +1318,105 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   },
   31: (state: unknown) => migrateTerrainLayout11(state as GameState),
   32: (state: unknown) => migrateTerrainLayout12(state as GameState),
-  33: (state: unknown) => migrateTerrainLayout13(state as GameState)
+  33: (state: unknown) => migrateTerrainLayout13(state as GameState),
+  34: (state: unknown) => migrateTerrainLayout14(state as GameState),
+  35: (state: unknown) => migrateOnboardingCredits35(state as GameState),
+  36: (state: unknown) => migrateTerrainLayout15(state as GameState),
+  37: (state: unknown) => {
+    const previous = state as unknown as Record<string, unknown>;
+    const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
+    const oldJobs = (previous.processingJobs ?? {}) as Record<string, Record<string, unknown>>;
+    const processingJobs: Record<string, unknown> = {};
+    const currentMinute = (previous.clock as { currentMinute?: unknown } | undefined)?.currentMinute;
+    if (!Number.isSafeInteger(currentMinute) || (currentMinute as number) < 0) {
+      throw new Error("Save migration v37 failed: invalid game clock");
+    }
+    for (const [jobId, oldJob] of Object.entries(oldJobs)) {
+      if (oldJob.status === "collected") continue;
+      if (oldJob.status !== "active" && oldJob.status !== "complete") {
+        throw new Error(`Save migration v37 failed: invalid status for pending job '${jobId}'`);
+      }
+      const recipeId = typeof oldJob.recipeId === "string" ? oldJob.recipeId : "";
+      const snapshot = V36_PROCESSING_SNAPSHOTS[recipeId];
+      if (!snapshot) throw new Error(`Save migration v37 failed: unknown pending recipe '${recipeId}'`);
+      const startedAtMinute = oldJob.startedAtMinute;
+      const completesAtMinute = oldJob.completesAtMinute;
+      if (
+        !Number.isSafeInteger(startedAtMinute) ||
+        !Number.isSafeInteger(completesAtMinute) ||
+        (startedAtMinute as number) < 0 ||
+        (startedAtMinute as number) > (currentMinute as number) ||
+        (completesAtMinute as number) <= (startedAtMinute as number) ||
+        (completesAtMinute as number) - (startedAtMinute as number) > PROCESSING_JOB_SNAPSHOT_LIMITS.maxDurationMinutes
+      ) {
+        throw new Error(`Save migration v37 failed: invalid timeline for pending job '${jobId}'`);
+      }
+      if (oldJob.status === "complete" && (currentMinute as number) < (completesAtMinute as number)) {
+        throw new Error(`Save migration v37 failed: pending job '${jobId}' completes before its deadline`);
+      }
+      const status = oldJob.status === "complete" || (currentMinute as number) >= (completesAtMinute as number)
+        ? "complete"
+        : "active";
+      processingJobs[jobId] = {
+        ...oldJob,
+        status,
+        recipeName: snapshot.name,
+        outputLabel: snapshot.outputLabel,
+        result: structuredClone(snapshot.result),
+        workTier: "standard",
+        presentationKind: "existing",
+        baseWork: 35,
+        // v36 did not persist the proficiency-adjusted debit. Preserve a
+        // conservative truthful upper bound; this field is never refunded.
+        chargedWork: 35,
+        xpReward: 35,
+        effectiveDurationMinutes: (completesAtMinute as number) - (startedAtMinute as number)
+      };
+    }
+    const sportFishing = isObjectRecord(previous.sportFishing)
+      ? {
+          ...previous.sportFishing,
+          equipmentEffects: {
+            lineIntegrityDamageMultiplier: 1,
+            braceResistanceMultiplier: 1
+          }
+        }
+      : previous.sportFishing;
+    const starterClothing = {
+      head: "equipment.weathered_straw_hat",
+      outerwear: "equipment.work_vest",
+      feet: "equipment.mud_boots"
+    };
+    return {
+      ...previous,
+      schemaVersion: 37,
+      markets: reconcileV36MarketMembership(previous.markets),
+      player: {
+        ...player,
+        equipment: {
+          ownedIds: [
+            "equipment.weathered_straw_hat",
+            "equipment.work_vest",
+            "equipment.mud_boots",
+            "equipment.tin_watering_can",
+            "equipment.farm_sickle"
+          ],
+          equipped: {
+            ...starterClothing,
+            "watering-tool": "equipment.tin_watering_can",
+            "harvest-tool": "equipment.farm_sickle"
+          },
+          presets: {
+            field: { ...starterClothing },
+            sea: { ...starterClothing }
+          },
+          wardrobeCapacity: 20
+        }
+      },
+      processingJobs,
+      sportFishing
+    };
+  }
 };
 
 
@@ -1295,6 +1471,14 @@ function fillMissingMarketCommodities(state: GameState): void {
         lastTickMinute: lastTick,
         recentSalesVolume: 0
       };
+    }
+    // Saves written before the glut ceiling existed can carry a stock so far
+    // above target that the linear `relaxSupply` walk home takes hundreds of
+    // game hours. Normalise rather than reject: the surplus past the ceiling
+    // was already invisible to price.
+    for (const commodity of Object.values(market.commodities)) {
+      const ceiling = marketSupplyCeiling(commodity.targetSupply);
+      if (commodity.localSupply > ceiling) commodity.localSupply = ceiling;
     }
   }
 }

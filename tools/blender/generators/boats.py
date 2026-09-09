@@ -328,102 +328,187 @@ def _add_deck_crate(prefix: str, center, size: float, wood: str, dark: str, root
         0.028, dark, root, vertices=6,
     )
 
+def _rowboat_station(y, length, beam):
+    progress = min(1.0, max(0.0, y / length + .5))
+    width = beam * .5 * (.035 + .965 * math.sin(math.pi * .82 * progress) ** .70)
+    bow, stern = max(0, 1 - progress * 2), max(0, progress * 2 - 1)
+    return width, .52 + .19 * bow ** 2.5 + .055 * stern ** 2, -.40 + .23 * bow ** 3 + .10 * stern ** 3
+
+
+def _rowboat_section(y, level, length, beam, *, inset=0):
+    width, sheer, keel = _rowboat_station(y, length, beam)
+    # A rounded bilge opens into flared topsides; the ends retain a real rocker.
+    x = width * math.sin(level * math.pi * .5) - inset * level
+    z = keel + (sheer - keel) * level ** 1.50 + inset * (1 - level)
+    return x, z
+
+
+def _rowboat_clinker_hull(spec, root):
+    honey, dark, teal, brass = spec["palette"]
+    length, beam = spec["parameters"]["length"], spec["parameters"]["beam"]
+    segments = spec["parameters"]["ribCount"]
+    for side in (-1, 1):
+        for band in range(5):
+            vertices, faces, materials = [], [], []
+            for index in range(segments + 1):
+                y = -length * .5 + length * index / segments
+                low, high = max(0, band / 5 - .012), (band + 1) / 5
+                for level, inset in ((low, 0), (high, 0), (high, .055), (low, .055)):
+                    x, z = _rowboat_section(y, level, length, beam, inset=inset)
+                    # A small projecting lower arris makes the lap readable without a dark outline.
+                    x += .018 * (1 - inset / .055) * (1 if level == low else .25)
+                    vertices.append((side * x, y, z))
+            for index in range(segments):
+                a, b = index * 4, (index + 1) * 4
+                for edge in range(4):
+                    faces.append((a + edge, b + edge, b + (edge + 1) % 4, a + (edge + 1) % 4))
+                    materials.append(1 if band < 2 and edge != 2 else 0)
+            faces.extend(((3, 2, 1, 0), tuple(range(segments * 4, segments * 4 + 4))))
+            materials.extend((0, 0))
+            obj = _finish_authored_mesh(f"rowboat_strake_{side}_{band}", vertices, faces, materials,
+                                        (honey, teal), root)
+            set_surface_normals(obj, "rounded", faces=[i for i in range(segments * 4) if i % 4 in (0, 2)])
+    keel_points = []
+    for index in range(segments + 1):
+        y = -length * .5 + index * length / segments
+        keel_points.append((0, y, _rowboat_station(y, length, beam)[2] - .018))
+    add_rope_line("rowboat_rockered_keel", keel_points, .045, dark, root, vertices=5)
+    for index in range(spec["parameters"]["innerPlanks"]):
+        y = -length * .34 + index * length * .76 / (spec["parameters"]["innerPlanks"] - 1)
+        points = []
+        for step in range(11):
+            side = -1 if step < 5 else 1
+            level = abs(step - 5) / 5
+            x, z = _rowboat_section(y, level, length, beam, inset=.078)
+            points.append((side * x, y, z))
+        add_rope_line(f"rowboat_steam_bent_rib_{index}", points, .025, dark, root, vertices=4)
+    # The broad, raked transom closes the aft hull instead of a second pointed stem.
+    for band in range(5):
+        vertices = []
+        for depth in (0, -.075):
+            for level, side in ((band / 5, -1), (band / 5, 1), ((band + 1) / 5, 1), ((band + 1) / 5, -1)):
+                x, z = _rowboat_section(length * .5, level, length, beam)
+                vertices.append((side * max(.025, x), length * .5 + depth, z))
+        faces = [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
+        _finish_authored_mesh(f"rowboat_transom_plank_{band}", vertices, faces,
+                              [1 if band < 2 and i == 0 else 0 for i in range(6)], (honey, teal), root)
+
+
+def _rowboat_oar(side_name, side, honey, dark, teal, brass, root):
+    from mathutils import Vector
+    grip = Vector((side * .24, .02, .80))
+    lock = Vector((side * .78, .04, .66))
+    direction = (lock - grip).normalized()
+    across = Vector((0, 1, 0))
+    across = (across - direction * across.dot(direction)).normalized()
+    normal = direction.cross(across).normalized()
+    oar_root = add_marker(f"boat_rowboat_oar_{side_name}_root", grip, root, marker_type="oar_pivot")
+    shaft = add_beam(f"rowboat_oar_{side_name}_shaft", grip - direction * .10,
+                     grip + direction * 1.37, .028, honey, root, vertices=8)
+    cuff = add_beam(f"rowboat_oar_{side_name}_leather", lock - direction * .085,
+                    lock + direction * .085, .034, dark, root, vertices=8)
+    vertices, faces, materials = [], [], []
+    for distance, width, thickness in ((1.27, .030, .020), (1.40, .095, .022), (1.79, .115, .016), (1.93, .100, .012), (1.98, .060, .008)):
+        center = grip + direction * distance
+        for cross, depth in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            vertices.append(tuple(center + across * width * cross + normal * thickness * depth))
+    for index in range(4):
+        for edge in range(4):
+            faces.append((index * 4 + edge, (index + 1) * 4 + edge,
+                          (index + 1) * 4 + (edge + 1) % 4, index * 4 + (edge + 1) % 4))
+            materials.append(int(index == 3))
+    faces.extend(((3, 2, 1, 0), (16, 17, 18, 19)))
+    materials.extend((0, 1))
+    blade = _finish_authored_mesh(f"rowboat_oar_{side_name}_spoon", vertices, faces, materials, (honey, teal), root)
+    bpy.context.view_layer.update()
+    for part in (shaft, cuff, blade):
+        world_matrix = part.matrix_world.copy()
+        part.parent = oar_root
+        part.matrix_world = world_matrix
+    join_meshes((shaft, cuff, blade), f"rowboat_oar_{side_name}")
+    add_grip_marker(f"boat_rowboat_oar_{side_name}_grip", (0, 0, .022), oar_root,
+                    fingers=(-side * direction.y, side * direction.x, 0), contact_normal=(0, 0, -1))
+    add_ring(f"boat_rowboat_oarlock_{side_name}", lock, .053, .012, brass, root,
+             major_segments=10, minor_segments=4,
+             rotation=(0, math.pi / 2 + side * math.atan2(.14, .54), 0))
+    add_box(f"rowboat_oarlock_mount_{side_name}", (side * .80, .04, .578),
+            (.12, .14, .025), brass, root, bevel=.008)
+    add_beam(f"rowboat_thole_pin_{side_name}", (side * .78, .04, .582),
+             (side * .78, .04, .615), .024, brass, root, vertices=6)
+
+
 def rowboat(spec: dict, root) -> None:
-    honey, warm, dark = spec["palette"]
+    honey, dark, teal, brass = spec["palette"]
     params = spec["parameters"]
     length, beam = params["length"], params["beam"]
-    _planked_hull("rowboat", length, beam, params["ribCount"], 3, (honey, warm), root)
-    half_length = length * 0.5
-    for segment in range(params["innerPlanks"]):
-        y = -half_length * 0.82 + segment * length * 0.82 / max(1, params["innerPlanks"] - 1)
-        width = _hull_half_width(y, half_length, beam) * 0.74
-        for side in (-1, 1):
-            add_box(
-                f"rowboat_inner_plank_{segment:02d}_{'left' if side < 0 else 'right'}",
-                (side * width, y, 0.02), (0.13, length / params["innerPlanks"] * 0.90, 0.42),
-                warm if segment % 3 else dark, root,
-                rotation=(side * math.radians(18), 0, 0), bevel=0.022,
-            )
+    _rowboat_clinker_hull(spec, root)
     for side in (-1, 1):
         points = []
         for index in range(params["gunwaleSegments"] + 1):
-            y = -half_length * 0.92 + index * length * 0.92 / params["gunwaleSegments"]
-            points.append((side * _hull_half_width(y, half_length, beam) * 0.98, y, 0.52))
-        add_rope_line(f"rowboat_gunwale_{'left' if side < 0 else 'right'}", points, 0.07, dark, root, vertices=7)
-    add_beam("rowboat_stem", (0, -half_length * 0.98, -0.35), (0, -half_length * 1.02, 0.62), 0.085, dark, root, vertices=7)
-    add_beam("rowboat_stern", (0, half_length * 0.98, -0.35), (0, half_length * 1.02, 0.62), 0.085, dark, root, vertices=7)
-    for index, y in enumerate((-0.78, 0.18, 0.92)):
-        width = _hull_half_width(y, length * 0.5, beam) * 1.55
-        add_box(f"rowboat_bench_{index}", (0, y, 0.36), (width, 0.32, 0.10), dark, root, bevel=0.028)
-    add_plank_field(
-        "rowboat_floorboard", (0, 0.05, -0.12), beam * 0.54, length * 0.58, 0.07,
-        (honey, warm), root, count=10, axis="y", bevel=0.014,
-    )
-    add_box(
-        "rowboat_foot_stretcher", (0, -0.23, 0.03), (0.62, 0.08, 0.20),
-        dark, root, rotation=(math.radians(-12), 0, 0), bevel=0.018,
-    )
-    add_marker("boat_rowboat_rower_seat", (0, 0.18, 0.42), root, marker_type="pelvis_contact")
+            y = -length * .5 + index * length / params["gunwaleSegments"]
+            width, sheer, _ = _rowboat_station(y, length, beam)
+            points.append((side * width, y, sheer + .012))
+        add_rope_line(f"rowboat_oiled_caprail_{side}", points, .057, dark, root, vertices=6)
+    stern_width, stern_height, _ = _rowboat_station(length * .5, length, beam)
+    add_beam("rowboat_transom_crown", (-stern_width, length * .5, stern_height + .012),
+             (stern_width, length * .5, stern_height + .012), .057, dark, root, vertices=6)
+    add_rope_line("rowboat_swept_stem", [(0, -length * .48, -.21), (0, -length * .51, .05),
+                  (0, -length * .516, .40), (0, -length * .502, .74)], .055, dark, root, vertices=6)
+    for index, y in enumerate((-.78, .18, .92)):
+        width = _rowboat_station(y, length, beam)[0] * 1.72
+        for plank in (-1, 1):
+            add_box(f"rowboat_thwart_{index}_{plank}", (0, y + plank * .080, .36),
+                    (width, .148, .10), honey, root, bevel=.018)
+        for side in (-1, 1):
+            end = width * .5
+            vertices = [(side * x, y + dy, z) for dy in (-.06, .06)
+                        for x, z in ((end, .31), (end - .17, .31), (end - .14, .10))]
+            _finish_authored_mesh(f"rowboat_thwart_knee_{index}_{side}", vertices,
+                [(0, 1, 2), (5, 4, 3), (0, 3, 4, 1), (1, 4, 5, 2), (2, 5, 3, 0)], [0] * 5, (dark,), root)
+            add_cylinder(f"rowboat_thwart_peg_{index}_{side}", (side * (end - .09), y, .414),
+                         .019, .009, dark, root, vertices=6)
+    for index in range(7):
+        x = (index - 3) * .105
+        plank_length = 2.60 - abs(x) * 3.3
+        add_box(f"rowboat_longitudinal_sole_{index}", (x, .25, -.13 + .003 * (index % 3)),
+                (.093, plank_length, .055), honey, root, bevel=.009)
+    add_box("rowboat_foot_stretcher", (0, -.23, .03), (.62, .08, .20),
+            dark, root, rotation=(math.radians(-12), 0, 0), bevel=.018)
+    add_marker("boat_rowboat_rower_seat", (0, .18, .42), root, marker_type="pelvis_contact")
     for side_name, side in (("left", 1), ("right", -1)):
-        support = add_marker(
-            f"boat_rowboat_foot_{side_name}_socket",
-            (side * 0.16, -0.23 + math.sin(math.radians(12)) * 0.10,
-             0.03 + math.cos(math.radians(12)) * 0.10), root, marker_type="foot_support",
-        )
+        support = add_marker(f"boat_rowboat_foot_{side_name}_socket",
+            (side * .16, -.23 + math.sin(math.radians(12)) * .10, .03 + math.cos(math.radians(12)) * .10),
+            root, marker_type="foot_support")
         support.rotation_euler = (math.radians(-12), 0, 0)
-    for side_name, side in (("left", 1), ("right", -1)):
-        grip = (side * 0.24, 0.02, 0.80)
-        blade_center = (side * 0.70, 0.44, 0.50)
-        blade_end = (side * 0.88, 0.52, 0.47)
-        oar_root = add_marker(
-            f"boat_rowboat_oar_{side_name}_root", grip, root, marker_type="oar_pivot"
-        )
-        shaft = add_beam(
-            f"rowboat_oar_{side_name}_shaft", grip, blade_end,
-            0.045, warm, root, vertices=7,
-        )
-        dx = blade_end[0] - grip[0]
-        dy = blade_end[1] - grip[1]
-        blade_rotation = math.atan2(-dx, dy)
-        blade = add_box(
-            f"rowboat_oar_{side_name}_blade", blade_center, (0.24, 0.64, 0.075), warm, root,
-            rotation=(0, 0, blade_rotation), bevel=0.025,
-        )
-        bpy.context.view_layer.update()
-        for part in (shaft, blade):
-            world_matrix = part.matrix_world.copy()
-            part.parent = oar_root
-            part.matrix_world = world_matrix
-        join_meshes((shaft, blade), f"rowboat_oar_{side_name}")
-        add_grip_marker(
-            f"boat_rowboat_oar_{side_name}_grip", (0, 0, 0.022), oar_root,
-            fingers=(-side * dy, side * dx, 0), contact_normal=(0, 0, -1),
-        )
-        add_ring(
-            f"boat_rowboat_oarlock_{side_name}", (side * 0.78, 0.04, 0.57),
-            0.09, 0.022, dark, root, major_segments=8, minor_segments=4,
-            rotation=(math.pi / 2, 0, 0),
-        )
-    add_box("rowboat_storage", (0, -1.35, 0.30), (beam * 0.62, 0.65, 0.38), dark, root, bevel=0.045)
-    add_marker("boat_rowboat_storage_01", (0, -1.35, 0.52), root, marker_type="storage")
-    add_rope_line(
-        "rowboat_painter", [(0, -half_length, 0.52), (0.08, -half_length - 0.38, 0.34), (-0.12, -half_length - 0.72, 0.18)],
-        0.035, warm, root, vertices=7,
-    )
-    add_box("rowboat_transom_cap", (0, half_length * 0.99, 0.28), (beam * 0.62, 0.10, 0.62), dark, root, bevel=0.02)
-    add_box("rowboat_bow_cap", (0, -half_length * 0.99, 0.28), (beam * 0.34, 0.10, 0.62), dark, root, bevel=0.02)
-    for index, y in enumerate((-0.40, 0.55)):
-        add_box(f"rowboat_knee_{index}", (0, y, 0.22), (beam * 0.70, 0.10, 0.16), dark, root, bevel=0.016)
-    add_box("rowboat_keelson", (0, 0.0, -0.22), (0.16, length * 0.62, 0.10), dark, root, bevel=0.012)
-    _join_direct_meshes(
-        root, spec["id"],
-        preserve_names=(
-            "boat_rowboat_oarlock_left",
-            "boat_rowboat_oarlock_right",
-        ),
-    )
+        _rowboat_oar(side_name, side, honey, dark, teal, brass, root)
+    # A fitted locker follows the narrowing bow; it does not intersect the hull.
+    vertices = [(side * width, y, z) for z in (.18, .485)
+                for y, width, side in ((-1.60, .25, -1), (-1.60, .25, 1), (-1.08, .40, 1), (-1.08, .40, -1))]
+    _finish_authored_mesh("rowboat_fitted_bow_locker", vertices,
+        [(3, 2, 1, 0), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)], [0] * 6, (dark,), root)
+    for index in range(5):
+        vertices = []
+        for z in (.485, .515):
+            for y, width, t in ((-1.60, .25, index / 5 + .01), (-1.60, .25, (index + 1) / 5 - .01),
+                                (-1.08, .40, (index + 1) / 5 - .01), (-1.08, .40, index / 5 + .01)):
+                vertices.append(((t * 2 - 1) * width, y, z))
+        _finish_authored_mesh(f"rowboat_fitted_lid_plank_{index}", vertices,
+            [(3, 2, 1, 0), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)], [0] * 6, (honey,), root)
+    for x in (-.23, .23):
+        add_box(f"rowboat_locker_hinge_{x}", (x, -1.12, .523), (.075, .10, .014), brass, root, bevel=.005)
+    add_ring("rowboat_locker_pull", (0, -1.52, .53), .035, .009, brass, root, major_segments=8, minor_segments=4)
+    add_marker("boat_rowboat_storage_01", (0, -1.35, .52), root, marker_type="storage")
+    coil = []
+    for index in range(37):
+        angle = index / 36 * math.tau * 2.15
+        radius = .045 + .090 * index / 36
+        coil.append((.05 + radius * math.cos(angle), -1.34 + radius * math.sin(angle), .541))
+    add_rope_line("rowboat_coiled_painter", coil, .016, honey, root, vertices=5)
+    add_rope_line("rowboat_painter_tail", [coil[-1], (.16, -1.54, .54), (.10, -1.75, .59), (0, -1.95, .70)],
+                  .016, honey, root, vertices=5)
+    add_beam("rowboat_bow_cleat", (-.09, -1.89, .65), (.09, -1.89, .65), .023, brass, root, vertices=6)
+    _join_direct_meshes(root, spec["id"], preserve_names=("boat_rowboat_oarlock_left", "boat_rowboat_oarlock_right"))
     add_collision_primitives(spec, root)
-
 
 
 def fishing_skiff(spec: dict, root) -> None:

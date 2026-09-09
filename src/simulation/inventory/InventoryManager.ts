@@ -24,10 +24,18 @@ export class InventoryManager {
   }
 
   public static isValidInventory(inventory: InventoryState): boolean {
-    if (!Number.isSafeInteger(inventory.slotCount) || inventory.slotCount < 0 || inventory.slots.length !== inventory.slotCount) {
+    if (
+      !inventory ||
+      typeof inventory !== "object" ||
+      !Array.isArray(inventory.slots) ||
+      !Number.isSafeInteger(inventory.slotCount) ||
+      inventory.slotCount < 0 ||
+      inventory.slots.length !== inventory.slotCount
+    ) {
       return false;
     }
     return inventory.slots.every((slot) => {
+      if (!slot || typeof slot !== "object") return false;
       const empty = slot.itemId === undefined && slot.quantity === undefined;
       const quantity = slot.quantity;
       const populated =

@@ -130,6 +130,7 @@ interface TemplateBatch {
   cropIds: string[];
   phaseAttribute?: THREE.InstancedBufferAttribute;
   windResponseAttribute?: THREE.InstancedBufferAttribute;
+  highlightAttribute?: THREE.InstancedBufferAttribute;
 }
 
 interface CropTemplate {
@@ -156,7 +157,7 @@ interface CropWindUniforms {
 }
 
 function patchCropWind(material: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
-  material.customProgramCacheKey = () => "neva-crop-instanced-wind-v1";
+  material.customProgramCacheKey = () => "neva-crop-instanced-wind-highlight-v2";
   material.onBeforeCompile = (shader) => {
     const uniforms: CropWindUniforms = {
       uTime: { value: 0 },
@@ -168,6 +169,8 @@ function patchCropWind(material: THREE.MeshStandardMaterial): THREE.MeshStandard
       .replace(
         "#include <common>",
         `#include <common>
+attribute float instanceHighlight;
+varying float vCropHighlight;
 attribute float instanceWindPhase;
 attribute float instanceWindResponse;
 uniform float uTime;
@@ -178,6 +181,7 @@ uniform float uWindStrength;`
         "#include <begin_vertex>",
         `#include <begin_vertex>
 {
+  vCropHighlight = instanceHighlight;
   float rootedHeight = smoothstep(0.04, 0.86, max(position.y, 0.0));
   float wave = sin(uTime * (1.05 + instanceWindPhase * 0.09) + instanceWindPhase);
   float gust = sin(uTime * 0.41 + instanceWindPhase * 1.73);
@@ -186,6 +190,7 @@ uniform float uWindStrength;`
   transformed.xz += windDirection * bend;
 }`
       );
+    shader.fragmentShader = `varying float vCropHighlight;\n${shader.fragmentShader}`.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vCropHighlight;");
     material.userData.nevaCropWindShader = shader;
   };
   return material;
@@ -235,6 +240,7 @@ function makeDisturbedSoilGeometry(): THREE.BufferGeometry {
  * remain in simulation; instance data rebuilds only when that truth changes.
  */
 export class CropInstanceRenderer {
+  private disposed = false;
   public readonly group = new THREE.Group();
   private readonly templates = new Map<AssetId, CropTemplate>();
   private readonly loading = new Map<AssetId, Promise<void>>();
@@ -246,10 +252,26 @@ export class CropInstanceRenderer {
   private readonly cropMaterial = patchCropWind(PaletteMaterials.standard("foliage_sage_01", {
     vertexColors: true,
     vertexColorMode: "replace",
-    flatShading: true,
+    // The GLB normals retain both rounded anatomy and authored sharp edges.
+    flatShading: false,
     roughness: 0.94
   }).clone());
   private cropSignature = Number.NaN;
+  private highlightedId: string | null = null;
+  private presentationTime = 0;
+  private reducedFeedbackMotion = false;
+  private readonly harvestPunches = new Map<string, number>();
+
+  public setHighlight(id: string | null, reducedMotion: boolean): void {
+    const resolved = id && this.lastCrops.has(id) ? id : null;
+    if (resolved !== this.highlightedId) this.cropSignature = Number.NaN;
+    this.highlightedId = resolved;
+    this.reducedFeedbackMotion = reducedMotion;
+  }
+
+  public punchHarvest(id: string, timeSeconds: number): void {
+    if (!this.reducedFeedbackMotion) this.harvestPunches.set(id, timeSeconds);
+  }
   private templateRevision = 0;
   private renderedTemplateRevision = -1;
   private readonly matrix = new THREE.Matrix4();
@@ -308,6 +330,7 @@ export class CropInstanceRenderer {
 
   private async buildTemplate(assetId: AssetId): Promise<void> {
     const root = await AssetLoader.loadModel(assetId);
+    if (this.disposed) throw new DOMException("Crop renderer disposed", "AbortError");
     root.updateMatrixWorld(true);
     const inverseRoot = root.matrixWorld.clone().invert();
     const geometries: THREE.BufferGeometry[] = [];
@@ -364,7 +387,9 @@ export class CropInstanceRenderer {
     const windResponseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
     merged.setAttribute("instanceWindPhase", phaseAttribute);
     merged.setAttribute("instanceWindResponse", windResponseAttribute);
-    const batch = { mesh, cropIds: [], phaseAttribute, windResponseAttribute };
+    const highlightAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
+    merged.setAttribute("instanceHighlight", highlightAttribute);
+    const batch = { mesh, cropIds: [], phaseAttribute, windResponseAttribute, highlightAttribute };
     mesh.userData.cropBatch = batch;
     this.pickMeshes.push(mesh);
     batches.push(batch);
@@ -382,10 +407,12 @@ export class CropInstanceRenderer {
     weatherMotion?: Readonly<WeatherMotionSignal>,
     isFarmGisMode: boolean = false
   ): void {
+    this.presentationTime = timeSeconds;
+    for (const [id, start] of this.harvestPunches) if (timeSeconds - start > 0.32) this.harvestPunches.delete(id);
     this.updateWind(timeSeconds, state, weatherMotion);
     const crops = Object.values(state.crops);
     const signature = this.computeCropSignature(crops, isFarmGisMode);
-    const animationActive = this.transitions.size > 0 || this.harvestTransitions.size > 0;
+    const animationActive = this.transitions.size > 0 || this.harvestTransitions.size > 0 || this.harvestPunches.size > 0 || this.highlightedId !== null;
     if (
       signature === this.cropSignature
       && !animationActive
@@ -537,6 +564,12 @@ export class CropInstanceRenderer {
           THREE.MathUtils.lerp(1, 0.24, smoothstep(cut)),
         continuousScale * transitionScale
       );
+      const selected = crop.id === this.highlightedId;
+      const breathe = this.reducedFeedbackMotion ? 0 : Math.sin(this.presentationTime * 3);
+      const punchStart = this.harvestPunches.get(crop.id);
+      const punch = punchStart === undefined ? 0 : Math.sin(Math.PI * Math.min(1, (this.presentationTime - punchStart) / 0.32)) * 0.14;
+      this.scale.multiplyScalar(1 + punch + (selected && !this.reducedFeedbackMotion ? 0.015 * (1 + breathe) : 0));
+      batch.highlightAttribute?.setX(index, selected ? 0.13 + breathe * 0.035 : 0);
       this.matrix.compose(this.position, this.quaternion, this.scale);
       batch.mesh.setMatrixAt(index, this.matrix);
       this.instanceTint(crop, entry.weight, this.color);
@@ -550,6 +583,7 @@ export class CropInstanceRenderer {
     if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = count > 0;
     if (batch.phaseAttribute) batch.phaseAttribute.needsUpdate = count > 0;
     if (batch.windResponseAttribute) batch.windResponseAttribute.needsUpdate = count > 0;
+    if (batch.highlightAttribute) batch.highlightAttribute.needsUpdate = count > 0;
   }
 
   private instanceTint(crop: PlacedCropState, transitionWeight: number, target: THREE.Color): void {
@@ -632,6 +666,10 @@ export class CropInstanceRenderer {
     replacement.userData.cropBatch = batch;
     const pickIndex = this.pickMeshes.indexOf(previous);
     if (pickIndex >= 0) this.pickMeshes[pickIndex] = replacement;
+    if (batch.highlightAttribute) {
+      batch.highlightAttribute = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+      previous.geometry.setAttribute("instanceHighlight", batch.highlightAttribute);
+    }
     if (batch.phaseAttribute) {
       batch.phaseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
       previous.geometry.setAttribute("instanceWindPhase", batch.phaseAttribute);
@@ -683,6 +721,8 @@ export class CropInstanceRenderer {
   }
 
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     for (const template of this.templates.values()) {
       for (const batch of template.batches) {
         batch.mesh.removeFromParent();

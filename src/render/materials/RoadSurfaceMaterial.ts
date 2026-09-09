@@ -15,7 +15,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v24-coastal";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v25-worked-profile";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -62,6 +62,8 @@ function patchRoadSurfaceShader(
     vertexCommon,
     `${vertexCommon}
 ${SURFACE_FIELD_VERTEX_DECLARATIONS}
+attribute vec2 roadProfile;
+varying vec2 vRoadProfile;
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;`,
     "vertex"
@@ -70,7 +72,8 @@ varying float vRoadOpacity;`,
     shader.vertexShader,
     vertexBegin,
     `${vertexBegin}
-${SURFACE_FIELD_VERTEX_ASSIGNMENTS}`,
+${SURFACE_FIELD_VERTEX_ASSIGNMENTS}
+vRoadProfile = roadProfile;`,
     "vertex"
   );
   shader.vertexShader = replaceShaderChunk(
@@ -106,6 +109,9 @@ uniform float roadSourceRotation;
 uniform float roadSourceLodBias;
 uniform float roadExternalColorStrength;
 uniform float roadExternalRoughnessStrength;
+uniform float roadWearColorMix;
+uniform float roadWearRoughnessReduction;
+uniform float roadShoulderColorMix;
 uniform float roadPolygonVariationStrength;
 uniform float roadPolygonJaggedStrength;
 uniform float roadPolygonFacetLightingStrength;
@@ -124,6 +130,7 @@ uniform vec3 roadLightColor;
 uniform vec3 roadShoulderGrassColor;
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;
+varying vec2 vRoadProfile;
 ${SURFACE_FIELD_FRAGMENT_GLSL}
 ${COASTAL_FIELD_GLSL}
 uniform vec3 roadCoastalSand;
@@ -143,8 +150,9 @@ vec2 nevaRoadWorldUv(float sampleScale) {
     shader.fragmentShader,
     fragmentColor,
     `${fragmentColor}
-float roadEdgeSignal = nevaGroundPolygonCellSignal(vRoadWorldPosition.xz, roadEdgeCellScale);
-float roadEdgeDistance = nevaGroundPolygonCellEdge(vRoadWorldPosition.xz, roadEdgeCellScale);
+vec4 roadEdgeCell = nevaGroundPolygonCell(vRoadWorldPosition.xz, roadEdgeCellScale);
+float roadEdgeSignal = roadEdgeCell.x;
+float roadEdgeDistance = roadEdgeCell.w;
 float roadEdgeBand = 1.0 - smoothstep(roadEdgeFadeFull, 1.0, vRoadOpacity);
 float roadEdgeField = clamp(
   vRoadOpacity
@@ -153,7 +161,8 @@ float roadEdgeField = clamp(
   0.0,
   1.0
 );
-float roadCoverage = smoothstep(roadEdgeFadeStart, roadEdgeFadeFull, roadEdgeField);
+float roadEdgeAntialias = min(0.12, fwidth(roadEdgeField));
+float roadCoverage = smoothstep(roadEdgeFadeStart - roadEdgeAntialias, roadEdgeFadeFull + roadEdgeAntialias, roadEdgeField);
 float roadDither = nevaGroundCellJitter(floor(vRoadWorldPosition.xz * 16.0 + 3.1)).x;
 roadCoverage = clamp(roadCoverage + (roadDither - 0.5) * 0.3, 0.0, 1.0);
 diffuseColor.a = roadCoverage;
@@ -263,6 +272,12 @@ diffuseColor.rgb = mix(
   sharedRoadWetness * roadWetnessColorMix * roadSharedTransitionMix * sharedRoadBoundary
 );
 vec4 coastalRoadField = nevaOpticsField(vRoadWorldPosition.xz);
+// The same compacted strips drive color and roughness after source-map blending.
+float roadTrackWear = clamp(vRoadProfile.x, 0.0, 1.0) * roadCoreMix;
+float roadLooseShoulder = clamp(vRoadProfile.y, 0.0, 1.0);
+float roadWearBreakup = mix(0.68, 1.0, roadSourceLuma);
+diffuseColor.rgb = mix(diffuseColor.rgb, roadDryColor, roadTrackWear * roadWearColorMix * roadWearBreakup);
+diffuseColor.rgb = mix(diffuseColor.rgb, roadLightColor, roadLooseShoulder * roadShoulderColorMix);
 float coastalRoadWeight = coastalRoadField.a * (1.0 - smoothstep(13.0, 24.0, -coastalRoadField.b));
 diffuseColor.rgb = mix(diffuseColor.rgb, roadCoastalSand * mix(0.97, 1.0, roadSourceLuma), coastalRoadWeight);
 diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight);`,
@@ -291,7 +306,8 @@ roughnessFactor = mix(
   roughnessFactor,
   max(0.84, roughnessFactor - sharedRoadWetness * 0.08),
   roadCoverage * roadWetnessRoughnessMix * roadSharedTransitionMix
-);`,
+);
+roughnessFactor = max(0.84, roughnessFactor - roadTrackWear * roadWearRoughnessReduction * (1.0 - coastalRoadWeight));`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -316,6 +332,7 @@ normal = nevaSurfaceFacetNormal(
  * indexed surface produced by WorldLayout.buildPathGeometry().
  */
 export class RoadSurfaceMaterial {
+  private disposed = false;
   public readonly material: THREE.MeshStandardMaterial;
   private readonly shaderUniforms: RoadSurfaceShaderSource["uniforms"];
   private readonly ownedExternalTextures = new Set<THREE.Texture>();
@@ -339,6 +356,9 @@ export class RoadSurfaceMaterial {
       roadSourceLodBias: { value: config.externalTexture.lodBias },
       roadExternalColorStrength: { value: config.externalTexture.colorStrength },
       roadExternalRoughnessStrength: { value: config.externalTexture.roughnessStrength },
+      roadWearColorMix: { value: config.wearColorMix },
+      roadWearRoughnessReduction: { value: config.wearRoughnessReduction },
+      roadShoulderColorMix: { value: config.shoulderColorMix },
       roadPolygonVariationStrength: { value: config.polygonVariationStrength },
       roadPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       roadPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
@@ -407,6 +427,7 @@ export class RoadSurfaceMaterial {
       jobs.map(async ({ uniformName, spec }) => {
         const texture = await loadSurfaceTexture(spec, loader);
         if (!texture) return;
+        if (this.disposed) { texture.dispose(); return; }
         texture.anisotropy = 8;
 
         const uniform = this.shaderUniforms[uniformName];
@@ -419,7 +440,7 @@ export class RoadSurfaceMaterial {
         this.ownedExternalTextures.add(texture);
       })
     ).then(() => {
-      this.material.needsUpdate = true;
+      if (!this.disposed) this.material.needsUpdate = true;
     });
 
     return this.externalTextureLoadPromise;
@@ -434,6 +455,8 @@ export class RoadSurfaceMaterial {
   }
 
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.material.dispose();
     for (const texture of this.ownedExternalTextures) texture.dispose();
     this.ownedExternalTextures.clear();

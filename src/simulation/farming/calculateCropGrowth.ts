@@ -30,51 +30,91 @@ export function calculateCropHealth(
   return Math.max(0, health - healthLoss);
 }
 
+/**
+ * Crop growth rate modifiers. These were bare literals inside the growth
+ * function with a comment pointing at `LLM/02` for their meaning, which made
+ * the document the de-facto owner of live tuning. Naming them here moves
+ * ownership into the code the simulation actually runs; `02` §2 now points at
+ * this table instead of restating it, and `tests/unit/docTuningValues.test.ts`
+ * fails if the two disagree.
+ */
+export const CROP_GROWTH_MODIFIERS = {
+  climate: { preferred: 1.2, neutral: 1.0, poor: 0.8 },
+  /** Moisture is 0..100; below `dryBelow` growth slows, below `veryDryBelow` it stalls. */
+  moisture: { healthy: 1.0, dry: 0.85, veryDry: 0.6, dryBelow: 40, veryDryBelow: 15 },
+  /** Fertility is 0..100 with a normal baseline of 50. */
+  fertility: { excellent: 1.1, normal: 1.0, poor: 0.8, excellentAtOrAbove: 80, poorBelow: 30 },
+  /** Rain and storm help a little; no drought weather type is live. */
+  weather: { wet: 1.05, other: 1.0 },
+  totalClamp: { minimum: 0.5, maximum: 1.5 }
+} as const;
+
+export type CropClimateMatch = keyof typeof CROP_GROWTH_MODIFIERS.climate;
+
+/** Classifies a crop's climate once for every consumer of the climate rule. */
+export function cropClimateMatch(
+  crop: Pick<CropDefinition, "preferredClimates" | "neutralClimates">,
+  farmClimate: ClimateId
+): CropClimateMatch {
+  if (crop.preferredClimates.includes(farmClimate)) return "preferred";
+  if (crop.neutralClimates?.includes(farmClimate)) return "neutral";
+  return "poor";
+}
+
+/** Harvest quality treats preferred and explicitly neutral climates equally. */
+export function cropClimateQualityScore(
+  crop: Pick<CropDefinition, "preferredClimates" | "neutralClimates">,
+  farmClimate: ClimateId
+): number {
+  return cropClimateMatch(crop, farmClimate) === "poor" ? 0.6 : 1;
+}
+
+/** Weather types that count as watering the field. */
+const WET_WEATHER_TYPES: ReadonlySet<WeatherTag> = new Set<WeatherTag>([
+  "light-rain",
+  "heavy-rain",
+  "storm"
+]);
+
 export function calculateEffectiveGrowthDelta(
   elapsedMinutes: number,
   crop: CropDefinition,
   farmClimate: ClimateId,
   currentMoisture: number,
   soilFertility: number, // 0..100
-  weatherType: WeatherTag
+  weatherType: WeatherTag,
+  /**
+   * Pacing scalar owned by `OnboardingPace`. Applied *after* `totalClamp`:
+   * the clamp bounds how much the environment may help or hurt a crop, and
+   * folding a pacing multiplier into it would silently reduce a 5x to ~1.14x.
+   */
+  growthRateMultiplier: number = 1
 ): number {
   if (elapsedMinutes <= 0) return 0;
 
-  // LIVE 02: preferred 1.20 | neutral 1.00 | poor 0.80.
-  const declaredNeutral = crop.neutralClimates;
-  let climateMod = 0.8;
-  if (crop.preferredClimates.includes(farmClimate)) {
-    climateMod = 1.2;
-  } else if (declaredNeutral?.includes(farmClimate)) {
-    climateMod = 1.0;
+  const { climate, moisture, fertility, weather, totalClamp } = CROP_GROWTH_MODIFIERS;
+
+  const climateMod = climate[cropClimateMatch(crop, farmClimate)];
+
+  let moistureMod: number = moisture.healthy;
+  if (currentMoisture < moisture.dryBelow) {
+    moistureMod = currentMoisture >= moisture.veryDryBelow ? moisture.dry : moisture.veryDry;
   }
 
-  // 2. Moisture modifier
-  let moistureMod = 1.0;
-  if (currentMoisture >= 40) {
-    moistureMod = 1.0;
-  } else if (currentMoisture >= 15) {
-    moistureMod = 0.85;
-  } else {
-    moistureMod = 0.6;
+  let fertilityMod: number = fertility.normal;
+  if (soilFertility >= fertility.excellentAtOrAbove) {
+    fertilityMod = fertility.excellent;
+  } else if (soilFertility < fertility.poorBelow) {
+    fertilityMod = fertility.poor;
   }
 
-  // 3. Fertility modifier (normal baseline = 50)
-  let fertilityMod = 1.0;
-  if (soilFertility >= 80) {
-    fertilityMod = 1.1;
-  } else if (soilFertility < 30) {
-    fertilityMod = 0.8;
-  }
+  const weatherMod = WET_WEATHER_TYPES.has(weatherType) ? weather.wet : weather.other;
 
-  // 4. Weather modifier
-  let weatherMod = 1.0;
-  if (weatherType === "light-rain" || weatherType === "heavy-rain" || weatherType === "storm") {
-    weatherMod = 1.05;
-  }
-
-  const totalMod = Math.min(1.5, Math.max(0.5, climateMod * moistureMod * fertilityMod * weatherMod));
-  return elapsedMinutes * totalMod;
+  const totalMod = Math.min(
+    totalClamp.maximum,
+    Math.max(totalClamp.minimum, climateMod * moistureMod * fertilityMod * weatherMod)
+  );
+  return elapsedMinutes * totalMod * growthRateMultiplier;
 }
 
 /** Calendar minutes of mature after time-to-mature is reached. Climate must not shrink this. */
@@ -122,15 +162,24 @@ export function calculateCropQuality(
     typeof inputs.rngRoll === "number" && Number.isFinite(inputs.rngRoll)
       ? Math.min(1, Math.max(0, inputs.rngRoll))
       : rng.nextFloat();
-  const rareChanceMultiplier = Math.min(1, Math.max(0, inputs.rareChanceMultiplier ?? 1));
-  const rngScore = roll * 10 * rareChanceMultiplier;
-
-  const totalScore = climateScore + moistureScore + fertilityScore + proficiencyScore + rngScore;
+  const rareChanceMultiplier = Math.max(0, inputs.rareChanceMultiplier ?? 1);
+  const fixedScore = climateScore + moistureScore + fertilityScore + proficiencyScore;
+  const totalScore = fixedScore + roll * 10;
+  const chanceAtOrAbove = (threshold: number): number =>
+    Math.min(1, Math.max(0, (fixedScore + 10 - threshold) / 10));
+  // One saved RNG draw chooses quality. Specialist clothing widens only the
+  // exceptional/prize intervals; it cannot turn common produce into fine or
+  // consume a second draw that would desynchronise the simulation.
+  const prizeChance = Math.min(1, chanceAtOrAbove(88) * rareChanceMultiplier);
+  const exceptionalChance = Math.max(
+    prizeChance,
+    Math.min(1, chanceAtOrAbove(70) * rareChanceMultiplier)
+  );
 
   let quality: CropQuality = "common";
-  if (totalScore >= 88) {
+  if (roll >= 1 - prizeChance) {
     quality = "prize";
-  } else if (totalScore >= 70) {
+  } else if (roll >= 1 - exceptionalChance) {
     quality = "exceptional";
   } else if (totalScore >= 45) {
     quality = "fine";
@@ -203,7 +252,8 @@ function addGrowthMinutes(
   currentMoisture: number,
   soilFertility: number,
   weatherType: WeatherTag,
-  chunk: number
+  chunk: number,
+  growthRateMultiplier: number = 1
 ): void {
   const base = cropDef.baseGrowthMinutes;
   const before = crop.effectiveGrowthMinutes;
@@ -217,7 +267,8 @@ function addGrowthMinutes(
     farmClimate,
     currentMoisture,
     soilFertility,
-    weatherType
+    weatherType,
+    growthRateMultiplier
   );
   const after = before + delta;
   if (after < base) {
@@ -242,6 +293,7 @@ export function advancePlacedCropGrowth(
   environment: FarmEnvironmentSample,
   soilFertility: number,
   elapsedMinutes: number,
+  growthRateMultiplier: number = 1
 ): CropStage {
   const alreadyWithered = crop.stage === "withered" && !cropDef.regrows;
   let remaining = Math.floor(elapsedMinutes);
@@ -262,7 +314,10 @@ export function advancePlacedCropGrowth(
       }
     }
     if (!alreadyWithered) {
-      addGrowthMinutes(crop, cropDef, environment.climateId, crop.moisture, soilFertility, environment.weatherType, chunk);
+      addGrowthMinutes(
+        crop, cropDef, environment.climateId, crop.moisture, soilFertility,
+        environment.weatherType, chunk, growthRateMultiplier
+      );
     }
     if (typeof crop.health === "number") {
       crop.health = calculateCropHealth(crop.health, crop.moisture, chunk);

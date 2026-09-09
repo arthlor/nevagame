@@ -139,7 +139,7 @@ export class BasicFishingMinigame {
   }
 
   public static tickCastCharging(state: BasicFishingState, deltaSeconds: number): void {
-    if (state.phase !== "charging-cast" || !state.isChargingCast) return;
+    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0 || state.phase !== "charging-cast" || !state.isChargingCast) return;
     const CHARGE_SPEED = 1.3; // Full cycle in ~1.5s
     const dir = state.castChargeDirection ?? 1;
     let power = (state.castPower ?? 0) + dir * CHARGE_SPEED * deltaSeconds;
@@ -159,7 +159,7 @@ export class BasicFishingMinigame {
     rng: Rng,
     config: BasicFishingMinigameConfig = DEFAULT_MINIGAME_CONFIG
   ): "active" | "landed" | "escaped" {
-    if (deltaSeconds <= 0) return "active";
+    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return "active";
 
     // 1. Update Green Bar Physics
     const barHeight = state.barHeight ?? 0.20;

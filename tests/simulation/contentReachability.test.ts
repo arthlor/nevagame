@@ -53,7 +53,8 @@ function itemSources(): Map<string, string[]> {
   for (const itemId of BasicFishingMinigame.RARE_TREASURE_LOOT) add(itemId, "rare treasure");
 
   for (const recipe of ContentRegistry.recipes.values()) {
-    for (const output of recipe.outputs) add(output.itemId, `recipe ${recipe.id}`);
+    if (recipe.result.kind !== "items") continue;
+    for (const output of recipe.result.stacks) add(output.itemId, `recipe ${recipe.id}`);
   }
   for (const quest of ContentRegistry.quests.values()) {
     for (const reward of quest.rewards.items ?? []) add(reward.itemId, `quest ${quest.id}`);

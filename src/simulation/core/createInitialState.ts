@@ -15,6 +15,8 @@ import { applyWeatherProfile, rollWeatherType, WEATHER_FRONT_MIN_MINUTES } from 
 import { createStarterDonkeyState } from "../mounts/Mounts";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../../world/WorldGameplayLocations";
 import { MAIN_QUEST_TRACK_ID } from "./QuestTypes";
+import { createStarterEquipmentState } from "../../content/equipment";
+import { PLAYER_SATCHEL_SLOT_COUNT } from "../inventory/InventoryLimits";
 
 function structureOnTerrain(
   id: StructureId,
@@ -52,13 +54,14 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
   ContentRegistry.initializeAndValidate();
   const starterDonkey = createStarterDonkeyState();
 
-  const playerInventory = InventoryManager.createInventory("inv.player", 16);
+  const playerInventory = InventoryManager.createInventory("inv.player", PLAYER_SATCHEL_SLOT_COUNT);
   // Give starter supplies
   InventoryManager.addItemsAtomically(playerInventory, [
     { itemId: "seed.wheat", quantity: 10 },
     { itemId: "seed.tomato", quantity: 6 },
     { itemId: "seed.potato", quantity: 6 },
-    { itemId: "item.bait_worms", quantity: 10 },
+    // No bait worms: Act 2's compost lesson is the player's first bait, and
+    // handing them a stack up front makes that lesson skippable.
     { itemId: "item.compost_starter", quantity: 2 },
     { itemId: "item.plant_matter", quantity: 8 }
   ]);
@@ -146,6 +149,7 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       inventoryId: "inv.player",
       equippedRodId: "rod.willow",
       ownedRodIds: ["rod.willow"],
+      equipment: createStarterEquipmentState(),
       preparedLureItemId: null,
       dragNotch: 1,
       carriedFishCargoId: null,
@@ -212,7 +216,9 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     journal: {
       fishRecords: {},
       cropRecords: {},
-      unlockedKnowledge: ["knowledge.wheat_milling", "knowledge.worm_composting"]
+      // Act 2 grants milling and composting. Pre-seeding them here made both
+      // of those quests advertise a reward that `distributeRewards` no-ops.
+      unlockedKnowledge: []
     },
     quests: {
       activeActId: "act1_homestead",
@@ -226,7 +232,8 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       focusedTrackId: MAIN_QUEST_TRACK_ID,
       completedQuestIds: [],
       unlockedFeatureIds: [],
-      hintsShown: {}
+      hintsShown: {},
+      earlyActionCredits: []
     },
     metadata: {
       createdAtUtcMs: Date.now(),

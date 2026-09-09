@@ -1,3 +1,10 @@
+import { playOpeningCamera } from "../render/camera/OpeningCameraSequence";
+import { buildNextWorldHint } from "../simulation/presentation/WorldGuidancePresentation";
+import { RewardFeedbackPresentation } from "../simulation/presentation/RewardFeedbackPresentation";
+import { WorldRewardOverlay } from "../ui/hud/WorldRewardOverlay";
+import { buildIcedCargoIds, buildWindmillAudio } from "../simulation/presentation/WorldAudioPresentation";
+import { npcLayoutTarget } from "../layout-editor/layoutEdit";
+import { buildNearbyNpcBarks, npcAnchorAt, NPC_TALK_RADIUS } from "../simulation/presentation/NpcPresentation";
 // src/app/GameApp.ts
 
 import * as THREE from "three";
@@ -18,10 +25,22 @@ import {
 import { GameCamera } from "../render/camera/GameCamera";
 import { InputRouter } from "../input/InputRouter";
 import { FISHING_STEER_INPUT_MAX } from "../simulation/fishing/FishingTuning";
+import { accessibleLureSupplyCount, LURE_ITEM_ID } from "../simulation/fishing/FishingSupplies";
 import { IndexedDbSaveRepository, type LoadGameResult } from "../persistence/IndexedDbSaveRepository";
-import { GameAction, MarketId, ProcessingJobState, FishCargoState, WeatherTag } from "../simulation/core/types";
+import {
+  EquipmentId,
+  EquipmentPresetId,
+  FishCargoState,
+  GameAction,
+  MarketId,
+  ProcessingJobState,
+  RecipeId,
+  RodId,
+  WeatherTag
+} from "../simulation/core/types";
 import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
+import { StartScreen } from "../ui/StartScreen";
 import { GameUI } from "../ui/GameUI";
 import {
   inferNoticeTone,
@@ -32,7 +51,7 @@ import {
   type NoticeTone
 } from "../ui/notifications";
 import type { ChronicleFilter } from "../ui/notifications";
-import { playNoticeSound } from "../ui/audio/uiAudio";
+import { bindUiHoverAudio, playNoticeSound } from "../ui/audio/uiAudio";
 
 const SALE_BATCH_WINDOW_MS = 600;
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
@@ -47,20 +66,23 @@ import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/as
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import type { CollisionDebugView } from "../diagnostics/CollisionDebugView";
 import { WorldLayout } from "../world/WorldLayout";
+import { NpcBarkOverlay } from "../ui/hud/NpcBarkOverlay";
+import { QuestPointerOverlay, type QuestPointerTarget } from "../ui/hud/QuestPointerOverlay";
 import {
   WORLD_MARKET_LOCATIONS,
   WORLD_STATION_DEFINITIONS
 } from "../world/WorldGameplayLocations";
 import { WORLD_SAILING_ROUTES } from "../world/WorldMoorings";
-import { pickUnlockedStationRecipe } from "../simulation/domains/ProcessingDomain";
 import { NavigationDomain } from "../simulation/domains/NavigationDomain";
 import { formatClockTime, formatGameDuration } from "../simulation/core/GameClock";
 import { STARTER_DONKEY_ID } from "../simulation/mounts/Mounts";
 import {
-  StartupTimeoutError,
-  withProgressStallTimeout,
-  withTimeout
+  StartupTimeoutError
 } from "./StartupLoading";
+
+import { degradedSurfaceResources } from "../render/materials/ExternalSurfaceTextures";
+import { StartupCoordinator } from "./StartupCoordinator";
+import { yieldToTask } from "../utils/CooperativeTask";
 
 const ASSET_PROGRESS_STALL_TIMEOUT_MS = 90_000;
 const PHYSICS_STARTUP_TIMEOUT_MS = 30_000;
@@ -83,7 +105,7 @@ import {
   VILLAGE_MARKET,
   WORLD_SPAWN
 } from "../world/WorldAnchors";
-import { SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
+import { BASIC_FISHING_WORK_COST, SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
 import {
   farmLocalToWorld,
   farmWellWorldAnchor,
@@ -107,11 +129,12 @@ import type {
   MarketDemandTrendDto
 } from "../simulation/core/contracts";
 import {
+  FARMING_ACTION_COST,
   IRRIGATION_COST,
   IRRIGATION_FEATURE_ID,
   WET_MOISTURE_THRESHOLD
 } from "../simulation/domains/FarmingDomain";
-import { FarmingActionController,
+import {
   type FarmingActionSnapshot,
   type FarmingPresentationAction
 } from "./FarmingActionController";
@@ -168,6 +191,12 @@ export interface NevaDebugSnapshot {
   activeMountId: string | null;
   currentMinute: number;
   minutesPerRealSecond: number;
+  /**
+   * Monotonic count of fixed movement steps delivered. Automated harnesses pace
+   * themselves on this rather than on wall-clock time; see the field's owner in
+   * this class for why elapsed real time is not a measure of simulated progress.
+   */
+  physicsStepCount: number;
   bootReady: boolean;
   cropIds: string[];
   schoolIds: string[];
@@ -528,7 +557,7 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
 };
 
 export class GameApp {
-  public sim: Simulation;
+  public sim!: Simulation;
   public worldScene: WorldScene;
   public gameCamera: GameCamera;
   public inputRouter: InputRouter;
@@ -544,11 +573,13 @@ export class GameApp {
   private chronicleFilter: ChronicleFilter = "all";
   private saleBatch = { units: 0, gold: 0, lastMs: -Infinity };
   private activeMarketId: MarketId | null = null;
+  private activeCraftingStationId: string | null = null;
   private selectedCropId: string = "crop.wheat";
   private placementResult: CropPlacementResult | null = null;
   private frozenPlacementResult: CropPlacementResult | null = null;
   private inspectedCrop: CropInspectionDto | null = null;
-  private readonly farmingActions: FarmingActionController;
+  private readonly actionTimingScale: number;
+  private get farmingActions() { return this.sim.actionTimeline; }
   private readonly interactionResolver = new InteractionTargetResolver();
   private farmingActionSnapshot: FarmingActionSnapshot | null = null;
   private hudFishingHold: FishingHoldInput = {
@@ -606,8 +637,22 @@ export class GameApp {
   private readonly telemetryStartedAtMs = performance.now();
   private lastAutosaveMs: number = 0;
   private physicsAccumulatorSeconds: number = 0;
+  /**
+   * Monotonic count of fixed movement steps actually delivered. The accumulator
+   * is capped, so a starved frame drops simulation time rather than catching all
+   * of it up: wall-clock elapsed is therefore not a measure of how much chance
+   * the player had to move, and automated traversal must pace itself on this
+   * instead. DEV diagnostics only; never serialized.
+   */
+  private physicsStepCount = 0;
   private autosaveInFlight: boolean = false;
   private autosaveRequested: boolean = false;
+  /**
+   * Domain events are synchronous. Queue the first flush so an event listener
+   * cannot snapshot a state halfway through the command that emitted the
+   * event (for example, before a physical basic catch clears its session).
+   */
+  private autosaveFlushQueued: boolean = false;
   private benchmarkView: boolean = false;
   private benchmarkCameraView: ArtViewPreset | null = null;
   private benchmarkLightingFocus: THREE.Vector3 | null = null;
@@ -620,11 +665,12 @@ export class GameApp {
     ? captureRenderMode(new URLSearchParams(window.location.search))
     : "final";
   private persistenceDisabled: boolean = false;
+  private startupAttempt?: StartupCoordinator;
+  private saveDecision?: (retry: boolean) => void;
   private bootReady: boolean = false;
   private renderReadyFramesRemaining: number = 0;
   private startupState: StartupState = createStartupState(0);
   private startupPromise: Promise<void> | null = null;
-  private savePreflightPromise: Promise<LoadGameResult> | null = null;
   private startupIntent: StartupIntent = "continue";
   private durableWritesEnabled: boolean = false;
   private saveRecoveryReason: "corrupt" | "incompatible" | "unavailable" | null = null;
@@ -638,6 +684,14 @@ export class GameApp {
   private mountTransitionAction: "mount" | "dismount" | null = null;
   private readonly audioForward = new THREE.Vector3();
   private readonly canvasContainer: HTMLElement;
+  private readonly questPointer: QuestPointerOverlay;
+  private readonly npcBarks: NpcBarkOverlay;
+  private readonly rewardOverlay: WorldRewardOverlay;
+  private readonly rewardFeedback = new RewardFeedbackPresentation();
+  private presentationHoldFrames = 0;
+  private openingSkip: (() => void) | null = null;
+  /** The world point the quest pointer is chasing, refreshed with the waypoint. */
+  private questPointerTarget: QuestPointerTarget | null = null;
   private readonly uiContainer: HTMLElement;
   private readonly resizeObserver: ResizeObserver;
   private mobileTouchDevice = false;
@@ -652,6 +706,8 @@ export class GameApp {
   private pendingCatchCargo: FishCargoState | null = null;
   private pendingCatchRecord: "first" | "weight" | "quality" | null = null;
   private activeTool: EquippedToolId = "hands";
+  /** Bumped whenever the belt should show itself: a swap the player did not ask for. */
+  private toolRevealToken = 0;
 
   private handleTalkNpc = (npcId: string) => {
     if (this.dialogueTalkResult?.npcId === npcId) return this.dialogueTalkResult.result;
@@ -680,15 +736,17 @@ export class GameApp {
     const debugActionTiming = import.meta.env.DEV
       ? Number(new URLSearchParams(window.location.search).get("debugActionTimeScale"))
       : Number.NaN;
-    this.farmingActions = new FarmingActionController(
-      Number.isFinite(debugActionTiming) && debugActionTiming >= 1 && debugActionTiming <= 10
-        ? debugActionTiming
-        : 1
-    );
+    this.actionTimingScale = Number.isFinite(debugActionTiming) && debugActionTiming >= 1 && debugActionTiming <= 10
+      ? debugActionTiming
+      : 1;
     this.canvasContainer = canvas.parentElement ?? canvas;
+    // Lives in the canvas container, which precedes `#ui-root` in the document,
+    // so every React panel and modal paints over the pointer rather than under it.
+    this.questPointer = new QuestPointerOverlay(this.canvasContainer);
+    this.npcBarks = new NpcBarkOverlay(this.canvasContainer);
+    this.rewardOverlay = new WorldRewardOverlay(this.canvasContainer);
     this.uiContainer = uiContainer;
     this.resizeObserver = new ResizeObserver(() => this.onResize());
-    this.sim = new Simulation();
     this.worldScene = new WorldScene(canvas);
     this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
     this.worldScene.setCaptureRenderMode(this.captureMode);
@@ -698,10 +756,12 @@ export class GameApp {
     this.gameCamera = new GameCamera(window.innerWidth / window.innerHeight);
     this.inputRouter = new InputRouter();
     this.saveRepo = new IndexedDbSaveRepository();
-    this.attachSimulationFeedback();
 
     this.uiRoot = ReactDOM.createRoot(uiContainer);
     window.addEventListener("resize", this.onResize);
+    window.addEventListener("keydown", this.cancelArrivalView);
+    window.addEventListener("pointerdown", this.cancelArrivalView);
+    window.addEventListener("wheel", this.cancelArrivalView, { passive: true });
     window.addEventListener("orientationchange", this.onResize);
     window.visualViewport?.addEventListener("resize", this.onResize);
     screen.orientation?.addEventListener("change", this.onResize);
@@ -774,7 +834,7 @@ export class GameApp {
 
   private syncOverlayState(): void {
     const startupBlocksInput = this.startupState.status !== "ready";
-    this.sim.clock.setPaused(
+    this.sim?.clock.setPaused(
       startupBlocksInput || this.mobileOrientationBlocked || this.benchmarkView || this.modeController.pausesSimulation
     );
     this.inputRouter.setWorldInputSuspended(
@@ -782,6 +842,7 @@ export class GameApp {
     );
     if (this.modeController.blocksWorldInput) this.cancelDoorTransition();
     if (this.activeModal !== "market") this.activeMarketId = null;
+    if (this.activeModal !== "crafting") this.activeCraftingStationId = null;
   }
 
   private setLayoutEditorActive(active: boolean): void {
@@ -871,13 +932,16 @@ export class GameApp {
   private applyLayoutEditLiveSync(tag: LayoutEditTag, commit: LayoutEditCommit): void {
     applyLayoutEditLiveSession(this.sim, tag, commit);
     if (tag.kind === "npc") {
-      const npc = ContentRegistry.npcs.get(tag.id);
-      if (npc) {
-        npc.anchor.x = commit.x;
-        npc.anchor.z = commit.z;
-        npc.anchor.rotationY = commit.rotationY;
+      const target = npcLayoutTarget(tag.id);
+      const npc = ContentRegistry.npcs.get(target.npcId);
+      const anchor = target.phase
+        ? npc?.schedule?.find((slot) => slot.phase === target.phase)?.position : npc?.anchor;
+      if (anchor) {
+        anchor.x = commit.x;
+        anchor.z = commit.z;
+        anchor.rotationY = commit.rotationY;
       }
-      this.worldScene.relocateNpcPresentation(tag.id, commit.x, commit.z, commit.rotationY);
+      this.worldScene.relocateNpcPresentation(target.npcId, commit.x, commit.z, commit.rotationY);
     }
   }
 
@@ -888,6 +952,7 @@ export class GameApp {
 
   private playOverlayAudio(previous: ActiveModal, next: ActiveModal): void {
     if (next && next !== previous && next !== "new-game-confirm") {
+      gameAudio.playOneShot("ui-cloth");
       if (next === "journal") {
         gameAudio.playOneShot("page-turn");
       } else {
@@ -923,6 +988,7 @@ export class GameApp {
   }
 
   public async start(): Promise<void> {
+    if (this.isRunning) return;
     const query = new URLSearchParams(window.location.search);
     const benchmark = import.meta.env.DEV || this.worldAcceptance
       ? benchmarkRequest(query)
@@ -962,7 +1028,6 @@ export class GameApp {
     this.bootReady = false;
     this.startupIntent = "continue";
     this.startupPromise = null;
-    this.savePreflightPromise = null;
     this.durableWritesEnabled = false;
     this.saveRecoveryReason = null;
     this.isRunning = true;
@@ -979,7 +1044,7 @@ export class GameApp {
     } else {
       // This is a save-slot inspection only. It does not instantiate the
       // loaded Simulation, request GLBs, create physics, or advance time.
-      this.savePreflightPromise = this.preflightSave();
+      void this.preflightSave();
     }
     this.onResize();
     this.syncOverlayState();
@@ -992,7 +1057,11 @@ export class GameApp {
   public beginLoading(userInitiated = false, intent: StartupIntent = "continue"): void {
     if (this.startupPromise || this.startupState.status !== "title") return;
 
+    performance.mark("neva.startup.begin");
     this.startupIntent = intent;
+    this.durableWritesEnabled = false;
+    this.inputRouter.interrupt();
+    const attempt = this.startupAttempt = new StartupCoordinator();
     this.bootReady = false;
     this.startupState = {
       ...this.startupState,
@@ -1015,15 +1084,15 @@ export class GameApp {
       this.requestMobileLandscape();
     }
 
-    this.startupPromise = this.prepareRuntime().catch((error: unknown) => {
+    this.startupPromise = this.prepareRuntime(attempt).catch((error: unknown) => {
       this.handleStartupFailure(error);
     });
   }
 
-  private async preflightSave(): Promise<LoadGameResult> {
+  private async preflightSave(signal?: AbortSignal): Promise<LoadGameResult> {
     try {
-      const inspection = await this.saveRepo.inspectGame();
-      if (this.isRunning) {
+      const inspection = await this.saveRepo.inspectGame(signal);
+      if (this.isRunning && !signal?.aborted) {
         this.updateStartupState({
           saveStatus: inspection.result.status === "loaded" ? "available" : inspection.result.status,
           saveSummary: inspection.summary
@@ -1032,7 +1101,7 @@ export class GameApp {
       return inspection.result;
     } catch (error) {
       console.error("[GameApp] Save preflight failed:", error);
-      if (this.isRunning) {
+      if (this.isRunning && !signal?.aborted) {
         this.updateStartupState({
           saveStatus: "unavailable",
           saveSummary: null
@@ -1042,14 +1111,8 @@ export class GameApp {
     }
   }
 
-  private async resolveSavePreflight(): Promise<LoadGameResult> {
-    if (!this.savePreflightPromise) {
-      this.savePreflightPromise = this.preflightSave();
-    }
-    return this.savePreflightPromise;
-  }
-
-  private async prepareRuntime(): Promise<void> {
+  private async prepareRuntime(attempt: StartupCoordinator): Promise<void> {
+    await yieldToTask(attempt.signal);
     const query = new URLSearchParams(window.location.search);
     const benchmark = import.meta.env.DEV || this.worldAcceptance
       ? benchmarkRequest(query)
@@ -1060,16 +1123,25 @@ export class GameApp {
       ? debugStartParameter as DebugStartScenario
       : null;
 
+    this.updateStartupState({ phase: "layout", message: "Preparing the island" });
+    await attempt.stage(() => WorldLayout.prepareTraversal(attempt.signal), WORLD_STARTUP_TIMEOUT_MS,
+      new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"));
+    this.sim = new Simulation(undefined, { actionTimingScale: this.actionTimingScale });
+    this.attachSimulationFeedback();
+    this.updateStartupState({ phase: "save", message: "Reading your save" });
     const saveResult = this.persistenceDisabled
       ? { status: "empty" } as const
-      : await this.resolveSavePreflight();
+      : await this.preflightSave(attempt.signal);
+    attempt.check();
     const shouldStartNewGame = this.startupIntent === "new-game";
     const shouldPlayWithoutSaving = this.startupIntent === "without-saving";
-    const shouldCreateInitialSave = !this.persistenceDisabled &&
-      (shouldStartNewGame || saveResult.status === "empty");
+    let notifyArrival = () => {};
+    const shouldCommitSave = !this.persistenceDisabled && !shouldPlayWithoutSaving;
 
     if (benchmark.goldTestId) {
-      this.sim = new Simulation(createInitialGameState(benchmark.worldSeed));
+      this.sim = new Simulation(createInitialGameState(benchmark.worldSeed), {
+        actionTimingScale: this.actionTimingScale
+      });
       this.attachSimulationFeedback();
       this.modeController.restoreFromState(this.sim.state);
       this.inputRouter.setMode(this.mode);
@@ -1079,40 +1151,32 @@ export class GameApp {
     // envelope. New Game never constructs from it and never writes over it
     // until the new world has finished loading and is ready to play.
     if (!this.persistenceDisabled && !shouldStartNewGame && !shouldPlayWithoutSaving && saveResult.status === "loaded") {
-      const awaySummary = applyOfflineProgression(saveResult.envelope.state, Date.now());
-      this.sim = new Simulation(saveResult.envelope.state);
+      const candidate = structuredClone(saveResult.envelope.state);
+      const awaySummary = applyOfflineProgression(candidate, Date.now());
+      this.sim = new Simulation(candidate, { actionTimingScale: this.actionTimingScale });
       this.attachSimulationFeedback();
-      this.durableWritesEnabled = true;
-      await this.saveRepo.saveGame(this.sim.state);
+
 
       this.modeController.restoreFromState(saveResult.envelope.state);
       this.inputRouter.setMode(this.mode);
       this.sim.clock.setPaused(false);
       this.syncOverlayState();
-      this.notifyAwaySummary(awaySummary);
+      notifyArrival = () => this.notifyAwaySummary(awaySummary);
 
       console.info("[GameApp] Loaded existing game save from IndexedDB.");
     } else if (this.persistenceDisabled || shouldPlayWithoutSaving) {
       this.durableWritesEnabled = false;
       this.saveRecoveryReason = null;
     } else if (shouldStartNewGame) {
-      this.durableWritesEnabled = saveResult.status !== "unavailable";
+      this.durableWritesEnabled = false;
       this.saveRecoveryReason = null;
       this.modeController.restoreFromState(this.sim.state);
       this.inputRouter.setMode(this.mode);
       this.syncOverlayState();
     } else if (saveResult.status === "empty") {
-      this.durableWritesEnabled = true;
-    } else {
-      // Keep the existing recovery path as a last-resort guard if storage
-      // changes between preflight and startup or a caller bypasses the title.
-      if (saveResult.status !== "corrupt" && saveResult.status !== "incompatible" && saveResult.status !== "unavailable") {
-        throw new Error(`Unexpected save preflight status: ${saveResult.status}`);
-      }
       this.durableWritesEnabled = false;
-      this.saveRecoveryReason = saveResult.status;
-      this.modeController.open("new-game-confirm");
-      this.syncOverlayState();
+    } else {
+      throw new Error("Your save could not be read. Reload to choose a recovery option.");
     }
 
     if (debugStart) this.applyDebugStartScenario(debugStart);
@@ -1172,49 +1236,33 @@ export class GameApp {
       this.syncOverlayState();
     }
 
-    this.updateStartupState({
-      phase: "assets",
-      loadedAssets: 0,
-      message: "Unpacking the shoreline"
-    });
-    const startupAssetIds = WorldScene.startupAssetIds(this.sim.state);
-    this.updateStartupState({ totalAssets: startupAssetIds.length });
-    await withProgressStallTimeout(
-      (reportProgress) => AssetLoader.preload(startupAssetIds, (progress) => {
-        reportProgress();
-        this.updateStartupState({
-          phase: "assets",
-          loadedAssets: progress.completed,
-          totalAssets: progress.total,
-          message: `Unpacking the shoreline · ${progress.completed} of ${progress.total}`
-        });
-      }),
-      ASSET_PROGRESS_STALL_TIMEOUT_MS,
-      new StartupTimeoutError(
-        "asset-loading-stalled",
-        `Asset loading made no progress for ${ASSET_PROGRESS_STALL_TIMEOUT_MS / 1_000} seconds`
-      )
-    );
-
-    this.updateStartupState({ phase: "world", message: "Waking the harbor" });
-    await withTimeout(
-      this.worldScene.ready(this.sim.state.worldSeed),
+    this.updateStartupState({ phase: "layout", message: "Preparing the island" });
+    const startupAssetIds = await attempt.stage(
+      () => WorldScene.prepareStartupAssetIds(this.sim.state, attempt.signal),
       WORLD_STARTUP_TIMEOUT_MS,
-      new StartupTimeoutError(
-        "world-startup-timeout",
-        `World geometry exceeded ${WORLD_STARTUP_TIMEOUT_MS / 1_000} seconds`
-      )
+      new StartupTimeoutError("world-startup-timeout", "Island preparation timed out")
     );
-
-    this.updateStartupState({ phase: "physics", message: "Setting the paths" });
-    this.physicsWorld = await withTimeout(
-      PhysicsWorld.create(this.worldScene.staticCollisionProxies()),
-      PHYSICS_STARTUP_TIMEOUT_MS,
-      new StartupTimeoutError(
-        "physics-startup-timeout",
-        `Physics startup exceeded ${PHYSICS_STARTUP_TIMEOUT_MS / 1_000} seconds`
-      )
+    this.updateStartupState({ phase: "assets", loadedAssets: 0, totalAssets: startupAssetIds.length, message: "Loading scenery" });
+    await attempt.stage(
+      reportProgress => AssetLoader.preload(startupAssetIds, progress => {
+        if (attempt.signal.aborted) return;
+        reportProgress();
+        this.updateStartupState({ loadedAssets: progress.completed, totalAssets: progress.total,
+          progress: { kind: "measured", completed: progress.completed, total: progress.total } });
+      }, 6, attempt.signal, reportProgress),
+      ASSET_PROGRESS_STALL_TIMEOUT_MS,
+      new StartupTimeoutError("asset-loading-stalled", "Scenery download stopped making progress"),
+      () => this.updateStartupState({ slow: true })
     );
+    this.updateStartupState({ phase: "world", message: "Preparing the island" });
+    await attempt.stage(() => this.worldScene.ready(this.sim.state.worldSeed, attempt.signal),
+      WORLD_STARTUP_TIMEOUT_MS, new StartupTimeoutError("world-startup-timeout", "World preparation timed out"));
+    this.updateStartupState({ phase: "physics", message: "Preparing your arrival", degradedResources: [...degradedSurfaceResources] });
+    this.physicsWorld = await attempt.stage(
+      () => PhysicsWorld.create(this.worldScene.staticCollisionProxies()),
+      PHYSICS_STARTUP_TIMEOUT_MS, new StartupTimeoutError("physics-startup-timeout", "Path preparation timed out"),
+      undefined, physics => physics.dispose());
+    attempt.check();
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
     if (import.meta.env.DEV) {
       const { CollisionDebugView } = await import("../diagnostics/CollisionDebugView");
@@ -1222,55 +1270,90 @@ export class GameApp {
       this.collisionDebugView = new CollisionDebugView(this.worldScene.scene, this.canvasContainer);
     }
     this.assetCoverage = getAssetCoverageSummary(this.sim.state.worldSeed);
-    // Resolve the initial target before exposing boot-ready state. This keeps
-    // contextual prompts usable on the first interactive frame after the
-    // deferred world/physics boot completes.
-    this.evaluateInteractionTarget();
+    this.updateStartupState({ phase: "presentation", message: "Preparing your arrival" });
+    await attempt.stage(async () => {
+      const time = this.benchmarkPresentationTimeSeconds ?? 0;
+      await this.worldScene.syncWithSimulation(this.sim, time);
+      attempt.check();
+      const position = this.presentationPlayerPosition.set(this.sim.state.player.x, this.sim.state.player.y, this.sim.state.player.z);
+      if (this.benchmarkCameraView) {
+        this.gameCamera.setFixedView(this.benchmarkCameraView.cameraPosition,
+          this.benchmarkCameraView.cameraTarget, this.benchmarkCameraView.fovDegrees);
+      } else {
+        this.gameCamera.update(position, this.mode, 0, undefined, this.physicsWorld ?? undefined, {
+          player: stationaryPlayerMotion(this.sim.state.player), discontinuityReason: "load", discontinuitySequence: 1,
+          lookHint: this.worldScene.getSportFishingCameraHint()?.lookHint
+        });
+      }
+      this.worldScene.updateEnvironment(this.sim.state, time, this.benchmarkLightingFocus ?? position);
+      await this.worldScene.prepareForEntry(this.gameCamera.camera);
+      for (let frame = 0; frame < 2; frame++) {
+        await yieldToTask(attempt.signal);
+        this.worldScene.render(this.gameCamera.camera, 0);
+      }
+      this.gameCamera.camera.updateMatrixWorld();
+      this.evaluateInteractionTarget();
+    }, 30_000, new StartupTimeoutError("presentation-startup-timeout", "Arrival preparation timed out"));
 
-    this.updateStartupState({
-      status: "revealing",
-      phase: "complete",
-      loadedAssets: this.startupState.totalAssets,
-      message: "Almost ready"
-    });
-    await new Promise<void>((resolve) => setTimeout(resolve, 520));
-    if (!this.isRunning) return;
-
-    if (this.benchmarkCameraView) {
-      this.gameCamera.setFixedView(
-        this.benchmarkCameraView.cameraPosition,
-        this.benchmarkCameraView.cameraTarget,
-        this.benchmarkCameraView.fovDegrees
-      );
-      const captureTimeSeconds = this.benchmarkPresentationTimeSeconds ?? 0;
-      await this.worldScene.syncWithSimulation(this.sim, captureTimeSeconds);
-      this.worldScene.updateEnvironment(
-        this.sim.state,
-        captureTimeSeconds,
-        this.benchmarkLightingFocus ?? this.presentationPlayerPosition.set(
-          this.sim.state.player.x,
-          this.sim.state.player.y,
-          this.sim.state.player.z
-        )
-      );
-      await document.fonts.ready;
-      await this.worldScene.prepareForVisualCapture(this.gameCamera.camera);
+    if (shouldCommitSave) {
+      this.updateStartupState({ phase: "commit", message: "Saving your harbor log" });
+      while (!await this.saveRepo.saveGame(this.sim.state, attempt.signal)) {
+        attempt.check();
+        this.updateStartupState({ status: "error", recovery: "save", errorCode: "save-failed", errorPhase: "commit",
+          errorMessage: "Your island is ready, but your harbor log could not be saved." });
+        const retry = await new Promise<boolean>((resolve, reject) => {
+          const abort = () => { this.saveDecision = undefined; reject(attempt.signal.reason); };
+          attempt.signal.addEventListener("abort", abort, { once: true });
+          this.saveDecision = choice => { attempt.signal.removeEventListener("abort", abort); this.saveDecision = undefined; resolve(choice); };
+        });
+        if (!retry) break;
+        this.updateStartupState({ status: "loading", errorMessage: null });
+      }
+      this.durableWritesEnabled = this.startupState.status !== "error";
     }
-
+    attempt.check();
+    syncWorldAudio({ clock: this.sim.state.clock, position: this.sim.state.player, mode: this.mode, weather: this.sim.state.weather.type, paused: false });
+    gameAudio.startAmbience();
+    if (!debugStart && !this.benchmarkView && (shouldStartNewGame || shouldPlayWithoutSaving || saveResult.status === "empty")
+      && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      this.updateStartupState({ status: "intro", phase: "complete", message: "" });
+      await playOpeningCamera(this.gameCamera.camera, ART_VIEW_PRESETS["farm-mountains"],
+        () => this.worldScene.render(this.gameCamera.camera, 0), attempt.signal, (skip) => { this.openingSkip = skip; });
+      attempt.check();
+    }
+    this.updateStartupState({ status: "revealing", phase: "complete", message: "Ready" });
+    await new Promise<void>(resolve => {
+      const screen = document.querySelector(".start-screen");
+      let timer: ReturnType<typeof setTimeout>;
+      const finish = () => { clearTimeout(timer); screen?.removeEventListener("transitionend", end); attempt.signal.removeEventListener("abort", finish); resolve(); };
+      const end = (event: Event) => { if (event.target === screen && (event as TransitionEvent).propertyName === "opacity") finish(); };
+      screen?.addEventListener("transitionend", end);
+      attempt.signal.addEventListener("abort", finish, { once: true });
+      timer = setTimeout(finish, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450);
+    });
+    attempt.check();
+    this.inputRouter.interrupt();
+    this.physicsAccumulatorSeconds = 0;
+    this.lastTimeMs = performance.now();
     this.bootReady = true;
     this.updateMobileViewportState();
     this.renderReadyFramesRemaining = this.benchmarkCameraView ? 4 : 2;
     this.attachDebugHarness();
+    performance.mark("neva.startup.interactive");
     this.updateStartupState({ status: "ready" });
+    notifyArrival();
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("place")) {
       void this.layoutEditorReady?.then(() => this.setLayoutEditorActive(true));
     }
-    if (shouldCreateInitialSave && this.durableWritesEnabled) {
-      this.requestAutosave();
-    }
+
   }
 
   private updateStartupState(update: Partial<StartupState>): void {
+    if (!this.isRunning) return;
+    if (update.phase && update.phase !== this.startupState.phase) {
+      performance.mark(`neva.startup.${update.phase}`);
+      update = { progress: { kind: "indeterminate" }, slow: false, ...update };
+    }
     this.startupState = { ...this.startupState, ...update };
     this.syncOverlayState();
     this.renderUI();
@@ -1278,6 +1361,9 @@ export class GameApp {
 
   private handleStartupFailure(error: unknown): void {
     if (!this.isRunning) return;
+    this.startupAttempt?.cancel(error);
+    this.durableWritesEnabled = false;
+    this.worldScene.dispose();
     this.bootReady = false;
     window.__NEVA_RENDER_READY = false;
     this.renderReadyFramesRemaining = 0;
@@ -1311,6 +1397,7 @@ export class GameApp {
     this.startupState = {
       ...this.startupState,
       status: "error",
+      recovery: "reload",
       message,
       errorMessage: message,
       errorDetail: import.meta.env.DEV && detail ? detail : null,
@@ -1323,6 +1410,7 @@ export class GameApp {
 
   private retryStartup = (): void => {
     if (this.startupState.status !== "error") return;
+    if (this.saveDecision) { this.saveDecision(true); return; }
     window.location.reload();
   };
 
@@ -1407,7 +1495,6 @@ export class GameApp {
           break;
         case "interact-release":
           if (this.mode === "basic-fishing" && this.basicCastSource === "interact") {
-            this.basicCastSource = null;
             this.releaseBasicFishingCast();
           }
           break;
@@ -1418,7 +1505,6 @@ export class GameApp {
           break;
         case "use-primary-release":
           if (this.mode === "basic-fishing" && this.basicCastSource === "primary") {
-            this.basicCastSource = null;
             this.releaseBasicFishingCast();
           }
           break;
@@ -1458,16 +1544,25 @@ export class GameApp {
           this.modeController.handleEscape();
           this.syncOverlayState();
           break;
+        case "open-character":
         case "open-inventory":
         case "open-journal":
         case "open-map":
         case "open-ledger": {
           const overlay = {
+            "open-character": "character",
             "open-inventory": "inventory",
             "open-journal": "journal",
             "open-map": "map",
             "open-ledger": "ledger"
-          }[action] as "inventory" | "journal" | "map" | "ledger";
+          }[action] as "character" | "inventory" | "journal" | "map" | "ledger";
+          if (overlay === "character") {
+            const blocker = this.characterScreenBlocker();
+            if (blocker) {
+              this.notify(blocker, "warning", 1800);
+              break;
+            }
+          }
           if (!this.openOverlayFromHotkey(overlay)) break;
           const previous = this.activeModal;
           this.modeController.toggle(overlay);
@@ -1527,7 +1622,13 @@ export class GameApp {
         case "fishing.toggle-lure": {
           const result = this.sim.execute({ type: "fishing.toggle-lure" });
           if (!result.success) this.notify(result.reason ?? "Could not change the lure", "warning");
-          else this.setToast(this.sim.state.player.preparedLureItemId ? "Basic Lure armed" : "Lure put away", 1800);
+          else {
+            const lureItemId = this.sim.state.player.preparedLureItemId;
+            const lureName = lureItemId
+              ? ContentRegistry.items.get(lureItemId)?.name ?? "Woven Lure"
+              : "Lure";
+            this.setToast(lureItemId ? `${lureName} armed` : "Lure put away", 1800);
+          }
           this.requestAutosave();
           break;
         }
@@ -1536,6 +1637,7 @@ export class GameApp {
       }
     });
     this.inputRouter.onInterruption(() => {
+      if (!this.bootReady) return;
       this.cancelFarmingAction();
       this.clearFarmGisHold();
       this.cancelChargingCastWithoutPause();
@@ -1545,9 +1647,21 @@ export class GameApp {
     });
   }
 
+  private cancelArrivalView = (): void => { this.gameCamera.cancelArrivalView(); };
+
+  private playRewardCameraBeat(trauma: number, hold = false): void {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    this.gameCamera.addTrauma(trauma);
+    // Retain the last canvas for three presentations; fixed-step simulation still advances.
+    if (hold) this.presentationHoldFrames = 3;
+  }
+
   private attachSimulationFeedback(): void {
+    this.rewardFeedback.reset();
+    this.rewardFeedback.sample(this.sim.state);
     for (const dispose of this.simulationFeedbackDisposers) dispose();
     this.simulationFeedbackDisposers = [
+      bindUiHoverAudio(document.body),
       attachTelemetry(this.sim.events, this.telemetry, {
         gameMinute: () => this.sim.state.clock.currentMinute,
         realElapsedMs: () => performance.now() - this.telemetryStartedAtMs,
@@ -1558,6 +1672,7 @@ export class GameApp {
         return { x: player.x, y: player.y, z: player.z };
       }),
       this.sim.events.on("FishLanded", ({ cargoId, speciesId, weightKg, record }) => {
+        if (record) this.playRewardCameraBeat(0.4, true);
         this.worldScene.playSportFishingEndCue("landed");
         const speciesName = ContentRegistry.fishSpecies.get(speciesId)?.name ?? "fish";
         const moment =
@@ -1603,7 +1718,8 @@ export class GameApp {
         if (hasTreasure) this.notify("Sunken treasure spotted", "info", 1800);
         this.worldScene.playPlayerAction("reel");
       }),
-      this.sim.events.on("BasicFishingResolved", ({ catchItemId, reason, record }) => {
+      this.sim.events.on("BasicFishingResolved", ({ catchItemId, reason, record, isPerfect }) => {
+        if (record || isPerfect) this.playRewardCameraBeat(record ? 0.4 : 0.25, Boolean(record));
         if (catchItemId) {
           this.worldScene.playPlayerAction("pickup");
           if (record === "first") this.notify("New species recorded in the journal", "reward", 3200);
@@ -1633,7 +1749,15 @@ export class GameApp {
         }
         this.notify(`Errand progress · ${Math.min(current, total)} / ${total}`, "success", 2200);
       }),
+      this.sim.events.on("PlaceDiscovered", ({ title, view }) => {
+        this.notify(`Discovered · ${title}`, "reward", 3600);
+        const preset = view ? ART_VIEW_PRESETS[view] : undefined;
+        if (preset && !this.activeModal && !this.benchmarkView) this.gameCamera.beginArrivalView(preset.cameraPosition, preset.cameraTarget, preset.fovDegrees);
+        this.requestAutosave();
+      }),
+      this.sim.events.on("ActCompleted", () => this.playRewardCameraBeat(0.5, true)),
       this.sim.events.on("QuestCompleted", ({ questId, rewardMoney }) => {
+        this.playRewardCameraBeat(0.3);
         const quest = ContentRegistry.quests.get(questId);
         const reward = rewardMoney == null ? "" : ` · +${rewardMoney} G`;
         this.notify(`Errand complete · ${quest?.questTitle ?? "Task finished"}${reward}`, "reward", 3600);
@@ -1680,7 +1804,15 @@ export class GameApp {
       this.sim.events.on("IrrigationInstalled", () => this.requestAutosave()),
       this.sim.events.on("FarmIrrigated", () => this.requestAutosave()),
       this.sim.events.on("RecipeStarted", () => this.requestAutosave()),
+      this.sim.events.on("ProcessingJobReady", ({ recipeId }) => {
+        const recipe = ContentRegistry.recipes.get(recipeId);
+        this.notify(`${recipe?.name ?? "Station job"} is ready to collect`, "success", 4200);
+        this.requestAutosave();
+      }),
       this.sim.events.on("RecipeCompleted", () => this.requestAutosave()),
+      this.sim.events.on("EquipmentEquipped", () => this.requestAutosave()),
+      this.sim.events.on("EquipmentPresetSaved", () => this.requestAutosave()),
+      this.sim.events.on("EquipmentPresetApplied", () => this.requestAutosave()),
       this.sim.events.on("FishLanded", () => this.requestAutosave()),
       this.sim.events.on("FishEscaped", () => this.requestAutosave()),
       this.sim.events.on("FishHooked", () => this.requestAutosave()),
@@ -1725,7 +1857,7 @@ export class GameApp {
     // population, and physics finish. Only the static scene is rendered until
     // the authoritative runtime is ready; no simulation time advances.
     if (!this.bootReady) {
-      this.worldScene.render(this.gameCamera.camera, deltaSeconds);
+      if (this.startupState.status === "revealing") this.worldScene.render(this.gameCamera.camera, deltaSeconds);
       this.renderUiForFrame(nowMs);
       requestAnimationFrame(this.loop);
       return;
@@ -1761,6 +1893,7 @@ export class GameApp {
     while (this.physicsWorld && this.physicsAccumulatorSeconds >= 1 / 60) {
       this.updateMovement(1 / 60, nowMs / 1000);
       this.physicsAccumulatorSeconds -= 1 / 60;
+      this.physicsStepCount++;
     }
 
     // 2. Cross authored action commit markers before advancing simulation time.
@@ -1818,7 +1951,7 @@ export class GameApp {
       // Physics intentionally drops excess hitch time. Gaits cover only that
       // resolved travel while action clips retain their full elapsed time.
       elapsedSeconds > 0 ? deltaSeconds / elapsedSeconds : 1
-    );
+    ).catch(error => this.handleStartupFailure(error));
     for (const event of this.worldScene.drainPlayerAnimationEvents()) {
       if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
       gameAudio.playBank(
@@ -1881,6 +2014,9 @@ export class GameApp {
     const basicFishing = this.sim.state.basicFishing;
     const sportPresentation = this.worldScene.getSportFishingPresentation();
     syncWorldAudio({
+      clock: this.sim.state.clock,
+      icedCargoIds: buildIcedCargoIds(this.sim.state),
+      windmill: buildWindmillAudio(presentedPlayer, this.sim.state.weather.windSpeed),
       position: { x: presentedPlayer.x, y: presentedPlayer.y, z: presentedPlayer.z },
       mode: this.mode,
       weather: this.sim.state.weather.type,
@@ -1916,6 +2052,7 @@ export class GameApp {
       this.promptText = null;
       this.worldScene.setInteractionTargetFeedback(null);
       this.worldScene.setQuestWaypoint(null);
+      this.questPointerTarget = null;
       this.syncLayoutEditor();
     } else {
       this.evaluateInteractionTarget(nowMs, false);
@@ -1925,7 +2062,25 @@ export class GameApp {
     if (this.physicsWorld) {
       this.collisionDebugView?.update(this.physicsWorld, this.gameCamera.camera, this.sim.state.player, nowMs);
     }
-    this.worldScene.render(this.gameCamera.camera, deltaSeconds);
+    if (this.presentationHoldFrames > 0) this.presentationHoldFrames -= 1;
+    else this.worldScene.render(this.gameCamera.camera, deltaSeconds);
+    this.questPointer.update(this.questPointerTarget, this.gameCamera.camera, {
+      width: this.canvasContainer.clientWidth || window.innerWidth,
+      height: this.canvasContainer.clientHeight || window.innerHeight
+    });
+    const rewards = this.rewardFeedback.sample(this.sim.state, this.farmingActionSnapshot?.target, this.activeMarketId);
+    if (rewards.some((reward) => reward.kind === "record")) this.playRewardCameraBeat(0.4);
+    this.rewardOverlay.push(rewards, nowMs);
+    this.rewardOverlay.update(this.gameCamera.camera, {
+      width: this.canvasContainer.clientWidth || window.innerWidth,
+      height: this.canvasContainer.clientHeight || window.innerHeight
+    }, nowMs);
+    this.npcBarks.update(
+      this.activeModal || this.benchmarkView || this.layoutEditor?.isActive() ? [] : buildNearbyNpcBarks(this.sim.state),
+      this.gameCamera.camera,
+      { width: this.canvasContainer.clientWidth || window.innerWidth, height: this.canvasContainer.clientHeight || window.innerHeight },
+      nowMs, (x, z) => WorldLayout.traversalSurfaceHeight(x, z)
+    );
     if (this.renderReadyFramesRemaining > 0) {
       this.renderReadyFramesRemaining -= 1;
       if (this.renderReadyFramesRemaining === 0) {
@@ -1979,8 +2134,15 @@ export class GameApp {
         timeSeconds
       );
       const commit = this.sim.execute({ type: "physics.commit", frame: result.frame });
-      if (!commit.success) this.notify(commit.reason ?? "Movement could not be resolved", "danger");
-      else {
+      // Close the physics transaction before anything else reads the world. A
+      // rejected commit must rewind Rapier to the pose the simulation kept,
+      // otherwise the next step resynchronises and drops a frame of velocity.
+      this.physicsWorld.onCommitResult(commit.success);
+      if (!commit.success) {
+        // Stacked danger toasts for a blocked climb read as a systems fault;
+        // keep one quiet notice so the player still sees the wall, not a flood.
+        this.notify(commit.reason ?? "Movement could not be resolved", "warning", 1800);
+      } else {
         this.lastBoatMotion = result.boatMotion;
         this.playerPresentation.push(result.frame.player, result.playerMotion);
       }
@@ -2172,108 +2334,98 @@ export class GameApp {
     const world = farmLocalToWorld(crop.farmId, crop);
     const player = this.sim.state.player;
     const distanceMeters = Math.hypot(player.x - world.x, player.z - world.z);
-    if (distanceMeters > 2.5) return null;
+    const withinWaterReach = distanceMeters <= this.sim.cropInteractionReachMeters("water");
+    const withinHarvestReach = distanceMeters <= this.sim.cropInteractionReachMeters("harvest");
+    const withinInspectReach = distanceMeters <= this.sim.cropInteractionReachMeters("inspect");
+    if (!withinWaterReach && !withinHarvestReach && !withinInspectReach) return null;
 
     const farm = this.sim.state.farms[crop.farmId];
     const inventory = this.sim.state.inventories[this.sim.state.player.inventoryId];
-    const fertilizeWork = this.sim.quoteWorkCost(8, "farming");
+    const fertilizeWork = this.sim.quoteWorkCost(FARMING_ACTION_COST.fertilize, "farming", "farming.fertilize");
     const canFertilize = Boolean(
       farm &&
+      distanceMeters <= 2.5 &&
       farm.soil.fertility < 100 &&
       fertilizeWork.affordable &&
       InventoryManager.hasItems(inventory, [{ itemId: "item.basic_fertilizer", quantity: 1 }])
     );
-    if (this.activeTool === "fertilizer") {
-      return {
-        id: `crop:${crop.id}:fertilize`,
-        entityId: crop.farmId,
-        kind: "planting-plot",
-        action: canFertilize ? "fertilize" : "inspect",
-        distanceMeters,
-        priority: 0,
-        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
-        modes: ["on-foot"],
-        requiresLineOfSight: true,
-        prompt: canFertilize
-          ? `[E] Fertilize soil · ${fertilizeWork.cost} Work · Right-click inspect`
-          : farm?.soil.fertility === 100
-            ? "Soil is fully nourished · Right-click inspect"
-            : !fertilizeWork.affordable
-              ? `Need ${fertilizeWork.cost} Work to fertilize · Right-click inspect`
-              : "No fertilizer in the satchel · Right-click inspect"
-      };
-    }
-    if (inspection.actions.canHarvest && (this.activeTool === "hands" || this.activeTool === "harvest")) {
-      return {
+    const plotPosition = { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z };
+
+    // A plot can be ripe, dry and hungry at once. The belt used to decide by
+    // refusing every verb but the equipped one, which meant the prompt read
+    // "[3] Equip Watering Can to water Wheat" — the game naming the tool it
+    // had already worked out and then asking to be told again. Now every
+    // available verb is offered, `E` swaps the tool in, and holding one
+    // deliberately is only how the player breaks a tie.
+    const verbs: ResolvedInteractionTarget[] = [];
+    if (inspection.actions.canHarvest) {
+      verbs.push({
         id: `crop:${crop.id}:harvest`,
         entityId: crop.id,
         kind: "crop",
         action: "harvest",
         distanceMeters,
         priority: 0,
-        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        worldPosition: plotPosition,
         modes: ["on-foot"],
         requiresLineOfSight: true,
+        requiresTool: "harvest",
         prompt: `[E] Harvest ${inspection.name} · ${inspection.harvestWork.cost} Work · Right-click inspect`
-      };
+      });
     }
-    if (inspection.actions.canHarvest) {
-      return {
-        id: `crop:${crop.id}:equip-harvest`,
-        entityId: crop.id,
-        kind: "crop",
-        action: "inspect",
-        distanceMeters,
-        priority: 4,
-        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
-        modes: ["on-foot"],
-        requiresLineOfSight: true,
-        prompt: `[5] Equip Harvest Basket to harvest ${inspection.name} · Right-click inspect`
-      };
-    }
-    if (inspection.actions.canWater && this.activeTool === "watering-can") {
-      return {
+    if (inspection.actions.canWater) {
+      verbs.push({
         id: `crop:${crop.id}:water`,
         entityId: crop.id,
         kind: "crop",
         action: "water",
         distanceMeters,
         priority: 0,
-        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        worldPosition: plotPosition,
         modes: ["on-foot"],
         requiresLineOfSight: true,
+        requiresTool: "watering-can",
         prompt: `[E] Water ${inspection.name} · ${inspection.waterWork.cost} Work · Right-click inspect`
-      };
-    }
-    if (inspection.actions.canWater) {
-      return {
-        id: `crop:${crop.id}:equip-water`,
-        entityId: crop.id,
-        kind: "crop",
-        action: "inspect",
-        distanceMeters,
-        priority: 4,
-        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
-        modes: ["on-foot"],
-        requiresLineOfSight: true,
-        prompt: `[3] Equip Watering Can to water ${inspection.name} · Right-click inspect`
-      };
+      });
     }
     if (canFertilize) {
-      return {
+      verbs.push({
         id: `crop:${crop.id}:fertilize`,
         entityId: crop.farmId,
         kind: "planting-plot",
         action: "fertilize",
         distanceMeters,
         priority: 0,
-        worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
+        worldPosition: plotPosition,
         modes: ["on-foot"],
         requiresLineOfSight: true,
+        requiresTool: "fertilizer",
         prompt: `[E] Fertilize soil · ${fertilizeWork.cost} Work · Right-click inspect`
+      });
+    }
+    if (verbs.length > 0) {
+      return verbs.find((verb) => verb.requiresTool === this.activeTool) ?? verbs[0];
+    }
+    // Holding the fertilizer over soil that cannot take any says why.
+    if (this.activeTool === "fertilizer") {
+      return {
+        id: `crop:${crop.id}:fertilize`,
+        entityId: crop.farmId,
+        kind: "planting-plot",
+        action: "inspect",
+        distanceMeters,
+        priority: 0,
+        worldPosition: plotPosition,
+        modes: ["on-foot"],
+        requiresLineOfSight: true,
+        prompt: farm?.soil.fertility === 100
+          ? "Soil is fully nourished · Right-click inspect"
+          : !fertilizeWork.affordable
+            ? `Need ${fertilizeWork.cost} Work to fertilize · Right-click inspect`
+            : "No fertilizer in the satchel · Right-click inspect"
       };
     }
-    if (!inspection.work.affordable) {
+    if (!inspection.work.affordable && (withinWaterReach || withinHarvestReach)) {
       const ready = inspection.work.readyAtMinute == null ? "later" : formatClockTime(inspection.work.readyAtMinute);
       return {
         id: `crop:${crop.id}:insufficient-work`,
@@ -2288,6 +2440,7 @@ export class GameApp {
         prompt: `${inspection.name} · Need ${inspection.work.cost} Work · ${inspection.work.availableWork} available · ready ${ready} · Right-click inspect`
       };
     }
+    if (!withinInspectReach) return null;
     return {
       id: `crop:${crop.id}:inspect`,
       entityId: crop.id,
@@ -2355,18 +2508,17 @@ export class GameApp {
       if (candidate) candidates.push(candidate);
     }
 
-    const stationDefinitions = Object.values(WORLD_STATION_DEFINITIONS).map((station) => this.pickStationRecipe(
-      station.id,
-      station.type,
-      station.type === "hand-mill"
-        ? "[E] Mill Grain"
+    const stationDefinitions = Object.values(WORLD_STATION_DEFINITIONS).map((station) => ({
+      stationId: station.id,
+      idlePrompt: station.type === "hand-mill"
+        ? "[E] Use Hand Mill"
         : station.type === "fish-table"
-          ? "[E] Clean Fish"
+          ? "[E] Use Fish Table"
           : station.type === "compost-bin"
-            ? "[E] Cultivate Bait Worms"
+            ? "[E] Use Compost Bin"
             : "[E] Use Workbench",
-      station.type === "fish-table" ? "[E] Collect Scraps" : "[E] Collect Output"
-    ));
+      collectPrompt: station.type === "fish-table" ? "[E] Collect Catch Work" : "[E] Collect Output"
+    }));
     for (const definition of stationDefinitions) {
       const structure = this.sim.state.world.structures[definition.stationId];
       if (!structure) continue;
@@ -2391,8 +2543,7 @@ export class GameApp {
         modes: ["on-foot"],
         requiresLineOfSight: true,
         prompt: interaction.prompt,
-        stationId: definition.stationId,
-        recipeId: definition.recipeId
+        stationId: definition.stationId
       });
     }
 
@@ -2417,7 +2568,7 @@ export class GameApp {
             worldPosition: { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z), z: world.z },
             modes: ["on-foot"],
             requiresLineOfSight: false,
-            prompt: `[E] Fertilize soil · ${this.sim.quoteWorkCost(8, "farming").cost} Work`
+            prompt: `[E] Fertilize soil · ${this.sim.quoteWorkCost(FARMING_ACTION_COST.fertilize, "farming", "farming.fertilize").cost} Work`
           });
         }
       }
@@ -2450,7 +2601,7 @@ export class GameApp {
             modes: ["on-foot"],
             requiresLineOfSight: false,
             prompt: irrigationInstalled
-              ? `[E] Pump water to the field · ${this.sim.quoteWorkCost(8, "farming").cost} Work`
+              ? `[E] Pump water to the field · ${this.sim.quoteWorkCost(FARMING_ACTION_COST.irrigate, "farming", "farming.irrigate").cost} Work`
               : `[E] Install a field pump · ${IRRIGATION_COST} G`
           });
         }
@@ -2480,11 +2631,9 @@ export class GameApp {
     }
 
     const fishingHabitat = WorldLayout.nearbyFishingHabitat(p.x, p.z);
-    if (
-      fishingHabitat &&
-      this.activeTool === "fishing-rod" &&
-      (this.mode === "on-foot" || this.mode === "boat-driving")
-    ) {
+    // Fishable water offers the cast whether or not the rod is already out;
+    // requiring it first meant standing at the shore with no prompt at all.
+    if (fishingHabitat && (this.mode === "on-foot" || this.mode === "boat-driving")) {
       candidates.push({
         id: `fishing-habitat:${fishingHabitat}:cast`,
         kind: "fishing-habitat",
@@ -2492,7 +2641,8 @@ export class GameApp {
         distanceMeters: 0,
         priority: 3,
         modes: ["on-foot", "boat-driving"],
-        prompt: `[E] Cast line · ${this.sim.quoteWorkCost(15, "fishing").cost} Work`
+        requiresTool: "fishing-rod",
+        prompt: `[E] Cast line · ${this.sim.quoteWorkCost(BASIC_FISHING_WORK_COST, "fishing", "fishing.basic-cast").cost} Work`
       });
       // Reading the water is the quiet verb beside the cast: conditions and
       // the local pool for everyone, school sense for seasoned anglers.
@@ -2623,6 +2773,8 @@ export class GameApp {
       if (sDist < 12.0) {
         const frenzy =
           school.feedingFrenzyUntilMinute && this.sim.state.clock.currentMinute <= school.feedingFrenzyUntilMinute;
+        const lurePrepared = p.preparedLureItemId === LURE_ITEM_ID;
+        const lureWithinReach = lurePrepared && accessibleLureSupplyCount(this.sim.state) > 0;
         candidates.push({
           id: `school:${school.id}:${frenzy ? "hook" : "chum"}`,
           entityId: school.id,
@@ -2637,8 +2789,16 @@ export class GameApp {
           },
           modes: ["on-foot", "boat-driving"],
           prompt: frenzy
-            ? `[E] Hook Sport Fish · ~${this.sim.quoteWorkCost(this.sim.quoteSchoolHookWork(school.id), "fishing").cost} Work · [R] ${p.preparedLureItemId ? "Lure armed" : "Arm lure"}`
-            : `[E] Chum School · Strongest chum in reach · [R] ${p.preparedLureItemId ? "Lure armed" : "Arm lure"}`
+            ? lureWithinReach
+              ? `[E] Hook Sport Fish · ~${this.sim.quoteWorkCost(this.sim.quoteSchoolHookWork(school.id), "fishing", "fishing.sport-hook").cost} Work · Woven Lure armed`
+              : lurePrepared
+                ? `Woven Lure out of reach · return to supplies or [R] put away`
+                : `[R] Arm a Woven Lure · required before hooking`
+            : `[E] Chum School · Strongest chum in reach · [R] ${lureWithinReach
+              ? "Woven Lure armed"
+              : lurePrepared
+                ? "Woven Lure out of reach"
+                : "Arm Woven Lure"}`
         });
       }
     }
@@ -2706,8 +2866,9 @@ export class GameApp {
 
     if (this.mode === "on-foot") {
       for (const [npcId, npc] of ContentRegistry.npcs.entries()) {
-        const distToNpc = Math.hypot(p.x - npc.anchor.x, p.z - npc.anchor.z);
-        if (distToNpc <= 3.5) {
+        const anchor = npcAnchorAt(npcId, this.sim.state.clock);
+        const distToNpc = Math.hypot(p.x - anchor.x, p.z - anchor.z);
+        if (distToNpc <= NPC_TALK_RADIUS) {
           candidates.push({
             id: `npc:${npcId}:talk`,
             kind: "station",
@@ -2717,9 +2878,9 @@ export class GameApp {
             // overlaps an NPC; dialogue remains available just outside it.
             priority: 1,
             worldPosition: {
-              x: npc.anchor.x,
-              y: WorldLayout.traversalSurfaceHeight(npc.anchor.x, npc.anchor.z),
-              z: npc.anchor.z
+              x: anchor.x,
+              y: WorldLayout.traversalSurfaceHeight(anchor.x, anchor.z),
+              z: anchor.z
             },
             modes: ["on-foot"],
             requiresLineOfSight: true,
@@ -2734,6 +2895,7 @@ export class GameApp {
     return this.interactionResolver.resolve(candidates, {
       mode: this.mode,
       player: p,
+      activeTool: this.activeTool,
       hasLineOfSight: this.physicsWorld
         ? (from, to) => this.physicsWorld!.hasLineOfSight(from, to)
         : undefined
@@ -2773,8 +2935,25 @@ export class GameApp {
     if (this.mode === "farm-placement") {
       this.worldScene.setInteractionTargetFeedback(null);
       const cropName = ContentRegistry.crops.get(this.selectedCropId)?.name ?? "crop";
+      // Progress comes from the quest DTO; the UI never recounts placements.
+      const quest = this.sim.questDomain.getActiveQuestDto();
+      const plantingThisCrop = quest
+        && quest.objectiveType === "plant-crop"
+        && (quest.objectiveTargetId === undefined || quest.objectiveTargetId === this.selectedCropId)
+        && quest.targetQuantity > 1;
+      const progressSuffix = plantingThisCrop
+        ? ` · ${quest!.currentProgress}/${quest!.targetQuantity}`
+        : "";
+      // Carried by the prompt rather than by a hint card: the card is suppressed
+      // in this very mode, so a hint raised here would never render and would
+      // then block the whole ambient hint queue. Keyed on progress rather than
+      // on `hintsShown`, which keeps this read-only — a prompt runs every frame
+      // and has no business writing simulation state.
+      const placementGuidance = plantingThisCrop && quest!.currentProgress === 0
+        ? ` · Each placement plants one — choose ${quest!.targetQuantity} separate spots`
+        : "";
       const placementPrompt = this.placementResult?.valid
-        ? `[E / Click] Plant ${cropName} · Right-click / Esc cancel`
+        ? `[E / Click] Plant one ${cropName}${progressSuffix}${placementGuidance} · Right-click / Esc cancel`
         : `${this.placementResult?.reason ?? "Point at prepared farm soil"} · Right-click / Esc cancel`;
       this.promptText = placementPrompt;
       return;
@@ -2783,17 +2962,31 @@ export class GameApp {
     const picked = this.farmingActions.isActive && this.lockedInteractionTarget
       ? this.lockedInteractionTarget
       : this.pickInteraction();
-    this.worldScene.setInteractionTargetFeedback(picked?.worldPosition ?? null);
+    this.worldScene.setInteractionTargetFeedback(picked?.worldPosition ?? null, picked?.entityId);
 
     const activeQuest = this.sim.questDomain.getActiveQuestDto();
     if (activeQuest?.targetLocation) {
+      const groundY = WorldLayout.terrainHeight(
+        activeQuest.targetLocation.x,
+        activeQuest.targetLocation.z
+      );
       this.worldScene.setQuestWaypoint({
         x: activeQuest.targetLocation.x,
-        y: WorldLayout.terrainHeight(activeQuest.targetLocation.x, activeQuest.targetLocation.z),
+        y: groundY,
         z: activeQuest.targetLocation.z
       });
+      this.questPointerTarget = {
+        x: activeQuest.targetLocation.x,
+        // Aim the screen pointer at head height above the anchor rather than at
+        // the ground, so it sits on the target instead of at its feet.
+        y: groundY + 1.7,
+        z: activeQuest.targetLocation.z,
+        label: activeQuest.targetLocation.name,
+        distanceMeters: activeQuest.targetDistanceMeters ?? 0
+      };
     } else {
       this.worldScene.setQuestWaypoint(null);
+      this.questPointerTarget = null;
     }
 
     if (this.inspectedCrop) {
@@ -2832,6 +3025,7 @@ export class GameApp {
     if (this.mode === "on-foot") {
       const crop = this.pickPointedCropInteraction();
       if (crop) {
+        this.equipForInteraction(crop);
         this.lockedInteractionTarget = crop;
         if (crop.worldPosition) this.facePlayerToward(crop.worldPosition.x, crop.worldPosition.z);
         if (crop.action === "harvest" && crop.entityId) this.startCropAction("harvest", crop.entityId);
@@ -2852,6 +3046,19 @@ export class GameApp {
     }
   }
 
+  /**
+   * Take out whatever the chosen verb is performed with. The tool belt reports
+   * what is in hand rather than standing between the player and the work, so a
+   * swap here is a consequence of the action, not a precondition for it.
+   */
+  private equipForInteraction(target: ResolvedInteractionTarget): void {
+    if (!target.requiresTool || this.activeTool === target.requiresTool) return;
+    if (this.sim.state.player.activeMountId) return;
+    if (this.mode === "farm-placement") this.exitCropPlacement();
+    this.activeTool = target.requiresTool;
+    this.toolRevealToken += 1;
+  }
+
   private handleContextInteract(): void {
     if (
       this.isMountTransitionActive() ||
@@ -2862,6 +3069,7 @@ export class GameApp {
 
     const picked = this.pickInteraction();
     if (!picked) return;
+    this.equipForInteraction(picked);
     this.lockedInteractionTarget = picked;
     if (picked.worldPosition && this.mode !== "boat-driving" && this.mode !== "mounted") {
       this.facePlayerToward(picked.worldPosition.x, picked.worldPosition.z);
@@ -2948,7 +3156,7 @@ export class GameApp {
           this.openDialogueModal(picked.entityId);
         } else if (picked.kind === "crop" && picked.entityId) {
           this.setToast(picked.prompt.split(" · ")[0].replace(/^\[[^\]]+\]\s*/, ""), 1800);
-        } else if (picked.stationId && picked.recipeId) {
+        } else if (picked.stationId) {
           this.interactWithStation(picked);
         }
         break;
@@ -3126,7 +3334,8 @@ export class GameApp {
       moveToNpc: (npcId) => {
         const npc = ContentRegistry.npcs.get(npcId);
         if (!npc) return false;
-        window.__NEVA_DEBUG?.teleport(npc.anchor.x, npc.anchor.z);
+        const anchor = npcAnchorAt(npc.id, this.sim.state.clock);
+        window.__NEVA_DEBUG?.teleport(anchor.x, anchor.z);
         return true;
       },
       moveToStation: (stationId) => {
@@ -3180,6 +3389,7 @@ export class GameApp {
           activeMountId: this.sim.state.player.activeMountId,
           currentMinute: this.sim.state.clock.currentMinute,
           minutesPerRealSecond: this.sim.state.clock.minutesPerRealSecond,
+          physicsStepCount: this.physicsStepCount,
           bootReady: this.bootReady,
           cropIds: Object.keys(this.sim.state.crops),
           schoolIds: Object.keys(this.sim.state.world.activeSchools),
@@ -3269,6 +3479,14 @@ export class GameApp {
     return true;
   }
 
+  private characterScreenBlocker(): string | null {
+    if (this.activeModal === "character") return null;
+    if (this.layoutEditor?.isActive()) return "Close Place mode before opening your gear";
+    if (this.farmingActions.isActive) return "Finish or cancel the current action first";
+    if (this.mode === "farm-placement") return "Finish placing the crop first";
+    return this.sim.inspectCharacterEquipment().equipBlocker ?? null;
+  }
+
   private selectToolSlot(slot: number): void {
     if (this.modeController.blocksHudOverlaysAndTools || this.activeModal) return;
     const selected = this.sim.inspectWorldHud(this.selectedCropId).contextualHotbar.find((entry) => entry.slot === slot);
@@ -3282,6 +3500,9 @@ export class GameApp {
       return;
     }
     const tool = selected.action.tool;
+    // Reaching for a slot brings the whole belt out, even when it lands on the
+    // tool already in hand — otherwise the key press has no visible answer.
+    this.toolRevealToken += 1;
     if (tool === "seeds") {
       const playerInv = this.sim.state.inventories[this.sim.state.player.inventoryId];
       let targetCropId: string | null = this.selectedCropId;
@@ -3418,7 +3639,7 @@ export class GameApp {
       id: `placement:${target.farmId}:${target.worldX.toFixed(3)}:${target.worldZ.toFixed(3)}`,
       kind: "planting-plot",
       action: "plant",
-      prompt: `Plant ${cropDef.name} · ${this.sim.quoteWorkCost(10, "farming").cost} Work`,
+      prompt: `Plant ${cropDef.name} · ${this.sim.quoteWorkCost(FARMING_ACTION_COST.plant, "farming", "farming.plant").cost} Work`,
       distanceMeters: Math.hypot(
         target.worldX - this.sim.state.player.x,
         target.worldZ - this.sim.state.player.z
@@ -3434,18 +3655,17 @@ export class GameApp {
       "plant",
       target.worldX,
       target.worldZ,
-      () => {
-        const result = this.sim.execute({
-          type: "crop.plant",
-          request: {
-            farmId: target.farmId,
-            cropId: target.cropId,
-            x: target.worldX,
-            z: target.worldZ
-          }
-        });
+      {
+        type: "crop.plant",
+        request: {
+          farmId: target.farmId,
+          cropId: target.cropId,
+          x: target.worldX,
+          z: target.worldZ
+        }
+      },
+      (result) => {
         if (result.success) this.setToast(`${cropDef.name} planted`);
-        return result;
       }
     );
   }
@@ -3453,8 +3673,19 @@ export class GameApp {
   private inspectPointedCrop(): void {
     const pointer = this.inputRouter.getInputState().pointerNdc;
     const cropId = this.worldScene.pickCrop(this.gameCamera.camera, pointer);
-    const target = cropId ? this.resolveCropTarget(cropId) : null;
-    if (!cropId || !target) {
+    const crop = cropId ? this.sim.state.crops[cropId] : undefined;
+    if (!cropId || !crop) {
+      this.inspectedCrop = null;
+      return;
+    }
+    const world = farmLocalToWorld(crop.farmId, crop);
+    const distance = Math.hypot(
+      this.sim.state.player.x - world.x,
+      this.sim.state.player.z - world.z
+    );
+    // Information inspection has its own reach. It never authorizes or vetoes
+    // watering/harvesting, whose acquisition and commands use their own reach.
+    if (distance > this.sim.cropInteractionReachMeters("inspect")) {
       this.inspectedCrop = null;
       return;
     }
@@ -3506,7 +3737,8 @@ export class GameApp {
     this.worldScene.setFarmingActionPresentation(
       snapshot.action === "fertilize" ? "place" : snapshot.action,
       snapshot.phase,
-      performance.now() / 1000
+      performance.now() / 1000,
+      snapshot.target.presentationKind
     );
     if (snapshot.phase === "cancelled") {
       this.worldScene.cancelFarmingVfx("water");
@@ -3516,9 +3748,11 @@ export class GameApp {
     this.playFarmingActionVfx(snapshot);
     if (snapshot.phase === "started") {
       const animation = snapshot.action === "processing-start"
-        ? "workstation"
+        ? snapshot.target.presentationKind === "tailoring" ? "craft_tailor"
+          : snapshot.target.presentationKind === "toolmaking" ? "craft_tool"
+            : "workstation"
         : snapshot.action === "processing-collect"
-          ? "pickup"
+          ? snapshot.target.presentationKind === "ready-equipment" ? "gear_check" : "pickup"
           : snapshot.action === "fertilize"
             ? "place"
             : snapshot.action;
@@ -3556,13 +3790,8 @@ export class GameApp {
           play("harvest-cut");
           play("crop-rustle");
           break;
-        case "processing-start":
-          play("place");
-          play("workstation");
-          break;
-        case "processing-collect":
-          play("pickup");
-          break;
+        // Processing/equipment cues bind to canonical domain events so a
+        // missing or reduced animation cannot suppress or duplicate them.
       }
       return;
     }
@@ -3588,6 +3817,7 @@ export class GameApp {
       return;
     }
     if (snapshot.phase === "committed") {
+      if (snapshot.action === "harvest" && snapshot.commitSucceeded && snapshot.target.entityId) this.worldScene.punchCropHarvest(snapshot.target.entityId, timeSeconds);
       if (snapshot.action === "plant" || snapshot.action === "fertilize") this.worldScene.spawnFarmingVfx("dirt", target, timeSeconds);
       if (snapshot.action === "harvest") this.worldScene.spawnFarmingVfx("straw", target, timeSeconds);
       if (snapshot.action === "processing-start") this.worldScene.spawnFarmingVfx("workstation", target, timeSeconds);
@@ -3607,80 +3837,63 @@ export class GameApp {
     action: FarmingPresentationAction,
     x: number,
     z: number,
-    commit: () => InteractionResult,
+    command: GameCommand,
+    onCommitted?: (result: Readonly<InteractionResult>) => void,
     targetY: number = WorldLayout.terrainHeight(x, z),
-    entityId?: string
-  ): void {
+    entityId?: string,
+    presentationKind?: import("../simulation/core/types").ProcessingPresentationKind | "ready-equipment"
+  ): boolean {
+    // Admission must precede any canonical simulation write. In particular,
+    // facePlayerToward() changes the saved player pose; an overlapping action
+    // must be a no-op all the way through its rejected path.
+    if (this.farmingActions.isActive) {
+      this.lockedInteractionTarget = null;
+      this.setToast("Finish the current action first");
+      return false;
+    }
     if (this.sim.state.player.activeMountId) {
       this.notify("Dismount first", "warning");
-      return;
+      return false;
     }
     const handsBlocker = this.sim.inspectFreeHands();
     if (handsBlocker && action !== "pickup" && action !== "place" && action !== "dock") {
       this.notify(handsBlocker, "warning");
-      return;
+      return false;
     }
-    this.facePlayerToward(x, z);
     const started = this.farmingActions.start(
       action,
-      { x, y: targetY, z, entityId },
+      { x, y: targetY, z, entityId, presentationKind },
       performance.now(),
+      command,
       {
-        commit: () => {
-          const result = commit();
-          if (!result.success) this.notify(result.reason ?? "That action is no longer available", "danger");
-          return result;
-        },
-        phaseChanged: (snapshot) => this.handleFarmingActionPhase(snapshot)
+        phaseChanged: (snapshot) => {
+          if ((snapshot.phase === "committed" || snapshot.phase === "invalidated") && snapshot.commitResult) {
+            onCommitted?.(snapshot.commitResult);
+            if (!snapshot.commitResult.success) {
+              this.notify(snapshot.commitResult.reason ?? "That action is no longer available", "danger");
+            }
+          }
+          this.handleFarmingActionPhase(snapshot);
+        }
       }
     );
     if (!started) {
       this.lockedInteractionTarget = null;
       this.setToast("Finish the current action first");
-      return;
+      return false;
     }
+    // Face only after presentation admission succeeds. This is itself a
+    // canonical pose command, so it must not run on a rejected action path.
+    this.facePlayerToward(x, z);
     this.inputRouter.setJumpBlocked(true);
     this.inputRouter.consumeJumpRequest();
+    return true;
   }
 
   private facePlayerToward(x: number, z: number): void {
     const result = this.sim.execute({ type: "player.face-target", x, z });
     if (!result.success) return;
     this.playerPresentation.pushCanonicalPose(this.sim.state.player);
-  }
-
-  private pickStationRecipe(
-    stationId: string,
-    stationType: "hand-mill" | "workbench" | "fish-table" | "compost-bin",
-    fallbackIdle: string,
-    fallbackCollect: string
-  ): {
-    stationId: string;
-    recipeId: string;
-    idlePrompt: string;
-    collectPrompt: string;
-  } {
-    const inventory = this.sim.state.inventories[this.sim.state.player.inventoryId];
-    const processingXp = this.sim.state.player.proficiencies.processing;
-    const recipe = pickUnlockedStationRecipe(stationType, inventory, processingXp);
-    if (!recipe) {
-      return {
-        stationId,
-        recipeId: "recipe.craft_chum",
-        idlePrompt: fallbackIdle,
-        collectPrompt: fallbackCollect
-      };
-    }
-    const output = ContentRegistry.items.get(recipe.outputs[0]?.itemId);
-    const hasInputs = InventoryManager.hasItems(inventory, recipe.inputs);
-    const duration = formatGameDuration(recipe.durationMinutes);
-    const workCost = this.sim.quoteWorkCost(35, "processing").cost;
-    return {
-      stationId,
-      recipeId: recipe.id,
-      idlePrompt: `${hasInputs ? `[E] ${recipe.name}` : fallbackIdle} · ${workCost} Work · ${duration}`,
-      collectPrompt: `[E] Collect ${output?.name ?? "Output"}`
-    };
   }
 
   private startFertilizeAction(
@@ -3692,10 +3905,8 @@ export class GameApp {
       y: this.sim.state.player.y,
       z: this.sim.state.player.z
     };
-    this.startFarmingAction("fertilize", target.x, target.z, () => {
-      const result = this.sim.execute({ type: "farm.apply-fertilizer", farmId });
+    this.startFarmingAction("fertilize", target.x, target.z, { type: "farm.apply-fertilizer", farmId }, (result) => {
       if (result.success) this.setToast("Fertilized the soil");
-      return result;
     });
   }
 
@@ -3712,11 +3923,10 @@ export class GameApp {
         "≈"
       );
     }
-    this.startFarmingAction(action, world.x, world.z, () => {
-      const result = this.sim.execute({
-        type: action === "water" ? "crop.water" : "crop.harvest",
-        placedCropId
-      });
+    const command: GameCommand = action === "water"
+      ? { type: "crop.water", placedCropId }
+      : { type: "crop.harvest", placedCropId };
+    this.startFarmingAction(action, world.x, world.z, command, (result) => {
       if (result.success) {
         this.inspectedCrop = action === "water" ? this.sim.inspectCrop(placedCropId) : null;
         if (action === "harvest") {
@@ -3739,7 +3949,6 @@ export class GameApp {
           this.setToast("Watered");
         }
       }
-      return result;
     });
   }
 
@@ -3751,8 +3960,7 @@ export class GameApp {
         this.setToast("Move closer to the docked vessel");
         return;
       }
-      this.startFarmingAction("board", boat.x, boat.z, () => {
-        const result = this.sim.execute({ type: "boat.board", boatId });
+      this.startFarmingAction("board", boat.x, boat.z, { type: "boat.board", boatId }, (result) => {
         if (result.success) {
           this.setGameplayMode("boat-driving");
           this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
@@ -3767,7 +3975,6 @@ export class GameApp {
           );
           this.requestAutosave();
         }
-        return result;
       }, boat.y, boatId);
     } else if (this.mode === "boat-driving") {
       const boatId = this.sim.state.player.activeBoatId;
@@ -3776,8 +3983,7 @@ export class GameApp {
         this.setToast("Return to the harbor dock to disembark");
         return;
       }
-      this.startFarmingAction("dock", boat.x, boat.z, () => {
-        const result = this.sim.execute({ type: "boat.dock" });
+      this.startFarmingAction("dock", boat.x, boat.z, { type: "boat.dock" }, (result) => {
         if (result.success) {
           this.setGameplayMode("on-foot");
           this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
@@ -3785,7 +3991,6 @@ export class GameApp {
           });
           this.requestAutosave();
         }
-        return result;
       }, boat.y, boat.id);
     }
   }
@@ -3862,19 +4067,20 @@ export class GameApp {
 
 
   private interactWithStation(target: ResolvedInteractionTarget): void {
-    const { stationId, recipeId } = target;
-    if (!stationId || !recipeId) return;
+    const { stationId } = target;
+    if (!stationId) return;
     const structure = this.sim.state.world.structures[stationId];
     if (!structure) return;
     const interactionPosition = target.worldPosition;
     if (!interactionPosition) return;
     const job = this.findStationJob(stationId);
     if (target.action === "collect-processing" && job?.status === "complete") {
-      this.startFarmingAction("processing-collect", interactionPosition.x, interactionPosition.z, () => {
-        const result = this.sim.execute({ type: "processing.collect", jobId: job.id });
+      this.startFarmingAction("processing-collect", interactionPosition.x, interactionPosition.z, {
+        type: "processing.collect",
+        jobId: job.id
+      }, (result) => {
         if (result.success) this.setToast("Collected");
-        return result;
-      });
+      }, undefined, undefined, job.result.kind === "equipment" ? "ready-equipment" : job.presentationKind);
       return;
     }
     if (target.action === "inspect" || job?.status === "active") {
@@ -3882,22 +4088,44 @@ export class GameApp {
       this.setToast(inspection?.waitBriefing ?? "Job in progress", 4000);
       return;
     }
-    this.startFarmingAction("processing-start", interactionPosition.x, interactionPosition.z, () => {
-      const result = this.sim.execute({ type: "processing.start", recipeId, stationId });
-      if (result.success) {
-        const inspection = this.sim.inspectProcessingJob(stationId);
-        this.setToast(inspection?.startBriefing ?? "Work started", 4000);
-        if (inspection && inspection.remainingMinutes >= 60) {
-          this.showContextualHint(
-            `hint.processing_wait.${inspection.recipeId}`,
-            inspection.recipeName,
-            `${inspection.outputName} finishes in ${formatGameDuration(inspection.remainingMinutes)} on the game clock (${inspection.readyClockLabel}). Keep farming, or rest until morning, while it works.`,
-            "⏳"
-          );
+    this.activeCraftingStationId = stationId;
+    this.setActiveModal("crafting");
+  }
+
+  private startProcessingFromModal(recipeId: RecipeId, stationId: string): InteractionResult {
+    if (this.activeCraftingStationId !== stationId || this.activeModal !== "crafting") {
+      return { success: false, reason: "Return to the station before starting this job" };
+    }
+    const structure = this.sim.state.world.structures[stationId];
+    if (!structure) return { success: false, reason: "Station not found" };
+    const approach = assessProcessingStationApproach(stationId, this.sim.state.player, structure);
+    if (!approach.valid || !approach.frontPosition) {
+      return { success: false, reason: "Move back to the front of the station" };
+    }
+    const started = this.startFarmingAction(
+      "processing-start",
+      approach.frontPosition.x,
+      approach.frontPosition.z,
+      { type: "processing.start", recipeId, stationId },
+      (result) => {
+        if (result.success) {
+          const inspection = this.sim.inspectProcessingJob(stationId);
+          this.setToast(inspection?.startBriefing ?? "Work started", 4000);
+          if (inspection && inspection.remainingMinutes >= 60) {
+            this.showContextualHint(
+              `hint.processing_wait.${inspection.recipeId}`,
+              inspection.recipeName,
+              `${inspection.outputName} finishes in ${formatGameDuration(inspection.remainingMinutes)} on the game clock (${inspection.readyClockLabel}). Keep farming, or rest until morning, while it works.`,
+              "⏳"
+            );
+          }
         }
-      }
-      return result;
-    });
+      },
+      undefined,
+      undefined,
+      ContentRegistry.recipes.get(recipeId)?.presentationKind
+    );
+    return started ? { success: true } : { success: false, reason: "Finish the current action first" };
   }
 
   private async handleQuickSave(): Promise<void> {
@@ -3958,10 +4186,16 @@ export class GameApp {
   };
 
   private requestAutosave(): void {
-    if (this.persistenceDisabled || !this.durableWritesEnabled) return;
+    if (!this.isRunning || !this.bootReady || this.persistenceDisabled || !this.durableWritesEnabled) return;
     this.autosaveRequested = true;
     if (this.autosaveInFlight) return;
-    void this.flushAutosave();
+    if (this.autosaveFlushQueued) return;
+    this.autosaveFlushQueued = true;
+    queueMicrotask(() => {
+      this.autosaveFlushQueued = false;
+      if (!this.isRunning || !this.bootReady || this.autosaveInFlight || !this.autosaveRequested) return;
+      void this.flushAutosave();
+    });
   }
 
   private async flushAutosave(): Promise<void> {
@@ -3974,7 +4208,7 @@ export class GameApp {
       }
     } finally {
       this.autosaveInFlight = false;
-      if (this.autosaveRequested) void this.flushAutosave();
+      if (this.isRunning && this.autosaveRequested) void this.flushAutosave();
     }
   }
 
@@ -3985,8 +4219,15 @@ export class GameApp {
       return;
     }
     if (this.activeTool !== "fishing-rod") {
-      this.setToast("Equip your fishing rod to cast");
-      return;
+      // Casting takes the rod out rather than turning the player away for
+      // forgetting to. Without a rod at all there is still nothing to cast.
+      if (!ContentRegistry.rods.get(this.sim.state.player.equippedRodId)) {
+        this.setToast("No fishing rod in your kit");
+        return;
+      }
+      if (this.mode === "farm-placement") this.exitCropPlacement();
+      this.activeTool = "fishing-rod";
+      this.toolRevealToken += 1;
     }
     const p = this.sim.state.player;
     if (!WorldLayout.nearbyFishingHabitat(p.x, p.z)) {
@@ -4010,17 +4251,25 @@ export class GameApp {
 
   private releaseBasicFishingCast(power?: number): void {
     const basicFishing = this.sim.state.basicFishing;
-    if (this.mode !== "basic-fishing" || !basicFishing || basicFishing.phase !== "charging-cast") return;
-    if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
+    if (this.mode !== "basic-fishing" || !basicFishing || basicFishing.phase !== "charging-cast") {
+      this.basicCastSource = null;
+      return;
+    }
+    if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
+      this.basicCastSource = null;
+      return;
+    }
     const snapshot = Math.max(0.05, Math.min(1, power ?? basicFishing.castPower ?? 0.75));
-    basicFishing.isChargingCast = false;
-    basicFishing.castPower = snapshot;
     const player = this.sim.state.player;
     const targetX = player.x + Math.sin(player.rotationY) * 4;
     const targetZ = player.z + Math.cos(player.rotationY) * 4;
-    this.startFarmingAction("cast", targetX, targetZ, () => {
-      return this.sim.execute({ type: "fishing.release-cast-basic", castPower: snapshot });
-    });
+    const started = this.startFarmingAction(
+      "cast",
+      targetX,
+      targetZ,
+      { type: "fishing.release-cast-basic", castPower: snapshot }
+    );
+    if (started) this.basicCastSource = null;
   }
 
 
@@ -4062,7 +4311,32 @@ export class GameApp {
 
   private renderUI(): void {
     if (!this.uiRoot) return;
+    if (!this.bootReady) {
+      this.uiRoot.render(React.createElement("div", {
+        id: "ui-container", "data-ui": "guildcraft",
+        "data-mobile-device": String(this.mobileTouchDevice), "data-mobile-landscape": String(this.mobileLandscape),
+        style: { width: "100%", height: "100%", position: "relative" }
+      }, React.createElement(StartScreen, {
+        startup: this.startupState,
+        onStart: () => this.beginLoading(true, "continue"),
+        onSkipIntro: () => this.openingSkip?.(),
+        onStartNewGame: () => this.beginLoading(true, "new-game"),
+        onStartWithoutSaving: () => { if (this.saveDecision) this.saveDecision(false); else this.beginLoading(true, "without-saving"); },
+        onRetry: this.retryStartup,
+        graphicsQuality: this.graphicsQuality.preference,
+        effectiveGraphicsQuality: this.graphicsQuality.effectiveTier,
+        onGraphicsQualityChange: preference => {
+          if (this.graphicsQuality.setPreference(preference)) this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
+          this.renderUI();
+        }
+      })));
+      return;
+    }
     const worldHud = this.sim.inspectWorldHud(this.selectedCropId);
+    if (!this.activeHint && !this.activeModal && !this.benchmarkView) {
+      const hint = buildNextWorldHint(this.sim.state);
+      if (hint) this.showContextualHint(hint.hintId, hint.title, hint.message, hint.icon);
+    }
 
     if (this.mode === "sport-fishing" && !this.sim.activeFishingEncounter) {
       // Encounter finished
@@ -4075,6 +4349,10 @@ export class GameApp {
     }
 
     const state = this.sim.getState();
+    // Keep the fishing widget on a detached snapshot. React is presentation;
+    // even an accidental child mutation must not alter the live fishing
+    // attempt that the simulation will tick or persist.
+    const basicFishingState = state.basicFishing ? structuredClone(state.basicFishing) : null;
     const cameraPosition = this.gameCamera.camera.position;
     const cameraFraming = this.gameCamera.framingState();
     const placementTarget = this.frozenPlacementResult ?? this.placementResult;
@@ -4093,6 +4371,7 @@ export class GameApp {
     this.uiRoot.render(
       React.createElement(GameUI, {
         state,
+        basicFishingState,
         mode: this.mode,
         fps: this.fps,
         renderStats: this.renderStats,
@@ -4119,7 +4398,8 @@ export class GameApp {
           requestedGait: this.lastPresentedPlayer?.motion.requestedGait ?? "idle",
           animationClip: this.worldScene.currentPlayerAnimationClip(),
           actionTargetX: this.farmingActionSnapshot?.target.x ?? null,
-          actionTargetZ: this.farmingActionSnapshot?.target.z ?? null
+          actionTargetZ: this.farmingActionSnapshot?.target.z ?? null,
+          physicsStepCount: this.physicsStepCount
         },
         placementValid: this.placementResult?.valid ?? null,
         placementTarget: placementTarget
@@ -4142,6 +4422,13 @@ export class GameApp {
         activeModal: this.activeModal,
         onSetActiveModal: (modal: ActiveModal) => {
           if (this.saveRecoveryReason && modal !== "new-game-confirm") return;
+          if (modal === "character") {
+            const blocker = this.characterScreenBlocker();
+            if (blocker) {
+              this.notify(blocker, "warning", 1800);
+              return;
+            }
+          }
           if (!this.modeController.allowsOverlayChange(modal, {
             catchSummary: this.sim.state.basicFishing?.phase === "caught"
           })) return;
@@ -4153,6 +4440,13 @@ export class GameApp {
         onDismissNewGameConfirm: () => this.dismissNewGameConfirm(),
         marketId: this.activeMarketId,
         activeQuest: this.sim.questDomain.getActiveQuestDto(),
+        // Every thread the player is carrying, focused first. Without this the
+        // three side tracks ran, progressed and could be turned in while never
+        // appearing anywhere in the UI.
+        activeQuests: this.sim.questDomain.getActiveQuestDtos(),
+        onFocusTrack: (trackId: string) => {
+          this.sim.execute({ type: "quest.focus-track", trackId });
+        },
         activeDialogueNpcId: this.activeDialogueNpcId,
         onTalkNpc: this.handleTalkNpc,
         activeHint: this.activeHint,
@@ -4206,11 +4500,17 @@ export class GameApp {
           slot.action.type === "equip-tool" && slot.action.tool === this.activeTool
         )?.slot ?? 0,
         onSelectToolSlot: (slot: number) => this.selectToolSlot(slot),
+        toolRevealToken: this.toolRevealToken,
         landedCatch: this.pendingCatchCargo,
         landedCatchRecord: this.pendingCatchRecord,
         onDismissCatchSummary: this.dismissPendingCatch,
 
         sportFishingHud: this.sim.inspectSportFishingHud(),
+        onSetFishingDrag: (notch) => {
+          if (this.mode !== "sport-fishing" || this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
+          const result = this.sim.execute({ type: "fishing.set-drag", notch });
+          if (!result.success) this.notify(result.reason ?? "Could not adjust drag", "warning");
+        },
         onSetFishingInput: (input) => {
           this.hudFishingHold = {
             isReeling: input.isReeling,
@@ -4225,11 +4525,11 @@ export class GameApp {
           this.applyBasicFishingInput();
         },
         onHookBasicFishingBite: () => {
-          if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
+          if (this.mode !== "basic-fishing" || this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
           this.sim.execute({ type: "fishing.hook-bite-basic" });
         },
         onDismissBasicFishingModal: () => {
-          if (this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
+          if (this.mode !== "basic-fishing" || this.modeController.pausesSimulation || this.modeController.blocksWorldInput) {
             return { success: false, reason: "Fishing is paused" };
           }
           if (this.sim.state.basicFishing?.phase === "caught") {
@@ -4242,6 +4542,7 @@ export class GameApp {
           return { success: false, reason: "Nothing to collect" };
         },
         onDiscardBasicCatch: () => {
+          if (this.mode !== "basic-fishing" || this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
           const result = this.sim.execute({ type: "fishing.discard-basic-catch" });
           if (!result.success) this.notify(result.reason ?? "Could not discard the catch", "danger");
           else this.notify("Catch discarded", "info");
@@ -4271,6 +4572,34 @@ export class GameApp {
         onInspectJournalPages: () => this.sim.inspectJournalPages(),
         onInspectPauseSummary: () => this.sim.inspectPauseSummary(),
         onInspectSkillProgress: () => this.sim.inspectSkillProgress(),
+        onInspectCharacter: () => this.sim.inspectCharacterEquipment(),
+        onEquipEquipment: (equipmentId: EquipmentId) => {
+          const result = this.sim.execute({ type: "equipment.equip", equipmentId });
+          if (!result.success) this.notify(result.reason ?? "Could not equip that", "warning");
+          else this.requestAutosave();
+          return result;
+        },
+        onEquipCharacterRod: (rodId: RodId) => {
+          const result = this.sim.execute({ type: "equipment.equip-rod", rodId });
+          if (!result.success) this.notify(result.reason ?? "Could not equip that rod", "warning");
+          else this.requestAutosave();
+          return result;
+        },
+        onSaveEquipmentPreset: (presetId: EquipmentPresetId) => {
+          const result = this.sim.execute({ type: "equipment.save-preset", presetId });
+          if (result.success) this.requestAutosave();
+          return result;
+        },
+        onApplyEquipmentPreset: (presetId: EquipmentPresetId) => {
+          const result = this.sim.execute({ type: "equipment.apply-preset", presetId });
+          if (!result.success) this.notify(result.reason ?? "Could not wear that outfit", "warning");
+          else this.requestAutosave();
+          return result;
+        },
+        craftingStationId: this.activeCraftingStationId,
+        onInspectProcessingStation: (stationId: string) => this.sim.inspectProcessingStation(stationId),
+        onStartProcessing: (recipeId: RecipeId, stationId: string) =>
+          this.startProcessingFromModal(recipeId, stationId),
         onBuySeed: (marketId: MarketId, itemId: string, quantity: number) => {
           const result = this.sim.execute({ type: "market.buy-seed", marketId, itemId, quantity });
           if (!result.success) this.notify(result.reason ?? "Could not buy that", "danger");
@@ -4358,8 +4687,9 @@ export class GameApp {
         assetCoverage: this.assetCoverage,
         startup: this.startupState,
         onStart: () => this.beginLoading(true, "continue"),
+        onSkipIntro: () => this.openingSkip?.(),
         onStartNewGame: () => this.beginLoading(true, "new-game"),
-        onStartWithoutSaving: () => this.beginLoading(true, "without-saving"),
+        onStartWithoutSaving: () => { if (this.saveDecision) this.saveDecision(false); else this.beginLoading(true, "without-saving"); },
         onRetry: this.retryStartup,
         graphicsQuality: this.graphicsQuality.preference,
         effectiveGraphicsQuality: this.graphicsQuality.effectiveTier,
@@ -4397,9 +4727,15 @@ export class GameApp {
   }
 
   private renderUiForFrame(nowMs: number): void {
-    const animationCritical = this.mode === "sport-fishing"
+    // The title/loading shell begins its RAF before a Simulation exists. Do
+    // not dereference its transient action timeline until the boot commit has
+    // installed canonical state; an exception here stops the RAF permanently
+    // and leaves later modal/input updates invisible.
+    const animationCritical = this.bootReady && (
+      this.mode === "sport-fishing"
       || this.mode === "basic-fishing"
-      || this.farmingActions.isActive;
+      || this.farmingActions.isActive
+    );
     const intervalMs = animationCritical ? 1000 / 30 : 100;
     if (nowMs - this.lastUiFrameMs < intervalMs) return;
     this.lastUiFrameMs = nowMs;
@@ -4420,7 +4756,11 @@ export class GameApp {
   }
 
   public dispose(): void {
+    this.startupAttempt?.cancel();
+    for (const dispose of this.simulationFeedbackDisposers) dispose();
+    this.simulationFeedbackDisposers = [];
     this.isRunning = false;
+    this.autosaveRequested = false;
     window.__NEVA_RENDER_READY = false;
     this.renderReadyFramesRemaining = 0;
     this.cancelDoorTransition();
@@ -4429,6 +4769,9 @@ export class GameApp {
     this.clearFarmGisHold();
     this.inputRouter.setJumpBlocked(false);
     window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("keydown", this.cancelArrivalView);
+    window.removeEventListener("pointerdown", this.cancelArrivalView);
+    window.removeEventListener("wheel", this.cancelArrivalView);
     window.removeEventListener("orientationchange", this.onResize);
     window.visualViewport?.removeEventListener("resize", this.onResize);
     screen.orientation?.removeEventListener("change", this.onResize);
@@ -4439,6 +4782,9 @@ export class GameApp {
     this.inputRouter.dispose();
     this.collisionDebugView?.dispose();
     this.collisionDebugView = null;
+    this.questPointer.dispose();
+    this.npcBarks.dispose();
+    this.rewardOverlay.dispose();
     this.physicsWorld?.dispose();
     this.physicsWorld = null;
     this.worldScene.dispose();

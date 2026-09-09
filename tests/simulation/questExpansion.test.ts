@@ -98,6 +98,71 @@ describe("post-story quest expansion", () => {
     expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.act6_fertilize_farm": 1 });
   });
 
+  it("completes Act 9's tackle purchase at the skiff threshold and preserves it on reload", () => {
+    const sim = new Simulation();
+    const market = ContentRegistry.markets.get("market.harbor")!;
+    Object.assign(sim.state.player, market.interactionPosition);
+    sim.state.player.money = 1000;
+    sim.state.player.ownedRodIds = ["rod.willow", "rod.river", "rod.heavy_sport"];
+    sim.state.quests.activeActId = "act9_charter";
+    Object.assign(mainQuestTrack(sim.state.quests), {
+      activeQuestId: "quest.act9_beyond_the_grounds", activeStepIndex: 0, stepProgress: {}
+    });
+    sim.state.player.proficiencies.fishing = 7499;
+    expect(sim.buyRodAtMarket("market.harbor", "rod.offshore").success).toBe(false);
+    expect(sim.state.player.money).toBe(1000);
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({});
+    sim.state.player.proficiencies.fishing = 7500;
+    expect(sim.buyRodAtMarket("market.harbor", "rod.offshore")).toMatchObject({ success: true, cost: 950 });
+    expect(sim.state.player.equippedRodId).toBe("rod.offshore");
+    expect(mainQuestTrack(sim.state.quests).stepProgress).toEqual({ "step.act9_buy_offshore_rod": 1 });
+    const reloaded = new Simulation(structuredClone(sim.state));
+    expect(reloaded.state.player.money).toBe(50);
+    expect(reloaded.state.player.ownedRodIds).toContain("rod.offshore");
+    expect(reloaded.questDomain.getActiveQuestDto()?.isQuestReadyToTurnIn).toBe(true);
+  });
+
+  it("does not strand Act 9 when the offshore rod was already bought", () => {
+    // The harbor stall sells rod.offshore on Fishing rank alone, well before
+    // Act 9 asks for it, and refuses to sell a rod twice — so the purchase
+    // event that drives this objective could never fire a second time.
+    const primed = new Simulation();
+    primed.state.player.ownedRodIds = [...primed.state.player.ownedRodIds, "rod.offshore"];
+    primed.state.quests.activeActId = "act9_charter";
+    mainQuestTrack(primed.state.quests).activeQuestId = "quest.act9_beyond_the_grounds";
+    mainQuestTrack(primed.state.quests).activeStepIndex = 0;
+    mainQuestTrack(primed.state.quests).stepProgress = {};
+
+    // Reload: the constructor's reconcile pass is what repairs a stuck save.
+    const reloaded = new Simulation(primed.state);
+    const progress = mainQuestTrack(reloaded.state.quests);
+    expect(progress.stepProgress).toEqual({ "step.act9_buy_offshore_rod": 1 });
+
+    const silas = ContentRegistry.npcs.get("npc.silas")!;
+    reloaded.state.player.x = silas.anchor.x;
+    reloaded.state.player.z = silas.anchor.z;
+    expect(reloaded.questDomain.getActiveQuestDto()).toMatchObject({ isQuestReadyToTurnIn: true });
+    expect(reloaded.execute({ type: "quest.talk-npc", npcId: "npc.silas" }))
+      .toMatchObject({ success: true, questCompleted: true });
+    expect(reloaded.state.quests.completedQuestIds).toContain("quest.act9_beyond_the_grounds");
+  });
+
+  it("stops reporting a quest ready when its reward will not fit", () => {
+    const sim = new Simulation();
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    const wheatLimit = ContentRegistry.items.get("seed.wheat")!.stackLimit;
+    inventory.slots = inventory.slots.map(() => ({ itemId: "seed.wheat", quantity: wheatLimit }));
+    sim.state.quests.activeActId = "act6_stewardship";
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_harbor_promise";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 0;
+    mainQuestTrack(sim.state.quests).stepProgress = { "step.act6_complete_contract": 1 };
+
+    // quest.act6_harbor_promise pays 3 fish scraps, and the satchel is full.
+    const dto = sim.questDomain.getActiveQuestDto();
+    expect(dto).toMatchObject({ isQuestReadyToTurnIn: false });
+    expect(dto?.turnInBlockerReason).toBe("The satchel has no room for this reward");
+  });
+
   it("keeps failed quest turn-ins atomic", () => {
     const sim = new Simulation();
     const maeve = ContentRegistry.npcs.get("npc.maeve")!;

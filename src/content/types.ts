@@ -11,17 +11,23 @@ import {
   FishBehaviorProfileId,
   FishSpeciesId,
   ItemCategory,
+  EquipmentId,
+  EquipmentSlot,
   ItemId,
   ItemStack,
   MarketId,
   RecipeId,
+  RecipeResult,
   RegionId,
   RodClass,
   SeasonId,
   SkillId,
   StationType,
   TimeWindowId,
-  WeatherTag
+  WeatherTag,
+  WorkActionId,
+  ProcessingPresentationKind,
+  ProcessingWorkTier
 } from "../simulation/core/types";
 import type { FishingEcologyId } from "../world/WorldIslands";
 
@@ -110,10 +116,44 @@ export interface RecipeDefinition {
   name: string;
   stationType: StationType;
   inputs: ItemStack[];
-  outputs: ItemStack[];
+  result: RecipeResult;
   durationMinutes: number;
+  workTier: ProcessingWorkTier;
+  presentationKind: ProcessingPresentationKind;
   minimumSkill?: { skill: SkillId; xp: number };
   tags: string[];
+}
+
+export type EquipmentEffectDefinition =
+  | { kind: "work-multiplier"; actions: WorkActionId[]; multiplier: number }
+  | { kind: "crop-quality-chance"; multiplier: number }
+  | { kind: "crop-reach"; actions: Array<"water" | "harvest" | "inspect">; bonusMeters: number }
+  | { kind: "annual-plant-matter-bonus"; quantity: number }
+  | { kind: "sport-line-damage-multiplier"; multiplier: number }
+  | { kind: "sport-brace-extra-multiplier"; multiplier: number };
+
+export interface EquipmentDefinition {
+  id: EquipmentId;
+  name: string;
+  description: string;
+  slot: EquipmentSlot;
+  starter: boolean;
+  effects: EquipmentEffectDefinition[];
+  presentation: {
+    assetId?: string;
+    /**
+     * Starter clothing baked into char_player_a can share a skinned mesh with
+     * the body. These exact LOD roots and material regions are cloned per
+     * character instance before their visibility is changed.
+     */
+    characterBaseLayer?: {
+      nodeNames: string[];
+      materialNames: string[];
+    };
+    socket?: "head" | "body" | "feet" | "tool";
+    scale?: number;
+  };
+  icon: string;
 }
 
 export interface BoatDefinition {
@@ -149,6 +189,8 @@ export interface MarketDefinition {
   commodities: MarketCommodityDefinition[];
   retail: {
     itemIds: ItemId[];
+    /** Raw inputs sold on a narrow workshop spread; must also appear in itemIds. */
+    workshopSupplyItemIds?: ItemId[];
     seedCropIds?: CropId[];
     rodIds?: string[];
   };
@@ -157,6 +199,8 @@ export interface MarketDefinition {
 export interface RodDefinition {
   id: string;
   name: string;
+  /** Catalog-driven world and character-preview presentation. */
+  assetId: string;
   rodClass: RodClass;
   reelPower: number;
   maxSafeTension: number;

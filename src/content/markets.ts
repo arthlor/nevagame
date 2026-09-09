@@ -40,7 +40,16 @@ export const MARKETS: Record<string, MarketDefinition> = {
     },
     retail: {
       seedCropIds: [...VILLAGE_SEED_CROP_IDS],
-      itemIds: ["item.basic_fertilizer", "item.compost_starter"]
+      itemIds: [
+        "item.basic_fertilizer",
+        "item.compost_starter",
+        "produce.flax",
+        "item.hardwood_blank",
+        "item.tanned_leather",
+        "item.tool_steel",
+        "item.linen_roll"
+      ],
+      workshopSupplyItemIds: ["produce.flax", "item.linen_roll"]
     },
     commodities: [
       { itemId: "produce.wheat", basePrice: 8, targetSupply: 50, consumptionRatePerHour: 4, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
@@ -59,6 +68,10 @@ export const MARKETS: Record<string, MarketDefinition> = {
       // every surplus one was dead weight. The village mills and composts.
       { itemId: "item.ground_grain", basePrice: 12, targetSupply: 45, consumptionRatePerHour: 3.0, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "item.plant_matter", basePrice: 2, targetSupply: 90, consumptionRatePerHour: 6.0, seasonalFactors: { spring: 1.1 } },
+      { itemId: "item.hardwood_blank", basePrice: 24, targetSupply: 30, consumptionRatePerHour: 2.0, seasonalFactors: {} },
+      { itemId: "item.tanned_leather", basePrice: 32, targetSupply: 24, consumptionRatePerHour: 1.5, seasonalFactors: {} },
+      { itemId: "item.tool_steel", basePrice: 45, targetSupply: 18, consumptionRatePerHour: 0.8, seasonalFactors: {} },
+      { itemId: "item.linen_roll", basePrice: 55, targetSupply: 18, consumptionRatePerHour: 1.0, seasonalFactors: {} },
       // The Sunreach route pays here: cured fish keeps, so distance stops
       // being a freshness problem and starts being a trade.
       { itemId: "item.salt_cured_fish", basePrice: 34, targetSupply: 20, consumptionRatePerHour: 2.2, seasonalFactors: { winter: 1.25, summer: 0.9 } }
@@ -75,7 +88,18 @@ export const MARKETS: Record<string, MarketDefinition> = {
       radiusMeters: 7
     },
     retail: {
-      itemIds: ["item.crushed_ice", "item.chum_bucket", "item.boat_fuel", "item.bait_worms"],
+      itemIds: [
+        "item.crushed_ice",
+        "item.chum_bucket",
+        "item.basic_lure",
+        "item.boat_fuel",
+        "item.bait_worms",
+        "item.fish_scraps",
+        "item.copper_sheet",
+        "item.brass_fittings",
+        "item.oiled_canvas"
+      ],
+      workshopSupplyItemIds: ["item.fish_scraps"],
       rodIds: ["rod.river", "rod.heavy_sport", "rod.offshore", "rod.master"]
     },
     commodities: [
@@ -101,7 +125,10 @@ export const MARKETS: Record<string, MarketDefinition> = {
       // Scraps and crafted lures were likewise unsellable; the harbor is
       // where both are actually used.
       { itemId: "item.fish_scraps", basePrice: 4, targetSupply: 70, consumptionRatePerHour: 5.0, seasonalFactors: {} },
-      { itemId: "item.basic_lure", basePrice: 20, targetSupply: 25, consumptionRatePerHour: 1.5, seasonalFactors: { summer: 1.1 } }
+      { itemId: "item.basic_lure", basePrice: 20, targetSupply: 25, consumptionRatePerHour: 1.5, seasonalFactors: { summer: 1.1 } },
+      { itemId: "item.copper_sheet", basePrice: 38, targetSupply: 24, consumptionRatePerHour: 1.2, seasonalFactors: {} },
+      { itemId: "item.brass_fittings", basePrice: 40, targetSupply: 20, consumptionRatePerHour: 1.0, seasonalFactors: {} },
+      { itemId: "item.oiled_canvas", basePrice: 75, targetSupply: 10, consumptionRatePerHour: 0.5, seasonalFactors: {} }
     ]
   },
   "market.sunreach_cove": {

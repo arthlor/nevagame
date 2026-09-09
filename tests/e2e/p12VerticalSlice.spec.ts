@@ -10,6 +10,7 @@ import {
   HARBOR_MARKET,
   VILLAGE_MARKET
 } from "../../src/world/WorldAnchors";
+import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { SPORT_FISHING_REVIEW_POINTS } from "../../src/simulation/domains/FishingDomain";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { WORLD_ROUTES, WorldLayout } from "../../src/world/WorldLayout";
@@ -30,6 +31,7 @@ interface RuntimeDiagnostics extends WorldPoint {
   speed: number;
   boatSpeed: number;
   collisionBlocked: boolean;
+  physicsSteps: number;
 }
 
 const NPC_NAMES: Record<string, string> = Object.fromEntries(
@@ -38,6 +40,7 @@ const NPC_NAMES: Record<string, string> = Object.fromEntries(
 const NPC_ANCHORS: Record<string, WorldPoint> = Object.fromEntries(
   NPCS.map((npc) => [npc.id, { x: npc.anchor.x, z: npc.anchor.z }])
 );
+
 
 const farmVillageRoute = WORLD_ROUTES.find((route) => route.id === "farm-village");
 const villageHomesteadRoute = WORLD_ROUTES.find((route) => route.id === "village-homestead");
@@ -89,7 +92,8 @@ async function readDiagnostics(page: Page): Promise<RuntimeDiagnostics> {
       heading: numberAttribute("data-player-heading"),
       speed: numberAttribute("data-player-speed"),
       boatSpeed: numberAttribute("data-boat-speed"),
-      collisionBlocked: element.getAttribute("data-player-collision-blocked") === "true"
+      collisionBlocked: element.getAttribute("data-player-collision-blocked") === "true",
+      physicsSteps: numberAttribute("data-physics-steps")
     };
   });
 }
@@ -113,6 +117,52 @@ async function releaseHeldKeys(page: Page, held: Set<string>): Promise<void> {
   held.clear();
 }
 
+/**
+ * Automated traversal is paced in delivered fixed steps, never in wall-clock
+ * time. `GameApp` caps its physics accumulator, so a browser starved of CPU
+ * drops simulation time rather than catching it up: the player really does move
+ * less per real second, and a real-time progress check turns a busy machine into
+ * a phantom traversal failure. Thresholds below are the wall-clock values they
+ * replace, converted at the canonical fixed rate, so sensitivity on a healthy
+ * machine is unchanged.
+ */
+const FIXED_STEPS_PER_SECOND = 60;
+
+function stepsFor(seconds: number): number {
+  return Math.round(seconds * FIXED_STEPS_PER_SECOND);
+}
+
+/**
+ * The only wall-clock rule left. It does not bound how long a route may take —
+ * a slow machine is allowed to be slow — it fails a page that has stopped
+ * stepping altogether: a crash, a hang, a lost WebGL context. The clock resets
+ * every time the step counter advances, so a run at one frame per second still
+ * passes while a run at zero does not.
+ */
+const NO_STEP_TIMEOUT_MS = 60_000;
+
+/** Tracks whether the page is still delivering fixed steps, independent of how fast. */
+class StepWatchdog {
+  private lastSeenStep = -1;
+  private lastAdvanceAt = Date.now();
+
+  constructor(private readonly label: string) {}
+
+  observe(physicsSteps: number): void {
+    if (physicsSteps > this.lastSeenStep) {
+      this.lastSeenStep = physicsSteps;
+      this.lastAdvanceAt = Date.now();
+      return;
+    }
+    const stalledMs = Date.now() - this.lastAdvanceAt;
+    if (stalledMs <= NO_STEP_TIMEOUT_MS) return;
+    throw new Error(
+      `${this.label}: the page delivered no fixed step for ${(stalledMs / 1000).toFixed(0)}s ` +
+      `(counter stuck at ${physicsSteps}); the simulation has stopped, not merely slowed`
+    );
+  }
+}
+
 function wrappedAngleDelta(target: number, current: number): number {
   return Math.atan2(Math.sin(target - current), Math.cos(target - current));
 }
@@ -125,20 +175,30 @@ function wrappedAngleDelta(target: number, current: number): number {
 async function walkTo(
   page: Page,
   target: WorldPoint,
-  options: { tolerance?: number; maxMs?: number; sprint?: boolean; precision?: boolean } = {}
+  options: { tolerance?: number; maxSteps?: number; sprint?: boolean; precision?: boolean } = {}
 ): Promise<RuntimeDiagnostics> {
   const tolerance = options.tolerance ?? 1.25;
-  const maxMs = options.maxMs ?? 55_000;
+  // Was 55 s and 18 samples of a 130 ms hold; both are now their step equivalents.
+  const maxSteps = options.maxSteps ?? stepsFor(55);
+  const stallSteps = stepsFor(2.4);
   const precision = options.precision ?? false;
   const sprint = (options.sprint ?? true) && !precision;
-  const startedAt = Date.now();
+  const watchdog = new StepWatchdog("Player route");
   const held = new Set<string>();
-  let previousDistance = Number.POSITIVE_INFINITY;
-  let stagnantTicks = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  let startStep: number | null = null;
+  let lastProgressStep = 0;
+  let lastBridgeTraceBucket = -1;
 
   try {
-    while (Date.now() - startedAt < maxMs) {
+    for (;;) {
       const state = await readDiagnostics(page);
+      if (startStep === null) {
+        startStep = state.physicsSteps;
+        lastProgressStep = state.physicsSteps;
+      }
+      watchdog.observe(state.physicsSteps);
+      if (state.physicsSteps - startStep > maxSteps) break;
       if (state.mode !== "on-foot") throw new Error(`Walk requested in ${state.mode} mode`);
       const dx = target.x - state.x;
       const dz = target.z - state.z;
@@ -148,15 +208,15 @@ async function walkTo(
         await page.waitForTimeout(280);
         const settled = await readDiagnostics(page);
         if (!precision || Math.hypot(target.x - settled.x, target.z - settled.z) <= tolerance) return settled;
-        previousDistance = Number.POSITIVE_INFINITY;
-        stagnantTicks = 0;
+        closestDistance = Number.POSITIVE_INFINITY;
+        lastProgressStep = settled.physicsSteps;
         continue;
       }
-      if (precision && distance < 1.5 && state.speed > 0.65) {
+      if (distance < 1.5 && state.speed > 0.65 && state.physicsSteps - lastProgressStep < stepsFor(0.8)) {
         await releaseHeldKeys(page, held);
         await page.waitForTimeout(90);
-        previousDistance = Number.POSITIVE_INFINITY;
-        stagnantTicks = 0;
+        closestDistance = Number.POSITIVE_INFINITY;
+        lastProgressStep = (await readDiagnostics(page)).physicsSteps;
         continue;
       }
 
@@ -180,7 +240,11 @@ async function walkTo(
       if (longitudinal > 0.16) nextKeys.push("KeyS");
       if (sprint && distance > 5) nextKeys.push("ShiftLeft");
       await syncHeldKeys(page, held, nextKeys);
-      if (target.x > -25 && target.x < -18 && Math.abs(target.z + 6) < 2 && stagnantTicks % 4 === 0) {
+      // Throttle the bridge trace the way the retired tick counter did, now
+      // against delivered steps so the sampling rate does not change with load.
+      const nearBridgeApproach = target.x > -25 && target.x < -18 && Math.abs(target.z + 6) < 2;
+      if (nearBridgeApproach && Math.floor((state.physicsSteps - startStep) / stepsFor(0.5)) !== lastBridgeTraceBucket) {
+        lastBridgeTraceBucket = Math.floor((state.physicsSteps - startStep) / stepsFor(0.5));
         console.info(
           `[p12] bridge nav current=(${state.x.toFixed(2)},${state.z.toFixed(2)}) ` +
           `target=(${target.x.toFixed(2)},${target.z.toFixed(2)}) yaw=${state.yaw.toFixed(3)} ` +
@@ -188,10 +252,23 @@ async function walkTo(
           `blocked=${state.collisionBlocked}`
         );
       }
-      if (precision && distance < 1.5) {
-        // Near a tight authored waypoint, short taps let the canonical
-        // acceleration/deceleration model settle instead of oscillating past
-        // a sub-metre target under a continuously held digital key.
+      // Two different problems need opposite inputs near a waypoint, so choose
+      // between them by whether ground is actually being made.
+      //
+      // Taps settle. At the 1.6 m/s walk speed a 130 ms hold carries the actor
+      // 21 cm, so a full-speed approach cannot resolve even the ordinary 0.45 m
+      // route tolerance and orbits it instead — traced reaching 0.473 m, swinging
+      // back out to 0.97 m, alternating KeyD/KeyA and never blocked.
+      //
+      // Holds climb. The character controller needs sustained input to mount a
+      // step: on the dock stairs a tapped approach froze at 0.703 m for 194
+      // fixed steps, unblocked, because each tap died before the riser.
+      //
+      // So tap while the approach is closing, and fall back to a sustained hold
+      // once it stops closing. Neither case is a stall, and the stall check
+      // still owns that verdict.
+      const closingWithTaps = distance < 1.5 && state.physicsSteps - lastProgressStep < stepsFor(0.8);
+      if (closingWithTaps) {
         await page.waitForTimeout(40);
         await releaseHeldKeys(page, held);
         await page.waitForTimeout(70);
@@ -199,14 +276,37 @@ async function walkTo(
         await page.waitForTimeout(130);
       }
 
-      const progressed = distance < previousDistance - 0.018;
-      stagnantTicks = progressed ? 0 : stagnantTicks + 1;
-      previousDistance = distance;
-      if (stagnantTicks >= 18) {
+      // Progress is measured against the closest approach achieved so far, not
+      // against the previous sample. Precision mode advances by short taps that
+      // can each cover less ground than the threshold, so a per-sample
+      // comparison reads a slow, steady approach as no progress at all and
+      // eventually calls it a stall while the player is visibly still walking.
+      const settledStep = (await readDiagnostics(page)).physicsSteps;
+      if (distance < closestDistance - 0.018) {
+        closestDistance = distance;
+        lastProgressStep = settledStep;
+      }
+      const stalledSteps = settledStep - lastProgressStep;
+      // Past the halfway mark, trace every sample. Two stalls in this suite were
+      // reported at positions the route should never have reached, and a single
+      // end-state coordinate could not distinguish "pressed against geometry"
+      // from "never received input" from "position reported is not where the
+      // actor is". These lines carry that distinction into the failure.
+      if (stalledSteps > stallSteps / 2) {
+        console.info(
+          `[p12] walk stall trace pos=(${state.x.toFixed(2)},${state.z.toFixed(2)}) ` +
+          `target=(${target.x.toFixed(2)},${target.z.toFixed(2)}) dist=${distance.toFixed(3)} ` +
+          `closest=${closestDistance.toFixed(3)} speed=${state.speed.toFixed(3)} ` +
+          `yaw=${state.yaw.toFixed(3)} keys=${nextKeys.join("+") || "none"} ` +
+          `blocked=${state.collisionBlocked} steps=${stalledSteps}`
+        );
+      }
+      if (stalledSteps >= stallSteps) {
         throw new Error(
           `Player route stalled at (${state.x.toFixed(2)}, ${state.z.toFixed(2)}) ` +
           `toward (${target.x.toFixed(2)}, ${target.z.toFixed(2)}); ` +
-          `blocked=${state.collisionBlocked}`
+          `blocked=${state.collisionBlocked}; ` +
+          `${stalledSteps} fixed steps without progress`
         );
       }
     }
@@ -215,7 +315,8 @@ async function walkTo(
   }
   const state = await readDiagnostics(page);
   throw new Error(
-    `Player route timed out at (${state.x.toFixed(2)}, ${state.z.toFixed(2)}) ` +
+    `Player route exhausted its ${maxSteps}-step budget at ` +
+    `(${state.x.toFixed(2)}, ${state.z.toFixed(2)}) ` +
     `toward (${target.x.toFixed(2)}, ${target.z.toFixed(2)})`
   );
 }
@@ -243,7 +344,16 @@ async function walkAcrossBridge(
   // Keep the real player on the bridge centerline before traversing the
   // crowned deck. A diagonal approach can graze the authored rail while still
   // being visually on the deck, which is not a valid player-led crossing.
-  await walkTo(page, { x: westEdge.x - 3, z: center.z }, { tolerance: 0.02, precision: true });
+  //
+  // The tolerance is derived from the deck rather than chosen: the authored
+  // collision half-extent is 1.9 m across, and the player capsule is roughly
+  // 0.4 m in radius, so anything inside 1.5 m of the centerline crosses without
+  // touching a rail. 0.3 m uses a fifth of that margin. The previous 0.02 m was
+  // unreachable in principle — the crossing is driven by digital key taps, and
+  // the shortest tap this harness issues already carries the player several
+  // centimetres — so the approach oscillated around the point until it was
+  // called a stall.
+  await walkTo(page, { x: westEdge.x - 3, z: center.z }, { tolerance: 0.3, precision: true });
 
   // The crowned deck has discrete rising/falling collision boxes. A sequence
   // of short digital taps can lose the vertical transition even though the
@@ -266,7 +376,10 @@ async function walkAcrossBridgeToWest(
   // Step onto the east deck before reversing across it. The near deck face has
   // a narrow collision seam; a near-deck staging point lets the capsule settle
   // onto the authored surface before sustained westward input begins.
-  const staging = await walkTo(page, { x: eastEdge.x + 1.0, z: center.z }, { tolerance: 0.12, precision: true });
+  // Same derivation as the eastward crossing: 0.3 m keeps the capsule well
+  // inside the 1.5 m of clear deck either side of the centerline, and stays
+  // above the few centimetres a single tap of digital input already carries.
+  const staging = await walkTo(page, { x: eastEdge.x + 1.0, z: center.z }, { tolerance: 0.3, precision: true });
   console.info(`[p12] reverse bridge staging ${JSON.stringify(staging)}`);
   await holdBridgeAxis(page, westEdge.x - 1, -1);
 }
@@ -277,11 +390,25 @@ async function holdBridgeAxis(page: Page, targetX: number, direction: -1 | 1): P
   if (direction * (targetX - initial.x) <= 0) return;
 
   const held = new Set<string>();
-  const startedAt = Date.now();
+  const watchdog = new StepWatchdog("Bridge crossing");
+  // Budget the crossing from the distance it actually has to cover at the
+  // canonical walk speed, rather than from a fixed number that happened to fit
+  // an earlier route. The flat 8 s this replaced allowed 12.8 m against an 18.4 m
+  // crossing, so it could never finish; the player was still walking normally
+  // when it expired. The doubling absorbs the crowned deck, where the controller
+  // spends steps stepping up and down each authored box. This bounds how long a
+  // crossing may take, not whether it is progressing — a genuine stop is still
+  // caught by the watchdog.
+  const crossingMeters = Math.abs(targetX - initial.x);
+  const maxSteps = stepsFor((crossingMeters / PLAYER_TRAVERSAL_TUNING.walkSpeedMetersPerSecond) * 2);
+  let startStep: number | null = null;
 
   try {
-    while (Date.now() - startedAt < 8_000) {
+    for (;;) {
       const state = await readDiagnostics(page);
+      if (startStep === null) startStep = state.physicsSteps;
+      watchdog.observe(state.physicsSteps);
+      if (state.physicsSteps - startStep > maxSteps) break;
       if (state.mode !== "on-foot") throw new Error(`Bridge crossing requested in ${state.mode} mode`);
       if (direction * (state.x - targetX) >= 0) return;
 
@@ -360,9 +487,15 @@ async function walkToHarborSilas(page: Page): Promise<void> {
   // Silas's authored anchor sits on the north side of the fish-market shell.
   // Reach his walkable line-of-sight apron from the open north approach rather
   // than cutting through the market and dock collision volumes.
+  // `building_coastal_store_a` (80.3, 49.3) and `prop_crate_wood_a` (77.5, 49.9)
+  // stand across the old z = 50 line, and (82, 50) is inside the store's own
+  // footprint. Terrain walkability does not see authored props, which is why
+  // the waypoints looked valid while the walk could not complete. Swing north
+  // onto z = 53, which is clear across the whole x = 76..84 span.
   await walkTo(page, { x: 60, z: 50 });
   await walkTo(page, { x: 76, z: 50 });
-  await walkTo(page, { x: 82, z: 50 });
+  await walkTo(page, { x: 76, z: 53 });
+  await walkTo(page, { x: 84, z: 53 });
   await walkTo(page, { x: 84, z: 54 });
   await walkTo(page, { x: 84, z: 58 }, { tolerance: 0.35 });
   await walkTo(page, { x: 83, z: 58.5 }, { tolerance: 0.35 });
@@ -451,18 +584,27 @@ async function walkFromStarterFarmToVillageRoute(page: Page): Promise<void> {
 async function boatTo(
   page: Page,
   target: WorldPoint,
-  options: { tolerance?: number; maxMs?: number } = {}
+  options: { tolerance?: number; maxSteps?: number } = {}
 ): Promise<RuntimeDiagnostics> {
   const tolerance = options.tolerance ?? 5;
-  const maxMs = options.maxMs ?? 70_000;
-  const startedAt = Date.now();
+  // Was 70 s and 24 samples of a 160 ms hold; both are now their step equivalents.
+  const maxSteps = options.maxSteps ?? stepsFor(70);
+  const stallSteps = stepsFor(3.85);
+  const watchdog = new StepWatchdog("Boat route");
   const held = new Set<string>();
-  let previousDistance = Number.POSITIVE_INFINITY;
-  let stagnantTicks = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  let startStep: number | null = null;
+  let lastProgressStep = 0;
 
   try {
-    while (Date.now() - startedAt < maxMs) {
+    for (;;) {
       const state = await readDiagnostics(page);
+      if (startStep === null) {
+        startStep = state.physicsSteps;
+        lastProgressStep = state.physicsSteps;
+      }
+      watchdog.observe(state.physicsSteps);
+      if (state.physicsSteps - startStep > maxSteps) break;
       if (state.mode !== "boat-driving") throw new Error(`Boat route requested in ${state.mode} mode`);
       const dx = target.x - state.x;
       const dz = target.z - state.z;
@@ -483,14 +625,29 @@ async function boatTo(
       await syncHeldKeys(page, held, nextKeys);
       await page.waitForTimeout(160);
 
-      const progressed = distance < previousDistance - 0.025;
-      stagnantTicks = progressed ? 0 : stagnantTicks + 1;
-      previousDistance = distance;
-      if (stagnantTicks >= 24) {
+      // Closest approach so far, for the same reason as the walk loop.
+      const settledStep = (await readDiagnostics(page)).physicsSteps;
+      if (distance < closestDistance - 0.025) {
+        closestDistance = distance;
+        lastProgressStep = settledStep;
+      }
+      const stalledSteps = settledStep - lastProgressStep;
+      if (stalledSteps > stallSteps / 2) {
+        console.info(
+          `[p12] boat stall trace pos=(${state.x.toFixed(2)},${state.z.toFixed(2)}) ` +
+          `target=(${target.x.toFixed(2)},${target.z.toFixed(2)}) dist=${distance.toFixed(3)} ` +
+          `closest=${closestDistance.toFixed(3)} boatSpeed=${state.boatSpeed.toFixed(3)} ` +
+          `heading=${state.heading.toFixed(3)} headingErr=${headingError.toFixed(3)} ` +
+          `keys=${nextKeys.join("+") || "none"} mode=${state.mode} ` +
+          `blocked=${state.collisionBlocked} steps=${stalledSteps}`
+        );
+      }
+      if (stalledSteps >= stallSteps) {
         throw new Error(
           `Boat route stalled at (${state.x.toFixed(2)}, ${state.z.toFixed(2)}) ` +
           `toward (${target.x.toFixed(2)}, ${target.z.toFixed(2)}); ` +
-          `blocked=${state.collisionBlocked}`
+          `blocked=${state.collisionBlocked}; ` +
+          `${stalledSteps} fixed steps without progress`
         );
       }
     }
@@ -499,7 +656,8 @@ async function boatTo(
   }
   const state = await readDiagnostics(page);
   throw new Error(
-    `Boat route timed out at (${state.x.toFixed(2)}, ${state.z.toFixed(2)}) ` +
+    `Boat route exhausted its ${maxSteps}-step budget at ` +
+    `(${state.x.toFixed(2)}, ${state.z.toFixed(2)}) ` +
     `toward (${target.x.toFixed(2)}, ${target.z.toFixed(2)})`
   );
 }
@@ -582,7 +740,7 @@ async function talkTo(page: Page, npcId: string, expectedLine?: string): Promise
 async function enterWheatPlacement(page: Page): Promise<void> {
   await page.keyboard.press("KeyI");
   const inventory = page.locator(".modal-content");
-  await expect(inventory).toContainText("Guild Satchel");
+  await expect(inventory).toContainText("Satchel");
   // ChromeSlot carries role="gridcell" for the inventory grid, so target its
   // explicit accessible label rather than relying on the rendered icon text.
   await inventory.locator("[aria-label^='Wheat Seeds, count']").click();
@@ -620,7 +778,19 @@ async function findValidPlacementPoint(
     // the player-led route stops. This also makes the crop handoff readable
     // when the camera is centered between adjacent furrows.
     if (previousTargets.some((target) => Math.hypot(target.x - world.x, target.z - world.z) < 2.75)) continue;
-    return { screen, world };
+    // Re-read before committing to this sample. Placement validity depends on
+    // live state — where the player stands, what was just planted — so a point
+    // that read valid during the sweep can be refused by the time the caller
+    // moves back and clicks it. Returning an already-stale point made the
+    // failure look like a rejected click on good soil. Confirm the reading has
+    // settled and still holds, otherwise keep sampling.
+    await page.waitForTimeout(160);
+    if (await diagnostics.getAttribute("data-placement-valid") !== "true") continue;
+    const confirmedX = Number(await diagnostics.getAttribute("data-placement-target-x"));
+    const confirmedZ = Number(await diagnostics.getAttribute("data-placement-target-z"));
+    if (!Number.isFinite(confirmedX) || !Number.isFinite(confirmedZ)) continue;
+    if (Math.hypot(confirmedX - world.x, confirmedZ - world.z) > 0.25) continue;
+    return { screen, world: { x: confirmedX, z: confirmedZ } };
   }
   throw new Error("Could not find a separated valid starter-farm placement point in Chrome");
 }
@@ -752,18 +922,38 @@ async function castAndResolveBasicFishing(page: Page): Promise<void> {
   await page.waitForTimeout(700);
   await page.keyboard.up("Space");
 
-  const startedAt = Date.now();
+  const watchdog = new StepWatchdog("Basic fishing");
+  // The bar-tracking policy here is deliberately simple — a bang-bang hold with
+  // a 0.03 deadband, sampled every 50 ms — and it converts that into roughly 22%
+  // catch progress per 20 seconds of simulated play, measured directly. It wins,
+  // just slowly, so give the attempt room to finish rather than sizing the window
+  // to a rate the policy does not achieve. A minigame that genuinely stops
+  // advancing is still caught by the watchdog, not by this ceiling.
+  const maxSteps = stepsFor(150);
+  let startStep: number | null = null;
   let held = false;
   let lastFishing: Awaited<ReturnType<typeof snapshot>>["basicFishing"] = null;
   try {
-    while (Date.now() - startedAt < 20_000) {
-      const fishing = (await snapshot(page)).basicFishing;
+    for (;;) {
+      const current = await snapshot(page);
+      if (startStep === null) startStep = current.physicsStepCount;
+      watchdog.observe(current.physicsStepCount);
+      if (current.physicsStepCount - startStep > maxSteps) break;
+      const fishing = current.basicFishing;
       lastFishing = fishing;
       if (!fishing) {
         await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "on-foot", { timeout: 3_000 });
         return;
       }
       if (fishing.phase === "caught" || fishing.phase === "escaped") {
+        // The minigame steers the bar by holding Space, so the phase can change
+        // while the key is still down. Pressing again then lands as an auto
+        // repeat rather than a fresh keydown, and the landing card's Collect
+        // never fires. Release first, exactly as the bite-reaction branch does.
+        if (held) {
+          await page.keyboard.up("Space");
+          held = false;
+        }
         await page.keyboard.press("Space");
         await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "on-foot", { timeout: 3_000 });
         continue;
@@ -816,15 +1006,24 @@ async function catchTwoRiverFish(page: Page): Promise<void> {
 
 async function landSportFishWithKeyboard(page: Page): Promise<void> {
   const held = new Set<string>();
-  const startedAt = Date.now();
-  // The authored trout encounter needs roughly 95 real seconds for the
-  // keyboard-equivalent policy to tire the fish. Keep this acceptance window
-  // above that deterministic floor without changing the fishing balance.
-  const maxDurationMs = 120_000;
+  const watchdog = new StepWatchdog("Sport fishing encounter");
+  // The keyboard-equivalent policy tires the fish, but more slowly than the 95
+  // seconds this window was originally sized for: at expiry the trout was
+  // observed at 18% energy and 0.6 m, reported "Within reach", so the fight was
+  // nearly won rather than stuck. Give it room for the current balance instead
+  // of tuning to the edge. The window is simulated fight time, not real time,
+  // and a fight that genuinely stops progressing is still caught by the
+  // watchdog rather than by this ceiling.
+  const maxSteps = stepsFor(300);
+  let startStep: number | null = null;
   let lastEncounter: NevaDebugSnapshot["sportFishing"] = null;
   try {
-    while (Date.now() - startedAt < maxDurationMs) {
-      const encounter = (await snapshot(page)).sportFishing;
+    for (;;) {
+      const current = await snapshot(page);
+      if (startStep === null) startStep = current.physicsStepCount;
+      watchdog.observe(current.physicsStepCount);
+      if (current.physicsStepCount - startStep > maxSteps) break;
+      const encounter = current.sportFishing;
       if (!encounter) {
         expect((await snapshot(page)).cargoCount).toBeGreaterThan(0);
         await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "boat-driving", { timeout: 3_000 });
@@ -847,11 +1046,11 @@ async function landSportFishWithKeyboard(page: Page): Promise<void> {
 }
 
 async function sellVillageProduce(page: Page): Promise<void> {
-  await waitForPrompt(page, /Browse the produce stall/);
+  await waitForPrompt(page, /Trade at Village Produce Market/);
   await page.keyboard.press("KeyE");
   const market = page.locator(".market-trading-modal");
   await expect(market).toBeVisible({ timeout: 8_000 });
-  await market.getByRole("tab", { name: "Sell", exact: true }).click();
+  await market.getByRole("button", { name: "Sell", exact: true }).click();
   const sellAllProduce = market.getByRole("button", { name: /Sell all produce/ });
   if (await sellAllProduce.count() > 0) {
     await sellAllProduce.click();
@@ -868,13 +1067,13 @@ async function sellVillageProduce(page: Page): Promise<void> {
 }
 
 async function sellDockedFish(page: Page): Promise<void> {
-  await waitForPrompt(page, /Trade with Maeve/);
+  await waitForPrompt(page, /Trade at Harbor Fish Market/);
   await page.keyboard.press("KeyE");
   const market = page.locator(".market-trading-modal");
   await expect(market).toBeVisible({ timeout: 8_000 });
-  await market.getByRole("tab", { name: "Docked Fish", exact: true }).click();
-  await expect(market.getByRole("button", { name: /Sell All Fish/ })).toBeVisible();
-  await market.getByRole("button", { name: /Sell All Fish/ }).click();
+  await market.getByRole("button", { name: "Fish hold", exact: true }).click();
+  await expect(market.getByRole("button", { name: /Sell all fish/i })).toBeVisible();
+  await market.getByRole("button", { name: /Sell all fish/i }).click();
   await expect.poll(() => snapshot(page).then((state) => state.cargoCount), { timeout: 12_000 }).toBe(0);
   await page.keyboard.press("Escape");
   await expect(market).not.toBeVisible({ timeout: 5_000 });
@@ -890,7 +1089,16 @@ test.describe("P12 Chrome continuous player route", () => {
     // The route intentionally repeats long, real-input regional traversals;
     // keep the acceptance budget above the authored travel time without
     // accelerating player movement or skipping interactions.
-    test.setTimeout(900_000);
+    //
+    // 900 s was not enough: measured runs of this route reached only the Act 2
+    // compost step before expiring, on both this tree and a clean baseline, so
+    // the previous budget was failing the gate on the clock rather than on the
+    // game. The remaining legs — two village round trips, the river, the harbor,
+    // the commissioned sail and the sport encounter — are together several times
+    // the distance already covered, so the budget is raised well past a single
+    // measured estimate. Overshooting costs nothing: a page that actually hangs
+    // is caught by StepWatchdog in 60 s, not by this ceiling.
+    test.setTimeout(3_600_000);
     page.on("pageerror", (error) => console.error(`[browser pageerror] ${error.stack ?? error.message}`));
     page.on("console", (message) => {
       if (message.type() === "error") console.error(`[browser console] ${message.text()}`);
@@ -933,7 +1141,11 @@ test.describe("P12 Chrome continuous player route", () => {
     for (const [index, crop] of cropPositions.entries()) await useCrop(page, crop, "Harvest", index === 0);
     await processAtStation(page, "struct.starter_compost", "recipe.compost_worms", 360, /Cultivate Bait Worms/);
     console.info(`[p12] after compost ${JSON.stringify(await snapshot(page))}`);
-    console.info(`[p12] quest hud ${await page.getByRole("complementary", { name: "Active Quest Objective" }).textContent().catch(() => "missing")}`);
+    const questHud = await page
+      .getByRole("region", { name: "Active objective" })
+      .textContent({ timeout: 5_000 })
+      .catch(() => "missing");
+    console.info(`[p12] quest hud ${questHud}`);
     await talkTo(page, "npc.barnaby", "That's prime grain");
     expect((await snapshot(page)).activeQuestId).toBe("quest.act2_mill_and_craft_chum");
 
@@ -958,7 +1170,17 @@ test.describe("P12 Chrome continuous player route", () => {
     await walkRoute(page, farmVillageRoute.points.slice(0, bridgeIndex - 1), undefined, 0.45);
     await walkAcrossBridge(page, farmVillageRoute.points, bridgeIndex);
     await capture(page, "03-bridge-river.png");
-    await page.keyboard.press("Digit5");
+    // The crossing ends at x = -7.2, east of where the river corridor's authored
+    // fishing access stops (around x = -8), so the cast prompt cannot appear
+    // there at all. Step back onto the span above the water, which reports
+    // habitat "river".
+    await walkTo(page, { x: -9, z: -6 }, { tolerance: 0.6, precision: true });
+    // The hotbar is stance-based, so a fixed digit is not a fixed tool. At a
+    // fishing access the stance is "angling" and the rod is slot 1; slot 5 there
+    // is Stow Gear. Away from water the stance is "explorer", where slot 5 opens
+    // the Field Journal — which is what the previous Digit5 actually did, and an
+    // open modal freezes movement and hides the very prompt this step waits for.
+    await page.keyboard.press("Digit1");
     await catchTwoRiverFish(page);
     // Silas is stationed at the harbor pier. The completed river objective is
     // reported there before the player returns to the village market.
@@ -968,8 +1190,12 @@ test.describe("P12 Chrome continuous player route", () => {
     await talkTo(page, "npc.silas", "Good strike");
     expect((await snapshot(page)).activeQuestId).toBe("quest.act3_market_intro");
 
+    // Mirror of the approach: the direct z = 50 return runs through the coastal
+    // store, so leave the harbor along the clear z = 53 line.
     await walkTo(page, { x: 84, z: 54 });
-    await walkTo(page, { x: 82, z: 50 });
+    await walkTo(page, { x: 84, z: 53 });
+    await walkTo(page, { x: 76, z: 53 });
+    await walkTo(page, { x: 76, z: 50 });
     await walkTo(page, { x: 60, z: 50 });
     await walkRoute(page, [...villageHarborRoute.points].reverse().slice(1, -1));
     await walkToVillageMarketGateway(page);
@@ -1019,6 +1245,9 @@ test.describe("P12 Chrome continuous player route", () => {
     await waitForPrompt(page, /Chum School/);
     await page.keyboard.press("KeyE");
     await expect.poll(() => page.getByTestId("context-prompt").textContent().catch(() => ""), { timeout: 8_000 })
+      .toContain("Arm a Woven Lure");
+    await page.keyboard.press("KeyR");
+    await expect.poll(() => page.getByTestId("context-prompt").textContent().catch(() => ""), { timeout: 8_000 })
       .toContain("Hook Sport Fish");
     await page.keyboard.press("KeyE");
     await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "sport-fishing");
@@ -1026,8 +1255,13 @@ test.describe("P12 Chrome continuous player route", () => {
     await landSportFishWithKeyboard(page);
     expect((await snapshot(page)).cargoCount).toBeGreaterThan(0);
 
+    // Mirror the outbound path home. The old (72, 76) -> dock leg cut straight
+    // through the pier keep-out, which spans x = 74..78 for every z below 79;
+    // the outbound run already proves the northern z = 84 corridor is clear.
     await boatTo(page, { x: 50, z: 82 });
-    await boatTo(page, { x: 72, z: 76 });
+    await boatTo(page, { x: 70, z: 76 });
+    await boatTo(page, { x: 74, z: 84 });
+    await boatTo(page, { x: 82.4, z: 84 });
     await boatTo(page, HARBOR_DOCK.boatPosition, { tolerance: 4.8 });
     await waitForPrompt(page, /Dock & Disembark/);
     await page.keyboard.press("KeyE");
@@ -1050,9 +1284,9 @@ test.describe("P12 Chrome continuous player route", () => {
     await capture(page, "09-reloaded-epilogue.png");
 
     await page.keyboard.press("KeyJ");
-    const journal = page.getByRole("dialog", { name: /Cove Chronicle/i });
+    const journal = page.getByRole("dialog", { name: /Field Journal/i });
     await expect(journal).toBeVisible();
-    await expect(journal).toContainText("Completed Chronicles");
+    await expect(journal).toContainText("Completed stories");
     await expect(journal).toContainText("The Call of the Deep");
     await page.keyboard.press("Escape");
     await expect(journal).not.toBeVisible();

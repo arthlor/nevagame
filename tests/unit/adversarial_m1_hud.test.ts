@@ -197,11 +197,13 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
   describe("2. Rapid Stance Toggles & Fallback Resilience", () => {
     it("handles rapid sequential stance transitions without side-effects or throws", () => {
       const state = createInitialGameState();
-      const stances: ContextualStanceId[] = ["agronomy", "angling", "maritime", "explorer"];
+      // Explorer is deliberately absent: it carries no belt at all.
+      const stances: Array<[ContextualStanceId, number]> =
+        [["agronomy", 5], ["angling", 3], ["maritime", 4]];
 
-      for (const stance of stances) {
+      for (const [stance, slotCount] of stances) {
         const hotbar = buildContextualHotbar(state, stance, null);
-        expect(hotbar).toHaveLength(5);
+        expect(hotbar).toHaveLength(slotCount);
 
         const html = renderToString(
           React.createElement(SmartContextualToolbar, {
@@ -212,14 +214,17 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         );
         const label = stance[0].toUpperCase() + stance.slice(1);
         expect(html).toContain(`aria-label="${label} Stance quickbar"`);
-        expect(html.match(/data-testid="tool-slot-\d+"/g)).toHaveLength(5);
+        expect(html.match(/data-testid="tool-slot-\d+"/g)).toHaveLength(slotCount);
         expect(html).toContain("smart-contextual-toolbar");
       }
+
+      expect(buildContextualHotbar(state, "explorer", null)).toEqual([]);
     });
 
     it("gracefully falls back on unexpected, null, or undefined stances", () => {
       const state = createInitialGameState();
-      const hotbar = buildContextualHotbar(state, "explorer", null);
+      // Explorer has no belt of its own, so borrow one to exercise the label.
+      const hotbar = buildContextualHotbar(state, "agronomy", null);
 
       // Null stance fallback
       const htmlNull = renderToString(
@@ -255,7 +260,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
       expect(htmlUnknown).not.toContain("undefined Stance");
     });
 
-    it("handles empty hotbar array ([]) without crashing", () => {
+    it("renders nothing at all for an empty hotbar rather than an empty frame", () => {
       const html = renderToString(
         React.createElement(SmartContextualToolbar, {
           stance: "agronomy",
@@ -264,8 +269,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         })
       );
 
-      expect(html).toContain("smart-contextual-toolbar");
-      expect(html).not.toContain("smart-slot-wrapper");
+      expect(html).toBe("");
     });
 
     it("handles hotbar slot count > 99 displaying 99+ badge", () => {

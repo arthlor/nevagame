@@ -1,3 +1,4 @@
+import { handleTabListKeyDown } from "../useTabListKeyboard";
 import React, { useMemo, useState } from "react";
 import type { AlmanacDto } from "../../simulation/core/contracts";
 import { IconFish, IconSprout, IconStar } from "./HudIcons";
@@ -54,11 +55,13 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
   return (
     <section className="journal-page journal-almanac-page" aria-label="Coastal Almanac">
       <header className="almanac-header">
-        <div className="almanac-strand-tabs" role="tablist" aria-label="Almanac strands">
+        <div className="almanac-strand-tabs" role="tablist" aria-label="Almanac strands" onKeyDown={handleTabListKeyDown}>
           <button
             type="button"
+            id="almanac-strand-tab-fish"
             role="tab"
             aria-selected={strand === "fish"}
+            aria-controls="almanac-strand-panel-fish"
             tabIndex={strand === "fish" ? 0 : -1}
             className={`almanac-strand-btn${strand === "fish" ? " is-active" : ""}`}
             data-testid="almanac-strand-fish"
@@ -71,8 +74,10 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
           </button>
           <button
             type="button"
+            id="almanac-strand-tab-crops"
             role="tab"
             aria-selected={strand === "crops"}
+            aria-controls="almanac-strand-panel-crops"
             tabIndex={strand === "crops" ? 0 : -1}
             className={`almanac-strand-btn${strand === "crops" ? " is-active" : ""}`}
             data-testid="almanac-strand-crops"
@@ -91,7 +96,7 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
             type="search"
             className="almanac-search-input"
             data-testid="almanac-search"
-            placeholder="Species, water, season"
+            placeholder={strand === "fish" ? "Species, water, season" : "Crop or climate"}
             value={search}
             autoComplete="off"
             onChange={(event) => setSearch(event.target.value)}
@@ -100,93 +105,109 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
       </header>
 
       {strand === "fish" ? (
-        <ul className="almanac-list" data-testid="almanac-fish-list">
-          {fish.length === 0 && <li className="almanac-empty">Nothing in the almanac matches that.</li>}
-          {fish.map((entry) => (
-            <li
-              key={entry.speciesId}
-              className={`almanac-entry${entry.discovered ? " is-discovered" : " is-unrecorded"}`}
-              data-testid="almanac-fish-entry"
-              data-discovered={entry.discovered ? "true" : "false"}
-            >
-              <span className="almanac-entry-sprite">
-                <AtlasImage src={atlasForFish(entry.speciesId)} alt="" size={28} />
-              </span>
-              <div className="almanac-entry-body">
-                <div className="almanac-entry-head">
-                  <strong>{entry.name}</strong>
-                  <span className="almanac-rarity">{entry.rarityLabel}</span>
-                  {entry.isSportFish && <span className="almanac-sport-tag">Sport</span>}
-                </div>
-                <dl className="almanac-facts">
-                  <div><dt>Waters</dt><dd>{entry.habitatsLabel}</dd></div>
-                  <div><dt>Season</dt><dd>{entry.seasonsLabel}</dd></div>
-                  <div><dt>Runs</dt><dd>{entry.timeWindowsLabel}</dd></div>
-                  <div><dt>Rod</dt><dd>{entry.rodClassLabel}</dd></div>
-                  <div>
-                    <dt>Weight</dt>
-                    <dd>{`${entry.weightKg.min.toFixed(1)}–${entry.weightKg.max.toFixed(1)} kg`}</dd>
+        <div
+          id="almanac-strand-panel-fish"
+          role="tabpanel"
+          aria-labelledby="almanac-strand-tab-fish"
+          tabIndex={0}
+          className="almanac-tabpanel"
+        >
+          <ul className="almanac-list" data-testid="almanac-fish-list">
+            {fish.length === 0 && <li className="almanac-empty">Nothing in the almanac matches that.</li>}
+            {fish.map((entry) => (
+              <li
+                key={entry.speciesId}
+                className={`almanac-entry${entry.discovered ? " is-discovered" : " is-unrecorded"}`}
+                data-testid="almanac-fish-entry"
+                data-discovered={entry.discovered ? "true" : "false"}
+              >
+                <span className="almanac-entry-sprite">
+                  <AtlasImage src={atlasForFish(entry.speciesId)} alt="" size={28} />
+                </span>
+                <div className="almanac-entry-body">
+                  <div className="almanac-entry-head">
+                    <strong>{entry.name}</strong>
+                    <span className="almanac-rarity">{entry.rarityLabel}</span>
+                    {entry.isSportFish && <span className="almanac-sport-tag">Sport</span>}
                   </div>
-                  <div><dt>Value</dt><dd>{`${entry.baseMarketValue} G`}</dd></div>
-                </dl>
-                {/* A personal record only exists once the species has been met. */}
-                {entry.discovered ? (
-                  <p className="almanac-personal" data-testid="almanac-personal-record">
-                    <IconStar size={11} aria-hidden="true" />
-                    {` Landed ${entry.caughtCount}`}
-                    {entry.bestWeightKg !== null && ` · best ${entry.bestWeightKg.toFixed(1)} kg`}
-                  </p>
-                ) : (
-                  <p className="almanac-personal is-unrecorded">Not yet landed</p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <dl className="almanac-facts">
+                    <div><dt>Waters</dt><dd>{entry.habitatsLabel}</dd></div>
+                    <div><dt>Season</dt><dd>{entry.seasonsLabel}</dd></div>
+                    <div><dt>Runs</dt><dd>{entry.timeWindowsLabel}</dd></div>
+                    <div><dt>Rod</dt><dd>{entry.rodClassLabel}</dd></div>
+                    <div>
+                      <dt>Weight</dt>
+                      <dd>{`${entry.weightKg.min.toFixed(1)}–${entry.weightKg.max.toFixed(1)} kg`}</dd>
+                    </div>
+                    <div><dt>Value</dt><dd>{`${entry.baseMarketValue} G`}</dd></div>
+                  </dl>
+                  {/* A personal record only exists once the species has been met. */}
+                  {entry.discovered ? (
+                    <p className="almanac-personal" data-testid="almanac-personal-record">
+                      <IconStar size={11} aria-hidden="true" />
+                      {` Landed ${entry.caughtCount}`}
+                      {entry.bestWeightKg !== null && ` · best ${entry.bestWeightKg.toFixed(1)} kg`}
+                    </p>
+                  ) : (
+                    <p className="almanac-personal is-unrecorded">Not yet landed</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : (
-        <ul className="almanac-list" data-testid="almanac-crop-list">
-          {crops.length === 0 && <li className="almanac-empty">Nothing in the almanac matches that.</li>}
-          {crops.map((entry) => (
-            <li
-              key={entry.cropId}
-              className={`almanac-entry${entry.discovered ? " is-discovered" : " is-unrecorded"}`}
-              data-testid="almanac-crop-entry"
-              data-discovered={entry.discovered ? "true" : "false"}
-            >
-              <span className="almanac-entry-sprite">
-                <IconSprout size={24} aria-hidden="true" />
-              </span>
-              <div className="almanac-entry-body">
-                <div className="almanac-entry-head">
-                  <strong>{entry.name}</strong>
-                  {entry.regrows && <span className="almanac-sport-tag">Regrows</span>}
-                </div>
-                <dl className="almanac-facts">
-                  <div><dt>Ground</dt><dd>{entry.climatesLabel}</dd></div>
-                  <div><dt>Grows in</dt><dd>{formatAlmanacDuration(entry.growthMinutes)}</dd></div>
-                  <div><dt>Water</dt><dd>{`${waterNeedLabel(entry.waterNeed)} (${entry.waterNeed})`}</dd></div>
-                  <div>
-                    <dt>Yield</dt>
-                    <dd>
-                      {entry.yieldMin === entry.yieldMax
-                        ? `${entry.yieldMin}`
-                        : `${entry.yieldMin}–${entry.yieldMax}`}
-                    </dd>
+        <div
+          id="almanac-strand-panel-crops"
+          role="tabpanel"
+          aria-labelledby="almanac-strand-tab-crops"
+          tabIndex={0}
+          className="almanac-tabpanel"
+        >
+          <ul className="almanac-list" data-testid="almanac-crop-list">
+            {crops.length === 0 && <li className="almanac-empty">Nothing in the almanac matches that.</li>}
+            {crops.map((entry) => (
+              <li
+                key={entry.cropId}
+                className={`almanac-entry${entry.discovered ? " is-discovered" : " is-unrecorded"}`}
+                data-testid="almanac-crop-entry"
+                data-discovered={entry.discovered ? "true" : "false"}
+              >
+                <span className="almanac-entry-sprite">
+                  <IconSprout size={24} aria-hidden="true" />
+                </span>
+                <div className="almanac-entry-body">
+                  <div className="almanac-entry-head">
+                    <strong>{entry.name}</strong>
+                    {entry.regrows && <span className="almanac-sport-tag">Regrows</span>}
                   </div>
-                </dl>
-                {entry.discovered ? (
-                  <p className="almanac-personal" data-testid="almanac-personal-record">
-                    <IconStar size={11} aria-hidden="true" />
-                    {` Harvested ${entry.harvestedCount}`}
-                    {entry.bestQuality && ` · best ${entry.bestQuality}`}
-                  </p>
-                ) : (
-                  <p className="almanac-personal is-unrecorded">Not yet grown</p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <dl className="almanac-facts">
+                    <div><dt>Ground</dt><dd>{entry.climatesLabel}</dd></div>
+                    <div><dt>Grows in</dt><dd>{formatAlmanacDuration(entry.growthMinutes)}</dd></div>
+                    <div><dt>Water</dt><dd>{`${waterNeedLabel(entry.waterNeed)} (${entry.waterNeed})`}</dd></div>
+                    <div>
+                      <dt>Yield</dt>
+                      <dd>
+                        {entry.yieldMin === entry.yieldMax
+                          ? `${entry.yieldMin}`
+                          : `${entry.yieldMin}–${entry.yieldMax}`}
+                      </dd>
+                    </div>
+                  </dl>
+                  {entry.discovered ? (
+                    <p className="almanac-personal" data-testid="almanac-personal-record">
+                      <IconStar size={11} aria-hidden="true" />
+                      {` Harvested ${entry.harvestedCount}`}
+                      {entry.bestQuality && ` · best ${entry.bestQuality}`}
+                    </p>
+                  ) : (
+                    <p className="almanac-personal is-unrecorded">Not yet grown</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

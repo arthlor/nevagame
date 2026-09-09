@@ -972,7 +972,8 @@
       "duration": 24,
       "gain": 0.2,
       "spatial": true,
-      "poolSize": 2
+      "poolSize": 2,
+      "loop": true
     },
     "workstation": {
       "sourceId": "workstation-grind",
@@ -1605,6 +1606,59 @@
       "loop": true,
       "spatial": false,
       "poolSize": 1
+    },
+    "craft-tailor": {
+      "sourceId": "ui-cloth",
+      "bus": "sfx",
+      "offset": 0.8,
+      "duration": 0.55,
+      "gain": 0.34,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.97,
+      "pitchMax": 1.03
+    },
+    "craft-tool": {
+      "sourceId": "workstation-grind",
+      "bus": "sfx",
+      "offset": 1.2,
+      "duration": 0.72,
+      "gain": 0.42,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02
+    },
+    "craft-ready": {
+      "sourceId": "ui-confirm",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.6,
+      "gain": 0.34,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "equipment-equip": {
+      "sourceId": "ui-cloth",
+      "bus": "ui",
+      "offset": 0.1,
+      "duration": 0.42,
+      "gain": 0.3,
+      "spatial": false,
+      "poolSize": 3,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02
+    },
+    "ui-hover": {
+      "sourceId": "ui-click",
+      "bus": "ui",
+      "offset": 0,
+      "duration": 0.09,
+      "gain": 0.1,
+      "spatial": false,
+      "poolSize": 3,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02
     }
   },
   "banks": {

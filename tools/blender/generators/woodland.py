@@ -15,6 +15,7 @@ from mathutils import Vector
 from common.geometry import (
     add_beam,
     add_box,
+    add_collision_primitives,
     add_cone,
     add_cylinder,
     add_ico,
@@ -103,6 +104,7 @@ def broadleaf_oak(spec: dict, root) -> None:
             (0.86, 0.64, 0.46), shadow, root, rng=rng,
         )
     _canopy_blob("oak_canopy_crown", (top[0] + 0.05, 0.0, canopy_center_z + 0.58), (1.10, 0.86, 0.72), highlight, root, rng=rng)
+    add_collision_primitives(spec, root)
 
 
 def maple_tree(spec: dict, root) -> None:
@@ -156,6 +158,7 @@ def maple_tree(spec: dict, root) -> None:
             (0.74, 0.70, 0.50), shadow, root, rng=rng,
         )
     _canopy_blob("maple_canopy_apex", (0.02, 0.0, height - 0.62), (0.86, 0.82, 0.78), ochre, root, rng=rng)
+    add_collision_primitives(spec, root)
 
 
 def tall_pine(spec: dict, root) -> None:
@@ -190,6 +193,7 @@ def tall_pine(spec: dict, root) -> None:
                     0.035, 0.014, bark, root, vertices=5,
                 )
     add_cone("pine_spire", (0, 0, height - 0.30), 0.30, 0.02, 0.62, pine, root, vertices=7)
+    add_collision_primitives(spec, root)
 
 
 def young_pine(spec: dict, root) -> None:

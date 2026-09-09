@@ -235,12 +235,12 @@ export const ITEMS: Record<string, ItemDefinition> = {
   },
   "item.basic_lure": {
     id: "item.basic_lure",
-    name: "Feather Lure",
+    name: "Woven Lure",
     category: "fishing-supply",
-    description: "Handcrafted coastal lure with flashing tinsel.",
+    description: "A braided plant-fiber lure with a bright, scented core. Required for sport fishing; optional on a basic cast for a steadier hook.",
     stackLimit: 50,
     baseValue: 20,
-    tags: ["lure"]
+    tags: ["lure", "sport-fishing", "basic-fishing"]
   },
   "item.salt_cured_fish": {
     id: "item.salt_cured_fish",
@@ -250,6 +250,69 @@ export const ITEMS: Record<string, ItemDefinition> = {
     stackLimit: 40,
     baseValue: 34,
     tags: ["preserved", "trade-good"]
+  },
+  "item.hardwood_blank": {
+    id: "item.hardwood_blank",
+    name: "Hardwood Blank",
+    category: "crafting-material",
+    description: "A seasoned block cut true for tool handles and reinforced fittings.",
+    stackLimit: 20,
+    baseValue: 24,
+    tags: ["equipment-material", "wood"]
+  },
+  "item.tanned_leather": {
+    id: "item.tanned_leather",
+    name: "Tanned Leather",
+    category: "crafting-material",
+    description: "Supple working leather prepared for boots, straps, and weatherproof seams.",
+    stackLimit: 20,
+    baseValue: 32,
+    tags: ["equipment-material", "leather"]
+  },
+  "item.tool_steel": {
+    id: "item.tool_steel",
+    name: "Tool Steel",
+    category: "crafting-material",
+    description: "A compact billet with enough temper for durable agricultural edges.",
+    stackLimit: 20,
+    baseValue: 45,
+    tags: ["equipment-material", "metal"]
+  },
+  "item.linen_roll": {
+    id: "item.linen_roll",
+    name: "Linen Roll",
+    category: "crafting-material",
+    description: "Flax woven into a strong, breathable roll for practical clothing.",
+    stackLimit: 20,
+    baseValue: 55,
+    tags: ["equipment-material", "textile", "crafted"]
+  },
+  "item.copper_sheet": {
+    id: "item.copper_sheet",
+    name: "Copper Sheet",
+    category: "crafting-material",
+    description: "A workable sheet for forming cans, roses, and long watertight seams.",
+    stackLimit: 20,
+    baseValue: 38,
+    tags: ["equipment-material", "metal"]
+  },
+  "item.brass_fittings": {
+    id: "item.brass_fittings",
+    name: "Brass Fittings",
+    category: "crafting-material",
+    description: "Salt-resistant buckles, rivets, and collars for field and deck gear.",
+    stackLimit: 20,
+    baseValue: 40,
+    tags: ["equipment-material", "metal"]
+  },
+  "item.oiled_canvas": {
+    id: "item.oiled_canvas",
+    name: "Oiled Canvas",
+    category: "crafting-material",
+    description: "Dense linen worked with fish oil into flexible weatherproof cloth.",
+    stackLimit: 20,
+    baseValue: 75,
+    tags: ["equipment-material", "textile", "crafted", "weatherproof"]
   },
   "item.fish_scraps": {
     id: "item.fish_scraps",

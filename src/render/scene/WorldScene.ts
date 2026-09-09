@@ -1,3 +1,8 @@
+import { AMBIENT_BOAT_ROUTES, sampleAmbientBoatPose } from "./ambientBoats";
+import { AMBIENT_TOWNSFOLK_ROUTES, sampleAmbientTownsfolkPose, type AmbientTownsfolkRoute } from "./ambientTownsfolk";
+import { architectureWindowMaterial, disposeArchitectureWindows, updateArchitectureWindows } from "../materials/WindowMaterial";
+import { npcAnchorAt } from "../../simulation/presentation/NpcPresentation";
+import { yieldToTask } from "../../utils/CooperativeTask";
 // src/render/scene/WorldScene.ts
 
 import * as THREE from "three";
@@ -42,7 +47,7 @@ import {
 import { STATIC_FARM_PROP_ASSETS, STATIC_LANDMARK_ASSETS } from "../assets/RuntimeAssetOwners";
 import type { StaticCollisionProxy } from "../../physics/StaticCollision";
 import { projectAssetCollision } from "../../physics/CollisionCatalogAdapter";
-import type { BasicFishingPhase, FishingEncounterState, GameState } from "../../simulation/core/types";
+import type { BasicFishingPhase, FishingEncounterState, GameState, ProcessingPresentationKind } from "../../simulation/core/types";
 import type { BoatMotionSample, PlayerMotionSample } from "../../simulation/core/PhysicsAdapter";
 import type { CropPlacementResult } from "../../simulation/core/contracts";
 import {
@@ -83,6 +88,7 @@ import {
 } from "../../world/FarmhouseInterior";
 import {
   createWorldEnvironmentLayout,
+  prepareWorldEnvironmentLayout,
   type EnvironmentAssetPlacement,
   type WorldEnvironmentLayout
 } from "../../world/WorldEnvironmentLayout";
@@ -94,6 +100,10 @@ import {
   type CharacterMotionFrame,
   type PlayerAnimation
 } from "../animation/AnimationController";
+import {
+  CharacterEquipmentAssembler,
+  characterVisualLoadoutFromState
+} from "../animation/CharacterEquipmentAssembler";
 import {
   attachPreservingWorld,
   attachmentClip,
@@ -161,12 +171,15 @@ import {
   type AmbientCloudPlacement,
   type AmbientFlyerOrbit
 } from "./ambientFlyers";
-import { NPC_STATION_BEATS, advanceNpcStationBeat, createNpcStationBeatState, type NpcStationBeatState } from "./npcStationBeat";
+import { npcStationBeatAt, advanceNpcStationBeat, createNpcStationBeatState, type NpcStationBeatState } from "./npcStationBeat";
 import { resolveHumanoidRig } from "../animation/HumanoidRig";
+import { createTradePackBackSocket, attachBoatTradePack } from "../animation/TradePackAttachment";
 import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentSocketPose, createCarryCradle, fishingClipUsesRod, rowboatOarRotation } from "../animation/CharacterEquipment";
 import { buildStarterFarmGround } from "./StarterFarmGround";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { fishSchoolMemberAssets, fishSpeciesAsset } from "./FishSchoolAssets";
+import { fishCargoPackAsset, fishSchoolMemberAssets, fishSpeciesAsset } from "./FishSchoolAssets";
+import { advanceSchoolFish, type SchoolFishMotion, type SchoolBoatObstacle } from "../fishing/FishSchoolMotion";
+import { SchoolSurfaceRipples } from "../fishing/SchoolSurfaceRipples";
 
 
 
@@ -207,7 +220,31 @@ interface NpcPresentation {
   lastAnimationContext: CharacterAnimationContext | null;
 }
 
+interface AmbientTownsfolkPresentation {
+  route: AmbientTownsfolkRoute;
+  model: THREE.Group;
+  animator: HumanoidAnimator;
+  motionFrame: CharacterMotionFrame | null;
+  lastAnimationContext: CharacterAnimationContext | null;
+}
+
 const CHARACTER_DETAIL_DISTANCE_METERS = 14;
+/** Beyond this a background villager is a couple of pixels; stop animating. */
+const AMBIENT_TOWNSFOLK_VISIBILITY_METERS = 110;
+
+/**
+ * Catalog families whose scattered instances are allowed to block the player.
+ * A mature trunk or a field boulder is something you walk around; a building,
+ * dock or crate placed by seeded fill would be an unvalidated obstacle in a
+ * road or doorway.
+ *
+ * This replaced a blanket ban on colliding seeded-fill assets, which was a
+ * safe default while nothing scattered could collide and became wrong the
+ * moment trees gained trunks. It is keyed on what the asset *is* rather than
+ * on a composition tag, because code-authored landscape dressing (a shade tree
+ * beside a bench) is seeded-fill too and carries no tag.
+ */
+const SEEDED_FILL_COLLIDING_FAMILIES: ReadonlySet<string> = new Set(["vegetation", "rock"]);
 // Published farmhouse A local-space chimney socket. The plume is attached
 // after static collision and shadow setup so it follows layout edits without
 // entering collision or inflating the farmhouse's broad shadow silhouette.
@@ -433,6 +470,8 @@ interface FishPresentationMember {
   activeClip: FishAnimationClip | null;
   tailPivot?: THREE.Object3D;
   visibilityMaterials: FishVisibilityMaterial[];
+  lastFeedingCycle?: number;
+  schoolMotion?: SchoolFishMotion;
 }
 
 interface FishVisibilityMaterial {
@@ -475,12 +514,12 @@ const FISHING_LINE_SEGMENTS = 14;
 
 const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "seed", assetId: ASSET_IDS.TOOL_SEED_POUCH_A, socket: "char_player_hip_socket", scale: 0.72 },
-  { key: "water", assetId: ASSET_IDS.TOOL_WATERING_CAN_A, socket: "char_player_tool_socket", scale: 0.72 },
-  { key: "sickle", assetId: ASSET_IDS.TOOL_SICKLE_A, socket: "char_player_tool_socket", scale: 0.82 },
   { key: "bundle", assetId: ASSET_IDS.PROP_CROP_BUNDLE_A, socket: "char_player_carry_socket", scale: 0.76 },
   { key: "basket", assetId: ASSET_IDS.PROP_HARVEST_BASKET_A, socket: "char_player_carry_socket", scale: 0.68 },
   { key: "scoop", assetId: ASSET_IDS.TOOL_WORKSTATION_SCOOP_A, socket: "char_player_tool_socket", scale: 0.78 },
-  { key: "rod", assetId: ASSET_IDS.TOOL_FISHING_ROD_A, socket: "char_player_tool_socket", scale: 0.85 }
+  { key: "tailor", assetId: ASSET_IDS.PROP_CRAFTING_TAILOR_A, socket: "char_player_tool_socket", scale: 0.82 },
+  { key: "toolmaking", assetId: ASSET_IDS.PROP_CRAFTING_TOOLMAKING_A, socket: "char_player_tool_socket", scale: 0.82 },
+  { key: "ready", assetId: ASSET_IDS.PROP_CRAFTING_READY_A, socket: "char_player_tool_socket", scale: 0.82 }
 ] as const;
 
 const SKY_DOME_RADIUS = 650;
@@ -590,7 +629,6 @@ function createCelestialDiscMaterial(
 }
 
 /** Fallback yield when rAF is unavailable or throttled (hidden tab). */
-const YIELD_FALLBACK_MS = 32;
 
 /**
  * Yields to the browser between heavy world-build steps so the loading screen
@@ -602,33 +640,84 @@ const YIELD_FALLBACK_MS = 32;
  * screen frozen forever. The timer guarantees forward progress; in a visible
  * tab rAF wins the race and the yield behaves exactly as before.
  */
-function yieldToBrowser(): Promise<void> {
-  return new Promise<void>((resolve) => {
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(settle);
-    setTimeout(settle, YIELD_FALLBACK_MS);
-  });
+
+
+/** Below this range the shaft is fully retired and the ground ring carries it. */
+const QUEST_BEACON_NEAR_METERS = 18;
+/** Above this range the shaft is at full strength. */
+const QUEST_BEACON_FAR_METERS = 42;
+/** Peak additive strength of the shaft, before the distance fade and pulse. */
+const QUEST_BEACON_SHAFT_OPACITY = 0.5;
+/** Tall enough to clear Neva's 22 m of relief from most approaches. */
+const QUEST_BEACON_SHAFT_HEIGHT = 14;
+
+/**
+ * How strongly each half of the waypoint reads at a given camera range.
+ *
+ * Pure and exported so the hand-off can be asserted directly: the whole point
+ * of the beacon is that it is legible from across a region *and* gets out of
+ * the way once you arrive, and those are opposite requirements that only a
+ * cross-fade satisfies.
+ */
+export function questBeaconRangeMix(distanceMeters: number): {
+  shaftStrength: number;
+  ringStrength: number;
+} {
+  const shaftStrength = THREE.MathUtils.clamp(
+    (distanceMeters - QUEST_BEACON_NEAR_METERS) / (QUEST_BEACON_FAR_METERS - QUEST_BEACON_NEAR_METERS),
+    0,
+    1
+  );
+  // The ring never goes fully dark, so the exact spot stays readable at range.
+  return { shaftStrength, ringStrength: 0.35 + 0.65 * (1 - shaftStrength) };
+}
+
+/**
+ * An open, tapered cylinder whose vertex colours run from the ochre accent at
+ * the base to black at the tip. The material is additive, so a black vertex
+ * contributes nothing — that gives a soft vertical fade without a texture, an
+ * alpha map, or a custom shader.
+ */
+function buildQuestBeaconShaftGeometry(): THREE.CylinderGeometry {
+  const geometry = new THREE.CylinderGeometry(
+    0.30, 0.62, QUEST_BEACON_SHAFT_HEIGHT, 20, 1, true
+  );
+  // Cylinders are built around their centre; sit this one on the ground.
+  geometry.translate(0, QUEST_BEACON_SHAFT_HEIGHT / 2, 0);
+
+  const position = geometry.getAttribute("position");
+  const base = new THREE.Color(PALETTE_HEX.accent_ochre_01);
+  const colors = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    const heightRatio = THREE.MathUtils.clamp(
+      position.getY(index) / QUEST_BEACON_SHAFT_HEIGHT, 0, 1
+    );
+    // Squared falloff keeps the base solid and lets the top dissolve early.
+    const strength = (1 - heightRatio) * (1 - heightRatio);
+    colors[index * 3] = base.r * strength;
+    colors[index * 3 + 1] = base.g * strength;
+    colors[index * 3 + 2] = base.b * strength;
+  }
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return geometry;
 }
 
 export class WorldScene {
   private static readonly preparedStartupLayouts = new Map<number, WorldEnvironmentLayout>();
   public scene: THREE.Scene;
   public renderer: THREE.WebGLRenderer;
-  public water: FacetedWater;
+  public water!: FacetedWater;
+  private startupSignal?: AbortSignal;
+  private disposed = false;
   public sunLight: THREE.DirectionalLight;
   public hemiLight: THREE.HemisphereLight;
   private readonly lightingRig: LightingRig;
   private readonly rendererPipeline: RendererPipeline;
-  private readonly shoreFoam: ShoreFoam;
-  private readonly boatWakes: BoatWakePool;
-  private readonly farmVfx: FarmVfxPool;
-  private readonly fireflyField: FireflyField;
-  private readonly rainField: RainField;
+  private shoreFoam!: ShoreFoam;
+  private boatWakes!: BoatWakePool;
+  private farmVfx!: FarmVfxPool;
+  private fireflyField!: FireflyField;
+  private rainField!: RainField;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
   private readonly roadSurfaceMaterial = new RoadSurfaceMaterial();
   private readonly cultivatedSurfaceMaterial = new CultivatedSurfaceMaterial();
@@ -644,12 +733,17 @@ export class WorldScene {
   private environmentGroup: THREE.Group = new THREE.Group();
   private staticPrefabGroup: THREE.Group = new THREE.Group();
   private playerAnimation: HumanoidAnimator | null = null;
+  private playerEquipmentAssembler: CharacterEquipmentAssembler | null = null;
   private playerPelvis: THREE.Object3D | null = null;
   private playerAttachmentTransition: PlayerAttachmentTransition | null = null;
   private lastPlayerDiscontinuitySequence = -1;
+  private readonly interactionMaterials = new Map<string, THREE.MeshStandardMaterial[]>();
+  private activeInteractionMaterialId: string | null = null;
   private readonly farmingProps = new Map<string, THREE.Group>();
   private farmingPropsAttached = false;
   private cosmeticCropCarryUntilSeconds = 0;
+  private playerBackpackSocket: THREE.Group | null = null;
+  private boatFishPacks = new Map<string, { root: THREE.Group; boatId: string; slot: number }>();
   private carriedFishPresentation: { cargoId: string; root: THREE.Group } | null = null;
   private readonly playerAnimationEvents: CharacterAnimationEvent[] = [];
   private latestPresentedPlayer: PresentedPlayerFrame | null = null;
@@ -696,9 +790,11 @@ export class WorldScene {
   }> = [];
   private readonly faunaPresentations: FaunaPresentation[] = [];
   private donkeyPresentation: DonkeyPresentation | null = null;
+  private readonly backgroundBoats: THREE.Object3D[] = [];
+  private readonly ambientTownsfolk: AmbientTownsfolkPresentation[] = [];
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
   private readonly rigidAnimationBatches = new Map<THREE.Object3D, RigidAnimationBatch>();
-  private syncInFlight: boolean = false;
+  private syncInFlight: Promise<void> | null = null;
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
   private readonly boatDriverSeats = new Map<string, THREE.Object3D>();
@@ -722,7 +818,7 @@ export class WorldScene {
   private lastResizeHeight = 0;
   private readonly placementPreview = new THREE.Group();
   private readonly interactionFeedback = new THREE.Mesh(
-    new THREE.RingGeometry(0.42, 0.52, 24),
+    new THREE.RingGeometry(0.42, 0.52, 24, 1, 0, Math.PI * 1.8),
     new THREE.MeshBasicMaterial({
       color: PALETTE_HEX.accent_teal_01,
       transparent: true,
@@ -741,6 +837,25 @@ export class WorldScene {
       side: THREE.DoubleSide
     })
   );
+  /**
+   * The distance half of the waypoint. A flat ring on the ground is invisible
+   * from more than a dozen metres, which made every objective anchor unusable
+   * as a navigation cue; this shaft clears the island's 22 m of relief so the
+   * target reads from across a region, then hands back to the ring up close.
+   */
+  private readonly questWaypointShaft = new THREE.Mesh(
+    buildQuestBeaconShaftGeometry(),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      vertexColors: true
+    })
+  );
+  private questWaypointVisible = false;
+  private questWaypointElapsedSeconds = 0;
   private readyPromise: Promise<void> | null = null;
 
   private readyWorldSeed: number | null = null;
@@ -854,9 +969,57 @@ export class WorldScene {
     this.sunLight = this.lightingRig.sun;
     this.hemiLight = this.lightingRig.skyFill;
 
+    // 3. Build World Geometry
+    this.scene.add(this.environmentGroup);
+    this.scene.add(this.cropInstances.group);
+    this.environmentGroup.add(this.groundCover.group);
+    this.environmentGroup.add(this.staticPrefabGroup);
+    this.interactionFeedback.name = "resolved_interaction_feedback";
+    this.interactionFeedback.rotation.x = -Math.PI / 2;
+    this.interactionFeedback.renderOrder = 3;
+    this.interactionFeedback.visible = false;
+    this.scene.add(this.interactionFeedback);
+    this.questWaypointRing.name = "quest_waypoint_beacon";
+    this.questWaypointRing.rotation.x = -Math.PI / 2;
+    this.questWaypointRing.renderOrder = 3;
+    this.questWaypointRing.visible = false;
+    this.scene.add(this.questWaypointRing);
+    this.questWaypointShaft.name = "quest_waypoint_shaft";
+    this.questWaypointShaft.renderOrder = 3;
+    this.questWaypointShaft.visible = false;
+    // Additive and unlit, so it never writes depth over the world behind it.
+    this.questWaypointShaft.frustumCulled = false;
+    this.scene.add(this.questWaypointShaft);
+    this.buildPlayerContactShadow();
+
+  }
+
+  private checkAlive(): void {
+    this.startupSignal?.throwIfAborted();
+    if (this.disposed) throw new DOMException("World disposed", "AbortError");
+  }
+
+  private syncBoatFishPacks(state: Readonly<GameState>): void {
+    for (const [id, pack] of this.boatFishPacks) {
+      if (!state.fishCargo[id] || state.boats[pack.boatId]?.fishCargoSlotIds[pack.slot] !== id) {
+        pack.root.removeFromParent();
+        this.boatFishPacks.delete(id);
+      }
+    }
+  }
+
+  private async loadModel(assetId: AssetId): Promise<THREE.Group> {
+    this.checkAlive();
+    const model = await AssetLoader.loadModel(assetId);
+    this.checkAlive();
+    return model;
+  }
+
+  private async initializeWater(): Promise<void> {
     // 2. Sky and faceted animated water
     this.buildSky();
-    this.water = new FacetedWater(WATER_SURFACE);
+    this.water = await FacetedWater.create(WATER_SURFACE, this.startupSignal);
+    this.checkAlive();
     this.rendererPipeline.bindWaterCapture([...this.water.meshes, this.water.nearPatch.mesh], this.water.coastalUniforms);
     this.terrainSurfaceMaterial.bindCoastalField(this.water.coastalUniforms);
     this.roadSurfaceMaterial.bindCoastalField(this.water.coastalUniforms);
@@ -875,23 +1038,7 @@ export class WorldScene {
     this.rainField = new RainField(CANONICAL_RENDER_CONFIG.qualityTier);
     this.scene.add(this.rainField.group);
 
-    // 3. Build World Geometry
-    this.scene.add(this.environmentGroup);
-    this.scene.add(this.cropInstances.group);
-    this.environmentGroup.add(this.groundCover.group);
-    this.environmentGroup.add(this.staticPrefabGroup);
-    this.interactionFeedback.name = "resolved_interaction_feedback";
-    this.interactionFeedback.rotation.x = -Math.PI / 2;
-    this.interactionFeedback.renderOrder = 3;
-    this.interactionFeedback.visible = false;
-    this.scene.add(this.interactionFeedback);
-    this.questWaypointRing.name = "quest_waypoint_beacon";
-    this.questWaypointRing.rotation.x = -Math.PI / 2;
-    this.questWaypointRing.renderOrder = 3;
-    this.questWaypointRing.visible = false;
-    this.scene.add(this.questWaypointRing);
-    this.buildPlayerContactShadow();
-
+    this.setQuality(this.qualityTier);
   }
 
   private async initializeWorldGeometry(): Promise<void> {
@@ -899,24 +1046,30 @@ export class WorldScene {
       this.terrainSurfaceMaterial.loadExternalTextures(),
       this.roadSurfaceMaterial.loadExternalTextures()
     ]);
-    this.buildWorldTerrain();
-    await yieldToBrowser();
+    await this.initializeWater();
+    await this.buildWorldTerrain();
+    await yieldToTask(this.startupSignal);
+    this.checkAlive();
     this.buildPlacementPreview();
     this.buildStarterFarmDetails();
-    await yieldToBrowser();
+    await yieldToTask(this.startupSignal);
+    this.checkAlive();
     this.buildRouteDetails();
-    await yieldToBrowser();
+    await yieldToTask(this.startupSignal);
+    this.checkAlive();
     this.buildFishingPresentation();
   }
 
-  public ready(worldSeed: number): Promise<void> {
+  public ready(worldSeed: number, signal?: AbortSignal): Promise<void> {
     if (this.readyWorldSeed !== null && this.readyWorldSeed !== worldSeed) {
       throw new Error(
         `[WorldScene] Already initialized for world seed ${this.readyWorldSeed}; cannot reinitialize for ${worldSeed}`
       );
     }
+    this.checkAlive();
     if (!this.readyPromise) {
       this.readyWorldSeed = worldSeed;
+      this.startupSignal = signal;
       this.readyPromise = (async () => {
         await this.initializeWorldGeometry();
         const layout = WorldScene.preparedStartupLayouts.get(worldSeed)
@@ -926,6 +1079,13 @@ export class WorldScene {
       })();
     }
     return this.readyPromise;
+  }
+
+  public static async prepareStartupAssetIds(
+    state: Readonly<Pick<GameState, "worldSeed" | "crops" | "boats">>, signal?: AbortSignal
+  ): Promise<readonly AssetId[]> {
+    await prepareWorldEnvironmentLayout(state.worldSeed, signal);
+    return this.startupAssetIds(state);
   }
 
   /** Assets required by the blocking world boot; progression assets remain lazy. */
@@ -958,7 +1118,7 @@ export class WorldScene {
   private async populateEnvironment(layout: WorldEnvironmentLayout): Promise<void> {
     await Promise.all([
       this.populateStaticPrefabs(layout.staticPlacements),
-      this.groundCover.build(layout.groundCoverPlacements)
+      this.groundCover.build(layout.groundCoverPlacements, this.startupSignal)
     ]);
   }
 
@@ -1096,9 +1256,10 @@ export class WorldScene {
   }
 
   /** Builds the selectively smoothed terrain and its shared physical-road surface. */
-  private buildWorldTerrain(): void {
+  private async buildWorldTerrain(): Promise<void> {
     for (const patch of WorldLayout.terrainPatches()) {
-      const layoutGeometry = WorldLayout.buildTerrainGeometry(patch.id);
+      const layoutGeometry = await WorldLayout.buildTerrainGeometryAsync(patch.id, this.startupSignal);
+      this.checkAlive();
       const layoutTerrain = import.meta.env.DEV
         ? new THREE.Mesh(layoutGeometry, this.terrainSurfaceMaterial.material)
         : createSpatialSurfaceBatch(layoutGeometry, this.terrainSurfaceMaterial.material, STATIC_BATCH_CHUNK_SIZE_METERS);
@@ -1147,7 +1308,9 @@ export class WorldScene {
     // High-resolution path ribbon — paints the packed core and shoulder at
     // 17-strip transverse resolution. A narrow alpha-tested polygon edge owns
     // the visible merge; the coarse terrain grid remains a green underlay.
-    const pathGeometry = WorldLayout.buildPathGeometry();
+    await yieldToTask(this.startupSignal);
+    const pathGeometry = await WorldLayout.buildPathGeometryAsync(this.startupSignal);
+    this.checkAlive();
     const pathMesh = import.meta.env.DEV
       ? new THREE.Mesh(pathGeometry, this.roadSurfaceMaterial.material)
       : createSpatialSurfaceBatch(pathGeometry, this.roadSurfaceMaterial.material, STATIC_BATCH_CHUNK_SIZE_METERS);
@@ -1159,77 +1322,40 @@ export class WorldScene {
   }
 
   private buildPlacementPreview(): void {
-    // 1. Outer perimeter boundary ring (solid rasterized width for crisp anti-aliased edge)
-    const outerRingGeometry = new THREE.RingGeometry(0.46, 0.50, 48).rotateX(-Math.PI / 2);
-    const outerRing = new THREE.Mesh(
-      outerRingGeometry,
-      new THREE.MeshBasicMaterial({
-        color: PALETTE_HEX.accent_teal_01,
-        transparent: true,
-        opacity: 0.42,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -3
-      })
-    );
-    outerRing.name = "crop_placement_outer_ring";
-
-    // 2. Soft translucent inner clearance footprint fill
-    const fillGeometry = new THREE.CircleGeometry(0.46, 48).rotateX(-Math.PI / 2);
-    const fill = new THREE.Mesh(
-      fillGeometry,
-      new THREE.MeshBasicMaterial({
-        color: PALETTE_HEX.accent_teal_01,
-        transparent: true,
-        opacity: 0.07,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -2
-      })
-    );
-    fill.name = "crop_placement_fill";
-
-    // 3. Inner concentric accent ring
-    const innerRingGeometry = new THREE.RingGeometry(0.21, 0.23, 36).rotateX(-Math.PI / 2);
-    const innerRing = new THREE.Mesh(
-      innerRingGeometry,
-      new THREE.MeshBasicMaterial({
-        color: PALETTE_HEX.foam_warm_01,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -3
-      })
-    );
-    innerRing.name = "crop_placement_inner_ring";
-
-    // 4. Subtle cardinal notch ticks on the perimeter ring
-    const tickGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.51, 0.006, 0),
-      new THREE.Vector3(-0.43, 0.006, 0),
-      new THREE.Vector3(0.43, 0.006, 0),
-      new THREE.Vector3(0.51, 0.006, 0),
-      new THREE.Vector3(0, 0.006, -0.51),
-      new THREE.Vector3(0, 0.006, -0.43),
-      new THREE.Vector3(0, 0.006, 0.43),
-      new THREE.Vector3(0, 0.006, 0.51)
-    ]);
-    const ticks = new THREE.LineSegments(
-      tickGeometry,
+    // A single-placement footprint, not an area of effect. The old filled disc
+    // with a perimeter ring read as "everything inside this circle gets
+    // planted", which is exactly wrong: one click plants one crop. Four corner
+    // brackets sized to the crop's own footprint say "one crop, this big, here".
+    const bracketArm = 0.34;
+    const bracketInset = 0.5;
+    const bracketY = 0.006;
+    const bracketPoints: THREE.Vector3[] = [];
+    for (const signX of [-1, 1]) {
+      for (const signZ of [-1, 1]) {
+        const cornerX = signX * bracketInset;
+        const cornerZ = signZ * bracketInset;
+        // One L per corner: an arm along X and an arm along Z, both drawn
+        // inward so the bracket never overhangs the footprint it describes.
+        bracketPoints.push(
+          new THREE.Vector3(cornerX, bracketY, cornerZ),
+          new THREE.Vector3(cornerX - signX * bracketArm, bracketY, cornerZ),
+          new THREE.Vector3(cornerX, bracketY, cornerZ),
+          new THREE.Vector3(cornerX, bracketY, cornerZ - signZ * bracketArm)
+        );
+      }
+    }
+    const brackets = new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(bracketPoints),
       new THREE.LineBasicMaterial({
-        color: PALETTE_HEX.foam_warm_01,
+        color: PALETTE_HEX.accent_teal_01,
         transparent: true,
-        opacity: 0.38,
+        opacity: 0.85,
         depthWrite: false
       })
     );
-    ticks.name = "crop_placement_ticks";
+    brackets.name = "crop_placement_brackets";
 
-    // 5. Valid state: Center seed pip / planting reticle
+    // Valid state: centre seed marker.
     const seedMarker = new THREE.Group();
     seedMarker.name = "crop_placement_seed_marker";
 
@@ -1238,7 +1364,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.foam_warm_01,
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.85,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -1252,7 +1378,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.accent_teal_01,
         transparent: true,
-        opacity: 0.48,
+        opacity: 0.6,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -1261,29 +1387,29 @@ export class WorldScene {
     );
     seedCenterRing.name = "crop_placement_seed_ring";
 
-    const seedCrosslets = new THREE.LineSegments(
+    // A sprout above the pip, so the marker reads as "a plant goes here"
+    // rather than as a targeting reticle.
+    const seedSprout = new THREE.LineSegments(
       new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.11, 0.008, 0),
-        new THREE.Vector3(-0.085, 0.008, 0),
-        new THREE.Vector3(0.085, 0.008, 0),
-        new THREE.Vector3(0.11, 0.008, 0),
-        new THREE.Vector3(0, 0.008, -0.11),
-        new THREE.Vector3(0, 0.008, -0.085),
-        new THREE.Vector3(0, 0.008, 0.085),
-        new THREE.Vector3(0, 0.008, 0.11)
+        new THREE.Vector3(0, 0.008, 0.03),
+        new THREE.Vector3(0, 0.008, -0.05),
+        new THREE.Vector3(0, 0.008, -0.02),
+        new THREE.Vector3(-0.045, 0.008, -0.055),
+        new THREE.Vector3(0, 0.008, -0.02),
+        new THREE.Vector3(0.045, 0.008, -0.055)
       ]),
       new THREE.LineBasicMaterial({
         color: PALETTE_HEX.foam_warm_01,
         transparent: true,
-        opacity: 0.42,
+        opacity: 0.8,
         depthWrite: false
       })
     );
-    seedCrosslets.name = "crop_placement_seed_crosslets";
+    seedSprout.name = "crop_placement_seed_sprout";
 
-    seedMarker.add(seedPip, seedCenterRing, seedCrosslets);
+    seedMarker.add(seedPip, seedCenterRing, seedSprout);
 
-    // 6. Invalid state: Distinct prohibited marker
+    // Invalid state: a centred cross.
     const invalidMarker = new THREE.Group();
     invalidMarker.name = "crop_placement_invalid_marker";
 
@@ -1292,7 +1418,7 @@ export class WorldScene {
       new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.roof_terracotta_01,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.55,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -1311,7 +1437,7 @@ export class WorldScene {
       new THREE.LineBasicMaterial({
         color: PALETTE_HEX.roof_terracotta_01,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.7,
         depthWrite: false
       })
     );
@@ -1319,7 +1445,7 @@ export class WorldScene {
 
     invalidMarker.add(invalidRing, invalidCross);
 
-    this.placementPreview.add(outerRing, fill, innerRing, ticks, seedMarker, invalidMarker);
+    this.placementPreview.add(brackets, seedMarker, invalidMarker);
     this.placementPreview.visible = false;
     this.placementPreview.renderOrder = 4;
     this.scene.add(this.placementPreview);
@@ -1336,7 +1462,9 @@ export class WorldScene {
       WorldLayout.terrainHeight(result.worldX, result.worldZ) + 0.045,
       result.worldZ
     );
-    this.placementPreview.rotation.y = 0;
+    // Honour the placement's own rotation so the brackets describe the
+    // footprint the crop will actually occupy.
+    this.placementPreview.rotation.y = result.rotationRadians ?? 0;
     this.placementPreview.scale.set(
       Math.max(0.05, result.footprint.width),
       1,
@@ -1344,35 +1472,16 @@ export class WorldScene {
     );
 
     const primaryColor = result.valid ? PALETTE_HEX.accent_teal_01 : PALETTE_HEX.roof_terracotta_01;
-    const accentColor = result.valid ? PALETTE_HEX.foam_warm_01 : PALETTE_HEX.accent_red_01;
 
-    const outerRing = this.placementPreview.getObjectByName("crop_placement_outer_ring") as THREE.Mesh | undefined;
-    const fill = this.placementPreview.getObjectByName("crop_placement_fill") as THREE.Mesh | undefined;
-    const innerRing = this.placementPreview.getObjectByName("crop_placement_inner_ring") as THREE.Mesh | undefined;
-    const ticks = this.placementPreview.getObjectByName("crop_placement_ticks") as THREE.LineSegments | undefined;
+    const brackets = this.placementPreview.getObjectByName("crop_placement_brackets") as THREE.LineSegments | undefined;
     const seedMarker = this.placementPreview.getObjectByName("crop_placement_seed_marker");
     const invalidMarker = this.placementPreview.getObjectByName("crop_placement_invalid_marker");
     const seedCenterRing = this.placementPreview.getObjectByName("crop_placement_seed_ring") as THREE.Mesh | undefined;
 
-    if (outerRing) {
-      const material = outerRing.material as THREE.MeshBasicMaterial;
+    if (brackets) {
+      const material = brackets.material as THREE.LineBasicMaterial;
       material.color.set(primaryColor);
-      material.opacity = result.valid ? 0.42 : 0.28;
-    }
-    if (fill) {
-      const material = fill.material as THREE.MeshBasicMaterial;
-      material.color.set(primaryColor);
-      material.opacity = result.valid ? 0.07 : 0.04;
-    }
-    if (innerRing) {
-      const material = innerRing.material as THREE.MeshBasicMaterial;
-      material.color.set(result.valid ? PALETTE_HEX.foam_warm_01 : PALETTE_HEX.roof_terracotta_01);
-      material.opacity = result.valid ? 0.22 : 0.16;
-    }
-    if (ticks) {
-      const material = ticks.material as THREE.LineBasicMaterial;
-      material.color.set(accentColor);
-      material.opacity = result.valid ? 0.38 : 0.22;
+      material.opacity = result.valid ? 0.85 : 0.6;
     }
     if (seedCenterRing) (seedCenterRing.material as THREE.MeshBasicMaterial).color.set(primaryColor);
 
@@ -1380,7 +1489,36 @@ export class WorldScene {
     if (invalidMarker) invalidMarker.visible = !result.valid;
   }
 
-  public setInteractionTargetFeedback(position: { x: number; y: number; z: number } | null): void {
+  private registerInteractionMaterials(id: string, root: THREE.Object3D): void {
+    const variants = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+    const variantFor = (source: THREE.Material): THREE.Material => {
+      if (!(source instanceof THREE.MeshStandardMaterial) || source.emissive.getHex() !== 0) return source;
+      let material = variants.get(source);
+      if (!material) {
+        material = source.clone();
+        material.onBeforeCompile = source.onBeforeCompile;
+        material.customProgramCacheKey = source.customProgramCacheKey.bind(source);
+        material.emissive.set(PALETTE_HEX.accent_teal_01);
+        material.emissiveIntensity = 0;
+        variants.set(source, material);
+      }
+      return material;
+    };
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.material = Array.isArray(object.material) ? object.material.map(variantFor) : variantFor(object.material);
+    });
+    this.interactionMaterials.set(id, [...variants.values()]);
+  }
+
+  public setInteractionTargetFeedback(position: { x: number; y: number; z: number } | null, entityId?: string): void {
+    const materialId = position ? entityId ?? null : null;
+    if (materialId !== this.activeInteractionMaterialId) {
+      for (const material of this.interactionMaterials.get(this.activeInteractionMaterialId ?? "") ?? []) material.emissiveIntensity = 0;
+      this.activeInteractionMaterialId = materialId;
+    }
+    this.cropInstances.setHighlight(position ? entityId ?? null : null, this.prefersReducedMotion);
+    this.renderer.domElement.style.cursor = position ? "pointer" : "";
     // The mounted donkey remains the active Dismount target so the prompt can
     // stay visible, but its ground ring is redundant beneath the rider.
     if (!position || Boolean(this.donkeyPresentation?.attachedMountId)) {
@@ -1391,13 +1529,49 @@ export class WorldScene {
     this.interactionFeedback.position.set(position.x, position.y + 0.055, position.z);
   }
 
+  public punchCropHarvest(id: string, timeSeconds: number): void {
+    if (!this.prefersReducedMotion) this.cropInstances.punchHarvest(id, timeSeconds);
+  }
+
   public setQuestWaypoint(position: { x: number; y: number; z: number } | null): void {
     if (!position) {
+      this.questWaypointVisible = false;
       this.questWaypointRing.visible = false;
+      this.questWaypointShaft.visible = false;
       return;
     }
+    this.questWaypointVisible = true;
     this.questWaypointRing.visible = true;
     this.questWaypointRing.position.set(position.x, position.y + 0.065, position.z);
+    this.questWaypointShaft.position.set(position.x, position.y, position.z);
+  }
+
+  /**
+   * Cross-fades the waypoint between its two ranges and breathes it.
+   *
+   * Far out the shaft carries the target and the ground ring is a speck; inside
+   * `QUEST_BEACON_NEAR_METERS` that inverts, because a 14 m pillar standing on
+   * the NPC you walked here to talk to hides them.
+   */
+  private updateQuestWaypoint(camera: THREE.Camera, deltaSeconds: number): void {
+    if (!this.questWaypointVisible) return;
+    this.questWaypointElapsedSeconds += deltaSeconds;
+
+    const distance = camera.position.distanceTo(this.questWaypointShaft.position);
+    const { shaftStrength, ringStrength } = questBeaconRangeMix(distance);
+    const pulse = this.prefersReducedMotion
+      ? 1
+      : 0.86 + 0.14 * Math.sin(this.questWaypointElapsedSeconds * 2.1);
+
+    const shaftMaterial = this.questWaypointShaft.material as THREE.MeshBasicMaterial;
+    shaftMaterial.opacity = QUEST_BEACON_SHAFT_OPACITY * shaftStrength * pulse;
+    this.questWaypointShaft.visible = shaftMaterial.opacity > 0.01;
+
+    const ringMaterial = this.questWaypointRing.material as THREE.MeshBasicMaterial;
+    ringMaterial.opacity = 0.72 * ringStrength;
+    if (!this.prefersReducedMotion) {
+      this.questWaypointRing.rotation.z = this.questWaypointElapsedSeconds * 0.5;
+    }
   }
 
 
@@ -1603,7 +1777,7 @@ export class WorldScene {
     if (!assetId) {
       throw new Error(`[WorldScene] Cannot duplicate ${tag.id} without a catalog assetId`);
     }
-    const instance = await AssetLoader.loadModel(assetId);
+    const instance = await this.loadModel(assetId);
     instance.position.set(pose.x, pose.y, pose.z);
     if (source) {
       instance.rotation.copy(source.rotation);
@@ -2068,46 +2242,47 @@ export class WorldScene {
   ): Promise<void> {
     const preexistingEnvironmentChildren = new Set(this.environmentGroup.children);
     // 1. Farmhouse at starter homestead
-    const farmhouse = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.farmhouse);
+    const farmhouse = await this.loadModel(STATIC_LANDMARK_ASSETS.farmhouse);
     this.placeLandmark(farmhouse, "farmhouse");
     this.tagLayoutEdit(farmhouse, createFarmsteadTag("farmhouse"));
     this.environmentGroup.add(farmhouse);
     this.attachPracticalLights(farmhouse);
 
-    const well = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.well);
+    const well = await this.loadModel(STATIC_LANDMARK_ASSETS.well);
     this.placeLandmark(well, "well");
     this.tagLayoutEdit(well, createFarmsteadTag("well"));
     this.environmentGroup.add(well);
 
     // 2. Stone Bridge crossing river
-    const bridge = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.bridge);
+    const bridge = await this.loadModel(STATIC_LANDMARK_ASSETS.bridge);
     this.placeLandmark(bridge, "bridge");
     this.tagLayoutEdit(bridge, createLandmarkTag("bridge", WorldLayout.landmark("bridge").yOffset));
     this.environmentGroup.add(bridge);
     this.attachPracticalLights(bridge);
 
     // 3. Harbor Dock extending into water
-    const dock = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.dock);
+    const dock = await this.loadModel(STATIC_LANDMARK_ASSETS.dock);
     this.placeLandmark(dock, "dock");
     this.tagLayoutEdit(dock, createLandmarkTag("dock", WorldLayout.landmark("dock").yOffset));
     this.environmentGroup.add(dock);
     this.attachPracticalLights(dock);
 
-    const fishMarket = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishMarket);
+    const fishMarket = await this.loadModel(STATIC_LANDMARK_ASSETS.fishMarket);
     this.placeLandmark(fishMarket, "fish-market");
     this.tagLayoutEdit(fishMarket, createLandmarkTag("fish-market", 0));
+    this.registerInteractionMaterials("market.harbor", fishMarket);
     this.environmentGroup.add(fishMarket);
     this.attachPracticalLights(fishMarket);
 
     // Distant working landmarks establish the same farm-to-coast depth hierarchy
     // as the reference without copying its exact diorama layout.
-    const lighthouse = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.lighthouse);
+    const lighthouse = await this.loadModel(STATIC_LANDMARK_ASSETS.lighthouse);
     this.placeLandmark(lighthouse, "lighthouse");
     this.tagLayoutEdit(lighthouse, createLandmarkTag("lighthouse", 0));
     this.environmentGroup.add(lighthouse);
     this.attachPracticalLights(lighthouse);
 
-    const windmill = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.windmill);
+    const windmill = await this.loadModel(STATIC_LANDMARK_ASSETS.windmill);
     this.placeLandmark(windmill, "windmill");
     this.tagLayoutEdit(windmill, createFarmStructureTag("struct.starter_mill"));
     this.environmentGroup.add(windmill);
@@ -2115,48 +2290,52 @@ export class WorldScene {
     this.attachPracticalLights(windmill);
 
     const workbenchAnchor = starterStructureAnchor("struct.workbench")!;
-    const workbench = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.workbench);
+    const workbench = await this.loadModel(STATIC_LANDMARK_ASSETS.workbench);
     workbench.position.set(
       workbenchAnchor.x,
       WorldLayout.terrainHeight(workbenchAnchor.x, workbenchAnchor.z),
       workbenchAnchor.z
     );
     workbench.rotation.y = getProcessingStationRuntimeRotationY("struct.workbench");
+    this.registerInteractionMaterials("struct.workbench", workbench);
     this.environmentGroup.add(workbench);
     this.tagLayoutEdit(workbench, createFarmStructureTag("struct.workbench"));
 
     const compostAnchor = starterStructureAnchor("struct.starter_compost")!;
-    const compost = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.compost);
+    const compost = await this.loadModel(STATIC_LANDMARK_ASSETS.compost);
     compost.position.set(
       compostAnchor.x,
       WorldLayout.terrainHeight(compostAnchor.x, compostAnchor.z),
       compostAnchor.z
     );
     compost.rotation.y = getProcessingStationRuntimeRotationY("struct.starter_compost");
+    this.registerInteractionMaterials("struct.starter_compost", compost);
     this.environmentGroup.add(compost);
     this.tagLayoutEdit(compost, createFarmStructureTag("struct.starter_compost"));
 
-    const fishTable = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fishTable);
+    const fishTable = await this.loadModel(STATIC_LANDMARK_ASSETS.fishTable);
     fishTable.position.set(
       HARBOR_FISH_TABLE.position.x,
       WorldLayout.terrainHeight(HARBOR_FISH_TABLE.position.x, HARBOR_FISH_TABLE.position.z),
       HARBOR_FISH_TABLE.position.z
     );
     fishTable.rotation.y = getProcessingStationRuntimeRotationY(HARBOR_FISH_TABLE.structureId);
+    this.registerInteractionMaterials("struct.harbor_fish_table", fishTable);
     this.environmentGroup.add(fishTable);
     this.tagLayoutEdit(
       fishTable,
       createWorldAnchorTag("struct.harbor_fish_table", "processing-station")
     );
 
-    const produceStall = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.produceStall);
+    const produceStall = await this.loadModel(STATIC_LANDMARK_ASSETS.produceStall);
     this.placeLandmark(produceStall, "produce-stall");
     this.tagLayoutEdit(produceStall, createLandmarkTag("produce-stall", 0));
+    this.registerInteractionMaterials("market.village", produceStall);
     this.environmentGroup.add(produceStall);
 
     const farmPropAssets = STATIC_FARM_PROP_ASSETS;
     for (const anchor of STARTER_FARM_LAYOUT.propAnchors) {
-      const object = await AssetLoader.loadModel(farmPropAssets[anchor.type]);
+      const object = await this.loadModel(farmPropAssets[anchor.type]);
       const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, anchor);
       object.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
       object.rotation.y = anchor.rotationY;
@@ -2173,7 +2352,7 @@ export class WorldScene {
     }
 
     // 4. Farmhouse Cozy Interior
-    const interiorShell = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.interiorShell);
+    const interiorShell = await this.loadModel(STATIC_LANDMARK_ASSETS.interiorShell);
     interiorShell.position.set(
       FARMHOUSE_INTERIOR_ORIGIN.x,
       FARMHOUSE_INTERIOR_ORIGIN.y,
@@ -2183,7 +2362,7 @@ export class WorldScene {
     this.environmentGroup.add(interiorShell);
 
     for (const propPlacement of FARMHOUSE_INTERIOR_PROPS) {
-      const propModel = await AssetLoader.loadModel(propPlacement.assetId);
+      const propModel = await this.loadModel(propPlacement.assetId);
       propModel.position.set(propPlacement.x, propPlacement.y, propPlacement.z);
       propModel.rotation.y = propPlacement.rotationY;
       if (propPlacement.scale) propModel.scale.setScalar(propPlacement.scale);
@@ -2201,20 +2380,31 @@ export class WorldScene {
           `[WorldScene] Unknown environment asset ${placement.assetId} for placement ${placement.id}`
         );
       }
-      if (placement.origin === "seeded-fill" && spec.collision !== "none") {
+      if (
+        placement.origin === "seeded-fill"
+        && spec.collision !== "none"
+        && !SEEDED_FILL_COLLIDING_FAMILIES.has(spec.family)
+      ) {
         throw new Error(
           `[WorldScene] Seeded-fill placement ${placement.id} cannot use colliding asset ${placement.assetId}`
         );
       }
-      const object = await AssetLoader.loadModel(assetId);
+      const object = await this.loadModel(assetId);
       object.position.set(placement.x, placement.y ?? WorldLayout.terrainHeight(placement.x, placement.z), placement.z);
       object.rotation.y = placement.rotationY;
       object.scale.set(placement.scale[0], placement.scale[1], placement.scale[2]);
+      if (placement.id === "authored.sunreach.cove-market") this.registerInteractionMaterials("market.sunreach_cove", object);
       object.userData.environmentPlacementId = placement.id;
       object.userData.environmentPlacementOrigin = placement.origin;
       object.userData.islandId = placement.islandId ?? WorldLayout.islandAt(placement.x, placement.z) ?? "island.neva";
       const padId = ARCHITECTURE_PLACEMENT_TO_PAD[placement.id];
       if (padId) {
+        object.traverse((child) => {
+          if (!(child instanceof THREE.Mesh)) return;
+          child.material = Array.isArray(child.material)
+            ? child.material.map((material) => architectureWindowMaterial(material, padId))
+            : architectureWindowMaterial(child.material, padId);
+        });
         const pad = WORLD_ARCHITECTURE_PADS.find((candidate) => candidate.id === padId);
         this.tagLayoutEdit(object, {
           ...createArchitecturePadTag(padId),
@@ -2240,13 +2430,14 @@ export class WorldScene {
       });
       placementIndex += 1;
       if (placementIndex % 80 === 0) {
-        await yieldToBrowser();
+        await yieldToTask(this.startupSignal);
+    this.checkAlive();
       }
     }
     this.rebuildLayoutGroundingPatches();
 
     for (const placement of CLOUD_PLACEMENTS) {
-      const cloud = await AssetLoader.loadModel(placement.assetId);
+      const cloud = await this.loadModel(placement.assetId);
       cloud.position.set(placement.x, placement.y, placement.z);
       cloud.rotation.y = placement.rotationY;
       cloud.scale.setScalar(placement.scale);
@@ -2263,7 +2454,7 @@ export class WorldScene {
 
     // 7. Fences framing the 8 x 8 planting area with authored entrances.
     for (const anchor of STARTER_FARM_LAYOUT.fenceAnchors) {
-      const fence = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.fence);
+      const fence = await this.loadModel(STATIC_LANDMARK_ASSETS.fence);
       const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, anchor);
       const height = this.sampleTerrainHeight(world.x, world.z) ?? 0.8;
       fence.position.set(world.x, height, world.z);
@@ -2301,7 +2492,7 @@ export class WorldScene {
     // keeps live meshes so F2 picking/dragging can hit the object you see.
     if (!import.meta.env.DEV) this.mergeStaticPrefabMeshes();
 
-    const farmhouseSmoke = await AssetLoader.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
+    const farmhouseSmoke = await this.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
     farmhouseSmoke.name = "farmhouse_chimney_smoke";
     farmhouseSmoke.position.set(...FARMHOUSE_SMOKE_ATTACHMENT.position);
     farmhouseSmoke.rotation.y = FARMHOUSE_SMOKE_ATTACHMENT.rotationY;
@@ -2335,7 +2526,7 @@ export class WorldScene {
     for (const npc of npcs) {
       try {
         const assetId = npc.assetId as AssetId;
-        const model = await AssetLoader.loadModel(assetId);
+        const model = await this.loadModel(assetId);
         const y = WorldLayout.traversalSurfaceHeight(npc.anchor.x, npc.anchor.z);
         model.position.set(npc.anchor.x, y, npc.anchor.z);
         model.rotation.y = npc.anchor.rotationY;
@@ -2355,7 +2546,7 @@ export class WorldScene {
         this.npcPresentations.set(npc.id, {
           id: npc.id,
           assetId,
-          anchor: npc.anchor,
+          anchor: { ...npc.anchor },
           model,
           animator,
           initialRotationY: npc.anchor.rotationY,
@@ -2839,6 +3030,7 @@ export class WorldScene {
     // Window and lantern emissives share the practical lights' time-of-day
     // envelope, so a lit window and the pool of light it casts come up together.
     PaletteMaterials.setEmissiveLevel(frame.practicalLightIntensity);
+    updateArchitectureWindows(frame.practicalLightIntensity);
     const practicalIntensity =
       CANONICAL_RENDER_CONFIG.practicalLights.localIntensity * frame.practicalLightIntensity;
     const glowOpacity = CANONICAL_RENDER_CONFIG.bloom.strength * frame.practicalLightIntensity;
@@ -2975,7 +3167,8 @@ export class WorldScene {
   public setFarmingActionPresentation(
     action: FarmingPresentationActionName,
     phase: FarmingPresentationPhase,
-    timeSeconds: number
+    timeSeconds: number,
+    presentationKind?: ProcessingPresentationKind | "ready-equipment"
   ): void {
     if (phase === "cancelled" || phase === "invalidated") {
       this.cosmeticCropCarryUntilSeconds = 0;
@@ -2991,9 +3184,11 @@ export class WorldScene {
           : action === "harvest"
             ? "sickle"
             : action === "processing-start" || action === "workstation"
-              ? "scoop"
+              ? presentationKind === "tailoring" ? "tailor"
+                : presentationKind === "toolmaking" ? "toolmaking"
+                  : "scoop"
               : action === "processing-collect" || action === "pickup"
-                ? "basket"
+                ? presentationKind === "ready-equipment" ? "ready" : "basket"
                 : null;
       if (key) this.showFarmingProp(key);
       return;
@@ -3031,7 +3226,7 @@ export class WorldScene {
     const loaded = await Promise.all(
       FARMING_PROP_ATTACHMENTS.map(async (attachment) => ({
         attachment,
-        object: await AssetLoader.loadModel(attachment.assetId)
+        object: await this.loadModel(attachment.assetId)
       }))
     );
     if (this.farmingPropsAttached || player !== this.playerMesh) return;
@@ -3051,6 +3246,10 @@ export class WorldScene {
       if (attachment.key === "rod") this.fishingRodBend = new FishingRodBend(object);
     }
     this.farmingPropsAttached = true;
+  }
+
+  private async syncPlayerEquipment(state: Readonly<GameState>): Promise<void> {
+    await this.playerEquipmentAssembler?.sync(characterVisualLoadoutFromState(state));
   }
 
   private configureRowboatPresentation(boatId: string, boatRoot: THREE.Group): void {
@@ -3156,7 +3355,7 @@ export class WorldScene {
       this.skiffMooringPreview.visible = true;
       return;
     }
-    const mesh = await AssetLoader.loadModel(ASSET_IDS.BOAT_SKIFF_A);
+    const mesh = await this.loadModel(ASSET_IDS.BOAT_SKIFF_A);
     if (this.skiffMooringPreview || this.ownedSkiffMeshReady(state)) return;
     mesh.name = "skiff_mooring_preview";
     mesh.userData.dynamicPresentation = true;
@@ -3258,6 +3457,13 @@ export class WorldScene {
     const motionScale = this.prefersReducedMotion
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
       : CANONICAL_RENDER_CONFIG.motion.ambientScale;
+    if (this.interactionFeedback.visible) {
+      const breathe = this.prefersReducedMotion ? 0 : Math.sin(timeSeconds * 3);
+      this.interactionFeedback.scale.setScalar(1 + breathe * 0.045);
+      this.interactionFeedback.rotation.z = this.prefersReducedMotion ? 0 : timeSeconds * 0.45;
+      this.interactionFeedback.material.opacity = 0.62 + breathe * 0.1;
+      for (const material of this.interactionMaterials.get(this.activeInteractionMaterialId ?? "") ?? []) material.emissiveIntensity = 0.07 + breathe * 0.025;
+    }
     if (this.windmillRotor) {
       const rotorSpeed = (0.18 + this.weatherMotion.effectiveWindSpeed * 0.035) * motionScale;
       this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
@@ -3353,12 +3559,7 @@ export class WorldScene {
   private disposeSchoolEffect(group: THREE.Group): void {
     const members = group.userData.fishMembers as FishPresentationMember[] | undefined;
     for (const member of members ?? []) this.disposeFishVisibility(member);
-    group.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || object.name !== "school_ripple") return;
-      object.geometry.dispose();
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      for (const material of materials) material.dispose();
-    });
+    (group.userData.surfaceRipples as SchoolSurfaceRipples | undefined)?.dispose();
     group.removeFromParent();
   }
 
@@ -3835,7 +4036,7 @@ export class WorldScene {
     ): Promise<void> => {
       for (const orbit of orbits) {
         try {
-          const object = await AssetLoader.loadModel(assetId);
+          const object = await this.loadModel(assetId);
           object.userData.dynamicPresentation = true;
           object.scale.setScalar(kind === "butterfly" ? 3.4 : 1.45);
           this.applyStaticShadowPolicy(object);
@@ -3862,11 +4063,42 @@ export class WorldScene {
         }
       }
     };
+    for (const route of AMBIENT_BOAT_ROUTES) {
+      const object = await this.loadModel(ASSET_IDS.BOAT_SKIFF_A);
+      object.userData.dynamicPresentation = true;
+      this.environmentGroup.add(object);
+      object.position.set(route.x, 0, route.z);
+      this.backgroundBoats.push(object);
+    }
+    // Background villagers. Deliberately not tagged for the layout editor and
+    // never registered as NPCs, so nothing can interact with them.
+    for (const route of AMBIENT_TOWNSFOLK_ROUTES) {
+      try {
+        const model = await this.loadModel(route.assetId as AssetId);
+        model.userData.dynamicPresentation = true;
+        model.position.set(route.stations.day.x, WorldLayout.traversalSurfaceHeight(
+          route.stations.day.x, route.stations.day.z
+        ), route.stations.day.z);
+        this.environmentGroup.add(model);
+        this.ambientTownsfolk.push({
+          route, model, animator: new HumanoidAnimator(model),
+          motionFrame: null, lastAnimationContext: null
+        });
+      } catch (error) {
+        console.warn(`[WorldScene] Failed to load townsfolk ${route.id}:`, error);
+      }
+    }
     await spawn("gull", ASSET_IDS.FAUNA_GULL_A, GULL_ORBITS);
     await spawn("butterfly", ASSET_IDS.FAUNA_BUTTERFLY_A, BUTTERFLY_ORBITS);
   }
 
   private updateAmbientFlyers(timeSeconds: number, delta: number, motionScale: number): void {
+    this.backgroundBoats.forEach((object, index) => {
+      const pose = sampleAmbientBoatPose(AMBIENT_BOAT_ROUTES[index], timeSeconds, this.prefersReducedMotion ? 0 : 1);
+      object.position.set(pose.x, this.water.sample(pose.x, pose.z, timeSeconds).height, pose.z);
+      object.rotation.y = pose.heading;
+      object.visible = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z) < 430;
+    });
     for (const flyer of this.ambientFlyers) {
       const pose = sampleAmbientFlyerPose(flyer.orbit, timeSeconds, motionScale);
       const dx = pose.x - this.visibilityAnchor.x;
@@ -4124,7 +4356,7 @@ export class WorldScene {
         motion: playerPose.motion,
         locomotionTimeScale: this.latestLocomotionTimeScale,
         facingRadians: playerPose.rotationY,
-        carrying: Boolean(state.player.carriedFishCargoId) || this.characterElapsedSeconds < this.cosmeticCropCarryUntilSeconds,
+        carrying: this.characterElapsedSeconds < this.cosmeticCropCarryUntilSeconds,
         fishingInput: state.sportFishing
           ? {
               isReeling: this.sportFishingPresentation.retrievalMetersPerSecond > 0.03,
@@ -4253,10 +4485,10 @@ export class WorldScene {
         const prop = this.farmingProps.get(key);
         if (prop?.visible && this.playerAnimation) alignEquipmentHands(this.playerAnimation, prop);
       }
+      this.syncBoatFishPacks(state);
       if (this.carriedFishPresentation) {
         const held = this.carriedFishPresentation;
-        held.root.visible = held.cargoId === state.player.carriedFishCargoId && !state.player.activeMountId;
-        if (held.root.visible && this.playerAnimation) alignEquipmentHands(this.playerAnimation, held.root);
+        held.root.visible = held.cargoId === state.player.carriedFishCargoId;
       }
       if (holdingOars && activeBoat && motion.events.some((event) => event.name === "paddle_enter")) {
         this.spawnPaddleDisturbance(activeBoat, state, timeSeconds);
@@ -4293,36 +4525,56 @@ export class WorldScene {
       if (!sGroup.visible || timeSeconds - lastMotionUpdate < updateInterval) continue;
       const schoolDelta = THREE.MathUtils.clamp(timeSeconds - lastMotionUpdate, 0, 0.25);
       sGroup.userData.lastMotionUpdateSeconds = timeSeconds;
-      sGroup.position.set(school.x, 0.05, school.z);
-      sGroup.rotation.y = timeSeconds * 0.8;
+      sGroup.position.set(school.x, 0, school.z);
       const frenzy = (school.feedingFrenzyUntilMinute ?? -1) > state.clock.currentMinute;
-      const pulseScale = 1 + Math.sin(timeSeconds * (frenzy ? 5.8 : 3)) * (frenzy ? 0.22 : 0.12);
-      sGroup.scale.set(pulseScale, 1, pulseScale);
+      const previousFeeding = (sGroup.userData.feedingBlend as number | undefined) ?? Number(frenzy);
+      const feeding = THREE.MathUtils.lerp(previousFeeding, Number(frenzy),
+        1 - Math.exp(-CANONICAL_RENDER_CONFIG.fishSchools.feedingResponse * schoolDelta));
+      sGroup.userData.feedingBlend = feeding;
+      const boats: SchoolBoatObstacle[] = [];
+      for (const boat of Object.values(state.boats)) {
+        if (Math.hypot(boat.x - school.x, boat.z - school.z) > school.radius + 12) continue;
+        const primitives = ASSET_BY_ID.get(boatAssetId(boat.boatTypeId))?.collisionPrimitives ?? [];
+        const radius = primitives.reduce((extent, primitive) => Math.max(extent,
+          Math.hypot(primitive.center[0], primitive.center[2])
+            + Math.hypot(primitive.halfExtents[0], primitive.halfExtents[2])), 0);
+        boats.push({ x: boat.x, z: boat.z, radius });
+      }
+      const context = {
+        x: school.x, z: school.z, radius: school.radius, feeding, boats,
+        isWater: (x: number, z: number) => WorldLayout.isSailable(x, z)
+      };
+      const ripples = sGroup.userData.surfaceRipples as SchoolSurfaceRipples;
       const fishMembers = sGroup.userData.fishMembers as FishPresentationMember[] | undefined;
       fishMembers?.forEach((member, index) => {
         const fish = member.root;
-        const orbit = timeSeconds * (0.42 + index * 0.04) + index * (Math.PI * 2 / fishMembers.length);
-        const radius = 1.2 + index * 0.42;
-        const turnWindow = (timeSeconds + member.phase * 5.3) % 7.5 < 0.42;
-        this.updateFishAnimation(
-          member,
-          frenzy ? "burst" : turnWindow ? "turn" : "swim",
-          schoolDelta,
-          timeSeconds
-        );
-        const jumpPhase = (timeSeconds * 0.72 + member.phase * 3.1) % 1;
-        const jumpHeight = frenzy && index === 0 && jumpPhase < 0.24
-          ? Math.sin((jumpPhase / 0.24) * Math.PI) * 0.42
-          : 0;
-        fish.position.set(
-          Math.cos(orbit) * radius,
-          -0.12 + jumpHeight + Math.sin(timeSeconds * (frenzy ? 3.2 : 1.8) + index) * (frenzy ? 0.14 : 0.08),
-          Math.sin(orbit) * radius
-        );
-        fish.rotation.y = -orbit + Math.PI * 0.5;
-        fish.rotation.z = Math.sin(timeSeconds * 2.2 + member.phase * Math.PI * 2) * 0.055;
-        this.updateFishVisibility(member, Math.max(0.04, -fish.position.y), frenzy ? 0.78 : 0.64);
+        const sample = advanceSchoolFish(member.schoolMotion, schoolDelta, timeSeconds, member.phase, context);
+        const pose = { ...sample.motion, visible: sample.visible, surface: sample.surface, cycle: sample.cycle };
+        member.schoolMotion = sample.motion;
+        const speed = Math.hypot(pose.vx, pose.vz);
+        const surfaceY = this.water.sample(pose.x, pose.z, timeSeconds).height;
+        fish.visible = pose.visible;
+        fish.position.set(pose.x - school.x, surfaceY - pose.depth, pose.z - school.z);
+        if (speed > 0.01) {
+          const heading = Math.atan2(pose.vx, pose.vz);
+          const turn = Math.atan2(Math.sin(heading - fish.rotation.y), Math.cos(heading - fish.rotation.y));
+          fish.rotation.y += turn * (lastMotionUpdate === 0 ? 1 : 1 - Math.exp(-6 * schoolDelta));
+        }
+        fish.rotation.z = this.prefersReducedMotion ? 0 : Math.sin(timeSeconds * 1.1 + member.phase * 12) * 0.055;
+        fish.rotation.x = this.prefersReducedMotion ? 0 : Math.sin(timeSeconds * 0.5 + member.phase * 8) * 0.06;
+        this.updateFishAnimation(member, speed > 1.5 ? "burst" : "swim", schoolDelta, timeSeconds,
+          THREE.MathUtils.clamp(speed / 0.8, 0.65, 1.5));
+        // Ambient schools belong in the opaque scene sampled by water optics.
+        // The hooked fish's through-water aid would also draw these through hulls
+        // and expose every overlapping body/fin surface as a ghostly wire shape.
+        if (pose.visible && pose.surface > (feeding > 0.5 ? 0.52 : 0.16)
+          && member.lastFeedingCycle !== pose.cycle) {
+          member.lastFeedingCycle = pose.cycle;
+          ripples.emit(index, pose.x - school.x, pose.z - school.z, timeSeconds, 0.55 + feeding * 0.45);
+        }
       });
+      ripples.update(timeSeconds, (x, z) => this.water.sample(x + school.x, z + school.z, timeSeconds).height,
+        this.prefersReducedMotion);
       const gull = sGroup.userData.schoolGull as THREE.Group | undefined;
       if (gull) {
         gull.visible = frenzy;
@@ -4331,24 +4583,25 @@ export class WorldScene {
         gull.position.set(Math.cos(angle) * 4.4, 4.2 + Math.sin(angle * 2) * 0.25, Math.sin(angle) * 3.2);
         gull.rotation.y = -angle;
       }
-      const cuePhase = (sGroup.userData.cuePhase as number | undefined) ?? 0;
-      const cueCycle = Math.floor((timeSeconds + cuePhase * 1.7) / 1.6);
-      if (frenzy && sGroup.userData.lastFrenzyCueCycle !== cueCycle) {
-        sGroup.userData.lastFrenzyCueCycle = cueCycle;
-        const cueAngle = cuePhase * Math.PI * 2 + cueCycle * 2.399963;
-        const cueX = school.x + Math.cos(cueAngle) * 2.1;
-        const cueZ = school.z + Math.sin(cueAngle) * 2.1;
-        const cueY = this.water.sample(cueX, cueZ, timeSeconds).height;
-        this.farmVfx.spawn("water", { x: cueX, y: cueY + 0.016, z: cueZ }, timeSeconds, {
-          origin: { x: cueX, y: cueY + 0.22, z: cueZ },
-          reducedMotion: this.prefersReducedMotion
-        });
-      }
+
     }
 
     // Station progress is transient and pauses at the current supported pose.
-    // It never changes content anchors, interaction range, or saved NPC state.
+    // The station is clock-derived; local movement never becomes saved NPC state.
     for (const npc of this.npcPresentations.values()) {
+      const scheduledAnchor = npcAnchorAt(npc.id, state.clock);
+      if (this.layoutEditLockedObject !== npc.model) {
+        const scheduled = ContentRegistry.npcs.get(npc.id)?.schedule?.some((slot) => slot.phase === state.clock.timeOfDay);
+        const editorId = scheduled ? `${npc.id}.${state.clock.timeOfDay}` : npc.id;
+        if (readLayoutEditTag(npc.model)?.id !== editorId) {
+          npc.model.userData[LAYOUT_EDIT_USERDATA_KEY] = createNpcTag(editorId);
+        }
+      }
+      // Resolve before culling: an actor may have arrived inside the visible region.
+      if (this.layoutEditLockedObject !== npc.model && (npc.anchor.x !== scheduledAnchor.x
+        || npc.anchor.z !== scheduledAnchor.z || npc.anchor.rotationY !== scheduledAnchor.rotationY)) {
+        this.relocateNpcPresentation(npc.id, scheduledAnchor.x, scheduledAnchor.z, scheduledAnchor.rotationY);
+      }
       const npcFrameDelta = npc.lastPresentationUpdateSeconds > 0
         ? Math.max(0, timeSeconds - npc.lastPresentationUpdateSeconds) : delta;
       npc.lastPresentationUpdateSeconds = Math.max(timeSeconds, npc.lastPresentationUpdateSeconds);
@@ -4371,7 +4624,7 @@ export class WorldScene {
       const previousX = npc.model.position.x;
       const previousZ = npc.model.position.z;
       const beatSample = advanceNpcStationBeat(
-        NPC_STATION_BEATS[npc.id], npc.beat, npcFrameDelta, isDialogueTarget,
+        npcStationBeatAt(npc.id, state.clock), npc.beat, npcFrameDelta, isDialogueTarget,
         (offsetX, offsetZ) => {
           const x = npc.anchor.x + offsetX;
           const z = npc.anchor.z + offsetZ;
@@ -4433,7 +4686,58 @@ export class WorldScene {
       npc.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z));
     }
 
+    this.updateAmbientTownsfolk(state, timeSeconds, delta);
     this.updateFishingPresentation(state, playerPose, timeSeconds, delta);
+  }
+
+  /**
+   * Background villagers. Clock-derived and pure, so nothing here is saved and
+   * two clients showing the same minute show the same street.
+   */
+  private updateAmbientTownsfolk(state: Readonly<GameState>, timeSeconds: number, delta: number): void {
+    const motionScale = this.prefersReducedMotion ? 0 : 1;
+    for (const person of this.ambientTownsfolk) {
+      const pose = sampleAmbientTownsfolkPose(person.route, state.clock, timeSeconds, motionScale);
+      const distance = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z);
+      person.model.visible = distance < AMBIENT_TOWNSFOLK_VISIBILITY_METERS;
+      if (!person.model.visible) continue;
+
+      const surface = WorldLayout.traversalSurfaceSample(pose.x, pose.z);
+      const previousX = person.model.position.x;
+      const previousZ = person.model.position.z;
+      person.model.position.set(pose.x, WorldLayout.traversalSurfaceHeight(pose.x, pose.z), pose.z);
+      person.model.rotation.y = dampPresentationAngle(person.model.rotation.y, pose.heading, 6.5, delta);
+
+      const velocityX = delta > 0 ? (pose.x - previousX) / delta : 0;
+      const velocityZ = delta > 0 ? (pose.z - previousZ) / delta : 0;
+      const speed = pose.walking ? Math.hypot(velocityX, velocityZ) : 0;
+      const context: CharacterAnimationContext = {
+        mode: "on-foot", carrying: false, talking: false,
+        facingRadians: person.model.rotation.y,
+        motion: npcPresentationMotion({
+          velocity: { x: velocityX, y: 0, z: velocityZ },
+          speedMetersPerSecond: speed,
+          turnRateRadiansPerSecond: 0,
+          groundNormal: { ...surface.normal },
+          slopeRadians: Math.acos(THREE.MathUtils.clamp(surface.normal.y, -1, 1)),
+          contactSurface: surface.source === "terrain" ? "grass" : "path",
+          requestedGait: speed > 0.01 ? "walk" : "idle"
+        })
+      };
+      person.motionFrame = person.animator.update(delta, context, this.prefersReducedMotion);
+      if (person.motionFrame) {
+        person.model.position.y += person.motionFrame.bobY;
+        person.model.rotation.set(
+          person.motionFrame.leanX + person.motionFrame.groundPitch,
+          person.model.rotation.y,
+          person.motionFrame.leanZ + person.motionFrame.groundRoll,
+          "YXZ"
+        );
+      }
+      person.lastAnimationContext = context;
+      person.model.updateMatrixWorld(true);
+      person.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z));
+    }
   }
 
 
@@ -5051,7 +5355,7 @@ export class WorldScene {
     let loadedNewMesh = false;
 
     if (!this.playerMesh) {
-      const mesh = await AssetLoader.loadModel(ASSET_IDS.CHAR_PLAYER_A);
+      const mesh = await this.loadModel(ASSET_IDS.CHAR_PLAYER_A);
       if (!this.playerMesh) {
         this.setShadowPolicy(mesh, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
         this.batchPlayerRigidMeshes(mesh);
@@ -5065,17 +5369,40 @@ export class WorldScene {
         }
         this.playerPelvis = pelvis;
         this.playerMesh = mesh;
+        this.playerBackpackSocket = createTradePackBackSocket(mesh);
+        this.playerEquipmentAssembler = new CharacterEquipmentAssembler(mesh, {
+          loadModel: (assetId) => this.loadModel(assetId),
+          configureObject: (object) => this.setShadowPolicy(object, false),
+          onToolChanged: (key, object) => {
+            if (key === "rod") {
+              this.fishingRodBend?.dispose();
+              this.fishingRodBend = null;
+            }
+            if (!object) {
+              this.farmingProps.delete(key);
+              return;
+            }
+            this.farmingProps.set(key, object);
+            if (key === "rod") this.fishingRodBend = new FishingRodBend(object);
+          },
+          onAssetError: (assetId, error) => console.warn(
+            `[WorldScene] Equipment presentation ${assetId} could not be loaded; canonical loadout is unchanged.`,
+            error
+          )
+        });
         this.playerAnimation = new HumanoidAnimator(mesh);
         this.scene.add(this.playerMesh);
         loadedNewMesh = true;
         await this.attachFarmingProps(mesh);
+        await this.syncPlayerEquipment(state);
       }
     }
+    if (this.playerEquipmentAssembler) await this.syncPlayerEquipment(state);
     for (const [boatId, boatState] of Object.entries(state.boats)) {
       let bMesh = this.boatMeshes.get(boatId);
       if (!bMesh) {
         const assetId = boatAssetId(boatState.boatTypeId);
-        bMesh = await AssetLoader.loadModel(assetId);
+        bMesh = await this.loadModel(assetId);
         if (!this.boatMeshes.has(boatId)) {
           this.batchCompatibleMeshes(bMesh, (object) => {
             let current: THREE.Object3D | null = object;
@@ -5104,6 +5431,7 @@ export class WorldScene {
     await this.ensureSkiffMooringPreview(state);
 
     await this.cropInstances.ensureAssets(state);
+    this.checkAlive();
 
     const carriedId = state.player.carriedFishCargoId;
     if (this.carriedFishPresentation?.cargoId !== carriedId) {
@@ -5112,19 +5440,39 @@ export class WorldScene {
     }
     const carriedCargo = carriedId ? state.fishCargo[carriedId] : null;
     if (carriedCargo?.location.type === "player" && !this.carriedFishPresentation && this.playerMesh) {
-      const cargoAssetId = fishSpeciesAsset(carriedCargo.speciesId);
+      const cargoAssetId = fishCargoPackAsset(carriedCargo.speciesId);
       if (!cargoAssetId) throw new Error(`[WorldScene] No fish asset for carried ${carriedCargo.speciesId}`);
-      const payload = await AssetLoader.loadModel(cargoAssetId);
+      const payload = await this.loadModel(cargoAssetId);
       if (sim.getState().player.carriedFishCargoId === carriedId && !this.carriedFishPresentation) {
-        const socket = this.playerMesh.getObjectByName("char_player_carry_socket");
+        const socket = this.playerBackpackSocket;
         if (!socket) throw new Error("[WorldScene] Player is missing its carry socket");
-        const cradle = createCarryCradle(payload, true);
+        const cradle = payload;
         cradle.name = "carried_fish_presentation";
         cradle.userData.dynamicPresentation = true;
         cradle.userData.cargoId = carriedId;
         socket.add(cradle);
         this.setShadowPolicy(cradle, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
         this.carriedFishPresentation = { cargoId: carriedId!, root: cradle };
+        loadedNewMesh = true;
+      }
+    }
+
+    this.syncBoatFishPacks(sim.getState());
+    for (const [boatId, boat] of Object.entries(sim.getState().boats)) {
+      const mesh = this.boatMeshes.get(boatId);
+      if (!mesh) continue;
+      for (const [slot, cargoId] of boat.fishCargoSlotIds.entries()) {
+        if (!cargoId || this.boatFishPacks.has(cargoId)) continue;
+        const cargo = sim.getState().fishCargo[cargoId];
+        if (!cargo) continue;
+        const assetId = fishCargoPackAsset(cargo.speciesId);
+        if (!assetId) throw new Error(`No trade pack for ${cargo.speciesId}`);
+        const root = await this.loadModel(assetId);
+        if (sim.getState().boats[boatId]?.fishCargoSlotIds[slot] !== cargoId || this.boatFishPacks.has(cargoId)) continue;
+        attachBoatTradePack(mesh, boat.boatTypeId, slot, root);
+        root.userData.cargoId = cargoId;
+        this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+        this.boatFishPacks.set(cargoId, { root, boatId, slot });
         loadedNewMesh = true;
       }
     }
@@ -5141,7 +5489,7 @@ export class WorldScene {
       this.lastHookedFishUpdateSeconds = 0;
     }
     if (sportFishAssetId && !this.hookedFishModel) {
-      const hookedFish = await AssetLoader.loadModel(sportFishAssetId);
+      const hookedFish = await this.loadModel(sportFishAssetId);
       const currentSpeciesId = sim.getState().sportFishing?.fish.speciesId;
       if (fishSpeciesAsset(currentSpeciesId ?? "") === sportFishAssetId && !this.hookedFishModel) {
         hookedFish.name = "hooked_fish_presentation";
@@ -5179,37 +5527,30 @@ export class WorldScene {
     for (const [schoolId, school] of Object.entries(state.world.activeSchools)) {
       if (this.schoolEffects.has(schoolId)) continue;
       const sGroup = new THREE.Group();
-      const ringGeo = new THREE.RingGeometry(0.55, 0.82, 20);
-      ringGeo.rotateX(-Math.PI / 2);
-      const ringMat = PaletteMaterials.standard("foam_warm_01", {
-        transparent: true,
-        opacity: 0.18,
-        roughness: 0.72
-      }).clone();
-      ringMat.depthWrite = false;
-      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-      ringMesh.name = "school_ripple";
-      sGroup.add(ringMesh);
+      sGroup.name = `fish_school:${schoolId}`;
+      const surfaceRipples = new SchoolSurfaceRipples(CANONICAL_RENDER_CONFIG.fishSchools.memberCount);
+      sGroup.add(surfaceRipples.root);
+      sGroup.userData.surfaceRipples = surfaceRipples;
       try {
-        const fishAssetIds = fishSchoolMemberAssets(school, 3);
+        const fishAssetIds = fishSchoolMemberAssets(school, CANONICAL_RENDER_CONFIG.fishSchools.memberCount);
         if (fishAssetIds.length > 0) {
           const fishMembers: FishPresentationMember[] = [];
+          sGroup.userData.fishMembers = fishMembers;
           for (let index = 0; index < fishAssetIds.length; index++) {
             const fishAssetId = fishAssetIds[index];
-            const fish = await AssetLoader.loadModel(fishAssetId);
-            fish.scale.setScalar(0.55);
+            const fish = await this.loadModel(fishAssetId);
+            fish.scale.setScalar(CANONICAL_RENDER_CONFIG.fishSchools.modelScale);
             fish.userData.dynamicPresentation = true;
             this.setShadowPolicy(fish, false);
             sGroup.add(fish);
             fishMembers.push(this.createFishPresentationMember(
               fish,
               fishAssetId,
-              stablePresentationPhase(`${schoolId}:${index}`)
+              (index + stablePresentationPhase(`${schoolId}:${index}`) * 0.65) / fishAssetIds.length
             ));
           }
-          sGroup.userData.fishMembers = fishMembers;
         }
-        const schoolGull = await AssetLoader.loadModel(ASSET_IDS.FAUNA_GULL_A);
+        const schoolGull = await this.loadModel(ASSET_IDS.FAUNA_GULL_A);
         schoolGull.scale.setScalar(1.05);
         schoolGull.userData.dynamicPresentation = true;
         this.setShadowPolicy(schoolGull, false);
@@ -5224,7 +5565,7 @@ export class WorldScene {
         this.scene.add(sGroup);
         this.schoolEffects.set(schoolId, sGroup);
         loadedNewMesh = true;
-        sGroup.position.set(school.x, 0.05, school.z);
+        sGroup.position.set(school.x, 0, school.z);
       } catch (error) {
         this.disposeSchoolEffect(sGroup);
         console.warn(`[WorldScene] Failed to load fish school ${schoolId}:`, error);
@@ -5236,6 +5577,7 @@ export class WorldScene {
       this.distanceVisibilityDirty = true;
     }
     // Newly loaded meshes use the same presentation path as every later frame.
+    this.checkAlive();
     this.applyImmediateSync(sim, Math.max(timeSeconds, this.lastPresentationTime), this.latestPresentedPlayer);
   }
 
@@ -5249,19 +5591,19 @@ export class WorldScene {
     boatPresentationInput: BoatPresentationInput | null = null,
     locomotionTimeScale = 1
   ): Promise<void> {
+    this.checkAlive();
     this.applyImmediateSync(sim, timeSeconds, presentedPlayer ?? null, boatPresentationInput, locomotionTimeScale);
 
-    if (this.syncInFlight) return;
-    this.syncInFlight = true;
-    try {
-      await this.loadMissingMeshes(sim, timeSeconds);
-    } finally {
-      this.syncInFlight = false;
+    if (!this.syncInFlight) {
+      this.syncInFlight = this.loadMissingMeshes(sim, timeSeconds).finally(() => { this.syncInFlight = null; });
     }
+    await this.syncInFlight;
+    this.checkAlive();
   }
 
   public render(camera: THREE.Camera, deltaSeconds = 1 / 60): void {
     this.hasRenderedFrame = true;
+    this.updateQuestWaypoint(camera, deltaSeconds);
     this.updateQualityTransition(deltaSeconds);
     this.updateDistanceManagedPresentation();
     this.groundCover.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
@@ -5270,7 +5612,9 @@ export class WorldScene {
     this.rendererPipeline.render(camera);
   }
 
-  public prepareForVisualCapture(camera: THREE.Camera): Promise<void> {
+  public prepareForVisualCapture(camera: THREE.Camera): Promise<void> { return this.prepareForEntry(camera); }
+
+  public prepareForEntry(camera: THREE.Camera): Promise<void> {
     // Distance-managed LOD and visibility only recompute when the anchor moves
     // or a load dirties them, and a fixed benchmark camera never moves. Force
     // one pass here so the captured frame cannot depend on whether an async
@@ -5278,7 +5622,7 @@ export class WorldScene {
     this.distanceVisibilityDirty = true;
     this.updateDistanceManagedPresentation();
     for (const batch of this.rigidAnimationBatches.values()) batch.update();
-    return this.rendererPipeline.prepareForCapture(camera);
+    return this.rendererPipeline.prepareForEntry(camera);
   }
 
   public setCaptureRenderMode(mode: CaptureRenderMode): void {
@@ -5367,8 +5711,8 @@ export class WorldScene {
   private applyContinuousQuality(rebuildDensity: boolean): void {
     this.qualityContactStrength = contactTierEffectStrength(this.qualityLevel);
     this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
-    this.rainField.setQualityLevel(this.qualityLevel);
-    this.fireflyField.setQualityLevel(this.qualityLevel);
+    this.rainField?.setQualityLevel(this.qualityLevel);
+    this.fireflyField?.setQualityLevel(this.qualityLevel);
     if (!rebuildDensity) return;
     this.qualityRebuildElapsedSeconds = 0;
     this.groundCover.setQualityLevel(this.qualityLevel);
@@ -5379,7 +5723,7 @@ export class WorldScene {
     this.qualityTier = tier;
     this.lightingRig.setQuality(tier);
     this.rendererPipeline.setQuality(tier);
-    this.water.setQuality(tier);
+    this.water?.setQuality(tier);
     this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
     this.applyPracticalLightBudget();
     this.distanceVisibilityDirty = true;
@@ -5396,21 +5740,33 @@ export class WorldScene {
    * geometry with AssetLoader and are only detached, not disposed.
    */
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.detachPlayerFromDonkey();
     for (const batch of this.rigidAnimationBatches.values()) batch.dispose();
     this.rigidAnimationBatches.clear();
     this.playerAttachmentTransition = null;
     this.playerAnimation?.dispose();
     this.playerAnimation = null;
+    this.playerEquipmentAssembler?.dispose();
+    this.playerEquipmentAssembler = null;
     this.playerPelvis = null;
     this.carriedFishPresentation?.root.removeFromParent();
     this.carriedFishPresentation = null;
+    for (const pack of this.boatFishPacks.values()) pack.root.removeFromParent();
+    this.boatFishPacks.clear();
+    this.playerBackpackSocket = null;
     this.lastPlayerDiscontinuitySequence = -1;
     for (const npc of this.npcPresentations.values()) {
       npc.animator.dispose();
       npc.model.removeFromParent();
     }
     this.npcPresentations.clear();
+    for (const person of this.ambientTownsfolk) {
+      person.animator.dispose();
+      person.model.removeFromParent();
+    }
+    this.ambientTownsfolk.length = 0;
     this.playerAnimationEvents.length = 0;
     this.donkeyPresentation?.mixer?.stopAllAction();
     if (this.donkeyPresentation) this.disposeDonkeyShadowPresentation(this.donkeyPresentation.root);
@@ -5418,22 +5774,25 @@ export class WorldScene {
     this.fishingRodBend?.dispose();
     this.fishingRodBend = null;
     this.cropInstances.dispose();
+    for (const materials of this.interactionMaterials.values()) for (const material of materials) material.dispose();
+    this.interactionMaterials.clear();
     this.groundCover.dispose();
     this.setDiagnosticOverlay(null, 0);
-    this.farmVfx.dispose();
-    this.farmVfx.group.removeFromParent();
-    this.fireflyField.dispose();
-    this.fireflyField.group.removeFromParent();
-    this.rainField.dispose();
-    this.rainField.group.removeFromParent();
+    this.farmVfx?.dispose();
+    this.farmVfx?.group.removeFromParent();
+    this.fireflyField?.dispose();
+    this.fireflyField?.group.removeFromParent();
+    this.rainField?.dispose();
+    this.rainField?.group.removeFromParent();
     this.disposeBatchedMeshes();
     disposeVegetationTintMaterials();
-    this.water.dispose();
-    this.water.group.removeFromParent();
-    this.shoreFoam.dispose();
-    this.shoreFoam.mesh.removeFromParent();
-    this.boatWakes.dispose();
-    this.boatWakes.group.removeFromParent();
+    disposeArchitectureWindows();
+    this.water?.dispose();
+    this.water?.group.removeFromParent();
+    this.shoreFoam?.dispose();
+    this.shoreFoam?.mesh.removeFromParent();
+    this.boatWakes?.dispose();
+    this.boatWakes?.group.removeFromParent();
     this.rendererPipeline.dispose();
     this.terrainSurfaceMaterial.dispose();
     this.roadSurfaceMaterial.dispose();
@@ -5483,6 +5842,9 @@ export class WorldScene {
     this.questWaypointRing.geometry.dispose();
     (this.questWaypointRing.material as THREE.Material).dispose();
     this.questWaypointRing.removeFromParent();
+    this.questWaypointShaft.geometry.dispose();
+    (this.questWaypointShaft.material as THREE.Material).dispose();
+    this.questWaypointShaft.removeFromParent();
     if (this.playerContactShadow) {
       this.playerContactShadow.removeFromParent();
       this.playerContactShadow.geometry.dispose();

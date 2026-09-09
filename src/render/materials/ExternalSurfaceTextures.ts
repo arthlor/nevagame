@@ -98,6 +98,8 @@ export function createSurfaceFallbackTexture(kind: SurfaceTextureKind): THREE.Da
   return texture;
 }
 
+export const degradedSurfaceResources = new Set<string>();
+
 export async function loadSurfaceTexture(
   spec: SurfaceTextureSpec,
   loader: Pick<THREE.TextureLoader, "loadAsync"> = new THREE.TextureLoader()
@@ -106,6 +108,7 @@ export async function loadSurfaceTexture(
     const texture = await loader.loadAsync(spec.url);
     return configureSurfaceTexture(texture, spec.kind);
   } catch (error) {
+    degradedSurfaceResources.add(spec.url);
     console.error(
       `[SurfaceTextureLoader] Failed to load ${spec.sourceName} ${spec.kind} map from ${spec.url}`,
       error

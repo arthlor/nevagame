@@ -11,6 +11,7 @@ import {
   UI_ACTION,
   UI_BEHAVIOR,
   UI_CHROME,
+  UI_EQUIPMENT,
   UI_FISH,
   UI_GIS,
   UI_GROWTH,
@@ -36,6 +37,7 @@ export {
   UI_ACTION,
   UI_BEHAVIOR,
   UI_CHROME,
+  UI_EQUIPMENT,
   UI_FISH,
   UI_GIS,
   UI_GROWTH,
@@ -105,6 +107,11 @@ export function atlasForFish(speciesId: string | null | undefined): SpriteUrl | 
 /** Fishing progression gear, keyed by the canonical rod IDs in content. */
 export function atlasForRod(rodId: string | null | undefined): SpriteUrl | undefined {
   return lookup(UI_RODS, rodId);
+}
+
+/** Permanent clothing and farming tools, keyed by canonical equipment IDs. */
+export function atlasForEquipment(equipmentId: string | null | undefined): SpriteUrl | undefined {
+  return lookup(UI_EQUIPMENT, equipmentId);
 }
 
 export function atlasForPortrait(npcId: string | null | undefined): SpriteUrl | undefined {

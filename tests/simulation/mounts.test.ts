@@ -9,12 +9,14 @@ import { Simulation } from "../../src/simulation/Simulation";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import {
   isValidPlayerMountGround,
+  isMountableTraversalPoint,
   mountDismountPoseCandidates,
   MOUNT_TUNING,
   playerPoseFromMount,
   STARTER_DONKEY_ID
 } from "../../src/simulation/mounts/Mounts";
 import { BRIDGE_WORLD_PROFILE, WORLD_LAYOUT_V5, WorldLayout } from "../../src/world/WorldLayout";
+import { HARBOR_SKIFF_MOORING } from "../../src/world/WorldAnchors";
 
 function placePlayerAtMount(simulation: Simulation, mountId = STARTER_DONKEY_ID): void {
   const mount = simulation.state.mounts[mountId];
@@ -402,5 +404,43 @@ describe("starter donkey mount", () => {
       );
       physics.dispose();
     }
+  });
+
+  it("rides from the farm toward the harbor without invalid mounted pose spam", async () => {
+    const physics = await PhysicsWorld.create();
+    const simulation = new Simulation();
+    placePlayerAtMount(simulation);
+    expect(simulation.boardMount().success).toBe(true);
+    const target = HARBOR_SKIFF_MOORING.playerPosition;
+    const start = { x: simulation.state.player.x, z: simulation.state.player.z };
+    let failures = 0;
+    for (let index = 0; index < 900; index++) {
+      const dx = target.x - simulation.state.player.x;
+      const dz = target.z - simulation.state.player.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const frame = physics.step(
+        simulation.state,
+        { x: dx / len, z: dz / len, sprint: true },
+        "mounted",
+        1 / 60,
+        index / 60
+      );
+      const commit = simulation.commitPhysicsFrame(frame.frame);
+      if (!commit.success) {
+        failures += 1;
+        expect(commit.success, JSON.stringify({
+          index,
+          reason: commit.reason,
+          player: frame.frame.player,
+          sample: WorldLayout.traversalSurfaceSample(frame.frame.player.x, frame.frame.player.z)
+        })).toBe(true);
+        break;
+      }
+      expect(isMountableTraversalPoint(simulation.state.player.x, simulation.state.player.z)).toBe(true);
+      if (Math.hypot(dx, dz) < 8) break;
+    }
+    physics.dispose();
+    expect(failures).toBe(0);
+    expect(Math.hypot(simulation.state.player.x - start.x, simulation.state.player.z - start.z)).toBeGreaterThan(20);
   });
 });

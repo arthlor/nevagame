@@ -659,7 +659,7 @@ describe("WorldLayout", () => {
     expect(causalCount("island.neva", "tree")).toBeGreaterThanOrEqual(180);
     expect(causalCount("island.neva", "bush")).toBe(115);
     expect(causalCount("island.neva", "rock")).toBe(66);
-    expect(causalCount("island.neva", "reed")).toBeGreaterThan(10);
+    expect(causalCount("island.neva", "reed")).toBe(55);
     expect(causalCount("island.sunreach", "tree")).toBe(48);
     expect(causalCount("island.sunreach", "bush")).toBe(62);
     expect(causalCount("island.sunreach", "rock")).toBe(38);
@@ -792,11 +792,12 @@ describe("WorldLayout", () => {
       HOMESTEAD_MEADOW_GRASS_COUNT
     );
     expect(grass.some((placement) => WorldLayout.pathInfluence(placement.x, placement.z) > 0.08)).toBe(true);
-    expect(grass.every((placement) => placement.scale[1] >= 0.69 && placement.scale[1] <= 1.03)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 1.14)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] <= 1.65)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 1.14)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] <= 1.65)).toBe(true);
+    // Existing low, broad variants: scale 0.96–1.22, height 0.66–0.76, lateral jitter ±6%.
+    expect(grass.every((placement) => placement.scale[1] >= 0.63 && placement.scale[1] <= 0.93)).toBe(true);
+    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 1.48)).toBe(true);
+    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] <= 2.09)).toBe(true);
+    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 1.48)).toBe(true);
+    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] <= 2.09)).toBe(true);
     expect(grass.every((placement) => WorldLayout.terrainNormal(placement.x, placement.z).y > 0.66)).toBe(true);
     expect(grass.every((placement) => WorldLayout.farmSoilInfluence(placement.x, placement.z) < 0.08)).toBe(true);
     expect(grass.every((placement) => WorldLayout.shorelineWetness(placement.x, placement.z) < 0.62)).toBe(true);
@@ -851,8 +852,10 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.assetId === "fauna_chicken_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "fauna_cow_a")).toHaveLength(1);
+    // Three rabbits that used to sit right on the spawn apron were removed to
+    // clear the opening shot; one spawn companion remains to the west.
     const rabbits = authored.filter((placement) => placement.assetId === "fauna_rabbit_a");
-    expect(rabbits).toHaveLength(20);
+    expect(rabbits).toHaveLength(17);
     for (const rabbit of rabbits) {
       expect(WorldLayout.isWalkable(rabbit.x, rabbit.z), rabbit.id).toBe(true);
       expect(WorldLayout.isWater(rabbit.x, rabbit.z), rabbit.id).toBe(false);
@@ -878,15 +881,30 @@ describe("WorldLayout", () => {
     expect(kelp.every((placement) => WorldLayout.isWater(placement.x, placement.z))).toBe(true);
   }, 60_000);
 
-  it("uses only catalog assets and forbids collision on every seeded-fill placement", () => {
+  it("uses only catalog assets and lets seeded-fill collide only for trees and rocks", () => {
     const layout = createWorldEnvironmentLayout(42891);
+    // Trunks and boulders are things you walk around; a building or dock placed
+    // by seeded fill would be an unvalidated obstacle in a road or doorway.
+    const collidingFamilies = new Set(["vegetation", "rock"]);
     for (const placement of [...layout.staticPlacements, ...layout.groundCoverPlacements]) {
       const spec = ASSET_BY_ID.get(placement.assetId as AssetId);
       expect(spec, placement.id).toBeDefined();
-      if (placement.origin === "seeded-fill") {
-        expect(spec?.collision, placement.id).toBe("none");
+      if (placement.origin !== "seeded-fill") continue;
+      if (spec?.collision !== "none") {
+        expect(collidingFamilies.has(spec!.family), `${placement.id} (${placement.assetId})`).toBe(true);
       }
     }
+    for (const placement of layout.groundCoverPlacements) {
+      expect(ASSET_BY_ID.get(placement.assetId as AssetId)?.collision, placement.id).toBe("none");
+    }
+    // The whole point of the change: scattered mature trees actually block.
+    expect(
+      layout.staticPlacements.some((placement) =>
+        placement.origin === "seeded-fill" &&
+        placement.compositionTag?.category === "tree" &&
+        ASSET_BY_ID.get(placement.assetId as AssetId)?.collision !== "none"
+      )
+    ).toBe(true);
     expect(
       layout.staticPlacements.some((placement) =>
         placement.origin === "authored" &&
@@ -1240,7 +1258,7 @@ describe("WorldLayout", () => {
     );
     expect(first).toEqual(repeat);
     expect(differentSeed).not.toEqual(first);
-    expect(first.length).toBeGreaterThan(10);
+    expect(first.length).toBe(55);
     expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "left")).toBe(true);
     expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "right")).toBe(true);
     expect(first.every((placement) => {

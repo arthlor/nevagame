@@ -64,8 +64,15 @@ export function alignSupportFeet(animator: HumanoidAnimator, left: THREE.Object3
 }
 
 /** Dock an authored primary palm frame to the character's anatomical socket. */
-export function applyEquipmentSocketPose(equipment: THREE.Object3D, assetId: string): void {
-  const pose = socketAttachFor(assetId);
+export function applyEquipmentSocketPose(
+  equipment: THREE.Object3D,
+  assetId: string,
+  scaleOverride?: number
+): void {
+  const authoredPose = socketAttachFor(assetId);
+  const pose = scaleOverride === undefined
+    ? authoredPose
+    : { ...authoredPose, scale: scaleOverride };
   const requiredPrimary = ASSET_BY_ID.get(assetId as AssetId)?.requiredNodes
     .find(name => name === "rod_primary_grip" || name === "tool_primary_grip");
   const primary = equipment.getObjectByName("rod_primary_grip") ?? equipment.getObjectByName("tool_primary_grip");
@@ -124,9 +131,11 @@ export function alignEquipmentHands(animator: HumanoidAnimator, equipment: THREE
 
 /** Oar motion is boat-owned; hands follow these moving grip targets. */
 export function rowboatOarRotation(phase: number, rowing: boolean, side: "left" | "right", out: THREE.Euler): THREE.Euler {
-  const angle = phase * Math.PI * 2;
-  const stroke = rowing ? Math.sin(angle) : 0;
-  const catchAndRelease = rowing ? Math.cos(angle) : 0;
-  return out.set(catchAndRelease * 0.1, stroke * 0.3,
-    (side === "left" ? 1 : -1) * catchAndRelease * 0.07, "YXZ");
+  if (!rowing) return out.set(0, 0, 0, "YXZ");
+  const angle = (phase - Math.floor(phase)) * Math.PI * 2;
+  const sideSign = side === "left" ? 1 : -1;
+  // Mirrored sweeps pull both handles toward the rower together. The blades
+  // descend during the drive and lift through recovery about their oarlocks.
+  return out.set(0, sideSign * (0.08 + Math.cos(angle) * 0.3),
+    -sideSign * (0.17 + Math.sin(angle) * 0.1), "YXZ");
 }

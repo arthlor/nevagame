@@ -11,31 +11,11 @@
 
 # 0. Task-Class Read Order
 
-Read every selected source to the end, but select only the owners required by the task.
-
-## Routine existing-asset task
-
-1. root `AGENTS.md`
-2. this file
-3. `tools/blender/README.md`
-4. the selected entry or entries in `assets/specs/asset-catalog.json`
-5. the owning family generator and any helper it directly calls
-6. the runtime placement/loader/scene code being changed
-7. the directly relevant section of `LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` when appearance changes
-
-Do not read the full catalog or every LLM authority for this task class.
-
-## New/shared pipeline task
-
-Add the owning full authorities:
-
-- new generator/family/shared helper: Art Bible + `LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md`;
-- renderer/material/lighting/water: `01`, Art Bible, and Art Pipeline, plus `src/render/config/VisualRenderConfig.ts` and `src/render/materials/ExternalSurfaceTextures.ts` when ground supporting maps are in scope;
-- gameplay contract or persistence: `01` + `02` and the owning gameplay/runtime files;
-- story-relevant zone, character, landmark, or prop design/integration: `02` narrative contract + `04` environmental-storytelling section; routine generation-only prompts keep the lean asset route and leave `02`/ArcheAge unread;
-- release/gold slice: `01`, `02`, Art Bible, Art Pipeline, Roadmap, this file, README, and relevant machine contracts.
-
-Conflict priority remains: human instruction → `01` → `02` → Art Bible → Art Pipeline → this file → machine owner for its fields → Roadmap → implementation → assumption.
+Root `AGENTS.md` owns the task/read table and conflict procedure. Use its
+asset, shared-helper, renderer, gameplay/persistence or release route as
+appropriate. This file owns the production sequence after routing, not a
+second hierarchy. Read selected catalog entries and their direct generator
+helpers in full; do not dump the full catalog for one asset.
 
 ---
 
@@ -147,8 +127,8 @@ npm run art:validate -- --all
 npm run art:benchmark
 ```
 
-The benchmark must have no browser errors, no more than 220 draw calls, and no
-more than 900,000 visible triangles per measured scene. It runs against the
+The benchmark rejects browser errors and enforces its machine-owned preferred
+scene limits. It runs against the
 Vite DEV server; layout-editor picking intentionally keeps static prefabs
 unmerged and omits the baked static-shadow proxy. Therefore DEV measurements
 are diagnostic rather than production-equivalent proof, and a current
@@ -164,10 +144,18 @@ npm run art:determinism -- --all
 npm run art:benchmark
 ```
 
-`art:generate:strict` and determinism retain their existing semantics. They are
-separate technical-art/release gates and remain open after visual-gold approval
-until clean-source generation, determinism, and the certified render-budget
-path are repaired.
+`art:generate:strict` rejects below-target candidates before publication;
+normal generation may publish that quality debt. Do not pad invisible geometry
+to reach a target. If an approved asset makes its target inappropriate, propose
+a catalog reassessment with silhouette, deformation and measured cost evidence;
+existing strict semantics remain in force until a scoped change is authorized.
+
+These commands establish different evidence: strict generation/publication,
+published validation, determinism and DEV render diagnostics. Production
+performance uses `npm run test:budget` and, where world scope requires it,
+`npm run world:acceptance`. `03` §4 defines those lanes. Human visual approval
+does not close technical certification; current results belong in the status
+checklist, not a hardcoded open/closed claim here.
 
 Release screenshots are evidence artifacts. Do not spend AI tokens reviewing or iterating on them unless the human explicitly requests visual analysis.
 
@@ -267,6 +255,7 @@ catalog provenance must instead hash the final durable adapted `.blend`.
 - **Humanoid comparison — `compare_humanoid_contract.mjs`:** `--asset <id> --candidate <GLB> --report <JSON>` compares the decoded candidate against that catalog entry's immutable source. It checks one uniform coordinate transform, source bind hierarchy, oriented LOD0 triangles, UVs, normals, named-joint weights, material-region mapping and palette application. It also compares retained native performance samples and original durations. Numeric limits belong to the verifier and account for Blender/glTF representation precision. Any bounded native loop-closure repair must be declared separately from preserved source motion. The preparation's all-frame deformation report covers both LODs, distinguishes actual open seams from nearby vertices on overlapping closed surfaces, and rejects evaluated apron/body triangle intersections. Garment fitting follows a cloth envelope across gaps between limbs rather than wrapping into the underlying crotch groove. Neither report certifies runtime foot planting, grips, seats or appearance.
 - **Humanoid export fidelity — `common/humanoid_export.py`:** the source preparation and registered exporter share the declared solid-palette color repair. It restores omitted later-primitive vertex colors without altering any other exported bytes, then ordinary validation and lossless optimization run. Preparation records removed source degenerate triangles explicitly; the independent comparator verifies their original area before accepting the declared omission. Unkeyed source animation properties retain the original node defaults rather than inheriting the last authored action's pose.
 - **Humanoid binding and review:** catalog `humanoidRig` owns semantic source names, bind-space endpoints, sole/palm frames and bend directions. Animation entries own cadence, contact intervals and simulation commit markers; generator/source evidence stays out of the browser projection. Validate each selected character and semantic determinism before publishing the validated set atomically. The generated action checklist records the evidence for every catalog action, and leaves integrated human review pending. Source, durable Blender input, generated/public GLB and cache/manifests must agree before handoff.
+- **Scoped equipment-action append — `append_equipment_actions.py`:** run only against the selected prepared player library in a fresh background Blender process and write a separate candidate plus report. The helper replaces only its named clips, fingerprints every pre-existing action and all mesh vertex/polygon counts, and fails if either changes. Inspect the candidate, update the catalog's durable-source hash only after promotion, then run selected no-publish generation, semantic determinism and normal atomic publication. A helper report is mechanical preservation evidence, not in-game animation approval.
 - **Selected offline builds:** `generate --no-publish` and `determinism` validate the whole catalog schema and contracts, but open/hash Blender source files only for selected assets. Unfinished unrelated sources therefore cannot block an isolated equipment stage. Normal catalog validation, admission and publication still verify every source file/hash; this does not permit missing inputs in a published set.
 - **Static sources — `adapt_polypizza_static.py`:** imports only the immutable
   GLB and exact node pinned by the selected catalog `staticAuthoring` contract.

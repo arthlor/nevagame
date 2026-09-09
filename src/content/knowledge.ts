@@ -1,3 +1,5 @@
+import { WORLD_DISCOVERIES } from "./discoveries";
+
 export interface KnowledgeEntryDefinition {
   id: string;
   title: string;
@@ -5,6 +7,7 @@ export interface KnowledgeEntryDefinition {
 }
 
 export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
+  ...Object.fromEntries(WORLD_DISCOVERIES.map(({ id, title, summary }) => [id, { id, title, summary }])),
   "knowledge.land_sea_cycle": {
     id: "knowledge.land_sea_cycle",
     title: "The Land-Sea Cycle",

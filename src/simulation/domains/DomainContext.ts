@@ -8,6 +8,8 @@ export interface DomainContext {
   events: EventBus;
   nextEntityId(prefix: string): string;
   persistRng(): void;
+  /** Transient simulation-owned action admission; never persisted. */
+  isActionTimelineActive(): boolean;
 }
 
 export function distance2d(a: { x: number; z: number }, b: { x: number; z: number }): number {

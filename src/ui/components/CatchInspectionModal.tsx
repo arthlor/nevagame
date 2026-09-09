@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import { useModalAccessibility } from "../useModalAccessibility";
+import React, { useEffect, useRef } from "react";
 import type { TrophyCatchDto } from "../../simulation/core/contracts";
 import { IconCoin, IconFish, IconSparkle, IconStar} from "./HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
@@ -28,14 +29,17 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
   onOpenHoldOrSatchel,
   className = ""
 }) => {
+  const modalRef = useRef<HTMLElement>(null);
+  useModalAccessibility(modalRef, onDismiss);
+  useEffect(() => { playUiSound("fanfare"); }, []);
   useEffect(() => {
-    playUiSound("fanfare");
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" || event.key === " " || event.key === "Enter") {
+      if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button, input, select, textarea, a[href]")) return;
+      if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
         event.stopPropagation();
         onDismiss();
-      } else if ((event.key === "l" || event.key === "L") && onOpenHoldOrSatchel) {
+      } else if ((event.key === "i" || event.key === "I") && onOpenHoldOrSatchel) {
         event.preventDefault();
         event.stopPropagation();
         onOpenHoldOrSatchel();
@@ -55,6 +59,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
       }}
     >
       <GameSheet
+        ref={modalRef}
         as="section"
         className={`catch-inspection-modal interactive ${className}`.trim()}
         tone="plaque"
@@ -63,14 +68,14 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="catch-modal-title"
-        tabIndex={0}
+        tabIndex={-1}
         data-testid="catch-inspection-modal"
       >
         <header className="catch-modal-header">
           <div className="catch-celebration-title">
             <span className="catch-celebration-subtitle">COASTAL SPORT ANGLING</span>
             <strong id="catch-modal-title" className="catch-celebration-headline">
-              Trophy Catch Landed!
+              Catch landed
             </strong>
           </div>
           <ChromeClose onClick={onDismiss} label="Close trophy inspection" className="catch-modal-close" />
@@ -154,7 +159,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               onClick={onOpenHoldOrSatchel}
               className="catch-inspect-hold-btn"
             >
-              Inspect Hold <kbd>[L]</kbd>
+              Open Satchel <kbd>[I]</kbd>
             </ChromeButton>
           )}
           <ChromeButton

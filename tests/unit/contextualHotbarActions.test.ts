@@ -55,21 +55,24 @@ describe("contextual toolbar action contracts", () => {
     expect(app.activeTool).toBe("fishing-rod");
     app.handlePrimaryUse();
     expect(handleCastFishing).toHaveBeenCalledExactlyOnceWith("primary");
-    app.selectToolSlot(5);
+    // Stow Gear moved to slot 3 when the angling belt lost the three sockets
+    // that all opened the ledger.
+    app.selectToolSlot(3);
     expect(app.activeTool).toBe("hands");
     app.handlePrimaryUse();
     expect(handleCastFishing).toHaveBeenCalledTimes(1);
   });
 
-  it("opens explorer panels through existing input actions without planting", () => {
+  it("carries no belt while exploring, leaving the panels to the micro-menu", () => {
     const { app, sim, dispatchVirtualAction } = createAppHarness();
     sim.state.player.x = 40;
     sim.state.player.z = -100;
     expect(sim.inspectWorldHud().stance).toBe("explorer");
+    expect(sim.inspectWorldHud().contextualHotbar).toEqual([]);
+    // The five explorer sockets duplicated the bottom-right micro-menu, so the
+    // number keys now do nothing rather than opening a panel twice over.
     for (const slot of [1, 2, 3, 4, 5]) app.selectToolSlot(slot);
-    expect(dispatchVirtualAction.mock.calls.map(([action]) => action)).toEqual([
-      "open-inventory", "open-map", "open-planning", "open-ledger", "open-journal"
-    ]);
+    expect(dispatchVirtualAction).not.toHaveBeenCalled();
     expect(app.enterCropPlacement).not.toHaveBeenCalled();
     expect(app.activeTool).toBe("hands");
   });
@@ -110,9 +113,9 @@ describe("contextual toolbar action contracts", () => {
     expect(app.activeTool).toBe("fishing-rod");
     app.selectToolSlot(3);
     app.selectToolSlot(4);
-    app.selectToolSlot(5);
+    // One hold shortcut, not three sockets that all opened the same ledger.
     expect(dispatchVirtualAction.mock.calls.map(([action]) => action)).toEqual([
-      "fishing.toggle-lure", "open-ledger", "open-ledger"
+      "fishing.toggle-lure", "open-ledger"
     ]);
     app.selectToolSlot(1);
     expect(app.activeTool).toBe("hands");
@@ -140,11 +143,12 @@ describe("contextual toolbar action contracts", () => {
     ]);
     const farming = buildContextualHotbar(sim.state, "agronomy", null);
     expect(farming[3]).toMatchObject({ quantity: 3, ready: true, detail: "Basic Fertilizer (3)" });
-    expect(farming[2].meter).toBeUndefined();
+    expect("meter" in farming[2]).toBe(false);
     InventoryManager.addItemsAtomically(sim.state.inventories["inv.rowboat_supply"], [
       { itemId: "item.basic_lure", quantity: 2 }
     ]);
     expect(buildContextualHotbar(sim.state, "angling", null)[1].ready).toBe(false);
+    expect(buildContextualHotbar(sim.state, "explorer", null)).toEqual([]);
     sim.state.player.activeBoatId = "boat.player_rowboat";
     expect(buildContextualHotbar(sim.state, "maritime", null)[2]).toMatchObject({ quantity: 2, ready: true });
     sim.state.weather.type = "storm";

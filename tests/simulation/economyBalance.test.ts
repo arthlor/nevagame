@@ -6,14 +6,24 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import {
   DEMAND_MAX,
   DEMAND_MIN,
+  WORKSHOP_SUPPLY_MARKUP,
   demandFromSupply,
   quoteCommodityPurchase,
   quoteCommoditySale,
   relaxSupply
 } from "../../src/simulation/economy/marketPricing";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
-import { contractTargetReferenceValue } from "../../src/simulation/domains/ContractDomain";
+import {
+  SETTLED_CONTRACT_HISTORY,
+  contractTargetReferenceValue,
+  expireContracts,
+  pruneSettledContracts
+} from "../../src/simulation/domains/ContractDomain";
+import { marketSupplyCeiling, recordMarketSale } from "../../src/simulation/economy/updateMarket";
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { WorldLayout } from "../../src/world/WorldLayout";
+
+const HARBOR_MARKET_ANCHOR = WorldLayout.landmark("fish-market");
 import { FARMING_ACTION_COST } from "../../src/simulation/domains/FarmingDomain";
 import {
   BASIC_FISHING_WORK_COST,
@@ -61,7 +71,9 @@ describe("economy balance sheet", () => {
     expect(basicGoldPerWork).toBeLessThanOrEqual(1.8);
 
     const wormRecipe = ContentRegistry.recipes.get("recipe.compost_worms")!;
-    const worms = wormRecipe.outputs.find((output) => output.itemId === "item.bait_worms")!;
+    expect(wormRecipe.result.kind).toBe("items");
+    if (wormRecipe.result.kind !== "items") throw new Error("Compost must produce items");
+    const worms = wormRecipe.result.stacks.find((output) => output.itemId === "item.bait_worms")!;
     const wormValue = ContentRegistry.markets.get("market.village")!.commodities
       .find((commodity) => commodity.itemId === worms.itemId)!.basePrice;
     const starterCost = ContentRegistry.items.get("item.compost_starter")!.baseValue;
@@ -80,6 +92,65 @@ describe("economy balance sheet", () => {
     expect(marlinGoldPerWork).toBeLessThanOrEqual(20);
 
     expect(wormRecipe.inputs).toContainEqual({ itemId: "item.plant_matter", quantity: 4 });
+  });
+
+  it("allows modest workshop processing margins while every purchased input still resells at a loss", () => {
+    const sim = new Simulation();
+    const center = (marketId: "market.village" | "market.harbor", itemId: string): void => {
+      const commodity = sim.state.markets[marketId].commodities[itemId];
+      commodity.localSupply = commodity.targetSupply;
+      commodity.seasonalModifier = 1;
+    };
+    for (const [marketId, itemId] of [
+      ["market.village", "produce.flax"],
+      ["market.village", "item.linen_roll"],
+      ["market.harbor", "item.fish_scraps"],
+      ["market.harbor", "item.oiled_canvas"]
+    ] as const) center(marketId, itemId);
+
+    expect(WORKSHOP_SUPPLY_MARKUP).toBeGreaterThanOrEqual(1);
+    expect(ContentRegistry.markets.get("market.village")!.retail.workshopSupplyItemIds)
+      .toEqual(expect.arrayContaining(["produce.flax", "item.linen_roll"]));
+    expect(ContentRegistry.markets.get("market.harbor")!.retail.workshopSupplyItemIds)
+      .toContain("item.fish_scraps");
+
+    const linenMargins: number[] = [];
+    const canvasMargins: number[] = [];
+    for (let hour = 0; hour < 24 * 30; hour += 3) {
+      sim.state.clock.currentMinute = hour * 60;
+      sim.state.player.x = VILLAGE_MARKET.position.x;
+      sim.state.player.z = VILLAGE_MARKET.position.z;
+      const flaxBuy = sim.inspectCommodityAtMarket("market.village", "produce.flax", "buy", 3);
+      const flaxResell = sim.inspectCommodityAtMarket("market.village", "produce.flax", "sell", 3);
+      const linenSale = sim.inspectCommodityAtMarket("market.village", "item.linen_roll", "sell", 1);
+      const linenBuy = sim.inspectCommodityAtMarket("market.village", "item.linen_roll", "buy", 1);
+      const linenResell = sim.inspectCommodityAtMarket("market.village", "item.linen_roll", "sell", 1);
+      expect(flaxResell.totalPrice).toBeLessThan(flaxBuy.totalPrice!);
+      expect(linenResell.totalPrice).toBeLessThan(linenBuy.totalPrice!);
+      linenMargins.push((linenSale.totalPrice! - flaxBuy.totalPrice!) / flaxBuy.totalPrice!);
+
+      sim.state.player.x = HARBOR_MARKET_ANCHOR.x;
+      sim.state.player.z = HARBOR_MARKET_ANCHOR.z;
+      const scrapsBuy = sim.inspectCommodityAtMarket("market.harbor", "item.fish_scraps", "buy", 2);
+      const scrapsResell = sim.inspectCommodityAtMarket("market.harbor", "item.fish_scraps", "sell", 2);
+      const canvasSale = sim.inspectCommodityAtMarket("market.harbor", "item.oiled_canvas", "sell", 1);
+      expect(scrapsResell.totalPrice).toBeLessThan(scrapsBuy.totalPrice!);
+      const canvasInputCost = linenBuy.totalPrice! + scrapsBuy.totalPrice!;
+      canvasMargins.push((canvasSale.totalPrice! - canvasInputCost) / canvasInputCost);
+    }
+
+    const median = (values: number[]): number => {
+      const ordered = [...values].sort((a, b) => a - b);
+      return ordered[Math.floor(ordered.length / 2)];
+    };
+    // The day/hour signal creates profitable and unprofitable windows; at-rest
+    // median returns remain modest instead of being guaranteed free arbitrage.
+    expect(median(linenMargins)).toBeGreaterThanOrEqual(0.03);
+    expect(median(linenMargins)).toBeLessThanOrEqual(0.15);
+    expect(median(canvasMargins)).toBeGreaterThanOrEqual(0.03);
+    expect(median(canvasMargins)).toBeLessThanOrEqual(0.15);
+    expect(linenMargins.filter((margin) => margin > 0).length / linenMargins.length).toBeGreaterThan(0.45);
+    expect(canvasMargins.filter((margin) => margin > 0).length / canvasMargins.length).toBeGreaterThan(0.45);
   });
 
   it("makes a plausible dump lower demand and town throughput restore supply", () => {
@@ -153,6 +224,111 @@ describe("economy balance sheet", () => {
     expect(split.state.player.proficiencies.trading).toBeLessThanOrEqual(
       bulk.state.player.proficiencies.trading
     );
+  });
+
+  it("pays a satchel fish stack exactly the quote the board displayed", () => {
+    const state = createInitialGameState(31);
+    state.player.x = HARBOR_MARKET_ANCHOR.x;
+    state.player.z = HARBOR_MARKET_ANCHOR.z;
+    InventoryManager.addItemsAtomically(
+      state.inventories[state.player.inventoryId],
+      [{ itemId: "fish.perch", quantity: 6 }]
+    );
+    // A single trophy in the log used to multiply every later common catch by
+    // 2.2x at the till while the board still quoted the unmultiplied price.
+    state.journal.fishRecords["fish.perch"] = {
+      discovered: true,
+      catchCount: 4,
+      bestQuality: "trophy",
+      largestWeightKg: 3.2,
+      firstCaughtMinute: 0
+    };
+
+    const sim = new Simulation(state);
+    const quote = sim.inspectCommodityAtMarket("market.harbor", "fish.perch", "sell", 6);
+    const sale = sim.sellItemAtMarket("market.harbor", "fish.perch", 6);
+    expect(sale).toMatchObject({ success: true, revenue: quote.totalPrice });
+  });
+
+  it("caps how far a dump can glut a stall past the point price stops moving", () => {
+    const state = createInitialGameState(32);
+    const commodity = state.markets["market.village"].commodities["produce.wheat"];
+    const ceiling = marketSupplyCeiling(commodity.targetSupply);
+
+    recordMarketSale(state.markets["market.village"], "produce.wheat", 10_000);
+    expect(commodity.localSupply).toBe(ceiling);
+    // The ceiling sits past demand saturation, so nothing above it was ever
+    // visible to price — only to the linear walk back to target.
+    expect(demandFromSupply(commodity, ceiling, 48, state.worldSeed)).toBe(DEMAND_MIN);
+  });
+
+  it("settles a lapsed produce order at its delivery rest reference", () => {
+    const state = createInitialGameState(33);
+    const market = state.markets["market.village"];
+    const commodity = market.commodities["produce.wheat"];
+    // Glut the stall so the live quote is clearly below the authored reference.
+    recordMarketSale(market, "produce.wheat", commodity.targetSupply);
+    const sim = new Simulation(state);
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    const wheatLimit = ContentRegistry.items.get("seed.wheat")!.stackLimit;
+    inventory.slots = inventory.slots.map(() => ({ itemId: "seed.wheat", quantity: wheatLimit }));
+
+    sim.state.contracts = [{
+      id: "contract.lapsed",
+      templateId: "contract.wheat_supply",
+      requesterId: "contract.wheat_supply",
+      deliveryMarketId: "market.village",
+      type: "produce",
+      targetItemIdOrSpecies: "produce.wheat",
+      quantityRequired: 10,
+      quantityFulfilled: 4,
+      rewardMoney: 100,
+      rewardSkillXp: { skill: "farming", xp: 50 },
+      expiresAtMinute: sim.state.clock.currentMinute,
+      status: "active"
+    }];
+    const moneyBefore = sim.state.player.money;
+    const template = ContentRegistry.contractTemplates.get("contract.wheat_supply")!;
+    const referenceRate = contractTargetReferenceValue(sim.state, template, "produce.wheat");
+    const marketRate = quoteCommoditySale(commodity, 4, {
+      absoluteHour: sim.state.clock.currentMinute / 60,
+      worldSeed: sim.state.worldSeed
+    }).total;
+
+    expireContracts(sim.state);
+
+    expect(sim.state.player.money - moneyBefore).toBe(Math.round((referenceRate ?? 0) * 4));
+    expect(referenceRate).toBeGreaterThan(marketRate / 4);
+    expect(marketRate).toBeLessThan(commodity.basePrice * commodity.seasonalModifier * 4);
+  });
+
+  it("keeps the settled contract tail bounded instead of growing forever", () => {
+    const state = createInitialGameState(34);
+    for (let index = 0; index < SETTLED_CONTRACT_HISTORY + 15; index += 1) {
+      state.contracts.push({
+        id: `contract.done_${index}`,
+        templateId: "contract.wheat_supply",
+        requesterId: "contract.wheat_supply",
+        deliveryMarketId: "market.village",
+        type: "produce",
+        targetItemIdOrSpecies: "produce.wheat",
+        quantityRequired: 1,
+        quantityFulfilled: 1,
+        rewardMoney: 10,
+        rewardSkillXp: { skill: "farming", xp: 50 },
+        expiresAtMinute: 0,
+        status: "completed"
+      });
+    }
+    const activeBefore = state.contracts.filter((contract) => contract.status === "active").length;
+
+    pruneSettledContracts(state);
+
+    const settled = state.contracts.filter((contract) => contract.status !== "active");
+    expect(settled).toHaveLength(SETTLED_CONTRACT_HISTORY);
+    expect(state.contracts.filter((contract) => contract.status === "active")).toHaveLength(activeBefore);
+    // The newest settled rows are the ones kept.
+    expect(settled.at(-1)?.id).toBe(`contract.done_${SETTLED_CONTRACT_HISTORY + 14}`);
   });
 
   it("serves market rows and live quantity quotes through simulation-owned DTOs", () => {

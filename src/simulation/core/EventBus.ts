@@ -19,11 +19,14 @@ import {
   RodId,
   SeasonId,
   SkillId,
-  WeatherTag
+  WeatherTag,
+  EquipmentId,
+  EquipmentPresetId
 } from "./types";
 import type { FishingEcologyId } from "../../world/WorldIslands";
 
 export interface DomainEvents {
+  PlaceDiscovered: { knowledgeId: string; title: string; view: string | null; minute: GameMinute };
   CropPlanted: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; minute: GameMinute };
   CropWatered: { placedCropId: PlacedCropId; farmId: FarmId; newMoisture: number; minute: GameMinute };
   CropStageChanged: { placedCropId: PlacedCropId; cropId: CropId; stage: CropStage; minute: GameMinute };
@@ -33,7 +36,12 @@ export interface DomainEvents {
   FarmIrrigated: { farmId: FarmId; cropCount: number; minute: GameMinute };
   SeedPurchased: { marketId: MarketId; itemId: ItemId; quantity: number; cost: number; minute: GameMinute };
   RecipeStarted: { jobId: string; recipeId: RecipeId; minute: GameMinute };
+  ProcessingJobReady: { jobId: string; recipeId: RecipeId; stationId: string; minute: GameMinute };
   RecipeCompleted: { jobId: string; recipeId: RecipeId; stationId: string; minute: GameMinute };
+  EquipmentCrafted: { equipmentId: EquipmentId; recipeId: RecipeId; minute: GameMinute };
+  EquipmentEquipped: { equipmentId?: EquipmentId; rodId?: RodId; minute: GameMinute };
+  EquipmentPresetSaved: { presetId: EquipmentPresetId; minute: GameMinute };
+  EquipmentPresetApplied: { presetId: EquipmentPresetId; minute: GameMinute };
   FishSchoolSpawned: { schoolId: FishSchoolId; ecologyId: FishingEcologyId; x: number; z: number; species: FishSpeciesId[]; minute: GameMinute };
   FishSchoolChummed: { schoolId: FishSchoolId; ecologyId: FishingEcologyId; habitatId: string; frenzyMinutes: number; minute: GameMinute };
   FishHooked: { speciesId: FishSpeciesId; ecologyId: FishingEcologyId; habitatId: string; weightKg: number; minute: GameMinute };

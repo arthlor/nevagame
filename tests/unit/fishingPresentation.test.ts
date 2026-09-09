@@ -14,6 +14,7 @@ function encounter(overrides: Partial<FishingEncounterState> = {}): FishingEncou
     rodId: "rod.willow",
     tackleSnapshot: { lureItemId: null },
     seaConditionSnapshot: { weatherType: "clear", seaRoughness: 0 },
+    equipmentEffects: { lineIntegrityDamageMultiplier: 1, braceResistanceMultiplier: 1 },
     stamina: 40,
     maxStamina: 80,
     distanceMeters: 18,

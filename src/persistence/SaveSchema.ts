@@ -3,9 +3,21 @@
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
+import { PLAYER_SATCHEL_SLOT_COUNT } from "../simulation/inventory/InventoryLimits";
+import {
+  PROCESSING_JOB_SNAPSHOT_LIMITS,
+  PROCESSING_WORK_BY_TIER,
+  PROCESSING_XP_BY_TIER
+} from "../simulation/domains/ProcessingDomain";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
-import { cargoClassFits } from "../simulation/domains/domainRules";
+import { cargoClassFits, isProduceContractType } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
+import {
+  MAX_EARLY_ACTION_CREDIT_QUANTITY,
+  MAX_EARLY_ACTION_CREDIT_RECORDS,
+  QUEST_LOCATION_KINDS,
+  QUEST_OBJECTIVE_TYPES
+} from "../simulation/core/QuestTypes";
 import { FISHING_TUNING, fishingDepthBounds } from "../simulation/fishing/FishingTuning";
 import {
   isPlayerAtMountPose,
@@ -16,7 +28,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 33;
+export const CURRENT_SCHEMA_VERSION = 37;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -96,11 +108,23 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     !isRecord(state.player.proficiencies) ||
     !SKILL_IDS.every((skill) => isSafeInteger(state.player!.proficiencies[skill], 0))
   ) return false;
+  if (
+    state.player.dragNotch !== undefined &&
+    state.player.dragNotch !== 0 &&
+    state.player.dragNotch !== 1 &&
+    state.player.dragNotch !== 2
+  ) return false;
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 33
+    (schemaVersion >= 36
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      // Pin the literal: schema 34-35 shipped on layout 14, and the symbol has
+      // since moved on.
+      : schemaVersion >= 34
+      ? state.world.layoutRevision !== 14
+      : schemaVersion >= 33
+      ? state.world.layoutRevision !== 13
       : schemaVersion >= 32
       ? state.world.layoutRevision !== 12
       : schemaVersion >= 31
@@ -181,6 +205,35 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !state.player.ownedRodIds.includes(state.player.equippedRodId)
     ) return false;
   }
+  if (schemaVersion >= 37) {
+    const equipment = state.player.equipment;
+    if (
+      !isRecord(equipment) ||
+      !Array.isArray(equipment.ownedIds) ||
+      equipment.wardrobeCapacity !== 20 ||
+      equipment.ownedIds.length > equipment.wardrobeCapacity ||
+      new Set(equipment.ownedIds).size !== equipment.ownedIds.length ||
+      !equipment.ownedIds.every((id) => typeof id === "string" && ContentRegistry.equipment.has(id)) ||
+      !isRecord(equipment.equipped) ||
+      !isRecord(equipment.presets)
+    ) return false;
+    const owned = new Set(equipment.ownedIds);
+    const equipmentSlots = ["head", "outerwear", "feet", "watering-tool", "harvest-tool"] as const;
+    for (const slot of equipmentSlots) {
+      const id = equipment.equipped[slot];
+      const definition = typeof id === "string" ? ContentRegistry.equipment.get(id) : undefined;
+      if (!definition || definition.slot !== slot || !owned.has(id)) return false;
+    }
+    for (const presetId of ["field", "sea"] as const) {
+      const preset = equipment.presets[presetId];
+      if (!isRecord(preset)) return false;
+      for (const slot of ["head", "outerwear", "feet"] as const) {
+        const id = preset[slot];
+        const definition = typeof id === "string" ? ContentRegistry.equipment.get(id) : undefined;
+        if (!definition || definition.slot !== slot || !owned.has(id)) return false;
+      }
+    }
+  }
   if (
     schemaVersion >= 28 &&
     state.player.preparedLureItemId !== null &&
@@ -206,6 +259,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isFiniteNumber(state.basicFishing.remainingSeconds, 0) ||
       (state.basicFishing.catchItemId !== undefined && !ContentRegistry.items.has(state.basicFishing.catchItemId)) ||
       typeof state.basicFishing.willCatch !== "boolean" ||
+      (state.basicFishing.castPower !== undefined && !isFiniteInRange(state.basicFishing.castPower, 0, 1)) ||
       (schemaVersion >= 22 && state.basicFishing.quality !== undefined && !isOneOf(state.basicFishing.quality, FISH_QUALITIES)))
   ) return false;
   if (state.sportFishing) {
@@ -251,7 +305,11 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isFiniteInRange(state.sportFishing.rodDirectionAngle, -1, 1) ||
       typeof state.sportFishing.isReeling !== "boolean" ||
       typeof state.sportFishing.isSlacking !== "boolean" ||
-      typeof state.sportFishing.isBracing !== "boolean"
+      typeof state.sportFishing.isBracing !== "boolean" ||
+      (state.sportFishing.dragNotch !== undefined &&
+        state.sportFishing.dragNotch !== 0 &&
+        state.sportFishing.dragNotch !== 1 &&
+        state.sportFishing.dragNotch !== 2)
     )) return false;
     if (
       state.sportFishing.result !== "active" ||
@@ -275,7 +333,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         (state.sportFishing.tackleSnapshot.lureItemId !== null && state.sportFishing.tackleSnapshot.lureItemId !== "item.basic_lure") ||
         !isRecord(state.sportFishing.seaConditionSnapshot) ||
         !isOneOf(state.sportFishing.seaConditionSnapshot.weatherType, WEATHER_TYPES) ||
-        !isFiniteInRange(state.sportFishing.seaConditionSnapshot.seaRoughness, 0, 1)
+        !isFiniteInRange(state.sportFishing.seaConditionSnapshot.seaRoughness, 0, 1) ||
+        (schemaVersion >= 37 && (
+          !isRecord(state.sportFishing.equipmentEffects) ||
+          !isFiniteInRange(state.sportFishing.equipmentEffects.lineIntegrityDamageMultiplier, 0.1, 2) ||
+          !isFiniteInRange(state.sportFishing.equipmentEffects.braceResistanceMultiplier, 0.1, 2)
+        ))
       )) ||
       (state.sportFishing.schoolId !== undefined &&
         state.sportFishing.schoolId !== null &&
@@ -384,10 +447,83 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     }
   }
 
+  const occupiedProcessingStations = new Set<string>();
+  const pendingEquipmentIds = new Set<string>();
   for (const [jobId, job] of Object.entries(state.processingJobs)) {
-    if (!isRecord(job) || job.id !== jobId || typeof job.recipeId !== "string" || typeof job.stationId !== "string" || !isSafeInteger(job.startedAtMinute, 0) || !isSafeInteger(job.completesAtMinute, 0) || !["active", "complete", "collected"].includes(job.status as string)) return false;
-    if (!ContentRegistry.recipes.has(job.recipeId) || !state.world.structures[job.stationId]) return false;
+    if (!isRecord(job) || job.id !== jobId || typeof job.recipeId !== "string" || typeof job.stationId !== "string" || !isSafeInteger(job.startedAtMinute, 0) || !isSafeInteger(job.completesAtMinute, 0)) return false;
+    const recipe = ContentRegistry.recipes.get(job.recipeId);
+    const station = state.world.structures[job.stationId];
+    if (!recipe || !station) return false;
+    if (schemaVersion >= 37) {
+      if (
+        !["active", "complete"].includes(job.status as string) ||
+        typeof job.recipeName !== "string" ||
+        job.recipeName.trim().length === 0 ||
+        job.recipeName.length > PROCESSING_JOB_SNAPSHOT_LIMITS.maxLabelCharacters ||
+        typeof job.outputLabel !== "string" ||
+        job.outputLabel.trim().length === 0 ||
+        job.outputLabel.length > PROCESSING_JOB_SNAPSHOT_LIMITS.maxLabelCharacters ||
+        !isRecord(job.result) ||
+        !isOneOf(job.workTier, ["standard", "masterwork"]) ||
+        !isOneOf(job.presentationKind, ["existing", "tailoring", "toolmaking"]) ||
+        !isSafeInteger(job.baseWork, 1) ||
+        !isSafeInteger(job.chargedWork, 1) ||
+        job.chargedWork > job.baseWork ||
+        !isSafeInteger(job.xpReward, 1) ||
+        !isSafeInteger(job.effectiveDurationMinutes, 1) ||
+        job.effectiveDurationMinutes > PROCESSING_JOB_SNAPSHOT_LIMITS.maxDurationMinutes ||
+        job.startedAtMinute > state.clock.currentMinute ||
+        job.completesAtMinute <= job.startedAtMinute ||
+        job.completesAtMinute - job.startedAtMinute !== job.effectiveDurationMinutes ||
+        station.type !== recipe.stationType ||
+        (job.status === "active" && state.clock.currentMinute >= job.completesAtMinute) ||
+        (job.status === "complete" && state.clock.currentMinute < job.completesAtMinute)
+      ) return false;
+      const workTier = job.workTier as "standard" | "masterwork";
+      if (
+        job.baseWork !== PROCESSING_WORK_BY_TIER[workTier] ||
+        job.xpReward !== PROCESSING_XP_BY_TIER[workTier]
+      ) return false;
+      if (occupiedProcessingStations.has(job.stationId)) return false;
+      occupiedProcessingStations.add(job.stationId);
+      if (job.result.kind === "items") {
+        if (
+          !Array.isArray(job.result.stacks) ||
+          job.result.stacks.length === 0 ||
+          job.result.stacks.length > PLAYER_SATCHEL_SLOT_COUNT
+        ) return false;
+        const outputItemIds = new Set<string>();
+        for (const stack of job.result.stacks) {
+          if (
+            !isRecord(stack) ||
+            typeof stack.itemId !== "string" ||
+            !ContentRegistry.items.has(stack.itemId) ||
+            outputItemIds.has(stack.itemId) ||
+            !isSafeInteger(stack.quantity, 1) ||
+            stack.quantity > ContentRegistry.items.get(stack.itemId)!.stackLimit
+          ) return false;
+          outputItemIds.add(stack.itemId);
+        }
+      } else if (job.result.kind === "equipment") {
+        const equipmentId = job.result.equipmentId;
+        if (
+          typeof equipmentId !== "string" ||
+          !ContentRegistry.equipment.has(equipmentId) ||
+          pendingEquipmentIds.has(equipmentId) ||
+          state.player.equipment.ownedIds.includes(equipmentId)
+        ) return false;
+        pendingEquipmentIds.add(equipmentId);
+      } else {
+        return false;
+      }
+    } else if (!["active", "complete", "collected"].includes(job.status as string)) {
+      return false;
+    }
   }
+  if (
+    schemaVersion >= 37 &&
+    state.player.equipment.ownedIds.length + pendingEquipmentIds.size > state.player.equipment.wardrobeCapacity
+  ) return false;
 
   for (const [boatId, boat] of Object.entries(state.boats)) {
     if (!isRecord(boat) || boat.id !== boatId || typeof boat.boatTypeId !== "string" || typeof boat.supplyInventoryId !== "string") return false;
@@ -461,12 +597,46 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   }
 
   if (schemaVersion >= 26) {
+    const contractIds = new Set<string>();
     for (const contract of state.contracts) {
+      if (!isRecord(contract)) return false;
+      const templateId = contract.templateId;
+      const template = typeof templateId === "string"
+        ? ContentRegistry.contractTemplates.get(templateId)
+        : undefined;
+      const targetId = contract.targetItemIdOrSpecies;
+      const rewardSkillXp = contract.rewardSkillXp;
+      const itemContract = template ? isProduceContractType(template.type) : false;
       if (
-        !isRecord(contract) ||
+        typeof contract.id !== "string" ||
+        contract.id.length === 0 ||
+        contractIds.has(contract.id) ||
+        !template ||
+        typeof contract.requesterId !== "string" ||
+        contract.requesterId.length === 0 ||
         typeof contract.deliveryMarketId !== "string" ||
-        !ContentRegistry.markets.has(contract.deliveryMarketId)
+        !ContentRegistry.markets.has(contract.deliveryMarketId) ||
+        contract.deliveryMarketId !== template.deliveryMarketId ||
+        contract.type !== template.type ||
+        typeof targetId !== "string" ||
+        !template.itemOrSpeciesPool.includes(targetId) ||
+        (itemContract ? !ContentRegistry.items.has(targetId) : !ContentRegistry.fishSpecies.has(targetId)) ||
+        !isSafeInteger(contract.quantityRequired, 1) ||
+        !isSafeInteger(contract.quantityFulfilled, 0) ||
+        contract.quantityFulfilled > contract.quantityRequired ||
+        !isSafeInteger(contract.rewardMoney, 0) ||
+        !isRecord(rewardSkillXp) ||
+        !isOneOf(rewardSkillXp.skill, SKILL_IDS) ||
+        !isSafeInteger(rewardSkillXp.xp, 0) ||
+        !isSafeInteger(contract.expiresAtMinute, 0) ||
+        !isOneOf(contract.status, ["active", "completed", "expired", "failed"])
       ) return false;
+      if (
+        (contract.minQuality !== undefined && !isOneOf(contract.minQuality, FISH_QUALITIES)) ||
+        (contract.minFreshness !== undefined && !isFiniteInRange(contract.minFreshness, 0, 100)) ||
+        (contract.minWeightKg !== undefined && !isFiniteNumber(contract.minWeightKg, 0))
+      ) return false;
+      contractIds.add(contract.id);
     }
   }
 
@@ -474,6 +644,26 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (!Array.isArray(state.journal.unlockedKnowledge) || !state.journal.unlockedKnowledge.every((id) => typeof id === "string")) {
       return false;
     }
+  }
+
+  const fishRecords = state.journal.fishRecords;
+  if (!isRecord(fishRecords) || Array.isArray(fishRecords)) return false;
+  for (const [speciesId, record] of Object.entries(fishRecords)) {
+    if (
+      !ContentRegistry.fishSpecies.has(speciesId) ||
+      !isRecord(record) ||
+      Array.isArray(record) ||
+      typeof record.discovered !== "boolean" ||
+      !isSafeInteger(record.catchCount, 0)
+    ) return false;
+    if (record.largestWeightKg !== undefined && !isFiniteNumber(record.largestWeightKg, 0)) return false;
+    if (record.bestQuality !== undefined) {
+      const allowed = schemaVersion >= 22
+        ? FISH_QUALITIES
+        : [...FISH_QUALITIES, "normal", "silver", "gold", "iridium", "prize"];
+      if (!isOneOf(record.bestQuality, allowed)) return false;
+    }
+    if (record.firstCaughtMinute !== undefined && !isSafeInteger(record.firstCaughtMinute, 0)) return false;
   }
 
   if (!isRecord(state.journal.cropRecords)) return false;
@@ -518,6 +708,21 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         ) return false;
       }
       if (!isRecord(quests.tracks[quests.focusedTrackId as string])) return false;
+    }
+    if (schemaVersion >= 35) {
+      const credits = quests.earlyActionCredits;
+      if (!Array.isArray(credits) || credits.length > MAX_EARLY_ACTION_CREDIT_RECORDS) return false;
+      for (const credit of credits) {
+        if (!isRecord(credit)) return false;
+        if (!isOneOf(credit.type, QUEST_OBJECTIVE_TYPES)) return false;
+        if (credit.targetId !== undefined && typeof credit.targetId !== "string") return false;
+        if (!isSafeInteger(credit.quantity, 1) || credit.quantity > MAX_EARLY_ACTION_CREDIT_QUANTITY) return false;
+        if (credit.location !== undefined && (
+          !isRecord(credit.location) ||
+          !isOneOf(credit.location.kind, QUEST_LOCATION_KINDS) ||
+          typeof credit.location.id !== "string"
+        )) return false;
+      }
     }
   }
 

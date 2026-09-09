@@ -1,3 +1,4 @@
+import type { SeasonId } from "../../simulation/core/types";
 import * as THREE from "three";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 
@@ -26,6 +27,8 @@ export interface VisualRenderConfig {
   exposure: number;
   nightExposure: number;
   qualityTier: QualityTier;
+  seasons: Record<SeasonId, { tintHex: string; tintMix: number; desaturation: number; ambientMix: number }>;
+  windowStagger: { maximumDelay: number; fadeWidth: number };
   coastalStone: {
     mineralScale: number;
     mineralStrength: number;
@@ -129,6 +132,7 @@ export interface VisualRenderConfig {
       practicalLightBudget: number;
       lodDistanceScale: number;
       groundCoverDrawDistanceMeters: number;
+      groundCoverFarDistanceMeters: number;
       groundCoverDensityScale: number;
       rainDropCount: number;
       rainSplashCount: number;
@@ -149,6 +153,7 @@ export interface VisualRenderConfig {
     clodCount: number;
   };
   groundSurface: {
+    shortCoverRootShade: number;
     polygonCellScaleMeters: number;
     edgeCellScaleMeters: number;
     wetness: {
@@ -186,6 +191,7 @@ export interface VisualRenderConfig {
     smallLayerRotationRadians: number;
     colorVariationStrength: number;
     paletteVariationStrength: number;
+    meadowColorMix: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
     polygonFacetLightingStrength: number;
@@ -222,6 +228,7 @@ export interface VisualRenderConfig {
       max: number;
     };
     shoreline: {
+      exposedHeadlandStrength: number;
       beachColorMix: number;
       wetColorMix: number;
       cliffColorMix: number;
@@ -243,6 +250,9 @@ export interface VisualRenderConfig {
     };
     polygonCellScaleMeters: number;
     polygonEdgeCellScaleMeters: number;
+    wearColorMix: number;
+    wearRoughnessReduction: number;
+    shoulderColorMix: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
     polygonFacetLightingStrength: number;
@@ -256,6 +266,8 @@ export interface VisualRenderConfig {
       absorptionPerMeter: readonly [number, number, number];
       refractionPixels: number;
       rippleNormalStrength: number;
+      /** Camera-distance start/end and remaining broad slope at the far end. */
+      distantSlope: readonly [number, number, number];
       swashPeriodSeconds: number;
       swashReachMeters: number;
       foamStrength: number;
@@ -416,6 +428,15 @@ export interface VisualRenderConfig {
     /** Height above the trunk hold over which sway reaches full strength. */
     canopySpanMeters: number;
   };
+  fishSchools: {
+    memberCount: number;
+    modelScale: number;
+    roamingRadiusMeters: number;
+    hullClearanceMeters: number;
+    feedingResponse: number;
+    rippleLifetimeSeconds: number;
+    rippleOpacity: number;
+  };
   motion: {
     locomotionBlendSeconds: number;
     actionBlendSeconds: number;
@@ -454,6 +475,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   exposure: 1.04,
   nightExposure: 1.24,
   qualityTier: "high",
+  seasons: {
+    spring: { tintHex: PALETTE_HEX.foliage_sage_01, tintMix: 0, desaturation: 0, ambientMix: 0 },
+    summer: { tintHex: PALETTE_HEX.accent_ochre_01, tintMix: 0.22, desaturation: 0.04, ambientMix: 0.035 },
+    autumn: { tintHex: PALETTE_HEX.roof_terracotta_01, tintMix: 0.48, desaturation: 0.22, ambientMix: 0.06 },
+    winter: { tintHex: PALETTE_HEX.sky_pale_01, tintMix: 0.28, desaturation: 0.62, ambientMix: 0.08 }
+  },
+  windowStagger: { maximumDelay: 0.5, fadeWidth: 0.3 },
   coastalStone: {
     mineralScale: 2.3,
     mineralStrength: 0.20,
@@ -495,10 +523,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   skyFill: {
     skyColorHex: PALETTE_HEX.sky_pale_01,
     groundColorHex: PALETTE_HEX.sand_coastal_wet_01,
-    clearDayHueOffset: 0.02,
-    clearDaySaturationLift: 0.28,
-    clearDayLightnessOffset: -0.17,
-    clearDayHorizonBlueMix: 0.72,
+    // Clear noon reads as a luminous Mediterranean summer zenith: cooler hue,
+    // high saturation, and only a mild value drop so the dome stays bright
+    // rather than storm-dark. Cloudy/rainy weather still inherits sky_pale_01.
+    clearDayHueOffset: 0.032,
+    clearDaySaturationLift: 0.44,
+    clearDayLightnessOffset: -0.09,
+    clearDayHorizonBlueMix: 0.84,
     nightSkyColorHex: PALETTE_HEX.water_deep_01,
     nightGroundColorHex: PALETTE_HEX.foliage_shadow_01,
     nightSkyColorStrength: 0.82,
@@ -561,6 +592,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 1,
       lodDistanceScale: 0.7,
       groundCoverDrawDistanceMeters: 55,
+      groundCoverFarDistanceMeters: 330,
       groundCoverDensityScale: 0.24,
       rainDropCount: 140,
       rainSplashCount: 20,
@@ -581,6 +613,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 3,
       lodDistanceScale: 0.85,
       groundCoverDrawDistanceMeters: 78,
+      groundCoverFarDistanceMeters: 380,
       groundCoverDensityScale: 0.48,
       rainDropCount: 240,
       rainSplashCount: 32,
@@ -603,6 +636,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 4,
       lodDistanceScale: 0.95,
       groundCoverDrawDistanceMeters: 96,
+      groundCoverFarDistanceMeters: 430,
       groundCoverDensityScale: 0.6,
       rainDropCount: 360,
       rainSplashCount: 48,
@@ -627,6 +661,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     clodCount: 24
   },
   groundSurface: {
+    shortCoverRootShade: 0.74,
     polygonCellScaleMeters: 1.2,
     edgeCellScaleMeters: 1.2,
     wetness: SHARED_GROUND_WETNESS,
@@ -643,7 +678,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       sparseSampleScaleMeters: 10.5,
       leafyRotationRadians: 0.61,
       sparseRotationRadians: -0.83,
-      colorStrength: 1,
+      colorStrength: 0.68,
       roughnessStrength: 1,
       beach: {
         fineSampleScaleMeters: 6,
@@ -659,6 +694,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     smallLayerRotationRadians: 0.61,
     colorVariationStrength: 0.06,
     paletteVariationStrength: 0.34,
+    meadowColorMix: 0.34,
     polygonVariationStrength: 0.24,
     polygonJaggedStrength: 0.14,
     polygonFacetLightingStrength: 0.04,
@@ -695,6 +731,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       max: 0.945
     },
     shoreline: {
+      exposedHeadlandStrength: 0.94,
       beachColorMix: 0.54,
       wetColorMix: 0.62,
       cliffColorMix: 0.5,
@@ -711,11 +748,14 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       mesoSampleScaleMeters: 8.5,
       rotationRadians: 0.37,
       lodBias: 0.2,
-      colorStrength: 1,
+      colorStrength: 0.72,
       roughnessStrength: 1
     },
     polygonCellScaleMeters: 0.75,
     polygonEdgeCellScaleMeters: 1.2,
+    wearColorMix: 0.32,
+    wearRoughnessReduction: 0.055,
+    shoulderColorMix: 0.22,
     polygonVariationStrength: 0.08,
     polygonJaggedStrength: 0.22,
     polygonFacetLightingStrength: 0.016,
@@ -729,6 +769,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       absorptionPerMeter: [0.32, 0.11, 0.075],
       refractionPixels: 2.4,
       rippleNormalStrength: 0.075,
+      distantSlope: [18, 95, 0.035],
       swashPeriodSeconds: 10.8,
       swashReachMeters: 1.3,
       foamStrength: 0.78
@@ -887,6 +928,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     coastalAmplitudeMeters: 0.32,
     trunkHoldMeters: 1.6,
     canopySpanMeters: 5.5
+  },
+  fishSchools: {
+    memberCount: 5,
+    modelScale: 0.55,
+    roamingRadiusMeters: 5.5,
+    hullClearanceMeters: 1.1,
+    feedingResponse: 0.8,
+    rippleLifetimeSeconds: 2.4,
+    rippleOpacity: 0.45
   },
   motion: {
     locomotionBlendSeconds: 0.16,

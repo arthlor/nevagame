@@ -36,3 +36,20 @@ export function handleTabListKeyDown(event: ReactKeyboardEvent<HTMLElement>): vo
   next.focus();
   next.click();
 }
+
+/** Settings radios select on arrow movement and expose one Tab stop per group. */
+export function handleRadioGroupKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+  const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+  if (!keys.includes(event.key)) return;
+  const radios = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]'))
+    .filter((radio) => !radio.disabled && radio.getAttribute("aria-disabled") !== "true");
+  if (radios.length === 0) return;
+  const focused = radios.findIndex((radio) => radio === document.activeElement);
+  const current = focused >= 0 ? focused : Math.max(0, radios.findIndex((radio) => radio.getAttribute("aria-checked") === "true"));
+  const next = event.key === "Home" ? 0 : event.key === "End" ? radios.length - 1
+    : (current + (event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1) + radios.length) % radios.length;
+  event.preventDefault();
+  event.stopPropagation();
+  radios[next].focus();
+  radios[next].click();
+}

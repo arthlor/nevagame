@@ -29,10 +29,38 @@ async function readPosition(diagnostics: Locator): Promise<PlayerPosition> {
   };
 }
 
+/**
+ * Movement and stamina are spent per fixed simulation step, and `GameApp` caps
+ * its physics accumulator, so a browser starved of CPU delivers fewer steps per
+ * real second. A wall-clock hold therefore moves the player less and drains less
+ * stamina on a busy machine than on an idle one, which is how these traversal
+ * checks became intermittent. Callers still express intent in milliseconds; this
+ * converts that to the fixed steps the simulation actually owes them and waits
+ * for the counter rather than the clock.
+ */
+const FIXED_STEPS_PER_SECOND = 60;
+
+async function waitForSteps(page: Page, durationMs: number): Promise<void> {
+  const diagnostics = page.getByTestId("diagnostics");
+  const owed = Math.round((durationMs / 1000) * FIXED_STEPS_PER_SECOND);
+  const startStep = await numericAttribute(diagnostics, "data-physics-steps");
+  // The ceiling is generous on purpose: it exists to fail a page that has
+  // stopped stepping, not to bound how slowly a healthy one may step.
+  await expect
+    .poll(() => numericAttribute(diagnostics, "data-physics-steps"), {
+      timeout: Math.max(20_000, durationMs * 20),
+      intervals: [50]
+    })
+    .toBeGreaterThanOrEqual(startStep + owed);
+}
+
 async function hold(page: Page, key: string, durationMs: number): Promise<void> {
   await page.keyboard.down(key);
-  await page.waitForTimeout(durationMs);
-  await page.keyboard.up(key);
+  try {
+    await waitForSteps(page, durationMs);
+  } finally {
+    await page.keyboard.up(key);
+  }
 }
 
 async function loadScenario(
@@ -402,7 +430,9 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
     const staminaBefore = await numericAttribute(diagnostics, "data-sprint-stamina");
     await page.keyboard.down("Shift");
     await page.keyboard.down("KeyW");
-    await page.waitForTimeout(1_100);
+    // Stamina drains per step, so the drain assertion below needs a simulated
+    // hold; a real-time one under-drains on a loaded machine and fails.
+    await waitForSteps(page, 1_100);
     await page.keyboard.up("KeyW");
     await page.keyboard.up("Shift");
 
