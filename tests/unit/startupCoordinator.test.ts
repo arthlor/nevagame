@@ -23,6 +23,31 @@ describe("startup attempt ownership", () => {
     await expect(attempt.stage(async () => "never", 100, timeout())).rejects.toThrow();
   });
 
+  it("contains a late disposer that throws instead of leaking an unhandled rejection", async () => {
+    vi.useFakeTimers();
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const attempt = new StartupCoordinator();
+      let finish!: (value: string) => void;
+      const work = attempt.stage(() => new Promise<string>(resolve => { finish = resolve; }), 100, timeout(), undefined,
+        () => { throw new Error("dispose failed"); });
+      const rejected = expect(work).rejects.toMatchObject({ code: "world-startup-timeout" });
+      await vi.advanceTimersByTimeAsync(100);
+      await rejected;
+      finish("late physics");
+      await vi.advanceTimersByTimeAsync(0);
+      vi.useRealTimers();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("could not be disposed"), expect.any(Error));
+    } finally {
+      process.off("unhandledRejection", unhandled);
+      warn.mockRestore();
+    }
+  });
+
   it("keeps transfer activity alive beyond the stall deadline and completes once", async () => {
     vi.useFakeTimers();
     const attempt = new StartupCoordinator();

@@ -70,17 +70,21 @@ function parseStructuredPrompt(
     rest = keyMatch[2];
   }
 
-  // 2. Check for labor cost badge anchored at the end of prompt, e.g. "(-5 Work)" or "(5 Work)" or "-5 Work" or "· 8 Work"
+  // 2. Labor cost badge: "(-5 Work)", "(5 Work)" or "-5 Work" at the end, or a
+  // "· 8 Work" / "· ~8 Work" segment anywhere — crop prompts read
+  // "Harvest Carrot · 8 Work · Right-click inspect", so the cost is not last.
+  // A shortfall line ("Need 8 Work") is a requirement, not a cost, and is left alone.
+  const WORK_COST = /\s*(?:\(\s*-?|·\s*~?-?|-)\s*(\d+)\s*Work\)?\s*(?=·|$)/i;
   let laborCost: number | null = null;
-  const workMatch = rest.match(/(?:[\(\·]\s*-?|-)\s*(\d+)\s*Work\)?\s*$/i);
+  const workMatch = rest.match(WORK_COST);
   if (workMatch) {
     laborCost = Number.parseInt(workMatch[1], 10);
   }
 
-  // Sanitize description text by stripping out the trailing labor cost text to prevent duplication or mangling entity names
+  // Strip the cost text so it is not duplicated in, or mangled into, the label.
   let sanitized = rest
-    .replace(/\s*(?:[\(\·]\s*-?|-)\s*\d+\s*Work\)?\s*$/i, "")
-    .replace(/\s*·\s*$/, "")
+    .replace(WORK_COST, "")
+    .replace(/^\s*·\s*|\s*·\s*$/g, "")
     .trim();
 
   // 3. Separate detail if present (e.g. "working · 6h left · ready 14:00")

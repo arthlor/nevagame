@@ -91,6 +91,14 @@ async function routeCi(args) {
   const unknown = args.filter((arg) => arg !== "--no-visual");
   if (unknown.length) throw new Error(`Unknown ci option: ${unknown.join(" ")}`);
   const steps = [
+    // Generated-output and content gates run first: typecheck, test and build
+    // each carry an `assets:sync` pre-hook in write mode, which would otherwise
+    // regenerate the committed outputs before anything checked them.
+    [NPM, ["run", "art:codegen:check"]],
+    [NPM, ["run", "ui:codegen:check"]],
+    [NPM, ["run", "ui:publish:check"]],
+    [NPM, ["run", "ui:pack:check"]],
+    [NPM, ["run", "content:validate"]],
     [NPM, ["run", "typecheck"]],
     [NPM, ["run", "lint"]],
     [NPM, ["run", "test"]],

@@ -93,8 +93,9 @@ current adapters without the `prebuild` regeneration hook. Asset CLI commands
 require explicit `--asset`, `--family` or authorized release `--all` selectors;
 publication and `art:sync` are mutations. `BLENDER.md` owns their full sequence.
 
-**Performance lanes.** `npm run art:benchmark` uses the DEV Playwright setup;
-its unmerged editor scene is diagnostic evidence. `npm run test:budget` uses
+**Performance lanes.** `npm run art:benchmark` uses the DEV Playwright setup
+(`playwright.art.config.ts`, excluded from `test:e2e` with the budget and visual
+suites); its unmerged editor scene is diagnostic evidence. `npm run test:budget` uses
 the isolated production build configured by `playwright.budget.config.ts`.
 `npm run world:acceptance` owns frozen multi-scene/world evidence as described
 in Art Pipeline §13.3. Do not compare DEV and production as equivalent or infer

@@ -458,6 +458,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           isPlacementActive={mode === "farm-placement"}
           touchChrome={mobileTouchDevice}
           captureForecastEscape={!activeModal}
+          forecastEnabled={(mode === "on-foot" || mode === "mounted" || mode === "boat-driving") && !layoutEditor?.active}
           chronicleEntries={chronicleEntries}
           chronicleFilter={chronicleFilter}
           onSelectChronicleFilter={onSelectChronicleFilter}
@@ -562,6 +563,9 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {activeModal && notices && <NoticeStack notices={notices} className="guild-modal-notices" />}
+      {/* The HUD owns the world notice stack but is hidden during a fight, which
+          must still hear about a snapped line, an escape or a full hold. */}
+      {mode === "sport-fishing" && !activeModal && notices && <NoticeStack notices={notices} />}
 
       {activeModal === "dialogue" && activeDialogueNpcId && onTalkNpc && (
         <DialogueModal

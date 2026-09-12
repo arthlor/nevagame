@@ -3,6 +3,7 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { LURE_ITEM_ID, accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 import { resolveCargoHasIce } from "../fishing/calculateFreshness";
+import { freshnessTone } from "../fishing/freshnessBands";
 import { PLAYER_TRAVERSAL_TUNING, carriedLoadPenaltyPercent } from "../navigation/PlayerTraversal";
 import type {
   CompassMarkerDto,
@@ -39,11 +40,21 @@ export const buildCargoPresentation = (cargo: FishCargoState): WorldHudCargoDto 
     weightKg: cargo.weightKg,
     quality: cargo.quality,
     freshnessPercent,
-    freshnessTone: freshnessPercent > 65 ? "fresh" : freshnessPercent > 35 ? "medium" : "stale",
+    freshnessTone: freshnessTone(freshnessPercent),
     cargoClass: cargo.cargoClass,
     carrySpeedPenaltyPercent: carriedLoadPenaltyPercent(cargo.cargoClass)
   };
 };
+
+/**
+ * Compass bearing of the way the player faces: 0° north (−Z), 90° east (+X).
+ * A yaw of θ faces `(sin θ, cos θ)`, so θ = 0 looks south and the bearing is the
+ * reflection π − θ — adding π would fix north/south but swap east and west.
+ */
+export function compassHeadingDegrees(rotationY: number): number {
+  const degrees = Math.round(180 - (rotationY * 180) / Math.PI);
+  return ((degrees % 360) + 360) % 360;
+}
 
 const CARDINAL_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 export function getHeadingCardinal(deg: number): string {
@@ -439,7 +450,7 @@ export function buildWorldHudDto(
   const stance = detectContextualStance(state);
 
   // Compass, heading, region
-  const headingDegrees = Math.round((((player.rotationY * 180) / Math.PI) % 360 + 360) % 360);
+  const headingDegrees = compassHeadingDegrees(player.rotationY);
   const headingCardinal = getHeadingCardinal(headingDegrees);
   const regionLabel =
     (WORLD_REGION_LABELS as Readonly<Record<string, string>>)[player.currentRegionId] ?? "Open Waters";

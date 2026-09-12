@@ -112,6 +112,19 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(["fish.perch", "fish.carp"]).toContain(sim.state.basicFishing?.catchItemId);
   });
 
+  it("refuses to release a cast that castBasic already paid for and rolled", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    expect(sim.castBasicFishing().success).toBe(true);
+    const cast = structuredClone(sim.state.basicFishing);
+    const work = sim.state.player.workCapacity.current;
+    const rngState = sim.rng.getState();
+    expect(sim.releaseCastBasicFishing(0.9)).toMatchObject({ success: false, reason: "Not charging a cast" });
+    expect(sim.state.player.workCapacity.current).toBe(work);
+    expect(sim.rng.getState()).toBe(rngState);
+    expect(sim.state.basicFishing).toEqual(cast);
+  });
+
   it("fails releaseCast when the habitat pool is empty instead of falling back to perch", () => {
     sim.state.player.x = -8;
     sim.state.player.z = 0;

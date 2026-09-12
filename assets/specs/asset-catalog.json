@@ -11231,12 +11231,12 @@
       "generator": "wheat_crop",
       "seed": 501,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.8,
-        "height": 0.15
+        "width": 0.5,
+        "depth": 0.5,
+        "height": 0.035
       },
       "palette": [
-        "wood_warm_01",
+        "accent_ochre_01",
         "foliage_highlight_01"
       ],
       "budget": {
@@ -11256,6 +11256,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.13,
+        "leafLength": 0.04,
+        "leafWidth": 0.015,
         "stalks": 0
       },
       "surfaceAuthoring": {
@@ -11275,7 +11279,7 @@
         "height": 0.4
       },
       "palette": [
-        "foliage_highlight_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 180,
@@ -11294,7 +11298,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "sprout",
-        "stalks": 9
+        "height": 0.22,
+        "spread": 0.07,
+        "leafLength": 0.22,
+        "leafWidth": 0.05075,
+        "stalks": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11313,8 +11321,8 @@
         "height": 1
       },
       "palette": [
-        "foliage_sage_01",
-        "grass_yellow_01"
+        "foliage_coastal_01",
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 450,
@@ -11333,7 +11341,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "growing",
-        "stalks": 13
+        "height": 0.64,
+        "spread": 0.1,
+        "leafLength": 0.53,
+        "leafWidth": 0.11309999999999999,
+        "stalks": 6
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11352,9 +11364,9 @@
         "height": 1.4
       },
       "palette": [
-        "grass_yellow_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
-        "foliage_olive_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 800,
@@ -11373,7 +11385,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "stalks": 12
+        "height": 0.95,
+        "spread": 0.13,
+        "leafLength": 0.51,
+        "leafWidth": 0.087,
+        "stalks": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11392,9 +11408,9 @@
         "height": 1.1
       },
       "palette": [
+        "wood_honey_01",
         "accent_ochre_01",
-        "wood_warm_01",
-        "wood_weathered_01"
+        "grass_yellow_01"
       ],
       "budget": {
         "trianglesMin": 750,
@@ -11413,7 +11429,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "overripe",
-        "stalks": 13
+        "height": 0.99,
+        "spread": 0.14,
+        "leafLength": 0.44,
+        "leafWidth": 0.08845,
+        "stalks": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11432,8 +11452,8 @@
         "height": 0.7
       },
       "palette": [
-        "wood_dark_01",
-        "wood_weathered_01"
+        "wood_weathered_01",
+        "wood_coastal_01"
       ],
       "budget": {
         "trianglesMin": 400,
@@ -11452,7 +11472,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "withered",
-        "stalks": 11
+        "height": 0.66,
+        "spread": 0.13,
+        "leafLength": 0.3,
+        "leafWidth": 0.0725,
+        "stalks": 4
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11466,12 +11490,12 @@
       "generator": "barley_crop",
       "seed": 563,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.8,
-        "height": 0.15
+        "width": 0.5,
+        "depth": 0.5,
+        "height": 0.035
       },
       "palette": [
-        "wood_warm_01",
+        "accent_ochre_01",
         "foliage_highlight_01"
       ],
       "budget": {
@@ -11491,6 +11515,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.13,
+        "leafLength": 0.04,
+        "leafWidth": 0.015,
         "stalks": 0
       },
       "surfaceAuthoring": {
@@ -11510,7 +11538,7 @@
         "height": 0.35
       },
       "palette": [
-        "foliage_highlight_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 180,
@@ -11529,7 +11557,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "sprout",
-        "stalks": 10
+        "height": 0.21,
+        "spread": 0.07,
+        "leafLength": 0.21,
+        "leafWidth": 0.0464,
+        "stalks": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11548,8 +11580,8 @@
         "height": 0.9
       },
       "palette": [
-        "foliage_sage_01",
-        "grass_yellow_01"
+        "foliage_coastal_01",
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 450,
@@ -11568,7 +11600,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "growing",
-        "stalks": 12
+        "height": 0.61,
+        "spread": 0.09,
+        "leafLength": 0.5,
+        "leafWidth": 0.09425,
+        "stalks": 6
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11587,9 +11623,9 @@
         "height": 1.25
       },
       "palette": [
-        "grass_yellow_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
-        "canvas_cream_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 750,
@@ -11608,7 +11644,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "stalks": 12
+        "height": 0.86,
+        "spread": 0.12,
+        "leafLength": 0.46,
+        "leafWidth": 0.0783,
+        "stalks": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11627,9 +11667,9 @@
         "height": 0.95
       },
       "palette": [
+        "wood_honey_01",
         "accent_ochre_01",
-        "wood_warm_01",
-        "canvas_cream_01"
+        "grass_yellow_01"
       ],
       "budget": {
         "trianglesMin": 700,
@@ -11648,7 +11688,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "overripe",
-        "stalks": 12
+        "height": 0.87,
+        "spread": 0.13,
+        "leafLength": 0.4,
+        "leafWidth": 0.0754,
+        "stalks": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11667,15 +11711,14 @@
         "height": 0.65
       },
       "palette": [
-        "wood_dark_01",
         "wood_weathered_01",
-        "canvas_cream_01"
+        "wood_coastal_01"
       ],
       "budget": {
         "trianglesMin": 350,
         "trianglesTarget": 800,
         "trianglesMax": 1300,
-        "materialsMax": 3
+        "materialsMax": 2
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -11688,7 +11731,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "withered",
-        "stalks": 10
+        "height": 0.62,
+        "spread": 0.12,
+        "leafLength": 0.28,
+        "leafWidth": 0.06815,
+        "stalks": 4
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11702,9 +11749,9 @@
       "generator": "corn_crop",
       "seed": 601,
       "dimensions": {
-        "width": 0.9,
-        "depth": 0.9,
-        "height": 0.18
+        "width": 0.5,
+        "depth": 0.5,
+        "height": 0.035
       },
       "palette": [
         "wood_warm_01",
@@ -11727,6 +11774,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "seeded",
+        "height": 0.05,
+        "spread": 0.14,
+        "leafLength": 0.05,
+        "leafWidth": 0.018,
         "stalks": 0
       },
       "surfaceAuthoring": {
@@ -11746,8 +11797,8 @@
         "height": 0.48
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_leaf_01"
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 150,
@@ -11766,7 +11817,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "sprout",
-        "stalks": 3
+        "height": 0.29,
+        "spread": 0.045,
+        "leafLength": 0.23,
+        "leafWidth": 0.05,
+        "stalks": 2
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11785,8 +11840,8 @@
         "height": 1.55
       },
       "palette": [
-        "foliage_leaf_01",
-        "foliage_highlight_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
         "canvas_cream_01"
       ],
@@ -11807,7 +11862,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "growing",
-        "stalks": 3
+        "height": 1.18,
+        "spread": 0.08,
+        "leafLength": 0.54,
+        "leafWidth": 0.13,
+        "stalks": 2
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11826,8 +11885,8 @@
         "height": 2.3
       },
       "palette": [
-        "foliage_leaf_01",
-        "foliage_highlight_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
         "canvas_cream_01"
       ],
@@ -11848,7 +11907,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "stalks": 3
+        "height": 1.9,
+        "spread": 0.1,
+        "leafLength": 0.64,
+        "leafWidth": 0.15,
+        "stalks": 2
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11867,10 +11930,10 @@
         "height": 2.05
       },
       "palette": [
-        "canvas_cream_01",
+        "grass_yellow_01",
         "wood_honey_01",
         "accent_ochre_01",
-        "wood_dark_01"
+        "wood_weathered_01"
       ],
       "budget": {
         "trianglesMin": 700,
@@ -11889,7 +11952,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "overripe",
-        "stalks": 3
+        "height": 1.78,
+        "spread": 0.1,
+        "leafLength": 0.6,
+        "leafWidth": 0.13,
+        "stalks": 2
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11929,7 +11996,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "withered",
-        "stalks": 3
+        "height": 1.08,
+        "spread": 0.1,
+        "leafLength": 0.46,
+        "leafWidth": 0.1,
+        "stalks": 2
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -11943,9 +12014,9 @@
       "generator": "flax_crop",
       "seed": 641,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.8,
-        "height": 0.12
+        "width": 0.5,
+        "depth": 0.5,
+        "height": 0.035
       },
       "palette": [
         "foliage_sage_01",
@@ -11969,6 +12040,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.11,
+        "leafLength": 0.02,
+        "leafWidth": 0.01,
         "stems": 0
       },
       "surfaceAuthoring": {
@@ -11988,7 +12063,7 @@
         "height": 0.3
       },
       "palette": [
-        "foliage_highlight_01"
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 200,
@@ -12007,7 +12082,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "sprout",
-        "stems": 16
+        "height": 0.21,
+        "spread": 0.08,
+        "leafLength": 0.1,
+        "leafWidth": 0.023,
+        "stems": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12026,7 +12105,7 @@
         "height": 0.7
       },
       "palette": [
-        "foliage_sage_01",
+        "foliage_coastal_sun_01",
         "sky_pale_01"
       ],
       "budget": {
@@ -12046,7 +12125,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "growing",
-        "stems": 18
+        "height": 0.55,
+        "spread": 0.1,
+        "leafLength": 0.15,
+        "leafWidth": 0.032,
+        "stems": 7
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12065,7 +12148,7 @@
         "height": 0.95
       },
       "palette": [
-        "foliage_sage_01",
+        "foliage_coastal_sun_01",
         "sky_pale_01",
         "foliage_leaf_01",
         "accent_ochre_01"
@@ -12087,7 +12170,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "stems": 16
+        "height": 0.78,
+        "spread": 0.13,
+        "leafLength": 0.15,
+        "leafWidth": 0.032,
+        "stems": 7
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12106,7 +12193,7 @@
         "height": 0.85
       },
       "palette": [
-        "foliage_sage_01",
+        "wood_honey_01",
         "accent_ochre_01",
         "canvas_cream_01"
       ],
@@ -12127,7 +12214,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "overripe",
-        "stems": 16
+        "height": 0.72,
+        "spread": 0.14,
+        "leafLength": 0.13,
+        "leafWidth": 0.027,
+        "stems": 7
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12167,7 +12258,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "withered",
-        "stems": 16
+        "height": 0.47,
+        "spread": 0.14,
+        "leafLength": 0.1,
+        "leafWidth": 0.023,
+        "stems": 6
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12183,7 +12278,7 @@
       "dimensions": {
         "width": 0.45,
         "depth": 0.45,
-        "height": 0.12
+        "height": 0.035
       },
       "palette": [
         "accent_ochre_01",
@@ -12206,6 +12301,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.11,
+        "leafLength": 0.03,
+        "fruitRadius": 0.03,
         "plants": 0
       },
       "surfaceAuthoring": {
@@ -12225,8 +12324,8 @@
         "height": 0.35
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_sage_01"
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 150,
@@ -12245,6 +12344,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "sprout",
+        "height": 0.24,
+        "spread": 0.08,
+        "leafLength": 0.16,
+        "fruitRadius": 0.04,
         "plants": 0
       },
       "surfaceAuthoring": {
@@ -12264,8 +12367,8 @@
         "height": 0.9
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
         "wood_weathered_01"
       ],
@@ -12286,7 +12389,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "growing",
-        "plants": 5
+        "height": 0.7,
+        "spread": 0.09,
+        "leafLength": 0.34,
+        "fruitRadius": 0.12,
+        "plants": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12305,8 +12412,8 @@
         "height": 1.25
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_red_01",
         "roof_deep_red_01",
         "wood_weathered_01"
@@ -12328,7 +12435,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "plants": 4
+        "height": 1.07,
+        "spread": 0.13,
+        "leafLength": 0.37,
+        "fruitRadius": 0.245,
+        "plants": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12369,7 +12480,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "overripe",
-        "plants": 4
+        "height": 0.92,
+        "spread": 0.14,
+        "leafLength": 0.33,
+        "fruitRadius": 0.255,
+        "plants": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12409,7 +12524,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "withered",
-        "plants": 4
+        "height": 0.61,
+        "spread": 0.13,
+        "leafLength": 0.25,
+        "fruitRadius": 0.08,
+        "plants": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12425,7 +12544,7 @@
       "dimensions": {
         "width": 0.3,
         "depth": 0.3,
-        "height": 0.1
+        "height": 0.06
       },
       "palette": [
         "wood_warm_01",
@@ -12447,7 +12566,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "stage": "seeded"
+        "stage": "seeded",
+        "height": 0.05,
+        "spread": 0.075,
+        "stems": 0
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12466,8 +12588,8 @@
         "height": 0.32
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_sage_01"
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 150,
@@ -12485,7 +12607,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "stage": "sprout"
+        "stage": "sprout",
+        "height": 0.25,
+        "spread": 0.26,
+        "stems": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12504,8 +12629,8 @@
         "height": 0.68
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "canvas_cream_01"
       ],
       "budget": {
@@ -12524,7 +12649,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "stage": "growing"
+        "stage": "growing",
+        "height": 0.52,
+        "spread": 0.49,
+        "stems": 4
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12543,8 +12671,8 @@
         "height": 0.9
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "canvas_cream_01",
         "accent_ochre_01",
         "wood_warm_01"
@@ -12565,7 +12693,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "stage": "mature"
+        "stage": "mature",
+        "height": 0.65,
+        "spread": 0.58,
+        "stems": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12604,7 +12735,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "stage": "overripe"
+        "stage": "overripe",
+        "height": 0.57,
+        "spread": 0.59,
+        "stems": 4
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12642,7 +12776,10 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "stage": "withered"
+        "stage": "withered",
+        "height": 0.38,
+        "spread": 0.52,
+        "stems": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12658,7 +12795,7 @@
       "dimensions": {
         "width": 0.4,
         "depth": 0.4,
-        "height": 0.12
+        "height": 0.035
       },
       "palette": [
         "accent_ochre_01",
@@ -12681,6 +12818,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.1,
+        "leafLength": 0.03,
+        "leafWidth": 0.01,
         "plants": 0
       },
       "surfaceAuthoring": {
@@ -12697,11 +12838,11 @@
       "dimensions": {
         "width": 0.45,
         "depth": 0.45,
-        "height": 0.26
+        "height": 0.3
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_sage_01"
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 150,
@@ -12720,6 +12861,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "sprout",
+        "height": 0.26,
+        "spread": 0.03,
+        "leafLength": 0.23,
+        "leafWidth": 0.026,
         "plants": 3
       },
       "surfaceAuthoring": {
@@ -12736,11 +12881,11 @@
       "dimensions": {
         "width": 0.65,
         "depth": 0.65,
-        "height": 0.38
+        "height": 0.6
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_pine_01"
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 350,
@@ -12759,6 +12904,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "growing",
+        "height": 0.49,
+        "spread": 0.05,
+        "leafLength": 0.48,
+        "leafWidth": 0.031,
         "plants": 5
       },
       "surfaceAuthoring": {
@@ -12775,11 +12924,11 @@
       "dimensions": {
         "width": 0.75,
         "depth": 0.75,
-        "height": 0.45
+        "height": 0.82
       },
       "palette": [
-        "foliage_sage_01",
-        "foliage_pine_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "roof_warm_orange_01",
         "accent_ochre_01"
       ],
@@ -12800,7 +12949,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "mature",
-        "plants": 6
+        "height": 0.68,
+        "spread": 0.06,
+        "leafLength": 0.58,
+        "leafWidth": 0.038,
+        "plants": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -12816,7 +12969,7 @@
       "dimensions": {
         "width": 0.8,
         "depth": 0.8,
-        "height": 0.62
+        "height": 0.73
       },
       "palette": [
         "grass_yellow_01",
@@ -12842,6 +12995,10 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "overripe",
+        "height": 0.61,
+        "spread": 0.07,
+        "leafLength": 0.55,
+        "leafWidth": 0.036,
         "plants": 5
       },
       "surfaceAuthoring": {
@@ -12858,7 +13015,7 @@
       "dimensions": {
         "width": 0.75,
         "depth": 0.75,
-        "height": 0.18
+        "height": 0.45
       },
       "palette": [
         "wood_weathered_01",
@@ -12882,7 +13039,11 @@
       "readDistanceMeters": 15,
       "parameters": {
         "stage": "withered",
-        "plants": 4
+        "height": 0.34,
+        "spread": 0.06,
+        "leafLength": 0.33,
+        "leafWidth": 0.024,
+        "plants": 3
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26423,7 +26584,7 @@
       "dimensions": {
         "width": 0.25,
         "depth": 0.25,
-        "height": 0.06
+        "height": 0.035
       },
       "palette": [
         "foliage_highlight_01",
@@ -26447,7 +26608,12 @@
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "stage": "seeded"
+        "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.08,
+        "leafLength": 0.03,
+        "leafWidth": 0.01,
+        "leafCount": 0
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26466,8 +26632,8 @@
         "height": 0.38
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
         "soil_shadow_01"
       ],
@@ -26487,7 +26653,12 @@
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "stage": "sprout"
+        "stage": "sprout",
+        "height": 0.25,
+        "spread": 0.1,
+        "leafLength": 0.18,
+        "leafWidth": 0.12,
+        "leafCount": 4
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26506,8 +26677,8 @@
         "height": 0.95
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
         "soil_shadow_01"
       ],
@@ -26527,7 +26698,12 @@
       ],
       "readDistanceMeters": 20,
       "parameters": {
-        "stage": "growing"
+        "stage": "growing",
+        "height": 0.77,
+        "spread": 0.2,
+        "leafLength": 0.33,
+        "leafWidth": 0.23,
+        "leafCount": 10
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26546,8 +26722,8 @@
         "height": 1.55
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_olive_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
         "soil_shadow_01"
       ],
@@ -26567,7 +26743,12 @@
       ],
       "readDistanceMeters": 24,
       "parameters": {
-        "stage": "mature"
+        "stage": "mature",
+        "height": 1.28,
+        "spread": 0.2,
+        "leafLength": 0.43,
+        "leafWidth": 0.26,
+        "leafCount": 8
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26586,7 +26767,7 @@
         "height": 1.35
       },
       "palette": [
-        "foliage_sage_01",
+        "grass_yellow_01",
         "foliage_olive_01",
         "accent_ochre_01",
         "soil_shadow_01"
@@ -26607,7 +26788,12 @@
       ],
       "readDistanceMeters": 22,
       "parameters": {
-        "stage": "overripe"
+        "stage": "overripe",
+        "height": 1.1,
+        "spread": 0.2,
+        "leafLength": 0.4,
+        "leafWidth": 0.23,
+        "leafCount": 7
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26626,9 +26812,9 @@
         "height": 0.9
       },
       "palette": [
-        "foliage_sage_01",
-        "wood_warm_01",
-        "accent_ochre_01",
+        "wood_coastal_01",
+        "wood_weathered_01",
+        "wood_honey_01",
         "soil_shadow_01"
       ],
       "budget": {
@@ -26647,7 +26833,12 @@
       ],
       "readDistanceMeters": 20,
       "parameters": {
-        "stage": "withered"
+        "stage": "withered",
+        "height": 0.73,
+        "spread": 0.2,
+        "leafLength": 0.28,
+        "leafWidth": 0.17,
+        "leafCount": 5
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26661,15 +26852,15 @@
       "generator": "olive_crop",
       "seed": 1611,
       "dimensions": {
-        "width": 0.25,
-        "depth": 0.25,
-        "height": 0.16
+        "width": 0.22,
+        "depth": 0.22,
+        "height": 0.035
       },
       "palette": [
-        "foliage_olive_01",
+        "foliage_sage_01",
         "wood_warm_01",
         "foliage_shadow_01",
-        "soil_shadow_01"
+        "foliage_olive_01"
       ],
       "budget": {
         "trianglesMin": 20,
@@ -26687,7 +26878,14 @@
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "stage": "seeded"
+        "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.07,
+        "leafLength": 0.03,
+        "leafWidth": 0.01,
+        "branches": 0,
+        "leafCount": 0,
+        "fruitRadius": 0.015
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26706,10 +26904,10 @@
         "height": 0.48
       },
       "palette": [
-        "foliage_olive_01",
+        "foliage_sage_01",
         "wood_warm_01",
         "foliage_shadow_01",
-        "soil_shadow_01"
+        "foliage_olive_01"
       ],
       "budget": {
         "trianglesMin": 120,
@@ -26727,7 +26925,14 @@
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "stage": "sprout"
+        "stage": "sprout",
+        "height": 0.4,
+        "spread": 0.16,
+        "leafLength": 0.16,
+        "leafWidth": 0.04,
+        "branches": 4,
+        "leafCount": 3,
+        "fruitRadius": 0.015
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26746,10 +26951,10 @@
         "height": 1
       },
       "palette": [
-        "foliage_olive_01",
+        "foliage_sage_01",
         "wood_warm_01",
         "foliage_shadow_01",
-        "soil_shadow_01"
+        "foliage_olive_01"
       ],
       "budget": {
         "trianglesMin": 300,
@@ -26767,7 +26972,14 @@
       ],
       "readDistanceMeters": 22,
       "parameters": {
-        "stage": "growing"
+        "stage": "growing",
+        "height": 0.88,
+        "spread": 0.31,
+        "leafLength": 0.22,
+        "leafWidth": 0.057,
+        "branches": 7,
+        "leafCount": 6,
+        "fruitRadius": 0.02
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26786,10 +26998,10 @@
         "height": 1.8
       },
       "palette": [
-        "foliage_olive_01",
+        "foliage_sage_01",
         "wood_warm_01",
         "foliage_shadow_01",
-        "soil_shadow_01"
+        "foliage_olive_01"
       ],
       "budget": {
         "trianglesMin": 600,
@@ -26807,7 +27019,14 @@
       ],
       "readDistanceMeters": 28,
       "parameters": {
-        "stage": "mature"
+        "stage": "mature",
+        "height": 1.63,
+        "spread": 0.68,
+        "leafLength": 0.34,
+        "leafWidth": 0.085,
+        "branches": 9,
+        "leafCount": 12,
+        "fruitRadius": 0.044
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26826,10 +27045,10 @@
         "height": 1.7
       },
       "palette": [
-        "foliage_olive_01",
+        "foliage_sage_01",
         "wood_warm_01",
         "foliage_shadow_01",
-        "soil_shadow_01"
+        "foliage_olive_01"
       ],
       "budget": {
         "trianglesMin": 500,
@@ -26847,7 +27066,14 @@
       ],
       "readDistanceMeters": 26,
       "parameters": {
-        "stage": "overripe"
+        "stage": "overripe",
+        "height": 1.55,
+        "spread": 0.7,
+        "leafLength": 0.34,
+        "leafWidth": 0.085,
+        "branches": 9,
+        "leafCount": 11,
+        "fruitRadius": 0.047
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26866,10 +27092,10 @@
         "height": 1.25
       },
       "palette": [
-        "foliage_olive_01",
+        "foliage_sage_01",
         "wood_warm_01",
         "foliage_shadow_01",
-        "soil_shadow_01"
+        "wood_coastal_01"
       ],
       "budget": {
         "trianglesMin": 160,
@@ -26887,7 +27113,14 @@
       ],
       "readDistanceMeters": 24,
       "parameters": {
-        "stage": "withered"
+        "stage": "withered",
+        "height": 1.18,
+        "spread": 0.58,
+        "leafLength": 0.19,
+        "leafWidth": 0.042,
+        "branches": 7,
+        "leafCount": 0,
+        "fruitRadius": 0.018
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26901,15 +27134,15 @@
       "generator": "apple_tree_crop",
       "seed": 1651,
       "dimensions": {
-        "width": 0.25,
-        "depth": 0.25,
-        "height": 0.4
+        "width": 0.22,
+        "depth": 0.22,
+        "height": 0.035
       },
       "palette": [
-        "foliage_leaf_01",
+        "foliage_coastal_01",
         "wood_warm_01",
         "accent_red_01",
-        "canvas_cream_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 30,
@@ -26927,7 +27160,14 @@
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "stage": "seeded"
+        "stage": "seeded",
+        "height": 0.04,
+        "spread": 0.07,
+        "leafLength": 0.03,
+        "leafWidth": 0.01,
+        "branches": 0,
+        "leafCount": 0,
+        "fruitRadius": 0.018
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26946,10 +27186,10 @@
         "height": 0.82
       },
       "palette": [
-        "foliage_leaf_01",
+        "foliage_coastal_01",
         "wood_warm_01",
         "accent_red_01",
-        "canvas_cream_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 80,
@@ -26967,7 +27207,14 @@
       ],
       "readDistanceMeters": 20,
       "parameters": {
-        "stage": "sprout"
+        "stage": "sprout",
+        "height": 0.54,
+        "spread": 0.18,
+        "leafLength": 0.19,
+        "leafWidth": 0.11,
+        "branches": 3,
+        "leafCount": 3,
+        "fruitRadius": 0.02
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -26986,10 +27233,10 @@
         "height": 1.55
       },
       "palette": [
-        "foliage_leaf_01",
+        "foliage_coastal_01",
         "wood_warm_01",
         "accent_red_01",
-        "canvas_cream_01"
+        "foliage_coastal_sun_01"
       ],
       "budget": {
         "trianglesMin": 180,
@@ -27007,7 +27254,14 @@
       ],
       "readDistanceMeters": 24,
       "parameters": {
-        "stage": "growing"
+        "stage": "growing",
+        "height": 1.24,
+        "spread": 0.38,
+        "leafLength": 0.3,
+        "leafWidth": 0.18,
+        "branches": 5,
+        "leafCount": 5,
+        "fruitRadius": 0.04
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -27026,10 +27280,10 @@
         "height": 2.25
       },
       "palette": [
-        "foliage_leaf_01",
+        "foliage_coastal_sun_01",
         "wood_warm_01",
         "accent_red_01",
-        "canvas_cream_01"
+        "foliage_coastal_01"
       ],
       "budget": {
         "trianglesMin": 300,
@@ -27047,7 +27301,14 @@
       ],
       "readDistanceMeters": 28,
       "parameters": {
-        "stage": "mature"
+        "stage": "mature",
+        "height": 2.02,
+        "spread": 0.67,
+        "leafLength": 0.5,
+        "leafWidth": 0.33,
+        "branches": 8,
+        "leafCount": 12,
+        "fruitRadius": 0.1
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -27066,10 +27327,10 @@
         "height": 2.15
       },
       "palette": [
-        "foliage_leaf_01",
+        "foliage_coastal_sun_01",
         "wood_warm_01",
         "accent_red_01",
-        "canvas_cream_01"
+        "grass_yellow_01"
       ],
       "budget": {
         "trianglesMin": 300,
@@ -27087,7 +27348,14 @@
       ],
       "readDistanceMeters": 28,
       "parameters": {
-        "stage": "overripe"
+        "stage": "overripe",
+        "height": 1.96,
+        "spread": 0.69,
+        "leafLength": 0.5,
+        "leafWidth": 0.33,
+        "branches": 8,
+        "leafCount": 12,
+        "fruitRadius": 0.105
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",
@@ -27106,10 +27374,10 @@
         "height": 1.9
       },
       "palette": [
-        "foliage_leaf_01",
+        "foliage_coastal_01",
         "wood_warm_01",
         "accent_red_01",
-        "canvas_cream_01"
+        "grass_yellow_01"
       ],
       "budget": {
         "trianglesMin": 150,
@@ -27127,7 +27395,14 @@
       ],
       "readDistanceMeters": 24,
       "parameters": {
-        "stage": "withered"
+        "stage": "withered",
+        "height": 1.73,
+        "spread": 0.62,
+        "leafLength": 0.23,
+        "leafWidth": 0.13,
+        "branches": 7,
+        "leafCount": 0,
+        "fruitRadius": 0.03
       },
       "surfaceAuthoring": {
         "normalPolicy": "authored",

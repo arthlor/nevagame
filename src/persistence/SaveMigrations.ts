@@ -2,6 +2,7 @@ import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
 import { migrateOnboardingCredits35 } from "./migrateOnboardingCredits35";
 import { migrateTerrainLayout15 } from "./migrateTerrainLayout15";
 import { migrateTerrainLayout16 } from "./migrateTerrainLayout16";
+import { migrateTerrainLayout17 } from "./migrateTerrainLayout17";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -92,6 +93,17 @@ function reconcileV36MarketMembership(markets: unknown): unknown {
   }));
 }
 
+/**
+ * Units in one legacy trout stack. A malformed quantity is not "no fish": v11
+ * clears each stack it converts, so reading it as zero would delete the stack.
+ */
+function troutStackQuantity(record: Record<string, unknown>): number {
+  if (typeof record.quantity !== "number" || !Number.isSafeInteger(record.quantity) || record.quantity < 0) {
+    throw new Error("Save migration v11 failed: a fish.trout stack has no valid quantity");
+  }
+  return record.quantity;
+}
+
 function countInventoryTroutUnits(inventories: Record<string, Record<string, unknown>>): number {
   let units = 0;
   for (const inventory of Object.values(inventories)) {
@@ -100,10 +112,7 @@ function countInventoryTroutUnits(inventories: Record<string, Record<string, unk
       if (!slot || typeof slot !== "object") continue;
       const record = slot as Record<string, unknown>;
       if (record.itemId !== "fish.trout") continue;
-      const quantity = typeof record.quantity === "number" && Number.isSafeInteger(record.quantity)
-        ? Math.max(0, record.quantity)
-        : 0;
-      units += quantity;
+      units += troutStackQuantity(record);
     }
   }
   return units;
@@ -554,9 +563,7 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
         if (!slot || typeof slot !== "object") return slot;
         const record = slot as Record<string, unknown>;
         if (record.itemId !== "fish.trout") return slot;
-        const quantity = typeof record.quantity === "number" && Number.isSafeInteger(record.quantity)
-          ? Math.max(0, record.quantity)
-          : 0;
+        const quantity = troutStackQuantity(record);
         for (let i = 0; i < quantity; i++) {
           if (!placeTroutCargo()) {
             // Never clear a slot unless every unit was placed.
@@ -1418,7 +1425,8 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       sportFishing
     };
   },
-  38: (state: unknown) => migrateTerrainLayout16(state as GameState)
+  38: (state: unknown) => migrateTerrainLayout16(state as GameState),
+  39: (state: unknown) => migrateTerrainLayout17(state as GameState)
 };
 
 

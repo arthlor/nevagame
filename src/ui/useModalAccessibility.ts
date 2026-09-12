@@ -59,16 +59,28 @@ function restoreNearestOpener(): void {
   document.querySelector<HTMLElement>("#ui-container")?.focus({ preventScroll: true });
 }
 
+export interface ModalAccessibilityOptions {
+  /**
+   * Where focus lands on open. "first-control" (default) suits forms and menus.
+   * "dialog" focuses the dialog itself, for overlays that own their action keys
+   * (dialogue advances on Space/Enter/E) — focusing the first control there, the
+   * close button, turned the native Space activation into "close conversation".
+   */
+  initialFocus?: "first-control" | "dialog";
+}
+
 /**
  * Gives small, self-contained overlays the same keyboard and focus contract.
  * The callbacks are refs because GameApp re-renders the React tree every frame.
  */
 export function useModalAccessibility<T extends HTMLElement>(
   dialogRef: RefObject<T>,
-  onClose: () => void
+  onClose: () => void,
+  options: ModalAccessibilityOptions = {}
 ): void {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const initialFocus = options.initialFocus ?? "first-control";
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -78,7 +90,7 @@ export function useModalAccessibility<T extends HTMLElement>(
 
     const focusInitialControl = () => {
       if (!dialog) return;
-      const firstControl = focusableElements(dialog)[0];
+      const firstControl = initialFocus === "dialog" ? undefined : focusableElements(dialog)[0];
       (firstControl ?? dialog).focus();
     };
 
@@ -138,5 +150,5 @@ export function useModalAccessibility<T extends HTMLElement>(
         restoreNearestOpener();
       });
     };
-  }, [dialogRef]);
+  }, [dialogRef, initialFocus]);
 }

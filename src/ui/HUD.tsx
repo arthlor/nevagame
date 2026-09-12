@@ -44,6 +44,12 @@ export interface HUDProps {
   touchChrome?: boolean;
   /** When false, Escape is left for an open modal instead of closing the forecast. */
   captureForecastEscape?: boolean;
+  /**
+   * When false the forecast cannot open (F or the almanac) and closes if open,
+   * so its Escape capture never steals a mode's own Escape — cancelling a cast
+   * or a placement, or deselecting in the layout editor.
+   */
+  forecastEnabled?: boolean;
   /** Retained activity log for the bottom-left Coastal Chronicle. */
   chronicleEntries?: readonly ChronicleEntry[];
   chronicleFilter?: ChronicleFilter;
@@ -71,6 +77,7 @@ export const HUD: React.FC<HUDProps> = ({
   isPlacementActive = false,
   touchChrome = false,
   captureForecastEscape = true,
+  forecastEnabled = true,
   chronicleEntries,
   chronicleFilter = "all",
   onSelectChronicleFilter
@@ -99,7 +106,7 @@ export const HUD: React.FC<HUDProps> = ({
   // F toggles the farm forecast
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (blocked || event.code !== "KeyF" || event.repeat || event.defaultPrevented) return;
+      if (blocked || !forecastEnabled || event.code !== "KeyF" || event.repeat || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select") || target?.isContentEditable) return;
       event.preventDefault();
@@ -108,15 +115,16 @@ export const HUD: React.FC<HUDProps> = ({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [blocked]);
+  }, [blocked, forecastEnabled]);
 
-  useEffect(() => { if (blocked) setShowForecast(false); }, [blocked]);
+  useEffect(() => { if (blocked || !forecastEnabled) setShowForecast(false); }, [blocked, forecastEnabled]);
 
   const handleToolClick = (slot: number) => {
     onSelectToolSlot?.(slot);
   };
 
   const handleToggleForecast = () => {
+    if (!forecastEnabled) return;
     playUiSound("open");
     setShowForecast((prev) => !prev);
   };

@@ -9,7 +9,7 @@ import { sampleFarmEnvironment } from "../../src/simulation/farming/FarmEnvironm
 import { createWorldEnvironmentLayout, generateSunreachCausalCompositionPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
 import { WATER_SURFACE, WorldLayout } from "../../src/world/WorldLayout";
-import { WORLD_SAILING_ROUTES } from "../../src/world/WorldMoorings";
+import { nearestMooring, requiredBoatTypeForMarket, WORLD_SAILING_ROUTES } from "../../src/world/WorldMoorings";
 import {
   SUNREACH_ANCHORS,
   WORLD_ISLAND_DEFINITIONS
@@ -82,6 +82,13 @@ describe("Sunreach world contract", () => {
       * 2
       * 2;
     expect(roundTripFuelAtFullThrottle).toBeLessThan(skiff.fuelCapacity);
+    expect(requiredBoatTypeForMarket("market.sunreach_cove")).toBe("boat.skiff");
+    expect(requiredBoatTypeForMarket("market.harbor")).toBeNull();
+  });
+
+  it("still finds a mooring for a boat type no mooring lists", () => {
+    const cove = SUNREACH_ANCHORS.dockBoat;
+    expect(nearestMooring(cove.x, cove.z, "boat.unknown").id).toBe("mooring.sunreach_cove");
   });
 
   it("physically stops the rowboat with one readable notice while the skiff crosses", async () => {

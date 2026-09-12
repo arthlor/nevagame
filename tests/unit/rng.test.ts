@@ -49,4 +49,24 @@ describe("SeededRng", () => {
     const restored = new SeededRng(999, rng.getState());
     expect(restored.nextFloat()).toBe(rng.nextFloat());
   });
+
+  it("keeps its persisted state a 32-bit safe integer however long it runs", () => {
+    // A state one draw from 2^32 wraps instead of growing towards 2^53, where
+    // save validation and setState() would reject it.
+    const rng = new SeededRng(7, 0xffff_ffff);
+    for (let i = 0; i < 1_000; i++) rng.nextFloat();
+    expect(rng.getState()).toBeLessThan(2 ** 32);
+    expect(Number.isSafeInteger(rng.getState())).toBe(true);
+    expect(() => rng.setState(rng.getState())).not.toThrow();
+  });
+
+  it("draws the same sequence from an unmasked legacy state as from its 32-bit residue", () => {
+    // Saves written before the mask may hold an accumulator above 2^32; the
+    // mixing only reads the low 32 bits, so play continues identically.
+    const legacyState = 3 * 2 ** 32 + 123_456_789;
+    const legacy = new SeededRng(1, legacyState);
+    const masked = new SeededRng(1, legacyState >>> 0);
+    for (let i = 0; i < 64; i++) expect(legacy.nextFloat()).toBe(masked.nextFloat());
+    expect(legacy.getState()).toBe(masked.getState());
+  });
 });

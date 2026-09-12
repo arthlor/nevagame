@@ -72,6 +72,15 @@ export function mooringById(id: string): Readonly<BoatMooringDefinition> | null 
   return BOAT_MOORINGS.find((mooring) => mooring.id === id) ?? null;
 }
 
+/**
+ * The vessel type a market can only be reached with, because it lies at the far
+ * end of a sailing route; null when it is reachable without one.
+ */
+export function requiredBoatTypeForMarket(marketId: string): string | null {
+  const route = WORLD_SAILING_ROUTES.find((candidate) => mooringById(candidate.toMooringId)?.marketId === marketId);
+  return route?.requiredBoatTypeId ?? null;
+}
+
 export function defaultMooringForBoatType(boatTypeId: string): Readonly<BoatMooringDefinition> {
   return BOAT_MOORINGS.find((mooring) =>
     mooring.islandId === "island.neva" && mooring.boatTypeIds?.includes(boatTypeId)
@@ -83,9 +92,11 @@ export function nearestMooring(
   z: number,
   boatTypeId?: string
 ): Readonly<BoatMooringDefinition> {
-  const compatible = boatTypeId
+  const matching = boatTypeId
     ? BOAT_MOORINGS.filter((mooring) => !mooring.boatTypeIds || mooring.boatTypeIds.includes(boatTypeId))
     : BOAT_MOORINGS;
+  // An unrecognised boat type still gets a mooring: every caller needs one.
+  const compatible = matching.length > 0 ? matching : BOAT_MOORINGS;
   return compatible.reduce((nearest, candidate) =>
     Math.hypot(candidate.boatPosition.x - x, candidate.boatPosition.z - z)
       < Math.hypot(nearest.boatPosition.x - x, nearest.boatPosition.z - z)

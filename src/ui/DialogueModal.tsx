@@ -97,7 +97,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const initializedNpcRef = useRef<string | null>(null);
   const chimePlayedRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  useModalAccessibility(dialogRef, onClose);
+  useModalAccessibility(dialogRef, onClose, { initialFocus: "dialog" });
 
   useEffect(() => {
     if (initializedNpcRef.current === npcId) return;

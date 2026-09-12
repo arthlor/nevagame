@@ -15,9 +15,19 @@ import { SCHOOL_SPAWN_POINTS } from "./FishingDomain";
 import { getFishWeightMultiplier, getQualityMultiplier } from "../economy/calculateFishValue";
 import { getFreshnessPriceMultiplier } from "../fishing/calculateFreshness";
 import { contractSlotsForRank, getRankForXp } from "../../content/progression";
+import { requiredBoatTypeForMarket } from "../../world/WorldMoorings";
 
 
 const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
+
+/**
+ * A delivery market across a sailing route (Sunreach Cove) is reachable only
+ * once the player owns a vessel that can make the crossing; the rowboat cannot.
+ */
+export function canReachDeliveryMarket(state: GameState, marketId: string): boolean {
+  const boatTypeId = requiredBoatTypeForMarket(marketId);
+  return !boatTypeId || Object.values(state.boats).some((boat) => boat.boatTypeId === boatTypeId);
+}
 
 export function feasibleContractTargets(
   state: GameState,
@@ -25,6 +35,7 @@ export function feasibleContractTargets(
 ): string[] {
   const requiredXp = template.requiredXp ?? 0;
   if (state.player.proficiencies[template.rewardSkill] < requiredXp) return [];
+  if (!canReachDeliveryMarket(state, template.deliveryMarketId)) return [];
 
   return template.itemOrSpeciesPool.filter((targetId) => {
     if (isProduceContractType(template.type)) {

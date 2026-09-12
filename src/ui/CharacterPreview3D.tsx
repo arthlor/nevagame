@@ -182,15 +182,22 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
     };
   }, []);
 
+  // GameApp re-renders every frame with a fresh loadout object, so the effect
+  // keys on its content: an identity dependency re-synced the gear each frame.
+  const loadoutKey = JSON.stringify(loadout);
   useEffect(() => {
     const assembler = assemblerRef.current;
     if (!assembler) return;
-    void assembler.sync(loadout).then(() => {
+    let cancelled = false;
+    void assembler.sync(loadoutRef.current).then(() => {
+      // A newer selection, or the preview unmounting, supersedes this sync.
+      if (cancelled || assemblerRef.current !== assembler) return;
       assembler.hideTools();
-      const tool = toolKeyForSlot(selectedSlot);
+      const tool = toolKeyForSlot(selectedSlotRef.current);
       if (tool) assembler.setToolVisible(tool, true);
     });
-  }, [loadout, selectedSlot]);
+    return () => { cancelled = true; };
+  }, [loadoutKey, selectedSlot]);
 
   return (
     <div ref={hostRef} className="character-preview-3d" role="img" aria-labelledby={descriptionId}>

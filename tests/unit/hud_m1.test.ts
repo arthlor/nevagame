@@ -692,6 +692,18 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(html).not.toMatch(/prompt-action-description[^>]*>[^<]*8\s*Work/);
     });
 
+    it.each([
+      ["[E] Harvest Winter Carrot · 5 Work · Right-click inspect", "Harvest", "-5 Work", "Right-click inspect"],
+      ["[E] Water Winter Carrot · 3 Work · Right-click inspect", "Water", "-3 Work", "Right-click inspect"],
+      ["[E] Hook Sport Fish · ~12 Work · Woven Lure armed", "Hook", "-12 Work", "Woven Lure armed"]
+    ])("keeps the cost badge when the Work cost sits mid-prompt: %s", (promptText, verb, badge, detail) => {
+      const html = renderToString(React.createElement(SmartActionPrompt, { promptText }));
+      expect(html).toContain(verb);
+      expect(html).toContain(badge);
+      expect(html).toContain(detail);
+      expect(html).not.toMatch(/prompt-action-description[^>]*>[^<]*\d+\s*Work/);
+    });
+
     it("styles SmartActionPrompt with warning class when player Work Capacity is insufficient", () => {
       const html = renderToString(
         React.createElement(SmartActionPrompt, {

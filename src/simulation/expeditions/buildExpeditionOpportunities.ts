@@ -3,6 +3,8 @@ import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { cargoClassFits, isProduceContractType, rodMeetsMinimum } from "../domains/domainRules";
+import { canReachDeliveryMarket } from "../domains/ContractDomain";
+import { requiredBoatTypeForMarket } from "../../world/WorldMoorings";
 import {
   accessibleChumSupplyCount,
   accessibleFishingSupplyCount,
@@ -46,6 +48,10 @@ function itemName(id: string): string {
   return ContentRegistry.items.get(id)?.name ?? ContentRegistry.fishSpecies.get(id)?.name ?? id;
 }
 
+function marketName(state: GameState, marketId: string): string {
+  return ContentRegistry.markets.get(marketId)?.name ?? state.markets[marketId]?.name ?? marketId;
+}
+
 function timeLabel(minutes: number): string {
   if (minutes < 60) return `${Math.max(0, Math.ceil(minutes))}m left`;
   const hours = Math.floor(minutes / 60);
@@ -71,6 +77,17 @@ export function hasIce(state: GameState, vesselId: string | null = state.player.
   return accessibleFishingSupplyCount(state, "item.crushed_ice", vesselId) > 0;
 }
 
+/** A free built-in iced hold that fits the fish keeps it as cold as a packed ice pack. */
+function icedHoldAvailable(state: GameState, speciesId: string, vesselId: string | null): boolean {
+  const fish = ContentRegistry.fishSpecies.get(speciesId);
+  const boat = vesselId ? state.boats[vesselId] : undefined;
+  const definition = boat ? ContentRegistry.boats.get(boat.boatTypeId) : undefined;
+  if (!fish || !boat || !definition) return false;
+  return definition.fishCargoSlots.some((slot) =>
+    slot.hasIce && boat.fishCargoSlotIds[slot.slotIndex] === null && cargoClassFits(fish.cargoClass, slot.maxCargoClass)
+  );
+}
+
 function contractOpportunity(state: GameState, contract: ContractState, vesselId: string | null): ExpeditionOpportunityDto {
   const targetName = itemName(contract.targetItemIdOrSpecies);
   const remaining = Math.max(0, contract.quantityRequired - contract.quantityFulfilled);
@@ -81,6 +98,10 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
 
   if (minutesLeft <= 0) blockers.push("Deadline has passed");
   else if (minutesLeft < (isProduce ? 120 : 180)) blockers.push("Deadline is close");
+  if (!canReachDeliveryMarket(state, contract.deliveryMarketId)) {
+    const vessel = ContentRegistry.boats.get(requiredBoatTypeForMarket(contract.deliveryMarketId) ?? "");
+    blockers.push(`${vessel?.name ?? "A seagoing vessel"} is required to reach ${marketName(state, contract.deliveryMarketId)}`);
+  }
 
   if (isProduce) {
     const onHand = InventoryManager.getItemCount(inventory, contract.targetItemIdOrSpecies);
@@ -99,14 +120,22 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
         && cargoClassFits(fish.cargoClass, rod.maximumCargoClass));
     if (!state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) blockers.push("Rowboat access is required");
     if (!suitableOwnedRod) blockers.push("No owned rod suits this fish");
-    if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
-    if (accessibleLureSupplyCount(state, vesselId) === 0) blockers.push("Pack a Woven Lure");
+    // Chum raises a school and the lure sets a sport hook. A physical basic
+    // catch (the sea bream) comes off an ordinary cast and needs neither.
+    if (!fish?.tags.includes("physical-basic-catch")) {
+      if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
+      if (accessibleLureSupplyCount(state, vesselId) === 0) blockers.push("Pack a Woven Lure");
+    }
     if (!matchingCargoSlotAvailable(state, contract.targetItemIdOrSpecies, vesselId)) blockers.push("No suitable cargo space is open");
     const safestBoat = Object.values(state.boats)
       .map((boat) => ContentRegistry.boats.get(boat.boatTypeId)?.safeSeaRoughness ?? 0)
       .reduce((best, value) => Math.max(best, value), 0);
     if (state.weather.seaRoughness > safestBoat) blockers.push("Water is rougher than your vessel's safe range");
-    if ((contract.minFreshness ?? 0) >= 80 && !hasIce(state, vesselId)) blockers.push("No crushed ice is packed for the freshness target");
+    if (
+      (contract.minFreshness ?? 0) >= 80
+      && !hasIce(state, vesselId)
+      && !icedHoldAvailable(state, contract.targetItemIdOrSpecies, vesselId)
+    ) blockers.push("No crushed ice is packed for the freshness target");
   }
 
   return {
@@ -115,7 +144,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
     tone: isProduce ? "steady" : "bold",
     title: isProduce ? `Steady: ${targetName} delivery` : `Bold: ${targetName} order`,
     summary: `${remaining} remaining for ${ContentRegistry.contractTemplates.get(contract.templateId)?.requesterName ?? "the requester"}`,
-    destination: isProduce ? "Village Produce Market" : "Harbor Fish Market",
+    destination: marketName(state, contract.deliveryMarketId),
     valueLabel: `${contract.rewardMoney} G contract`,
     deadlineLabel: timeLabel(minutesLeft),
     ready: blockers.length === 0,

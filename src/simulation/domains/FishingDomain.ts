@@ -774,7 +774,10 @@ export class FishingDomain {
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return { success: false, reason: handsBlocker };
     if (!state.basicFishing) return { success: false, reason: "Not casting" };
-    if (state.basicFishing.phase !== "charging-cast" && (state.basicFishing.phase as string) !== "casting") {
+    // Only an unpaid charge can be released. `castBasic` leaves a paid, rolled
+    // cast in "casting"; releasing that would spend Work and bait again and
+    // re-roll the catch.
+    if (state.basicFishing.phase !== "charging-cast") {
       return { success: false, reason: "Not charging a cast" };
     }
     const requestedPower = castPower ?? state.basicFishing.castPower ?? 0.75;

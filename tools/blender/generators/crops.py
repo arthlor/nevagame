@@ -10,7 +10,6 @@ from mathutils import Vector
 from common.geometry import (
     add_beam,
     add_box,
-    add_flower_head,
     add_lofted_form,
     add_limb_tube,
     set_surface_normals,
@@ -79,70 +78,35 @@ def _add_octahedron(
     _add_custom_mesh(name, vertices, faces, token, root)
 
 
-def _add_folded_leaf(
-    name: str,
-    base: tuple[float, float, float],
-    length: float,
-    width: float,
-    facing_angle: float,
-    token: str,
-    root,
-    *,
-    pitch: float = 0.42,
-    droop: float = 0.0,
-    cup: float = 0.10,
-) -> None:
-    """Ovate two-sided leaf with a midrib fold, not a triangular prism wedge."""
-    horiz = length * math.cos(pitch)
-    height = length * math.sin(pitch) * (1.0 - droop * 0.38)
-    lean = length * (0.16 + droop * 0.62)
-    along_xy = (math.cos(facing_angle), math.sin(facing_angle))
-    width_axis = (-math.sin(facing_angle), math.cos(facing_angle), 0.0)
-    stations = (
-        base,
-        (
-            base[0] + along_xy[0] * (horiz * 0.42 + lean * 0.28),
-            base[1] + along_xy[1] * (horiz * 0.42 + lean * 0.28),
-            base[2] + height * 0.58,
-        ),
-        (
-            base[0] + along_xy[0] * (horiz + lean),
-            base[1] + along_xy[1] * (horiz + lean),
-            base[2] + height * (1.0 - droop * 0.55),
-        ),
-    )
-    half_widths = (width * 0.11, width * 0.50, width * 0.025)
-    half_thickness = min(0.0048, width * 0.045)
-    mid_a = Vector(stations[1]) - Vector(stations[0])
-    mid_b = Vector(stations[2]) - Vector(stations[1])
-    along = (mid_a + mid_b)
-    if along.length <= 1e-6:
-        along = Vector((along_xy[0], along_xy[1], 0.35))
-    along.normalize()
-    across = Vector(width_axis)
-    fold = across.cross(along)
-    if fold.length <= 1e-6:
-        fold = Vector((0.0, 0.0, 1.0))
-    fold.normalize()
-    vertices: list[tuple[float, float, float]] = []
-    for face_sign in (-1.0, 1.0):
-        for center, half_width, station_index in zip(stations, half_widths, range(3)):
-            cup_lift = cup * width * (0.35 if station_index == 1 else 0.12)
-            for side_sign in (-1.0, 1.0):
-                offset = (
-                    Vector(center)
-                    + across * (half_width * side_sign)
-                    + fold * (cup_lift * abs(side_sign) * 0.55 + half_thickness * face_sign)
-                )
-                vertices.append(tuple(offset))
-    faces = [
-        (0, 2, 3), (0, 3, 1), (2, 4, 5), (2, 5, 3),
-        (6, 9, 8), (6, 7, 9), (8, 11, 10), (8, 9, 11),
-        (0, 6, 8, 2), (2, 8, 10, 4),
-        (1, 3, 9, 7), (3, 5, 11, 9),
-        (0, 1, 7, 6), (4, 10, 11, 5),
-    ]
-    _add_custom_mesh(name, vertices, faces, token, root, normal_mode="rounded")
+def _add_folded_leaf(name, base, length, width, facing_angle, token, root, *,
+                     pitch=0.42, droop=0.0, cup=0.10):
+    """Closed folded blade with an upright shoulder and a falling dry tip.
+
+    Four diamond sections spend faces on the midrib and arch, so a leaf stays
+    readable edge-on without alpha cards or coincident back-facing triangles.
+    """
+    forward = Vector((math.cos(facing_angle), math.sin(facing_angle), 0))
+    across = Vector((-forward.y, forward.x, 0))
+    origin = Vector(base)
+    vertices, faces = [], []
+    for t, breadth in ((0, .035), (.32, .45), (.70, .34), (1, .008)):
+        reach = length * (math.cos(pitch) * t + .12 * t * t)
+        rise = length * (math.sin(pitch) * t + .20 * math.sin(math.pi*t)
+                         - droop * .92 * t*t)
+        center = origin + forward*reach + Vector((0,0,rise))
+        tangent = forward*(math.cos(pitch)+.24*t) + Vector((0,0,
+            math.sin(pitch)+.20*math.pi*math.cos(math.pi*t)-1.84*droop*t))
+        normal = tangent.normalized().cross(across).normalized()
+        ridge = max(.001, width*(.07+cup*.35)*math.sin(math.pi*(.04+.92*t)))
+        for offset in (across*width*breadth, normal*ridge,
+                       -across*width*breadth, -normal*max(.001,width*.025)):
+            vertices.append(tuple(center+offset))
+    for row in range(3):
+        for side in range(4):
+            a=row*4+side; b=row*4+(side+1)%4
+            faces.append((a,b,b+4,a+4))
+    faces.extend(((3,2,1,0),(12,13,14,15)))
+    _add_custom_mesh(name, vertices, faces, token, root, normal_mode="planar")
 
 
 def _add_culm(
@@ -170,102 +134,49 @@ def _add_culm(
     return middle, tip
 
 
-def _add_wheat_head(
-    name: str,
-    base: tuple[float, float, float],
-    tip: tuple[float, float, float],
-    head_token: str,
-    root,
-    *,
-    radius: float,
-    kernel_count: int,
-    awn_count: int,
-) -> None:
-    """Dense overlapping grain ear so mature wheat reads as a warm-gold head."""
-    base_vec = Vector(base)
-    tip_vec = Vector(tip)
-    direction = tip_vec - base_vec
-    length = direction.length
-    if length <= 1e-6:
-        raise ValueError(f"{name}: wheat head endpoints must be distinct")
+def _add_wheat_head(name, base, tip, head_token, root, *, radius, kernel_count, awn_count):
+    """Paired plump grains overlap up the rachis, with space between their tips."""
+    origin, end = Vector(base), Vector(tip)
+    direction = end-origin
     axis = direction.normalized()
-    reference = Vector((0.0, 0.0, 1.0)) if abs(axis.z) < 0.82 else Vector((1.0, 0.0, 0.0))
-    side_axis = axis.cross(reference).normalized()
-    depth_axis = axis.cross(side_axis).normalized()
-
-    vertices: list[tuple[float, float, float]] = []
-    faces: list[tuple[int, int, int]] = []
-    kernel_centers: list[Vector] = []
-    columns = 2
-    for kernel_index in range(kernel_count):
-        row = kernel_index // columns
-        column = kernel_index % columns
-        row_count = math.ceil(kernel_count / columns)
-        normalized = (row + 0.38) / (row_count + 0.18)
-        alternating_side = -1.0 if column == 0 else 1.0
-        taper = 1.0 - abs(normalized - 0.52) * 0.62
-        center = (
-            base_vec
-            + direction * normalized
-            + side_axis * alternating_side * radius * (0.18 + normalized * 0.10)
-            + depth_axis * (0.08 if column == 0 else -0.06) * radius
-        )
-        kernel_centers.append(center)
-        half_length = length / max(3, row_count) * 0.72
-        half_width = radius * taper * 0.78
-        half_depth = radius * taper * 0.52
-        start = len(vertices)
-        vertices.extend(
-            tuple(point)
-            for point in (
-                center + axis * half_length,
-                center - axis * half_length,
-                center + side_axis * half_width,
-                center - side_axis * half_width,
-                center + depth_axis * half_depth,
-                center - depth_axis * half_depth,
-            )
-        )
-        faces.extend(
-            (start + a, start + b, start + c)
-            for a, b, c in (
-                (0, 2, 4), (0, 4, 3), (0, 3, 5), (0, 5, 2),
-                (1, 4, 2), (1, 3, 4), (1, 5, 3), (1, 2, 5),
-            )
-        )
-
-    _add_custom_mesh(f"{name}_grain", vertices, faces, head_token, root)
-    add_tapered_beam(
-        f"{name}_rachis",
-        base,
-        tip,
-        radius * 0.14,
-        radius * 0.06,
-        head_token,
-        root,
-        vertices=4,
-    )
-    if awn_count <= 0:
-        return
-    for awn_index in range(awn_count):
-        grain_index = min(len(kernel_centers) - 1, max(0, len(kernel_centers) - 1 - awn_index))
-        anchor = kernel_centers[grain_index]
-        alternating_side = -1.0 if awn_index % 2 == 0 else 1.0
-        awn_tip = (
-            anchor
-            + axis * (length * (0.28 + 0.08 * awn_index))
-            + side_axis * alternating_side * radius * (0.70 + 0.12 * awn_index)
-            + Vector((0.0, 0.0, max(0.012, length * 0.06)))
-        )
-        add_beam(
-            f"{name}_awn_{awn_index}",
-            tuple(anchor),
-            tuple(awn_tip),
-            0.0038,
-            head_token,
-            root,
-            vertices=3,
-        )
+    reference = Vector((1,0,0)) if abs(axis.z)>.8 else Vector((0,0,1))
+    side = axis.cross(reference).normalized()
+    depth = axis.cross(side).normalized()
+    vertices, faces, tips = [], [], []
+    rows = math.ceil(kernel_count/2)
+    for i in range(kernel_count):
+        row, sign = i//2, (-1 if i%2==0 else 1)
+        t=(row+.45)/(rows+.4)
+        taper=1-.42*t
+        center=origin+direction*t+side*sign*radius*.40*taper
+        grain_axis=(axis*.88+side*sign*.46).normalized()
+        grain_side=depth.cross(grain_axis).normalized()
+        half_length=direction.length/rows*.80
+        tip_point=center+grain_axis*half_length
+        tips.append(tip_point)
+        start=len(vertices)
+        vertices.append(tuple(center-grain_axis*half_length*.82))
+        # Two shoulder rings give each kernel a plump body and a tapered tip.
+        # A single diamond cross-section reads as a stack of saw teeth in game.
+        for along, breadth in ((-.26, .92), (.34, .70)):
+            ring_center=center+grain_axis*half_length*along
+            for k in range(4):
+                theta=k*math.tau/4+math.pi/4
+                vertices.append(tuple(ring_center
+                    +grain_side*math.cos(theta)*radius*.66*taper*breadth
+                    +depth*math.sin(theta)*radius*.68*taper*breadth))
+        vertices.append(tuple(tip_point))
+        for k in range(4):
+            nxt=(k+1)%4
+            faces.extend(((start,start+1+nxt,start+1+k),
+                (start+1+k,start+1+nxt,start+5+nxt,start+5+k),
+                (start+9,start+5+k,start+5+nxt)))
+    _add_custom_mesh(name+"_grain",vertices,faces,head_token,root)
+    add_tapered_beam(name+"_rachis",base,tip,radius*.12,radius*.035,head_token,root,vertices=4)
+    for i in range(awn_count):
+        anchor=tips[min(len(tips)-1, i*max(1,len(tips)//max(1,awn_count)))]
+        end=anchor+axis*direction.length*.38+side*(-1 if i%2==0 else 1)*radius*.45
+        add_tapered_beam(f"{name}_awn_{i}",tuple(anchor),tuple(end),.0028,.0009,head_token,root,vertices=3)
 
 
 def _add_compound_leaf(
@@ -307,16 +218,16 @@ def _add_compound_leaf(
             origin[2] * (1.0 - t) + tip[2] * t,
         )
         leaflet_angle = facing_angle + side * 0.72
-        leaflet_length = length * (0.42 if side == 0.0 else 0.34)
+        leaflet_length = length * (0.66 if side == 0.0 else 0.55)
         _add_folded_leaf(
             f"{prefix}_leaflet_{leaflet_index:02d}",
             attach,
             leaflet_length,
-            leaflet_length * 0.46,
+            leaflet_length * 0.60,
             leaflet_angle,
             token,
             root,
-            pitch=0.22 + droop * 0.18,
+            pitch=0.40,
             droop=droop,
             cup=0.14,
         )
@@ -333,102 +244,26 @@ def _add_tomato_fruit(
     rotation: float = 0.0,
     flatten: float = 0.84,
 ) -> None:
-    """Flattened faceted tomato with a star calyx."""
+    """Rounded shoulders and a closed leafy calyx readable from the game camera."""
     cx, cy, cz = center
-    # One equator makes a bipyramid, which from a game camera reads as a red
-    # umbrella. Two shoulder rings round it into fruit for six more triangles.
-    vertices = [(cx, cy, cz + radius * flatten * 0.98)]
-    rings = ((radius * 0.62, radius * flatten * 0.52), (radius * 1.0, -radius * 0.10))
-    for ring_scale, ring_z in rings:
-        for index in range(6):
-            angle = rotation + index * math.tau / 6
-            ring_radius = ring_scale * (0.94 if index % 2 == 0 else 1.04)
-            vertices.append(
-                (
-                    cx + math.cos(angle) * ring_radius,
-                    cy + math.sin(angle) * ring_radius,
-                    cz + ring_z,
-                )
-            )
-    vertices.append((cx, cy, cz - radius * flatten * 0.80))
-    faces = []
-    for index in range(6):
-        nxt = (index + 1) % 6
-        faces.append((0, 1 + index, 1 + nxt))
-        faces.append((1 + index, 7 + index, 7 + nxt, 1 + nxt))
-        faces.append((13, 7 + nxt, 7 + index))
-    _add_custom_mesh(f"{name}_body", vertices, faces, fruit_token, root, normal_mode="rounded")
-
-    calyx_vertices: list[tuple[float, float, float]] = []
-    calyx_faces: list[tuple[int, int, int]] = []
-    calyx_z = cz + radius * flatten * 0.86
+    _add_crop_volume(
+        f"{name}_body", center, (radius, radius, radius * flatten),
+        fruit_token, root,
+    )
+    # A tiny closed triangular sepal needs four faces; reserve the crop budget
+    # for fruit shoulders and the main foliage visible from the game camera.
     for sepal in range(5):
         angle = rotation + sepal * math.tau / 5
-        direction = (math.cos(angle), math.sin(angle))
-        side = (-direction[1], direction[0])
-        start = len(calyx_vertices)
-        calyx_vertices.extend(
-            (
-                (cx, cy, calyx_z + radius * 0.04),
-                (
-                    cx + direction[0] * radius * 0.22 + side[0] * radius * 0.10,
-                    cy + direction[1] * radius * 0.22 + side[1] * radius * 0.10,
-                    calyx_z + radius * 0.02,
-                ),
-                (
-                    cx + direction[0] * radius * 0.42,
-                    cy + direction[1] * radius * 0.42,
-                    calyx_z - radius * 0.02,
-                ),
-                (
-                    cx + direction[0] * radius * 0.22 - side[0] * radius * 0.10,
-                    cy + direction[1] * radius * 0.22 - side[1] * radius * 0.10,
-                    calyx_z + radius * 0.02,
-                ),
-            )
-        )
-        calyx_faces.extend(
-            (
-                (start, start + 1, start + 2),
-                (start, start + 2, start + 3),
-                (start, start + 2, start + 1),
-                (start, start + 3, start + 2),
-            )
-        )
-    _add_custom_mesh(f"{name}_calyx", calyx_vertices, calyx_faces, calyx_token, root)
+        forward = Vector((math.cos(angle), math.sin(angle), 0))
+        side = Vector((-forward.y, forward.x, 0))
+        base = Vector((cx, cy, cz + radius * flatten * .90))
+        vertices = [tuple(base - side * radius * .08),
+                    tuple(base + side * radius * .08),
+                    tuple(base + forward * radius * .48 - Vector((0, 0, radius * .02))),
+                    tuple(base + forward * radius * .18 + Vector((0, 0, radius * .05)))]
+        _add_custom_mesh(f"{name}_calyx_{sepal}", vertices,
+                         [(0, 1, 2), (0, 3, 1), (1, 3, 2), (2, 3, 0)], calyx_token, root)
 
-
-def _add_seed_bed(
-    name: str, radius: float, height: float, token: str, root, *, sides: int = 10, furrows: int = 3
-) -> None:
-    """A low tilled mound with furrow ridges for the seeded stage.
-
-    Seeds dropped straight onto the world's grass read as litter. A worked bed
-    under them is what says someone planted here, and it is the same cue the
-    tilled soil tile already uses elsewhere on the farm.
-    """
-    add_lofted_form(
-        name,
-        (
-            ((0.0, 0.0, 0.002), radius, radius * 0.94),
-            ((0.0, 0.0, height * 0.55), radius * 0.88, radius * 0.82),
-            ((0.0, 0.0, height), radius * 0.58, radius * 0.54),
-        ),
-        token,
-        root,
-        sides=sides,
-    )
-    for index in range(furrows):
-        offset = (index - (furrows - 1) * 0.5) * radius * 0.46
-        add_box(
-            f"{name}_furrow_{index}",
-            (offset, 0.0, height * 0.92),
-            (radius * 0.16, radius * 1.10, height * 0.34),
-            token,
-            root,
-            rotation=(0.0, 0.0, 0.42),
-            bevel=height * 0.06,
-        )
 
 
 def _add_star_flower(
@@ -517,7 +352,7 @@ def _add_tomato_fruit_cluster(
     )
     for index in range(fruit_count):
         angle = index * GOLDEN_ANGLE + 0.38
-        spread = radius * (0.40 + 0.10 * (index % 2))
+        spread = radius * (0.44 + 0.12 * (index % 2))
         fruit_center = (
             center[0] + math.cos(angle) * spread,
             center[1] + math.sin(angle) * spread,
@@ -527,7 +362,7 @@ def _add_tomato_fruit_cluster(
         _add_tomato_fruit(
             f"{prefix}_fruit_{index:02d}",
             fruit_center,
-            radius * 0.42,
+            radius * 0.48,
             token,
             stem_token,
             root,
@@ -595,656 +430,38 @@ def _add_twine_tie(
     )
 
 
-def _add_carrot_frond(
-    prefix: str,
-    base: tuple[float, float, float],
-    angle: float,
-    length: float,
-    pitch: float,
-    leaf_token: str,
-    stem_token: str,
-    root,
-    *,
-    pinnae_pairs: int = 3,
-    droop: float = 0.12,
-) -> None:
-    """Feathery bipinnate carrot frond with arching rachis and faceted leaf segments."""
-    bx, by, bz = base
-    dir_x = math.cos(angle)
-    dir_y = math.sin(angle)
-
-    reach = length * math.cos(pitch)
-    rise = length * math.sin(pitch) - droop * length * 0.35
-    tip = (bx + dir_x * reach, by + dir_y * reach, max(0.02, bz + rise))
-
-    add_tapered_beam(
-        f"{prefix}_rachis",
-        base,
-        tip,
-        0.007,
-        0.0025,
-        stem_token,
-        root,
-        vertices=3,
-    )
-
+def _add_carrot_frond(prefix, base, angle, length, pitch, leaf_token, stem_token, root, *, pinnae_pairs=3, droop=.12):
+    origin=Vector(base); forward=Vector((math.cos(angle),math.sin(angle),0))
+    shoulder=origin+forward*length*.24+Vector((0,0,length*math.sin(pitch)*.74))
+    tip=origin+forward*length*(math.cos(pitch)+droop*.34)+Vector((0,0,length*(math.sin(pitch)-droop*.70)))
+    tip.z=max(.035,tip.z)
+    add_limb_tube(prefix+"_rachis",[tuple(origin),tuple(shoulder),tuple(tip)],[.006,.004,.002],stem_token,root,sides=4)
     for pair in range(pinnae_pairs):
-        t = 0.32 + 0.58 * (pair / max(1, pinnae_pairs - 1))
-        node_x = bx + (tip[0] - bx) * t
-        node_y = by + (tip[1] - by) * t
-        node_z = bz + (tip[2] - bz) * t
-        pinna_len = length * (0.28 - 0.05 * pair)
-        pinna_w = pinna_len * 0.42
-
-        for side, side_mult in (("L", 1.0), ("R", -1.0)):
-            pinna_angle = angle + side_mult * 0.78
-            _add_folded_leaf(
-                f"{prefix}_p_{pair}_{side}",
-                (node_x, node_y, node_z),
-                pinna_len,
-                pinna_w,
-                pinna_angle,
-                leaf_token,
-                root,
-                pitch=0.22,
-                droop=droop * 0.5,
-                cup=0.08,
-            )
-
-    _add_folded_leaf(
-        f"{prefix}_term",
-        tip,
-        length * 0.22,
-        length * 0.10,
-        angle,
-        leaf_token,
-        root,
-        pitch=0.15,
-        droop=droop * 0.8,
-        cup=0.06,
-    )
+        t=.34+.57*pair/max(1,pinnae_pairs-1)
+        node=origin.lerp(shoulder,t/.72) if t<.72 else shoulder.lerp(tip,(t-.72)/.28)
+        for side in (-1,1):
+            _add_folded_leaf(f"{prefix}_p_{pair}_{side}",tuple(node),length*(.34-.045*pair),length*.12,
+                angle+side*.8,leaf_token,root,pitch=.6,droop=droop*.6,cup=.13)
+    _add_folded_leaf(prefix+"_term",tuple(tip),length*.18,length*.047,angle,leaf_token,root,pitch=.45,droop=droop)
 
 
-def _add_carrot_crown(
-    name: str,
-    center: tuple[float, float, float],
-    radius: float,
-    height: float,
-    orange_token: str,
-    accent_token: str,
-    root,
-) -> None:
-    """Tapered conical root shoulder protruding above soil level."""
-    cx, cy, cz = center
-    add_tapered_beam(
-        f"{name}_root",
-        (cx, cy, cz - 0.02),
-        (cx, cy, cz + height),
-        radius,
-        radius * 0.70,
-        orange_token,
-        root,
-        vertices=6,
-    )
-    add_tapered_beam(
-        f"{name}_neck",
-        (cx, cy, cz + height * 0.85),
-        (cx, cy, cz + height * 1.05),
-        radius * 0.55,
-        radius * 0.30,
-        accent_token,
-        root,
-        vertices=5,
-    )
 
 
-def _add_carrot_umbel(
-    name: str,
-    stem_base: tuple[float, float, float],
-    height: float,
-    radius: float,
-    flower_token: str,
-    center_token: str,
-    stem_token: str,
-    root,
-) -> None:
-    """Queen Anne's lace umbel flower: radiating rays, creamy florets, and center dark dot."""
-    bx, by, bz = stem_base
-    head_z = bz + height
-    add_tapered_beam(
-        f"{name}_stalk",
-        stem_base,
-        (bx, by, head_z),
-        0.009,
-        0.004,
-        stem_token,
-        root,
-        vertices=4,
-    )
-    rays = 6
-    for i in range(rays):
-        a = i * math.tau / rays + 0.2
-        rx = bx + math.cos(a) * radius * 0.75
-        ry = by + math.sin(a) * radius * 0.75
-        rz = head_z + 0.02
-        add_tapered_beam(
-            f"{name}_ray_{i}",
-            (bx, by, head_z),
-            (rx, ry, rz),
-            0.003,
-            0.0015,
-            stem_token,
-            root,
-            vertices=3,
-        )
-        _add_octahedron(
-            f"{name}_floret_{i}",
-            (rx, ry, rz + 0.008),
-            (radius * 0.28, radius * 0.28, 0.012),
-            flower_token,
-            root,
-            rotation=a,
-        )
-    _add_octahedron(
-        f"{name}_center",
-        (bx, by, head_z + 0.022),
-        (0.012, 0.012, 0.008),
-        center_token,
-        root,
-    )
 
 
-def _add_micro_seedling(
-    name: str,
-    center: tuple[float, float, float],
-    shoot_height: float,
-    seed_token: str,
-    shoot_token: str,
-    root,
-    *,
-    angle: float = 0.0,
-    cotyledon: bool = False,
-) -> None:
-    """Authored germinating seedling: half-buried seed hull and emerging green micro-shoot.
-
-    Zero circular base discs so instances never z-fight with dynamic farm soil.
-    """
-    cx, cy, cz = center
-    _add_octahedron(
-        f"{name}_hull",
-        (cx, cy, cz + 0.005),
-        (0.018, 0.011, 0.009),
-        seed_token,
-        root,
-        rotation=angle,
-    )
-    if not cotyledon:
-        # Monocot coleoptile (grass/cereal spear)
-        lean_x = math.cos(angle) * 0.010
-        lean_y = math.sin(angle) * 0.010
-        add_tapered_beam(
-            f"{name}_spear",
-            (cx, cy, cz + 0.004),
-            (cx + lean_x, cy + lean_y, cz + shoot_height),
-            0.0055,
-            0.0020,
-            shoot_token,
-            root,
-            vertices=3,
-        )
-    else:
-        # Dicot twin embryonic leaves
-        stem_top = (cx, cy, cz + shoot_height * 0.65)
-        add_tapered_beam(
-            f"{name}_stem",
-            (cx, cy, cz + 0.004),
-            stem_top,
-            0.0045,
-            0.0025,
-            shoot_token,
-            root,
-            vertices=3,
-        )
-        leaf_len = shoot_height * 0.55
-        leaf_w = shoot_height * 0.40
-        _add_folded_leaf(
-            f"{name}_cot_0",
-            stem_top,
-            leaf_len,
-            leaf_w,
-            angle,
-            shoot_token,
-            root,
-            pitch=0.14,
-            droop=0.0,
-            cup=0.06,
-        )
-        _add_folded_leaf(
-            f"{name}_cot_1",
-            stem_top,
-            leaf_len,
-            leaf_w,
-            angle + math.pi,
-            shoot_token,
-            root,
-            pitch=0.14,
-            droop=0.0,
-            cup=0.06,
-        )
 
 
-def wheat_crop(spec: dict, root) -> None:
-    rng = seeded_rng(spec["seed"])
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    stalk_token = tokens[0]
-    head_token = tokens[1] if len(tokens) > 1 else stalk_token
-    leaf_token = tokens[2] if len(tokens) > 2 else stalk_token
-
-    # Soil is rendered as one batched, irregular runtime layer. Crop GLBs carry
-    # only the authored plant so repeated circular bases can never tile the farm.
-    if stage == "seeded":
-        seed_token = stalk_token
-        shoot_token = head_token if len(tokens) > 1 else stalk_token
-        for index in range(6):
-            angle = index * GOLDEN_ANGLE + rng.uniform(-0.12, 0.12)
-            radius = 0.06 + 0.14 * ((index + 1) / 6.0)
-            center = (
-                math.cos(angle) * radius,
-                math.sin(angle) * radius,
-                0.002,
-            )
-            _add_micro_seedling(
-                f"wheat_seeded_{index:02d}",
-                center,
-                0.045 + (index % 3) * 0.010,
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle + 0.18,
-                cotyledon=False,
-            )
-        return
-
-    stalk_count = spec["parameters"]["stalks"]
-    stage_height = {
-        "sprout": 0.30,
-        "growing": 0.78,
-        "mature": 1.02,
-        "overripe": 0.76,
-        "withered": 0.40,
-    }[stage]
-    stage_spread = {
-        "sprout": 0.22,
-        "growing": 0.33,
-        "mature": 0.36,
-        "overripe": 0.40,
-        "withered": 0.38,
-    }[stage]
-
-    for index in range(stalk_count):
-        angle = index * GOLDEN_ANGLE + rng.uniform(-0.10, 0.10)
-        normalized_radius = math.sqrt((index + 0.55) / max(1, stalk_count))
-        radius = stage_spread * normalized_radius
-        base = (math.cos(angle) * radius, math.sin(angle) * radius, 0.018)
-        height = stage_height * rng.uniform(0.88, 1.04)
-
-        if stage == "overripe":
-            lean = 0.12 + 0.10 * ((index % 4) / 3.0)
-        elif stage == "withered":
-            lean = 0.18 + 0.12 * ((index % 3) / 2.0)
-        else:
-            lean = 0.028 + 0.040 * ((index % 5) / 4.0)
-        radial_x, radial_y = math.cos(angle), math.sin(angle)
-        end = (base[0] + radial_x * lean, base[1] + radial_y * lean, base[2] + height)
-        stalk_radius = 0.011 if stage == "sprout" else 0.014 if stage == "growing" else 0.016
-        if stage in ("overripe", "withered"):
-            stalk_radius *= 0.86
-        _add_culm(
-            f"wheat_stalk_{index:02d}",
-            base,
-            end,
-            stalk_radius,
-            stalk_radius * 0.52,
-            stalk_token,
-            root,
-            knee=0.055 if stage in ("overripe", "withered") else 0.028,
-        )
-
-        leaf_count = {
-            "sprout": 2,
-            "growing": 2 if index < 8 else 1,
-            "mature": 1 if index < 10 else 0,
-            "overripe": 1 if index < 7 else 0,
-            "withered": 1 if index < 4 else 0,
-        }[stage]
-        for leaf_index in range(leaf_count):
-            side = -1.0 if leaf_index == 0 else 1.0
-            leaf_angle = angle + side * (0.70 + 0.10 * (index % 2))
-            attach_height = height * (0.22 + leaf_index * 0.18)
-            attach = (
-                base[0] + radial_x * lean * (attach_height / max(height, 1e-4)) * 0.55,
-                base[1] + radial_y * lean * (attach_height / max(height, 1e-4)) * 0.55,
-                base[2] + attach_height,
-            )
-            leaf_length = height * (0.42 if stage in ("sprout", "growing") else 0.30)
-            _add_folded_leaf(
-                f"wheat_leaf_{index:02d}_{leaf_index}",
-                attach,
-                leaf_length,
-                leaf_length * (0.18 if stage == "sprout" else 0.16),
-                leaf_angle,
-                leaf_token,
-                root,
-                pitch=0.18 + (0.08 if stage == "sprout" else 0.0),
-                droop=0.12 if stage == "overripe" else 0.55 if stage == "withered" else 0.04,
-                cup=0.08,
-            )
-
-        if stage == "sprout":
-            continue
-
-        if stage == "growing":
-            if index >= max(7, stalk_count // 2 + 1):
-                continue
-            head_tip = (
-                end[0] + radial_x * 0.02,
-                end[1] + radial_y * 0.02,
-                end[2] + 0.14,
-            )
-            _add_wheat_head(
-                f"wheat_head_{index:02d}",
-                end,
-                head_tip,
-                head_token,
-                root,
-                radius=0.046,
-                kernel_count=4,
-                awn_count=0,
-            )
-            continue
-
-        if stage == "mature":
-            head_tip = (
-                end[0] + radial_x * 0.04,
-                end[1] + radial_y * 0.04,
-                end[2] + 0.30,
-            )
-            head_radius = 0.068
-            kernels = 6
-            awns = 2 if index < 6 else 0
-        elif stage == "overripe":
-            head_tip = (
-                end[0] + radial_x * (0.24 + 0.03 * (index % 2)),
-                end[1] + radial_y * (0.24 + 0.03 * (index % 2)),
-                end[2] + 0.06 - 0.03 * (index % 3),
-            )
-            head_radius = 0.074
-            kernels = 6
-            awns = 2 if index < 4 else 0
-        else:
-            head_tip = (
-                end[0] + radial_x * (0.22 + 0.03 * (index % 2)),
-                end[1] + radial_y * (0.22 + 0.03 * (index % 2)),
-                end[2] - 0.03 - 0.04 * (index % 3),
-            )
-            head_radius = 0.058
-            kernels = 4
-            awns = 1 if index < 3 else 0
-
-        _add_wheat_head(
-            f"wheat_head_{index:02d}",
-            end,
-            head_tip,
-            head_token,
-            root,
-            radius=head_radius,
-            kernel_count=kernels,
-            awn_count=awns,
-        )
+def wheat_crop(spec, root):
+    _cereal_crop(spec,root,barley=False)
 
 
-def _add_barley_head(
-    name: str,
-    base: tuple[float, float, float],
-    tip: tuple[float, float, float],
-    head_token: str,
-    awn_token: str,
-    root,
-    *,
-    radius: float,
-    kernel_count: int,
-    awn_length: float,
-    droop: float = 0.0,
-) -> None:
-    """Arching two-row barley spike with long sweeping bristle awns."""
-    base_vec = Vector(base)
-    tip_vec = Vector(tip)
-    direction = tip_vec - base_vec
-    length = direction.length
-    if length <= 1e-6:
-        return
-    axis = direction.normalized()
-    reference = Vector((0.0, 0.0, 1.0)) if abs(axis.z) < 0.82 else Vector((1.0, 0.0, 0.0))
-    side_axis = axis.cross(reference).normalized()
-    depth_axis = axis.cross(side_axis).normalized()
-
-    vertices: list[tuple[float, float, float]] = []
-    faces: list[tuple[int, int, int]] = []
-    awn_anchors: list[tuple[Vector, float]] = []
-
-    columns = 2
-    rows = math.ceil(kernel_count / columns)
-    for index in range(kernel_count):
-        row = index // columns
-        col = index % columns
-        t = (row + 0.30) / (rows + 0.20)
-        side = -1.0 if col == 0 else 1.0
-        taper = 1.0 - abs(t - 0.48) * 0.50
-        center = (
-            base_vec
-            + direction * t
-            + side_axis * (side * radius * 0.42 * taper)
-            + depth_axis * ((0.035 if col == 0 else -0.035) * radius)
-        )
-        half_len = length / max(3, rows) * 0.65
-        half_w = radius * taper * 0.68
-        half_d = radius * taper * 0.42
-        start = len(vertices)
-        vertices.extend(
-            tuple(p)
-            for p in (
-                center + axis * half_len,
-                center - axis * half_len,
-                center + side_axis * half_w,
-                center - side_axis * half_w,
-                center + depth_axis * half_d,
-                center - depth_axis * half_d,
-            )
-        )
-        faces.extend(
-            (start + a, start + b, start + c)
-            for a, b, c in (
-                (0, 2, 4), (0, 4, 3), (0, 3, 5), (0, 5, 2),
-                (1, 4, 2), (1, 3, 4), (1, 5, 3), (1, 2, 5),
-            )
-        )
-        awn_anchors.append((center + axis * (half_len * 0.80), side))
-
-    _add_custom_mesh(f"{name}_spike", vertices, faces, head_token, root)
-    add_tapered_beam(
-        f"{name}_rachis",
-        base,
-        tip,
-        radius * 0.12,
-        radius * 0.05,
-        head_token,
-        root,
-        vertices=4,
-    )
-
-    # Distinct sweeping long awns
-    for awn_i, (anchor, side) in enumerate(awn_anchors[:5]):
-        fan = (awn_i / max(1, min(5, len(awn_anchors)) - 1) - 0.5) * 0.22
-        awn_dir = (
-            axis * (0.84 - droop * 0.18)
-            + side_axis * (side * 0.36 + fan)
-            + depth_axis * (0.10 if awn_i % 2 == 0 else -0.10)
-            + Vector((0.0, 0.0, 0.16 * (1.0 - droop * 0.65)))
-        ).normalized()
-        awn_tip = anchor + awn_dir * awn_length
-        add_beam(
-            f"{name}_awn_{awn_i:02d}",
-            tuple(anchor),
-            tuple(awn_tip),
-            0.0032,
-            awn_token,
-            root,
-            vertices=3,
-        )
+def _add_barley_head(name, base, tip, head_token, root, *, radius, kernel_count, awn_count):
+    _add_wheat_head(name,base,tip,head_token,root,radius=radius,
+                    kernel_count=kernel_count,awn_count=awn_count)
 
 
-def barley_crop(spec: dict, root) -> None:
-    """Distinct nodding barley with prominent long arching awns ('whispering barley')."""
-    rng = seeded_rng(spec["seed"])
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    stalk_token = tokens[0]
-    head_token = tokens[1] if len(tokens) > 1 else stalk_token
-    awn_token = tokens[2] if len(tokens) > 2 else head_token
-
-    if stage == "seeded":
-        seed_token = stalk_token
-        shoot_token = head_token if len(tokens) > 1 else stalk_token
-        for index in range(6):
-            angle = index * GOLDEN_ANGLE + rng.uniform(-0.12, 0.12)
-            radius = 0.06 + 0.14 * ((index + 1) / 6.0)
-            center = (math.cos(angle) * radius, math.sin(angle) * radius, 0.002)
-            _add_micro_seedling(
-                f"barley_seeded_{index:02d}",
-                center,
-                0.042 + (index % 3) * 0.008,
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle + 0.15,
-                cotyledon=False,
-            )
-        return
-
-    stalk_count = spec["parameters"].get("stalks", 12)
-    stage_height = {
-        "sprout": 0.28,
-        "growing": 0.70,
-        "mature": 0.94,
-        "overripe": 0.74,
-        "withered": 0.38,
-    }[stage]
-    stage_spread = {
-        "sprout": 0.20,
-        "growing": 0.32,
-        "mature": 0.35,
-        "overripe": 0.38,
-        "withered": 0.36,
-    }[stage]
-
-    for index in range(stalk_count):
-        angle = index * GOLDEN_ANGLE + rng.uniform(-0.10, 0.10)
-        norm_r = math.sqrt((index + 0.55) / max(1, stalk_count))
-        radius = stage_spread * norm_r
-        base = (math.cos(angle) * radius, math.sin(angle) * radius, 0.016)
-        height = stage_height * rng.uniform(0.90, 1.05)
-
-        if stage == "mature":
-            lean = 0.08 + 0.05 * (index % 3)
-        elif stage == "overripe":
-            lean = 0.18 + 0.08 * (index % 3)
-        elif stage == "withered":
-            lean = 0.24 + 0.10 * (index % 3)
-        else:
-            lean = 0.03 + 0.03 * (index % 3)
-
-        rad_x, rad_y = math.cos(angle), math.sin(angle)
-        end = (base[0] + rad_x * lean, base[1] + rad_y * lean, base[2] + height)
-        stalk_r = 0.010 if stage == "sprout" else 0.013 if stage == "growing" else 0.015
-        if stage in ("overripe", "withered"):
-            stalk_r *= 0.86
-
-        _add_culm(
-            f"barley_stalk_{index:02d}",
-            base,
-            end,
-            stalk_r,
-            stalk_r * 0.50,
-            stalk_token,
-            root,
-            knee=0.06 if stage in ("overripe", "withered") else 0.035,
-        )
-
-        leaf_count = 2 if stage in ("sprout", "growing") else 1 if index < 8 else 0
-        for leaf_i in range(leaf_count):
-            side = -1.0 if leaf_i == 0 else 1.0
-            leaf_angle = angle + side * 0.75
-            attach_h = height * (0.24 + leaf_i * 0.20)
-            attach = (
-                base[0] + rad_x * lean * (attach_h / max(height, 1e-4)),
-                base[1] + rad_y * lean * (attach_h / max(height, 1e-4)),
-                base[2] + attach_h,
-            )
-            leaf_len = height * 0.38
-            _add_folded_leaf(
-                f"barley_leaf_{index:02d}_{leaf_i}",
-                attach,
-                leaf_len,
-                leaf_len * 0.15,
-                leaf_angle,
-                stalk_token if stage == "sprout" else awn_token if stage == "mature" else stalk_token,
-                root,
-                pitch=0.20,
-                droop=0.15 if stage == "overripe" else 0.50 if stage == "withered" else 0.05,
-                cup=0.07,
-            )
-
-        if stage == "sprout":
-            continue
-
-        if stage == "growing":
-            if index >= max(6, stalk_count // 2 + 1):
-                continue
-            head_tip = (end[0] + rad_x * 0.04, end[1] + rad_y * 0.04, end[2] + 0.16)
-            _add_barley_head(
-                f"barley_head_{index:02d}",
-                end,
-                head_tip,
-                head_token,
-                head_token,
-                root,
-                radius=0.040,
-                kernel_count=6,
-                awn_length=0.08,
-                droop=0.0,
-            )
-            continue
-
-        droop_val = 0.08 if stage == "mature" else 0.35 if stage == "overripe" else 0.65
-        awn_len = 0.18 if stage == "mature" else 0.16 if stage == "overripe" else 0.12
-        nod_x = rad_x * (0.08 + droop_val * 0.14)
-        nod_y = rad_y * (0.08 + droop_val * 0.14)
-        nod_z = 0.22 - droop_val * 0.16
-        head_tip = (end[0] + nod_x, end[1] + nod_y, end[2] + nod_z)
-
-        _add_barley_head(
-            f"barley_head_{index:02d}",
-            end,
-            head_tip,
-            head_token,
-            awn_token,
-            root,
-            radius=0.052 if stage == "mature" else 0.048,
-            kernel_count=6 if stage != "withered" else 4,
-            awn_length=awn_len,
-            droop=droop_val,
-        )
+def barley_crop(spec, root):
+    _cereal_crop(spec,root,barley=True)
 
 
 def _add_corn_ear(
@@ -1355,22 +572,7 @@ def corn_crop(spec: dict, root) -> None:
     tassel_token = tokens[3] if len(tokens) > 3 else ear_token
 
     if stage == "seeded":
-        seed_token = leaf_token
-        shoot_token = tokens[1] if len(tokens) > 1 else leaf_token
-        for index in range(4):
-            angle = index * (math.tau / 4) + 0.35
-            radius = 0.12 + 0.06 * (index % 2)
-            center = (math.cos(angle) * radius, math.sin(angle) * radius, 0.002)
-            _add_micro_seedling(
-                f"corn_seeded_{index:02d}",
-                center,
-                0.060 + (index % 2) * 0.012,
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle,
-                cotyledon=False,
-            )
+        _reference_seeds(spec,root,token=tokens[0],count=4,tuber=False)
         return
 
     stalk_count = spec["parameters"].get("stalks", 3)
@@ -1384,9 +586,9 @@ def corn_crop(spec: dict, root) -> None:
 
     for s_idx in range(stalk_count):
         s_angle = s_idx * (math.tau / max(1, stalk_count)) + 0.28
-        s_rad = 0.16 if stage != "sprout" else 0.12
+        s_rad = spec["parameters"]["spread"]
         base = (math.cos(s_angle) * s_rad, math.sin(s_angle) * s_rad, 0.016)
-        s_height = stage_height * rng.uniform(0.94, 1.04)
+        s_height = spec["parameters"]["height"] * rng.uniform(0.92, 1.02)
 
         if stage == "overripe":
             lean_mag = 0.15 + 0.05 * (s_idx % 2)
@@ -1423,8 +625,8 @@ def corn_crop(spec: dict, root) -> None:
                 base[2] + (top[2] - base[2]) * t,
             )
             l_angle = s_angle + l_idx * GOLDEN_ANGLE
-            l_len = (s_height * 0.22) * (1.0 + 0.20 * (1.0 - abs(t - 0.5) * 1.5))
-            l_w = l_len * (0.24 if stage != "sprout" else 0.20)
+            l_len = spec["parameters"]["leafLength"] * (1.0 - .22 * abs(t-.5))
+            l_w = spec["parameters"]["leafWidth"]
             droop_val = 0.08 if stage == "sprout" else 0.22 if stage in ("growing", "mature") else 0.48 if stage == "overripe" else 0.75
             _add_folded_leaf(
                 f"corn_leaf_{s_idx:02d}_{l_idx:02d}",
@@ -1434,7 +636,7 @@ def corn_crop(spec: dict, root) -> None:
                 l_angle,
                 leaf_token,
                 root,
-                pitch=0.32 - droop_val * 0.20,
+                pitch=0.65,
                 droop=droop_val,
                 cup=0.18,
             )
@@ -1463,7 +665,7 @@ def corn_crop(spec: dict, root) -> None:
                     base[2] + (top[2] - base[2]) * ear_t,
                 )
                 ear_facing = s_angle + 0.6 + e_idx * 2.2
-                ear_len = 0.22 if stage == "mature" else 0.20 if stage == "overripe" else 0.14
+                ear_len = 0.30 if stage == "mature" else 0.28 if stage == "overripe" else 0.14
                 _add_corn_ear(
                     f"corn_ear_{s_idx:02d}_{e_idx}",
                     ear_node,
@@ -1478,189 +680,39 @@ def corn_crop(spec: dict, root) -> None:
                 )
 
 
-def _add_flax_flower(
-    name: str,
-    center: tuple[float, float, float],
-    petal_token: str,
-    center_token: str,
-    root,
-    *,
-    radius: float = 0.045,
-    facing_angle: float = 0.0,
-) -> None:
-    """Delicate 5-petaled sky-blue flax blossom."""
-    cx, cy, cz = center
-    _add_octahedron(f"{name}_eye", center, (radius * 0.22, radius * 0.22, radius * 0.16), center_token, root)
-    vertices: list[tuple[float, float, float]] = [(cx, cy, cz + radius * 0.02)]
-    faces: list[tuple[int, int, int]] = []
-    for p in range(5):
-        angle = facing_angle + p * (math.tau / 5)
-        angle_l = angle - 0.26
-        angle_r = angle + 0.26
-        p_base = len(vertices)
-        v_left = (
-            cx + math.cos(angle_l) * radius * 0.48,
-            cy + math.sin(angle_l) * radius * 0.48,
-            cz + radius * 0.05,
-        )
-        v_tip = (
-            cx + math.cos(angle) * radius,
-            cy + math.sin(angle) * radius,
-            cz + radius * 0.08,
-        )
-        v_right = (
-            cx + math.cos(angle_r) * radius * 0.48,
-            cy + math.sin(angle_r) * radius * 0.48,
-            cz + radius * 0.05,
-        )
-        vertices.extend([v_left, v_tip, v_right])
-        faces.append((0, p_base, p_base + 1))
-        faces.append((0, p_base + 1, p_base + 2))
-    _add_custom_mesh(f"{name}_petals", vertices, faces, petal_token, root)
+def _add_flax_flower(name, center, petal_token, center_token, root, *, radius=.045, facing_angle=0):
+    _add_star_flower(name,center,radius,petal_token,center_token,root,
+                     petals=5,rotation=facing_angle)
 
 
-def flax_crop(spec: dict, root) -> None:
-    """Slender wiry flax with delicate periwinkle blue blossoms transitioning to golden seed bolls."""
-    rng = seeded_rng(spec["seed"])
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    stem_token = tokens[0]
-    flower_token = tokens[1] if len(tokens) > 1 else stem_token
-    boll_token = tokens[2] if len(tokens) > 2 else flower_token
-    accent_token = tokens[3] if len(tokens) > 3 else boll_token
-
-    if stage == "seeded":
-        shoot_token = stem_token
-        seed_token = tokens[2] if len(tokens) > 2 else stem_token
-        for index in range(6):
-            angle = index * GOLDEN_ANGLE + rng.uniform(-0.12, 0.12)
-            radius = 0.06 + 0.13 * ((index + 1) / 6.0)
-            center = (math.cos(angle) * radius, math.sin(angle) * radius, 0.002)
-            _add_micro_seedling(
-                f"flax_seeded_{index:02d}",
-                center,
-                0.038 + (index % 2) * 0.008,
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle,
-                cotyledon=True,
-            )
+def flax_crop(spec, root):
+    p=spec["parameters"]; stage=p["stage"]; tokens=spec["palette"]
+    if stage=="seeded":
+        _reference_seeds(spec,root,token=tokens[2],count=5)
         return
-
-    stem_count = spec["parameters"].get("stems", 18)
-    stage_height = {
-        "sprout": 0.22,
-        "growing": 0.54,
-        "mature": 0.82,
-        "overripe": 0.74,
-        "withered": 0.42,
-    }[stage]
-    spread = 0.22 if stage == "sprout" else 0.36
-
-    for index in range(stem_count):
-        angle = index * GOLDEN_ANGLE + rng.uniform(-0.10, 0.10)
-        norm_r = math.sqrt((index + 0.5) / max(1, stem_count))
-        base = (math.cos(angle) * spread * norm_r, math.sin(angle) * spread * norm_r, 0.016)
-        height = stage_height * rng.uniform(0.91, 1.07)
-
-        lean_dir = angle + 0.25
-        lean_dist = 0.03 if stage in ("sprout", "growing") else 0.07 if stage == "mature" else 0.12 if stage == "overripe" else 0.20
-        rad_x, rad_y = math.cos(lean_dir), math.sin(lean_dir)
-        top = (base[0] + rad_x * lean_dist, base[1] + rad_y * lean_dist, base[2] + height)
-
-        stem_r = 0.007 if stage == "sprout" else 0.009 if stage in ("mature", "overripe") else 0.008
-        if stage == "withered":
-            stem_r *= 0.85
-
-        _add_culm(
-            f"flax_stem_{index:02d}",
-            base,
-            top,
-            stem_r,
-            stem_r * 0.40,
-            stem_token,
-            root,
-            knee=0.06 if stage in ("overripe", "withered") else 0.02,
-        )
-
-        leaf_num = 2 if stage in ("sprout", "withered") else 3
-        for l_i in range(leaf_num):
-            along = 0.20 + l_i * (0.55 / max(1, leaf_num - 1))
-            l_pos = (
-                base[0] + (top[0] - base[0]) * along,
-                base[1] + (top[1] - base[1]) * along,
-                base[2] + (top[2] - base[2]) * along,
-            )
-            l_len = 0.12 if stage != "sprout" else 0.08
-            _add_folded_leaf(
-                f"flax_leaf_{index:02d}_{l_i}",
-                l_pos,
-                l_len,
-                l_len * 0.14,
-                angle + l_i * GOLDEN_ANGLE,
-                stem_token,
-                root,
-                pitch=0.25,
-                droop=0.10 if stage != "withered" else 0.50,
-                cup=0.05,
-            )
-
-        if stage in ("sprout", "growing"):
-            if stage == "growing" and index % 3 == 0:
-                _add_octahedron(
-                    f"flax_bud_{index:02d}",
-                    top,
-                    (0.012, 0.012, 0.016),
-                    flower_token,
-                    root,
-                )
-            continue
-
-        if stage == "mature":
-            if index % 2 == 0:
-                _add_flax_flower(
-                    f"flax_flower_{index:02d}",
-                    top,
-                    flower_token,
-                    accent_token,
-                    root,
-                    radius=0.042,
-                    facing_angle=angle,
-                )
-            else:
-                _add_octahedron(
-                    f"flax_boll_{index:02d}",
-                    top,
-                    (0.018, 0.018, 0.022),
-                    boll_token,
-                    root,
-                )
-        elif stage == "overripe":
-            _add_octahedron(
-                f"flax_boll_{index:02d}",
-                top,
-                (0.022, 0.022, 0.026),
-                boll_token,
-                root,
-            )
-            sec_top = (top[0] + rad_x * 0.04, top[1] + rad_y * 0.04, top[2] - 0.04)
-            add_beam(f"flax_branch_{index:02d}", top, sec_top, 0.0035, stem_token, root, vertices=3)
-            _add_octahedron(
-                f"flax_boll_sec_{index:02d}",
-                sec_top,
-                (0.018, 0.018, 0.020),
-                boll_token,
-                root,
-            )
-        elif stage == "withered":
-            _add_octahedron(
-                f"flax_boll_dry_{index:02d}",
-                top,
-                (0.014, 0.014, 0.018),
-                stem_token,
-                root,
-            )
+    rng=seeded_rng(spec["seed"]); height=p["height"]; count=p["stems"]
+    dry=stage in ("overripe","withered")
+    for i in range(count):
+        a=i*GOLDEN_ANGLE+.25; r=p["spread"]*math.sqrt((i+.5)/count)
+        base=Vector((math.cos(a)*r,math.sin(a)*r,.012))
+        h=height*(.74+.26*rng.random())
+        tip=base+Vector((math.cos(a)*h*.18,math.sin(a)*h*.18,h))
+        if dry: tip.z-=h*.12
+        _add_culm(f"flax_stem_{i}",tuple(base),tuple(tip),.009,.0035,tokens[0],root)
+        leaf_count=2 if stage=="sprout" else 4 if not dry else 3
+        for j in range(leaf_count):
+            node=base.lerp(tip,.18+.58*j/max(1,leaf_count-1))
+            _add_folded_leaf(f"flax_leaf_{i}_{j}",tuple(node),p["leafLength"],p["leafWidth"],
+                a+j*2.4,tokens[0],root,pitch=.65,droop=.60 if dry else .04)
+        if stage in ("mature","overripe","withered"):
+            for j in range(2 if stage=="mature" else 1):
+                flower_tip=tip+Vector((math.cos(a+j*2)*.08,math.sin(a+j*2)*.08,.045-j*.065))
+                add_tapered_beam(f"flax_pedicel_{i}_{j}",tuple(tip),tuple(flower_tip),.004,.002,tokens[0],root,vertices=3)
+                if stage=="mature":
+                    _add_flax_flower(f"flax_flower_{i}_{j}",tuple(flower_tip),tokens[1],tokens[3],root,
+                        radius=.063 if j==0 else .045,facing_angle=a)
+                else:
+                    _add_crop_volume(f"flax_boll_{i}",tuple(flower_tip),(.026,.024,.031),tokens[1],root)
 
 
 def tomato_crop(spec: dict, root) -> None:
@@ -1675,22 +727,7 @@ def tomato_crop(spec: dict, root) -> None:
     stake_token = tokens[4] if len(tokens) > 4 else (tokens[1] if len(tokens) > 1 else leaf_token)
 
     if stage == "seeded":
-        seed_token = tokens[0]
-        shoot_token = tokens[1] if len(tokens) > 1 else seed_token
-        for index in range(3):
-            angle = index * GOLDEN_ANGLE + rng.uniform(-0.14, 0.14)
-            radius = 0.05 + 0.09 * ((index + 1) / 3.0)
-            center = (math.cos(angle) * radius, math.sin(angle) * radius, 0.0)
-            _add_micro_seedling(
-                f"tomato_seedling_{index:02d}",
-                center,
-                0.038 + 0.010 * (index % 2),
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle,
-                cotyledon=True,
-            )
+        _reference_seeds(spec,root,token=tokens[0],count=3,tuber=False)
         return
 
     if stage == "sprout":
@@ -1734,7 +771,7 @@ def tomato_crop(spec: dict, root) -> None:
     stage_height = {"growing": 0.72, "mature": 1.04, "overripe": 0.82, "withered": 0.52}[stage]
     for index in range(plant_count):
         angle = index * GOLDEN_ANGLE + 0.28
-        radial = 0.05 + 0.08 * math.sqrt((index + 0.4) / max(1, plant_count))
+        radial = spec["parameters"]["spread"] * math.sqrt((index + 0.4) / max(1, plant_count))
         base = (math.cos(angle) * radial, math.sin(angle) * radial, 0.016)
         lean = 0.03 if stage == "growing" else 0.05
         if stage == "overripe":
@@ -1745,7 +782,7 @@ def tomato_crop(spec: dict, root) -> None:
         tip = (
             base[0] + math.cos(direction) * lean,
             base[1] + math.sin(direction) * lean,
-            stage_height * rng.uniform(0.93, 1.03),
+            spec["parameters"]["height"] * rng.uniform(0.85, 1.03),
         )
         _add_culm(
             f"tomato_stem_{index:02d}",
@@ -1772,11 +809,11 @@ def tomato_crop(spec: dict, root) -> None:
                 f"tomato_leaf_{index:02d}_{leaf_index:02d}",
                 attach,
                 leaf_angle,
-                0.20 if stage == "growing" else 0.24 if stage == "mature" else 0.22,
+                spec["parameters"]["leafLength"],
                 leaf_token,
                 stem_token,
                 root,
-                leaflet_count=2,
+                leaflet_count=3 if stage in ("growing","mature") else 2,
                 droop=droop,
             )
 
@@ -1807,7 +844,7 @@ def tomato_crop(spec: dict, root) -> None:
             fruit_center = (
                 base[0] + (tip[0] - base[0]) * 0.52 - math.cos(direction) * 0.06,
                 base[1] + (tip[1] - base[1]) * 0.52 - math.sin(direction) * 0.06,
-                base[2] + (tip[2] - base[2]) * (0.58 if stage == "mature" else 0.40),
+                base[2] + (tip[2] - base[2]) * ((0.30 + index*.20) if stage == "mature" else (0.30 + index*.15)),
             )
             _add_tomato_fruit_cluster(
                 f"tomato_cluster_{index:02d}",
@@ -1816,8 +853,8 @@ def tomato_crop(spec: dict, root) -> None:
                 accent_token,
                 stem_token,
                 root,
-                fruit_count=3 if index < 2 else 2,
-                radius=0.18 if stage == "mature" else 0.20,
+                fruit_count=2,
+                radius=spec["parameters"]["fruitRadius"],
                 droop=0.0 if stage == "mature" else 0.65,
             )
 
@@ -1866,8 +903,8 @@ def _add_potato_crown(
             root,
             knee=0.04 + droop * 0.05,
         )
-        for tier in range(3):
-            along = 0.42 + 0.28 * tier
+        for tier in range(2):
+            along = 0.40 + 0.44 * tier
             node = (
                 base[0] + (tip[0] - base[0]) * along,
                 base[1] + (tip[1] - base[1]) * along,
@@ -1878,12 +915,12 @@ def _add_potato_crown(
                 _add_folded_leaf(
                     f"{prefix}_leaf_{index:02d}_{tier}{leaflet_index:02d}",
                     node,
-                    spread * (0.25 + 0.03 * (index % 2)) * (1.0 - 0.14 * tier),
-                    spread * 0.15,
+                    spread * (0.40 + 0.03 * (index % 2)) * (1.0 - 0.14 * tier),
+                    spread * 0.24,
                     angle + fan,
                     leaf_token,
                     root,
-                    pitch=0.28 - droop * 0.16,
+                    pitch=0.44,
                     droop=droop,
                     cup=0.16,
                 )
@@ -1903,27 +940,7 @@ def potato_crop(spec: dict, root) -> None:
     tuber_token = tokens[4] if len(tokens) > 4 else (tokens[2] if len(tokens) > 2 else leaf_token)
 
     if stage == "seeded":
-        tuber_color = tokens[0]
-        sprout_color = tokens[1] if len(tokens) > 1 else tokens[0]
-        for index in range(3):
-            angle = index * GOLDEN_ANGLE + 0.25
-            radius = 0.08
-            cx = math.cos(angle) * radius
-            cy = math.sin(angle) * radius
-            _add_octahedron(f"potato_seed_tuber_{index}", (cx, cy, 0.024), (0.052, 0.040, 0.026), tuber_color, root, rotation=angle)
-            for i, chit_angle in enumerate((0.35, 2.3)):
-                sx = cx + math.cos(chit_angle) * 0.016
-                sy = cy + math.sin(chit_angle) * 0.016
-                add_tapered_beam(
-                    f"potato_chit_{index}_{i}",
-                    (sx, sy, 0.026),
-                    (sx + math.cos(chit_angle) * 0.012, sy + math.sin(chit_angle) * 0.012, 0.065 + i * 0.01),
-                    0.008,
-                    0.003,
-                    sprout_color,
-                    root,
-                    vertices=4,
-                )
+        _reference_seeds(spec,root,token=tokens[0],count=3,tuber=True)
         return
 
     if stage == "sprout":
@@ -1933,9 +950,9 @@ def potato_crop(spec: dict, root) -> None:
             leaf_token,
             stem_token,
             root,
-            height=0.24,
-            spread=0.20,
-            stems=4,
+            height=spec["parameters"]["height"],
+            spread=spec["parameters"]["spread"],
+            stems=3,
             droop=0.0,
             leaflets=2,
         )
@@ -1948,6 +965,9 @@ def potato_crop(spec: dict, root) -> None:
         "withered": (0.24, 0.68, 5, 0.88, 2),
     }
     height, spread, stems, droop, leaflets = settings[stage]
+    height=spec["parameters"]["height"]
+    spread=spec["parameters"]["spread"]
+    stems=spec["parameters"]["stems"]
     tips = _add_potato_crown(
         f"potato_{stage}",
         (0, 0, 0.016),
@@ -1984,10 +1004,10 @@ def potato_crop(spec: dict, root) -> None:
         for index in range(4):
             angle = index * GOLDEN_ANGLE + 0.9
             radius = 0.14 + 0.04 * (index % 2)
-            _add_octahedron(
+            _add_crop_volume(
                 f"potato_tuber_{index:02d}",
-                (math.cos(angle) * radius, math.sin(angle) * radius * 0.86, 0.024),
-                (0.065, 0.048, 0.030),
+                (math.cos(angle) * radius, math.sin(angle) * radius * 0.86, 0.060),
+                (0.10, 0.075, 0.066),
                 tuber_token,
                 root,
                 rotation=angle,
@@ -1997,10 +1017,10 @@ def potato_crop(spec: dict, root) -> None:
         for index in range(5):
             angle = index * GOLDEN_ANGLE + 0.4
             radius = 0.09 + 0.06 * (index % 2)
-            _add_octahedron(
+            _add_crop_volume(
                 f"potato_tuber_overripe_{index:02d}",
-                (math.cos(angle) * radius, math.sin(angle) * radius * 0.9, 0.026),
-                (0.072, 0.052, 0.034),
+                (math.cos(angle) * radius, math.sin(angle) * radius * 0.9, 0.065),
+                (0.105, 0.078, 0.070),
                 tuber_color,
                 root,
                 rotation=angle,
@@ -2010,180 +1030,36 @@ def potato_crop(spec: dict, root) -> None:
         for index in range(3):
             angle = index * 2.1 + 0.5
             radius = 0.12
-            _add_octahedron(
+            _add_crop_volume(
                 f"potato_tuber_withered_{index:02d}",
                 (math.cos(angle) * radius, math.sin(angle) * radius, 0.018),
-                (0.045, 0.035, 0.020),
+                (0.068, 0.052, 0.045),
                 tuber_color,
                 root,
                 rotation=angle,
             )
 
 
-def carrot_crop(spec: dict, root) -> None:
-    """Author feathery fronded carrot stages with exposed orange root crowns."""
-    rng = seeded_rng(spec["seed"])
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    leaf_token = tokens[0]
-    stem_token = tokens[1] if len(tokens) > 1 else leaf_token
-    orange_token = tokens[2] if len(tokens) > 2 else leaf_token
-    accent_token = tokens[3] if len(tokens) > 3 else orange_token
-    center_token = tokens[4] if len(tokens) > 4 else accent_token
-
-    if stage == "seeded":
-        seed_token = tokens[0]
-        shoot_token = tokens[1] if len(tokens) > 1 else seed_token
-        for index in range(3):
-            angle = index * GOLDEN_ANGLE + rng.uniform(-0.14, 0.14)
-            radius = 0.04 + 0.08 * ((index + 1) / 3.0)
-            center = (math.cos(angle) * radius, math.sin(angle) * radius, 0.0)
-            _add_micro_seedling(
-                f"carrot_seedling_{index:02d}",
-                center,
-                0.034 + 0.008 * (index % 2),
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle,
-                cotyledon=True,
-            )
+def carrot_crop(spec, root):
+    p=spec["parameters"]; stage=p["stage"]; tokens=spec["palette"]
+    if stage=="seeded":
+        _reference_seeds(spec,root,token=tokens[0],count=3)
         return
-
-    if stage == "sprout":
-        plant_count = spec["parameters"].get("plants", 3)
-        for index in range(plant_count):
-            angle = index * (math.tau / max(1, plant_count)) + 0.2
-            _add_carrot_frond(
-                f"carrot_sprout_{index:02d}",
-                (math.cos(angle) * 0.02, math.sin(angle) * 0.02, 0.012),
-                angle,
-                0.20 + 0.02 * (index % 2),
-                0.85,
-                leaf_token,
-                stem_token,
-                root,
-                pinnae_pairs=2,
-                droop=0.06,
-            )
-        return
-
-    if stage == "growing":
-        frond_count = 6
-        for index in range(frond_count):
-            angle = index * GOLDEN_ANGLE + 0.15
-            radius = 0.022 * ((index % 3) + 1)
-            base = (math.cos(angle) * radius, math.sin(angle) * radius, 0.015)
-            tier = index % 3
-            frond_len = 0.32 - tier * 0.04
-            pitch = 0.65 + tier * 0.15
-            _add_carrot_frond(
-                f"carrot_frond_{index:02d}",
-                base,
-                angle,
-                frond_len,
-                pitch,
-                leaf_token,
-                stem_token,
-                root,
-                pinnae_pairs=2,
-                droop=0.10 + tier * 0.05,
-            )
-        return
-
-    if stage == "mature":
-        _add_carrot_crown(
-            "carrot_crown",
-            (0.0, 0.0, 0.0),
-            0.052,
-            0.046,
-            orange_token,
-            accent_token,
-            root,
-        )
-        frond_count = 8
-        for index in range(frond_count):
-            angle = index * GOLDEN_ANGLE + 0.18
-            tier = index % 3
-            pitch = 0.45 + tier * 0.22
-            length = 0.40 - tier * 0.05
-            _add_carrot_frond(
-                f"carrot_frond_{index:02d}",
-                (math.cos(angle) * 0.022, math.sin(angle) * 0.022, 0.040),
-                angle,
-                length,
-                pitch,
-                leaf_token,
-                stem_token,
-                root,
-                pinnae_pairs=2 if tier == 0 else 3,
-                droop=0.12 + tier * 0.08,
-            )
-        return
-
-    if stage == "overripe":
-        flower_token = tokens[3] if len(tokens) > 3 else tokens[0]
-        _add_carrot_crown(
-            "carrot_crown_overripe",
-            (0.0, 0.0, 0.0),
-            0.062,
-            0.050,
-            orange_token,
-            leaf_token,
-            root,
-        )
-        _add_carrot_umbel(
-            "carrot_umbel",
-            (0.0, 0.0, 0.045),
-            0.54,
-            0.14,
-            flower_token,
-            center_token,
-            stem_token,
-            root,
-        )
-        frond_count = 8
-        for index in range(frond_count):
-            angle = index * GOLDEN_ANGLE + 0.3
-            _add_carrot_frond(
-                f"carrot_frond_overripe_{index:02d}",
-                (math.cos(angle) * 0.03, math.sin(angle) * 0.03, 0.035),
-                angle,
-                0.32,
-                0.35,
-                leaf_token,
-                stem_token,
-                root,
-                pinnae_pairs=2,
-                droop=0.35,
-            )
-        return
-
-    if stage == "withered":
-        _add_carrot_crown(
-            "carrot_crown_withered",
-            (0.0, 0.0, 0.0),
-            0.040,
-            0.032,
-            orange_token,
-            stem_token,
-            root,
-        )
-        for index in range(5):
-            angle = index * 1.25 + 0.2
-            _add_carrot_frond(
-                f"carrot_frond_withered_{index:02d}",
-                (0.0, 0.0, 0.015),
-                angle,
-                0.28,
-                0.12,
-                leaf_token,
-                stem_token,
-                root,
-                pinnae_pairs=2,
-                droop=0.65,
-            )
-        return
+    dry=stage in ("overripe","withered")
+    crown_h=p["height"]*(.23 if stage in ("mature","overripe") else .16 if stage=="withered" else 0)
+    if crown_h:
+        r=.068 if stage=="mature" else .078 if stage=="overripe" else .045
+        add_lofted_form("carrot_root",[
+            ((0,0,.005),r*.48,r*.46),((0,0,crown_h*.40),r*.85,r*.82),
+            ((0,0,crown_h*.83),r,r*.92),((0,0,crown_h),r*.60,r*.60)],tokens[2],root,sides=7)
+    count=p["plants"]
+    for i in range(count):
+        angle=i*GOLDEN_ANGLE+.18
+        length=p["leafLength"]*(.83+.17*(i%3)/2)
+        _add_carrot_frond(f"carrot_frond_{i}",(math.cos(angle)*.015,math.sin(angle)*.015,max(.012,crown_h*.94)),
+            angle,length,1.08 if i%3 else .82,tokens[0],tokens[1],root,
+            pinnae_pairs=2 if stage=="sprout" else 3,
+            droop=.88 if stage=="withered" else .66 if dry else .03)
 
 
 def turnip_crop(spec: dict, root) -> None:
@@ -2293,297 +1169,161 @@ def pumpkin_crop(spec: dict, root) -> None:
         )
 
 
-def sunflower_crop(spec: dict, root) -> None:
-    """Warm-dry terrace sunflower with a readable radial head at maturity."""
-    rng = seeded_rng(spec["seed"])
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    leaf_token = tokens[0]
-    stem_token = tokens[1] if len(tokens) > 1 else leaf_token
-    petal_token = tokens[2] if len(tokens) > 2 else stem_token
-    center_token = tokens[3] if len(tokens) > 3 else stem_token
-
-    if stage == "seeded":
-        seed_token = tokens[3] if len(tokens) > 3 else tokens[1]
-        shoot_token = tokens[0]
-        for index in range(3):
-            angle = index * GOLDEN_ANGLE + rng.uniform(-0.14, 0.14)
-            radius = 0.05 + 0.08 * ((index + 1) / 3.0)
-            center = (math.cos(angle) * radius, math.sin(angle) * radius, 0.0)
-            _add_micro_seedling(
-                f"sunflower_seedling_{index:02d}",
-                center,
-                0.045 + 0.010 * (index % 2),
-                seed_token,
-                shoot_token,
-                root,
-                angle=angle,
-                cotyledon=True,
-            )
+def sunflower_crop(spec, root):
+    p=spec["parameters"]; stage=p["stage"]; tokens=spec["palette"]
+    if stage=="seeded":
+        _reference_seeds(spec,root,token=tokens[3],count=3)
         return
-
-    settings = {
-        "sprout": (0.28, 7, 0.0),
-        "growing": (0.82, 10, 0.02),
-        "mature": (1.34, 9, 0.04),
-        "overripe": (1.12, 8, 0.34),
-        "withered": (0.70, 7, 0.72),
-    }
-    height, leaf_count, droop = settings[stage]
-    plant_count = 3 if stage in ("sprout", "withered") else 5
-    for index in range(plant_count):
-        angle = index * GOLDEN_ANGLE + 0.32
-        base_radius = 0.08 + 0.09 * index
-        base = (math.cos(angle) * base_radius, math.sin(angle) * base_radius, 0.016)
-        lean = (0.03 + droop * 0.20) * (1 if index % 2 == 0 else -1)
-        tip = (
-            base[0] + math.cos(angle) * lean,
-            base[1] + math.sin(angle) * lean,
-            height * rng.uniform(0.92, 1.04) * (1.0 - droop * 0.18),
-        )
-        _add_culm(
-            f"sunflower_stem_{index:02d}", base, tip,
-            0.026 if stage in ("mature", "overripe") else 0.018,
-            0.012, stem_token, root, knee=0.03 + droop * 0.08,
-        )
-        for leaf_index in range(leaf_count):
-            t = 0.22 + leaf_index * (0.58 / max(1, leaf_count - 1))
-            attach = (
-                base[0] + (tip[0] - base[0]) * t,
-                base[1] + (tip[1] - base[1]) * t,
-                base[2] + (tip[2] - base[2]) * t,
-            )
-            _add_folded_leaf(
-                f"sunflower_leaf_{index:02d}_{leaf_index:02d}",
-                attach,
-                0.20 if stage == "sprout" else 0.30,
-                0.11 if stage == "sprout" else 0.18,
-                angle + leaf_index * GOLDEN_ANGLE,
-                leaf_token,
-                root,
-                pitch=0.22,
-                droop=droop,
-                cup=0.18,
-            )
-        if stage == "growing":
-            _add_octahedron(f"sunflower_bud_{index:02d}", tip, (0.07, 0.07, 0.06), leaf_token, root)
-        elif stage in ("mature", "overripe", "withered"):
-            head_center = (
-                tip[0] + math.cos(angle) * (0.04 + droop * 0.12),
-                tip[1] + math.sin(angle) * (0.04 + droop * 0.12),
-                tip[2] + 0.03 - droop * 0.08,
-            )
-            # A flat star of petals lying face-up is hidden by its own centre
-            # disc from any game camera, which is why the mature crop had no
-            # flower at all. Use the nodding head the sunflower stand already
-            # gets right.
-            head_radius = 0.15 if stage == "mature" else 0.13 if stage == "overripe" else 0.10
-            add_flower_head(
-                f"sunflower_head_{index:02d}",
-                head_center,
-                head_radius,
-                center_token,
-                leaf_token,
-                petal_token if stage != "withered" else stem_token,
-                root,
-                petals=14 if stage == "mature" else 12,
-                nod=math.radians(46 + droop * 34),
-                yaw=angle,
-                petal_reach=1.34 if stage != "withered" else 1.10,
-            )
+    height=p["height"]; dry=stage in ("overripe","withered")
+    droop=.78 if stage=="withered" else .56 if dry else .06
+    base=(0,0,.012); shoulder=(.015,.0,height*.86)
+    tip=(.12 if dry else .025,-.06 if dry else 0,height*(.82 if dry else 1))
+    add_limb_tube("sunflower_stem",[base,shoulder,tip],[.027,.019,.014],tokens[1],root,sides=6)
+    for i in range(p["leafCount"]):
+        t=.15+.65*i/max(1,p["leafCount"]-1)
+        _add_folded_leaf(f"sunflower_leaf_{i}",(.015*t,0,height*t),p["leafLength"]*(1-.27*t),
+            p["leafWidth"]*(1-.22*t),i*GOLDEN_ANGLE+.3,tokens[0],root,pitch=.38,droop=droop,cup=.25)
+    if stage=="growing":
+        _add_crop_volume("sunflower_bud",tip,(.080,.070,.115),tokens[0],root)
+    elif stage in ("mature","overripe","withered"):
+        head_radius=.205 if stage=="mature" else .19 if stage=="overripe" else .13
+        head=(tip[0],tip[1],tip[2]+.025)
+        _add_sunflower_head("sunflower_head",head,head_radius,tokens,root,
+            petals=16 if stage=="mature" else 13,
+            nod=math.radians(58 if stage=="mature" else 115 if stage=="overripe" else 130),
+            dry=stage=="withered")
 
 
-def olive_crop(spec: dict, root) -> None:
-    """Compact orchard crop stages distinct from the full environmental olive."""
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    leaf_token = tokens[0]
-    wood_token = tokens[1] if len(tokens) > 1 else leaf_token
-    fruit_token = tokens[2] if len(tokens) > 2 else leaf_token
-    dry_token = tokens[3] if len(tokens) > 3 else wood_token
+def olive_crop(spec,root):
+    _orchard_crop(spec,root,olive=True)
 
-    if stage == "seeded":
-        add_tapered_beam("olive_cutting", (0.0, 0.0, 0.0), (0.012, 0.008, 0.14), 0.012, 0.006, wood_token, root, vertices=4)
-        for i, z in enumerate((0.08, 0.13)):
-            a = i * 1.57 + 0.2
-            _add_folded_leaf(f"olive_cut_leaf_{i}_a", (0.008, 0.005, z), 0.09, 0.038, a, leaf_token, root, pitch=0.32, droop=0.04)
-            _add_folded_leaf(f"olive_cut_leaf_{i}_b", (0.008, 0.005, z), 0.09, 0.038, a + math.pi, leaf_token, root, pitch=0.32, droop=0.04)
+
+def apple_tree_crop(spec,root):
+    _orchard_crop(spec,root,olive=False)
+
+
+def _add_crop_volume(name, center, scale, token, root, *, rotation=0):
+    """Faceted shoulders around an equator, rather than an eight-triangle fruit."""
+    cx,cy,cz=center; sx,sy,sz=scale
+    obj=add_lofted_form(name,[((cx,cy,cz-sz),sx*.28,sy*.28),
+        ((cx,cy,cz-sz*.48),sx*.83,sy*.83),((cx,cy,cz+sz*.22),sx,sy),
+        ((cx,cy,cz+sz*.80),sx*.66,sy*.66),((cx,cy,cz+sz),sx*.28,sy*.28)],
+        token,root,sides=6)
+    return obj
+
+
+def _reference_seeds(spec,root,*,token,count,tuber=False):
+    p=spec["parameters"]
+    for i in range(count):
+        a=i*GOLDEN_ANGLE+.2; r=p["spread"]*(.55+.45*(i%2))
+        sx=.043 if tuber else .022; sy=sx*.74; sz=.026 if tuber else .011
+        x,y=math.cos(a)*r,math.sin(a)*r
+        add_lofted_form(f"{spec['id']}_seed_{i}",[
+            ((x,y,.002),sx*.25,sy*.25),((x,y,sz+.002),sx,sy),
+            ((x,y,sz*2+.002),sx*.22,sy*.22)],token,root,sides=6)
+
+
+def _cereal_crop(spec,root,*,barley):
+    p=spec["parameters"]; stage=p["stage"]; tokens=spec["palette"]
+    if stage=="seeded":
+        _reference_seeds(spec,root,token=tokens[0],count=3)
         return
-
-    settings = {
-        "sprout": (0.34, 6, 0.10, 0.0),
-        "growing": (0.82, 13, 0.28, 0.0),
-        "mature": (1.42, 11, 0.54, 0.0),
-        "overripe": (1.30, 10, 0.58, 0.24),
-        "withered": (0.92, 11, 0.48, 0.72),
-    }
-    height, branches, spread, droop = settings[stage]
-    trunk_top = (0.04 * droop, -0.02, height * 0.58)
-    _add_culm("olive_crop_trunk", (0, 0, 0.016), trunk_top, 0.07, 0.035, wood_token, root, knee=0.06)
-    for index in range(branches):
-        angle = index * GOLDEN_ANGLE + 0.22
-        attach_t = 0.46 + 0.44 * ((index % 3) / 2.0)
-        attach = (trunk_top[0] * attach_t, trunk_top[1] * attach_t, trunk_top[2] * attach_t)
-        tip = (
-            attach[0] + math.cos(angle) * spread * (0.64 + 0.12 * (index % 2)),
-            attach[1] + math.sin(angle) * spread * (0.64 + 0.12 * (index % 2)),
-            attach[2] + height * (0.22 + 0.04 * (index % 3)) * (1.0 - droop * 0.5),
-        )
-        add_tapered_beam(f"olive_crop_branch_{index:02d}", attach, tip, 0.025, 0.010, wood_token, root, vertices=5)
-        leaf_total = 7 if stage in ("mature", "overripe") else 3 if stage != "withered" else 3
-        for leaf_index in range(leaf_total):
-            along = 0.42 + 0.52 * (leaf_index / max(1, leaf_total - 1))
-            attach_point = (
-                attach[0] + (tip[0] - attach[0]) * along,
-                attach[1] + (tip[1] - attach[1]) * along,
-                attach[2] + (tip[2] - attach[2]) * along,
-            )
-            _add_folded_leaf(
-                f"olive_crop_leaf_{index:02d}_{leaf_index:02d}",
-                attach_point,
-                0.19,
-                0.068,
-                angle + (leaf_index - (leaf_total - 1) * 0.5) * 0.58,
-                leaf_token if stage != "withered" else dry_token,
-                root,
-                pitch=0.16,
-                droop=droop,
-                cup=0.10,
-            )
-        if stage in ("mature", "overripe"):
-            for fruit_index in range(3):
-                along = 0.58 + 0.16 * fruit_index
-                _add_octahedron(
-                    f"olive_crop_fruit_{index:02d}_{fruit_index:02d}",
-                    (
-                        attach[0] + (tip[0] - attach[0]) * along + math.cos(angle + fruit_index) * 0.028,
-                        attach[1] + (tip[1] - attach[1]) * along + math.sin(angle + fruit_index) * 0.028,
-                        attach[2] + (tip[2] - attach[2]) * along - 0.038 - 0.012 * fruit_index,
-                    ),
-                    (0.026, 0.020, 0.032),
-                    fruit_token,
-                    root,
-                    rotation=angle + fruit_index,
-                )
-
-    if stage == "overripe":
-        for index in range(4):
-            angle = index * GOLDEN_ANGLE + 0.5
-            radius = 0.25 + 0.10 * (index % 2)
-            _add_octahedron(
-                f"olive_windfall_{index:02d}",
-                (math.cos(angle) * radius, math.sin(angle) * radius, 0.015),
-                (0.024, 0.016, 0.018),
-                fruit_token,
-                root,
-                rotation=angle,
-            )
+    rng=seeded_rng(spec["seed"]); count=p["stalks"]
+    stem=tokens[0]; grain=tokens[1] if len(tokens)>1 else stem
+    leaf=tokens[2] if len(tokens)>2 else stem
+    dry=stage in ("overripe","withered")
+    prefix="barley" if barley else "wheat"
+    for i in range(count):
+        a=i*GOLDEN_ANGLE+.23; r=p["spread"]*math.sqrt((i+.5)/count)
+        base=Vector((math.cos(a)*r,math.sin(a)*r,.012))
+        h=p["height"]*(.74+.26*rng.random())
+        forward=Vector((math.cos(a),math.sin(a),0))
+        shoulder=base+forward*h*(.12 if dry else .025)+Vector((0,0,h))
+        end=shoulder+forward*(.12 if dry else .018)+Vector((0,0,-.05 if dry else .018))
+        add_limb_tube(f"{prefix}_stalk_{i}",[tuple(base),tuple(base.lerp(shoulder,.54)),tuple(shoulder),tuple(end)],
+            [.012,.010,.009,.008] if stage!="sprout" else [.008,.007,.005,.004],stem,root,sides=5)
+        leaves=3 if stage=="growing" else 2
+        for j in range(leaves):
+            node=base.lerp(shoulder,.13+j*.22)
+            _add_folded_leaf(f"{prefix}_leaf_{i}_{j}",tuple(node),p["leafLength"]*(.82+.18*(i%2)),
+                p["leafWidth"],a+j*2.7,leaf,root,pitch=1.08 if not dry else .35,
+                droop=.76 if dry else .05,cup=.16)
+        if stage in ("mature","overripe","withered"):
+            length=.39 if stage=="mature" else .33 if stage=="overripe" else .26
+            head_tip=end+forward*(.18 if dry else .045)+Vector((0,0,-length*.78 if dry else length))
+            head_builder = _add_barley_head if barley else _add_wheat_head
+            head_builder(f"{prefix}_head_{i}",tuple(end),tuple(head_tip),grain,root,
+                radius=.073 if barley else .088,kernel_count=12,
+                awn_count=6 if barley and stage!="withered" else 0)
 
 
-def apple_tree_crop(spec: dict, root) -> None:
-    """Author cultivated orchard apple tree lifecycle from sapling to fruiting canopy."""
-    stage = spec["parameters"]["stage"]
-    tokens = spec["palette"]
-    leaf_token = tokens[0]
-    wood_token = tokens[1] if len(tokens) > 1 else leaf_token
-    fruit_token = tokens[2] if len(tokens) > 2 else leaf_token
-    accent_token = tokens[3] if len(tokens) > 3 else fruit_token
-
-    if stage == "seeded":
-        _add_garden_stake("apple_whip_stake", (0.02, 0.0, 0.0), 0.38, 0.018, wood_token, root)
-        add_tapered_beam("apple_whip_stem", (0.0, 0.0, 0.0), (0.015, 0.0, 0.32), 0.012, 0.005, wood_token, root, vertices=4)
-        _add_twine_tie("apple_whip_tie", (0.01, 0.0, 0.18), 0.022, 0.010, accent_token, root)
-        for i, z in enumerate((0.14, 0.24, 0.32)):
-            a = i * 2.1 + 0.3
-            _add_folded_leaf(f"apple_whip_leaf_{i}", (0.015, 0.0, z), 0.09, 0.045, a, leaf_token, root, pitch=0.35, droop=0.05, cup=0.08)
+def _orchard_crop(spec,root,*,olive):
+    p=spec["parameters"]; stage=p["stage"]; tokens=spec["palette"]
+    if stage=="seeded":
+        _reference_seeds(spec,root,token=tokens[1],count=2)
         return
+    h=p["height"]; spread=p["spread"]; dry=stage=="withered"
+    name="olive" if olive else "apple"
+    trunk=[(0,0,.006),(-.035,0,h*.25),(.022,.014,h*.49),(-.006,.02,h*.78),(.03,.01,h*.97)]
+    radius=(.045 if olive else .062)*(min(1,h/.8))
+    add_limb_tube(name+"_trunk",trunk,[radius,radius*.87,radius*.65,radius*.34,.005],tokens[1],root,sides=7)
+    for i in range(p["branches"]):
+        a=i*GOLDEN_ANGLE+.32
+        t=.32+.36*i/max(1,p["branches"]-1)
+        start=Vector((.008, .008,h*t))
+        radial=spread*(.95-.35*(i/max(1,p["branches"]-1)))
+        tip=start+Vector((math.cos(a)*radial,math.sin(a)*radial,h*(.20+.05*(i%2))))
+        middle=start.lerp(tip,.58)+Vector((0,0,-h*.025))
+        add_limb_tube(f"{name}_b_{i}",[tuple(start),tuple(middle),tuple(tip)],
+            [radius*.52,radius*.32,.004],tokens[1],root,sides=5)
+        for j in range(2 if stage!="sprout" else 1):
+            anchor=start.lerp(tip,.48+j*.28)
+            direction=a+(-.8 if j==0 else .7)
+            twig=anchor+Vector((math.cos(direction)*radial*.25,math.sin(direction)*radial*.25,h*.09))
+            add_tapered_beam(f"{name}_twig_{i}_{j}",tuple(anchor),tuple(twig),.007,.002,tokens[1],root,vertices=4)
+        for j in range(p["leafCount"]):
+            t=.30+.66*j/max(1,p["leafCount"]-1)
+            node=start.lerp(tip,t)
+            fan=(-1 if j%2==0 else 1)*(.62+.12*(j%3))
+            token=tokens[3] if j%3==0 else tokens[0]
+            _add_folded_leaf(f"{name}_leaf_{i}_{j}",tuple(node),p["leafLength"]*(.85+.15*(j%2)),
+                p["leafWidth"],a+fan,token,root,pitch=.58 if olive else .65,droop=.72 if dry else .13,cup=.18)
+        if dry and i%3==0:
+            _add_folded_leaf(f"{name}_last_leaf_{i}",tuple(tip),p["leafLength"]*.65,p["leafWidth"]*.7,
+                a,tokens[3],root,pitch=.2,droop=.85)
+        if stage in ("mature","overripe"):
+            for j in range(2 if olive else 1):
+                node=start.lerp(tip,.65+j*.23)
+                radius=p["fruitRadius"]
+                fruit=node+Vector((math.cos(a+.9)*.045,math.sin(a+.9)*.045,-radius*.80))
+                _add_crop_volume(f"{name}_fruit_{i}_{j}",tuple(fruit),
+                    (radius*.78,radius*.67,radius) if olive else (radius,radius*.92,radius*.94),tokens[2],root)
+                add_tapered_beam(f"{name}_fruit_stem_{i}_{j}",tuple(node),tuple(fruit+Vector((0,0,radius*.8))),
+                    .004,.002,tokens[1],root,vertices=4)
+    if stage=="overripe":
+        for i in range(3):
+            a=i*GOLDEN_ANGLE+.3; r=spread*(.50+.18*(i%2)); radius=p["fruitRadius"]
+            _add_crop_volume(f"{name}_windfall_{i}",(math.cos(a)*r,math.sin(a)*r,radius*.75),
+                (radius,radius*.85,radius*.8),tokens[2],root)
 
-    if stage == "sprout":
-        _add_garden_stake("apple_sapling_stake", (0.04, 0.0, 0.0), 0.78, 0.024, wood_token, root)
-        add_tapered_beam("apple_sapling_trunk", (0.0, 0.0, 0.0), (0.02, 0.0, 0.70), 0.024, 0.012, wood_token, root, vertices=5)
-        _add_twine_tie("apple_sapling_tie", (0.025, 0.0, 0.42), 0.032, 0.014, accent_token, root)
-        for i in range(4):
-            a = i * (math.tau / 4.0) + 0.3
-            bx = 0.02 + math.cos(a) * 0.01
-            by = math.sin(a) * 0.01
-            bz = 0.35 + i * 0.08
-            tip = (bx + math.cos(a) * 0.22, by + math.sin(a) * 0.22, bz + 0.18)
-            add_tapered_beam(f"apple_sapling_b_{i}", (bx, by, bz), tip, 0.012, 0.005, wood_token, root, vertices=4)
-            for li in range(3):
-                t = 0.4 + li * 0.28
-                node = (bx + (tip[0] - bx) * t, by + (tip[1] - by) * t, bz + (tip[2] - bz) * t)
-                _add_folded_leaf(f"apple_sapling_l_{i}_{li}", node, 0.14, 0.065, a + (li - 1) * 0.45, leaf_token, root, pitch=0.25, droop=0.08)
-        return
 
-    settings = {
-        "growing": (1.45, 0.55, 6, 0.04),
-        "mature": (2.15, 0.95, 8, 0.06),
-        "overripe": (2.05, 1.00, 8, 0.22),
-        "withered": (1.80, 0.85, 7, 0.50),
-    }
-    height, spread, branches, droop = settings[stage]
-    trunk_top = (0.03 * droop, -0.02, height * 0.45)
-    _add_culm("apple_tree_trunk", (0, 0, 0.016), trunk_top, 0.09, 0.055, wood_token, root, knee=0.05)
-
-    for index in range(branches):
-        angle = index * GOLDEN_ANGLE + 0.2
-        attach_t = 0.55 + 0.35 * ((index % 3) / 2.0)
-        attach = (trunk_top[0] * attach_t, trunk_top[1] * attach_t, trunk_top[2] * attach_t)
-        tip = (
-            attach[0] + math.cos(angle) * spread * (0.80 + 0.15 * (index % 2)),
-            attach[1] + math.sin(angle) * spread * (0.80 + 0.15 * (index % 2)),
-            attach[2] + height * (0.30 + 0.08 * (index % 3)) * (1.0 - droop * 0.4),
-        )
-        add_tapered_beam(f"apple_branch_{index:02d}", attach, tip, 0.038, 0.014, wood_token, root, vertices=5)
-
-        leaf_count = 5 if stage in ("mature", "overripe") else 4 if stage == "growing" else 2
-        for leaf_index in range(leaf_count):
-            along = 0.35 + 0.60 * (leaf_index / max(1, leaf_count - 1))
-            node = (
-                attach[0] + (tip[0] - attach[0]) * along,
-                attach[1] + (tip[1] - attach[1]) * along,
-                attach[2] + (tip[2] - attach[2]) * along,
-            )
-            _add_folded_leaf(
-                f"apple_leaf_{index:02d}_{leaf_index:02d}",
-                node,
-                0.22 if stage != "withered" else 0.16,
-                0.11 if stage != "withered" else 0.07,
-                angle + (leaf_index - (leaf_count - 1) * 0.5) * 0.52,
-                leaf_token if stage != "withered" else accent_token,
-                root,
-                pitch=0.20,
-                droop=droop,
-                cup=0.12,
-            )
-
-        if stage == "growing":
-            for blossom_i in range(2):
-                along = 0.55 + blossom_i * 0.32
-                bnode = (
-                    attach[0] + (tip[0] - attach[0]) * along,
-                    attach[1] + (tip[1] - attach[1]) * along,
-                    attach[2] + (tip[2] - attach[2]) * along + 0.02,
-                )
-                _add_star_flower(f"apple_blossom_{index:02d}_{blossom_i}", bnode, 0.045, accent_token, fruit_token, root, petals=5, rotation=angle + blossom_i)
-        elif stage in ("mature", "overripe"):
-            fruit_count = 3 if stage == "mature" else 2
-            for fi in range(fruit_count):
-                along = 0.48 + fi * 0.22
-                fcenter = (
-                    attach[0] + (tip[0] - attach[0]) * along + math.cos(angle + fi) * 0.05,
-                    attach[1] + (tip[1] - attach[1]) * along + math.sin(angle + fi) * 0.05,
-                    attach[2] + (tip[2] - attach[2]) * along - 0.04 - droop * 0.04,
-                )
-                _add_octahedron(f"apple_fruit_{index:02d}_{fi}", fcenter, (0.044, 0.044, 0.048), fruit_token, root, rotation=angle)
-
-    if stage == "overripe":
-        for wi in range(5):
-            wa = wi * GOLDEN_ANGLE + 0.4
-            wr = 0.42 + 0.35 * (wi % 3)
-            wcenter = (math.cos(wa) * wr, math.sin(wa) * wr, 0.026)
-            _add_octahedron(f"apple_windfall_{wi:02d}", wcenter, (0.042, 0.042, 0.045), fruit_token, root, rotation=wa)
-    elif stage == "withered":
-        for wi in range(2):
-            wa = wi * 2.4 + 0.3
-            _add_octahedron(f"apple_shriveled_{wi:02d}", (math.cos(wa) * 0.45, math.sin(wa) * 0.45, height * 0.55), (0.028, 0.028, 0.032), fruit_token, root)
+def _add_sunflower_head(name, center, radius, tokens, root, *, petals, nod, dry):
+    """Petals, seed disc and receptacle share one nodding botanical plane."""
+    group=bpy.data.objects.new(name,None)
+    bpy.context.collection.objects.link(group)
+    group.parent=root
+    group.location=center
+    group.rotation_euler=(nod,0,.25)
+    add_lofted_form(name+'_back',[
+        ((0,0,-radius*.20),radius*.64,radius*.64),
+        ((0,0,-radius*.06),radius*1.04,radius*1.04),
+        ((0,0,.0),radius,radius)],tokens[0],group,sides=12)
+    add_lofted_form(name+'_disc',[
+        ((0,0,-radius*.015),radius,radius),
+        ((0,0,radius*.14),radius*.92,radius*.92),
+        ((0,0,radius*.22),radius*.66,radius*.66)],tokens[3],group,sides=12)
+    for i in range(petals):
+        a=i*math.tau/petals
+        _add_folded_leaf(f'{name}_petal_{i}',(math.cos(a)*radius*.85,math.sin(a)*radius*.85,0),
+            radius*(.62 if dry else .90),radius*.45,a,tokens[2],group,
+            pitch=.10,droop=.35 if dry else .02,cup=.15)

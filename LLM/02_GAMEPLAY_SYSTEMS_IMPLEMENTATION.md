@@ -1157,6 +1157,8 @@ interface ContractTemplate {
 ```
 Generator MUST validate feasibility, use the template-owned delivery market for readiness and completion, and preserve the produce/fishing choice rule above. `src/content/contracts.ts` is the count authority; the board spans village produce laddered by each crop's own Farming XP gate, harbor sport-fish orders laddered by rod and cargo class, and Sunreach cove orders for the pelagics that range there.
 
+Feasibility includes reaching the delivery market. A market at the far end of a sailing route in `WORLD_SAILING_ROUTES` (Sunreach Cove) offers orders only once the player owns that route's vessel (the Coastal Fishing Skiff); the rowboat cannot make the crossing, so an earlier cove order could only expire. `canReachDeliveryMarket` in `ContractDomain` owns the rule, and the expedition board reports a contract it blocks.
+
 Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match.
 
 The board's capacity is owned by `contractSlotsForRank` in `src/content/progression.ts`. `ContractDomain` passes both Trading rank and the maritime guild charter unlock: the charter increases capacity in addition to rank progression. Refill may leave fewer listings when no feasible template exists. Wider capacity must offer useful choices without bypassing feasibility or delivery requirements.

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { contractSlotsForRank } from "../../src/content/progression";
-import { contractTargetReferenceValue, feasibleContractTargets } from "../../src/simulation/domains/ContractDomain";
+import {
+  canReachDeliveryMarket,
+  contractTargetReferenceValue,
+  feasibleContractTargets
+} from "../../src/simulation/domains/ContractDomain";
+import { buildExpeditionOpportunities } from "../../src/simulation/expeditions/buildExpeditionOpportunities";
+import type { MarketDemandSignal } from "../../src/simulation/core/contracts";
 import { isProduceContractType } from "../../src/simulation/domains/domainRules";
 import { SEASONS } from "../../src/simulation/core/GameClock";
 import { Simulation } from "../../src/simulation/Simulation";
@@ -93,6 +99,60 @@ describe("contract board", () => {
         ).toBe(true);
       }
     }
+  });
+
+  it("offers no Sunreach Cove order until the player owns a vessel that can cross to it", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    const state = sim.state;
+    state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    for (const skill of ["farming", "fishing", "processing", "trading"] as const) {
+      state.player.proficiencies[skill] = 100_000;
+    }
+    state.player.equippedRodId = "rod.master";
+    state.player.ownedRodIds = [...ContentRegistry.rods.keys()];
+    const cove = [...ContentRegistry.contractTemplates.values()]
+      .filter((template) => template.deliveryMarketId === "market.sunreach_cove");
+    expect(cove.length).toBeGreaterThan(0);
+    const offered = () => cove.filter((template) => SEASONS.some((season) => {
+      state.clock.season = season;
+      return feasibleContractTargets(state, template).length > 0;
+    }));
+
+    // The rowboat cannot cross the channel, so a cove order would expire unfulfillable.
+    expect(canReachDeliveryMarket(state, "market.sunreach_cove")).toBe(false);
+    expect(offered()).toEqual([]);
+
+    sim.prepareDebugSkiffReview();
+    expect(canReachDeliveryMarket(state, "market.sunreach_cove")).toBe(true);
+    expect(offered()).toEqual(cove);
+  });
+
+  it("sends each expedition contract to its own delivery market", () => {
+    ContentRegistry.initializeAndValidate();
+    const state = fullyEquippedState();
+    const template = ContentRegistry.contractTemplates.get("contract.sunreach_reef_fish_order")!;
+    state.contracts = [{
+      id: "contract.cove_test", templateId: template.id, requesterId: template.id,
+      deliveryMarketId: template.deliveryMarketId, type: template.type, targetItemIdOrSpecies: "fish.sea_bream",
+      quantityRequired: 1, quantityFulfilled: 0, minFreshness: template.minFreshness, rewardMoney: 90,
+      rewardSkillXp: { skill: "fishing", xp: 50 }, expiresAtMinute: state.clock.currentMinute + 600, status: "active"
+    }];
+    const signal = { success: false } as MarketDemandSignal;
+    const [bold] = buildExpeditionOpportunities(state, { steady: signal, bold: signal });
+    expect(bold.destination).toBe("Sunreach Cove Market");
+    // Sea bream is a physical basic catch: no school to chum, no sport hook to lure.
+    expect(bold.blockers).not.toContain("Pack a chum bucket");
+    expect(bold.blockers).not.toContain("Pack a Woven Lure");
+    // Without a vessel there is nothing cold to stow it in; the skiff's built-in iced hold is.
+    expect(bold.blockers).toContain("No crushed ice is packed for the freshness target");
+    const [aboardSkiff] = buildExpeditionOpportunities(state, { steady: signal, bold: signal }, "boat.player_skiff");
+    expect(aboardSkiff.blockers).not.toContain("No crushed ice is packed for the freshness target");
+
+    delete state.boats["boat.player_skiff"];
+    const [blocked] = buildExpeditionOpportunities(state, { steady: signal, bold: signal });
+    expect(blocked.ready).toBe(false);
+    expect(blocked.blockers).toContain("Coastal Fishing Skiff is required to reach Sunreach Cove Market");
   });
 
   it("widens the board with Trading rank instead of a tier flag", () => {

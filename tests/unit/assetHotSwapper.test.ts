@@ -107,6 +107,68 @@ describe("AssetHotSwapper & Live In-Place Asset Replacement", () => {
     unsubscribe();
   });
 
+  it("never releases geometry still drawn by an unswapped mesh, the new model, or a kept attachment", () => {
+    const assetId = "prop_fence_wood_a";
+    const scene = new THREE.Scene();
+    // `Object3D.clone` shares one geometry between every instance of a model.
+    const shared = new THREE.BoxGeometry(1, 1, 1);
+    const sharedDispose = vi.spyOn(shared, "dispose");
+    const stillDrawn = new THREE.BoxGeometry(1, 1, 1);
+    const stillDrawnDispose = vi.spyOn(stillDrawn, "dispose");
+    const attachmentGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const attachmentDispose = vi.spyOn(attachmentGeometry, "dispose");
+    for (let index = 0; index < 3; index++) {
+      const instance = new THREE.Group();
+      instance.userData.assetId = assetId;
+      instance.add(new THREE.Mesh(shared, new THREE.MeshBasicMaterial()));
+      instance.add(new THREE.Mesh(stillDrawn, new THREE.MeshBasicMaterial()));
+      if (index === 0) {
+        const lantern = new THREE.Mesh(attachmentGeometry, new THREE.MeshBasicMaterial());
+        lantern.userData.isDynamicAttachment = true;
+        instance.add(lantern);
+      }
+      scene.add(instance);
+    }
+    // A different asset still renders one of the swapped model's buffers.
+    scene.add(new THREE.Mesh(stillDrawn, new THREE.MeshBasicMaterial()));
+    const newModel = new THREE.Group();
+    newModel.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 2, 8), new THREE.MeshBasicMaterial()));
+
+    expect(AssetHotSwapper.hotSwapAssetInstances(assetId, newModel, scene)).toBe(3);
+    expect(sharedDispose).toHaveBeenCalledTimes(1);
+    expect(stillDrawnDispose).not.toHaveBeenCalled();
+    expect(attachmentDispose).not.toHaveBeenCalled();
+
+    // Swapping to the model already on screen keeps its buffers alive.
+    const onScreen = newModel.children[0] as THREE.Mesh;
+    const onScreenDispose = vi.spyOn(onScreen.geometry, "dispose");
+    expect(AssetHotSwapper.hotSwapAssetInstances(assetId, newModel, scene)).toBe(3);
+    expect(onScreenDispose).not.toHaveBeenCalled();
+  });
+
+  it("does not re-enter a swapped subtree whose clone carries the same asset id", () => {
+    const assetId = "tree_oak_a";
+    const scene = new THREE.Scene();
+    const instance = new THREE.Group();
+    instance.userData.assetId = assetId;
+    instance.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial()));
+    scene.add(instance);
+    // A runtime LOD inside the model is tagged with the asset id, and
+    // `clone(true)` copies that tag onto every inserted copy.
+    const newModel = new THREE.Group();
+    const lod = new THREE.LOD();
+    lod.userData.assetId = assetId;
+    lod.addLevel(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshBasicMaterial()), 0);
+    newModel.add(lod);
+
+    expect(AssetHotSwapper.hotSwapAssetInstances(assetId, newModel, scene)).toBe(1);
+    expect(instance.children).toHaveLength(1);
+    const inserted = instance.children[0] as THREE.LOD;
+    expect(inserted.isLOD).toBe(true);
+    expect(inserted.children).toHaveLength(1);
+    expect((inserted.children[0] as THREE.Mesh).isMesh).toBe(true);
+  });
+
   it("integrates with AssetLoader.invalidateCache and AssetLoader.reload", async () => {
     const assetId = "prop_crate_wood_a";
     const scene = new THREE.Scene();

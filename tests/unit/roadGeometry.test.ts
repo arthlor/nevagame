@@ -154,6 +154,33 @@ function indexedRoadSurface(geometry: THREE.BufferGeometry) {
 }
 
 describe("Organic road geometry", () => {
+  it("fills free route-end caps continuously across their diameter", () => {
+    const geometry = authoredRoadGeometry();
+    const surface = indexedRoadSurface(geometry);
+    let checked = 0;
+    try {
+      for (const route of COMPILED_WORLD_ROUTES) {
+        for (const [sampleIndex, sign] of [[0, -1], [route.samples.length - 1, 1]]) {
+          const sample = route.samples[sampleIndex];
+          const joined = WORLD_ROUTE_JUNCTIONS.some((junction) =>
+            junction.routeIds.includes(route.route.id)
+            && Math.hypot(sample.point.x - junction.center.x, sample.point.z - junction.center.z)
+              <= junction.radiusMeters + junction.blendLengthMeters * 0.72
+          );
+          if (joined || WorldLayout.isBridgeDeck(sample.point.x, sample.point.z)) continue;
+          const radius = route.halfWidth + route.shoulderWidthMeters;
+          for (const forward of [0.05, 0.15, 0.3]) for (const side of [-0.3, 0, 0.3]) {
+            const x = sample.point.x + sample.tangent.x * sign * radius * forward + sample.normal.x * radius * side;
+            const z = sample.point.z + sample.tangent.z * sign * radius * forward + sample.normal.z * radius * side;
+            expect(Number.isFinite(surface.heightAt(x, z)), `${route.route.id} end ${sampleIndex} at ${x}, ${z}`).toBe(true);
+            checked++;
+          }
+        }
+      }
+      expect(checked).toBeGreaterThan(100);
+    } finally { geometry.dispose(); }
+  });
+
   it("samples a deterministic nonnegative crown, paired ruts, shoulder, and feather", () => {
     const profile = WORLD_ROUTE_PROFILES.arterial;
     const sampleAt = (lateralDistanceMeters: number) => sampleRoadCrossSection({

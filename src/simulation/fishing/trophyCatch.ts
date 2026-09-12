@@ -1,7 +1,8 @@
 // src/simulation/fishing/trophyCatch.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
-import type { FishCargoState, FishQuality } from "../core/types";
+import type { CarryLocationType, FishCargoState, FishQuality } from "../core/types";
+import { freshnessTone } from "./freshnessBands";
 import type { TrophyCatchDto } from "../core/contracts";
 import { calculateFishPrice } from "../economy/calculateFishValue";
 
@@ -43,6 +44,19 @@ export function qualityToStars(quality: FishQuality): 1 | 2 | 3 | 4 {
   }
 }
 
+const CATCH_STORAGE_LABEL: Record<CarryLocationType, string> = {
+  player: "Carried by hand",
+  "boat-hold": "Stowed in boat hold",
+  "boat-hook": "Hung on transom hook",
+  "cold-storage": "Stored in cold room",
+  crate: "Packed in a crate"
+};
+
+/** Where a landed catch now sits, in the catch summary's words — for every location. */
+export function catchStorageLabel(location: CarryLocationType): string {
+  return CATCH_STORAGE_LABEL[location];
+}
+
 /**
  * Pure simulation presenter building a celebratory TrophyCatchDto from a landed fish cargo instance.
  */
@@ -61,8 +75,7 @@ export function buildTrophyCatchDto(
 
   const qualityStars = qualityToStars(cargo.quality);
   const freshnessPercent = Math.max(0, Math.min(100, Math.round(cargo.freshness)));
-  const freshnessTone: "fresh" | "medium" | "stale" =
-    freshnessPercent >= 70 ? "fresh" : freshnessPercent >= 30 ? "medium" : "stale";
+  const tone = freshnessTone(freshnessPercent);
 
   const decayRatePerMin = species?.baseDecayRatePerMinute ?? 0.25;
   const estimatedShelfLifeMinutes = Math.max(0, Math.round(cargo.freshness / Math.max(0.01, decayRatePerMin)));
@@ -73,19 +86,9 @@ export function buildTrophyCatchDto(
     estimatedMarketValue = breakdown.finalPrice;
   }
 
-  let storageDestination: TrophyCatchDto["storageDestination"] = "player-carry";
-  let storageLocationLabel = "Carried by hand";
-
-  if (cargo.location.type === "boat-hold") {
-    storageDestination = "boat-hold";
-    storageLocationLabel = "Stowed in boat hold";
-  } else if (cargo.location.type === "boat-hook") {
-    storageDestination = "boat-hook";
-    storageLocationLabel = "Hung on transom hook";
-  } else if (cargo.location.type === "cold-storage") {
-    storageDestination = "cold-storage";
-    storageLocationLabel = "Stored in cold room";
-  }
+  const storageDestination: TrophyCatchDto["storageDestination"] =
+    cargo.location.type === "player" ? "player-carry" : cargo.location.type;
+  const storageLocationLabel = catchStorageLabel(cargo.location.type);
 
   return {
     cargoId: cargo.id,
@@ -98,7 +101,7 @@ export function buildTrophyCatchDto(
     quality: cargo.quality,
     qualityStars,
     freshnessPercent,
-    freshnessTone,
+    freshnessTone: tone,
     estimatedShelfLifeMinutes,
     estimatedMarketValue,
     record: record ?? null,

@@ -627,7 +627,47 @@ async function main() {
     if (currentJson !== generatedJson) {
       throw new Error("UI Atlas manifest is stale. Run `npm run ui:atlas`.");
     }
-    console.log("[NEVA UI ATLAS] Atlas is up to date and validated.");
+    if (fs.readFileSync(tsManifestPath, "utf8") !== result.typeScriptManifest) {
+      throw new Error("UI Atlas TypeScript manifest is stale. Run `npm run ui:atlas`.");
+    }
+    // The manifests alone said nothing about the pages the game loads. Compare
+    // decoded pixels, not encoder bytes, so a sharp upgrade cannot false-fail.
+    const pixels = (input) => sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    // Lossless WebP may rewrite the colour of fully transparent pixels, which is
+    // invisible; alpha must match everywhere and colour wherever it shows.
+    const samePixels = (a, b) => {
+      if (a.info.width !== b.info.width || a.info.height !== b.info.height || a.data.length !== b.data.length) return false;
+      for (let i = 0; i < a.data.length; i += 4) {
+        if (a.data[i + 3] !== b.data[i + 3]) return false;
+        if (a.data[i + 3] !== 0 && (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2])) {
+          return false;
+        }
+      }
+      return true;
+    };
+    const stalePages = [];
+    for (const image of result.images) {
+      const names = [image.pagePngName, image.pageWebpName];
+      if (image.binIndex === 0) names.push("ui-atlas.png", "ui-atlas.webp");
+      const expected = await pixels(image.pngBuffer);
+      for (const name of names) {
+        const file = path.join(outputDir, name);
+        if (!fs.existsSync(file)) { stalePages.push(`${name} (missing)`); continue; }
+        if (!samePixels(await pixels(file), expected)) stalePages.push(name);
+      }
+    }
+    const extraPages = fs.readdirSync(outputDir).filter((file) => {
+      const match = /^ui-atlas_(\d+)\.(?:png|webp)$/.exec(file);
+      return match !== null && Number(match[1]) >= result.images.length;
+    });
+    if (stalePages.length > 0 || extraPages.length > 0) {
+      throw new Error(
+        "UI Atlas pages are stale. Run `npm run ui:atlas`." +
+          (stalePages.length ? `\n  Out of date: ${stalePages.join(", ")}` : "") +
+          (extraPages.length ? `\n  Left over: ${extraPages.join(", ")}` : "")
+      );
+    }
+    console.log("[NEVA UI ATLAS] Atlas manifests and pages are up to date.");
     return;
   }
 

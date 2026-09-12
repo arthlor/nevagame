@@ -14,11 +14,34 @@ export const DUSK_START_HOUR = 18;
 export const NIGHT_START_HOUR = 22;
 /** Live/offline cadence: 2.5 real seconds per game minute (~60 real minutes per day). */
 export const DEFAULT_MINUTES_PER_REAL_SECOND = 0.4;
+/**
+ * Fastest clock the simulation accepts (a game day in 2.4 real minutes). Live
+ * ticks and offline catch-up both step minute by minute, so an unbounded speed
+ * from a corrupt or edited save would turn a 72-hour absence into ~1e11 steps.
+ */
+export const MAX_MINUTES_PER_REAL_SECOND = 10;
+
+export function isValidClockSpeed(minutesPerRealSecond: unknown): minutesPerRealSecond is number {
+  return typeof minutesPerRealSecond === "number"
+    && Number.isFinite(minutesPerRealSecond)
+    && minutesPerRealSecond >= 0
+    && minutesPerRealSecond <= MAX_MINUTES_PER_REAL_SECOND;
+}
 export const REST_WAKE_MINUTE_OF_DAY = 8 * MINUTES_PER_HOUR;
 
 export function seasonAtMinute(currentMinute: number): SeasonId {
   const totalDays = Math.floor(Math.max(0, currentMinute) / MINUTES_PER_DAY);
   return SEASONS[Math.floor(totalDays / DAYS_PER_SEASON) % SEASONS.length];
+}
+
+/** The calendar a clock minute implies; `ClockState` stores it only as a cache. */
+export function calendarAtMinute(currentMinute: number): Pick<ClockState, "dayCount" | "season" | "year"> {
+  const totalDays = Math.floor(Math.max(0, currentMinute) / MINUTES_PER_DAY);
+  return {
+    dayCount: totalDays + 1,
+    season: seasonAtMinute(currentMinute),
+    year: Math.floor(totalDays / (DAYS_PER_SEASON * SEASONS.length)) + 1
+  };
 }
 
 /**
@@ -80,6 +103,7 @@ export class GameClock {
     ) {
       throw new Error("GameClock requires a non-negative integer minute and finite non-negative speed");
     }
+    this.state.minutesPerRealSecond = Math.min(this.state.minutesPerRealSecond, MAX_MINUTES_PER_REAL_SECOND);
     this.recalculateCalendar();
   }
 
@@ -97,7 +121,7 @@ export class GameClock {
 
   public setSpeed(minutesPerRealSecond: number): void {
     if (!Number.isFinite(minutesPerRealSecond) || minutesPerRealSecond < 0) return;
-    this.state.minutesPerRealSecond = minutesPerRealSecond;
+    this.state.minutesPerRealSecond = Math.min(minutesPerRealSecond, MAX_MINUTES_PER_REAL_SECOND);
   }
 
   /** Deterministic development capture setup; gameplay advances time through tick(). */
@@ -148,12 +172,7 @@ export class GameClock {
 
   private recalculateCalendar(): void {
     const totalMinutes = this.state.currentMinute;
-    const totalDays = Math.floor(totalMinutes / MINUTES_PER_DAY);
-    this.state.dayCount = totalDays + 1;
-
-    const seasonIndex = Math.floor(totalDays / DAYS_PER_SEASON) % SEASONS.length;
-    this.state.season = SEASONS[seasonIndex];
-    this.state.year = Math.floor(totalDays / (DAYS_PER_SEASON * SEASONS.length)) + 1;
+    Object.assign(this.state, calendarAtMinute(totalMinutes));
 
     const minuteOfDay = totalMinutes % MINUTES_PER_DAY;
     const hourOfDay = Math.floor(minuteOfDay / MINUTES_PER_HOUR);

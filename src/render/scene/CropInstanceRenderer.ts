@@ -16,7 +16,8 @@ const MAX_CROP_INSTANCES = 160;
 const TRANSITION_SECONDS = 0.28;
 const HARVEST_CUT_SECONDS = 0.32;
 const PLANTED_SETTLE_SECONDS = 0.28;
-const MOUND_APEX_HEIGHT = 0.065;
+const FURROW_SURFACE_OFFSET = 0.042;
+const MOUND_APEX_HEIGHT = 0.082;
 
 export const WHEAT_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   seeded: ASSET_IDS.CROP_WHEAT_SEEDED,
@@ -224,16 +225,29 @@ function smoothstep(value: number): number {
 }
 
 function makeOblongSoilMoundGeometry(): THREE.BufferGeometry {
-  // Low-poly faceted oblong mound elongated along the furrow (Z axis)
-  // with asymmetric facet breaks and integrated perimeter soil clods.
   const positions: number[] = [];
 
-  const addTri = (
+  const addOutwardFace = (
     ax: number, ay: number, az: number,
     bx: number, by: number, bz: number,
     cx: number, cy: number, cz: number
   ) => {
-    positions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    const abx = bx - ax, aby = by - ay, abz = bz - az;
+    const acx = cx - ax, acy = cy - ay, acz = cz - az;
+    const nx = aby * acz - abz * acy;
+    const ny = abz * acx - abx * acz;
+    const nz = abx * acy - aby * acx;
+    const fx = (ax + bx + cx) / 3;
+    const fy = (ay + by + cy) / 3;
+    const fz = (az + bz + cz) / 3;
+    const toFaceX = fx;
+    const toFaceY = fy - 0.01;
+    const toFaceZ = fz;
+    if (nx * toFaceX + ny * toFaceY + nz * toFaceZ < 0) {
+      positions.push(ax, ay, az, cx, cy, cz, bx, by, bz);
+    } else {
+      positions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    }
   };
 
   const addQuad = (
@@ -242,58 +256,55 @@ function makeOblongSoilMoundGeometry(): THREE.BufferGeometry {
     cx: number, cy: number, cz: number,
     dx: number, dy: number, dz: number
   ) => {
-    addTri(ax, ay, az, bx, by, bz, cx, cy, cz);
-    addTri(ax, ay, az, cx, cy, cz, dx, dy, dz);
+    addOutwardFace(ax, ay, az, bx, by, bz, cx, cy, cz);
+    addOutwardFace(ax, ay, az, cx, cy, cz, dx, dy, dz);
   };
 
-  // Main mound vertices
-  // Crest points along furrow (Z axis)
-  const pApex: [number, number, number] = [0.00, 0.068, 0.00];
-  const pNorthCrest: [number, number, number] = [-0.01, 0.060, 0.20];
-  const pSouthCrest: [number, number, number] = [0.01, 0.058, -0.20];
+  // Dimensions: oblong along furrow (Z)
+  // Crest points along Z
+  const pApex: [number, number, number] = [0.00, 0.082, 0.00];
+  const pNorthCrest: [number, number, number] = [-0.01, 0.074, 0.22];
+  const pSouthCrest: [number, number, number] = [0.01, 0.072, -0.22];
 
-  // Mid-crest shoulders (slight asymmetry)
-  const pEastMid: [number, number, number] = [0.12, 0.048, 0.02];
-  const pWestMid: [number, number, number] = [-0.13, 0.046, -0.02];
-  const pNorthEastMid: [number, number, number] = [0.09, 0.044, 0.18];
-  const pNorthWestMid: [number, number, number] = [-0.10, 0.042, 0.17];
-  const pSouthEastMid: [number, number, number] = [0.10, 0.042, -0.17];
-  const pSouthWestMid: [number, number, number] = [-0.09, 0.044, -0.18];
+  // Mid-crest shoulders (slight organic asymmetry)
+  const pEastMid: [number, number, number] = [0.14, 0.056, 0.02];
+  const pWestMid: [number, number, number] = [-0.15, 0.054, -0.02];
+  const pNorthEastMid: [number, number, number] = [0.11, 0.052, 0.20];
+  const pNorthWestMid: [number, number, number] = [-0.12, 0.050, 0.19];
+  const pSouthEastMid: [number, number, number] = [0.12, 0.050, -0.19];
+  const pSouthWestMid: [number, number, number] = [-0.11, 0.052, -0.20];
 
-  // Base boundary vertices at ground level
-  const bNorth: [number, number, number] = [0.01, 0.002, 0.38];
-  const bNorthEast: [number, number, number] = [0.17, 0.002, 0.27];
-  const bEast: [number, number, number] = [0.24, 0.002, 0.01];
-  const bSouthEast: [number, number, number] = [0.18, 0.002, -0.27];
-  const bSouth: [number, number, number] = [-0.01, 0.002, -0.38];
-  const bSouthWest: [number, number, number] = [-0.18, 0.002, -0.26];
-  const bWest: [number, number, number] = [-0.23, 0.002, -0.01];
-  const bNorthWest: [number, number, number] = [-0.16, 0.002, 0.28];
+  // Base boundary vertices at furrow ground level (Y = 0)
+  const bNorth: [number, number, number] = [0.01, 0.001, 0.42];
+  const bNorthEast: [number, number, number] = [0.20, 0.001, 0.30];
+  const bEast: [number, number, number] = [0.26, 0.001, 0.01];
+  const bSouthEast: [number, number, number] = [0.21, 0.001, -0.30];
+  const bSouth: [number, number, number] = [-0.01, 0.001, -0.42];
+  const bSouthWest: [number, number, number] = [-0.21, 0.001, -0.29];
+  const bWest: [number, number, number] = [-0.26, 0.001, -0.01];
+  const bNorthWest: [number, number, number] = [-0.19, 0.001, 0.31];
 
-  // Top spine quads / triangles:
-  // Apex to north crest & shoulders
-  addTri(pApex[0], pApex[1], pApex[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2], pNorthCrest[0], pNorthCrest[1], pNorthCrest[2]);
-  addTri(pApex[0], pApex[1], pApex[2], pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2]);
-  // Apex to mid flanks
-  addTri(pApex[0], pApex[1], pApex[2], pEastMid[0], pEastMid[1], pEastMid[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2]);
-  addTri(pApex[0], pApex[1], pApex[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2], pWestMid[0], pWestMid[1], pWestMid[2]);
-  // Apex to south crest & shoulders
-  addTri(pApex[0], pApex[1], pApex[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2], pEastMid[0], pEastMid[1], pEastMid[2]);
-  addTri(pApex[0], pApex[1], pApex[2], pWestMid[0], pWestMid[1], pWestMid[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2]);
-  addTri(pApex[0], pApex[1], pApex[2], pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2]);
-  addTri(pApex[0], pApex[1], pApex[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2], pSouthCrest[0], pSouthCrest[1], pSouthCrest[2]);
+  // Spine and flank triangles
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2], pNorthCrest[0], pNorthCrest[1], pNorthCrest[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pEastMid[0], pEastMid[1], pEastMid[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2], pWestMid[0], pWestMid[1], pWestMid[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2], pEastMid[0], pEastMid[1], pEastMid[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pWestMid[0], pWestMid[1], pWestMid[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2]);
+  addOutwardFace(pApex[0], pApex[1], pApex[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2], pSouthCrest[0], pSouthCrest[1], pSouthCrest[2]);
 
   // North nose sloped faces
-  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorthEast[0], bNorthEast[1], bNorthEast[2], bNorth[0], bNorth[1], bNorth[2]);
-  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorth[0], bNorth[1], bNorth[2], bNorthWest[0], bNorthWest[1], bNorthWest[2]);
-  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2], bNorthEast[0], bNorthEast[1], bNorthEast[2]);
-  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorthWest[0], bNorthWest[1], bNorthWest[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2]);
+  addOutwardFace(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorthEast[0], bNorthEast[1], bNorthEast[2], bNorth[0], bNorth[1], bNorth[2]);
+  addOutwardFace(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorth[0], bNorth[1], bNorth[2], bNorthWest[0], bNorthWest[1], bNorthWest[2]);
+  addOutwardFace(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2], bNorthEast[0], bNorthEast[1], bNorthEast[2]);
+  addOutwardFace(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorthWest[0], bNorthWest[1], bNorthWest[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2]);
 
   // South nose sloped faces
-  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouth[0], bSouth[1], bSouth[2], bSouthEast[0], bSouthEast[1], bSouthEast[2]);
-  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouthWest[0], bSouthWest[1], bSouthWest[2], bSouth[0], bSouth[1], bSouth[2]);
-  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouthEast[0], bSouthEast[1], bSouthEast[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2]);
-  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2], bSouthWest[0], bSouthWest[1], bSouthWest[2]);
+  addOutwardFace(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouth[0], bSouth[1], bSouth[2], bSouthEast[0], bSouthEast[1], bSouthEast[2]);
+  addOutwardFace(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouthWest[0], bSouthWest[1], bSouthWest[2], bSouth[0], bSouth[1], bSouth[2]);
+  addOutwardFace(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouthEast[0], bSouthEast[1], bSouthEast[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2]);
+  addOutwardFace(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2], bSouthWest[0], bSouthWest[1], bSouthWest[2]);
 
   // East flank slopes
   addQuad(
@@ -323,14 +334,6 @@ function makeOblongSoilMoundGeometry(): THREE.BufferGeometry {
     pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2]
   );
 
-  // Bottom face
-  addTri(bNorth[0], 0, bNorth[2], bNorthEast[0], 0, bNorthEast[2], bNorthWest[0], 0, bNorthWest[2]);
-  addTri(bNorthEast[0], 0, bNorthEast[2], bEast[0], 0, bEast[2], bNorthWest[0], 0, bNorthWest[2]);
-  addTri(bEast[0], 0, bEast[2], bWest[0], 0, bWest[2], bNorthWest[0], 0, bNorthWest[2]);
-  addTri(bEast[0], 0, bEast[2], bSouthEast[0], 0, bSouthEast[2], bWest[0], 0, bWest[2]);
-  addTri(bSouthEast[0], 0, bSouthEast[2], bSouth[0], 0, bSouth[2], bWest[0], 0, bWest[2]);
-  addTri(bSouth[0], 0, bSouth[2], bSouthWest[0], 0, bSouthWest[2], bWest[0], 0, bWest[2]);
-
   // Integrated small faceted clods on the perimeter / flanks
   const addClod = (cx: number, cy: number, cz: number, r: number, h: number) => {
     const tip: [number, number, number] = [cx + r * 0.1, cy + h, cz - r * 0.1];
@@ -338,16 +341,16 @@ function makeOblongSoilMoundGeometry(): THREE.BufferGeometry {
     const c2: [number, number, number] = [cx + r * 0.9, cy, cz - r * 0.5];
     const c3: [number, number, number] = [cx + r * 0.2, cy, cz + r];
     const c4: [number, number, number] = [cx - r * 0.8, cy, cz + r * 0.6];
-    addTri(tip[0], tip[1], tip[2], c1[0], c1[1], c1[2], c2[0], c2[1], c2[2]);
-    addTri(tip[0], tip[1], tip[2], c2[0], c2[1], c2[2], c3[0], c3[1], c3[2]);
-    addTri(tip[0], tip[1], tip[2], c3[0], c3[1], c3[2], c4[0], c4[1], c4[2]);
-    addTri(tip[0], tip[1], tip[2], c4[0], c4[1], c4[2], c1[0], c1[1], c1[2]);
+    addOutwardFace(tip[0], tip[1], tip[2], c1[0], c1[1], c1[2], c2[0], c2[1], c2[2]);
+    addOutwardFace(tip[0], tip[1], tip[2], c2[0], c2[1], c2[2], c3[0], c3[1], c3[2]);
+    addOutwardFace(tip[0], tip[1], tip[2], c3[0], c3[1], c3[2], c4[0], c4[1], c4[2]);
+    addOutwardFace(tip[0], tip[1], tip[2], c4[0], c4[1], c4[2], c1[0], c1[1], c1[2]);
   };
 
-  addClod(0.18, 0.005, 0.20, 0.045, 0.032);
-  addClod(-0.17, 0.005, -0.19, 0.042, 0.028);
-  addClod(-0.16, 0.005, 0.14, 0.038, 0.024);
-  addClod(0.19, 0.005, -0.12, 0.040, 0.026);
+  addClod(0.20, 0.005, 0.22, 0.055, 0.040);
+  addClod(-0.19, 0.005, -0.21, 0.050, 0.035);
+  addClod(-0.18, 0.005, 0.16, 0.045, 0.030);
+  addClod(0.21, 0.005, -0.14, 0.048, 0.032);
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -413,8 +416,10 @@ export class CropInstanceRenderer {
     this.group.name = "crop_instance_renderer";
     const moistureMaterial = PaletteMaterials.standard("soil_warm_01", {
       flatShading: true,
-      roughness: 0.96
+      roughness: 0.94
     });
+    moistureMaterial.side = THREE.DoubleSide;
+    moistureMaterial.color.setHex(0xffffff);
     const moistureMesh = new THREE.InstancedMesh(
       makeOblongSoilMoundGeometry(),
       moistureMaterial,
@@ -714,7 +719,7 @@ export class CropInstanceRenderer {
 
       const cut = entry.cutProgress ?? 0;
       const elevationScale = entry.cutProgress != null ? Math.max(0, 1 - smoothstep(cut)) : plantedElevation;
-      const cropElevation = MOUND_APEX_HEIGHT * elevationScale;
+      const cropElevation = FURROW_SURFACE_OFFSET + MOUND_APEX_HEIGHT * elevationScale;
       this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + cropElevation, world.z);
 
       const cutLean = smoothstep(cut) * (0.82 + hashUnit(`${crop.id}:cut`) * 0.24);
@@ -725,7 +730,7 @@ export class CropInstanceRenderer {
         "YXZ"
       );
       this.quaternion.setFromEuler(this.euler);
-      const seededBoost = crop.stage === "seeded" ? 1.95 : 1.0;
+      const seededBoost = crop.stage === "seeded" ? 2.2 : 1.0;
       this.scale.set(
         continuousScale * transitionScale * seededBoost * plantedScaleX,
         continuousScale * THREE.MathUtils.lerp(0.96, 1.05, withinStage) * transitionScale *
@@ -800,7 +805,7 @@ export class CropInstanceRenderer {
         scaleXZ = 1 - bounce * 0.12;
       }
 
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
+      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + FURROW_SURFACE_OFFSET, world.z);
       // Furrow-aligned oblong mound: subtle organic variation around furrow Z axis
       const furrowJitter = (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08;
       this.quaternion.setFromEuler(this.euler.set(0, furrowJitter, 0));
@@ -854,7 +859,7 @@ export class CropInstanceRenderer {
       );
       const sinkScaleY = Math.max(0.001, 1 - smoothstep(harvestProgress));
 
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
+      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + FURROW_SURFACE_OFFSET, world.z);
       const furrowJitter = (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08;
       this.quaternion.setFromEuler(this.euler.set(0, furrowJitter, 0));
       this.scale.set(

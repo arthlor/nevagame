@@ -226,7 +226,7 @@ export interface TrophyCatchDto {
   estimatedShelfLifeMinutes: number;
   estimatedMarketValue: number;
   record: "first" | "weight" | "quality" | null;
-  storageDestination: "player-carry" | "boat-hold" | "boat-hook" | "cold-storage";
+  storageDestination: "player-carry" | "boat-hold" | "boat-hook" | "cold-storage" | "crate";
   storageLocationLabel: string;
 }
 

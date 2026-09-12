@@ -316,16 +316,16 @@ const PARAMETER_CONTRACTS = Object.freeze({
   worm_compost_bin: { width: number(0.5, 3), depth: number(0.5, 3), height: number(0.4, 2), slatCount: integer(2, 8), lidAngleDeg: number(0, 75), soilFillRatio: number(0.1, 0.95) },
   rowboat: { length: number(2, 8), beam: number(1, 4), ribCount: integer(5, 16), innerPlanks: integer(5, 16), gunwaleSegments: integer(5, 16) },
   fishing_skiff: { length: number(4, 16), beam: number(1.5, 6), ribCount: integer(6, 20), mastHeight: number(3, 14), outerStrakes: integer(2, 7), hullSegments: integer(7, 18), deckBoards: integer(12, 50), sailRows: integer(4, 14) },
-  wheat_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 24) },
-  barley_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 24) },
-  corn_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stalks: integer(0, 8) },
-  flax_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), stems: integer(0, 32) },
-  tomato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), plants: integer(0, 12) },
-  potato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
-  carrot_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), plants: integer(0, 12) },
-  sunflower_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
-  olive_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
-  apple_tree_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered") },
+  wheat_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), stalks: integer(0, 32) },
+  barley_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), stalks: integer(0, 32) },
+  corn_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), stalks: integer(0, 32) },
+  flax_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), stems: integer(0, 32) },
+  tomato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), fruitRadius: number(0.001, 3), plants: integer(0, 32) },
+  potato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), stems: integer(0, 32) },
+  carrot_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), plants: integer(0, 32) },
+  sunflower_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), leafCount: integer(0, 32) },
+  olive_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
+  apple_tree_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
   turnip_crop: { leafCount: integer(4, 10) },
   pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
   stylized_fish: {
@@ -2101,6 +2101,12 @@ async function syncPublishedManifest(catalog, specHash) {
     summary: summarizeAssets(assets),
     assets,
   };
+  // Sync only revalidates what is published. When that changes nothing, keep
+  // the published timestamp so a no-op run leaves the tracked manifests alone.
+  const undated = (value) => JSON.stringify({ ...value, generatedAt: null });
+  if (previous.generatedAt && undated(manifest) === undated(previous)) {
+    manifest.generatedAt = previous.generatedAt;
+  }
   const stage = path.join(STAGING_ROOT, `sync-${process.pid}`);
   fs.mkdirSync(stage, { recursive: true });
   const stagedManifest = path.join(stage, "asset-manifest.json");

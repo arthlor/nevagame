@@ -9,7 +9,7 @@ import {
   inferNoticeTone,
   type Notice
 } from "../../src/ui/notifications";
-import { autoScaleFor, isUiScalePreference, resolveUiScale } from "../../src/ui/uiScale";
+import { autoScaleFor, isMobileViewport, isUiScalePreference, resolveUiScale } from "../../src/ui/uiScale";
 import { KEY_BINDINGS, KEY_BINDING_GROUPS } from "../../src/ui/keybindings";
 
 describe("NoticeQueue", () => {
@@ -206,9 +206,25 @@ describe("uiScale", () => {
 
   it("honours explicit preferences regardless of viewport", () => {
     expect(resolveUiScale("small", 3840, 2160)).toBe(0.85);
+    expect(resolveUiScale("small", 1440, 810)).toBe(0.85);
     expect(resolveUiScale("large", 800, 600)).toBe(1.2);
     expect(isUiScalePreference("auto")).toBe(true);
     expect(isUiScalePreference("gigantic")).toBe(false);
+  });
+
+  it("resolves to compact scale on mobile viewports with small preset at 0.70", () => {
+    // Phone in landscape (e.g. 844x390, 667x375)
+    expect(isMobileViewport(844, 390)).toBe(true);
+    expect(isMobileViewport(667, 375)).toBe(true);
+    expect(resolveUiScale("small", 844, 390)).toBe(0.70);
+    expect(resolveUiScale("small", 667, 375)).toBe(0.70);
+    expect(resolveUiScale("normal", 844, 390)).toBe(0.85);
+    expect(resolveUiScale("large", 844, 390)).toBe(1.0);
+
+    // Desktop viewports are not mobile
+    expect(isMobileViewport(1440, 810)).toBe(false);
+    expect(isMobileViewport(3840, 2160)).toBe(false);
+    expect(resolveUiScale("small", 1440, 810)).toBe(0.85);
   });
 });
 

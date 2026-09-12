@@ -44,9 +44,14 @@ export class SeededRng implements Rng {
 
   /**
    * Mulberry32 algorithm - fast, uniform 32-bit generator.
+   *
+   * The state is kept as an unsigned 32-bit value. The mixing below only ever
+   * reads it through 32-bit bitwise operators, so masking yields the exact same
+   * sequence as an unbounded accumulator while keeping the persisted state a
+   * safe integer (an unmasked sum passes 2^53 after ~4.9M draws).
    */
   public nextFloat(): number {
-    let t = (this.state += 0x6d2b79f5);
+    let t = (this.state = (this.state + 0x6d2b79f5) >>> 0);
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     const res = ((t ^ (t >>> 14)) >>> 0) / 4294967296;

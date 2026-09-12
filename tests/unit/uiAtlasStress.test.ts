@@ -337,9 +337,10 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
      * the repo one interrupted run away from a corrupted manifest, and made
      * the suite race anything else touching those files — a dev server running
      * `assets:sync` on the same tree was enough to make a tampered check pass.
-     * `NEVA_ATLAS_ROOT` points the CLI at a throwaway copy instead. Only what
-     * `--check` actually reads is copied: it repacks from the sources in
-     * memory and never opens the published pages.
+     * `NEVA_ATLAS_ROOT` points the CLI at a throwaway copy instead. Everything
+     * `--check` reads is copied: it repacks from the sources in memory and then
+     * compares those bytes against the published pages, so the copy must include
+     * the packed `public/assets/ui/atlas` outputs too.
      */
     let atlasRoot = "";
     const checkEnv = () => ({ ...process.env, NEVA_ATLAS_ROOT: atlasRoot });
@@ -364,14 +365,15 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
 
     beforeAll(() => {
       atlasRoot = fs.mkdtempSync(path.join(os.tmpdir(), "neva-atlas-check-"));
-      fs.cpSync(
-        path.join(process.cwd(), "assets/ui/atlas"),
-        rootFile("assets/ui/atlas"),
-        { recursive: true }
-      );
+      for (const relative of ["assets/ui/atlas", "public/assets/ui/atlas"]) {
+        fs.cpSync(
+          path.join(process.cwd(), relative),
+          rootFile(relative),
+          { recursive: true }
+        );
+      }
       for (const relative of [
         "assets/ui/ui-atlas.manifest.json",
-        "public/assets/ui/atlas/ui-atlas.json",
         "src/ui/atlas/AtlasManifest.ts"
       ]) {
         fs.mkdirSync(path.dirname(rootFile(relative)), { recursive: true });
@@ -384,7 +386,7 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
     });
 
     it("passes cleanly when production manifests are up-to-date", async () => {
-      expect(await runCheck()).toContain("[NEVA UI ATLAS] Atlas is up to date and validated.");
+      expect(await runCheck()).toContain("[NEVA UI ATLAS] Atlas manifests and pages are up to date.");
     }, 120_000);
 
     it("detects when JSON manifest is stale or modified and exits with non-zero error", async () => {

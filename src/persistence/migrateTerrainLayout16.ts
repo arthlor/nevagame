@@ -45,12 +45,15 @@ export function migrateTerrainLayout16(previous: GameState): GameState {
     const point = nearestPoint(mount, (candidate) => supported(candidate, island, true), fallback(island));
     state.mounts[id] = { ...mount, ...point, y: WorldLayout.traversalSurfaceHeight(point.x, point.z) };
   }
+  // A pose whose X/Z survives keeps its saved region: only a relocation may
+  // remap it. The new relief can still change the height it stands at.
+  const moved = (point: Point) => point.x !== previous.player.x || point.z !== previous.player.z;
   const island = islandAt(previous.player);
   if (island && !previous.player.activeBoatId) {
     const mount = state.player.activeMountId ? state.mounts[state.player.activeMountId] : null;
     if (mount) {
       Object.assign(state.player, playerPoseFromMount(mount));
-      state.player.currentRegionId = WorldLayout.regionAt(mount.x, mount.z);
+      if (moved(mount)) state.player.currentRegionId = WorldLayout.regionAt(mount.x, mount.z);
       state.player.traversal = { ...previous.player.traversal, isGrounded: true };
     } else {
       const sport = previous.sportFishing;
@@ -63,8 +66,15 @@ export function migrateTerrainLayout16(previous: GameState): GameState {
       const valid = (point: Point) => supported(point, island, false)
         && (!fishing || (WorldLayout.fishingEcologyAt(point.x, point.z).id === ecology && clearReach(point, bearing, distance)));
       const point = nearestPoint(previous.player, valid, fallback(island));
-      groundPlayer(state.player, point);
-      if (sport?.dynamics && (point.x !== previous.player.x || point.z !== previous.player.z)) {
+      if (moved(point)) groundPlayer(state.player, point);
+      else {
+        const y = WorldLayout.traversalSurfaceHeight(point.x, point.z) + MOUNT_TUNING.playerPoseGroundOffsetMeters;
+        if (state.player.y !== y) {
+          state.player.y = y;
+          state.player.traversal = { ...previous.player.traversal, isGrounded: true };
+        }
+      }
+      if (sport?.dynamics && moved(point)) {
         state.sportFishing = { ...sport, dynamics: { ...sport.dynamics, originX: point.x, originZ: point.z } };
       }
     }

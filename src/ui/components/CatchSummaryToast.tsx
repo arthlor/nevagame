@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { FishCargoState } from "../../simulation/core/types";
 import type { TrophyCatchDto } from "../../simulation/core/contracts";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { catchStorageLabel } from "../../simulation/fishing/trophyCatch";
 import { IconFish } from "./HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish } from "../chrome/uiAtlas";
@@ -35,14 +36,7 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
   const freshness = catchData?.freshnessPercent ?? (cargo ? Math.round(cargo.freshness) : 100);
 
   const storageLabel =
-    catchData?.storageLocationLabel ??
-    (cargo?.location.type === "player"
-      ? "Carried by hand"
-      : cargo?.location.type === "boat-hold"
-        ? "Stowed in hold"
-        : cargo?.location.type === "boat-hook"
-          ? "Hung on transom hook"
-          : "Stowed in hold");
+    catchData?.storageLocationLabel ?? catchStorageLabel(cargo?.location.type ?? "player");
 
   useEffect(() => {
     setVisible(true);

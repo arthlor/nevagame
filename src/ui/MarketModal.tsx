@@ -146,7 +146,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const [sellSortDir, setSellSortDir] = useState<1 | -1>(1);
   const [holdSortKey, setHoldSortKey] = useState<"name" | "price">("name");
   const [holdSortDir, setHoldSortDir] = useState<1 | -1>(1);
-  const [pendingBulk, setPendingBulk] = useState<"produce" | "fish" | null>(null);
+  // "item" arms the ticket's "Sell all of this item" for the selected stack.
+  const [pendingBulk, setPendingBulk] = useState<"produce" | "fish" | "item" | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
@@ -215,6 +216,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const clampedQty = ownedCount > 0 ? Math.min(Math.max(sellQty, 1), ownedCount) : 1;
   useEffect(() => {
     setSellQty(1);
+    // An armed "sell all of this item" confirms one stack, never the next one.
+    setPendingBulk((pending) => (pending === "item" ? null : pending));
   }, [selectedOwned?.itemId, ownedCount, setSellQty]);
 
   const ticketPrice = activeMarketId && selectedOwned
@@ -239,12 +242,22 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     if (activeMarketId) onSellAllFishCargo(activeMarketId);
   };
 
+  // The whole stack is a bulk sale too, and is held to the same threshold.
+  const sellAllItemQuote = activeMarketId && selectedOwned && ownedCount > 0
+    ? onInspectCommodity(activeMarketId, selectedOwned.itemId, "sell", ownedCount)
+    : null;
+  const sellAllItemRevenue = sellAllItemQuote?.success ? sellAllItemQuote.totalPrice ?? 0 : 0;
+  const handleSellAllOfItem = () => {
+    setPendingBulk(null);
+    if (activeMarketId && selectedOwned && ownedCount > 0) onSellItem(activeMarketId, selectedOwned.itemId, ownedCount);
+  };
+
   /**
    * #11: bulk sales worth more than BULK_CONFIRM_THRESHOLD_G need an armed
    * confirmation popover. Confirmation-only: the sim exposes no reversal
    * callback on these props, so no undo toast is shown (never fake gold).
    */
-  const requestBulkSell = (kind: "produce" | "fish", revenue: number, fire: () => void): void => {
+  const requestBulkSell = (kind: "produce" | "fish" | "item", revenue: number, fire: () => void): void => {
     if (revenue > BULK_CONFIRM_THRESHOLD_G && pendingBulk !== kind) {
       playUiSound("click");
       setPendingBulk(kind);
@@ -833,13 +846,32 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     <ChromeButton
                       soundCue="coins"
                       disabled={!activeMarketId || ownedCount <= 0}
-                      onClick={() =>
-                        activeMarketId && onSellItem(activeMarketId, selectedOwned.itemId, ownedCount)
-                      }
+                      aria-expanded={pendingBulk === "item"}
+                      onClick={() => requestBulkSell("item", sellAllItemRevenue, handleSellAllOfItem)}
                     >
                       Sell all of this item
                     </ChromeButton>
                   </div>
+                  {pendingBulk === "item" && (
+                    <div
+                      className="bulk-confirm-popover"
+                      role="alertdialog"
+                      aria-label={`Confirm selling every ${ticketName} for ${sellAllItemRevenue.toLocaleString()} gold`}
+                    >
+                      <p className="bulk-confirm-text">
+                        Sell all {ownedCount} {ticketName} for{" "}
+                        <strong>{sellAllItemRevenue.toLocaleString()} G</strong>? This cannot be undone.
+                      </p>
+                      <div className="bulk-confirm-actions">
+                        <ChromeButton variant="gold" size="sm" soundCue="coins" onClick={handleSellAllOfItem}>
+                          Confirm sale
+                        </ChromeButton>
+                        <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                          Keep goods
+                        </ChromeButton>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="no-commodity-selected">

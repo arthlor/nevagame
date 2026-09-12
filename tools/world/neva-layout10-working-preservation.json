@@ -1,6 +1,11 @@
 {
   "sunreachSampling": {
-    "bounds": { "minX": 340, "maxX": 654, "minZ": -90, "maxZ": 205 },
+    "bounds": {
+      "minX": 340,
+      "maxX": 654,
+      "minZ": -90,
+      "maxZ": 205
+    },
     "spacingMeters": 6
   },
   "workingGround": [
@@ -6051,6 +6056,6 @@
     "farm-home"
   ],
   "routeHash": "558a98168cf8d96adea2f6e9755d13c6e34d1789383054ed87a26a29fcdb85f3",
-  "sunreachHash": "a35c87c593cb183a092f80f663d88ad120c56c5171c1971d85863e906e918e5e",
+  "sunreachHash": "eee77204dc7649749162a63ac9d76dfea33f76915d9cd98f9e897b605aaa5336",
   "sunreachSampleCount": 2650
 }

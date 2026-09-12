@@ -120,7 +120,7 @@ export const GROUND_COVER_SCALE_PROFILE: Readonly<
 function createRng(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
-    state += 0x6d2b79f5;
+    state = (state + 0x6d2b79f5) >>> 0;
     let value = state;
     value = Math.imul(value ^ (value >>> 15), value | 1);
     value ^= value + Math.imul(value ^ (value >>> 7), value | 61);

@@ -11,35 +11,58 @@ export interface AssetReloadEvent {
 
 export type AssetReloadListener = (event: AssetReloadEvent) => void;
 
+/** GPU resources something still draws, which a swap therefore must not release. */
+interface RetainedResources {
+  geometries: ReadonlySet<THREE.BufferGeometry>;
+  materials: ReadonlySet<THREE.Material>;
+}
+
+function meshMaterials(mesh: THREE.Mesh): THREE.Material[] {
+  if (!mesh.material) return [];
+  return Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+}
+
+function isPreservedChild(child: THREE.Object3D): boolean {
+  return Boolean(child.userData?.isDynamicAttachment || child.userData?.isPresentationRig);
+}
+
 export class AssetHotSwapper {
   private static listeners: Set<AssetReloadListener> = new Set();
 
   /**
    * Disposes BufferGeometry on meshes inside container while strictly preserving
-   * shared PaletteMaterials singletons.
+   * shared PaletteMaterials singletons. Anything listed in `retained` is still
+   * drawn elsewhere and is skipped; each resource is released at most once.
    */
-  public static safelyDisposeInstanceGeometries(container: THREE.Object3D): void {
-    container.traverse((node) => {
-      if (node instanceof THREE.Mesh || (node as THREE.Mesh).isMesh) {
-        const mesh = node as THREE.Mesh;
-        if (mesh.geometry) {
-          mesh.geometry.dispose();
-        }
-        // Safely dispose non-palette unique materials if any
-        if (mesh.material) {
-          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          for (const mat of materials) {
-            if (mat && !Object.prototype.hasOwnProperty.call(PALETTE_SPECS, mat.name)) {
-              // Custom / non-palette instance material
-              // (If it's an ephemeral instance material not from PaletteMaterials cache)
-              if (mat.userData?.isUniqueInstanceMaterial) {
-                mat.dispose();
-              }
-            }
-          }
+  public static safelyDisposeInstanceGeometries(container: THREE.Object3D, retained?: RetainedResources): void {
+    AssetHotSwapper.releaseResources([container], retained);
+  }
+
+  private static releaseResources(roots: readonly THREE.Object3D[], retained?: RetainedResources): void {
+    const released = new Set<THREE.BufferGeometry | THREE.Material>();
+    const release = (node: THREE.Object3D) => {
+      if (!(node instanceof THREE.Mesh || (node as THREE.Mesh).isMesh)) return;
+      const mesh = node as THREE.Mesh;
+      const geometry = mesh.geometry;
+      if (geometry && !retained?.geometries.has(geometry) && !released.has(geometry)) {
+        released.add(geometry);
+        geometry.dispose();
+      }
+      for (const mat of meshMaterials(mesh)) {
+        // Only an ephemeral, explicitly unique, non-palette material is owned
+        // by this instance; palette and unmarked materials are shared.
+        if (
+          mat.userData?.isUniqueInstanceMaterial &&
+          !Object.prototype.hasOwnProperty.call(PALETTE_SPECS, mat.name) &&
+          !retained?.materials.has(mat) &&
+          !released.has(mat)
+        ) {
+          released.add(mat);
+          mat.dispose();
         }
       }
-    });
+    };
+    for (const root of roots) root.traverse(release);
   }
 
   /**
@@ -51,51 +74,73 @@ export class AssetHotSwapper {
     newModelScene: THREE.Object3D,
     activeScene: THREE.Scene
   ): number {
-    let replacedCount = 0;
+    const isTargetAsset = (node: THREE.Object3D) =>
+      node.userData?.nevaAssetId === assetId ||
+      node.userData?.assetId === assetId ||
+      node.name === assetId ||
+      node.name === `missing_asset_${assetId}`;
 
-    activeScene.traverse((node) => {
-      const isTargetAsset =
-        node.userData?.nevaAssetId === assetId ||
-        node.userData?.assetId === assetId ||
-        node.name === assetId ||
-        node.name === `missing_asset_${assetId}`;
-
-      if (isTargetAsset && (node instanceof THREE.Group || node instanceof THREE.Object3D)) {
-        // 1. Dispose old geometry
-        AssetHotSwapper.safelyDisposeInstanceGeometries(node);
-
-        // 2. Remove old visual children (preserving non-visual attachments)
-        const toRemove: THREE.Object3D[] = [];
-        for (const child of node.children) {
-          if (!child.userData?.isDynamicAttachment && !child.userData?.isPresentationRig) {
-            toRemove.push(child);
-          }
-        }
-        for (const child of toRemove) {
-          node.remove(child);
-        }
-
-        // 3. Clone and attach new model hierarchy
-        const clonedNew = newModelScene.clone(true);
-        while (clonedNew.children.length > 0) {
-          node.add(clonedNew.children[0]);
-        }
-
-        // 4. Recalculate bounds and update matrix
-        node.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.geometry) {
-            child.geometry.computeBoundingBox();
-            child.geometry.computeBoundingSphere();
-          }
-        });
-
-        node.updateMatrixWorld(true);
-        replacedCount++;
+    // Collect every target before mutating: the inserted hierarchy is a clone
+    // whose nodes (a runtime LOD, for one) carry the same asset id, so swapping
+    // mid-traversal would walk into it and swap it again. A target's own
+    // visual subtree is replaced wholesale; only its kept attachments can hold
+    // further instances.
+    const targets: THREE.Object3D[] = [];
+    const collect = (node: THREE.Object3D): void => {
+      const target = isTargetAsset(node);
+      if (target) targets.push(node);
+      for (const child of node.children) {
+        if (!target || isPreservedChild(child)) collect(child);
       }
-    });
+    };
+    collect(activeScene);
 
-    AssetHotSwapper.notifyReload(assetId, replacedCount);
-    return replacedCount;
+    const removed: THREE.Object3D[] = [];
+    const boundedGeometries = new Set<THREE.BufferGeometry>();
+    for (const node of targets) {
+      // 1. Detach old visual children (preserving non-visual attachments)
+      for (const child of node.children.filter((candidate) => !isPreservedChild(candidate))) {
+        node.remove(child);
+        removed.push(child);
+      }
+
+      // 2. Clone and attach new model hierarchy
+      const clonedNew = newModelScene.clone(true);
+      while (clonedNew.children.length > 0) {
+        node.add(clonedNew.children[0]);
+      }
+
+      // 3. Recalculate bounds (once per shared geometry) and update matrix
+      node.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.geometry && !boundedGeometries.has(child.geometry)) {
+          boundedGeometries.add(child.geometry);
+          child.geometry.computeBoundingBox();
+          child.geometry.computeBoundingSphere();
+        }
+      });
+
+      node.updateMatrixWorld(true);
+    }
+
+    // 4. Release old resources. `Object3D.clone` shares geometry between every
+    // instance, the model cache and the replacement model, so anything still
+    // drawn in the scene or by the new model stays alive.
+    if (removed.length > 0) {
+      const geometries = new Set<THREE.BufferGeometry>();
+      const materials = new Set<THREE.Material>();
+      const retain = (root: THREE.Object3D) => root.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        if (mesh.geometry) geometries.add(mesh.geometry);
+        for (const mat of meshMaterials(mesh)) materials.add(mat);
+      });
+      retain(activeScene);
+      retain(newModelScene);
+      AssetHotSwapper.releaseResources(removed, { geometries, materials });
+    }
+
+    AssetHotSwapper.notifyReload(assetId, targets.length);
+    return targets.length;
   }
 
   /**

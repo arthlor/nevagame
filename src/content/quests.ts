@@ -694,14 +694,18 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Sunreach Land-Sea Cycle",
     speakerId: "npc.ines",
     introDialogue: [
-      "Bring one cove sardine to the fish table, clean it into scraps, and return those nutrients to the terrace soil."
+      "Bring two cove sardines to the fish table. Clean them into scraps, press three of those into fertilizer, and return the nutrients to the terrace soil."
     ],
     completionDialogue: [
       "Now the cove feeds the terrace, and the terrace prepares the next voyage. You understand Sunreach as one living route."
     ],
     objectives: [
-      { id: "step.act7_catch_sardine", type: "catch-basic-fish", description: "Catch a Sunreach Sardine in the cove", targetId: "fish.sardine", targetQuantity: 1, locationAnchor: SUNREACH_COVE, location: { kind: "ecology", id: "ecology.sunreach" } },
-      { id: "step.act7_clean_sardine", type: "craft-recipe", description: "Clean the Sardine into Fish Scraps", targetId: "recipe.sardine_to_scraps", targetQuantity: 1, locationAnchor: { x: 382, z: 61, name: "Sunreach Fish Table" }, location: { kind: "station", id: "struct.sunreach_fish_table" } },
+      // One sardine cleans into 2 scraps and fertilizer takes 3, so the cycle
+      // needs two. Cleaning is the only route to those scraps, so the tracked
+      // step is the press; the step count stays fixed because saves store the
+      // active step by index.
+      { id: "step.act7_catch_sardine", type: "catch-basic-fish", description: "Catch two Sunreach Sardines in the cove", targetId: "fish.sardine", targetQuantity: 2, locationAnchor: SUNREACH_COVE, location: { kind: "ecology", id: "ecology.sunreach" } },
+      { id: "step.act7_press_fertilizer", type: "craft-recipe", description: "Clean the Sardines, then press Fish Scraps into Fertilizer", targetId: "recipe.fish_to_fertilizer", targetQuantity: 1, locationAnchor: { x: 382, z: 61, name: "Sunreach Fish Table" }, location: { kind: "station", id: "struct.sunreach_fish_table" } },
       { id: "step.act7_fertilize_terraces", type: "apply-fertilizer", description: "Fertilize the Sunreach Terraces", targetId: "farm.sunreach_terraces", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } },
       { id: "step.act7_report_ines", type: "talk-npc", description: "Report back to Ines", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES }
     ],

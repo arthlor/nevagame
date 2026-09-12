@@ -262,6 +262,9 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
               onRelease={() => onVirtualAction("use-primary-release")}
             />
           )}
+          {!isMounted && !isPlacement && (
+            <MobileTapButton label="Lure" onTap={() => onVirtualAction("fishing.toggle-lure")} />
+          )}
         </div>
         <div className="mobile-action-row">
           {isPlacement ? (
@@ -282,11 +285,6 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
             <MobileTapButton label="Jump" onTap={onQueueJump} />
           )}
         </div>
-        {!isMounted && !isPlacement && (
-          <div className="mobile-action-row">
-            <MobileTapButton label="Lure" onTap={() => onVirtualAction("fishing.toggle-lure")} />
-          </div>
-        )}
       </div>
     </div>
   );

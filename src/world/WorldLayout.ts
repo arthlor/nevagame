@@ -921,10 +921,12 @@ function pointInRotatedEnvelope(
   halfX: number,
   halfZ: number
 ): boolean {
+  // A pad renders at `rotation.y = rotationY`, i.e. local→world is Ry(θ):
+  // (x cos θ + z sin θ, −x sin θ + z cos θ). World→local is its inverse, Ry(−θ).
   const dx = x - center.x;
   const dz = z - center.z;
-  const cosine = Math.cos(-rotationY);
-  const sine = Math.sin(-rotationY);
+  const cosine = Math.cos(rotationY);
+  const sine = Math.sin(rotationY);
   const localX = dx * cosine - dz * sine;
   const localZ = dx * sine + dz * cosine;
   return Math.abs(localX) <= halfX && Math.abs(localZ) <= halfZ;
@@ -3117,7 +3119,10 @@ export class WorldLayout {
     const drainage = sunreachDrainageSample(x, z);
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const dryRoute = marine.signedShoreDistance < -0.2 ? 1 : 0;
+    // The material crosses the indexed shore over several vertices. A binary
+    // sand/seabed assignment exposes a sawtooth color edge through clear water.
+    const shoreLand = 1 - smoothstep(-2, 2, marine.signedShoreDistance);
+    const dryRoute = 1 - smoothstep(-2, -0.2, marine.signedShoreDistance);
     const packedCore = (1 - smoothstep(
       route.halfWidth * 0.16,
       route.halfWidth + profile.shoulderWidthMeters * 0.4,
@@ -3134,9 +3139,7 @@ export class WorldLayout {
     const wet = this.shorelineWetness(x, z);
     const normalY = sampledNormalY ?? this.terrainNormalY(x, z);
     const slopeCliff = clamp01((0.8 - normalY) / 0.34);
-    const dryShoreBand = marine.signedShoreDistance <= 0
-      ? 1 - smoothstep(0.2, 18, -marine.signedShoreDistance)
-      : 0;
+    const dryShoreBand = shoreLand * (1 - smoothstep(0.2, 18, -marine.signedShoreDistance));
     const beach = clamp01(
       dryShoreBand * (1 - drainage.saltExposure * 0.38) * (1 - slopeCliff * 0.72)
     );
@@ -3152,9 +3155,11 @@ export class WorldLayout {
       Math.max(farm * drainage.moisturePotential * 0.48, drainage.wash * drainage.deposition * 0.7)
       * dryRoute
     );
-    const seabed = marine.signedShoreDistance > 0
-      ? clamp01(0.78 + marine.shallowWaterInfluence * 0.12 + marine.reefInfluence * 0.1)
-      : 0;
+    // Extend the shallow-bed color onto the dry side of the blend; the marine
+    // field correctly reports zero shallow water on land for gameplay callers.
+    const shoreShallows = marine.signedShoreDistance <= 0 ? 1 : marine.shallowWaterInfluence;
+    const seabed = (1 - shoreLand)
+      * clamp01(0.78 + shoreShallows * 0.12 + marine.reefInfluence * 0.1);
     const meadowPattern = clamp01(
       0.34
       + Math.sin(x * 0.031 - z * 0.026) * 0.15

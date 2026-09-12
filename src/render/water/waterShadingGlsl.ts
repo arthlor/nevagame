@@ -85,13 +85,15 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     if (field.r + waveHeight < -0.06) discard;
     vec3 viewDirection = normalize(cameraPosition - worldPosition);
     float cameraDistance = distance(cameraPosition, worldPosition);
-    // Filter distant slopes before Fresnel magnifies sub-pixel wave bands at
-    // grazing angles. Geometry and CPU buoyancy retain their shared heights.
+    // Filter wave slopes around the canonical stream plane. Flattening the
+    // downhill grade toward horizontal turns distant rapids into sky mirrors.
+    float surfaceGrade = nevaHeadwaterElevationAndGrade(worldPosition.xz).y;
+    vec3 baseNormal = normalize(vec3(0.0, 1.0, -surfaceGrade));
     float slopeFilter = mix(1.0, uDistantSlope.z, smoothstep(uDistantSlope.x, uDistantSlope.y, cameraDistance));
     // At a grazing view, tiny slopes sweep the reflection between sky and
     // horizon. Average their response instead of drawing parallel bright bands.
     slopeFilter *= mix(0.22, 1.0, smoothstep(0.04, 0.34, viewDirection.y));
-    vec3 normal = normalize(mix(vec3(0.0, 1.0, 0.0), shadingNormal, slopeFilter));
+    vec3 normal = normalize(mix(baseNormal, shadingNormal, slopeFilter));
     float pixelFootprint = max(length(dFdx(worldPosition.xz)), length(dFdy(worldPosition.xz)));
     float rippleFilter = (1.0 - smoothstep(0.25, 1.4, pixelFootprint))
       * mix(1.0, 0.02, smoothstep(35.0, 170.0, cameraDistance));
@@ -167,7 +169,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       * smoothstep(0.25, 0.48, wash.z) * (1.0 - smoothstep(0.55, 0.72, wash.z))
       * smoothstep(0.9, 3.0, field.b) * field.a * 0.4 : 0.0;
     float foam = max(coastalFoam, rockFoam);
-    float downhillGrade = max(0.0, -nevaHeadwaterElevationAndGrade(worldPosition.xz).y);
+    float downhillGrade = max(0.0, -surfaceGrade);
     if (downhillGrade > uRapidsGradeStart) {
       // The headwater profile descends toward +Z. Advect broken narrow ribbons
       // along that grade; broad polygon cells read as slabs across the stream.

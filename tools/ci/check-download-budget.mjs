@@ -50,6 +50,17 @@ function main() {
   );
   const declaredBudget = catalog.downloadBudgetBytes;
   const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
+  // `code > undefined` is false, so a missing or renamed field used to print
+  // "pass" without comparing anything.
+  const invalid = [
+    ["assets/specs/asset-catalog.json downloadBudgetBytes", declaredBudget],
+    ["tools/ci/download-budget.baseline.json totalBytes", baseline.totalBytes]
+  ].filter(([, value]) => !(Number.isFinite(value) && value > 0));
+  if (invalid.length > 0) {
+    for (const [name] of invalid) console.error(`[NEVA BUDGET] FAIL ${name} is missing or not a positive number.`);
+    process.exitCode = 1;
+    return;
+  }
 
   const files = walk(DIST);
   const total = files.reduce((sum, file) => sum + file.size, 0);

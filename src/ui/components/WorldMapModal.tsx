@@ -211,7 +211,9 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
           </div>
 
           <div className="map-canvas-container">
-            <svg viewBox="0 0 1000 700" className="map-svg-canvas" role="img" aria-label="Map of Neva and Sunreach islands">
+            {/* A group, not an img: an img's children are presentational, which
+                hid every selectable location button from assistive tech. */}
+            <svg viewBox="0 0 1000 700" className="map-svg-canvas" role="group" aria-label="Map of Neva and Sunreach islands">
               <WorldChartTerrain />
 
               {MAP_NODES.map((node) => {

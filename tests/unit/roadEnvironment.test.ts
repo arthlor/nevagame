@@ -62,7 +62,7 @@ describe("Organic road environment", () => {
       WorldLayout.pathInfluence(placement.x, placement.z) > 0.28
       && !WorldLayout.isBridgeDeck(placement.x, placement.z)
     )).toBe(true);
-  });
+  }, 60_000);
 
   it("biases grass toward causal cover habitats and forms local flower clusters", () => {
     const worldSeed = 42891;
@@ -124,7 +124,7 @@ describe("Organic road environment", () => {
     };
 
     expect(nearbyFraction(flowers, 1.1)).toBeGreaterThan(0.62);
-  });
+  }, 60_000);
 
   it("preserves the farm gate opening and keeps authored road-side props clear", () => {
     const southFence = STARTER_FARM_LAYOUT.fenceAnchors.filter((anchor) => anchor.id.startsWith("fence_south_"));

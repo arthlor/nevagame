@@ -139,7 +139,9 @@ export function sampleDemandTrend(
   worldSeed: number,
   days: number = DEMAND_TREND_WINDOW_DAYS
 ): DemandTrendSample {
-  const window = Math.max(2, Math.min(14, Math.floor(days)));
+  // A non-finite request (NaN from a query) would size the window to zero.
+  const requested = Number.isFinite(days) ? Math.floor(days) : DEMAND_TREND_WINDOW_DAYS;
+  const window = Math.max(2, Math.min(14, requested));
   const points = Array.from({ length: window }, (_, dayOffset) => ({
     dayOffset,
     demandPercent: Math.round(
@@ -156,14 +158,25 @@ export function sampleDemandTrend(
   };
 }
 
+/**
+ * Largest quantity one quote prices. A quote walks one marginal unit at a time,
+ * so an unbounded request is a loop and allocation hazard; no finite satchel,
+ * hold or stall supply comes near it.
+ */
+export const MAX_MARKET_QUOTE_QUANTITY = 10_000;
+
+export function isQuotableQuantity(quantity: number): boolean {
+  return Number.isSafeInteger(quantity) && quantity > 0 && quantity <= MAX_MARKET_QUOTE_QUANTITY;
+}
+
 function quoteCommodity(
   commodity: MarketCommodityState,
   quantity: number,
   context: MarketQuoteContext,
   side: "wholesale" | "retail"
 ): CommodityMarketQuote {
-  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
-    throw new Error("Market quote quantity must be a positive whole number");
+  if (!isQuotableQuantity(quantity)) {
+    throw new Error(`Market quote quantity must be a whole number from 1 to ${MAX_MARKET_QUOTE_QUANTITY}`);
   }
 
   const supplyBefore = Math.max(0, commodity.localSupply);

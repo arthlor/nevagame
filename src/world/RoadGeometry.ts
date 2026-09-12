@@ -441,6 +441,10 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
         appendTriangle(centerIndex, arc[step], arc[step + 1]);
         roadTriangleCount++;
       }
+      // The fan center sits beyond the endpoint. Close its diameter back to
+      // the ribbon; the arc triangles alone leave a triangular hole here.
+      appendTriangle(centerIndex, arc[arcSegments], arc[0]);
+      roadTriangleCount++;
     };
 
     appendRoundedCap(0, -1);

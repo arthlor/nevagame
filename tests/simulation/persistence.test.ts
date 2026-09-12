@@ -26,9 +26,15 @@ import saveV22Layout8 from "../fixtures/save_v22_layout8.json";
 import saveV23Layout8 from "../fixtures/save_v23_layout8.json";
 import saveV24Calendar30 from "../fixtures/save_v24_calendar30.json";
 import saveV25Layout9 from "../fixtures/save_v25_layout9.json";
+import saveV30Layout10 from "../fixtures/save_v30_layout10.json";
 import saveV36Layout15 from "../fixtures/save_v36_layout15.json";
 import saveV36RetiredMarketCommodity from "../fixtures/save_v36_retired_market_commodity.json";
-import { DAYS_PER_SEASON, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
+import {
+  DAYS_PER_SEASON,
+  GameClock,
+  MAX_MINUTES_PER_REAL_SECOND,
+  MINUTES_PER_DAY
+} from "../../src/simulation/core/GameClock";
 
 function patchIndexedDbPuts(shouldFail: (key: IDBValidKey) => boolean): void {
   const factory = globalThis.indexedDB as unknown as {
@@ -561,6 +567,58 @@ describe("Persistence & Offline Progression", () => {
       expect(restored?.state.player.money).toBe(111);
     });
 
+    it.each([
+      ["a newer schema", (envelope: SaveEnvelope) => {
+        envelope.schemaVersion = envelope.state.schemaVersion = CURRENT_SCHEMA_VERSION + 1;
+      }],
+      ["another layout revision", (envelope: SaveEnvelope) => {
+        envelope.state.world.layoutRevision = WORLD_LAYOUT_REVISION + 1;
+      }]
+    ])("backs up an incompatible primary (%s) verbatim instead of destroying it", async (_label, makeIncompatible) => {
+      const repo = new IndexedDbSaveRepository();
+      const foreign: SaveEnvelope = { schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 3, state: createInitialGameState() };
+      foreign.state.player.money = 4_321;
+      makeIncompatible(foreign);
+      const recovered: SaveEnvelope = { schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 2, state: createInitialGameState() };
+      recovered.state.player.money = 880;
+      await putRawSave("primary_save", foreign);
+      await putRawSave("backup_save", recovered);
+
+      // Continue silently recovers the backup; its next save must not be the
+      // end of the only copy of the incompatible primary.
+      const loaded = await repo.loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status !== "loaded") throw new Error(`Expected recovered backup, got ${loaded.status}`);
+      expect(loaded.envelope.state.player.money).toBe(880);
+      loaded.envelope.state.player.money = 990;
+      expect(await repo.saveGame(loaded.envelope.state)).toBe(true);
+
+      const dbOpen = indexedDB.open("neva_save_db", 1);
+      await new Promise<void>((resolve) => { dbOpen.onsuccess = () => resolve(); });
+      const db = (dbOpen as unknown as { result: IDBDatabase }).result;
+      const read = (key: string) => new Promise<unknown>((resolve) => {
+        const request = db.transaction("game_saves", "readonly").objectStore("game_saves").get(key);
+        request.onsuccess = () => resolve(request.result);
+      });
+      expect(await read("backup_save")).toEqual(foreign);
+      expect((await repo.loadGame())?.state.player.money).toBe(990);
+    });
+
+    it("keeps a recovered backup when the displaced primary is unreadable", async () => {
+      const repo = new IndexedDbSaveRepository();
+      const recovered: SaveEnvelope = { schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 2, state: createInitialGameState() };
+      recovered.state.player.money = 880;
+      await putRawSave("primary_save", { schemaVersion: 0, savedAtUtcMs: 1, state: {} });
+      await putRawSave("backup_save", recovered);
+
+      const next = createInitialGameState();
+      next.player.money = 990;
+      expect(await repo.saveGame(next)).toBe(true);
+
+      await putRawSave("primary_save", { schemaVersion: 0, savedAtUtcMs: 1, state: {} });
+      expect((await repo.loadGame())?.state.player.money).toBe(880);
+    });
+
     it("does not overwrite primary when backup put fails", async () => {
       const failPuts = { backup: false };
       patchIndexedDbPuts((key) => failPuts.backup && key === "backup_save");
@@ -688,6 +746,47 @@ describe("Persistence & Offline Progression", () => {
     state.player.money = 100;
     state.inventories[state.player.inventoryId].slots[0].quantity = Infinity;
     expect(validateSaveEnvelope(envelope)).toBe(false);
+  });
+
+  it("rejects a calendar that disagrees with the clock minute and an unknown crop stage", () => {
+    // The captured planted save, migrated to the current schema.
+    const envelope = migrateSaveData(structuredClone({
+      schemaVersion: saveV30Layout10.schemaVersion, savedAtUtcMs: saveV30Layout10.savedAtUtcMs, state: saveV30Layout10.state
+    }) as unknown as SaveEnvelope);
+    const state = envelope.state;
+    expect(validateSaveEnvelope(envelope)).toBe(true);
+
+    for (const [field, value] of [["dayCount", 999], ["season", "winter"], ["year", 7]] as const) {
+      const tampered = structuredClone(envelope);
+      (tampered.state.clock as unknown as Record<string, unknown>)[field] = value;
+      expect(validateSaveEnvelope(tampered), field).toBe(false);
+    }
+
+    const crop = Object.values(state.crops)[0];
+    expect(crop).toBeDefined();
+    (crop as unknown as { stage: string }).stage = "blooming";
+    expect(validateSaveEnvelope(envelope)).toBe(false);
+  });
+
+  it("bounds the clock speed so an edited save cannot demand an unbounded offline catch-up", () => {
+    const state = createInitialGameState();
+    const envelope = { schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 1, state };
+    state.clock.minutesPerRealSecond = MAX_MINUTES_PER_REAL_SECOND;
+    expect(validateSaveEnvelope(envelope)).toBe(true);
+    state.clock.minutesPerRealSecond = 1e9;
+    expect(validateSaveEnvelope(envelope)).toBe(false);
+
+    // Even an unvalidated state steps at most the capped speed for 72 hours.
+    const now = Date.now();
+    state.metadata.lastSavedUtcMs = now - 80 * 3600 * 1000;
+    expect(applyOfflineProgression(state, now).simulatedGameMinutes)
+      .toBe(72 * 3600 * MAX_MINUTES_PER_REAL_SECOND);
+
+    const clock = new GameClock({ minutesPerRealSecond: 1e9 });
+    expect(clock.getState().minutesPerRealSecond).toBe(MAX_MINUTES_PER_REAL_SECOND);
+    clock.setSpeed(0.4);
+    clock.setSpeed(5e12);
+    expect(clock.getState().minutesPerRealSecond).toBe(MAX_MINUTES_PER_REAL_SECOND);
   });
 
   it("rejects incomplete contracts and invalid persisted drag settings", () => {
@@ -1218,6 +1317,17 @@ describe("Persistence & Offline Progression", () => {
     expect(() => migrateSaveData({ schemaVersion: 10, savedAtUtcMs: 1, state: legacy } as never)).toThrow(
       /fish\.trout quantity .* exceeds player carry and boat hold capacity/
     );
+    expect(inventory.slots[0]).toEqual(slotBefore);
+  });
+
+  it.each([undefined, "3", 1.5, -2])("fails schema 11 trout migration on a malformed stack quantity (%s) instead of dropping it", (quantity) => {
+    const legacy = structuredClone(createInitialGameState());
+    legacy.schemaVersion = 10;
+    const inventory = legacy.inventories[legacy.player.inventoryId];
+    inventory.slots[0] = { itemId: "fish.trout", quantity } as never;
+    const slotBefore = { ...inventory.slots[0] };
+    expect(() => migrateSaveData({ schemaVersion: 10, savedAtUtcMs: 1, state: legacy } as never))
+      .toThrow("a fish.trout stack has no valid quantity");
     expect(inventory.slots[0]).toEqual(slotBefore);
   });
 

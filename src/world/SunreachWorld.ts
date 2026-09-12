@@ -102,7 +102,8 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
 function sunreachMacroHeight(x: number, z: number): number {
   const shoreDistance = signedDistanceToSunreachCoast(x, z);
   if (shoreDistance > 0) {
-    return -0.55 - Math.min(13.5, shoreDistance * 0.075);
+    return -Math.min(13.5, shoreDistance * 0.075)
+      - 0.55 * smoothstep(SUNREACH_SHORE_TOE_METERS, SUNREACH_SHORE_TRANSITION_METERS, shoreDistance);
   }
   const inland = -shoreDistance;
   const shoreRise = smoothstep(0, 24, inland) * 2.3;
@@ -114,6 +115,13 @@ function sunreachMacroHeight(x: number, z: number): number {
     + Math.cos(x * 0.012 - z * 0.021) * 0.32;
   return -0.12 + shoreRise + ridge + easternShoulder + terraceRise + coveLowland + broadUndulation;
 }
+
+// Join the existing land and seabed through sea level instead of giving the
+// heightfield a vertical step that turns each crossed grid cell into a tooth.
+const SUNREACH_SHORE_TRANSITION_METERS = 6;
+// A straight toe spans a terrain-cell diagonal before the cliff/shelf blend.
+// Its sea-level intersection therefore cannot inherit a curved cell contour.
+const SUNREACH_SHORE_TOE_METERS = 2;
 
 export function sunreachDrainageSample(x: number, z: number): WorldDrainageSample {
   const washDistance = distanceToPolyline(x, z, SUNREACH_WASH_PATH);
@@ -176,13 +184,14 @@ function coveWorkingPadHeight(x: number, z: number, base: number): number {
 
 export function sunreachNaturalTerrainHeight(x: number, z: number): number {
   const base = sunreachMacroHeight(x, z);
-  if (signedDistanceToSunreachCoast(x, z) > 0) return base;
+  const inland = -signedDistanceToSunreachCoast(x, z);
+  if (inland < 0) return base;
   const drainage = sunreachDrainageSample(x, z);
   const washBed = base - drainage.wash * (0.65 + drainage.erosion * 0.8);
   const deposited = washBed + drainage.deposition * 0.18;
   const routeDistance = Math.min(...SUNREACH_ROUTES.map((route) => distanceToPolyline(x, z, route.points)));
   const farmDistance = Math.hypot((x - SUNREACH_ANCHORS.terraceFarm.x) * 0.84, z - SUNREACH_ANCHORS.terraceFarm.z);
-  const coastRelease = smoothstep(18, 42, -signedDistanceToSunreachCoast(x, z));
+  const coastRelease = smoothstep(18, 42, inland);
   const workingRelease = smoothstep(4.5, 22, routeDistance) * smoothstep(37, 52, farmDistance);
   // Dry shoulders and a second low crest frame the route to the exposed ridge.
   // The seasonal wash, productive terrace and cove remain their existing surfaces.
@@ -193,8 +202,10 @@ export function sunreachNaturalTerrainHeight(x: number, z: number): number {
   const land = coveWorkingPadHeight(x, z, terraceHeight(x, z, deposited + shoulder));
   // The cove depression must not pull declared dry land below the sea. This
   // shoreward shelf also gives the retained landing route continuous support.
-  const dryShelf = 0.025 + Math.min(8, -signedDistanceToSunreachCoast(x, z)) * 0.035;
-  return Math.max(dryShelf, land);
+  const dryShelf = 0.025 + Math.min(8, inland) * 0.035;
+  const shoreToe = inland * 0.075;
+  return shoreToe + (Math.max(dryShelf, land) - shoreToe)
+    * smoothstep(SUNREACH_SHORE_TOE_METERS, SUNREACH_SHORE_TRANSITION_METERS, inland);
 }
 
 export function sunreachRegionAt(x: number, z: number): WorldRegionId {

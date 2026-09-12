@@ -41,6 +41,7 @@ from common.geometry import (
 )
 from common.materials import get_or_create_material, hex_to_linear_rgba
 from common.pipeline import clean_scene, create_root
+from generators.crops import _add_folded_leaf, _add_tomato_fruit
 
 
 TOKENS = ("stone_warm_01", "stone_cool_01")
@@ -70,6 +71,10 @@ def build_signature():
         add_caudal_fin(f"test_caudal_{form}", (index * 0.6, 0, 2), 0.30, 0.44, form, TOKENS[0], root)
     add_leaf_blade("test_leaf_straight", (0, 0, 3), (0, 0.5, 3.2), 0.18, TOKENS[1], root)
     add_leaf_blade("test_leaf_bent", (0, 0, 3), (0.4, 0.2, 2.7), 0.22, TOKENS[1], root, bend=(0.05, 0, 0.18))
+    for index, (pitch, droop) in enumerate(((1.08, .05), (.38, .56), (.2, .85))):
+        _add_folded_leaf(f"test_crop_leaf_{index}", (0, 0, 1), .5, .12, .6,
+                         TOKENS[1], root, pitch=pitch, droop=droop)
+    _add_tomato_fruit("test_crop_tomato", (0, 0, 2), .2, TOKENS[0], TOKENS[1], root)
     add_flower_head("test_flower", (0, 0, 4), 0.14, TOKENS[0], TOKENS[1], TOKENS[0], root, petals=8, nod=0.6, yaw=0.9)
     multi_material = add_box("test_multi_material", (0, 0, 0.5), (0.5, 0.5, 0.5), TOKENS[0], root)
     multi_material.data.materials.append(get_or_create_material(TOKENS[1]))
@@ -86,13 +91,14 @@ def build_signature():
         "test_caudal_forked", "test_caudal_lunate", "test_caudal_rounded",
         "test_caudal_square", "test_caudal_heterocercal",
         "test_leaf_straight", "test_leaf_bent", "test_flower",
+        "test_crop_leaf", "test_crop_tomato",
     }
     for prefix in prefixes:
         if not any(obj.name.startswith(prefix) for obj in meshes):
             raise AssertionError(f"{prefix} produced no mesh")
     signature = []
     for obj in meshes:
-        if obj.name.startswith(("test_buttress", "test_canopy", "test_bough")):
+        if obj.name.startswith(("test_buttress", "test_canopy", "test_bough", "test_crop_leaf", "test_crop_tomato")):
             editable = bmesh.new()
             editable.from_mesh(obj.data)
             try:

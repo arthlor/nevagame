@@ -8,6 +8,7 @@ import { isSpeciesInSeason } from "../../src/simulation/fishing/seasonalAvailabi
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
 import { isProduceContractType } from "../../src/simulation/domains/domainRules";
 import { WORLD_FARM_DEFINITIONS } from "../../src/world/WorldGameplayLocations";
+import { FERTILIZER_ITEM_ID } from "../../src/simulation/domains/FarmingDomain";
 
 /**
  * Guards the "authored but unreachable" defect class.
@@ -180,6 +181,34 @@ describe("content reachability", () => {
     for (const farmId of Object.keys(WORLD_FARM_DEFINITIONS)) {
       expect(questFarms.has(farmId), `${farmId} exists but no quest ever sends the player there`).toBe(true);
     }
+  });
+
+  it("has every fertilizing objective follow a fertilizer craft the quest can pay for", () => {
+    // Act 7 once asked the player to fertilize straight after cleaning one
+    // sardine: 2 scraps, never pressed, against a 3-scrap recipe.
+    const madeFertilizer = (recipeId: string | undefined) => {
+      const result = ContentRegistry.recipes.get(recipeId ?? "")?.result;
+      return result?.kind === "items" && result.stacks.some((stack) => stack.itemId === FERTILIZER_ITEM_ID);
+    };
+    for (const quest of ContentRegistry.quests.values()) {
+      quest.objectives.forEach((objective, index) => {
+        if (objective.type !== "apply-fertilizer") return;
+        const earlier = quest.objectives.slice(0, index);
+        expect(
+          earlier.some((step) => step.type === "craft-recipe" && madeFertilizer(step.targetId)),
+          `${quest.id}/${objective.id} fertilizes before any step makes fertilizer`
+        ).toBe(true);
+      });
+    }
+
+    const cycle = ContentRegistry.quests.get("quest.act7_land_sea_cycle")!;
+    const sardines = cycle.objectives.find((step) => step.type === "catch-basic-fish" && step.targetId === "fish.sardine")!;
+    const clean = ContentRegistry.recipes.get("recipe.sardine_to_scraps")!;
+    const press = ContentRegistry.recipes.get("recipe.fish_to_fertilizer")!;
+    const scrapsPerSardine = clean.result.kind === "items"
+      ? clean.result.stacks.find((stack) => stack.itemId === "item.fish_scraps")!.quantity : 0;
+    const scrapsNeeded = press.inputs.find((input) => input.itemId === "item.fish_scraps")!.quantity;
+    expect(sardines.targetQuantity * scrapsPerSardine).toBeGreaterThanOrEqual(scrapsNeeded);
   });
 
   it("makes every contract template completable in at least one season", () => {

@@ -3,8 +3,22 @@ import React from "react";
 import { renderToString } from "react-dom/server";
 import { Simulation } from "../../src/simulation/Simulation";
 import { MarketDemandTrend, demandPlotY } from "../../src/ui/components/MarketDemandTrend";
-import { demandFromSupply, DEMAND_MIN, DEMAND_MAX } from "../../src/simulation/economy/marketPricing";
+import {
+  demandFromSupply,
+  DEMAND_MIN,
+  DEMAND_MAX,
+  DEMAND_TREND_WINDOW_DAYS,
+  MAX_MARKET_QUOTE_QUANTITY,
+  quoteCommodityPurchase,
+  quoteCommoditySale
+} from "../../src/simulation/economy/marketPricing";
 import type { MarketDemandTrendDto } from "../../src/simulation/core/contracts";
+
+function anyCommodityState() {
+  const sim = new Simulation();
+  const { marketId, itemId } = anyCommodity(sim);
+  return sim.state.markets[marketId].commodities[itemId];
+}
 
 function anyCommodity(sim: Simulation): { marketId: string; itemId: string } {
   for (const [marketId, market] of Object.entries(sim.state.markets)) {
@@ -55,6 +69,23 @@ describe("Milestone M4 — Market demand outlook (R6.2)", () => {
       expect((sim.query({ type: "market.demand-trend", marketId, itemId, days: 999 } as never) as MarketDemandTrendDto).points).toHaveLength(14);
       expect((sim.query({ type: "market.demand-trend", marketId, itemId, days: 1 } as never) as MarketDemandTrendDto).points).toHaveLength(2);
       expect(sim.query({ type: "market.demand-trend", marketId, itemId: "item.nope" } as never)).toBeNull();
+    });
+
+    it("falls back to the default window for a non-finite day count instead of throwing", () => {
+      const sim = new Simulation();
+      const { marketId, itemId } = anyCommodity(sim);
+      for (const days of [Number.NaN, Number.POSITIVE_INFINITY]) {
+        const trend = sim.query({ type: "market.demand-trend", marketId, itemId, days } as never) as MarketDemandTrendDto;
+        expect(trend.points).toHaveLength(DEMAND_TREND_WINDOW_DAYS);
+      }
+    });
+
+    it("refuses to walk an unbounded quote quantity", () => {
+      const commodity = { ...anyCommodityState(), localSupply: 10 };
+      const context = { absoluteHour: 8, worldSeed: 1 };
+      expect(quoteCommoditySale(commodity, MAX_MARKET_QUOTE_QUANTITY, context).quantity).toBe(MAX_MARKET_QUOTE_QUANTITY);
+      expect(() => quoteCommoditySale(commodity, Number.MAX_SAFE_INTEGER, context)).toThrow("from 1 to");
+      expect(() => quoteCommodityPurchase(commodity, MAX_MARKET_QUOTE_QUANTITY + 1, context)).toThrow("from 1 to");
     });
 
     it("never mutates market state while projecting", () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../fixtures/save_v37_layout15.json";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
-import { validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
+import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
+import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
@@ -22,8 +23,8 @@ describe("landscape overhaul migration (v38 / layout16)", () => {
     const untouched = structuredClone(before);
     expect(validateSaveEnvelope(before)).toBe(true);
     const after = migrateSaveData(before);
-    expect(after.schemaVersion).toBe(38);
-    expect(after.state.world.layoutRevision).toBe(16);
+    expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(before).toEqual(untouched);
     expectResourcesUnchanged(after, before);

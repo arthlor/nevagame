@@ -44,7 +44,14 @@ export class StartupCoordinator {
       this.signal.addEventListener("abort", abort, { once: true });
       progress();
       Promise.resolve().then(() => { this.check(); return operation(progress); }).then(value => {
-        if (settled) { disposeLate?.(value); return; }
+        if (settled) {
+          // Nobody awaits this chain once the stage has settled, so a throwing
+          // disposer would surface as an unhandled rejection.
+          try { disposeLate?.(value); } catch (disposeError) {
+            console.warn("[StartupCoordinator] Late startup result could not be disposed", disposeError);
+          }
+          return;
+        }
         settled = true;
         cleanup();
         resolve(value);

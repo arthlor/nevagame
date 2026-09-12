@@ -15,7 +15,7 @@ import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN } from "../../src/world/FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_MARKET, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import type { ResolvedPhysicsFrame } from "../../src/simulation/core/PhysicsAdapter";
 import type { FishQuality } from "../../src/simulation/core/types";
@@ -141,6 +141,27 @@ describe("Hunt fixes 2026", () => {
     const capacity = ContentRegistry.boats.get("boat.skiff")!.fuelCapacity;
     expect(sim.state.boats["boat.player_skiff"].fuel).toBe(capacity);
     expect(InventoryManager.getItemCount(inventory, "item.boat_fuel")).toBe(0);
+  });
+
+  it("H6: a docked boat is refuelled at its mooring, not from across the island", () => {
+    const sim = new Simulation();
+    expect(sim.prepareDebugSkiffReview()).toBe(true);
+    const skiff = sim.state.boats["boat.player_skiff"];
+    expect(skiff.isDocked).toBe(true);
+    skiff.fuel = 10;
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    expect(InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.boat_fuel", quantity: 1 }])).toBe(true);
+
+    commitPlayerPose(sim, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z);
+    expect(sim.execute({ type: "boat.refuel", boatId: skiff.id })).toMatchObject({
+      success: false,
+      reason: "Move to the boat or dock before refueling"
+    });
+    expect(skiff.fuel).toBe(10);
+    expect(InventoryManager.getItemCount(inventory, "item.boat_fuel")).toBe(1);
+
+    commitPlayerPose(sim, HARBOR_SKIFF_MOORING.playerPosition.x, HARBOR_SKIFF_MOORING.playerPosition.z);
+    expect(sim.execute({ type: "boat.refuel", boatId: skiff.id })).toMatchObject({ success: true });
   });
 
   it("H7/H8: carp scraps is live; flax and barley seeds are XP-gated at the village stall", () => {

@@ -651,7 +651,8 @@ export class GameApp {
    * `window.__NEVA_TELEMETRY.metrics()`.
    */
   private readonly telemetry = new SessionRecorder();
-  private readonly telemetryStartedAtMs = performance.now();
+  /** Session origin; a telemetry reset starts a new session from here. */
+  private telemetryStartedAtMs = performance.now();
   private lastAutosaveMs: number = 0;
   private physicsAccumulatorSeconds: number = 0;
   /**
@@ -798,7 +799,10 @@ export class GameApp {
       window.__NEVA_TELEMETRY = {
         metrics: () => this.telemetry.getMetrics(performance.now() - this.telemetryStartedAtMs),
         events: () => this.telemetry.getEvents(),
-        reset: () => this.telemetry.reset()
+        reset: () => {
+          this.telemetry.reset();
+          this.telemetryStartedAtMs = performance.now();
+        }
       };
       const editorQuery = new URLSearchParams(window.location.search);
       this.layoutEditorChipVisible = editorQuery.has("place") || editorQuery.has("debug");
@@ -3887,7 +3891,12 @@ export class GameApp {
       this.setToast("Choose seeds from your inventory first");
       return;
     }
-    const placement = this.refreshCropPlacementAtPointer() ?? this.placementResult;
+    // A fresh query wins; if the pointer misses terrain or the farm on the
+    // click frame, commit the spot the player was just shown. The refresh
+    // clears `placementResult` on a miss, so it must be read first. The plant
+    // command re-validates either way.
+    const shown = this.placementResult;
+    const placement = this.refreshCropPlacementAtPointer() ?? shown;
     if (!placement?.valid) {
       this.setToast(placement?.reason ?? "Point at prepared farm soil");
       return;
@@ -5054,6 +5063,9 @@ export class GameApp {
     this.worldScene.dispose();
     this.uiRoot?.unmount();
     this.uiRoot = null;
+    // Closes the AudioContext and its first-input/visibility listeners. The
+    // manager is a page singleton and disposal is final, matching this app's.
+    gameAudio.dispose();
   }
 
   private onResize = (): void => {

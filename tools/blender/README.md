@@ -47,6 +47,10 @@ an unresolved concern. Typecheck only when runtime TypeScript changed.
 
 `open_vegetation_workshop.py` creates one editable metre-scale scene per explicitly selected vegetation catalog ID. Load it with `runpy.run_path` in Blender's Python console, then call `build_workshop(asset_ids)` and `show_asset(id)` to inspect a plant. It preserves earlier scenes, applies the normal authored surface finish, hides collision and distant detail for inspection, and saves `art/workshops/vegetation.blend`. Registered generators and catalog parameters remain the source for regeneration; the workshop does not export or publish game assets.
 
+### Crop Blender workshop
+
+`open_crop_workshop.py` builds editable six-stage scenes for explicitly selected crop species through the registered catalog generators. Load it with `runpy.run_path` in Blender, then call `build_workshop(["wheat", "tomato"])` and `show_crop("wheat")`. Earlier scenes remain available and the workshop is saved to `art/workshops/crops.blend`. The supplied growth sheets are bound in the catalog; the workshop's labels and review camera are inspection aids. Normal selected CLI generation owns validation and game publication.
+
 ## Shared-generator and release commands
 
 ```bash

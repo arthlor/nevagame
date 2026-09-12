@@ -2,6 +2,7 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { ItemInspectionDto, SatchelDto } from "../core/contracts";
 import { getStorageFreshnessModifier, resolveCargoHasIce } from "../fishing/calculateFreshness";
+import { freshnessWord } from "../fishing/freshnessBands";
 import type { CarryLocationType, GameState } from "../core/types";
 
 const inventoryCategory = (category: string | undefined, itemId: string): "farming" | "fishing" | "supplies" | null => {
@@ -88,11 +89,7 @@ const STORAGE_LABEL: Record<CarryLocationType, string> = {
 };
 
 function freshnessLabel(percent: number): string {
-  if (percent >= 85) return "Fresh";
-  if (percent >= 60) return "Good";
-  if (percent >= 35) return "Turning";
-  if (percent > 0) return "Poor";
-  return "Spoiled";
+  return freshnessWord(percent);
 }
 
 /**

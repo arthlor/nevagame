@@ -485,7 +485,11 @@ export class NavigationDomain {
     }
     const aboard = state.player.activeBoatId === boat.id;
     const near = distance2d(state.player, boat) <= 4.5;
-    if (!aboard && !near && !boat.isDocked) {
+    // Docked means fuel can come from the dock, not from anywhere on the map:
+    // the player still has to stand at the mooring the boat is tied to.
+    const mooring = boat.isDocked ? dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z) : null;
+    const atMooring = mooring !== null && distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius;
+    if (!aboard && !near && !atMooring) {
       return { success: false, reason: "Move to the boat or dock before refueling" };
     }
     if (boat.fuel >= definition.fuelCapacity) {

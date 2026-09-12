@@ -465,7 +465,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
       expect(catchHtml).toContain('aria-modal="true"');
       expect(catchHtml).toContain('aria-labelledby="catch-modal-title"');
       expect(catchHtml).toContain('role="status"'); // on the record banner
-      expect(catchHtml).toContain("NEW SPECIES RECORD");
+      expect(catchHtml).toContain("A new discovery");
 
       // 3. ContextualHintCard
       const hintHtml = renderToString(

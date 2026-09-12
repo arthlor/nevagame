@@ -7,6 +7,7 @@ import {
   demandFromSupply,
   demandLabelFromModifier,
   demandLabelFromPercent,
+  isQuotableQuantity,
   sampleDemandTrend,
   quoteCommodityPurchase,
   quoteCommoditySale,
@@ -132,6 +133,9 @@ export class MarketDomain {
     }
     if (!Number.isSafeInteger(quantity) || quantity <= 0) {
       return { ...base, reason: "Choose a positive whole quantity" };
+    }
+    if (!isQuotableQuantity(quantity)) {
+      return { ...base, reason: "That quantity is more than the stall can quote" };
     }
     const marketQuote = commodity
       ? intent === "buy"
@@ -500,6 +504,9 @@ export class MarketDomain {
     if (!Number.isSafeInteger(quantity) || quantity <= 0) {
       return failure("invalid-quantity", "Choose a positive whole quantity");
     }
+    if (!isQuotableQuantity(quantity)) {
+      return failure("invalid-quantity", "That quantity is more than the stall can quote");
+    }
     const item = ContentRegistry.items.get(itemId);
     const starterCrop = [...ContentRegistry.crops.values()].find((crop) => crop.seedItemId === itemId);
     const isRetailSupply = marketDefinition.retail.itemIds.includes(itemId);
@@ -548,6 +555,9 @@ export class MarketDomain {
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
     if (!Number.isSafeInteger(quantity) || quantity <= 0) {
       return { success: false, reason: "Choose a positive whole quantity" };
+    }
+    if (!isQuotableQuantity(quantity)) {
+      return { success: false, reason: "That quantity is more than the stall can quote" };
     }
     if (!ContentRegistry.markets.get(marketId)?.retail.itemIds.includes(itemId)) {
       return { success: false, reason: "This stall does not sell that supply" };

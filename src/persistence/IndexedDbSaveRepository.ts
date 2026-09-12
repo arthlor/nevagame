@@ -193,12 +193,18 @@ export class IndexedDbSaveRepository {
       signal?.throwIfAborted();
       // Both slots change in the same transaction. A failed primary put cannot
       // overwrite the backup, including when startup recovered from that backup.
+      // The displaced primary is always backed up: migrated when this build can
+      // open it, verbatim when an incompatible (e.g. newer) build wrote it, so
+      // replacing it is never the only copy's end. Only unreadable data is left
+      // behind, and so never displaces a recovered backup.
       await this.transaction<void>(db, "readwrite", store => {
         const request = store.get(PRIMARY_KEY);
         request.onsuccess = () => {
           try {
-            const previous = this.migrateAndValidate(request.result);
-            if (previous && previous !== "incompatible") store.put(previous, BACKUP_KEY);
+            const raw: unknown = request.result;
+            const previous = this.migrateAndValidate(raw);
+            if (previous === "incompatible") store.put(raw, BACKUP_KEY);
+            else if (previous) store.put(previous, BACKUP_KEY);
             store.put(envelope, PRIMARY_KEY);
           } catch {
             request.transaction?.abort();

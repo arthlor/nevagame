@@ -1,6 +1,6 @@
 // src/persistence/SaveSchema.ts
 
-import { GameState } from "../simulation/core/types";
+import type { CropStage, GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_SATCHEL_SLOT_COUNT } from "../simulation/inventory/InventoryLimits";
@@ -10,6 +10,7 @@ import {
   PROCESSING_XP_BY_TIER
 } from "../simulation/domains/ProcessingDomain";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
+import { calendarAtMinute, isValidClockSpeed } from "../simulation/core/GameClock";
 import { cargoClassFits, isProduceContractType } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
 import {
@@ -28,7 +29,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 38;
+export const CURRENT_SCHEMA_VERSION = 39;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -59,6 +60,7 @@ const FISHING_HABITATS = ["river", "lake", "coast", "offshore"] as const;
 const FISHING_ECOLOGIES = ["ecology.neva", "ecology.sunreach"] as const;
 const FISH_QUALITIES = ["common", "fine", "exceptional", "trophy"] as const;
 const CARGO_CLASSES = ["small", "medium", "large", "gargantuan"] as const;
+const CROP_STAGES: readonly CropStage[] = ["seeded", "sprout", "growing", "mature", "overripe", "withered"];
 
 function isOneOf(value: unknown, choices: readonly string[]): boolean {
   return typeof value === "string" && choices.includes(value);
@@ -81,7 +83,18 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
 
   const state = env.state as Partial<GameState>;
   if (state.schemaVersion !== env.schemaVersion || !isSafeInteger(state.worldSeed, 0)) return false;
-  if (!isRecord(state.clock) || !isSafeInteger(state.clock.currentMinute, 0) || !isFiniteNumber(state.clock.minutesPerRealSecond, 0)) return false;
+  if (!isRecord(state.clock) || !isSafeInteger(state.clock.currentMinute, 0) || !isValidClockSpeed(state.clock.minutesPerRealSecond)) return false;
+  // Since the v25 calendar retune the stored day, season and year are a cache
+  // of `currentMinute`. The clock re-derives them on load, but a pre-load reader
+  // (the title summary) would otherwise show whatever the slot claims.
+  if (schemaVersion >= 25) {
+    const calendar = calendarAtMinute(state.clock.currentMinute);
+    if (
+      state.clock.dayCount !== calendar.dayCount ||
+      state.clock.season !== calendar.season ||
+      state.clock.year !== calendar.year
+    ) return false;
+  }
   if (
     !isRecord(state.player) ||
     !isFiniteNumber(state.player.money, 0) ||
@@ -117,8 +130,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 38
+    (schemaVersion >= 39
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion === 38
+      ? state.world.layoutRevision !== 16
       : schemaVersion >= 36
       ? state.world.layoutRevision !== 15
       // Pin the literal: schema 34-35 shipped on layout 14, and the symbol has
@@ -395,6 +410,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
 
   for (const [cropId, crop] of Object.entries(state.crops)) {
     if (!isRecord(crop) || crop.id !== cropId || typeof crop.cropId !== "string" || typeof crop.farmId !== "string") return false;
+    if (!isOneOf(crop.stage, CROP_STAGES)) return false;
     if (![crop.x, crop.z, crop.rotationRadians, crop.effectiveGrowthMinutes, crop.moisture, crop.health, crop.averageMoistureAccum].every((value) => isFiniteNumber(value)) || !isSafeInteger(crop.plantedAtMinute, 0) || !isSafeInteger(crop.lastUpdatedMinute, 0) || !isSafeInteger(crop.moistureSampleCount, 1)) return false;
     if (!ContentRegistry.crops.has(crop.cropId) || !state.farms[crop.farmId]?.placedCropIds.includes(cropId)) return false;
   }

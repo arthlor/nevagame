@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { ItemInspectionDto } from "../../simulation/core/contracts";
+import { freshnessTone } from "../../simulation/fishing/freshnessBands";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
 
@@ -17,10 +18,11 @@ const CURSOR_OFFSET = 16;
 
 /** Hours of open carry left, from the storage multiplier the simulation applies. */
 export function freshnessToneFor(percent: number): "good" | "caution" | "danger" {
-  if (percent >= 60) return "good";
-  if (percent >= 35) return "caution";
-  return "danger";
+  return FRESHNESS_TONE_CLASS[freshnessTone(percent)];
 }
+
+/** The card's CSS vocabulary for the shared freshness band. */
+const FRESHNESS_TONE_CLASS = { fresh: "good", medium: "caution", stale: "danger" } as const;
 
 /** Growth minutes read better as the days and hours a player actually waits. */
 export function formatGrowthDuration(minutes: number): string {

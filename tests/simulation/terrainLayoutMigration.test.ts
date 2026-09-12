@@ -161,7 +161,9 @@ describe("layout 11 coastal terrain save migration", () => {
     const migrated = migrateSaveData(before).state;
     for (const [id, structure] of Object.entries(before.state.world.structures)) {
       expect(migrated.world.structures[id]).toMatchObject({ ...structure, y: expect.any(Number) });
-      if (WorldLayout.terrainPatchAt(structure.x, structure.z)?.id === "terrain.neva") {
+      // Layouts 16 and 17 re-ground every structure that sits on a terrain
+      // patch (Neva and Sunreach); interior/no-patch structures stay verbatim.
+      if (WorldLayout.terrainPatchAt(structure.x, structure.z)) {
         expect(migrated.world.structures[id].y).toBe(WorldLayout.terrainHeight(structure.x, structure.z));
       } else expect(migrated.world.structures[id]).toEqual(structure);
     }

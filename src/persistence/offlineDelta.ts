@@ -2,7 +2,7 @@
 
 import { GameState } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
-import { GameClock } from "../simulation/core/GameClock";
+import { GameClock, MAX_MINUTES_PER_REAL_SECOND } from "../simulation/core/GameClock";
 import { advancePlacedCropGrowth } from "../simulation/farming/calculateCropGrowth";
 import { onboardingGrowthMultiplier } from "../simulation/core/OnboardingPace";
 import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBoundedSegments";
@@ -35,7 +35,10 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   // In default settings, 2.5 real seconds = 1 game minute (0.4 minutes per real second).
   // GameMinute is an integer. Apply only whole minutes so offline state never
   // advances crops or cargo farther than the canonical clock.
-  const gameMinutesToSimulate = Math.floor(Math.floor(cappedMs / 1000) * state.clock.minutesPerRealSecond);
+  // The clamp matches GameClock's, so an unvalidated state cannot request an
+  // unbounded catch-up either.
+  const speed = Math.min(Math.max(0, state.clock.minutesPerRealSecond), MAX_MINUTES_PER_REAL_SECOND);
+  const gameMinutesToSimulate = Number.isFinite(speed) ? Math.floor(Math.floor(cappedMs / 1000) * speed) : 0;
 
   const summary: OfflineProgressionSummary = {
     elapsedRealMinutes,

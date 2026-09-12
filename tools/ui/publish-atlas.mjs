@@ -27,6 +27,12 @@ const ROOT = path.resolve(path.dirname(SCRIPT_PATH), "../..");
 /** Icons must leave at least this share of their frame transparent. */
 const MIN_TRANSPARENT_RATIO = 0.04;
 
+/**
+ * Pages written into the same directory by `ui:atlas` (tools/ui/extrudeAndPack.mjs).
+ * They are tracked outputs of a different step, never stale sprites.
+ */
+const PACKED_PAGE = /^ui-atlas(?:_\d+)?\.(?:png|webp|json)$/;
+
 async function inspect(file, expectedSize) {
   const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   if (info.width !== expectedSize || info.height !== expectedSize) {
@@ -87,8 +93,27 @@ async function main() {
     throw new Error(`${invalid.length} sprite(s) failed validation:\n  ${invalid.join("\n  ")}`);
   }
 
+  const expected = new Set(entries.map((entry) => entry.file));
+  const isStaleSprite = (file) => file.endsWith(".png") && !expected.has(file) && !PACKED_PAGE.test(file);
+
   if (checkOnly) {
-    console.log(`[NEVA UI] ${entries.length} sprites validated in ${manifest.atlasDir}`);
+    // Validating the sources alone let a stale or missing published copy pass.
+    const unpublished = entries
+      .filter((entry) => {
+        const target = path.join(runtimeDir, entry.file);
+        return !fs.existsSync(target)
+          || !fs.readFileSync(target).equals(fs.readFileSync(path.join(atlasDir, entry.file)));
+      })
+      .map((entry) => entry.file);
+    const stale = fs.existsSync(runtimeDir) ? fs.readdirSync(runtimeDir).filter(isStaleSprite) : [];
+    if (unpublished.length > 0 || stale.length > 0) {
+      throw new Error(
+        `${manifest.runtimeDir} is out of date. Run npm run ui:publish.` +
+          (unpublished.length ? `\n  Missing or changed: ${unpublished.join(", ")}` : "") +
+          (stale.length ? `\n  Stale: ${stale.join(", ")}` : "")
+      );
+    }
+    console.log(`[NEVA UI] ${entries.length} sprites validated and published in ${manifest.runtimeDir}`);
     return;
   }
 
@@ -96,11 +121,8 @@ async function main() {
 
   // Clear stale sprites so a renamed or removed icon cannot linger in the runtime
   // directory and keep resolving after it left the manifest.
-  const expected = new Set(entries.map((entry) => entry.file));
   for (const file of fs.readdirSync(runtimeDir)) {
-    if (file.endsWith(".png") && !expected.has(file)) {
-      fs.unlinkSync(path.join(runtimeDir, file));
-    }
+    if (isStaleSprite(file)) fs.unlinkSync(path.join(runtimeDir, file));
   }
 
   let copied = 0;
