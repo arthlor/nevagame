@@ -1428,7 +1428,7 @@
       "pitchMax": 1.08
     },
     "ui-cloth": {
-      "sourceId": "ui-click",
+      "sourceId": "ui-cloth",
       "bus": "ui",
       "offset": 0,
       "duration": 0.25,
@@ -1801,7 +1801,7 @@
       "ui-click"
     ],
     "ui-open": [
-      "ui-click"
+      "ui-open"
     ]
   },
   "beds": {

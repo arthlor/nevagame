@@ -297,14 +297,19 @@ export function buildContextualHotbar(
     inventory ? InventoryManager.getItemCount(inventory, itemId) : 0;
   const armedCrop = selectedCropId ? ContentRegistry.crops.get(selectedCropId) : undefined;
   const armedSeeds = armedCrop ? countOf(armedCrop.seedItemId) : 0;
-  let seedTotal = 0;
+  // The belt names one crop, so its count must be that crop's seeds only; the
+  // old sum-across-crops showed "Wheat (8)" with 3 wheat and 5 carrot seeds.
   let fallbackCropName: string | null = null;
+  let fallbackSeeds = 0;
   for (const crop of ContentRegistry.crops.values()) {
     const held = countOf(crop.seedItemId);
-    seedTotal += held;
-    if (held > 0 && !fallbackCropName) fallbackCropName = crop.name;
+    if (held > 0 && !fallbackCropName) {
+      fallbackCropName = crop.name;
+      fallbackSeeds = held;
+    }
   }
   const seedName = armedCrop && armedSeeds > 0 ? armedCrop.name : fallbackCropName;
+  const seedTotal = armedCrop && armedSeeds > 0 ? armedSeeds : fallbackSeeds;
   const bait = accessibleFishingSupplyCount(state, BAIT_ITEM_ID);
   const lureCount = accessibleFishingSupplyCount(state, LURE_ITEM_ID);
   const lureName = ContentRegistry.items.get(LURE_ITEM_ID)?.name ?? "Woven Lure";
@@ -491,7 +496,7 @@ export function buildWorldHudDto(
             current: activeBoat.durability,
             maximum: boatDefinition.durabilityMax,
             percent: Math.round((activeBoat.durability / Math.max(1, boatDefinition.durabilityMax)) * 100),
-            danger: activeBoat.durability < 30
+            danger: activeBoat.durability <= boatDefinition.durabilityMax * 0.3
           },
           fuel:
             boatDefinition.fuelCapacity > 0
@@ -530,7 +535,9 @@ export function buildWorldHudDto(
       timeOfDayLabel: titleCase(clock.timeOfDay),
       timeOfDay: clock.timeOfDay,
       dialRotation: ((clock.currentMinute - 720) / 1440) * 360,
-      isNight: clock.timeOfDay === "night" || clock.timeOfDay === "dusk" || hour < 6 || hour >= 20
+      // Dusk reads as night for the weather medallion, but the canonical dawn
+      // window must not be cut in half by an invented 06:00/20:00 boundary.
+      isNight: clock.timeOfDay === "night" || clock.timeOfDay === "dusk"
     },
     weather: {
       type: weather.type,

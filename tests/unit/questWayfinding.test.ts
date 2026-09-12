@@ -128,7 +128,7 @@ describe("quest pointer HUD fit", () => {
   });
 
   it("reserves the lower touch HUD lane in short landscape", () => {
-    expect(fitQuestPointerToHud({ x: 700, y: 370, onScreen: false }, { width: 844, height: 390 }).y).toBe(232);
+    expect(fitQuestPointerToHud({ x: 700, y: 370, onScreen: false }, { width: 844, height: 390 }).y).toBe(195);
   });
 
   it("allows more world space below the pointer on desktop", () => {

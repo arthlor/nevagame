@@ -3696,6 +3696,7 @@
 #ui-container[data-mobile-device="true"] .crop-inspection {
   top: max(62px, calc(52px + env(safe-area-inset-top))) !important;
   right: var(--mobile-control-right) !important;
+  left: auto !important;
   width: min(260px, 38vw) !important;
   max-height: calc(100dvh - var(--mobile-hud-lift) - 72px) !important;
   overflow-y: auto;
@@ -6404,7 +6405,7 @@
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-readout { display: none; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-slot-number { font-size: 12px; left: 4px; top: 5px; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-count { font-size: 13px; right: 5px; bottom: 5px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utilities-anchor { right: max(8px,env(safe-area-inset-right)); bottom: calc(var(--mobile-control-bottom) + var(--mobile-cluster-height) + 8px); top: auto; left: auto; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utilities-anchor { right: calc(max(10px, env(safe-area-inset-right)) / var(--ui-scale, 0.7)) !important; bottom: calc((var(--mobile-control-bottom) + var(--mobile-cluster-height) + 10px) / var(--ui-scale, 0.7)) !important; top: auto; left: auto; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utilities { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 4px; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utility { width: 44px; height: 44px; min-width: 44px; min-height: 44px; margin: 0; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utility-key { display: none; }
@@ -7189,6 +7190,7 @@
    caption is redundant with the interaction prompt at that range, so it goes. */
 .quest-pointer[data-state="on-screen"] { margin-top: -44px; }
 .quest-pointer[data-state="on-screen"] .quest-pointer-caption { display: none; }
+.quest-pointer[data-state="off-screen"] { margin-top: -20px; }
 
 @media (prefers-reduced-motion: no-preference) {
   .quest-pointer[data-state="off-screen"] .quest-pointer-chevron {
@@ -7505,20 +7507,20 @@
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint { top: 47px; width: 142px; height: 23px; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint .guild-vital-readout { font-size: 12px; }
 
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor { width: 112px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac { width: 112px; height: 134px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap { width: 96px; height: 96px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap-north { top: 10px; font-size: 12px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion { left: 0; top: 76px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor { width: 142px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac { width: 142px; height: 154px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap { width: 112px; height: 112px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap-north { top: 12px; font-size: 13px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion { left: 0; top: 90px; width: 38px; height: 38px; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar {
-    left: 30px;
-    top: 88px;
-    width: 82px;
-    min-height: 44px;
-    padding-inline: 5px;
+    left: 36px;
+    top: 96px;
+    width: 106px;
+    min-height: 26px;
+    padding: 2px 6px;
     overflow: hidden;
-    font-size: 12px;
-    text-overflow: ellipsis;
+    font-size: 12.5px;
+    white-space: nowrap;
   }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-objectives {
     top: 78px;
@@ -7529,14 +7531,151 @@
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest { padding: 5px 7px 5px 5px !important; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-tracker-toggle { min-height: 44px; gap: 6px; }
 
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-shell { padding: 4px 8px !important; border-width: 10px !important; gap: 4px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock {
+    left: 50% !important;
+    right: auto !important;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) / var(--ui-scale, 0.7)) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: min(480px, calc(100vw - 220px)) !important;
+    transform: translateX(-50%) !important;
+    zoom: var(--ui-scale, 0.7);
+    animation: none !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-shell {
+    width: max-content !important;
+    max-width: 100% !important;
+    padding: 3px 8px 4px !important;
+    border-width: 10px !important;
+    gap: 2px !important;
+  }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-title { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; line-height: 18px; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-header-row { margin-bottom: 0; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.planting-dock-actions,.planting-current-season-badge,.seed-hotkey-badge) { display: none; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seeds-row { gap: 7px; padding: 5px 0 !important; margin: 0; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seed-card { width: 48px !important; height: 48px !important; min-width: 48px !important; min-height: 48px !important; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-meta { margin-top: 0; padding-top: 3px !important; gap: 4px 10px; font-size: 12px; align-items: center; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seeds-row { justify-content: center !important; gap: 6px !important; padding: 2px 0 !important; margin: 0 !important; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seed-card { width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-meta { justify-content: center !important; margin-top: 0 !important; padding-top: 2px !important; gap: 4px 10px; font-size: 11px !important; line-height: 14px !important; align-items: center; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .meta-soil-hint { display: inline-flex; align-items: center; gap: 4px; }
+
+  /* Basic Fishing Minigame - Compact docked layout for mobile landscape */
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.basic-fishing-container--minigame, .basic-fishing-container--charging-cast),
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .basic-fishing-container:has(:is(.minigame-card, .cast-power-card)) {
+    right: calc(var(--mobile-control-right, 12px) + 76px) !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: 140px !important;
+    max-height: calc(100dvh - 24px) !important;
+    animation: none !important;
+    z-index: 35 !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .minigame-card {
+    min-width: 0 !important;
+    width: 116px !important;
+    padding: 6px 10px 6px !important;
+    border-width: 8px !important;
+    border-image: var(--guild-panel) 36 fill / 10px / 0 stretch !important;
+    gap: 6px !important;
+    border-radius: 8px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .minigame-header {
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .minigame-species-name {
+    font-size: 12px !important;
+    letter-spacing: 0 !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .minigame-board {
+    height: 148px !important;
+    gap: 8px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .water-track {
+    width: 34px !important;
+    border-radius: 6px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .catch-progress-track {
+    width: 9px !important;
+    border-radius: 4px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .fish-avatar {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .fish-avatar .atlas-image {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .green-catch-bar {
+    border-radius: 5px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .green-bar-handle {
+    width: 12px !important;
+    height: 2px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .minigame-footer-hint {
+    font-size: 10px !important;
+    line-height: 12px !important;
+    text-align: center !important;
+    padding: 0 !important;
+    white-space: normal !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .cast-power-card {
+    min-width: 0 !important;
+    width: 140px !important;
+    padding: 8px 10px !important;
+    border-width: 8px !important;
+    border-image: var(--guild-panel) 36 fill / 10px / 0 stretch !important;
+    gap: 4px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .cast-title {
+    font-size: 12px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .cast-power-zones {
+    font-size: 10px !important;
+    gap: 4px !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .cast-hint {
+    font-size: 10px !important;
+    line-height: 12px !important;
+    text-align: center !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.basic-fishing-container--caught, .basic-fishing-container--bite-reaction, .basic-fishing-container--escaped),
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .basic-fishing-container:has(:is(.catch-summary-card, .bite-alert-banner)) {
+    left: 50% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: min(300px, calc(100vw - 32px)) !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .catch-summary-card {
+    min-width: 0 !important;
+    width: min(280px, calc(100vw - 32px)) !important;
+    max-height: calc(100dvh - 32px) !important;
+    padding: 12px 14px !important;
+    border-width: 10px !important;
+    overflow-y: auto !important;
+  }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .bite-alert-banner {
+    min-width: 0 !important;
+    width: auto !important;
+    padding: 10px 16px !important;
+  }
+  .minigame-footer-hint .hint-touch,
+  .cast-hint .hint-touch {
+    display: none;
+  }
+  #ui-container[data-mobile-device="true"] .minigame-footer-hint .hint-desktop,
+  #ui-container[data-mobile-device="true"] .cast-hint .hint-desktop {
+    display: none;
+  }
+  #ui-container[data-mobile-device="true"] .minigame-footer-hint .hint-touch,
+  #ui-container[data-mobile-device="true"] .cast-hint .hint-touch {
+    display: inline;
+  }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .map-modal-content {
     display: grid !important;
     grid-template-areas:

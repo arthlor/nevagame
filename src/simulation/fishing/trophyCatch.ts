@@ -64,7 +64,9 @@ export function buildTrophyCatchDto(
   cargo: FishCargoState,
   record?: "first" | "weight" | "quality" | null,
   demandModifier: number = 1.0,
-  seasonalModifier: number = 1.0
+  seasonalModifier: number = 1.0,
+  /** Actual per-minute loss for this cargo, storage/ice/temperature included. */
+  effectiveDecayRatePerMinute?: number
 ): TrophyCatchDto {
   const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
   const speciesName = species?.name ?? "Sport Fish";
@@ -77,7 +79,7 @@ export function buildTrophyCatchDto(
   const freshnessPercent = Math.max(0, Math.min(100, Math.round(cargo.freshness)));
   const tone = freshnessTone(freshnessPercent);
 
-  const decayRatePerMin = species?.baseDecayRatePerMinute ?? 0.25;
+  const decayRatePerMin = effectiveDecayRatePerMinute ?? species?.baseDecayRatePerMinute ?? 0.25;
   const estimatedShelfLifeMinutes = Math.max(0, Math.round(cargo.freshness / Math.max(0.01, decayRatePerMin)));
 
   let estimatedMarketValue = 10;

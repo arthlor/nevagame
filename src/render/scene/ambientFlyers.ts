@@ -137,7 +137,11 @@ export function sampleAmbientFlyerPose(
       x += awayX * inverse * pushMeters;
       z += awayZ * inverse * pushMeters;
       y = WorldLayout.terrainHeight(x, z) + hover + bob + flush * 0.6;
-      heading = heading + (Math.atan2(-awayX, -awayZ) - heading) * Math.min(1, flush * 1.5);
+      // Interpolate the shortest arc; a raw subtraction spins the gull through
+      // ~2π whenever the orbit heading and flee heading straddle the ±π seam.
+      const fleeHeading = Math.atan2(-awayX, -awayZ);
+      const turn = Math.atan2(Math.sin(fleeHeading - heading), Math.cos(fleeHeading - heading));
+      heading += turn * Math.min(1, flush * 1.5);
     }
   }
 

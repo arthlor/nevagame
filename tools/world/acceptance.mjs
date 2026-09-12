@@ -426,7 +426,7 @@ async function syncHeldKeys(page, held, desiredKeys) {
   }
 }
 
-async function walkTo(page, target, telemetry, maxMs = 55_000, footArrivalRadius = 1.4) {
+async function walkTo(page, target, telemetry, maxMs = 55_000, footArrivalRadius = 1.4, interactionEntityId) {
   const held = new Set();
   const started = Date.now();
   let previousDistance = Number.POSITIVE_INFINITY;
@@ -438,7 +438,10 @@ async function walkTo(page, target, telemetry, maxMs = 55_000, footArrivalRadius
       const dz = target.z - state.playerPosition.z;
       const distance = Math.hypot(dx, dz);
       const arrivalRadius = state.mode === "boat-driving" ? 3.5 : footArrivalRadius;
-      if (distance <= arrivalRadius) {
+      const interactionReached = interactionEntityId !== undefined
+        && state.interactionTarget?.entityId === interactionEntityId
+        && state.interactionTarget.action === "trade";
+      if (distance <= arrivalRadius || interactionReached) {
         await syncHeldKeys(page, held, []);
         const render = await page.evaluate(() => window.__NEVA_DEBUG.renderDiagnostics());
         telemetry.push({
@@ -450,7 +453,8 @@ async function walkTo(page, target, telemetry, maxMs = 55_000, footArrivalRadius
           instances: render.world.instances,
           draws: render.world.render.calls,
           triangles: render.world.render.triangles,
-          gpu: render.world.pipeline.gpuTiming
+          gpu: render.world.pipeline.gpuTiming,
+          ...(interactionReached ? { interaction: state.interactionTarget, distanceToAnchor: distance } : {})
         });
         return;
       }
@@ -601,10 +605,23 @@ async function movementSamples(page, baseUrl) {
       assertMovementDeadline();
       const waypoint = riverExitWaypoints[index];
       process.stdout.write(`[world:acceptance] movement river-exit ${index + 1}/${riverExitWaypoints.length}\n`);
-      await walkTo(page, waypoint, riverToHarbor);
+      // The terminal anchor is inside the produce stall's solid counter.
+      // Arrival is its real trade interaction, followed by opening the market.
+      await walkTo(page, waypoint, riverToHarbor, 55_000, 1.4,
+        index === riverExitWaypoints.length - 1 ? "market.village" : undefined);
     }
+    const marketArrival = await page.evaluate(() => window.__NEVA_DEBUG.snapshot().interactionTarget);
+    if (marketArrival?.entityId !== "market.village" || marketArrival.action !== "trade") {
+      throw new Error("Village route did not reach the produce market interaction");
+    }
+    await page.keyboard.press("KeyE");
+    const marketDialog = page.locator('[role="dialog"][aria-labelledby="market-title"]');
+    await marketDialog.waitFor({ state: "visible", timeout: 15_000 });
+    await page.keyboard.press("Escape");
+    await marketDialog.waitFor({ state: "hidden", timeout: 15_000 });
     const harborWaypoints = waypointsAtSpacing(routeData.villageHarbor);
-    for (let index = 0; index < harborWaypoints.length; index++) {
+    // Its first point is the same stall anchor just reached through trade.
+    for (let index = 1; index < harborWaypoints.length; index++) {
       assertMovementDeadline();
       const waypoint = harborWaypoints[index];
       process.stdout.write(`[world:acceptance] movement village-harbor ${index + 1}/${harborWaypoints.length}\n`);

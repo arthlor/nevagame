@@ -118,9 +118,13 @@ export function buildRecordMilestones(state: GameState): RecordMilestoneDto[] {
   ));
 
   const fishedHabitats = RECORD_TUNING.sweepHabitats.filter((habitat) =>
-    species.some((fish) =>
-      fish.habitats.includes(habitat) && state.journal.fishRecords[fish.id]?.discovered
-    )
+    species.some((fish) => {
+      const record = state.journal.fishRecords[fish.id];
+      if (!record?.discovered) return false;
+      // Newest records name the water they were landed in; legacy records fall
+      // back to the species' allowed habitats so old saves keep their progress.
+      return record.habitats ? record.habitats.includes(habitat) : fish.habitats.includes(habitat);
+    })
   ).length;
   milestones.push(milestone(
     "record.sweep.habitats",

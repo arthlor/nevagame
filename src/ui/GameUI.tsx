@@ -28,6 +28,8 @@ import { CropInspection } from "./components/CropInspection";
 import { PlantingSeedBar } from "./components/PlantingSeedBar";
 import { FarmGISLegend } from "./components/FarmGISLegend";
 import { buildTrophyCatchDto } from "../simulation/fishing/trophyCatch";
+import { calculateFreshnessLoss, resolveCargoHasIce, resolveCargoTemperatureC } from "../simulation/fishing/calculateFreshness";
+import { ContentRegistry } from "../content/ContentRegistry";
 import {
   DebugOverlay,
   type DebugCameraDiagnostics,
@@ -390,8 +392,20 @@ export const GameUI: React.FC<GameUIProps> = ({
   const trophyCatchDto = useMemo<TrophyCatchDto | null>(() => {
     if (!landedCatch) return null;
     if ("qualityStars" in landedCatch) return landedCatch;
-    return buildTrophyCatchDto(landedCatch, landedCatchRecord);
-  }, [landedCatch, landedCatchRecord]);
+    // Shelf life must use the cargo's real decay: an iced hold or cold room
+    // keeps a catch far longer than the species' open-air base rate.
+    const species = ContentRegistry.fishSpecies.get(landedCatch.speciesId);
+    const effectiveDecay = species
+      ? calculateFreshnessLoss(
+          1,
+          species.baseDecayRatePerMinute,
+          landedCatch.location.type,
+          resolveCargoHasIce(state, landedCatch),
+          resolveCargoTemperatureC(state, landedCatch)
+        )
+      : undefined;
+    return buildTrophyCatchDto(landedCatch, landedCatchRecord, 1, 1, effectiveDecay);
+  }, [landedCatch, landedCatchRecord, state]);
 
   // Debug sessions need the diagnostic surface while the real runtime boots;
   // the boot-ready attribute is the synchronization point for browser checks.
@@ -482,7 +496,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         onClearVirtualInput={onClearVirtualInput}
       />
 
-      {mode !== "sport-fishing" && !activeModal && !showTrophyModal && inspectedCrop && (
+      {mode !== "sport-fishing" && mode !== "farm-placement" && mode !== "basic-fishing" && !activeModal && !showTrophyModal && inspectedCrop && (
         <CropInspection
           inspection={inspectedCrop}
           projectedPosition={inspectedCropPosition}
@@ -662,7 +676,9 @@ export const GameUI: React.FC<GameUIProps> = ({
           activeQuests={activeQuests}
           skills={onInspectSkillProgress()}
           almanac={onInspectAlmanac?.()}
-          notices={villageNotices}
+          // Omit the prop entirely when empty so the Notices folio is hidden;
+          // an empty array is truthy and would always show the tab.
+          notices={villageNotices.length > 0 ? villageNotices : undefined}
           people={people}
           initialFolio={journalInitialFolio}
           onClose={() => {

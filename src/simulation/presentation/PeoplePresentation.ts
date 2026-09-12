@@ -1,7 +1,7 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import type { PeoplePageDto } from "../core/contracts";
 import type { GameState } from "../core/types";
-import { matchedNpcRecognition } from "./NpcPresentation";
+import { matchedNpcRecognition, npcAnchorAt } from "./NpcPresentation";
 
 /**
  * The People folio. A directory of the named cast that reads only what the
@@ -35,14 +35,16 @@ export function buildPeoplePageDto(state: Readonly<GameState>): PeoplePageDto {
   const people = [...ContentRegistry.npcs.values()].map((npc) => {
     const questsCompleted = completedCommissionsFor(npc.id, completed);
     const recognition = matchedNpcRecognition(npc, state);
-    const scheduled = npc.schedule?.find((slot) => slot.phase === state.clock.timeOfDay);
+    // Reuse the canonical station rule so a person awaiting a quest turn-in is
+    // listed at their role anchor, matching dialogue and guide barks.
+    const locationName = npcAnchorAt(npc.id, state.clock, state.quests).locationName;
     const standing = standingFor(questsCompleted, Boolean(recognition));
     return {
       id: npc.id,
       name: npc.name,
       title: npc.title,
       district: npc.district,
-      locationName: scheduled?.position.locationName ?? npc.anchor.locationName,
+      locationName,
       portraitIcon: npc.portraitIcon,
       line: recognition?.lines[0] ?? npc.idleDialogue[0] ?? "",
       standingLabel: standing.label,

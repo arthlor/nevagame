@@ -148,8 +148,10 @@ export class CharacterEquipmentAssembler {
     this.anchors = {
       head: this.createBindFrameAnchor(head, "equipment_head_anchor", new THREE.Vector3(0, 1.78, 0)),
       outerwear: this.createBindFrameAnchor(chest, "equipment_body_anchor", new THREE.Vector3(0, 1.12, 0)),
-      "foot-left": this.createBindFrameAnchor(leftFoot, "equipment_foot_left_anchor", new THREE.Vector3(-0.13, 0.10, 0)),
-      "foot-right": this.createBindFrameAnchor(rightFoot, "equipment_foot_right_anchor", new THREE.Vector3(0.13, 0.10, 0))
+      // The rig's Foot.L sits at character-frame +X (Foot.R at -X), so each
+      // anchor must share its bone's side or the boots render on crossed legs.
+      "foot-left": this.createBindFrameAnchor(leftFoot, "equipment_foot_left_anchor", new THREE.Vector3(0.13, 0.10, 0)),
+      "foot-right": this.createBindFrameAnchor(rightFoot, "equipment_foot_right_anchor", new THREE.Vector3(-0.13, 0.10, 0))
     };
     try {
       for (const slot of ["head", "outerwear", "feet"] as const) {

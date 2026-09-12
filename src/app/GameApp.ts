@@ -4006,7 +4006,9 @@ export class GameApp {
     this.worldScene.setFarmingActionPresentation(
       snapshot.action === "fertilize" ? "place" : snapshot.action,
       snapshot.phase,
-      performance.now() / 1000,
+      // Benchmark captures freeze the world clock; stamp presentation with the
+      // same clock so VFX/deadlines line up with the frame that advances them.
+      this.lastPresentationTimeSeconds || performance.now() / 1000,
       snapshot.target.presentationKind
     );
     if (snapshot.phase === "cancelled") {
@@ -4048,17 +4050,12 @@ export class GameApp {
         case "plant":
           play("plant-dirt");
           break;
-        case "water":
-          play("watering");
-          break;
         case "fertilize":
           play("fertilizer-dust");
           play("place");
           break;
-        case "harvest":
-          play("harvest-cut");
-          play("crop-rustle");
-          break;
+        // Water and harvest cues belong to `CropWatered` / `CropHarvested` in
+        // `bindDomainAudio`; playing them here as well doubled every cue.
         // Processing/equipment cues bind to canonical domain events so a
         // missing or reduced animation cannot suppress or duplicate them.
       }
@@ -4074,7 +4071,7 @@ export class GameApp {
   }
 
   private playFarmingActionVfx(snapshot: FarmingActionSnapshot): void {
-    const timeSeconds = performance.now() / 1000;
+    const timeSeconds = this.lastPresentationTimeSeconds || performance.now() / 1000;
     const target = snapshot.target;
     if (snapshot.phase === "started" && snapshot.action === "water") {
       const player = this.sim.state.player;
@@ -4762,6 +4759,9 @@ export class GameApp {
             boatId: boatId as never,
             direction
           });
+          // A transfer is not a reward; re-seed the delta snapshot so the
+          // next sample does not emit a fake "+N <item>" toast.
+          if (result.success) this.rewardFeedback.reset();
           return { success: result.success, reason: result.reason };
         },
         onInspectSeedBelt: () => this.sim.inspectSeedBelt(),
@@ -5031,6 +5031,9 @@ export class GameApp {
     this.startupAttempt?.cancel();
     for (const dispose of this.simulationFeedbackDisposers) dispose();
     this.simulationFeedbackDisposers = [];
+    // Release the global audio singleton (context, loops, window listeners);
+    // otherwise HMR/remounts leave ambience playing and listeners attached.
+    gameAudio.dispose();
     this.isRunning = false;
     this.autosaveRequested = false;
     window.__NEVA_RENDER_READY = false;

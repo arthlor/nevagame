@@ -4,6 +4,7 @@ import type { AlmanacDto } from "../../simulation/core/contracts";
 import { IconFish, IconSprout, IconStar } from "./HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish } from "../chrome/uiAtlas";
+import { ContentRegistry } from "../../content/ContentRegistry";
 
 interface AlmanacPageProps {
   almanac: AlmanacDto;
@@ -21,10 +22,15 @@ export function formatAlmanacDuration(minutes: number): string {
   return `${Math.round(minutes)}m`;
 }
 
-/** Water need is a rate, so it is banded rather than shown as a bare number. */
-export function waterNeedLabel(waterNeed: number): string {
-  if (waterNeed >= 60) return "Thirsty";
-  if (waterNeed >= 35) return "Steady";
+/**
+ * Water need is a rate, so it is banded rather than shown as a bare number.
+ * `referenceMax` lets the almanac band authored crops (8–25/hour) against the
+ * thirstiest one instead of the raw 0–100 scale, which no crop reaches.
+ */
+export function waterNeedLabel(waterNeed: number, referenceMax = 100): string {
+  const scaled = (waterNeed / Math.max(1, referenceMax)) * 100;
+  if (scaled >= 60) return "Thirsty";
+  if (scaled >= 35) return "Steady";
   return "Hardy";
 }
 
@@ -33,6 +39,12 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
   const [search, setSearch] = useState("");
 
   const query = search.trim().toLowerCase();
+  // Thirstiest authored crop is the band ceiling; the 25 floor keeps a sane
+  // scale if the registry is not ready (e.g. an isolated component test).
+  const maxCropWaterNeed = useMemo(
+    () => Math.max(25, ...[...ContentRegistry.crops.values()].map((crop) => crop.waterNeed)),
+    []
+  );
   const fish = useMemo(
     () =>
       almanac.fish.filter(
@@ -184,7 +196,7 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
                   <dl className="almanac-facts">
                     <div><dt>Ground</dt><dd>{entry.climatesLabel}</dd></div>
                     <div><dt>Grows in</dt><dd>{formatAlmanacDuration(entry.growthMinutes)}</dd></div>
-                    <div><dt>Water</dt><dd>{`${waterNeedLabel(entry.waterNeed)} (${entry.waterNeed})`}</dd></div>
+                    <div><dt>Water</dt><dd>{`${waterNeedLabel(entry.waterNeed, maxCropWaterNeed)} (${entry.waterNeed})`}</dd></div>
                     <div>
                       <dt>Yield</dt>
                       <dd>

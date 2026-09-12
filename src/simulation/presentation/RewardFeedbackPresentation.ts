@@ -55,12 +55,12 @@ export class RewardFeedbackPresentation {
       if (gain > 0) feedback.push({ ...point, kind: "xp", amount: gain,
         text: `+${gain} ${skill[0].toUpperCase()}${skill.slice(1)}` });
     }
-    if (feedback.length > 0) {
-      for (const record of buildRecordMilestones(state)) {
-        if (record.achieved && !this.achieved.has(record.id)) {
-          this.achieved.add(record.id);
-          feedback.push({ ...point, kind: "record", text: record.title, amount: 1 });
-        }
+    // Records are compared every frame, not only when a tracked gain happened:
+    // a milestone that flips on a zero-delta frame must still be announced once.
+    for (const record of buildRecordMilestones(state)) {
+      if (record.achieved && !this.achieved.has(record.id)) {
+        this.achieved.add(record.id);
+        feedback.push({ ...point, kind: "record", text: record.title, amount: 1 });
       }
     }
     return feedback;

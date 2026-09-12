@@ -31,7 +31,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLElement>(null);
   useModalAccessibility(modalRef, onDismiss);
-  useEffect(() => { playUiSound("fanfare"); }, []);
+  useEffect(() => { playUiSound("perfect"); }, []);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.key === " " || event.key === "Enter") && event.target instanceof Element && event.target.closest("button, input, select, textarea, a[href]")) return;

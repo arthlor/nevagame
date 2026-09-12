@@ -3075,7 +3075,7 @@ export class WorldScene {
   public setFarmingActionPresentation(
     action: FarmingPresentationActionName,
     phase: FarmingPresentationPhase,
-    timeSeconds: number,
+    _timeSeconds: number,
     presentationKind?: ProcessingPresentationKind | "ready-equipment"
   ): void {
     if (phase === "cancelled" || phase === "invalidated") {
@@ -3104,7 +3104,7 @@ export class WorldScene {
     if (phase === "committed" && action === "harvest") {
       this.hideFarmingProps();
       this.showFarmingProp("bundle");
-      this.cosmeticCropCarryUntilSeconds = timeSeconds + 1.6;
+      this.cosmeticCropCarryUntilSeconds = this.characterElapsedSeconds + 1.6;
       return;
     }
     if (phase === "completed") {
@@ -3112,7 +3112,7 @@ export class WorldScene {
         this.showFarmingProp("bundle");
         this.cosmeticCropCarryUntilSeconds = Math.max(
           this.cosmeticCropCarryUntilSeconds,
-          timeSeconds + 1.1
+          this.characterElapsedSeconds + 1.1
         );
       } else {
         this.hideFarmingProps();
@@ -4003,6 +4003,10 @@ export class WorldScene {
           const glide = mixer && glideClip ? mixer.clipAction(glideClip) : null;
           flap?.setLoop(THREE.LoopRepeat, Infinity).play();
           glide?.setLoop(THREE.LoopRepeat, Infinity).play();
+          // Both clips run; the update blends them. Starting at weight 1 each
+          // would average them into a permanent half-flap.
+          flap?.setEffectiveWeight(0);
+          glide?.setEffectiveWeight(1);
           this.ambientFlyers.push({
             kind,
             object,
@@ -4077,6 +4081,11 @@ export class WorldScene {
       if (!flyer.object.visible) continue;
       flyer.object.position.set(pose.x, pose.y, pose.z);
       flyer.object.rotation.y = pose.heading;
+      // Near gulls flap; far gulls glide. Blend across 45–70 m so the switch
+      // never pops, and so both shipped clips are actually used.
+      const glideBlend = Math.max(0, Math.min(1, (Math.sqrt(distanceSq) - 45) / 25));
+      flyer.flap?.setEffectiveWeight(1 - glideBlend);
+      flyer.glide?.setEffectiveWeight(glideBlend);
       if (flyer.mixer) {
         const interval = distanceSq <= 50 * 50 ? 0 : 1 / 12;
         if (timeSeconds - flyer.lastAnimationUpdateSeconds < interval) continue;
@@ -4243,8 +4252,11 @@ export class WorldScene {
     };
     this.visibilityAnchor.set(playerPose.x, playerPose.y, playerPose.z);
 
+    // The presentation clock is wall time, so a hidden tab can hand us a delta
+    // of many seconds. Clamp it like the simulation delta, or one frame runs
+    // hundreds of animation substeps and jumps the session clock.
     const frameElapsed = this.hasPresentationTimestamp
-      ? Math.max(0, timeSeconds - this.lastPresentationTime) : 0;
+      ? Math.min(0.1, Math.max(0, timeSeconds - this.lastPresentationTime)) : 0;
     this.lastPresentationTime = Math.max(timeSeconds, this.lastPresentationTime);
     this.hasPresentationTimestamp = true;
     const delta = state.clock.isPaused ? 0 : frameElapsed;
@@ -4723,12 +4735,16 @@ export class WorldScene {
       const ambientVisibilityRange = person.model.visible
         ? AMBIENT_TOWNSFOLK_VISIBILITY_METERS + AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS
         : AMBIENT_TOWNSFOLK_VISIBILITY_METERS - AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS;
+      const wasVisible = person.model.visible;
       person.model.visible = distance < ambientVisibilityRange;
       if (!person.model.visible) continue;
 
       const surface = WorldLayout.traversalSurfaceSample(pose.x, pose.z);
-      const previousX = person.model.position.x;
-      const previousZ = person.model.position.z;
+      // On the first visible frame the stored position is stale (from before
+      // the villager left), so treat it as zero velocity instead of dividing a
+      // multi-metre wrap by one frame.
+      const previousX = wasVisible ? person.model.position.x : pose.x;
+      const previousZ = wasVisible ? person.model.position.z : pose.z;
       person.model.position.set(pose.x, WorldLayout.traversalSurfaceHeight(pose.x, pose.z), pose.z);
       const socialReaction = this.socialReactions.sample(
         pose.x,
@@ -5948,6 +5964,38 @@ export class WorldScene {
       this.fishingSubmergedLineMesh.geometry.dispose();
       (this.fishingSubmergedLineMesh.material as THREE.Material).dispose();
       this.fishingSubmergedLineMesh = null;
+    }
+
+    // Ambient fauna/flyers and background boats own mixers, sprites and scene
+    // nodes that no other dispose path reached.
+    for (const fauna of this.faunaPresentations) {
+      if (fauna.mixer) {
+        fauna.mixer.stopAllAction();
+        fauna.mixer.uncacheRoot(fauna.mixer.getRoot());
+      }
+      fauna.root.removeFromParent();
+    }
+    this.faunaPresentations.length = 0;
+    for (const flyer of this.ambientFlyers) {
+      flyer.mixer?.stopAllAction();
+      if (flyer.mixer) flyer.mixer.uncacheRoot(flyer.object);
+      flyer.object.removeFromParent();
+    }
+    this.ambientFlyers.length = 0;
+    for (const boat of this.backgroundBoats) boat.removeFromParent();
+    this.backgroundBoats.length = 0;
+    for (const practical of this.practicalLights) {
+      practical.glow?.removeFromParent();
+      practical.glow?.material.dispose();
+      practical.light.removeFromParent();
+      practical.light.dispose();
+    }
+    this.practicalLights.length = 0;
+    if (this.layoutEditHelper) {
+      this.layoutEditHelper.removeFromParent();
+      this.layoutEditHelper.geometry.dispose();
+      (this.layoutEditHelper.material as THREE.Material).dispose();
+      this.layoutEditHelper = null;
     }
 
     this.lightingRig.sun.shadow.map?.dispose();

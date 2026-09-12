@@ -234,6 +234,18 @@ export const WORLD_AMBIENCE_PROFILES: readonly Readonly<WorldAmbienceProfile>[] 
   { id: "ambience.sunreach_ridge", islandId: "island.sunreach", regionId: "region.sunreach_ridge", windGain: 0.94, surfGain: 0.4, insectsGain: 0.08, harborGain: 0 }
 ]);
 
-export const WORLD_REGION_LABELS = Object.freeze(Object.fromEntries(
-  WORLD_CHART_NODES.map((node) => [node.regionId, node.label])
-) as Readonly<Record<WorldRegionId, string>>);
+// Explicit per-region labels. Deriving them from WORLD_CHART_NODES let several
+// nodes share a region and silently kept the last one (e.g. region.village
+// became "Village Mill"). The region name is what the HUD and pause screen show.
+export const WORLD_REGION_LABELS: Readonly<Record<WorldRegionId, string>> = Object.freeze({
+  "region.village": "Village Market",
+  "region.farm": "Starter Homestead",
+  "region.coast": "Neva Coast",
+  "region.harbor": "Seabreak Harbor",
+  "region.offshore": "Neva Offshore Grounds",
+  "region.open_channel": "Open Channel",
+  "region.sunreach_cove": "Sunreach Cove",
+  "region.sunreach_terraces": "Sunreach Terraces",
+  "region.sunreach_scrub": "Sunreach Scrub",
+  "region.sunreach_ridge": "Exposed Ridge"
+});

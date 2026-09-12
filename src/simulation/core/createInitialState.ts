@@ -30,6 +30,7 @@ function structureOnTerrain(
 
 function initialWeather(worldSeed: number): GameState["weather"] {
   const rng = new SeededRng(worldSeed + 17);
+  const nextWeatherMinute = 8 * 60 + WEATHER_FRONT_MIN_MINUTES;
   const weather = {
     type: "clear" as const,
     windDirectionDeg: 45,
@@ -39,13 +40,13 @@ function initialWeather(worldSeed: number): GameState["weather"] {
     seaRoughness: 0.1,
     visibility: 1.0,
     temperatureC: 21,
-    nextWeatherMinute: 14 * 60,
-    nextWeatherType: rollWeatherType(rng, 14 * 60)
+    nextWeatherMinute,
+    // Roll the scheduled front exactly once; the old literal rolled at 14:00
+    // and then overwrote both fields, advancing the stream for no result.
+    nextWeatherType: rollWeatherType(rng, nextWeatherMinute)
   };
   applyWeatherProfile(weather, "clear");
   weather.windDirectionDeg = 45;
-  weather.nextWeatherMinute = 8 * 60 + WEATHER_FRONT_MIN_MINUTES;
-  weather.nextWeatherType = rollWeatherType(rng, weather.nextWeatherMinute);
   return weather;
 }
 

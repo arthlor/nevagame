@@ -92,7 +92,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   if (phase === "charging-cast") {
     return (
-      <div className="basic-fishing-container">
+      <div className="basic-fishing-container basic-fishing-container--charging-cast">
         <GameSheet family="ink" tone="slate" corners className="cast-power-card">
           <div className="cast-title">Cast power</div>
           <Meter
@@ -143,7 +143,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               Prime
             </span>
           </div>
-          <div className="cast-hint">Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</div>
+          <div className="cast-hint">
+            <span className="hint-desktop">Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</span>
+            <span className="hint-touch">Tap [Cast] to release</span>
+          </div>
         </GameSheet>
       </div>
     );
@@ -151,7 +154,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   if (phase === "bite-reaction") {
     return (
-      <div className="basic-fishing-container">
+      <div className="basic-fishing-container basic-fishing-container--bite-reaction">
         <GameSheet family="ink" tone="slate" corners className="bite-alert-banner" data-testid="bite-alert">
           <div className="bite-bobber" data-testid="bite-bobber" aria-hidden="true">
             <span className="bite-bobber-ripple" />
@@ -160,7 +163,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
           <div className="bite-exclamation">!</div>
           <div className="bite-text">Bite!</div>
-          <div className="cast-hint">Hook set — press <KeyHint keyName="Space" glow /></div>
+          <div className="cast-hint">
+            <span className="hint-desktop">Hook set — press <KeyHint keyName="Space" glow /></span>
+            <span className="hint-touch">Fish on line — tap Hook!</span>
+          </div>
           <ChromeButton variant="gold" soundCue="confirm" onClick={onHookBite}>Hook fish</ChromeButton>
         </GameSheet>
       </div>
@@ -169,7 +175,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   if (phase === "minigame") {
     return (
-      <div className="basic-fishing-container">
+      <div className="basic-fishing-container basic-fishing-container--minigame">
         <GameSheet
           family="ink"
           tone="slate"
@@ -243,7 +249,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
 
           <div className="minigame-footer-hint">
-            Hold the card or <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel
+            <span className="hint-desktop">Hold the card or <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel</span>
+            <span className="hint-touch">Hold [Reel] or card to keep pressure</span>
           </div>
         </GameSheet>
       </div>
@@ -252,7 +259,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   if (phase === "caught") {
     return (
-      <div className="basic-fishing-container">
+      <div className="basic-fishing-container basic-fishing-container--caught">
         <GameSheet family="ink" tone="slate" corners className="catch-summary-card result-stamp" data-testid="catch-landed">
           <div className="catch-summary-header">Fish landed</div>
           <div className="catch-item-preview">
@@ -304,7 +311,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
   if (phase === "escaped") {
     return (
-      <div className="basic-fishing-container">
+      <div className="basic-fishing-container basic-fishing-container--escaped">
         <GameSheet family="ink" tone="slate" corners className="catch-summary-card result-stamp escaped-card" data-testid="catch-escaped">
           <div className="catch-summary-header">Got away</div>
           <div className="catch-item-preview">

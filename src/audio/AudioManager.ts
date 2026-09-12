@@ -119,7 +119,7 @@ export class AudioManager {
   private variationSeed = 1;
   private bedId: AudioBedId = "farm";
   private weatherId = "clear";
-  private lastStormCueAt = 0;
+  private lastStormCueAt = Number.NEGATIVE_INFINITY;
   private readonly unsubscribeSettings: () => void;
 
   constructor() {
@@ -290,7 +290,7 @@ export class AudioManager {
       window.removeEventListener("keydown", this.handleFirstInput, true);
       document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     }
-    void this.context?.close();
+    void this.context?.close().catch(() => undefined);
     this.context = null;
   }
 
@@ -352,7 +352,10 @@ export class AudioManager {
       this.applySettings(audioSettings.get());
     }
     const context = this.context;
-    if (context.state === "suspended") {
+    // Safari reports "interrupted" after a call/Siri/backgrounding; resuming on
+    // "suspended" alone leaves the context permanently silent.
+    const state = context.state as string;
+    if (state === "suspended" || state === "interrupted") {
       await context.resume();
     }
     if (this.disposed || this.context !== context || context.state !== "running") {
@@ -425,7 +428,9 @@ export class AudioManager {
       })
       .then((data) => context.decodeAudioData(data));
     this.bufferPromises.set(sourceId, loading);
-    loading.catch(() => this.bufferPromises.delete(sourceId));
+    // Keep failures cached. Loop sync retries a cue every frame, so deleting the
+    // rejected promise turned one missing asset into an endless fetch + warn.
+    void loading.catch(() => undefined);
     return loading;
   }
 
@@ -560,7 +565,13 @@ export class AudioManager {
     const existing = this.loops.get(cueId);
     const resolved = finitePosition(position);
     const layers = this.worldAudio?.layers as Partial<Record<AudioCueId, number>> | undefined;
-    const targetGain = cue.gain * (this.actionLoops.has(cueId) ? this.actionLoopGains.get(cueId) ?? 1 : layers?.[cueId] ?? 1);
+    // Weather must be audible: the region wind bed is scaled for a windy front
+    // (and quieted in fog), since the manifest has no dedicated weather loop.
+    const weatherWindScale = cueId === "ambience-wind"
+      ? (this.weatherId === "storm" ? 2 : this.weatherId === "windy" ? 1.7 : this.weatherId === "fog" ? 0.7 : 1)
+      : 1;
+    const targetGain = Math.min(1.5,
+      cue.gain * (this.actionLoops.has(cueId) ? this.actionLoopGains.get(cueId) ?? 1 : layers?.[cueId] ?? 1) * weatherWindScale);
     if (existing) {
       if (this.loopGainTargets.get(cueId) !== targetGain) {
         existing.gain.gain.cancelScheduledValues(context.currentTime);

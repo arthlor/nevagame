@@ -26,7 +26,7 @@ export function fitQuestPointerToHud(
 ): { x: number; y: number } {
   const SIDE_INSET = 68;
   const TOP_INSET = viewport.height <= 500 ? 54 : 60;
-  const BOTTOM_INSET = viewport.height <= 500 ? 158 : 104;
+  const BOTTOM_INSET = viewport.height <= 500 ? 195 : 104;
   const maxX = Math.max(SIDE_INSET, viewport.width - SIDE_INSET);
   const maxY = Math.max(TOP_INSET, viewport.height - BOTTOM_INSET);
 

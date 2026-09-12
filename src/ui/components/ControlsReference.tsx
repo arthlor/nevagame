@@ -12,8 +12,18 @@ const GROUP_ICONS: Record<string, React.ReactNode> = {
 
 const renderKeyFragment = (keyStr: string) => {
   const parts = keyStr.trim().split(/\s+/);
+  // "1 – 5" is a range, not three keycaps: render the endpoints around the dash.
+  if (parts.length === 3 && /^[–—-]$/.test(parts[1])) {
+    return (
+      <span className="controls-keycaps-cluster">
+        <KeyHint keyName={parts[0]} />
+        <span className="controls-key-range">–</span>
+        <KeyHint keyName={parts[2]} />
+      </span>
+    );
+  }
   // If it's a sequence of individual single characters (e.g. "W A S D"), render each as its own keycap
-  if (parts.length > 1 && parts.every((p) => p.length === 1)) {
+  if (parts.length > 1 && parts.every((p) => p.length === 1 && !/[–—-]/.test(p))) {
     return (
       <span className="controls-keycaps-cluster">
         {parts.map((p) => (

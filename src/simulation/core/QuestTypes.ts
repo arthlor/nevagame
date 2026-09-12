@@ -216,12 +216,13 @@ export function focusedQuestTrack(quests: QuestState): QuestTrackProgress {
 
 /** Whether `questId` is the quest currently running on any track. */
 export function isQuestActive(quests: QuestState, questId: QuestId): boolean {
-  return Object.values(quests.tracks).some((progress) => progress.activeQuestId === questId);
+  return Object.values(quests.tracks ?? {}).some((progress) => progress.activeQuestId === questId);
 }
 
 /** Track ids that currently have a quest in progress, in definition order. */
 export function activeQuestTrackIds(quests: QuestState): QuestTrackId[] {
-  return Object.keys(quests.tracks).filter((trackId) => quests.tracks[trackId]?.activeQuestId);
+  const tracks = quests.tracks ?? {};
+  return Object.keys(tracks).filter((trackId) => tracks[trackId]?.activeQuestId);
 }
 
 export interface ActiveQuestDto {

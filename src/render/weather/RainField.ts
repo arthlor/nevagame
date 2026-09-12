@@ -199,7 +199,9 @@ export class RainField {
         splash.active = false;
         continue;
       }
-      const scale = splash.size * Math.sin(Math.min(1, progress) * Math.PI);
+      // Clamp both ends: a presentation-time rewind can put `bornAt` after
+      // `timeSeconds`, and a negative sine scale flips every splash instance.
+      const scale = splash.size * Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI);
       this.dummy.position.set(splash.x, splash.y, splash.z);
       this.dummy.quaternion.identity();
       this.dummy.scale.set(scale * 1.6, scale * 0.55, scale * 1.6);

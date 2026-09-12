@@ -324,7 +324,7 @@ export const HUD: React.FC<HUDProps> = ({
       </HudCluster>
 
       {/* Bottom-Right Cluster: Micro-Menu & Gold Purse Bar */}
-      {!isPlacementActive && (
+      {!isPlacementActive && !basicFishingPhase && (
         <HudCluster
           edge="bottom-right"
           className="guild-utilities-anchor interactive"

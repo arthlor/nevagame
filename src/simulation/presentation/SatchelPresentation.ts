@@ -6,11 +6,13 @@ import { freshnessWord } from "../fishing/freshnessBands";
 import type { CarryLocationType, GameState } from "../core/types";
 
 const inventoryCategory = (category: string | undefined, itemId: string): "farming" | "fishing" | "supplies" | null => {
+  // Basic-catch fish are authored with `category: "produce"`, so the fish id
+  // must win or every catch lands in the Farming filter.
+  if (itemId.startsWith("fish.") || category === "bait" || category === "fishing-supply") {
+    return "fishing";
+  }
   if (category === "seed" || category === "produce" || category === "grain" || category === "fertilizer") {
     return "farming";
-  }
-  if (category === "bait" || category === "fishing-supply" || itemId.startsWith("fish.")) {
-    return "fishing";
   }
   if (
     category === "crafting-material" ||
@@ -129,7 +131,7 @@ export function buildItemInspectionDto(state: GameState, itemId: string): ItemIn
     categoryLabel: item?.category.replaceAll("-", " ") ?? (fish ? "fish" : "item"),
     loreText: item?.description ?? null,
     stackLimit: item?.stackLimit ?? 1,
-    baseValue: item?.baseValue ?? 0,
+    baseValue: item?.baseValue ?? fish?.baseMarketValue ?? 0,
     tags: item?.tags ?? [],
     rarity: fish ? rarityForEncounterWeight(fish.rarityWeight) : null,
     agronomy: crop

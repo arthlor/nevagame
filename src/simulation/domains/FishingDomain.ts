@@ -1209,6 +1209,7 @@ export class FishingDomain {
       instanceId: this.context.nextEntityId("fish_inst"),
       speciesId,
       ecologyId: school.ecologyId,
+      habitatId: school.habitatId,
       weightKg,
       quality,
       caughtAtMinute: state.clock.currentMinute
@@ -1535,6 +1536,7 @@ export class FishingDomain {
         instanceId: this.context.nextEntityId("fish_inst"),
         speciesId: species.id,
         ecologyId: attempt.ecologyId,
+        habitatId: attempt.habitatId,
         weightKg: rollSpeciesWeightKg(species.weightKg, rng),
         quality: attempt.quality ?? "common",
         caughtAtMinute: state.clock.currentMinute
@@ -1576,6 +1578,10 @@ export class FishingDomain {
       };
       const record = state.journal.fishRecords[speciesId];
       record.discovered = true;
+      if (attempt.habitatId) {
+        record.habitats ??= [];
+        if (!record.habitats.includes(attempt.habitatId)) record.habitats.push(attempt.habitatId);
+      }
       record.catchCount = (record.catchCount ?? 0) + 1;
       const rank: Record<string, number> = { common: 0, fine: 1, exceptional: 2, trophy: 3 };
       if (priorCatches === 0) basicRecord = "first";

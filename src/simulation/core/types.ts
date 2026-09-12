@@ -311,6 +311,8 @@ export interface FishInstance {
   instanceId: string;
   speciesId: FishSpeciesId;
   ecologyId?: FishingEcologyId;
+  /** Habitat it was hooked/caught in, recorded on the journal entry. */
+  habitatId?: string;
   weightKg: number;
   quality: FishQuality;
   caughtAtMinute?: GameMinute;
@@ -536,6 +538,8 @@ export interface JournalRecord {
   bestQuality?: FishQuality;
   catchCount: number;
   firstCaughtMinute?: GameMinute;
+  /** Habitats this species was actually landed in, for the habitat sweep. */
+  habitats?: string[];
 }
 
 export interface JournalState {

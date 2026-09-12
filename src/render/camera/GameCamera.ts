@@ -389,7 +389,7 @@ export class GameCamera {
     }
     framingDistance = Math.max(profile.minDistance, framingDistance + this.sportDistanceBias);
     const targetDistance = clamp(framingDistance + this.zoomOffset,
-      profile.minDistance, framingDistance + profile.maxDistance - profile.distance);
+      profile.minDistance, Math.min(profile.maxDistance, framingDistance + profile.maxDistance - profile.distance));
 
     // Two-subject auto-yaw: settle behind the angler on the line to the fish, then
     // drift off-axis toward the run so the fight rakes diagonally across frame.
@@ -663,8 +663,21 @@ export class GameCamera {
     }
 
     const velocity = motionInput.player.velocity;
+    const boat = mode === "boat-driving" || mode === "basic-fishing" || mode === "sport-fishing"
+      ? motionInput.boat
+      : undefined;
     let desiredLookAheadX = velocity.x * CANONICAL_RENDER_CONFIG.motion.cameraLookAheadSeconds;
     let desiredLookAheadZ = velocity.z * CANONICAL_RENDER_CONFIG.motion.cameraLookAheadSeconds;
+    // A moving boat leads the look target. This must feed the desired value
+    // before it is smoothed; adding it afterward was silently discarded.
+    if (boat) {
+      const boatSpeed = Math.hypot(boat.velocity.x, boat.velocity.z);
+      if (boatSpeed > 0.05) {
+        const boatForwardLead = CANONICAL_RENDER_CONFIG.motion.cameraBoatForwardLeadMeters;
+        desiredLookAheadX += boat.velocity.x / boatSpeed * boatForwardLead;
+        desiredLookAheadZ += boat.velocity.z / boatSpeed * boatForwardLead;
+      }
+    }
     const desiredLength = Math.hypot(desiredLookAheadX, desiredLookAheadZ);
     const maximumLookAhead = CANONICAL_RENDER_CONFIG.motion.cameraLookAheadMaxMeters;
     if (desiredLength > maximumLookAhead && desiredLength > 0.0001) {
@@ -701,9 +714,6 @@ export class GameCamera {
       dt
     );
 
-    const boat = mode === "boat-driving" || mode === "basic-fishing" || mode === "sport-fishing"
-      ? motionInput.boat
-      : undefined;
     let desiredVehicleX = 0;
     let desiredVehicleY = 0;
     let desiredVehicleZ = 0;
@@ -720,9 +730,6 @@ export class GameCamera {
       desiredVehicleZ += rightZ * lateral;
       const horizontalSpeed = Math.hypot(boat.velocity.x, boat.velocity.z);
       if (horizontalSpeed > 0.05) {
-        const boatForwardLead = CANONICAL_RENDER_CONFIG.motion.cameraBoatForwardLeadMeters;
-        desiredLookAheadX += boat.velocity.x / horizontalSpeed * boatForwardLead;
-        desiredLookAheadZ += boat.velocity.z / horizontalSpeed * boatForwardLead;
         const accelerationOffset = THREE.MathUtils.clamp(
           boat.accelerationMetersPerSecondSquared / 12,
           -1,

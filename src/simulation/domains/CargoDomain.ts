@@ -56,6 +56,10 @@ export class CargoDomain {
       firstCaughtMinute: state.clock.currentMinute
     };
     const record = state.journal.fishRecords[fish.speciesId];
+    if (fish.habitatId) {
+      record.habitats ??= [];
+      if (!record.habitats.includes(fish.habitatId)) record.habitats.push(fish.habitatId);
+    }
     // A landmark catch is named before the journal moves on: first of its
     // kind, heaviest yet, or finest yet — in that priority.
     const priorBest = record.catchCount > 0 ? record : null;
