@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
 import { harborCoastInfluence } from "../../world/HarborCoast";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import { cloudShadowUniforms } from "../atmosphere/CloudShadows";
+import { aerialPerspectiveUniforms } from "../atmosphere/AerialPerspective";
 
 /** R: signed water-column depth, G: bed elevation, B: shore distance, A: coastal art weight. */
 export function createWaterDepthMap(bounds: THREE.Vector4, width: number, height: number): THREE.DataTexture {
@@ -34,6 +36,8 @@ export function* waterDepthMapSteps(bounds: THREE.Vector4, width: number, height
 export function createCoastalUniforms(depthMap: THREE.Texture | null, bounds: THREE.Vector4) {
   const config = CANONICAL_RENDER_CONFIG.waterSurface.optics;
   return {
+    ...cloudShadowUniforms,
+    ...aerialPerspectiveUniforms,
     uCoastalFieldEnabled: { value: depthMap ? 1 : 0 }, uWaterDepthMap: { value: depthMap }, uOpticsBounds: { value: bounds },
     uCoastTime: { value: 0 }, uCoastReducedMotion: { value: 0 },
     uSwashPeriod: { value: config.swashPeriodSeconds },
@@ -42,6 +46,10 @@ export function createCoastalUniforms(depthMap: THREE.Texture | null, bounds: TH
     uWaterAbsorption: { value: new THREE.Vector3(...config.absorptionPerMeter) },
     uRefractionPixels: { value: config.refractionPixels },
     uRippleNormalStrength: { value: config.rippleNormalStrength },
+    uCausticStrength: { value: config.causticStrength },
+    uCausticDepthFade: { value: new THREE.Vector2(...config.causticDepthFadeMeters) },
+    uCausticSunDirection: { value: new THREE.Vector3(0, 1, 0) },
+    uCausticSunStrength: { value: 0 },
     uDistantSlope: { value: new THREE.Vector3(...config.distantSlope) },
     uSceneCaptureEnabled: { value: 0 }, uOpaqueColor: { value: null as THREE.Texture | null },
     uOpaqueDepth: { value: null as THREE.DepthTexture | null },

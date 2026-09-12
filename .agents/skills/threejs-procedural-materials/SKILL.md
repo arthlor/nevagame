@@ -1,15 +1,16 @@
 ---
 name: threejs-procedural-materials
-description: Author production procedural materials in Three.js. Use for hybrid texture-backed PBR soil and moss with procedural displacement and masks, upward-facing model moss accumulation, atlas filtering, specular AA, planet-space fields, terrain wetness, lava and emissive surfaces, reflective wave-optical diffraction gratings, air-film-air soap bubbles with Airy interference, raytraced diamond and gem refraction with internal reflection and dispersion, image-space glass transmission with spectral dispersion and volume absorption, per-instance dissolve, authored PBR identities, derivative normals, and custom direct-light shadow modulation.
+description: "Author causal PBR and optical materials in Three.js. Use for hybrid soil/moss, model moss, wetness, lava/emissive, specular AA, atlas filtering, diffraction foil, thin-film soap, gem/diamond refraction, dispersive glass. Not for shared field design or screen-space wet glass."
 ---
 
 # Procedural Materials
 
+- **Runtime contract.** Backend: WebGPU/TSL (`three/webgpu`, `three/tsl`) — requires a WebGPU-capable runtime. Min three: verify the installed build exposes the referenced TSL nodes (`Fn`/`If`/`Loop`). Fallback: not provided; state any GLSL port. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
 Build a material from surface identity and causes. Color, roughness, metalness, normal, transmission, and emission should describe the same surface—not unrelated noise textures.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Material graph order
 
@@ -128,7 +129,9 @@ procedurally synthesized. When moss must also settle onto a model, read the
 for model-locked coverage, upward-face accumulation, displaced thickness, and
 shared moss PBR identity.
 
-## Failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - every PBR channel samples independent noise;
 - roughness is a scalar afterthought;

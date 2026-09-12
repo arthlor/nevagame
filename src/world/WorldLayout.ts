@@ -36,6 +36,7 @@ import { NEVA_HEADWATERS, headwaterElevationAt, headwaterSpringInfluence, isInHe
 import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
 import {
   writeSurfaceFieldAttributes,
+  terrainDryClimateWeight,
   withExposedRock
 } from "../render/materials/SurfaceFieldAttributes";
 import {
@@ -3499,6 +3500,7 @@ export class WorldLayout {
     const indexedTerrainPathBlend = new Uint8Array(indexedPositions.count);
     const indexedTerrainShoreWeights = new Uint8Array(indexedPositions.count * 3);
     const indexedFaceting = new Float32Array(indexedPositions.count);
+    const indexedDryClimate = new Uint8Array(indexedPositions.count);
     const surfaceSamples = new Array<TerrainSurfaceSample>(indexedPositions.count);
     const palette: Record<keyof TerrainSurfaceWeights, THREE.Color> = {
       grass: this.tokenColor("foliage_sage_01"),
@@ -3513,6 +3515,8 @@ export class WorldLayout {
       cliff: this.tokenColor("stone_cool_01")
     };
 
+    const dryGroundColor = this.tokenColor("path_dust_01").lerp(palette.drySoil, 0.35);
+    const dryRidgeColor = this.tokenColor("stone_coastal_light_01");
     const normalPolicy = CANONICAL_RENDER_CONFIG.terrainSurface.normals;
     for (let index = 0; index < indexedPositions.count; index++) {
       if (index % 32 === 0) yield;
@@ -3532,9 +3536,14 @@ export class WorldLayout {
           * (1 - smoothstep(0.58, 0.86, normalY))
           * CANONICAL_RENDER_CONFIG.terrainSurface.shoreline.exposedHeadlandStrength
         : 0;
-      const surfaceSample = withExposedRock(canonicalSample, headlandExposure);
+      const dryRidgeExposure = terrainDryClimateWeight(canonicalSample)
+        * (canonicalSample.drainage?.slope ?? 0)
+        * CANONICAL_RENDER_CONFIG.terrainSurface.dryRidgeExposureStrength;
+      const surfaceSample = withExposedRock(canonicalSample, Math.max(headlandExposure, dryRidgeExposure));
       surfaceSamples[index] = surfaceSample;
       const weights = surfaceSample.weights;
+      const dryClimate = terrainDryClimateWeight(surfaceSample);
+      indexedDryClimate[index] = Math.round(dryClimate * 255);
       const routeUnderlayWeight = weights.path + weights.shoulder;
       const vegetationShare = weights.grass + weights.meadow;
       const shoreShare = weights.beach + weights.wetShoreline + weights.cliff;
@@ -3542,7 +3551,7 @@ export class WorldLayout {
         clamp01(vegetationShare * (1 - smoothstep(0.08, 0.42, shoreShare)) + routeUnderlayWeight) * 255
       );
       // The precise 17-strip route ribbon owns visible worked ground. Keep its
-      // coarse terrain-grid underlay green so interpolated path vertices cannot
+      // coarse terrain-grid underlay in its local ground palette so vertices cannot
       // produce a second several-metre brown halo outside the ribbon edge.
       const grassShare = weights.grass + weights.meadow;
       const grassBoost = grassShare > 1e-5 ? weights.grass / grassShare : 0.72;
@@ -3559,6 +3568,9 @@ export class WorldLayout {
         color.g += palette[key].g * weight;
         color.b += palette[key].b * weight;
       }
+      color.lerp(dryGroundColor, dryClimate * (visualWeights.grass + visualWeights.meadow)
+        * (1 - surfaceSample.farmInfluence) * CANONICAL_RENDER_CONFIG.terrainSurface.dryClimateColorMix);
+      color.lerp(dryRidgeColor, dryClimate * weights.cliff * (1 - surfaceSample.farmInfluence));
       const broadVariation =
         Math.sin(x * 0.027 + z * 0.019) * 0.024
         + Math.sin(x * 0.011 - z * 0.034 + 1.2) * 0.018;
@@ -3618,60 +3630,16 @@ export class WorldLayout {
       new THREE.Uint8BufferAttribute(indexedTerrainShoreWeights, 3, true)
     );
     indexed.setAttribute("terrainFaceting", new THREE.BufferAttribute(indexedFaceting, 1));
+    indexed.setAttribute("terrainDryClimate", new THREE.Uint8BufferAttribute(indexedDryClimate, 1, true));
     writeSurfaceFieldAttributes(indexed, surfaceSamples);
 
-    const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
-    if (geometry !== indexed) indexed.dispose();
-    owned = geometry;
-    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const normals = geometry.getAttribute("normal") as THREE.BufferAttribute;
-    const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
-    const faceting = geometry.getAttribute("terrainFaceting") as THREE.BufferAttribute;
-    const a = new THREE.Vector3();
-    const b = new THREE.Vector3();
-    const c = new THREE.Vector3();
-    const edgeA = new THREE.Vector3();
-    const edgeB = new THREE.Vector3();
-    const faceNormal = new THREE.Vector3();
-    const blendedNormal = new THREE.Vector3();
-    const faceColor = new THREE.Color();
-    const vertexColor = new THREE.Color();
-    for (let index = 0; index < positions.count; index += 3) {
-      if (index % 768 === 0) yield;
-      a.fromBufferAttribute(positions, index);
-      b.fromBufferAttribute(positions, index + 1);
-      c.fromBufferAttribute(positions, index + 2);
-      edgeA.copy(b).sub(a);
-      edgeB.copy(c).sub(a);
-      faceNormal.crossVectors(edgeA, edgeB).normalize();
-      faceColor.setRGB(
-        (colors.getX(index) + colors.getX(index + 1) + colors.getX(index + 2)) / 3,
-        (colors.getY(index) + colors.getY(index + 1) + colors.getY(index + 2)) / 3,
-        (colors.getZ(index) + colors.getZ(index + 1) + colors.getZ(index + 2)) / 3
-      );
-      const faceValue = THREE.MathUtils.clamp(
-        0.985 + faceNormal.x * 0.026 - faceNormal.z * 0.018,
-        0.94,
-        1.06
-      );
-      faceColor.multiplyScalar(faceValue);
-      for (let vertex = 0; vertex < 3; vertex++) {
-        const vertexIndex = index + vertex;
-        const facetingWeight = clamp01(faceting.getX(vertexIndex));
-        blendedNormal
-          .set(normals.getX(vertexIndex), normals.getY(vertexIndex), normals.getZ(vertexIndex))
-          .lerp(faceNormal, facetingWeight)
-          .normalize();
-        normals.setXYZ(vertexIndex, blendedNormal.x, blendedNormal.y, blendedNormal.z);
-        vertexColor
-          .setRGB(colors.getX(vertexIndex), colors.getY(vertexIndex), colors.getZ(vertexIndex))
-          .lerp(faceColor, facetingWeight * normalPolicy.facetedColorBlend);
-        colors.setXYZ(vertexIndex, vertexColor.r, vertexColor.g, vertexColor.b);
-      }
-    }
-    normals.needsUpdate = true;
-    colors.needsUpdate = true;
-    geometry.deleteAttribute("terrainFaceting");
+    // Keep the terrain indexed. The regular grid shares nearly every vertex;
+    // expanding it to one copy per triangle multiplied vertex fetches and
+    // made startup do a second full-grid face pass. The material reconstructs
+    // the geometric face normal from derivatives and consumes terrainFaceting
+    // directly, so the authored soft/cliff faceting survives without the
+    // non-indexed CPU rebuild.
+    const geometry = indexed;
     geometry.userData.terrainNormalPolicy = { ...normalPolicy };
     geometry.userData.terrainPatchId = patch.id;
     geometry.userData.terrainPatchCenter = { ...patch.center };

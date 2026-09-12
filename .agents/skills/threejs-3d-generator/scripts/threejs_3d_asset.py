@@ -8,6 +8,7 @@ import json
 import mimetypes
 import os
 from pathlib import Path
+import re
 import sys
 import time
 from typing import Any
@@ -48,6 +49,19 @@ RIG_TYPE_PRESETS = {
 }
 KNOWN_PRESETS = set().union(*RIG_TYPE_PRESETS.values())
 RETARGET_BATCH_LIMIT = 5
+
+# Pinned provider enums. The skill docs quote these; validate-enums guards them
+# from silent drift and warns when the pin is old enough to re-verify.
+# Last time the pinned versions were confirmed against the provider: 2026-06.
+ENUM_LAST_VERIFIED = "2026-06"
+PINNED_ENUMS = {
+    "text_to_model model_version": "v3.1-20260211",
+    "postprocess texture_model": "v3.0-20250812",
+    "postprocess highpoly_to_lowpoly": "P-v2.0-20251225",
+    "rig biped (rig-model-version)": "v1.0-20240301",
+    "rig creature (rig-model-version)": RIG_MODEL_VERSION,
+}
+ENUM_PATTERN = re.compile(r"^(P-)?v\d+\.\d+-\d{8}$")
 
 
 def validate_animations(animations: list[str], rig_type: str | None = None, rig_model_version: str | None = None) -> None:
@@ -859,6 +873,36 @@ def cmd_probe(args: argparse.Namespace) -> None:
     print(f"TRIPO_API_KEY={status}")
 
 
+def cmd_validate_enums(args: argparse.Namespace) -> None:
+    """Guard the pinned provider versions quoted in SKILL.md from silent drift."""
+    problems: list[str] = []
+    print(f"ENUM_LAST_VERIFIED={ENUM_LAST_VERIFIED}")
+    for label, value in PINNED_ENUMS.items():
+        ok = bool(ENUM_PATTERN.match(value))
+        print(f"  {'OK ' if ok else 'BAD'} {label} = {value}")
+        if not ok:
+            problems.append(f"{label}={value!r} does not match provider version syntax")
+    try:
+        year, month = (int(p) for p in ENUM_LAST_VERIFIED.split("-"))
+        now = time.gmtime()
+        age_days = (now.tm_year - year) * 365 + (now.tm_mon - month) * 30
+    except ValueError:
+        age_days = 10**6
+        problems.append(f"ENUM_LAST_VERIFIED={ENUM_LAST_VERIFIED!r} is not YYYY-MM")
+    if args.max_age_days and age_days > args.max_age_days:
+        message = (
+            f"Pinned provider versions are ~{age_days} days old "
+            f"(limit {args.max_age_days}); re-verify against the provider."
+        )
+        if args.strict:
+            problems.append(message)
+        else:
+            print(f"WARN {message}")
+    if problems:
+        raise TripoError("Enum validation failed: " + "; ".join(problems))
+    print("Enum pins are structurally valid.")
+
+
 def add_shared_runtime_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--api-key")
     parser.add_argument("--wait", action="store_true")
@@ -874,6 +918,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     probe = sub.add_parser("probe", help="print TRIPO_API_KEY=SET|MISSING")
     probe.set_defaults(func=cmd_probe)
+
+    enums = sub.add_parser("validate-enums", help="check pinned provider model/rig versions for drift")
+    enums.add_argument("--max-age-days", type=int, default=240)
+    enums.add_argument("--strict", action="store_true")
+    enums.set_defaults(func=cmd_validate_enums)
 
     text = sub.add_parser("text", help="submit text_to_model")
     text.add_argument("--prompt", required=True)

@@ -1,6 +1,6 @@
 # Game Design And Level Design Checklist
 
-Use before claiming a new game, major gameplay upgrade, level/encounter pass, premium gameplay, or polished gameplay is complete.
+Select relevant checks for new-game, major gameplay or level design. Reuse the project’s design contract; the list does not add mechanics, require a fresh brief for a focused fix, or turn polish into a full-game gate.
 
 - A game design brief names player promise, target feeling, primary verb, objective, pressure, reward, fail/retry, and non-goals.
 - The core loop is written as verb -> objective -> pressure -> reward/progression -> failure/retry.

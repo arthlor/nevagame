@@ -3,6 +3,8 @@ import { yieldToTask } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { ASSET_BY_ID, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
+import { LANDSCAPE_WIND_GLSL } from "../motion/LandscapeWind";
 import {
   CANONICAL_RENDER_CONFIG,
   groundCoverActiveCountAtLevel,
@@ -16,6 +18,11 @@ import {
 } from "../../world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../world/WorldLayout";
 import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
+import type { PlayerPresence } from "../presentation/PlayerPresence";
+import {
+  ACKNOWLEDGE_COVER_RADIUS_METERS,
+  presenceFalloff
+} from "../presentation/WorldAcknowledgment";
 import {
   groundCoverSwaysInWind,
   groundCoverWindPhase,
@@ -36,15 +43,19 @@ interface GroundCoverInstance {
   x: number;
   z: number;
   phase: number;
+  exposure: number;
   matrix: THREE.Matrix4;
   bounds: THREE.Sphere;
-  windScale: number;
+  lodIndex: number;
 }
 
 interface InstancedSourceMesh {
   mesh: THREE.InstancedMesh;
   relative: THREE.Matrix4;
   phaseAttribute: THREE.InstancedBufferAttribute | null;
+  exposureAttribute: THREE.InstancedBufferAttribute | null;
+  lodIndex: number;
+  renderedIndices: number[];
 }
 
 interface InstancedAssetRecord {
@@ -58,6 +69,8 @@ interface InstancedAssetRecord {
   renderedIndices: number[];
   candidateIndices: number[];
   windPadding: number;
+  lodDistances: number[];
+  lodDirty: boolean;
 }
 
 interface GroundCoverWindUniforms {
@@ -66,12 +79,16 @@ interface GroundCoverWindUniforms {
   uWindStrength: { value: number };
   uSwayAmplitude: { value: number };
   uMotionScale: { value: number };
+  uPresencePos: { value: THREE.Vector2 };
+  uPresenceStrength: { value: number };
+  uPresenceRadius: { value: number };
 }
 
 interface SourceMeshData {
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
   relative: THREE.Matrix4;
+  lodIndex: number;
 }
 
 const VISIBILITY_REFRESH_DISTANCE_METERS = 0.55;
@@ -94,8 +111,8 @@ const CATEGORY_DRAW_DISTANCE_SCALE: Readonly<Record<GroundCoverCategory, number>
 };
 
 const CATEGORY_DENSITY_SCALE: Readonly<Record<GroundCoverCategory, number>> = {
-  grass: 0.58,
-  flowers: 0.82,
+  grass: 1,
+  flowers: 0.6,
   bushes: 0.28,
   meadowTall: 0.56,
   pebbles: 0.82,
@@ -119,14 +136,17 @@ function patchGroundCoverWind(
   const amplitude = GROUND_COVER_WIND_AMPLITUDE[category];
   if (amplitude <= 0) return material;
   material.userData.nevaGroundCoverWind = true;
-  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}-root-season-v3`;
+  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}-landscape-presence-v6`;
   material.onBeforeCompile = (shader) => {
     const uniforms: GroundCoverWindUniforms = {
       uTime: { value: 0 },
       uWindDir: { value: new THREE.Vector2(0, 1) },
       uWindStrength: { value: 0 },
       uSwayAmplitude: { value: amplitude },
-      uMotionScale: { value: 1 }
+      uMotionScale: { value: 1 },
+      uPresencePos: { value: new THREE.Vector2(0, 0) },
+      uPresenceStrength: { value: 0 },
+      uPresenceRadius: { value: 1 }
     };
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
@@ -134,13 +154,18 @@ function patchGroundCoverWind(
         "#include <common>",
         `#include <common>
 attribute float instancePhase;
+attribute float instanceExposure;
 attribute float windHeight;
 varying float vCoverHeight;
 uniform float uTime;
 uniform vec2 uWindDir;
 uniform float uWindStrength;
 uniform float uSwayAmplitude;
-uniform float uMotionScale;`
+uniform float uMotionScale;
+uniform vec2 uPresencePos;
+uniform float uPresenceStrength;
+uniform float uPresenceRadius;
+${LANDSCAPE_WIND_GLSL}`
       )
       .replace(
         "#include <begin_vertex>",
@@ -149,15 +174,26 @@ uniform float uMotionScale;`
   float rootedHeight = clamp(windHeight, 0.0, 1.0);
   vCoverHeight = rootedHeight;
   float rootWeight = pow(smoothstep(${GROUND_COVER_WIND_ROOT_LOCK.toFixed(3)}, ${GROUND_COVER_WIND_ROOT_RELEASE.toFixed(3)}, rootedHeight), 1.35);
-  float wave = sin(uTime * (1.12 + instancePhase * 0.38) + instancePhase * 6.283185);
-  float gust = sin(uTime * 0.37 + instancePhase * 4.1);
-  float sway = uSwayAmplitude * uWindStrength * uMotionScale;
+  mat4 coverWorld = modelMatrix * instanceMatrix;
+  vec2 coverRoot = coverWorld[3].xz;
+  float sway = uSwayAmplitude * uWindStrength * uMotionScale * instanceExposure;
   vec2 windDirection = normalize(uWindDir + vec2(0.0001, 0.0001));
-  float bend = sway * rootWeight * (0.72 * wave + 0.28 * gust);
-  transformed.xz += windDirection * bend;
+  float gust = nevaLandscapeGust(coverRoot, windDirection, uTime);
+  float flutter = sin(uTime * 1.72 + instancePhase * 9.0);
+  float bend = sway * rootWeight * (0.88 * gust + 0.12 * flutter);
   vec2 crossWind = vec2(-windDirection.y, windDirection.x);
-  transformed.xz += crossWind * sway * ${CROSS_WIND_AMPLITUDE_RATIO.toFixed(3)} * rootWeight * rootWeight
-    * sin(uTime * 1.72 + instancePhase * 9.0);
+  vec2 worldBend = windDirection * bend
+    + crossWind * sway * ${CROSS_WIND_AMPLITUDE_RATIO.toFixed(3)} * rootWeight * rootWeight * flutter;
+  transformed += nevaWindWorldToLocal(vec3(worldBend.x, 0.0, worldBend.y), coverWorld);
+  if (uPresenceStrength > 0.001) {
+    vec2 coverXZ = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
+    vec2 away = coverXZ - uPresencePos;
+    float awayLength = length(away);
+    float part = uPresenceStrength * (1.0 - smoothstep(0.0, uPresenceRadius, awayLength));
+    vec2 presenceBend = (away / max(awayLength, 0.0001))
+      * part * uSwayAmplitude * 0.5 * rootWeight;
+    transformed += nevaWindWorldToLocal(vec3(presenceBend.x, 0.0, presenceBend.y), coverWorld);
+  }
 }`
       );
     if (category === "grass" || category === "meadowTall") {
@@ -198,7 +234,9 @@ function groundCoverMaterial(
     cloned.color.multiplyScalar(lift);
     cloned.roughness = Math.max(0.8, cloned.roughness);
   }
-  return patchGroundCoverWind(cloned, category);
+  patchGroundCoverWind(cloned, category);
+  applyWorldAtmosphere(cloned);
+  return cloned;
 }
 
 export class GroundCoverRenderer {
@@ -241,15 +279,22 @@ export class GroundCoverRenderer {
       source.updateMatrixWorld(true);
       const rootInverse = source.matrixWorld.clone().invert();
       const sourceMeshes: SourceMeshData[] = [];
+      const lodLevels = ASSET_BY_ID.get(typedAssetId)!.lodLevels ?? [];
       source.traverse((object) => {
         if (!(object instanceof THREE.Mesh) || !object.visible || object.name.startsWith("COL_")) return;
         if (Array.isArray(object.material)) {
           throw new Error(`[GroundCoverRenderer] ${assetId} uses an unsupported material array`);
         }
+        let lodIndex = 0;
+        for (let parent: THREE.Object3D | null = object; parent; parent = parent.parent) {
+          const level = lodLevels.findIndex((entry) => entry.node === parent!.name);
+          if (level >= 0) { lodIndex = level; break; }
+        }
         sourceMeshes.push({
           geometry: object.geometry,
           material: object.material,
-          relative: new THREE.Matrix4().multiplyMatrices(rootInverse, object.matrixWorld)
+          relative: new THREE.Matrix4().multiplyMatrices(rootInverse, object.matrixWorld),
+          lodIndex
         });
       });
       if (sourceMeshes.length === 0) throw new Error(`[GroundCoverRenderer] ${assetId} has no visible meshes`);
@@ -269,16 +314,25 @@ export class GroundCoverRenderer {
           placement.z
         );
         const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), placement.rotationY);
+        if (category === "grass" || category === "meadowTall") {
+          // Distributed blade roots share the local terrain tangent instead of
+          // hovering on the uphill edge of a horizontal patch.
+          rotation.premultiply(new THREE.Quaternion().setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0), WorldLayout.terrainNormal(placement.x, placement.z)
+          ));
+        }
         const scale = new THREE.Vector3(...placement.scale);
         const matrix = new THREE.Matrix4().compose(position, rotation, scale);
         return {
           x: placement.x,
           z: placement.z,
           phase: groundCoverWindPhase(placement.id),
+          exposure: placement.compositionTag?.habitat === "woodland" ? 0.45
+            : placement.compositionTag?.habitat === "orchard" || placement.compositionTag?.habitat === "olive-grove" ? 0.65
+              : 1,
           matrix,
           bounds: sourceBounds.clone().applyMatrix4(matrix),
-          windScale: sourceMeshes.reduce((maximum, sourceMesh) => Math.max(maximum,
-            new THREE.Matrix4().multiplyMatrices(matrix, sourceMesh.relative).getMaxScaleOnAxis()), 0)
+          lodIndex: 0
         };
       });
 
@@ -288,6 +342,10 @@ export class GroundCoverRenderer {
           ? new THREE.InstancedBufferAttribute(new Float32Array(orderedPlacements.length), 1)
           : null;
         if (phaseAttribute) geometry.setAttribute("instancePhase", phaseAttribute);
+        const exposureAttribute = sway
+          ? new THREE.InstancedBufferAttribute(new Float32Array(orderedPlacements.length), 1)
+          : null;
+        if (exposureAttribute) geometry.setAttribute("instanceExposure", exposureAttribute);
         if (windBounds) addWindHeightAttribute(geometry, sourceMesh.relative, windBounds);
         const mesh = new THREE.InstancedMesh(
           geometry,
@@ -305,10 +363,14 @@ export class GroundCoverRenderer {
           || category === "paving"
           || category === "driftwood";
         this.group.add(mesh);
-        return { mesh, relative: sourceMesh.relative, phaseAttribute };
+        return { mesh, relative: sourceMesh.relative, phaseAttribute, exposureAttribute,
+          lodIndex: sourceMesh.lodIndex, renderedIndices: [] as number[] };
       });
       this.records.push({
         category,
+        lodDistances: sourceMeshes.some((mesh) => mesh.lodIndex > 0)
+          ? lodLevels.map((level) => level.distanceMeters) : [0],
+        lodDirty: true,
         highCount: orderedPlacements.length,
         activeCount: orderedPlacements.length,
         instances,
@@ -328,8 +390,9 @@ export class GroundCoverRenderer {
   }
 
   public setQualityLevel(level: number): void {
+    const previousLevel = this.qualityLevel;
     this.qualityLevel = THREE.MathUtils.clamp(level, 0, 2);
-    let changed = false;
+    let changed = previousLevel !== this.qualityLevel;
     for (const record of this.records) {
       const activeCount = Math.max(
         0,
@@ -345,8 +408,18 @@ export class GroundCoverRenderer {
     if (changed) this.visibilityDirty = true;
   }
 
-  public updateWind(signal: Readonly<WeatherMotionSignal>, timeSeconds: number, motionScale: number): void {
+  public updateWind(
+    signal: Readonly<WeatherMotionSignal>,
+    timeSeconds: number,
+    motionScale: number,
+    presence?: Pick<PlayerPresence, "x" | "z" | "moving">
+  ): void {
     const strength = groundCoverWindStrength(signal);
+    // The player parts nearby cover; walking presses it aside more than idling.
+    const presenceStrength = presence
+      ? presenceFalloff(presence, presence.x, presence.z, ACKNOWLEDGE_COVER_RADIUS_METERS)
+        * (presence.moving ? 1 : 0.55)
+      : 0;
     for (const record of this.records) {
       record.windPadding = GROUND_COVER_WIND_AMPLITUDE[record.category] * strength * Math.abs(motionScale) * Math.hypot(1, CROSS_WIND_AMPLITUDE_RATIO);
       for (const source of record.meshes) {
@@ -358,6 +431,11 @@ export class GroundCoverRenderer {
         shader.uniforms.uWindDir.value.set(signal.directionX, signal.directionZ);
         shader.uniforms.uWindStrength.value = strength;
         shader.uniforms.uMotionScale.value = motionScale;
+        if (presence) {
+          shader.uniforms.uPresencePos.value.set(presence.x, presence.z);
+          shader.uniforms.uPresenceStrength.value = presenceStrength;
+          shader.uniforms.uPresenceRadius.value = ACKNOWLEDGE_COVER_RADIUS_METERS;
+        }
       }
     }
   }
@@ -388,7 +466,9 @@ export class GroundCoverRenderer {
     );
 
     for (const record of this.records) {
-      const drawDistance = baseDrawDistance * CATEGORY_DRAW_DISTANCE_SCALE[record.category];
+      const drawDistance = record.category === "grass"
+        ? qualityValueAtLevel(this.qualityLevel, (quality) => quality.shortGrassDrawDistanceMeters)
+        : baseDrawDistance * CATEGORY_DRAW_DISTANCE_SCALE[record.category];
       const keepDistance = drawDistance * KEEP_DISTANCE_SCALE;
       const candidates = queryGroundCoverSpatialIndex(
         record.spatialIndex,
@@ -399,12 +479,16 @@ export class GroundCoverRenderer {
       // Sparse, stable grass silhouettes bridge the near tier to the fog plane.
       // They share the existing instance budget and material batches.
       const farDistance = qualityValueAtLevel(this.qualityLevel, (quality) => quality.groundCoverFarDistanceMeters);
+      const farStride = record.category === "grass" ? 32 : 8;
+      const farCap = record.category === "grass"
+        ? qualityValueAtLevel(this.qualityLevel, (quality) => quality.shortGrassFarInstanceCap)
+        : record.activeCount * 0.15;
       const farIndices = record.category === "grass" || record.category === "meadowTall"
         ? queryGroundCoverSpatialIndex(record.spatialIndex, anchorX, anchorZ, farDistance)
-          .filter((index) => index % 8 === 0 && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) > keepDistance
+          .filter((index) => index % farStride === 0 && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) > keepDistance
             && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) <= farDistance)
           .sort((left, right) => left - right)
-          .slice(0, Math.floor(record.activeCount * 0.15)) : [];
+          .slice(0, Math.floor(Math.min(record.activeCount * 0.15, farCap))) : [];
       const visibleIndices = selectStableGroundCoverIndices(
         record.instances,
         anchorX,
@@ -416,6 +500,15 @@ export class GroundCoverRenderer {
         candidates
       );
       visibleIndices.push(...farIndices);
+      const lodScale = qualityValueAtLevel(this.qualityLevel, (quality) => quality.lodDistanceScale);
+      for (const index of visibleIndices) {
+        const instance = record.instances[index];
+        const distance = Math.hypot(instance.x - anchorX, instance.z - anchorZ);
+        let level = 0;
+        while (level + 1 < record.lodDistances.length && distance >= record.lodDistances[level + 1] * lodScale) level++;
+        if (instance.lodIndex !== level) record.lodDirty = true;
+        instance.lodIndex = level;
+      }
       if (groundCoverIndexListsEqual(record.visibleIndices, visibleIndices)) continue;
       record.visibleIndices = visibleIndices;
     }
@@ -432,24 +525,28 @@ export class GroundCoverRenderer {
       for (const index of record.visibleIndices) {
         const instance = record.instances[index];
         this.frustumSphere.copy(instance.bounds);
-        this.frustumSphere.radius += record.windPadding * instance.windScale;
+        this.frustumSphere.radius += record.windPadding;
         if (this.frustum.intersectsSphere(this.frustumSphere)) candidates.push(index);
       }
-      if (groundCoverIndexListsEqual(record.renderedIndices, candidates)) continue;
+      if (!record.lodDirty && groundCoverIndexListsEqual(record.renderedIndices, candidates)) continue;
+      record.lodDirty = false;
       record.candidateIndices = record.renderedIndices;
       record.renderedIndices = candidates;
-      for (let visibleCount = 0; visibleCount < candidates.length; visibleCount += 1) {
-        const instance = record.instances[candidates[visibleCount]];
-        for (const source of record.meshes) {
+      for (const source of record.meshes) {
+        const indices = candidates.filter((index) => record.instances[index].lodIndex === source.lodIndex);
+        if (groundCoverIndexListsEqual(source.renderedIndices, indices)) continue;
+        source.renderedIndices = indices;
+        for (let visibleCount = 0; visibleCount < indices.length; visibleCount += 1) {
+          const instance = record.instances[indices[visibleCount]];
           this.composedMatrix.multiplyMatrices(instance.matrix, source.relative);
           source.mesh.setMatrixAt(visibleCount, this.composedMatrix);
           source.phaseAttribute?.setX(visibleCount, instance.phase);
+          source.exposureAttribute?.setX(visibleCount, instance.exposure);
         }
-      }
-      for (const source of record.meshes) {
-        source.mesh.count = candidates.length;
+        source.mesh.count = indices.length;
         source.mesh.instanceMatrix.needsUpdate = true;
         if (source.phaseAttribute) source.phaseAttribute.needsUpdate = true;
+        if (source.exposureAttribute) source.exposureAttribute.needsUpdate = true;
       }
     }
   }

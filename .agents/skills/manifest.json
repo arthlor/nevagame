@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "updated": "2026-09",
+  "authority": "../../AGENTS.md",
+  "note": "Index for routing and tooling. Skill files remain the source of truth for technique. pairs_with lists optional related skills, not automatic loads; provider generation and director orchestration remain explicit-only through agents/openai.yaml. Runtime contract values mirror each SKILL.md. tools/validate_skills.py checks this file against the tree.",
+  "skills": [
+    { "name": "threejs-skill-router", "category": "meta", "backend": "n/a", "entry": true, "pairs_with": ["threejs-visual-validation"] },
+    { "name": "threejs-visual-validation", "category": "meta", "backend": "agnostic", "pairs_with": [] },
+
+    { "name": "threejs-game-director", "category": "game", "backend": "both", "entry": true, "pairs_with": ["threejs-gameplay-systems", "threejs-aaa-graphics-builder", "threejs-game-ui-designer", "threejs-debug-profiler", "threejs-qa-release"] },
+    { "name": "threejs-gameplay-systems", "category": "game", "backend": "both", "pairs_with": ["threejs-audio-generator"] },
+    { "name": "threejs-game-ui-designer", "category": "game", "backend": "dom", "pairs_with": ["threejs-image-generator"] },
+    { "name": "threejs-debug-profiler", "category": "game", "backend": "both", "pairs_with": [] },
+    { "name": "threejs-qa-release", "category": "game", "backend": "both", "pairs_with": ["threejs-visual-validation"] },
+    { "name": "threejs-aaa-graphics-builder", "category": "game", "backend": "both", "pairs_with": ["threejs-3d-generator", "threejs-image-generator"] },
+
+    { "name": "threejs-image-pipeline", "category": "pipeline", "backend": "webgl2", "pairs_with": ["threejs-screen-space-ambient-occlusion", "threejs-bloom", "threejs-exposure-color-grading"] },
+    { "name": "threejs-bloom", "category": "pipeline", "backend": "webgl2", "pairs_with": ["threejs-exposure-color-grading"] },
+    { "name": "threejs-exposure-color-grading", "category": "pipeline", "backend": "webgl2", "pairs_with": ["threejs-bloom"] },
+    { "name": "threejs-screen-space-ambient-occlusion", "category": "pipeline", "backend": "webgl2", "pairs_with": ["threejs-image-pipeline"] },
+    { "name": "threejs-shadow-systems", "category": "pipeline", "backend": "webgl2-tsl-optional", "pairs_with": ["threejs-screen-space-ambient-occlusion"] },
+    { "name": "threejs-atmosphere-aerial-perspective", "category": "pipeline", "backend": "webgl2", "pairs_with": ["threejs-volumetric-clouds", "threejs-procedural-vfx"] },
+    { "name": "threejs-volumetric-clouds", "category": "pipeline", "backend": "webgl2", "pairs_with": ["threejs-atmosphere-aerial-perspective"] },
+
+    { "name": "threejs-procedural-geometry", "category": "geometry", "backend": "dual", "pairs_with": ["threejs-procedural-materials", "threejs-procedural-architecture", "threejs-procedural-vegetation"] },
+    { "name": "threejs-procedural-architecture", "category": "geometry", "backend": "dual", "pairs_with": ["threejs-procedural-geometry", "threejs-shadow-systems"] },
+
+    { "name": "threejs-procedural-materials", "category": "surface", "backend": "webgpu-tsl", "pairs_with": ["threejs-procedural-fields", "threejs-procedural-geometry", "threejs-parallax-occlusion-mapping"] },
+    { "name": "threejs-procedural-fields", "category": "surface", "backend": "agnostic", "pairs_with": ["threejs-procedural-materials", "threejs-procedural-planets"] },
+    { "name": "threejs-procedural-planets", "category": "surface", "backend": "webgl2", "pairs_with": ["threejs-atmosphere-aerial-perspective"] },
+    { "name": "threejs-parallax-occlusion-mapping", "category": "surface", "backend": "webgpu-tsl", "pairs_with": ["threejs-procedural-materials", "threejs-procedural-geometry"] },
+    { "name": "threejs-temporal-surfaces", "category": "surface", "backend": "webgl2", "pairs_with": ["threejs-procedural-vfx", "threejs-precipitation-surfaces"] },
+    { "name": "threejs-precipitation-surfaces", "category": "surface", "backend": "webgl2", "pairs_with": ["threejs-water-optics", "threejs-temporal-surfaces"] },
+    { "name": "threejs-spectral-ocean", "category": "surface", "backend": "dual", "pairs_with": ["threejs-visual-validation", "threejs-procedural-vfx"] },
+    { "name": "threejs-water-optics", "category": "surface", "backend": "webgl2", "pairs_with": ["threejs-precipitation-surfaces"] },
+    { "name": "threejs-procedural-vegetation", "category": "surface", "backend": "dual", "pairs_with": ["threejs-procedural-geometry", "threejs-procedural-fields"] },
+
+    { "name": "threejs-procedural-vfx", "category": "vfx", "backend": "dual", "pairs_with": ["threejs-bloom", "threejs-atmosphere-aerial-perspective"] },
+    { "name": "threejs-raymarched-space-effects", "category": "vfx", "backend": "webgl2", "pairs_with": ["threejs-procedural-vfx", "threejs-bloom"] },
+
+    { "name": "threejs-camera-direction", "category": "motion", "backend": "agnostic", "pairs_with": ["threejs-procedural-animation"] },
+    { "name": "threejs-procedural-animation", "category": "motion", "backend": "agnostic", "pairs_with": ["threejs-camera-direction", "threejs-procedural-vfx"] },
+
+    { "name": "threejs-3d-generator", "category": "generator", "backend": "n/a", "pairs_with": ["threejs-image-generator"] },
+    { "name": "threejs-image-generator", "category": "generator", "backend": "n/a", "pairs_with": ["threejs-3d-generator"] },
+    { "name": "threejs-audio-generator", "category": "generator", "backend": "n/a", "pairs_with": ["threejs-gameplay-systems"] }
+  ]
+}

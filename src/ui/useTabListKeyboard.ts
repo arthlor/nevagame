@@ -35,6 +35,7 @@ export function handleTabListKeyDown(event: ReactKeyboardEvent<HTMLElement>): vo
   const next = tabs[nextIndex];
   next.focus();
   next.click();
+  next.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 /** Settings radios select on arrow movement and expose one Tab stop per group. */

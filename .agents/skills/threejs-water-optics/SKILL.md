@@ -1,15 +1,16 @@
 ---
 name: threejs-water-optics
-description: Build production analytic and bounded water in Three.js. Use for shared multi-wave displacement and normals, bounded RGBA heightfield pool simulation, local drops, object-driven ripples, differential-area caustics, ray-traced pool/water/sphere volume optics, derivative-filtered normal bands, analytic sky reflection, side-aware Fresnel, heuristic screen refraction, Beer-Lambert absorption, and crest foam.
+description: "Build analytic and bounded water in Three.js. Use for multi-wave displacement and normals, heightfield pools, object ripples, caustics, pool-volume ray tracing, screen refraction, and Beer-Lambert absorption. Not for open-ocean spectra or rain puddles."
 ---
 
 # Water Optics
 
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
 Treat water as geometry motion, surface orientation, and a participating optical layer. A blue transparent material is not a water system.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 For large stochastic seas driven by directional spectra and GPU FFTs, use
 `$threejs-spectral-ocean` instead.
@@ -40,7 +41,9 @@ for bounded RGBA height/velocity/normal simulation, local drops, moving-sphere
 displacement suitable for draggable objects, differential-area caustics, and
 in-shader pool/water/sphere ray tracing against the pool bounds and sphere.
 
-## Failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - normal texture motion does not agree with displaced crests;
 - heuristic refraction can sample foreground objects but the limitation is undisclosed;
@@ -51,6 +54,12 @@ in-shader pool/water/sphere ray tracing against the pool bounds and sphere.
 - foam is a scrolling texture unrelated to the shared crest metric;
 - Fresnel is replaced by constant opacity;
 - reflection, refraction, and transparency are all added without energy control.
+
+## Deliverable
+
+- Inputs: wave bands, volume bounds, and the absorption model.
+- Artifacts: wave/normal source, refraction and absorption paths, foam metric, and diagnostics.
+- Acceptance: normals agree with displaced crests; the refraction limitation is disclosed; reflection, refraction, and transparency are energy-controlled.
 
 ## Routing boundary
 

@@ -63,6 +63,7 @@ export const FISH_CARGO_PACK_ASSETS: Readonly<Record<string, AssetId>> = {
   "fish.sailfish": ASSET_IDS.PROP_TRADE_PACK_SAILFISH_A,
   "fish.swordfish": ASSET_IDS.PROP_TRADE_PACK_SWORDFISH_A,
   "fish.blue_marlin": ASSET_IDS.PROP_TRADE_PACK_BLUE_MARLIN_A,
+  "fish.sea_bream": ASSET_IDS.PROP_TRADE_PACK_SEA_BREAM_A,
   "fish.amberjack": ASSET_IDS.PROP_TRADE_PACK_AMBERJACK_A
 };
 

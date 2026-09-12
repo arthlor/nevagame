@@ -146,7 +146,7 @@ describe("schema 35 onboarding credit migration", () => {
         startedAtMinute: now, completesAtMinute: now + 6
       }),
       job_elsewhere: legacyJob({
-        id: "job_elsewhere", recipeId: "recipe.compost_worms", stationId: "struct.workbench",
+        id: "job_elsewhere", recipeId: "recipe.fish_to_fertilizer", stationId: "struct.harbor_fish_table",
         startedAtMinute: now, completesAtMinute: now + 360
       })
     };

@@ -1,17 +1,18 @@
 ---
 name: threejs-temporal-surfaces
-description: Build view-aligned and screen-space surface effects in Three.js. Use for touch-history frost and thaw, ping-pong accumulation, reduced-resolution blur, crystalline masks, two-scale refraction, and procedural rain droplets that refract and blur a background through wet glass.
+description: "Build view-aligned and screen-space temporal surfaces in Three.js. Use for touch-history frost and thaw, ping-pong accumulation, reduced-resolution blur, and wet-window rain droplets. Not for world-space rain or volumetric glass."
 ---
 
 # Temporal Surfaces
+
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Choose persistent history or procedural screen-space evolution explicitly. Do
 not fake accumulation with time-only noise, and do not allocate history for an
 effect whose complete state is analytic in time.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Pipeline
 
@@ -45,6 +46,12 @@ background refraction, stochastic disc blur, aspect fill, and presentation.
 - Pre-render static procedural textures once.
 - Define and test resize/reset behavior for both history targets and static targets.
 - Do not route world footprints, object-UV paint, or simulation-plane wetness here; this skill is view-aligned or screen-space.
+
+## Deliverable
+
+- Inputs: history-versus-analytic choice, scene colour source, and resolution.
+- Artifacts: pass graph, history format, decay constants, and resize/reset behavior.
+- Acceptance: accumulation is real history, not time noise; decay is frame-rate independent; reset is tested.
 
 ## Routing boundary
 

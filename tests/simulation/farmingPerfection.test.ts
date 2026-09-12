@@ -233,7 +233,7 @@ describe("NEVA farming correctness foundation", () => {
     });
     expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", center.x, center.z).reasonCode)
       .toBe("structure-clearance");
-    expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", 0, 0).reasonCode)
+    expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", center.x + 0.5, center.z).reasonCode)
       .toBe("structure-clearance");
 
     sim.state.world.structures["struct.workbench"].x = starterStructureAnchor("struct.workbench")!.x;

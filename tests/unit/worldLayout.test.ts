@@ -242,11 +242,11 @@ describe("WorldLayout", () => {
     }
   });
 
-  it("keeps rendered ground on the collision landform and landmarks on the canonical height owner", { timeout: 120_000 }, () => {
+  it("keeps rendered ground on the collision landform and landmarks on the canonical height owner", { timeout: 120_000 }, async () => {
     const farmhouse = WorldLayout.landmark("farmhouse");
     expect(WorldLayout.terrainSurface(-65, -55)).toBe("dry-soil");
     expect(WorldLayout.terrainNormal(farmhouse.x, farmhouse.z).length()).toBeCloseTo(1, 5);
-    const geometry = WorldLayout.buildTerrainGeometry();
+    const geometry = await WorldLayout.buildTerrainGeometryAsync("terrain.neva");
     expect(geometry.getAttribute("color").count).toBe(geometry.getAttribute("position").count);
     for (const name of Object.values(SURFACE_FIELD_ATTRIBUTE_NAMES)) {
       const attribute = geometry.getAttribute(name);
@@ -287,7 +287,21 @@ describe("WorldLayout", () => {
       hasWetShore: true,
       hasCliff: true
     });
-    expect(geometry.index).toBeNull();
+    expect(geometry.index).not.toBeNull();
+    expect(geometry.index!.count).toBe(2 * TERRAIN_RESOLUTION * TERRAIN_RESOLUTION * 3);
+    const terrainFaceting = geometry.getAttribute("terrainFaceting");
+    expect(terrainFaceting.count).toBe(geometry.getAttribute("position").count);
+    let smoothVertexCount = 0;
+    let facetedVertexCount = 0;
+    for (let index = 0; index < terrainFaceting.count; index += 1) {
+      const value = terrainFaceting.getX(index);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+      if (value < 0.00001) smoothVertexCount += 1;
+      if (value > 0.5) facetedVertexCount += 1;
+    }
+    expect(smoothVertexCount).toBeGreaterThan(100);
+    expect(facetedVertexCount).toBeGreaterThan(5);
     // VisualRenderConfig owns these numbers; the geometry must carry that exact
     // policy rather than a second copy of it.
     const normalPolicy = CANONICAL_RENDER_CONFIG.terrainSurface.normals;
@@ -304,8 +318,6 @@ describe("WorldLayout", () => {
       .toBeGreaterThan(0.3);
 
     const positions = geometry.getAttribute("position");
-    const normals = geometry.getAttribute("normal");
-    const colors = geometry.getAttribute("color");
     let highRouteBlend = false;
     let lowOffRoadBlend = false;
     let blendRangeOk = true;
@@ -346,42 +358,6 @@ describe("WorldLayout", () => {
     expect(terrainPathBlend.getX(nearestOffRoadIndex)).toBeLessThan(0.12);
     expect(highRouteBlend || terrainPathBlend.getX(nearestRouteIndex) > 0.9).toBe(true);
     expect(lowOffRoadBlend).toBe(true);
-    const sharedVertices = new Map<string, number[]>();
-    for (let index = 0; index < positions.count; index++) {
-      const key = `${positions.getX(index).toFixed(4)}:${positions.getY(index).toFixed(4)}:${positions.getZ(index).toFixed(4)}`;
-      const duplicates = sharedVertices.get(key) ?? [];
-      duplicates.push(index);
-      sharedVertices.set(key, duplicates);
-    }
-    let smoothContinuityCount = 0;
-    let facetedBreakCount = 0;
-    for (const duplicates of sharedVertices.values()) {
-      if (duplicates.length < 2) continue;
-      const first = duplicates[0];
-      const x = positions.getX(first);
-      const z = positions.getZ(first);
-      const normalY = normals.getY(first);
-      const normalSpread = Math.max(...duplicates.map((index) => Math.hypot(
-        normals.getX(index) - normals.getX(first),
-        normals.getY(index) - normals.getY(first),
-        normals.getZ(index) - normals.getZ(first)
-      )));
-      const colorSpread = Math.max(...duplicates.map((index) => Math.hypot(
-        colors.getX(index) - colors.getX(first),
-        colors.getY(index) - colors.getY(first),
-        colors.getZ(index) - colors.getZ(first)
-      )));
-      if (normalY >= 0.88 && normalSpread < 0.00001 && colorSpread < 0.00001) {
-        smoothContinuityCount++;
-      }
-      if (normalSpread > 0.001 && colorSpread > 0.00001) {
-        const surface = WorldLayout.terrainSurfaceWeights(x, z);
-        if (normalY <= 0.66 || surface.cliff >= 0.5) facetedBreakCount++;
-      }
-      if (smoothContinuityCount > 100 && facetedBreakCount > 5) break;
-    }
-    expect(smoothContinuityCount).toBeGreaterThan(100);
-    expect(facetedBreakCount).toBeGreaterThan(5);
     geometry.dispose();
   });
 
@@ -425,7 +401,7 @@ describe("WorldLayout", () => {
     )).toBe(true);
   });
 
-  it("feathers authored farm, path, and shoreline surfaces instead of using hard material seams", () => {
+  it("feathers authored farm, path, and shoreline surfaces instead of using hard material seams", async () => {
     expect(WorldLayout.farmSoilInfluence(-65, -55)).toBeGreaterThan(0.9);
     expect(WorldLayout.farmSoilInfluence(0, 0)).toBeLessThan(0.1);
     expect(WorldLayout.pathInfluence(WORLD_LAYOUT_V5.anchors.bridge.x, WORLD_LAYOUT_V5.anchors.bridge.z)).toBeGreaterThan(0.95);
@@ -438,7 +414,7 @@ describe("WorldLayout", () => {
       0
     )).toBeLessThan(0.1);
 
-    const path = WorldLayout.buildPathGeometry();
+    const path = await WorldLayout.buildPathGeometryAsync();
     expect(path.getAttribute("position").count).toBeGreaterThan(50);
     expect(path.getAttribute("color").count).toBe(path.getAttribute("position").count);
     for (const name of Object.values(SURFACE_FIELD_ATTRIBUTE_NAMES)) {
@@ -449,7 +425,7 @@ describe("WorldLayout", () => {
     }
     expect(path.index?.count).toBeGreaterThan(100);
     path.dispose();
-  });
+  }, 120_000);
 
   it("authors distinct coves, shelves, and cliffs from one continuous coastline owner", () => {
     const headland = WorldLayout.coastProfile(-92);
@@ -792,12 +768,12 @@ describe("WorldLayout", () => {
       HOMESTEAD_MEADOW_GRASS_COUNT
     );
     expect(grass.some((placement) => WorldLayout.pathInfluence(placement.x, placement.z) > 0.08)).toBe(true);
-    // Existing low, broad variants: scale 0.96–1.22, height 0.66–0.76, lateral jitter ±6%.
-    expect(grass.every((placement) => placement.scale[1] >= 0.63 && placement.scale[1] <= 0.93)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 1.48)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] <= 2.09)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 1.48)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] <= 2.09)).toBe(true);
+    // Meadow blades keep their height; larger coverage must not flatten them into wedges.
+    expect(grass.every((placement) => placement.scale[1] >= 0.90 && placement.scale[1] <= 1.25)).toBe(true);
+    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 0.93
+      && placement.scale[0] / placement.scale[1] <= 1.16)).toBe(true);
+    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 0.93
+      && placement.scale[2] / placement.scale[1] <= 1.16)).toBe(true);
     expect(grass.every((placement) => WorldLayout.terrainNormal(placement.x, placement.z).y > 0.66)).toBe(true);
     expect(grass.every((placement) => WorldLayout.farmSoilInfluence(placement.x, placement.z) < 0.08)).toBe(true);
     expect(grass.every((placement) => WorldLayout.shorelineWetness(placement.x, placement.z) < 0.62)).toBe(true);

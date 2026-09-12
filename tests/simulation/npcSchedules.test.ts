@@ -70,4 +70,27 @@ describe("NPC schedules", () => {
     expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" })).toMatchObject({ success: true, questCompleted: true });
     sim.questDomain.dispose();
   });
+
+  it("holds a quest speaker at their role anchor for a turn-in earned elsewhere", () => {
+    const sim = new Simulation();
+    // At 08:00 Barnaby keeps his market beat while there is nothing to hand in.
+    sim.clock.setDebugMinute(8 * 60);
+    sim.state.clock = { ...sim.clock.getState() };
+    expect(npcAnchorAt("npc.barnaby", sim.state.clock, sim.state.quests).locationName).toBe("Village Market");
+
+    // Finishing Act 2's world-work moves him back to the workbench he names.
+    mainQuestTrack(sim.state.quests).activeQuestId = "quest.act2_harvest_and_compost";
+    mainQuestTrack(sim.state.quests).activeStepIndex = 1;
+    mainQuestTrack(sim.state.quests).stepProgress = { "step.act2_compost_worms": 1 };
+    const anchor = npcAnchorAt("npc.barnaby", sim.state.clock, sim.state.quests);
+    expect(anchor.locationName).toBe("Farmhouse Workbench");
+
+    // The market beat is rejected; the role anchor settles the quest.
+    const market = ContentRegistry.npcs.get("npc.barnaby")!.schedule!.find((slot) => slot.phase === "day")!.position;
+    Object.assign(sim.state.player, { x: market.x, z: market.z });
+    expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" })).toMatchObject({ success: false });
+    Object.assign(sim.state.player, { x: anchor.x, z: anchor.z });
+    expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" })).toMatchObject({ success: true, questCompleted: true });
+    sim.questDomain.dispose();
+  });
 });

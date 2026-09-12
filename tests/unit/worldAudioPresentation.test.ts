@@ -19,8 +19,11 @@ describe("world soundscapes", () => {
   });
   it("routes by place, activity and clock phase", () => {
     vi.spyOn(WorldLayout, "isInterior").mockReturnValue(false);
-    vi.spyOn(WorldLayout, "regionAt").mockReturnValue("region.village");
+    const region = vi.spyOn(WorldLayout, "regionAt");
     const position = { x: 0, z: 0 };
+    region.mockReturnValue("region.farm");
+    expect(buildWorldAudio(position, "on-foot", { timeOfDay: "day" }).music).toBe("theme");
+    region.mockReturnValue("region.village");
     expect(buildWorldAudio(position, "on-foot", { timeOfDay: "day" }).music).toBe("theme-village");
     expect(buildWorldAudio(position, "on-foot", { timeOfDay: "night" }).music).toBe("theme-piano");
     expect(buildWorldAudio(position, "boat-driving", { timeOfDay: "day" }).music).toBe("theme-guitar-arpeggio");

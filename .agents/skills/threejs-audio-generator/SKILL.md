@@ -1,9 +1,16 @@
 ---
 name: threejs-audio-generator
-description: "Generate, convert, clean, and prepare audio assets for Three.js browser games using ElevenLabs. Use for sound effects, looping ambience, UI sounds, impact/weapon/vehicle audio, creature or boss stingers, announcer/dialogue TTS, scratch-performance voice conversion, voice cleanup/isolation, audio manifests, and game-ready web audio integration."
+description: "Generate, convert, and clean audio for Three.js games via ElevenLabs. Use for SFX, ambience loops, UI sounds, announcer or TTS, voice conversion, cleanup, and audio manifests. Neva: requires an explicit human request; the 06 authority wins."
 ---
 
 # Three.js Audio Generator
+
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
+> Repository override (Neva): provider generation requires an explicit human
+> request. Where this skill conflicts with `AGENTS.md`
+> ("Generate-asset prompt contract" or "Codex and threejs-game-skills"),
+> `AGENTS.md` wins. Neva audio design is owned by its `06` authority.
 
 ## Purpose
 
@@ -11,40 +18,42 @@ Create game-ready audio assets for Three.js projects. This skill consolidates ga
 
 Provider: ElevenLabs.
 
-Resolve `<this-skill-dir>` in the commands below in this order: `~/.claude/skills/threejs-audio-generator`, `~/.codex/skills/threejs-audio-generator`, `~/.agents/skills/threejs-audio-generator`, or repo `skills/threejs-audio-generator`.
+Resolve `<this-skill-dir>` in the commands below in this order, preferring the repository copy: repo `.agents/skills/threejs-audio-generator`, legacy repo `skills/threejs-audio-generator`, `~/.agents/skills/threejs-audio-generator`, `~/.claude/skills/threejs-audio-generator`, or `~/.codex/skills/threejs-audio-generator`.
 
 ## When To Use
 
-Use this skill for:
+Use this explicit-only skill for requested ElevenLabs generation, conversion or cleanup:
 
 - SFX: jumps, hits, weapons, explosions, coins, pickups, collisions, UI clicks, confirms, errors.
 - Ambience: wind, rain, city bed, engine hum, portal loop, dungeon room tone, battle arena beds.
 - Voice: announcer barks, boss lines, tutorial prompts, menu narration, generated placeholder dialogue.
 - Voice conversion: convert a scratch performance into a target character voice while preserving timing and emotion.
 - Cleanup: isolate or denoise dialogue before voice conversion, TTS replacement, or transcription.
-- Three.js integration: Web Audio loading, looping, sprite/manifest mapping, volume groups, pause/resume, user gesture unlock.
+- Integration of the requested outputs: use the existing audio manifest, bus and event owners. Routine playback or audio bug fixes do not require this generator.
 
-For premium/AAA/showcase game work, audio is not cosmetic. Generate or integrate at least a minimal interaction audio set for the main loop unless the user explicitly requests mute/offline-only output or credentials/API attempts are blocked.
+The requested audible result defines completion. Reuse suitable existing cues, recordings or synthesis; a visual polish task does not automatically authorize new audio or provider calls.
 
 ## API Key
 
 Never store API keys in skill files or browser/game code, and never paste a key value into a report. The script reads `--api-key` or `ELEVENLABS_API_KEY`.
 
-Step 0, before declaring the key unavailable: run this skill's own probe and paste its literal output into the report.
+For an authorized provider operation, this optional local diagnostic reports
+whether `ELEVENLABS_API_KEY` is available without printing the value:
 
 ```bash
-python3 <this-skill-dir>/scripts/threejs_audio_asset.py probe   # prints ELEVENLABS_API_KEY=SET|MISSING
+python3 <this-skill-dir>/scripts/threejs_audio_asset.py probe
 ```
 
-`ELEVENLABS_API_KEY=MISSING` is only a valid skip/blocker reason when this output is shown. Keys defined only in a shell profile can be absent from the process env; if the plain probe prints MISSING unexpectedly, wrap it: `zsh -lc 'source ~/.zprofile 2>/dev/null || true; source ~/.zshrc 2>/dev/null || true; python3 <this-skill-dir>/scripts/threejs_audio_asset.py probe'`. When the director skill is loaded, prefer `threejs-game-director/scripts/probe_asset_credentials.sh`, which probes all three asset keys at once.
+Use it when credential availability is relevant to the requested operation.
+Do not probe unrelated providers or require a probe to justify existing or
+procedural assets. Report actual operation errors or unavailable capabilities
+concisely; do not source arbitrary shell profiles as an automatic workaround.
 
 Audio-specific: add `--validate` to the probe to call ElevenLabs `GET /user` and confirm the key actually works (prints `VALID_USER=...`); use it when a key is present but a generation still fails. A valid key can still be blocked by an out-of-credit or plan-tier limit — those surface as an `HTTP 4xx` from a real generation attempt. Report that as a purchase/plan blocker, do not silently skip.
 
 ## Required Reference
 
-Load `references/audio-workflows.md` before building a game audio plan, generating multiple assets, wiring runtime audio, cleaning/converting voices, or claiming premium game audio.
-
-Track it in the reference ledger. Do not mark the audio phase complete while this reference is skipped.
+Read the relevant sections of `references/audio-workflows.md` before generating multiple assets, wiring the requested outputs, or cleaning/converting voices. Neva’s `06` authority and existing runtime owners govern the audio contract.
 
 ## Tool Script
 
@@ -121,8 +130,6 @@ python3 <this-skill-dir>/scripts/threejs_audio_asset.py voice-change \
 
 Report:
 
-- Credential probe output or real blocker.
-- Reference ledger.
 - Generated/processed file paths.
 - Prompts/text/input files, voice IDs, durations, loop flags, and output formats.
 - Runtime integration notes: audio groups, trigger events, loop behavior, unlock gesture, pause/resume, volume/mute controls.

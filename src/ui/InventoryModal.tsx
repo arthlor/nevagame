@@ -324,14 +324,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           <div className="inventory-grid-wrap">
             {/* A flat list of cells is a listbox, not a grid: role="grid"
                 without rows is an incomplete structure for screen readers. */}
-            <p className="inventory-filter-status" role="status">
-              {isFilterActive
-                ? `Showing ${visibleEntries.length} of ${allSlots.length} slots · ${
-                    query.length > 0 ? `"${searchTerm.trim()}"` : activeCategory
-                  }`
-                : `${allSlots.length} slots`}
-            </p>
-            {isFilterActive && visibleEntries.length === 0 && <p className="guild-empty-search" role="status">No items match your search.</p>}
+            {isFilterActive && <p className="inventory-filter-status" role="status">
+              {`${visibleEntries.length} ${visibleEntries.length === 1 ? "item" : "items"}${query ? ` matching “${searchTerm.trim()}”` : " in this section"}`}
+            </p>}
+            {isFilterActive && visibleEntries.length === 0 && <p className="guild-empty-search" role="status">
+              {query ? "No items match your search. Try another name or clear the search." : "Your satchel has nothing in this section yet."}
+            </p>}
             <div
               className="inventory-grid"
               id="inventory-items"
@@ -452,7 +450,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
         <footer className="modal-footer">
           {showFooterTip && (
-            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">Pick an item to see what it is for · Organize to search or tidy · Arrow keys move through slots</span>
+            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">Arrow keys move through slots · Enter selects an item</span>
           )}
           <ChromeButton onClick={onClose}>Close</ChromeButton>
         </footer>

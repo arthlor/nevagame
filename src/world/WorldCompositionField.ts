@@ -475,7 +475,7 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
   );
   const shortCover = clamp01(
     (0.22 + meadow * 0.54 + woodland * 0.2 + workingEdge * 0.2)
-    * (0.12 + fine * 0.28 + coverMicro * 0.6)
+    * (0.44 + fine * 0.16 + coverMicro * 0.4)
     * (1 - Math.max(routeClearance, architectureClearance, coastlineClearance))
     * (1 - mountainExposure * 0.88)
   );

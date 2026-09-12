@@ -1,9 +1,12 @@
 ---
 name: threejs-procedural-fields
-description: Build coherent procedural scalar and vector fields for Three.js materials and geometry. Use for terrain, planets, wear, biomes, clouds, water masks, displacement, roughness, normals, domain warping, and any visual where several channels must derive from shared causes.
+description: "Design shared scalar and vector field stacks for Three.js materials and geometry. Use for terrain or planet height, biomes, wear, moisture, clouds, water masks, displacement, domain warping, derivative normals. Not for channel assembly or a full planet body."
 ---
 
 # Procedural Fields
+
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Field math is backend-agnostic; the referenced planet example ships WebGL2 GLSL. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Do not start by stacking noise. Start by defining the fields the object physically or stylistically needs.
 
@@ -48,7 +51,9 @@ Read the
 for a shared CPU/GLSL field bundle whose height, continents, climate, biomes,
 roughness, and normals remain independently inspectable.
 
-## Non-negotiable rules
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - Independent noise per channel produces visual soup. Share structure.
 - Domain warp the coordinates, not every result.
@@ -57,6 +62,12 @@ roughness, and normals remain independently inspectable.
 - Do not displace geometry with frequencies the mesh cannot represent.
 - Keep categorical masks broad enough to avoid isolated “bubble” regions.
 - Parameter names must describe perception: `ridgeWidth`, `coastBlend`, `cavityDarkening`, not `noise3Amount`.
+
+## Deliverable
+
+- Inputs: coordinates, scale bands, and the required causes.
+- Artifacts: named field bundle, a debug view per field, and the filtering policy.
+- Acceptance: channels share causes; every field is inspectable on its own; high frequencies are filtered by footprint.
 
 ## Routing boundary
 

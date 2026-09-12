@@ -23,6 +23,12 @@ function quantize01(value: number): number {
   return Math.round(clamp01(value) * 255);
 }
 
+/** Presentation only: seasonal wash moisture retains cooler scrub pockets. */
+export function terrainDryClimateWeight(sample: TerrainSurfaceSample): number {
+  return sample.drainage?.islandId === "island.sunreach"
+    ? 1 - clamp01(sample.drainage.moisturePotential) : 0;
+}
+
 /** Material exposure only: never changes the canonical surface or support query. */
 export function withExposedRock(sample: TerrainSurfaceSample, exposure: number): TerrainSurfaceSample {
   const amount = clamp01(exposure) * (1 - clamp01(sample.farmInfluence))

@@ -10,7 +10,7 @@ export const WORKSHOP_SUPPLY_MARKUP = 1;
 export const DAILY_TREND_AMPLITUDE = 0.15;
 export const HOURLY_NOISE_AMPLITUDE = 0.025;
 
-type DemandCommodity = Pick<MarketCommodityState, "itemId" | "targetSupply">;
+export type DemandCommodity = Pick<MarketCommodityState, "itemId" | "targetSupply">;
 
 export interface MarketQuoteContext {
   absoluteHour: number;
@@ -101,6 +101,59 @@ export function demandFromSupply(
     + dailyDemandTrend(worldSeed, commodity.itemId, Math.floor(hour / 24))
     + hourlyDemandNoise(worldSeed, commodity.itemId, hour);
   return clamp(raw, DEMAND_MIN, DEMAND_MAX);
+}
+
+/** Where a demand modifier lands on the stall's three-word reading. */
+export function demandLabelFromModifier(demand: number): "Wanted" | "Steady" | "Plentiful" {
+  return demand >= 1.1 ? "Wanted" : demand <= 0.9 ? "Plentiful" : "Steady";
+}
+
+export function demandLabelFromPercent(demandPercent: number): "Wanted" | "Steady" | "Plentiful" {
+  return demandLabelFromModifier(demandPercent / 100);
+}
+
+export interface DemandTrendPoint {
+  dayOffset: number;
+  demandPercent: number;
+}
+
+export interface DemandTrendSample {
+  points: DemandTrendPoint[];
+  currentDemandPercent: number;
+  /** A few points of drift is noise, not a trend worth calling. */
+  direction: "rising" | "steady" | "falling";
+}
+
+export const DEMAND_TREND_WINDOW_DAYS = 5;
+
+/**
+ * Projects the seeded demand curve for one commodity across a window of days
+ * with supply pinned at `supply`. Pure: the same inputs produce the same curve,
+ * and no gameplay RNG is consumed. Shared by the market modal and the world
+ * board so both read one trend definition.
+ */
+export function sampleDemandTrend(
+  commodity: DemandCommodity,
+  supply: number,
+  absoluteHour: number,
+  worldSeed: number,
+  days: number = DEMAND_TREND_WINDOW_DAYS
+): DemandTrendSample {
+  const window = Math.max(2, Math.min(14, Math.floor(days)));
+  const points = Array.from({ length: window }, (_, dayOffset) => ({
+    dayOffset,
+    demandPercent: Math.round(
+      demandFromSupply(commodity, supply, absoluteHour + dayOffset * 24, worldSeed) * 100
+    )
+  }));
+  const currentDemandPercent = points[0].demandPercent;
+  const last = points[points.length - 1].demandPercent;
+  const delta = last - currentDemandPercent;
+  return {
+    points,
+    currentDemandPercent,
+    direction: delta >= 5 ? "rising" : delta <= -5 ? "falling" : "steady"
+  };
 }
 
 function quoteCommodity(

@@ -8,12 +8,15 @@ import { WorldLayout } from "../../world/WorldLayout";
 import { ASSET_IDS, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
 
 const MAX_CROP_INSTANCES = 160;
 const TRANSITION_SECONDS = 0.28;
 const HARVEST_CUT_SECONDS = 0.32;
+const PLANTED_SETTLE_SECONDS = 0.28;
+const MOUND_APEX_HEIGHT = 0.065;
 
 export const WHEAT_STAGE_ASSET: Readonly<Record<CropStage, AssetId>> = {
   seeded: ASSET_IDS.CROP_WHEAT_SEEDED,
@@ -193,6 +196,7 @@ uniform float uWindStrength;`
     shader.fragmentShader = `varying float vCropHighlight;\n${shader.fragmentShader}`.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vCropHighlight;");
     material.userData.nevaCropWindShader = shader;
   };
+  applyWorldAtmosphere(material);
   return material;
 }
 
@@ -219,19 +223,135 @@ function smoothstep(value: number): number {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-function makeDisturbedSoilGeometry(): THREE.BufferGeometry {
-  const points = [
-    [-0.5, -0.08],
-    [-0.33, -0.45],
-    [0.08, -0.5],
-    [0.46, -0.31],
-    [0.5, 0.12],
-    [0.28, 0.47],
-    [-0.14, 0.5],
-    [-0.48, 0.27]
-  ].map(([x, y]) => new THREE.Vector2(x, y));
-  const geometry = new THREE.ShapeGeometry(new THREE.Shape(points));
-  geometry.rotateX(-Math.PI / 2);
+function makeOblongSoilMoundGeometry(): THREE.BufferGeometry {
+  // Low-poly faceted oblong mound elongated along the furrow (Z axis)
+  // with asymmetric facet breaks and integrated perimeter soil clods.
+  const positions: number[] = [];
+
+  const addTri = (
+    ax: number, ay: number, az: number,
+    bx: number, by: number, bz: number,
+    cx: number, cy: number, cz: number
+  ) => {
+    positions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+  };
+
+  const addQuad = (
+    ax: number, ay: number, az: number,
+    bx: number, by: number, bz: number,
+    cx: number, cy: number, cz: number,
+    dx: number, dy: number, dz: number
+  ) => {
+    addTri(ax, ay, az, bx, by, bz, cx, cy, cz);
+    addTri(ax, ay, az, cx, cy, cz, dx, dy, dz);
+  };
+
+  // Main mound vertices
+  // Crest points along furrow (Z axis)
+  const pApex: [number, number, number] = [0.00, 0.068, 0.00];
+  const pNorthCrest: [number, number, number] = [-0.01, 0.060, 0.20];
+  const pSouthCrest: [number, number, number] = [0.01, 0.058, -0.20];
+
+  // Mid-crest shoulders (slight asymmetry)
+  const pEastMid: [number, number, number] = [0.12, 0.048, 0.02];
+  const pWestMid: [number, number, number] = [-0.13, 0.046, -0.02];
+  const pNorthEastMid: [number, number, number] = [0.09, 0.044, 0.18];
+  const pNorthWestMid: [number, number, number] = [-0.10, 0.042, 0.17];
+  const pSouthEastMid: [number, number, number] = [0.10, 0.042, -0.17];
+  const pSouthWestMid: [number, number, number] = [-0.09, 0.044, -0.18];
+
+  // Base boundary vertices at ground level
+  const bNorth: [number, number, number] = [0.01, 0.002, 0.38];
+  const bNorthEast: [number, number, number] = [0.17, 0.002, 0.27];
+  const bEast: [number, number, number] = [0.24, 0.002, 0.01];
+  const bSouthEast: [number, number, number] = [0.18, 0.002, -0.27];
+  const bSouth: [number, number, number] = [-0.01, 0.002, -0.38];
+  const bSouthWest: [number, number, number] = [-0.18, 0.002, -0.26];
+  const bWest: [number, number, number] = [-0.23, 0.002, -0.01];
+  const bNorthWest: [number, number, number] = [-0.16, 0.002, 0.28];
+
+  // Top spine quads / triangles:
+  // Apex to north crest & shoulders
+  addTri(pApex[0], pApex[1], pApex[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2], pNorthCrest[0], pNorthCrest[1], pNorthCrest[2]);
+  addTri(pApex[0], pApex[1], pApex[2], pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2]);
+  // Apex to mid flanks
+  addTri(pApex[0], pApex[1], pApex[2], pEastMid[0], pEastMid[1], pEastMid[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2]);
+  addTri(pApex[0], pApex[1], pApex[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2], pWestMid[0], pWestMid[1], pWestMid[2]);
+  // Apex to south crest & shoulders
+  addTri(pApex[0], pApex[1], pApex[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2], pEastMid[0], pEastMid[1], pEastMid[2]);
+  addTri(pApex[0], pApex[1], pApex[2], pWestMid[0], pWestMid[1], pWestMid[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2]);
+  addTri(pApex[0], pApex[1], pApex[2], pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2]);
+  addTri(pApex[0], pApex[1], pApex[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2], pSouthCrest[0], pSouthCrest[1], pSouthCrest[2]);
+
+  // North nose sloped faces
+  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorthEast[0], bNorthEast[1], bNorthEast[2], bNorth[0], bNorth[1], bNorth[2]);
+  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorth[0], bNorth[1], bNorth[2], bNorthWest[0], bNorthWest[1], bNorthWest[2]);
+  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2], bNorthEast[0], bNorthEast[1], bNorthEast[2]);
+  addTri(pNorthCrest[0], pNorthCrest[1], pNorthCrest[2], bNorthWest[0], bNorthWest[1], bNorthWest[2], pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2]);
+
+  // South nose sloped faces
+  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouth[0], bSouth[1], bSouth[2], bSouthEast[0], bSouthEast[1], bSouthEast[2]);
+  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouthWest[0], bSouthWest[1], bSouthWest[2], bSouth[0], bSouth[1], bSouth[2]);
+  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], bSouthEast[0], bSouthEast[1], bSouthEast[2], pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2]);
+  addTri(pSouthCrest[0], pSouthCrest[1], pSouthCrest[2], pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2], bSouthWest[0], bSouthWest[1], bSouthWest[2]);
+
+  // East flank slopes
+  addQuad(
+    pNorthEastMid[0], pNorthEastMid[1], pNorthEastMid[2],
+    pEastMid[0], pEastMid[1], pEastMid[2],
+    bEast[0], bEast[1], bEast[2],
+    bNorthEast[0], bNorthEast[1], bNorthEast[2]
+  );
+  addQuad(
+    pEastMid[0], pEastMid[1], pEastMid[2],
+    pSouthEastMid[0], pSouthEastMid[1], pSouthEastMid[2],
+    bSouthEast[0], bSouthEast[1], bSouthEast[2],
+    bEast[0], bEast[1], bEast[2]
+  );
+
+  // West flank slopes
+  addQuad(
+    pNorthWestMid[0], pNorthWestMid[1], pNorthWestMid[2],
+    bNorthWest[0], bNorthWest[1], bNorthWest[2],
+    bWest[0], bWest[1], bWest[2],
+    pWestMid[0], pWestMid[1], pWestMid[2]
+  );
+  addQuad(
+    pWestMid[0], pWestMid[1], pWestMid[2],
+    bWest[0], bWest[1], bWest[2],
+    bSouthWest[0], bSouthWest[1], bSouthWest[2],
+    pSouthWestMid[0], pSouthWestMid[1], pSouthWestMid[2]
+  );
+
+  // Bottom face
+  addTri(bNorth[0], 0, bNorth[2], bNorthEast[0], 0, bNorthEast[2], bNorthWest[0], 0, bNorthWest[2]);
+  addTri(bNorthEast[0], 0, bNorthEast[2], bEast[0], 0, bEast[2], bNorthWest[0], 0, bNorthWest[2]);
+  addTri(bEast[0], 0, bEast[2], bWest[0], 0, bWest[2], bNorthWest[0], 0, bNorthWest[2]);
+  addTri(bEast[0], 0, bEast[2], bSouthEast[0], 0, bSouthEast[2], bWest[0], 0, bWest[2]);
+  addTri(bSouthEast[0], 0, bSouthEast[2], bSouth[0], 0, bSouth[2], bWest[0], 0, bWest[2]);
+  addTri(bSouth[0], 0, bSouth[2], bSouthWest[0], 0, bSouthWest[2], bWest[0], 0, bWest[2]);
+
+  // Integrated small faceted clods on the perimeter / flanks
+  const addClod = (cx: number, cy: number, cz: number, r: number, h: number) => {
+    const tip: [number, number, number] = [cx + r * 0.1, cy + h, cz - r * 0.1];
+    const c1: [number, number, number] = [cx - r, cy, cz - r * 0.7];
+    const c2: [number, number, number] = [cx + r * 0.9, cy, cz - r * 0.5];
+    const c3: [number, number, number] = [cx + r * 0.2, cy, cz + r];
+    const c4: [number, number, number] = [cx - r * 0.8, cy, cz + r * 0.6];
+    addTri(tip[0], tip[1], tip[2], c1[0], c1[1], c1[2], c2[0], c2[1], c2[2]);
+    addTri(tip[0], tip[1], tip[2], c2[0], c2[1], c2[2], c3[0], c3[1], c3[2]);
+    addTri(tip[0], tip[1], tip[2], c3[0], c3[1], c3[2], c4[0], c4[1], c4[2]);
+    addTri(tip[0], tip[1], tip[2], c4[0], c4[1], c4[2], c1[0], c1[1], c1[2]);
+  };
+
+  addClod(0.18, 0.005, 0.20, 0.045, 0.032);
+  addClod(-0.17, 0.005, -0.19, 0.042, 0.028);
+  addClod(-0.16, 0.005, 0.14, 0.038, 0.024);
+  addClod(0.19, 0.005, -0.12, 0.040, 0.026);
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
   return geometry;
 }
 
@@ -248,6 +368,8 @@ export class CropInstanceRenderer {
   private readonly lastCrops = new Map<string, PlacedCropState>();
   private readonly transitions = new Map<string, CropTransition>();
   private readonly harvestTransitions = new Map<string, { crop: PlacedCropState; startedAtSeconds: number }>();
+  private readonly plantedTransitions = new Map<string, number>();
+  private initialSyncDone = false;
   private readonly moistureBatch: TemplateBatch;
   private readonly cropMaterial = patchCropWind(PaletteMaterials.standard("foliage_sage_01", {
     vertexColors: true,
@@ -289,19 +411,18 @@ export class CropInstanceRenderer {
 
   public constructor() {
     this.group.name = "crop_instance_renderer";
-    const moistureMaterial = PaletteMaterials.standard("soil_dry_01", {
+    const moistureMaterial = PaletteMaterials.standard("soil_warm_01", {
       flatShading: true,
-      roughness: 1,
-      transparent: true,
-      opacity: 0.82
+      roughness: 0.96
     });
     const moistureMesh = new THREE.InstancedMesh(
-      makeDisturbedSoilGeometry(),
+      makeOblongSoilMoundGeometry(),
       moistureMaterial,
       MAX_CROP_INSTANCES
     );
     moistureMesh.name = "crop_disturbed_soil_instances";
     moistureMesh.count = 0;
+    moistureMesh.castShadow = true;
     moistureMesh.receiveShadow = true;
     moistureMesh.frustumCulled = false;
     this.moistureBatch = { mesh: moistureMesh, cropIds: [] };
@@ -411,8 +532,34 @@ export class CropInstanceRenderer {
     for (const [id, start] of this.harvestPunches) if (timeSeconds - start > 0.32) this.harvestPunches.delete(id);
     this.updateWind(timeSeconds, state, weatherMotion);
     const crops = Object.values(state.crops);
+
+    if (!this.initialSyncDone) {
+      this.initialSyncDone = true;
+      for (const crop of crops) {
+        this.lastStages.set(crop.id, crop.stage);
+        this.lastCrops.set(crop.id, { ...crop });
+      }
+    } else {
+      for (const crop of crops) {
+        if (!this.lastCrops.has(crop.id) && !this.plantedTransitions.has(crop.id)) {
+          this.plantedTransitions.set(crop.id, timeSeconds);
+        }
+      }
+    }
+
+    for (const [id, startedAt] of this.plantedTransitions) {
+      if (timeSeconds - startedAt >= PLANTED_SETTLE_SECONDS) {
+        this.plantedTransitions.delete(id);
+      }
+    }
+
     const signature = this.computeCropSignature(crops, isFarmGisMode);
-    const animationActive = this.transitions.size > 0 || this.harvestTransitions.size > 0 || this.harvestPunches.size > 0 || this.highlightedId !== null;
+    const animationActive =
+      this.transitions.size > 0 ||
+      this.harvestTransitions.size > 0 ||
+      this.harvestPunches.size > 0 ||
+      this.highlightedId !== null ||
+      this.plantedTransitions.size > 0;
     if (
       signature === this.cropSignature
       && !animationActive
@@ -548,8 +695,28 @@ export class CropInstanceRenderer {
         ? THREE.MathUtils.lerp(0.82, 1, entry.weight)
         : THREE.MathUtils.lerp(0.82, 1, entry.weight);
       const windResponse = crop.stage === "seeded" ? 0 : crop.stage === "sprout" ? 0.015 : 0.035;
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
+
+      const plantedStart = this.plantedTransitions.get(crop.id);
+      let plantedElevation = 1;
+      let plantedScaleX = 1;
+      let plantedScaleY = 1;
+      if (plantedStart !== undefined) {
+        const progress = THREE.MathUtils.clamp(
+          (this.presentationTime - plantedStart) / PLANTED_SETTLE_SECONDS,
+          0,
+          1
+        );
+        const bounce = Math.sin(progress * Math.PI);
+        plantedElevation = Math.min(1, progress * 1.35) + bounce * 0.15;
+        plantedScaleY = Math.min(1, progress * 1.3) + bounce * 0.22;
+        plantedScaleX = 1 - bounce * 0.10;
+      }
+
       const cut = entry.cutProgress ?? 0;
+      const elevationScale = entry.cutProgress != null ? Math.max(0, 1 - smoothstep(cut)) : plantedElevation;
+      const cropElevation = MOUND_APEX_HEIGHT * elevationScale;
+      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + cropElevation, world.z);
+
       const cutLean = smoothstep(cut) * (0.82 + hashUnit(`${crop.id}:cut`) * 0.24);
       this.euler.set(
         cutLean,
@@ -558,11 +725,12 @@ export class CropInstanceRenderer {
         "YXZ"
       );
       this.quaternion.setFromEuler(this.euler);
+      const seededBoost = crop.stage === "seeded" ? 1.95 : 1.0;
       this.scale.set(
-        continuousScale * transitionScale,
+        continuousScale * transitionScale * seededBoost * plantedScaleX,
         continuousScale * THREE.MathUtils.lerp(0.96, 1.05, withinStage) * transitionScale *
-          THREE.MathUtils.lerp(1, 0.24, smoothstep(cut)),
-        continuousScale * transitionScale
+          THREE.MathUtils.lerp(1, 0.24, smoothstep(cut)) * seededBoost * plantedScaleY,
+        continuousScale * transitionScale * seededBoost * plantedScaleX
       );
       const selected = crop.id === this.highlightedId;
       const breathe = this.reducedFeedbackMotion ? 0 : Math.sin(this.presentationTime * 3);
@@ -602,18 +770,45 @@ export class CropInstanceRenderer {
     isFarmGisMode: boolean = false
   ): void {
     const batch = this.moistureBatch;
-    this.ensureBatchCapacity(batch, crops.length, "crop_disturbed_soil_instances_dynamic");
+    const activeCount = crops.length;
+    const harvestCount = this.harvestTransitions.size;
+    const totalCount = activeCount + harvestCount;
+    this.ensureBatchCapacity(batch, totalCount, "crop_disturbed_soil_instances_dynamic");
     batch.cropIds.length = 0;
-    const count = crops.length;
-    for (let index = 0; index < count; index++) {
-      const crop = crops[index];
+
+    let index = 0;
+
+    // 1. Render active crop mounds
+    for (let i = 0; i < activeCount; i++) {
+      const crop = crops[i];
       const definition = ContentRegistry.crops.get(crop.cropId);
       if (!definition) continue;
       const world = farmLocalToWorld(crop.farmId, crop);
-      const variation = 0.82 + hashUnit(`${crop.id}:soil`) * 0.18;
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + 0.018, world.z);
-      this.quaternion.setFromEuler(this.euler.set(0, crop.rotationRadians + hashUnit(crop.id) * 0.3, 0));
-      this.scale.set(definition.footprint.width * variation, 1, definition.footprint.depth * variation);
+      const variation = 0.88 + hashUnit(`${crop.id}:soil`) * 0.16;
+
+      const plantedStart = this.plantedTransitions.get(crop.id);
+      let scaleY = 1;
+      let scaleXZ = 1;
+      if (plantedStart !== undefined) {
+        const progress = THREE.MathUtils.clamp(
+          (this.presentationTime - plantedStart) / PLANTED_SETTLE_SECONDS,
+          0,
+          1
+        );
+        const bounce = Math.sin(progress * Math.PI);
+        scaleY = Math.min(1, progress * 1.3) + bounce * 0.25;
+        scaleXZ = 1 - bounce * 0.12;
+      }
+
+      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
+      // Furrow-aligned oblong mound: subtle organic variation around furrow Z axis
+      const furrowJitter = (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08;
+      this.quaternion.setFromEuler(this.euler.set(0, furrowJitter, 0));
+      this.scale.set(
+        definition.footprint.width * variation * scaleXZ,
+        scaleY,
+        definition.footprint.depth * variation * scaleXZ
+      );
       this.matrix.compose(this.position, this.quaternion, this.scale);
       batch.mesh.setMatrixAt(index, this.matrix);
 
@@ -642,10 +837,50 @@ export class CropInstanceRenderer {
       }
       batch.mesh.setColorAt(index, this.color);
       batch.cropIds.push(crop.id);
+      index++;
     }
-    batch.mesh.count = count;
-    batch.mesh.instanceMatrix.needsUpdate = count > 0;
-    if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = count > 0;
+
+    // 2. Render mounds sinking during harvest cut
+    for (const [, transition] of this.harvestTransitions) {
+      const crop = transition.crop;
+      const definition = ContentRegistry.crops.get(crop.cropId);
+      if (!definition) continue;
+      const world = farmLocalToWorld(crop.farmId, crop);
+      const variation = 0.88 + hashUnit(`${crop.id}:soil`) * 0.16;
+      const harvestProgress = THREE.MathUtils.clamp(
+        (this.presentationTime - transition.startedAtSeconds) / HARVEST_CUT_SECONDS,
+        0,
+        1
+      );
+      const sinkScaleY = Math.max(0.001, 1 - smoothstep(harvestProgress));
+
+      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z), world.z);
+      const furrowJitter = (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08;
+      this.quaternion.setFromEuler(this.euler.set(0, furrowJitter, 0));
+      this.scale.set(
+        definition.footprint.width * variation,
+        sinkScaleY,
+        definition.footprint.depth * variation
+      );
+      this.matrix.compose(this.position, this.quaternion, this.scale);
+      batch.mesh.setMatrixAt(index, this.matrix);
+
+      const band = cropMoistureBand(crop.moisture);
+      if (isFarmGisMode) {
+        this.color.set(PALETTE_HEX.accent_ochre_01);
+      } else {
+        this.color.set(
+          PALETTE_HEX[band === "wet" ? "soil_damp_01" : band === "dry" ? "soil_dry_01" : "soil_warm_01"]
+        );
+      }
+      batch.mesh.setColorAt(index, this.color);
+      batch.cropIds.push(""); // non-pickable during cut
+      index++;
+    }
+
+    batch.mesh.count = index;
+    batch.mesh.instanceMatrix.needsUpdate = index > 0;
+    if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = index > 0;
   }
 
   private ensureBatchCapacity(batch: TemplateBatch, required: number, name: string): void {

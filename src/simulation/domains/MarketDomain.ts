@@ -5,6 +5,9 @@ import {
   RETAIL_MARKUP,
   WORKSHOP_SUPPLY_MARKUP,
   demandFromSupply,
+  demandLabelFromModifier,
+  demandLabelFromPercent,
+  sampleDemandTrend,
   quoteCommodityPurchase,
   quoteCommoditySale,
   type CommodityMarketQuote
@@ -140,11 +143,7 @@ export class MarketDomain {
     const demandPercent = marketQuote
       ? Math.round(marketQuote.averageDemandModifier * 100)
       : 100;
-    const demandLabel = demandPercent >= 110
-      ? "Wanted"
-      : demandPercent <= 90
-        ? "Plentiful"
-        : "Steady";
+    const demandLabel = demandLabelFromPercent(demandPercent);
     const owned = InventoryManager.getItemCount(
       state.inventories[state.player.inventoryId],
       itemId
@@ -217,30 +216,17 @@ export class MarketDomain {
     const commodity = market?.commodities[itemId];
     if (!market || !commodity) return null;
 
-    const window = Math.max(2, Math.min(14, Math.floor(days)));
     const hourNow = state.clock.currentMinute / 60;
-    const toPercent = (demand: number): number => Math.round(demand * 100);
-
-    const points = Array.from({ length: window }, (_, dayOffset) => ({
-      dayOffset,
-      demandPercent: toPercent(
-        demandFromSupply(commodity, commodity.localSupply, hourNow + dayOffset * 24, state.worldSeed)
-      )
-    }));
-
-    const current = points[0].demandPercent;
-    const last = points[points.length - 1].demandPercent;
-    // A few points of drift is noise, not a trend worth calling.
-    const delta = last - current;
+    const trend = sampleDemandTrend(commodity, commodity.localSupply, hourNow, state.worldSeed, days);
     const item = ContentRegistry.items.get(itemId) ?? ContentRegistry.fishSpecies.get(itemId);
 
     return {
       marketId,
       itemId,
       itemName: item?.name ?? itemId,
-      points,
-      currentDemandPercent: current,
-      direction: delta >= 5 ? "rising" : delta <= -5 ? "falling" : "steady",
+      points: trend.points,
+      currentDemandPercent: trend.currentDemandPercent,
+      direction: trend.direction,
       localSupply: commodity.localSupply,
       targetSupply: commodity.targetSupply
     };
@@ -276,11 +262,7 @@ export class MarketDomain {
       marketId,
       itemId: commodity.itemId,
       itemName: item?.name ?? commodity.itemId,
-      demandLabel: demand >= 1.1
-        ? "Wanted"
-        : demand <= 0.9
-          ? "Plentiful"
-          : "Steady"
+      demandLabel: demandLabelFromModifier(demand)
     };
   }
 

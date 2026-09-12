@@ -233,13 +233,22 @@ export function applyCropMoistureOverMinutes(
   const initialMoisture = crop.moisture;
   if (perMinute === 0) {
     crop.averageMoistureAccum += initialMoisture * steps;
-  } else if (perMinute > 0) {
-    const changingSteps = Math.min(steps, Math.max(0, Math.ceil((100 - initialMoisture) / perMinute)));
-    crop.averageMoistureAccum += changingSteps * initialMoisture + (perMinute * changingSteps * (changingSteps + 1)) / 2;
-    crop.averageMoistureAccum += (steps - changingSteps) * 100;
   } else {
-    const changingSteps = Math.min(steps, Math.max(0, Math.ceil(initialMoisture / -perMinute)));
-    crop.averageMoistureAccum += changingSteps * initialMoisture + (perMinute * changingSteps * (changingSteps + 1)) / 2;
+    // Integrate the clamped trace exactly. `stepsToBound` is how many steps
+    // reach the 0/100 bound from here; before it the trace is linear, at it and
+    // after it saturates. Getting this right matters for harvest quality, which
+    // reads the average.
+    const bound = perMinute > 0 ? 100 : 0;
+    const stepsToBound = perMinute > 0
+      ? Math.ceil((100 - initialMoisture) / perMinute)
+      : Math.ceil(initialMoisture / -perMinute);
+    const reachesBound = stepsToBound <= steps;
+    const linearSteps = reachesBound ? Math.max(0, stepsToBound - 1) : steps;
+    const stepsAtBound = reachesBound ? steps - linearSteps : 0;
+    crop.averageMoistureAccum +=
+      linearSteps * initialMoisture
+      + (perMinute * linearSteps * (linearSteps + 1)) / 2
+      + stepsAtBound * bound;
   }
   crop.moisture = Math.min(100, Math.max(0, initialMoisture + perMinute * steps));
   crop.moistureSampleCount += steps;
@@ -307,10 +316,13 @@ export function advancePlacedCropGrowth(
         chunk = Math.min(chunk, Math.max(1, Math.ceil((40 - crop.moisture) / perMinute)));
       }
     } else if (perMinute < 0) {
+      // A drying chunk must end strictly below 40/15, or the next chunk would
+      // start exactly on the boundary and charge the wrong health-stress band
+      // for its whole span.
       if (crop.moisture > 40) {
-        chunk = Math.min(chunk, Math.max(1, Math.ceil((crop.moisture - 40) / -perMinute)));
+        chunk = Math.min(chunk, Math.max(1, Math.floor((crop.moisture - 40) / -perMinute) + 1));
       } else if (crop.moisture > 15) {
-        chunk = Math.min(chunk, Math.max(1, Math.ceil((crop.moisture - 15) / -perMinute)));
+        chunk = Math.min(chunk, Math.max(1, Math.floor((crop.moisture - 15) / -perMinute) + 1));
       }
     }
     if (!alreadyWithered) {

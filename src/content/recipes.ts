@@ -308,7 +308,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 75,
     workTier: "masterwork",
     presentationKind: "tailoring",
-    minimumSkill: { skill: "processing", xp: 3000 },
+    minimumSkill: { skill: "processing", xp: 15000 },
     tags: ["tailoring", "equipment"]
   },
   "recipe.oilskin_coat": {
@@ -323,7 +323,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 90,
     workTier: "masterwork",
     presentationKind: "tailoring",
-    minimumSkill: { skill: "processing", xp: 3000 },
+    minimumSkill: { skill: "processing", xp: 30000 },
     tags: ["tailoring", "equipment"]
   },
   "recipe.long_spout_can": {
@@ -339,7 +339,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 90,
     workTier: "masterwork",
     presentationKind: "toolmaking",
-    minimumSkill: { skill: "processing", xp: 3000 },
+    minimumSkill: { skill: "processing", xp: 15000 },
     tags: ["toolmaking", "equipment"]
   },
   "recipe.balanced_sickle": {
@@ -355,7 +355,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 90,
     workTier: "masterwork",
     presentationKind: "toolmaking",
-    minimumSkill: { skill: "processing", xp: 3000 },
+    minimumSkill: { skill: "processing", xp: 30000 },
     tags: ["toolmaking", "equipment"]
   }
 };

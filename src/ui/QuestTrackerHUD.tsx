@@ -5,6 +5,7 @@ import { HudCluster, Meter } from "./coastal/CoastalUI";
 import { IconBoat, IconPin} from "./components/HudIcons";
 import { GuildcraftArt } from "./hud/GuildcraftArt";
 import { playUiSound } from "./audio/uiAudio";
+import { handleTabListKeyDown } from "./useTabListKeyboard";
 
 export interface QuestTrackerHUDProps {
   activeQuest: ActiveQuestDto | null;
@@ -102,6 +103,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
               className="quest-thread-rail"
               role="tablist"
               aria-label="Open quest threads"
+              onKeyDown={handleTabListKeyDown}
               data-testid="quest-thread-rail"
             >
               {threads.map((thread) => {
@@ -112,6 +114,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
                     type="button"
                     role="tab"
                     aria-selected={selected}
+                    tabIndex={selected ? 0 : -1}
                     className={`quest-thread-tab${selected ? " is-current" : ""}${
                       thread.isQuestReadyToTurnIn ? " is-ready" : ""
                     }`}

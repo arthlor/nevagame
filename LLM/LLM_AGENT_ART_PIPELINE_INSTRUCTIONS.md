@@ -60,7 +60,7 @@ All output MUST follow `04` Global Visual Grammar. Pipeline-specific rules:
 - bevels small relative to object, usually **1 segment**, occasionally 2 on hero assets; deliberate/weighted normals where useful;
 - smooth/selectively smoothed: traversable grass/soil/path terrain where regular mesh topology would otherwise dominate; macro landforms and semantic material regions retain the stylized read;
 - flat/faceted: cliffs, terrain cuts, exposed banks, hero landforms, rocks, mountains, stylized water and structural decoration;
-- authored normal interpolation: characters/creatures, trunks/stems, shaped produce, leaf blades, canopy/cloud masses and rounded tools/vessels/ropes/hull curves;
+- authored normal interpolation: characters/creatures, trunks/stems, shaped produce, cloud masses and rounded tools/vessels/ropes/hull curves; vegetation crown lobes and broad leaf folds may deliberately use planar faces to retain the low-poly form required by `04` §9;
 - hard edges: planks, roofs, doors, blocks, crates, docks, fences, beams, stairs.
 Never rely on default smoothing.
 
@@ -136,6 +136,14 @@ Semantic systems may modify it through controlled inputs (time of day, season, w
 
 The runtime presentation layer smooths integer clock advancement and explicit time skips over a continuous wrapped day-cycle envelope; canonical `GameMinute` remains unchanged. Quality selection and Auto adaptation similarly target a continuous low→medium→high level: blend density/distance and effect strength, rate-limit repeated population/LOD rebuilds, and stage discrete DPR/shadow/post ownership at adjacent-tier crossings. Do not allocate every quality-dependent render target or repopulate every repeated system in the input/UI callback.
 
+`AtmosphereSky` owns the procedural weather sky, its bounded linear-radiance render target, and the small `CloudShadows` sunlight-transmittance map. `RendererPipeline` renders it inside the frame timer before the opaque world and existing water capture, includes it in target diagnostics, and warms its shader during entry preparation. The sky display participates in the same tone-map/output path as the world. World-space field advection survives wind changes; deterministic weather-shaped masses have vertical profiles and subtractive erosion, with a short sun transmittance march on High. Medium/Low use cheaper layers from the same field. Fixed spatial sample offsets break up horizontal integration bands; a compact five-tap reconstruction filters that integration noise in the fresh reduced-resolution linear frame. There is no frame-index noise or temporal history: no stale sky can survive a cut, resize or quality change. This is a bounded coastal-world adaptation of the cloud skill's weather-volume approach, not its planetary shell/package stack.
+
+`cloudFieldGlsl` is the shared cloud-density owner for the sky and world-projected sunlight. The shadow map follows a texel-snapped world region, corrects receiver elevation, and fades at its bounds and low sun angles. Palette, terrain, vegetation and water materials consume that one map; it attenuates solar illumination while preserving sky fill and local lights.
+
+`WeatherPresentation` eases cloud cover, storm/clear appearance, precipitation, visibility, sea roughness and the shortest wind-heading arc once per presentation timestamp. The simulation weather and forecast remain untouched.
+
+`AtmosphereMaterial` composes those shared receivers with `AerialPerspective`: a bounded analytic height/distance segment model using meter-scale world coordinates, the sky’s zenith/horizon radiance and the same base haze coefficient. Haze is applied in linear radiance before tone mapping, replaces the standard fog mix on affected surfaces, preserves the finite-world distance cutoff, and is shared by both water tessellations. Water accounts for haze already present in its opaque snapshot instead of applying it twice. This uses the atmosphere skill’s small-world analytic tier; planetary LUTs and ellipsoid transforms are unnecessary for these islands. Sky and shared lighting both suppress lightning under reduced motion.
+
 `bindGtaoSceneDepth` in `RendererPipeline.ts` binds the current composer read buffer's depth before GTAO gathering, including after buffer swaps and resize. Gathering and bilateral denoising use the installed GTAO shader's depth-derived view normals, so the AO path follows depth-writing geometry and its actual shader displacement/discard behavior without an extra override-material scene draw. Non-depth-writing transparent effects do not become opaque AO surfaces. The scene/composer owns this borrowed depth; GTAO teardown must not dispose it. Diagnostics inventory both gather and denoise targets. Keep existing quality tuning, temporal reuse and world content unchanged, and verify contacts in the farm, bridge, harbor and coast views; this is not motion-vector temporal accumulation or a claim that the overall render budget passes.
 
 Do **not** use normal-world toon/ink edge rendering: inverted-hull outlines, Sobel/post edge outlines, black mesh edges and comic contours are prohibited. Selection/debug/context highlights may use temporary outlines if they are clearly UI feedback rather than the base art style.
@@ -143,6 +151,8 @@ Do **not** use normal-world toon/ink edge rendering: inverted-hull outlines, Sob
 Bake static information where useful: lightmaps, AO, vertex AO, static shadow gradients, emissive masks. Real-time lighting focuses on sun, moving actors/props, weather/time, gameplay lanterns, temporary effects. Do not spend runtime budget on static detail that can be baked safely.
 
 # 6. Water & Vegetation Implementation
+
+`LandscapeWind` adapts the procedural-vegetation skill's stylized-meadow traveling front to Neva's existing catalog GLBs and shared material variants. World-space gusts and a world-to-local vector transform keep differently rotated/scaled instances aligned with weather; tree color and coastal depth passes share that deformation. Ground-cover provenance supplies local woodland/grove shelter without per-frame habitat sampling. Instancing, stable near/far selection and frustum compaction remain the population owner; wind padding is measured in world meters. No new runtime procedural asset or alternate palette/shader lighting system is introduced.
 
 Water follows `04` §8: continuous depth absorption and real shallow-bed visibility, shared low-frequency displacement, angle-dependent sky reflection, filtered normal detail and arriving/spreading/fading surf. Dominant polygon-color cells and permanent intersection outlines are superseded for the coastal rebuild. `HarborCoast.ts` supplies the pure coastal profile to `WorldLayout`; marine queries and the derived `CoastalOptics` texture sample the same indexed terrain bed. Shore distance locates surf but never substitutes for depth. Broken wave packets and a common wetness/drying phase keep the beach wash continuous with the water without a permanent white intersection border. Keep these queries acyclic and preserve elevated headwater baselines.
 
@@ -161,7 +171,11 @@ REEDS CATTAILS
 ```
 Families support seed, height/width, canopy clusters or authored fronds/leaves, trunk bend/branches, palette, scale and asymmetry. Clustered crowns remain appropriate for inland trees; leaning coastal palms use distinct open frond silhouettes. No smooth spheres.
 
+`waterCausticsGlsl.ts` estimates shallow focusing from the differential area of flat and refracted sunlight footprints using the same optical normal as reflection/refraction. Both footprints use the same bed depth, preventing flat water over a slope from inventing caustics. This is a bounded local approximation evaluated at the visible surface, not a transported or traced caustic map. High-tier captured bed radiance receives signed, bounded modulation before absorption; captured aerial inscattering is excluded from that modulation. `FacetedWater` shares the actual solar direction/strength with both surfaces independently of the moon/lightning reflection key. Depth, roughness, cloud shade, sun elevation and pixel footprint suppress the response; `VisualRenderConfig.waterSurface.optics` owns its strength and depth fade. No new target, draw call, displacement or buoyancy formula is introduced. Off-screen refraction and unobserved occluders remain limitations of the existing screen capture.
+
 ## 6.1 Terrain, Route & Ground-Cover Implementation Contract
+
+`RainSurfaceMaterial` composes a palette-family albedo/roughness response before shared Standard lighting. `PaletteMaterials` retains semantic token metadata when names change on vegetation or ground-cover clones; the existing atmosphere hook chains rain after each authored surface/wind patch. `WorldScene.updateEnvironment` supplies the terrain's current wetness and the same interior exclusion used by rain. It introduces no independent weather clock, texture, render target, material clone or draw. The resolved world normal supplies a bounded upward/runoff mask; it does not test awning/roof visibility. Fogless UI previews opt out through `USE_FOG`. Wood/stone/foliage response numbers belong to `VisualRenderConfig.rainSurfaces`; soil, roads, water and character skin retain their existing owners. The precipitation skill informed shared-event and normal-mask principles; no GPL puddle example source or assets were copied.
 
 Implement the Art Bible's five ground layers through one coordinated presentation contract:
 
@@ -173,6 +187,8 @@ Implement the Art Bible's five ground layers through one coordinated presentatio
 Representation is deliberately not prescribed. Analytic queries, vertex attributes, compact per-chunk control textures, or cached buffers are allowed. Select by measured update cost, texture/fill-rate cost, transition quality, diagnostics, and maintainability. If using a control texture, document channel semantics, world bounds, filtering, generation seed/input hash, invalidation, and memory in the owning implementation—not in a parallel art spec.
 
 Surface-detail tangent frames are constructed in world space and transformed back into the standard shader's view space, so camera orbit cannot rotate the apparent relief. Terrain rain roughness is applied after dry supporting-map blending.
+
+`TerrainSurfaceMaterial` explicitly opts out of the palette-object rain hook: its cloned foliage token describes the base palette, while its mixed soil/shore shader already owns wetness. Shared cloud shade and aerial perspective still apply. Sunreach's dry palette is a normalized byte per terrain vertex derived from the canonical drainage sample, retained by spatial batching. Dry slope exposure uses the same protected grass-to-stone presentation transfer as the headland, leaving canonical surface weights intact. The shared material remaps broad ground/stone color, protects farm and marine weights, and adds no texture or material instance. Neva's climate weight is zero. The existing supporting-map signals provide variation; they do not create a new ecology or gameplay field.
 
 Terrain normals are class-aware. Normal continuity may cross non-feature triangulation edges in broad traversable grass/soil/path regions when flat triangles read as topology. It stops or transitions deliberately at authored ridges, terraces, cliffs, cuts, exposed banks, rock shelves, and hero landforms. Never globally smooth every surface or globally flat-shade the terrain as a shortcut.
 
@@ -192,7 +208,7 @@ Ground-cover implementation requirements:
 - independent category candidate streams and species hashes, deterministic priority inhibition, and explicit core/edge/isolate/landmark/riparian/route-frame roles; IDs derive from category/address/slot rather than accepted-array index;
 - semantic density plus authored exclusions/clearances, clustered patch signals, variant families, and patch-level palette grouping;
 - short grass and tall meadow cover reuse assembly-space wind height for a bounded base-to-tip value ramp, owned by `VisualRenderConfig.groundSurface`; retain flower colors, instancing, wind anchoring and bounds.
-- high-count uniform geometry uses `InstancedMesh`/the established batching path, with quality-tier counts and draw-distance culling;
+- high-count uniform geometry uses `InstancedMesh`/the established batching path, with quality-tier counts and draw-distance culling. Fine grass patches follow the canonical terrain tangent; `VisualRenderConfig.quality` owns their separate near draw distance and bounded distant instance cap so greater meadow coverage does not multiply full-detail grass across the horizon. Catalog LODs retain a stable subset of the same roots. Ground-cover batches submit one detail level per placement, selected by player distance and quality; camera changes only frustum submission;
 - distance selection and world-asset LOD membership are anchored to the player/world focus. Camera orbit, pitch, zoom, and look-ahead direction may not reshuffle instances or switch asset membership; ordinary off-screen frustum rejection remains allowed;
 - short cover generally receives light but does not cast dynamic shadows; reserve real shadows/contact for readable clumps and anchors;
 - changing quality tier may reduce count/distance, not change route readability, shoreline continuity, collision, or gameplay truth.
@@ -215,7 +231,7 @@ segment, and the global sign treats a point as land when any registered island
 coast reports dry ground. Submerged visual aprons soften outer patch seams and
 must never become walkable collision or a second shoreline authority.
 
-For the starter-farm ground/meadow pass, `art/references/neva-ui-hud-on-foot.png` is the authoritative gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. Supporting maps may enrich packed-core wear and meadow meso breakup only after palette remap (section 6.2). The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
+For continuous grass coverage and blade proportions, the later user-selected `art/references/lush-grass/meadow-reference.png` owns the meadow direction. The starter-farm ground/path pass still uses `art/references/neva-ui-hud-on-foot.png` as its gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. Supporting maps may enrich packed-core wear and meadow meso breakup only after palette remap (section 6.2). The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
 
 Terrain/ground shader work must use a stable program cache key, fail clearly when patched Three.js chunks drift, keep uniforms/config centrally owned, dispose generated textures/materials, and receive focused tests for deterministic field/texture generation, bounds, mask protection, wetness transitions, supporting-map provenance/load fallback, and program-key stability. Do not copy a reference's realism, texture frequency, or exact numeric thresholds into code without gameplay-camera validation.
 
@@ -276,6 +292,8 @@ Their build-time `staticAuthoring` contract pins the original and owns a uniform
 scale/yaw plus explicit per-region solid or texture-preservation policy.
 
 `tools/blender/common/authored.py` is below that registry boundary. It provides reusable deliberate construction systems currently consumed by architecture, prop and boat generators: staggered box/cylindrical masonry, shingle rows, plank fields, lattices, segmented rope lines, arch rings, root flares, fasteners, timber-frame bays, mullioned openings, and banded tapered towers. Reuse or extend it when several assets need the same visual construction language. Do not register its helpers, call them directly from the CLI, let them own palette/budget/file metadata, or treat “authored” as permission for unseeded one-off geometry. Any helper control exposed to an asset remains an explicit catalog `parameters` key and must reproduce from the same catalog seed.
+
+Vegetation also shares `add_tree_buttresses`, `add_canopy_lobe` and `add_conifer_tier` in that module. These construct tapered root shoulders, seeded faceted leaf masses and closed irregular conifer tiers. Existing family generators own species composition and catalog parameters; lower-resolution forms preserve the same primary gesture. Builder tests cover closed outward-facing shells and deterministic vertex positions. The vegetation workshop builds editable scenes through the same registered generators and is an inspection artifact, not an alternate exporter.
 
 # 8. Machine-Readable Asset Specs
 
@@ -484,8 +502,7 @@ is evidence for review, not authorization to replace an approved baseline.
 This benchmark runs against Vite DEV, whose editor intentionally keeps static
 prefabs unmerged and omits the baked shadow proxy. Label it diagnostic;
 production budget evidence uses `test:budget`, and frozen world comparisons
-use §13.3. `03` §4 owns which task needs each lane. Routine asset work does not
-run these captures; the scoped harbor review exception remains in `04` §8.1.
+use §13.3. `03` §4 owns which task needs each lane. Routine asset work uses focused inspection rather than this full capture set; additional task-specific harbor evidence remains required by `04` §8.1.
 
 
 The Art Yard is the asset-review surface; `tools/vite/artYardPlugin.ts` serves it during DEV and emits published views/data in production. `BLENDER.md` §5 owns its route contract. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. Character playback uses real elapsed time, respects catalog one-shot/loop settings, and offers raw-clip inspection alongside the shared production controller/contact context. Normal diagnostics show exported split normals rather than forcing flat shading. Mounted player clips are reviewed as a synchronized rider-and-mount pair so saddle contact, gait phase, and counter-motion remain visible in context. Candidate-stage endpoints are DEV-only. The human performs visual approval in the actual integrated game.
@@ -530,8 +547,8 @@ Every relevant agent MUST:
 7. avoid duplicate asset families;
 8. assess performance;
 9. run the task-class mechanical gates;
-10. leave routine visual judgment to the human in the game;
-11. use release benchmarks only at release/gold-slice gates.
+10. inspect affected appearance or motion through the Art Yard and game, correct scoped defects, and leave human visual approval pending;
+11. use broader benchmarks when required by `03` §4 or a concrete unresolved concern; keep routine inspection focused.
 
 “More realistic” is not an improvement unless explicitly requested. Default = more coherent, readable, stylized, intentional.
 
@@ -564,7 +581,7 @@ after the visual direction is established.
 
 This is a contract checklist across mechanical readiness and eventual human
 acceptance. `BLENDER.md` supplies the task-specific commands; routine agents
-complete mechanical integration and hand off `Awaiting human game review`.
+complete mechanical integration and focused inspection, then hand off `Awaiting human game review`.
 Do not treat visual checklist items as an instruction to start an agent scoring
 loop or require release gates for one asset.
 

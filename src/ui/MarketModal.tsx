@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MarketId, RodId } from "../simulation/core/types";
 import { IconCoin, IconFish, IconJournal, IconRod, IconSprout } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
@@ -77,6 +77,17 @@ function SortToggles<T extends string>({ options, activeKey, direction, onSelect
   );
 }
 
+// Keep an empty field editable; transaction controls require a complete quantity.
+function useQuantityDraft() {
+  const [input, setInput] = useState("1");
+  const value = Number(input);
+  const valid = input.trim() !== "" && Number.isSafeInteger(value) && value >= 1;
+  const setValue = useCallback((next: number | ((previous: number) => number)) => {
+    setInput((previous) => String(typeof next === "function" ? next(Number(previous) || 1) : next));
+  }, []);
+  return { input, setInput, value, setValue, valid };
+}
+
 interface MarketModalProps {
   board: MarketBoardDto | null;
   onSellItem: (marketId: MarketId, itemId: string, quantity: number) => void;
@@ -125,9 +136,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const activeMarketId = board?.marketId ?? null;
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [sellQty, setSellQty] = useState(1);
+  const { input: sellInput, setInput: setSellInput, value: sellQty, setValue: setSellQty, valid: sellValid } = useQuantityDraft();
   const [selectedBuyId, setSelectedBuyId] = useState<string | null>(null);
-  const [buyQty, setBuyQty] = useState(1);
+  const { input: buyInput, setInput: setBuyInput, value: buyQty, setValue: setBuyQty, valid: buyValid } = useQuantityDraft();
   const [ledgerSection, setLedgerSection] = useState<MarketLedgerSection>(initialSection);
   const [buySortKey, setBuySortKey] = useState<"name" | "price">("name");
   const [buySortDir, setBuySortDir] = useState<1 | -1>(1);
@@ -187,9 +198,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
   const selectedBuy = sortedBuyRows.find((row) => row.itemId === selectedBuyId)
     ?? sortedBuyRows.find((row) => !row.locked && !row.blockerReason) ?? sortedBuyRows[0] ?? null;
-  const purchaseQuote = activeMarketId && selectedBuy && ledgerSection === "buy"
+  const purchaseQuote = activeMarketId && selectedBuy && ledgerSection === "buy" && buyValid
     ? onInspectCommodity(activeMarketId, selectedBuy.itemId, "buy", buyQty) : null;
-  const purchaseBlocker = selectedBuy?.blockerReason
+  const purchaseBlocker = (!buyValid ? "Enter a whole quantity of at least 1." : undefined)
+    ?? selectedBuy?.blockerReason
     ?? (!purchaseQuote?.success ? purchaseQuote?.reason ?? "Choose an item" : undefined)
     ?? (purchaseQuote?.available !== undefined && purchaseQuote.available < buyQty ? "Not enough in stock" : undefined)
     ?? (purchaseQuote?.affordable === false ? "Not enough gold" : undefined);
@@ -201,6 +213,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   const ticketName = selectedOwned?.name ?? "Produce";
   const ownedCount = selectedOwned?.owned ?? 0;
   const clampedQty = ownedCount > 0 ? Math.min(Math.max(sellQty, 1), ownedCount) : 1;
+  useEffect(() => {
+    setSellQty(1);
+  }, [selectedOwned?.itemId, ownedCount, setSellQty]);
+
   const ticketPrice = activeMarketId && selectedOwned
     ? onInspectCommodity(activeMarketId, selectedOwned.itemId, "sell", clampedQty)
     : null;
@@ -590,7 +606,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 )}
                 {fishCargoList.length === 0 ? (
                   <div className="no-cargo-card">
-                    <span>No sport fish currently in boat hold or carried in hand.</span>
+                    <span>No fish cargo currently in boat hold or carried in hand.</span>
                   </div>
                 ) : (
                   <div className="fish-cargo-trade-list">
@@ -640,6 +656,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                               </div>
                             </div>
                           </div>
+                          <details className="market-details-disclosure">
+                            <summary>Price details</summary>
                           <dl className="market-fish-breakdown" aria-label="Fish quote breakdown">
                             <div><dt>Base</dt><dd>{breakdown.speciesBasePrice} G</dd></div>
                             <div><dt>Weight</dt><dd>×{breakdown.weightModifier.toFixed(2)}</dd></div>
@@ -647,6 +665,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             <div><dt>Freshness</dt><dd>×{breakdown.freshnessModifier.toFixed(2)}</dd></div>
                             <div><dt>Demand</dt><dd>{breakdown.demandPercent}%</dd></div>
                           </dl>
+                          </details>
                           <div className="cargo-card-actions">
                             <strong className="cargo-value">{breakdown.finalPrice} G</strong>
                             {cargo.spoiled || breakdown.finalPrice <= 0 ? (
@@ -697,8 +716,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 <div><dt>In satchel</dt><dd>{selectedBuy.owned}</dd></div></dl>
               <div className="market-qty-stepper" data-testid="market-buy-qty">
                 <ChromeButton size="sm" aria-label="Buy fewer" disabled={buyQty <= 1} onClick={() => setBuyQty((n) => Math.max(1, n - 1))}>−</ChromeButton>
-                <input type="number" min={1} step={1} value={buyQty} aria-label="Quantity to buy" className="market-qty-input"
-                  onChange={(event) => { const n = Number(event.target.value); if (Number.isSafeInteger(n) && n >= 1) setBuyQty(n); }} />
+                <input type="number" min={1} step={1} value={buyInput} aria-invalid={!buyValid} aria-label="Quantity to buy" className="market-qty-input"
+                  onChange={(event) => setBuyInput(event.target.value)} />
                 <ChromeButton size="sm" aria-label="Buy more" disabled={buyQty >= Number.MAX_SAFE_INTEGER || (purchaseQuote?.available !== undefined && buyQty >= purchaseQuote.available)}
                   onClick={() => setBuyQty((n) => n + 1)}>+</ChromeButton>
               </div>
@@ -717,7 +736,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   if (!activeMarketId || purchaseBlocker) return;
                   if (selectedBuy.kind === "seed") onBuySeed(activeMarketId, selectedBuy.itemId, buyQty);
                   else onBuyItem(activeMarketId, selectedBuy.itemId, buyQty);
-                }}>Buy {buyQty}</ChromeButton>
+                }}>Buy{buyValid ? ` ${buyQty}` : ""}</ChromeButton>
               <span className="guild-ticket-destination">To your satchel</span>
               {purchaseTotal !== undefined && purchaseQuote?.affordable !== false && <p className="guild-remaining-purse">Remaining purse <strong>{(board.money - purchaseTotal).toLocaleString()} G</strong></p>}
             </div>}
@@ -741,7 +760,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     <span>Unit price</span>
                     <strong>{ticketPrice.unitPrice} G</strong>
                   </div>
-                  {demandTrend && <MarketDemandTrend trend={demandTrend} />}
+                  {demandTrend && <details className="market-details-disclosure"><summary>Demand outlook</summary><MarketDemandTrend trend={demandTrend} /></details>}
                   <div className="market-qty-stepper" data-testid="market-sell-qty">
                     <ChromeButton
                       size="sm"
@@ -762,12 +781,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                           min={1}
                           max={ownedCount}
                           step={1}
-                          value={clampedQty}
-                          onChange={(event) => {
-                            const next = Math.floor(Number(event.target.value));
-                            if (!Number.isFinite(next)) return;
-                            setSellQty(Math.min(ownedCount, Math.max(1, next)));
-                          }}
+                          value={sellInput}
+                          aria-invalid={!sellValid || sellQty > ownedCount}
+                          onChange={(event) => setSellInput(event.target.value)}
                           aria-label={`Quantity to sell, 1 to ${ownedCount}`}
                         />
                         <span aria-hidden="true"> / {ownedCount}</span>
@@ -800,15 +816,16 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     <button type="button" className={`market-quick-pill ${clampedQty === ownedCount ? "is-active" : ""}`} onClick={() => setSellQty(ownedCount)}>All</button>
                   </div>
                   <div className="market-ticket-live">
-                    You receive <strong>{liveGold.toLocaleString()} G</strong>
+                    You receive <strong>{sellValid && sellQty <= ownedCount ? liveGold.toLocaleString() : "—"} G</strong>
                   </div>
+                  {(!sellValid || sellQty > ownedCount) && <p className="guild-trade-blocker" role="status">Enter a whole quantity from 1 to {ownedCount}.</p>}
                   <div className="market-ticket-actions">
                     <ChromeButton
                       variant="gold"
                       soundCue="coins"
-                      disabled={!activeMarketId || ownedCount <= 0}
+                      disabled={!activeMarketId || ownedCount <= 0 || !sellValid || sellQty > ownedCount}
                       onClick={() =>
-                        activeMarketId && onSellItem(activeMarketId, selectedOwned.itemId, clampedQty)
+                        activeMarketId && sellValid && sellQty <= ownedCount && onSellItem(activeMarketId, selectedOwned.itemId, clampedQty)
                       }
                     >
                       Sell

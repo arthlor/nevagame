@@ -20,7 +20,7 @@ describe("UI Bug Hunt Regression Tests", () => {
       expect(html).toContain('class="guide-lead"');
       const source = readFileSync(new URL("../../src/ui/components/HowToPlayGuide.tsx", import.meta.url), "utf8");
       expect(source.match(/className="guide-lead"/g) ?? []).toHaveLength(4);
-      expect(html).toContain("The prompt anchored near the tool belt reflects the current valid action");
+      expect(html).toContain("Follow the prompt above your tools");
     });
   });
 
@@ -166,7 +166,7 @@ describe("UI Bug Hunt Regression Tests", () => {
           onClose: () => {}
         })
       );
-      expect(html).toContain("Guild Ledger &amp; Field Guide");
+      expect(html).toContain('aria-labelledby="guide-tab-actions"');
     });
   });
 });

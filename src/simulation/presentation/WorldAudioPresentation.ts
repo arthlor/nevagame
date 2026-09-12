@@ -21,7 +21,7 @@ export function buildWorldAudio(position: { x: number; z: number }, mode: GameMo
   const music: WorldMusicCue = quiet || interior ? "theme-piano"
     : fishing || mode === "boat-driving" ? "theme-guitar-arpeggio"
     : region === "region.village" || region === "region.harbor" ? "theme-village"
-    : "theme-folk-calm";
+    : "theme";
   const bed = interior ? "interior" : mode === "boat-driving" || WorldLayout.isWater(position.x, position.z)
     ? "water" : region === "region.village" ? "village" : (profile?.surfGain ?? 0) >= 0.4 ? "coast" : "farm";
   return { bed, music, layers: interior ? { "ambience-fireplace": 1, "ambience-wind": 0.12 } : {

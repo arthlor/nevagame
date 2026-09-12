@@ -1,6 +1,7 @@
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
 import { migrateOnboardingCredits35 } from "./migrateOnboardingCredits35";
 import { migrateTerrainLayout15 } from "./migrateTerrainLayout15";
+import { migrateTerrainLayout16 } from "./migrateTerrainLayout16";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -1416,7 +1417,8 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       processingJobs,
       sportFishing
     };
-  }
+  },
+  38: (state: unknown) => migrateTerrainLayout16(state as GameState)
 };
 
 

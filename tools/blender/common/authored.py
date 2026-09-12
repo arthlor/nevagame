@@ -7,7 +7,7 @@ import bpy
 
 from mathutils import Euler, Vector
 
-from .geometry import add_beam, add_box, add_cone, add_conforming_shell, add_limb_tube, add_lofted_form, add_tri_prism, apply_vertex_values, graft_limb, seeded_rng
+from .geometry import _build_mesh, add_beam, add_box, add_cone, add_conforming_shell, add_ico, add_limb_tube, add_lofted_form, add_tri_prism, apply_vertex_values, graft_limb, seeded_rng
 from .materials import get_or_create_material
 
 
@@ -247,6 +247,80 @@ def add_root_flare(prefix, center, radius, height, token, parent, *, count, seed
             (radius * 0.30, radius * 0.52, height * 0.72), token, parent,
             rotation=(math.pi * 0.5, angle, angle),
         )
+
+
+def add_tree_buttresses(prefix, center, radius, height, token, parent, *, count, seed):
+    """Low roots enter the bole with a tall shoulder and bury their thin ends."""
+    rng = seeded_rng(seed)
+    origin = Vector(center)
+    for index in range(count):
+        angle = index * math.tau / count + rng.uniform(-0.22, 0.22)
+        axis = Vector((math.cos(angle), math.sin(angle), 0))
+        side = Vector((-axis.y, axis.x, 0))
+        reach = radius * rng.uniform(0.68, 1.0)
+        width = radius * rng.uniform(0.09, 0.14)
+        verts = []
+        for distance, half_width, z_low, z_high in (
+            (radius * .10, width, .008, height * rng.uniform(.8, 1.05)),
+            (reach, width * .22, .004, .022),
+        ):
+            for sign, z in ((-1, z_low), (1, z_low), (1, z_high), (-1, z_high)):
+                verts.append(tuple(axis * distance + side * half_width * sign + Vector((0, 0, z))))
+        _build_mesh(f"{prefix}_{index:02d}", origin, verts,
+                    [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4),
+                     (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)],
+                    token, parent, recalc_normals=True)
+
+
+def add_canopy_lobe(name, center, scale, token, parent, *, seed, detail=1, rotation=(0, 0, 0)):
+    """A clipped, asymmetric leaf mass with broad facets and a broken shoulder.
+
+    The same low-frequency deformation is evaluated at both resolutions, so a
+    distant crown keeps its gesture instead of becoming a different random tree.
+    """
+    rng = seeded_rng(seed)
+    phase = rng.uniform(-math.pi, math.pi)
+    obj = add_ico(name, center, (1, 1, 1), token, parent,
+                  subdivisions=2 if detail else 1, normal_mode="planar")
+    basis = Euler(rotation).to_matrix()
+    for vertex in obj.data.vertices:
+        v = vertex.co.copy()
+        angle = math.atan2(v.y, v.x)
+        ripple = 1 + .12 * math.sin(3 * angle + phase) * (1 - abs(v.z) * .55)
+        ripple += .045 * math.cos(5 * angle - phase + v.z * 2)
+        v.x = v.x * ripple + .10 * v.z * v.z
+        v.y *= ripple * (1 + .07 * v.x)
+        v.z = max(-.78, min(.88, v.z)) + .065 * math.sin(angle * 2 + phase) * (1 - abs(v.z))
+        vertex.co = basis @ Vector((v.x * scale[0], v.y * scale[1], v.z * scale[2]))
+    obj.data.update()
+    apply_vertex_values(obj)
+    return obj
+
+
+def add_conifer_tier(name, center, radius, height, token, parent, *, seed, detail=1):
+    """One closed tier with uneven sweeping boughs, never a regular cone rim."""
+    rng = seeded_rng(seed)
+    sides = 24 if detail else 8
+    phase = rng.uniform(-math.pi, math.pi)
+    verts, faces = [], []
+    for row, (reach, z) in enumerate(((.20, -.23), (1, -.12), (.38, .40))):
+        for index in range(sides):
+            angle = phase + index * math.tau / sides
+            notch = .79 if index % 2 else 1
+            variation = 1 + .10 * math.sin(3 * angle + phase) + .06 * math.cos(5 * angle)
+            verts.append((math.cos(angle) * radius * reach * variation * notch,
+                          math.sin(angle) * radius * reach * variation * notch,
+                          height * (z + (.09 * math.sin(3 * angle + phase) if row == 1 else 0))))
+    for row in range(2):
+        for index in range(sides):
+            a, b = row * sides + index, row * sides + (index + 1) % sides
+            faces.extend(((a, b, b + sides), (a, b + sides, a + sides)))
+    bottom, top = len(verts), len(verts) + 1
+    verts.extend(((0, 0, -height * .24), (radius * .06, 0, height * .66)))
+    for index in range(sides):
+        nxt = (index + 1) % sides
+        faces.extend(((bottom, nxt, index), (top, 2 * sides + index, 2 * sides + nxt)))
+    return _build_mesh(name, center, verts, faces, token, parent, recalc_normals=True)
 
 
 def add_fasteners(prefix, positions, radius, token, parent, *, depth=0.04):

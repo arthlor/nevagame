@@ -1,8 +1,8 @@
 # AAA Graphics Implementation Blueprint
 
-Use this when a Three.js game reads as basic even after it is playable. The goal is a production graphics architecture that can be iterated, scored, profiled, and reused. For premium/AAA/showcase work, also load `references/technical-art.md` and treat the technical art brief and budget as part of the graphics architecture.
+Use selected sections when the requested graphics work exposes a missing shared owner or architecture problem. Start with the current implementation. In Neva, `01`, `04`, Art Pipeline and `BLENDER.md` own architecture, appearance and production; these examples do not create another contract.
 
-## Recommended Ownership
+## Illustrative Ownership for New Projects
 
 ```text
 src/assets/MaterialLibrary.ts
@@ -21,50 +21,33 @@ src/systems/WorldArtDirector.ts
 src/systems/QualityDiagnostics.ts
 ```
 
-Keep these boundaries lightweight. In small projects, a single file can contain multiple factories, but the concepts must remain separate: materials, authored geometry, repeated props, effects, render settings, and diagnostics.
+These names illustrate responsibilities, not required new files. Reuse the existing owners for materials, geometry, effects, rendering and diagnostics. Neva static models belong to its registered Blender families, not new runtime factories.
 
-## Hybrid AI Asset Pipeline
+## Asset Source and Affected Surfaces
 
-Choose the asset path per surface:
+Choose suitable existing, authored procedural or explicitly authorized external
+sources by the brief, provenance, fidelity and resource budget. No hero asset
+requires a provider output or a credential probe. Load a generator only for the
+authorized provider task. Neva static assets retain its catalog, registered
+Blender generator, validation and publication path; never publish a downloaded
+GLB directly.
 
-- Procedural Three.js: repeated detail, simple props, rails, track parts, decals, collision proxies, VFX geometry, debug-friendly primitives.
-- `threejs-image-generator`: concept sheets, T-pose/A-pose references, texture references, trim sheets, decals, icons, logos, skies, backgrounds, UI art.
-- `threejs-3d-generator`: hero/player, characters, creatures, vehicles, buildings, weapons, signature props, pickups, bosses, complex terrain modules.
-- Hybrid: image-generator concept/reference -> 3D-generator image-to-model -> Three.js import -> procedural collision/VFX/prop kit -> visual scorecard.
-
-For premium/AAA/showcase/high-fidelity/less-basic games, do not decide `threejs-3d-generator` or `threejs-image-generator` is unnecessary before loading the relevant skill when the game includes characters, creatures, vehicles, ships, weapons, buildings, signature props, hero pickups, skies, textures, decals, logos, icons, or GUI art. Load first, run the credential probe, then document the tradeoff.
-
-Use `threejs-3d-generator` when generated model fidelity will materially improve the active screenshot. Do not use generated 3D for every repeated small prop; use instancing/procedural kits for volume.
-
-For premium hero surfaces, procedural-only is not a valid final choice unless a real blocker is recorded: missing key from the credential probe, API/network/quota error after an attempted command, user requested no external assets, or offline-only constraint. Repeated low-value props can stay procedural.
-
-Fill the external asset sourcing ledger before the graphics phase using the canonical template in `threejs-game-director/references/phase-playbook.md` (Ledger Templates). It records the credential probe output, the chosen source per surface (procedural / `threejs-image-generator` / `threejs-3d-generator` / hybrid), and the generated outputs or allowed blocker for each surface.
-
-## Production Surfaces
-
-A premium pass must touch every weak visible surface:
-
-- Hero/player: authored silhouette, state feedback, decals/trim, readable front/up/side, collision proxy.
-- Hazards/enemies: at least three distinct silhouettes with telegraphs and material cues.
-- Rewards/interactables: at least two forms with collection states and motion/VFX hooks.
-- World kit: foreground, playable lane/arena, midground, background/parallax, set dressing, scale cues.
-- Materials/textures: shared PBR/stylized material library, procedural panel lines, noise, trim, wear, emissive masks.
-- Lighting/render: color space, tone mapping, exposure, shadows/contact, fog/depth, post-processing discipline.
-- VFX/motion: event-driven bursts, trails, impact rings, speed lines, shield/boost states, pickup/fail feedback.
-- UI/world cohesion: UI colors, icons, alerts, and meters echo gameplay materials and status colors.
-- Diagnostics: renderer counts, material/geometry/texture counts, screenshots, scorecard.
-
-For imported generated 3D assets, also require downloaded GLB/PBR output, import wrappers with scale/pivot/bounds, simple collision proxies, animation clips when relevant, and triangle/material/texture/file-size diagnostics.
+For a scoped pass, inspect and improve the named surfaces. For a whole-scene
+pass, consider the relevant subjects, interactions, world composition, materials,
+lighting, motion and UI cohesion. Do not require enemies, fixed variant counts,
+collectibles or additional effects where the game or task does not need them.
+Imported assets need the project’s scale, pivot, bounds, collision, animation,
+provenance and resource checks before integration.
 
 ## Technical Art Contract
 
-Before broad implementation, write the technical art brief and render budget from `references/technical-art.md`: hero vs support surfaces, render budget target, material kit roles, shader/VFX purpose, instancing/LOD/culling plan, and imported asset cleanup. Treat that brief as part of this graphics architecture.
+For a broad change to graphics architecture, record only new or changed decisions: visible purpose, shared ownership, resource envelope, batching/LOD strategy and integration risks. `references/technical-art.md` supplies optional planning detail; reuse the project’s existing brief and budgets.
 
-Do not add costly effects until this contract exists. A technical-art pass should make the scene more authored and more measurable at the same time.
+Measure costly effects against the existing budget and intended result before expanding their use.
 
 ## Material Library
 
-Implement the named material-role kit defined in `references/technical-art.md` (`bodyPrimary`, `bodySecondary`, `trim`, `hazard`, `reward`, `glass`, `emissiveSignal`, `groundContact`, `decalDark`/`decalLight`, plus shared UI/world signal colors) in `src/assets/MaterialLibrary.ts`. Create named roles instead of one-off colors and share materials across repeated meshes.
+Use the project’s named material roles and shared cache. `references/technical-art.md` illustrates possible roles for new projects; Neva uses `PaletteTokens`/`PaletteMaterials` and its palette JSON. Add a role only for a current material need.
 
 ## Procedural Texture And Decal Kit
 
@@ -79,7 +62,7 @@ Use canvas textures, shape geometry, or thin offset meshes for detail that would
 
 Set texture filtering, mipmaps, repeat/wrap, color space, and anisotropy intentionally. Avoid unique full-size textures for tiny repeated marks.
 
-Use `threejs-image-generator` for high-value 2D source art: terrain/rock/asphalt/snow/moss texture references, sci-fi trim sheets, signs, hazard stripes, cockpit decals, sky/background plates, menu/loading art, faction logos, pickup icons, ability icons, and GUI glyphs. Use the resulting images either as actual 2D assets or as image-to-3D inputs.
+When image generation is explicitly authorized, `threejs-image-generator` can supply 2D source art such as: terrain/rock/asphalt/snow/moss texture references, sci-fi trim sheets, signs, hazard stripes, cockpit decals, sky/background plates, menu/loading art, faction logos, pickup icons, ability icons, and GUI glyphs. Use the resulting images either as actual 2D assets or as image-to-3D inputs.
 
 ## Model Factories
 
@@ -102,11 +85,11 @@ type ModelFactoryResult = {
 
 Use named child meshes for readable debugging. Separate visual detail from collision proxies. Keep repeated detail instanced where practical.
 
-For imported generated 3D models, create an `ImportedAssetRegistry` or loader wrapper that returns similar metadata: root group, bounds, collision proxy, animation clips, and diagnostics. Never put 3D/image/audio generation API calls in browser runtime code.
+For imported 3D models, use the existing registry/loader; a new project may need a wrapper returning metadata such as: root group, bounds, collision proxy, animation clips, and diagnostics. Never put 3D/image/audio generation API calls in browser runtime code.
 
 ## World Art Director
 
-Build the world as layers:
+For a new world or a composition pass, consider applicable depth layers:
 
 - Play layer: ground, lanes, rails, objective path, hazards, pickups.
 - Near layer: speed props, signs, arches, barriers, debris, foreground occluders used carefully.
@@ -129,29 +112,26 @@ Own renderer setup in one place:
 
 ## VFX System
 
-Implement the event-driven VFX language from `references/technical-art.md` in `src/systems/VfxSystem.ts`. Effects should be pooled, readable, and tied to state; they must clarify state instead of adding permanent particle clutter.
+When VFX are in scope, use the existing event-driven owner; `references/technical-art.md` provides examples. Effects should be pooled, readable, and tied to state; they must clarify state instead of adding permanent particle clutter.
 
 ## Diagnostics
 
-Own diagnostics in `src/systems/QualityDiagnostics.ts`. Report the renderer diagnostics defined in `references/technical-art.md` (calls, triangles, geometries, textures, material count, DPR/post/shadow settings), plus these architecture-specific counts:
+Use existing diagnostics for the changed mechanism. Relevant measurements can include renderer calls, triangles, resources and DPR/post/shadow settings, plus:
 
 - Scene mesh count, instanced mesh count, unique materials/geometries/textures.
 - Approximate visible prop counts by layer.
-- Screenshot paths and visual scorecard.
+- Relevant view or motion evidence and observed defects.
 - Performance notes after post-processing, shadows, or many repeated props.
 
 ## Browser Game Budgets
 
-Use the render budget starting points and instancing/LOD/culling guidance in `references/technical-art.md`, then measure on the target game after every major graphics pass.
+Use project-owned budgets. The starting values in `references/technical-art.md` are examples for projects without a budget, not additional Neva limits. Measure matching scenarios when the change affects performance.
 
 ## Implementation Order
 
-1. Score active screenshots and identify the weakest three categories.
-2. Add material and diagnostic foundations.
-3. Decide which weak surfaces need procedural, `threejs-image-generator`, `threejs-3d-generator`, or hybrid treatment.
-4. Build/import hero/player and one complete obstacle/reward family.
-5. Add world prop kit and layered composition.
-6. Add lighting/render polish.
-7. Add event-driven VFX.
-8. Re-score desktop/mobile active screenshots.
-9. Optimize measured bottlenecks.
+1. Inspect the affected gameplay view and identify the cause of the visible miss.
+2. Reuse the owning material, generator, layout or renderer system.
+3. Improve relevant form, spacing, material or lighting in coherent increments.
+4. Add effects or assets only where the requested result needs them.
+5. Inspect the changed views and motion, correct scoped defects, and measure
+   plausible resource impacts. Follow the project task matrix for completion.

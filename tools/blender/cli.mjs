@@ -406,7 +406,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
   fish_trade_pack: {
     stripeToken: nonemptyString(), backToken: nonemptyString(), bellyToken: nonemptyString(), accentToken: nonemptyString(),
     width: number(0.4, 1.4), depth: number(0.3, 1), frameHeight: number(0.5, 1.5), basketHeight: number(0.3, 1),
-    species: choice("trout", "catfish", "pike", "arowana", "tuna", "sturgeon", "sailfish", "swordfish", "blue_marlin", "amberjack"),
+    species: choice("trout", "catfish", "pike", "arowana", "tuna", "sturgeon", "sailfish", "swordfish", "blue_marlin", "sea_bream", "amberjack"),
     length: number(0.3, 2), girth: number(0.03, 0.5), finScale: number(0.3, 2), bodyDepth: number(0.3, 2),
     bodySegments: integer(8, 24), radialSegments: integer(8, 20), tailPeduncle: number(0.05, 0.5),
   },

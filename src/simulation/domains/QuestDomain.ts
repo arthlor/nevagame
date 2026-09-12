@@ -425,7 +425,7 @@ export class QuestDomain {
 
     const targetNpcId = awaitingTurnIn ? speaker?.id
       : objective.type === "talk-npc" ? objective.targetId : undefined;
-    const targetAnchor = targetNpcId ? npcAnchorAt(targetNpcId, this.context.state.clock) : undefined;
+    const targetAnchor = targetNpcId ? npcAnchorAt(targetNpcId, this.context.state.clock, this.context.state.quests) : undefined;
 
     // Once the errand is ready to hand in, the target becomes the speaker; while
     // it is still blocked there is nowhere useful to point.
@@ -603,7 +603,7 @@ export class QuestDomain {
       return { success: false, reason: `Unknown NPC: '${npcId}'` };
     }
 
-    if (distance2d(state.player, npcAnchorAt(npcId, state.clock)) > NPC_TALK_RADIUS) {
+    if (distance2d(state.player, npcAnchorAt(npcId, state.clock, state.quests)) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Move closer to ${npc.name} to talk` };
     }
 
@@ -702,7 +702,7 @@ export class QuestDomain {
     }
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
-    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, npcAnchorAt(speaker.id, state.clock)) > NPC_TALK_RADIUS) {
+    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, npcAnchorAt(speaker.id, state.clock, state.quests)) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Return to ${speaker?.name ?? "the quest giver"} to turn this in` };
     }
 

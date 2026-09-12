@@ -6,6 +6,7 @@ import {
   type QualityTier
 } from "../config/VisualRenderConfig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import { ACKNOWLEDGE_FIREFLY_RADIUS_METERS } from "../presentation/WorldAcknowledgment";
 import { WORLD_BOUNDS, WORLD_LAYOUT_V5, WorldLayout } from "../../world/WorldLayout";
 
 export interface FireflyFieldUpdate {
@@ -13,6 +14,8 @@ export interface FireflyFieldUpdate {
   timeSeconds: number;
   nightVisibility: number;
   reducedMotion: boolean;
+  /** Meters of drift away from the player focus at full proximity. */
+  presenceRepelMeters?: number;
 }
 
 export interface FireflyInstance {
@@ -143,6 +146,8 @@ const FIREFLY_VERTEX_SHADER = /* glsl */ `
   uniform vec3 uFocus;
   uniform float uFadeStart;
   uniform float uFadeEnd;
+  uniform float uRepelMeters;
+  uniform float uRepelRadius;
 
   varying float vPulse;
   varying float vDistanceFade;
@@ -158,6 +163,12 @@ const FIREFLY_VERTEX_SHADER = /* glsl */ `
       sin(localTime * 0.91 + phase) * aLift
       + cos(localTime * 0.43 + phase * 0.61) * aLift * 0.42
     ) * uVerticalMotion * uMotionScale;
+    if (uRepelMeters > 0.001) {
+      vec2 away = worldPosition.xz - uFocus.xz;
+      float awayLength = length(away);
+      float repel = uRepelMeters * (1.0 - smoothstep(0.0, uRepelRadius, awayLength));
+      worldPosition.xz += (away / max(awayLength, 0.0001)) * repel;
+    }
 
     vec4 mvPosition = modelViewMatrix * vec4(worldPosition, 1.0);
     gl_Position = projectionMatrix * mvPosition;
@@ -255,6 +266,8 @@ export class FireflyField {
         uFocus: { value: new THREE.Vector3() },
         uFadeStart: { value: config.fadeStartMeters },
         uFadeEnd: { value: config.maxDistanceMeters },
+        uRepelMeters: { value: 0 },
+        uRepelRadius: { value: ACKNOWLEDGE_FIREFLY_RADIUS_METERS },
         uColor: { value: new THREE.Color(PALETTE_HEX.emissive_window_01) },
         uNightVisibility: { value: 0 },
         uOpacity: { value: config.baseOpacity }
@@ -292,6 +305,9 @@ export class FireflyField {
     this.material.uniforms.uNightVisibility.value = nightVisibility;
     this.material.uniforms.uMotionScale.value = motionScale;
     this.material.uniforms.uPulseScale.value = motionScale;
+    this.material.uniforms.uRepelMeters.value = input.reducedMotion
+      ? 0
+      : Math.max(0, input.presenceRepelMeters ?? 0);
     this.group.visible = !WorldLayout.isInterior(input.focus.x, input.focus.z)
       && count > 0
       && nightVisibility > 0.002;

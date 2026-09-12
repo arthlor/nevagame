@@ -2,7 +2,7 @@ import type { GameMode, GameState } from "../simulation/core/types";
 import { ModalStack } from "./ModalStack";
 
 export type GameplayMode = Exclude<GameMode, "menu" | "paused">;
-export type GameOverlay = "inventory" | "character" | "crafting" | "market" | "journal" | "expedition" | "dialogue" | "pause" | "map" | "ledger" | "new-game-confirm";
+export type GameOverlay = "inventory" | "character" | "crafting" | "market" | "journal" | "expedition" | "dialogue" | "catch" | "pause" | "map" | "ledger" | "new-game-confirm";
 export type ActiveModal = GameOverlay | null;
 
 
@@ -67,7 +67,7 @@ export class ModeController {
    */
   public get blocksOverlayHotkeys(): boolean {
     const active = this.activeModal;
-    return active === "market" || active === "dialogue" || active === "crafting" || active === "new-game-confirm";
+    return active === "market" || active === "dialogue" || active === "crafting" || active === "catch" || active === "new-game-confirm";
   }
 
   public restoreFromState(state: Readonly<GameState>): void {

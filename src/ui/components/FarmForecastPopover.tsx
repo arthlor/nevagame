@@ -65,15 +65,15 @@ export const FarmForecastPopover: React.FC<FarmForecastPopoverProps> = ({
         <div className="forecast-day-card forecast-metrics-card">
           <div className="forecast-impact-list">
             <div className="forecast-impact-item">
-              <span className="impact-label">Rain</span>
+              <span className="impact-label">Rain now</span>
               <span className="impact-value">{forecast.rainLabel}</span>
             </div>
             <div className="forecast-impact-item">
-              <span className="impact-label">Wind</span>
+              <span className="impact-label">Wind now</span>
               <span className="impact-value">{forecast.windLabel}</span>
             </div>
             <div className="forecast-impact-item">
-              <span className="impact-label">Sea</span>
+              <span className="impact-label">Sea now</span>
               <span className="impact-value">{forecast.seaLabel}</span>
             </div>
           </div>

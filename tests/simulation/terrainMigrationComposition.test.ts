@@ -28,10 +28,9 @@ describe("terrain migration composition boundary", () => {
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(before).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
-    // One call per layout-bearing migration in the chain (14, then 15), plus
-    // the no-op repeat load above. The claim is that the migration path never
-    // recomputes placements per actor, not a fixed number.
-    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(3);
+    // One cached placement request for each consuming migration (13–16),
+    // with no extra request per actor or from the no-op repeat load.
+    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(4);
   });
 
   it("shares cached static placements with the renderer without reading its deferred cover", async () => {

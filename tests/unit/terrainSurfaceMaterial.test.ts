@@ -100,6 +100,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.vertexShader).toContain("attribute float terrainGreenMask;");
     expect(shader.vertexShader).toContain("attribute float terrainPathBlend;");
     expect(shader.vertexShader).toContain("attribute vec3 terrainShoreWeights;");
+    expect(shader.vertexShader).toContain("attribute float terrainFaceting;");
     expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0;");
     expect(shader.vertexShader).toContain("vSurfaceCauses = max(surfaceCauses");
     expect(shader.vertexShader).toContain("vTerrainPathBlend");
@@ -138,6 +139,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("nevaSurfaceWeatherWetness");
     expect(shader.fragmentShader).toContain("nevaSurfaceRoughness");
     expect(shader.fragmentShader).toContain("nevaSurfaceFacetNormal");
+    expect(shader.fragmentShader).toContain("nevaTerrainFaceNormal");
     expect(shader.fragmentShader).toContain("terrainPolygonJaggedStrength");
     expect(shader.fragmentShader).toContain("terrainPolygonFacetLightingStrength");
     expect(shader.fragmentShader).toContain("mosaicMask");
@@ -184,7 +186,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.uniforms.terrainDebugMode.value).toBe(0);
     terrain.setDebugMode("shoreline");
     expect(shader.uniforms.terrainDebugMode.value).toBe(2);
-    expect(terrain.material.customProgramCacheKey()).toBe(TERRAIN_SURFACE_PROGRAM_CACHE_KEY);
+    expect(terrain.material.customProgramCacheKey()).toBe(`${TERRAIN_SURFACE_PROGRAM_CACHE_KEY}:world-atmosphere-v1`);
   });
 
   it("fails loudly when a required standard-shader chunk drifts", () => {

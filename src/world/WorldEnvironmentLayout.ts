@@ -89,9 +89,9 @@ export interface WorldEnvironmentLayout {
 export const GROUND_COVER_DENSITY: Readonly<
   Record<EnvironmentQualityTier, Readonly<Record<GroundCoverCategory, number>>>
 > = {
-  high: { grass: 11400, flowers: 2520, bushes: 180, meadowTall: 960, pebbles: 640, paving: 180, driftwood: 30 },
-  medium: { grass: 6080, flowers: 1340, bushes: 96, meadowTall: 520, pebbles: 340, paving: 96, driftwood: 18 },
-  low: { grass: 2660, flowers: 560, bushes: 42, meadowTall: 220, pebbles: 150, paving: 42, driftwood: 9 }
+  high: { grass: 66000, flowers: 2520, bushes: 180, meadowTall: 960, pebbles: 640, paving: 180, driftwood: 30 },
+  medium: { grass: 35400, flowers: 1340, bushes: 96, meadowTall: 520, pebbles: 340, paving: 96, driftwood: 18 },
+  low: { grass: 15600, flowers: 560, bushes: 42, meadowTall: 220, pebbles: 150, paving: 42, driftwood: 9 }
 };
 
 /** Extra tufts around the starter farm meadow, outside plantable soil. */
@@ -143,11 +143,11 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-/** Low, broad clumps make one meadow carpet instead of isolated dark spikes. */
+/** Fine blades retain their vertical gesture; coverage comes from distributed roots. */
 function grassClumpScale(variant: number): { horizontal: number; vertical: number } {
-  if (variant === 2) return { horizontal: 1.2, vertical: 0.76 };
-  if (variant === 1) return { horizontal: 1.26, vertical: 0.72 };
-  return { horizontal: 1.3, vertical: 0.66 };
+  if (variant === 2) return { horizontal: 1.04, vertical: 1.02 };
+  if (variant === 1) return { horizontal: 1.02, vertical: 0.94 };
+  return { horizontal: 1, vertical: 1 };
 }
 
 export type FarmPathPaverToken = "stone_warm_01" | "stone_golden_01";
@@ -484,7 +484,8 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.tree.pine.headland", { assetId: "tree_pine_b", x: -122, z: 45, rotationY: -0.42, scale: [1, 1, 1], grounding: [1.28, 0.8] }),
   authoredPlacement("authored.foliage.reeds.bridge-south", { assetId: "foliage_reeds_a", x: -8, z: -14.5, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.foliage.reeds.bridge-north", { assetId: "foliage_reeds_a", x: -20, z: 0.5, rotationY: -0.25, scale: [1, 1, 1] }),
-  authoredPlacement("authored.rock.headland-a", { assetId: "rock_coastal_a", x: -97.5, z: 71.5, rotationY: 0.24, scale: [1.15, 0.82, 1.1], grounding: [2.25, 1.35] }),
+  // Seat the rounded underside into the plateau so the approach reads a rooted outcrop.
+  authoredPlacement("authored.rock.headland-a", { assetId: "rock_coastal_a", x: -97.5, y: WorldLayout.terrainHeight(-97.5, 71.5) - 0.55, z: 71.5, rotationY: 0.24, scale: [1.15, 0.82, 1.1], grounding: [2.25, 1.35] }),
   authoredPlacement("authored.rock.headland-b", { assetId: "rock_coastal_b", x: -88, z: WorldLayout.coastlineZ(-88) - 15, rotationY: -0.36, scale: [0.9, 0.72, 0.86], grounding: [2.05, 1.25] }),
   authoredPlacement("authored.rock.western-shelf", { assetId: "rock_coastal_c", x: -48, z: WorldLayout.coastlineZ(-48) - 10, rotationY: 0.17, scale: [0.82, 0.72, 0.86], grounding: [1.65, 1.18] }),
   authoredPlacement("authored.rock.harbor-shelf-boulder", { assetId: "rock_coastal_boulder_a", x: 108, z: WorldLayout.coastlineZ(108) - 8, rotationY: 0.32, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
@@ -556,15 +557,15 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.fauna.rabbit-inland-glade-east", { assetId: "fauna_rabbit_a", x: 24.8, z: -28.2, rotationY: -2.1, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-inland-glade-west", { assetId: "fauna_rabbit_a", x: 21.4, z: -25.8, rotationY: 0.5, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-central-meadow", { assetId: "fauna_rabbit_a", x: 42, z: 4, rotationY: 2.35, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-central-meadow-east", { assetId: "fauna_rabbit_a", x: 43.6, z: 2.6, rotationY: -1.1, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-central-meadow-east", { assetId: "fauna_rabbit_a", x: 114.2, z: -14, rotationY: -1.1, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-central-meadow-west", { assetId: "fauna_rabbit_a", x: 40.4, z: 2.8, rotationY: 0.3, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-eastern-meadow", { assetId: "fauna_rabbit_a", x: 116, z: -59, rotationY: -2.15, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-eastern-meadow-west", { assetId: "fauna_rabbit_a", x: 114.4, z: -60.2, rotationY: 0.9, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-eastern-meadow-east", { assetId: "fauna_rabbit_a", x: 117.6, z: -57.8, rotationY: -0.4, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-harbor-road-north", { assetId: "fauna_rabbit_a", x: 53, z: 20, rotationY: 1.5, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-harbor-road-north", { assetId: "fauna_rabbit_a", x: 96.2, z: 8.5, rotationY: 1.5, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-harbor-road-north-pair", { assetId: "fauna_rabbit_a", x: 51.4, z: 21.6, rotationY: -0.6, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-harbor-road-south", { assetId: "fauna_rabbit_a", x: 64, z: 39, rotationY: -1.3, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-harbor-road-south-pair", { assetId: "fauna_rabbit_a", x: 65.6, z: 40.3, rotationY: 2.7, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-harbor-road-south", { assetId: "fauna_rabbit_a", x: 73.7, z: 30, rotationY: -1.3, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-harbor-road-south-pair", { assetId: "fauna_rabbit_a", x: 54.9, z: 35.1, rotationY: 2.7, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
 
   // Harbor cargo staging: crate & sack grouped tightly against the Fish Market exterior (x:64, z:60)
   authoredPlacement("authored.harbor.cargo-crate", { assetId: "prop_cargo_crate_large_a", x: 62.5, z: 58, rotationY: -0.08, scale: [1, 1, 1] }),
@@ -1071,7 +1072,7 @@ export function generateSunreachCausalCompositionPlacements(
       if (placement.grounding && !isPlacementFootprintStable(
         placement,
         isCoastalRock ? 0.8 : 0.72,
-        isCoastalRock ? 1.1 : 0.78
+        isCoastalRock ? 1.05 : 0.78
       )) continue;
       accepted.push(placement);
       categoryCount += 1;

@@ -52,7 +52,7 @@ export function buildSatchelDto(state: GameState): SatchelDto {
       itemId: slot.itemId,
       name: item?.name ?? fish?.name ?? slot.itemId,
       description: item?.description ?? null,
-      categoryLabel: item?.category ?? (fish ? "fish" : "item"),
+      categoryLabel: item?.category.replaceAll("-", " ") ?? (fish ? "fish" : "item"),
       inventoryCategory: inventoryCategory(item?.category, slot.itemId),
       quantity,
       cropId: crop?.id ?? null,
@@ -129,7 +129,7 @@ export function buildItemInspectionDto(state: GameState, itemId: string): ItemIn
   return {
     itemId,
     name: item?.name ?? fish?.name ?? itemId,
-    categoryLabel: item?.category ?? (fish ? "fish" : "item"),
+    categoryLabel: item?.category.replaceAll("-", " ") ?? (fish ? "fish" : "item"),
     loreText: item?.description ?? null,
     stackLimit: item?.stackLimit ?? 1,
     baseValue: item?.baseValue ?? 0,

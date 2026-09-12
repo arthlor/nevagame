@@ -3,6 +3,21 @@ import { ModeController } from "../../src/app/ModeController";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 
 describe("ModeController", () => {
+  it("blocks world input and unrelated shortcuts while inspecting a landed catch", () => {
+    const modes = new ModeController("boat-driving");
+    modes.open("catch");
+    expect(modes.blocksWorldInput).toBe(true);
+    expect(modes.blocksOverlayHotkeys).toBe(true);
+    expect(modes.pausesSimulation).toBe(false);
+    modes.closeActive();
+    modes.open("inventory");
+    expect(modes.activeModal).toBe("inventory");
+    expect(modes.blocksWorldInput).toBe(true);
+    modes.closeActive();
+    expect(modes.mode).toBe("boat-driving");
+    expect(modes.blocksWorldInput).toBe(false);
+  });
+
   it("keeps direct overlays modal without pausing simulation time", () => {
     const modes = new ModeController();
     modes.open("inventory");

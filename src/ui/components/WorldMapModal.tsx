@@ -7,7 +7,7 @@ import {
 } from "../../world/WorldLayout";
 import { WORLD_CHART_NODES } from "../../world/WorldGameplayLocations";
 import { worldPointToMapSvg } from "../../world/WorldMapProjection";
-import { IconCoin, IconCompass, IconFish, IconSprout, IconWarning } from "./HudIcons";
+import { IconCoin, IconCompass, IconFish, IconSprout } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
 import { handleTabListKeyDown } from "../useTabListKeyboard";
 import { ChromeClose } from "../chrome/Chrome";
@@ -30,6 +30,13 @@ interface WorldMapModalProps {
 }
 
 type MapLens = "geography" | "markets" | "fishing" | "farmland";
+
+function nodeSupportsLens(node: MapNode, lens: MapLens): boolean {
+  if (lens === "markets") return Boolean(node.marketId);
+  if (lens === "fishing") return Boolean(node.fishingHabitat);
+  if (lens === "farmland") return Boolean(node.farmId);
+  return true;
+}
 
 const MAP_LENS_ICONS: Record<MapLens, React.ReactNode> = {
   geography: <IconCompass size={18} aria-hidden="true" />,
@@ -191,6 +198,10 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 onClick={() => {
                   playUiSound("page-turn");
                   setActiveLens(lens);
+                  if (!nodeSupportsLens(selectedNode, lens)) {
+                    const destination = MAP_NODES.find((node) => nodeSupportsLens(node, lens));
+                    if (destination) setSelectedNodeId(destination.id);
+                  }
                 }}
               >
                 {MAP_LENS_ICONS[lens]}
@@ -216,6 +227,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                   <g
                     key={node.id}
                     className="map-node-group"
+                    data-lens-relevant={nodeSupportsLens(node, activeLens)}
                     onClick={() => {
                       playUiSound("click");
                       setSelectedNodeId(node.id);
@@ -327,10 +339,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                         strokeDasharray="4 3"
                       />
                       <circle r="3.4" fill={school.feeding ? "#f0a020" : "#2f7d9a"} />
-                      <title>
-                        {`${school.waterLabel} school · ${school.minutesRemaining} min left`}
-                        {school.feeding ? " · feeding" : ""}
-                      </title>
+                      <title>{`${school.waterLabel} school · ${school.minutesRemaining} min left${school.feeding ? " · feeding" : ""}`}</title>
                     </g>
                   );
                 })}
@@ -493,8 +502,13 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
 
             <div className="map-sidebar-tip">
-              <IconWarning size={14} aria-hidden="true" />
-              <span>The chart keeps fixed places; fishing notes show only discoveries and records.</span>
+              <span>{activeLens === "fishing"
+                ? "Select a waterway to read your discoveries and catches."
+                : activeLens === "farmland"
+                  ? "Select a farm to read its soil and planting notes."
+                  : activeLens === "markets"
+                    ? "Select a market to see what it needs."
+                    : "Select a place to read its route notes."}</span>
             </div>
           </aside>
         </div>

@@ -8,6 +8,7 @@ import {
   POLYHAVEN_SURFACE_TEXTURES
 } from "./ExternalSurfaceTextures";
 import { PaletteMaterials } from "./PaletteMaterials";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PALETTE_HEX } from "./PaletteTokens";
 import {
   SURFACE_FIELD_FRAGMENT_GLSL,
@@ -399,6 +400,7 @@ export class RoadSurfaceMaterial {
       patchRoadSurfaceShader(shader as RoadSurfaceShaderSource, this.shaderUniforms);
     };
     this.material.customProgramCacheKey = () => ROAD_SURFACE_PROGRAM_CACHE_KEY;
+    applyWorldAtmosphere(this.material);
     this.material.needsUpdate = true;
   }
 

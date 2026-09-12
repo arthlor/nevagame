@@ -26,7 +26,6 @@ function createAppHarness() {
     notify: vi.fn(),
     enterCropPlacement: vi.fn(),
     exitCropPlacement: vi.fn(),
-    farmingActions: { isActive: false },
     isMountTransitionActive: () => false,
     pickPointedCropInteraction: () => null,
     handleCastFishing

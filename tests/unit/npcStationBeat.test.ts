@@ -73,6 +73,43 @@ describe("npcStationBeat", () => {
     }
   });
 
+  it("turns toward the next leg during the pause so corners are not walked sideways", () => {
+    const spec = NPC_STATION_BEATS["npc.elspeth"];
+    const [first, second, third] = spec.waypoints;
+    const walkDuration = Math.hypot(second.dx - first.dx, second.dz - first.dz)
+      / spec.walkSpeedMetersPerSecond;
+    const pauseSample = sampleNpcStationBeat(spec, walkDuration + spec.pauseSeconds * 0.5);
+    expect(pauseSample.walking).toBe(false);
+    const nextLegHeading = Math.atan2(third.dx - second.dx, third.dz - second.dz);
+    expect(pauseSample.heading).toBeCloseTo(nextLegHeading, 6);
+  });
+
+  it("keeps every straight segment between authored waypoints on canonical walkable support", () => {
+    const minimumGroundNormalY = Math.cos((38 * Math.PI) / 180);
+    for (const [npcId, spec] of Object.entries(NPC_STATION_BEATS)) {
+      const npc = ContentRegistry.npcs.get(npcId);
+      expect(npc, npcId).toBeDefined();
+      for (let index = 0; index < spec.waypoints.length; index += 1) {
+        const from = spec.waypoints[index];
+        const to = spec.waypoints[(index + 1) % spec.waypoints.length];
+        const distance = Math.hypot(to.dx - from.dx, to.dz - from.dz);
+        const steps = Math.max(1, Math.ceil(distance / 0.12));
+        for (let step = 0; step <= steps; step += 1) {
+          const t = step / steps;
+          const x = npc!.anchor.x + from.dx + (to.dx - from.dx) * t;
+          const z = npc!.anchor.z + from.dz + (to.dz - from.dz) * t;
+          const label = `${npcId}/segment${index}/${step}`;
+          expect(WorldLayout.isWalkable(x, z), label).toBe(true);
+          expect(WorldLayout.isWater(x, z), label).toBe(false);
+          expect(
+            WorldLayout.traversalSurfaceSample(x, z).normal.y,
+            label
+          ).toBeGreaterThanOrEqual(minimumGroundNormalY);
+        }
+      }
+    }
+  });
+
   it("keeps authored station waypoints on canonical walkable support", () => {
     const minimumGroundNormalY = Math.cos((38 * Math.PI) / 180);
     for (const [npcId, spec] of Object.entries(NPC_STATION_BEATS)) {

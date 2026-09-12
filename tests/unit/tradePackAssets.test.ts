@@ -12,11 +12,13 @@ import { fishCargoPackAsset, fishSpeciesAsset, FISH_CARGO_PACK_ASSETS } from "..
 import { createCarryCradle } from "../../src/render/animation/CharacterEquipment";
 
 describe("trade pack asset integration", () => {
-  it("covers exactly physical sport fish and keeps the live fish binding separate", () => {
-    const sport = Object.values(FISH_SPECIES).filter(fish => fish.isSportFish).map(fish => fish.id).sort();
-    expect(Object.keys(FISH_CARGO_PACK_ASSETS).sort()).toEqual(sport);
-    for (const id of sport) expect(fishCargoPackAsset(id)).not.toBe(fishSpeciesAsset(id));
-    expect(fishCargoPackAsset("fish.sea_bream")).toBeNull();
+  it("covers every physical catch and keeps live fish bindings separate", () => {
+    const physical = Object.values(FISH_SPECIES)
+      .filter(fish => fish.isSportFish || fish.tags.includes("physical-basic-catch"))
+      .map(fish => fish.id)
+      .sort();
+    expect(Object.keys(FISH_CARGO_PACK_ASSETS).sort()).toEqual(physical);
+    for (const id of physical) expect(fishCargoPackAsset(id)).not.toBe(fishSpeciesAsset(id));
     expect(fishCargoPackAsset("fish.sardine")).toBeNull();
   });
 
@@ -33,7 +35,7 @@ describe("trade pack asset integration", () => {
   it("loads every published pack with both LODs and finite upright carry geometry", async () => {
     await MeshoptDecoder.ready;
     const packs = ASSET_CATALOG.filter(asset => asset.id.startsWith("prop_trade_pack_"));
-    expect(packs).toHaveLength(19);
+    expect(packs).toHaveLength(20);
     for (const spec of packs) {
       const bytes = await fs.readFile(path.resolve("public/assets/models", spec.file));
       const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)

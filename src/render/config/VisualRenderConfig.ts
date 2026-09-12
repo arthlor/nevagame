@@ -102,6 +102,32 @@ export interface VisualRenderConfig {
     practicalHoldDaylight: number;
     practicalFadeWidth: number;
   };
+  atmosphere: {
+    cloudBaseMeters: number;
+    cloudHeightMeters: number;
+    cloudScaleMeters: number;
+    cloudExtinction: number;
+    cloudErosion: number;
+    cloudMaxDistanceMeters: number;
+    cloudShadowSpanMeters: number;
+    cloudShadowStrength: number;
+    weatherResponseSeconds: number;
+    windSpeedScale: number;
+    horizonHaze: number;
+    aerialPerspective: {
+      clearMistDensity: number;
+      poorVisibilityMistDensity: number;
+      mistVisibilityStart: number;
+      mistVisibilityFull: number;
+      mistHeightMeters: number;
+      nearFadeStartMeters: number;
+      nearFadeEndMeters: number;
+      boundaryFadeStart: number;
+    };
+    sunDiscRadiusRadians: number;
+    moonDiscRadiusRadians: number;
+    quality: Record<QualityTier, { resolutionScale: number; maximumWidth: number; primarySteps: number; lightSteps: number; layerSteps: number; shadowResolution: number }>;
+  };
   shadows: {
     type: THREE.ShadowMapType;
     intensity: number;
@@ -132,6 +158,8 @@ export interface VisualRenderConfig {
       practicalLightBudget: number;
       lodDistanceScale: number;
       groundCoverDrawDistanceMeters: number;
+      shortGrassDrawDistanceMeters: number;
+      shortGrassFarInstanceCap: number;
       groundCoverFarDistanceMeters: number;
       groundCoverDensityScale: number;
       rainDropCount: number;
@@ -166,6 +194,12 @@ export interface VisualRenderConfig {
     cultivatedWetnessMix: number;
     roadWetnessMix: number;
   };
+  rainSurfaces: {
+    /** Albedo darkening, roughness reduction, minimum wet roughness. */
+    wood: readonly [number, number, number];
+    stone: readonly [number, number, number];
+    foliage: readonly [number, number, number];
+  };
   terrainSurface: {
     textureSize: number;
     largeSampleScaleMeters: number;
@@ -192,6 +226,8 @@ export interface VisualRenderConfig {
     colorVariationStrength: number;
     paletteVariationStrength: number;
     meadowColorMix: number;
+    dryClimateColorMix: number;
+    dryRidgeExposureStrength: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
     polygonFacetLightingStrength: number;
@@ -266,6 +302,9 @@ export interface VisualRenderConfig {
       absorptionPerMeter: readonly [number, number, number];
       refractionPixels: number;
       rippleNormalStrength: number;
+      causticStrength: number;
+      /** Full shallow response begins fading at the first depth, gone at the second. */
+      causticDepthFadeMeters: readonly [number, number];
       /** Camera-distance start/end and remaining broad slope at the far end. */
       distantSlope: readonly [number, number, number];
       swashPeriodSeconds: number;
@@ -427,6 +466,8 @@ export interface VisualRenderConfig {
     trunkHoldMeters: number;
     /** Height above the trunk hold over which sway reaches full strength. */
     canopySpanMeters: number;
+    gustWavelengthMeters: number;
+    gustTravelMetersPerSecond: number;
   };
   fishSchools: {
     memberCount: number;
@@ -554,6 +595,36 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     practicalHoldDaylight: 0.36,
     practicalFadeWidth: 0.55
   },
+  atmosphere: {
+    cloudBaseMeters: 145,
+    cloudHeightMeters: 86,
+    cloudScaleMeters: 145,
+    cloudExtinction: 0.045,
+    cloudErosion: 0.16,
+    cloudMaxDistanceMeters: 2400,
+    cloudShadowSpanMeters: 900,
+    cloudShadowStrength: 0.64,
+    weatherResponseSeconds: 7,
+    windSpeedScale: 0.075,
+    horizonHaze: 0.00055,
+    aerialPerspective: {
+      clearMistDensity: 0.001,
+      poorVisibilityMistDensity: 0.018,
+      mistVisibilityStart: 0.7,
+      mistVisibilityFull: 0.15,
+      mistHeightMeters: 12,
+      nearFadeStartMeters: 12,
+      nearFadeEndMeters: 32,
+      boundaryFadeStart: 0.72
+    },
+    sunDiscRadiusRadians: 0.009,
+    moonDiscRadiusRadians: 0.013,
+    quality: {
+      low: { resolutionScale: 0.5, maximumWidth: 640, primarySteps: 0, lightSteps: 0, layerSteps: 12, shadowResolution: 64 },
+      medium: { resolutionScale: 0.5, maximumWidth: 960, primarySteps: 0, lightSteps: 0, layerSteps: 16, shadowResolution: 128 },
+      high: { resolutionScale: 0.5, maximumWidth: 1280, primarySteps: 32, lightSteps: 3, layerSteps: 16, shadowResolution: 192 }
+    }
+  },
   shadows: {
     type: THREE.PCFSoftShadowMap,
     // Fully opaque shadows crushed dark palette families - coastal rock and dark
@@ -592,6 +663,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 1,
       lodDistanceScale: 0.7,
       groundCoverDrawDistanceMeters: 55,
+      shortGrassDrawDistanceMeters: 28,
+      shortGrassFarInstanceCap: 80,
       groundCoverFarDistanceMeters: 330,
       groundCoverDensityScale: 0.24,
       rainDropCount: 140,
@@ -613,6 +686,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 3,
       lodDistanceScale: 0.85,
       groundCoverDrawDistanceMeters: 78,
+      shortGrassDrawDistanceMeters: 36,
+      shortGrassFarInstanceCap: 140,
       groundCoverFarDistanceMeters: 380,
       groundCoverDensityScale: 0.48,
       rainDropCount: 240,
@@ -636,6 +711,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       practicalLightBudget: 4,
       lodDistanceScale: 0.95,
       groundCoverDrawDistanceMeters: 96,
+      shortGrassDrawDistanceMeters: 44,
+      shortGrassFarInstanceCap: 220,
       groundCoverFarDistanceMeters: 430,
       groundCoverDensityScale: 0.6,
       rainDropCount: 360,
@@ -661,13 +738,18 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     clodCount: 24
   },
   groundSurface: {
-    shortCoverRootShade: 0.74,
+    shortCoverRootShade: 0.86,
     polygonCellScaleMeters: 1.2,
     edgeCellScaleMeters: 1.2,
     wetness: SHARED_GROUND_WETNESS,
     cultivatedEdgeMix: 0.1,
     cultivatedWetnessMix: 0.08,
     roadWetnessMix: 0.08
+  },
+  rainSurfaces: {
+    wood: [0.2, 0.1, 0.66],
+    stone: [0.15, 0.18, 0.56],
+    foliage: [0.035, 0.12, 0.58]
   },
   terrainSurface: {
     textureSize: 128,
@@ -695,6 +777,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     colorVariationStrength: 0.06,
     paletteVariationStrength: 0.34,
     meadowColorMix: 0.34,
+    dryClimateColorMix: 0.9,
+    dryRidgeExposureStrength: 0.72,
     polygonVariationStrength: 0.24,
     polygonJaggedStrength: 0.14,
     polygonFacetLightingStrength: 0.04,
@@ -769,6 +853,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       absorptionPerMeter: [0.32, 0.11, 0.075],
       refractionPixels: 2.4,
       rippleNormalStrength: 0.075,
+      causticStrength: 0.8,
+      causticDepthFadeMeters: [2, 5],
       distantSlope: [18, 95, 0.035],
       swashPeriodSeconds: 10.8,
       swashReachMeters: 1.3,
@@ -792,7 +878,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     depthColorStrength: 0.78,
     headwaters: {
       maxRowSpacingMeters: 0.75,
-      rapidsFoamStrength: 0.52,
+      rapidsFoamStrength: 0.38,
       rapidsGradeStart: 0.15,
       rapidsGradeFull: 0.65,
       rapidsCellScaleMeters: 1.3,
@@ -927,7 +1013,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     amplitudeMeters: 0.14,
     coastalAmplitudeMeters: 0.32,
     trunkHoldMeters: 1.6,
-    canopySpanMeters: 5.5
+    canopySpanMeters: 5.5,
+    gustWavelengthMeters: 45,
+    gustTravelMetersPerSecond: 3.8
   },
   fishSchools: {
     memberCount: 5,

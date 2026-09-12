@@ -20,6 +20,8 @@ export interface CameraCollisionResolver {
 
 export interface CameraMotionInput {
   player: PlayerMotionSample;
+  /** Authored-world openness after working-area and active-interaction suppression. */
+  explorationWeight?: number;
   boat?: BoatMotionSample;
   discontinuityReason?: PresentationDiscontinuityReason;
   discontinuitySequence?: number;
@@ -67,7 +69,9 @@ export const CAMERA_TUNING = Object.freeze({
   collisionRadiusMeters: 0.32,
   terrainClearanceMeters: 0.48,
   teleportSnapDistanceMeters: 8,
-  maximumNarrowAspectFovIncreaseDegrees: 9
+  maximumNarrowAspectFovIncreaseDegrees: 9,
+  explorationPitchOffsetRadians: degrees(-9.5),
+  explorationFovOffsetDegrees: 8
 });
 
 const ON_FOOT_PROFILE: CameraProfile = {
@@ -182,6 +186,8 @@ export class GameCamera {
   private currentDistance = ON_FOOT_PROFILE.distance;
   private currentFocusHeight = ON_FOOT_PROFILE.focusHeight;
   private currentLookAhead = ON_FOOT_PROFILE.lookAhead;
+  private manualExplorationOverride = false;
+  private manualExplorationFovOffset = 0;
   private zoomOffset = 0;
   private obstructionFraction = 1;
   private obstructionActive = false;
@@ -245,6 +251,18 @@ export class GameCamera {
     const profile = this.activateMode(mode, isInterior);
     const hasOrbitDelta = Math.abs(input.orbitDeltaX) > 0 || Math.abs(input.orbitDeltaY) > 0;
 
+    if ((hasOrbitDelta || input.zoomDelta !== 0) && !this.manualExplorationOverride
+      && (mode === "on-foot" || mode === "mounted" || mode === "boat-driving") && !isInterior) {
+      // Continue from the visible framing on first hand input. Landscape changes
+      // must never pull the player's chosen pitch or lens back afterwards.
+      this.desiredPitch = this.currentPitch;
+      this.manualExplorationFovOffset = THREE.MathUtils.clamp(
+        unresponsiveVerticalFov(this.camera.fov, this.camera.aspect) - profile.fovDegrees,
+        0, CAMERA_TUNING.explorationFovOffsetDegrees
+      );
+      this.manualExplorationOverride = true;
+    }
+
     if (hasOrbitDelta) {
       // A hand orbit takes priority; the sport-fishing auto-yaw stands down for a moment.
       this.sportOrbitCooldown = 1.6;
@@ -284,6 +302,11 @@ export class GameCamera {
     if (input) this.applyInput(mode, input);
     const isInterior = WorldLayout.isInterior(targetPos.x, targetPos.z);
     const profile = this.activateMode(mode, isInterior, motionInput?.fightReachMeters ?? 0);
+    const explorationAllowed = !isInterior && (mode === "on-foot" || mode === "mounted" || mode === "boat-driving");
+    const explorationWeight = explorationAllowed && !this.manualExplorationOverride && !this.reducedMotion
+      ? THREE.MathUtils.clamp(motionInput?.explorationWeight ?? 0, 0, 1) : 0;
+    const targetPitch = clamp(this.desiredPitch + explorationWeight * CAMERA_TUNING.explorationPitchOffsetRadians,
+      profile.minPitchRadians, profile.maxPitchRadians);
 
     // --- Sport-fishing cinematic beats and behaviour-driven dolly ---------------
     this.sportOrbitCooldown = Math.max(0, this.sportOrbitCooldown - dt);
@@ -381,13 +404,14 @@ export class GameCamera {
 
     if (this.reducedMotion && mode !== "sport-fishing") {
       this.currentYaw = this.desiredYaw;
-      this.currentPitch = this.desiredPitch;
+      this.currentPitch = targetPitch;
       this.currentDistance = targetDistance;
       this.currentFocusHeight = profile.focusHeight;
       this.currentLookAhead = profile.lookAhead;
     } else {
       this.currentYaw = dampAngle(this.currentYaw, this.desiredYaw, CAMERA_TUNING.rotationResponse, dt);
-      this.currentPitch = damp(this.currentPitch, this.desiredPitch, CAMERA_TUNING.rotationResponse, dt);
+      this.currentPitch = damp(this.currentPitch, targetPitch,
+        explorationAllowed && !this.manualExplorationOverride ? CAMERA_TUNING.profileResponse : CAMERA_TUNING.rotationResponse, dt);
       this.currentDistance = damp(this.currentDistance, targetDistance, CAMERA_TUNING.distanceResponse, dt);
       this.currentFocusHeight = damp(this.currentFocusHeight, profile.focusHeight, CAMERA_TUNING.profileResponse, dt);
       this.currentLookAhead = damp(this.currentLookAhead, profile.lookAhead, CAMERA_TUNING.profileResponse, dt);
@@ -549,7 +573,9 @@ export class GameCamera {
       this.fightTrauma = 0;
     }
 
-    const targetFov = responsiveVerticalFov(profile.fovDegrees, this.camera.aspect);
+    const explorationFov = explorationAllowed && this.manualExplorationOverride
+      ? this.manualExplorationFovOffset : explorationWeight * CAMERA_TUNING.explorationFovOffsetDegrees;
+    const targetFov = responsiveVerticalFov(profile.fovDegrees + explorationFov, this.camera.aspect);
     this.camera.fov = this.reducedMotion && mode !== "sport-fishing"
       ? targetFov
       : damp(this.camera.fov, targetFov, CAMERA_TUNING.profileResponse, dt);
@@ -833,6 +859,15 @@ function responsiveVerticalFov(baseDegrees: number, aspectRatio: number): number
     baseDegrees,
     baseDegrees + CAMERA_TUNING.maximumNarrowAspectFovIncreaseDegrees
   );
+}
+
+/** Invert the responsive lens before retaining a hand-selected framing. */
+function unresponsiveVerticalFov(visibleDegrees: number, aspectRatio: number): number {
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0 || aspectRatio >= REFERENCE_ASPECT_RATIO) return visibleDegrees;
+  const horizontalPreservedBase = THREE.MathUtils.radToDeg(2 * Math.atan(
+    Math.tan(degrees(visibleDegrees) / 2) * aspectRatio / REFERENCE_ASPECT_RATIO
+  ));
+  return Math.max(horizontalPreservedBase, visibleDegrees - CAMERA_TUNING.maximumNarrowAspectFovIncreaseDegrees);
 }
 
 function clamp(value: number, min: number, max: number): number {

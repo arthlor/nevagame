@@ -1,6 +1,6 @@
 # Three.js Integration
 
-Use this after `threejs-3d-generator` generates or post-processes a model.
+Use this after an explicitly requested `threejs-3d-generator` operation. These are generic integration techniques; Neva admission uses its catalog and registered Blender path, never direct publication of a downloaded GLB.
 
 ## Preferred Outputs
 
@@ -83,8 +83,8 @@ Inspect before shipping:
 
 - Use `threejs-3d-generator` for hero assets, characters, creatures, bosses, buildings, weapons, signature props, and complex pickups.
 - Use procedural Three.js kits for high-volume repeated detail such as bolts, windows, track plates, rails, debris, markers, and background silhouettes.
-- Use `threejs-image-generator` for concept art, texture references, decals, logos, UI icons, and backdrop images.
-- Combine: image-generator concept -> 3D-generator model -> Three.js import -> procedural set dressing -> visual scorecard.
+- If image generation is also explicitly authorized, `threejs-image-generator` can supply concept art, texture references, decals, logos, UI icons and backdrop images; reuse existing sources where suitable.
+- Combine: image-generator concept -> 3D-generator model -> Three.js import -> procedural set dressing -> gameplay-view inspection.
 
 ## Performance Discipline
 

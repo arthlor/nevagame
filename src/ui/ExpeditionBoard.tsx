@@ -72,9 +72,10 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
               <span>Supplies</span>
             </div>
             <div className="expedition-supplies-grid">
-              {readiness.supplies.map(({ itemId, count }) => (
-                <span key={itemId} className={`expedition-supply-pill ${count > 0 ? "is-ready" : "is-missing"}`} title={`Count: ${count}`}>
+              {readiness.supplies.map(({ itemId, name, count }) => (
+                <span key={itemId} className={`expedition-supply-pill ${count > 0 ? "is-ready" : "is-missing"}`}>
                   <AtlasImage src={atlasForItem(itemId)} alt="" size={18} />
+                  <span>{name}</span>
                   <strong>{count}</strong>
                 </span>
               ))}

@@ -141,6 +141,7 @@ describe("Sunreach world contract", () => {
   });
 
   it("grades every authored land route onto walkable patch-aware traversal", () => {
+    expect(WorldLayout.traversalSurfaceHeight(SUNREACH_ANCHORS.dockPlayer.x, SUNREACH_ANCHORS.dockPlayer.z)).toBeGreaterThan(0);
     const compiled = WorldLayout.compiledRouteNetwork();
     for (const route of SUNREACH_ROUTES) {
       const samples = compiled.find((candidate) => candidate.route.id === route.id)?.samples ?? [];
@@ -162,7 +163,7 @@ describe("Sunreach world contract", () => {
     expect(cove).toMatchObject({ climateId: "warm", temperatureC: 24, rainfallEffectiveness: 0.65, effectivePrecipitation: 0.52 });
     expect(ridge.evaporationMultiplier).toBeGreaterThanOrEqual(cove.evaporationMultiplier);
 
-    const environment = sampleFarmEnvironment(state.farms["farm.sunreach_terraces"], weather);
+    const environment = sampleFarmEnvironment(state.farms["farm.sunreach_terraces"], weather, { x: 0, z: 0 });
     expect(environment).toMatchObject({
       islandId: "island.sunreach",
       biomeId: "biome.sunreach_warm_dry",
@@ -170,6 +171,19 @@ describe("Sunreach world contract", () => {
       moistureRetention: 0.45,
       rainfallEffectiveness: 0.65
     });
+
+    // The sampler reads the crop's position, not one farm-wide origin sample.
+    const origin = SUNREACH_ANCHORS.terraceFarm;
+    const ridgeLocal = { x: 0, z: 22 };
+    const coveLocal = { x: 0, z: -29 };
+    const ridgeEnv = sampleFarmEnvironment(state.farms["farm.sunreach_terraces"], weather, ridgeLocal);
+    const coveEnv = sampleFarmEnvironment(state.farms["farm.sunreach_terraces"], weather, coveLocal);
+    const ridgeSample = WorldLayout.climateSampleAt(origin.x + ridgeLocal.x, origin.z + ridgeLocal.z, weather);
+    const coveSample = WorldLayout.climateSampleAt(origin.x + coveLocal.x, origin.z + coveLocal.z, weather);
+    expect(ridgeEnv.temperatureC).toBe(ridgeSample.temperatureC);
+    expect(ridgeEnv.exposure).toBeCloseTo(ridgeSample.exposure, 10);
+    expect(coveEnv.temperatureC).toBe(coveSample.temperatureC);
+    expect(coveEnv.exposure).toBeCloseTo(coveSample.exposure, 10);
   });
 
   it("keeps realtime and offline Sunreach crop growth and local cargo freshness identical", () => {

@@ -1,9 +1,12 @@
 ---
 name: threejs-debug-profiler
-description: "Debug and profile Three.js browser games. Combines scene debugging, render/runtime/loading/animation/resize/mobile input fixes, performance profiling, draw calls, triangles, textures, memory, shader/post-processing cost, bundle size, and mobile DPR/input issues."
+description: "Debug and profile Three.js browser games. Use for blank canvas, render/runtime/loading/animation/resize/mobile bugs, draw calls, memory, shader cost, bundle size, and DPR or input issues. Not for QA sign-off."
 ---
 
 # Three.js Debug Profiler
+
+- **Stack contract.** Renderer: WebGL2 or WebGPU per project; verify context, loop, and resize ownership before profiling.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 ## Purpose
 
@@ -11,9 +14,11 @@ Find root causes and optimize measured bottlenecks without breaking playability.
 
 ## Debug Workflow
 
-Load `references/debug-profile-checklists.md` as the first action when debugging render/runtime/mobile issues, asset loading, audio loading/playback, animation, resize, input, blank canvas, physics/collision bugs, or profiling performance. Track it in a reference ledger with yes/no, path, and failure reason. Do not mark the debug/profile phase complete while this reference is skipped for debug or profiling work.
+Use the relevant section of `references/debug-profile-checklists.md` for the observed symptom or profiling question. Start from the failing caller and its owner; no reference ledger or unrelated diagnostic tour is required.
 
 Load `references/checklists/scene-debugging.md` for render/runtime bug diagnosis, `references/checklists/performance-profile.md` for profiling work, and `references/checklists/mobile-input.md` for mobile render/input issues. Load `references/prompt-templates.md` only when the user asks for reusable debug/profile prompts or a task template.
+
+Apply the following checks as relevant to the symptom; they are a diagnostic menu, not a mandatory sequence for every bug.
 
 1. Reproduce locally.
 2. Read console/page/network errors.
@@ -23,7 +28,7 @@ Load `references/checklists/scene-debugging.md` for render/runtime bug diagnosis
 6. Check asset paths/loaders/CORS/base path.
 7. Check animation delta units, physics/update order, fixed timestep, collider/body ownership, input listeners, pointer/touch behavior, resize, and audio context unlock/decode errors when audio is involved.
 8. Fix root cause in owning module.
-9. Verify browser screenshot, nonblank canvas, console/page errors, and broken path.
+9. Retest the broken path with evidence appropriate to the failure. Inspect changed rendering or motion when applicable; a screenshot/nonblank canvas alone does not prove the fix.
 
 ## Performance Workflow
 
@@ -35,4 +40,4 @@ Load `references/checklists/scene-debugging.md` for render/runtime bug diagnosis
 
 ## Final Response
 
-Lead with root cause or bottleneck. Report the reference ledger, checklist items used, files changed, baseline/post metrics, commands, screenshots/artifacts, broken paths retested, and residual risks.
+Lead with the demonstrated root cause or bottleneck, what changed, the failing path retested and material gaps. Include matching baseline/post metrics for performance claims; follow the project completion format.

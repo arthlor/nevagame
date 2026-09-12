@@ -217,6 +217,15 @@ const UPPER_BODY_ONE_SHOTS = new Set<PlayerAnimation>([
 ]);
 const FISHING_UPPER_PULSES = new Set<PlayerAnimation>(["reel", "slack", "brace"]);
 
+/**
+ * A single dropped grounded or blocked frame must not interrupt an established
+ * moving gait. Below these windows the controller keeps the current locomotion
+ * clip instead of snapping to fall/idle and straight back, which is the
+ * walk→fall→walk flicker on stepped, contact-heavy or uneven ground.
+ */
+const LOCOMOTION_GROUND_LOSS_GRACE_SECONDS = 0.08;
+const LOCOMOTION_BLOCK_GRACE_SECONDS = 0.1;
+
 const ALL_PLAYER_ANIMATIONS: readonly PlayerAnimation[] = [
   "idle",
   "walk_start",
@@ -330,6 +339,8 @@ export class HumanoidAnimator {
   private transition: ManagedTransition | null = null;
   private lastDesiredBase: PlayerAnimation = "idle";
   private lastContactEvent: PlayerMotionSample["contactEvent"] = "none";
+  private groundLossSeconds = 0;
+  private blockedSeconds = 0;
   private elapsed = 0;
   private groundPitch = 0;
   private groundRoll = 0;
@@ -424,6 +435,8 @@ export class HumanoidAnimator {
     this.rightFootOffsetY = 0;
     this.groundingFootIkScale = 1;
     this.headLookYaw = 0;
+    this.groundLossSeconds = 0;
+    this.blockedSeconds = 0;
     for (const state of Object.values(this.footContactStates)) state.locked = false;
   }
 
@@ -560,6 +573,7 @@ export class HumanoidAnimator {
 
   private updateStep(dt: number, context: CharacterAnimationContext, reducedMotion: boolean): CharacterMotionFrame {
     this.elapsed += dt;
+    this.updateLocomotionStability(dt, context.motion);
     this.updateAction();
     this.updateContactRecovery(context.motion);
 
@@ -693,9 +707,33 @@ export class HumanoidAnimator {
     };
   }
 
+  private updateLocomotionStability(dt: number, motion: PlayerMotionSample): void {
+    this.groundLossSeconds = motion.isGrounded ? 0 : this.groundLossSeconds + dt;
+    this.blockedSeconds = motion.isCollisionBlocked ? this.blockedSeconds + dt : 0;
+  }
+
+  /**
+   * Debounced view of the binary motion flags that pick idle/fall. Keeping the
+   * last moving clip through a single dropped frame is imperceptible at 60 Hz
+   * but removes the walk→fall→walk and walk→idle→walk pops.
+   */
+  private isAirborneForClip(motion: PlayerMotionSample): boolean {
+    if (motion.isGrounded) return false;
+    // A takeoff or rising frame is unambiguous, so jumps stay immediate.
+    if (motion.contactEvent === "takeoff" || motion.airbornePhase === "rising") return true;
+    // Only an ambiguous ground drop is debounced, and only out of a moving gait.
+    if (MOVING_BASE_CLIPS.has(this.activeBaseClip)
+      && this.groundLossSeconds < LOCOMOTION_GROUND_LOSS_GRACE_SECONDS) return false;
+    return true;
+  }
+
+  private isBlockedForClip(motion: PlayerMotionSample): boolean {
+    return motion.isCollisionBlocked && this.blockedSeconds >= LOCOMOTION_BLOCK_GRACE_SECONDS;
+  }
+
   private desiredLayers(context: CharacterAnimationContext): DesiredLayers {
     const { mode, motion, carrying, fishingInput, boatInput } = context;
-    if (!motion.isGrounded && (mode === "on-foot" || mode === "farm-placement")) {
+    if (this.isAirborneForClip(motion) && (mode === "on-foot" || mode === "farm-placement")) {
       if (motion.airbornePhase === "rising") {
         return { base: "jump_start", upper: null };
       }
@@ -733,7 +771,7 @@ export class HumanoidAnimator {
       return { base: "idle", upper: null };
     }
     if (mode === "mounted") {
-      if (motion.speedMetersPerSecond <= 0.1 || motion.isCollisionBlocked) {
+      if (motion.speedMetersPerSecond <= 0.1 || this.isBlockedForClip(motion)) {
         return { base: "mounted_idle", upper: null };
       }
       return {
@@ -745,7 +783,7 @@ export class HumanoidAnimator {
         upper: null
       };
     }
-    if (motion.speedMetersPerSecond <= 0.1 || motion.isCollisionBlocked) {
+    if (motion.speedMetersPerSecond <= 0.1 || this.isBlockedForClip(motion)) {
       const upper = carrying
         ? "carry_idle"
         : context.talking && this.actions.has("talk_gesture")

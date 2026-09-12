@@ -28,7 +28,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 37;
+export const CURRENT_SCHEMA_VERSION = 38;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -117,8 +117,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 36
+    (schemaVersion >= 38
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 36
+      ? state.world.layoutRevision !== 15
       // Pin the literal: schema 34-35 shipped on layout 14, and the symbol has
       // since moved on.
       : schemaVersion >= 34
@@ -570,6 +572,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
 
   for (const [marketId, market] of Object.entries(state.markets)) {
     const definition = ContentRegistry.markets.get(marketId);
+    const isCurrentSchema = schemaVersion === CURRENT_SCHEMA_VERSION;
     if (
       !definition ||
       !isRecord(market) ||
@@ -580,7 +583,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     ) return false;
     for (const [itemId, commodity] of Object.entries(market.commodities)) {
       if (
-        !definition.commodities.some((entry) => entry.itemId === itemId) ||
+        (isCurrentSchema && !definition.commodities.some((entry) => entry.itemId === itemId)) ||
         !isRecord(commodity) ||
         commodity.itemId !== itemId ||
         !isFiniteNumber(commodity.basePrice, 0) ||
@@ -593,7 +596,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         !isFiniteNumber(commodity.recentSalesVolume, 0)
       ) return false;
     }
-    if (!definition.commodities.every((entry) => Boolean(market.commodities[entry.itemId]))) return false;
+    if (isCurrentSchema && !definition.commodities.every((entry) => Boolean(market.commodities[entry.itemId]))) return false;
   }
 
   if (schemaVersion >= 26) {

@@ -67,7 +67,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
       const newStage = advancePlacedCropGrowth(
         cropState,
         cropDef,
-        sampleFarmEnvironment(farm, state.weather),
+        sampleFarmEnvironment(farm, state.weather, { x: cropState.x, z: cropState.z }),
         farm.soil.fertility,
         segmentMinutes,
         onboardingGrowthMultiplier(cropState.cropId, cropState.farmId, state.quests)

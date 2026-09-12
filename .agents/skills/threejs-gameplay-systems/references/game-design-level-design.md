@@ -1,14 +1,14 @@
 # Game Design And Level Design
 
-Use this reference before broad new-game creation, major mechanic changes, progression tuning, level/arena/track/wave design, combat encounters, or any claim that gameplay is premium, polished, complete, or less generic.
+Use relevant sections for new-game creation, major mechanic/progression design or a new playable space. Reuse the project’s existing design contract for focused changes; quality adjectives alone do not trigger a new design phase.
 
 This is not a long design document. It is a compact player-facing contract that turns an idea into implementable rules, spaces, pacing, and tuning checks.
 
 Research basis: Unity's GDD guidance emphasizes player goals, rules/mechanics, difficulty, core loop, and feedback; MDA separates mechanics, runtime dynamics, and player experience; Unity's level-design material emphasizes concept, blockout/greybox, playtest, and iteration; Steve Swink's game-feel framing centers real-time control, simulated space, and polish.
 
-## Design Brief Gate
+## Design Brief
 
-Before implementation, write a brief with:
+For a new game or changed product direction, capture the applicable decisions below. Existing games reuse their approved brief; omit irrelevant mechanics and keep Neva’s no-combat scope:
 
 - Player promise: the fantasy in one sentence.
 - Target feeling: tense, fast, tactical, elegant, chaotic, precise, cozy, etc.

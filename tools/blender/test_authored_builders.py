@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import bpy
+import bmesh
 from mathutils import Vector
 
 
@@ -15,6 +16,9 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from common.authored import (
+    add_canopy_lobe,
+    add_conifer_tier,
+    add_tree_buttresses,
     add_arch_ring,
     add_banded_tapered_tower,
     add_cylindrical_masonry,
@@ -53,6 +57,10 @@ def build_signature():
     add_rope_line("test_rope", ((0, 0, 0), (1, 0, 0.5), (1.5, 0.5, 0.8)), 0.04, TOKENS[1], root)
     add_arch_ring("test_arch", 0, 0, 1.5, *TOKENS, root, blocks=9, block_depth=0.2, block_size=0.3, start_deg=28, end_deg=152)
     add_root_flare("test_root", (0, 0, 0), 1, 0.5, TOKENS[1], root, count=5, seed=15)
+    add_tree_buttresses("test_buttress", (0, 0, 0), .8, .5, TOKENS[1], root, count=6, seed=18)
+    for level in (0, 1):
+        add_canopy_lobe(f"test_canopy_{level}", (0, 0, 2), (1.2, .9, .7), TOKENS[0], root, seed=19, detail=level)
+        add_conifer_tier(f"test_bough_{level}", (0, 0, 3), 1.3, .9, TOKENS[0], root, seed=20, detail=level)
     add_fasteners("test_fastener", ((-0.2, 0, 0.5), (0.2, 0, 0.5)), 0.03, TOKENS[1], root)
     add_timber_corner_frame("test_timber", 1.6, 1.2, 0.2, 1.4, TOKENS[1], root, post_w=0.12)
     add_mullioned_window("test_window", (0, -0.7, 1.0), 0.5, 0.6, TOKENS[1], TOKENS[0], TOKENS[1], root)
@@ -74,6 +82,7 @@ def build_signature():
         "test_rope", "test_arch", "test_root", "test_fastener",
         "test_timber", "test_window", "test_bands",
         "test_multi_material",
+        "test_buttress", "test_canopy", "test_bough",
         "test_caudal_forked", "test_caudal_lunate", "test_caudal_rounded",
         "test_caudal_square", "test_caudal_heterocercal",
         "test_leaf_straight", "test_leaf_bent", "test_flower",
@@ -83,6 +92,16 @@ def build_signature():
             raise AssertionError(f"{prefix} produced no mesh")
     signature = []
     for obj in meshes:
+        if obj.name.startswith(("test_buttress", "test_canopy", "test_bough")):
+            editable = bmesh.new()
+            editable.from_mesh(obj.data)
+            try:
+                if any(not edge.is_manifold for edge in editable.edges):
+                    raise AssertionError(f"{obj.name} has an open or non-manifold shell")
+                if editable.calc_volume(signed=True) <= 0:
+                    raise AssertionError(f"{obj.name} has inward-facing geometry")
+            finally:
+                editable.free()
         obj.data.calc_loop_triangles()
         if not obj.data.loop_triangles or not obj.data.vertices:
             raise AssertionError(f"{obj.name} is empty")
@@ -107,7 +126,8 @@ def build_signature():
                 residual = (actual - expected * value).length
                 if not 0.70 <= value <= 1.04 or residual > 0.025:
                     raise AssertionError(f"{obj.name} COLOR_0 does not follow material {material.name}")
-        signature.append((obj.name, len(obj.data.vertices), len(obj.data.loop_triangles), tuple(round(value, 6) for value in values)))
+        signature.append((obj.name, len(obj.data.vertices), len(obj.data.loop_triangles), tuple(round(value, 6) for value in values),
+                          tuple(tuple(round(c, 6) for c in v.co) for v in obj.data.vertices)))
     return signature
 
 
@@ -119,7 +139,7 @@ def main() -> None:
     second = build_signature()
     if first != second:
         raise AssertionError("Authored builders are not deterministic")
-    print(f"[NEVA ART] Authored builder tests passed for 12 builders, COLOR_0, and {len(first)} meshes")
+    print(f"[NEVA ART] Authored builder tests passed for structural/vegetation builders, COLOR_0, and {len(first)} meshes")
     from test_surface_builders import test_surface_builders
     test_surface_builders()
 

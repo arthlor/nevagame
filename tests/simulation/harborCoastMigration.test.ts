@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
-import { validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
+import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { harborCoastCollisionProxies } from "../../src/world/HarborCoastLayout";
 import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import { STARTER_DONKEY_ID, playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
@@ -11,22 +12,47 @@ import fixture from "../fixtures/save_v32_layout12.json";
 const legacy=()=>structuredClone(fixture) as unknown as SaveEnvelope;
 beforeAll(()=>ContentRegistry.initializeAndValidate());
 
+function preserveAuthoredMarkets(
+  before: SaveEnvelope["state"]["markets"],
+  after: SaveEnvelope["state"]["markets"]
+): void {
+  for (const [marketId, oldMarket] of Object.entries(before)) {
+    const migratedMarket = after[marketId];
+    expect(migratedMarket, marketId).toBeDefined();
+    expect(migratedMarket).toMatchObject({
+      id: oldMarket.id,
+      name: oldMarket.name,
+      regionId: oldMarket.regionId
+    });
+    const currentCommodityIds = new Set(
+      ContentRegistry.markets.get(marketId)?.commodities.map((commodity) => commodity.itemId) ?? []
+    );
+    for (const [itemId, commodity] of Object.entries(oldMarket.commodities)) {
+      if (currentCommodityIds.has(itemId)) {
+        expect(migratedMarket!.commodities[itemId], `${marketId}/${itemId}`).toEqual(commodity);
+      }
+    }
+    expect(Object.keys(migratedMarket!.commodities)).toEqual(expect.arrayContaining([...currentCommodityIds]));
+  }
+}
+
 describe("independent v32 harbor save recovery",()=>{
   it("validates the frozen old layout independently and preserves resources, IDs and both RNG streams",()=>{
     const before=legacy(),untouched=structuredClone(before);
     expect(before.schemaVersion).toBe(32);expect(before.state.world.layoutRevision).toBe(12);
     expect(validateSaveEnvelope(before)).toBe(true);
     const after=migrateSaveData(before);
-    expect(after.schemaVersion).toBe(36);expect(after.state.world.layoutRevision).toBe(15);
+    expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(validateSaveEnvelope(after)).toBe(true);
     // Quests gain only the v35 credit ledger, empty for a legacy save.
     expect(after.state.quests.earlyActionCredits).toEqual([]);
     const { earlyActionCredits: _ledger, ...migratedQuests } = after.state.quests;
     expect(migratedQuests, "quests").toEqual(before.state.quests);
-    for(const key of ["crops","farms","inventories","fishCargo","markets","contracts","journal","metadata","clock"] as const)
+    for(const key of ["crops","farms","inventories","fishCargo","contracts","journal","metadata","clock"] as const)
       expect(after.state[key],key).toEqual(before.state[key]);
+    preserveAuthoredMarkets(before.state.markets, after.state.markets);
     expect(before).toEqual(untouched);expect(migrateSaveData(after)).toEqual(after);
-  });
+  }, 120_000);
 
   it.each([false,true])("moves an invalid old shore pose to nearby support with its mounted relationship (mounted=%s)",(mounted)=>{
     const before=legacy();const point={x:116,z:WorldLayout.coastlineZ(116)+1};

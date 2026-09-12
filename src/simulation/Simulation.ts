@@ -359,7 +359,7 @@ export class Simulation {
   public getNearbyNpcId(): string | null {
     const { player } = this.state;
     for (const npcId of ContentRegistry.npcs.keys()) {
-      const anchor = npcAnchorAt(npcId, this.state.clock);
+      const anchor = npcAnchorAt(npcId, this.state.clock, this.state.quests);
       const dx = player.x - anchor.x;
       const dz = player.z - anchor.z;
       const dist = Math.hypot(dx, dz);

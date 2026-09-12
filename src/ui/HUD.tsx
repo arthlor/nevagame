@@ -174,7 +174,7 @@ export const HUD: React.FC<HUDProps> = ({
 
             {/* Maritime Weather Hazard Banner */}
             {hud.weather.hazard && (
-              <WeatherHazardBanner hazard={hud.weather.hazard} />
+              <WeatherHazardBanner key={`${hud.weather.hazard.text}:${hud.weather.hazard.tone}`} hazard={hud.weather.hazard} />
             )}
 
             {/* Farm Forecast Popover Modal */}

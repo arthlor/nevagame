@@ -1,9 +1,18 @@
 ---
 name: threejs-skill-router
-description: Route ambitious Three.js graphics work to the smallest expert skill set. Use for new visual experiences, graphics rewrites, reference matching, or requests spanning geometry, materials, atmosphere, shadows, temporal effects, and final image treatment.
+description: "Route ambitious Three.js graphics work to the smallest expert skill set. Use for new visual systems, graphics rewrites, reference matching, or effects spanning geometry, materials, atmosphere, shadows, and post. Not for direct use of one specialist or game-loop/UI/QA work."
 ---
 
 # Three.js Visual Skill Router
+
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
+> Repository override (Neva): this router and the generator skills are subordinate
+> to `AGENTS.md`. Provider generation (`threejs-3d-generator`,
+> `threejs-image-generator`, `threejs-audio-generator`) requires an explicit human
+> request, and a downloaded GLB must never be published. Where a skill gate
+> conflicts with `AGENTS.md` ("Generate-asset prompt contract" or "Codex and
+> threejs-game-skills"), `AGENTS.md` wins.
 
 Select the smallest set of specialists needed to deliver the requested visual
 result. This is a graphics entrypoint, not a requirement to rebuild the scene or
@@ -29,10 +38,26 @@ techniques within that contract.
   A HUD-only task belongs to `$threejs-game-ui-designer`; whole-game creation
   belongs to `$threejs-game-director`, subject to repository routing.
 
-Read a selected sibling at `../<skill-name>/SKILL.md` relative to this file.
-If unavailable, use the session's skill catalog to find it. A missing specialist
+Read a selected sibling at `../<skill-name>/SKILL.md` relative to this file,
+preferring the repository `.agents/skills/<skill-name>/SKILL.md` copy over any
+global install. If unavailable, use the session's skill catalog to find it. A missing specialist
 is a capability gap to disclose, not a reason to invent a path or abandon work
 that existing source and official documentation can support.
+
+## Pack entrypoints
+
+This table routes by visual system. For the full index, categories, backends,
+prerequisites, and negative triggers, read `../README.md` and `../manifest.json`.
+
+| Request | Load |
+| --- | --- |
+| explicitly requested whole-game or named multi-system orchestration | `$threejs-game-director` (explicit-only) |
+| gameplay loop, physics, level design, feel | `$threejs-gameplay-systems` |
+| HUD, menus, touch UI, responsive fit | `$threejs-game-ui-designer` |
+| render/runtime/perf/mobile defects | `$threejs-debug-profiler` |
+| release or visual-gold gate | `$threejs-qa-release`; routine checks use the project task matrix |
+| generated 3D, image, or audio assets | the matching generator skill (explicit human request per `AGENTS.md`) |
+| fixed-view visual evidence | `$threejs-visual-validation` |
 
 ## Route by the visual system being authored
 
@@ -67,7 +92,9 @@ that existing source and official documentation can support.
 The examples contain implementation detail worth studying. Select by the actual
 mechanism and read its source before adapting it; an entry module may only
 re-export the implementation. Do not load unrelated examples merely because
-they share a skill folder.
+they share a skill folder. Examples are references, not templates: preserve their
+necessary contracts and adapt the rest to the brief
+(see `../CONVENTIONS.md`).
 
 For vegetation, tree growth, meadow grass, GPU grass, virtual flower fields and
 surface ivy are separate branches of the reference library. An ivy task starts

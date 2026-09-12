@@ -9,6 +9,9 @@ output/playwright/
 .playwright-cli/
 .playwright-mcp/
 assets/audio/licenses/
+!assets/audio/licenses/
+assets/audio/licenses/*
+!assets/audio/licenses/adobe-audition-content-terms.txt
 marketing/
 # Generated audit / capture artifacts (world-alignment alone is ~2.7 GB)
 output/
@@ -18,6 +21,12 @@ npcs/
 neva-debug.ts
 tmp-*.ts
 .claude/
+.cursor/
+hudcurrent/
+
+# Blender autosave backups
+*.blend1
+*.blend2
 
 # Quaternius Universal Animation Library (CC0). Only the glTF variants under
 # anim/Unreal-Godot/ are build inputs — the catalog's `animationSource` and

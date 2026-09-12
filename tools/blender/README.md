@@ -8,9 +8,9 @@ lists.
 
 ## Everyday workflow
 
-The reference-led harbor habitat is authored by the registered `coastal.py` families. Selected catalog entries bind the supplied video frames under `art/references/harbor-coast/` to dimensions, palm lean/crown/leaf structure, fractured stone and timber construction. Regenerate through this CLI; use repeated `--asset ID` arguments when selecting several assets. The generator preserves semantic vertex color without a baked key-light direction, closed leaf ribbons, continuous trunk rings, sloping rock plates with interrupted ledges and worn fracture edges, LODs, pivots and catalog collision proxies. Rock LODs retain their outer profiles; the nearby mesh spends geometry on worn edges without introducing a central pyramid cap. Its exported `_NEVA_WIND` scalar survives Meshopt optimization and drives the same deformation in the visible and shadow materials. Harbor dock/market variants have independent catalog IDs so the shared Sunreach dock remains intact. The task-specific capture exception is in `LLM/BLENDER.md`; technical publication and human in-game review remain separate.
+The reference-led harbor habitat is authored by the registered `coastal.py` families. Selected catalog entries bind the supplied video frames under `art/references/harbor-coast/` to dimensions, palm lean/crown/leaf structure, fractured stone and timber construction. Regenerate through this CLI; use repeated `--asset ID` arguments when selecting several assets. The generator preserves semantic vertex color without a baked key-light direction, closed leaf ribbons, continuous trunk rings, sloping rock plates with interrupted ledges and worn fracture edges, LODs, pivots and catalog collision proxies. Rock LODs retain their outer profiles; the nearby mesh spends geometry on worn edges without introducing a central pyramid cap. Its exported `_NEVA_WIND` scalar survives Meshopt optimization and drives the same deformation in the visible and shadow materials. Harbor dock/market variants have independent catalog IDs so the shared Sunreach dock remains intact. Task-specific harbor evidence is defined in `LLM/BLENDER.md`; focused agent inspection, technical publication and human in-game approval remain separate.
 
-Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Obey root `AGENTS.md`, `LLM/BLENDER.md`, this file, the selected catalog entry, owning generator, isolated sheet if present, and the relevant Art Bible section. “Generate assets” means catalog ID → registered family generator → measure sheet identity into `parameters` when a sheet exists → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → Art Yard → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt.
+Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Obey root `AGENTS.md`, `LLM/BLENDER.md`, this file, the selected catalog entry, owning generator, isolated sheet if present, and the relevant Art Bible section. “Generate assets” means catalog ID → registered family generator → measure sheet identity into `parameters` when a sheet exists → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt.
 
 Every catalog command requires `--asset`, `--family`, or explicit release
 `--all`. A bare command fails instead of silently selecting all assets.
@@ -29,17 +29,23 @@ npm run art:generate -- --asset tree_oak_a
 npm run art:generate -- --family vegetation
 ```
 
-Successful publication prints a direct Art Yard link. Run `npm run dev`, open
-that link if desired, then integrate the catalog ID through the existing runtime
-loader/placement path. The human reviews the integrated result in the game.
+Successful publication prints a direct Art Yard link. Integrate the catalog ID
+through the existing loader/placement path and inspect changed appearance or
+motion using the Art Yard and actual game. Correct scoped defects and report
+any runtime-access gap. Human visual approval remains a separate game review.
 
-Routine work does not run screenshots, static previews, determinism, strict
-density, benchmarks, full builds, or broad test suites. Typecheck only when
-runtime TypeScript changed.
+Use focused captures or diagnostics when they resolve a visual question. Routine
+work does not require full capture sets, static previews, determinism, strict
+density, benchmarks, full builds or broad suites; broaden only for the task or
+an unresolved concern. Typecheck only when runtime TypeScript changed.
 
 ### Trade-pack Blender workshop
 
 `open_trade_pack_workshop.py` creates an editable workshop from explicit selected catalog IDs through the registered fish/crop pack generators. In Blender's Python console, load it with `runpy.run_path` and call its `build_workshop(asset_ids)` function. It preserves the previous scene, creates a separate workshop scene, and saves `art/workshops/trade-packs.blend`. The workshop is an editable inspection artifact; catalog parameters and registered generators remain the reproducible source, and the ordinary selected CLI owns GLB validation and publication. Crop packs are future-use assets, not a physical crop delivery mechanic.
+
+### Vegetation Blender workshop
+
+`open_vegetation_workshop.py` creates one editable metre-scale scene per explicitly selected vegetation catalog ID. Load it with `runpy.run_path` in Blender's Python console, then call `build_workshop(asset_ids)` and `show_asset(id)` to inspect a plant. It preserves earlier scenes, applies the normal authored surface finish, hides collision and distant detail for inspection, and saves `art/workshops/vegetation.blend`. Registered generators and catalog parameters remain the source for regeneration; the workshop does not export or publish game assets.
 
 ## Shared-generator and release commands
 
@@ -70,8 +76,8 @@ The visual-gold benchmark enforces no browser errors and its configured
 preferred scene limits from `tools/blender/asset_budgets.json`. Its lower triangle target floor is
 advisory. `art:generate:strict` and determinism retain their existing
 semantics and remain separate technical-art/release gates. `art:benchmark:extended`
-remains an explicit release diagnostic. Agents do not inspect generated images
-unless the human requests visual analysis.
+remains a release diagnostic. Agents inspect required images and investigate
+discrepancies within scope; image evidence does not grant human approval.
 
 The benchmark uses the Vite DEV server. DEV layout-editor picking intentionally
 keeps static prefabs unmerged and omits the baked static-shadow proxy, so its
@@ -257,7 +263,7 @@ http://localhost:3000/__neva_art_yard?asset=<catalog-id>
 It uses the runtime catalog, `AssetLoader`, `VisualRenderConfig`,
 `PaletteMaterials`, and `LightingRig`. Orbit, camera distance/LOD, wireframe,
 bounds, collision, animation, lighting, weather, ground, and water controls are
-diagnostics for the human. Player animation review can pair the donkey,
+available for focused agent inspection and human review. Player animation review can pair the donkey,
 rowboat, or skiff context atomically, includes that companion in bounds, layers
 `reel` over selectable lower-body bases, and seeks the paired actions
 deterministically. Published Art Yard views/data are also emitted into the
@@ -285,8 +291,9 @@ supported baseline.
 
 ## Routine handoff
 
-Report only selected asset IDs, runtime integration point, mechanical generation
-status, TypeScript status when applicable, save impact, and:
+Report selected asset IDs, runtime integration point, mechanical generation
+status, focused inspection evidence or access gap, TypeScript status when
+applicable, save impact, `Docs updated:`, and:
 
 ```text
 Awaiting human game review

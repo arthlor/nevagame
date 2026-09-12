@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "license": "CC0-1.0",
+  "license": "mixed-provenance",
   "sources": [
     {
       "id": "footsteps-dirt",
@@ -185,6 +185,19 @@
       "channels": 2
     },
     {
+      "id": "weather-storm-sea",
+      "title": "Weather Ambience Storm Sea Rain Thunder Waves Ocean Wind 01.wav",
+      "creator": "Adobe Audition Content",
+      "origin": "adobe-audition",
+      "sourceUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseSnapshot": "assets/audio/licenses/adobe-audition-content-terms.txt",
+      "runtimeUrl": "/assets/audio/weather-storm-sea.mp3",
+      "sha256": "686f991a0e3afd326f0c6165edcaa8724bc2df119a5fa566962bafe81897461c",
+      "durationSeconds": 90.090667,
+      "channels": 2
+    },
+    {
       "id": "water-splash",
       "title": "water_splash_10shots.wav",
       "creator": "vibe_crc",
@@ -364,6 +377,19 @@
       "runtimeUrl": "/assets/audio/thunder.mp3",
       "sha256": "8b4ba3a7f08695cd6fb29c8ad5c57dc2535c55762721154ce9b40916c3e38672",
       "durationSeconds": 34.741,
+      "channels": 2
+    },
+    {
+      "id": "thunder-adobe",
+      "title": "Weather Storm Lightning Bolt Crash Crack 01.wav",
+      "creator": "Adobe Audition Content",
+      "origin": "adobe-audition",
+      "sourceUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseSnapshot": "assets/audio/licenses/adobe-audition-content-terms.txt",
+      "runtimeUrl": "/assets/audio/thunder-adobe.mp3",
+      "sha256": "48e0dc2ac6019a9fb9dadffdf05e17a0d58c965945ea3ae85e0e72c08c0e2598",
+      "durationSeconds": 7.051063,
       "channels": 2
     },
     {
@@ -611,6 +637,32 @@
       "runtimeUrl": "/assets/audio/donkey-snort.mp3",
       "sha256": "9678c03ef0530eddc076b915d1eb5ea8600e1a0a25e1d64f450c2d7d97870af8",
       "durationSeconds": 2.5,
+      "channels": 1
+    },
+    {
+      "id": "donkey-snort-adobe",
+      "title": "Animal Mammal Herbivore Donkey Mule Snort 01.wav",
+      "creator": "Adobe Audition Content",
+      "origin": "adobe-audition",
+      "sourceUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseSnapshot": "assets/audio/licenses/adobe-audition-content-terms.txt",
+      "runtimeUrl": "/assets/audio/donkey-snort-adobe.mp3",
+      "sha256": "220476b2ff2850ba0e934e65d45a333fdd2111d11748d691b54c57ed7b77172b",
+      "durationSeconds": 0.737333,
+      "channels": 1
+    },
+    {
+      "id": "stamina-exhausted",
+      "title": "Human Male Sighs Of Relief 01.wav",
+      "creator": "Adobe Audition Content",
+      "origin": "adobe-audition",
+      "sourceUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseUrl": "https://www.adobe.com/products/audition/offers/audition-dlc.html",
+      "licenseSnapshot": "assets/audio/licenses/adobe-audition-content-terms.txt",
+      "runtimeUrl": "/assets/audio/stamina-exhausted.mp3",
+      "sha256": "75238027ef2dafc95a98d508fe4c9a7ecdcded75ef6c14f2ad63f35f62b3e010",
+      "durationSeconds": 2.458667,
       "channels": 1
     },
     {
@@ -1044,12 +1096,31 @@
       "spatial": false,
       "poolSize": 1
     },
+    "ambience-storm-sea": {
+      "sourceId": "weather-storm-sea",
+      "bus": "weather",
+      "offset": 0,
+      "duration": 90.08,
+      "gain": 0.28,
+      "loop": true,
+      "spatial": false,
+      "poolSize": 1
+    },
     "thunder": {
       "sourceId": "thunder",
       "bus": "weather",
       "offset": 0.4,
       "duration": 6.8,
       "gain": 0.42,
+      "spatial": false,
+      "poolSize": 2
+    },
+    "thunder-adobe": {
+      "sourceId": "thunder-adobe",
+      "bus": "weather",
+      "offset": 0,
+      "duration": 6.9,
+      "gain": 0.38,
       "spatial": false,
       "poolSize": 2
     },
@@ -1442,6 +1513,28 @@
       "spatial": true,
       "poolSize": 2
     },
+    "donkey-snort-adobe": {
+      "sourceId": "donkey-snort-adobe",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 0.7,
+      "gain": 0.44,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.96,
+      "pitchMax": 1.04
+    },
+    "stamina-exhausted": {
+      "sourceId": "stamina-exhausted",
+      "bus": "sfx",
+      "offset": 0,
+      "duration": 2.2,
+      "gain": 0.36,
+      "spatial": true,
+      "poolSize": 2,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02
+    },
     "hoe-till": {
       "sourceId": "hoe-till",
       "bus": "sfx",
@@ -1690,6 +1783,14 @@
       "donkey-trot-a",
       "donkey-trot-b"
     ],
+    "donkey-snort": [
+      "donkey-snort",
+      "donkey-snort-adobe"
+    ],
+    "thunder": [
+      "thunder",
+      "thunder-adobe"
+    ],
     "splash": [
       "splash-a",
       "splash-b",
@@ -1741,7 +1842,7 @@
     "windy": [],
     "fog": [],
     "storm": [
-      "ambience-rain-heavy"
+      "ambience-storm-sea"
     ]
   }
 }

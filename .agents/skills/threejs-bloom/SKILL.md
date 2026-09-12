@@ -1,9 +1,12 @@
 ---
 name: threejs-bloom
-description: Implement production bloom in advanced Three.js scenes. Use for HDR signal ordering, bloom-node controls, dual selective bloom with guaranteed material restoration, scene-relative emissive hierarchy, and effect-isolation diagnostics.
+description: "Implement production bloom in Three.js. Use for HDR signal ordering, threshold and radius calibration, selective bloom with material restoration, and scene-relative emissive hierarchy. Not for exposure, tone mapping, or LUTs."
 ---
 
 # Bloom
+
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Post chain is WebGL2 (`EffectComposer`/`postprocessing`); WebGPU bloom nodes vary by build. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Bloom is a camera/display response to bright HDR signal. Establish scene exposure and emissive luminance before tuning blur.
 
@@ -24,7 +27,9 @@ and the costs and limits of each ownership model.
 Apply the material substitution/restoration ownership pattern in the
 reference before adding selective bloom to a composed scene.
 
-## Failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - bloom creates the only visible form of an effect;
 - all bright materials share one arbitrary emission multiplier;
@@ -33,6 +38,12 @@ reference before adding selective bloom to a composed scene.
 - transparent particles disappear from extraction because pass ownership is unclear;
 - bloom radius changes wildly with resolution;
 - highlights become gray because energy is clamped too early.
+
+## Deliverable
+
+- Inputs: HDR scene values, tone-map ownership, and the list of intended emitters.
+- Artifacts: extraction threshold/radius/strength, selective material ledger, and base/contribution/final captures.
+- Acceptance: the base stays legible with bloom off; contribution only affects intended emitters; highlights do not clamp to gray.
 
 ## Routing boundary
 

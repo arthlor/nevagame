@@ -46,7 +46,7 @@ export function feasibleContractTargets(
     const deliveryMarket = state.markets[template.deliveryMarketId];
     if (
       !fish ||
-      !fish.isSportFish ||
+      (!fish.isSportFish && !fish.tags.includes("physical-basic-catch")) ||
       !rod ||
       !deliveryMarket?.commodities[targetId] ||
       !state.quests.unlockedFeatureIds.includes("boat.player_rowboat") ||
@@ -143,6 +143,17 @@ export function contractTargetReferenceValue(
   targetId: string,
   minimumWeightKg?: number
 ): number | null {
+  const fish = ContentRegistry.fishSpecies.get(targetId);
+  if (fish && !isProduceContractType(template.type)) {
+    const quality = asFishQuality(template.minQuality) ?? "common";
+    const freshness = template.minFreshness ?? 100;
+    const weightKg = minimumWeightKg ?? fish.weightKg.average;
+    return fish.baseMarketValue
+      * getQualityMultiplier(quality)
+      * getFreshnessPriceMultiplier(freshness)
+      * getFishWeightMultiplier(fish, weightKg);
+  }
+
   const item = ContentRegistry.items.get(targetId);
   if (item) {
     const market = ContentRegistry.markets.get(contractDeliveryMarketId(template));
@@ -151,15 +162,7 @@ export function contractTargetReferenceValue(
       ? commodity.basePrice * (commodity.seasonalFactors[state.clock.season] ?? 1)
       : item.baseValue;
   }
-  const fish = ContentRegistry.fishSpecies.get(targetId);
-  if (!fish) return null;
-  const quality = asFishQuality(template.minQuality) ?? "common";
-  const freshness = template.minFreshness ?? 100;
-  const weightKg = minimumWeightKg ?? fish.weightKg.average;
-  return fish.baseMarketValue
-    * getQualityMultiplier(quality)
-    * getFreshnessPriceMultiplier(freshness)
-    * getFishWeightMultiplier(fish, weightKg);
+  return null;
 }
 
 function asFishQuality(value: string | undefined): FishQuality | undefined {

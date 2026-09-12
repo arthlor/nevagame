@@ -61,7 +61,7 @@ import {
 import { isQuestActive } from "../core/QuestTypes";
 import { snapshotFishingEquipmentEffects } from "../equipment/EquipmentEffects";
 
-const SCHOOL_INTERACTION_RADIUS = 12;
+export const SCHOOL_INTERACTION_RADIUS = 12;
 /** Floor so a shoulder-season-only school still has a selectable species pool. */
 const MINIMUM_SCHOOL_SPECIES_WEIGHT = 1;
 const SCHOOL_RESPAWN_COOLDOWN_MINUTES = 90;
@@ -1391,10 +1391,13 @@ export class FishingDomain {
   private fallbackHookCost(speciesId: FishSpeciesId): number {
     const species = ContentRegistry.fishSpecies.get(speciesId);
     if (!species) return 0;
-    return this.progression.getDiscountedActionCost(
+    // Use the same quote owner the hook charges through, so the equipment Work
+    // multiplier and throughput floor are included, not only the rank discount.
+    return this.progression.quoteWorkCost(
       SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass],
-      "fishing"
-    );
+      "fishing",
+      "fishing.sport-hook"
+    ).cost;
   }
 
   private rollQuality(workMultiplier: number, rng: Rng = this.context.rng): FishQuality {
@@ -1514,8 +1517,10 @@ export class FishingDomain {
 
     // The catch and its treasure are one inventory transaction. Do not land
     // the fish while silently dropping or partially granting rolled loot.
+    // A physical catch contributes no satchel stack, so an empty batch is a
+    // legitimate "nothing to fit" and must not be rejected as invalid.
     const catchAndTreasure = [...catchStack, ...treasureStack];
-    if (!InventoryManager.canAddItems(inventory, catchAndTreasure)) {
+    if (catchAndTreasure.length > 0 && !InventoryManager.canAddItems(inventory, catchAndTreasure)) {
       attempt.phase = "caught";
       rng.setState(rngStateBefore);
       this.context.persistRng();

@@ -378,8 +378,9 @@ describe("Persistence & Offline Progression", () => {
       const retired = saveV36RetiredMarketCommodity.state.markets["market.sunreach_cove"]
         .commodities["item.basic_lure"];
       backup.state.markets["market.sunreach_cove"].commodities["item.basic_lure"] = structuredClone(retired);
-      // Current validation rejects stale authored membership; the versioned migration must repair it first.
-      expect(validateSaveEnvelope(backup)).toBe(false);
+      // Historical membership is valid for v36; its versioned migration still
+      // removes the retired listing before the current schema is validated.
+      expect(validateSaveEnvelope(backup)).toBe(true);
       await putRawSave("primary_save", { schemaVersion: 0, savedAtUtcMs: 1, state: {} });
       await putRawSave("backup_save", backup);
 

@@ -96,7 +96,7 @@ describe("RoadSurfaceMaterial", () => {
     expect(road.material.depthWrite).toBe(true);
     expect(road.material.alphaTest).toBe(0.5);
     expect(road.material.alphaToCoverage).toBe(true);
-    expect(road.material.customProgramCacheKey()).toBe(ROAD_SURFACE_PROGRAM_CACHE_KEY);
+    expect(road.material.customProgramCacheKey()).toBe(`${ROAD_SURFACE_PROGRAM_CACHE_KEY}:world-atmosphere-v1`);
     road.setWetness(2);
     expect(road.wetness).toBe(1);
     road.setWetness(-1);

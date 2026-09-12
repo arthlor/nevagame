@@ -64,11 +64,13 @@ import type {
   TrophyCatchDto,
   WorldHudDto,
   WorldMapDto,
-  AlmanacDto} from "../simulation/core/contracts";
+  AlmanacDto,
+  PeoplePageDto} from "../simulation/core/contracts";
 import type { ChronicleEntry, ChronicleFilter, Notice } from "./notifications";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet } from "./coastal/CoastalUI";
 import { StartScreen } from "./StartScreen";
+import type { VillageNoticeDto } from "../content/villageBulletin";
 import { PlacementEditorHud } from "./PlacementEditorHud";
 import { CharacterScreen } from "./CharacterScreen";
 import { CraftingModal } from "./CraftingModal";
@@ -108,6 +110,12 @@ export interface GameUIProps {
   worldHud: WorldHudDto;
   toastMessage?: string | null;
   notices?: readonly Notice[];
+  /** Authored town notices selected from earned state, shown in the journal board. */
+  villageNotices?: readonly VillageNoticeDto[];
+  /** The named cast and earned standing, shown in the journal People folio. */
+  people?: PeoplePageDto;
+  /** A one-shot request to open the journal already turned to a folio. */
+  journalOpenRequest?: { folio: JournalFolio; token: number } | null;
   inspectedCrop: CropInspectionDto | null;
   inspectedCropPosition?: { x: number; y: number; visible: boolean } | null;
   onDismissCropInspection?: () => void;
@@ -258,6 +266,9 @@ export const GameUI: React.FC<GameUIProps> = ({
   worldHud,
   toastMessage,
   notices,
+  villageNotices = [],
+  people,
+  journalOpenRequest = null,
   inspectedCrop,
   inspectedCropPosition = null,
   onDismissCropInspection,
@@ -369,27 +380,18 @@ export const GameUI: React.FC<GameUIProps> = ({
   const showDiagnostics =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
   const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("story");
-  const [showTrophyModal, setShowTrophyModal] = useState(false);
-  const prevLandedCatchId = useRef<string | null>(null);
+  // The world board asks for the notices folio by token, so a repeated read
+  // still lands on Notices instead of the journal's last page.
+  useEffect(() => {
+    if (journalOpenRequest) setJournalInitialFolio(journalOpenRequest.folio);
+  }, [journalOpenRequest]);
+  const showTrophyModal = activeModal === "catch";
 
   const trophyCatchDto = useMemo<TrophyCatchDto | null>(() => {
     if (!landedCatch) return null;
     if ("qualityStars" in landedCatch) return landedCatch;
     return buildTrophyCatchDto(landedCatch, landedCatchRecord);
   }, [landedCatch, landedCatchRecord]);
-
-  useEffect(() => {
-    if (landedCatch) {
-      const currentId = "id" in landedCatch ? landedCatch.id : landedCatch.cargoId;
-      if (currentId !== prevLandedCatchId.current) {
-        prevLandedCatchId.current = currentId;
-        setShowTrophyModal(true);
-      }
-    } else {
-      prevLandedCatchId.current = null;
-      setShowTrophyModal(false);
-    }
-  }, [landedCatch]);
 
   // Debug sessions need the diagnostic surface while the real runtime boots;
   // the boot-ready attribute is the synchronization point for browser checks.
@@ -479,7 +481,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         onClearVirtualInput={onClearVirtualInput}
       />
 
-      {mode !== "sport-fishing" && inspectedCrop && (
+      {mode !== "sport-fishing" && !activeModal && !showTrophyModal && inspectedCrop && (
         <CropInspection
           inspection={inspectedCrop}
           projectedPosition={inspectedCropPosition}
@@ -490,7 +492,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         <FarmingActionStatus action={farmingAction} />
       )}
 
-      <FarmGISLegend visible={mode !== "sport-fishing" && isFarmGisHeld} />
+      <FarmGISLegend visible={mode !== "sport-fishing" && !activeModal && !showTrophyModal && isFarmGisHeld} />
 
       {mode === "farm-placement" && !activeModal && (
         <PlantingSeedBar
@@ -502,7 +504,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {mode !== "sport-fishing" && mode !== "farm-placement" && activeHint && onDismissHint && (
+      {mode !== "sport-fishing" && mode !== "farm-placement" && !activeModal && !showTrophyModal && activeHint && onDismissHint && (
         <ContextualHintCard
           hintId={activeHint.hintId}
           title={activeHint.title}
@@ -542,7 +544,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           cargo={"qualityStars" in landedCatch ? undefined : landedCatch}
           catchData={trophyCatchDto}
           onDismiss={onDismissCatchSummary}
-          onClick={() => setShowTrophyModal(true)}
+          onClick={() => onSetActiveModal("catch")}
         />
       )}
 
@@ -550,11 +552,9 @@ export const GameUI: React.FC<GameUIProps> = ({
         <CatchInspectionModal
           catchData={trophyCatchDto}
           onDismiss={() => {
-            setShowTrophyModal(false);
             onDismissCatchSummary?.();
           }}
           onOpenHoldOrSatchel={() => {
-            setShowTrophyModal(false);
             onDismissCatchSummary?.();
             onSetActiveModal("inventory");
           }}
@@ -658,6 +658,8 @@ export const GameUI: React.FC<GameUIProps> = ({
           activeQuests={activeQuests}
           skills={onInspectSkillProgress()}
           almanac={onInspectAlmanac?.()}
+          notices={villageNotices}
+          people={people}
           initialFolio={journalInitialFolio}
           onClose={() => {
             setJournalInitialFolio("story");

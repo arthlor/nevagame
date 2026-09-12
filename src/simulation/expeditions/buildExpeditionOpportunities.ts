@@ -31,7 +31,7 @@ export interface ExpeditionBoardDto {
       hullMaximum: number;
       hullPercent: number;
     } | null;
-    supplies: ReadonlyArray<{ itemId: string; count: number }>;
+    supplies: ReadonlyArray<{ itemId: string; name: string; count: number }>;
     weatherType: GameState["weather"]["type"];
     seaLabel: "Calm water" | "Rough water" | "Unsafe water";
   };
@@ -213,6 +213,7 @@ export function buildExpeditionBoard(
         : null,
       supplies: ["item.chum_bucket", "item.chum_rich", "item.chum_deep", "item.bait_worms", "item.basic_lure", "item.crushed_ice"].map((itemId) => ({
         itemId,
+        name: itemName(itemId),
         count: packedCount(itemId)
       })),
       weatherType: state.weather.type,

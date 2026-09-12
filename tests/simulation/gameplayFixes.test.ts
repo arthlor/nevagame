@@ -962,7 +962,8 @@ describe("Gameplay simulation fixes", () => {
       expect(sim.startProcessingJob(testCase.recipeId, testCase.stationId)).toMatchObject({ success: true });
       const job = Object.values(sim.state.processingJobs).find((candidate) => candidate.stationId === testCase.stationId);
       expect(job).toBeDefined();
-      job!.status = "complete";
+      sim.advanceGameMinutes(job!.effectiveDurationMinutes);
+      expect(job!.status).toBe("complete");
 
       const inventoryBeforeInvalidCollect = inventory.slots.map((slot) => ({ ...slot }));
       const xpBeforeInvalidCollect = sim.state.player.proficiencies.processing;

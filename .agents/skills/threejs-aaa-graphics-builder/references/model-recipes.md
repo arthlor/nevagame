@@ -1,6 +1,6 @@
 # Procedural Model Recipes
 
-These recipes are for scratch-built Three.js models when external art assets are unavailable. The goal is not photorealism; it is authored, layered, readable, premium browser-game art.
+These recipes provide authored-form and construction ideas for procedural models. Procedural work is a deliberate production choice, not a fallback that needs an unavailable provider. In Neva, translate useful construction ideas into the owning registered Blender family; do not copy runtime factories or genre-specific parts into the game.
 
 ## Modeling Principles
 
@@ -13,16 +13,13 @@ These recipes are for scratch-built Three.js models when external art assets are
 - Use shared geometries/materials and instancing for repeated bolts, panels, lights, windows, spikes, rocks, or rail segments.
 - Name important child meshes: `cockpitGlass`, `leftEngine`, `hazardTeeth`, `pickupCore`, `collisionProxy`.
 
-## Minimum Premium Asset Pass
+## Select the Relevant Construction
 
-For a game that asks for premium/AAA/showcase quality, build at least:
-
-- One hero/player model with readable front/up/side and three state cues.
-- Three obstacle/enemy variants with unique silhouettes and telegraphs.
-- Two reward/interactable variants with idle and collect states.
-- One world prop kit with at least eight reusable parts.
-- One material kit with trim, decals, panel lines, and emissive masks.
-- Collision proxies and renderer diagnostics for the above.
+Use the recipe matching the requested subject and accepted art brief. Silhouette,
+structure, material separation, readable state and cost matter where applicable.
+No fixed number of enemies, rewards, prop parts or generated assets establishes
+quality. The examples below illustrate different genres; they neither expand
+the task nor override Neva's no-combat, catalog or source-preservation contracts.
 
 ## Hero Vehicle Recipe
 

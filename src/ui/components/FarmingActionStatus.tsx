@@ -19,8 +19,8 @@ export const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: str
   water: { title: "Watering soil…", hint: "Irrigating crop bed" },
   fertilize: { title: "Fertilizing soil…", hint: "Enriching soil nutrients" },
   harvest: { title: "Harvesting crop…", hint: "Gathering farm produce" },
-  "processing-start": { title: "Starting processing…", hint: "Loading artisan station" },
-  "processing-collect": { title: "Collecting yield…", hint: "Gathering processed goods" },
+  "processing-start": { title: "Preparing the station…", hint: "Loading artisan station" },
+  "processing-collect": { title: "Collecting your work…", hint: "Gathering processed goods" },
   pickup: { title: "Picking up…", hint: "Lifting physical item" },
   place: { title: "Placing…", hint: "Setting down item" },
   workstation: { title: "Working…", hint: "Operating artisan station" },
@@ -88,7 +88,7 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
             )}
           </div>
           <span className="cast-bar-timing" aria-hidden="true">
-            {`${elapsedSec.toFixed(1)}s / ${totalSec.toFixed(1)}s · ${percent}%`}
+            {`${elapsedSec.toFixed(1)}s / ${totalSec.toFixed(1)}s`}
           </span>
         </div>
 
@@ -107,7 +107,7 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
           <div
             className="cast-bar-commit-marker"
             style={{ left: `${commitPercent}%` }}
-            title={`Commit threshold: ${commitPercent}%`}
+            title={`Work takes effect here`}
             aria-hidden="true"
           />
           {/* Channeling Progress Spark */}
@@ -120,7 +120,7 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
 
         <footer className="cast-bar-footer">
           <span className={`cast-bar-status-text ${isCommitted ? "is-committed" : ""}`}>
-            {isCommitted ? "Committed · Finishing…" : "Channeling…"}
+            {isCommitted ? "Finishing…" : "Working…"}
           </span>
           {action.interruptible && !isCommitted ? (
             <span className="cast-bar-cancel-hint">
@@ -128,7 +128,7 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
             </span>
           ) : isCommitted ? (
             <span className="cast-bar-cancel-hint is-committed-hint">
-              Action locked in
+              Cannot cancel now
             </span>
           ) : null}
         </footer>

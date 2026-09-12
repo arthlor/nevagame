@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
-import type { JournalPagesDto, SkillProgressDto, AlmanacDto} from "../simulation/core/contracts";
+import type { JournalPagesDto, SkillProgressDto, AlmanacDto, PeoplePageDto } from "../simulation/core/contracts";
 import type { SkillId } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { getNextRank } from "../content/progression";
@@ -10,11 +10,15 @@ import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import {
+  IconAnchor,
+  IconBoat,
   IconCheck,
   IconCoin,
   IconCompass,
   IconFish,
   IconJournal,
+  IconPack,
+  IconPeople,
   IconPin,
   IconSparkle,
   IconSprout,
@@ -27,8 +31,9 @@ import { RECORD_TIERS } from "../content/records";
 import { HowToPlayGuide } from "./components/HowToPlayGuide";
 import { AlmanacPage } from "./components/AlmanacPage";
 import { playUiSound } from "./audio/uiAudio";
+import type { VillageNoticeCategory, VillageNoticeDto } from "../content/villageBulletin";
 
-export type JournalFolio = "story" | "records" | "almanac" | "skills" | "guide";
+export type JournalFolio = "story" | "people" | "records" | "almanac" | "skills" | "guide" | "notices";
 
 interface JournalModalProps {
   pages: JournalPagesDto;
@@ -39,18 +44,24 @@ interface JournalModalProps {
   onClose: () => void;
   /** Omitted where the host cannot supply it; the folio then stays hidden. */
   almanac?: AlmanacDto;
+  /** Authored town notices selected from earned state. Omitted hides the folio. */
+  notices?: readonly VillageNoticeDto[];
+  /** The named cast and earned standing. Omitted hides the folio. */
+  people?: PeoplePageDto;
   initialFolio?: JournalFolio;
 }
 
 const FOLIOS: Array<{ id: JournalFolio; label: string; icon: React.ReactNode }> = [
   { id: "story", label: "Story", icon: <IconJournal size={14} aria-hidden="true" /> },
+  { id: "people", label: "People", icon: <IconPeople size={14} aria-hidden="true" /> },
   { id: "records", label: "Records", icon: <IconFish size={14} aria-hidden="true" /> },
+  { id: "notices", label: "Notices", icon: <IconPin size={14} aria-hidden="true" /> },
   { id: "almanac", label: "Almanac", icon: <IconSprout size={14} aria-hidden="true" /> },
   { id: "skills", label: "Skills", icon: <IconTools size={14} aria-hidden="true" /> },
   { id: "guide", label: "Guide", icon: <IconCompass size={14} aria-hidden="true" /> }
 ];
 
-export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, activeQuests, skills, almanac, onClose, initialFolio = "story" }) => {
+export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, activeQuests, skills, almanac, notices, people, onClose, initialFolio = "story" }) => {
   const [activeFolio, setActiveFolio] = useState<JournalFolio>(initialFolio);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
@@ -88,7 +99,11 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
             aria-label="Journal pages"
             onKeyDown={handleTabListKeyDown}
           >
-            {FOLIOS.filter((folio) => folio.id !== "almanac" || almanac).map((folio) => (
+            {FOLIOS.filter((folio) =>
+              (folio.id !== "almanac" || almanac)
+              && (folio.id !== "notices" || notices)
+              && (folio.id !== "people" || people)
+            ).map((folio) => (
               <button
                 key={folio.id}
                 type="button"
@@ -117,7 +132,9 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
           {activeFolio === "story" && (
             <StoryPage activeQuest={activeQuest} activeQuests={activeQuests} completedStories={pages.completedStories} />
           )}
+          {activeFolio === "people" && people && <PeoplePage people={people} />}
           {activeFolio === "records" && <RecordsPage pages={pages} />}
+          {activeFolio === "notices" && <NoticesPage notices={notices ?? []} />}
           {activeFolio === "almanac" && almanac && <AlmanacPage almanac={almanac} />}
           {activeFolio === "skills" && <SkillsPage skills={skills} />}
           {activeFolio === "guide" && <HowToPlayGuide />}
@@ -127,6 +144,8 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
           <span>
             {activeFolio === "story" && `${pages.completedStories?.length ?? 0} story entries complete`}
             {activeFolio === "records" && `${(pages.records ?? []).filter((r) => r.achieved).length} of ${pages.records?.length ?? 0} records achieved`}
+            {activeFolio === "people" && people && `${people.recognizedCount} of ${people.total} have taken your measure`}
+            {activeFolio === "notices" && `${notices?.length ?? 0} pinned to the board`}
             {activeFolio === "almanac" && (almanac ? `${almanac.discoveredFish + almanac.discoveredCrops} of ${almanac.totalFish + almanac.totalCrops} species cataloged` : "Botanical & marine catalog")}
             {activeFolio === "skills" && "Work & maritime masteries"}
             {activeFolio === "guide" && "Field guide & controls reference"}
@@ -148,17 +167,9 @@ const StoryPage: React.FC<{
   );
   return (
     <section className="journal-page journal-story-page" aria-label="Story">
-      <div className="journal-page-heading"><span>Guild Chronicles</span><h2>{activeQuest?.actTitle ?? "Open coast"}</h2></div>
+    <div className="journal-page-heading"><h2>{activeQuest?.actTitle ?? "Open coast"}</h2></div>
       {activeQuest ? (
         <article className="journal-active-story journal-story-scroll">
-          <div className="journal-story-scroll-top">
-            <div className="journal-act-badge">
-              <IconJournal size={14} aria-hidden="true" />
-              <span>{activeQuest.actTitle ?? "Coastal Commission"}</span>
-            </div>
-            <span className="journal-thread-badge">Primary Commission</span>
-          </div>
-
           <div className="journal-story-title-row">
             <h3>{activeQuest.questTitle}</h3>
           </div>
@@ -185,8 +196,8 @@ const StoryPage: React.FC<{
             <div className="journal-ready-seal" role="status">
               <IconCheck size={18} aria-hidden="true" />
               <div className="journal-seal-text">
-                <strong>Dispatch Ready</strong>
-                <span>Return to report and conclude this chapter</span>
+                <strong>Ready to hand in</strong>
+                <span>{activeQuest.targetLocation ? `Return to ${activeQuest.targetLocation.name}` : "Return to finish this errand"}</span>
               </div>
             </div>
           )}
@@ -195,7 +206,7 @@ const StoryPage: React.FC<{
             <div className="journal-blocked-seal" role="alert">
               <IconWarning size={18} aria-hidden="true" />
               <div className="journal-seal-text">
-                <strong>Commission Blocked</strong>
+                <strong>Before you can hand this in</strong>
                 <span>{activeQuest.turnInBlockerReason}</span>
               </div>
             </div>
@@ -209,7 +220,7 @@ const StoryPage: React.FC<{
         <section className="journal-open-threads" aria-label="Other open threads">
           <h3 className="journal-threads-heading">
             <IconCompass size={15} aria-hidden="true" />
-            <span>Secondary Coastal Threads ({otherThreads.length})</span>
+            <span>Other errands ({otherThreads.length})</span>
           </h3>
           <div className="journal-threads-grid">
             {otherThreads.map((thread) => (
@@ -310,7 +321,7 @@ const RecordsBoard: React.FC<{ records: JournalPagesDto["records"] }> = ({ recor
 
   return (
     <section aria-labelledby="journal-records-board" className="journal-records-board">
-      <h3 id="journal-records-board"><IconSparkle size={16} aria-hidden="true" /> Standing Guild Records</h3>
+      <h3 id="journal-records-board"><IconSparkle size={16} aria-hidden="true" /> Milestones</h3>
       <div className="journal-record-tiers-grid">
         {tiers.map(({ tier, done, total, open, achieved, expanded }) => {
           const preview = open.slice(0, 2);
@@ -367,11 +378,11 @@ const RecordsBoard: React.FC<{ records: JournalPagesDto["records"] }> = ({ recor
 
 const RecordsPage: React.FC<{ pages: JournalPagesDto }> = ({ pages }) => (
   <section className="journal-page journal-records-page" aria-label="Records">
-    <div className="journal-page-heading"><span>Guild Registry</span><h2>What you have learned</h2></div>
+    <div className="journal-page-heading"><h2>What you have learned</h2></div>
     <RecordsBoard records={pages.records} />
     <div className="journal-record-columns">
       <section aria-labelledby="journal-fish-records" className="journal-records-section">
-        <h3 id="journal-fish-records"><IconFish size={16} aria-hidden="true" /> Marine Angling Records</h3>
+        <h3 id="journal-fish-records"><IconFish size={16} aria-hidden="true" /> Your catches</h3>
         {pages.fishRecords.length === 0 ? <p className="journal-empty-copy">No fish recorded yet.</p> : (
           <div className="journal-record-list">
             {pages.fishRecords.map((record) => (
@@ -400,7 +411,7 @@ const RecordsPage: React.FC<{ pages: JournalPagesDto }> = ({ pages }) => (
       </section>
 
       <section aria-labelledby="journal-field-records" className="journal-records-section">
-        <h3 id="journal-field-records"><IconSprout size={16} aria-hidden="true" /> Agronomy &amp; Field Discoveries</h3>
+        <h3 id="journal-field-records"><IconSprout size={16} aria-hidden="true" /> Field notes</h3>
         <div className="journal-knowledge-list">
           {pages.cropRecords.map((record) => (
             <article key={record.cropId} className="journal-knowledge-entry">
@@ -434,6 +445,117 @@ const RecordsPage: React.FC<{ pages: JournalPagesDto }> = ({ pages }) => (
         </div>
       </section>
     </div>
+  </section>
+);
+
+/** Each person keeps their own trade mark, so the directory does not read as one repeated card. */
+const PERSON_PORTRAIT_ICONS: Record<string, React.ReactNode> = {
+  anchor: <IconAnchor size={18} aria-hidden="true" />,
+  boat: <IconBoat size={18} aria-hidden="true" />,
+  fish: <IconFish size={18} aria-hidden="true" />,
+  pack: <IconPack size={18} aria-hidden="true" />,
+  sprout: <IconSprout size={18} aria-hidden="true" />
+};
+
+const PersonPortrait: React.FC<{ icon: string }> = ({ icon }) =>
+  PERSON_PORTRAIT_ICONS[icon] ?? <IconPeople size={18} aria-hidden="true" />;
+
+/**
+ * The People folio: a directory of the named cast. It shows the line the world
+ * currently uses for each person and the standing the player has earned, all
+ * derived from existing save state.
+ */
+const PeoplePage: React.FC<{ people: PeoplePageDto }> = ({ people }) => (
+  <section className="journal-page journal-people-page" aria-label="People">
+    <div className="journal-page-heading">
+      <h2>People along the coast</h2>
+    </div>
+    {people.people.length === 0 ? (
+      <p className="journal-empty-copy">No one has crossed your path yet.</p>
+    ) : (
+      <>
+        <div className="journal-people-summary">
+          <span>
+            <IconPeople size={14} aria-hidden="true" />
+            <strong>{people.recognizedCount}</strong> of <strong>{people.total}</strong> familiar
+          </span>
+        </div>
+        <div className="journal-people-list">
+      {people.people.map((person) => (
+        <article
+          key={person.id}
+          className={`journal-person is-tier-${person.standingTier}${person.recognized ? " is-recognized" : ""}`}
+          data-testid={`journal-person-${person.id}`}
+          data-recognized={person.recognized ? "true" : "false"}
+        >
+          <div className="journal-person-medallion" aria-hidden="true">
+            <PersonPortrait icon={person.portraitIcon} />
+          </div>
+          <div className="journal-person-main">
+            <div className="journal-person-head">
+              <div className="journal-person-names">
+                <h3>{person.name}</h3>
+                <span className="journal-person-title">{person.title}</span>
+              </div>
+              <span className={`journal-person-standing is-tier-${person.standingTier}`}>
+                <span className="journal-person-standing-mark" aria-hidden="true" />
+                {person.standingLabel}
+              </span>
+            </div>
+            <p className="journal-person-line">{person.line}</p>
+            <div className="journal-person-meta">
+              <span className="journal-person-meta-item">
+                <IconPin size={12} aria-hidden="true" />
+                Now at {person.locationName}
+              </span>
+              {person.questsCompleted > 0 && <span className="journal-person-meta-item">
+                <IconCheck size={12} aria-hidden="true" />
+                {person.questsCompleted} {person.questsCompleted === 1 ? "commission completed" : "commissions completed"}
+              </span>}
+              <span className="journal-person-district">{person.district}</span>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+      </>
+    )}
+  </section>
+);
+
+const NOTICE_CATEGORY_LABELS: Record<VillageNoticeCategory, string> = {
+  town: "Town",
+  market: "Market",
+  harbor: "Harbor",
+  farm: "Field"
+};
+
+/**
+ * The village board. Entries are authored community notices filtered to what
+ * the player has already earned, so the square feels like it is talking about
+ * the same coast the save file remembers.
+ */
+const NoticesPage: React.FC<{ notices: readonly VillageNoticeDto[] }> = ({ notices }) => (
+  <section className="journal-page journal-notices-page" aria-label="Town notices">
+    <div className="journal-page-heading">
+      <h2>From the village board</h2>
+    </div>
+    {notices.length === 0 ? (
+      <p className="journal-empty-copy">The board is bare. Notices appear as the town has news.</p>
+    ) : (
+      <div className="journal-notices-board">
+        {notices.map((notice) => (
+          <article key={notice.id} className={`journal-notice journal-notice--${notice.category}`}>
+            <div className="journal-notice-head">
+              <span className="journal-notice-category">{NOTICE_CATEGORY_LABELS[notice.category]}</span>
+              <span className="journal-notice-source">{notice.source}</span>
+            </div>
+            <h3 className="journal-notice-title">{notice.title}</h3>
+            <p className="journal-notice-body">{notice.body}</p>
+          </article>
+        ))}
+      </div>
+    )}
   </section>
 );
 
@@ -473,7 +595,7 @@ const unlockDisplayName = (id: string): string => {
 
 const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => (
   <section className="journal-page journal-skills-page" aria-label="Skills">
-    <div className="journal-page-heading"><span>Guild Proficiency &amp; Masteries</span><h2>Practice along the coast</h2></div>
+    <div className="journal-page-heading"><h2>Practice along the coast</h2></div>
     <div className="journal-skills-list">
       {skills.length === 0 ? (
         <p className="journal-empty-copy">No practice recorded yet.</p>
@@ -493,9 +615,6 @@ const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => (
                   <h3>{skill.label}</h3>
                   <span className="journal-rank-badge">{skill.rankName}</span>
                 </div>
-                <div className="journal-skill-xp-badge">
-                  <span>{skill.xp.toLocaleString()} XP</span>
-                </div>
               </div>
 
               <div className="journal-skill-meter-row">
@@ -504,7 +623,7 @@ const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => (
                   value={skill.progressPercent}
                   max={100}
                   showLabel={false}
-                  valueText={skill.nextXp !== null ? `${skill.xp.toLocaleString()} / ${skill.nextXp.toLocaleString()} XP (${skill.progressPercent}%)` : "Mastered Highest Tier"}
+                  valueText={skill.nextXp !== null ? `${skill.xp.toLocaleString()} / ${skill.nextXp.toLocaleString()} XP` : "Mastered"}
                   variant="gold"
                 />
               </div>
@@ -513,21 +632,18 @@ const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => (
                 {next ? (
                   <div className="journal-next-tier-preview">
                     <span className="journal-next-tier-title">
-                      Next Tier: <strong>{nextRankLabel}</strong> ({next.xpRequired.toLocaleString()} XP)
+                      Next: <strong>{nextRankLabel}</strong>
                     </span>
                     {unlockNames.length > 0 && (
                       <div className="journal-unlock-chips">
-                        <span className="journal-unlock-label">Unlocks:</span>
-                        {unlockNames.map((name) => (
-                          <span key={name} className="journal-unlock-chip">{name}</span>
-                        ))}
+                        <span>{unlockNames.join(" · ")}</span>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="journal-mastered-note">
                     <IconSparkle size={14} aria-hidden="true" />
-                    <span>Guild Master of this craft · Peak proficiency achieved</span>
+                    <span>You have mastered this craft</span>
                   </div>
                 )}
               </div>

@@ -3,7 +3,7 @@
  * Keep this module free of Three.js so simulation can consume it directly.
  */
 
-export const WORLD_LAYOUT_REVISION = 15 as const;
+export const WORLD_LAYOUT_REVISION = 16 as const;
 
 export const WORLD_SPAWN = {
   playerPosition: { x: -65, z: -60.5 },
@@ -15,6 +15,17 @@ export const RIVER_CROSSING = { x: 0, z: -5 } as const;
 
 /** Packed village court landform. Independent of the produce stall pose. */
 export const VILLAGE_PLAZA = { x: 52.9, z: -53.2 } as const;
+
+/**
+ * Freestanding town notice board on the village square. Sits clear of the
+ * produced stall's 6 m interaction ring and every building envelope, on the
+ * south side of the court, and faces north toward the market.
+ */
+export const VILLAGE_BULLETIN = {
+  position: { x: 53.0, z: -58.0 },
+  rotationY: 0,
+  interactionRadiusMeters: 2.6
+} as const;
 
 /** Northeast village plaza — produce market and arterial road hub. */
 export const VILLAGE_MARKET = {

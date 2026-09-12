@@ -24,8 +24,26 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "farms", "inventories", "fishCargo", "markets", "contracts", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "farms", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
+  }
+  for (const [marketId, oldMarket] of Object.entries(before.markets)) {
+    const migratedMarket = after.markets[marketId];
+    expect(migratedMarket, marketId).toBeDefined();
+    expect(migratedMarket).toMatchObject({
+      id: oldMarket.id,
+      name: oldMarket.name,
+      regionId: oldMarket.regionId
+    });
+    const currentCommodityIds = new Set(
+      ContentRegistry.markets.get(marketId)?.commodities.map((commodity) => commodity.itemId) ?? []
+    );
+    for (const [itemId, commodity] of Object.entries(oldMarket.commodities)) {
+      if (currentCommodityIds.has(itemId)) {
+        expect(migratedMarket!.commodities[itemId], `${marketId}/${itemId}`).toEqual(commodity);
+      }
+    }
+    expect(Object.keys(migratedMarket!.commodities)).toEqual(expect.arrayContaining([...currentCommodityIds]));
   }
   // Quests pass through except for the v35 credit ledger, which every save
   // gains on migration and which starts empty for a legacy fixture.
@@ -122,7 +140,9 @@ describe("layout 12 natural island coasts save migration", () => {
     const before = legacy();
     const point = location === "sunreach" ? SUNREACH_ANCHORS.dockPlayer : FARMHOUSE_INTERIOR_DOOR.enterSpawn;
     Object.assign(before.state.player, point);
-    expect(migrateSaveData(before).state.player).toEqual(before.state.player);
+    // This version leaves those regions alone; later layout16 deliberately
+    // re-grounds Sunreach as part of the two-island landscape change.
+    expect(migrateTerrainLayout12(before.state).player).toMatchObject(before.state.player);
   });
 
   it.each([false, true])("recovers an invalid vessel without losing its cargo or active rider (active=%s)", (active) => {

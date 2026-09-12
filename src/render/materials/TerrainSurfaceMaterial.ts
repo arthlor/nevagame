@@ -8,6 +8,7 @@ import {
   POLYHAVEN_SURFACE_TEXTURES
 } from "./ExternalSurfaceTextures";
 import { PaletteMaterials } from "./PaletteMaterials";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PALETTE_HEX } from "./PaletteTokens";
 import {
   SURFACE_FIELD_FRAGMENT_GLSL,
@@ -15,7 +16,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v25-meadow-regions";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v27-dry-climate";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -167,9 +168,13 @@ ${SURFACE_FIELD_VERTEX_DECLARATIONS}
 attribute float terrainGreenMask;
 attribute float terrainPathBlend;
 attribute vec3 terrainShoreWeights;
+attribute float terrainFaceting;
+attribute float terrainDryClimate;
 varying float vTerrainGreenMask;
 varying float vTerrainPathBlend;
 varying vec3 vTerrainShoreWeights;
+varying float vTerrainFaceting;
+varying float vTerrainDryClimate;
 varying vec3 vTerrainWorldPosition;`,
     "vertex"
   );
@@ -180,7 +185,9 @@ varying vec3 vTerrainWorldPosition;`,
 ${SURFACE_FIELD_VERTEX_ASSIGNMENTS}
 vTerrainGreenMask = terrainGreenMask;
 vTerrainPathBlend = clamp(terrainPathBlend, 0.0, 1.0);
-vTerrainShoreWeights = clamp(terrainShoreWeights, 0.0, 1.0);`,
+vTerrainShoreWeights = clamp(terrainShoreWeights, 0.0, 1.0);
+vTerrainFaceting = clamp(terrainFaceting, 0.0, 1.0);
+vTerrainDryClimate = clamp(terrainDryClimate, 0.0, 1.0);`,
     "vertex"
   );
   shader.vertexShader = replaceShaderChunk(
@@ -199,6 +206,8 @@ ${COASTAL_FIELD_GLSL}
 uniform vec3 terrainCoastalSand;
 uniform vec3 terrainCoastalWetSand;
 uniform vec3 terrainCoastalFoam;
+uniform vec3 terrainDryRidgeColor;
+uniform float terrainDryClimateColorMix;
 uniform sampler2D terrainDetailTexture;
 uniform sampler2D terrainLeafyGrassColorTexture;
 uniform sampler2D terrainLeafyGrassRoughnessTexture;
@@ -229,6 +238,7 @@ uniform float terrainMeadowColorMix;
 uniform float terrainPolygonVariationStrength;
 uniform float terrainPolygonJaggedStrength;
 uniform float terrainPolygonFacetLightingStrength;
+uniform float terrainFacetedColorBlend;
 uniform float terrainPathShoulderStart;
 uniform float terrainPathShoulderFull;
 uniform float terrainPathCoreStart;
@@ -262,8 +272,18 @@ uniform float terrainRoughnessMax;
 varying float vTerrainGreenMask;
 varying float vTerrainPathBlend;
 varying vec3 vTerrainShoreWeights;
+varying float vTerrainFaceting;
+varying float vTerrainDryClimate;
 varying vec3 vTerrainWorldPosition;
-${SURFACE_FIELD_FRAGMENT_GLSL}`,
+${SURFACE_FIELD_FRAGMENT_GLSL}
+vec3 nevaTerrainFaceNormal() {
+  vec3 faceNormal = normalize(cross(
+    dFdx(vTerrainWorldPosition),
+    dFdy(vTerrainWorldPosition)
+  ));
+  if (!gl_FrontFacing) faceNormal *= -1.0;
+  return faceNormal;
+}`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -287,6 +307,7 @@ float terrainSampleFactor = mix(0.94, 1.06, terrainSample);
 float terrainSampleStrength = clamp(terrainColorVariationStrength / 0.06, 0.0, 1.0);
 float terrainDetail = 1.0 + (terrainSampleFactor - 1.0) * terrainSampleStrength;
 float terrainPaletteSignal = mix(terrainLargeSignals.g, terrainSmallSignals.b, 0.42);
+vec3 terrainRegionalCliffColor = mix(terrainCliffColor, terrainDryRidgeColor, vTerrainDryClimate);
 float terrainBeachTextureMask = clamp(
   (1.0 - nevaSurfaceRiverbedWeight())
     * (1.0 - nevaSurfaceFarmInfluence())
@@ -560,6 +581,17 @@ float terrainShelteredGround = clamp(nevaSurfaceDampSoilWeight() + nevaSurfaceWe
 vec3 terrainMeadowRegion = mix(terrainPaletteOliveColor, terrainPaletteSageColor, terrainLargeSignals.g);
 terrainMeadowRegion = mix(terrainMeadowRegion, terrainPaletteGrassColor, terrainMeadowBlend * (1.0 - terrainShelteredGround) * 0.62);
 diffuseColor.rgb = mix(diffuseColor.rgb, terrainMeadowRegion, vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * terrainMeadowColorMix);
+// Dry soil and olive scrub follow the island's existing drainage. The same
+// broad signal breaks up the palette without inventing another habitat field.
+vec3 terrainDrySoilColor = mix(terrainPathShoulderColor, terrainPathDustColor, terrainLargeSignals.g);
+vec3 terrainDryScrubColor = mix(terrainPaletteOliveColor, terrainPaletteSageColor, terrainLargeSignals.b);
+vec3 terrainDryRegionColor = mix(terrainDrySoilColor, terrainDryScrubColor,
+  smoothstep(0.54, 0.86, terrainLargeSignals.b) * 0.46);
+terrainDryRegionColor *= terrainDetail;
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainDryRegionColor,
+  vTerrainDryClimate * vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * terrainDryClimateColorMix);
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainRegionalCliffColor,
+  nevaSurfaceCliffWeight() * vTerrainDryClimate * (1.0 - nevaSurfaceFarmInfluence()));
 vec3 terrainShoreWeights = clamp(vTerrainShoreWeights, 0.0, 1.0);
 float terrainShoreWeight = clamp(
   terrainShoreWeights.x + terrainShoreWeights.y + terrainShoreWeights.z,
@@ -569,7 +601,7 @@ float terrainShoreWeight = clamp(
 vec3 terrainShoreExternalColor = (
   terrainBeachExternalColor * terrainShoreWeights.x
   + terrainWetShoreExternalColor * terrainShoreWeights.y
-  + terrainCliffColor * terrainShoreWeights.z
+  + terrainRegionalCliffColor * terrainShoreWeights.z
 ) / max(terrainShoreWeight, 0.0001);
 float terrainShoreValue = mix(0.965, 1.035, terrainLargeSample);
 terrainShoreExternalColor *= terrainShoreValue;
@@ -612,9 +644,9 @@ vec3 terrainSharedPaletteColor = nevaSurfaceWeightedPalette(
   terrainPathDustColor,
   terrainPathShoulderColor,
   terrainBeachExternalColor,
-  terrainCliffColor,
+  terrainRegionalCliffColor,
   terrainWetShoreExternalColor,
-  terrainCliffColor,
+  terrainRegionalCliffColor,
   diffuseColor.rgb
 );
 float terrainSharedTransition = nevaSurfaceTransitionWeight(0.08, 0.06);
@@ -643,6 +675,17 @@ diffuseColor.rgb = mix(diffuseColor.rgb, terrainCoastalFoam, landWash);
 float terrainFacetMask = max(
   max(vegetationMask, shoreMask * 0.55),
   max(pathUnderlayMix * 0.36, terrainShoreWeights.z * terrainShoreFacetStrength)
+);
+vec3 terrainFaceNormal = nevaTerrainFaceNormal();
+float terrainFaceValue = clamp(
+  0.985 + terrainFaceNormal.x * 0.026 - terrainFaceNormal.z * 0.018,
+  0.94,
+  1.06
+);
+diffuseColor.rgb *= mix(
+  1.0,
+  terrainFaceValue,
+  clamp(vTerrainFaceting, 0.0, 1.0) * terrainFacetedColorBlend
 );
 float terrainDebugSlope = 1.0 - abs(normalize(cross(
   dFdx(vTerrainWorldPosition),
@@ -673,6 +716,13 @@ if (terrainDebugMode > 0.5 && terrainDebugMode < 1.5) {
     shader.fragmentShader,
     fragmentNormal,
     `${fragmentNormal}
+vec3 terrainFaceNormalView = normalize((viewMatrix * vec4(terrainFaceNormal, 0.0)).xyz);
+if (dot(terrainFaceNormalView, normal) < 0.0) terrainFaceNormalView *= -1.0;
+normal = normalize(mix(
+  normal,
+  terrainFaceNormalView,
+  clamp(vTerrainFaceting, 0.0, 1.0)
+));
 normal = nevaSurfaceFacetNormal(
   normal,
   terrainPolygonCell,
@@ -782,6 +832,8 @@ export class TerrainSurfaceMaterial {
       terrainCoastalSand: { value: new THREE.Color(PALETTE_HEX.sand_coastal_01) },
       terrainCoastalWetSand: { value: new THREE.Color(PALETTE_HEX.sand_coastal_wet_01) },
       terrainCoastalFoam: { value: new THREE.Color(PALETTE_HEX.foam_warm_01) },
+      terrainDryRidgeColor: { value: new THREE.Color(PALETTE_HEX.stone_coastal_light_01) },
+      terrainDryClimateColorMix: { value: config.dryClimateColorMix },
       terrainDetailTexture: { value: this.detailTexture },
       terrainLeafyGrassColorTexture: { value: leafyGrassColorFallback },
       terrainLeafyGrassRoughnessTexture: { value: leafyGrassRoughnessFallback },
@@ -812,6 +864,7 @@ export class TerrainSurfaceMaterial {
       terrainPolygonVariationStrength: { value: config.polygonVariationStrength },
       terrainPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       terrainPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
+      terrainFacetedColorBlend: { value: config.normals.facetedColorBlend },
       terrainPathShoulderStart: { value: config.pathTransition.shoulderStart },
       terrainPathShoulderFull: { value: config.pathTransition.shoulderFull },
       terrainPathCoreStart: { value: config.pathTransition.coreStart },
@@ -856,6 +909,9 @@ export class TerrainSurfaceMaterial {
       patchTerrainSurfaceShader(shader as TerrainSurfaceShaderSource, this.shaderUniforms);
     };
     this.material.customProgramCacheKey = () => TERRAIN_SURFACE_PROGRAM_CACHE_KEY;
+    // This mixed terrain already owns its soil/shore wetness response. Its
+    // inherited foliage palette tag must not add the object-foliage response.
+    applyWorldAtmosphere(this.material, { rainSurface: false });
     this.material.needsUpdate = true;
   }
 

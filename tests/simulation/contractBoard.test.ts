@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { contractSlotsForRank } from "../../src/content/progression";
-import { feasibleContractTargets } from "../../src/simulation/domains/ContractDomain";
+import { contractTargetReferenceValue, feasibleContractTargets } from "../../src/simulation/domains/ContractDomain";
 import { isProduceContractType } from "../../src/simulation/domains/domainRules";
 import { SEASONS } from "../../src/simulation/core/GameClock";
 import { Simulation } from "../../src/simulation/Simulation";
 import type { GameState } from "../../src/simulation/core/types";
+import { getFishWeightMultiplier, getQualityMultiplier } from "../../src/simulation/economy/calculateFishValue";
+import { getFreshnessPriceMultiplier } from "../../src/simulation/fishing/calculateFreshness";
 
 /**
  * A player who has everything a template could ask for: every rod and boat,
@@ -27,20 +29,35 @@ function fullyEquippedState(): GameState {
 }
 
 describe("contract board", () => {
-  it("can actually generate every authored template", () => {
+  it("can actually generate every authored target", () => {
     ContentRegistry.initializeAndValidate();
     const state = fullyEquippedState();
     for (const template of ContentRegistry.contractTemplates.values()) {
-      const seasonsWithTargets = SEASONS.filter((season) => {
-        state.clock.season = season;
-        return feasibleContractTargets(state, template).length > 0;
-      });
-      expect(
-        seasonsWithTargets.length,
-        `${template.id} can never be generated — its delivery market must price the target, `
-        + "and fish targets must be sport species with a reachable school"
-      ).toBeGreaterThan(0);
+      for (const targetId of template.itemOrSpeciesPool) {
+        const seasonsWithTarget = SEASONS.filter((season) => {
+          state.clock.season = season;
+          return feasibleContractTargets(state, template).includes(targetId);
+        });
+        expect(
+          seasonsWithTarget.length,
+          `${template.id}:${targetId} can never be generated — its delivery market must price the target `
+          + "and the fish must have a reachable catch path"
+        ).toBeGreaterThan(0);
+      }
     }
+  });
+
+  it("prices physical basic fish through the fish valuation lane", () => {
+    ContentRegistry.initializeAndValidate();
+    const state = fullyEquippedState();
+    const template = ContentRegistry.contractTemplates.get("contract.sunreach_reef_fish_order")!;
+    const fish = ContentRegistry.fishSpecies.get("fish.sea_bream")!;
+    const reference = contractTargetReferenceValue(state, template, "fish.sea_bream");
+    const expected = fish.baseMarketValue
+      * getQualityMultiplier("common")
+      * getFreshnessPriceMultiplier(template.minFreshness ?? 100)
+      * getFishWeightMultiplier(fish, fish.weightKg.average);
+    expect(reference).toBeCloseTo(expected, 10);
   });
 
   it("keeps every template's delivery market able to price its own targets", () => {

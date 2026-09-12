@@ -1,11 +1,20 @@
 import { COASTAL_FIELD_GLSL } from "./CoastalOptics";
+import { CLOUD_SHADOW_RECEIVER_GLSL } from "../atmosphere/CloudShadows";
+import { AERIAL_PERSPECTIVE_GLSL } from "../atmosphere/AerialPerspective";
+import { WATER_CAUSTICS_GLSL } from "./waterCausticsGlsl";
 
 /** One optical response for coarse water and the near tessellation. */
 export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   ${COASTAL_FIELD_GLSL}
+  ${CLOUD_SHADOW_RECEIVER_GLSL}
+  ${AERIAL_PERSPECTIVE_GLSL}
   uniform vec3 uWaterAbsorption;
   uniform float uRefractionPixels;
   uniform float uRippleNormalStrength;
+  uniform float uCausticStrength;
+  uniform vec2 uCausticDepthFade;
+  uniform vec3 uCausticSunDirection;
+  uniform float uCausticSunStrength;
   uniform vec3 uDistantSlope;
   uniform int uSceneCaptureEnabled;
   uniform sampler2D uOpaqueColor;
@@ -57,6 +66,7 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
 `;
 
 export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
+  ${WATER_CAUSTICS_GLSL}
   vec3 nevaViewPosition(vec2 uv, float depth) {
     vec4 point = uOpticsInverseProjection * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     return point.xyz / point.w;
@@ -98,14 +108,19 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     float cloudReflection = smoothstep(0.12, 0.42, nevaGradientNoise(reflectView.xz / max(0.12, reflectView.y + 0.18) * 2.3));
     sky = mix(sky, uSkyHorizonColor * 1.08, cloudReflection * 0.08);
     float light = mix(0.19, 1.0, uDaylight);
+    float cloudSunlight = nevaCloudSunlight(worldPosition);
     vec3 body = mix(uShallowColor, uMidColor, smoothstep(0.15, uShallowEndMeters, waterDepth));
     body = mix(body, uDeepColor, smoothstep(uDepthRampStartMeters, uDepthRampEndMeters, waterDepth) * uDepthColorStrength);
-    body *= light;
+    body *= light * mix(1.0, cloudSunlight, 0.55 * uDaylight);
     float refractedCos = sqrt(max(0.08, 1.0 - (1.0 - ndv * ndv) / (1.333 * 1.333)));
     float thickness = waterDepth / refractedCos;
     vec3 behind = vec3(0.0);
     bool captured = uSceneCaptureEnabled == 1;
     if (captured) {
+      // Evaluate derivatives before the per-pixel refraction validity branch.
+      // Surface normals, wave time and depth are shared with the visible water.
+      float causticFocus = nevaWaterCausticFocus(worldPosition, normal,
+        min(waterDepth, uCausticDepthFade.y), uCausticSunDirection);
       vec2 uv = gl_FragCoord.xy / uOpticsViewport;
       vec2 offset = (mat3(viewMatrix) * normal).xy * uRefractionPixels / uOpticsViewport;
       offset *= smoothstep(0.03, 0.7, waterDepth);
@@ -117,9 +132,22 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       vec2 readUv = valid ? refractedUv : uv;
       sampledDepth = texture2D(uOpaqueDepth, readUv).r;
       vec3 waterView = (viewMatrix * vec4(worldPosition, 1.0)).xyz;
+      vec3 receiverView = nevaViewPosition(readUv, sampledDepth);
       thickness = sampledDepth < 0.999999
-        ? max(0.0, length(nevaViewPosition(readUv, sampledDepth) - waterView)) : 80.0;
+        ? max(0.0, length(receiverView - waterView)) : 80.0;
       behind = texture2D(uOpaqueColor, readUv).rgb;
+      if (sampledDepth < 0.999999 && sampledDepth > gl_FragCoord.z + 0.000001) {
+        vec3 receiverWorld = worldPosition + transpose(mat3(viewMatrix)) * (receiverView - waterView);
+        float receiverDepth = max(0.0, worldPosition.y - receiverWorld.y);
+        float causticWeight = smoothstep(0.04, 0.3, receiverDepth)
+          * (1.0 - smoothstep(uCausticDepthFade.x, uCausticDepthFade.y, max(receiverDepth, waterDepth)))
+          * (1.0 - smoothstep(0.35, 0.8, uRoughness)) * rippleFilter
+          * smoothstep(0.08, 0.35, uCausticSunDirection.y) * uCausticSunStrength * cloudSunlight;
+        // The captured haze is already integrated. Modulate the visible bed
+        // radiance only, before transmission and the single aerial composite.
+        vec3 bedRadiance = max(vec3(0.0), behind - nevaAerialSegment(receiverWorld).rgb);
+        behind += bedRadiance * causticFocus * causticWeight * uCausticStrength;
+      }
     }
     vec3 transmission = exp(-uWaterAbsorption * min(thickness, 100.0));
     float averageTransmission = dot(transmission, vec3(0.2126, 0.7152, 0.0722));
@@ -130,7 +158,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       vec3 halfVector = normalize(viewDirection + normalize(uSunDirection));
       float exponent = mix(170.0, 48.0, clamp(uRoughness + pixelFootprint * 0.13, 0.0, 1.0));
       float glint = pow(max(dot(normal, halfVector), 0.0), exponent) * uSunGlintStrength * uKeyLightStrength;
-      color += uSunColor * glint * (0.25 + 0.75 * fresnel);
+      color += uSunColor * glint * (0.25 + 0.75 * fresnel) * cloudSunlight;
     }
     vec3 wash = nevaCoastalWash(worldPosition.xz, field.b);
     float coastalFoam = wash.x * field.a;
@@ -141,10 +169,18 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     float foam = max(coastalFoam, rockFoam);
     float downhillGrade = max(0.0, -nevaHeadwaterElevationAndGrade(worldPosition.xz).y);
     if (downhillGrade > uRapidsGradeStart) {
-      vec4 rapidCell = nevaGroundPolygonCell(worldPosition.xz - vec2(0.0,
-        uTime * uRapidsFlowSpeed * (1.0 - uReducedMotion)), uRapidsCellScale);
+      // The headwater profile descends toward +Z. Advect broken narrow ribbons
+      // along that grade; broad polygon cells read as slabs across the stream.
+      vec2 rapidUv = (worldPosition.xz - vec2(0.0,
+        uTime * uRapidsFlowSpeed * (1.0 - uReducedMotion))) / uRapidsCellScale;
+      float rapidBend = nevaGradientNoise(rapidUv * vec2(0.65, 0.6));
+      float rapidRibbon = smoothstep(0.72, 0.97,
+        0.5 + 0.5 * sin(rapidUv.x * 5.2 + rapidBend * 8.0));
+      float rapidPacket = smoothstep(-0.08, 0.3,
+        nevaGradientNoise(rapidUv * vec2(0.8, 1.1) + vec2(11.3, 7.1)));
+      float rapidFilter = 1.0 - smoothstep(0.12, 0.6, pixelFootprint / uRapidsCellScale);
       foam = max(foam, smoothstep(uRapidsGradeStart, uRapidsGradeFull, downhillGrade)
-        * smoothstep(0.05, 0.5, waterDepth) * smoothstep(0.5, 0.76, rapidCell.x) * uRapidsFoamStrength);
+        * smoothstep(0.05, 0.5, waterDepth) * rapidRibbon * rapidPacket * rapidFilter * uRapidsFoamStrength);
     }
     float whitecap = smoothstep(0.7, 1.0, uRoughness) * regionWeights.z
       * smoothstep(0.13, 0.3, waveHeight) * smoothstep(0.012, 0.04, 1.0 - normal.y);
@@ -152,7 +188,14 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     color = mix(color, uFoamColor * mix(0.17, 1.0, uDaylight), foam);
     alpha = mix(alpha, 1.0, foam);
     float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);
-    color = mix(color, uFogColor, fogFactor * 0.82);
+    vec4 aerial = nevaAerialSegment(worldPosition);
+    color = color * aerial.a + aerial.rgb;
+    if (captured) {
+      // The opaque snapshot already contains camera-segment haze. Keep that
+      // captured contribution once, including its share of the inscattering.
+      vec3 capturedWeight = transmission * (1.0 - fresnel) * (1.0 - foam);
+      color += capturedWeight * (behind * (1.0 - aerial.a) - aerial.rgb);
+    }
     return vec4(color, captured ? 1.0 : mix(alpha, 1.0, fogFactor));
   }
 `;

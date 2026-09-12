@@ -190,7 +190,7 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(compostTurnIn.questId).toBe("quest.act2_harvest_and_compost");
     expect(compostTurnIn.isQuestReadyToTurnIn).toBe(true);
     expect(compostTurnIn.objectiveDescription).toBe("Talk to Barnaby to continue");
-    expect(compostTurnIn.targetLocation?.name).toBe(npcAnchorAt("npc.barnaby", sim.state.clock).locationName);
+    expect(compostTurnIn.targetLocation?.name).toBe(npcAnchorAt("npc.barnaby", sim.state.clock, sim.state.quests).locationName);
 
     Object.assign(sim.state.player, { x: compostTurnIn.targetLocation!.x, z: compostTurnIn.targetLocation!.z });
     sim.execute({ type: "quest.talk-npc", npcId: "npc.barnaby" });
@@ -228,8 +228,8 @@ describe("QuestDomain & Storyline Progression", () => {
       }
 
       const speaker = ContentRegistry.npcs.get(quest.speakerId)!;
-      sim.state.player.x = npcAnchorAt(speaker.id, sim.state.clock).x;
-      sim.state.player.z = npcAnchorAt(speaker.id, sim.state.clock).z;
+      sim.state.player.x = npcAnchorAt(speaker.id, sim.state.clock, sim.state.quests).x;
+      sim.state.player.z = npcAnchorAt(speaker.id, sim.state.clock, sim.state.quests).z;
       // Fund whatever this quest asks for at turn-in. Generic rather than a
       // per-quest special case, so a new commission does not silently make the
       // walk unfinishable — Act 9's charter costs money and cured fish.

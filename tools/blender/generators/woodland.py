@@ -22,9 +22,12 @@ from common.geometry import (
     add_limb_tube,
     add_tapered_beam,
     add_tri_prism,
+    add_leaf_blade,
+    _build_mesh,
+    set_surface_normals,
     seeded_rng,
 )
-from common.authored import add_root_flare
+from common.authored import add_tree_buttresses, add_canopy_lobe, add_conifer_tier
 
 GOLDEN_ANGLE = 2.39996322972865332
 
@@ -41,8 +44,9 @@ def _tapered_trunk(prefix, base_radius, top_radius, height, lean, token, root, *
 
 
 def _canopy_blob(name, center, scale, token, root, *, rng, subdivisions=2):
-    add_ico(name, center, scale, token, root, subdivisions=subdivisions,
-            rotation=(rng.uniform(-0.30, 0.30), rng.uniform(-0.30, 0.30), rng.uniform(0, math.pi)), normal_mode="rounded")
+    return add_canopy_lobe(name, center, scale, token, root,
+        seed=rng.randrange(1_000_000),detail=1,
+        rotation=(rng.uniform(-.2,.2),rng.uniform(-.2,.2),rng.uniform(0,math.pi)))
 
 
 def broadleaf_oak(spec: dict, root) -> None:
@@ -55,7 +59,7 @@ def broadleaf_oak(spec: dict, root) -> None:
     depth_bias = 0.70
     trunk_h = height * 0.42
 
-    add_root_flare("oak_root", (0, 0, 0.0), 0.62, 0.46, bark, root, count=6, seed=spec["seed"] + 3)
+    add_tree_buttresses("oak_root", (0, 0, 0.0), 0.62, 0.46, bark, root, count=6, seed=spec["seed"] + 3)
     top = _tapered_trunk("oak_trunk", 0.42, 0.24, trunk_h, math.radians(3.0), bark, root, sections=3)
 
     # Four primary limbs, each ending inside the leaf mass it supports.
@@ -114,7 +118,7 @@ def maple_tree(spec: dict, root) -> None:
     height = 7.10
     spread = 1.48
 
-    add_root_flare("maple_root", (0, 0, 0.0), 0.44, 0.36, bark, root, count=5, seed=spec["seed"] + 7)
+    add_tree_buttresses("maple_root", (0, 0, 0.0), 0.44, 0.36, bark, root, count=5, seed=spec["seed"] + 7)
     # A maple keeps a dominant leader all the way up: the trunk runs into the crown.
     leader_h = height * 0.78
     leader_top = _tapered_trunk("maple_trunk", 0.29, 0.075, leader_h, math.radians(2.0), bark, root, sections=4)
@@ -168,8 +172,8 @@ def tall_pine(spec: dict, root) -> None:
     height = 8.60
     spread = 1.62
 
-    add_root_flare("pine_root", (0, 0, 0.0), 0.42, 0.34, bark, root, count=5, seed=spec["seed"] + 5)
-    _tapered_trunk("pine_trunk", 0.28, 0.055, height * 0.94, math.radians(1.2), bark, root, sections=4)
+    add_tree_buttresses("pine_root", (0, 0, 0.0), 0.42, 0.34, bark, root, count=5, seed=spec["seed"] + 5)
+    trunk_tip = _tapered_trunk("pine_trunk", 0.28, 0.055, height * 0.94, math.radians(1.2), bark, root, sections=4)
 
     # Tiers shrink and lift as they climb; the lowest sits above the bare bole.
     tiers = 9
@@ -179,20 +183,19 @@ def tall_pine(spec: dict, root) -> None:
         z = height * (base_fraction + (0.94 - base_fraction) * t)
         radius = spread * (1.0 - t) ** 0.82 + 0.16
         token = pine if tier % 3 != 2 else (sage if tier % 2 else shadow)
-        add_cone(
-            f"pine_tier_{tier:02d}", (0, 0, z + radius * 0.34), radius, radius * 0.24, radius * 1.05,
-            token, root, vertices=7, rotation=(rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03), tier * GOLDEN_ANGLE),
-        )
+        add_conifer_tier(f"pine_tier_{tier:02d}",(0,0,z+radius*.25),radius,radius*1.3,
+                         pine if tier<7 else sage,root,seed=spec["seed"]+tier*17)
         # Drooping branch tips at the widest tiers break the cone into needles.
         if radius > 0.75:
             for index in range(3):
                 angle = index * math.tau / 3 + tier * GOLDEN_ANGLE
                 add_tapered_beam(
                     f"pine_branch_{tier:02d}_{index}", (0, 0, z + 0.06),
-                    (math.cos(angle) * radius * 1.04, math.sin(angle) * radius * 1.04, z - 0.14),
+                    (math.cos(angle) * radius * .72, math.sin(angle) * radius * .72, z - 0.14),
                     0.035, 0.014, bark, root, vertices=5,
                 )
-    add_cone("pine_spire", (0, 0, height - 0.30), 0.30, 0.02, 0.62, pine, root, vertices=7)
+    # The leader overlaps the last broad tier and follows the leaning bole.
+    add_cone("pine_spire", (trunk_tip[0], 0, height - 0.90), 0.56, 0.02, 1.80, pine, root, vertices=7)
     add_collision_primitives(spec, root)
 
 
@@ -203,18 +206,16 @@ def young_pine(spec: dict, root) -> None:
     height = 2.86
     spread = 0.82
 
-    _tapered_trunk("sapling_trunk", 0.09, 0.028, height * 0.90, math.radians(2.6), bark, root, sections=3, vertices=6)
+    trunk_tip = _tapered_trunk("sapling_trunk", 0.09, 0.028, height * 0.90, math.radians(2.6), bark, root, sections=3, vertices=6)
     tiers = 8
     for tier in range(tiers):
         t = tier / (tiers - 1)
         z = height * (0.10 + 0.80 * t)
         radius = spread * (1.0 - t) ** 0.72 + 0.10
         token = pine if tier % 2 == 0 else (sage if tier % 4 == 1 else shadow)
-        add_cone(
-            f"sapling_tier_{tier}", (0, 0, z + radius * 0.30), radius, radius * 0.26, radius * 1.10,
-            token, root, vertices=6, rotation=(rng.uniform(-0.05, 0.05), rng.uniform(-0.05, 0.05), tier * GOLDEN_ANGLE),
-        )
-    add_cone("sapling_leader", (0, 0, height - 0.20), 0.16, 0.015, 0.42, sage, root, vertices=6)
+        add_conifer_tier(f"sapling_tier_{tier}",(0,0,z+radius*.25),radius,radius*1.20,
+                         pine if tier<6 else sage,root,seed=spec["seed"]+tier*19)
+    add_cone("sapling_leader", (trunk_tip[0], 0, height - 0.30), 0.22, 0.015, 0.60, sage, root, vertices=6)
 
 
 def dead_tree(spec: dict, root) -> None:
@@ -223,7 +224,7 @@ def dead_tree(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     height = 4.55
 
-    add_root_flare("snag_root", (0, 0, 0.0), 0.48, 0.40, dark, root, count=6, seed=spec["seed"] + 2)
+    add_tree_buttresses("snag_root", (0, 0, 0.0), 0.48, 0.40, dark, root, count=6, seed=spec["seed"] + 2)
     top = _tapered_trunk("snag_trunk", 0.34, 0.13, height, math.radians(6.0), weathered, root, sections=4)
     # A snapped crown, not a clean cut: the reason there is no canopy.
     add_cone("snag_break", (top[0], 0, height + 0.14), 0.135, 0.030, 0.30, dark, root, vertices=6,
@@ -237,10 +238,10 @@ def dead_tree(spec: dict, root) -> None:
         reach = rng.uniform(0.55, 1.35) * (1.15 - fraction)
         # Dead limbs sag, they do not reach upward.
         tip = (base_x + math.cos(angle) * reach, math.sin(angle) * reach, base_z + rng.uniform(-0.10, 0.34))
-        add_tapered_beam(f"snag_limb_{index}", (base_x, 0, base_z), tip, 0.075, 0.014, weathered, root, vertices=5)
+        add_tapered_beam(f"snag_limb_{index}", (base_x, 0, base_z), tip, 0.105, 0.025, weathered, root, vertices=5)
         if index % 2 == 0:
             snap = (tip[0] + math.cos(angle + 0.6) * 0.28, tip[1] + math.sin(angle + 0.6) * 0.28, tip[2] - 0.16)
-            add_tapered_beam(f"snag_twig_{index}", tip, snap, 0.014, 0.006, dark, root, vertices=5)
+            add_tapered_beam(f"snag_twig_{index}", tip, snap, 0.025, 0.009, dark, root, vertices=5)
 
     for index in range(4):
         angle = index * math.tau / 4 + 0.6
@@ -248,7 +249,7 @@ def dead_tree(spec: dict, root) -> None:
             f"snag_moss_{index}", (math.cos(angle) * 0.30, math.sin(angle) * 0.30, 0.10 + index * 0.14),
             (0.16, 0.14, 0.09), moss, root, rotation=(0, 0, angle),
         normal_mode="rounded")
-    add_box("snag_bark_scar", (-0.22, 0.10, height * 0.36), (0.10, 0.24, 1.05), dark, root,
+    add_box("snag_bark_scar", (-0.12, -0.16, height * 0.30), (0.065, 0.035, 0.72), dark, root,
             rotation=(0, math.radians(6), 0), bevel=0.0)
 
 
@@ -257,20 +258,18 @@ def cattail_reeds(spec: dict, root) -> None:
     olive, sage, brown, yellow = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("cattail_base_mud", (0, 0, 0.025), (0.17, 0.13, 0.045), brown, root, normal_mode="rounded")
+    add_ico("cattail_base_mud", (0, 0, 0.025), (0.11, 0.09, 0.018), brown, root, normal_mode="rounded")
     for index in range(9):
         angle = index * GOLDEN_ANGLE
         lean = rng.uniform(0.10, 0.34)
         height = rng.uniform(0.62, 1.02)
         base = (math.cos(angle) * 0.05, math.sin(angle) * 0.04, 0.02)
         tip = (base[0] + math.cos(angle) * lean * 0.40, base[1] + math.sin(angle) * lean * 0.30, height)
-        # Blades are flat straps, not round rods.
-        add_tri_prism(
-            f"cattail_blade_{index:02d}",
-            ((base[0] + tip[0]) * 0.5, (base[1] + tip[1]) * 0.5, height * 0.5),
-            (0.026, 0.055, height), sage if index % 3 else olive, root,
-            rotation=(math.atan2(tip[1] - base[1], height) * 0.9, math.atan2(tip[0] - base[0], height) * -0.9, angle),
-        )
+        tip=(base[0]+math.cos(angle)*lean*.62,base[1]+math.sin(angle)*lean*.52,height)
+        blade=add_leaf_blade(f"cattail_blade_{index:02d}",base,tip,.046,
+            olive if index%3 else sage,root,stations=3,thickness=.003,cup=.28,
+            bend=(0,0,height*.18))
+        set_surface_normals(blade,"planar")
 
     for index in range(3):
         angle = index * 2.1 + 0.4
@@ -296,16 +295,21 @@ def lily_pad_cluster(spec: dict, root) -> None:
     pads = ((0.0, 0.0, 0.145), (0.19, -0.11, 0.105), (-0.16, 0.13, 0.088), (0.05, 0.20, 0.070))
     for index, (px, py, radius) in enumerate(pads):
         yaw = rng.uniform(0, math.tau)
-        add_cylinder(f"lily_pad_{index}", (px, py, 0.014), radius, 0.014, leaf, root, vertices=9,
-                     rotation=(rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03), yaw))
-        # The wedge notch cut toward the centre is what makes it read as a lily pad.
-        add_tri_prism(
-            f"lily_notch_{index}",
-            (px + math.cos(yaw) * radius * 0.62, py + math.sin(yaw) * radius * 0.62, 0.016),
-            (radius * 0.55, radius * 0.80, 0.016), shadow, root, rotation=(0, 0, yaw + math.pi * 0.5),
-        )
-        add_cylinder(f"lily_vein_{index}", (px, py, 0.019), radius * 0.30, 0.008, shadow, root, vertices=8)
-
+        # The outline returns to the petiole so the wedge is empty water.
+        outline=[(radius*.12,0)]
+        for step in range(12):
+            a=.30+(math.tau-.60)*step/11
+            r=radius*(1+.055*math.sin(step*1.7+index))
+            outline.append((math.cos(a)*r,math.sin(a)*r*.93))
+        verts=[]
+        for z in (.006,.015):
+            for x,y in outline:
+                verts.append((px+math.cos(yaw)*x-math.sin(yaw)*y,
+                              py+math.sin(yaw)*x+math.cos(yaw)*y,z))
+        n=len(outline)
+        faces=[tuple(reversed(range(n))),tuple(range(n,n*2))]
+        faces.extend((j,(j+1)%n,(j+1)%n+n,j+n) for j in range(n))
+        _build_mesh(f"lily_pad_{index}",(0,0,0),verts,faces,leaf,root,recalc_normals=True)
     # One bloom resting open on the surface: a lily flower floats, it does not stand.
     bx, by = 0.19, -0.11
     add_cylinder("lily_bloom_cup", (bx, by, 0.019), 0.030, 0.012, cream, root, vertices=8)
@@ -375,16 +379,15 @@ def sunflower_stand(spec: dict, root) -> None:
             lz = height * t
             lx = sx + math.sin(lean) * height * t
             reach = 0.115
-            add_tri_prism(
-                f"sun_leaf_{index}_{leaf_index}",
-                (lx + dx * reach, sy + dy * reach * 0.45, lz + math.sin(droop) * 0.05),
-                (0.085, 0.215, 0.016), leaf if leaf_index < 2 else shadow, root,
-                rotation=(droop, 0, yaw),
-            )
+            base=(lx,sy,lz)
+            tip=(lx+dx*.16,sy+dy*.10,lz+.035)
+            blade=add_leaf_blade(f"sun_leaf_{index}_{leaf_index}",base,tip,.10,
+                leaf,root,stations=3,thickness=.005,cup=.35,bend=(0,0,.05))
+            set_surface_normals(blade,"planar")
 
         # Head nods forward: a ripe sunflower never stares straight up.
         # A steep nod keeps the ring of petals inside the spec's shallow footprint.
-        nod = math.radians(52)
+        nod = math.radians(43 + index * 7)
         hx, hy, hz = head_x + 0.020, sy - 0.040, height + 0.020
         add_cylinder(f"sun_head_disc_{index}", (hx, hy, hz), 0.092, 0.040, ochre, root, vertices=10,
                      rotation=(nod, 0, 0), bevel=0.008)
@@ -402,7 +405,7 @@ def sunflower_stand(spec: dict, root) -> None:
                     hy + math.cos(theta) * radius * math.cos(nod),
                     hz + math.cos(theta) * radius * math.sin(nod),
                 ),
-                (0.050, 0.108, 0.013), yellow, root, rotation=(nod, 0, theta),
+                (0.068, 0.125, 0.013), yellow, root, rotation=(nod, 0, theta),
             )
 
 
@@ -411,21 +414,29 @@ def mushroom_cluster(spec: dict, root) -> None:
     cap, stem, shadow = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("shroom_litter", (0, 0, 0.014), (0.125, 0.115, 0.026), shadow, root, normal_mode="rounded")
+    add_ico("shroom_litter", (0, 0, 0.014), (0.10, 0.085, 0.012), shadow, root, normal_mode="rounded")
     caps = ((0.0, 0.0, 0.115, 0.075), (-0.075, 0.045, 0.078, 0.052), (0.065, -0.052, 0.055, 0.038))
     for index, (px, py, height, radius) in enumerate(caps):
         add_cone(f"shroom_stem_{index}", (px, py, height * 0.44), radius * 0.36, radius * 0.28, height * 0.88, stem, root, vertices=7)
         add_cylinder(f"shroom_ring_{index}", (px, py, height * 0.66), radius * 0.42, 0.010, stem, root, vertices=7)
-        add_cone(f"shroom_cap_{index}", (px, py, height * 0.90), radius, radius * 0.42, height * 0.34, cap, root, vertices=8,
-                 rotation=(rng.uniform(-0.06, 0.06), rng.uniform(-0.06, 0.06), 0))
-        add_cone(f"shroom_cap_dome_{index}", (px, py, height * 1.06), radius * 0.42, 0.008, height * 0.16, cap, root, vertices=8)
-        # Gills underneath: the read that separates a mushroom from a cone.
-        add_cylinder(f"shroom_gills_{index}", (px, py, height * 0.80), radius * 0.86, 0.012, stem, root, vertices=8)
+        verts,faces=[],[]
+        for ring,(r,z) in enumerate(((.34,.77),(.94,.81),(1,.89),(.72,1.13),(.28,1.27))):
+            for j in range(8):
+                angle=j*math.tau/8
+                verts.append((px+math.cos(angle)*radius*r,py+math.sin(angle)*radius*r,
+                              height*z+math.sin(angle+index)*height*.045))
+        for ring in range(4):
+            for j in range(8):
+                a,b=ring*8+j,ring*8+(j+1)%8
+                faces.append((a,b,b+8,a+8))
+        faces.extend((tuple(reversed(range(8))),tuple(range(32,40))))
+        _build_mesh(f"shroom_cap_{index}",(0,0,0),verts,faces,cap,root,recalc_normals=True)
+        add_cylinder(f"shroom_gills_{index}",(px,py,height*.79),radius*.76,.004,stem,root,vertices=8)
         for spot in range(3):
             angle = spot * 2.1 + index
             add_ico(
                 f"shroom_spot_{index}_{spot}",
-                (px + math.cos(angle) * radius * 0.46, py + math.sin(angle) * radius * 0.46, height * 0.96),
+                (px + math.cos(angle) * radius * 0.46, py + math.sin(angle) * radius * 0.46, height * 1.16),
                 (radius * 0.17, radius * 0.17, 0.006), stem, root,
             normal_mode="rounded")
 
@@ -435,18 +446,17 @@ def beach_grass_tuft(spec: dict, root) -> None:
     yellow, olive, sand = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    add_ico("marram_hummock", (0, 0, 0.028), (0.19, 0.18, 0.055), sand, root, normal_mode="rounded")
+    add_ico("marram_hummock", (0, 0, 0.028), (0.12, 0.10, 0.018), sand, root, normal_mode="rounded")
     for index in range(14):
         angle = index * GOLDEN_ANGLE
         height = rng.uniform(0.22, 0.46)
         splay = rng.uniform(0.10, 0.30)
         bx, by = math.cos(angle) * 0.045, math.sin(angle) * 0.042
-        add_tri_prism(
-            f"marram_blade_{index:02d}",
-            (bx + math.cos(angle) * splay * 0.42, by + math.sin(angle) * splay * 0.40, 0.04 + height * 0.5),
-            (0.016, 0.034, height), yellow if index % 3 else olive, root,
-            rotation=(math.sin(angle) * splay, -math.cos(angle) * splay, angle),
-        )
+        blade=add_leaf_blade(f"marram_blade_{index:02d}",(bx,by,.004),
+            (bx+math.cos(angle)*splay*.60,by+math.sin(angle)*splay*.60,height),
+            .032,yellow if index%3 else olive,root,stations=3,thickness=.0025,
+            cup=.35,bend=(0,0,height*.15))
+        set_surface_normals(blade,"planar")
 
 
 def seagrass_tuft(spec: dict, root) -> None:
@@ -455,19 +465,18 @@ def seagrass_tuft(spec: dict, root) -> None:
     rng = seeded_rng(spec["seed"])
     drift = 0.42
 
-    add_ico("seagrass_root_mat", (0, 0, 0.018), (0.11, 0.075, 0.032), shadow, root, normal_mode="rounded")
+    add_ico("seagrass_root_mat", (0, 0, 0.018), (0.09, 0.065, 0.012), shadow, root, normal_mode="rounded")
     for index in range(12):
         angle = index * GOLDEN_ANGLE
         height = rng.uniform(0.24, 0.46)
         bx, by = math.cos(angle) * 0.045, math.sin(angle) * 0.030
         # Every blade bends the same way: one current, not a starburst.
         bend = drift * rng.uniform(0.75, 1.15)
-        add_tri_prism(
-            f"seagrass_blade_{index:02d}",
-            (bx + bend * height * 0.30, by, 0.03 + height * 0.5),
-            (0.014, 0.030, height), olive if index % 3 else pine, root,
-            rotation=(0, -bend, rng.uniform(-0.4, 0.4)),
-        )
+        blade=add_leaf_blade(f"seagrass_blade_{index:02d}",(bx,by,.004),
+            (bx+bend*height,by+.035*math.sin(angle),height),.040,
+            olive if index%3 else pine,root,stations=3,thickness=.003,cup=.32,
+            bend=(-height*.16,0,height*.10))
+        set_surface_normals(blade,"planar")
 
 
 def algae_frond(spec: dict, root) -> None:
@@ -482,14 +491,13 @@ def algae_frond(spec: dict, root) -> None:
     # Blades come off the stipe in pairs and hang outward from it.
     for index in range(5):
         t = 0.20 + index * 0.17
-        jz = 0.05 + (height - 0.05) * t
-        jx = 0.06 * math.sin(t * 3.0)
-        for side_index, sign in enumerate((-1, 1)):
-            angle = index * 1.2 + side_index * math.pi
-            add_tri_prism(
-                f"frond_blade_{index}_{side_index}",
-                (jx + math.cos(angle) * 0.13, math.sin(angle) * 0.10, jz + rng.uniform(-0.02, 0.02)),
-                (0.055, 0.22, 0.016), pine if index % 2 else olive, root,
-                rotation=(math.radians(78), rng.uniform(-0.2, 0.2), angle),
-            )
+        segment=min(2,int(t*3))
+        base=Vector(joints[segment]).lerp(Vector(joints[segment+1]),t*3-segment)
+        for side_index,sign in enumerate((-1,1)):
+            angle=index*.85+side_index*math.pi
+            end=base+Vector((math.cos(angle)*.23,math.sin(angle)*.18,.045))
+            blade=add_leaf_blade(f"frond_blade_{index}_{side_index}",base,end,.075,
+                pine if index%2 else olive,root,stations=4,thickness=.004,cup=.40,
+                bend=(.02,0,.085))
+            set_surface_normals(blade,"planar")
     add_ico("frond_float_bladder", (0.08, 0.0, height - 0.03), (0.035, 0.032, 0.045), olive, root, normal_mode="rounded")

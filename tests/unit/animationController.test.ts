@@ -100,6 +100,32 @@ describe("authored humanoid state controller", () => {
     expect(blocked.update(0.8, characterContext({ requestedGait: "walk", speedMetersPerSecond: 0, isCollisionBlocked: true })).events).toEqual([]);
   });
 
+  it("rides out one dropped grounded or blocked frame without leaving a moving gait", async () => {
+    const walk = gait("walk");
+    const withMotion = (overrides: Partial<NonNullable<typeof walk.motion>>) =>
+      ({ ...walk, motion: { ...walk.motion, ...overrides } });
+
+    const grounded = await create();
+    grounded.update(0.8, walk);
+    expect(grounded.playbackState().baseClip).toBe("walk");
+    const droppedGround = grounded.update(1 / 60, withMotion({ isGrounded: false, airbornePhase: "falling" }));
+    expect(droppedGround.clip).not.toBe("fall");
+    expect(grounded.playbackState().baseClip).toBe("walk");
+    grounded.update(0.2, withMotion({ isGrounded: false, airbornePhase: "falling" }));
+    expect(grounded.playbackState().baseClip).toBe("fall");
+
+    const blocked = await create();
+    blocked.update(0.8, walk);
+    const droppedBlock = blocked.update(1 / 60, withMotion({ isCollisionBlocked: true }));
+    expect(droppedBlock.clip).toBe("walk");
+    expect(blocked.playbackState().baseClip).toBe("walk");
+    blocked.update(0.2, withMotion({ isCollisionBlocked: true }));
+    // A sustained block leaves the gait (through the authored stop transition).
+    expect(["stop", "idle"]).toContain(blocked.playbackState().baseClip);
+    blocked.update(0.6, withMotion({ isCollisionBlocked: true }));
+    expect(blocked.playbackState().baseClip).toBe("idle");
+  });
+
   it("uses airborne and contact recovery clips while reduced motion keeps essential motion", async () => {
     const animator = await create();
     animator.update(0.1, characterContext({ isGrounded: false, airbornePhase: "rising", velocity: { x: 0, y: 4, z: 0 } }), true);

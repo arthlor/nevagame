@@ -1,6 +1,6 @@
 # Neva Project Rules for Every Agent Session
 
-> **Mandatory:** Before planning, answering implementation questions, editing, or claiming a result, use the task route below and read each routed document or section **to its end**, plus the owning implementation and affected callers. Full-document reads are required where the table says so. Repository-relative sources take precedence over old memory or developer-specific paths.
+> **Before implementation advice or edits:** Use the task route below. Read the selected owner sections **to their end**, including linked contracts, and inspect the owning implementation and affected callers. Expand the route when that trace crosses a contract boundary; use full-document reads for the broad changes named in the table. Repository-relative sources take precedence over historical memory or developer-specific paths.
 >
 > **This repository-root file is the single routing authority.** `LLM/AGENTS.md` is a pointer to this file and holds no independent rules. Do not add a second routing document.
 
@@ -52,17 +52,17 @@ Do not create parallel `*_UPDATED`, `*_FINAL`, `*_COMPACT`, or similar authoriti
 
 ### Task routing
 
-Always read this file first. Combine rows when a task crosses their boundaries; an attachment or folder dump does not broaden the task. `03` §4 owns the verification matrix.
+Always read this file first. Select sections by the requested outcome and affected contract, then combine rows as needed. An attachment, folder dump, or adjective such as “premium” does not broaden the task. Reuse sources already read in the task; reread when they change or a new decision depends on another section. `03` §4 owns the verification matrix.
 
 | Task | Read before changing the affected contract |
 |---|---|
-| Documentation or copy | The owning section and its linked source; for structural guidance refactors, all documents whose routing or authority changes. No runtime gates for prose alone. |
+| Documentation or copy | The owning section and its linked source. For structural guidance refactors, read the affected routing/authority sections and their downstream instructions; read full documents when changing their overall role. No runtime gates for prose alone. |
 | UI presentation or input | `04` §17; `01` §9/§13 and the affected UI/DTO/action callers. Read the owning `02` section if a gameplay rule is involved. |
-| Gameplay or balance | Full `02`; relevant `01` ownership/input/persistence sections; the domain, tuning/content owner and callers. Full `01` for state-shape or cross-system contract changes. |
-| Persistence, architecture or cross-system state | Full `01`, the owning `02` sections, `03` §25, migration chain and retained fixtures. |
+| Gameplay or balance | The owning `02` sections and §18 invariants; relevant `01` ownership/input/persistence sections; the domain, tuning/content owner and affected callers. Full `02` for a connected-loop or broad progression redesign; add the architecture route for cross-system state changes. |
+| Persistence, architecture or cross-system state | `01` ownership/state/persistence sections and affected contracts; owning `02` sections. Full `01` for architecture redesign, migrations or cross-system state changes; saved-state changes also require `03` §25, the migration chain and retained fixtures. |
 | Existing asset or new asset in an existing family | Full `BLENDER.md` and `tools/blender/README.md`, selected catalog entry, generator and runtime integration point. Read the isolated sheet and relevant `04` section when appearance changes. |
-| New generator family or shared art helpers | The asset route plus full Art Pipeline and the owning visual sections of `04`; affected family consumers. |
-| Renderer, material or supporting maps | Full `01`, `04` and Art Pipeline; `VisualRenderConfig` and affected render callers. Supporting maps also require `ExternalSurfaceTextures` and Art Pipeline §6.2. |
+| New generator family or shared art helpers | The asset route plus Art Pipeline sections for the changed construction/export contract, owning visual sections of `04`, and affected family consumers. Full Art Pipeline for a new production path or shared pipeline redesign. |
+| Renderer, material or supporting maps | `01` §12 ownership, the owning `04` and Art Pipeline sections, `VisualRenderConfig` and affected render callers. Supporting maps also require `ExternalSurfaceTextures` and Art Pipeline §6.2. Full `01`, `04` and Art Pipeline for renderer architecture or the shared visual baseline redesign; add gameplay/persistence routes if topology or saved truth changes. |
 | Audio | Full `06`, `01` §14, runtime audio/manifest owners and triggering callers. Add the gameplay route only if gameplay state or events change. |
 | Layout / Place / F2 editor | Full `LAYOUT_EDITOR.md`, `src/layout-editor/`, `src/app/PlacementEditor.ts`, `tools/layout-editor/patchPlacement.ts`. Do not import `src/world` into the Vite patcher. Add persistence/gameplay routing if saved topology or structure contracts change. |
 | Milestone or gameplay sequencing | Full `03`, relevant design owners and the evidence index in `IMPLEMENTATION_STATUS_CHECKLIST.md`. |
@@ -74,13 +74,15 @@ Always read this file first. Combine rows when a task crosses their boundaries; 
 
 Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Attachment is not equal authority. First files to **obey**: this file, `LLM/BLENDER.md`, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for this prompt class.
 
-“Generate assets” always means: resolve or add catalog ID(s) → registered family generator → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
+“Generate assets” always means: resolve or add catalog ID(s) → registered family generator → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
 Isolated studio sheets under `tools/blender/references/isolated/` are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in the references README are graphics-only extracts from `art-reference.png`; catalog IDs win if that README drifts.
 
 ## Codex and threejs-game-skills
 
-Prefer the repo copy `.agents/skills/<name>/SKILL.md` over `~/.codex/skills`. Neva authorities still win. Do not fork imported `SKILL.md` files; wrap them in this routing. Do not copy the pack’s Vite scaffold, combat examples, daily screenshot scorecards, or test hooks into Neva.
+Prefer the repo copy `.agents/skills/<name>/SKILL.md` over `~/.codex/skills`. Neva authorities still win. Maintain deliberate local adaptations in the repo skills; update their linked references, selection metadata and prompts together, preserving provenance and useful technique. Replace conflicting guidance at its source rather than stacking overrides. Do not copy the pack’s Vite scaffold, combat examples, daily screenshot scorecards, or test hooks into Neva.
+
+The director and provider generators are explicit-only in their `agents/openai.yaml`; focused technical skills remain discoverable. Select skills for the task mechanism, not quality adjectives. External generation is a source choice, never a premium-quality gate. Routine checks follow `03` §4 without loading the release skill.
 
 If a skill would block authorized work, apply the rule hierarchy first. If the blocker remains, link the exact `SKILL.md`, quote the instruction and explain the affected decision. Do not infer a permission gate from optional guidance.
 
@@ -167,11 +169,11 @@ Apply the [OpenAI prompting guidance](https://developers.openai.com/api/docs/gui
 1. Establish the requested outcome and inspect worktree status and existing diffs in the files you expect to touch. Preserve edits already present; re-read a file if another writer changes it before your patch. Read the owning subsystem and the scoped sources routed above to the end. For Blender/art tasks, use `LLM/BLENDER.md`'s production sequence after the root route.
 2. Identify scope, state/formula owner, save impact (`yes`/`no`), migration need, affected callers, tests, visual/performance impact, **the canonical documents your change makes stale**, and the smallest complete change before editing. For a repair, distinguish the observed symptom, suspected cause and evidence that would confirm the cause. Trace the affected caller-to-owner path; do not substitute a nearby passing test for the failing behavior. Keep this preflight proportional rather than emitting a mandatory form.
 3. Implement without placeholders, fake integrations, hidden fallbacks, or unrelated cleanup. Update the owning documents alongside the code.
-4. Validate using `03` §4's task matrix and its command-side-effect guidance; `BLENDER.md` owns the art commands. Check script hooks before using a command as verification, and preserve generated drift evidence before regeneration. Static previews, screenshots, benchmarks, broad suites and agent-led visual scoring are not daily asset gates. The human reviews integrated visuals in the actual game.
+4. Validate using `03` §4's task matrix and its command-side-effect guidance; `BLENDER.md` owns the art commands. Check script hooks before using a command as verification, and preserve generated drift evidence before regeneration. Inspect affected visuals in the Art Yard and actual game when appearance changes, and correct observed defects within scope. Additional captures or diagnostics are appropriate when they resolve uncertainty; full capture suites, benchmarks and numeric style scores are not daily asset gates. Agent inspection does not grant human visual approval.
 5. Review your own diff against the starting state before handoff. Never describe code as tested, browser-verified, visually approved, published, or production-ready unless that specific gate actually passed. State exact evidence and limitations. If relevant inputs changed during a check, scope its result to those inputs and rerun only the affected checks needed to support the final claim.
 
 ## Phase and completion discipline
 
 Follow the Roadmap sequence: `P0 → P0.5 → P0.75 → P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10 → P11 → P12 → P13 → P14 → P15 → P16`. Do not skip required gates or use P14 as the first real art pass.
 
-Routine asset completion reports state only the asset IDs, runtime integration point, mechanical generation status, save impact, `Docs updated:`, and `Awaiting human game review`. Expanded reports are reserved for shared-generator, release, migration, or other high-risk work.
+Routine asset completion reports state the asset IDs, runtime integration point, mechanical generation status, focused inspection evidence or access gap, save impact, `Docs updated:`, and `Awaiting human game review`. Expanded reports are reserved for shared-generator, release, migration, or other high-risk work.

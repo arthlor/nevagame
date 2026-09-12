@@ -1,6 +1,6 @@
 # Technical Art For Three.js Games
 
-Use this reference before premium/AAA/showcase graphics work, shader/material/post-processing changes, VFX systems, generated/imported asset cleanup, LOD/instancing work, or any visual pass that could affect browser performance.
+Read the relevant sections for changed shader/material/post-processing behavior, VFX, asset cleanup, LOD/instancing or resource cost. In Neva, project owners and `03` §4 govern budgets and checks; this is a technique reference, not another gate.
 
 Technical art is the bridge between art direction and real-time constraints. The goal is not maximum detail; it is readable authored detail that survives active gameplay, mobile viewports, and WebGL budgets.
 
@@ -8,7 +8,7 @@ Research basis: Three.js exposes renderer diagnostics through `WebGLRenderer.inf
 
 ## Technical Art Brief
 
-Before implementation, write:
+For a new system, capture the decisions below that are not already owned by the project. For a focused change, reuse the existing brief and record only material changes:
 
 - Art direction in renderable terms: shapes, materials, lighting, VFX, camera, UI/world motifs.
 - Hero surfaces: what must look authored at active-play distance.
@@ -22,7 +22,7 @@ Before implementation, write:
 
 ## Render Budget Starting Points
 
-These are starting contracts, not universal limits — measure on the target game, and document every deliberate overrun as a tradeoff. The canvas inspector (`npm run inspect:canvas`) compares live diagnostics against the same numbers and reports over-budget rows.
+These are illustrative starting points for projects without a budget. They are not Neva limits: use its catalog, `asset_budgets.json` and `VisualRenderConfig`. The packaged canvas inspector compares its generic values; that comparison cannot supersede project-owned budgets.
 
 | Metric (worst active-play view) | Desktop tier | Mobile tier |
 | --- | --- | --- |
@@ -45,11 +45,11 @@ How to spend within them:
 - Shadows: reserve real shadows for hero objects and grounding anchors; use blob/contact meshes for small repeated props (see `references/shader-cookbook.md` for the cheap contact-shadow recipe).
 - Post: every pass must earn its cost and preserve gameplay clarity; concrete chain settings are in `references/shader-cookbook.md`.
 
-Always report actual renderer diagnostics after the graphics pass: calls, triangles, geometries, textures, material count if available, post passes, shadow settings, DPR cap, and bottlenecks.
+For rendering-cost claims, report relevant actual measurements under matching scenarios. Select calls, triangles, resources, passes, shadows, DPR or frame distributions according to the changed mechanism; do not dump every metric for a cosmetic edit.
 
 ## Material And Shader System
 
-Use a material kit of named shared roles, not one-off colors. Reuse each role across every mesh that plays the same part:
+Reuse the project’s named shared material roles. Possible roles for a new game include the following; do not add them all or replace Neva’s palette families:
 
 - `bodyPrimary`: dominant player/world shell.
 - `bodySecondary`: panel contrast.

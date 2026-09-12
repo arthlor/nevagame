@@ -19,6 +19,7 @@ export const syncWorldAudio = (input: {
   icedCargoIds?: string[];
   windmill?: { position: AudioPosition; gain: number };
   paused?: boolean;
+  sprintExhausted?: boolean;
   boat?: { throttle: number; x: number; y: number; z: number; isSkiff?: boolean };
   fishing?: {
     reeling: boolean;
@@ -44,6 +45,11 @@ export const syncWorldAudio = (input: {
   );
   gameAudio.setActionLoop("skiff-engine", !input.paused && isSkiff && input.mode === "boat-driving", input.boat);
   gameAudio.setActionLoop("boat-row", !input.paused && !isSkiff && boatMoving, input.boat);
+  const sprintExhausted = input.sprintExhausted === true;
+  if (!input.paused && sprintExhausted && lastSprintExhausted === false) {
+    gameAudio.playOneShot("stamina-exhausted", input.position);
+  }
+  lastSprintExhausted = sprintExhausted;
   const fishing = input.paused ? undefined : input.fishing;
   const sample = fishing?.presentation;
   const retrieval = sample?.retrievalMetersPerSecond ?? (fishing?.reeling ? 0.7 : 0);
@@ -74,6 +80,7 @@ const lastPlayed = new Map<string, number>();
 let lastIcedCargoIds: Set<string> | null = null;
 let lastSportInstance: string | null = null;
 let lastSurfaceCrossings = 0;
+let lastSprintExhausted: boolean | null = null;
 
 const playCooled = (cueId: Parameters<typeof gameAudio.playOneShot>[0], cooldownMs: number, position?: AudioPosition, now = performance.now()): void => {
   if (now - (lastPlayed.get(cueId) ?? Number.NEGATIVE_INFINITY) < cooldownMs) {
@@ -148,7 +155,7 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
     events.on("CargoUnloaded", () => play("pickup")),
     events.on("BoatBoarded", () => play("rope-creak")),
     events.on("BoatDocked", () => play("ui-confirm")),
-    events.on("MountBoarded", () => play("donkey-snort")),
+    events.on("MountBoarded", () => gameAudio.playBank("donkey-snort", getPosition())),
     events.on("MountDisembarked", () => play("pickup")),
     events.on("ItemSold", () => play("coins")),
     events.on("ItemPurchased", () => play("coins")),

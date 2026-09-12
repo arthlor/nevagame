@@ -1,15 +1,16 @@
 ---
 name: threejs-raymarched-space-effects
-description: Build raymarched space phenomena in Three.js. Use for black-hole lensing, accretion disks, wormhole throat transits, curved-ray and null-geodesic integration, lensed celestial spheres, procedural star fields and galactic skies, relativistic-looking distortion, bounded volumetric structures, and GPU effects that need controlled numerical integration.
+description: "Build raymarched space effects in Three.js. Use for black-hole lensing, accretion disks, wormholes, null-geodesic integration, lensed skies, and bounded volumetric integration. Not for ordinary particles or plasma."
 ---
 
 # Raymarched Space Effects
 
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
 Treat these effects as numerical renderers with explicit integration state. The visual character depends on coordinate choice, step policy, and how rays interact with emissive structures.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Workflow
 
@@ -53,7 +54,9 @@ Halton accumulation, and the 13-tap bloom pyramid; its
 are a standalone GLSL chunk for the footprint-filtered galactic sky, resolved
 star layers, and the analytic ringed planet a lensed ray lands on.
 
-## Constraints
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - Do not call a UV swirl “gravitational lensing.”
 - Cap iterations and provide early termination.
@@ -70,6 +73,12 @@ star layers, and the analytic ringed planet a lensed ray lands on.
 - Carry a transported frame, not a Cartesian camera, when the domain has no
   global Cartesian chart.
 - Provide a cheaper approximation for non-hero views.
+
+## Deliverable
+
+- Inputs: effect-space transform, bending model, and integration bounds.
+- Artifacts: integrator and step policy, termination diagnostics, and hero plus cheap views.
+- Acceptance: capped rays route to mean radiance; the background is footprint-filtered; results are frame-rate independent.
 
 ## Routing boundary
 

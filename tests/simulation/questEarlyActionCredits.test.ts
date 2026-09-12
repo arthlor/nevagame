@@ -27,7 +27,7 @@ function commitPlayerPose(simulation: Simulation, x: number, z: number, rotation
 }
 
 function talkTo(simulation: Simulation, npcId: string): void {
-  const anchor = npcAnchorAt(npcId, simulation.state.clock);
+  const anchor = npcAnchorAt(npcId, simulation.state.clock, simulation.state.quests);
   commitPlayerPose(simulation, anchor.x, anchor.z, anchor.rotationY);
   const before = mainQuestTrack(simulation.state.quests).activeQuestId;
   expect(simulation.execute({ type: "quest.talk-npc", npcId })).toMatchObject({ success: true });

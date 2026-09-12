@@ -1,26 +1,17 @@
 # Three.js Audio Workflows
 
-Use this reference before generating or integrating audio for a game.
+Use selected sections for explicitly requested audio generation/processing and integration of those outputs. Neva’s `06` authority and runtime manifest/bus/event owners define the sound contract.
 
 ## Audio Planning
 
-Create an audio matrix before generating files:
+For a multi-cue request, record only the needed event, existing source or new
+output, loop behavior and runtime group. Reuse the current manifest and suitable
+assets; no fixed ambience/UI/SFX count is required for a premium claim. Voice,
+combat sounds or other genre examples below do not authorize new game content.
 
-| Category | Required events | Asset count | Loop? | Runtime group |
-| --- | --- | ---: | --- | --- |
-| UI | hover, confirm, cancel, pause, fail | 3-8 | no | ui |
-| Movement | jump, dash, boost, landing, drift | 3-10 | sometimes | sfx |
-| Interaction | pickup, hit, shield, score, checkpoint | 4-12 | no | sfx |
-| Threat | enemy attack, warning, impact, boss cue | 4-12 | no | sfx |
-| Ambience | room tone, wind, engines, crowd, weather | 1-4 | yes | ambience |
-| Voice | announcer, boss, tutorial, combat barks | optional | no | voice |
-
-For a first premium pass, generate at least:
-
-- 1 ambience loop.
-- 3 UI sounds.
-- 5 gameplay SFX tied to real events.
-- Optional voice only if the design benefits from dialogue or callouts.
+For a single cue, use its owning definition directly. Generate only the outputs
+the human requested and listen to the intended result, including integration
+when that is in scope.
 
 ## Prompting
 

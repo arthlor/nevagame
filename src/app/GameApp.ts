@@ -23,6 +23,7 @@ import {
   type WorldFieldOverlay
 } from "../render/scene/WorldDiagnosticOverlay";
 import { GameCamera } from "../render/camera/GameCamera";
+import { ExplorationFraming } from "../render/camera/ExplorationFraming";
 import { InputRouter } from "../input/InputRouter";
 import { FISHING_STEER_INPUT_MAX } from "../simulation/fishing/FishingTuning";
 import { accessibleLureSupplyCount, LURE_ITEM_ID } from "../simulation/fishing/FishingSupplies";
@@ -42,6 +43,7 @@ import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { StartScreen } from "../ui/StartScreen";
 import { GameUI } from "../ui/GameUI";
+import type { JournalFolio } from "../ui/JournalModal";
 import {
   inferNoticeTone,
   NOTICE_DEFAULT_DURATION_MS,
@@ -62,12 +64,19 @@ import {
 } from "../render/config/GraphicsQualitySettings";
 import { applyOfflineProgression, type OfflineProgressionSummary } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
+import { selectVillageNotices, villageNoticeContext } from "../content/villageBulletin";
+import { buildPeoplePageDto } from "../simulation/presentation/PeoplePresentation";
 import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import type { CollisionDebugView } from "../diagnostics/CollisionDebugView";
 import { WorldLayout } from "../world/WorldLayout";
 import { NpcBarkOverlay } from "../ui/hud/NpcBarkOverlay";
+import { MarketBoardOverlay } from "../ui/hud/MarketBoardOverlay";
 import { QuestPointerOverlay, type QuestPointerTarget } from "../ui/hud/QuestPointerOverlay";
+import {
+  buildMarketLifeBoards,
+  type MarketLifeBoardDto
+} from "../simulation/presentation/MarketLifePresentation";
 import {
   WORLD_MARKET_LOCATIONS,
   WORLD_STATION_DEFINITIONS
@@ -102,10 +111,11 @@ function detectTouchDevice(): boolean {
 import {
   HARBOR_DOCK,
   HARBOR_SKIFF_MOORING,
+  VILLAGE_BULLETIN,
   VILLAGE_MARKET,
   WORLD_SPAWN
 } from "../world/WorldAnchors";
-import { BASIC_FISHING_WORK_COST, SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
+import { BASIC_FISHING_WORK_COST, SCHOOL_INTERACTION_RADIUS, SPORT_FISHING_REVIEW_POINTS } from "../simulation/domains/FishingDomain";
 import {
   farmLocalToWorld,
   farmWellWorldAnchor,
@@ -153,6 +163,11 @@ import {
   stationaryPlayerMotion,
   type PresentedPlayerFrame
 } from "../render/presentation/PlayerPresentationBuffer";
+import {
+  IDLE_PLAYER_PRESENCE,
+  samplePlayerPresence,
+  type PlayerPresence
+} from "../render/presentation/PlayerPresence";
 import {
   assessProcessingStationApproach,
   getProcessingStationFrontPosition
@@ -609,6 +624,8 @@ export class GameApp {
   private lastUiFrameMs = Number.NEGATIVE_INFINITY;
   private lastDiagnosticsFrameMs = Number.NEGATIVE_INFINITY;
   private lastInteractionEvaluationMs = Number.NEGATIVE_INFINITY;
+  private readonly explorationFraming = new ExplorationFraming();
+  private cameraInteractionNearby = false;
   private lastInteractionX = Number.POSITIVE_INFINITY;
   private lastInteractionZ = Number.POSITIVE_INFINITY;
   private lastInteractionPointerX = Number.POSITIVE_INFINITY;
@@ -678,16 +695,22 @@ export class GameApp {
   private readonly playerPresentation = new PlayerPresentationBuffer();
   private assetCoverage: AssetCoverageSummary = EMPTY_ASSET_COVERAGE_SUMMARY;
   private lastPresentedPlayer: PresentedPlayerFrame | null = null;
+  private readonly playerPresence: PlayerPresence = { ...IDLE_PLAYER_PRESENCE };
   private lastBoatMotion: Readonly<Record<string, BoatMotionSample>> = {};
   private lockedInteractionTarget: ResolvedInteractionTarget | null = null;
+  private journalRequestToken = 0;
+  private journalOpenRequest: { folio: JournalFolio; token: number } | null = null;
   private mountTransitionRemainingSeconds = 0;
   private mountTransitionAction: "mount" | "dismount" | null = null;
   private readonly audioForward = new THREE.Vector3();
   private readonly canvasContainer: HTMLElement;
   private readonly questPointer: QuestPointerOverlay;
   private readonly npcBarks: NpcBarkOverlay;
+  private readonly marketBoards: MarketBoardOverlay;
   private readonly rewardOverlay: WorldRewardOverlay;
   private readonly rewardFeedback = new RewardFeedbackPresentation();
+  private marketLifeBoards: MarketLifeBoardDto[] = [];
+  private lastMarketBoardRebuildMs = Number.NEGATIVE_INFINITY;
   private presentationHoldFrames = 0;
   private openingSkip: (() => void) | null = null;
   /** The world point the quest pointer is chasing, refreshed with the waypoint. */
@@ -723,6 +746,7 @@ export class GameApp {
   private dismissPendingCatch = (): void => {
     this.pendingCatchCargo = null;
     this.pendingCatchRecord = null;
+    if (this.activeModal === "catch") this.setActiveModal(null);
   };
 
   private uiRoot: ReactDOM.Root | null = null;
@@ -744,6 +768,7 @@ export class GameApp {
     // so every React panel and modal paints over the pointer rather than under it.
     this.questPointer = new QuestPointerOverlay(this.canvasContainer);
     this.npcBarks = new NpcBarkOverlay(this.canvasContainer);
+    this.marketBoards = new MarketBoardOverlay(this.canvasContainer);
     this.rewardOverlay = new WorldRewardOverlay(this.canvasContainer);
     this.uiContainer = uiContainer;
     this.resizeObserver = new ResizeObserver(() => this.onResize());
@@ -1312,7 +1337,8 @@ export class GameApp {
       this.durableWritesEnabled = this.startupState.status !== "error";
     }
     attempt.check();
-    syncWorldAudio({ clock: this.sim.state.clock, position: this.sim.state.player, mode: this.mode, weather: this.sim.state.weather.type, paused: false });
+    syncWorldAudio({ clock: this.sim.state.clock, position: this.sim.state.player, mode: this.mode, weather: this.sim.state.weather.type,
+      sprintExhausted: this.sim.state.player.traversal.sprintExhausted, paused: false });
     gameAudio.startAmbience();
     if (!debugStart && !this.benchmarkView && (shouldStartNewGame || shouldPlayWithoutSaving || saveResult.status === "empty")
       && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -1660,6 +1686,43 @@ export class GameApp {
     this.rewardFeedback.reset();
     this.rewardFeedback.sample(this.sim.state);
     for (const dispose of this.simulationFeedbackDisposers) dispose();
+    const presentationSeconds = (): number =>
+      this.lastPresentationTimeSeconds > 0
+        ? this.lastPresentationTimeSeconds
+        : performance.now() / 1000;
+    const presentedPlayerPosition = (): { x: number; z: number } => {
+      const player = this.lastPresentedPlayer ?? this.sim.state.player;
+      return { x: player.x, z: player.z };
+    };
+    const playMarketResponse = (
+      marketId: string,
+      kind: "sale" | "purchase"
+    ): void => {
+      this.marketBoards.acknowledge(marketId, kind);
+      // The transaction changed supply immediately; rebuild the board on the
+      // next frame instead of waiting for the ordinary two-second cadence.
+      this.lastMarketBoardRebuildMs = Number.NEGATIVE_INFINITY;
+      const market = WORLD_MARKET_LOCATIONS[marketId];
+      if (market) {
+        this.worldScene.playWorldReaction(
+          "trade",
+          market.position,
+          presentationSeconds()
+        );
+      }
+    };
+    const playStationResponse = (
+      stationId: string,
+      kind: "work" | "ready"
+    ): void => {
+      const station = WORLD_STATION_DEFINITIONS[stationId];
+      if (!station) return;
+      this.worldScene.playWorldReaction(
+        kind,
+        station.position,
+        presentationSeconds()
+      );
+    };
     this.simulationFeedbackDisposers = [
       bindUiHoverAudio(document.body),
       attachTelemetry(this.sim.events, this.telemetry, {
@@ -1673,6 +1736,11 @@ export class GameApp {
       }),
       this.sim.events.on("FishLanded", ({ cargoId, speciesId, weightKg, record }) => {
         if (record) this.playRewardCameraBeat(0.4, true);
+        this.worldScene.playWorldReaction(
+          record ? "milestone" : "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
         this.worldScene.playSportFishingEndCue("landed");
         const speciesName = ContentRegistry.fishSpecies.get(speciesId)?.name ?? "fish";
         const moment =
@@ -1690,6 +1758,7 @@ export class GameApp {
         if (cargo) {
           this.pendingCatchCargo = cargo;
           this.pendingCatchRecord = record ?? null;
+          this.setActiveModal("catch");
         }
         // Freshness has to be taught before the first sale, or the price
         // penalty reads as a bug rather than a system the player can plan for.
@@ -1721,6 +1790,11 @@ export class GameApp {
       this.sim.events.on("BasicFishingResolved", ({ catchItemId, reason, record, isPerfect }) => {
         if (record || isPerfect) this.playRewardCameraBeat(record ? 0.4 : 0.25, Boolean(record));
         if (catchItemId) {
+          this.worldScene.playWorldReaction(
+            record || isPerfect ? "milestone" : "work",
+            presentedPlayerPosition(),
+            presentationSeconds()
+          );
           this.worldScene.playPlayerAction("pickup");
           if (record === "first") this.notify("New species recorded in the journal", "reward", 3200);
           else if (record === "quality") this.notify("Finest of its kind yet", "reward", 3200);
@@ -1731,6 +1805,11 @@ export class GameApp {
         }
       }),
       this.sim.events.on("ContractCompleted", ({ rewardMoney }) => {
+        this.worldScene.playWorldReaction(
+          "milestone",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
         this.notify(`Contract complete · +${rewardMoney} G`, "reward", 3600);
       }),
       this.sim.events.on("QuestStarted", ({ questId }) => {
@@ -1755,9 +1834,21 @@ export class GameApp {
         if (preset && !this.activeModal && !this.benchmarkView) this.gameCamera.beginArrivalView(preset.cameraPosition, preset.cameraTarget, preset.fovDegrees);
         this.requestAutosave();
       }),
-      this.sim.events.on("ActCompleted", () => this.playRewardCameraBeat(0.5, true)),
+      this.sim.events.on("ActCompleted", () => {
+        this.playRewardCameraBeat(0.5, true);
+        this.worldScene.playWorldReaction(
+          "milestone",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+      }),
       this.sim.events.on("QuestCompleted", ({ questId, rewardMoney }) => {
         this.playRewardCameraBeat(0.3);
+        this.worldScene.playWorldReaction(
+          "milestone",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
         const quest = ContentRegistry.quests.get(questId);
         const reward = rewardMoney == null ? "" : ` · +${rewardMoney} G`;
         this.notify(`Errand complete · ${quest?.questTitle ?? "Task finished"}${reward}`, "reward", 3600);
@@ -1769,8 +1860,24 @@ export class GameApp {
         this.setToast(`Aboard the ${name.toLowerCase()}`, 1800);
       }),
       this.sim.events.on("BoatDocked", ({ boatId }) => {
+        this.worldScene.playBoatResponse(boatId, "dock", presentationSeconds());
+        const boat = this.sim.state.boats[boatId];
+        const returningWithCargo = Boolean(boat?.fishCargoSlotIds.some(Boolean));
+        this.worldScene.playWorldReaction(
+          returningWithCargo ? "homecoming" : "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
         this.worldScene.beginPlayerAttachmentAction("dock", boatId);
         this.setToast("Docked at harbor", 2200);
+      }),
+      this.sim.events.on("CargoLoaded", ({ boatId, slotIndex }) => {
+        this.worldScene.playBoatResponse(
+          boatId,
+          "cargo-load",
+          presentationSeconds(),
+          slotIndex
+        );
       }),
       this.sim.events.on("SeasonChanged", ({ season, previousSeason, year }) => {
         // The calendar turning is the moment new fish, new prices and new
@@ -1798,18 +1905,71 @@ export class GameApp {
         this.beginMountTransition("dismount");
       }),
       this.sim.events.on("FishHooked", () => this.worldScene.playPlayerAction("hookset")),
-      this.sim.events.on("CropPlanted", () => this.requestAutosave()),
-      this.sim.events.on("CropHarvested", () => this.requestAutosave()),
-      this.sim.events.on("FarmFertilized", () => this.requestAutosave()),
-      this.sim.events.on("IrrigationInstalled", () => this.requestAutosave()),
-      this.sim.events.on("FarmIrrigated", () => this.requestAutosave()),
-      this.sim.events.on("RecipeStarted", () => this.requestAutosave()),
-      this.sim.events.on("ProcessingJobReady", ({ recipeId }) => {
-        const recipe = ContentRegistry.recipes.get(recipeId);
-        this.notify(`${recipe?.name ?? "Station job"} is ready to collect`, "success", 4200);
+      this.sim.events.on("CropPlanted", ({ placedCropId }) => {
+        this.worldScene.playWorldReaction(
+          "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+        const crop = this.sim.state.crops[placedCropId];
+        if (crop) {
+          const world = farmLocalToWorld(crop.farmId, crop);
+          this.worldScene.spawnFarmingVfx(
+            "dirt",
+            { x: world.x, y: WorldLayout.terrainHeight(world.x, world.z) + 0.05, z: world.z },
+            presentationSeconds()
+          );
+        }
         this.requestAutosave();
       }),
-      this.sim.events.on("RecipeCompleted", () => this.requestAutosave()),
+      this.sim.events.on("CropWatered", () => {
+        this.worldScene.playWorldReaction(
+          "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+        this.requestAutosave();
+      }),
+      this.sim.events.on("CropHarvested", () => {
+        this.worldScene.playWorldReaction(
+          "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+        this.requestAutosave();
+      }),
+      this.sim.events.on("FarmFertilized", () => {
+        this.worldScene.playWorldReaction(
+          "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+        this.requestAutosave();
+      }),
+      this.sim.events.on("IrrigationInstalled", () => this.requestAutosave()),
+      this.sim.events.on("FarmIrrigated", () => {
+        this.worldScene.playWorldReaction(
+          "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+        this.requestAutosave();
+      }),
+      this.sim.events.on("RecipeStarted", ({ jobId }) => {
+        const job = this.sim.state.processingJobs[jobId];
+        if (job) playStationResponse(job.stationId, "work");
+        this.requestAutosave();
+      }),
+      this.sim.events.on("ProcessingJobReady", ({ recipeId, stationId }) => {
+        const recipe = ContentRegistry.recipes.get(recipeId);
+        this.notify(`${recipe?.name ?? "Station job"} is ready to collect`, "success", 4200);
+        playStationResponse(stationId, "ready");
+        this.requestAutosave();
+      }),
+      this.sim.events.on("RecipeCompleted", ({ stationId }) => {
+        playStationResponse(stationId, "work");
+        this.requestAutosave();
+      }),
       this.sim.events.on("EquipmentEquipped", () => this.requestAutosave()),
       this.sim.events.on("EquipmentPresetSaved", () => this.requestAutosave()),
       this.sim.events.on("EquipmentPresetApplied", () => this.requestAutosave()),
@@ -1824,12 +1984,27 @@ export class GameApp {
       }),
       this.sim.events.on("BasicFishingStarted", () => this.requestAutosave()),
       this.sim.events.on("BasicFishingResolved", () => this.requestAutosave()),
-      this.sim.events.on("ItemSold", () => this.requestAutosave()),
-      this.sim.events.on("ItemPurchased", () => this.requestAutosave()),
-      this.sim.events.on("SeedPurchased", () => this.requestAutosave()),
-      this.sim.events.on("RodPurchased", () => this.requestAutosave()),
+      this.sim.events.on("ItemSold", ({ marketId }) => {
+        playMarketResponse(marketId, "sale");
+        this.requestAutosave();
+      }),
+      this.sim.events.on("ItemPurchased", ({ marketId }) => {
+        playMarketResponse(marketId, "purchase");
+        this.requestAutosave();
+      }),
+      this.sim.events.on("SeedPurchased", ({ marketId }) => {
+        playMarketResponse(marketId, "purchase");
+        this.requestAutosave();
+      }),
+      this.sim.events.on("RodPurchased", ({ marketId }) => {
+        playMarketResponse(marketId, "purchase");
+        this.requestAutosave();
+      }),
       this.sim.events.on("RodEquipped", () => this.requestAutosave()),
-      this.sim.events.on("FishSold", () => this.requestAutosave()),
+      this.sim.events.on("FishSold", ({ marketId }) => {
+        playMarketResponse(marketId, "sale");
+        this.requestAutosave();
+      }),
       this.sim.events.on("ContractCompleted", () => this.requestAutosave()),
       this.sim.events.on("QuestStarted", () => this.requestAutosave()),
       this.sim.events.on("QuestProgressed", () => this.requestAutosave()),
@@ -1929,6 +2104,16 @@ export class GameApp {
       presentedPlayer.z
     );
     this.lastPresentedPlayer = presentedPlayer;
+    samplePlayerPresence(
+      presentedPlayer,
+      {
+        mode: this.mode,
+        mounted: Boolean(state.player.activeMountId),
+        reducedMotion: false
+      },
+      this.playerPresence
+    );
+    this.worldScene.setPlayerPresence(this.playerPresence);
     const activeBoat = state.player.activeBoatId
       ? state.boats[state.player.activeBoatId]
       : undefined;
@@ -1954,16 +2139,24 @@ export class GameApp {
     ).catch(error => this.handleStartupFailure(error));
     for (const event of this.worldScene.drainPlayerAnimationEvents()) {
       if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
+      const surface = footstepSurfaceAt(presentedPlayer.x, presentedPlayer.z);
       gameAudio.playBank(
-        footstepBankForSurface(
-          footstepSurfaceAt(presentedPlayer.x, presentedPlayer.z),
-          Boolean(this.sim.state.player.activeMountId)
-        ),
+        footstepBankForSurface(surface, Boolean(this.sim.state.player.activeMountId)),
         {
           x: presentedPlayer.x,
           y: presentedPlayer.y,
           z: presentedPlayer.z
         }
+      );
+      // Spawn under the foot that landed so the eye and the ear agree.
+      const side = event.name === "footstep_left" ? -1 : 1;
+      const perpendicularX = Math.cos(presentedPlayer.rotationY) * side * 0.16;
+      const perpendicularZ = -Math.sin(presentedPlayer.rotationY) * side * 0.16;
+      this.worldScene.spawnFootfall(
+        surface,
+        presentedPlayer.x + perpendicularX,
+        presentedPlayer.z + perpendicularZ,
+        presentationTimeSeconds
       );
     }
     this.worldScene.updateEnvironment(
@@ -1989,6 +2182,10 @@ export class GameApp {
         this.physicsWorld ?? undefined,
         {
           player: presentedPlayer.motion,
+          explorationWeight: this.explorationFraming.sample(
+            state.worldSeed, playerPos.x, playerPos.z, this.mode,
+            Boolean(this.activeModal) || this.farmingActions.isActive || this.cameraInteractionNearby
+          ),
           boat: activeBoat ? this.lastBoatMotion[activeBoat.id] : undefined,
           discontinuityReason: presentedPlayer.discontinuityReason,
           discontinuitySequence: presentedPlayer.discontinuitySequence,
@@ -2021,6 +2218,7 @@ export class GameApp {
       mode: this.mode,
       weather: this.sim.state.weather.type,
       paused: this.sim.clock.isPaused(),
+      sprintExhausted: this.sim.state.player.traversal.sprintExhausted,
       boat: this.mode === "boat-driving" && activeBoat && boatMotion
         ? {
             throttle: boatMotion.throttle,
@@ -2080,6 +2278,29 @@ export class GameApp {
       this.gameCamera.camera,
       { width: this.canvasContainer.clientWidth || window.innerWidth, height: this.canvasContainer.clientHeight || window.innerHeight },
       nowMs, (x, z) => WorldLayout.traversalSurfaceHeight(x, z)
+    );
+    // Market demand moves on the hour, so a slow refresh is well within reading
+    // accuracy and keeps the pricing model off the per-frame path.
+    if (nowMs - this.lastMarketBoardRebuildMs >= 2000) {
+      this.lastMarketBoardRebuildMs = nowMs;
+      this.marketLifeBoards = buildMarketLifeBoards(this.sim.state);
+    }
+    const marketBoardSuppressed =
+      Boolean(this.activeModal) || Boolean(this.benchmarkView) || Boolean(this.layoutEditor?.isActive());
+    this.marketBoards.update(
+      marketBoardSuppressed
+        ? []
+        : this.marketLifeBoards.flatMap((board) => {
+            const location = WORLD_MARKET_LOCATIONS[board.marketId];
+            return location
+              ? [{ board, x: location.position.x, z: location.position.z }]
+              : [];
+          }),
+      this.sim.state.player,
+      this.gameCamera.camera,
+      { width: this.canvasContainer.clientWidth || window.innerWidth, height: this.canvasContainer.clientHeight || window.innerHeight },
+      (x, z) => WorldLayout.traversalSurfaceHeight(x, z),
+      nowMs
     );
     if (this.renderReadyFramesRemaining > 0) {
       this.renderReadyFramesRemaining -= 1;
@@ -2630,6 +2851,30 @@ export class GameApp {
       });
     }
 
+    if (this.mode === "on-foot") {
+      const bulletinDistance = Math.hypot(
+        p.x - VILLAGE_BULLETIN.position.x,
+        p.z - VILLAGE_BULLETIN.position.z
+      );
+      if (bulletinDistance <= VILLAGE_BULLETIN.interactionRadiusMeters) {
+        candidates.push({
+          id: "bulletin:village:read",
+          kind: "station",
+          action: "read-notices",
+          distanceMeters: bulletinDistance,
+          priority: 1,
+          worldPosition: {
+            x: VILLAGE_BULLETIN.position.x,
+            y: WorldLayout.terrainHeight(VILLAGE_BULLETIN.position.x, VILLAGE_BULLETIN.position.z),
+            z: VILLAGE_BULLETIN.position.z
+          },
+          modes: ["on-foot"],
+          requiresLineOfSight: false,
+          prompt: "[E] Read the village notices"
+        });
+      }
+    }
+
     const fishingHabitat = WorldLayout.nearbyFishingHabitat(p.x, p.z);
     // Fishable water offers the cast whether or not the rod is already out;
     // requiring it first meant standing at the shore with no prompt at all.
@@ -2770,7 +3015,7 @@ export class GameApp {
 
     for (const school of Object.values(this.sim.state.world.activeSchools)) {
       const sDist = Math.hypot(p.x - school.x, p.z - school.z);
-      if (sDist < 12.0) {
+      if (sDist <= SCHOOL_INTERACTION_RADIUS) {
         const frenzy =
           school.feedingFrenzyUntilMinute && this.sim.state.clock.currentMinute <= school.feedingFrenzyUntilMinute;
         const lurePrepared = p.preparedLureItemId === LURE_ITEM_ID;
@@ -2866,7 +3111,7 @@ export class GameApp {
 
     if (this.mode === "on-foot") {
       for (const [npcId, npc] of ContentRegistry.npcs.entries()) {
-        const anchor = npcAnchorAt(npcId, this.sim.state.clock);
+        const anchor = npcAnchorAt(npcId, this.sim.state.clock, this.sim.state.quests);
         const distToNpc = Math.hypot(p.x - anchor.x, p.z - anchor.z);
         if (distToNpc <= NPC_TALK_RADIUS) {
           candidates.push({
@@ -2921,6 +3166,7 @@ export class GameApp {
     this.lastInteractionPointerX = pointer.x;
     this.lastInteractionPointerY = pointer.y;
     this.lastInteractionMode = this.mode;
+    this.cameraInteractionNearby = false;
     if (this.activeModal || this.benchmarkView) {
       this.worldScene.setInteractionTargetFeedback(null);
       this.promptText = null;
@@ -2962,6 +3208,7 @@ export class GameApp {
     const picked = this.farmingActions.isActive && this.lockedInteractionTarget
       ? this.lockedInteractionTarget
       : this.pickInteraction();
+    this.cameraInteractionNearby = this.mode === "on-foot" && picked !== null;
     this.worldScene.setInteractionTargetFeedback(picked?.worldPosition ?? null, picked?.entityId);
 
     const activeQuest = this.sim.questDomain.getActiveQuestDto();
@@ -3057,6 +3304,16 @@ export class GameApp {
     if (this.mode === "farm-placement") this.exitCropPlacement();
     this.activeTool = target.requiresTool;
     this.toolRevealToken += 1;
+  }
+
+  /**
+   * Opens the journal already turned to the Town Notices board. A token makes
+   * each open request distinct so repeated reads still land on the folio.
+   */
+  private openVillageNotices(): void {
+    this.journalRequestToken += 1;
+    this.journalOpenRequest = { folio: "notices", token: this.journalRequestToken };
+    this.setActiveModal("journal");
   }
 
   private handleContextInteract(): void {
@@ -3168,6 +3425,9 @@ export class GameApp {
         this.setToast(reading?.brief ?? "No readable water here", 4600);
         break;
       }
+      case "read-notices":
+        this.openVillageNotices();
+        break;
       case "trade": {
         const nearbyMarket = this.sim.getNearbyMarketId();
         if (!nearbyMarket) {
@@ -3334,7 +3594,7 @@ export class GameApp {
       moveToNpc: (npcId) => {
         const npc = ContentRegistry.npcs.get(npcId);
         if (!npc) return false;
-        const anchor = npcAnchorAt(npc.id, this.sim.state.clock);
+        const anchor = npcAnchorAt(npc.id, this.sim.state.clock, this.sim.state.quests);
         window.__NEVA_DEBUG?.teleport(anchor.x, anchor.z);
         return true;
       },
@@ -4408,6 +4668,9 @@ export class GameApp {
         promptText: this.promptText,
         worldHud,
         notices: this.currentNotices(),
+        villageNotices: selectVillageNotices(villageNoticeContext(state)),
+        people: buildPeoplePageDto(state),
+        journalOpenRequest: this.journalOpenRequest,
         chronicleEntries: this.chronicle.list(this.chronicleFilter),
         chronicleFilter: this.chronicleFilter,
         onSelectChronicleFilter: (filter: ChronicleFilter) => {
@@ -4784,6 +5047,7 @@ export class GameApp {
     this.collisionDebugView = null;
     this.questPointer.dispose();
     this.npcBarks.dispose();
+    this.marketBoards.dispose();
     this.rewardOverlay.dispose();
     this.physicsWorld?.dispose();
     this.physicsWorld = null;

@@ -57,6 +57,22 @@ export const NPCS: NpcDefinition[] = [
     ],
     recognitionDialogue: [
       {
+        id: "dialogue.elspeth_discovery_farm",
+        requiresKnowledgeIds: ["knowledge.discovery.farm"],
+        lines: [
+          "You found the path up behind the old rows. Your family walked it every spring to check the water.",
+          "Homestead Heights is not a view. It is the reason this farm was put here at all."
+        ]
+      },
+      {
+        id: "dialogue.elspeth_discovery_overlook",
+        requiresKnowledgeIds: ["knowledge.discovery.overlook"],
+        lines: [
+          "The western overlook, then. You can see both the fields and the river from up there.",
+          "That is the whole farm in one look. Your family used to walk up just to check on it."
+        ]
+      },
+      {
         id: "dialogue.elspeth_land_sea_cycle",
         requiresKnowledgeIds: ["knowledge.land_sea_cycle"],
         lines: [
@@ -122,6 +138,14 @@ export const NPCS: NpcDefinition[] = [
     ],
     recognitionDialogue: [
       {
+        id: "dialogue.barnaby_discovery_spring",
+        requiresKnowledgeIds: ["knowledge.discovery.spring"],
+        lines: [
+          "You have seen where the river starts, then. Good. Every tool I make is downstream of that spring.",
+          "It is finite, that water. People forget, and then it is a dry summer."
+        ]
+      },
+      {
         id: "dialogue.barnaby_field_pump",
         requiresFeatureIds: ["feature.irrigation_zone"],
         lines: [
@@ -160,6 +184,14 @@ export const NPCS: NpcDefinition[] = [
           "Cured fish. Out of Sunreach, of all places, where they cannot keep water in the ground for a morning.",
           "That is the trick with a poor place. You stop asking what it lacks and start asking what it has too much of."
         ]
+      },
+      {
+        id: "dialogue.barnaby_open_horizons",
+        requiresKnowledgeIds: ["knowledge.open_horizons"],
+        lines: [
+          "You have outgrown the bench, I think. That is not a complaint.",
+          "Everything worth keeping on this farm, somebody fixed it until the next person could use it. You just did that with a whole island."
+        ]
       }
     ]
   },
@@ -186,6 +218,22 @@ export const NPCS: NpcDefinition[] = [
       "Trout run thick in the estuary around midday."
     ],
     recognitionDialogue: [
+      {
+        id: "dialogue.silas_discovery_coast",
+        requiresKnowledgeIds: ["knowledge.discovery.coast"],
+        lines: [
+          "You walked the lighthouse cliffs. Now you know what the harbor spends its nights hiding from.",
+          "That light is older than the market, and it has never once lied about the weather."
+        ]
+      },
+      {
+        id: "dialogue.silas_discovery_bluff",
+        requiresKnowledgeIds: ["knowledge.discovery.bluff"],
+        lines: [
+          "The northern bluff. On a clear day you can see the shelf from up there, and the water past it.",
+          "Now you know how far you have not been yet. That is worth knowing."
+        ]
+      },
       {
         id: "dialogue.silas_first_expedition",
         requiresCompletedQuestIds: ["quest.act5_maiden_voyage"],
@@ -217,6 +265,14 @@ export const NPCS: NpcDefinition[] = [
           "Signed, then. When I was your age that paper had four names on it and I was not one of them.",
           "It does not mean you are good. It means people will wait for you. Do not make them wait long."
         ]
+      },
+      {
+        id: "dialogue.silas_open_horizons",
+        requiresKnowledgeIds: ["knowledge.open_horizons"],
+        lines: [
+          "The charter is signed, so the tide is your problem now. Good—that is how it should be.",
+          "You will still get it wrong out there. Come back and tell me how, and we will both be better for it."
+        ]
       }
     ]
   },
@@ -239,10 +295,18 @@ export const NPCS: NpcDefinition[] = [
     ],
     idleDialogue: [
       "Fresh catch always fetches top coin! Bring your fish in before the sun bakes 'em.",
-      "Trophy mackerel and tuna pay the quality multiplier on the harbor board. Ice them or the grade is wasted.",
+      "A trophy tuna pays the quality multiplier on the harbor board. Ice it, or the grade is wasted.",
       "Fair scales and cold ice—that's how we run the harbor trade."
     ],
     recognitionDialogue: [
+      {
+        id: "dialogue.maeve_discovery_beach",
+        requiresKnowledgeIds: ["knowledge.discovery.beach"],
+        lines: [
+          "The western beach, was it? Driftwood and no mooring. That is why the trade came here instead.",
+          "Every harbor is a decision about where not to build."
+        ]
+      },
       {
         id: "dialogue.maeve_contract_kept",
         requiresCompletedQuestIds: ["quest.act6_harbor_promise"],
@@ -274,6 +338,14 @@ export const NPCS: NpcDefinition[] = [
           "Your name is on the charter and the table has one more slot with it.",
           "Use it for something you would have turned down last season. That is what the extra room is for."
         ]
+      },
+      {
+        id: "dialogue.maeve_open_horizons",
+        requiresKnowledgeIds: ["knowledge.open_horizons"],
+        lines: [
+          "The board will keep filling whether you are watching it or not. That is the point of it now.",
+          "Take the orders worth keeping and leave the rest. Either way, bring me the truth of what the water gave you."
+        ]
       }
     ]
   },
@@ -301,6 +373,14 @@ export const NPCS: NpcDefinition[] = [
     ],
     recognitionDialogue: [
       {
+        id: "dialogue.tomas_discovery_reef",
+        requiresKnowledgeIds: ["knowledge.discovery.reef"],
+        lines: [
+          "You have stood on the reef shelf. That water past the markers is where our catch actually comes from.",
+          "The cove is shelter, not a fishery. The shelf is the fishery."
+        ]
+      },
+      {
         id: "dialogue.tomas_reef_answer",
         requiresCompletedQuestIds: ["quest.act7_reef_answer"],
         lines: [
@@ -322,6 +402,14 @@ export const NPCS: NpcDefinition[] = [
         lines: [
           "There is cured fish from this cove on a stall across the channel. I want you to understand how strange that is to me.",
           "My father lost more catch to that crossing than he ever sold. Same water. We just did not have the salt figured."
+        ]
+      },
+      {
+        id: "dialogue.tomas_open_horizons",
+        requiresKnowledgeIds: ["knowledge.open_horizons"],
+        lines: [
+          "The cove has a route to the main island that will not die with the next storm. You built that.",
+          "Go on and take the horizon. Leave the marker buoys lit for whoever comes after."
         ]
       }
     ]
@@ -350,6 +438,14 @@ export const NPCS: NpcDefinition[] = [
     ],
     recognitionDialogue: [
       {
+        id: "dialogue.ines_discovery_ridge",
+        requiresKnowledgeIds: ["knowledge.discovery.ridge"],
+        lines: [
+          "From the exposed ridge you can see the whole channel. We were never as alone out here as it felt.",
+          "Wind, stone, sun. The ridge tells you what the terraces already know."
+        ]
+      },
+      {
         id: "dialogue.ines_terrace_cycle",
         requiresCompletedQuestIds: ["quest.act7_land_sea_cycle"],
         lines: [
@@ -371,6 +467,14 @@ export const NPCS: NpcDefinition[] = [
         lines: [
           "People come here and count what we are short of. You counted what we have too much of instead.",
           "Sun and wind and salt. Written down like that it sounds like nothing. It is a trade route."
+        ]
+      },
+      {
+        id: "dialogue.ines_open_horizons",
+        requiresKnowledgeIds: ["knowledge.open_horizons"],
+        lines: [
+          "These terraces will hold for a season without you. I did not always believe that.",
+          "Plant something that outlives us both, and mean it when you do."
         ]
       }
     ]

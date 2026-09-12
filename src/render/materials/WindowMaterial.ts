@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { paletteTokenForLoadedMaterial } from "./PaletteMaterials";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PALETTE_HEX, PALETTE_SPECS } from "./PaletteTokens";
 
 const variants = new Map<string, { material: THREE.MeshStandardMaterial; delay: number }>();
@@ -20,6 +21,7 @@ export function architectureWindowMaterial(source: THREE.Material, padId: string
   const existing = variants.get(key);
   if (existing) return existing.material;
   const material = source.clone();
+  applyWorldAtmosphere(material);
   material.emissive.set(PALETTE_HEX.emissive_window_01);
   const delay = cohort / 7 * CANONICAL_RENDER_CONFIG.windowStagger.maximumDelay;
   material.emissiveIntensity = PALETTE_SPECS.emissive_window_01.emissiveStrength * windowEmissionAt(currentLevel, delay);

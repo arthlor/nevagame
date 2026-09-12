@@ -6,6 +6,7 @@ import { yieldToTask } from "../../utils/CooperativeTask";
 // src/render/scene/WorldScene.ts
 
 import * as THREE from "three";
+import { setRainSurfaceWetness } from "../materials/RainSurfaceMaterial";
 import { createSpatialSurfaceBatch } from "./spatialSurfaceBatch";
 import { RigidAnimationBatch } from "./RigidAnimationBatch";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -63,8 +64,9 @@ import {
   starterStructureAnchor
 } from "../../world/FarmLayout";
 import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
-import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING } from "../../world/WorldAnchors";
+import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING, VILLAGE_BULLETIN } from "../../world/WorldAnchors";
 import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
+import { WORLD_STATION_DEFINITIONS } from "../../world/WorldGameplayLocations";
 import {
   ARCHITECTURE_PLACEMENT_TO_PAD,
   LAYOUT_EDIT_USERDATA_KEY,
@@ -114,6 +116,24 @@ import {
   stationaryPlayerMotion,
   type PresentedPlayerFrame
 } from "../presentation/PlayerPresentationBuffer";
+import {
+  IDLE_PLAYER_PRESENCE,
+  type PlayerPresence
+} from "../presentation/PlayerPresence";
+import {
+  acknowledgeHeadYaw,
+  ACKNOWLEDGE_HEAD_TURN_RADIUS_METERS,
+  presenceFalloff
+} from "../presentation/WorldAcknowledgment";
+import {
+  sampleWeatherPosture,
+  SocialReactionPresentation,
+  type WorldReactionKind
+} from "../presentation/SocialReactionPresentation";
+import {
+  BoatResponsePresentation,
+  type BoatResponseKind
+} from "../presentation/BoatResponsePresentation";
 import { resolveMountPresentationPose } from "../presentation/MountPresentation";
 import { LightingRig } from "../lighting/LightingRig";
 import {
@@ -162,13 +182,11 @@ import {
   type ContactShadowMesh
 } from "./ContactShadow";
 import { GroundCoverRenderer } from "./GroundCoverRenderer";
+import { AtmosphereSky } from "../atmosphere/AtmosphereSky";
 import {
   BUTTERFLY_ORBITS,
-  CLOUD_PLACEMENTS,
   GULL_ORBITS,
-  sampleAmbientCloudPose,
   sampleAmbientFlyerPose,
-  type AmbientCloudPlacement,
   type AmbientFlyerOrbit
 } from "./ambientFlyers";
 import { npcStationBeatAt, advanceNpcStationBeat, createNpcStationBeatState, type NpcStationBeatState } from "./npcStationBeat";
@@ -184,6 +202,7 @@ import { SchoolSurfaceRipples } from "../fishing/SchoolSurfaceRipples";
 
 
 import { FarmVfxPool, type FarmVfxKind, type FarmVfxPoint } from "../effects/FarmVfxPool";
+import { FootfallVfxPool, type FootfallSurface } from "../effects/FootfallVfxPool";
 import { FireflyField, fireflyNightVisibility } from "../effects/FireflyField";
 import { RainField } from "../weather/RainField";
 import type { WaterConditions } from "../water/WaterSurface";
@@ -192,6 +211,7 @@ import {
   sampleWeatherMotionSignal,
   type WeatherMotionSignal
 } from "../motion/WeatherMotionSignal";
+import { WeatherPresentation } from "../weather/WeatherPresentation";
 import {
   createSportFishingPresentationSample,
   sampleSportFishingPresentation,
@@ -229,8 +249,22 @@ interface AmbientTownsfolkPresentation {
 }
 
 const CHARACTER_DETAIL_DISTANCE_METERS = 14;
+/** Detail returns inside this closer radius so the boundary cannot flicker. */
+const CHARACTER_DETAIL_RESTORE_DISTANCE_METERS = 13;
 /** Beyond this a background villager is a couple of pixels; stop animating. */
 const AMBIENT_TOWNSFOLK_VISIBILITY_METERS = 110;
+/** Enter/exit gap so a villager drifting on the edge does not blink. */
+const AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS = 6;
+const NPC_VISIBILITY_HYSTERESIS_METERS = 5;
+/** Only stations close enough to read emit visible work cues. */
+const STATION_ACTIVITY_RADIUS_METERS = 55;
+/** Cue height above the station surface, per station family. */
+const STATION_ACTIVITY_HEIGHT_METERS: Readonly<Record<string, number>> = {
+  "hand-mill": 2.1,
+  workbench: 1.15,
+  "fish-table": 1.2,
+  "compost-bin": 1.0
+};
 
 /**
  * Catalog families whose scattered instances are allowed to block the player.
@@ -522,41 +556,11 @@ const FARMING_PROP_ATTACHMENTS: readonly PropAttachmentConfig[] = [
   { key: "ready", assetId: ASSET_IDS.PROP_CRAFTING_READY_A, socket: "char_player_tool_socket", scale: 0.82 }
 ] as const;
 
-const SKY_DOME_RADIUS = 650;
-const CELESTIAL_DISC_DISTANCE = SKY_DOME_RADIUS - 10;
-
-function createCelestialDiscTexture(size = 64): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const dx = ((x + 0.5) / size) * 2 - 1;
-      const dy = ((y + 0.5) / size) * 2 - 1;
-      const edgeDistancePixels = (1 - Math.hypot(dx, dy)) * size * 0.5;
-      const alpha = THREE.MathUtils.clamp(edgeDistancePixels + 0.5, 0, 1);
-      const offset = (y * size + x) * 4;
-      data[offset] = 255;
-      data[offset + 1] = 255;
-      data[offset + 2] = 255;
-      data[offset + 3] = Math.round(alpha * 255);
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-  texture.needsUpdate = true;
-  return texture;
-}
-
 /**
  * Soft radial falloff for a practical light's halo.
  *
- * Deliberately not `createCelestialDiscTexture`: that one is a solid disc with a
- * single half-pixel of antialiasing at the rim, which is right for a sun or moon
- * read at infinity and reads as a flat pasted-on circle anywhere else. A halo
- * needs most of its area to be nearly transparent, with the energy concentrated
- * in a small core.
+ * Most of the halo stays nearly transparent, with energy concentrated in a
+ * small core so a lantern never becomes a pasted-on luminous disc.
  */
 function createPracticalGlowTexture(size = 64): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);
@@ -604,24 +608,6 @@ function createPracticalGlowMaterial(
     // colour and the result is then added, so a fogged distant lamp would
     // brighten the scene instead of fading. Distance falloff comes from the
     // sprite's own perspective scale.
-    fog: false,
-    toneMapped: false,
-    blending: THREE.AdditiveBlending
-  });
-}
-
-function createCelestialDiscMaterial(
-  map: THREE.DataTexture,
-  color: THREE.ColorRepresentation,
-  opacity: number
-): THREE.SpriteMaterial {
-  return new THREE.SpriteMaterial({
-    map,
-    color,
-    transparent: true,
-    opacity,
-    depthWrite: false,
-    depthTest: false,
     fog: false,
     toneMapped: false,
     blending: THREE.AdditiveBlending
@@ -716,6 +702,9 @@ export class WorldScene {
   private shoreFoam!: ShoreFoam;
   private boatWakes!: BoatWakePool;
   private farmVfx!: FarmVfxPool;
+  private footfallVfx!: FootfallVfxPool;
+  private readonly stationActivityEmitSeconds = new Map<string, number>();
+  private readonly announcedCompleteJobs = new Set<string>();
   private fireflyField!: FireflyField;
   private rainField!: RainField;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
@@ -747,6 +736,7 @@ export class WorldScene {
   private carriedFishPresentation: { cargoId: string; root: THREE.Group } | null = null;
   private readonly playerAnimationEvents: CharacterAnimationEvent[] = [];
   private latestPresentedPlayer: PresentedPlayerFrame | null = null;
+  private playerPresence: PlayerPresence = { ...IDLE_PLAYER_PRESENCE };
   private latestLocomotionTimeScale = 1;
   private readonly visibilityAnchor = new THREE.Vector3(
     WORLD_LAYOUT_V5.anchors.playerSpawn.x,
@@ -761,11 +751,7 @@ export class WorldScene {
   private hasPresentationTimestamp = false;
   private characterElapsedSeconds = 0;
   private prefersReducedMotion: boolean = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  private skyMaterial: THREE.ShaderMaterial | null = null;
-  private skyDome: THREE.Mesh | null = null;
-  private sunDisc: THREE.Sprite | null = null;
-  private moonDisc: THREE.Sprite | null = null;
-  private starField: THREE.Points | null = null;
+  private atmosphereSky: AtmosphereSky | null = null;
   private readonly practicalLights: Array<{
     light: THREE.PointLight;
     root: THREE.Object3D;
@@ -784,10 +770,6 @@ export class WorldScene {
   };
   private playerContactShadow: ContactShadowMesh | null = null;
   private windmillRotor: THREE.Group | null = null;
-  private cloudMeshes: Array<{
-    object: THREE.Group;
-    placement: AmbientCloudPlacement;
-  }> = [];
   private readonly faunaPresentations: FaunaPresentation[] = [];
   private donkeyPresentation: DonkeyPresentation | null = null;
   private readonly backgroundBoats: THREE.Object3D[] = [];
@@ -800,6 +782,8 @@ export class WorldScene {
   private readonly boatDriverSeats = new Map<string, THREE.Object3D>();
   private readonly boatFishingStations = new Map<string, THREE.Object3D>();
   private readonly boatBuoyancyState = new Map<string, BoatBuoyancyPresentationState>();
+  private readonly boatResponses = new BoatResponsePresentation();
+  private readonly socialReactions = new SocialReactionPresentation();
   private sportFishingBodyYaw = 0;
   private sportFishingBodyYawInstanceId: string | null = null;
   private latestBoatPresentationInput: BoatPresentationInput | null = null;
@@ -922,8 +906,10 @@ export class WorldScene {
   private readonly npcPresentations = new Map<string, NpcPresentation>();
   private activeDialogueNpcId: string | null = null;
   private readonly weatherMotion: WeatherMotionSignal = createWeatherMotionSignal();
+  private readonly weatherPresentation = new WeatherPresentation();
   private lastAmbientMotionTimeSeconds = 0;
-  private lastCloudMotionTimeSeconds = Number.NEGATIVE_INFINITY;
+  /** Unpaused presentation clock for the ambient drift; frozen while paused. */
+  private ambientTownsfolkElapsedSeconds = 0;
   private playerDetailReduced = false;
   private readonly tempCharacterWorldPosition = new THREE.Vector3();
   private isFarmGisMode: boolean = false;
@@ -1033,6 +1019,8 @@ export class WorldScene {
     this.scene.add(this.boatWakes.group);
     this.farmVfx = new FarmVfxPool();
     this.scene.add(this.farmVfx.group);
+    this.footfallVfx = new FootfallVfxPool();
+    this.scene.add(this.footfallVfx.group);
     this.fireflyField = new FireflyField(CANONICAL_RENDER_CONFIG.qualityTier);
     this.scene.add(this.fireflyField.group);
     this.rainField = new RainField(CANONICAL_RENDER_CONFIG.qualityTier);
@@ -1102,7 +1090,6 @@ export class WorldScene {
       ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId),
       ...layout.staticPlacements.map((placement) => placement.assetId as AssetId),
       ...layout.groundCoverPlacements.map((placement) => placement.assetId as AssetId),
-      ...CLOUD_PLACEMENTS.map((placement) => placement.assetId),
       ASSET_IDS.FAUNA_GULL_A,
       ASSET_IDS.FAUNA_BUTTERFLY_A,
       ...Array.from(ContentRegistry.npcs.values(), (npc) => npc.assetId as AssetId)
@@ -1153,96 +1140,10 @@ export class WorldScene {
   }
 
   private buildSky(): void {
-    const skyGeometry = new THREE.SphereGeometry(SKY_DOME_RADIUS, 28, 14);
-    this.skyMaterial = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-      uniforms: {
-        topColor: { value: new THREE.Color(PALETTE_HEX.sky_pale_01) },
-        horizonColor: { value: new THREE.Color(PALETTE_HEX.horizon_warm_01) }
-      },
-      vertexShader: `
-        varying vec3 vWorldDirection;
-        void main() {
-          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-          vWorldDirection = normalize(worldPosition.xyz - cameraPosition);
-          gl_Position = projectionMatrix * viewMatrix * worldPosition;
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 topColor;
-        uniform vec3 horizonColor;
-        varying vec3 vWorldDirection;
-        void main() {
-          // The gameplay camera looks slightly down, so the visible sky occupies
-          // a narrow band around the geometric horizon rather than the dome apex.
-          float height = smoothstep(-0.16, 0.10, vWorldDirection.y);
-          vec3 color = mix(horizonColor, topColor, height);
-          // A single two-stop ramp reads as a painted backdrop. A compressed
-          // haze band just above the waterline, plus a slightly cooler zenith,
-          // gives the dome the depth cue the fog is already producing on land.
-          float haze = 1.0 - smoothstep(-0.06, 0.34, vWorldDirection.y);
-          color = mix(color, horizonColor, haze * haze * 0.5);
-          float zenith = smoothstep(0.18, 0.9, vWorldDirection.y);
-          color *= mix(1.0, 0.93, zenith);
-          gl_FragColor = vec4(color, 1.0);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-        }
-      `
-    });
-    const skyMesh = new THREE.Mesh(skyGeometry, this.skyMaterial);
-    skyMesh.name = "world_sky_dome";
-    skyMesh.frustumCulled = false;
-    this.skyDome = skyMesh;
-    this.scene.add(skyMesh);
-    const celestialDiscTexture = createCelestialDiscTexture();
-    this.sunDisc = new THREE.Sprite(createCelestialDiscMaterial(
-      celestialDiscTexture,
-      PALETTE_HEX.emissive_window_01,
-      0.56
-    ));
-    this.sunDisc.scale.set(40, 40, 1);
-    this.sunDisc.renderOrder = 1;
-    this.scene.add(this.sunDisc);
-
-    this.moonDisc = new THREE.Sprite(createCelestialDiscMaterial(
-      celestialDiscTexture,
-      CANONICAL_RENDER_CONFIG.moon.colorHex,
-      0
-    ));
-    this.moonDisc.scale.setScalar(CANONICAL_RENDER_CONFIG.moon.discSize);
-    this.moonDisc.renderOrder = 1;
-    this.scene.add(this.moonDisc);
-
-    const starPositions = new Float32Array(CANONICAL_RENDER_CONFIG.stars.count * 3);
-    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-    for (let index = 0; index < CANONICAL_RENDER_CONFIG.stars.count; index++) {
-      const height = -0.06 + (index / Math.max(1, CANONICAL_RENDER_CONFIG.stars.count - 1)) * 1.02;
-      const radius = Math.sqrt(Math.max(0, 1 - height * height));
-      const angle = goldenAngle * index;
-      starPositions[index * 3] = Math.cos(angle) * radius * 610;
-      starPositions[index * 3 + 1] = height * 610;
-      starPositions[index * 3 + 2] = Math.sin(angle) * radius * 610;
-    }
-    const starGeometry = new THREE.BufferGeometry();
-    starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({
-      color: PALETTE_HEX.sky_pale_01,
-      size: CANONICAL_RENDER_CONFIG.stars.size,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      depthTest: false,
-      fog: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending
-    });
-    this.starField = new THREE.Points(starGeometry, starMaterial);
-    this.starField.renderOrder = 1;
-    this.scene.add(this.starField);
+    this.atmosphereSky = new AtmosphereSky(this.qualityTier);
+    this.scene.add(this.atmosphereSky.mesh);
+    this.rendererPipeline.bindSky(this.atmosphereSky);
+    this.atmosphereSky.setVolumeBlend(highTierEffectStrength(this.qualityLevel));
   }
 
   private buildPlayerContactShadow(): void {
@@ -2436,20 +2337,6 @@ export class WorldScene {
     }
     this.rebuildLayoutGroundingPatches();
 
-    for (const placement of CLOUD_PLACEMENTS) {
-      const cloud = await this.loadModel(placement.assetId);
-      cloud.position.set(placement.x, placement.y, placement.z);
-      cloud.rotation.y = placement.rotationY;
-      cloud.scale.setScalar(placement.scale);
-      cloud.userData.dynamicPresentation = true;
-      this.setShadowPolicy(cloud, false);
-      this.environmentGroup.add(cloud);
-      this.cloudMeshes.push({
-        object: cloud,
-        placement
-      });
-    }
-
     await this.loadAmbientFlyers();
 
     // 7. Fences framing the 8 x 8 planting area with authored entrances.
@@ -2906,10 +2793,13 @@ export class WorldScene {
   private updateCharacterDetailLod(): void {
     if (this.playerMesh) {
       this.playerMesh.getWorldPosition(this.tempCharacterWorldPosition);
-      const reduced = Math.hypot(
+      const distance = Math.hypot(
         this.visibilityAnchor.x - this.tempCharacterWorldPosition.x,
         this.visibilityAnchor.z - this.tempCharacterWorldPosition.z
-      ) > CHARACTER_DETAIL_DISTANCE_METERS;
+      );
+      const reduced = this.playerDetailReduced
+        ? distance > CHARACTER_DETAIL_RESTORE_DISTANCE_METERS
+        : distance > CHARACTER_DETAIL_DISTANCE_METERS;
       if (reduced !== this.playerDetailReduced) {
         this.setCharacterDetailVisibility(this.playerMesh, reduced);
         this.playerDetailReduced = reduced;
@@ -2917,10 +2807,13 @@ export class WorldScene {
     }
     for (const npc of this.npcPresentations.values()) {
       npc.model.getWorldPosition(this.tempCharacterWorldPosition);
-      const reduced = Math.hypot(
+      const distance = Math.hypot(
         this.visibilityAnchor.x - this.tempCharacterWorldPosition.x,
         this.visibilityAnchor.z - this.tempCharacterWorldPosition.z
-      ) > CHARACTER_DETAIL_DISTANCE_METERS;
+      );
+      const reduced = npc.detailReduced
+        ? distance > CHARACTER_DETAIL_RESTORE_DISTANCE_METERS
+        : distance > CHARACTER_DETAIL_DISTANCE_METERS;
       if (reduced === npc.detailReduced) continue;
       this.setCharacterDetailVisibility(npc.model, reduced);
       npc.detailReduced = reduced;
@@ -2993,36 +2886,47 @@ export class WorldScene {
   }
 
   /** Applies only semantic clock/weather inputs to the shared renderer baseline. */
+  /**
+   * Receives the application's single per-frame reading of the player. The
+   * object is owned and mutated by the caller, so this stores the reference and
+   * only overrides the reduced-motion flag the renderer already owns.
+   */
+  public setPlayerPresence(presence: PlayerPresence): void {
+    presence.reducedMotion = this.prefersReducedMotion;
+    this.playerPresence = presence;
+  }
+
+  /**
+   * Invites people near a committed event to acknowledge it. This is a local,
+   * transient presentation pulse; it cannot advance dialogue or relationship
+   * state and disappears without being serialized.
+   */
+  public playWorldReaction(
+    kind: WorldReactionKind,
+    position: { x: number; z: number },
+    timeSeconds: number
+  ): void {
+    this.socialReactions.trigger(kind, position.x, position.z, timeSeconds);
+  }
+
+  /** Adds short-lived weight to physical cargo and docking over water buoyancy. */
+  public playBoatResponse(
+    boatId: string,
+    kind: BoatResponseKind,
+    timeSeconds: number,
+    slotIndex = 0
+  ): void {
+    this.boatResponses.trigger(boatId, kind, timeSeconds, slotIndex);
+  }
+
   public updateEnvironment(
     state: Readonly<GameState>,
     timeSeconds: number,
     focus: THREE.Vector3
   ): void {
-    const frame = this.lightingRig.update(state, timeSeconds, focus);
-    const uniforms = this.skyMaterial?.uniforms;
-    (uniforms?.topColor?.value as THREE.Color | undefined)?.copy(frame.skyTopColor);
-    (uniforms?.horizonColor?.value as THREE.Color | undefined)?.copy(frame.skyHorizonColor);
-    this.scene.background = frame.skyTopColor;
-    if (this.skyDome) {
-      this.skyDome.position.copy(focus);
-    }
-    if (this.sunDisc) {
-      this.sunDisc.position.copy(focus).addScaledVector(frame.sunDirection, CELESTIAL_DISC_DISTANCE);
-      this.sunDisc.visible = frame.sunVisibility > 0.002;
-      this.sunDisc.material.opacity = frame.sunVisibility * 0.62;
-      this.sunDisc.material.color.copy(frame.sunColor);
-    }
-    if (this.moonDisc) {
-      this.moonDisc.position.copy(focus).addScaledVector(frame.moonDirection, CELESTIAL_DISC_DISTANCE);
-      this.moonDisc.visible = frame.moonVisibility > 0.002;
-      this.moonDisc.material.opacity = frame.moonVisibility * 0.78;
-      this.moonDisc.material.color.copy(frame.moonColor);
-    }
-    if (this.starField) {
-      this.starField.position.copy(focus);
-      this.starField.visible = frame.starVisibility > 0.002;
-      (this.starField.material as THREE.PointsMaterial).opacity = frame.starVisibility * 0.82;
-    }
+    const appearance = this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds);
+    const frame = this.lightingRig.update(state, timeSeconds, focus, this.prefersReducedMotion, appearance);
+    this.atmosphereSky?.update(frame, appearance.weather, state.worldSeed, timeSeconds, this.prefersReducedMotion);
     if (this.practicalLightFocus.distanceToSquared(focus) >= 0.25) {
       this.practicalLightFocus.copy(focus);
       this.applyPracticalLightBudget();
@@ -3050,21 +2954,24 @@ export class WorldScene {
     this.water.updateLighting(frame);
     this.shoreFoam.updateLighting(frame);
     this.boatWakes.updateLighting(frame);
-    this.terrainSurfaceMaterial.updateWeather(state.weather.precipitation, timeSeconds);
+    this.terrainSurfaceMaterial.updateWeather(appearance.weather.precipitation, timeSeconds);
     const sharedGroundWetness = this.terrainSurfaceMaterial.wetness;
+    setRainSurfaceWetness(sharedGroundWetness, !WorldLayout.isInterior(focus.x, focus.z));
     this.roadSurfaceMaterial.setWetness(sharedGroundWetness);
     this.cultivatedSurfaceMaterial.setWetness(sharedGroundWetness);
     this.updateAmbientMotion(state, timeSeconds);
+    this.updateStationActivity(state, timeSeconds, focus);
     this.fireflyField.update({
       focus,
       timeSeconds,
       nightVisibility: fireflyNightVisibility(frame.ambientDaylight),
-      reducedMotion: this.prefersReducedMotion
+      reducedMotion: this.prefersReducedMotion,
+      presenceRepelMeters: this.playerPresence.moving ? 0.9 : 0.35
     });
     this.rainField.update({
       focus,
       timeSeconds,
-      precipitation: state.weather.precipitation,
+      precipitation: appearance.weather.precipitation,
       wind: this.weatherMotion,
       waterConditions: this.waterConditions(state),
       reducedMotion: this.prefersReducedMotion,
@@ -3073,8 +2980,9 @@ export class WorldScene {
   }
 
   private waterConditions(state: Readonly<GameState>): WaterConditions {
-    this.waterConditionSnapshot.seaRoughness = state.weather.seaRoughness;
-    this.waterConditionSnapshot.windDirectionDeg = state.weather.windDirectionDeg;
+    const weather = this.weatherPresentation.current?.weather ?? state.weather;
+    this.waterConditionSnapshot.seaRoughness = weather.seaRoughness;
+    this.waterConditionSnapshot.windDirectionDeg = weather.windDirectionDeg;
     this.waterConditionSnapshot.windSpeed = this.weatherMotion.effectiveWindSpeed;
     return this.waterConditionSnapshot;
   }
@@ -3448,8 +3356,62 @@ export class WorldScene {
     this.farmVfx.cancel(kind);
   }
 
+  /**
+   * Ground contact response for one footstep. The surface is classified by the
+   * caller from the same world query that picks the footstep audio, so the eye
+   * and the ear agree about what was stepped on.
+   */
+  public spawnFootfall(surface: FootfallSurface, x: number, z: number, timeSeconds: number): void {
+    if (this.prefersReducedMotion) return;
+    const y = WorldLayout.traversalSurfaceHeight(x, z) + 0.03;
+    this.footfallVfx.spawn(surface, { x, y, z }, timeSeconds);
+  }
+
+  /**
+   * Makes a running processing job legible in the world: work puffs rise from
+   * a station while its job is active, and a single ready burst marks the
+   * moment it completes. Purely a reading of `processingJobs`; the station
+   * meshes, jobs and their timers stay simulation-owned.
+   */
+  private updateStationActivity(
+    state: Readonly<GameState>,
+    timeSeconds: number,
+    focus: THREE.Vector3
+  ): void {
+    const jobs = Object.values(state.processingJobs);
+    if (jobs.length === 0 && this.announcedCompleteJobs.size > 0) {
+      this.announcedCompleteJobs.clear();
+      return;
+    }
+    if (this.announcedCompleteJobs.size > 64) {
+      const live = new Set(jobs.map((job) => job.id));
+      for (const id of this.announcedCompleteJobs) if (!live.has(id)) this.announcedCompleteJobs.delete(id);
+    }
+    for (const job of jobs) {
+      const station = WORLD_STATION_DEFINITIONS[job.stationId];
+      if (!station) continue;
+      const dx = station.position.x - focus.x;
+      const dz = station.position.z - focus.z;
+      if (dx * dx + dz * dz > STATION_ACTIVITY_RADIUS_METERS ** 2) continue;
+      const baseY = WorldLayout.traversalSurfaceHeight(station.position.x, station.position.z);
+      const y = baseY + STATION_ACTIVITY_HEIGHT_METERS[station.type];
+      const target = { x: station.position.x, y, z: station.position.z };
+      if (job.status === "active") {
+        const previous = this.stationActivityEmitSeconds.get(station.id);
+        const cadence = 1.1;
+        if (previous === undefined || timeSeconds - previous >= cadence) {
+          this.stationActivityEmitSeconds.set(station.id, timeSeconds);
+          this.farmVfx.spawn("workstation", target, timeSeconds, { reducedMotion: this.prefersReducedMotion });
+        }
+      } else if (!this.announcedCompleteJobs.has(job.id)) {
+        this.announcedCompleteJobs.add(job.id);
+        this.farmVfx.spawn("pickup", target, timeSeconds, { reducedMotion: this.prefersReducedMotion });
+      }
+    }
+  }
+
   private updateAmbientMotion(state: Readonly<GameState>, timeSeconds: number): void {
-    sampleWeatherMotionSignal(state.weather, timeSeconds, this.weatherMotion);
+    sampleWeatherMotionSignal(this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds).weather, timeSeconds, this.weatherMotion);
     const delta = this.lastAmbientMotionTimeSeconds > 0
       ? THREE.MathUtils.clamp(timeSeconds - this.lastAmbientMotionTimeSeconds, 0, 0.1)
       : 1 / 60;
@@ -3468,28 +3430,9 @@ export class WorldScene {
       const rotorSpeed = (0.18 + this.weatherMotion.effectiveWindSpeed * 0.035) * motionScale;
       this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
     }
-    const cloudUpdateInterval = this.qualityTier === "high"
-      ? 1 / 15
-      : this.qualityTier === "medium" ? 1 / 12 : 0.1;
-    if (timeSeconds - this.lastCloudMotionTimeSeconds >= cloudUpdateInterval) {
-      this.lastCloudMotionTimeSeconds = timeSeconds;
-      for (const cloud of this.cloudMeshes) {
-        const pose = sampleAmbientCloudPose(
-          cloud.placement,
-          timeSeconds,
-          motionScale,
-          this.weatherMotion.directionX,
-          this.weatherMotion.directionZ,
-          this.weatherMotion.effectiveWindSpeed
-        );
-        cloud.object.position.set(pose.x, pose.y, pose.z);
-        cloud.object.rotation.set(pose.rotationX, pose.rotationY, pose.rotationZ);
-        cloud.object.scale.setScalar(pose.scale);
-      }
-    }
     this.updateFaunaMotion(timeSeconds, delta, motionScale);
     this.updateAmbientFlyers(timeSeconds, delta, motionScale);
-    this.groundCover.updateWind(this.weatherMotion, timeSeconds, motionScale);
+    this.groundCover.updateWind(this.weatherMotion, timeSeconds, motionScale, this.playerPresence);
     updateVegetationWind(this.weatherMotion, timeSeconds, motionScale);
   }
 
@@ -3983,11 +3926,16 @@ export class WorldScene {
         : fauna.kind === "rabbit"
           ? smoothPresentationWindow(cycle, 3.6, 5.2, 0.28)
           : smoothPresentationWindow(cycle, 5.2, 7, 0.25);
+      const acknowledgesPlayer = !this.prefersReducedMotion
+        && presenceFalloff(this.playerPresence, fauna.root.position.x, fauna.root.position.z,
+          ACKNOWLEDGE_HEAD_TURN_RADIUS_METERS) > 0.2;
       const desiredClip: FaunaAnimationClip = this.prefersReducedMotion
         ? "idle"
-        : activity > 0.05
-          ? fauna.kind === "cow" ? "graze" : fauna.kind === "rabbit" ? "hop" : "peck"
-          : lookActivity > 0.05 ? "look" : "idle";
+        : acknowledgesPlayer
+          ? "look"
+          : activity > 0.05
+            ? fauna.kind === "cow" ? "graze" : fauna.kind === "rabbit" ? "hop" : "peck"
+            : lookActivity > 0.05 ? "look" : "idle";
       this.setFaunaAnimation(fauna, desiredClip);
       if (fauna.mixer) {
         fauna.mixer.timeScale = this.prefersReducedMotion
@@ -4012,7 +3960,13 @@ export class WorldScene {
         fauna.head.object.rotation.x = fauna.head.baseRotation.x
           + (fauna.kind === "cow" ? 0.72 * activity : 0.86 * peck) * motionScale;
         fauna.head.object.rotation.y = fauna.head.baseRotation.y
-          + Math.sin(localTime * 0.67 + fauna.phase) * 0.18 * (1 - activity * 0.65) * motionScale;
+          + Math.sin(localTime * 0.67 + fauna.phase) * 0.18 * (1 - activity * 0.65) * motionScale
+          + acknowledgeHeadYaw(
+            this.playerPresence,
+            fauna.root.position.x,
+            fauna.root.position.z,
+            fauna.root.rotation.y
+          ) * 0.6 * (1 - activity * 0.5);
         fauna.head.object.rotation.z = fauna.head.baseRotation.z - windLean * 0.45;
       }
       if (fauna.tail) {
@@ -4088,6 +4042,20 @@ export class WorldScene {
         console.warn(`[WorldScene] Failed to load townsfolk ${route.id}:`, error);
       }
     }
+    // The village notice board. Presentation-only placement at an authored
+    // anchor: it carries no collider and no saved state, and the interaction
+    // candidate in GameApp owns the read verb.
+    try {
+      const board = await this.loadModel(ASSET_IDS.PROP_SIGNPOST_TRAIL_A);
+      const { x, z } = VILLAGE_BULLETIN.position;
+      board.name = "village_bulletin_board";
+      board.position.set(x, WorldLayout.traversalSurfaceHeight(x, z), z);
+      board.rotation.y = VILLAGE_BULLETIN.rotationY;
+      this.applyStaticShadowPolicy(board);
+      this.environmentGroup.add(board);
+    } catch (error) {
+      console.warn("[WorldScene] Failed to load the village bulletin board:", error);
+    }
     await spawn("gull", ASSET_IDS.FAUNA_GULL_A, GULL_ORBITS);
     await spawn("butterfly", ASSET_IDS.FAUNA_BUTTERFLY_A, BUTTERFLY_ORBITS);
   }
@@ -4100,7 +4068,7 @@ export class WorldScene {
       object.visible = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z) < 430;
     });
     for (const flyer of this.ambientFlyers) {
-      const pose = sampleAmbientFlyerPose(flyer.orbit, timeSeconds, motionScale);
+      const pose = sampleAmbientFlyerPose(flyer.orbit, timeSeconds, motionScale, this.playerPresence);
       const dx = pose.x - this.visibilityAnchor.x;
       const dz = pose.z - this.visibilityAnchor.z;
       const distanceSq = dx * dx + dz * dz;
@@ -4263,7 +4231,7 @@ export class WorldScene {
     locomotionTimeScale = this.latestLocomotionTimeScale
   ): void {
     const state = sim.getState();
-    sampleWeatherMotionSignal(state.weather, timeSeconds, this.weatherMotion);
+    sampleWeatherMotionSignal(this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds).weather, timeSeconds, this.weatherMotion);
     if (presentedPlayer) this.latestPresentedPlayer = presentedPlayer;
     this.latestBoatPresentationInput = boatPresentationInput;
     this.latestLocomotionTimeScale = THREE.MathUtils.clamp(locomotionTimeScale, 0, 1);
@@ -4281,6 +4249,7 @@ export class WorldScene {
     this.hasPresentationTimestamp = true;
     const delta = state.clock.isPaused ? 0 : frameElapsed;
     this.characterElapsedSeconds += delta;
+    this.ambientTownsfolkElapsedSeconds += delta;
 
     if (state.sportFishing) {
       sampleSportFishingPresentation(state.sportFishing, playerPose.x, playerPose.z, playerPose.rotationY,
@@ -4297,6 +4266,7 @@ export class WorldScene {
     this.shoreFoam.update(timeSeconds, waterConditions);
     this.boatWakes.update(timeSeconds);
     this.farmVfx.update(timeSeconds);
+    this.footfallVfx.update(timeSeconds);
     if (this.cosmeticCropCarryUntilSeconds > 0 && this.characterElapsedSeconds >= this.cosmeticCropCarryUntilSeconds) {
       this.cosmeticCropCarryUntilSeconds = 0;
       const bundle = this.farmingProps.get("bundle");
@@ -4589,7 +4559,7 @@ export class WorldScene {
     // Station progress is transient and pauses at the current supported pose.
     // The station is clock-derived; local movement never becomes saved NPC state.
     for (const npc of this.npcPresentations.values()) {
-      const scheduledAnchor = npcAnchorAt(npc.id, state.clock);
+      const scheduledAnchor = npcAnchorAt(npc.id, state.clock, state.quests);
       if (this.layoutEditLockedObject !== npc.model) {
         const scheduled = ContentRegistry.npcs.get(npc.id)?.schedule?.some((slot) => slot.phase === state.clock.timeOfDay);
         const editorId = scheduled ? `${npc.id}.${state.clock.timeOfDay}` : npc.id;
@@ -4614,7 +4584,10 @@ export class WorldScene {
       const dz = playerPose.z - npc.model.position.z;
       const distSq = dx * dx + dz * dz;
       const isDialogueTarget = npc.id === this.activeDialogueNpcId;
-      const visible = isDialogueTarget || distSq <= 160 * 160;
+      const npcVisibilityRange = npc.model.visible
+        ? 160 + NPC_VISIBILITY_HYSTERESIS_METERS
+        : 160 - NPC_VISIBILITY_HYSTERESIS_METERS;
+      const visible = isDialogueTarget || distSq <= npcVisibilityRange * npcVisibilityRange;
       if (visible !== npc.model.visible) npc.animator.resetSpatialState();
       npc.model.visible = visible;
       if (!visible) {
@@ -4623,8 +4596,9 @@ export class WorldScene {
       }
       const previousX = npc.model.position.x;
       const previousZ = npc.model.position.z;
+      const beatSpec = npcStationBeatAt(npc.id, state.clock);
       const beatSample = advanceNpcStationBeat(
-        npcStationBeatAt(npc.id, state.clock), npc.beat, npcFrameDelta, isDialogueTarget,
+        beatSpec, npc.beat, npcFrameDelta, isDialogueTarget,
         (offsetX, offsetZ) => {
           const x = npc.anchor.x + offsetX;
           const z = npc.anchor.z + offsetZ;
@@ -4636,8 +4610,20 @@ export class WorldScene {
       const surface = WorldLayout.traversalSurfaceSample(worldX, worldZ);
       npc.model.position.set(worldX, surface.height, worldZ);
       const playerHeading = Math.atan2(playerPose.x - worldX, playerPose.z - worldZ);
+      const socialReaction = this.socialReactions.sample(
+        worldX,
+        worldZ,
+        timeSeconds,
+        this.prefersReducedMotion
+      );
+      const reactionHeading = socialReaction.kind
+        ? Math.atan2(socialReaction.targetX - worldX, socialReaction.targetZ - worldZ)
+        : playerHeading;
+      // Hold the authored beat heading through the pause too, so the body turns
+      // toward the next leg before it walks rather than through the first stride.
       const desiredHeading = isDialogueTarget ? playerHeading
-        : beatSample.walking ? beatSample.heading : npc.model.rotation.y;
+        : socialReaction.turnBody && !beatSample.walking ? reactionHeading
+        : beatSpec ? beatSample.heading : npc.model.rotation.y;
       const turnDifference = wrapPresentationAngle(desiredHeading - npc.model.rotation.y);
       npc.model.rotation.y = dampPresentationAngle(
         npc.model.rotation.y, desiredHeading, isDialogueTarget ? 9.5 : 8.2, npcFrameDelta
@@ -4671,15 +4657,39 @@ export class WorldScene {
         const animationDelta = npc.pendingAnimationSeconds;
         npc.pendingAnimationSeconds = 0;
         npc.motionFrame = npc.animator.update(animationDelta, context, this.prefersReducedMotion);
+        // Talking always faces the player; otherwise the head turns to
+        // acknowledge someone who walks up. A committed nearby event can carry
+        // that attention farther for a moment, then it settles back.
+        const passiveHeadYaw = acknowledgeHeadYaw(
+          this.playerPresence,
+          worldX,
+          worldZ,
+          npc.model.rotation.y
+        );
+        const eventHeadYaw = wrapPresentationAngle(reactionHeading - npc.model.rotation.y);
         npc.animator.lookTowardHeading(
-          isDialogueTarget || distSq < 20 ? wrapPresentationAngle(playerHeading - npc.model.rotation.y) : 0,
+          isDialogueTarget
+            ? eventHeadYaw
+            : THREE.MathUtils.lerp(passiveHeadYaw, eventHeadYaw, socialReaction.attention),
           animationDelta
         );
       }
       if (npc.motionFrame) {
+        const weatherPosture = sampleWeatherPosture(
+          this.weatherPresentation.current?.weather ?? state.weather,
+          npc.model.rotation.y,
+          timeSeconds,
+          this.prefersReducedMotion,
+          npc.id.length * 0.37
+        );
         npc.model.position.y += npc.motionFrame.bobY;
-        npc.model.rotation.set(npc.motionFrame.leanX + npc.motionFrame.groundPitch,
-          npc.model.rotation.y, npc.motionFrame.leanZ + npc.motionFrame.groundRoll, "YXZ");
+        npc.model.rotation.set(
+          npc.motionFrame.leanX + npc.motionFrame.groundPitch
+            + weatherPosture.pitchRadians + socialReaction.nodRadians,
+          npc.model.rotation.y,
+          npc.motionFrame.leanZ + npc.motionFrame.groundRoll + weatherPosture.rollRadians,
+          "YXZ"
+        );
       }
       npc.lastAnimationContext = context;
       npc.model.updateMatrixWorld(true);
@@ -4691,26 +4701,59 @@ export class WorldScene {
   }
 
   /**
-   * Background villagers. Clock-derived and pure, so nothing here is saved and
-   * two clients showing the same minute show the same street.
+   * Background villagers. Their station is clock-derived and pure, so nothing
+   * is saved; the within-loop drift runs on an unpaused presentation clock so
+   * pausing the game freezes them instead of sliding them through idle.
    */
   private updateAmbientTownsfolk(state: Readonly<GameState>, timeSeconds: number, delta: number): void {
     const motionScale = this.prefersReducedMotion ? 0 : 1;
     for (const person of this.ambientTownsfolk) {
-      const pose = sampleAmbientTownsfolkPose(person.route, state.clock, timeSeconds, motionScale);
+      // A zero-length step (paused game, or an async asset-settle re-sync)
+      // must not re-evaluate the gait. Recomputing it from an unchanged pose
+      // reads as zero speed and snaps a walking villager to idle for one frame
+      // — the "drags around with no walk cycle" artefact.
+      if (delta <= 0 && person.lastAnimationContext) continue;
+      const pose = sampleAmbientTownsfolkPose(
+        person.route,
+        state.clock,
+        this.ambientTownsfolkElapsedSeconds,
+        motionScale
+      );
       const distance = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z);
-      person.model.visible = distance < AMBIENT_TOWNSFOLK_VISIBILITY_METERS;
+      const ambientVisibilityRange = person.model.visible
+        ? AMBIENT_TOWNSFOLK_VISIBILITY_METERS + AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS
+        : AMBIENT_TOWNSFOLK_VISIBILITY_METERS - AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS;
+      person.model.visible = distance < ambientVisibilityRange;
       if (!person.model.visible) continue;
 
       const surface = WorldLayout.traversalSurfaceSample(pose.x, pose.z);
       const previousX = person.model.position.x;
       const previousZ = person.model.position.z;
       person.model.position.set(pose.x, WorldLayout.traversalSurfaceHeight(pose.x, pose.z), pose.z);
-      person.model.rotation.y = dampPresentationAngle(person.model.rotation.y, pose.heading, 6.5, delta);
+      const socialReaction = this.socialReactions.sample(
+        pose.x,
+        pose.z,
+        timeSeconds,
+        this.prefersReducedMotion
+      );
+      const playerHeading = Math.atan2(
+        this.playerPresence.x - pose.x,
+        this.playerPresence.z - pose.z
+      );
+      const reactionHeading = socialReaction.kind
+        ? Math.atan2(socialReaction.targetX - pose.x, socialReaction.targetZ - pose.z)
+        : playerHeading;
+      const desiredHeading = socialReaction.turnBody && !pose.walking ? reactionHeading : pose.heading;
+      person.model.rotation.y = dampPresentationAngle(
+        person.model.rotation.y,
+        desiredHeading,
+        socialReaction.turnBody ? 8.2 : 6.5,
+        delta
+      );
 
       const velocityX = delta > 0 ? (pose.x - previousX) / delta : 0;
       const velocityZ = delta > 0 ? (pose.z - previousZ) / delta : 0;
-      const speed = pose.walking ? Math.hypot(velocityX, velocityZ) : 0;
+      const speed = Math.hypot(velocityX, velocityZ);
       const context: CharacterAnimationContext = {
         mode: "on-foot", carrying: false, talking: false,
         facingRadians: person.model.rotation.y,
@@ -4725,12 +4768,31 @@ export class WorldScene {
         })
       };
       person.motionFrame = person.animator.update(delta, context, this.prefersReducedMotion);
+      const passiveHeadYaw = acknowledgeHeadYaw(
+        this.playerPresence,
+        pose.x,
+        pose.z,
+        person.model.rotation.y
+      );
+      const eventHeadYaw = wrapPresentationAngle(reactionHeading - person.model.rotation.y);
+      person.animator.lookTowardHeading(
+        THREE.MathUtils.lerp(passiveHeadYaw, eventHeadYaw, socialReaction.attention),
+        delta
+      );
       if (person.motionFrame) {
+        const weatherPosture = sampleWeatherPosture(
+          this.weatherPresentation.current?.weather ?? state.weather,
+          person.model.rotation.y,
+          timeSeconds,
+          this.prefersReducedMotion,
+          person.route.phase * Math.PI * 2
+        );
         person.model.position.y += person.motionFrame.bobY;
         person.model.rotation.set(
-          person.motionFrame.leanX + person.motionFrame.groundPitch,
+          person.motionFrame.leanX + person.motionFrame.groundPitch
+            + weatherPosture.pitchRadians + socialReaction.nodRadians,
           person.model.rotation.y,
-          person.motionFrame.leanZ + person.motionFrame.groundRoll,
+          person.motionFrame.leanZ + person.motionFrame.groundRoll + weatherPosture.rollRadians,
           "YXZ"
         );
       }
@@ -5257,7 +5319,14 @@ export class WorldScene {
     const sternHeight = sampleHeight(0, -footprint.halfLength);
     const portHeight = sampleHeight(-footprint.halfBeam, 0);
     const starboardHeight = sampleHeight(footprint.halfBeam, 0);
-    const targetWaveHeight = (bowHeight + sternHeight + portHeight + starboardHeight) * 0.25;
+    const eventResponse = this.boatResponses.sample(
+      boat.id,
+      timeSeconds,
+      this.prefersReducedMotion
+    );
+    const targetWaveHeight =
+      (bowHeight + sternHeight + portHeight + starboardHeight) * 0.25
+      + eventResponse.heaveMeters;
     const tiltScale = this.prefersReducedMotion
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
       : 1;
@@ -5265,7 +5334,8 @@ export class WorldScene {
       ? THREE.MathUtils.degToRad(10)
       : THREE.MathUtils.degToRad(12);
     const targetPitch = THREE.MathUtils.clamp(
-      Math.atan2(sternHeight - bowHeight, footprint.halfLength * 2) * tiltScale,
+      Math.atan2(sternHeight - bowHeight, footprint.halfLength * 2) * tiltScale
+        + eventResponse.pitchRadians,
       -maximumTilt,
       maximumTilt
     );
@@ -5288,7 +5358,8 @@ export class WorldScene {
       surgeRoll = loadRatio * (0.02 * side + Math.sin(timeSeconds * 2.3) * 0.012);
     }
     const targetRoll = THREE.MathUtils.clamp(
-      Math.atan2(starboardHeight - portHeight, footprint.halfBeam * 2) * tiltScale + surgeRoll,
+      Math.atan2(starboardHeight - portHeight, footprint.halfBeam * 2) * tiltScale
+        + surgeRoll + eventResponse.rollRadians,
       -maximumTilt,
       maximumTilt
     );
@@ -5710,6 +5781,7 @@ export class WorldScene {
 
   private applyContinuousQuality(rebuildDensity: boolean): void {
     this.qualityContactStrength = contactTierEffectStrength(this.qualityLevel);
+    this.atmosphereSky?.setVolumeBlend(highTierEffectStrength(this.qualityLevel));
     this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
     this.rainField?.setQualityLevel(this.qualityLevel);
     this.fireflyField?.setQualityLevel(this.qualityLevel);
@@ -5723,6 +5795,7 @@ export class WorldScene {
     this.qualityTier = tier;
     this.lightingRig.setQuality(tier);
     this.rendererPipeline.setQuality(tier);
+    this.atmosphereSky?.setVolumeBlend(highTierEffectStrength(this.qualityLevel));
     this.water?.setQuality(tier);
     this.rendererPipeline.setGtaoBlendScale(highTierEffectStrength(this.qualityLevel));
     this.applyPracticalLightBudget();
@@ -5745,6 +5818,8 @@ export class WorldScene {
     this.detachPlayerFromDonkey();
     for (const batch of this.rigidAnimationBatches.values()) batch.dispose();
     this.rigidAnimationBatches.clear();
+    this.boatResponses.clear();
+    this.socialReactions.clear();
     this.playerAttachmentTransition = null;
     this.playerAnimation?.dispose();
     this.playerAnimation = null;
@@ -5780,6 +5855,8 @@ export class WorldScene {
     this.setDiagnosticOverlay(null, 0);
     this.farmVfx?.dispose();
     this.farmVfx?.group.removeFromParent();
+    this.footfallVfx?.dispose();
+    this.footfallVfx?.group.removeFromParent();
     this.fireflyField?.dispose();
     this.fireflyField?.group.removeFromParent();
     this.rainField?.dispose();
@@ -5802,7 +5879,6 @@ export class WorldScene {
       this.disposeSchoolEffect(group);
     }
     this.schoolEffects.clear();
-    this.cloudMeshes.length = 0;
     this.disposeFishVisibility(this.hookedFishPresentation);
     this.hookedFishModel?.removeFromParent();
     this.hookedFishModel = null;
@@ -5852,29 +5928,10 @@ export class WorldScene {
       this.playerContactShadow = null;
     }
 
-    if (this.skyDome) {
-      this.skyDome.removeFromParent();
-      this.skyDome.geometry.dispose();
-      this.skyDome = null;
-    }
-    this.skyMaterial?.dispose();
-    this.skyMaterial = null;
-    const celestialMap = this.sunDisc?.material.map;
-    this.sunDisc?.removeFromParent();
-    this.sunDisc?.material.dispose();
-    this.moonDisc?.removeFromParent();
-    this.moonDisc?.material.dispose();
-    celestialMap?.dispose();
-    this.sunDisc = null;
-    this.moonDisc = null;
+    this.atmosphereSky?.dispose();
+    this.atmosphereSky = null;
     this.practicalGlowTexture?.dispose();
     this.practicalGlowTexture = null;
-    if (this.starField) {
-      this.starField.removeFromParent();
-      this.starField.geometry.dispose();
-      (this.starField.material as THREE.Material).dispose();
-      this.starField = null;
-    }
 
     this.fishingBobberGroup.traverse((object) => {
       if (object instanceof THREE.Mesh) object.geometry.dispose();

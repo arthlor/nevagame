@@ -135,6 +135,16 @@ export const IconLandmark: React.FC<IconProps> = (props) => (
   </Svg>
 );
 
+/** Two small figures, for the People folio. */
+export const IconPeople: React.FC<IconProps> = (props) => (
+  <Svg {...props}>
+    <circle cx="6" cy="4.6" r="2.1" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M2.4 13.4c0-2.3 1.6-3.9 3.6-3.9s3.6 1.6 3.6 3.9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    <circle cx="11.6" cy="5.4" r="1.7" stroke="currentColor" strokeWidth="1.2" opacity="0.75" />
+    <path d="M9.4 13.4c0-1.9 1.1-3.2 2.6-3.2 1.2 0 2.2.9 2.4 2.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
+  </Svg>
+);
+
 /** Four-point spark, for records and first-time discoveries. */
 export const IconSparkle: React.FC<IconProps> = (props) => (
   <Svg {...props}>

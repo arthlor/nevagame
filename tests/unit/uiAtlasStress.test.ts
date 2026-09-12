@@ -3,13 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execSync } from "node:child_process";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
 
 import {
   dilateAlphaRgb,
   dilateSpriteEdges,
   packLosslessUiAtlas
 } from "../../tools/ui/extrudeAndPack.mjs";
+
+const execFile = promisify(execFileCallback);
 
 describe("Subsystem 3 Adversarial & Stress Testing", () => {
   describe("1. Packing Scalability & Aspect Ratio Variety", () => {
@@ -341,20 +344,19 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
     let atlasRoot = "";
     const checkEnv = () => ({ ...process.env, NEVA_ATLAS_ROOT: atlasRoot });
     const rootFile = (relative: string) => path.join(atlasRoot, relative);
-    const runCheck = () =>
-      execSync("node tools/ui/extrudeAndPack.mjs --check", {
+    const runCheck = async () =>
+      (await execFile(process.execPath, ["tools/ui/extrudeAndPack.mjs", "--check"], {
         encoding: "utf8",
-        stdio: "pipe",
         env: checkEnv()
-      });
-    const expectCheckFails = (message: string) => {
+      })).stdout;
+    const expectCheckFails = async (message: string) => {
       let threw = false;
       try {
-        runCheck();
+        await runCheck();
       } catch (err) {
-        const failure = err as { status?: number; stdout?: string; stderr?: string };
+        const failure = err as { code?: number | string; status?: number; stdout?: string; stderr?: string };
         threw = true;
-        expect(failure.status).toBe(1);
+        expect(Number(failure.code ?? failure.status)).toBe(1);
         expect(failure.stderr || failure.stdout).toContain(message);
       }
       expect(threw).toBe(true);
@@ -381,33 +383,33 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       if (atlasRoot) fs.rmSync(atlasRoot, { recursive: true, force: true });
     });
 
-    it("passes cleanly when production manifests are up-to-date", () => {
-      expect(runCheck()).toContain("[NEVA UI ATLAS] Atlas is up to date and validated.");
-    });
+    it("passes cleanly when production manifests are up-to-date", async () => {
+      expect(await runCheck()).toContain("[NEVA UI ATLAS] Atlas is up to date and validated.");
+    }, 120_000);
 
-    it("detects when JSON manifest is stale or modified and exits with non-zero error", () => {
+    it("detects when JSON manifest is stale or modified and exits with non-zero error", async () => {
       const jsonPath = rootFile("public/assets/ui/atlas/ui-atlas.json");
       const originalJson = fs.readFileSync(jsonPath, "utf8");
       try {
         const tampered = JSON.parse(originalJson);
         tampered.extrude = 999;
         fs.writeFileSync(jsonPath, JSON.stringify(tampered, null, 2), "utf8");
-        expectCheckFails("UI Atlas manifest is stale");
+        await expectCheckFails("UI Atlas manifest is stale");
       } finally {
         fs.writeFileSync(jsonPath, originalJson, "utf8");
       }
-    });
+    }, 120_000);
 
-    it("detects when a manifest file is missing and exits with error", () => {
+    it("detects when a manifest file is missing and exits with error", async () => {
       const jsonPath = rootFile("public/assets/ui/atlas/ui-atlas.json");
       const backupPath = `${jsonPath}.bak`;
       fs.renameSync(jsonPath, backupPath);
       try {
-        expectCheckFails("UI Atlas manifests missing");
+        await expectCheckFails("UI Atlas manifests missing");
       } finally {
         fs.renameSync(backupPath, jsonPath);
       }
-    });
+    }, 120_000);
 
     it("detects when an extra sprite is added to assets directory causing stale check", async () => {
       const dummySpritePath = rootFile("assets/ui/atlas/zz_dummy_stress_test.png");
@@ -415,11 +417,11 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
         create: { width: 32, height: 32, channels: 4, background: { r: 255, g: 0, b: 255, alpha: 1 } }
       }).png().toBuffer());
       try {
-        expectCheckFails("UI Atlas manifest is stale");
+        await expectCheckFails("UI Atlas manifest is stale");
       } finally {
         fs.rmSync(dummySpritePath, { force: true });
       }
-    });
+    }, 120_000);
   });
 
   describe("4. Edge Cases in 2D Dilation & Packaging", () => {

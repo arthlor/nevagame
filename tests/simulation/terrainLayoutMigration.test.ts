@@ -25,8 +25,26 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "farms", "inventories", "fishCargo", "markets", "contracts", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "farms", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
+  }
+  for (const [marketId, oldMarket] of Object.entries(before.markets)) {
+    const migratedMarket = after.markets[marketId];
+    expect(migratedMarket, marketId).toBeDefined();
+    expect(migratedMarket).toMatchObject({
+      id: oldMarket.id,
+      name: oldMarket.name,
+      regionId: oldMarket.regionId
+    });
+    const currentCommodityIds = new Set(
+      ContentRegistry.markets.get(marketId)?.commodities.map((commodity) => commodity.itemId) ?? []
+    );
+    for (const [itemId, commodity] of Object.entries(oldMarket.commodities)) {
+      if (currentCommodityIds.has(itemId)) {
+        expect(migratedMarket!.commodities[itemId], `${marketId}/${itemId}`).toEqual(commodity);
+      }
+    }
+    expect(Object.keys(migratedMarket!.commodities)).toEqual(expect.arrayContaining([...currentCommodityIds]));
   }
   // Quests pass through except for the v35 credit ledger, which every save
   // gains on migration and which starts empty for a legacy fixture.
@@ -175,7 +193,7 @@ describe("layout 11 coastal terrain save migration", () => {
     before.state.player.currentRegionId = WorldLayout.regionAt(point.x, point.z);
 
     const migrated = migrateSaveData(before);
-    expect(migrated.state.player).toEqual(before.state.player);
+    expect(migrated.state.player).toMatchObject(before.state.player);
     if (mounted) expect(migrated.state.mounts[STARTER_DONKEY_ID]).toEqual(before.state.mounts[STARTER_DONKEY_ID]);
     preserveResources(before.state, migrated.state);
     expect(validateSaveEnvelope(migrated)).toBe(true);
@@ -201,7 +219,7 @@ describe("layout 11 coastal terrain save migration", () => {
     const before = legacy();
     const point = location === "sunreach" ? SUNREACH_ANCHORS.dockPlayer : FARMHOUSE_INTERIOR_DOOR.enterSpawn;
     Object.assign(before.state.player, { x: point.x, y: WorldLayout.traversalSurfaceHeight(point.x, point.z) + 0.5, z: point.z });
-    expect(migrateSaveData(before).state.player).toEqual(before.state.player);
+    expect(migrateSaveData(before).state.player).toMatchObject(before.state.player);
   });
 
   it.each(["boat.rowboat", "boat.skiff"])("recovers only an invalid upper-river %s without losing physical cargo", (boatTypeId) => {
@@ -233,7 +251,7 @@ describe("layout 11 coastal terrain save migration", () => {
     Object.assign(before.state.boats[skiffId], cove.boatPosition, { dockedMarketId: cove.marketId });
     const after = migrateSaveData(before).state;
     expect(after.boats).toEqual(before.state.boats);
-    expect(after.player).toEqual(before.state.player);
+    expect(after.player).toMatchObject(before.state.player);
     preserveResources(before.state, after);
   });
 

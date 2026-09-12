@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/VisualRenderConfig";
 import { PaletteMaterials } from "./PaletteMaterials";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PALETTE_HEX } from "./PaletteTokens";
 import {
   SURFACE_FIELD_FRAGMENT_GLSL,
@@ -238,6 +239,7 @@ export class CultivatedSurfaceMaterial {
       patchCultivatedSurfaceShader(shader as CultivatedSurfaceShaderSource, this.shaderUniforms);
     };
     this.material.customProgramCacheKey = () => CULTIVATED_SURFACE_PROGRAM_CACHE_KEY;
+    applyWorldAtmosphere(this.material);
     this.material.needsUpdate = true;
   }
 

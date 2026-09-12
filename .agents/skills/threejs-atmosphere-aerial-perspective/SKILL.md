@@ -1,15 +1,17 @@
 ---
 name: threejs-atmosphere-aerial-perspective
-description: Implement physically motivated sky and aerial-perspective systems in Three.js. Use for planetary atmospheres, ground-to-space transitions, Rayleigh/Mie scattering, precomputed LUTs, depth-based transmittance and inscattering, sun/moon discs, and atmosphere-aware lighting.
+description: "Implement physically motivated sky and aerial perspective in Three.js. Use for planetary atmosphere, Rayleigh/Mie scattering, precomputed LUTs, sun and moon discs, and depth-based transmittance or inscattering. Not for weather clouds."
 ---
 
 # Atmosphere and Aerial Perspective
 
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. WebGL2 examples depend on the `postprocessing` and `three-stdlib` libraries. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+- **Mirrored source.** `examples/lut-aerial-perspective/source/` is the canonical copy of the atmosphere/geospatial/effects tree also shipped by `threejs-volumetric-clouds`; keep them byte-identical (see `_shared/duplication-manifest.json`).
+
 Treat sky rendering and aerial perspective as two views of the same scattering model. They must share radii, density profiles, coefficients, sun direction, exposure scale, and coordinate transforms.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Choose the implementation tier
 
@@ -36,7 +38,9 @@ LUT example.
 - optional sky irradiance for materials;
 - explicit scale conversion between world units and atmosphere units.
 
-## Failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - sky and terrain haze use different sun directions or coefficients;
 - the atmosphere is a uniformly transparent sphere;

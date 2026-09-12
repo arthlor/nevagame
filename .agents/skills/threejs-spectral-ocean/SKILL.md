@@ -1,9 +1,12 @@
 ---
 name: threejs-spectral-ocean
-description: Build large procedural oceans and coast transitions in Three.js. Use for WebGPU/TSL FFT oceans, multi-cascade wavelength bands, hybrid FFT plus Gerstner clear-water oceans, coastal breakers, signed-distance coastlines, shallow-water swash films, wet-sand transitions, stylized above/below surface optics, permanently submerged Snell-window views, total internal reflection, forward-refracted structures through an interface, pixel-footprint spectral LOD, aquatic perspective, caustic god rays, choppy displacement, spectral derivatives, Jacobian whitecaps, windrow and temporal foam, analytic sky reflection, underwater absorption, crest scatter, and GPU validation.
+description: "Build large FFT and spectral oceans plus coastal transitions in Three.js/TSL. Use for multi-cascade oceans, hybrid FFT plus Gerstner water, coastal breakers and swash, Snell windows, caustics, and Jacobian whitecaps. Not for bounded pools."
 ---
 
 # Spectral Ocean
+
+- **Runtime contract.** Backend: dual — primary WebGPU/TSL FFT with a WebGL2 fragment-FFT compatibility tier. Min three: verify the installed build exposes the referenced TSL nodes (`Fn`/`If`/`Loop`). Fallback: use the WebGL2 fragment-FFT tier and preserve the frequency-space contracts. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Choose the representation that owns the requested view. Open-water sea states use
 explicit frequency-space ownership. A beach-level breaker view uses a coupled
@@ -11,9 +14,7 @@ band-limited wave field, coast representation, swash state, foam history, and
 sand response. Do not reduce either target to scrolling normal maps or unrelated
 foam noise.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Spectral build order
 
@@ -74,7 +75,9 @@ island coast, coast-normal shallow-water swash chains, persistent breaker and
 film foam, camera-following warped geometry, wet-sand optics, and shared sky
 radiance.
 
-## Spectral non-negotiable gates
+## Invariants and strong defaults (spectral)
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - Require a power-of-two grid and a passing FFT impulse/frequency test.
 - Keep cascade wavenumber intervals disjoint.
@@ -91,7 +94,9 @@ radiance.
 - Terminate distant underwater sightlines with a safely submerged terrain rim; do not mask an empty seabed/ocean horizon with a view-aligned scattering layer.
 - Keep a deterministic seed and fixed-camera capture for comparisons.
 
-## Coastal breaker gates
+## Invariants and strong defaults (coastal breaker)
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - Keep coastline SDF, arclength tables, ribbon geometry, and swash columns in
   one coast contract; do not derive unstable column ordering from SDF gradients.

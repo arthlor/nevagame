@@ -99,6 +99,12 @@ export function resolveCargoTemperatureC(state: GameState, cargo: FishCargoState
  * each covered game hour. Boat slots with authored built-in ice are never
  * billed; one loose pack preserves every cargo in that storage container for
  * the preceding hour.
+ *
+ * Billing must stay at the hour boundary: the presence of `item.crushed_ice`
+ * is the live signal for the iced storage modifier, so consuming it earlier
+ * would drop the remaining slices of the hour to the un-iced rate. Exact
+ * "only if it cooled every slice" accounting would need per-hour usage stored
+ * on the save, which is not worth a schema change for this edge.
  */
 export function advanceCargoFreshness(
   state: GameState,

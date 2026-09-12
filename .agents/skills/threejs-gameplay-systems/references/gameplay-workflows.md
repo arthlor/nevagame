@@ -1,6 +1,6 @@
 # Gameplay Workflows
 
-Use this reference for first playable slices, architecture, mechanics, entities, controls, camera, physics, audio hooks, and game-feel iteration. For broad game creation, level/arena/track/wave/hole/puzzle work, encounter design, progression, difficulty, or premium gameplay claims, also load `references/game-design-level-design.md`.
+Use this reference for first playable slices, architecture, mechanics, entities, controls, camera, physics, audio hooks, and game-feel iteration. Read the relevant sections of `references/game-design-level-design.md` when new-game, level or major progression design is actually in scope. A quality adjective alone does not require another brief or full reference.
 
 ## First Playable Slice
 

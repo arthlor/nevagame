@@ -98,7 +98,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.elspeth",
     introDialogue: [
       "Equip your watering can with [3], then approach a thirsty crop and press [E] or left-click it to water.",
-      "Keeping soil moisture in the ideal green band supports healthy growth and better harvest grades!"
+      "Keep the soil damp but never drowned. A moisture-fed crop grows strong, and a finer harvest grade earns bonus Farming XP and a line in your journal."
     ],
     completionDialogue: [
       "Look how rich and dark the soil looks when watered! Wheat takes a morning to ripen — tend other chores, or rest at the farmhouse and return."
@@ -481,7 +481,7 @@ export const QUESTS: QuestDefinition[] = [
     rewards: {
       money: 150,
       items: [{ itemId: "item.fish_scraps", quantity: 3 }],
-      skillXp: [{ skill: "trading", xp: 450 }]
+      skillXp: [{ skill: "trading", xp: 450 }, { skill: "fishing", xp: 300 }]
     },
     nextQuestId: "quest.act6_field_pump"
   },
@@ -561,7 +561,7 @@ export const QUESTS: QuestDefinition[] = [
       }
     ],
     rewards: {
-      skillXp: [{ skill: "farming", xp: 650 }, { skill: "processing", xp: 450 }],
+      skillXp: [{ skill: "farming", xp: 650 }, { skill: "processing", xp: 450 }, { skill: "fishing", xp: 350 }],
       unlocksKnowledgeIds: ["knowledge.land_sea_cycle"]
     },
     nextQuestId: "quest.act7_open_channel"
@@ -932,6 +932,39 @@ export const QUESTS: QuestDefinition[] = [
       money: 400,
       skillXp: [{ skill: "fishing", xp: 1400 }],
       unlocksKnowledgeIds: ["knowledge.reading_the_water"]
+    },
+    nextQuestId: "quest.tides_blue_marlin"
+  },
+  {
+    id: "quest.tides_blue_marlin",
+    trackId: TIDES_QUEST_TRACK_ID,
+    actId: "track_tides",
+    actTitle: "Reading the Water",
+    questTitle: "The Silver King",
+    speakerId: "npc.silas",
+    introDialogue: [
+      "One more thing, and only if you want it. Out past the shelf there is a fish that does not care how good you are.",
+      "A blue marlin. Summer or autumn, first light, the Master rod in your hands. Hook her, and the fight will teach you what every other lesson was for.",
+      "Do not keep her if you cannot carry her. A fish that size makes a fool of a boat with no room."
+    ],
+    completionDialogue: [
+      "A silver king, on your own line. I have seen four in my life and put none of them on a deck.",
+      "There is nothing left for me to teach you. Go and be the one the other anglers ask."
+    ],
+    objectives: [
+      {
+        id: "step.tides_land_blue_marlin",
+        type: "land-sport-fish",
+        description: "Land a Blue Marlin beyond the shelf",
+        targetId: "fish.blue_marlin",
+        targetQuantity: 1,
+        locationAnchor: { x: 90, z: 221, name: "The Deep Trench" },
+        location: { kind: "ecology", id: "ecology.neva" }
+      }
+    ],
+    rewards: {
+      money: 750,
+      skillXp: [{ skill: "fishing", xp: 5000 }, { skill: "trading", xp: 500 }]
     }
   },
 

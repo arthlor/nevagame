@@ -1,15 +1,17 @@
 ---
 name: threejs-volumetric-clouds
-description: Implement volumetric cloud systems in Three.js. Use for weather-driven density, bounded raymarching, shape/detail erosion, vertical profiles, lighting cones, silver lining, temporal reconstruction, cloud shadows, multiple layers, and scalable quality modes.
+description: "Implement volumetric clouds in Three.js. Use for weather-driven density, bounded raymarching, shape erosion, silver lining, temporal reconstruction, cloud shadows, and quality tiers. Not for molecular sky or voxel fire."
 ---
 
 # Volumetric Clouds
 
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. WebGL2 examples depend on the `postprocessing` library. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+- **Mirrored source.** The `source/` tree mirrors `threejs-atmosphere-aerial-perspective/examples/lut-aerial-perspective/source/`; keep shared files byte-identical and confine additions to `clouds/` (see `_shared/duplication-manifest.json`).
+
 Cloud quality comes from density organization, lighting, and temporal stability—not from increasing march steps over unstructured noise.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## System order
 
@@ -38,7 +40,9 @@ atmospheric composition, and package-owned diagnostics.
 - history weight and disocclusion threshold;
 - cloud-shadow extent, resolution, and update rate.
 
-## Failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - density is only `fbm(position)`;
 - the raymarch traverses the full camera range;

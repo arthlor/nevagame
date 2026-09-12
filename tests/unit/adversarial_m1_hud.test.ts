@@ -498,9 +498,9 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         React.createElement(FarmingActionStatus, { action: snapZero })
       );
       expect(htmlZero).toContain("0.0s /");
-      expect(htmlZero).toContain("· 0%");
+      expect(htmlZero).toContain('aria-valuenow="0"');
       expect(htmlZero).toContain("left:0%");
-      expect(htmlZero).toContain("Channeling…");
+      expect(htmlZero).toContain("Working…");
 
       // 100% progress
       const snapComplete: FarmingActionSnapshot = {
@@ -518,10 +518,10 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
       const htmlComplete = renderToString(
         React.createElement(FarmingActionStatus, { action: snapComplete })
       );
-      expect(htmlComplete).toContain("· 100%");
+      expect(htmlComplete).toContain('aria-valuenow="100"');
       expect(htmlComplete).toContain("left:100%");
-      expect(htmlComplete).toContain("Committed · Finishing…");
-      expect(htmlComplete).toContain("Action locked in");
+      expect(htmlComplete).toContain("Finishing…");
+      expect(htmlComplete).toContain("Cannot cancel now");
     });
 
     it("handles out-of-range progress (< 0 or > 1) with safe clamping", () => {
@@ -542,7 +542,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         React.createElement(FarmingActionStatus, { action: snapNegative })
       );
       // percent clamps to 0%
-      expect(htmlNegative).toContain("· 0%");
+      expect(htmlNegative).toContain('aria-valuenow="0"');
       expect(htmlNegative).toContain("left:0%");
 
       // Over 100% progress (1.5)
@@ -562,7 +562,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         React.createElement(FarmingActionStatus, { action: snapOver })
       );
       // percent clamps to 100%
-      expect(htmlOver).toContain("· 100%");
+      expect(htmlOver).toContain('aria-valuenow="100"');
       expect(htmlOver).toContain("left:100%");
     });
 
@@ -583,30 +583,30 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
       const html1 = renderToString(
         React.createElement(FarmingActionStatus, { action: { ...base, committed: false, interruptible: true } })
       );
-      expect(html1).toContain("Channeling…");
+      expect(html1).toContain("Working…");
       expect(html1).toContain("Move or press <kbd>Esc</kbd> to cancel");
 
       // 2. Uncommitted & Non-interruptible
       const html2 = renderToString(
         React.createElement(FarmingActionStatus, { action: { ...base, committed: false, interruptible: false } })
       );
-      expect(html2).toContain("Channeling…");
+      expect(html2).toContain("Working…");
       expect(html2).not.toContain("Move or press <kbd>Esc</kbd> to cancel");
-      expect(html2).not.toContain("Action locked in");
+      expect(html2).not.toContain("Cannot cancel now");
 
       // 3. Committed & Non-interruptible
       const html3 = renderToString(
         React.createElement(FarmingActionStatus, { action: { ...base, committed: true, interruptible: false } })
       );
-      expect(html3).toContain("Committed · Finishing…");
-      expect(html3).toContain("Action locked in");
+      expect(html3).toContain("Finishing…");
+      expect(html3).toContain("Cannot cancel now");
 
       // 4. Committed & Interruptible (edge case: committed wins)
       const html4 = renderToString(
         React.createElement(FarmingActionStatus, { action: { ...base, committed: true, interruptible: true } })
       );
-      expect(html4).toContain("Committed · Finishing…");
-      expect(html4).toContain("Action locked in");
+      expect(html4).toContain("Finishing…");
+      expect(html4).toContain("Cannot cancel now");
     });
 
     it("falls back cleanly on unknown action types without crashing", () => {
@@ -626,7 +626,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         React.createElement(FarmingActionStatus, { action: unknownActionSnap })
       );
       expect(html).toContain("Working…");
-      expect(html).toContain("1.0s / 2.0s · 50%");
+      expect(html).toContain("1.0s / 2.0s");
       expect(html).toContain("left:50%");
     });
 
@@ -651,7 +651,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
       expect(html).not.toContain("NaN");
       expect(html).toContain("left:0%");
       expect(html).toContain("0.0s /");
-      expect(html).toContain("· 0%");
+      expect(html).toContain('aria-valuenow="0"');
     });
   });
 

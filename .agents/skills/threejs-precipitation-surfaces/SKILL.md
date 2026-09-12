@@ -1,16 +1,17 @@
 ---
 name: threejs-precipitation-surfaces
-description: Build coupled precipitation and affected surfaces in Three.js. Use for falling snow, snow accumulation, model snow caps, wet asphalt puddles, procedural ripple normals, splash flipbooks, rain streaks, shared weather envelopes, and surface wetness or coverage transitions.
+description: "Build coupled precipitation and surface response in Three.js. Use for snow accumulation, snow caps, wet asphalt puddles, ripple normals, splash flipbooks, rain streaks, and wetness transitions. Not for bounded water or screen frost."
 ---
 
 # Precipitation Surfaces
 
+- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
 Treat weather as a coupled event, particle, and surface-response system. Do not
 add rain or snow particles that are visually disconnected from the ground.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Build order
 
@@ -52,7 +53,9 @@ preserve its license boundary when copying or publishing it.
 - particle/splash opacity;
 - debug modes for masks, normals, particles, and event progress.
 
-## Failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - falling precipitation ignores the wind or timing used by surface response;
 - snow height and snow normals come from different fields;

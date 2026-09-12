@@ -109,22 +109,39 @@ export function sampleAmbientCloudPose(
 export function sampleAmbientFlyerPose(
   orbit: Readonly<AmbientFlyerOrbit>,
   timeSeconds: number,
-  motionScale: number
+  motionScale: number,
+  presence?: { x: number; z: number }
 ): AmbientFlyerPose {
   const angle = timeSeconds * orbit.speed * motionScale + orbit.phase;
-  const x = orbit.originX + Math.cos(angle) * orbit.radiusX;
-  const z = orbit.originZ + Math.sin(angle) * orbit.radiusZ;
+  let x = orbit.originX + Math.cos(angle) * orbit.radiusX;
+  let z = orbit.originZ + Math.sin(angle) * orbit.radiusZ;
   const hover = orbit.originY + orbit.altitude;
   const bob = Math.sin(angle * 2.1 + orbit.phase) * Math.min(0.42, hover * 0.18) * motionScale;
-  const y = WorldLayout.terrainHeight(x, z) + hover + bob;
   const tangentX = -Math.sin(angle) * orbit.radiusX;
   const tangentZ = Math.cos(angle) * orbit.radiusZ;
-  return {
-    x,
-    y,
-    z,
-    heading: Math.atan2(tangentX, tangentZ)
-  };
+  let heading = Math.atan2(tangentX, tangentZ);
+  let y = WorldLayout.terrainHeight(x, z) + hover + bob;
+
+  // Small fliers are skittish; larger ones keep more distance. The reaction is
+  // a continuous proximity offset, so there is no state to save or smooth.
+  if (presence) {
+    const senseRadius = Math.min(9, Math.max(2.5, orbit.radiusX * 0.6));
+    const awayX = x - presence.x;
+    const awayZ = z - presence.z;
+    const distance = Math.hypot(awayX, awayZ);
+    if (distance < senseRadius) {
+      const t = 1 - distance / senseRadius;
+      const flush = t * t * (3 - 2 * t);
+      const pushMeters = Math.min(2.5, Math.max(0.5, orbit.radiusX * 0.12)) * flush;
+      const inverse = distance > 0.001 ? 1 / distance : 0;
+      x += awayX * inverse * pushMeters;
+      z += awayZ * inverse * pushMeters;
+      y = WorldLayout.terrainHeight(x, z) + hover + bob + flush * 0.6;
+      heading = heading + (Math.atan2(-awayX, -awayZ) - heading) * Math.min(1, flush * 1.5);
+    }
+  }
+
+  return { x, y, z, heading };
 }
 
 export const GULL_ORBITS: readonly AmbientFlyerOrbit[] = [

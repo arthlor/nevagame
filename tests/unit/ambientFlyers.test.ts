@@ -77,4 +77,28 @@ describe("ambientFlyers", () => {
     const pose = sampleAmbientFlyerPose(GULL_ORBITS[0], 12.25, 1);
     expect(sampleAmbientFlyerPose(GULL_ORBITS[0], 12.25, 1)).toEqual(pose);
   });
+
+  it("flushes a flyer away from the player while keeping the pose finite", () => {
+    const orbit = GULL_ORBITS[0];
+    const base = sampleAmbientFlyerPose(orbit, 5, 1);
+    const player = { x: base.x + 0.5, z: base.z };
+    const flushed = sampleAmbientFlyerPose(orbit, 5, 1, player);
+    const baseDistance = Math.hypot(base.x - player.x, base.z - player.z);
+    const flushedDistance = Math.hypot(flushed.x - player.x, flushed.z - player.z);
+    expect(flushedDistance).toBeGreaterThan(baseDistance);
+    expect(Number.isFinite(flushed.x)).toBe(true);
+    expect(Number.isFinite(flushed.y)).toBe(true);
+    expect(Number.isFinite(flushed.z)).toBe(true);
+    expect(Number.isFinite(flushed.heading)).toBe(true);
+    expect(sampleAmbientFlyerPose(orbit, 5, 1, player)).toEqual(flushed);
+  });
+
+  it("leaves a distant flyer untouched", () => {
+    const orbit = GULL_ORBITS[0];
+    const base = sampleAmbientFlyerPose(orbit, 7.5, 1);
+    const far = sampleAmbientFlyerPose(orbit, 7.5, 1, { x: base.x + 500, z: base.z + 500 });
+    expect(far.x).toBeCloseTo(base.x, 6);
+    expect(far.z).toBeCloseTo(base.z, 6);
+    expect(far.y).toBeCloseTo(base.y, 6);
+  });
 });

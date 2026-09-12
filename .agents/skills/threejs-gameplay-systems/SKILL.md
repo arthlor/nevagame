@@ -1,9 +1,12 @@
 ---
 name: threejs-gameplay-systems
-description: "Build and iterate playable Three.js game systems. Combines starter scaffold creation, architecture, game design, level design, gameplay implementation, combat/encounter design, and game-feel tuning (hitstop, screenshake, easing, impact feedback). Use for first playable slices, new Vite/TypeScript/Three.js game setup, design briefs, core loops, level/arena/track/wave/hole/puzzle design, game loops, entity systems, input, collision/physics, scoring, objectives, audio hooks, camera, controls, difficulty, feedback, juice, and maintainable structure."
+description: "Build playable Three.js game loops and systems. Use for new Vite/TS game setup, architecture, mechanics, entities, input, camera, collision/physics, scoring, level/encounter design, and game feel. Not for pure graphics or UI-only work."
 ---
 
 # Three.js Gameplay Systems
+
+- **Stack contract.** Frontend: Vite + TypeScript + three (WebGL2 or WebGPU per project). Physics/collision engine per `references/physics-engine-selection.md`.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 ## Purpose
 
@@ -15,35 +18,34 @@ Starting a new game, repairing a weak prototype, adding mechanics/entities, desi
 
 ## Workflow
 
-Load `references/gameplay-workflows.md` as the first action when the task includes first playable setup, architecture, mechanics, entities, input, camera, collision/physics, scoring, objectives, feedback, or feel tuning.
+Select references by the changed contract and read the relevant sections:
 
-Load `references/game-design-level-design.md` before broad new-game creation, major gameplay changes, level/arena/track/wave/hole/puzzle design, combat/encounter design, progression/difficulty work, or any claim that gameplay is premium, polished, complete, or less generic.
+- `references/gameplay-workflows.md`: first playable, mechanics and runtime ownership.
+- `references/game-design-level-design.md`: new-game, major progression or level design.
+- `references/physics-engine-selection.md`: selecting or changing a physics architecture;
+  an existing controller repair starts with its current engine and owning source.
+- `references/game-feel.md`: changed movement, camera or feedback timing.
+- Matching checklists under `references/checklists/`: `new-game-definition-of-done.md`,
+  `game-design-level-design.md`, `game-feel.md`, or `endless-runner-premium-quality.md`
+  only when the corresponding work is in scope. Genre examples do not add mechanics.
+- `references/prompt-templates.md`: only for reusable prompts.
 
-Load `references/physics-engine-selection.md` before adding or changing physics, collision-heavy gameplay, vehicle movement, rolling balls, mini-golf, pool/snooker, pinball, rigid-body puzzles, character controllers, sensors, high-speed projectiles, moving platforms, or physics QA.
+For audio behavior, inspect the existing event, manifest and playback owners.
+Load `threejs-audio-generator` only for explicitly requested provider generation
+or processing. Existing audio and procedural synthesis remain valid sources.
 
-Load `references/game-feel.md` before feel/juice/impact tuning, or before claiming gameplay is premium or polished. Track every loaded reference in a reference ledger with yes/no, path, and failure reason. Do not mark the gameplay phase complete while a required reference is skipped.
-
-Load `references/checklists/new-game-definition-of-done.md` before claiming a new game or first playable slice is complete.
-
-Load `references/checklists/game-design-level-design.md` before claiming a new game, major gameplay upgrade, level/encounter pass, premium gameplay, or polished gameplay is complete.
-
-Load `references/checklists/game-feel.md` before claiming feel/impact tuning or premium gameplay is complete.
-
-Load `references/checklists/endless-runner-premium-quality.md` for endless runner work.
-
-Load `references/prompt-templates.md` only when the user asks for reusable prompts, starter prompts, or a task template.
-
-Load `threejs-audio-generator` when implementing real SFX, ambience, UI sounds, voice/TTS, or audio cleanup beyond simple placeholder hooks. Gameplay code should emit audio events; the audio skill should generate or process the actual assets and define the runtime audio matrix.
+For new games, establish the design and loop below. For a focused change, reuse
+the current design and inspect only its affected owners and callers.
 
 1. Inspect project structure, scripts, dependencies, current loop, input, camera, entities, state, UI, and diagnostics.
 2. Write the compact game design brief: player promise, target feeling, primary verb, objective, pressure, reward, fail/retry, skill expression, non-goals.
 3. Define the core loop contract: verb, objective, pressure, reward/progression, fail/retry.
 4. Define the level/encounter plan before implementation: start, first decision, first threat, first reward, landmarks, escalation, recovery beats, readability, and tuning knobs.
-5. Choose small architecture boundaries: `core`, `game`, `entities`, `systems`, `assets`, `ui`, `tests`.
+5. Use the existing architecture. For an empty project, choose small ownership boundaries only where needed.
 6. Implement mechanics in playable increments: input, state, entity, collision/physics, feedback, HUD/audio hook, diagnostics.
 7. Tune feel with `references/game-feel.md`: movement, acceleration, camera follow/FOV/shake, hitstop, impact feedback, cooldowns, difficulty, restart loop.
 8. Keep hot paths allocation-light and update order explicit.
-9. Verify with build, browser, screenshot, canvas pixels, console/page errors, and one real input path.
+9. Follow the project verification matrix. Exercise the affected player path when interaction changes, and use focused domain tests for state/formula behavior. A screenshot or nonblank canvas does not prove a loop.
 
 ## Packaged Scaffold
 
@@ -75,4 +77,4 @@ The script copies `assets/threejs-vite-game/`, rewrites the project name in `pac
 
 ## Final Response
 
-Report the reference ledger, game design brief, core loop contract, level/encounter plan, gameplay checklist outcome, behavior, controls, changed files, architecture choices, tuned values, verification evidence, artifacts, and remaining edge cases.
+Report the changed player behavior, relevant verification and remaining gaps. Include design or architecture decisions only when this task changed them; use the repository completion format.

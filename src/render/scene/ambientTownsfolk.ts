@@ -68,7 +68,9 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
       night: { x: 64.9, z: -45.5 }
     },
     radiusMeters: 1.4,
-    loopSeconds: 31,
+    // Kept above the animator's 0.6 playback floor: the previous 31 s loop
+    // retimed the amble to ~0.5x and read as a slow-motion slide.
+    loopSeconds: 24,
     restFraction: 0.6,
     phase: 0.37
   },
@@ -82,7 +84,8 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
       night: { x: 61.6, z: 51.6 }
     },
     radiusMeters: 1.5,
-    loopSeconds: 23,
+    // As above: 23 s drifted at ~0.48x cadence and looked like dragging.
+    loopSeconds: 17,
     restFraction: 0.4,
     phase: 0.71
   }

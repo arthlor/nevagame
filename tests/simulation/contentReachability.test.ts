@@ -63,9 +63,10 @@ function itemSources(): Map<string, string[]> {
     add(crop.harvestItemId, `harvest ${crop.id}`);
   }
   // Basic-catchable species enter the inventory as stackable items when caught.
-  // Sport fish do not — they are physical cargo, never an ItemId.
+  // Sport fish and physical basic catches do not — both are physical cargo,
+  // never an ItemId.
   for (const fish of ContentRegistry.fishSpecies.values()) {
-    if (!fish.isSportFish && ContentRegistry.items.has(fish.id)) {
+    if (!fish.isSportFish && !fish.tags.includes("physical-basic-catch") && ContentRegistry.items.has(fish.id)) {
       add(fish.id, `basic fishing ${fish.id}`);
     }
   }

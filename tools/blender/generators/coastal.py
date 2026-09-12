@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import bpy
+import bmesh
 from mathutils import Vector
 from common.geometry import add_box, add_beam, add_tapered_beam, add_limb_tube, add_collision_primitives, seeded_rng, set_surface_normals
 from common.lod import create_lod_roots, consolidate_lod_level
@@ -84,7 +85,15 @@ def _ribbon(name, centers, widths, side, token, parent, weights, fold=0.08):
         for left, right in ((0, 1), (1, 2), (2, 3), (3, 0)):
             faces.append((a + left, b + left, b + right, a + right))
     faces.extend([(0, 1, 2, 3), tuple((len(centers) - 1) * 4 + i for i in reversed(range(4)))])
-    return _mesh(name, verts, faces, token, parent, bend, smooth=True)
+    obj = _mesh(name, verts, faces, token, parent, bend, smooth=False)
+    # A consistent closed shell keeps both sides of the fold visible under culling.
+    edit = bmesh.new()
+    edit.from_mesh(obj.data)
+    bmesh.ops.recalc_face_normals(edit, faces=edit.faces)
+    edit.to_mesh(obj.data)
+    edit.free()
+    obj.data.update()
+    return obj
 
 
 def _palm(spec, parent, lod):
@@ -119,15 +128,17 @@ def _palm(spec, parent, lod):
             add_tapered_beam(f"scar_{i}", point - Vector((0, 0, .028)), point + Vector((0, 0, .028)),
                              radii[i] * 1.04, radii[i] * 1.02, wood, parent, vertices=10)
     crown = Vector(points[-1])
-    count = p["fronds"] if lod == 0 else max(6, p["fronds"] - 3)
+    count = p["fronds"]
     for frond in range(count):
         angle = frond * math.tau / count + rng.uniform(-.14, .14)
         axis = Vector((math.cos(angle), math.sin(angle), 0))
         side = Vector((-axis.y, axis.x, 0))
         length = spread * rng.uniform(.82, 1.16)
-        droop = .75 + (frond % 3) * .46
+        # Young central fronds lift; mature outer fronds sweep downward.
+        lift = (.32, .82, .12)[frond % 3]
+        droop = (.82, .38, 1.32)[frond % 3]
         def spine(t):
-            return crown + axis * (length * t) + Vector((0, 0, math.sin(t * math.pi) * .68 - droop * t * t + .1))
+            return crown + axis * (length * t) + Vector((0, 0, math.sin(t * math.pi) * .66 + lift * t - droop * t * t + .04))
         token = (green, sun, green, shade)[frond % 4]
         segments = 9 if lod == 0 else 5
         _ribbon(f"frond_rib_{frond}", [spine(i / segments) for i in range(segments + 1)],
@@ -136,12 +147,12 @@ def _palm(spec, parent, lod):
         pairs = p["leafletPairs"] if lod == 0 else max(6, p["leafletPairs"] // 2)
         for j in range(pairs):
             t = .09 + .85 * j / pairs
-            length_leaf = (.2 + .7 * math.sin(math.pi * t) ** .55) * (length / 3.2)
+            length_leaf = (.16 + .72 * math.sin(math.pi * t) ** .65) * (length / 3.2)
             for sign in (-1, 1):
                 base = spine(t + (0.015 if sign > 0 else 0))
                 end = base + side * sign * length_leaf + axis * (.14 + .20 * t) + Vector((0, 0, -.18 - t * .16))
-                middle = base.lerp(end, .47) + Vector((0, 0, .065))
-                _ribbon(f"leaflet_{frond}_{j}_{sign}", [base, middle, end], [.022, .12 if lod == 0 else .17, .004],
+                middle = base.lerp(end, .46) + Vector((0, 0, .12))
+                _ribbon(f"leaflet_{frond}_{j}_{sign}", [base, middle, end], [.025, (.15 if lod == 0 else .24) * math.sin(math.pi*t)**.35, .002],
                         axis, token, parent, [t * .38, .4 + t * .4, .65 + t * .35])
     for i in range(4):
         a = i * math.tau / 4 + .4
@@ -155,7 +166,7 @@ def coastal_palm(spec, root):
 def _understory(spec, parent, lod):
     p, rng = spec["parameters"], seeded_rng(spec["seed"])
     green, sun, shade = spec["palette"]
-    count = p["leaves"] if lod == 0 else max(5, p["leaves"] // 2)
+    count = p["leaves"]
     split = p["form"] == "split"
     shrub = p["form"] == "shrub"
     for i in range(count):
@@ -163,9 +174,9 @@ def _understory(spec, parent, lod):
         axis = Vector((math.cos(angle), math.sin(angle), 0))
         side = Vector((-axis.y, axis.x, 0))
         height = p["height"] * rng.uniform(.58, 1.02)
-        start = Vector((0, 0, .08)) if not shrub else axis * .2 + Vector((0, 0, height * .35))
-        base = axis * p["spread"] * .22 + Vector((0, 0, height * .62))
-        end = axis * p["spread"] * rng.uniform(.75, 1.05) + Vector((0, 0, height * .72))
+        start = axis * (.025 if not shrub else .06) + Vector((0, 0, .005))
+        base = axis * p["spread"] * (.22 if not shrub else .30) + Vector((0, 0, height * (.62 if not shrub else .46)))
+        end = axis * p["spread"] * rng.uniform(.68, 1.0) + Vector((0, 0, height * (.60 + .15*(i%3))))
         token = (green, sun, green, shade)[i % 4]
         add_beam(f"petiole_{i}", start, base, .018 if not shrub else .025, shade, parent, vertices=5)
         rows = 8 if lod == 0 else 4
@@ -173,9 +184,9 @@ def _understory(spec, parent, lod):
         for j in range(rows + 1):
             t = j / rows
             centers.append(base.lerp(end, t) + Vector((0, 0, math.sin(t * math.pi) * height * .25)))
-            width = p["spread"] * (.26 if shrub else .29) * math.sin(math.pi * t) ** .72 + .006
+            width = p["spread"] * (.20 if shrub else .27) * math.sin(math.pi * t) ** .72 + .006
             if split and j % 2 == 1:
-                width *= .42
+                width *= .62
             widths.append(width)
             weights.append(t * t)
         _ribbon(f"folded_leaf_{i}", centers, widths, side, token, parent, weights, fold=.18)

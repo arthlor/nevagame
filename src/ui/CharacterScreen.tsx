@@ -229,7 +229,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                 descriptionId="character-preview-description"
               />
               <p id="character-preview-description" className="sr-only">{previewDescription}</p>
-              <span className="character-preview-label">{Object.keys(preview).length > 0 ? "Local preview" : "Current gear"}</span>
+              <span className="character-preview-label">{Object.keys(preview).length > 0 ? "Trying on" : "Current gear"}</span>
             </div>
             {Object.keys(preview).length > 0 && (
               <ChromeButton type="button" variant="ghost" onClick={() => setPreview({})}>Reset Try On</ChromeButton>
@@ -289,7 +289,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
 
         <footer className="modal-footer character-screen__footer">
           <div role="status" className="character-screen__status">
-            {feedback ?? character.equipBlocker ?? "Try On changes only this preview. Equip writes the real loadout."}
+            {feedback ?? character.equipBlocker ?? "Try on gear here. Choose Equip to wear it on the coast."}
           </div>
           <ChromeButton type="button" variant="ghost" onClick={onOpenSatchel}>Open Satchel</ChromeButton>
           <ChromeButton type="button" variant="ghost" onClick={onOpenPause}>Game Menu</ChromeButton>

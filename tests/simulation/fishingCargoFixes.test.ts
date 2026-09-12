@@ -5,7 +5,11 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { QUESTS } from "../../src/content/quests";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
-import { armLureForTest } from "./sportFishingTestUtils";
+import { armLureForTest, hookLakeTroutForTest } from "./sportFishingTestUtils";
+import {
+  SPORT_FISHING_WORK_COST_BY_CLASS,
+  SPORT_FISHING_WORK_REFUND_RATIO
+} from "../../src/simulation/domains/FishingDomain";
 
 describe("Fishing, cargo, quest, and habitat fixes", () => {
   let sim: Simulation;
@@ -369,5 +373,74 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
 
     expect(candidate.state.sportFishing).toBeNull();
     expect(candidate.state.player.workCapacity.current - afterHook).toBe(Math.round(charged * 0.6));
+  });
+
+  it("commits a physical basic catch that carries no treasure", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    expect(sim.castBasicFishing().success).toBe(true);
+    const attempt = sim.state.basicFishing!;
+    attempt.phase = "caught";
+    attempt.catchItemId = "fish.sea_bream";
+    attempt.ecologyId = "ecology.sunreach";
+    attempt.habitatId = "coast";
+    attempt.treasureCaught = false;
+
+    const result = sim.execute({ type: "fishing.commit-basic" });
+    expect(result.success).toBe(true);
+    expect(sim.state.basicFishing).toBeNull();
+    expect(
+      Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.sea_bream")
+    ).toBe(true);
+    expect(validateSaveEnvelope({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: sim.state
+    })).toBe(true);
+  });
+
+  it("prices a legacy lost-fight refund with the equipment Work multiplier", () => {
+    const equipment = sim.state.player.equipment;
+    equipment.ownedIds = [...equipment.ownedIds, "equipment.tidewatch_cap"];
+    equipment.equipped.head = "equipment.tidewatch_cap";
+    hookLakeTroutForTest(sim);
+    const quoted = sim.quoteWorkCost(
+      SPORT_FISHING_WORK_COST_BY_CLASS.small,
+      "fishing",
+      "fishing.sport-hook"
+    ).cost;
+    const before = sim.state.player.workCapacity.current;
+    // A pre-v33 fight carries no charged amount, so the refund re-prices the
+    // hook; it must use the same quote the hook would charge today.
+    sim.state.sportFishing!.workCharged = undefined;
+    sim.state.sportFishing!.lineTension = 0;
+    sim.state.sportFishing!.slackTimerSeconds = 999;
+    sim.tick(0.1);
+    expect(sim.state.sportFishing).toBeNull();
+    expect(sim.state.player.workCapacity.current - before).toBe(
+      Math.round(quoted * SPORT_FISHING_WORK_REFUND_RATIO)
+    );
+  });
+
+  it("still defers a physical catch whose treasure cannot fit", () => {
+    sim.state.player.x = -8;
+    sim.state.player.z = 0;
+    expect(sim.castBasicFishing().success).toBe(true);
+    const attempt = sim.state.basicFishing!;
+    attempt.phase = "caught";
+    attempt.catchItemId = "fish.sea_bream";
+    attempt.ecologyId = "ecology.sunreach";
+    attempt.habitatId = "coast";
+    attempt.treasureCaught = true;
+
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    const filler = ContentRegistry.items.get("item.compost_starter")!;
+    inventory.slots = inventory.slots.map(() => ({ itemId: filler.id, quantity: filler.stackLimit }));
+
+    expect(sim.execute({ type: "fishing.commit-basic" })).toMatchObject({
+      success: false,
+      reasonCode: "inventory-full"
+    });
+    expect(sim.state.basicFishing?.phase).toBe("caught");
   });
 });

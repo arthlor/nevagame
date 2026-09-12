@@ -4,6 +4,7 @@ import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectCom
 import type { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import { GpuFrameTimer, type GpuFrameTimingSnapshot } from "./GpuFrameTimer";
+import type { AtmosphereSky, AtmosphereSkyDiagnostics } from "../atmosphere/AtmosphereSky";
 
 export type CaptureRenderMode = "final" | "no-post";
 
@@ -24,6 +25,7 @@ export interface RendererPipelineDiagnostics {
   renderMode: CaptureRenderMode;
   qualityTier: QualityTier;
   gtaoActive: boolean;
+  atmosphere: AtmosphereSkyDiagnostics | null;
   gpuTiming: GpuFrameTimingSnapshot;
   renderTargets: readonly RenderTargetDiagnostic[];
   memory: {
@@ -90,6 +92,7 @@ export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarg
  * low-spec sessions and the starter bundle.
  */
 export class RendererPipeline {
+  private sky: AtmosphereSky | null = null;
   private composer: EffectComposer | null = null;
   private opaqueSnapshot: THREE.WebGLRenderTarget | null = null;
   private coastalUniforms: CoastalUniforms | null = null;
@@ -136,6 +139,11 @@ export class RendererPipeline {
     }
   }
 
+  public bindSky(sky: AtmosphereSky): void {
+    this.sky = sky;
+    sky.setQuality(this.qualityTier);
+  }
+
   private captureOpaqueWaterInput(camera: THREE.Camera): void {
     if (this.capturedWaterThisFrame || !this.coastalUniforms || !this.composer) return;
     const source = this.renderer.getRenderTarget();
@@ -167,6 +175,7 @@ export class RendererPipeline {
   public setQuality(tier: QualityTier): void {
     if (tier === this.qualityTier) return;
     this.qualityTier = tier;
+    this.sky?.setQuality(tier);
     this.generation += 1;
     this.disposeComposer();
     this.initialization = null;
@@ -207,6 +216,7 @@ export class RendererPipeline {
     this.renderer.info.reset();
     this.gpuTimer?.beginFrame();
     try {
+      this.sky?.render(this.renderer, camera);
       const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
       if (quality.ambientOcclusion !== "gtao") {
         this.renderer.render(this.scene, camera);
@@ -232,6 +242,7 @@ export class RendererPipeline {
   public prepareForCapture(camera: THREE.Camera): Promise<void> { return this.prepareForEntry(camera); }
 
   public async prepareForEntry(camera: THREE.Camera): Promise<void> {
+    await this.sky?.prepare(this.renderer);
     const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
     if (quality.ambientOcclusion === "gtao" && (!this.composer || this.activeCamera !== camera)) {
       this.beginInitialization(camera);
@@ -247,6 +258,8 @@ export class RendererPipeline {
 
   public diagnostics(): RendererPipelineDiagnostics {
     const targets: RenderTargetDiagnostic[] = [];
+    if (this.sky) targets.push(renderTargetDiagnostic("atmosphere.sky", this.sky.target));
+    if (this.sky) targets.push(renderTargetDiagnostic("atmosphere.cloudSunlight", this.sky.cloudShadows.target));
     if (this.composer) {
       const composer = this.composer as unknown as ComposerRuntimeInternals;
       targets.push(renderTargetDiagnostic("composer.primary", composer.renderTarget1));
@@ -267,6 +280,7 @@ export class RendererPipeline {
       renderMode: this.renderMode,
       qualityTier: this.qualityTier,
       gtaoActive: this.isGtaoActive(),
+      atmosphere: this.sky?.diagnostics() ?? null,
       gpuTiming: this.gpuTimer?.snapshot() ?? {
         supported: false,
         blockedReason: "WebGL2 context unavailable",
@@ -286,6 +300,7 @@ export class RendererPipeline {
   }
 
   public dispose(): void {
+    this.sky = null;
     this.generation += 1;
     this.disposeComposer();
     this.initialization = null;

@@ -180,7 +180,21 @@ export function sunreachNaturalTerrainHeight(x: number, z: number): number {
   const drainage = sunreachDrainageSample(x, z);
   const washBed = base - drainage.wash * (0.65 + drainage.erosion * 0.8);
   const deposited = washBed + drainage.deposition * 0.18;
-  return coveWorkingPadHeight(x, z, terraceHeight(x, z, deposited));
+  const routeDistance = Math.min(...SUNREACH_ROUTES.map((route) => distanceToPolyline(x, z, route.points)));
+  const farmDistance = Math.hypot((x - SUNREACH_ANCHORS.terraceFarm.x) * 0.84, z - SUNREACH_ANCHORS.terraceFarm.z);
+  const coastRelease = smoothstep(18, 42, -signedDistanceToSunreachCoast(x, z));
+  const workingRelease = smoothstep(4.5, 22, routeDistance) * smoothstep(37, 52, farmDistance);
+  // Dry shoulders and a second low crest frame the route to the exposed ridge.
+  // The seasonal wash, productive terrace and cove remain their existing surfaces.
+  const shoulder = (6 * radialWeight(x, z, 566, 4, 9, 68)
+    + 3.2 * radialWeight(x, z, 500, 119, 8, 45)
+    + 2.4 * radialWeight(x, z, 502, -37, 8, 38))
+    * coastRelease * workingRelease * (1 - drainage.wash);
+  const land = coveWorkingPadHeight(x, z, terraceHeight(x, z, deposited + shoulder));
+  // The cove depression must not pull declared dry land below the sea. This
+  // shoreward shelf also gives the retained landing route continuous support.
+  const dryShelf = 0.025 + Math.min(8, -signedDistanceToSunreachCoast(x, z)) * 0.035;
+  return Math.max(dryShelf, land);
 }
 
 export function sunreachRegionAt(x: number, z: number): WorldRegionId {

@@ -34,9 +34,11 @@ export const LIVE_FEATURE_IDS: ReadonlySet<string> = new Set([
  * becomes available in the band it is listed under, so the advertisement
  * cannot drift from the gate.
  *
- * Ranks 4-7 are deliberately sparse. That is the honest state of the game:
- * beyond the offshore rod and the skiff, high proficiency currently unlocks
- * nothing. Filling those bands is content work, not a table edit.
+ * Master and Artisan move the last tool and work-outfit sidegrades behind
+ * higher Processing proficiency, so the back half of the ladder opens real
+ * gear instead of only a percentage. Famed carries the optional Master rod;
+ * Legendary remains the Records long tail. Filling that final band is content
+ * work, not a table edit.
  */
 export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
   {
@@ -89,12 +91,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.flax"],
     fishingUnlocks: ["rod.heavy_sport"],
     tradingUnlocks: [],
-    processingUnlocks: [
-      "recipe.deck_boots",
-      "recipe.oilskin_coat",
-      "recipe.long_spout_can",
-      "recipe.balanced_sickle"
-    ]
+    processingUnlocks: []
   },
   {
     rankIndex: 3,
@@ -112,7 +109,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: [],
     fishingUnlocks: [],
     tradingUnlocks: [],
-    processingUnlocks: []
+    processingUnlocks: ["recipe.deck_boots", "recipe.long_spout_can"]
   },
   {
     rankIndex: 5,
@@ -121,7 +118,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: [],
     fishingUnlocks: [],
     tradingUnlocks: [],
-    processingUnlocks: []
+    processingUnlocks: ["recipe.oilskin_coat", "recipe.balanced_sickle"]
   },
   {
     rankIndex: 6,

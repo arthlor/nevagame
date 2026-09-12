@@ -277,7 +277,7 @@ describe("the tides side track", () => {
       .toBe("quest.act1_welcome");
   });
 
-  it("chains all six quests in one track and ends with a practice entry", () => {
+  it("chains all seven quests in one track, ends the lessons on a practice entry, then the silver king", () => {
     const chain: string[] = [];
     let quest = ContentRegistry.quests.get("quest.tides_home_water");
     while (quest) {
@@ -285,10 +285,13 @@ describe("the tides side track", () => {
       expect(quest.trackId).toBe("track.tides");
       quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
     }
-    expect(chain).toHaveLength(6);
-    const last = ContentRegistry.quests.get(chain[chain.length - 1])!;
-    expect(last.rewards.unlocksKnowledgeIds).toEqual(["knowledge.reading_the_water"]);
+    expect(chain).toHaveLength(7);
+    const practice = ContentRegistry.quests.get("quest.tides_every_water")!;
+    expect(practice.rewards.unlocksKnowledgeIds).toEqual(["knowledge.reading_the_water"]);
     expect(ContentRegistry.knowledge.has("knowledge.reading_the_water")).toBe(true);
+    expect(chain[chain.length - 1]).toBe("quest.tides_blue_marlin");
+    expect(ContentRegistry.quests.get("quest.tides_blue_marlin")!.objectives[0]?.targetId)
+      .toBe("fish.blue_marlin");
   });
 
   it("keeps species that vanish for a season off the main spine", () => {

@@ -165,7 +165,7 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
   {
     id: "contract.bulk_grain_order",
     type: "bulk-order",
-    requesterName: "Neva Granary",
+    requesterName: "Barnaby",
     deliveryMarketId: "market.village",
     itemOrSpeciesPool: ["produce.wheat"],
     quantityRange: [20, 30],
@@ -189,7 +189,7 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
   {
     id: "contract.bulk_cove_greens",
     type: "bulk-order",
-    requesterName: "Sunreach Cove Kitchen",
+    requesterName: "Ines",
     deliveryMarketId: "market.sunreach_cove",
     itemOrSpeciesPool: ["produce.tomato"],
     quantityRange: [16, 24],

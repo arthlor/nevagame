@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
+import { farmLocalToWorld } from "../../src/world/FarmLayout";
 
 describe("Simulation ownership boundaries", () => {
   it("atomically validates and commits resolved physics poses", () => {
@@ -87,12 +88,22 @@ describe("Simulation ownership boundaries", () => {
 
     expect(result.success).toBe(true);
     expect(Object.keys(sim.state.crops)).toHaveLength(1);
+    const freePlot = farmLocalToWorld("farm.starter_garden", { x: 1.25, z: 0 });
     expect(sim.query({ type: "crop.find-placement", farmId: "farm.starter_garden", cropId: "crop.wheat" }))
       .toMatchObject({ success: false });
     expect(sim.execute({
       type: "crop.plant",
-      request: { farmId: "farm.starter_garden", cropId: "crop.wheat", x: 1.25, z: 0 }
+      request: { farmId: "farm.starter_garden", cropId: "crop.wheat", x: freePlot.x, z: freePlot.z }
     })).toMatchObject({ success: true });
+  });
+
+  it("does not reinterpret an off-farm world coordinate as farm-local", () => {
+    const sim = new Simulation();
+    // The starter farm's local bounds are x[-18,18] z[-14,14]; as raw world
+    // coordinates those points sit across the island. A request that far from
+    // the angler must fail on distance, not silently plant near the farm.
+    expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", 5, 3))
+      .toMatchObject({ valid: false, reasonCode: "too-far" });
   });
 
   it("faces a resolved world target without changing position or save shape", () => {

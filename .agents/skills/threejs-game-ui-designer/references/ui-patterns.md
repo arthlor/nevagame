@@ -11,9 +11,9 @@ Use this when designing HUDs, menus, overlays, pause/fail/win states, touch cont
 - UI should reinforce the world art direction through material cues, color roles, icon shapes, and motion language.
 - Do not use visible text to explain obvious controls when an icon, affordance, or direct interaction can do the job.
 
-## Required States
+## Relevant States
 
-Inventory states before designing:
+Inspect existing states affected by the task. For a new interface, consider the applicable states below; do not add a screen or game state merely to fill this list:
 
 - Gameplay HUD.
 - Pause/resume.
@@ -24,7 +24,7 @@ Inventory states before designing:
 - Mobile/touch controls when target includes mobile.
 - Debug/tuning UI gated separately from player UI.
 
-Premium games should not have only one HUD state.
+Use a distinct layout when a real game state changes the player’s information or interaction needs.
 
 ## HUD Composition
 

@@ -4,15 +4,15 @@ Use this reference when a Three.js game warrants visual regression testing, base
 
 Do not add screenshot baselines for every prototype. Use a harness when the visual state is valuable enough to protect and deterministic enough to compare.
 
-Research basis: Playwright supports `expect(page).toHaveScreenshot()` for visual comparisons, device emulation for desktop/mobile projects, screenshot thresholds such as max diff pixels/ratio, and test artifacts/traces. Three.js exposes renderer diagnostics through `WebGLRenderer.info`. Existing canvas pixel checks are good smoke tests, but they do not replace screenshot baselines for polished screens.
+Research basis: Playwright supports `expect(page).toHaveScreenshot()` for visual comparisons, device emulation for desktop/mobile projects, screenshot thresholds such as max diff pixels/ratio, and test artifacts/traces. Three.js exposes renderer diagnostics through `WebGLRenderer.info`. Canvas pixel checks detect blank output; comparisons against approved baselines address repeatable visual regressions. Neither proves human visual acceptance.
 
 ## When To Add A Visual Harness
 
 Add or extend a visual harness when:
 
-- The user asks for premium, AAA, showcase, release-ready, or "less basic" quality.
+- The requested release gate needs repeatable comparisons that existing coverage does not provide.
 - HUD/menu layout or responsive text fit has regressed before.
-- Imported/generated assets must be proven visible in-game.
+- Asset visibility has a plausible repeatable regression that warrants an automated check.
 - A visual style, level, vehicle, table, arena, or boss scene is important enough to protect.
 - You need desktop/mobile active-play evidence on every release.
 - The game has deterministic states or can expose test hooks to freeze randomness, camera, time, and particles.
@@ -24,7 +24,7 @@ Skip or defer baseline screenshots when:
 - Particles/camera/noise dominate the image and masking would hide the useful assertion.
 - The only need is "is the canvas nonblank"; use the canvas inspector instead.
 
-Even when skipped, report the skip reason.
+Report a missing harness only when it leaves a required gate or meaningful risk unverified; no routine skip form is needed.
 
 ## Harness States
 
@@ -40,7 +40,7 @@ Avoid title-only screenshots unless title/menu work is the actual change.
 
 ## Determinism Requirements
 
-Scaffold-generated games ship a working implementation of these hooks (`src/game/Game.ts` `installTestHooks`, typed in `src/vite-env.d.ts`) plus a seeded RNG in `src/utils/random.ts`. Keep the hooks real as the game evolves — the template fails loudly if the hooks object is missing, because silent no-op hooks capture live animating scenes and every rerun diffs. For non-scaffold games, implement the same contract:
+Scaffold-generated games ship a working implementation of these hooks (`src/game/Game.ts` `installTestHooks`, typed in `src/vite-env.d.ts`) plus a seeded RNG in `src/utils/random.ts`. Keep the hooks real as the game evolves — the template fails loudly if the hooks object is missing, because silent no-op hooks capture live animating scenes and every rerun diffs. For non-scaffold games, adapt the comparison to their existing test setup. The interface below is a scaffold example, not a required parallel API; Neva retains its own hooks and harness:
 
 ```ts
 window.__THREE_GAME_TEST_HOOKS__ = {

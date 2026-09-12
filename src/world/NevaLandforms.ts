@@ -6,17 +6,17 @@ export interface NevaLandformSample {
 }
 
 export const NEVA_SUMMITS = [
-  { id: "spring-mountain", x: -61, z: -178, elevation: 22, radiusX: 58, radiusZ: 50 },
-  { id: "western-mountain", x: -126, z: -116, elevation: 16, radiusX: 54, radiusZ: 50 },
-  { id: "northeastern-ridge", x: 20, z: -175, elevation: 8, radiusX: 45, radiusZ: 40 }
+  { id: "spring-mountain", x: -61, z: -178, elevation: 36, radiusX: 72, radiusZ: 58 },
+  { id: "western-mountain", x: -126, z: -116, elevation: 28, radiusX: 62, radiusZ: 64 },
+  { id: "northeastern-ridge", x: 20, z: -175, elevation: 15, radiusX: 58, radiusZ: 46 }
 ] as const;
 
 const RIDGE_SHOULDERS = [
-  // Gentle rolling saddles framing the sheltered headwater spring
-  { start: [-126, -116, 16], end: [-96, -140, 14], width: 28 },
-  { start: [-96, -140, 14], end: [-86, -165, 18], width: 28 },
-  { start: [-86, -165, 18], end: [-61, -178, 22], width: 28 },
-  { start: [-61, -178, 22], end: [-35, -170, 18], width: 26 },
+  // Broad saddles leave the spring in a bowl beneath an uneven skyline.
+  { start: [-126, -116, 28], end: [-96, -140, 22], width: 38 },
+  { start: [-96, -140, 22], end: [-86, -165, 28], width: 34 },
+  { start: [-86, -165, 28], end: [-61, -178, 36], width: 34 },
+  { start: [-61, -178, 36], end: [-35, -170, 24], width: 32 },
   { start: [-126, -116, 16], end: [-137, -61, 14], width: 26 },
   { start: [-137, -61, 14], end: [-127, -13, 10], width: 28 }
 ] as const;
@@ -111,8 +111,9 @@ export function sampleNevaLandforms(x: number, z: number): NevaLandformSample {
     minimumElevation,
     14 * mound(x, z, -137, -61, 40, 44),
     10 * mound(x, z, -127, -13, 38, 40),
-    6.5 * mound(x, z, 132, -105, 42, 35),
-    5.0 * mound(x, z, 152, 12, 33, 42)
+    14 * mound(x, z, 110, -104, 56, 48),
+    9 * mound(x, z, 152, 12, 42, 56),
+    7 * mound(x, z, 80, -135, 46, 40)
   );
   return {
     minimumElevation,

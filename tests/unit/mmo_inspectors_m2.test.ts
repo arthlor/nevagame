@@ -352,12 +352,11 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
 
         expect(html).toContain('data-testid="catch-inspection-modal"');
         expect(html).toContain("Catch landed");
-        expect(html).toContain("COASTAL SPORT ANGLING");
         expect(html).toContain("Atlantic Salmon");
 
         // Personal record banner
         expect(html).toContain("catch-record-banner record-weight");
-        expect(html).toContain("HEAVIEST CATCH RECORD");
+        expect(html).toContain("Your heaviest yet");
 
         // Vitals grid
         expect(html).toContain("6.85 kg");
@@ -376,7 +375,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         expect(html).toContain("Open Satchel");
         expect(html).toContain("[I]");
         expect(html).not.toContain("[L]");
-        expect(html).toContain("Continue Fishing");
+        expect(html).toContain("Back to the coast");
       });
 
       it("renders first catch and quality record banners appropriately", () => {
@@ -387,7 +386,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
             onDismiss: () => {}
           })
         );
-        expect(firstHtml).toContain("NEW SPECIES RECORD");
+        expect(firstHtml).toContain("A new discovery");
 
         const qualityRecordCatch: TrophyCatchDto = { ...trophyCatch, record: "quality" };
         const qualHtml = renderToString(
@@ -396,7 +395,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
             onDismiss: () => {}
           })
         );
-        expect(qualHtml).toContain("FINEST GRADE RECORD");
+        expect(qualHtml).toContain("Your finest yet");
       });
     });
 

@@ -350,7 +350,6 @@ export const StartScreen: FC<StartScreenProps> = ({
                       aria-valuetext={hasMeasuredProgress ? `${startup.loadedAssets} of ${startup.totalAssets}` : "Starting"}
                     />
                   </div>
-                  <details className="start-screen__diagnostics"><summary>Diagnostics</summary><span>Phase: {startup.phase}</span>{startup.degradedResources?.map(resource => <span key={resource}>Procedural fallback: {resource}</span>)}</details>
                 </div>
               ) : isTitle && startup.saveStatus === "corrupt" ? (
                 <p className="start-screen__save-warning" role="status">

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   attachSurfaceFieldAttributes,
   withExposedRock,
+  terrainDryClimateWeight,
   SURFACE_FIELD_ATTRIBUTE_NAMES
 } from "../../src/render/materials/SurfaceFieldAttributes";
 import {
@@ -25,6 +26,18 @@ const WEIGHT_KEYS = [
 ] as const;
 
 describe("shared world surface field", () => {
+  it("derives dry-island color from canonical drainage without changing surface truth", () => {
+    const neva = WorldLayout.terrainSurfaceSample(-65, -55);
+    expect(terrainDryClimateWeight(neva)).toBe(0);
+    const sunreach = WorldLayout.terrainSurfaceSample(570, 80);
+    const original = structuredClone(sunreach);
+    expect(sunreach.drainage?.islandId).toBe("island.sunreach");
+    expect(terrainDryClimateWeight(sunreach)).toBeCloseTo(1 - sunreach.drainage!.moisturePotential);
+    const damp = { ...sunreach, drainage: { ...sunreach.drainage!, moisturePotential: 0.8 } };
+    expect(terrainDryClimateWeight(damp)).toBeCloseTo(0.2);
+    expect(terrainDryClimateWeight(damp)).toBeLessThan(terrainDryClimateWeight(sunreach));
+    expect(sunreach).toEqual(original);
+  });
   it("keeps normalized weights and causal fields finite through the connected slice", () => {
     const riverZ = 0;
     const coastSamples = [

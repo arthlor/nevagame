@@ -1,10 +1,10 @@
 # QA And Release Checklists
 
-Use this before calling a Three.js browser game complete, premium, release-ready, or fixed.
+Select the applicable sections for a requested release or visual-gold gate. The repository task matrix owns required coverage; this checklist does not turn a narrow fix or polish request into release work.
 
 ## Browser QA Matrix
 
-Minimum meaningful QA:
+Coverage to select against the actual gate and supported devices:
 
 - Dependencies installed or known.
 - Build/typecheck passes.
@@ -22,7 +22,7 @@ Minimum meaningful QA:
 - Renderer diagnostics captured when graphics complexity changed.
 - Imported/generated asset paths, file sizes, and runtime load behavior checked when external assets changed.
 - Audio unlock, decode/load, loop cleanup, mute/volume, and main SFX triggers checked when audio changed.
-- Visual test harness decision recorded when work is premium, release-ready, UI-heavy, generated-asset-heavy, or likely to regress visually.
+- Existing visual regression coverage exercised when required by the gate; extend it only for a meaningful uncovered regression risk.
 
 ## Interaction QA
 
@@ -43,27 +43,23 @@ Do not rely only on screenshots for gameplay changes.
 
 ## Visual QA
 
-For premium/AAA/showcase or "less basic" requests:
+For the visual surfaces covered by the requested gate:
 
-- Capture active-play screenshot before and after when possible.
-- Use the visual scorecard.
-- Check for automatic failures:
-  - primitive-dominant active screenshot
-  - flat plane/box skyline world
-  - generic stat-card HUD
-  - one repeated obstacle/reward silhouette
-  - fog/glow/darkness hiding missing geometry
-  - no renderer diagnostics
-- Confirm UI and VFX do not obscure threats, rewards, player, or next decision.
-- Confirm desktop and mobile framing both show the playable path.
-- For generated 3D assets, confirm imported models have correct scale, orientation, material readability, collision proxies, and animation clips in active gameplay.
-- Decide whether to add/extend visual regression baselines. If skipped, record why the scene is not deterministic, not valuable enough yet, or covered by smoke checks only.
+- Inspect the actual gameplay views and motion against the accepted brief.
+- Check relevant silhouette, material, lighting, repetition and readability.
+- Confirm UI and effects preserve the action, route and next decision.
+- Inspect supported viewports and changed imported-asset scale, orientation,
+  collision, attachments or animation where applicable.
+- Use measured renderer/production evidence for cost claims. Pixel complexity
+  and subjective numeric scores are not visual acceptance criteria.
+- Reuse the project’s regression harness; add or extend it for a concrete gap.
+  Neva's `04` §19 governs human approval and baseline replacement.
 
 ## Visual Test Harness QA
 
 When a visual harness is warranted:
 
-- Add deterministic hooks or test setup for random seed, camera shake, particles, time, debug UI, and active state.
+- Reuse project-owned deterministic setup for seed, camera, time and relevant state; extend it only for the comparison being added. Do not import scaffold hooks into Neva.
 - Cover active desktop and active mobile screenshots when mobile is in scope.
 - Cover changed HUD/menu/fail/generated-asset states.
 - Use Playwright screenshot comparisons with deliberate thresholds.
@@ -111,6 +107,9 @@ Before release-ready:
 
 ## Evidence Format
 
+Use the repository completion format. For a standalone report, select relevant
+fields below and omit unused sections.
+
 ```text
 QA result: pass/fail
 Commands:
@@ -153,5 +152,5 @@ Suggested fix:
 - Canvas is nonblank but wrong app is running on the port.
 - Physics gameplay looks right visually but collision proxies, sensors, or restart cleanup were not tested.
 - Screenshots are title/idle views instead of active play.
-- Premium claim has no visual scorecard or renderer diagnostics.
+- A visual, temporal or performance claim lacks evidence for that specific property.
 - 3D/image/audio generation API key or generated temporary URLs accidentally exposed in client code.

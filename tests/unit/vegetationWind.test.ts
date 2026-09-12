@@ -79,7 +79,8 @@ describe("vegetation canopy wind", () => {
       ).toBe(true);
     }
     // The sway must displace the working position, and only above the trunk.
-    expect(shader.vertexShader).toContain("transformed.xz += nevaWindHeading * nevaBend");
+    expect(shader.vertexShader).toContain("transformed += nevaWindWorldToLocal");
+    expect(shader.vertexShader).toContain("nevaLandscapeGust(vNevaInstanceOrigin, nevaWindHeading, nevaWindTime)");
     expect(shader.vertexShader).toContain("nevaWindTrunkHold");
   });
 
@@ -87,7 +88,7 @@ describe("vegetation canopy wind", () => {
     const { material } = compileVariant();
     expect(VEGETATION_TINT_PROGRAM_CACHE_KEY).toContain("wind");
     expect((material as THREE.Material).customProgramCacheKey?.())
-      .toBe(VEGETATION_TINT_PROGRAM_CACHE_KEY);
+      .toBe(`${VEGETATION_TINT_PROGRAM_CACHE_KEY}:world-atmosphere-v1`);
   });
 
   it("drives time, heading and strength from the shared weather signal", () => {

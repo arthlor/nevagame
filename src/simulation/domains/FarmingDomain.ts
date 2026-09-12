@@ -217,7 +217,7 @@ export class FarmingDomain {
     const layout = getFarmLayout(request.farmId);
     const boundary = layout?.farmBounds ?? (farm ? fallbackFarmRect(farm.widthMeters, farm.depthMeters) : { minX: -10, maxX: 10, minZ: -10, maxZ: 10 });
 
-    const isLocal = isPointInsideRect({ x: request.x, z: request.z }, boundary, 0.5);
+    const isLocal = request.space === "local";
     const local = isLocal
       ? { x: request.x, z: request.z }
       : worldToFarmLocal(request.farmId, request);
@@ -369,7 +369,7 @@ export class FarmingDomain {
     if (!placement.success || placement.x == null || placement.z == null) {
       return { success: false, reason: placement.reason };
     }
-    return this.plant({ farmId, cropId, x: placement.x, z: placement.z });
+    return this.plant({ farmId, cropId, x: placement.x, z: placement.z, space: "local" });
   }
 
   public plant(request: CropPlacementRequest): InteractionResult {
@@ -833,7 +833,7 @@ export class FarmingDomain {
       const nextStage = advancePlacedCropGrowth(
         crop,
         cropDef,
-        sampleFarmEnvironment(farm, state.weather),
+        sampleFarmEnvironment(farm, state.weather, { x: crop.x, z: crop.z }),
         farm.soil.fertility,
         minutes,
         onboardingGrowthMultiplier(crop.cropId, crop.farmId, state.quests)

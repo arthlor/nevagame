@@ -54,6 +54,11 @@ when wiring a cue. `src/audio/gameplayAudio.ts` and `src/ui/audio/uiAudio.ts`
 own the gameplay/UI trigger adapters. Audio consumes committed outcomes and
 presentation samples; simulation never waits on playback or decoding.
 
+The current adapters include a presentation-only sprint-exhaustion edge cue,
+the `donkey-snort` mount variation bank, and a storm bank/bed using the supplied
+Adobe Audition content. These additions do not add simulation events or save
+fields; the integrated mix still requires human listening in the game.
+
 **Design target:** the semantic graph below and §2.1 describe intended mixing
 roles. They do not claim the runtime already has separate foley/world/player
 buses, adaptive stems, occlusion or ducking. `normalizeBus.mjs` maps existing
@@ -147,6 +152,7 @@ The player's physical connection to the island is maintained through continuous 
 ### Movement & Physical Exertion
 - **`sfx.player.sprint_loop`**: Subtle rhythmic cloth rustle and accelerated footstep cadence when sprinting.
 - **`sfx.player.stamina_exhausted`**: Soft, realistic breath exhalation when sprint stamina depletes (non-intrusive, cozy realism).
+- **Runtime wiring:** `syncWorldAudio` plays the `stamina-exhausted` manifest cue on the `false → true` edge of presentation state `player.traversal.sprintExhausted`; it does not create an audio-only gameplay event or persistence field.
 - **`sfx.player.jump_takeoff`**: Subtle fabric swish and quick foot push-off from current surface.
 - **`sfx.player.jump_land`**: Heavier impact thud matching current surface material with brief cloth settling.
 - **`sfx.player.wade_water`**: Continuous gentle fluid resistance sound while walking through shoreline surf.
@@ -158,6 +164,7 @@ The player's physical connection to the island is maintained through continuous 
 - **`sfx.mount.trot_grass`**: Muffled, soft rhythmic hoof strikes on meadow soil. (Bank: 4 variants).
 - **`sfx.mount.trot_wood_bridge`**: Resonant, hollow clopping over timber bridge and pier boards. (Bank: 4 variants).
 - **`sfx.mount.donkey_snort`**: Occasional soft, endearing donkey breath puff and head shake during idle or after long gallop.
+- **Runtime wiring:** `MountBoarded` plays the `donkey-snort` bank, which alternates the existing source with the supplied Adobe Audition donkey snort.
 - **`sfx.mount.donkey_bray_rare`**: Playful, warm bray for a rare idle/homecoming moment if an explicit presentation trigger is authored. Mount feeding is not a live mechanic (`02` §11B); this cue must not imply one.
 
 ---
@@ -425,6 +432,10 @@ Seamless 2D/3D ambient beds establish an authentic, breathing coastal ecosystem.
 - **`ambience.weather.thunder_crack`**: Sharp, violent lightning crack followed immediately by resonant booming thunder.
 - **`ambience.weather.fog_silence`**: Muffled, surreal acoustic dampening with a mournful brass harbor foghorn sounding every 45 seconds.
 
+**Current weather wiring:** `weatherLoops.storm` uses the supplied sea/rain/
+wind storm bed as `ambience-storm-sea`, while the `thunder` bank alternates the
+existing distant rumble with the supplied lightning-crack source on storm entry.
+
 ---
 
 ## 3.9 UI, HUD & Interaction Feedback
@@ -566,8 +577,10 @@ Use these authoring standards, then verify actual loading, playback and mix on t
 The live world adapter consumes `WorldAudioPresentation`: authored regional wind,
 surf, insect and harbor gains modulate the corresponding existing loops (the
 market recording supplies the harbor crowd layer). Dawn adds the existing dawn
-loop. Region, activity and clock phase select existing themes through a dwell
-state machine before the AudioManager crossfade. These are implemented routes;
+loop. `theme.mp3` (the `theme` cue) is the default homestead/overland score;
+village, quiet-night/interior, and boat/fishing contexts select their existing
+specialized themes through the dwell state machine before the AudioManager
+crossfade. These are implemented routes;
 human listening and decode-memory measurements remain separate gates.
 
 `gameplayAudio` wires apple harvest, fish-table processing, wind-driven mill

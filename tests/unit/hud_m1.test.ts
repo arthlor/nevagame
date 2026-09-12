@@ -408,7 +408,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(html).toContain("65%");
       expect(html).toContain("cast-bar-spark");
       expect(html).toContain("left:65%");
-      expect(html).toContain("Channeling…");
+      expect(html).toContain("Working…");
       expect(html).toContain("Move or press <kbd>Esc</kbd> to cancel");
     });
   });
@@ -651,7 +651,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       );
 
       // Exact elapsed / total timing readout: "0.4s / 0.7s · 60%"
-      expect(html).toMatch(/\d+\.\d+s \/ \d+\.\d+s · 60%/);
+      expect(html).toMatch(/\d+\.\d+s \/ \d+\.\d+s/);
       expect(html).toContain("cast-bar-timing");
 
       // Commit marker threshold tick mark
@@ -671,7 +671,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       const htmlCommitted = renderToString(
         React.createElement(FarmingActionStatus, { action: committedSnapshot })
       );
-      expect(htmlCommitted).toContain("Committed · Finishing…");
+      expect(htmlCommitted).toContain("Finishing…");
       expect(htmlCommitted).toContain("is-committed");
     });
 

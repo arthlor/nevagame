@@ -25,7 +25,7 @@ export const HowToPlayGuide: React.FC = () => {
   const [page, setPage] = useState<GuidePage>("actions");
   return (
     <section className="guidebook-container" aria-label="Guide">
-      <div className="journal-page-heading"><span>Guild Ledger &amp; Field Guide</span><h2>Working along the coast</h2></div>
+      <div className="journal-page-heading"><h2>Working along the coast</h2></div>
       <nav className="guidebook-subtabs" role="tablist" aria-label="Guide pages" onKeyDown={handleTabListKeyDown}>
         {PAGES.map((entry) => (
           <button
@@ -70,10 +70,10 @@ const ActionsGuide: React.FC = () => (
         <IconCompass size={22} aria-hidden="true" />
       </div>
       <div className="guide-header-text">
-        <h3>Coastal Steerage &amp; World Mandates</h3>
+        <h3>Finding your way</h3>
         <p className="guide-lead">
-          The prompt anchored near the tool belt reflects the current valid action in the world.
-          Energy and work capacity are spent only when an action successfully completes; sprinting on foot draws from its own stamina pool.
+          Follow the prompt above your tools to talk, tend crops, or cast.
+          Work is spent on successful tasks. Sprinting uses its own stamina.
         </p>
       </div>
     </div>
@@ -95,7 +95,7 @@ const FieldGuide: React.FC = () => (
         <IconSprout size={22} aria-hidden="true" />
       </div>
       <div className="guide-header-text">
-        <h3>The Cultivator&apos;s Cycle</h3>
+        <h3>From seed to harvest</h3>
         <p className="guide-lead">From seed selection to harvest, care and local micro-climate govern crop maturity and quality along the coast.</p>
       </div>
     </div>
@@ -103,7 +103,6 @@ const FieldGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>1</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">SOWING</span>
           <h4>Select Seed Stock</h4>
           <p>Equip seeds in your tool belt or select from your Satchel while standing near tilled soil.</p>
           <span className="guide-step-tip">Suit seed varieties to current soil moisture</span>
@@ -112,26 +111,23 @@ const FieldGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>2</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">PLACEMENT</span>
-          <h4>Survey &amp; Till</h4>
-          <p>Aim at clear ground. The placement projector highlights valid plots in green before you commit work.</p>
-          <span className="guide-step-tip">Clear weeds and prepare plots with your Hoe</span>
+          <h4>Choose a planting spot</h4>
+          <p>Aim at clear ground inside your farm. The corner markers show the space for one crop.</p>
+          <span className="guide-step-tip">Leave room between crops and away from buildings</span>
         </div>
       </div>
       <div className="guide-step-card">
         <div className="guide-step-num"><span>3</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">HUSBANDRY</span>
           <h4>Tend &amp; Nourish</h4>
           <p>Inspect crops for moisture and stage. Coastal rain quenches plots naturally; use your Watering Can during dry spells.</p>
-          <span className="guide-step-tip">Refill cans at village wells or freshwater ponds</span>
+          <span className="guide-step-tip">Watering takes Work, so make use of the rain</span>
         </div>
       </div>
       <div className="guide-step-card">
         <div className="guide-step-num"><span>4</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">HARVEST</span>
-          <h4>Reap &amp; Prosper</h4>
+          <h4>Bring in the harvest</h4>
           <p>Gather prime crops when fully mature. Carry produce to the village market stall or process into artisanal goods.</p>
           <span className="guide-step-tip">Higher care yields star-quality crops</span>
         </div>
@@ -140,7 +136,7 @@ const FieldGuide: React.FC = () => (
     <div className="guide-callout-card">
       <div className="guide-callout-icon"><IconSprout size={18} aria-hidden="true" /></div>
       <div className="guide-callout-text">
-        <strong>Agronomy &amp; Climate Nuance</strong>
+        <strong>Read the field</strong>
         <p>Rain, soil moisture, and weather shape crop maturity over time. Inspect crops closely and hold <span className="guide-inline-key">Alt</span> to monitor soil nutrients.</p>
       </div>
     </div>
@@ -154,15 +150,14 @@ const WatersGuide: React.FC = () => (
         <IconFish size={22} aria-hidden="true" />
       </div>
       <div className="guide-header-text">
-        <h3>The Waterman&apos;s Compass</h3>
-        <p className="guide-lead">Reading coastal ripples, casting into feeding shoals, and battling heavyweight sport fish.</p>
+        <h3>Reading the water</h3>
+        <p className="guide-lead">Cast from the bank, or prepare your boat for larger fish offshore.</p>
       </div>
     </div>
     <div className="guide-flow-track">
       <div className="guide-step-card">
         <div className="guide-step-num"><span>1</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">CASTING</span>
           <h4>Read Waters &amp; Cast</h4>
           <p>Approach fishable waters or take your boat offshore. Hold <span className="guide-inline-key">E</span> to charge your cast arc and release into visible feeding ripples.</p>
           <span className="guide-step-tip">A Woven Lure is optional here, but makes the hook more reliable</span>
@@ -171,7 +166,6 @@ const WatersGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>2</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">HOOKING</span>
           <h4>Set the Hook</h4>
           <p>Chum a sport-fishing school, then arm a Woven Lure with <span className="guide-inline-key">R</span> before you set the hook. The lure is spent only when the paid hook succeeds.</p>
           <span className="guide-step-tip">Sport fishing always requires one lure within reach</span>
@@ -180,16 +174,14 @@ const WatersGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>3</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">THE FIGHT</span>
-          <h4>Sport Battle Dynamics</h4>
-          <p>Counter runs dynamically: reel in with <span className="guide-inline-key">W</span>, give slack with <span className="guide-inline-key">S</span> when line tension peaks into the red, and steer with <span className="guide-inline-key">A / D</span>.</p>
+          <h4>Follow the fish</h4>
+          <p>Follow the highlighted response: reel with <span className="guide-inline-key">W</span>, give slack with <span className="guide-inline-key">S</span>, and steer with <span className="guide-inline-key">A / D</span>. Watch the tension words and needle.</p>
           <span className="guide-step-tip">Tire the fish without snapping your line</span>
         </div>
       </div>
       <div className="guide-step-card">
         <div className="guide-step-num"><span>4</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">LOGISTICS</span>
           <h4>Land &amp; Ice the Catch</h4>
           <p>Sport fish are heavy physical cargo. Land the catch directly into an open boat hold slot or carry on your back to the harbor.</p>
           <span className="guide-step-tip">Freshness degrades over time — use ice to preserve value</span>
@@ -213,15 +205,14 @@ const TradeGuide: React.FC = () => (
         <IconCoin size={22} aria-hidden="true" />
       </div>
       <div className="guide-header-text">
-        <h3>The Merchant&apos;s Ledger</h3>
-        <p className="guide-lead">Trading farm yields, negotiating harbor catches, and fulfilling high-bounty guild delivery contracts.</p>
+        <h3>Taking goods to market</h3>
+        <p className="guide-lead">Sell your harvest, land fresh fish, and fill the town&apos;s delivery orders.</p>
       </div>
     </div>
     <div className="guide-flow-track">
       <div className="guide-step-card">
         <div className="guide-step-num"><span>1</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">VILLAGE</span>
           <h4>Inland Exchange</h4>
           <p>Visit the village stall to buy fresh seed stock and sell harvested produce, grains, and crafted provisions.</p>
           <span className="guide-step-tip">Staple crops maintain steady village prices</span>
@@ -230,7 +221,6 @@ const TradeGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>2</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">HARBOR</span>
           <h4>Maritime Quay</h4>
           <p>Dock at the harbor market to offload physical fish cargo from your vessel hold and acquire advanced fishing tackle.</p>
           <span className="guide-step-tip">Pristine fresh fish command substantial bonuses</span>
@@ -239,16 +229,14 @@ const TradeGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>3</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">QUOTES</span>
           <h4>Market Demand Shifts</h4>
-          <p>Market tickets display dynamic demand trends [▲ / ▼]. Surpluses depress payout while local scarcity yields lucrative premiums.</p>
+          <p>The arrows beside a market quote show how demand is changing. Goods in short supply usually sell for more.</p>
           <span className="guide-step-tip">Check quotes before packing an expedition</span>
         </div>
       </div>
       <div className="guide-step-card">
         <div className="guide-step-num"><span>4</span></div>
         <div className="guide-step-content">
-          <span className="guide-step-tag">CONTRACTS</span>
           <h4>Guild Delivery Orders</h4>
           <p>Accept merchant contracts requiring specific consignments delivered before the deadline for gold and guild standing.</p>
           <span className="guide-step-tip">Inspect transit requirements and hold capacity first</span>

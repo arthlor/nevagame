@@ -115,7 +115,7 @@ test.describe("character equipment and station crafting", () => {
 
     await character.locator(".character-owned-item").filter({ hasText: "Field Hat" }).click();
     await character.getByRole("button", { name: "Try On", exact: true }).click();
-    await expect(character.getByText("Local preview", { exact: true })).toBeVisible();
+    await expect(character.getByText("Trying on", { exact: true })).toBeVisible();
     await expect(character.getByRole("button", { name: /Head: Field Hat, preview only/ })).toBeVisible();
     await character.getByRole("button", { name: "Equip", exact: true }).click();
     await expect(character.getByRole("status")).toContainText("Field Hat equipped");
@@ -166,8 +166,7 @@ test.describe("character equipment and station crafting", () => {
     expect((await crafting.boundingBox())?.width ?? 0).toBeGreaterThan(900);
     await crafting.locator(".crafting-recipe-row").filter({ hasText: "Weave Linen Roll" }).click();
     await expect(crafting.getByText("12 / 3", { exact: true })).toBeVisible();
-    await expect(crafting.getByText("Stays at this station", { exact: true })).toBeVisible();
-    await expect(crafting.getByText("Needs current storage space", { exact: true })).toBeVisible();
+    await expect(crafting.getByText("Collect here when ready. Make room in your storage before collecting.", { exact: true })).toBeVisible();
     await page.screenshot({ path: path.join(output, "workbench-crafting.png") });
 
     await crafting.getByRole("button", { name: "Start Weave Linen Roll" }).click();

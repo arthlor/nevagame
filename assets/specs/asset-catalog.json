@@ -2202,17 +2202,17 @@
       "generator": "grass_clump",
       "seed": 111,
       "dimensions": {
-        "width": 0.85,
-        "depth": 0.78,
-        "height": 0.46
+        "width": 1.85,
+        "depth": 1.65,
+        "height": 0.235
       },
       "palette": [
         "foliage_sage_01",
-        "foliage_shadow_01"
+        "foliage_highlight_01"
       ],
       "budget": {
         "trianglesMin": 50,
-        "trianglesTarget": 120,
+        "trianglesTarget": 440,
         "trianglesMax": 500,
         "materialsMax": 2
       },
@@ -2222,18 +2222,20 @@
       "lod": "small",
       "rootNode": "foliage_grass_a_root",
       "requiredNodes": [
-        "foliage_grass_a_root"
+        "foliage_grass_a_root",
+        "foliage_grass_a_LOD0",
+        "foliage_grass_a_LOD1"
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "bladeCount": 6,
-        "height": 0.42,
-        "spread": 0.52,
-        "bladeWidth": 0.11
+        "bladeCount": 44,
+        "height": 0.235,
+        "spread": 0.84,
+        "bladeWidth": 0.072
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Seeded faceted meadow grass clump with a grounded base and a readable wind-swept gesture",
+        "subject": "Fine overlapping short meadow grass with distributed terrain-rooted blades",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -2246,6 +2248,17 @@
               "detail_density"
             ],
             "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability."
+          },
+          {
+            "id": "lush_grass_user_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/lush-grass/meadow-reference.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "User-selected continuous fine-bladed grass carpet; guides overlap, blade proportions and rooted wind. Character, camera, interface and world layout are not part of this brief."
           }
         ],
         "components": [
@@ -2253,12 +2266,12 @@
             "id": "base_cluster",
             "parent": "root",
             "importance": "primary",
-            "role": "Anchors the clump to terrain without a floating central knot",
-            "shape": "Low radial gathering of overlapping blade bases",
-            "count": "1 clustered base",
+            "role": "Spreads planted roots across the patch footprint",
+            "shape": "Individually spaced roots without a central knot",
+            "count": "one root per blade",
             "cues": [
-              "Base stays broad and visually grounded",
-              "No circular pedestal silhouette"
+              "No pedestal or bouquet base",
+              "Neighboring patches overlap without a visible tile edge"
             ]
           },
           {
@@ -2266,41 +2279,42 @@
             "parent": "base_cluster",
             "importance": "primary",
             "role": "Creates the main height rhythm and directional grass gesture",
-            "shape": "Tapered low-poly blades with varied lean and bounded height",
+            "shape": "Narrow tapered blades with a shallow crease and bending tips",
             "count": "60-75 percent of blades",
             "cues": [
-              "Three height tiers remain readable",
-              "Lean favors one direction without uniformity"
+              "Many fine blades rather than a few broad wedges",
+              "Coherent wind direction with varied height"
             ]
           },
           {
             "id": "accent_blades",
             "parent": "base_cluster",
             "importance": "secondary",
-            "role": "Breaks the outer silhouette with sparse contrasting facets",
-            "shape": "Shorter and taller edge blades placed asymmetrically",
+            "role": "Softens the patch edge",
+            "shape": "Unequal fine tips with restrained palette variation",
             "count": "remaining blades",
             "cues": [
-              "Outer tips do not form a circle",
-              "Palette variation follows blade groups"
+              "No radial brush silhouette",
+              "No black shards"
             ]
           }
         ],
         "silhouette": [
-          "The clump reads as a low asymmetric fan rather than a radial starburst.",
-          "Three unequal height peaks create a clear rhythm at gameplay distance.",
-          "Outer blades taper into sparse tips with no hard rectangular edge."
+          "Fine blades overlap into a continuous meadow from the gameplay camera.",
+          "Distributed roots avoid a separate tuft or lump silhouette.",
+          "Low ankle-height grass with varied slender tips; retain the full overlapping root footprint."
         ],
         "negativeSpace": [
-          "Preserve narrow gaps between the three dominant blade groups.",
-          "Keep the center porous enough for individual blade planes to read in close view."
+          "Keep narrow air gaps between individual blades; the terrain field supplies overlap.",
+          "Keep roads, farm beds, exposed rock and water clear through canonical placement masks."
         ],
         "hiddenSurfaces": {
           "strategy": "mirror_with_variation",
           "confidence": "high",
           "requirements": [
             "Rear blades continue the directional lean while varying height and spacing.",
-            "Side views retain a grounded base and do not collapse into one flat plane."
+            "Side views retain a grounded base and do not collapse into one flat plane.",
+            "The reduced distant patch retains a subset of the same roots and wind gesture."
           ]
         },
         "criticalFeatures": [
@@ -2310,7 +2324,7 @@
               "base_cluster",
               "primary_blades"
             ],
-            "requirement": "Blade roots overlap the ground plane as one planted clump with no floating tips.",
+            "requirement": "Distributed blade roots sit on terrain without a central pedestal.",
             "priority": "must"
           },
           {
@@ -2319,7 +2333,7 @@
               "primary_blades",
               "accent_blades"
             ],
-            "requirement": "At least three unequal height groups remain legible from the gameplay camera.",
+            "requirement": "Varied fine tips create a soft meadow surface, not three oversized peaks.",
             "priority": "must"
           },
           {
@@ -2339,7 +2353,7 @@
               "primary_blades",
               "accent_blades"
             ],
-            "purpose": "Controls density while preserving the required gaps and height hierarchy."
+            "purpose": "Controls fine-blade overlap within the instanced patch budget."
           },
           {
             "parameter": "height",
@@ -2355,13 +2369,13 @@
               "base_cluster",
               "primary_blades"
             ],
-            "purpose": "Controls ground footprint and the amount of readable negative space."
+            "purpose": "Distributes independent roots across a patch that overlaps its neighbors."
           }
         ],
         "failureModes": [
-          "Blades form an even radial starburst or a circular brush silhouette.",
-          "The base floats above terrain or collapses into a visible central pedestal.",
-          "Random blade angles create noisy micro-detail without a coherent wind gesture."
+          "Occasional broad angular lumps on exposed green terrain.",
+          "A circular bouquet, thick succulent blades or floating roots.",
+          "A solid hedge or a visible repeated tile boundary."
         ],
         "reviewViews": [
           "front",
@@ -2377,7 +2391,21 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "foliage_grass_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_grass_a_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.4
+        }
+      ]
     },
     {
       "id": "foliage_grass_b",
@@ -2386,17 +2414,17 @@
       "generator": "grass_clump",
       "seed": 113,
       "dimensions": {
-        "width": 0.55,
-        "depth": 0.5,
-        "height": 0.38
+        "width": 1.85,
+        "depth": 1.65,
+        "height": 0.2
       },
       "palette": [
-        "grass_yellow_01",
-        "foliage_olive_01"
+        "foliage_highlight_01",
+        "grass_yellow_01"
       ],
       "budget": {
         "trianglesMin": 50,
-        "trianglesTarget": 140,
+        "trianglesTarget": 440,
         "trianglesMax": 520,
         "materialsMax": 2
       },
@@ -2406,18 +2434,20 @@
       "lod": "small",
       "rootNode": "foliage_grass_b_root",
       "requiredNodes": [
-        "foliage_grass_b_root"
+        "foliage_grass_b_root",
+        "foliage_grass_b_LOD0",
+        "foliage_grass_b_LOD1"
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "bladeCount": 7,
-        "height": 0.36,
-        "spread": 0.58,
-        "bladeWidth": 0.12
+        "bladeCount": 44,
+        "height": 0.2,
+        "spread": 0.84,
+        "bladeWidth": 0.072
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Seeded faceted meadow grass clump with a grounded base and a readable wind-swept gesture",
+        "subject": "Fine overlapping short meadow grass with distributed terrain-rooted blades",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -2430,6 +2460,17 @@
               "detail_density"
             ],
             "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability."
+          },
+          {
+            "id": "lush_grass_user_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/lush-grass/meadow-reference.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "User-selected continuous fine-bladed grass carpet; guides overlap, blade proportions and rooted wind. Character, camera, interface and world layout are not part of this brief."
           }
         ],
         "components": [
@@ -2437,12 +2478,12 @@
             "id": "base_cluster",
             "parent": "root",
             "importance": "primary",
-            "role": "Anchors the clump to terrain without a floating central knot",
-            "shape": "Low radial gathering of overlapping blade bases",
-            "count": "1 clustered base",
+            "role": "Spreads planted roots across the patch footprint",
+            "shape": "Individually spaced roots without a central knot",
+            "count": "one root per blade",
             "cues": [
-              "Base stays broad and visually grounded",
-              "No circular pedestal silhouette"
+              "No pedestal or bouquet base",
+              "Neighboring patches overlap without a visible tile edge"
             ]
           },
           {
@@ -2450,41 +2491,42 @@
             "parent": "base_cluster",
             "importance": "primary",
             "role": "Creates the main height rhythm and directional grass gesture",
-            "shape": "Tapered low-poly blades with varied lean and bounded height",
+            "shape": "Narrow tapered blades with a shallow crease and bending tips",
             "count": "60-75 percent of blades",
             "cues": [
-              "Three height tiers remain readable",
-              "Lean favors one direction without uniformity"
+              "Many fine blades rather than a few broad wedges",
+              "Coherent wind direction with varied height"
             ]
           },
           {
             "id": "accent_blades",
             "parent": "base_cluster",
             "importance": "secondary",
-            "role": "Breaks the outer silhouette with sparse contrasting facets",
-            "shape": "Shorter and taller edge blades placed asymmetrically",
+            "role": "Softens the patch edge",
+            "shape": "Unequal fine tips with restrained palette variation",
             "count": "remaining blades",
             "cues": [
-              "Outer tips do not form a circle",
-              "Palette variation follows blade groups"
+              "No radial brush silhouette",
+              "No black shards"
             ]
           }
         ],
         "silhouette": [
-          "The clump reads as a low asymmetric fan rather than a radial starburst.",
-          "Three unequal height peaks create a clear rhythm at gameplay distance.",
-          "Outer blades taper into sparse tips with no hard rectangular edge."
+          "Fine blades overlap into a continuous meadow from the gameplay camera.",
+          "Distributed roots avoid a separate tuft or lump silhouette.",
+          "Low ankle-height grass with varied slender tips; retain the full overlapping root footprint."
         ],
         "negativeSpace": [
-          "Preserve narrow gaps between the three dominant blade groups.",
-          "Keep the center porous enough for individual blade planes to read in close view."
+          "Keep narrow air gaps between individual blades; the terrain field supplies overlap.",
+          "Keep roads, farm beds, exposed rock and water clear through canonical placement masks."
         ],
         "hiddenSurfaces": {
           "strategy": "mirror_with_variation",
           "confidence": "high",
           "requirements": [
             "Rear blades continue the directional lean while varying height and spacing.",
-            "Side views retain a grounded base and do not collapse into one flat plane."
+            "Side views retain a grounded base and do not collapse into one flat plane.",
+            "The reduced distant patch retains a subset of the same roots and wind gesture."
           ]
         },
         "criticalFeatures": [
@@ -2494,7 +2536,7 @@
               "base_cluster",
               "primary_blades"
             ],
-            "requirement": "Blade roots overlap the ground plane as one planted clump with no floating tips.",
+            "requirement": "Distributed blade roots sit on terrain without a central pedestal.",
             "priority": "must"
           },
           {
@@ -2503,7 +2545,7 @@
               "primary_blades",
               "accent_blades"
             ],
-            "requirement": "At least three unequal height groups remain legible from the gameplay camera.",
+            "requirement": "Varied fine tips create a soft meadow surface, not three oversized peaks.",
             "priority": "must"
           },
           {
@@ -2523,7 +2565,7 @@
               "primary_blades",
               "accent_blades"
             ],
-            "purpose": "Controls density while preserving the required gaps and height hierarchy."
+            "purpose": "Controls fine-blade overlap within the instanced patch budget."
           },
           {
             "parameter": "height",
@@ -2539,13 +2581,13 @@
               "base_cluster",
               "primary_blades"
             ],
-            "purpose": "Controls ground footprint and the amount of readable negative space."
+            "purpose": "Distributes independent roots across a patch that overlaps its neighbors."
           }
         ],
         "failureModes": [
-          "Blades form an even radial starburst or a circular brush silhouette.",
-          "The base floats above terrain or collapses into a visible central pedestal.",
-          "Random blade angles create noisy micro-detail without a coherent wind gesture."
+          "Occasional broad angular lumps on exposed green terrain.",
+          "A circular bouquet, thick succulent blades or floating roots.",
+          "A solid hedge or a visible repeated tile boundary."
         ],
         "reviewViews": [
           "front",
@@ -2561,7 +2603,21 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "foliage_grass_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_grass_b_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.4
+        }
+      ]
     },
     {
       "id": "foliage_grass_c",
@@ -2570,17 +2626,17 @@
       "generator": "grass_clump",
       "seed": 127,
       "dimensions": {
-        "width": 0.7,
-        "depth": 0.64,
-        "height": 0.5
+        "width": 1.85,
+        "depth": 1.65,
+        "height": 0.26
       },
       "palette": [
-        "foliage_highlight_01",
-        "foliage_shadow_01"
+        "foliage_sage_01",
+        "foliage_highlight_01"
       ],
       "budget": {
         "trianglesMin": 45,
-        "trianglesTarget": 100,
+        "trianglesTarget": 440,
         "trianglesMax": 460,
         "materialsMax": 2
       },
@@ -2590,18 +2646,20 @@
       "lod": "small",
       "rootNode": "foliage_grass_c_root",
       "requiredNodes": [
-        "foliage_grass_c_root"
+        "foliage_grass_c_root",
+        "foliage_grass_c_LOD0",
+        "foliage_grass_c_LOD1"
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "bladeCount": 5,
-        "height": 0.48,
-        "spread": 0.48,
-        "bladeWidth": 0.1
+        "bladeCount": 44,
+        "height": 0.26,
+        "spread": 0.8,
+        "bladeWidth": 0.068
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Seeded faceted meadow grass clump with a grounded base and a readable wind-swept gesture",
+        "subject": "Fine overlapping short meadow grass with distributed terrain-rooted blades",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -2614,6 +2672,17 @@
               "detail_density"
             ],
             "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability."
+          },
+          {
+            "id": "lush_grass_user_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/lush-grass/meadow-reference.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "User-selected continuous fine-bladed grass carpet; guides overlap, blade proportions and rooted wind. Character, camera, interface and world layout are not part of this brief."
           }
         ],
         "components": [
@@ -2621,12 +2690,12 @@
             "id": "base_cluster",
             "parent": "root",
             "importance": "primary",
-            "role": "Anchors the clump to terrain without a floating central knot",
-            "shape": "Low radial gathering of overlapping blade bases",
-            "count": "1 clustered base",
+            "role": "Spreads planted roots across the patch footprint",
+            "shape": "Individually spaced roots without a central knot",
+            "count": "one root per blade",
             "cues": [
-              "Base stays broad and visually grounded",
-              "No circular pedestal silhouette"
+              "No pedestal or bouquet base",
+              "Neighboring patches overlap without a visible tile edge"
             ]
           },
           {
@@ -2634,41 +2703,42 @@
             "parent": "base_cluster",
             "importance": "primary",
             "role": "Creates the main height rhythm and directional grass gesture",
-            "shape": "Tapered low-poly blades with varied lean and bounded height",
+            "shape": "Narrow tapered blades with a shallow crease and bending tips",
             "count": "60-75 percent of blades",
             "cues": [
-              "Three height tiers remain readable",
-              "Lean favors one direction without uniformity"
+              "Many fine blades rather than a few broad wedges",
+              "Coherent wind direction with varied height"
             ]
           },
           {
             "id": "accent_blades",
             "parent": "base_cluster",
             "importance": "secondary",
-            "role": "Breaks the outer silhouette with sparse contrasting facets",
-            "shape": "Shorter and taller edge blades placed asymmetrically",
+            "role": "Softens the patch edge",
+            "shape": "Unequal fine tips with restrained palette variation",
             "count": "remaining blades",
             "cues": [
-              "Outer tips do not form a circle",
-              "Palette variation follows blade groups"
+              "No radial brush silhouette",
+              "No black shards"
             ]
           }
         ],
         "silhouette": [
-          "The clump reads as a low asymmetric fan rather than a radial starburst.",
-          "Three unequal height peaks create a clear rhythm at gameplay distance.",
-          "Outer blades taper into sparse tips with no hard rectangular edge."
+          "Fine blades overlap into a continuous meadow from the gameplay camera.",
+          "Distributed roots avoid a separate tuft or lump silhouette.",
+          "Low ankle-height grass with varied slender tips; retain the full overlapping root footprint."
         ],
         "negativeSpace": [
-          "Preserve narrow gaps between the three dominant blade groups.",
-          "Keep the center porous enough for individual blade planes to read in close view."
+          "Keep narrow air gaps between individual blades; the terrain field supplies overlap.",
+          "Keep roads, farm beds, exposed rock and water clear through canonical placement masks."
         ],
         "hiddenSurfaces": {
           "strategy": "mirror_with_variation",
           "confidence": "high",
           "requirements": [
             "Rear blades continue the directional lean while varying height and spacing.",
-            "Side views retain a grounded base and do not collapse into one flat plane."
+            "Side views retain a grounded base and do not collapse into one flat plane.",
+            "The reduced distant patch retains a subset of the same roots and wind gesture."
           ]
         },
         "criticalFeatures": [
@@ -2678,7 +2748,7 @@
               "base_cluster",
               "primary_blades"
             ],
-            "requirement": "Blade roots overlap the ground plane as one planted clump with no floating tips.",
+            "requirement": "Distributed blade roots sit on terrain without a central pedestal.",
             "priority": "must"
           },
           {
@@ -2687,7 +2757,7 @@
               "primary_blades",
               "accent_blades"
             ],
-            "requirement": "At least three unequal height groups remain legible from the gameplay camera.",
+            "requirement": "Varied fine tips create a soft meadow surface, not three oversized peaks.",
             "priority": "must"
           },
           {
@@ -2707,7 +2777,7 @@
               "primary_blades",
               "accent_blades"
             ],
-            "purpose": "Controls density while preserving the required gaps and height hierarchy."
+            "purpose": "Controls fine-blade overlap within the instanced patch budget."
           },
           {
             "parameter": "height",
@@ -2723,13 +2793,13 @@
               "base_cluster",
               "primary_blades"
             ],
-            "purpose": "Controls ground footprint and the amount of readable negative space."
+            "purpose": "Distributes independent roots across a patch that overlaps its neighbors."
           }
         ],
         "failureModes": [
-          "Blades form an even radial starburst or a circular brush silhouette.",
-          "The base floats above terrain or collapses into a visible central pedestal.",
-          "Random blade angles create noisy micro-detail without a coherent wind gesture."
+          "Occasional broad angular lumps on exposed green terrain.",
+          "A circular bouquet, thick succulent blades or floating roots.",
+          "A solid hedge or a visible repeated tile boundary."
         ],
         "reviewViews": [
           "front",
@@ -2745,7 +2815,21 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "foliage_grass_c_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_grass_c_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.4
+        }
+      ]
     },
     {
       "id": "foliage_wildflower_a",
@@ -3860,34 +3944,36 @@
       "generator": "grass_clump",
       "seed": 144,
       "dimensions": {
-        "width": 0.7,
-        "depth": 0.48,
-        "height": 0.96
+        "width": 1.39,
+        "depth": 1.23,
+        "height": 0.492
       },
       "palette": [
-        "foliage_olive_01",
-        "foliage_shadow_01"
+        "foliage_sage_01",
+        "foliage_highlight_01"
       ],
       "budget": {
         "trianglesMin": 60,
-        "trianglesTarget": 220,
+        "trianglesTarget": 300,
         "trianglesMax": 480,
         "materialsMax": 2
       },
       "rootNode": "foliage_meadow_tall_a_root",
       "requiredNodes": [
-        "foliage_meadow_tall_a_root"
+        "foliage_meadow_tall_a_root",
+        "foliage_meadow_tall_a_LOD0",
+        "foliage_meadow_tall_a_LOD1"
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "bladeCount": 10,
-        "height": 0.92,
-        "spread": 0.46,
-        "bladeWidth": 0.1
+        "bladeCount": 30,
+        "height": 0.492,
+        "spread": 0.55,
+        "bladeWidth": 0.056
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Tall meadow grass tuft for wet edges and unused road shoulders",
+        "subject": "Fine taller meadow blades in an open wind-catching patch",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -3902,15 +3988,15 @@
             "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
           },
           {
-            "id": "neva_hud_on_foot",
+            "id": "lush_grass_user_reference",
             "kind": "visual_reference",
-            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "uri": "repo://art/references/lush-grass/meadow-reference.png",
             "use": [
               "silhouette",
               "proportion",
               "detail_density"
             ],
-            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+            "notes": "User-selected continuous fine-bladed grass carpet; guides overlap, blade proportions and rooted wind. Character, camera, interface and world layout are not part of this brief."
           }
         ],
         "components": [
@@ -3918,12 +4004,12 @@
             "id": "base_cluster",
             "parent": "root",
             "importance": "primary",
-            "role": "Anchors the tall tuft",
-            "shape": "Low overlapping blade bases",
-            "count": "1 base",
+            "role": "Spreads planted roots across the patch footprint",
+            "shape": "Individually spaced roots without a central knot",
+            "count": "one root per blade",
             "cues": [
-              "Base stays planted",
-              "No pedestal"
+              "No pedestal or bouquet base",
+              "Neighboring patches overlap without a visible tile edge"
             ]
           },
           {
@@ -3931,41 +4017,42 @@
             "parent": "base_cluster",
             "importance": "primary",
             "role": "Creates the tall meadow silhouette",
-            "shape": "Tapered blades around 0.9 m",
+            "shape": "Narrow tapered blades with a shallow crease and bending tips",
             "count": "most blades",
             "cues": [
-              "Height is clearly taller than short grass",
-              "Lean is directional"
+              "Many fine blades rather than a few broad wedges",
+              "Coherent wind direction with varied height"
             ]
           },
           {
             "id": "accent_blades",
             "parent": "base_cluster",
             "importance": "secondary",
-            "role": "Breaks the outer edge",
-            "shape": "Shorter and taller edge blades",
+            "role": "Softens the patch edge",
+            "shape": "Unequal fine tips with restrained palette variation",
             "count": "remaining blades",
             "cues": [
-              "Unequal peaks",
-              "No rectangular hedge"
+              "No radial brush silhouette",
+              "No black shards"
             ]
           }
         ],
         "silhouette": [
-          "The tuft reads as a tall meadow clump, not a reed or hedge.",
-          "Three height peaks remain visible at 8 m.",
-          "The outline fans with a directional lean."
+          "Fine blades overlap into a continuous meadow from the gameplay camera.",
+          "Distributed roots avoid a separate tuft or lump silhouette.",
+          "Low shin-height accents rise modestly above the short grass and remain light and grass-like."
         ],
         "negativeSpace": [
-          "Keep gaps between the dominant blade groups.",
-          "Do not pack blades into a solid wall."
+          "Keep narrow air gaps between individual blades; the terrain field supplies overlap.",
+          "Keep roads, farm beds, exposed rock and water clear through canonical placement masks."
         ],
         "hiddenSurfaces": {
           "strategy": "mirror_with_variation",
           "confidence": "high",
           "requirements": [
             "Rear and side views keep the same planted silhouette with seeded variation.",
-            "No hidden face collapses into a single flat card at gameplay distance."
+            "No hidden face collapses into a single flat card at gameplay distance.",
+            "The reduced distant patch retains a subset of the same roots and wind gesture."
           ]
         },
         "criticalFeatures": [
@@ -3982,7 +4069,7 @@
             "componentIds": [
               "base_cluster"
             ],
-            "requirement": "Blade roots sit on the ground.",
+            "requirement": "Distributed blade roots sit on terrain without a central pedestal.",
             "priority": "must"
           },
           {
@@ -4009,13 +4096,13 @@
               "primary_blades",
               "accent_blades"
             ],
-            "purpose": "Keeps the tuft full without becoming a hedge."
+            "purpose": "Controls fine-blade overlap within the instanced patch budget."
           }
         ],
         "failureModes": [
-          "A cylindrical hedge of identical blades.",
-          "Height that matches short grass and disappears in the meadow.",
-          "A floating tuft with no grounded base."
+          "Occasional broad angular lumps on exposed green terrain.",
+          "A circular bouquet, thick succulent blades or floating roots.",
+          "A solid hedge or a visible repeated tile boundary."
         ],
         "reviewViews": [
           "front",
@@ -4030,7 +4117,21 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "foliage_meadow_tall_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_meadow_tall_a_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.4
+        }
+      ]
     },
     {
       "pivot": "ground_center",
@@ -4043,34 +4144,36 @@
       "generator": "grass_clump",
       "seed": 145,
       "dimensions": {
-        "width": 0.66,
-        "depth": 0.44,
-        "height": 1.08
+        "width": 1.36,
+        "depth": 1.21,
+        "height": 0.576
       },
       "palette": [
         "foliage_sage_01",
-        "foliage_olive_01"
+        "foliage_highlight_01"
       ],
       "budget": {
         "trianglesMin": 55,
-        "trianglesTarget": 200,
+        "trianglesTarget": 240,
         "trianglesMax": 460,
         "materialsMax": 2
       },
       "rootNode": "foliage_meadow_tall_b_root",
       "requiredNodes": [
-        "foliage_meadow_tall_b_root"
+        "foliage_meadow_tall_b_root",
+        "foliage_meadow_tall_b_LOD0",
+        "foliage_meadow_tall_b_LOD1"
       ],
       "readDistanceMeters": 18,
       "parameters": {
-        "bladeCount": 8,
-        "height": 1.05,
-        "spread": 0.42,
-        "bladeWidth": 0.09
+        "bladeCount": 24,
+        "height": 0.576,
+        "spread": 0.51,
+        "bladeWidth": 0.049
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Taller sparse meadow tuft for wet depressions and unused shoulders",
+        "subject": "Fine taller meadow blades in an open wind-catching patch",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -4085,15 +4188,15 @@
             "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
           },
           {
-            "id": "neva_hud_on_foot",
+            "id": "lush_grass_user_reference",
             "kind": "visual_reference",
-            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "uri": "repo://art/references/lush-grass/meadow-reference.png",
             "use": [
               "silhouette",
               "proportion",
               "detail_density"
             ],
-            "notes": "Locks lush meadow drifts, path slabs, and ambient coastal life at gameplay distance."
+            "notes": "User-selected continuous fine-bladed grass carpet; guides overlap, blade proportions and rooted wind. Character, camera, interface and world layout are not part of this brief."
           }
         ],
         "components": [
@@ -4101,12 +4204,12 @@
             "id": "base_cluster",
             "parent": "root",
             "importance": "primary",
-            "role": "Anchors the sparse tuft",
-            "shape": "Low blade gathering",
-            "count": "1 base",
+            "role": "Spreads planted roots across the patch footprint",
+            "shape": "Individually spaced roots without a central knot",
+            "count": "one root per blade",
             "cues": [
-              "Planted roots",
-              "No pedestal"
+              "No pedestal or bouquet base",
+              "Neighboring patches overlap without a visible tile edge"
             ]
           },
           {
@@ -4114,41 +4217,42 @@
             "parent": "base_cluster",
             "importance": "primary",
             "role": "Creates a taller sparse silhouette",
-            "shape": "Fewer taller blades",
+            "shape": "Narrow tapered blades with a shallow crease and bending tips",
             "count": "most blades",
             "cues": [
-              "Sparser than variant a",
-              "Still taller than short grass"
+              "Many fine blades rather than a few broad wedges",
+              "Coherent wind direction with varied height"
             ]
           },
           {
             "id": "accent_blades",
             "parent": "base_cluster",
             "importance": "secondary",
-            "role": "Adds uneven peaks",
-            "shape": "Edge blades of mixed height",
+            "role": "Softens the patch edge",
+            "shape": "Unequal fine tips with restrained palette variation",
             "count": "remaining blades",
             "cues": [
-              "Unequal tips",
-              "Directional lean"
+              "No radial brush silhouette",
+              "No black shards"
             ]
           }
         ],
         "silhouette": [
-          "The tuft is taller and thinner than meadow tall A.",
-          "It still reads as grass, not a reed bundle.",
-          "Sparse gaps remain at gameplay distance."
+          "Fine blades overlap into a continuous meadow from the gameplay camera.",
+          "Distributed roots avoid a separate tuft or lump silhouette.",
+          "Low shin-height accents rise modestly above the short grass and remain light and grass-like."
         ],
         "negativeSpace": [
-          "Preserve larger gaps than the denser tall variant.",
-          "Do not fill into a wall of blades."
+          "Keep narrow air gaps between individual blades; the terrain field supplies overlap.",
+          "Keep roads, farm beds, exposed rock and water clear through canonical placement masks."
         ],
         "hiddenSurfaces": {
           "strategy": "mirror_with_variation",
           "confidence": "high",
           "requirements": [
             "Rear and side views keep the same planted silhouette with seeded variation.",
-            "No hidden face collapses into a single flat card at gameplay distance."
+            "No hidden face collapses into a single flat card at gameplay distance.",
+            "The reduced distant patch retains a subset of the same roots and wind gesture."
           ]
         },
         "criticalFeatures": [
@@ -4174,7 +4278,7 @@
             "componentIds": [
               "base_cluster"
             ],
-            "requirement": "Roots sit on terrain.",
+            "requirement": "Distributed blade roots sit on terrain without a central pedestal.",
             "priority": "must"
           }
         ],
@@ -4191,13 +4295,13 @@
             "componentIds": [
               "primary_blades"
             ],
-            "purpose": "Keeps the tuft sparse."
+            "purpose": "Controls fine-blade overlap within the instanced patch budget."
           }
         ],
         "failureModes": [
-          "A reed cylinder that no longer reads as grass.",
-          "Density matching the shorter tall variant.",
-          "A floating clump with no base."
+          "Occasional broad angular lumps on exposed green terrain.",
+          "A circular bouquet, thick succulent blades or floating roots.",
+          "A solid hedge or a visible repeated tile boundary."
         ],
         "reviewViews": [
           "front",
@@ -4212,7 +4316,21 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "foliage_meadow_tall_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_meadow_tall_b_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.4
+        }
+      ]
     },
     {
       "id": "rock_boulder_a",
@@ -14146,7 +14264,10 @@
           "commitMarkerSeconds": 0.533333,
           "loop": false,
           "events": [
-            { "name": "transaction_commit", "timeSeconds": 0.533333 }
+            {
+              "name": "transaction_commit",
+              "timeSeconds": 0.533333
+            }
           ],
           "motionSource": {
             "kind": "authored",
@@ -14154,8 +14275,18 @@
             "recipe": "craft_tailor"
           },
           "contacts": {
-            "left": [{ "start": 0, "end": 0.933333 }],
-            "right": [{ "start": 0, "end": 0.933333 }]
+            "left": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ]
           }
         },
         {
@@ -14164,7 +14295,10 @@
           "commitMarkerSeconds": 0.533333,
           "loop": false,
           "events": [
-            { "name": "transaction_commit", "timeSeconds": 0.533333 }
+            {
+              "name": "transaction_commit",
+              "timeSeconds": 0.533333
+            }
           ],
           "motionSource": {
             "kind": "authored",
@@ -14172,8 +14306,18 @@
             "recipe": "craft_tool"
           },
           "contacts": {
-            "left": [{ "start": 0, "end": 0.933333 }],
-            "right": [{ "start": 0, "end": 0.933333 }]
+            "left": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.933333
+              }
+            ]
           }
         },
         {
@@ -14182,7 +14326,10 @@
           "commitMarkerSeconds": 0.333333,
           "loop": false,
           "events": [
-            { "name": "transaction_commit", "timeSeconds": 0.333333 }
+            {
+              "name": "transaction_commit",
+              "timeSeconds": 0.333333
+            }
           ],
           "motionSource": {
             "kind": "authored",
@@ -14190,8 +14337,18 @@
             "recipe": "gear_check"
           },
           "contacts": {
-            "left": [{ "start": 0, "end": 0.633333 }],
-            "right": [{ "start": 0, "end": 0.633333 }]
+            "left": [
+              {
+                "start": 0,
+                "end": 0.633333
+              }
+            ],
+            "right": [
+              {
+                "start": 0,
+                "end": 0.633333
+              }
+            ]
           }
         },
         {
@@ -34117,6 +34274,83 @@
       }
     },
     {
+      "id": "prop_trade_pack_sea_bream_a",
+      "file": "prop_trade_pack_sea_bream_a.glb",
+      "family": "prop",
+      "generator": "fish_trade_pack",
+      "seed": 8119,
+      "dimensions": {
+        "width": 1.15,
+        "depth": 0.79,
+        "height": 1.02
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "burlap_grain_01",
+        "leather_harness_01",
+        "metal_brass_01",
+        "cloth_teal_01",
+        "accent_ochre_01",
+        "fish_belly_01",
+        "foliage_olive_01"
+      ],
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 4000,
+        "trianglesMax": 10000,
+        "materialsMax": 10
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_trade_pack_sea_bream_a_root",
+      "requiredNodes": [
+        "prop_trade_pack_sea_bream_a_root",
+        "prop_trade_pack_sea_bream_a_LOD0",
+        "prop_trade_pack_sea_bream_a_LOD1"
+      ],
+      "lodLevels": [
+        {
+          "node": "prop_trade_pack_sea_bream_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_trade_pack_sea_bream_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.95
+        }
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "width": 0.76,
+        "depth": 0.52,
+        "frameHeight": 0.96,
+        "basketHeight": 0.58,
+        "species": "sea_bream",
+        "length": 0.68,
+        "girth": 0.15,
+        "finScale": 0.9,
+        "bodyDepth": 1.78,
+        "bodySegments": 16,
+        "radialSegments": 14,
+        "tailPeduncle": 0.2,
+        "stripeToken": "cloth_teal_01",
+        "backToken": "accent_ochre_01",
+        "bellyToken": "fish_belly_01",
+        "accentToken": "foliage_olive_01"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
       "id": "prop_trade_pack_wheat_a",
       "file": "prop_trade_pack_wheat_a.glb",
       "family": "prop",
@@ -36341,18 +36575,39 @@
       "family": "prop",
       "generator": "wearable_equipment",
       "seed": 4101,
-      "dimensions": { "width": 0.7, "depth": 0.62, "height": 0.38 },
-      "palette": ["cloth_ochre_01", "leather_harness_01", "accent_teal_01"],
-      "budget": { "trianglesMin": 120, "trianglesTarget": 520, "trianglesMax": 1800, "materialsMax": 3 },
+      "dimensions": {
+        "width": 0.7,
+        "depth": 0.62,
+        "height": 0.38
+      },
+      "palette": [
+        "cloth_ochre_01",
+        "leather_harness_01",
+        "accent_teal_01"
+      ],
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 520,
+        "trianglesMax": 1800,
+        "materialsMax": 3
+      },
       "pivot": "center",
       "collision": "none",
       "instancing": false,
       "lod": "small",
       "rootNode": "wearable_field_hat_a_root",
-      "requiredNodes": ["wearable_field_hat_a_root", "wearable_head_anchor"],
+      "requiredNodes": [
+        "wearable_field_hat_a_root",
+        "wearable_head_anchor"
+      ],
       "readDistanceMeters": 12,
-      "parameters": { "style": "field_hat" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "field_hat"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "wearable_tidewatch_cap_a",
@@ -36360,15 +36615,39 @@
       "family": "prop",
       "generator": "wearable_equipment",
       "seed": 4102,
-      "dimensions": { "width": 0.48, "depth": 0.58, "height": 0.33 },
-      "palette": ["cloth_slate_01", "cloth_teal_01", "metal_brass_01"],
-      "budget": { "trianglesMin": 100, "trianglesTarget": 440, "trianglesMax": 1600, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "dimensions": {
+        "width": 0.48,
+        "depth": 0.58,
+        "height": 0.33
+      },
+      "palette": [
+        "cloth_slate_01",
+        "cloth_teal_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 100,
+        "trianglesTarget": 440,
+        "trianglesMax": 1600,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "wearable_tidewatch_cap_a_root",
-      "requiredNodes": ["wearable_tidewatch_cap_a_root", "wearable_head_anchor"],
+      "requiredNodes": [
+        "wearable_tidewatch_cap_a_root",
+        "wearable_head_anchor"
+      ],
       "readDistanceMeters": 12,
-      "parameters": { "style": "tidewatch_cap" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "tidewatch_cap"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "wearable_harvest_apron_a",
@@ -36376,15 +36655,39 @@
       "family": "prop",
       "generator": "wearable_equipment",
       "seed": 4103,
-      "dimensions": { "width": 0.82, "depth": 0.28, "height": 1.18 },
-      "palette": ["cloth_olive_01", "leather_harness_01", "cloth_ochre_01"],
-      "budget": { "trianglesMin": 80, "trianglesTarget": 360, "trianglesMax": 1500, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "dimensions": {
+        "width": 0.82,
+        "depth": 0.28,
+        "height": 1.18
+      },
+      "palette": [
+        "cloth_olive_01",
+        "leather_harness_01",
+        "cloth_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 360,
+        "trianglesMax": 1500,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "wearable_harvest_apron_a_root",
-      "requiredNodes": ["wearable_harvest_apron_a_root", "wearable_body_anchor"],
+      "requiredNodes": [
+        "wearable_harvest_apron_a_root",
+        "wearable_body_anchor"
+      ],
       "readDistanceMeters": 12,
-      "parameters": { "style": "harvest_apron" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "harvest_apron"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "wearable_oilskin_coat_a",
@@ -36392,15 +36695,39 @@
       "family": "prop",
       "generator": "wearable_equipment",
       "seed": 4104,
-      "dimensions": { "width": 0.86, "depth": 0.6, "height": 1.34 },
-      "palette": ["cloth_rust_01", "cloth_slate_01", "metal_brass_01"],
-      "budget": { "trianglesMin": 150, "trianglesTarget": 620, "trianglesMax": 2200, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "dimensions": {
+        "width": 0.86,
+        "depth": 0.6,
+        "height": 1.34
+      },
+      "palette": [
+        "cloth_rust_01",
+        "cloth_slate_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 150,
+        "trianglesTarget": 620,
+        "trianglesMax": 2200,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "wearable_oilskin_coat_a_root",
-      "requiredNodes": ["wearable_oilskin_coat_a_root", "wearable_body_anchor"],
+      "requiredNodes": [
+        "wearable_oilskin_coat_a_root",
+        "wearable_body_anchor"
+      ],
       "readDistanceMeters": 12,
-      "parameters": { "style": "oilskin_coat" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "oilskin_coat"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "wearable_furrow_boots_a",
@@ -36408,15 +36735,40 @@
       "family": "prop",
       "generator": "wearable_equipment",
       "seed": 4105,
-      "dimensions": { "width": 0.6, "depth": 0.56, "height": 0.5 },
-      "palette": ["leather_harness_01", "soil_shadow_01", "metal_brass_01"],
-      "budget": { "trianglesMin": 160, "trianglesTarget": 620, "trianglesMax": 2200, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "dimensions": {
+        "width": 0.6,
+        "depth": 0.56,
+        "height": 0.5
+      },
+      "palette": [
+        "leather_harness_01",
+        "soil_shadow_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 160,
+        "trianglesTarget": 620,
+        "trianglesMax": 2200,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "wearable_furrow_boots_a_root",
-      "requiredNodes": ["wearable_furrow_boots_a_root", "wearable_foot_left", "wearable_foot_right"],
+      "requiredNodes": [
+        "wearable_furrow_boots_a_root",
+        "wearable_foot_left",
+        "wearable_foot_right"
+      ],
       "readDistanceMeters": 12,
-      "parameters": { "style": "furrow_boots" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "furrow_boots"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "wearable_deck_boots_a",
@@ -36424,169 +36776,508 @@
       "family": "prop",
       "generator": "wearable_equipment",
       "seed": 4106,
-      "dimensions": { "width": 0.6, "depth": 0.56, "height": 0.5 },
-      "palette": ["cloth_slate_01", "wood_wet_01", "accent_teal_01"],
-      "budget": { "trianglesMin": 150, "trianglesTarget": 580, "trianglesMax": 2200, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "dimensions": {
+        "width": 0.6,
+        "depth": 0.56,
+        "height": 0.5
+      },
+      "palette": [
+        "cloth_slate_01",
+        "wood_wet_01",
+        "accent_teal_01"
+      ],
+      "budget": {
+        "trianglesMin": 150,
+        "trianglesTarget": 580,
+        "trianglesMax": 2200,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "wearable_deck_boots_a_root",
-      "requiredNodes": ["wearable_deck_boots_a_root", "wearable_foot_left", "wearable_foot_right"],
+      "requiredNodes": [
+        "wearable_deck_boots_a_root",
+        "wearable_foot_left",
+        "wearable_foot_right"
+      ],
       "readDistanceMeters": 12,
-      "parameters": { "style": "deck_boots" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "deck_boots"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_watering_can_copper_rose_a",
       "file": "tool_watering_can_copper_rose_a.glb",
-      "family": "prop", "generator": "equipment_watering_can", "seed": 4111,
-      "dimensions": { "width": 0.48, "depth": 0.52, "height": 0.42 },
-      "palette": ["metal_brass_01", "metal_dark_01", "accent_teal_01"],
-      "budget": { "trianglesMin": 180, "trianglesTarget": 720, "trianglesMax": 2400, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "equipment_watering_can",
+      "seed": 4111,
+      "dimensions": {
+        "width": 0.48,
+        "depth": 0.52,
+        "height": 0.42
+      },
+      "palette": [
+        "metal_brass_01",
+        "metal_dark_01",
+        "accent_teal_01"
+      ],
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 720,
+        "trianglesMax": 2400,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_watering_can_copper_rose_a_root",
-      "requiredNodes": ["tool_watering_can_copper_rose_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "tool_watering_can_copper_rose_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "copper_rose" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "copper_rose"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_watering_can_long_spout_a",
       "file": "tool_watering_can_long_spout_a.glb",
-      "family": "prop", "generator": "equipment_watering_can", "seed": 4112,
-      "dimensions": { "width": 0.48, "depth": 0.76, "height": 0.42 },
-      "palette": ["metal_iron_01", "wood_dark_01", "accent_ochre_01"],
-      "budget": { "trianglesMin": 120, "trianglesTarget": 560, "trianglesMax": 2000, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "equipment_watering_can",
+      "seed": 4112,
+      "dimensions": {
+        "width": 0.48,
+        "depth": 0.76,
+        "height": 0.42
+      },
+      "palette": [
+        "metal_iron_01",
+        "wood_dark_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 120,
+        "trianglesTarget": 560,
+        "trianglesMax": 2000,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_watering_can_long_spout_a_root",
-      "requiredNodes": ["tool_watering_can_long_spout_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "tool_watering_can_long_spout_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "long_spout" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "long_spout"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_sickle_broad_a",
       "file": "tool_sickle_broad_a.glb",
-      "family": "prop", "generator": "equipment_sickle", "seed": 4113,
-      "dimensions": { "width": 0.78, "depth": 0.12, "height": 0.78 },
-      "palette": ["wood_honey_01", "metal_iron_01", "accent_ochre_01"],
-      "budget": { "trianglesMin": 80, "trianglesTarget": 360, "trianglesMax": 1400, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "equipment_sickle",
+      "seed": 4113,
+      "dimensions": {
+        "width": 0.78,
+        "depth": 0.12,
+        "height": 0.78
+      },
+      "palette": [
+        "wood_honey_01",
+        "metal_iron_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 360,
+        "trianglesMax": 1400,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_sickle_broad_a_root",
-      "requiredNodes": ["tool_sickle_broad_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "tool_sickle_broad_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "broad" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "broad"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_sickle_balanced_a",
       "file": "tool_sickle_balanced_a.glb",
-      "family": "prop", "generator": "equipment_sickle", "seed": 4114,
-      "dimensions": { "width": 0.66, "depth": 0.12, "height": 0.74 },
-      "palette": ["wood_coastal_01", "metal_iron_01", "metal_brass_01"],
-      "budget": { "trianglesMin": 80, "trianglesTarget": 340, "trianglesMax": 1400, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "equipment_sickle",
+      "seed": 4114,
+      "dimensions": {
+        "width": 0.66,
+        "depth": 0.12,
+        "height": 0.74
+      },
+      "palette": [
+        "wood_coastal_01",
+        "metal_iron_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 340,
+        "trianglesMax": 1400,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_sickle_balanced_a_root",
-      "requiredNodes": ["tool_sickle_balanced_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "tool_sickle_balanced_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "balanced" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "balanced"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_fishing_rod_river_a",
       "file": "tool_fishing_rod_river_a.glb",
-      "family": "prop", "generator": "fishing_rod", "seed": 4121,
-      "dimensions": { "width": 0.08, "depth": 0.3, "height": 2.5 },
-      "palette": ["wood_honey_01", "wood_dark_01", "metal_brass_01", "accent_teal_01", "foam_warm_01"],
-      "budget": { "trianglesMin": 500, "trianglesTarget": 1000, "trianglesMax": 2200, "materialsMax": 5 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "fishing_rod",
+      "seed": 4121,
+      "dimensions": {
+        "width": 0.08,
+        "depth": 0.3,
+        "height": 2.5
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "metal_brass_01",
+        "accent_teal_01",
+        "foam_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1000,
+        "trianglesMax": 2200,
+        "materialsMax": 5
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_fishing_rod_river_a_root",
-      "requiredNodes": ["tool_fishing_rod_river_a_root", "rod_primary_grip", "rod_secondary_grip", "rod_line_exit"],
+      "requiredNodes": [
+        "tool_fishing_rod_river_a_root",
+        "rod_primary_grip",
+        "rod_secondary_grip",
+        "rod_line_exit"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "length": 2.45, "guideCount": 5, "bendFactor": 0.1, "reelSpoolRadius": 0.062 },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "length": 2.45,
+        "guideCount": 5,
+        "bendFactor": 0.1,
+        "reelSpoolRadius": 0.062
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_fishing_rod_heavy_sport_a",
       "file": "tool_fishing_rod_heavy_sport_a.glb",
-      "family": "prop", "generator": "fishing_rod", "seed": 4122,
-      "dimensions": { "width": 0.08, "depth": 0.34, "height": 2.68 },
-      "palette": ["wood_coastal_dark_01", "leather_harness_01", "metal_brass_01", "accent_red_01", "foam_warm_01"],
-      "budget": { "trianglesMin": 550, "trianglesTarget": 1100, "trianglesMax": 2400, "materialsMax": 5 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "fishing_rod",
+      "seed": 4122,
+      "dimensions": {
+        "width": 0.08,
+        "depth": 0.34,
+        "height": 2.68
+      },
+      "palette": [
+        "wood_coastal_dark_01",
+        "leather_harness_01",
+        "metal_brass_01",
+        "accent_red_01",
+        "foam_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 550,
+        "trianglesTarget": 1100,
+        "trianglesMax": 2400,
+        "materialsMax": 5
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_fishing_rod_heavy_sport_a_root",
-      "requiredNodes": ["tool_fishing_rod_heavy_sport_a_root", "rod_primary_grip", "rod_secondary_grip", "rod_line_exit"],
+      "requiredNodes": [
+        "tool_fishing_rod_heavy_sport_a_root",
+        "rod_primary_grip",
+        "rod_secondary_grip",
+        "rod_line_exit"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "length": 2.62, "guideCount": 6, "bendFactor": 0.075, "reelSpoolRadius": 0.077 },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "length": 2.62,
+        "guideCount": 6,
+        "bendFactor": 0.075,
+        "reelSpoolRadius": 0.077
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_fishing_rod_offshore_a",
       "file": "tool_fishing_rod_offshore_a.glb",
-      "family": "prop", "generator": "fishing_rod", "seed": 4123,
-      "dimensions": { "width": 0.08, "depth": 0.36, "height": 2.9 },
-      "palette": ["wood_wet_01", "metal_dark_01", "metal_brass_01", "accent_ochre_01", "foam_warm_01"],
-      "budget": { "trianglesMin": 600, "trianglesTarget": 1180, "trianglesMax": 2500, "materialsMax": 5 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "fishing_rod",
+      "seed": 4123,
+      "dimensions": {
+        "width": 0.08,
+        "depth": 0.36,
+        "height": 2.9
+      },
+      "palette": [
+        "wood_wet_01",
+        "metal_dark_01",
+        "metal_brass_01",
+        "accent_ochre_01",
+        "foam_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 600,
+        "trianglesTarget": 1180,
+        "trianglesMax": 2500,
+        "materialsMax": 5
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_fishing_rod_offshore_a_root",
-      "requiredNodes": ["tool_fishing_rod_offshore_a_root", "rod_primary_grip", "rod_secondary_grip", "rod_line_exit"],
+      "requiredNodes": [
+        "tool_fishing_rod_offshore_a_root",
+        "rod_primary_grip",
+        "rod_secondary_grip",
+        "rod_line_exit"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "length": 2.85, "guideCount": 7, "bendFactor": 0.065, "reelSpoolRadius": 0.09 },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "length": 2.85,
+        "guideCount": 7,
+        "bendFactor": 0.065,
+        "reelSpoolRadius": 0.09
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "tool_fishing_rod_master_a",
       "file": "tool_fishing_rod_master_a.glb",
-      "family": "prop", "generator": "fishing_rod", "seed": 4124,
-      "dimensions": { "width": 0.08, "depth": 0.38, "height": 3.05 },
-      "palette": ["wood_honey_01", "wood_coastal_dark_01", "metal_brass_01", "accent_teal_01", "foam_warm_01"],
-      "budget": { "trianglesMin": 650, "trianglesTarget": 1250, "trianglesMax": 2600, "materialsMax": 5 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "fishing_rod",
+      "seed": 4124,
+      "dimensions": {
+        "width": 0.08,
+        "depth": 0.38,
+        "height": 3.05
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_coastal_dark_01",
+        "metal_brass_01",
+        "accent_teal_01",
+        "foam_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 650,
+        "trianglesTarget": 1250,
+        "trianglesMax": 2600,
+        "materialsMax": 5
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "tool_fishing_rod_master_a_root",
-      "requiredNodes": ["tool_fishing_rod_master_a_root", "rod_primary_grip", "rod_secondary_grip", "rod_line_exit"],
+      "requiredNodes": [
+        "tool_fishing_rod_master_a_root",
+        "rod_primary_grip",
+        "rod_secondary_grip",
+        "rod_line_exit"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "length": 3, "guideCount": 8, "bendFactor": 0.09, "reelSpoolRadius": 0.098 },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "length": 3,
+        "guideCount": 8,
+        "bendFactor": 0.09,
+        "reelSpoolRadius": 0.098
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "prop_crafting_tailor_a",
       "file": "prop_crafting_tailor_a.glb",
-      "family": "prop", "generator": "crafting_job_prop", "seed": 4131,
-      "dimensions": { "width": 0.56, "depth": 0.22, "height": 0.62 },
-      "palette": ["cloth_teal_01", "wood_honey_01", "metal_iron_01"],
-      "budget": { "trianglesMin": 100, "trianglesTarget": 480, "trianglesMax": 1600, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "crafting_job_prop",
+      "seed": 4131,
+      "dimensions": {
+        "width": 0.56,
+        "depth": 0.22,
+        "height": 0.62
+      },
+      "palette": [
+        "cloth_teal_01",
+        "wood_honey_01",
+        "metal_iron_01"
+      ],
+      "budget": {
+        "trianglesMin": 100,
+        "trianglesTarget": 480,
+        "trianglesMax": 1600,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "prop_crafting_tailor_a_root",
-      "requiredNodes": ["prop_crafting_tailor_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "prop_crafting_tailor_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "tailor" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "tailor"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "prop_crafting_toolmaking_a",
       "file": "prop_crafting_toolmaking_a.glb",
-      "family": "prop", "generator": "crafting_job_prop", "seed": 4132,
-      "dimensions": { "width": 0.58, "depth": 0.2, "height": 0.72 },
-      "palette": ["wood_honey_01", "metal_iron_01", "metal_brass_01"],
-      "budget": { "trianglesMin": 60, "trianglesTarget": 280, "trianglesMax": 1200, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "crafting_job_prop",
+      "seed": 4132,
+      "dimensions": {
+        "width": 0.58,
+        "depth": 0.2,
+        "height": 0.72
+      },
+      "palette": [
+        "wood_honey_01",
+        "metal_iron_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 280,
+        "trianglesMax": 1200,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "prop_crafting_toolmaking_a_root",
-      "requiredNodes": ["prop_crafting_toolmaking_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "prop_crafting_toolmaking_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "toolmaking" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "toolmaking"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     },
     {
       "id": "prop_crafting_ready_a",
       "file": "prop_crafting_ready_a.glb",
-      "family": "prop", "generator": "crafting_job_prop", "seed": 4133,
-      "dimensions": { "width": 0.56, "depth": 0.34, "height": 0.48 },
-      "palette": ["canvas_cream_01", "leather_harness_01", "accent_red_01"],
-      "budget": { "trianglesMin": 40, "trianglesTarget": 180, "trianglesMax": 900, "materialsMax": 3 },
-      "pivot": "center", "collision": "none", "instancing": false, "lod": "small",
+      "family": "prop",
+      "generator": "crafting_job_prop",
+      "seed": 4133,
+      "dimensions": {
+        "width": 0.56,
+        "depth": 0.34,
+        "height": 0.48
+      },
+      "palette": [
+        "canvas_cream_01",
+        "leather_harness_01",
+        "accent_red_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 180,
+        "trianglesMax": 900,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
       "rootNode": "prop_crafting_ready_a_root",
-      "requiredNodes": ["prop_crafting_ready_a_root", "tool_primary_grip"],
+      "requiredNodes": [
+        "prop_crafting_ready_a_root",
+        "tool_primary_grip"
+      ],
       "readDistanceMeters": 8,
-      "parameters": { "style": "ready" },
-      "surfaceAuthoring": { "normalPolicy": "authored", "facetColors": "rest_face" }
+      "parameters": {
+        "style": "ready"
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
     }
   ]
 }

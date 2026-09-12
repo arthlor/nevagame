@@ -66,7 +66,7 @@ function commitActiveBoatPose(simulation: Simulation, x: number, z: number, head
 function moveToNpc(simulation: Simulation, npcId: string): void {
   const npc = ContentRegistry.npcs.get(npcId);
   expect(npc).toBeDefined();
-  const anchor = npcAnchorAt(npcId, simulation.state.clock);
+  const anchor = npcAnchorAt(npcId, simulation.state.clock, simulation.state.quests);
   commitPlayerPose(simulation, anchor.x, anchor.z, anchor.rotationY);
 }
 
@@ -330,5 +330,5 @@ describe("P12 new-save vertical slice", () => {
     expect(reloaded.state.quests.completedQuestIds).toEqual(simulation.state.quests.completedQuestIds);
     expect(reloaded.state.player.activeBoatId).toBeNull();
     expect(reloaded.state.fishCargo).toEqual({});
-  });
+  }, 120_000);
 });

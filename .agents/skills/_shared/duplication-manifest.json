@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "updated": "2026-09",
+  "purpose": "Track intentionally mirrored example trees so they cannot drift silently. tools/validate_skills.py enforces this file.",
+  "mirrors": [
+    {
+      "id": "atmosphere-source",
+      "canonical": "threejs-atmosphere-aerial-perspective/examples/lut-aerial-perspective/source",
+      "mirror": "threejs-volumetric-clouds/examples/weather-volume-clouds/source",
+      "allowed_extra_in_mirror": ["clouds"],
+      "rule": "Every relative file present in the canonical tree must exist byte-for-byte identical in the mirror. The mirror may add files under allowed_extra_in_mirror only.",
+      "reason": "Both examples ship the same atmosphere/geospatial/effects implementation; the LUT skill is canonical. Extraction would break either example's self-contained portability."
+    }
+  ]
+}

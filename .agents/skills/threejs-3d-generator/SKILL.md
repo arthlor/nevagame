@@ -1,27 +1,40 @@
 ---
 name: threejs-3d-generator
-description: "Generate, texture, rig, animate, stylize, convert, and download 3D assets for Three.js games using the Tripo API. Use for text-to-3D, image-to-3D, 2D concept to 3D conversion, game-ready GLB/FBX assets, characters, creatures, buildings, props, weapons, terrain pieces, auto-rigging, animation retargeting, model texturing, LEGO/voxel/Minecraft-style stylization, low-poly/quad conversion, and browser asset pipelines. Pair with threejs-image-generator for concepts, texture references, sky/background/terrain textures, logos, icons, and GUI art before image-to-3D generation."
+description: "Generate, texture, rig, animate, and download 3D assets for Three.js games via Tripo. Use for text-to-3D, image-to-3D, game-ready GLB/FBX, auto-rigging, retargeting, and stylization. Neva: requires an explicit human request; never publish a downloaded GLB."
 ---
 
 # Three.js 3D Generator
+
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+- **Provider pins.** Model/rig versions are pinned and last verified 2026-06; run `python3 <this-skill-dir>/scripts/threejs_3d_asset.py validate-enums` after a provider change and at least every ~8 months.
+
+> Repository override (Neva): provider generation requires an explicit human
+> request and a downloaded GLB must never be published. Where this skill conflicts
+> with `AGENTS.md` ("Generate-asset prompt contract" or "Codex and
+> threejs-game-skills"), `AGENTS.md` wins. Do not run this skill for Neva's
+> "Generate assets" prompt class.
 
 ## Purpose
 
 Create production-oriented 3D assets, then prepare them for Three.js games. This is the Three.js game system's 3D-generation layer; it uses Tripo as the provider for text-to-3D, image-to-3D, texturing, rigging, retargeting, stylization, conversion, and downloadable GLB/FBX outputs.
 
-Resolve `<this-skill-dir>` in the commands below in this order: `~/.claude/skills/threejs-3d-generator`, `~/.codex/skills/threejs-3d-generator`, `~/.agents/skills/threejs-3d-generator`, or repo `skills/threejs-3d-generator`.
+Resolve `<this-skill-dir>` in the commands below in this order, preferring the repository copy: repo `.agents/skills/threejs-3d-generator`, legacy repo `skills/threejs-3d-generator`, `~/.agents/skills/threejs-3d-generator`, `~/.claude/skills/threejs-3d-generator`, or `~/.codex/skills/threejs-3d-generator`.
 
 ## API Key
 
 Never store API keys in skill files or client-side game code, and never paste a key value into a report. The script reads `--api-key` or `TRIPO_API_KEY`.
 
-Step 0, before declaring the key unavailable: run this skill's own probe and paste its literal output into the report.
+For an authorized provider operation, this optional local diagnostic reports
+whether `TRIPO_API_KEY` is available without printing the value:
 
 ```bash
-python3 <this-skill-dir>/scripts/threejs_3d_asset.py probe   # prints TRIPO_API_KEY=SET|MISSING
+python3 <this-skill-dir>/scripts/threejs_3d_asset.py probe
 ```
 
-`TRIPO_API_KEY=MISSING` is only a valid skip/blocker reason when this output is shown. Keys defined only in a shell profile can be absent from the process env; if the plain probe prints MISSING unexpectedly, wrap it: `zsh -lc 'source ~/.zprofile 2>/dev/null || true; source ~/.zshrc 2>/dev/null || true; python3 <this-skill-dir>/scripts/threejs_3d_asset.py probe'`. When the director skill is loaded, prefer `threejs-game-director/scripts/probe_asset_credentials.sh`, which probes all three asset keys at once.
+Use it when credential availability is relevant to the requested operation.
+Do not probe unrelated providers or require a probe to justify existing or
+procedural assets. Report actual operation errors or unavailable capabilities
+concisely; do not source arbitrary shell profiles as an automatic workaround.
 
 Generated model download URLs expire quickly, so download outputs immediately after successful tasks.
 
@@ -33,7 +46,7 @@ Reference gate:
 - Load `references/threejs-integration.md` before importing Tripo outputs into a browser game or advising GLB/FBX integration.
 - Load `references/image-generator-workflows.md` before pairing `threejs-image-generator` with this skill for 2D concepts, texture references, UI art, logos, decals, or image-to-3D inputs.
 
-Track required references in a reference ledger with yes/no, path, and failure reason. Do not mark an asset pipeline complete while a required reference is skipped.
+Read the selected references before relying on their API or integration contract. No reference ledger is required; report a missing source only when it affects the work.
 
 Run from the user's current project directory:
 
@@ -43,7 +56,7 @@ python3 <this-skill-dir>/scripts/threejs_3d_asset.py --help
 
 ## Common Commands
 
-Recommended premium game hero model:
+Example hero-model request (adapt the style and budget to the brief):
 
 ```bash
 python3 <this-skill-dir>/scripts/threejs_3d_asset.py text \
@@ -138,7 +151,7 @@ python3 <this-skill-dir>/scripts/threejs_3d_asset.py character-pipeline \
 
 ## Three.js Image Generator Pairing
 
-Use `threejs-image-generator` before 3D generation when the asset benefits from a strong 2D reference:
+When image generation is also authorized, `threejs-image-generator` can supply a 2D reference. Reuse a suitable existing reference when available. Possible inputs include:
 
 - Character concept, full-body T-pose/A-pose, front/side/back variants.
 - Building, prop, vehicle, weapon, pickup, enemy, obstacle, or terrain tile reference.
@@ -189,4 +202,4 @@ Load `references/api-notes.md` for the full parameter tables, retarget mechanics
 - For Three.js games, request GLB/PBR, reasonable face limits, and texture quality matched to the performance budget.
 - For mobile/browser games, favor `smart_low_poly`, `face_limit`, later conversion, or low-poly postprocess when the asset is too expensive.
 - Always download output URLs immediately after success.
-- Report the credential probe output, reference ledger, task IDs, output paths, model version, texture/geometry settings, animations, conversion settings, Three.js import notes, and any missing/failed steps.
+- Report produced task IDs/output paths, relevant generation settings, integration and validation evidence, and any missing or failed steps. Keep detailed provenance with the asset rather than repeating every command in the handoff.

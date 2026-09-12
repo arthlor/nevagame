@@ -10,6 +10,8 @@ import {
 } from "../../simulation/core/GameClock";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import type { WeatherAppearance } from "../weather/WeatherPresentation";
+import { updateAerialPerspective } from "../atmosphere/AerialPerspective";
 
 export interface LightingFrame {
   sunDirection: THREE.Vector3;
@@ -37,6 +39,7 @@ export interface LightingFrame {
   exposure: number;
   /** Max of solar daylight and the clock dawn/dusk ramp. Fill, sky, and practicals use this. */
   ambientDaylight: number;
+  stormStrength: number;
 }
 
 const SKY_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.skyColorHex);
@@ -89,7 +92,8 @@ function createLightingFrame(): LightingFrame {
     lightningDirection: new THREE.Vector3(),
     lightningColor: new THREE.Color(),
     exposure: 1,
-    ambientDaylight: 0
+    ambientDaylight: 0,
+    stormStrength: 0
   };
 }
 
@@ -237,7 +241,9 @@ export function deriveLightingFrame(
   state: Pick<GameState, "clock" | "weather" | "worldSeed">,
   timeSeconds: number,
   target?: LightingFrame,
-  presentedMinuteOfDay?: number
+  presentedMinuteOfDay?: number,
+  reducedMotion = false,
+  appearance?: Pick<WeatherAppearance, "storm" | "clear">
 ): LightingFrame {
   const frame = target ?? createLightingFrame();
   const config = CANONICAL_RENDER_CONFIG;
@@ -263,11 +269,11 @@ export function deriveLightingFrame(
     (daylight - config.skyFill.twilightExposureHold)
       / Math.max(0.001, 1 - config.skyFill.twilightExposureHold)
   );
-  const storm = state.weather.type === "storm";
+  const storm = clamp01(appearance?.storm ?? (state.weather.type === "storm" ? 1 : 0));
   const cloudCover = clamp01(state.weather.cloudCover);
   const visibility = clamp01(state.weather.visibility);
-  const clearDaylight = state.weather.type === "clear" ? daylight * (1 - twilight) : 0;
-  const lightning = storm ? lightningEnvelope(state.worldSeed, timeSeconds) : 0;
+  const clearDaylight = (appearance?.clear ?? (state.weather.type === "clear" ? 1 : 0)) * daylight * (1 - twilight);
+  const lightning = !reducedMotion ? storm * lightningEnvelope(state.worldSeed, timeSeconds) : 0;
   const lightningCycle = Math.floor(timeSeconds / config.weather.lightningCycleSeconds);
   const lightningAngle = hash01(state.worldSeed + lightningCycle * 19.31) * Math.PI * 2;
   const lightningDirection = frame.lightningDirection.set(
@@ -284,12 +290,12 @@ export function deriveLightingFrame(
     cloudCover * cloudCover,
     clearDaylight
   );
-  const sunWeather = storm
-    ? config.weather.stormSunMultiplier
-    : THREE.MathUtils.lerp(1, 0.58, sunCloudOcclusion);
-  const moonWeather = storm
-    ? config.moon.stormAttenuation
-    : THREE.MathUtils.lerp(1, config.moon.cloudAttenuationFloor, cloudCover);
+  const sunWeather = THREE.MathUtils.lerp(
+    THREE.MathUtils.lerp(1, 0.58, sunCloudOcclusion), config.weather.stormSunMultiplier, storm
+  );
+  const moonWeather = THREE.MathUtils.lerp(
+    THREE.MathUtils.lerp(1, config.moon.cloudAttenuationFloor, cloudCover), config.moon.stormAttenuation, storm
+  );
   const sunIntensity = config.sun.intensity * daylight * sunWeather;
   const moonIntensity =
     config.moon.intensity
@@ -327,10 +333,10 @@ export function deriveLightingFrame(
   // not the pale overcast ambient of cloudy weather.
   skyFillColor.lerp(SKY_CLEAR_DAY, clearDaylight * 0.42);
   if (storm) {
-    skyFillColor.lerp(STORM_SKY, 0.22);
-    skyTopColor.lerp(STORM_SKY, 0.56);
-    skyHorizonColor.lerp(STORM_HORIZON, 0.5);
-    groundFillColor.lerp(STORM_SKY, 0.34);
+    skyFillColor.lerp(STORM_SKY, 0.22 * storm);
+    skyTopColor.lerp(STORM_SKY, 0.56 * storm);
+    skyHorizonColor.lerp(STORM_HORIZON, 0.5 * storm);
+    groundFillColor.lerp(STORM_SKY, 0.34 * storm);
   }
   if (lightning > 0) {
     skyFillColor.lerp(lightningColor, lightning * 0.2);
@@ -341,11 +347,11 @@ export function deriveLightingFrame(
 
   const fogColor = frame.fogColor.copy(skyTopColor).lerp(
     skyHorizonColor,
-    storm ? 0.3 : THREE.MathUtils.lerp(0.42, 0.24, clearDaylight)
+    THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.42, 0.24, clearDaylight), 0.3, storm)
   );
-  const fogNear = storm
-    ? config.weather.stormFogNear
-    : THREE.MathUtils.lerp(config.fog.near, config.fog.clearDayNear, clearDaylight);
+  const fogNear = THREE.MathUtils.lerp(
+    THREE.MathUtils.lerp(config.fog.near, config.fog.clearDayNear, clearDaylight), config.weather.stormFogNear, storm
+  );
   const visibilityDistance = THREE.MathUtils.lerp(0.45, 1, visibility);
   const nightDistance = THREE.MathUtils.lerp(0.78, 1, ambientDaylight);
   const daylightFogFar = THREE.MathUtils.lerp(
@@ -353,19 +359,17 @@ export function deriveLightingFrame(
     config.fog.clearDayFar,
     clearDaylight
   );
-  const fogFar = storm
-    ? config.weather.stormFogFar
-    : Math.max(fogNear + 20, daylightFogFar * visibilityDistance * nightDistance);
+  const fogFar = THREE.MathUtils.lerp(
+    Math.max(fogNear + 20, daylightFogFar * visibilityDistance * nightDistance), config.weather.stormFogFar, storm
+  );
   const practicalLightIntensity = Math.max(
     1 - smooth01(
       (daylight - config.twilight.practicalHoldDaylight)
         / Math.max(0.001, config.twilight.practicalFadeWidth)
     ),
-    storm ? 0.48 : 0
+    storm * 0.48
   );
-  const starVisibility = storm
-    ? 0
-    : smooth01((-solarHeight - 0.025) / 0.24) * (1 - cloudCover) * visibility;
+  const starVisibility = (1 - storm) * smooth01((-solarHeight - 0.025) / 0.24) * (1 - cloudCover) * visibility;
   const sunVisibility = smooth01((solarHeight + 0.035) / 0.09) * THREE.MathUtils.lerp(1, 0.4, cloudCover);
   const moonVisibility =
     smooth01((-solarHeight + 0.025) / 0.1) * THREE.MathUtils.lerp(1, 0.3, cloudCover);
@@ -394,7 +398,8 @@ export function deriveLightingFrame(
     lightningDirection,
     lightningColor,
     exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, twilightExposure),
-    ambientDaylight
+    ambientDaylight,
+    stormStrength: storm
   });
   return frame;
 }
@@ -494,7 +499,9 @@ export class LightingRig {
   public update(
     state: Readonly<Pick<GameState, "clock" | "weather" | "worldSeed">>,
     timeSeconds: number,
-    focus: THREE.Vector3
+    focus: THREE.Vector3,
+    reducedMotion = false,
+    appearance?: WeatherAppearance
   ): LightingFrame {
     const targetMinute = ((state.clock.currentMinute % 1440) + 1440) % 1440;
     if (this.presentedMinuteOfDay === null || !Number.isFinite(this.lastPresentationUpdateSeconds)) {
@@ -512,7 +519,9 @@ export class LightingRig {
       );
     }
     this.lastPresentationUpdateSeconds = timeSeconds;
-    const frame = deriveLightingFrame(state, timeSeconds, this.frame, this.presentedMinuteOfDay);
+    const lightingState = appearance ? { clock: state.clock, worldSeed: state.worldSeed, weather: appearance.weather } : state;
+    const frame = deriveLightingFrame(lightingState, timeSeconds, this.frame, this.presentedMinuteOfDay, reducedMotion, appearance);
+    updateAerialPerspective(frame, lightingState.weather.visibility, this.scene.fog !== null);
     updateSeasonalTint(state.clock);
     frame.skyFillColor.multiply(seasonAmbientTint);
     frame.groundFillColor.multiply(seasonAmbientTint);

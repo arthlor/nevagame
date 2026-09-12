@@ -89,6 +89,7 @@ function testFrame(): LightingFrame {
     lightningColor: new THREE.Color("#ffffff"),
     exposure: 1,
     ambientDaylight: 1,
+    stormStrength: 0,
   };
 }
 
@@ -207,6 +208,28 @@ describe("analytic water normal", () => {
       expect(water.nearPatch.mesh.visible).toBe(true);
       expect(water.nearPatch.mesh.material.depthWrite).toBe(true);
       expect(water.nearPatch.mesh.material.uniforms.uReflectionMode.value).toBe(2);
+    } finally {
+      water.dispose();
+    }
+  });
+
+  it("keeps shallow caustics on the sun while moonlight and lightning own reflection", () => {
+    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    try {
+      const frame = testFrame();
+      frame.sunIntensity = 0;
+      frame.daylight = 0;
+      frame.lightning = 1;
+      water.updateLighting(frame);
+      expect(water.coastalUniforms.uCausticSunStrength.value).toBe(0);
+      expect(water.coastalUniforms.uCausticSunDirection.value.equals(frame.sunDirection)).toBe(true);
+      expect(water.mesh.material.uniforms.uSunDirection.value.equals(frame.lightningDirection)).toBe(true);
+      expect(water.nearPatch.mesh.material.uniforms.uCausticSunStrength)
+        .toBe(water.mesh.material.uniforms.uCausticSunStrength);
+      frame.sunIntensity = 1;
+      frame.daylight = 1;
+      water.updateLighting(frame);
+      expect(water.coastalUniforms.uCausticSunStrength.value).toBeGreaterThan(0);
     } finally {
       water.dispose();
     }

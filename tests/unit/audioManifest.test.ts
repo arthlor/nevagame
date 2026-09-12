@@ -14,7 +14,7 @@ type ManifestSource = (typeof manifest.sources)[number] & { origin?: string; lic
 describe("local farming audio manifest", () => {
   it("bundles every declared source with a matching hash", () => {
     expect(manifest.version).toBe(2);
-    expect(manifest.license).toBe("CC0-1.0");
+    expect(manifest.license).toBe("mixed-provenance");
     expect(manifest.sources.length).toBeGreaterThanOrEqual(30);
 
     const theme = manifest.sources.find((source) => source.id === "theme") as ManifestSource | undefined;
@@ -33,6 +33,17 @@ describe("local farming audio manifest", () => {
 
       if (source.origin === "project") {
         expect(source.sourceUrl).not.toMatch(/^https:\/\/freesound\.org\//);
+        continue;
+      }
+
+      if (source.origin === "adobe-audition") {
+        expect(source.sourceUrl).toBe("https://www.adobe.com/products/audition/offers/audition-dlc.html");
+        expect(source.licenseUrl).toBe("https://www.adobe.com/products/audition/offers/audition-dlc.html");
+        expect(source.licenseSnapshot).toBe("assets/audio/licenses/adobe-audition-content-terms.txt");
+        const licenseSnapshot = path.join(ROOT, source.licenseSnapshot as string);
+        expect(fs.existsSync(licenseSnapshot)).toBe(true);
+        expect(fs.readFileSync(licenseSnapshot, "utf8")).toMatch(/Adobe Audition/);
+        expect(fs.readFileSync(licenseSnapshot, "utf8")).toMatch(/stand[- ]alone basis/i);
         continue;
       }
 
@@ -98,7 +109,11 @@ describe("local farming audio manifest", () => {
       expect(bedCues).not.toContain("theme");
     }
     expect(manifest.banks["footstep-grass"]).toEqual(["footstep-grass-a", "footstep-grass-b"]);
+    expect(manifest.banks["donkey-snort"]).toEqual(["donkey-snort", "donkey-snort-adobe"]);
+    expect(manifest.banks.thunder).toEqual(["thunder", "thunder-adobe"]);
     expect(manifest.beds.coast).toContain("ambience-seagulls");
     expect(manifest.beds.interior).toContain("ambience-fireplace");
+    expect(manifest.weatherLoops.storm).toEqual(["ambience-storm-sea"]);
+    expect(manifest.cues["stamina-exhausted"].spatial).toBe(true);
   });
 });

@@ -1,15 +1,16 @@
 ---
 name: threejs-procedural-architecture
-description: Build authored procedural buildings and architectural kits in Three.js. Use for massing grammars, exposed-edge analysis, façade bays, profiles, arches, cornices, roofs, ornaments, material-slot mesh compilation, deterministic variants, and procedural city assets.
+description: "Compile authored procedural buildings and architectural kits in Three.js. Use for massing grammars, facade bays, cornices, roofs, ornaments, material-slot mesh output, deterministic variants. Not for reusable profile or sweep kernels."
 ---
 
 # Procedural Architecture
 
+- **Runtime contract.** Backend: dual — backend-agnostic mesh output with WebGPU/TSL shadow/detail examples. Min three: verify the backend of the specific example selected. Fallback: emitted geometry matches the project backend; do not migrate WebGL2↔WebGPU. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
 Separate design planning from mesh emission. A building generator should produce an inspectable plan before it produces triangles.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Required architecture
 

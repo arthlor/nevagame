@@ -430,6 +430,10 @@ export class FacetedWater {
 
   public updateLighting(frame: LightingFrame): void {
     const uniforms = this.mesh.material.uniforms;
+    this.coastalUniforms.uCausticSunDirection.value.copy(frame.sunDirection);
+    this.coastalUniforms.uCausticSunStrength.value = THREE.MathUtils.clamp(
+      frame.sunIntensity / CANONICAL_RENDER_CONFIG.sun.intensity, 0, 1
+    );
     const lightningOwnsKey = frame.lightning > 0.025;
     const moonOwnsKey = !lightningOwnsKey && frame.moonIntensity > frame.sunIntensity;
     (uniforms.uSunDirection.value as THREE.Vector3).copy(

@@ -1,9 +1,9 @@
 # Visual Test Harness Checklist
 
-Use when visual regression testing is added, extended, or intentionally skipped for a meaningful Three.js game change.
+Use when visual regression testing is part of the requested gate or addresses an identified regression risk. Reuse existing project coverage first.
 
 - Harness decision is explicit: added / extended / skipped.
-- Decision is justified by milestone risk: premium/release/UI/generated assets/visual style vs prototype/non-deterministic smoke only.
+- The selected coverage protects a concrete behavior or visual regression; quality adjectives alone do not require a harness.
 - Active-play desktop state is covered or a reason is reported.
 - Active-play mobile state is covered when mobile is in scope or a reason is reported.
 - Important menu/HUD/fail/retry/generated-asset states are covered when those surfaces changed.

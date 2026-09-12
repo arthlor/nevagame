@@ -3,9 +3,9 @@
 
 > **Role:** Operational authority for catalog-driven Blender generation, GLB validation, publication, Art Yard handoff, and runtime integration.
 >
-> **Human/agent boundary:** Agents generate and mechanically integrate assets. The human reviews the result in the actual game and requests revisions. Routine agents do not create static previews, capture screenshots, score style, or iterate visually on the human's behalf.
+> **Inspection and approval:** Agents generate, integrate, and inspect affected assets in the Art Yard and actual game, correcting observed defects within the authorized scope. Use focused screenshots, motion checks or diagnostic views when they answer a visual question. Human visual approval remains a separate decision; agent inspection and mechanical success do not grant it.
 
-> **Harbor-coast production exception:** The approved coastal rebuild explicitly authorizes reference-frame inspection, iterative gameplay-camera captures, traversal recordings and browser measurements. These are required evidence for this environment task; they do not constitute human visual approval. The scoped direction and superseded visual constraints are owned by `04` §8.1. This exception does not change routine asset-task gates.
+> **Harbor-coast evidence:** The approved coastal rebuild requires reference-frame inspection, iterative gameplay-camera captures, traversal recordings and browser measurements under `04` §8.1. These task-specific requirements exceed routine focused inspection and do not constitute human visual approval.
 
 ---
 
@@ -23,11 +23,11 @@ helpers in full; do not dump the full catalog for one asset.
 
 Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, and the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for generate-asset prompts even if `@LLM` attached them.
 
-**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → Art Yard link → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
+**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
-Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. `art/references/neva-ui-hud-on-foot.png` is the scoped gameplay-distance graphics benchmark for starter-farm terrain, worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting; it never authorizes copying camera, UI, layout, depth of field, tilt-shift, or composition. Catalog IDs win if a reference README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
+Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. `art/references/neva-ui-hud-on-foot.png` is the scoped gameplay-distance graphics benchmark for starter-farm terrain, worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting; it never authorizes copying camera, UI, layout, depth of field, tilt-shift, or composition. The later grass study selected in Art Bible §7.2.4 owns continuous meadow coverage and fine-blade proportions. Catalog IDs win if a reference README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
 
-Sculpt in passes without screenshot/SSIM gates: blockout (primary masses and negative space vs the isolated sheet) → structure (masonry, timber, shingles, openings) → sparse tertiary readable at 8 m → palette + vertex value on the existing `COLOR_0` path. Human revision remains `asset ID + observed miss + desired change`.
+Sculpt in passes, using focused inspection where it resolves form or readability: blockout (primary masses and negative space vs the isolated sheet) → structure (masonry, timber, shingles, openings) → sparse tertiary readable at 8 m → palette + vertex value on the existing `COLOR_0` path. Human revision remains `asset ID + observed miss + desired change`.
 
 Codex skill route for this prompt: prefer `.agents/skills/<name>/SKILL.md` over `~/.codex/skills`. After the Neva catalog, isolated sheet, and owning generator, Codex may load `.agents/skills/threejs-aaa-graphics-builder/references/checklists/procedural-model-quality.md` (and `model-recipes.md` when appearance is being designed) as critique vocabulary, then implement in the registered Blender family generator and `authored.py` — never a Three.js factory. `threejs-image-generator` may create or clean an isolated study only when the human asks for new reference art. `threejs-3d-generator` (Tripo) is a reconstruction study only when the human explicitly authorizes a provider call; never publish the downloaded GLB. `threejs-qa-release` stays a release/gold-slice tool.
 
@@ -40,6 +40,7 @@ selected catalog entry
 → selected generate + validation + optimization + atomic publish
 → automatic Art Yard entry
 → runtime/game integration
+→ focused Art Yard/game inspection and scoped corrections
 → human game review
 ```
 
@@ -65,7 +66,7 @@ After publication, the CLI prints a direct development link such as:
 http://localhost:3000/__neva_art_yard?asset=tree_oak_a
 ```
 
-The agent then integrates the asset into the actual game. Do not stop for a separate agent approval loop. Complete the handoff with `Awaiting human game review`.
+Integrate the asset and inspect the changed appearance or motion through the existing Art Yard/game controls, including its gameplay read distance. Correct observed defects within scope. If the runtime cannot be accessed, report that inspection gap precisely and complete independent mechanical work. Complete the handoff with `Awaiting human game review`; do not invent another approval loop.
 
 ## Daily gates
 
@@ -82,17 +83,15 @@ Keep:
 - dimensions, bounds, pivot, required nodes, collision, LOD, animation, material and triangle min/max checks;
 - validated cache reuse;
 - rollback-capable atomic publication and generated/public hash parity;
-- runtime integration and TypeScript check only when runtime TypeScript changed.
+- runtime integration and focused inspection of changed appearance or motion; TypeScript check only when runtime TypeScript changed.
 
-Do not run for routine work:
+The following are not routine requirements; use them only when the task or an unresolved concern warrants them:
 
 - static Blender previews or generated preview packages;
-- screenshot capture or agent image inspection;
-- strict density gates;
-- determinism double-generation;
-- gameplay benchmarks;
-- full builds, broad test suites, or unrelated linting;
-- agent-led style scoring or visual approval.
+- strict density gates or determinism double-generation;
+- gameplay benchmarks, full capture sets, full builds or broad test suites.
+
+Do not introduce numeric style scoring as an asset gate. Human visual approval remains required for visual acceptance.
 
 ---
 
@@ -157,7 +156,7 @@ performance uses `npm run test:budget` and, where world scope requires it,
 does not close technical certification; current results belong in the status
 checklist, not a hardcoded open/closed claim here.
 
-Release screenshots are evidence artifacts. Do not spend AI tokens reviewing or iterating on them unless the human explicitly requests visual analysis.
+Inspect required release screenshots as evidence and investigate visible discrepancies. Correct defects within the authorized scope, rerunning the affected checks when inputs change. A capture alone is not human visual approval or performance proof.
 
 ---
 
@@ -301,10 +300,10 @@ catalog provenance must instead hash the final durable adapted `.blend`.
 - Preserve source roles, component hierarchy, silhouette/negative space, hidden-surface confidence, critical features, generator bindings, failure modes, and requested review views.
 - Run `art:brief` only when that selected brief changes.
 - Read or emit only the selected asset's brief; do not load unrelated briefs.
-- The required views describe what the human can inspect through Art Yard/game controls. They do not require static renders or agent screenshot capture.
+- The required views define review coverage through Art Yard/game controls. Agents use the views relevant to the changed form, hidden surfaces or motion; human acceptance retains the full applicable coverage. Routine work does not require a static-render package or capture of every view.
 - `ready` means the brief is structurally complete, not visually approved. Missing `repo://` files fail closed.
 - Isolated studio sheets under `tools/blender/references/isolated/` may inform that one asset’s silhouette, proportions, component counts, and construction language. Diorama stills remain graphics-only. `art/references/neva-ui-hud-on-foot.png` may guide the cataloged environment assets named by the Art Bible benchmark lock, but each image-guided asset still requires its own closed `referenceAuthoring` brief and parameter bindings.
-- Pass order for sheet-guided work: blockout → structure → sparse tertiary → palette. Agents do not add daily screenshot or SSIM gates.
+- Pass order for sheet-guided work: blockout → structure → sparse tertiary → palette. Use focused visual checks as needed; do not add a daily full screenshot or SSIM gate.
 - Human revision remains `asset ID + observed miss + desired change`.
 
 ---
@@ -315,7 +314,7 @@ catalog provenance must instead hash the final durable adapted `.blend`.
 
 - A successful selected publish makes the asset available automatically.
 - `?asset=<catalog-id>` opens the selected asset directly.
-- Orbit, distance/LOD, eye POV (1.6m), shading (lit, unlit flat albedo, wire overlay, pure wire, vertex colors, normals, LOD0, LOD1), physical dimensions/clearance/footprint, authoring sockets, skeleton rig, origin axes tripod, bounds, collision, animation scrubbing/frame-stepping, lighting, weather, ground, and water controls remain diagnostics for the human.
+- Orbit, distance/LOD, eye POV (1.6m), shading (lit, unlit flat albedo, wire overlay, pure wire, vertex colors, normals, LOD0, LOD1), physical dimensions/clearance/footprint, authoring sockets, skeleton rig, origin axes tripod, bounds, collision, animation scrubbing/frame-stepping, lighting, weather, ground, and water controls support focused agent inspection and human review.
 - Player context clips are previewed atomically with the required donkey, rowboat, or skiff companion and companion-inclusive bounds. Mounted gaits synchronize rider and animal phases; boarding/docking use the matching craft variant; `reel` layers over selectable on-foot, rowboat, or skiff bases. Timeline scrubbing seeks each action deterministically rather than changing mixer-global time.
 - The normal game is the final visual judge. Integrate the catalog ID through the existing loader/placement/batching path; do not create a direct loader or local asset registry.
 - Compatible repeated static assets use the existing batching/instancing path. Do not fold skinned, morph-target, or dynamic descendants into static batching. Production static LOD pieces use the existing per-instance level tracking and catalog switch distances; do not flatten them without preserving level selection. DEV keeps prefabs unmerged for layout-editor picking.
@@ -341,7 +340,7 @@ Mechanical success permits the agent to say `generated`, `validated`, `published
   catalog asset's own geometry, material and texture contracts without comparing
   the full library to the code-only budget.
 
-Do not paste full reports or logs into the task. Report only selected asset IDs, integration point, the mechanical result, actionable error excerpts if any, save impact, and `Awaiting human game review`.
+Do not paste full reports or logs into the task. Report selected asset IDs, integration point, mechanical result, focused inspection evidence or access gap, actionable errors if any, save impact, `Docs updated:`, and `Awaiting human game review`.
 
 ---
 
@@ -366,7 +365,7 @@ Follow the relevant Art Bible section. The compact non-negotiables are:
 
 - Use one agent for routine asset work; do not spawn parallel review agents.
 - Batch related assets by family when they share the same generator context.
-- Use fast/lower-reasoning models for parameter changes, generation, placement, and requested visual adjustments. Reserve high reasoning for new generator architecture or difficult failures.
+- Keep the user-selected model and reasoning settings. Reduce unnecessary work through focused context, cache reuse and scoped verification.
 - The human should send revision feedback as `asset ID + observed problem + desired change`; do not restate the entire pipeline.
 - Never run a command without `--asset`, `--family`, or explicit release `--all`.
 - Avoid full catalog dumps, full command logs, manifest pastes, and repeated canonical summaries.
@@ -386,6 +385,7 @@ Runtime TypeScript check: passed/not required/failed
 Save impact: no (unless explicitly changed)
 Docs updated: <paths, or `none — no documented fact changed`>
 Narrative role: <none or concise practical/story function>
+Inspection: <affected views/motion checked and result, or exact access gap>
 Visual status: Awaiting human game review
 ```
 

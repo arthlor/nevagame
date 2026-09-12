@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { PALETTE_HEX, PALETTE_SPECS, PaletteToken } from "./PaletteTokens";
 import { applyCoastalStoneSurface } from "./CoastalSurfaceMaterial";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 
 export interface MaterialOptions {
   vertexColors?: boolean;
@@ -77,12 +78,18 @@ export class PaletteMaterials {
   public static canonicalizeLoaded(material: THREE.Material): THREE.Material {
     if (!(material instanceof THREE.MeshStandardMaterial)) return material;
     const token = paletteTokenForLoadedMaterial(material);
-    if (!token) return material;
+    if (!token) {
+      applyWorldAtmosphere(material);
+      return material;
+    }
+    // Standard clones retain this semantic identity after their display name changes.
+    material.userData.neva_palette_token = token;
     // Explicit imported source regions stay distinct at runtime. Their token
     // metadata still drives palette-family behavior without merging separate
     // provider material regions into one shared material object.
     if (typeof material.userData?.neva_source_material === "string") {
       this.registerEmissive(material);
+      applyWorldAtmosphere(material);
       return material;
     }
 
@@ -111,6 +118,7 @@ export class PaletteMaterials {
     }
     if (hasTextures) {
       this.registerEmissive(material);
+      applyWorldAtmosphere(material);
       return material;
     }
 
@@ -137,6 +145,7 @@ export class PaletteMaterials {
     const existing = this.cache.get(key);
     if (existing) return existing;
     if (token.startsWith("stone_coastal_")) applyCoastalStoneSurface(material);
+    applyWorldAtmosphere(material);
     this.cache.set(key, material);
     this.registerEmissive(material);
     return material;
@@ -182,7 +191,9 @@ export class PaletteMaterials {
         : 0.0
     });
 
+    mat.userData.neva_palette_token = token;
     this.cache.set(key, mat);
+    applyWorldAtmosphere(mat);
     this.registerEmissive(mat);
     return mat;
   }

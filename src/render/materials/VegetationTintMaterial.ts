@@ -5,6 +5,8 @@ import { groundCoverWindStrength } from "../scene/groundCoverWind";
 import type { WeatherMotionSignal } from "../motion/WeatherMotionSignal";
 import { PALETTE_SPECS } from "./PaletteTokens";
 import { paletteTokenForLoadedMaterial } from "./PaletteMaterials";
+import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
+import { LANDSCAPE_WIND_GLSL } from "../motion/LandscapeWind";
 
 /**
  * Neva's vegetation is a handful of GLBs repeated a few hundred times through
@@ -20,7 +22,7 @@ import { paletteTokenForLoadedMaterial } from "./PaletteMaterials";
  * (`batchingMatrix`). Instances therefore stay in a single batch and still
  * shade differently.
  */
-export const VEGETATION_TINT_PROGRAM_CACHE_KEY = "neva-vegetation-instance-tint-v3-wind-season";
+export const VEGETATION_TINT_PROGRAM_CACHE_KEY = "neva-vegetation-instance-tint-v4-landscape-wind";
 
 /** Value spread and warm/olive drift, both held inside the authored palette family. */
 export const VEGETATION_TINT_STRENGTH = Object.freeze({
@@ -44,9 +46,8 @@ function patchVegetationWindVertex(source: string, weighted: boolean): string {
   #endif
   vNevaInstanceOrigin = nevaInstanceMatrix[3].xz;
   // Canopy sway. The trunk stays planted and motion ramps into the upper
-  // canopy, so a tree bends rather than sliding. Phase comes from the same
-  // per-instance origin the tint uses, so neighbouring trees never move in
-  // lockstep and no extra attribute is needed.
+  // canopy. Broad gusts cross the stand together; a smaller branch response
+  // varies by tree without changing the world's wind heading.
   float nevaCanopy = clamp(
     (position.y - nevaWindTrunkHold) / max(0.001, nevaWindCanopySpan),
     0.0,
@@ -56,14 +57,15 @@ function patchVegetationWindVertex(source: string, weighted: boolean): string {
   ${weighted ? "nevaCanopy = clamp(_neva_wind, 0.0, 1.0);" : ""}
   float nevaWindPhase =
     fract(sin(dot(vNevaInstanceOrigin, vec2(127.1, 311.7))) * 43758.5453) * 6.283185;
-  float nevaWave = sin(nevaWindTime * 0.9 + nevaWindPhase);
-  float nevaGust = sin(nevaWindTime * 0.31 + nevaWindPhase * 2.7);
-  float nevaBend = nevaWindAmplitude * nevaWindStrength * nevaCanopy
-    * (0.7 * nevaWave + 0.3 * nevaGust);
   vec2 nevaWindHeading = normalize(nevaWindDir + vec2(0.0001, 0.0001));
-  transformed.xz += nevaWindHeading * nevaBend;
-  transformed.xz += vec2(-nevaWindHeading.y, nevaWindHeading.x)
-    * nevaBend * 0.22 * sin(nevaWindTime * 1.6 + nevaWindPhase * 3.3);`
+  float nevaGust = nevaLandscapeGust(vNevaInstanceOrigin, nevaWindHeading, nevaWindTime);
+  float nevaWave = sin(nevaWindTime * 0.9 + nevaWindPhase) * 0.12;
+  float nevaBend = nevaWindAmplitude * nevaWindStrength * nevaCanopy
+    * (nevaGust * 0.88 + nevaWave);
+  vec2 nevaWorldBend = nevaWindHeading * nevaBend
+    + vec2(-nevaWindHeading.y, nevaWindHeading.x)
+      * nevaBend * 0.22 * sin(nevaWindTime * 1.6 + nevaWindPhase * 3.3);
+  transformed += nevaWindWorldToLocal(vec3(nevaWorldBend.x, 0.0, nevaWorldBend.y), nevaInstanceMatrix);`
   );
   source = `${weighted ? "attribute float _neva_wind;" : ""}
 varying vec2 vNevaInstanceOrigin;
@@ -73,6 +75,7 @@ uniform float nevaWindStrength;
 uniform float nevaWindAmplitude;
 uniform float nevaWindTrunkHold;
 uniform float nevaWindCanopySpan;
+${LANDSCAPE_WIND_GLSL}
 ${source}`;
 
   return source;
@@ -177,6 +180,7 @@ export function vegetationInstanceTintMaterial(source: THREE.Material, weighted 
   // untinted program compiled for `source`.
   variant.customProgramCacheKey = () => weighted ? `${VEGETATION_TINT_PROGRAM_CACHE_KEY}:coastal` : VEGETATION_TINT_PROGRAM_CACHE_KEY;
   variant.needsUpdate = true;
+  applyWorldAtmosphere(variant);
   variantCache.set(key, variant);
   return variant;
 }
@@ -192,7 +196,7 @@ export function coastalVegetationDepthMaterial(source: THREE.Material): THREE.Me
     shader.uniforms.nevaWindAmplitude.value = CANONICAL_RENDER_CONFIG.vegetationWind.coastalAmplitudeMeters;
     material.userData.nevaVegetationWindShader = shader;
   };
-  material.customProgramCacheKey = () => "neva-coastal-weighted-depth-v1";
+  material.customProgramCacheKey = () => "neva-coastal-weighted-depth-v2-landscape-wind";
   depthCache.set(source.uuid, material);
   return material;
 }

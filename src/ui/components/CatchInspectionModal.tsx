@@ -18,9 +18,9 @@ export interface CatchInspectionModalProps {
 }
 
 const RECORD_LABELS: Record<"first" | "weight" | "quality", { title: string; subtitle: string }> = {
-  first: { title: "NEW SPECIES RECORD", subtitle: "First specimen recorded in Coastal Almanac" },
-  weight: { title: "HEAVIEST CATCH RECORD", subtitle: "Surpasses previous personal weight record" },
-  quality: { title: "FINEST GRADE RECORD", subtitle: "Surpasses previous personal quality record" }
+  first: { title: "A new discovery", subtitle: "Added to your almanac" },
+  weight: { title: "Your heaviest yet", subtitle: "A new personal weight record" },
+  quality: { title: "Your finest yet", subtitle: "A new personal quality record" }
 };
 
 export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
@@ -73,7 +73,6 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
       >
         <header className="catch-modal-header">
           <div className="catch-celebration-title">
-            <span className="catch-celebration-subtitle">COASTAL SPORT ANGLING</span>
             <strong id="catch-modal-title" className="catch-celebration-headline">
               Catch landed
             </strong>
@@ -167,7 +166,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
             onClick={onDismiss}
             className="catch-continue-btn"
           >
-            Continue Fishing <kbd>[Space]</kbd>
+            Back to the coast <kbd>[Space]</kbd>
           </ChromeButton>
         </footer>
       </GameSheet>

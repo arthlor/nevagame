@@ -60,4 +60,16 @@ describe("AudioManager.setActionLoop", () => {
     expect(harness.loops.has("boat-row")).toBe(false);
     manager.dispose();
   });
+
+  it("uses the thunder variation bank when entering a storm", () => {
+    const manager = new AudioManager();
+    const harness = manager as unknown as { lastStormCueAt: number };
+    harness.lastStormCueAt = Number.NEGATIVE_INFINITY;
+    const playBank = vi.spyOn(manager, "playBank").mockImplementation(() => {});
+
+    manager.setWorldContext("farm", "storm");
+
+    expect(playBank).toHaveBeenCalledExactlyOnceWith("thunder");
+    manager.dispose();
+  });
 });

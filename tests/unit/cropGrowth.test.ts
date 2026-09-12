@@ -8,6 +8,7 @@ import {
   applyCropMoistureOverMinutes,
   advancePlacedCropGrowth,
   calculateCropHealth,
+  moistureChangePerHour,
   POST_MATURE_MATURE_MINUTES,
   POST_MATURE_WITHER_MINUTES
 } from "../../src/simulation/farming/calculateCropGrowth";
@@ -27,6 +28,16 @@ const environment = (weatherType: "clear" | "storm"): FarmEnvironmentSample => (
   exposure: 0,
   moistureRetention: 0
 });
+
+function bruteForceMoistureAccum(initialMoisture: number, steps: number, perMinute: number): number {
+  let moisture = initialMoisture;
+  let sum = 0;
+  for (let step = 0; step < steps; step += 1) {
+    moisture = Math.min(100, Math.max(0, moisture + perMinute));
+    sum += moisture;
+  }
+  return sum;
+}
 
 describe("Crop Growth & Quality Calculations", () => {
   const wheat = CROPS["crop.wheat"];
@@ -182,5 +193,55 @@ describe("Crop Growth & Quality Calculations", () => {
     expect(crop.moisture).toBeLessThan(15);
     expect(crop.effectiveGrowthMinutes).toBeLessThan(frozenAtStart);
     expect(crop.effectiveGrowthMinutes).toBeGreaterThan(0);
+  });
+
+  it("integrates the clamped moisture trace exactly at both bounds", () => {
+    // Rising: a storm with a strong rain term pushes past 100 within the span.
+    const risingEnv = { ...environment("storm"), rainfallEffectiveness: 4 };
+    const risingWaterNeed = 0;
+    const risingPerMinute = moistureChangePerHour(risingWaterNeed, risingEnv) / 60;
+    const rising = { moisture: 90, averageMoistureAccum: 0, moistureSampleCount: 0 };
+    applyCropMoistureOverMinutes(rising, 5, risingWaterNeed, risingEnv);
+    expect(rising.averageMoistureAccum).toBeCloseTo(
+      bruteForceMoistureAccum(90, 5, risingPerMinute),
+      8
+    );
+
+    // Falling: dry soil would cross 0 well after the window, so every step is
+    // still linear and the old code undercounted the tail.
+    const falling = { moisture: 10, averageMoistureAccum: 0, moistureSampleCount: 0 };
+    const fallingPerMinute = moistureChangePerHour(wheat.waterNeed, environment("clear")) / 60;
+    applyCropMoistureOverMinutes(falling, 5, wheat.waterNeed, environment("clear"));
+    expect(falling.averageMoistureAccum).toBeCloseTo(
+      bruteForceMoistureAccum(10, 5, fallingPerMinute),
+      8
+    );
+
+    // Falling past the bound: the crossing step saturates at 0.
+    const crossing = { moisture: 10, averageMoistureAccum: 0, moistureSampleCount: 0 };
+    const crossingEnv = { ...environment("clear"), evaporationMultiplier: 30 };
+    const crossingPerMinute = moistureChangePerHour(wheat.waterNeed, crossingEnv) / 60;
+    applyCropMoistureOverMinutes(crossing, 5, wheat.waterNeed, crossingEnv);
+    expect(crossing.averageMoistureAccum).toBeCloseTo(
+      bruteForceMoistureAccum(10, 5, crossingPerMinute),
+      8
+    );
+  });
+
+  it("does not skip health stress when a drying chunk lands exactly on the 40 boundary", () => {
+    // waterNeed 10 in clear weather dries at exactly -1/15 moisture/minute, so
+    // 40 + 1/15 reaches 40 after one step. A chunk that ends on 40 would then
+    // charge the 40->15 span zero stress instead of the 0.5 band.
+    const dryDef = { ...wheat, waterNeed: 10 };
+    const crop: Parameters<typeof advancePlacedCropGrowth>[0] = {
+      effectiveGrowthMinutes: 0,
+      moisture: 40 + 1 / 15,
+      health: 100,
+      averageMoistureAccum: 0,
+      moistureSampleCount: 0,
+      stage: "growing"
+    };
+    advancePlacedCropGrowth(crop, dryDef, environment("clear"), 50, 376);
+    expect(crop.health).toBeLessThan(100);
   });
 });

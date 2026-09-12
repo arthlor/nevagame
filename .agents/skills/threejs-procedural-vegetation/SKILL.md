@@ -1,15 +1,16 @@
 ---
 name: threejs-procedural-vegetation
-description: Generate authored procedural trees, grass, ivy, flowers, and vegetation in Three.js or raw WebGPU. Use for surface-following vines, painted ivy paths, stylized or GPU grass, GPU-culled virtual flower fields, trunks, recursive branches, roots, canopies, leaf cards, species presets, deterministic growth, distance-tiered plant geometry, and rooted blade, stem, or petiole-hinge wind.
+description: "Grow authored procedural trees, grass, ivy, and flower fields in Three.js or WebGPU. Use for species tables, recursive branches, surface-following vines, GPU-culled flowers, distance LOD, rooted wind. Not for generic profile sweeps."
 ---
 
 # Procedural Vegetation
 
+- **Runtime contract.** Backend: dual — WebGL2 examples plus raw-WebGPU/TSL modules. Min three: verify the backend of the specific example selected. Fallback: match the project backend; do not migrate WebGL2↔WebGPU. Verified: skill pack 2026-09.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
+
 Represent a plant as a growth hierarchy plus rendering adaptations. Do not model it as randomly scattered cylinders.
 
-This skill contains exemplary examples and assets beyond descriptive guidance,
-they're worth studying, referencing, or even copying. Use them sufficiently
-when relevant and do NOT blindly skip them.
+Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
 
 ## Build sequence
 
@@ -66,7 +67,9 @@ creep and droop, parallel-transport tube rings, growth reveal, instanced leaves
 and umbels, and rigid petiole-hinge wind. Treat the TypeScript modules as the
 only implementation; the entry file only re-exports them.
 
-## Visual failure conditions
+## Invariants and strong defaults
+
+Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
 
 - branches form visible helices;
 - dense grass ignores terrain height or clump-level variation;

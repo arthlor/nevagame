@@ -87,7 +87,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
         <header className="modal-header crafting-modal__header">
           <div>
             <h2 id="crafting-modal-title">{stationTitle(station.stationType)}</h2>
-            <p>{station.job ? "One station job" : "Choose one job for this station"}</p>
+            <p>{station.job ? "Your work at this station" : "Choose what to make"}</p>
           </div>
           <ChromeClose onClick={onClose} label="Close crafting" />
         </header>
@@ -130,7 +130,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
               {selected ? (
                 <>
                   <div className="crafting-recipe-detail__title">
-                    <div><small>{selected.workTier === "masterwork" ? "Masterwork" : "Standard work"}</small><h3>{selected.name}</h3></div>
+                    <div>{selected.workTier === "masterwork" && <small>Masterwork</small>}<h3>{selected.name}</h3></div>
                     <strong>{selected.outputLabel}</strong>
                   </div>
 
@@ -150,15 +150,14 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
                   <dl className="crafting-job-facts">
                     <div><dt>Work</dt><dd>{selected.work.cost}{saved > 0 ? ` (${saved} saved)` : ""}</dd></div>
                     <div><dt>Duration</dt><dd>{selected.durationLabel}</dd></div>
-                    <div><dt>Ready</dt><dd>Stays at this station</dd></div>
-                    <div><dt>Collection</dt><dd>Needs current storage space</dd></div>
                   </dl>
+                  <p className="crafting-collection-note">Collect here when ready. Make room in your storage before collecting.</p>
 
                   {(selected.work.roundingLimited || selected.work.throughputCapLimited) && (
                     <p className="crafting-rounding-note">
                       {selected.work.roundingLimited
-                        ? "Your equipped bonus applies, but this small integer Work cost cannot round any lower."
-                        : "Equipment savings stop at the 25% actions-per-Work limit."}
+                        ? "This small job already uses the least Work it can."
+                        : "Your gear gives the full Work saving available for this job."}
                     </p>
                   )}
 
@@ -169,13 +168,13 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
                     </div>
                   )}
                 </>
-              ) : <p>No recipes are authored for this station.</p>}
+              ) : <p>There is nothing to make at this station yet.</p>}
             </section>
           </div>
         )}
 
         <footer className="modal-footer crafting-modal__footer">
-          <span role="status">{feedback ?? (station.job ? "Return to the station when the job is ready." : "Inputs and Work commit at the visible work marker.")}</span>
+          <span role="status">{feedback ?? (station.job ? "Return to the station when the job is ready." : "Materials and Work are used when you begin making this.")}</span>
           {!station.job && selected && (
             <ChromeButton
               type="button"

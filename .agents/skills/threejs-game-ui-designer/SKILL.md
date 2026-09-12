@@ -1,40 +1,38 @@
 ---
 name: threejs-game-ui-designer
-description: "Design premium Three.js game UI. Use for HUDs, menus, overlays, pause/win/lose screens, settings, icon controls, touch UI, typography, responsive layout, safe areas, text fit, and UI/world cohesion."
+description: "Design or refine Three.js game HUDs, menus, overlays, settings, touch controls, typography, responsive layout, safe areas and text fit. Apply to the requested surfaces and states. Not for 3D diegetic props or whole-game orchestration."
 ---
 
 # Three.js Game UI Designer
 
-## Purpose
+- **Stack contract.** Use the project's existing DOM/CSS or overlay layer.
+- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
-Make game UI intentional, readable, responsive, and genre-specific.
+Make affected UI readable, responsive and consistent with the game's identity.
+In Neva, `04` §17 owns visual direction; simulation DTOs own gameplay truth.
 
 ## Workflow
 
-Load `references/ui-patterns.md` as the first action when designing HUDs, menus, overlays, pause/win/lose screens, settings, touch controls, typography, responsive layout, safe areas, text fit, icons, or UI/world cohesion. Track it in a reference ledger with yes/no, path, and failure reason. Do not mark the UI phase complete while this reference is skipped for interface work.
+1. Inspect the actual affected surface, content, caller and state transitions.
+2. Read relevant sections of `references/ui-patterns.md`. Select the relevant
+   checklist for hierarchy (`references/checklists/game-ui-quality.md`), HUD
+   readability (`references/checklists/hud-readability.md`), responsive fit
+   (`references/checklists/responsive-ui-fit.md`) or changed touch controls
+   (`references/checklists/mobile-input.md`). No all-checklist preload is needed.
+3. Improve hierarchy, spacing, fit and feedback using the established visual
+   language and suitable components. Do not introduce cards, badges, status
+   fields or modal states simply because an example contains them.
+4. Keep gameplay formulas and mutations in their existing owner. Wire controls
+   through real actions and preserve focus, accessible names and supported inputs.
+5. Inspect changed states at affected viewports. Exercise callbacks when interaction
+   changed; screenshots alone cannot prove them. Follow `03` §4 for checks.
 
-Load `references/checklists/game-ui-quality.md`, `references/checklists/hud-readability.md`, and `references/checklists/responsive-ui-fit.md` before claiming UI/HUD/menu work is complete. Load `references/checklists/mobile-input.md` when touch controls or mobile safe areas are in scope.
+Use existing UI art where suitable. Load an image or 3D provider generator only
+for explicitly requested generation; new icons or backgrounds are not mandatory
+for polish. Read `references/prompt-templates.md` only for reusable prompts.
 
-Load `references/prompt-templates.md` only when the user asks for reusable prompts, a UI pass prompt, or a task template.
+## Handoff
 
-Load `threejs-image-generator` when logos, icons, GUI art, faction marks, menu backgrounds, decals, or 2D HUD assets would improve quality. Use `threejs-3d-generator` only for 3D menu/showcase objects or diegetic 3D UI props, not normal flat HUD elements.
-
-1. Capture/inspect desktop and mobile screenshots.
-2. Inventory UI states: gameplay, pause, settings, fail/retry, win/milestone, loading, touch controls.
-3. Define hierarchy: survival/status, objective, feedback, flavor.
-4. Replace utility stat cards with authored clusters, meters, badges, icons, alerts, and modal states.
-5. Use stable dimensions, safe-area padding, text-fit constraints, hover/pressed/focus/disabled states.
-6. Wire UI to game state, not duplicated rules.
-7. Verify text fit, overlap, safe areas, touch targets, responsive screenshots, and real state changes.
-
-## Common Failure Modes
-
-- Generic dashboard/stat-card HUD.
-- UI covers player/threats.
-- Text shifts/clips on mobile.
-- Decorative panels reduce readability.
-- Touch controls look right but do not emit intents.
-
-## Final Response
-
-Report the reference ledger, UI state checklist, UI intent, states covered, files changed, screenshots, text-fit/overlap checks, safe-area/touch-target evidence, controls, and remaining risks.
+Report the UI result, relevant interaction/fit evidence and remaining gaps in
+the project completion format. No reference ledger or full UI inventory is
+required for a scoped change.

@@ -1,4 +1,5 @@
 import type RAPIER from "@dimforge/rapier3d-compat";
+import { MathUtils } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { boatAssetId } from "../render/assets/AssetCatalog";
 import { WaterSurface } from "../render/water/WaterSurface";
@@ -1021,9 +1022,16 @@ export class PhysicsWorld implements PhysicsAdapter {
       // During a sharp turn or reversal the velocity arcs and decelerates first;
       // snapping the body to input made the character moonwalk through that
       // interval while the feet still travelled in the previous direction.
-      const targetHeading = resolvedSpeed > 0.12
-        ? Math.atan2(resolvedVelocityX, resolvedVelocityZ)
-        : Math.atan2(inputX, inputZ);
+      // Blend between the two continuously instead of switching at a speed
+      // threshold, which snapped the yaw target as the threshold was crossed.
+      // Ground speed weights the blend: while braking out of a reversal the
+      // body keeps following the still-positive resolved velocity, then pivots
+      // toward the new input heading as the move builds in that direction.
+      const inputHeading = Math.atan2(inputX, inputZ);
+      const velocityHeading = Math.atan2(resolvedVelocityX, resolvedVelocityZ);
+      const headingDelta = normalizeAngle(velocityHeading - inputHeading);
+      const speedWeight = MathUtils.smoothstep(resolvedSpeed, 0.05, 0.4);
+      const targetHeading = inputHeading + headingDelta * speedWeight;
       this.playerRotationY = dampAngle(
         Number.isFinite(this.playerRotationY) ? this.playerRotationY : player.rotationY,
         targetHeading,

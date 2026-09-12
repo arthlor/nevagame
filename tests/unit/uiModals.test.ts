@@ -90,7 +90,7 @@ describe("UI Modals Server/Unit Render", () => {
     expect(html).toContain("Weathered Straw Hat");
     expect(html).toContain('class="atlas-image"');
     expect(html).toContain("Fishing Rod");
-    expect(html).toContain("Try On");
+    expect(html).toContain("Current gear");
     expect(html).toContain("Field");
     expect(html).toContain("Sea");
   });

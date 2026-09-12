@@ -181,7 +181,7 @@ export class AudioManager {
       const now = typeof performance !== "undefined" ? performance.now() : 0;
       if (now - this.lastStormCueAt > 8000) {
         this.lastStormCueAt = now;
-        this.playOneShot("thunder");
+        this.playBank("thunder");
       }
     }
     if (this.ambienceRequested) {

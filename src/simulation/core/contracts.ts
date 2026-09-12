@@ -634,6 +634,34 @@ export interface AlmanacDto {
   totalCrops: number;
 }
 
+/**
+ * The People folio: the named cast as the world currently sees them. Every
+ * field is derived from existing quest/feature/knowledge/rank state and the
+ * NPC's own authored lines; the page owns no relationship state of its own.
+ */
+export interface PersonEntryDto {
+  id: string;
+  name: string;
+  title: string;
+  district: string;
+  /** Where this person stands at the current time of day. */
+  locationName: string;
+  /** Semantic portrait key (`sprout`, `fish`, `anchor`, …) for the folio medallion. */
+  portraitIcon: string;
+  /** The line the world currently uses for this person (recognition or idle). */
+  line: string;
+  standingLabel: string;
+  standingTier: number;
+  questsCompleted: number;
+  recognized: boolean;
+}
+
+export interface PeoplePageDto {
+  people: ReadonlyArray<PersonEntryDto>;
+  recognizedCount: number;
+  total: number;
+}
+
 export interface PauseSummaryDto {
   regionLabel: string;
   dateTimeLabel: string;
@@ -776,6 +804,7 @@ export type InteractionAction =
   | "trade"
   | "cast"
   | "read-water"
+  | "read-notices"
   | "enter"
   | "exit"
   | "rest"
@@ -809,10 +838,12 @@ export type CropPlacementReasonCode =
 export interface CropPlacementRequest {
   farmId: FarmId;
   cropId: CropId;
-  /** Continuous world-space coordinate. */
+  /** Continuous coordinate; world-space unless `space` is `"local"`. */
   x: number;
-  /** Continuous world-space coordinate. */
+  /** Continuous coordinate; world-space unless `space` is `"local"`. */
   z: number;
+  /** Coordinate frame for `x`/`z`. Defaults to world-space. */
+  space?: "world" | "local";
 }
 
 export interface CropPlacementResult {
