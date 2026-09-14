@@ -211,6 +211,18 @@ const StoryPage: React.FC<{
               </div>
             </div>
           )}
+
+          {/* The ask as it was put, so instructions can be read again without
+              walking back across the island to hear them. Content-derived, not
+              a saved transcript. */}
+          {activeQuest.brief && activeQuest.brief.lines.length > 0 && (
+            <blockquote className="journal-story-brief" data-testid="journal-story-brief">
+              <span className="journal-story-brief-speaker">{`What ${activeQuest.brief.speakerName} said`}</span>
+              {activeQuest.brief.lines.map((line, index) => (
+                <p key={index}>{line}</p>
+              ))}
+            </blockquote>
+          )}
         </article>
       ) : (
         <p className="journal-empty-copy">No active story errand. The coast is yours to explore.</p>

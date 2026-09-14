@@ -48,6 +48,75 @@ function sourceFixture(): THREE.Group {
 }
 
 describe("source humanoid runtime", () => {
+  it.each([0, 0.6, 0.633333, 1.3])("keeps the published walk pose continuous at contact time %s", async (boundary) => {
+    const root = await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A);
+    const animator = new HumanoidAnimator(root);
+    const duration = (root.userData.animationClips as THREE.AnimationClip[]).find((clip) => clip.name === "walk")!.duration;
+    const context = characterContext({ speedMetersPerSecond: 1.464675, requestedGait: "walk" });
+    animator.setPreviewClip("walk");
+    const bones = resolveHumanoidRig(root).bones;
+    const nodes = [bones.thigh_left!, bones.shin_left!, bones.foot_left!, bones.thigh_right!, bones.shin_right!, bones.foot_right!];
+    const poses: THREE.Quaternion[][] = [];
+    for (const offset of [-0.00001, 0.00001]) {
+      animator.setPreviewPhase(((boundary + offset + duration) % duration) / duration);
+      animator.update(0, context);
+      animator.resolveGroundContacts(context, () => ({ height: 0, normal: { x: 0, y: 1, z: 0 } }));
+      poses.push(nodes.map((bone) => bone.quaternion.clone().normalize()));
+    }
+    nodes.forEach((bone, i) => expect(poses[0]![i]!.angleTo(poses[1]![i]!), bone.name).toBeLessThan(0.005));
+    animator.dispose();
+  });
+
+  it.each([ASSET_IDS.CHAR_PLAYER_A, ASSET_IDS.CHAR_NPC_ELSPETH_A])(
+    "keeps grounded contact transitions close across presentation frame rates for %s",
+    async (assetId) => {
+      const roots = await Promise.all([
+        loadHumanoidAsset(assetId),
+        loadHumanoidAsset(assetId)
+      ]);
+      const animators = roots.map((root) => new HumanoidAnimator(root));
+      const solvers = roots.map((root) => new HumanoidFootSupportSolver(root));
+      const walkClip = ASSET_BY_ID.get(assetId)?.animationClips?.find((clip) => clip.name === "walk");
+      const speedMetersPerSecond = walkClip?.referenceSpeedMetersPerSecond ?? 1.464675;
+      const context = characterContext({
+        requestedGait: "walk",
+        speedMetersPerSecond,
+        velocity: { x: 0, y: 0, z: speedMetersPerSecond }
+      });
+      const surface = () => ({ height: 0.03, normal: { x: 0, y: 1, z: 0 } });
+      const frameSteps = [1 / 60, 1 / 30];
+
+      animators.forEach((animator) => animator.setPreviewClip("walk"));
+      frameSteps.forEach((dt, index) => {
+        const root = roots[index]!;
+        const animator = animators[index]!;
+        for (let frame = 0; frame < Math.round(0.9 / dt); frame++) {
+          animator.update(dt, context);
+          root.position.z += context.motion.speedMetersPerSecond * dt;
+          root.updateMatrixWorld(true);
+          animator.resolveGroundContacts(context, surface, dt);
+        }
+      });
+
+      const firstRig = resolveHumanoidRig(roots[0]!);
+      const secondRig = resolveHumanoidRig(roots[1]!);
+      for (const side of ["left", "right"] as const) {
+        const firstSole = new THREE.Vector3();
+        const secondSole = new THREE.Vector3();
+        solvers[0]!.soleWorldPosition(side, firstSole);
+        solvers[1]!.soleWorldPosition(side, secondSole);
+        expect(firstSole.distanceTo(secondSole), `${side} sole`).toBeLessThan(0.025);
+        expect(
+          firstRig.legs[side]!.thigh.quaternion.clone().normalize().angleTo(
+            secondRig.legs[side]!.thigh.quaternion.clone().normalize()
+          ),
+          `${side} thigh`
+        ).toBeLessThan(0.08);
+      }
+      animators.forEach((animator) => animator.dispose());
+    }
+  );
+
   it("plays idle on construction and reset instead of leaving the bind pose frozen", () => {
     const root = sourceFixture(); const animator = new HumanoidAnimator(root);
     animator.update(0.3, characterContext());

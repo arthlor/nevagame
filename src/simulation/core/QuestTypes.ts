@@ -83,6 +83,24 @@ export interface QuestObjectiveDefinition {
    * `ContentRegistry` rejects this on objectives that cannot bank safely.
    */
   creditsEarlyActions?: boolean;
+  /**
+   * What the person says when a `talk-npc` objective aimed at someone other
+   * than the quest's speaker is fulfilled — a farewell in a round of visits, a
+   * message passed on. The speaker's own words are the quest's intro and
+   * completion, so the registry rejects this anywhere else.
+   */
+  dialogue?: string[];
+}
+
+/**
+ * Who first tells the player about an errand whose speaker they cannot reach
+ * yet, and what they say. Act 7's speaker lives across a channel the player
+ * has no boat for; without a herald nobody could explain the crossing until
+ * after it was made.
+ */
+export interface QuestHeraldDefinition {
+  npcId: NpcId;
+  lines: string[];
 }
 
 export interface QuestRewardDefinition {
@@ -108,10 +126,48 @@ export interface QuestDefinition {
   speakerId: NpcId;
   introDialogue: string[];
   completionDialogue: string[];
+  /** Optional setup from someone else while the speaker is out of reach. */
+  herald?: QuestHeraldDefinition;
   objectives: QuestObjectiveDefinition[];
   turnInCost?: QuestTurnInCost;
   rewards: QuestRewardDefinition;
   nextQuestId?: QuestId;
+}
+
+/**
+ * One part of a conversation. A single talk can close an errand, pass on the
+ * next one and deliver a message; each part says which thread it belongs to so
+ * presentation can mark it, and completion parts carry what changed hands.
+ * Transient: produced by the talk command, never saved.
+ */
+export type ConversationSegmentKind = "completion" | "intro" | "herald" | "objective" | "recognition";
+
+export interface ConversationSegment {
+  kind: ConversationSegmentKind;
+  lines: string[];
+  questId?: QuestId;
+  trackId?: QuestTrackId;
+  questTitle?: string;
+  trackTitle?: string;
+  /** This conversation began the errand. */
+  startsQuest?: boolean;
+  /** Granted by a completion part. */
+  rewards?: QuestRewardDefinition;
+  /** Handed over to settle a completion part. */
+  paid?: QuestTurnInCost;
+  /** A plain-language blocker shown under the words (cost not met, no room). */
+  note?: string;
+}
+
+export interface ConversationResult {
+  success: boolean;
+  reason?: string;
+  segments: ConversationSegment[];
+  /** Every line in order, for callers that only read text. */
+  dialogue: string[];
+  isCompletion: boolean;
+  questCompleted: boolean;
+  rewardsGiven: boolean;
 }
 
 /** One track's cursor. Every track advances independently. */
@@ -249,4 +305,21 @@ export interface ActiveQuestDto {
   /** Metres from the player to `targetLocation`, absent when there is no target. */
   targetDistanceMeters?: number;
   rewards?: QuestRewardDefinition;
+  /**
+   * What an acquisition step is waiting on, measured against the player — the
+   * skiff's Fishing XP and price, a rod's rank and price — so a gate reads as a
+   * path rather than a refusal at the counter.
+   */
+  requirements?: QuestRequirementDto[];
+  /** The ask as it was put to the player, so the journal can show it again. */
+  brief?: { speakerName: string; lines: string[] };
+}
+
+export interface QuestRequirementDto {
+  /** `amount` reads as current / required; `check` is simply held or not. */
+  kind: "amount" | "check";
+  label: string;
+  current: number;
+  required: number;
+  met: boolean;
 }

@@ -28,7 +28,7 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-from .geometry import _object_operator_context, apply_vertex_values, join_meshes
+from .geometry import _object_operator_context, apply_vertex_values, join_meshes, remember_rest_transform
 
 
 # One bone of an authored skeleton. `head`/`tail` are in the generator's own
@@ -181,6 +181,103 @@ def bind_creature_skin(
         "prunedInfluences": pruned,
         "verticesOutsideEveryEnvelope": escaped_envelope,
     }
+
+
+def weight_creature_part(
+    part: bpy.types.Object,
+    rig: bpy.types.Object,
+    bones: list[dict],
+    *,
+    falloff: float = 4.0,
+) -> None:
+    """Weight one anatomical part to only the bones allowed to move it.
+
+    Plain nearest-bone weighting across a whole joined surface lets a limb bone
+    steal torso: a gull's wing bone runs through its body, so the flank ends up
+    weighted to the wing and bulges on every downstroke. Weighting each part
+    before the join, against the bones that genuinely drive it, keeps a wing a
+    wing and a flank a flank. Blender merges vertex groups by name on join, so
+    the weights survive into the single surface.
+
+    Inverse distance to the bone *segment* rather than to its head, so a long
+    limb bone holds its whole tube instead of pulling everything toward the
+    joint. A high falloff keeps the middle of a limb effectively rigid while
+    still blending across the loop at each joint.
+    """
+    mesh = part.data
+    if not mesh.vertices:
+        raise ValueError(f"{part.name}: cannot weight an empty part")
+    if not bones:
+        raise ValueError(f"{part.name}: a part needs at least one driving bone")
+
+    groups = {}
+    for entry in bones:
+        group = part.vertex_groups.get(entry["name"]) or part.vertex_groups.new(name=entry["name"])
+        groups[entry["name"]] = group
+
+    to_world = part.matrix_world
+    rig_to_world = rig.matrix_world
+    segments = [
+        (entry["name"], rig_to_world @ entry["head"], rig_to_world @ entry["tail"], entry["envelope"])
+        for entry in bones
+    ]
+    for vertex in mesh.vertices:
+        point = to_world @ vertex.co
+        distances = [
+            (name, _point_to_segment_distance(point, head, tail), envelope)
+            for name, head, tail, envelope in segments
+        ]
+        candidates = [
+            (name, 1.0 / max(distance, 1e-4) ** falloff)
+            for name, distance, envelope in distances
+            if envelope is None or distance <= envelope
+        ]
+        if not candidates:
+            # Outside every declared envelope: move with the nearest driver
+            # rather than export a vertex that would collapse to the origin.
+            nearest = min(distances, key=lambda item: (item[1], item[0]))
+            candidates = [(nearest[0], 1.0)]
+        total = sum(weight for _, weight in candidates)
+        for name, weight in candidates:
+            groups[name].add([vertex.index], weight / total, "REPLACE")
+
+
+def build_skinned_surface(
+    name: str,
+    rig: bpy.types.Object,
+    bones: list[dict],
+    parts,
+    *,
+    falloff: float = 4.0,
+) -> tuple[bpy.types.Object, dict]:
+    """Weight each part to its drivers, join them, and bind the result.
+
+    `parts` is a sequence of `(mesh_object, bone_names)`. The surface is
+    parented to the rig, which is what the glTF exporter expects of a skinned
+    mesh when there is no LOD root in between.
+    """
+    by_name = {entry["name"]: entry for entry in bones}
+    for part, names in parts:
+        missing = [bone_name for bone_name in names if bone_name not in by_name]
+        if missing:
+            raise ValueError(f"{part.name}: undeclared driving bones {missing}")
+        weight_creature_part(part, rig, [by_name[bone_name] for bone_name in names], falloff=falloff)
+    surface = join_creature_surface([part for part, _ in parts], name, rig)
+    return surface, finish_creature_skin(surface, rig)
+
+
+def finish_creature_skin(surface: bpy.types.Object, rig: bpy.types.Object, *, max_influences: int = 4) -> dict:
+    """Cap influences, bind the armature, and refuse any unweighted vertex."""
+    if max_influences < 1 or max_influences > 4:
+        raise ValueError(f"{surface.name}: glTF supports one to four influences per vertex")
+    unweighted = [vertex.index for vertex in surface.data.vertices if not vertex.groups]
+    if unweighted:
+        raise ValueError(f"{surface.name}: {len(unweighted)} vertices left unweighted")
+    report = prune_influences(surface, rig, max_influences=max_influences)
+    for modifier in [modifier for modifier in surface.modifiers if modifier.type == "ARMATURE"]:
+        surface.modifiers.remove(modifier)
+    surface.modifiers.new(f"{surface.name}_skin", "ARMATURE").object = rig
+    return {"surface": surface.name, **report}
 
 
 def prune_influences(surface: bpy.types.Object, rig: bpy.types.Object, *, max_influences: int = 4) -> dict:
@@ -350,6 +447,17 @@ def author_creature_clip(
     if not carriers:
         raise ValueError(f"{spec['id']}: clip {clip_name} has no carriers")
 
+    for obj, keys in object_tracks:
+        _, rotation, location = keys[0]
+        if abs(keys[0][0]) > 1e-6 or any(abs(value) > 1e-9 for value in (*rotation, *location)):
+            # The glTF exporter writes an animated empty's frame-0 pose as its
+            # static transform. A skinned surface below it would then inherit a
+            # posed parent, which Khronos rejects and viewers ignore.
+            raise ValueError(
+                f"{spec['id']}: clip {clip_name} must start {obj.name} at its rest transform; "
+                "phase-shift the clip so frame 0 is neutral"
+            )
+
     primary_keys = object_tracks[0][1] if object_tracks else grouped_bones[rig_order[0]][0][1]
     duration = clip["durationSeconds"]
     if abs(primary_keys[0][0]) > 1e-6 or abs(primary_keys[-1][0] - duration) > 1e-6:
@@ -377,6 +485,9 @@ def author_creature_clip(
 
 
 def _key_object(obj, keyframes, frame_rate: float) -> None:
+    # surfaceAuthoring bakes normals in rest space; record the authored basis
+    # before NLA evaluation can replace it, as every other keyed empty does.
+    remember_rest_transform(obj)
     base_location = obj.location.copy()
     base_rotation = obj.rotation_euler.copy()
     obj.rotation_mode = "XYZ"

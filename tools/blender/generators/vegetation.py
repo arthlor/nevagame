@@ -17,6 +17,7 @@ from common.geometry import (
     add_ico,
     add_leaf_blade,
     add_limb_tube,
+    add_lofted_form,
     add_tapered_beam,
     add_tri_prism,
     apply_vertex_values,
@@ -487,12 +488,23 @@ def _add_bent_grass_blade(
 
 
 def _grass_patch(spec: dict, root) -> None:
-    """A meadow tile of distributed roots, not a bouquet of oversized blades."""
+    """A meadow tile of slender, curving blades on distributed roots.
+
+    Each blade turns its broad face toward its own lean, so the curve reads
+    from the side instead of edge-on as a spike. The section stays a shallow
+    fold that is narrowest at the root, widest low on the blade and drawn to a
+    fine tip, and it is tagged foliage so the export smooths light across the
+    fold and bends it toward the sky instead of splitting it into grey and
+    black facets. Taller meadow
+    tiles also raise a few seed-head stems above the blades.
+    """
     params = spec["parameters"]
     rng = seeded_rng(spec["seed"])
     primary, accent = spec["palette"]
     blade_count = params["bladeCount"]
+    lod_index = spec.get("_lodIndex", 0)
     gesture_angle = rng.uniform(-math.pi, math.pi)
+    up = Vector((0, 0, 1))
     for index in range(blade_count):
         angle = index * 2.399963 + rng.uniform(-0.30, 0.30)
         radius = params["spread"] * math.sqrt((index + .5) / blade_count) * rng.uniform(.82, 1.02)
@@ -500,29 +512,56 @@ def _grass_patch(spec: dict, root) -> None:
         height = params["height"] * rng.uniform(.58, 1.0)
         width = params["bladeWidth"] * rng.uniform(.75, 1.12)
         lean_angle = gesture_angle + rng.uniform(-.85, .85)
-        forward = Vector((math.cos(lean_angle), math.sin(lean_angle), 0))
-        facing = angle + rng.uniform(-.5, .5)
-        side = Vector((-math.sin(facing), math.cos(facing), 0))
-        fold = Vector((math.cos(facing), math.sin(facing), 0))
-        lean = height * rng.uniform(.35, .68)
-        if spec.get("_lodIndex", 0):
+        lean_ratio = rng.uniform(.35, .68)
+        twist = rng.uniform(-.35, .35)
+        if lod_index:
             if index % 3 != 0:
                 continue
             width *= 1.7
-        shoulder = forward * lean * .24 + Vector((0, 0, height * .57))
-        tip = forward * lean + Vector((0, 0, height))
-        # Two triangular sections and a fine tip: a closed ten-triangle blade.
-        # The shallow fold catches light without the thick diamond of a succulent.
+        forward = Vector((math.cos(lean_angle), math.sin(lean_angle), 0))
+        side = (Vector((-forward.y, forward.x, 0)) * math.cos(twist) + forward * math.sin(twist)).normalized()
+        fold = up.cross(side).normalized()
+        lean = height * lean_ratio
+        # The blade keeps its length as it bends, so the tip drops as it leans.
+        shoulder = forward * lean * .16 + Vector((0, 0, height * .46))
+        tip = forward * lean + Vector((0, 0, height * math.sqrt(max(.25, 1 - lean_ratio * lean_ratio * .8))))
         vertices = []
-        for center, half_width in ((Vector((0, 0, 0)), width * .38), (shoulder, width * .5)):
+        for center, half_width in ((Vector((0, 0, 0)), width * .3), (shoulder, width * .44)):
             vertices.extend(tuple(center + offset) for offset in (
-                -side * half_width, fold * width * .12, side * half_width))
+                -side * half_width, fold * width * .06, side * half_width))
         vertices.append(tuple(tip))
         faces = [(0, 2, 1), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5),
                  (3, 4, 6), (4, 5, 6), (5, 3, 6)]
         _build_mesh(f"grass_blade_{index:02d}", base, vertices, faces,
-                    accent if index % 7 == 0 else primary, root, recalc_normals=True)
+                    accent if index % 7 == 0 else primary, root,
+                    recalc_normals=True, normal_mode="foliage")
+    if params["height"] >= .35:
+        _add_meadow_seed_heads(params, gesture_angle, 1 if lod_index else 4, primary, accent, rng, root)
     consolidate_lod_level(root, f"{spec['id']}_cluster")
+
+
+def _add_meadow_seed_heads(params, gesture_angle, count, stem_token, head_token, rng, root) -> None:
+    """Thin stems carrying spindle seed heads just above the blades of a tall tile."""
+    for index in range(count):
+        angle = index * 2.399963 * 1.7 + rng.uniform(-.4, .4)
+        radius = params["spread"] * rng.uniform(.15, .7)
+        base = Vector((math.cos(angle) * radius, math.sin(angle) * radius * .86, -.01))
+        stem_height = params["height"] * rng.uniform(1.04, 1.2)
+        lean_angle = gesture_angle + rng.uniform(-.5, .5)
+        forward = Vector((math.cos(lean_angle), math.sin(lean_angle), 0))
+        lean = stem_height * rng.uniform(.1, .24)
+        mid = base + forward * lean * .3 + Vector((0, 0, stem_height * .55))
+        top = base + forward * lean + Vector((0, 0, stem_height * .82))
+        add_limb_tube(f"meadow_stem_{index:02d}", [tuple(base), tuple(mid), tuple(top)],
+                      [.0045, .0035, .0028], stem_token, root, sides=3)
+        head = top + forward * lean * .05
+        span = stem_height * .18
+        spindle = .011
+        add_lofted_form(f"meadow_seed_head_{index:02d}", [
+            ((head.x, head.y, head.z - span * .1), spindle * .45, spindle * .45),
+            ((head.x + forward.x * lean * .05, head.y + forward.y * lean * .05, head.z + span * .45), spindle, spindle),
+            ((head.x + forward.x * lean * .1, head.y + forward.y * lean * .1, head.z + span), spindle * .25, spindle * .25)
+        ], head_token, root, sides=4)
 
 
 def grass_clump(spec: dict, root) -> None:

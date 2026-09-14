@@ -5,7 +5,7 @@ import { HOMESTEAD_QUEST_TRACK_ID, TIDES_QUEST_TRACK_ID, TRADELANES_QUEST_TRACK_
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
 import { starterStructureAnchor } from "../world/FarmLayout";
 import { WorldLayout } from "../world/WorldLayout";
-import { SUNREACH_ANCHORS } from "../world/WorldIslands";
+import { FISHING_ECOLOGY_DEFINITIONS, SUNREACH_ANCHORS, type FishingEcologyId } from "../world/WorldIslands";
 
 const STARTER_FARM_ANCHOR = { x: -65, z: -55, name: "Starter Farm Field" } as const;
 const STARTER_MILL = starterStructureAnchor("struct.starter_mill")!;
@@ -19,7 +19,29 @@ const HOMESTEAD_PLOT = { x: 63.5, z: -62.5, name: "Private Homestead" };
 const LAKE_SCHOOL_ANCHOR = { x: 18, z: WorldLayout.coastlineZ(18) + 12, name: "Lake Sport-Fishing School" } as const;
 const SUNREACH_COVE = { ...SUNREACH_ANCHORS.coveMarket, name: "Sunreach Cove" } as const;
 const SUNREACH_TERRACES = { ...SUNREACH_ANCHORS.terraceFarm, name: "Sunreach Terraces" } as const;
-const SUNREACH_REEF = { x: 586, z: 184, name: "Sunreach Reef Edge" } as const;
+/**
+ * A fishing ground's anchor, read from the school spawn point that actually
+ * holds its schools. Hand-copied coordinates drifted: the reef marker pointed at
+ * empty water after the Sunreach shore migration moved the school.
+ */
+function schoolGround(
+  ecologyId: FishingEcologyId,
+  habitatId: "river" | "lake" | "coast" | "offshore",
+  name: string,
+  ordinal = 0
+): { x: number; z: number; name: string } {
+  const point = FISHING_ECOLOGY_DEFINITIONS[ecologyId].schoolSpawnPoints
+    .filter((candidate) => candidate.habitatId === habitatId)[ordinal];
+  if (!point) throw new Error(`No ${habitatId} school ground #${ordinal} in ${ecologyId}`);
+  return { x: point.x, z: point.z, name };
+}
+
+const SUNREACH_REEF = schoolGround("ecology.sunreach", "coast", "Sunreach Reef Edge");
+const SILVERWATER_RUN = schoolGround("ecology.neva", "river", "Silverwater River");
+const NEVA_LAKE_GROUND = schoolGround("ecology.neva", "lake", "Neva Lake");
+const NEVA_COAST_GROUND = schoolGround("ecology.neva", "coast", "Neva Coast");
+const OFFSHORE_GROUNDS = schoolGround("ecology.neva", "offshore", "Past the Shelf");
+const DEEP_TRENCH = schoolGround("ecology.neva", "offshore", "The Deep Trench", 1);
 
 export const QUESTS: QuestDefinition[] = [
   // ==========================================
@@ -101,7 +123,10 @@ export const QUESTS: QuestDefinition[] = [
       "Keep the soil damp but never drowned. A moisture-fed crop grows strong, and a finer harvest grade earns bonus Farming XP and a line in your journal."
     ],
     completionDialogue: [
-      "Look how rich and dark the soil looks when watered! Wheat takes a morning to ripen — tend other chores, or rest at the farmhouse and return."
+      // ONBOARDING_PACE ripens this first bed in a few real minutes; the line
+      // used to promise "a morning" and a rest the farmhouse refuses by day.
+      "Look how rich and dark the soil looks when watered! This bed was kept warm and fed for you, so the first wheat comes up quickly — the heads will turn gold in a few minutes.",
+      "Harvest it when it turns, and start a compost run at the bin by the farmhouse while you wait. Barnaby will tell you what the harvest is for."
     ],
     objectives: [
       {
@@ -134,8 +159,8 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Cycle of the Soil",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Hey there! I'm Barnaby, the homestead handyman. Wheat takes a morning to ripen — come back after it grows, or rest at the farmhouse overnight.",
-      "Harvest that wheat when the heads turn gold, then see me by the farmhouse workbench. Farming on Neva isn't just for bread—it's how we supply our fishing trips!"
+      "Hey there! I'm Barnaby, the homestead handyman. That first wheat of yours won't be long — the starter bed is quick.",
+      "Harvest it when the heads turn gold, and set the compost bin working: plant matter and a scoop of starter, and the worms do the rest. Then see me by the farmhouse workbench. Farming on Neva isn't just for bread — it's how we supply our fishing trips!"
     ],
     completionDialogue: [
       "That's prime grain right there! Heavy ears and full kernels. Now let's turn it into sea supplies."
@@ -230,7 +255,7 @@ export const QUESTS: QuestDefinition[] = [
     introDialogue: [
       "Ah, the new blood in Neva Cove! I'm Old Silas. Before you venture onto the open sea, you must master the river.",
       "Walk down the path to the timber bridge over the river corridor. Cast your line into the freshwater.",
-      "Hold [Space] to raise your green bar; keep the fish inside the bar to land it!"
+      "Hold [E] to load the cast and let go to send it. When the float dips, tap [Space] to set the hook, then hold [Space] to lift the green bar and keep the fish inside it."
     ],
     completionDialogue: [
       "Good strike! You've got the angler's touch. River fish are quick, but steady hands always win."
@@ -260,7 +285,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.elspeth",
     introDialogue: [
       "The village produce stall is always eager for extra grain and garden produce.",
-      "Visit the Village Produce Stall near the farm edge. Open the market trade menu and sell extra produce for gold. Harbor is where the catch is traded."
+      "Cross the bridge into the village and find the produce stall on the square. Sell a little of your harvest there for coin — the catch goes to the harbor, but grain and greens belong to the village."
     ],
     completionDialogue: [
       "Look at that purse jingle! Honest coin from your own labor. Now you're ready to see the wider harbor."
@@ -348,7 +373,8 @@ export const QUESTS: QuestDefinition[] = [
     rewards: {
       items: [{ itemId: "item.basic_lure", quantity: 2 }],
       unlocksFeatureIds: ["boat.player_rowboat"],
-      skillXp: [{ skill: "fishing", xp: 350 }]
+      skillXp: [{ skill: "fishing", xp: 350 }],
+      unlocksKnowledgeIds: ["knowledge.family_slip"]
     },
     nextQuestId: "quest.act5_maiden_voyage"
   },
@@ -538,7 +564,8 @@ export const QUESTS: QuestDefinition[] = [
     ],
     completionDialogue: [
       "There it is: field to bait, bait to fish, fish back to field. You are no longer following the cove's cycle—you are tending it.",
-      "I've written the method in your journal. Use it whenever the soil needs another season."
+      "I've written the method in your journal. Use it whenever the soil needs another season.",
+      "And Silas was asking after you down at the pier. Something about the channel, and a boat with an engine in it."
     ],
     objectives: [
       {
@@ -574,12 +601,24 @@ export const QUESTS: QuestDefinition[] = [
     actTitle: "Act 7: Sunreach",
     questTitle: "Across the Open Channel",
     speakerId: "npc.tomas",
+    // Tomas lives across a channel the player has no boat for, so his intro
+    // could only ever be heard after the crossing it described. Silas — who
+    // keeps the seamanship threshold — sets the errand up instead, and Tomas
+    // greets the player when they arrive.
+    herald: {
+      npcId: "npc.silas",
+      lines: [
+        "Sunreach lies across the open channel, and a rowboat will not hold its line in that swell. You want the Coastal Fishing Skiff at the harbor mooring.",
+        "She costs 850 in gold, and the broker will not sell a coastal hull to anyone without an Expert's hand on a rod. Nobody hands you that. Fish my waters in their seasons and keep Maeve's fish orders, and the hours will do the rest.",
+        "When she is yours, follow the buoys east into the sheltered cove and tie up at the mooring. Tomas keeps that cove. He will be expecting you."
+      ]
+    },
     introDialogue: [
-      "Sunreach lies beyond the open channel. A rowboat cannot hold its line in that swell; take the Coastal Fishing Skiff.",
-      "Follow the buoyed water east, enter the sheltered cove, and bring the skiff onto our mooring. Tomas keeps the market there."
+      "Tie up inside the markers and come up to the landing. Everything else can wait until you are standing on dry stone."
     ],
     completionDialogue: [
-      "You read the channel cleanly. Welcome to Sunreach—warm stone, dry terraces, and a reef that rewards preparation."
+      "You came across on your own keel. The rowboats turn back at the markers; most people only try that swell once.",
+      "Welcome to Sunreach—warm stone, dry terraces, and a reef that rewards preparation. Ines keeps the terraces above us. She will want to see what your hands do with a dry field."
     ],
     objectives: [
       {
@@ -672,15 +711,18 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Reef's Answer",
     speakerId: "npc.tomas",
     introDialogue: [
-      "Cast that chum where the reef shelf drops away. A golden sea bream from these waters belongs in the skiff hold, then on my cove scales while it is fresh."
+      "Take the skiff round to the reef edge, where the shelf drops away, and chum the school there. That is where this island's fish actually are.",
+      "Then work a light line from the deck. The golden sea bream hold along that edge, and one of them belongs in your hold and then on my cove scales while it is fresh."
     ],
     completionDialogue: [
       "Fresh, local, and landed with room to spare. The reef has answered your preparation."
     ],
     objectives: [
-      { id: "step.act7_chum_sunreach", type: "chum-school", description: "Chum a Sunreach fish school", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
-      { id: "step.act7_land_bream", type: "catch-basic-fish", description: "Land a Golden Sea Bream from Sunreach waters", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
-      { id: "step.act7_stow_bream", type: "catch-basic-fish", description: "Land a second Sea Bream while aboard your skiff", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "boat", id: "boat.player_skiff" } },
+      { id: "step.act7_chum_sunreach", type: "chum-school", description: "Chum the school at the Sunreach reef edge", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
+      { id: "step.act7_land_bream", type: "catch-basic-fish", description: "Land a Golden Sea Bream in Sunreach waters", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
+      // One bream landed from the skiff closes this and the step above
+      // together; a shore-caught first bream leaves this one to the deck.
+      { id: "step.act7_stow_bream", type: "catch-basic-fish", description: "Land a Sea Bream from the deck of your skiff", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "boat", id: "boat.player_skiff" } },
       { id: "step.act7_sell_bream", type: "sell-fish", description: "Sell the fresh Sea Bream at Sunreach Cove", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_COVE, location: { kind: "market", id: "market.sunreach_cove" } }
     ],
     rewards: { money: 240, skillXp: [{ skill: "fishing", xp: 900 }, { skill: "trading", xp: 500 }] },
@@ -743,7 +785,7 @@ export const QUESTS: QuestDefinition[] = [
         type: "chum-school",
         description: "Chum a school in the river",
         targetQuantity: 1,
-        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" },
+        locationAnchor: SILVERWATER_RUN,
         location: { kind: "habitat", id: "river" }
       },
       {
@@ -752,7 +794,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Hook a Brook Trout in the river",
         targetId: "fish.trout",
         targetQuantity: 1,
-        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" },
+        locationAnchor: SILVERWATER_RUN,
         location: { kind: "habitat", id: "river" }
       },
       {
@@ -761,7 +803,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land the trout",
         targetId: "fish.trout",
         targetQuantity: 1,
-        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" }
+        locationAnchor: SILVERWATER_RUN
       }
     ],
     rewards: { money: 60, skillXp: [{ skill: "fishing", xp: 350 }] },
@@ -788,7 +830,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land a Channel Catfish",
         targetId: "fish.catfish",
         targetQuantity: 1,
-        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" }
+        locationAnchor: SILVERWATER_RUN
       }
     ],
     rewards: { money: 110, skillXp: [{ skill: "fishing", xp: 500 }] },
@@ -802,7 +844,7 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Cold Water Teeth",
     speakerId: "npc.silas",
     introDialogue: [
-      "Pike keep to the lake and they keep to the cold. Come autumn they are everywhere; come high summer you will not find one.",
+      "Pike keep to the lake and they keep to the cold. Come autumn they are everywhere; come high summer you will be lucky to see one, and they feed by daylight.",
       "Do not fight the calendar. Go when the water is right, and until then there is other work."
     ],
     completionDialogue: [
@@ -815,7 +857,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land a Northern Pike from the lake",
         targetId: "fish.pike",
         targetQuantity: 1,
-        locationAnchor: { x: 18, z: 92, name: "Neva Lake" }
+        locationAnchor: NEVA_LAKE_GROUND
       }
     ],
     rewards: { money: 150, skillXp: [{ skill: "fishing", xp: 650 }] },
@@ -830,7 +872,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.silas",
     introDialogue: [
       "There is a fish in that same lake that shows itself for one season only, and it is the handsomest thing in Neva.",
-      "An arowana runs gold along the surface in high summer. You will need a rod with some spine. Miss the season and you wait a year."
+      "An arowana runs gold along the surface in high summer, mostly at dusk and after dark. You will need a rod with some spine — Heavy Sport or better. Out of summer they are scarce enough to call a rumour."
     ],
     completionDialogue: [
       "Not many have seen one up close. Fewer have landed one. Write it down."
@@ -842,7 +884,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land a Golden Arowana",
         targetId: "fish.arowana",
         targetQuantity: 1,
-        locationAnchor: { x: 18, z: 92, name: "Neva Lake" }
+        locationAnchor: NEVA_LAKE_GROUND
       }
     ],
     rewards: { money: 260, skillXp: [{ skill: "fishing", xp: 900 }] },
@@ -869,7 +911,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land a Sturgeon from the coast",
         targetId: "fish.sturgeon",
         targetQuantity: 1,
-        locationAnchor: { x: 118, z: 138, name: "Neva Coast" }
+        locationAnchor: NEVA_COAST_GROUND
       },
       {
         id: "step.tides_sell_sturgeon",
@@ -904,7 +946,7 @@ export const QUESTS: QuestDefinition[] = [
         type: "hook-sport-fish",
         description: "Hook a school in the river",
         targetQuantity: 1,
-        locationAnchor: { x: -19.19, z: -40, name: "Silverwater River" },
+        locationAnchor: SILVERWATER_RUN,
         location: { kind: "habitat", id: "river" }
       },
       {
@@ -912,7 +954,7 @@ export const QUESTS: QuestDefinition[] = [
         type: "hook-sport-fish",
         description: "Hook a school in the lake",
         targetQuantity: 1,
-        locationAnchor: { x: 18, z: 92, name: "Neva Lake" },
+        locationAnchor: NEVA_LAKE_GROUND,
         location: { kind: "habitat", id: "lake" }
       },
       {
@@ -920,7 +962,7 @@ export const QUESTS: QuestDefinition[] = [
         type: "hook-sport-fish",
         description: "Hook a school on the coast",
         targetQuantity: 1,
-        locationAnchor: { x: 118, z: 138, name: "Neva Coast" },
+        locationAnchor: NEVA_COAST_GROUND,
         location: { kind: "habitat", id: "coast" }
       },
       {
@@ -962,7 +1004,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land a Blue Marlin beyond the shelf",
         targetId: "fish.blue_marlin",
         targetQuantity: 1,
-        locationAnchor: { x: 90, z: 221, name: "The Deep Trench" },
+        locationAnchor: OFFSHORE_GROUNDS,
         location: { kind: "ecology", id: "ecology.neva" }
       }
     ],
@@ -1007,7 +1049,8 @@ export const QUESTS: QuestDefinition[] = [
     ],
     rewards: {
       items: [{ itemId: "seed.wheat", quantity: 8 }, { itemId: "seed.potato", quantity: 4 }],
-      skillXp: [{ skill: "farming", xp: 250 }]
+      skillXp: [{ skill: "farming", xp: 250 }],
+      unlocksKnowledgeIds: ["knowledge.family_seed_pouch"]
     },
     nextQuestId: "quest.homestead_overgrown_rows"
   },
@@ -1109,7 +1152,11 @@ export const QUESTS: QuestDefinition[] = [
         location: { kind: "station", id: "struct.starter_mill" }
       }
     ],
-    rewards: { money: 60, skillXp: [{ skill: "processing", xp: 400 }] },
+    rewards: {
+      money: 60,
+      skillXp: [{ skill: "processing", xp: 400 }],
+      unlocksKnowledgeIds: ["knowledge.worn_handle"]
+    },
     nextQuestId: "quest.homestead_orchard"
   },
   {
@@ -1260,9 +1307,16 @@ export const QUESTS: QuestDefinition[] = [
     actTitle: "Freight and Favour",
     questTitle: "The Long Way Round",
     speakerId: "npc.tomas",
+    herald: {
+      npcId: "npc.maeve",
+      lines: [
+        "There is a fourth kind of promise, and Tomas tells it better than I do. It is his island's whole trade.",
+        "Take the skiff across and find him at the cove. And look at the board on your way: some of those orders only make sense on the far side of the channel."
+      ]
+    },
     introDialogue: [
       "Maeve says you have learned volume, freshness and grade. Here is the fourth thing: distance.",
-      "Fill an order that has to cross the channel. Everything you already know still applies, only now the clock runs while you are at sea and there is no turning back halfway."
+      "Fill an order whose goods have to cross the channel — our olives to the village, or Neva greens to Ines's terraces. Everything you already know still applies, only now the clock runs while you are at sea."
     ],
     completionDialogue: [
       "A crossing turns every one of those lessons into the same lesson. Load for the trip you are actually making."
@@ -1278,12 +1332,14 @@ export const QUESTS: QuestDefinition[] = [
         location: { kind: "market", id: "market.sunreach_cove" }
       },
       {
+        // Any produce order used to count, so a village wheat delivery
+        // finished a quest about crossing the channel. The tag is carried only
+        // by orders whose goods have to make the crossing.
         id: "step.tradelanes_cross_order",
         type: "complete-contract",
-        description: "Complete any produce order",
-        targetId: "produce",
-        targetQuantity: 1,
-        locationAnchor: VILLAGE_MARKET_ANCHOR
+        description: "Fill an order whose goods cross the channel",
+        targetId: "tag:cross-channel",
+        targetQuantity: 1
       }
     ],
     rewards: { money: 260, skillXp: [{ skill: "trading", xp: 1000 }] },
@@ -1375,7 +1431,8 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.tomas",
     introDialogue: [
       "South of the scrub the reef shelf runs a long way out and nobody works it. Not because it is poor - because it is far from anywhere you could sell in time.",
-      "Take the skiff round and bring back an amberjack. Never mind the clock on it yet. I want you to see what is down there first."
+      "Take the skiff round and bring back an amberjack. They pull like a winch, so you will want Heavy Sport tackle or better; the cove stall keeps a rod for exactly that.",
+      "Never mind the clock on it yet. I want you to see what is down there first."
     ],
     completionDialogue: [
       "Now you have seen it. That water has been full the whole time we have been selling sardines off the cove wall."
@@ -1508,6 +1565,15 @@ export const QUESTS: QuestDefinition[] = [
     actTitle: "Act 9: The Charter",
     questTitle: "Beyond the Grounds",
     speakerId: "npc.silas",
+    // Act 8 closes on the terraces, a channel away from Silas; Ines passes on
+    // his word in the same conversation so the next beat has a voice.
+    herald: {
+      npcId: "npc.ines",
+      lines: [
+        "One more thing before you sail. Silas sent word across with the morning boat: he wants you at the harbor pier.",
+        "He says you are still fishing deep water with shore tackle, and that Maeve has an offshore rod on her rack."
+      ]
+    },
     introDialogue: [
       "You have worked every water this island has, and you are still fishing them with tackle meant for the ones near shore.",
       "There is an offshore rod on Maeve's rack. It is not a reward and nobody is giving it to you. Go and buy it, and then we will talk about where it can take you."
@@ -1537,7 +1603,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.silas",
     introDialogue: [
       "Southwest of the working grounds the bottom drops away and stays gone. We call it the trench because nobody has ever had a better word for it.",
-      "Swordfish hold there. Take the skiff out past where you can see the lighthouse and bring one back. Go on a day you have the fuel to be patient."
+      "Swordfish hold there. They come up to feed in the dark and in dirty weather, and they run thickest in autumn and winter. Take the skiff out past where you can see the lighthouse and bring one back. Go on a night you have the fuel to be patient."
     ],
     completionDialogue: [
       "Off the trench and home again. There are maybe four people on this island who have done that, and two of them are standing here."
@@ -1549,7 +1615,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Land a Swordfish from the deep trench",
         targetId: "fish.swordfish",
         targetQuantity: 1,
-        locationAnchor: { x: -40, z: 250, name: "The Deep Trench" },
+        locationAnchor: DEEP_TRENCH,
         location: { kind: "ecology", id: "ecology.neva" }
       },
       {
@@ -1647,6 +1713,17 @@ export const QUESTS: QuestDefinition[] = [
     actTitle: "Act 10: Open Horizons",
     questTitle: "Open Horizons",
     speakerId: "npc.elspeth",
+    // The charter is signed at Maeve's stall, and the round begins there; she
+    // passes on Elspeth's request in the same conversation. Each person in the
+    // round then says their own piece rather than whatever errand of theirs
+    // happens to be running.
+    herald: {
+      npcId: "npc.maeve",
+      lines: [
+        "One more thing, and it is not mine to ask. Elspeth sent word down from the garden: before you take that charter anywhere, she wants you to go round.",
+        "Silas first, then back by me, then Barnaby at his bench. Finish with her at the garden gate. It is not work. Humour an old baker."
+      ]
+    },
     introDialogue: [
       "Before you take that charter anywhere, do one more thing for me, and it is not work.",
       "Go round. Silas, Maeve, Barnaby. Say whatever you say. Then come back and tell me what you think you inherited, now that you have actually done it."
@@ -1662,7 +1739,12 @@ export const QUESTS: QuestDefinition[] = [
         description: "Speak with Old Silas at the pier",
         targetId: "npc.silas",
         targetQuantity: 1,
-        locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Harbor Pier" }
+        locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Harbor Pier" },
+        dialogue: [
+          "So she is sending you round. Good. Sit a minute.",
+          "I am not going to tell you what you did well; you know that. I will tell you the slip was never mine. I only kept it until someone came back for the boat.",
+          "Go on to Maeve. She will pretend she is not waiting."
+        ]
       },
       {
         id: "step.act10_maeve",
@@ -1670,7 +1752,12 @@ export const QUESTS: QuestDefinition[] = [
         description: "Speak with Maeve at the Fish Market",
         targetId: "npc.maeve",
         targetQuantity: 1,
-        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" }
+        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
+        dialogue: [
+          "Round you go, then. I will not keep you long.",
+          "The orders will keep coming whether you are here or not, and you will keep choosing. That is all a name on a charter means: people know you will choose well and come back.",
+          "Barnaby next. Mind he does not put you to work."
+        ]
       },
       {
         id: "step.act10_barnaby",
@@ -1678,7 +1765,12 @@ export const QUESTS: QuestDefinition[] = [
         description: "Speak with Barnaby at the farmhouse bench",
         targetId: "npc.barnaby",
         targetQuantity: 1,
-        locationAnchor: { x: -73.5, z: -58.8, name: "Farmhouse Workbench" }
+        locationAnchor: { x: -73.5, z: -58.8, name: "Farmhouse Workbench" },
+        dialogue: [
+          "Come round to see me, have you? That bench of mine has your marks on it now, next to the old ones.",
+          "That is the only kind of inheritance I trust — the kind you can wear smooth with your own hands.",
+          "Off to Elspeth, then. Take the long way, past the rows. She will ask."
+        ]
       },
       {
         id: "step.act10_elspeth",

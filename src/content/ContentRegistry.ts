@@ -24,7 +24,7 @@ import { BOATS } from "./boats";
 import { RODS } from "./rods";
 import { MARKETS } from "./markets";
 import { LIVE_FEATURE_IDS, PROFICIENCY_RANKS, rankIndexForRequirement } from "./progression";
-import { CONTRACT_TEMPLATES, CONTRACT_TYPES } from "./contracts";
+import { CONTRACT_TAG_PREFIX, CONTRACT_TEMPLATES, CONTRACT_TYPES } from "./contracts";
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
 import { QUEST_TRACKS } from "./questTracks";
@@ -268,6 +268,9 @@ export class ContentRegistry {
       if (!npc.name || !npc.anchor) {
         throw new Error(`NPC '${npcId}' is missing a valid name or anchor definition.`);
       }
+      if (npc.beckonLines && (npc.beckonLines.length === 0 || npc.beckonLines.some((line) => !line.trim()))) {
+        throw new Error(`NPC '${npcId}' has an empty beckon line.`);
+      }
       const phases = new Set<string>();
       for (const slot of npc.schedule ?? []) {
         if (!["dawn", "day", "dusk", "night"].includes(slot.phase) || phases.has(slot.phase)) {
@@ -323,13 +326,26 @@ export class ContentRegistry {
       // does emit a habitat, which is how a per-water objective is authored.
       "land-sport-fish": ["boat", "ecology"],
       "stow-cargo": ["boat"], "board-boat": ["boat"], "dock-boat": ["boat", "market"],
-      "sell-item": ["market"], "sell-fish": ["market"]
+      "sell-item": ["market"], "sell-fish": ["market"],
+      // Dispatched with no location at all (`NpcTalked`, contract completion and
+      // the purchase check), so any declared location could never be matched.
+      "talk-npc": [], "complete-contract": [], "purchase-upgrade": []
     };
+
+    const usableLines = (lines: readonly string[] | undefined): boolean =>
+      Boolean(lines?.length) && lines!.every((line) => line.trim().length > 0);
 
     for (const quest of definitions) {
       if (!this.npcs.has(quest.speakerId)) throw new Error(`Quest '${quest.id}' references unknown speakerId '${quest.speakerId}'`);
       if (!quest.objectives?.length) throw new Error(`Quest '${quest.id}' must have at least one objective.`);
       if (quest.nextQuestId && !questMap.has(quest.nextQuestId)) throw new Error(`Quest '${quest.id}' references unknown nextQuestId '${quest.nextQuestId}'`);
+      if (quest.herald) {
+        // A herald speaks for someone the player cannot reach yet; the speaker
+        // heralding themselves would only duplicate the intro.
+        if (!this.npcs.has(quest.herald.npcId)) throw new Error(`Quest '${quest.id}' herald '${quest.herald.npcId}' is not an NPC`);
+        if (quest.herald.npcId === quest.speakerId) throw new Error(`Quest '${quest.id}' cannot be heralded by its own speaker`);
+        if (!usableLines(quest.herald.lines)) throw new Error(`Quest '${quest.id}' herald has no usable lines`);
+      }
 
       for (const objective of quest.objectives) {
         if (objectiveIds.has(objective.id)) throw new Error(`Duplicate quest objective id '${objective.id}'`);
@@ -337,6 +353,14 @@ export class ContentRegistry {
         if (!supportedTypes.has(objective.type)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has unsupported type '${objective.type}'`);
         if (!Number.isSafeInteger(objective.targetQuantity) || objective.targetQuantity <= 0) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has an invalid target quantity`);
         if (objective.targetId) this.validateQuestTarget(quest.id, objective.type, objective.targetId, farms, boatIds);
+        if (objective.dialogue !== undefined) {
+          // Only someone other than the speaker has lines of their own for a
+          // step; the speaker's are the quest's intro and completion.
+          if (objective.type !== "talk-npc" || !objective.targetId || objective.targetId === quest.speakerId) {
+            throw new Error(`Quest '${quest.id}' objective '${objective.id}' may only carry dialogue as a talk step aimed at someone other than the speaker`);
+          }
+          if (!usableLines(objective.dialogue)) throw new Error(`Quest '${quest.id}' objective '${objective.id}' has no usable dialogue lines`);
+        }
 
         if (objective.creditsEarlyActions) {
           if (!creditableTypes.has(objective.type)) {
@@ -463,17 +487,34 @@ export class ContentRegistry {
         if (!this.items.has(targetId)) throw new Error(`Quest '${questId}' sell-item target '${targetId}' is missing`);
         return;
       case "catch-basic-fish":
-      case "hook-sport-fish":
-      case "land-sport-fish":
       case "sell-fish":
         if (!this.fishSpecies.has(targetId) && !this.items.has(targetId)) throw new Error(`Quest '${questId}' fish target '${targetId}' is missing`);
         return;
-      case "complete-contract":
-        // Either one template, or any contract of a type.
-        if (!this.contractTemplates.has(targetId) && !CONTRACT_TYPES.has(targetId)) {
-          throw new Error(`Quest '${questId}' contract target '${targetId}' is neither a template nor a contract type`);
+      case "hook-sport-fish":
+        // `FishHooked` only fires for a sport fight.
+        if (!this.fishSpecies.get(targetId)?.isSportFish) {
+          throw new Error(`Quest '${questId}' hook-sport-fish target '${targetId}' is not a sport fish, so it can never be hooked`);
         }
         return;
+      case "land-sport-fish": {
+        // `FishLanded` fires for physical cargo: sport fish and physical basic catches.
+        const fish = this.fishSpecies.get(targetId);
+        if (!fish || !(fish.isSportFish || fish.tags.includes("physical-basic-catch"))) {
+          throw new Error(`Quest '${questId}' land-sport-fish target '${targetId}' never lands as physical cargo`);
+        }
+        return;
+      }
+      case "complete-contract": {
+        // One template, any contract of a type, or any contract carrying a tag.
+        const tagged = targetId.startsWith(CONTRACT_TAG_PREFIX)
+          && [...this.contractTemplates.values()].some((template) =>
+            template.tags?.includes(targetId.slice(CONTRACT_TAG_PREFIX.length))
+          );
+        if (!this.contractTemplates.has(targetId) && !CONTRACT_TYPES.has(targetId) && !tagged) {
+          throw new Error(`Quest '${questId}' contract target '${targetId}' is neither a template, a contract type nor a carried tag`);
+        }
+        return;
+      }
       case "apply-fertilizer":
       case "irrigate-farm":
         if (!farms.has(targetId)) throw new Error(`Quest '${questId}' farm target '${targetId}' is missing`);

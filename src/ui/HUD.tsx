@@ -140,7 +140,11 @@ export const HUD: React.FC<HUDProps> = ({
   };
 
   return (
-    <div className="guildcraft-hud" aria-hidden={blocked || undefined} {...(blocked ? { inert: "" } : {})}>
+    <div
+      className={`guildcraft-hud${showForecast ? " has-forecast-open" : ""}`}
+      aria-hidden={blocked || undefined}
+      {...(blocked ? { inert: "" } : {})}
+    >
       <HudCluster edge="top-left" className="guild-status-anchor interactive" aria-label="Player resources">
         <PlayerUnitFrame work={hud.work} sprint={hud.sprint} statusEffects={hud.statusEffects}
           onOpenCharacterSheet={() => handleModalOpen("character")} />

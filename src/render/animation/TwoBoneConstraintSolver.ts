@@ -15,7 +15,14 @@ export class TwoBoneConstraintSolver {
   private readonly world = new THREE.Quaternion();
   private readonly parent = new THREE.Quaternion();
 
-  public solve(upper: THREE.Object3D, lower: THREE.Object3D, lowerTip: THREE.Vector3, targetWorld: THREE.Vector3, preferredBendWorld: THREE.Vector3): THREE.Vector3 | null {
+  public solve(
+    upper: THREE.Object3D,
+    lower: THREE.Object3D,
+    lowerTip: THREE.Vector3,
+    targetWorld: THREE.Vector3,
+    preferredBendWorld: THREE.Vector3,
+    reachSofteningMeters = 0
+  ): THREE.Vector3 | null {
     upper.getWorldPosition(this.origin);
     lower.getWorldPosition(this.joint);
     this.endpoint.copy(lowerTip).applyMatrix4(lower.matrixWorld);
@@ -23,7 +30,16 @@ export class TwoBoneConstraintSolver {
     const b = this.joint.distanceTo(this.endpoint);
     if (a < 0.001 || b < 0.001) return null;
     this.direction.subVectors(targetWorld, this.origin);
-    const distance = THREE.MathUtils.clamp(this.direction.length(), Math.abs(a - b) + 0.001, a + b - 0.001);
+    const minDistance = Math.abs(a - b) + 0.001;
+    const maxDistance = a + b - 0.001;
+    const targetDistance = this.direction.length();
+    let distance = targetDistance;
+    if (reachSofteningMeters > 0 && targetDistance > maxDistance - reachSofteningMeters) {
+      const softStart = Math.max(minDistance, maxDistance - reachSofteningMeters);
+      const excess = Math.max(0, targetDistance - softStart);
+      distance = softStart + reachSofteningMeters * (1 - Math.exp(-excess / reachSofteningMeters));
+    }
+    distance = THREE.MathUtils.clamp(distance, minDistance, maxDistance);
     if (this.direction.lengthSq() < 0.000001) this.direction.subVectors(this.endpoint, this.origin);
     this.direction.normalize();
     this.reachable.copy(this.origin).addScaledVector(this.direction, distance);

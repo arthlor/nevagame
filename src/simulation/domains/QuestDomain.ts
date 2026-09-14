@@ -1,7 +1,9 @@
 // src/simulation/domains/QuestDomain.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { contractObjectiveTargets } from "../../content/contracts";
 import { getRankForXp } from "../../content/progression";
+import { previousRodId, rodFishingXpRequirement } from "../../content/rods";
 import type { NpcDefinition } from "../../content/npcs";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { DomainContext } from "./DomainContext";
@@ -15,6 +17,8 @@ import {
   questTrackProgress,
   sameEarlyActionShape,
   type ActiveQuestDto,
+  type ConversationResult,
+  type ConversationSegment,
   type NpcId,
   type QuestDefinition,
   type QuestEarlyActionCredit,
@@ -22,6 +26,7 @@ import {
   type QuestLocationRequirement,
   type QuestObjectiveDefinition,
   type QuestObjectiveType,
+  type QuestRequirementDto,
   type QuestTrackId
 } from "../core/QuestTypes";
 import type { InteractionResult } from "../core/contracts";
@@ -31,6 +36,15 @@ import { distance2d } from "./DomainContext";
 import { npcAnchorAt, npcRecognitionLines, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
 
 type ObjectiveEventLocation = QuestLocationRequirement;
+
+/**
+ * Bounds one conversation's chain of close → next errand → its ask. The
+ * longest authored chain (close an errand whose successor is a one-step ask
+ * from the same person) needs four passes.
+ */
+const MAX_CONVERSATION_PASSES = 6;
+/** Unprompted asks one person delivers in a single conversation. */
+const MAX_UNPROMPTED_SEGMENTS = 2;
 
 /**
  * Content-chain reconciliation for saves whose track ran out of authored
@@ -61,6 +75,23 @@ export function reconcileInactiveQuestChain(state: GameState): boolean {
     }
   }
   return activated;
+}
+
+/**
+ * Writes the journal entries a completed errand now grants into saves that
+ * completed it before the entry existed. Knowledge IDs only — never money,
+ * items or XP — so no reward is replayed, and a second call changes nothing.
+ */
+export function reconcileCompletedQuestKnowledge(state: GameState): boolean {
+  let changed = false;
+  for (const questId of state.quests.completedQuestIds) {
+    for (const knowledgeId of ContentRegistry.quests.get(questId)?.rewards.unlocksKnowledgeIds ?? []) {
+      if (!ContentRegistry.knowledge.has(knowledgeId) || state.journal.unlockedKnowledge.includes(knowledgeId)) continue;
+      state.journal.unlockedKnowledge.push(knowledgeId);
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 /**
@@ -329,17 +360,24 @@ export class QuestDomain {
       events.on("ItemSold", (e) => this.onObjectiveEvent("sell-item", e.itemId, e.quantity, { kind: "market", id: e.marketId })),
       events.on("FishSold", (e) => this.onObjectiveEvent("sell-fish", e.speciesId, 1, { kind: "market", id: e.marketId })),
       events.on("ContractCompleted", (e) => this.worldEvent(() => {
-        this.onObjectiveEvent("complete-contract", e.templateId, 1);
-        // Also by type, so a quest can ask for "any bulk order" rather than
-        // one template the board may not roll for a long time.
-        if (e.contractType !== e.templateId) this.onObjectiveEvent("complete-contract", e.contractType, 1);
+        // By template, by type and by tag, so a quest can ask for "any bulk
+        // order" or "an order that crosses the channel" rather than one
+        // template the board may not roll for a long time.
+        const template = ContentRegistry.contractTemplates.get(e.templateId);
+        const targets = template
+          ? contractObjectiveTargets(template)
+          : [e.templateId, e.contractType];
+        for (const target of new Set(targets)) this.onObjectiveEvent("complete-contract", target, 1);
       })),
       events.on("FarmFertilized", (e) => this.onObjectiveEvent("apply-fertilizer", e.farmId, 1, { kind: "farm", id: e.farmId })),
       events.on("IrrigationInstalled", (e) => this.onObjectiveEvent("install-irrigation", e.featureId, 1, { kind: "farm", id: e.farmId })),
       events.on("FarmIrrigated", (e) => this.onObjectiveEvent("irrigate-farm", e.farmId, 1, { kind: "farm", id: e.farmId })),
       events.on("RodPurchased", (e) => this.onPurchaseUpgrade([e.rodId])),
       events.on("BoatPurchased", (e) => this.onPurchaseUpgrade([e.boatTypeId, e.boatId])),
-      events.on("NpcTalked", (e) => this.onObjectiveEvent("talk-npc", e.npcId, 1)),
+      // `talk-npc` is credited inside `talkToNpc`, only for the thread whose
+      // words were actually spoken. Crediting every track from `NpcTalked`
+      // closed a side thread's "hear me out" step while the player listened to
+      // a different errand, so its story was never heard at all.
       events.on("ProficiencyLeveledUp", () => this.evaluateTrackUnlocks())
     );
   }
@@ -435,7 +473,16 @@ export class QuestDomain {
         : undefined
       : targetAnchor
         ? { x: targetAnchor.x, z: targetAnchor.z, name: targetAnchor.locationName }
-        : objective.locationAnchor;
+        : this.schoolTargetFor(objective) ?? objective.locationAnchor;
+
+    // While the speaker is still out of reach, the herald's word is the ask.
+    const speakerTalkIndex = quest.objectives.findIndex(
+      (candidate) => candidate.type === "talk-npc" && candidate.targetId === quest.speakerId
+    );
+    const heraldName = quest.herald ? ContentRegistry.npcs.get(quest.herald.npcId)?.name : undefined;
+    const brief = quest.herald && heraldName && (speakerTalkIndex < 0 || stepIndex < speakerTalkIndex)
+      ? { speakerName: heraldName, lines: [...quest.herald.lines] }
+      : { speakerName, lines: [...quest.introDialogue] };
 
     return {
       questId: quest.id,
@@ -469,8 +516,74 @@ export class QuestDomain {
             targetLocation.z - this.context.state.player.z
           )
         : undefined,
-      rewards: quest.rewards
+      rewards: quest.rewards,
+      requirements: isStepComplete ? undefined : this.acquisitionRequirements(objective),
+      brief
     };
+  }
+
+  /**
+   * The nearest live school a fishing step can actually be done at: in the
+   * step's water or ecology and, when the step names a species, holding it.
+   * The authored anchor is only the fallback when no such school is running —
+   * the Act 7 reef and Act 9 trench markers used to point at water no school
+   * ever spawned in.
+   */
+  private schoolTargetFor(objective: QuestObjectiveDefinition): { x: number; z: number; name: string } | undefined {
+    if (objective.type !== "chum-school" && objective.type !== "hook-sport-fish" && objective.type !== "land-sport-fish") {
+      return undefined;
+    }
+    const { state } = this.context;
+    const location = objective.location;
+    if (location && location.kind !== "habitat" && location.kind !== "ecology") return undefined;
+    let best: { x: number; z: number; distance: number } | undefined;
+    for (const school of Object.values(state.world.activeSchools)) {
+      if (state.clock.currentMinute >= school.expiresAtMinute) continue;
+      if (location?.kind === "habitat" && school.habitatId !== location.id) continue;
+      if (location?.kind === "ecology" && school.ecologyId !== location.id) continue;
+      if (objective.targetId && !school.speciesWeights.some((entry) => entry.speciesId === objective.targetId)) continue;
+      const distance = Math.hypot(school.x - state.player.x, school.z - state.player.z);
+      if (!best || distance < best.distance) best = { x: school.x, z: school.z, distance };
+    }
+    if (!best) return undefined;
+    const species = objective.targetId ? ContentRegistry.fishSpecies.get(objective.targetId)?.name : undefined;
+    return { x: best.x, z: best.z, name: species ? `${species} school` : "Feeding school" };
+  }
+
+  /**
+   * What an acquisition step still waits on, against the player's own numbers.
+   * The counter already refused with these figures; the tracker now shows them
+   * while the player can still do something about it.
+   */
+  private acquisitionRequirements(objective: QuestObjectiveDefinition): QuestRequirementDto[] | undefined {
+    if (objective.type !== "purchase-upgrade" || !objective.targetId) return undefined;
+    const { player } = this.context.state;
+    const requirements: QuestRequirementDto[] = [];
+    const boat = ContentRegistry.boats.get(objective.targetId);
+    const rod = boat ? undefined : ContentRegistry.rods.get(objective.targetId);
+    if (boat?.requiredSkillXp) {
+      const { skill, xp } = boat.requiredSkillXp;
+      const current = Math.floor(player.proficiencies[skill] ?? 0);
+      requirements.push({ kind: "amount", label: `${skill.charAt(0).toUpperCase()}${skill.slice(1)} XP`, current, required: xp, met: current >= xp });
+    }
+    if (rod) {
+      const previous = previousRodId(rod.id);
+      const previousRod = previous ? ContentRegistry.rods.get(previous) : undefined;
+      if (previousRod) {
+        const owned = player.ownedRodIds.includes(previousRod.id);
+        requirements.push({ kind: "check", label: `Own the ${previousRod.name}`, current: owned ? 1 : 0, required: 1, met: owned });
+      }
+      const xp = rodFishingXpRequirement(rod.id);
+      if (xp) {
+        const current = Math.floor(player.proficiencies.fishing ?? 0);
+        requirements.push({ kind: "amount", label: "Fishing XP", current, required: xp, met: current >= xp });
+      }
+    }
+    const price = boat?.costMoney ?? rod?.costMoney;
+    if (price !== undefined && price > 0) {
+      requirements.push({ kind: "amount", label: "Gold", current: Math.floor(player.money), required: price, met: player.money >= price });
+    }
+    return requirements.length > 0 ? requirements : undefined;
   }
 
   public onObjectiveEvent(
@@ -486,8 +599,43 @@ export class QuestDomain {
     for (const trackId of activeQuestTrackIds(this.context.state.quests)) {
       if (this.applyObjectiveEventToTrack(trackId, type, targetId, amount, location)) credited = true;
     }
+    if (credited) return;
     // Nothing wanted it now, but a tutorial step ahead of the player might.
-    if (!credited) this.bankEarlyActionCredit(type, targetId, amount, location);
+    if (this.bankEarlyActionCredit(type, targetId, amount, location)) return;
+    this.noticeWorkAhead(type, targetId, location);
+  }
+
+  /**
+   * Says so when an action would have counted for a later step of a running
+   * errand but the errand is still on an earlier one. Steps stay sequential;
+   * this only stops the work vanishing without a word. Once per errand per
+   * world event, so a fanned-out catch cannot announce itself three times.
+   */
+  private noticeWorkAhead(
+    type: QuestObjectiveType,
+    targetId?: string,
+    location?: ObjectiveEventLocation
+  ): void {
+    const { state, events } = this.context;
+    for (const trackId of activeQuestTrackIds(state.quests)) {
+      const quest = this.getActiveQuest(trackId);
+      if (!quest) continue;
+      const progress = questTrackProgress(state.quests, trackId);
+      const current = quest.objectives[progress.activeStepIndex];
+      if (!current || (progress.stepProgress[current.id] ?? 0) >= current.targetQuantity) continue;
+      const later = quest.objectives
+        .slice(progress.activeStepIndex + 1)
+        .some((objective) => objectiveAcceptsAction(objective, type, targetId, location));
+      if (!later) continue;
+      const noticeKey = `ahead:${quest.id}`;
+      if (this.creditedThisWorldEvent?.has(noticeKey)) continue;
+      this.creditedThisWorldEvent?.add(noticeKey);
+      events.emit("QuestStepAhead", {
+        questId: quest.id,
+        currentStepDescription: current.description,
+        minute: state.clock.currentMinute
+      });
+    }
   }
 
   /**
@@ -495,18 +643,19 @@ export class QuestDomain {
    * of the tutorial is credited when the step finally activates rather than
    * being asked to repeat an action the world may no longer allow.
    */
+  /** @returns whether a watching tutorial step took (or already holds) the action. */
   private bankEarlyActionCredit(
     type: QuestObjectiveType,
     targetId?: string,
     amount: number = 1,
     location?: ObjectiveEventLocation
-  ): void {
-    if (!Number.isFinite(amount) || amount <= 0) return;
+  ): boolean {
+    if (!Number.isFinite(amount) || amount <= 0) return false;
     const watched = pendingEarlyActionObjective(this.context.state, type, targetId, location);
-    if (!watched) return;
+    if (!watched) return false;
 
     const bankKey = `credit:${type}:${targetId ?? ""}:${location?.kind ?? ""}:${location?.id ?? ""}`;
-    if (this.creditedThisWorldEvent?.has(bankKey)) return;
+    if (this.creditedThisWorldEvent?.has(bankKey)) return true;
     this.creditedThisWorldEvent?.add(bankKey);
 
     const credits = questEarlyActionCredits(this.context.state.quests);
@@ -515,10 +664,11 @@ export class QuestDomain {
     const existing = credits.find((credit) => sameEarlyActionShape(credit, shape));
     if (existing) {
       existing.quantity = Math.min(cap, existing.quantity + amount);
-      return;
+      return true;
     }
-    if (credits.length >= MAX_EARLY_ACTION_CREDIT_RECORDS) return;
+    if (credits.length >= MAX_EARLY_ACTION_CREDIT_RECORDS) return false;
     credits.push({ type, targetId, location, quantity: Math.min(cap, amount) });
+    return true;
   }
 
   /**
@@ -586,90 +736,254 @@ export class QuestDomain {
   }
 
 
-  public talkToNpc(npcId: NpcId): {
-    success: boolean;
-    dialogue?: string[];
-    isCompletion?: boolean;
-    questCompleted?: boolean;
-    rewardsGiven?: boolean;
-    reason?: string;
-  } {
+  /**
+   * One conversation with one person, assembled from every thread they are
+   * part of, as a single atomic command. In order:
+   *
+   * 1. errands this person can close are closed (reward, cost, next errand);
+   * 2. a talk step aimed at this person is spoken and credited — on step 0 the
+   *    speaker's ask *is* the step; a later talk step is a report back that the
+   *    completion answers; anyone else says the step's own lines;
+   * 3. an errand this conversation began is introduced by the same mouth —
+   *    its speaker's ask, or the herald's word of it;
+   * 4. if none of that happened, what they are waiting on or have heard of,
+   *    main thread first and at most two, so a side thread's ask is heard
+   *    alongside the spine instead of never;
+   * 5. otherwise their own recognition or idle lines.
+   *
+   * A talk step is credited only for the thread whose words were delivered.
+   * Nothing here is saved: pages, order and the open modal are presentation.
+   */
+  public talkToNpc(npcId: NpcId): ConversationResult {
     const { state, events } = this.context;
-    if (state.player.activeMountId) {
-      return { success: false, reason: "Dismount before talking to people" };
-    }
-    const npc = ContentRegistry.npcs.get(npcId);
-    if (!npc) {
-      return { success: false, reason: `Unknown NPC: '${npcId}'` };
-    }
-
-    if (distance2d(state.player, npcAnchorAt(npcId, state.clock, state.quests)) > NPC_TALK_RADIUS) {
-      return { success: false, reason: `Move closer to ${npc.name} to talk` };
-    }
-
-    // Resolution order across tracks: a thread this NPC can actually close
-    // wins, then any thread they are currently speaking for, then their own
-    // idle or milestone lines. Without the first pass a side track waiting on
-    // the same NPC could hide a finished main-track turn-in behind its intro.
-    const speakingTracks = activeQuestTrackIds(state.quests)
-      .filter((trackId) => this.getActiveQuest(trackId)?.speakerId === npcId);
-    const turnInTrackId = speakingTracks.find((trackId) => this.isQuestReadyToTurnIn(trackId));
-    const activeQuest = this.getActiveQuest(turnInTrackId ?? speakingTracks[0] ?? state.quests.focusedTrackId);
-
-    const intro = (): {
-      success: true;
-      dialogue: string[];
-      isCompletion: false;
-    } => ({
-      success: true,
-      dialogue: speakingTracks.length > 0 && activeQuest
-        ? activeQuest.introDialogue
-        : npc.idleDialogue,
-      isCompletion: false
+    const refused = (reason: string): ConversationResult => ({
+      success: false,
+      reason,
+      segments: [],
+      dialogue: [],
+      isCompletion: false,
+      questCompleted: false,
+      rewardsGiven: false
     });
-
-    if (turnInTrackId && activeQuest) {
-      events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
-      const completionDialogue = activeQuest.completionDialogue.length > 0
-        ? activeQuest.completionDialogue
-        : ["Thank you! Here is your reward."];
-      const completion = this.completeQuest(activeQuest.id, npcId);
-      if (!completion.success) return completion;
-      return {
-        success: true,
-        dialogue: completionDialogue,
-        isCompletion: true,
-        questCompleted: true,
-        rewardsGiven: true
-      };
+    if (state.player.activeMountId) return refused("Dismount before talking to people");
+    const npc = ContentRegistry.npcs.get(npcId);
+    if (!npc) return refused(`Unknown NPC: '${npcId}'`);
+    if (distance2d(state.player, npcAnchorAt(npcId, state.clock, state.quests)) > NPC_TALK_RADIUS) {
+      return refused(`Move closer to ${npc.name} to talk`);
     }
 
-    if (speakingTracks.length > 0) {
-      events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
-      return intro();
-    }
-
+    // For audio and telemetry; talk steps are credited below, per thread.
     events.emit("NpcTalked", { npcId, minute: state.clock.currentMinute });
 
-    // 2. Idle dialogue when not on an active quest with this NPC
+    const segments: ConversationSegment[] = [];
+    /** Errands whose ask was spoken in this conversation. */
+    const heard = new Set<QuestId>();
+    /** Errands a close in this conversation began. */
+    const begun = new Set<QuestId>();
+    /** Errands already closed, or refused closing, in this conversation. */
+    const settled = new Set<QuestId>();
+    let creditedTalk = false;
+
+    for (let pass = 0; pass < MAX_CONVERSATION_PASSES; pass += 1) {
+      let progressed = false;
+      for (const trackId of this.conversationTrackOrder()) {
+        const quest = this.getActiveQuest(trackId);
+        if (!quest || settled.has(quest.id)) continue;
+        const progress = questTrackProgress(state.quests, trackId);
+        const objective = quest.objectives[progress.activeStepIndex];
+        const isSpeaker = quest.speakerId === npcId;
+
+        if (isSpeaker && this.finalObjectiveComplete(trackId)) {
+          // A one-step "hear me out" errand credited but never heard — a save
+          // from before talk credit was per-thread — hears its ask first.
+          const singleAsk = quest.objectives.length === 1
+            && objective?.type === "talk-npc" && objective.targetId === npcId;
+          if (singleAsk && !quest.turnInCost && !heard.has(quest.id)) {
+            segments.push(this.introSegment(quest, begun.has(quest.id)));
+            heard.add(quest.id);
+          }
+          settled.add(quest.id);
+          // An errand that costs something is not paid in the breath that
+          // asked for it: the player leaves with the ask and chooses to return.
+          if (quest.turnInCost && heard.has(quest.id)) continue;
+          const closed = this.closeInConversation(quest, npcId);
+          if (closed.segment) {
+            segments.push(closed.segment);
+            for (const startedId of closed.startedQuestIds) begun.add(startedId);
+            progressed = true;
+          } else {
+            // Refused (no room for the reward): remind them of the ask and why.
+            const spoken = segments.find((segment) => segment.questId === quest.id && segment.kind === "intro");
+            if (spoken) {
+              spoken.note = closed.reason;
+            } else {
+              segments.push({ ...this.introSegment(quest, false), note: closed.reason });
+              heard.add(quest.id);
+            }
+          }
+          continue;
+        }
+
+        if (
+          objective?.type === "talk-npc" &&
+          objective.targetId === npcId &&
+          (progress.stepProgress[objective.id] ?? 0) < objective.targetQuantity
+        ) {
+          if (!isSpeaker) {
+            segments.push(this.objectiveSegment(quest, objective, npc));
+          } else if (progress.activeStepIndex === 0 && !heard.has(quest.id)) {
+            segments.push(this.introSegment(quest, begun.has(quest.id)));
+            heard.add(quest.id);
+          }
+          this.applyObjectiveEventToTrack(trackId, "talk-npc", npcId, 1);
+          creditedTalk = true;
+          progressed = true;
+          continue;
+        }
+
+        if (begun.has(quest.id) && !heard.has(quest.id)) {
+          if (isSpeaker) {
+            segments.push(this.introSegment(quest, true));
+          } else if (quest.herald?.npcId === npcId) {
+            segments.push(this.heraldSegment(quest, true));
+          } else {
+            continue;
+          }
+          heard.add(quest.id);
+          progressed = true;
+        }
+      }
+      if (!progressed) break;
+    }
+
+    if (segments.length === 0) {
+      for (const trackId of this.conversationTrackOrder()) {
+        if (segments.length >= MAX_UNPROMPTED_SEGMENTS) break;
+        const quest = this.getActiveQuest(trackId);
+        if (!quest || heard.has(quest.id)) continue;
+        if (quest.speakerId === npcId) {
+          const settle = this.finalObjectiveComplete(trackId) ? this.canSettleQuestTurnIn(quest) : null;
+          segments.push({ ...this.introSegment(quest, false), note: settle && !settle.success ? settle.reason : undefined });
+          heard.add(quest.id);
+        } else if (quest.herald?.npcId === npcId && !this.finalObjectiveComplete(trackId)) {
+          segments.push(this.heraldSegment(quest, false));
+          heard.add(quest.id);
+        }
+      }
+    }
+
+    if (!creditedTalk) this.noticeTalkAhead(npcId);
+
+    if (segments.length === 0) {
+      segments.push({ kind: "recognition", lines: [...this.getMilestoneDialogue(npc)] });
+    }
+
+    const completed = segments.some((segment) => segment.kind === "completion");
     return {
       success: true,
-      dialogue: this.getMilestoneDialogue(npc),
-      isCompletion: false
+      segments,
+      dialogue: segments.flatMap((segment) => segment.lines),
+      isCompletion: completed,
+      questCompleted: completed,
+      rewardsGiven: completed
     };
   }
 
-  /** Final objective met and any turn-in cost affordable. */
-  private isQuestReadyToTurnIn(trackId: QuestTrackId): boolean {
+  /** The spine first, then the focused thread, then the rest in authored order. */
+  private conversationTrackOrder(): QuestTrackId[] {
+    const { quests } = this.context.state;
+    const active = activeQuestTrackIds(quests);
+    const ordered: QuestTrackId[] = [];
+    for (const trackId of [MAIN_QUEST_TRACK_ID, quests.focusedTrackId, ...active]) {
+      if (active.includes(trackId) && !ordered.includes(trackId)) ordered.push(trackId);
+    }
+    return ordered;
+  }
+
+  private segmentBase(quest: QuestDefinition): Pick<ConversationSegment, "questId" | "trackId" | "questTitle" | "trackTitle"> {
+    return {
+      questId: quest.id,
+      trackId: quest.trackId,
+      questTitle: quest.questTitle,
+      trackTitle: ContentRegistry.questTracks.get(quest.trackId)?.title ?? quest.actTitle
+    };
+  }
+
+  private introSegment(quest: QuestDefinition, startsQuest: boolean): ConversationSegment {
+    return { kind: "intro", lines: [...quest.introDialogue], startsQuest, ...this.segmentBase(quest) };
+  }
+
+  private heraldSegment(quest: QuestDefinition, startsQuest: boolean): ConversationSegment {
+    return { kind: "herald", lines: [...(quest.herald?.lines ?? [])], startsQuest, ...this.segmentBase(quest) };
+  }
+
+  private objectiveSegment(
+    quest: QuestDefinition,
+    objective: QuestObjectiveDefinition,
+    npc: NpcDefinition
+  ): ConversationSegment {
+    const lines = objective.dialogue?.length ? objective.dialogue : this.getMilestoneDialogue(npc);
+    return { kind: "objective", lines: [...lines], ...this.segmentBase(quest) };
+  }
+
+  /**
+   * Completes an errand inside a conversation and reports what it began.
+   * A refusal (cost not met, no room for the reward) completes nothing.
+   */
+  private closeInConversation(
+    quest: QuestDefinition,
+    npcId: NpcId
+  ): { segment?: ConversationSegment; reason?: string; startedQuestIds: QuestId[] } {
+    const before = new Set(Object.values(this.context.state.quests.tracks).map((track) => track.activeQuestId));
+    const completion = this.completeQuest(quest.id, npcId);
+    if (!completion.success) return { reason: completion.reason, startedQuestIds: [] };
+    const startedQuestIds = Object.values(this.context.state.quests.tracks)
+      .map((track) => track.activeQuestId)
+      .filter((id): id is QuestId => Boolean(id) && !before.has(id));
+    return {
+      segment: {
+        kind: "completion",
+        lines: quest.completionDialogue.length > 0 ? [...quest.completionDialogue] : ["Thank you. That is done, then."],
+        rewards: quest.rewards,
+        paid: quest.turnInCost,
+        ...this.segmentBase(quest)
+      },
+      startedQuestIds
+    };
+  }
+
+  /**
+   * A talk to someone a running errand wants later — the round of Act 10
+   * visited out of order — says what comes first, as any other action would.
+   */
+  private noticeTalkAhead(npcId: NpcId): void {
+    const { state, events } = this.context;
+    for (const trackId of activeQuestTrackIds(state.quests)) {
+      const quest = this.getActiveQuest(trackId);
+      if (!quest) continue;
+      const progress = questTrackProgress(state.quests, trackId);
+      const current = quest.objectives[progress.activeStepIndex];
+      if (!current || (progress.stepProgress[current.id] ?? 0) >= current.targetQuantity) continue;
+      const later = quest.objectives
+        .slice(progress.activeStepIndex + 1)
+        .some((objective) => objective.type === "talk-npc" && objective.targetId === npcId && quest.speakerId !== npcId);
+      if (!later) continue;
+      events.emit("QuestStepAhead", {
+        questId: quest.id,
+        currentStepDescription: current.description,
+        minute: state.clock.currentMinute
+      });
+    }
+  }
+
+  private finalObjectiveComplete(trackId: QuestTrackId): boolean {
     const quest = this.getActiveQuest(trackId);
     if (!quest) return false;
     const progress = questTrackProgress(this.context.state.quests, trackId);
     const finalIndex = quest.objectives.length - 1;
-    if (progress.activeStepIndex !== finalIndex) return false;
     const finalStep = quest.objectives[finalIndex];
-    if (!finalStep) return false;
-    if ((progress.stepProgress[finalStep.id] ?? 0) < finalStep.targetQuantity) return false;
-    return this.canPayQuestTurnIn(quest).success;
+    if (!finalStep || progress.activeStepIndex !== finalIndex) return false;
+    return (progress.stepProgress[finalStep.id] ?? 0) >= finalStep.targetQuantity;
   }
 
   private getMilestoneDialogue(npc: NpcDefinition): string[] {

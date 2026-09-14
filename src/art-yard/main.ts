@@ -20,7 +20,16 @@ import { sampleAttachmentCurve } from "../render/animation/PlayerAttachmentTrans
 import { characterPreviewContext, clipLoops, displayedClipTime } from "./characterPreview";
 import { FishingRodBend } from "../render/fishing/FishingRodBend";
 import type { GameState, WeatherState, WeatherTag } from "../simulation/core/types";
-import { resolveArtYardAssetId, syncArtYardAssetUrl } from "./urlState";
+import {
+  resolveArtYardAssetId,
+  resolveArtYardGround,
+  syncArtYardAssetUrl,
+  syncArtYardGroundUrl
+} from "./urlState";
+import { MeadowField } from "../render/vegetation/MeadowField";
+import { createUniformMeadowPatchData } from "../render/vegetation/MeadowFieldSource";
+import { createMeadowGroundMaterial } from "../render/vegetation/MeadowGroundMaterial";
+import { createWeatherMotionSignal, sampleWeatherMotionSignal } from "../render/motion/WeatherMotionSignal";
 
 interface YardAssetMetrics {
   id: string;
@@ -209,6 +218,26 @@ ground.name = "art_yard_ground";
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
+
+// The game's meadow carpet on a flat, fully vegetated review patch, anchored
+// on the orbit target so it behaves like the player-anchored world field.
+const MEADOW_REVIEW_COVER = { density: 1, meadowShare: 0.35, dry: 0, damp: 0.1 };
+const meadowGroundMaterial = createMeadowGroundMaterial(MEADOW_REVIEW_COVER);
+const meadowMotion = createWeatherMotionSignal();
+let meadowField: MeadowField | null = null;
+
+function ensureMeadowField(): MeadowField {
+  if (meadowField) return meadowField;
+  meadowField = new MeadowField("high");
+  meadowField.addPatchData(createUniformMeadowPatchData(
+    { id: "art-yard.meadow", islandId: "art-yard", center: { x: 0, z: 0 }, sizeMeters: 96, resolution: 48 },
+    MEADOW_REVIEW_COVER,
+    CANONICAL_RENDER_CONFIG.meadow.field.exclusionTexelMeters
+  ));
+  meadowField.build([]);
+  scene.add(meadowField.group);
+  return meadowField;
+}
 
 const groundRing = new THREE.Mesh(
   new THREE.RingGeometry(0.25, 0.28, 32),
@@ -908,11 +937,16 @@ function updateGroundBed(kind: string): void {
     groundRing.visible = false;
   } else {
     ground.visible = true;
-    groundRing.visible = true;
-    if (kind in groundMaterials) {
+    groundRing.visible = kind !== "meadow";
+    if (kind === "meadow") {
+      ground.material = meadowGroundMaterial;
+    } else if (kind in groundMaterials) {
       ground.material = groundMaterials[kind as keyof typeof groundMaterials];
     }
   }
+  if (kind === "meadow") ensureMeadowField().group.visible = true;
+  else if (meadowField) meadowField.group.visible = false;
+  window.history.replaceState(null, "", syncArtYardGroundUrl(new URL(window.location.href), resolveArtYardGround(kind)));
 }
 
 function clearModel(): void {
@@ -1337,7 +1371,7 @@ function updateRuntimePreview(deltaSeconds: number): void {
   if (activeContextPreviewSpec?.pelvisContact && !activeContextPreviewSpec.transition && contextPreviewAnchor) {
     runtimeAnimator.alignPelvisSupport(contextPreviewAnchor.getWorldPosition(contextLeftFootTarget));
   }
-  runtimeAnimator.resolveGroundContacts(context, () => ({ height: 0, normal: { x: 0, y: 1, z: 0 } }));
+  runtimeAnimator.resolveGroundContacts(context, () => ({ height: 0, normal: { x: 0, y: 1, z: 0 } }), deltaSeconds);
   applyContextSupports();
   if (contextOars.length && ["row", "rowboat_idle"].includes(clipSelect.value)) {
     for (const oar of contextOars) {
@@ -2019,6 +2053,12 @@ function animate(frameMilliseconds: number): void {
   }
 
   const frame = lightingRig.update(previewState(), elapsedSeconds, controls.target);
+  if (meadowField?.group.visible) {
+    sampleWeatherMotionSignal(previewState().weather, elapsedSeconds, meadowMotion);
+    meadowField.updateWind(meadowMotion, elapsedSeconds, 1);
+    meadowField.update(controls.target.x, controls.target.z);
+    meadowField.updateRenderVisibility(camera);
+  }
   scene.background = frame.skyTopColor;
   groundRing.material.color.copy(frame.groundFillColor).lerp(new THREE.Color(PALETTE_HEX.accent_teal_01), 0.55);
   renderer.render(scene, camera);
@@ -2299,6 +2339,9 @@ window.addEventListener("keydown", (event) => {
 
 // Initialization
 resize();
+const requestedGround = resolveArtYardGround(new URLSearchParams(window.location.search).get("ground"));
+groundSelect.value = requestedGround;
+updateGroundBed(requestedGround);
 const requestedAssetId = new URLSearchParams(window.location.search).get("asset");
 void loadYardData()
   .catch((error: unknown) => {

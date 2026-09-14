@@ -11,6 +11,7 @@ from common.creature import (
     bind_creature_skin,
     bone,
     build_creature_armature,
+    build_skinned_surface,
     decimate_skinned_lod,
     join_creature_surface,
     rest_creature_pose,
@@ -184,6 +185,22 @@ def _creature_scaffold(spec: dict, root, pivots, bones):
     }
     rig = build_creature_armature(f"{spec['id']}_rig", bones, motion_root)
     return motion_root, pivot_nodes, rig
+
+
+def _skin_parts(spec: dict, rig, bones, parts, drivers: dict[str, list[str]]):
+    """Weight each authored part only to the bones that genuinely drive it.
+
+    `drivers` maps a part's object name to its bones. Every part must be named
+    there, so a new piece of anatomy cannot silently fall back to nearest-bone
+    weighting and let a limb capture the torso again.
+    """
+    missing = [part.name for part in parts if part.name not in drivers]
+    if missing:
+        raise ValueError(f"{spec['id']}: no driving bones declared for {missing}")
+    surface, _ = build_skinned_surface(
+        f"{spec['id']}_surface", rig, bones, [(part, drivers[part.name]) for part in parts]
+    )
+    return surface
 
 
 def fauna_cow(spec: dict, root) -> None:
@@ -1329,8 +1346,15 @@ def fauna_rabbit(spec: dict, root) -> None:
     motion_root, pivots, rig = _creature_scaffold(
         spec, root, (("head_pivot", (0.0, -0.16 * s, 0.3 * s)),), bones
     )
-    surface = join_creature_surface(parts, f"{spec['id']}_surface", rig)
-    bind_creature_skin(surface, rig, bones)
+    surface = _skin_parts(spec, rig, bones, parts, {
+        "rabbit_body": ["spine", "neck", "head", "haunch"],
+        "rabbit_muzzle": ["head"],
+        "rabbit_tail": ["tail", "haunch"],
+        **{f"rabbit_ear_{side}": [f"ear_{side}", "head"] for side in ("left", "right")},
+        **{f"rabbit_eye_{side}": ["head"] for side in ("left", "right")},
+        **{f"rabbit_foreleg_{side}": [f"foreleg_{side}", "spine"] for side in ("left", "right")},
+        **{f"rabbit_hindleg_{side}": [f"hindleg_{side}", "haunch"] for side in ("left", "right")},
+    })
     rest_creature_pose(rig)
 
     author_creature_clip(
@@ -1506,8 +1530,13 @@ def fauna_gull(spec: dict, root) -> None:
         ),
         bones,
     )
-    surface = join_creature_surface(parts, f"{spec['id']}_surface", rig)
-    bind_creature_skin(surface, rig, bones)
+    surface = _skin_parts(spec, rig, bones, parts, {
+        "gull_body": ["spine", "neck", "head", "tail_fan"],
+        "gull_beak": ["head"],
+        "gull_tail": ["tail_fan", "spine"],
+        **{f"gull_wing_{side}": [f"wing_{side}", "spine"] for side in ("left", "right")},
+        **{f"gull_wingtip_{side}": [f"wing_{side}"] for side in ("left", "right")},
+    })
     rest_creature_pose(rig)
 
     author_creature_clip(
@@ -1627,8 +1656,12 @@ def fauna_butterfly(spec: dict, root) -> None:
         ),
         bones,
     )
-    surface = join_creature_surface(parts, f"{spec['id']}_surface", rig)
-    bind_creature_skin(surface, rig, bones)
+    surface = _skin_parts(spec, rig, bones, parts, {
+        "butterfly_body": ["thorax"],
+        **{f"butterfly_antenna_{side}": ["thorax"] for side in ("left", "right")},
+        **{f"butterfly_forewing_{side}": [f"wing_{side}", "thorax"] for side in ("left", "right")},
+        **{f"butterfly_hindwing_{side}": [f"wing_{side}", "thorax"] for side in ("left", "right")},
+    })
     rest_creature_pose(rig)
 
     author_creature_clip(

@@ -22,6 +22,13 @@ export interface NpcDefinition {
   /** Omitted phases retain the authored home station. */
   schedule?: Array<{ phase: ClockState["timeOfDay"]; position: NpcDefinition["anchor"] }>;
   idleDialogue: string[];
+  /**
+   * What they call out in passing when they have something for the player —
+   * an errand to close, or a conversation a running errand is waiting on.
+   * Replaces their idle bark only then, so a waiting quest giver calls the
+   * player over instead of remarking on the weather.
+   */
+  beckonLines?: string[];
   recognitionDialogue?: Array<{
     id: string;
     requiresCompletedQuestIds?: string[];
@@ -54,6 +61,10 @@ export const NPCS: NpcDefinition[] = [
       "The soil here is rich and eager for seed. Keep your fields watered, and Neva will feed you well.",
       "Nothing beats the warmth of fresh-baked bread made from home-grown grain.",
       "The morning sun warms the furrows just right today."
+    ],
+    beckonLines: [
+      "Come here a moment, dear — I have something for you.",
+      "There you are. Come and stand by the gate a while."
     ],
     recognitionDialogue: [
       {
@@ -136,6 +147,10 @@ export const NPCS: NpcDefinition[] = [
       "A sturdy bench and a handful of good grain can outfit any angler for sea.",
       "Always keep your tools sharp and your timber dry."
     ],
+    beckonLines: [
+      "Got a minute? Come over here — bench talk.",
+      "Oi, over here when your hands are free."
+    ],
     recognitionDialogue: [
       {
         id: "dialogue.barnaby_discovery_spring",
@@ -215,7 +230,13 @@ export const NPCS: NpcDefinition[] = [
     idleDialogue: [
       "Check the tide and wind before casting, young one. The sea remembers every boat that leaves harbor.",
       "A good cedar skiff and a tight reel will take you further than all the gold in the market.",
-      "Trout run thick in the estuary around midday."
+      // Trout feed best in rain, cloud and fog; the old "midday" line sent
+      // players out in exactly the clear weather they avoid.
+      "Trout rise best on a grey day — rain on the water, or a morning fog."
+    ],
+    beckonLines: [
+      "A word, when you have one.",
+      "Come down the pier. I have something to tell you."
     ],
     recognitionDialogue: [
       {
@@ -295,8 +316,14 @@ export const NPCS: NpcDefinition[] = [
     ],
     idleDialogue: [
       "Fresh catch always fetches top coin! Bring your fish in before the sun bakes 'em.",
-      "A trophy tuna pays the quality multiplier on the harbor board. Ice it, or the grade is wasted.",
+      // Ice protects freshness, not grade: a trophy stays a trophy, but a warm
+      // one sells at a warm fish's price.
+      "A trophy tuna pays the grade premium on my board, but only while it is fresh. Ice it, or the clock eats the premium.",
       "Fair scales and cold ice—that's how we run the harbor trade."
+    ],
+    beckonLines: [
+      "You — over here, while it's cold.",
+      "A minute at the stall, if you please."
     ],
     recognitionDialogue: [
       {
@@ -371,6 +398,10 @@ export const NPCS: NpcDefinition[] = [
       "Tie up inside the marker buoys. The reef shelf begins just beyond them.",
       "Sunreach grows slowly, but nearly everything here has a second use."
     ],
+    beckonLines: [
+      "Up here, at the landing — I have news for you.",
+      "Tie up and come and find me."
+    ],
     recognitionDialogue: [
       {
         id: "dialogue.tomas_discovery_reef",
@@ -436,6 +467,10 @@ export const NPCS: NpcDefinition[] = [
       "Sunflowers turn quickly here. Olives take patience and a steady cistern.",
       "The dry wash tells you where the last rain went—and where the next one will vanish."
     ],
+    beckonLines: [
+      "Come up to the terrace when you can.",
+      "I could use your hands up here."
+    ],
     recognitionDialogue: [
       {
         id: "dialogue.ines_discovery_ridge",
@@ -454,8 +489,11 @@ export const NPCS: NpcDefinition[] = [
         ]
       },
       {
+        // Gated on running the cistern here, not on owning the pump: the pump
+        // is bought in Act 6, so this fired in Act 7 — thanking the player for
+        // bringing one across before they had — and shadowed the terrace line.
         id: "dialogue.ines_irrigation",
-        requiresFeatureIds: ["feature.irrigation_zone"],
+        requiresCompletedQuestIds: ["quest.act8_dry_season"],
         lines: [
           "That pump of yours does in one pass what I do in a morning with two cans.",
           "I am not too proud about it. I am only sorry it took somebody from the other island to bring one across."

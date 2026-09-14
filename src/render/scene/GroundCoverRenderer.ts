@@ -136,7 +136,7 @@ function patchGroundCoverWind(
   const amplitude = GROUND_COVER_WIND_AMPLITUDE[category];
   if (amplitude <= 0) return material;
   material.userData.nevaGroundCoverWind = true;
-  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}-landscape-presence-v6`;
+  material.customProgramCacheKey = () => `neva-ground-cover-wind-${category}-landscape-presence-v7-foliage-normal`;
   material.onBeforeCompile = (shader) => {
     const uniforms: GroundCoverWindUniforms = {
       uTime: { value: 0 },
@@ -196,6 +196,17 @@ ${LANDSCAPE_WIND_GLSL}`
   }
 }`
       );
+    if (category === "grass" || category === "meadowTall" || category === "flowers") {
+      // Rooted instances sit on the terrain tangent, so local up is the
+      // terrain normal. Thin authored blades otherwise face sideways or down
+      // and take only the ground bounce, reading as grey and black shards.
+      const anchor = "#include <beginnormal_vertex>";
+      if (shader.vertexShader.split(anchor).length !== 2) {
+        throw new Error("[GroundCoverRenderer] Three.js r174 normal shader chunk drift");
+      }
+      shader.vertexShader = shader.vertexShader.replace(anchor, `${anchor}
+objectNormal = normalize(mix(objectNormal, vec3(0.0, 1.0, 0.0), ${CANONICAL_RENDER_CONFIG.groundSurface.foliageNormalUp.toFixed(3)}));`);
+    }
     if (category === "grass" || category === "meadowTall") {
       // A restrained base-to-tip value ramp seats the clump in the meadow.
       // Reuse the assembly-space wind height, never a per-blade dark decal.

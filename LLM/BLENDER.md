@@ -179,6 +179,41 @@ LOD/animation/reference contracts, and published GLB metrics. It does not run
 family generators or prove authored geometry semantics beyond the exported
 artifact contract.
 
+## Procedural skinned creatures
+
+Every fauna and fish asset except the imported cow is a procedural skinned
+creature: one continuous surface per LOD bound to an armature authored in its
+family generator, never a pile of primitives rotating on empties. Construction
+lives in `common/creature.py`; primary limbs grow from shared body loops with
+`geometry.graft_limb`.
+
+- **Weighting.** Weight each authored part only to the bones that drive it,
+  before the parts are joined (`build_skinned_surface`, or the generators'
+  `_skin_parts` table, which rejects any part without declared drivers).
+  Nearest-bone weighting across a whole surface lets a limb bone that passes
+  through the body capture the flank. Weights are solved deterministically in
+  code; never use Blender's bone-heat solver. The chicken and donkey instead
+  author explicit weights and bake their historic pivot motion
+  (`bake_pivot_skin`).
+- **Node contract.** Every pivot empty named in `requiredNodes` stays at its
+  historic location as an inert marker, because `WorldScene` resolves them by
+  name. Gameplay-facing sockets and grips stay on object-animated nodes. A fish's
+  head bone is never keyed, so the mouth stays on `<id>_mouth_hook`, which the
+  fishing line follows.
+- **Clips.** `author_creature_clip` gives exactly one action the bare catalog
+  clip name and merges bone and empty channels through same-named NLA tracks.
+  An object track must start at its rest transform: the exporter writes an
+  animated empty's frame-0 pose as its static transform, and a skinned surface
+  below it would inherit a posed parent. Clips the runtime plays together, such
+  as the gull's `flap` and `glide`, must target disjoint transforms. Mirrored
+  zero-roll limb bones beat together with the same key sign.
+- **Validation.** Khronos `NODE_SKINNED_MESH_NON_ROOT` is accepted only when
+  `validateGlb` proves every ancestor of every skinned mesh is an identity
+  transform. `AssetLoader` gives any skinned asset the conservative culling
+  envelope, and `tests/unit/characterCullingBounds.test.ts` holds every exported
+  fauna and fish pose inside it. `art:test-builders` covers per-part drivers,
+  complete normalized weights, determinism and clip carriers.
+
 ## Adapted external Blender sources
 
 Explicitly requested provider assets may become offline authoring inputs, never

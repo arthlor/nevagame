@@ -105,10 +105,9 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   const lastSaved = savingAvailable
     ? formatLastSaved(pause.lastSavedUtcMs)
     : "This session is not being saved";
-  const rawPlayMinutes = (pause as Partial<{ totalPlayMinutes: unknown }>).totalPlayMinutes;
   const playTimeLabel =
-    typeof rawPlayMinutes === "number" && Number.isFinite(rawPlayMinutes) && rawPlayMinutes >= 0
-      ? formatPlayTime(rawPlayMinutes)
+    Number.isFinite(pause.totalPlayMinutes) && pause.totalPlayMinutes >= 0
+      ? formatPlayTime(pause.totalPlayMinutes)
       : null;
   const pageTitle = page === "menu"
     ? "Paused"

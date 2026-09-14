@@ -3969,7 +3969,7 @@
         "bladeCount": 30,
         "height": 0.492,
         "spread": 0.55,
-        "bladeWidth": 0.056
+        "bladeWidth": 0.036
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -4169,7 +4169,7 @@
         "bladeCount": 24,
         "height": 0.576,
         "spread": 0.51,
-        "bladeWidth": 0.049
+        "bladeWidth": 0.032
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -19477,10 +19477,10 @@
         "height": 1.79
       },
       "palette": [
-        "grass_yellow_01",
+        "foliage_coastal_sun_01",
+        "foliage_coastal_01",
         "accent_ochre_01",
-        "foliage_leaf_01",
-        "foliage_shadow_01"
+        "soil_shadow_01"
       ],
       "budget": {
         "trianglesMin": 156,

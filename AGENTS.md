@@ -25,7 +25,7 @@ Prose is not a build gate, so the claims below are executed rather than trusted.
 | Claim | Enforced by |
 |---|---|
 | Content counts in `AGENTS.md`, `01`, `02` and the status checklist agree with `ContentRegistry`, and any rank threshold written beside a rank name matches `PROFICIENCY_RANKS` | `tests/unit/docContentCounts.test.ts` |
-| A `ts` block in `01`/`02` names only fields the runtime type still declares (a doc may abridge a shape, not misdescribe it) | `tests/unit/docTypeShapes.test.ts` |
+| A `ts` block in `01`/`02` names a type the runtime declares (anywhere under `src/`, classes included) and only fields it still declares; a doc may abridge a shape, not misdescribe or rename it | `tests/unit/docTypeShapes.test.ts` |
 | The crop-growth, cargo-freshness, market-demand and soil-fertility tables in `02` match the constants that own them | `tests/unit/docTuningValues.test.ts` |
 | `01` §6.1's ledger ends at the shipping schema and layout revision with no gaps, and §4 names only real npm scripts | `tests/unit/docArchitectureClaims.test.ts` |
 | Work Capacity is debited/credited only in `ProgressionDomain`; every cost reaches a quote or spend as a named constant; traversal, cargo, market, quest and contract charge no Work | `tests/simulation/workCapacityContract.test.ts` |

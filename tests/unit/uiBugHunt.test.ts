@@ -88,8 +88,7 @@ describe("UI Bug Hunt Regression Tests", () => {
         React.createElement(DialogueModal, {
           npcId: firstNpc.id,
           onClose: () => {},
-          onTalkNpc: () => ({ success: true, dialogue: ["Greetings traveler."] }),
-          activeQuest: null
+          onTalkNpc: () => ({ success: true, dialogue: ["Greetings traveler."] })
         })
       );
       expect(html).toContain("modal-overlay");

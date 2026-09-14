@@ -108,6 +108,8 @@ interface MarketModalProps {
   onReleaseFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
   onDeliverFishCargo: (contractId: string, cargoId: string) => void;
+  /** Strikes an untouched order so its slot can post another. Omitted where not offered. */
+  onPassContract?: (contractId: string) => void;
   /** Demand outlook for one commodity. Omitted where the host cannot project it. */
   onInspectDemandTrend?: (marketId: MarketId, itemId: string) => MarketDemandTrendDto | null;
   onClose: () => void;
@@ -130,6 +132,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   onReleaseFishCargo,
   onDeliverContractItems,
   onDeliverFishCargo,
+  onPassContract,
   onClose,
   initialSection = "buy"
 }) => {
@@ -931,6 +934,18 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         onClick={() => onDeliverFishCargo(contract.contractId, contract.eligibleCargoIds[0])}
                       >
                         Deliver fish
+                      </ChromeButton>
+                    )}
+                    {/* A promise can be declined before any of it is kept; once
+                        goods are delivered it stays until filled or expired. */}
+                    {onPassContract && contract.quantityFulfilled === 0 && (
+                      <ChromeButton
+                        className="comm-pass-btn"
+                        soundCue="page-turn"
+                        onClick={() => onPassContract(contract.contractId)}
+                        title="Strike this order so the board can post another"
+                      >
+                        Pass on this order
                       </ChromeButton>
                     )}
                   </div>

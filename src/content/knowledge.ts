@@ -47,5 +47,23 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
     id: "knowledge.worm_composting",
     title: "Worm Composting",
     summary: "Plant matter and compost starter become bait worms. Never expect a bin to grant infinite bait; the loop has to be fed."
+  },
+  // The family throughline, one object at a time: each is witnessed in play
+  // (a pouch handed over, a boat commissioned, a handle worn smooth) before it
+  // is written down, so the inheritance is felt before it is explained.
+  "knowledge.family_seed_pouch": {
+    id: "knowledge.family_seed_pouch",
+    title: "The Seed Pouch",
+    summary: "Oilcloth, tied at the neck, refilled every autumn from the best of the harvest. Your family saved seed rather than buy it. Saving seed is a promise that there will be a next season, made by someone who means to keep it."
+  },
+  "knowledge.family_slip": {
+    id: "knowledge.family_slip",
+    title: "The Family Slip",
+    summary: "The cedar rowboat was kept at the harbor slip long after anyone sailed her: greased, registered, waited on. Silas kept her until someone came back for her. A boat is a relationship you maintain, not a thing you own."
+  },
+  "knowledge.worn_handle": {
+    id: "knowledge.worn_handle",
+    title: "The Worn Handle",
+    summary: "The village mill handle is worn smooth on one side only, by the same grip, season after season. Every tool on Neva is a record of the hands that used it. Yours are on that handle now too."
   }
 };

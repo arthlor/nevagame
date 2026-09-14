@@ -85,7 +85,11 @@ const MAP_NODES: MapNode[] = WORLD_CHART_NODES.map((node) => ({
 }));
 
 const MAP_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "start" | "middle" | "end" }> = {
-  "chart.neva_farm": { x: -16, y: -17, textAnchor: "end" },
+  // The starter farm, the western overlook, and the active garden-gate
+  // objective form a tight triangle on the west island. Keep their labels on
+  // separate lanes so the chart remains readable at the real gameplay scale.
+  "chart.knowledge.discovery.overlook": { x: -10, y: -30, textAnchor: "end" },
+  "chart.neva_farm": { x: 0, y: -47, textAnchor: "middle" },
   "chart.neva_homestead": { x: 22, y: -14, textAnchor: "start" },
   "chart.neva_village": { x: 22, y: 27, textAnchor: "start" },
   "chart.neva_mill": { x: 0, y: -20, textAnchor: "middle" },
@@ -101,11 +105,29 @@ const MAP_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "sta
   "chart.sunreach_shelf": { x: 0, y: 24, textAnchor: "middle" }
 };
 
+const MAP_QUEST_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "start" | "middle" | "end" }> = {
+  // Keep the label in the lower-left lane: the gate sits beside the selected
+  // market node, while the lower lane still clears the 2 m player readout and
+  // the Silverwater River label.
+  "Starter Garden Gate": { x: -115, y: 34, textAnchor: "start" }
+};
+
 function mapLabelPosition(nodeId: string, x: number, y: number): { x: number; y: number; textAnchor: "start" | "middle" | "end" } {
   const offset = MAP_LABEL_OFFSETS[nodeId] ?? { x: 0, y: 26, textAnchor: "middle" as const };
   return {
     x: Math.max(18, Math.min(982, x + offset.x)),
     y: Math.max(18, Math.min(682, y + offset.y)),
+    textAnchor: offset.textAnchor
+  };
+}
+
+function questMarkerLabelPosition(label: string): { x: number; y: number; textAnchor: "start" | "middle" | "end" } {
+  const offset = MAP_QUEST_LABEL_OFFSETS[label] ?? { x: 0, y: -19, textAnchor: "middle" as const };
+  return {
+    // Quest labels live inside a group translated to the marker, so these are
+    // local offsets rather than chart-space coordinates.
+    x: offset.x,
+    y: offset.y,
     textAnchor: offset.textAnchor
   };
 }
@@ -354,6 +376,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 {questMarkers.map((marker) => {
                   const at = worldPointToMapSvg({ x: marker.x, z: marker.z });
                   const focused = marker.kind === "quest";
+                  const labelPosition = questMarkerLabelPosition(marker.label);
                   return (
                     <g key={marker.id} data-testid="map-quest-mark" data-kind={marker.kind}>
                       <line
@@ -369,7 +392,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                           fill={focused ? "#d9a63c" : "#c2ad84"}
                           stroke="#4a3a12" strokeWidth="2" strokeLinejoin="round" />
                         {focused && <path d="M0 -6.4 L4.7 0 L0 6.4 L-4.7 0 Z" fill="#fff6dd" opacity="0.6" />}
-                        <text y="-19" fill="#2c2118" fontSize="11" fontWeight="bold" textAnchor="middle">
+                        <text {...labelPosition} fill="#2c2118" fontSize="11" fontWeight="bold">
                           {marker.label}
                         </text>
                         <text y="26" fill="#5a4a2c" fontSize="10" textAnchor="middle">

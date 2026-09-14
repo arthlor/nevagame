@@ -85,6 +85,7 @@ import {
   type LayoutEditTag
 } from "../../layout-editor/layoutEdit";
 import {
+  FARMHOUSE_INTERIOR_BOUNDS,
   FARMHOUSE_INTERIOR_ORIGIN,
   FARMHOUSE_INTERIOR_PROPS
 } from "../../world/FarmhouseInterior";
@@ -182,6 +183,7 @@ import {
   type ContactShadowMesh
 } from "./ContactShadow";
 import { GroundCoverRenderer } from "./GroundCoverRenderer";
+import { MeadowField } from "../vegetation/MeadowField";
 import { AtmosphereSky } from "../atmosphere/AtmosphereSky";
 import {
   BUTTERFLY_ORBITS,
@@ -718,6 +720,7 @@ export class WorldScene {
   private skiffMooringPreview: THREE.Group | null = null;
   private readonly cropInstances = new CropInstanceRenderer();
   private readonly groundCover = new GroundCoverRenderer(CANONICAL_RENDER_CONFIG.qualityTier);
+  private readonly meadowField = new MeadowField(CANONICAL_RENDER_CONFIG.qualityTier);
   private schoolEffects: Map<string, THREE.Group> = new Map();
   private environmentGroup: THREE.Group = new THREE.Group();
   private staticPrefabGroup: THREE.Group = new THREE.Group();
@@ -959,6 +962,7 @@ export class WorldScene {
     this.scene.add(this.environmentGroup);
     this.scene.add(this.cropInstances.group);
     this.environmentGroup.add(this.groundCover.group);
+    this.environmentGroup.add(this.meadowField.group);
     this.environmentGroup.add(this.staticPrefabGroup);
     this.interactionFeedback.name = "resolved_interaction_feedback";
     this.interactionFeedback.rotation.x = -Math.PI / 2;
@@ -1107,6 +1111,10 @@ export class WorldScene {
       this.populateStaticPrefabs(layout.staticPlacements),
       this.groundCover.build(layout.groundCoverPlacements, this.startupSignal)
     ]);
+    this.checkAlive();
+    // The carpet stays out of every ground-touching collider, so it needs the
+    // prefabs' projected colliders before its exclusion raster is final.
+    this.meadowField.build(this.staticCollisionProxyList);
   }
 
   public staticCollisionProxies(): readonly StaticCollisionProxy[] {
@@ -1131,7 +1139,9 @@ export class WorldScene {
     this.environmentGroup.updateMatrixWorld(true);
     this.rebuildLayoutGroundingPatches();
     this.applyPracticalLightBudget();
-    return this.rebuildStaticCollisionProxies();
+    const proxies = this.rebuildStaticCollisionProxies();
+    this.meadowField.restampCollision(proxies);
+    return proxies;
   }
 
   /** DEV layout editor: rebuild contact discs while dragging so they follow the mesh. */
@@ -1161,6 +1171,8 @@ export class WorldScene {
     for (const patch of WorldLayout.terrainPatches()) {
       const layoutGeometry = await WorldLayout.buildTerrainGeometryAsync(patch.id, this.startupSignal);
       this.checkAlive();
+      // Copied before production batching disposes the source geometry.
+      this.meadowField.addTerrainPatch(patch, layoutGeometry);
       const layoutTerrain = import.meta.env.DEV
         ? new THREE.Mesh(layoutGeometry, this.terrainSurfaceMaterial.material)
         : createSpatialSurfaceBatch(layoutGeometry, this.terrainSurfaceMaterial.material, STATIC_BATCH_CHUNK_SIZE_METERS);
@@ -1212,6 +1224,23 @@ export class WorldScene {
     await yieldToTask(this.startupSignal);
     const pathGeometry = await WorldLayout.buildPathGeometryAsync(this.startupSignal);
     this.checkAlive();
+    // The carpet stops where the ribbon's own alpha test draws dirt, and never
+    // grows through a building pad or the farmhouse interior pocket.
+    await this.meadowField.stampRoadCoverage(pathGeometry, this.startupSignal);
+    this.checkAlive();
+    const interiorPad = 3;
+    this.meadowField.stampFootprints([
+      ...WORLD_ARCHITECTURE_PADS.map((pad) => ({
+        x: pad.center.x, z: pad.center.z, rotationY: pad.rotationY, halfX: pad.envelope[0], halfZ: pad.envelope[1]
+      })),
+      {
+        x: (FARMHOUSE_INTERIOR_BOUNDS.minX + FARMHOUSE_INTERIOR_BOUNDS.maxX) * 0.5,
+        z: (FARMHOUSE_INTERIOR_BOUNDS.minZ + FARMHOUSE_INTERIOR_BOUNDS.maxZ) * 0.5,
+        rotationY: 0,
+        halfX: (FARMHOUSE_INTERIOR_BOUNDS.maxX - FARMHOUSE_INTERIOR_BOUNDS.minX) * 0.5 + interiorPad,
+        halfZ: (FARMHOUSE_INTERIOR_BOUNDS.maxZ - FARMHOUSE_INTERIOR_BOUNDS.minZ) * 0.5 + interiorPad
+      }
+    ]);
     const pathMesh = import.meta.env.DEV
       ? new THREE.Mesh(pathGeometry, this.roadSurfaceMaterial.material)
       : createSpatialSurfaceBatch(pathGeometry, this.roadSurfaceMaterial.material, STATIC_BATCH_CHUNK_SIZE_METERS);
@@ -3433,6 +3462,7 @@ export class WorldScene {
     this.updateFaunaMotion(timeSeconds, delta, motionScale);
     this.updateAmbientFlyers(timeSeconds, delta, motionScale);
     this.groundCover.updateWind(this.weatherMotion, timeSeconds, motionScale, this.playerPresence);
+    this.meadowField.updateWind(this.weatherMotion, timeSeconds, motionScale, this.playerPresence);
     updateVegetationWind(this.weatherMotion, timeSeconds, motionScale);
   }
 
@@ -4453,7 +4483,8 @@ export class WorldScene {
       }
       this.playerAnimation?.resolveGroundContacts(
         animationContext,
-        (x, z) => WorldLayout.traversalSurfaceSample(x, z)
+        (x, z) => WorldLayout.traversalSurfaceSample(x, z),
+        delta
       );
       const holdingOars = presentationMode === "boat-driving"
         && activeBoat?.boatTypeId === "boat.rowboat";
@@ -4705,7 +4736,7 @@ export class WorldScene {
       }
       npc.lastAnimationContext = context;
       npc.model.updateMatrixWorld(true);
-      npc.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z));
+      npc.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z), npcFrameDelta);
     }
 
     this.updateAmbientTownsfolk(state, timeSeconds, delta);
@@ -4737,6 +4768,12 @@ export class WorldScene {
         : AMBIENT_TOWNSFOLK_VISIBILITY_METERS - AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS;
       const wasVisible = person.model.visible;
       person.model.visible = distance < ambientVisibilityRange;
+      if (person.model.visible !== wasVisible) {
+        // Foot locks are presentation history. Clear them whenever an ambient
+        // villager is culled or re-enters so a stale world-space target cannot
+        // pull the first visible pose across the visibility boundary.
+        person.animator.resetSpatialState();
+      }
       if (!person.model.visible) continue;
 
       const surface = WorldLayout.traversalSurfaceSample(pose.x, pose.z);
@@ -4814,7 +4851,7 @@ export class WorldScene {
       }
       person.lastAnimationContext = context;
       person.model.updateMatrixWorld(true);
-      person.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z));
+      person.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z), delta);
     }
   }
 
@@ -5695,6 +5732,8 @@ export class WorldScene {
     this.updateDistanceManagedPresentation();
     this.groundCover.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
     this.groundCover.updateRenderVisibility(camera);
+    this.meadowField.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
+    this.meadowField.updateRenderVisibility(camera);
     for (const batch of this.rigidAnimationBatches.values()) batch.update();
     this.rendererPipeline.render(camera);
   }
@@ -5804,6 +5843,7 @@ export class WorldScene {
     if (!rebuildDensity) return;
     this.qualityRebuildElapsedSeconds = 0;
     this.groundCover.setQualityLevel(this.qualityLevel);
+    this.meadowField.setQualityLevel(this.qualityLevel);
     this.distanceVisibilityDirty = true;
   }
 
@@ -5868,6 +5908,7 @@ export class WorldScene {
     for (const materials of this.interactionMaterials.values()) for (const material of materials) material.dispose();
     this.interactionMaterials.clear();
     this.groundCover.dispose();
+    this.meadowField.dispose();
     this.setDiagnosticOverlay(null, 0);
     this.farmVfx?.dispose();
     this.farmVfx?.group.removeFromParent();

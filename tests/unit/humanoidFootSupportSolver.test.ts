@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { HumanoidAnimator } from "../../src/render/animation/AnimationController";
-import { characterContext } from "../helpers/humanoidAssets";
+import { characterContext, loadHumanoidAsset } from "../helpers/humanoidAssets";
 import { HumanoidFootSupportSolver } from "../../src/render/animation/HumanoidFootSupportSolver";
 import { resolveHumanoidRig } from "../../src/render/animation/HumanoidRig";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
@@ -46,6 +46,28 @@ function addLeg(root: THREE.Group, side: "left" | "right"): TestLeg {
 }
 
 describe("HumanoidFootSupportSolver", () => {
+  it.each([0, 0.001, 0.5])("blends the complete source leg constraint at contact weight %s", async (weight) => {
+    const root = await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A);
+    const animator = new HumanoidAnimator(root);
+    animator.setPreviewClip("walk"); animator.setPreviewPhase(0.44); animator.update(0, characterContext());
+    const leg = resolveHumanoidRig(root).legs.left!;
+    const nodes = [leg.thigh, leg.shin, leg.foot];
+    const pose = nodes.map((node) => ({ p: node.position.clone(), q: node.quaternion.clone().normalize() }));
+    const solver = new HumanoidFootSupportSolver(root);
+    const target = new THREE.Vector3(); solver.soleWorldPosition("left", target);
+    target.y = 0; target.z -= 0.1;
+    solver.alignSole("left", target, THREE.Object3D.DEFAULT_UP, 1);
+    const solved = nodes.map((node) => ({ p: node.position.clone(), q: node.quaternion.clone().normalize() }));
+    nodes.forEach((node, i) => { node.position.copy(pose[i]!.p); node.quaternion.copy(pose[i]!.q); });
+    root.updateMatrixWorld(true);
+    solver.alignSole("left", target, THREE.Object3D.DEFAULT_UP, weight);
+    nodes.forEach((node, i) => {
+      expect(node.quaternion.clone().normalize().angleTo(pose[i]!.q.clone().slerp(solved[i]!.q, weight))).toBeLessThan(1e-5);
+      expect(node.position.distanceTo(pose[i]!.p.clone().lerp(solved[i]!.p, weight))).toBeLessThan(1e-6);
+    });
+    animator.dispose();
+  });
+
   it("locks both feet while keeping both knee poles forward", () => {
     const root = new THREE.Group();
     const left = addLeg(root, "left");

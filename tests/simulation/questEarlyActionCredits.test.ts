@@ -78,15 +78,15 @@ describe("quest early-action credits", () => {
       { type: "water-crop", targetId: undefined, location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
     ]);
 
-    // Turning in the sow quest activates the water step, which is already paid for.
+    // Turning in the sow quest activates the water step, which is already paid
+    // for — so the same conversation closes it too, without watering an
+    // already-wet crop again.
     talkTo(simulation, "npc.elspeth");
-    expect(activeQuestId(simulation)).toBe("quest.act1_water_crops");
-    expect(mainQuestTrack(simulation.state.quests).stepProgress).toEqual({ "step.act1_water_3_crops": 3 });
-    expect(questEarlyActionCredits(simulation.state.quests)).toEqual([]);
-
-    // And the quest is turn-in-ready without watering an already-wet crop again.
-    talkTo(simulation, "npc.elspeth");
+    expect(simulation.state.quests.completedQuestIds).toEqual(
+      expect.arrayContaining(["quest.act1_sow_wheat", "quest.act1_water_crops"])
+    );
     expect(activeQuestId(simulation)).toBe("quest.act2_harvest_and_compost");
+    expect(questEarlyActionCredits(simulation.state.quests)).toEqual([]);
   });
 
   it("caps a banked credit at the objective's target quantity", () => {
@@ -167,8 +167,11 @@ describe("quest early-action credits", () => {
       { type: "water-crop", targetId: undefined, location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
     ]);
 
+    // The reloaded credit pays the water step the moment it opens, so the
+    // sow turn-in closes both errands in one conversation.
     talkTo(reloaded, "npc.elspeth");
-    expect(mainQuestTrack(reloaded.state.quests).stepProgress).toEqual({ "step.act1_water_3_crops": 3 });
+    expect(reloaded.state.quests.completedQuestIds).toContain("quest.act1_water_crops");
+    expect(activeQuestId(reloaded)).toBe("quest.act2_harvest_and_compost");
   });
 
   it("leaves the ordinary path untouched — nothing is banked when the player follows the tutorial", () => {

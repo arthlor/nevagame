@@ -235,6 +235,11 @@ export interface ContractTemplateDefinition {
   rewardBaseMultiplier: number;
   rewardSkill: SkillId;
   requiredXp?: number;
+  /**
+   * Story-facing kinds of order a quest can ask for as `tag:<tag>`, for a trait
+   * no single type captures (an order whose goods cross the channel).
+   */
+  tags?: readonly string[];
 }
 
 export type { NpcDefinition } from "./npcs";

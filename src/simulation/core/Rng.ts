@@ -17,6 +17,12 @@ export class SeededRng implements Rng {
   constructor(seed: number, state?: number) {
     this.seed = seed;
     if (state !== undefined) {
+      // Match `setState`: a restored/edited state must be a non-negative safe
+      // integer. Without this, a corrupt value would flow through `>>> 0` in
+      // `nextFloat` and silently produce a different sequence per platform.
+      if (!Number.isSafeInteger(state) || state < 0) {
+        throw new Error("RNG state must be a non-negative safe integer");
+      }
       this.state = state;
     } else {
       this.state = seed >>> 0;

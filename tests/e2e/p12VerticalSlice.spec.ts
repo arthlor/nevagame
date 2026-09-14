@@ -777,6 +777,34 @@ async function talkAtCurrentPosition(page: Page, npcId: string, expectedLine?: s
   await expect(dialogue).not.toBeVisible({ timeout: 5_000 });
 }
 
+/**
+ * Opens a conversation and reads it to the end, page by page. One talk can
+ * close an errand and pass on the next, so its beats are checked in order
+ * across pages rather than on the first page alone.
+ */
+async function talkThrough(page: Page, npcId: string, expectedLines: readonly string[]): Promise<void> {
+  const npcName = NPC_NAMES[npcId] ?? npcId;
+  await waitForPrompt(page, new RegExp(`Talk to ${npcName}`));
+  await page.keyboard.press("KeyE");
+  const dialogue = page.locator(".dialogue-card");
+  await expect(dialogue).toBeVisible({ timeout: 8_000 });
+  await expect(dialogue).toContainText(npcName);
+  const read: string[] = [];
+  for (let press = 0; press < 40 && await dialogue.isVisible().catch(() => false); press += 1) {
+    const text = await dialogue.getByTestId("dialogue-text").textContent().catch(() => null);
+    if (text && !read.includes(text)) read.push(text);
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(120);
+  }
+  await expect(dialogue).not.toBeVisible({ timeout: 5_000 });
+  let cursor = 0;
+  for (const expected of expectedLines) {
+    const found = read.findIndex((text, index) => index >= cursor && text.includes(expected));
+    expect(found, `"${expected}" in ${JSON.stringify(read)}`).toBeGreaterThanOrEqual(0);
+    cursor = found;
+  }
+}
+
 async function talkTo(page: Page, npcId: string, expectedLine?: string): Promise<void> {
   // Elspeth's authored gate interaction is shared with the fresh-save spawn.
   // Approaching her body from inside the field can put the south fence between
@@ -1215,14 +1243,14 @@ test.describe("P12 Chrome continuous player route", () => {
 
     expect((await snapshot(page)).activeQuestId).toBe("quest.act1_welcome");
     // The canonical spawn is already at the authored gate interaction point.
-    await talkAtCurrentPosition(page, "npc.elspeth", "Welcome to Neva Cove");
-    expect((await snapshot(page)).activeQuestId).toBe("quest.act1_welcome");
-    await talkAtCurrentPosition(page, "npc.elspeth", "You have your grandfather's steady hands");
+    // Hearing her out is the whole first errand: one conversation carries the
+    // welcome, its reward and the planting ask.
+    await talkThrough(page, "npc.elspeth", [
+      "Welcome to Neva Cove",
+      "You have your grandfather's steady hands",
+      "Walk onto the prepared field soil"
+    ]);
     expect((await snapshot(page)).activeQuestId).toBe("quest.act1_sow_wheat");
-
-    // Reopening the same speaker is still an actual contextual interaction,
-    // proving the prompt/dialogue handoff without replaying the reward.
-    await talkAtCurrentPosition(page, "npc.elspeth", "Walk onto the prepared field soil");
     const cropPositions = await plantThreeWheat(page);
     console.info(`[p12] planted ${JSON.stringify(cropPositions)}`);
     await capture(page, "02-farm-planted.png");
@@ -1314,9 +1342,7 @@ test.describe("P12 Chrome continuous player route", () => {
     await walkRoute(page, villageHarborRoute.points.slice(1, -1));
     await walkToMaeveDialogueApproach(page);
     await capture(page, "04-harbor-maeve.png");
-    await talkAtCurrentPosition(page, "npc.maeve", "Welcome to the Southeast Harbor");
-    expect((await snapshot(page)).activeQuestId).toBe("quest.act4_harbor_journey");
-    await talkAtCurrentPosition(page, "npc.maeve", "Now you understand");
+    await talkThrough(page, "npc.maeve", ["Welcome to the Southeast Harbor", "Now you understand"]);
     expect((await snapshot(page)).activeQuestId).toBe("quest.act4_restore_rowboat");
 
     await talkTo(page, "npc.silas", "Your family's old wooden rowboat");

@@ -100,6 +100,8 @@ const PHYSICS_STARTUP_TIMEOUT_MS = 30_000;
 // diagnostic. Generous, because this stage builds thousands of placements on
 // whatever hardware the player has.
 const WORLD_STARTUP_TIMEOUT_MS = 120_000;
+/** How long the person just spoken to keeps their world barks to themselves. */
+const POST_CONVERSATION_BARK_HOLD_MS = 30_000;
 
 function detectTouchDevice(): boolean {
   return typeof window !== "undefined" && (
@@ -176,7 +178,7 @@ import { createStartupState, type StartupState } from "./StartupState";
 import { createInitialGameState } from "../simulation/core/createInitialState";
 import { SessionRecorder } from "../telemetry/SessionRecorder";
 import { attachTelemetry } from "../telemetry/attachTelemetry";
-import { focusedQuestTrack } from "../simulation/core/QuestTypes";
+import { focusedQuestTrack, type ConversationResult } from "../simulation/core/QuestTypes";
 
 interface FishingHoldInput {
   isReeling: boolean;
@@ -604,17 +606,8 @@ export class GameApp {
     rodDirectionAngle: 0
   };
   private basicFishingWidgetHold = false;
-  private dialogueTalkResult: {
-    npcId: string;
-    result: {
-      success: boolean;
-      dialogue?: string[];
-      isCompletion?: boolean;
-      questCompleted?: boolean;
-      rewardsGiven?: boolean;
-      reason?: string;
-    };
-  } | null = null;
+  /** One conversation per opened dialogue; re-renders reuse it, never re-talk. */
+  private dialogueTalkResult: { npcId: string; result: ConversationResult } | null = null;
   private basicCastSource: "interact" | "primary" | null = null;
   private isRunning: boolean = false;
   private lastTimeMs: number = 0;
@@ -691,7 +684,6 @@ export class GameApp {
   private startupPromise: Promise<void> | null = null;
   private startupIntent: StartupIntent = "continue";
   private durableWritesEnabled: boolean = false;
-  private saveRecoveryReason: "corrupt" | "incompatible" | "unavailable" | null = null;
   private readonly movementIntent = { x: 0, z: 0 };
   private readonly playerPresentation = new PlayerPresentationBuffer();
   private assetCoverage: AssetCoverageSummary = EMPTY_ASSET_COVERAGE_SUMMARY;
@@ -732,6 +724,8 @@ export class GameApp {
   private activeTool: EquippedToolId = "hands";
   /** Bumped whenever the belt should show itself: a swap the player did not ask for. */
   private toolRevealToken = 0;
+  /** Per errand, when a "not yet counted" notice may next be shown. Transient. */
+  private readonly stepAheadNoticeAtMs = new Map<string, number>();
 
   private handleTalkNpc = (npcId: string) => {
     if (this.dialogueTalkResult?.npcId === npcId) return this.dialogueTalkResult.result;
@@ -980,7 +974,7 @@ export class GameApp {
   }
 
   private playOverlayAudio(previous: ActiveModal, next: ActiveModal): void {
-    if (next && next !== previous && next !== "new-game-confirm") {
+    if (next && next !== previous) {
       gameAudio.playOneShot("ui-cloth");
       if (next === "journal") {
         gameAudio.playOneShot("page-turn");
@@ -1006,6 +1000,10 @@ export class GameApp {
       this.basicCastSource = null;
     }
     if (modal !== "dialogue") {
+      // The person just spoken to should not bark the moment the page closes.
+      if (previous === "dialogue" && this.activeDialogueNpcId) {
+        this.npcBarks.suppress(this.activeDialogueNpcId, performance.now() + POST_CONVERSATION_BARK_HOLD_MS);
+      }
       this.activeDialogueNpcId = null;
       this.dialogueTalkResult = null;
       this.worldScene.setDialogueNpc(null);
@@ -1058,7 +1056,6 @@ export class GameApp {
     this.startupIntent = "continue";
     this.startupPromise = null;
     this.durableWritesEnabled = false;
-    this.saveRecoveryReason = null;
     this.isRunning = true;
     this.lastTimeMs = performance.now();
     this.lastAutosaveMs = this.lastTimeMs;
@@ -1186,7 +1183,10 @@ export class GameApp {
       this.attachSimulationFeedback();
 
 
-      this.modeController.restoreFromState(saveResult.envelope.state);
+      // Restore the gameplay mode from the canonical simulation state: offline
+      // progression and constructor reconciliation may have changed the fields
+      // `modeFromState` reads, so the pre-offline envelope is a stale source.
+      this.modeController.restoreFromState(this.sim.state);
       this.inputRouter.setMode(this.mode);
       this.sim.clock.setPaused(false);
       this.syncOverlayState();
@@ -1195,10 +1195,8 @@ export class GameApp {
       console.info("[GameApp] Loaded existing game save from IndexedDB.");
     } else if (this.persistenceDisabled || shouldPlayWithoutSaving) {
       this.durableWritesEnabled = false;
-      this.saveRecoveryReason = null;
     } else if (shouldStartNewGame) {
       this.durableWritesEnabled = false;
-      this.saveRecoveryReason = null;
       this.modeController.restoreFromState(this.sim.state);
       this.inputRouter.setMode(this.mode);
       this.syncOverlayState();
@@ -1831,6 +1829,14 @@ export class GameApp {
           return;
         }
         this.notify(`Errand progress · ${Math.min(current, total)} / ${total}`, "success", 2200);
+      }),
+      this.sim.events.on("QuestStepAhead", ({ questId, currentStepDescription }) => {
+        // Work that would count later, done early, used to vanish without a
+        // word. Once a minute per errand is enough to make the order legible.
+        const nowMs = performance.now();
+        if (nowMs < (this.stepAheadNoticeAtMs.get(questId) ?? 0)) return;
+        this.stepAheadNoticeAtMs.set(questId, nowMs + 60_000);
+        this.notify(`Not yet counted · first, ${currentStepDescription.charAt(0).toLowerCase()}${currentStepDescription.slice(1)}`, "info", 4200);
       }),
       this.sim.events.on("PlaceDiscovered", ({ title, view }) => {
         this.notify(`Discovered · ${title}`, "reward", 3600);
@@ -3353,6 +3359,7 @@ export class GameApp {
           : this.sim.execute({ type: "farm.buy-irrigation" });
         if (!result.success) this.notify(result.reason ?? "Could not irrigate", "danger");
         else if (!irrigationInstalled) this.notify("Well pump installed", "success", 2600);
+        else if (result.reasonCode === "already-wet") this.notify("Every row is already damp; the pump had nothing to do", "info", 2600);
         else this.notify("Field watered from the well", "success", 2000);
         if (result.success) this.requestAutosave();
         break;
@@ -4186,7 +4193,7 @@ export class GameApp {
         "hint.farming_water",
         "Crop Hydration",
         "Dry soil needs water before the crop can thrive.",
-        "≈"
+        "waves"
       );
     }
     const command: GameCommand = action === "water"
@@ -4209,7 +4216,7 @@ export class GameApp {
             "hint.work_capacity",
             "Work Capacity",
             "Harvesting is dear and watering is cheap — and a fine grade earns extra XP, not extra gold. Work refills as the day passes — spend it on what pays.",
-            "◷"
+            "energy"
           );
         } else {
           this.setToast("Watered");
@@ -4237,7 +4244,7 @@ export class GameApp {
             "hint.boat_steering",
             `${boatName} Navigation`,
             "[W/S] Throttle • [A/D] Steer • [E] Dock when near a harbor pier.",
-            "⌂"
+            "anchor"
           );
           this.requestAutosave();
         }
@@ -4323,7 +4330,7 @@ export class GameApp {
           "hint.fishing_sport",
           "Sport Fishing",
           "Hold [W/LMB] to reel, [S/RMB] to let line out, and [Space] to brace. Use [A/D] to counter runs.",
-          "◈"
+          "fish"
         );
       } else {
         this.setToast(res.reason ?? "Cannot hook fish");
@@ -4382,7 +4389,7 @@ export class GameApp {
               `hint.processing_wait.${inspection.recipeId}`,
               inspection.recipeName,
               `${inspection.outputName} finishes in ${formatGameDuration(inspection.remainingMinutes)} on the game clock (${inspection.readyClockLabel}). Keep farming, or rest until morning, while it works.`,
-              "⏳"
+              "hourglass"
             );
           }
         }
@@ -4508,7 +4515,7 @@ export class GameApp {
         "hint.fishing_basic",
         "River Angling",
         "Hold [Space] to raise your catch bar. Keep the fish centered to land it!",
-        "⌁"
+        "rod"
       );
     } else {
       this.setToast(res.reason ?? "Fishing failed");
@@ -4538,26 +4545,6 @@ export class GameApp {
     if (started) this.basicCastSource = null;
   }
 
-
-  private confirmNewGame(): void {
-    const reason = this.saveRecoveryReason;
-    this.saveRecoveryReason = null;
-    this.modeController.confirmNewGame();
-    this.syncOverlayState();
-    if (reason === "unavailable") {
-      this.durableWritesEnabled = false;
-      this.setToast("This session will not be saved");
-      return;
-    }
-    this.durableWritesEnabled = true;
-    this.setToast("Starting a new game");
-    this.requestAutosave();
-  }
-
-  private dismissNewGameConfirm(): void {
-    this.modeController.dismissNewGameConfirm();
-    this.syncOverlayState();
-  }
 
   private handleResetPlayerToSafePlace(): void {
     const result = this.sim.execute({ type: "player.reset-safe" });
@@ -4690,7 +4677,6 @@ export class GameApp {
         farmingAction: this.farmingActionSnapshot,
         activeModal: this.activeModal,
         onSetActiveModal: (modal: ActiveModal) => {
-          if (this.saveRecoveryReason && modal !== "new-game-confirm") return;
           if (modal === "character") {
             const blocker = this.characterScreenBlocker();
             if (blocker) {
@@ -4703,10 +4689,7 @@ export class GameApp {
           })) return;
           this.setActiveModal(modal);
         },
-        saveRecoveryReason: this.saveRecoveryReason,
         savingAvailable: !this.persistenceDisabled && this.durableWritesEnabled,
-        onConfirmNewGame: () => this.confirmNewGame(),
-        onDismissNewGameConfirm: () => this.dismissNewGameConfirm(),
         marketId: this.activeMarketId,
         activeQuest: this.sim.questDomain.getActiveQuestDto(),
         // Every thread the player is carrying, focused first. Without this the
@@ -4928,6 +4911,15 @@ export class GameApp {
           else if (res.completed) this.setToast(`Contract complete: +${res.rewardMoney} G`, 3600);
           else this.setToast("Fish delivered to contract");
         },
+        onPassContract: (contractId: string) => {
+          const res = this.sim.execute({ type: "contract.pass", contractId });
+          if (!res.success) {
+            this.setToast(res.reason ?? "That order stays on the board");
+            return;
+          }
+          this.setToast("Order passed · a new one is posted", 2600);
+          this.requestAutosave();
+        },
         onQuickSave: () => {
           void this.handleQuickSave();
         },
@@ -5066,9 +5058,6 @@ export class GameApp {
     this.worldScene.dispose();
     this.uiRoot?.unmount();
     this.uiRoot = null;
-    // Closes the AudioContext and its first-input/visibility listeners. The
-    // manager is a page singleton and disposal is final, matching this app's.
-    gameAudio.dispose();
   }
 
   private onResize = (): void => {

@@ -55,5 +55,18 @@ export class NpcBarkOverlay {
     }
   }
 
+  /**
+   * Holds one person's barks until `untilMs`, hiding their bubble now. A
+   * conversation that just closed used to be followed at once by the same
+   * person remarking on the weather.
+   */
+  suppress(npcId: string, untilMs: number): void {
+    this.nextAllowed.set(npcId, Math.max(this.nextAllowed.get(npcId) ?? 0, untilMs));
+    if (this.activeId === npcId) {
+      this.activeId = null;
+      this.root.hidden = true;
+    }
+  }
+
   dispose(): void { this.root.remove(); }
 }

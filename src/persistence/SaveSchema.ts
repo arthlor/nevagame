@@ -279,7 +279,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       (state.basicFishing.castPower !== undefined && !isFiniteInRange(state.basicFishing.castPower, 0, 1)) ||
       (schemaVersion >= 22 && state.basicFishing.quality !== undefined && !isOneOf(state.basicFishing.quality, FISH_QUALITIES)))
   ) return false;
-  if (state.sportFishing) {
+  // The dynamics/fish shape below is the post-v19 shape; validating an older
+  // envelope directly (outside the migration path) must not read fields that
+  // migration is responsible for introducing.
+  if (schemaVersion >= 19 && state.sportFishing) {
     const dynamics = state.sportFishing.dynamics;
     const speciesId = isRecord(state.sportFishing.fish) && typeof state.sportFishing.fish.speciesId === "string"
       ? state.sportFishing.fish.speciesId

@@ -391,7 +391,12 @@ describe("the freight side track", () => {
       .map((objective) => objective.targetId);
     expect(contractTargets.length).toBeGreaterThan(0);
     for (const target of contractTargets) {
-      expect(CONTRACT_TYPES.has(target!), `${target} should be a contract type`).toBe(true);
+      // A kind of order — a type, or a tag carried by several templates —
+      // never one template the board may not roll.
+      const tag = target!.startsWith("tag:") ? target!.slice(4) : null;
+      const kindOfOrder = CONTRACT_TYPES.has(target!)
+        || (tag !== null && [...ContentRegistry.contractTemplates.values()].filter((template) => template.tags?.includes(tag)).length > 1);
+      expect(kindOfOrder, `${target} should name a kind of order`).toBe(true);
       expect(ContentRegistry.contractTemplates.has(target!)).toBe(false);
     }
   });

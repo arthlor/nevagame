@@ -58,12 +58,7 @@ void main() {
   float moonDisc = smoothstep(moonEdge - 0.000018, moonEdge + 0.000018, dot(ray, uMoonDirection));
   sky += uSunColor * sunDisc * uSkyState.y * 5.0;
   sky += uMoonColor * moonDisc * uSkyState.z * 1.25;
-  // World-direction stars remain fixed under orbit; clouds occlude them below.
-  vec3 starCell = floor(ray * 650.0);
-  float starSeed = hash31(starCell + uSeed);
-  float stars = smoothstep(0.9978, 1.0, starSeed) * uSkyState.w;
-  sky += uMoonColor * stars * smoothstep(0.0, 0.15, ray.y);
-
+  float starTransmittance = 1.0 - moonDisc;
   if (ray.y > 0.015) {
     // The high veil sits behind the lower cloud deck.
     float highDistance = (uCloudLayer.x + uCloudLayer.y * 3.0 - uEye.y) / ray.y;
@@ -71,6 +66,7 @@ void main() {
     float veil = weatherShape(highPoint * vec2(0.24, 1.4) + 410.0);
     veil = smoothstep(0.58, 0.78, veil) * uWeather.x * 0.11 * smoothstep(0.03, 0.25, ray.y);
     sky = mix(sky, uHorizon * mix(0.5, 1.1, uSkyState.x), veil);
+    starTransmittance *= 1.0 - veil;
     float entry = max(0.0, (uCloudLayer.x - uEye.y) / ray.y);
     float exitDistance = min(uMaxDistance, (uCloudLayer.x + uCloudLayer.y - uEye.y) / ray.y);
     if (exitDistance > entry) {
@@ -114,9 +110,80 @@ void main() {
       float distantHaze = 1.0 - exp(-entry * uHaze);
       radiance = mix(radiance, sky * (1.0 - transmittance), distantHaze);
       sky = sky * transmittance + radiance;
+      starTransmittance *= transmittance;
     }
   }
-  gl_FragColor = vec4(max(sky, vec3(0.0)), 1.0);
+  // Alpha carries visibility for sharp stars in the existing display pass.
+  gl_FragColor = vec4(max(sky, vec3(0.0)), starTransmittance);
+}
+`;
+
+export const SKY_DISPLAY_FRAGMENT = /* glsl */ `
+uniform sampler2D uSky;
+uniform vec2 uSkyTexel;
+uniform mat4 uInverseProjection;
+uniform mat3 uCameraRotation;
+uniform vec4 uSkyState;
+uniform vec3 uMoonColor;
+uniform float uSeed;
+uniform vec4 uStars;
+varying vec2 vUv;
+
+vec3 starHash(vec3 cell) {
+  cell = fract(cell * vec3(0.1031, 0.1030, 0.0973));
+  cell += dot(cell, cell.yxz + 33.33);
+  return fract((cell.xxy + cell.yxx) * cell.zyx);
+}
+
+float starRadiance(vec3 ray) {
+  // Cube-direction cells avoid polar stretching. Inset centers leave room for
+  // each point's filter footprint at cell and cube-face boundaries.
+  vec3 magnitude = abs(ray);
+  vec2 plane;
+  float face;
+  if (magnitude.x >= magnitude.y && magnitude.x >= magnitude.z) {
+    plane = ray.yz / magnitude.x;
+    face = ray.x > 0.0 ? 0.0 : 1.0;
+  } else if (magnitude.y >= magnitude.z) {
+    plane = ray.xz / magnitude.y;
+    face = ray.y > 0.0 ? 2.0 : 3.0;
+  } else {
+    plane = ray.xy / magnitude.z;
+    face = ray.z > 0.0 ? 4.0 : 5.0;
+  }
+  vec2 cell = floor((plane * 0.5 + 0.5) * uStars.x);
+  vec3 random = starHash(vec3(cell, face * 173.0 + uSeed));
+  vec2 center = (cell + mix(vec2(0.18), vec2(0.82), random.xy)) / uStars.x * 2.0 - 1.0;
+  vec3 direction;
+  if (face < 2.0) direction = vec3(face == 0.0 ? 1.0 : -1.0, center);
+  else if (face < 4.0) direction = vec3(center.x, face == 2.0 ? 1.0 : -1.0, center.y);
+  else direction = vec3(center, face == 4.0 ? 1.0 : -1.0);
+  float distanceToStar = length(cross(ray, normalize(direction)));
+  float brightness = min(1.0, random.z / uStars.y);
+  float radius = uStars.z * mix(0.65, 1.4, brightness * brightness);
+  // Integrate a small point over its pixel footprint, preserving energy when
+  // it becomes subpixel. No frame noise, twinkle, or cloud-resolution shimmer.
+  float pixel = max(length(dFdx(ray)), length(dFdy(ray))) * 0.6;
+  float radiusSq = radius * radius;
+  float filteredSq = radiusSq + pixel * pixel;
+  return step(random.z, uStars.y) * exp(-2.0 * distanceToStar * distanceToStar / filteredSq)
+    * radiusSq / filteredSq * mix(0.35, 1.0, brightness) * uStars.w;
+}
+
+void main() {
+  vec4 sky = texture2D(uSky, vUv) * 0.2941176471;
+  sky += texture2D(uSky, vUv + uSkyTexel * vec2(1.333333, 1.333333)) * 0.1764705882;
+  sky += texture2D(uSky, vUv + uSkyTexel * vec2(-1.333333, 1.333333)) * 0.1764705882;
+  sky += texture2D(uSky, vUv + uSkyTexel * vec2(1.333333, -1.333333)) * 0.1764705882;
+  sky += texture2D(uSky, vUv + uSkyTexel * vec2(-1.333333, -1.333333)) * 0.1764705882;
+  vec2 ndc = vUv * 2.0 - 1.0;
+  vec4 nearView = uInverseProjection * vec4(ndc, -1.0, 1.0);
+  vec4 farView = uInverseProjection * vec4(ndc, 1.0, 1.0);
+  vec3 ray = normalize(uCameraRotation * (farView.xyz / farView.w - nearView.xyz / nearView.w));
+  float stars = starRadiance(ray) * uSkyState.w * smoothstep(0.03, 0.25, ray.y) * sky.a;
+  gl_FragColor = vec4(sky.rgb + uMoonColor * stars, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }
 `;
 

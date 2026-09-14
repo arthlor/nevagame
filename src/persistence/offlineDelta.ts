@@ -131,7 +131,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
 
   // Step 9: Update metadata
   state.metadata.lastSavedUtcMs = nowUtcMs;
-  state.metadata.totalPlayMinutes += elapsedRealMinutes;
+  // Time away is not play: `totalPlayMinutes` accrues only while the game runs.
   state.metadata.rngState = rng.getState();
 
   return summary;

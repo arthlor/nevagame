@@ -65,9 +65,10 @@ describe("NPC schedules", () => {
     Object.assign(sim.state.player, { x: oldAnchor.x, z: oldAnchor.z });
     expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" })).toMatchObject({ success: false });
     Object.assign(sim.state.player, { x: anchor.x, z: anchor.z });
-    expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" })).toMatchObject({ success: true });
-    expect(sim.questDomain.getActiveQuestDto()).toMatchObject({ isQuestReadyToTurnIn: true, targetDistanceMeters: 0, targetLocation: { x: anchor.x, z: anchor.z } });
+    // Hearing her out is the whole errand, so the ask and its close are one
+    // conversation, held at the station the clock puts her at.
     expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" })).toMatchObject({ success: true, questCompleted: true });
+    expect(track.activeQuestId).toBe("quest.act1_sow_wheat");
     sim.questDomain.dispose();
   });
 

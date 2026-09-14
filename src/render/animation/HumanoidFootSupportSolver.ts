@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { resolveHumanoidRig, type HumanoidLegBinding, type HumanoidSide } from "./HumanoidRig";
 import { TwoBoneConstraintSolver } from "./TwoBoneConstraintSolver";
 
@@ -19,6 +20,10 @@ export class HumanoidFootSupportSolver {
   private readonly rootWorld = new THREE.Quaternion();
   private readonly footWorld = new THREE.Quaternion();
   private readonly desiredFootWorld = new THREE.Quaternion();
+  private readonly sourceThigh = new THREE.Quaternion();
+  private readonly sourceShin = new THREE.Quaternion();
+  private readonly sourceFoot = new THREE.Quaternion();
+  private readonly sourceFootPosition = new THREE.Vector3();
 
   public constructor(private readonly root: THREE.Object3D) {
     this.rig = resolveHumanoidRig(root);
@@ -41,13 +46,28 @@ export class HumanoidFootSupportSolver {
 
   /** Constrains the contact point and normal without replacing the source pose. */
   public alignSole(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight = 1): void {
-    const leg = this.prepareSoleTarget(side, target, normal, weight);
-    if (leg) this.solve(leg, this.target, this.footWorld);
+    const blend = THREE.MathUtils.clamp(weight, 0, 1);
+    if (blend === 0) return;
+    const leg = this.prepareSoleTarget(side, target, normal, 1);
+    if (!leg) return;
+    this.sourceThigh.copy(leg.thigh.quaternion).normalize();
+    this.sourceShin.copy(leg.shin.quaternion).normalize();
+    this.sourceFoot.copy(leg.foot.quaternion).normalize();
+    this.sourceFootPosition.copy(leg.foot.position);
+    this.solve(leg, this.target, this.footWorld);
+    // Source IK feet can differ from the deforming leg's endpoint. Blend the
+    // complete solved leg back to the authored pose so a fading contact cannot
+    // leave a residual knee correction in the swing phase.
+    leg.thigh.quaternion.copy(this.sourceThigh.slerp(leg.thigh.quaternion, blend));
+    leg.shin.quaternion.copy(this.sourceShin.slerp(leg.shin.quaternion, blend));
+    leg.foot.quaternion.copy(this.sourceFoot.slerp(leg.foot.quaternion, blend));
+    if (leg.detachedFoot) leg.foot.position.lerpVectors(this.sourceFootPosition, leg.foot.position, blend);
+    this.root.updateWorldMatrix(true, true);
   }
 
   /** Vertical body adaptation needed to reach a contact without stretching. */
   public requiredPelvisDrop(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight: number): number {
-    const leg = this.prepareSoleTarget(side, target, normal, weight);
+    const leg = this.prepareSoleTarget(side, target, normal, 1);
     if (!leg) return 0;
     leg.thigh.getWorldPosition(this.hip);
     leg.shin.getWorldPosition(this.knee);
@@ -80,7 +100,14 @@ export class HumanoidFootSupportSolver {
   private solve(leg: HumanoidLegBinding, target: THREE.Vector3, footRotation: THREE.Quaternion): void {
     this.root.getWorldQuaternion(this.rootWorld);
     this.pole.copy(leg.bendDirection).applyQuaternion(this.rootWorld).normalize();
-    const endpoint = this.solver.solve(leg.thigh, leg.shin, leg.shinTip, target, this.pole);
+    const endpoint = this.solver.solve(
+      leg.thigh,
+      leg.shin,
+      leg.shinTip,
+      target,
+      this.pole,
+      CANONICAL_RENDER_CONFIG.motion.groundingFootReachSofteningMeters
+    );
     if (!endpoint) return;
     if (leg.detachedFoot) {
       this.ankle.copy(leg.shinTip).applyMatrix4(leg.shin.matrixWorld);

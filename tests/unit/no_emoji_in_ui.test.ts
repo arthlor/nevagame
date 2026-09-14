@@ -7,7 +7,20 @@ import path from "node:path";
  * the game's authored art. Icons are SVG — either an atlas sprite through
  * `HudIcons`, or an inline mark defined there. This guard keeps them out.
  */
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}\u{1F900}-\u{1F9FF}]/u;
+const EMOJI = new RegExp(
+  "[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}\\u{FE0F}\\u{1F900}-\\u{1F9FF}]"
+    // Miscellaneous Technical mixes emoji (⌚ ⌛ ⌨ ⏏ ⏩–⏳ ⏸–⏺) with the key
+    // glyphs hint text legitimately uses (⌘ ⌥ ⌫), so only its pictographs count.
+    + "|(?=\\p{Extended_Pictographic})[\\u{2300}-\\u{23FF}]",
+  "u"
+);
+
+describe("emoji pattern", () => {
+  it("catches the Miscellaneous Technical emoji while leaving keyboard glyphs alone", () => {
+    for (const emoji of ["⌛", "⏳", "⌚", "⏰", "⏸"]) expect(EMOJI.test(emoji), emoji).toBe(true);
+    for (const glyph of ["⌘", "⌥", "⌫", "⌂"]) expect(EMOJI.test(glyph), glyph).toBe(false);
+  });
+});
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 /** Presentation, plus the layers that feed strings straight into it. */

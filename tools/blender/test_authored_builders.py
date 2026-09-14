@@ -137,6 +137,104 @@ def build_signature():
     return signature
 
 
+def _creature_fixture():
+    """A torso with a limb bone running straight through it: the exact layout in
+    which nearest-bone weighting lets the limb capture the flank."""
+    from common.creature import bone, build_creature_armature, build_skinned_surface
+    from common.geometry import add_limb_tube
+
+    clean_scene()
+    root = create_root("creature_test_root")
+    torso = add_limb_tube(
+        "creature_test_torso", [(0, -0.4, 0.5), (0, 0.0, 0.55), (0, 0.4, 0.5)],
+        [0.16, 0.22, 0.16], "canvas_cream_01", root, sides=10,
+    )
+    torso_points = {tuple(round(c, 6) for c in (torso.matrix_world @ v.co)) for v in torso.data.vertices}
+    limb = add_limb_tube(
+        "creature_test_limb", [(0.02, 0.0, 0.55), (0.35, 0.05, 0.55), (0.6, 0.1, 0.5)],
+        [0.05, 0.04, 0.02], "canvas_cream_01", root, sides=6,
+    )
+    bones = [
+        bone("torso", (0, 0.4, 0.52), (0, -0.4, 0.52)),
+        bone("limb", (0, 0.0, 0.55), (0.62, 0.1, 0.5), "torso"),
+    ]
+    rig = build_creature_armature("creature_test_rig", bones, root)
+    surface, report = build_skinned_surface(
+        "creature_test_surface", rig, bones, [(torso, ["torso"]), (limb, ["limb", "torso"])]
+    )
+    return root, rig, surface, report, torso_points
+
+
+def _weight_signature(surface):
+    names = {group.index: group.name for group in surface.vertex_groups}
+    return tuple(
+        (round(v.co.x, 6), round(v.co.y, 6), round(v.co.z, 6),
+         tuple(sorted((names[g.group], round(g.weight, 6)) for g in v.groups)))
+        for v in surface.data.vertices
+    )
+
+
+def test_creature_skinning() -> None:
+    from common.creature import author_creature_clip
+
+    _, rig, surface, report, torso_points = _creature_fixture()
+    names = {group.index: group.name for group in surface.vertex_groups}
+    torso_checked = 0
+    for vertex in surface.data.vertices:
+        if not vertex.groups:
+            raise AssertionError("Creature skin left a vertex unweighted")
+        if len(vertex.groups) > 4:
+            raise AssertionError("Creature skin exceeds four influences")
+        total = sum(group.weight for group in vertex.groups)
+        if not math.isclose(total, 1.0, abs_tol=1e-5):
+            raise AssertionError(f"Creature skin weights sum to {total}")
+        if tuple(round(c, 6) for c in (surface.matrix_world @ vertex.co)) in torso_points:
+            torso_checked += 1
+            if any(names[group.group] == "limb" and group.weight > 0.0 for group in vertex.groups):
+                raise AssertionError("A limb bone captured torso vertices")
+    if not torso_checked:
+        raise AssertionError("Torso vertices were not found after the join")
+    if [m.type for m in surface.modifiers] != ["ARMATURE"] or surface.modifiers[0].object is not rig:
+        raise AssertionError("Creature surface is not bound to its rig")
+    if report["maximumInfluences"] > 4:
+        raise AssertionError("Creature skin report exceeds four influences")
+
+    first = _weight_signature(surface)
+    _, _, repeat, _, _ = _creature_fixture()
+    if _weight_signature(repeat) != first:
+        raise AssertionError("Creature skin weighting is not deterministic")
+
+    root, rig, _, _, _ = _creature_fixture()
+    motion = bpy.data.objects.new("creature_test_motion", None)
+    bpy.context.collection.objects.link(motion)
+    motion.parent = root
+    spec = {"id": "creature_test", "animationClips": [{"name": "sway", "durationSeconds": 0.4, "loop": True}]}
+    author_creature_clip(
+        spec, "sway", frame_rate=25,
+        object_tracks=((motion, [(0.0, (0, 0, 0), (0, 0, 0)), (0.2, (0, 0, 0.1), (0, 0, 0)), (0.4, (0, 0, 0), (0, 0, 0))]),),
+        bone_tracks=((rig, "limb", [(0.0, (0, 0, 0), (0, 0, 0)), (0.2, (0.4, 0, 0), (0, 0, 0)), (0.4, (0, 0, 0), (0, 0, 0))]),),
+    )
+    carried = [a.name for a in bpy.data.actions if a.name == "sway" or a.name.startswith("sway_")]
+    if sorted(carried) != ["sway", "sway_creature_test_rig"]:
+        raise AssertionError(f"Clip must carry the bare name exactly once, received {carried}")
+    for holder in (motion, rig):
+        if [track.name for track in holder.animation_data.nla_tracks] != ["sway"]:
+            raise AssertionError(f"{holder.name} did not receive a same-named NLA track")
+
+    spec["animationClips"].append({"name": "lurch", "durationSeconds": 0.4, "loop": True})
+    try:
+        author_creature_clip(
+            spec, "lurch", frame_rate=25,
+            object_tracks=((motion, [(0.0, (0, 0, 0.2), (0, 0, 0)), (0.4, (0, 0, 0.2), (0, 0, 0))]),),
+        )
+    except ValueError as error:
+        if "rest transform" not in str(error):
+            raise
+    else:
+        raise AssertionError("An object track starting off its rest transform was accepted")
+    print("[NEVA ART] Creature skinning tests passed: per-part drivers, complete weights, determinism, clip carriers")
+
+
 def main() -> None:
     midpoint = hex_to_linear_rgba("#808080")[0]
     if not math.isclose(midpoint, 0.215861, rel_tol=0, abs_tol=0.00001):
@@ -148,6 +246,7 @@ def main() -> None:
     print(f"[NEVA ART] Authored builder tests passed for structural/vegetation builders, COLOR_0, and {len(first)} meshes")
     from test_surface_builders import test_surface_builders
     test_surface_builders()
+    test_creature_skinning()
 
 
 if __name__ == "__main__":

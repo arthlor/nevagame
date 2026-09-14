@@ -563,13 +563,20 @@ export class MarketDomain {
       return { success: false, reason: "This stall does not sell that supply" };
     }
     const item = ContentRegistry.items.get(itemId);
+    if (!item) return { success: false, reason: "Market does not trade this item" };
+    // A retail supply may have no tracked commodity. The shelf quote falls back
+    // to base value in `inspectCommodity`, so the purchase must price it the same
+    // way instead of rejecting a row the board presented as buyable.
     const commodity = market.commodities[itemId];
-    if (!item || !commodity) return { success: false, reason: "Market does not trade this item" };
-    const available = Math.max(0, Math.floor(commodity.localSupply));
-    if (quantity > available) {
-      return { success: false, reason: available <= 0 ? "Sold out" : `Only ${available} in stock` };
+    if (commodity) {
+      const available = Math.max(0, Math.floor(commodity.localSupply));
+      if (quantity > available) {
+        return { success: false, reason: available <= 0 ? "Sold out" : `Only ${available} in stock` };
+      }
     }
-    const cost = this.quotePurchase(marketId, commodity, quantity).total;
+    const cost = commodity
+      ? this.quotePurchase(marketId, commodity, quantity).total
+      : Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP) * quantity;
     if (state.player.money < cost) return { success: false, reason: "Not enough money" };
     const inventory = state.inventories[state.player.inventoryId];
     const purchase = [{ itemId, quantity }];
@@ -579,7 +586,7 @@ export class MarketDomain {
 
     InventoryManager.addItemsAtomically(inventory, purchase);
     state.player.money -= cost;
-    recordMarketPurchase(market, itemId, quantity);
+    if (commodity) recordMarketPurchase(market, itemId, quantity);
     events.emit("ItemPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
     return { success: true, cost };
   }

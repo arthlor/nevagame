@@ -74,20 +74,29 @@ def _finish_mesh(
     return obj
 
 
+_SURFACE_NORMAL_MODES = {"planar": 0, "rounded": 1, "foliage": 2}
+
+# Share of a foliage normal bent toward the asset's up axis. Thin rooted
+# blades otherwise face sideways or down and take only the ground bounce.
+FOLIAGE_NORMAL_UP = 0.6
+
+
 def set_surface_normals(obj, mode="rounded", *, faces=None):
     """Record authored smoothing groups on faces, including across material slots.
 
     FACE data survives object joining and decimation; object names and material
     boundaries do not define a lighting seam. The export finish consumes this
-    private attribute after every LOD has been constructed.
+    private attribute after every LOD has been constructed. `foliage` smooths
+    like `rounded` and additionally bends the result toward the asset's up
+    axis, so grass and leaf blades shade like the meadow they stand in.
     """
-    if mode not in ("rounded", "planar"):
+    if mode not in _SURFACE_NORMAL_MODES:
         raise ValueError(f"Unknown surface normal mode: {mode}")
     attribute = obj.data.attributes.get(".neva_surface")
     if attribute is None:
         attribute = obj.data.attributes.new(".neva_surface", "INT", "FACE")
     for index in range(len(obj.data.polygons)) if faces is None else faces:
-        attribute.data[index].value = int(mode == "rounded")
+        attribute.data[index].value = _SURFACE_NORMAL_MODES[mode]
     return obj
 
 
@@ -160,6 +169,8 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
         face_values = mesh.attributes[".neva_facet_value"]
     groups = mesh.attributes.get(".neva_surface")
     rounded = [bool(groups and groups.data[p.index].value) for p in mesh.polygons]
+    foliage = [bool(groups and groups.data[p.index].value == _SURFACE_NORMAL_MODES["foliage"]) for p in mesh.polygons]
+    asset_up = (object_to_asset.to_3x3().inverted() @ Vector((0.0, 0.0, 1.0))).normalized()
     edge_faces = [[] for _ in mesh.edges]
     vertex_faces = [[] for _ in mesh.vertices]
     for polygon in mesh.polygons:
@@ -201,6 +212,15 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
                 normal += polygon.normal * angle
                 loops.append(polygon.loop_start + corner)
             normal.normalize()
+            if any(foliage[face_index] for face_index in connected):
+                # Bend as far toward the sky as every face in the group allows;
+                # a root cap or underside keeps a normal that agrees with its winding.
+                face_normals = [mesh.polygons[face_index].normal for face_index in connected]
+                for share in (FOLIAGE_NORMAL_UP, FOLIAGE_NORMAL_UP * .66, FOLIAGE_NORMAL_UP * .33):
+                    bent = normal.lerp(asset_up, share).normalized()
+                    if all(bent.dot(face_normal) >= .05 for face_normal in face_normals):
+                        normal = bent
+                        break
             for loop_index in loops:
                 corner_normals[loop_index] = tuple(normal)
     for polygon in mesh.polygons:
@@ -221,7 +241,7 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
     if groups is not None:
         mesh.attributes.remove(groups)
     mesh.attributes.remove(face_values)
-    return {"roundedFaces": sum(rounded), "planarFaces": len(rounded) - sum(rounded)}
+    return {"roundedFaces": sum(rounded), "planarFaces": len(rounded) - sum(rounded), "foliageFaces": sum(foliage)}
 
 
 def apply_vertex_values(obj: bpy.types.Object) -> None:

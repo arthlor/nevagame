@@ -164,6 +164,12 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("terrainDebugSlope");
     expect(shader.fragmentShader).toContain("roughnessFactor = mix(");
     expect(shader.fragmentShader).not.toContain("displacement");
+    // Terrain wears the same meadow field the grass carpet samples at its roots.
+    expect(shader.fragmentShader).toContain("NevaMeadowSample terrainMeadow = nevaMeadowSample(");
+    expect(shader.fragmentShader).toContain("nevaMeadowLiveBlades(vTerrainWorldPosition.xz)");
+    expect(shader.fragmentShader).toContain("vec3 nevaApplySeason(vec3 color)");
+    expect(shader.uniforms.nevaMeadowField).toBeDefined();
+    expect(shader.uniforms.nevaSeasonTint).toBeDefined();
     expect(terrain.material.flatShading).toBe(false);
     expect(shader.uniforms.terrainPathShoulderStart.value).toBe(0.32);
     expect(shader.uniforms.terrainPathShoulderFull.value).toBe(0.52);

@@ -548,17 +548,20 @@ export interface JournalState {
   unlockedKnowledge: string[];
 }
 
+/** Bounded per-habitat fishing pressure: when a school last ended and how long to rest. */
+export interface FishingPressureState {
+  ecologyId: FishingEcologyId;
+  habitatId: string;
+  lastEndedMinute: GameMinute;
+  cooldownUntilMinute: GameMinute;
+  recentCatchCount: number;
+}
+
 export interface WorldState {
   layoutRevision: number;
   currentSeed: number;
   activeSchools: Record<FishSchoolId, FishSchoolState>;
-  fishingPressureByHabitat: Record<string, {
-    ecologyId: FishingEcologyId;
-    habitatId: string;
-    lastEndedMinute: GameMinute;
-    cooldownUntilMinute: GameMinute;
-    recentCatchCount: number;
-  }>;
+  fishingPressureByHabitat: Record<string, FishingPressureState>;
   structures: Record<StructureId, {
     id: StructureId;
     type: StationType;

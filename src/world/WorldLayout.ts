@@ -849,16 +849,16 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   },
   {
     id: "village.cottage-west",
-    center: { x: 36, z: -50 },
-    rotationY: villageArchitectureRotation({ x: 36, z: -50 }),
+    center: { x: 36.6, z: -50.5},
+    rotationY: villageArchitectureRotation({ x: 36.6, z: -50.5 }),
     envelope: [2.7, 2.4],
     frontageClearanceMeters: 4.5,
     frontApproachMeters: 4.5
   },
   {
     id: "village.cottage-southwest",
-    center: { x: 38, z: -60 },
-    rotationY: villageArchitectureRotation({ x: 38, z: -60 }),
+    center: { x: 37.8, z: -58.6},
+    rotationY: 1.0609,
     envelope: [2.5, 2.7],
     frontageClearanceMeters: 4.3,
     frontApproachMeters: 4.5
@@ -873,8 +873,8 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   },
   {
     id: "village.cottage-south",
-    center: { x: 66.2, z: -69.7},
-    rotationY: -0.5236,
+    center: { x: 65.1, z: -69.6},
+    rotationY: villageArchitectureRotation({ x: 65.1, z: -69.6 }),
     envelope: [2.5, 2.7],
     frontageClearanceMeters: 4.3,
     frontApproachMeters: 4.5

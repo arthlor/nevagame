@@ -143,7 +143,11 @@ export const MARKETS: Record<string, MarketDefinition> = {
     },
     retail: {
       seedCropIds: ["crop.sunflower", "crop.olive_tree"],
-      itemIds: ["item.bait_worms", "item.crushed_ice", "item.boat_fuel"]
+      itemIds: ["item.bait_worms", "item.crushed_ice", "item.boat_fuel"],
+      // Act 8 sends the player after reef amberjack, which need heavy tackle.
+      // It used to be sold only at the Neva harbor, so the quest silently
+      // demanded a return crossing nobody mentioned.
+      rodIds: ["rod.heavy_sport"]
     },
     commodities: [
       { itemId: "seed.sunflower", basePrice: 7, targetSupply: 40, consumptionRatePerHour: 2.5, seasonalFactors: { spring: 1.05 } },

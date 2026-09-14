@@ -122,7 +122,20 @@ interface SourcePoseSnapshot {
 
 interface FootContactState {
   locked: boolean;
-  targetWorld: THREE.Vector3;
+  initialized: boolean;
+  position: THREE.Vector3;
+  velocity: THREE.Vector3;
+  inputPosition: THREE.Vector3;
+  inputVelocity: THREE.Vector3;
+  offsetPosition: THREE.Vector3;
+  offsetVelocity: THREE.Vector3;
+  contact: THREE.Vector3;
+  transitionTime: number;
+}
+
+interface FootContactSample {
+  weight: number;
+  enterAgeSeconds: number;
 }
 
 interface ManagedTransition {
@@ -307,7 +320,7 @@ export class HumanoidAnimator {
   private readonly restTransforms: SourcePoseSnapshot[] = [];
   private readonly groundPoseTransforms: SourcePoseSnapshot[] = [];
   private groundPoseCorrected = false;
-  private readonly scratchPosition = new THREE.Vector3();
+  private readonly zeroVelocity = new THREE.Vector3();
   private readonly footWorldPosition = new THREE.Vector3();
   private readonly footTargetWorld = new THREE.Vector3();
   private readonly pelvisWorldPosition = new THREE.Vector3();
@@ -317,8 +330,30 @@ export class HumanoidAnimator {
     right: { target: new THREE.Vector3(), normal: new THREE.Vector3(), weight: 0 }
   };
   private readonly footContactStates: Record<"left" | "right", FootContactState> = {
-    left: { locked: false, targetWorld: new THREE.Vector3() },
-    right: { locked: false, targetWorld: new THREE.Vector3() }
+    left: {
+      locked: false,
+      initialized: false,
+      position: new THREE.Vector3(),
+      velocity: new THREE.Vector3(),
+      inputPosition: new THREE.Vector3(),
+      inputVelocity: new THREE.Vector3(),
+      offsetPosition: new THREE.Vector3(),
+      offsetVelocity: new THREE.Vector3(),
+      contact: new THREE.Vector3(),
+      transitionTime: 0
+    },
+    right: {
+      locked: false,
+      initialized: false,
+      position: new THREE.Vector3(),
+      velocity: new THREE.Vector3(),
+      inputPosition: new THREE.Vector3(),
+      inputVelocity: new THREE.Vector3(),
+      offsetPosition: new THREE.Vector3(),
+      offsetVelocity: new THREE.Vector3(),
+      contact: new THREE.Vector3(),
+      transitionTime: 0
+    }
   };
   private activeBaseClip: PlayerAnimation = "idle";
   private baseStarted = false;
@@ -437,7 +472,7 @@ export class HumanoidAnimator {
     this.headLookYaw = 0;
     this.groundLossSeconds = 0;
     this.blockedSeconds = 0;
-    for (const state of Object.values(this.footContactStates)) state.locked = false;
+    for (const state of Object.values(this.footContactStates)) this.resetFootContactState(state);
   }
 
   /**
@@ -1205,7 +1240,8 @@ export class HumanoidAnimator {
    */
   public resolveGroundContacts(
     context: CharacterAnimationContext,
-    sampleSurface: (x: number, z: number) => CharacterGroundSurfaceSample
+    sampleSurface: (x: number, z: number) => CharacterGroundSurfaceSample,
+    deltaSeconds = 1 / 60
   ): void {
     this.restoreGroundContactPose();
     const enabled = CANONICAL_RENDER_CONFIG.motion.footIkEnabled &&
@@ -1215,51 +1251,67 @@ export class HumanoidAnimator {
       (context.mode === "on-foot" || context.mode === "farm-placement") &&
       !context.boatInput;
     if (!enabled) {
-      for (const state of Object.values(this.footContactStates)) state.locked = false;
+      for (const state of Object.values(this.footContactStates)) this.resetFootContactState(state);
       return;
     }
 
     this.root.updateWorldMatrix(true, true);
     for (const side of ["left", "right"] as const) {
       if (!this.footSupportSolver.soleWorldPosition(side, this.footWorldPosition)) continue;
-      const contactWeight = this.footContactWeight(side);
-      this.groundContactTargets[side].weight = 0;
+      const contactWindow = this.footContactSample(side);
+      const contactWeight = contactWindow.weight;
       const state = this.footContactStates[side];
-      if (contactWeight <= 0.001) {
-        state.locked = false;
+      const inputContact = contactWeight > 0.001;
+      let surface = state.locked
+        ? sampleSurface(state.contact.x, state.contact.z)
+        : inputContact
+          ? sampleSurface(this.footWorldPosition.x, this.footWorldPosition.z)
+          : undefined;
+      if (state.locked && surface) state.contact.y = surface.height;
+
+      this.updateFootContactState(
+        state,
+        this.footWorldPosition,
+        inputContact,
+        surface?.height ?? this.footWorldPosition.y,
+        contactWindow.enterAgeSeconds,
+        deltaSeconds
+      );
+
+      this.groundContactTargets[side].weight = 0;
+      if (!state.locked || contactWeight <= 0.001) {
         continue;
       }
-      if (!state.locked) {
-        state.locked = true;
-        state.targetWorld.copy(this.footWorldPosition);
-      }
 
-      const surface = sampleSurface(state.targetWorld.x, state.targetWorld.z);
-      const strength = contactWeight;
+      if (state.locked) {
+        surface = sampleSurface(state.contact.x, state.contact.z);
+      }
+      if (!surface) continue;
+      state.contact.y = surface.height;
       const maxHorizontalCorrection = 0.22;
       const correctionX = THREE.MathUtils.clamp(
-        state.targetWorld.x - this.footWorldPosition.x,
+        state.position.x - this.footWorldPosition.x,
         -maxHorizontalCorrection,
         maxHorizontalCorrection
       );
       const correctionZ = THREE.MathUtils.clamp(
-        state.targetWorld.z - this.footWorldPosition.z,
+        state.position.z - this.footWorldPosition.z,
         -maxHorizontalCorrection,
         maxHorizontalCorrection
       );
-      const desiredY = surface.height;
       const correctionY = THREE.MathUtils.clamp(
-        desiredY - this.footWorldPosition.y,
+        state.position.y - this.footWorldPosition.y,
         -CANONICAL_RENDER_CONFIG.motion.groundingMaxFootOffsetMeters,
         CANONICAL_RENDER_CONFIG.motion.groundingMaxFootOffsetMeters
       );
-      this.footTargetWorld.copy(this.footWorldPosition).add(
-        this.scratchPosition.set(correctionX, correctionY, correctionZ).multiplyScalar(strength)
-      );
+      this.footTargetWorld.copy(state.position);
+      this.footTargetWorld.x = this.footWorldPosition.x + correctionX;
+      this.footTargetWorld.y = this.footWorldPosition.y + correctionY;
+      this.footTargetWorld.z = this.footWorldPosition.z + correctionZ;
       const contact = this.groundContactTargets[side];
       contact.target.copy(this.footTargetWorld);
       contact.normal.set(surface.normal.x, surface.normal.y, surface.normal.z);
-      contact.weight = strength;
+      contact.weight = contactWeight;
     }
     this.groundPoseCorrected = true;
     // Native independent-foot rigs can slightly exceed a rigid leg's reach.
@@ -1285,25 +1337,145 @@ export class HumanoidAnimator {
     }
   }
 
-  private footContactWeight(side: "left" | "right"): number {
-    if (!this.hasGroundContactClip()) return 0;
+  private resetFootContactState(state: FootContactState): void {
+    state.locked = false;
+    state.initialized = false;
+    state.position.set(0, 0, 0);
+    state.velocity.set(0, 0, 0);
+    state.inputPosition.set(0, 0, 0);
+    state.inputVelocity.set(0, 0, 0);
+    state.offsetPosition.set(0, 0, 0);
+    state.offsetVelocity.set(0, 0, 0);
+    state.contact.set(0, 0, 0);
+    state.transitionTime = 0;
+  }
+
+  private beginFootContactTransition(
+    state: FootContactState,
+    destinationPosition: THREE.Vector3,
+    destinationVelocity: THREE.Vector3
+  ): void {
+    state.offsetPosition.subVectors(state.position, destinationPosition);
+    state.offsetVelocity.subVectors(state.velocity, destinationVelocity);
+    state.transitionTime = 0;
+  }
+
+  private updateFootContactState(
+    state: FootContactState,
+    inputPosition: THREE.Vector3,
+    inputContact: boolean,
+    contactHeight: number,
+    contactAgeSeconds: number,
+    deltaSeconds: number
+  ): void {
+    const blendTime = Math.max(0, CANONICAL_RENDER_CONFIG.motion.groundingContactBlendSeconds);
+    const inputDelta = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
+    const integrationDelta = THREE.MathUtils.clamp(inputDelta, 0, 0.25);
+    const safeContactHeight = Number.isFinite(contactHeight) ? contactHeight : inputPosition.y;
+    const safeContactAge = Number.isFinite(contactAgeSeconds) ? Math.max(0, contactAgeSeconds) : 0;
+
+    if (!state.initialized) {
+      state.initialized = true;
+      state.position.copy(inputPosition);
+      state.velocity.set(0, 0, 0);
+      state.inputPosition.copy(inputPosition);
+      state.inputVelocity.set(0, 0, 0);
+      state.offsetPosition.set(0, 0, 0);
+      state.offsetVelocity.set(0, 0, 0);
+      state.contact.copy(inputPosition);
+      state.contact.y = safeContactHeight;
+      state.transitionTime = blendTime;
+    } else if (inputDelta > 0) {
+      state.inputVelocity
+        .subVectors(inputPosition, state.inputPosition)
+        .multiplyScalar(1 / inputDelta);
+      state.inputPosition.copy(inputPosition);
+    } else {
+      state.inputVelocity.set(0, 0, 0);
+      state.inputPosition.copy(inputPosition);
+    }
+
+    const horizontalDistance = Math.hypot(
+      state.position.x - state.inputPosition.x,
+      state.position.z - state.inputPosition.z
+    );
+    if (
+      !state.locked &&
+      inputContact &&
+      horizontalDistance <= CANONICAL_RENDER_CONFIG.motion.groundingFootLockDistanceMeters
+    ) {
+      state.locked = true;
+      state.contact.copy(state.inputPosition);
+      if (safeContactAge > 0) state.contact.addScaledVector(state.inputVelocity, -safeContactAge);
+      state.contact.y = safeContactHeight;
+      this.beginFootContactTransition(state, state.contact, this.zeroVelocity);
+    } else if (
+      state.locked &&
+      (!inputContact || horizontalDistance >= CANONICAL_RENDER_CONFIG.motion.groundingFootUnlockDistanceMeters)
+    ) {
+      state.locked = false;
+      this.beginFootContactTransition(state, state.inputPosition, state.inputVelocity);
+    }
+
+    const targetPosition = state.locked ? state.contact : state.inputPosition;
+    const targetVelocity = state.locked ? this.zeroVelocity : state.inputVelocity;
+    if (blendTime <= 1e-6) {
+      state.position.copy(targetPosition);
+      state.velocity.copy(targetVelocity);
+      state.offsetPosition.set(0, 0, 0);
+      state.offsetVelocity.set(0, 0, 0);
+      state.transitionTime = 0;
+      return;
+    }
+
+    state.transitionTime = Math.min(blendTime, state.transitionTime + integrationDelta);
+    const t = THREE.MathUtils.clamp(state.transitionTime / blendTime, 0, 1);
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const positionWeight = 2 * t3 - 3 * t2 + 1;
+    const velocityPositionWeight = (t3 - 2 * t2 + t) * blendTime;
+    const positionVelocityWeight = (6 * t2 - 6 * t) / blendTime;
+    const velocityWeight = 3 * t2 - 4 * t + 1;
+
+    state.position
+      .copy(targetPosition)
+      .addScaledVector(state.offsetPosition, positionWeight)
+      .addScaledVector(state.offsetVelocity, velocityPositionWeight);
+    state.velocity
+      .copy(targetVelocity)
+      .addScaledVector(state.offsetPosition, positionVelocityWeight)
+      .addScaledVector(state.offsetVelocity, velocityWeight);
+  }
+
+  private footContactSample(side: "left" | "right"): FootContactSample {
+    if (!this.hasGroundContactClip()) return { weight: 0, enterAgeSeconds: 0 };
     const spec = this.specs.get(this.activeBaseClip);
     const contacts = spec?.contacts?.[side];
     if (contacts) {
       const duration = this.clipDuration(this.activeBaseClip, 0);
       const time = spec?.loop ? wrapTime(this.baseClipElapsed, duration) : this.baseClipElapsed;
-      let weight = 0;
+      let best: FootContactSample = { weight: 0, enterAgeSeconds: 0 };
       for (const interval of contacts) {
         if (time < interval.start || time > interval.end) continue;
-        const fade = Math.min(0.05, (interval.end - interval.start) * 0.2);
-        const enter = interval.start === 0 ? 1 : THREE.MathUtils.smoothstep(time - interval.start, 0, fade);
+        const fade = Math.max(0.000001, Math.min(
+          CANONICAL_RENDER_CONFIG.motion.groundingContactBlendSeconds,
+          (interval.end - interval.start) * 0.2
+        ));
+        const wrapsFromEnd = spec?.loop && interval.start === 0 && contacts.some((other) => Math.abs(other.end - duration) < 0.00001);
+        const enter = wrapsFromEnd ? 1 : THREE.MathUtils.smoothstep(time - interval.start, 0, fade);
         const wrapsIntoStart = spec?.loop && Math.abs(interval.end - duration) < 0.00001 && contacts.some((other) => other.start === 0);
         const leave = wrapsIntoStart ? 1 : THREE.MathUtils.smoothstep(interval.end - time, 0, fade);
-        weight = Math.max(weight, enter * leave);
+        const weight = enter * leave;
+        if (weight > best.weight) {
+          best = {
+            weight,
+            enterAgeSeconds: wrapsFromEnd ? 0 : THREE.MathUtils.clamp(time - interval.start, 0, fade)
+          };
+        }
       }
-      return weight;
+      return best;
     }
-    return 0;
+    return { weight: 0, enterAgeSeconds: 0 };
   }
 
   private hasGroundContactClip(): boolean {

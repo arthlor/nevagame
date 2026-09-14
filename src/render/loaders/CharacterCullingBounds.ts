@@ -17,7 +17,8 @@ const isCollisionObject = (object: THREE.Object3D): boolean => {
 
 /**
  * Gives every skinned part the same actor-level culling envelope. The radius is
- * one measured standing height, which covers a humanoid's articulated reach
+ * the larger of the rest bound's sphere and one measured standing height, which
+ * covers a humanoid's articulated reach and an animal's wing, tail or body sweep
  * without keeping every off-screen body part submitted to the renderer.
  */
 export function configureConservativeSkinnedBounds(root: THREE.Object3D): CharacterCullingBounds {

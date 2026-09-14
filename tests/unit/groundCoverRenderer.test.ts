@@ -166,6 +166,8 @@ describe("ground-cover frustum submission", () => {
     expect(shader.vertexShader).toContain("* part * uSwayAmplitude * 0.5 * rootWeight");
     expect(shader.vertexShader).toContain("nevaWindWorldToLocal(vec3(presenceBend.x, 0.0, presenceBend.y), coverWorld)");
     expect(shader.fragmentShader).toContain("mix(coverRootShade, 1.0, smoothstep");
+    // Thin blades share the terrain normal instead of facing sideways or down.
+    expect(shader.vertexShader).toContain("objectNormal = normalize(mix(objectNormal, vec3(0.0, 1.0, 0.0), 0.620));");
     expect(shader.uniforms.coverRootShade.value).toBeGreaterThan(0.6);
     expect(shader.uniforms.coverRootShade.value).toBeLessThan(1);
     const height = mesh.geometry.getAttribute("windHeight");

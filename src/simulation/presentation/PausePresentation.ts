@@ -15,6 +15,7 @@ export function buildPauseSummaryDto(state: GameState): PauseSummaryDto {
       current: Math.floor(state.player.workCapacity.current),
       maximum: state.player.workCapacity.maximum
     },
-    lastSavedUtcMs: state.metadata.lastSavedUtcMs
+    lastSavedUtcMs: state.metadata.lastSavedUtcMs,
+    totalPlayMinutes: state.metadata.totalPlayMinutes
   };
 }

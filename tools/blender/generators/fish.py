@@ -7,8 +7,9 @@ import math
 import bmesh
 import bpy
 
-from common.geometry import add_box, add_caudal_fin, add_ico, add_tri_prism, apply_vertex_values, remember_rest_transform, set_surface_normals
+from common.geometry import add_box, add_caudal_fin, add_ico, add_tri_prism, apply_vertex_values, set_surface_normals
 from common.materials import get_or_create_material
+from common.creature import author_creature_clip, bone, build_creature_armature, build_skinned_surface, rest_creature_pose
 
 
 FRAME_RATE = 25.0
@@ -37,44 +38,6 @@ def _motion_node(name: str, parent, location=(0.0, 0.0, 0.0)):
     node.parent = parent
     node.location = location
     return node
-
-
-def _reparent_preserving_world(obj, parent) -> None:
-    bpy.context.view_layer.update()
-    world = obj.matrix_world.copy()
-    obj.parent = parent
-    obj.matrix_parent_inverse.identity()
-    obj.matrix_basis = parent.matrix_world.inverted() @ world
-
-
-def _author_node_action(spec: dict, clip_name: str, node, keyframes) -> None:
-    clip = next((entry for entry in spec.get("animationClips", []) if entry["name"] == clip_name), None)
-    if clip is None:
-        return
-    remember_rest_transform(node)
-    bpy.context.scene.render.fps = int(FRAME_RATE)
-    bpy.context.scene.render.fps_base = 1.0
-    action = bpy.data.actions.new(name=clip_name)
-    action["neva_loop"] = clip.get("loop", False)
-    if "commitMarkerSeconds" in clip:
-        action["neva_commit_marker_seconds"] = clip["commitMarkerSeconds"]
-    node.animation_data_create()
-    node.animation_data.action = action
-    base_location = node.location.copy()
-    base_rotation = node.rotation_euler.copy()
-    node.rotation_mode = "XYZ"
-    for seconds, rotation, location in keyframes:
-        node.rotation_euler = tuple(base_rotation[index] + rotation[index] for index in range(3))
-        node.location = tuple(base_location[index] + location[index] for index in range(3))
-        node.keyframe_insert(data_path="rotation_euler", frame=seconds * FRAME_RATE)
-        node.keyframe_insert(data_path="location", frame=seconds * FRAME_RATE)
-    action.use_fake_user = True
-    node.animation_data.action = None
-    track = node.animation_data.nla_tracks.new()
-    track.name = clip_name
-    track.strips.new(clip_name, int(action.frame_range[0]), action)
-    node.location = base_location
-    node.rotation_euler = base_rotation
 
 
 def _smoothstep(edge0: float, edge1: float, value: float) -> float:
@@ -486,48 +449,113 @@ def stylized_fish(spec: dict, root) -> None:
                     subdivisions=1,
                 )
 
+    parts = [obj for obj in bpy.context.scene.objects if obj.type == "MESH" and obj.parent is root]
     motion_root = _motion_node(f"{spec['id']}_motion_root", root)
     _motion_node(
         f"{spec['id']}_mouth_hook",
         motion_root,
         (0.0, -length * 0.515, -height * 0.10),
     )
-    tail_pivot = _motion_node(
+    # Inert since the body bends on bones; kept because the catalog requires it
+    # and `WorldScene` still resolves it by name.
+    _motion_node(
         f"{spec['id']}_tail_pivot",
         motion_root,
         (0.0, length * 0.43, 0.0),
     )
-    for obj in list(bpy.context.scene.objects):
-        if obj.type != "MESH" or obj.parent is not root:
-            continue
-        if obj.name == f"{species}_tail":
-            _reparent_preserving_world(obj, tail_pivot)
-        else:
-            _reparent_preserving_world(obj, motion_root)
 
-    _author_node_action(spec, "swim", tail_pivot, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.2, (0.0, 0.0, math.radians(15)), (0.0, 0.0, 0.0)),
-        (0.4, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.6, (0.0, 0.0, math.radians(-15)), (0.0, 0.0, 0.0)),
-        (0.8, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_node_action(spec, "turn", motion_root, [
-        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-        (0.24, (0.0, 0.0, math.radians(24)), (-girth * 0.08, 0.0, 0.0)),
-        (0.48, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    ])
-    _author_node_action(spec, "burst", tail_pivot, [
-        (0.0, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
-        (0.1, (0.0, 0.0, math.radians(22)), (0.0, 0.0, 0.0)),
-        (0.2, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
-        (0.3, (0.0, 0.0, math.radians(22)), (0.0, 0.0, 0.0)),
-        (0.4, (0.0, 0.0, math.radians(-22)), (0.0, 0.0, 0.0)),
-    ])
-    _author_node_action(spec, "struggle", motion_root, [
-        (0.0, (0.0, math.radians(-16), math.radians(-7)), (0.0, 0.0, 0.0)),
-        (0.15, (0.0, math.radians(18), math.radians(8)), (0.0, 0.0, girth * 0.08)),
-        (0.3, (0.0, math.radians(-18), math.radians(-8)), (0.0, 0.0, 0.0)),
-        (0.45, (0.0, math.radians(16), math.radians(7)), (0.0, 0.0, girth * 0.05)),
-        (0.6, (0.0, math.radians(-16), math.radians(-7)), (0.0, 0.0, 0.0)),
-    ])
+    # A fish swims with its body, not a hinged tail. The chain runs head to tail
+    # so a bend accumulates rearward, and the head bone is never keyed: that
+    # keeps the mouth exactly on `_mouth_hook`, which the fishing line follows.
+    bones = [
+        bone("spine_0", (0.0, -length * 0.52, 0.0), (0.0, -length * 0.16, 0.0)),
+        bone("spine_1", (0.0, -length * 0.16, 0.0), (0.0, length * 0.06, 0.0), "spine_0"),
+        bone("spine_2", (0.0, length * 0.06, 0.0), (0.0, length * 0.26, 0.0), "spine_1"),
+        bone("spine_3", (0.0, length * 0.26, 0.0), (0.0, length * 0.44, 0.0), "spine_2"),
+        bone("caudal", (0.0, length * 0.44, 0.0), (0.0, length * 0.70, 0.0), "spine_3"),
+    ]
+    rig = build_creature_armature(f"{spec['id']}_rig", bones, motion_root)
+    spine = ["spine_0", "spine_1", "spine_2", "spine_3", "caudal"]
+    head_parts = ("_jaw", "_bill", "_eye_", "_gill_plate_", "_pectoral_", "_barbel_")
+
+    def drivers(name: str) -> list[str]:
+        if name == f"{species}_body":
+            return spine
+        if name == f"{species}_tail":
+            return ["caudal", "spine_3"]
+        if any(marker in name for marker in head_parts):
+            return ["spine_0"]
+        # Fins and markings ride whatever stretch of spine they sit on.
+        return spine
+
+    build_skinned_surface(
+        f"{spec['id']}_surface", rig, bones, [(part, drivers(part.name)) for part in parts]
+    )
+    rest_creature_pose(rig)
+
+    def durations(name: str) -> float:
+        return next(clip["durationSeconds"] for clip in spec["animationClips"] if clip["name"] == name)
+
+    def wave(name: str, amplitudes, cycles: float = 1.0, lag: float = 0.12, step: int = 2):
+        """A travelling body wave: each bone lags the one ahead of it."""
+        duration = durations(name)
+        frames = max(1, math.floor(duration * FRAME_RATE + 0.5))
+        samples = list(range(0, frames, step)) + [frames]
+        tracks = []
+        for index, (bone_name, amplitude) in enumerate(amplitudes):
+            keys = []
+            for frame in samples:
+                seconds = duration if frame == frames else frame / FRAME_RATE
+                phase = math.tau * (cycles * seconds / duration - lag * index)
+                keys.append((seconds, (0.0, 0.0, math.radians(amplitude) * math.sin(phase)), (0.0, 0.0, 0.0)))
+            tracks.append((rig, bone_name, keys))
+        return tuple(tracks)
+
+    author_creature_clip(
+        spec, "swim", frame_rate=FRAME_RATE,
+        bone_tracks=wave("swim", (("spine_1", 3), ("spine_2", 5), ("spine_3", 7), ("caudal", 10))),
+    )
+    author_creature_clip(
+        spec, "burst", frame_rate=FRAME_RATE,
+        bone_tracks=wave("burst", (("spine_1", 5), ("spine_2", 8), ("spine_3", 11), ("caudal", 15)), cycles=2.0, step=1),
+    )
+    # A turn keeps its whole-body yaw on the motion root and adds the C-bend a
+    # fish actually makes: the rear curls back against the yaw, so head and tail
+    # both point into the turn instead of the body simply pivoting harder.
+    turn_duration = durations("turn")
+    author_creature_clip(
+        spec, "turn", frame_rate=FRAME_RATE,
+        object_tracks=((motion_root, [
+            (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            (turn_duration * 0.5, (0.0, 0.0, math.radians(24)), (-girth * 0.08, 0.0, 0.0)),
+            (turn_duration, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        ]),),
+        bone_tracks=tuple(
+            (rig, bone_name, [
+                (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+                (turn_duration * 0.5, (0.0, 0.0, math.radians(amount)), (0.0, 0.0, 0.0)),
+                (turn_duration, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ])
+            for bone_name, amount in (("spine_1", -4), ("spine_2", -7), ("spine_3", -9), ("caudal", -6))
+        ),
+    )
+    # A hooked fish thrashes: the roll and lift stay on the motion root, where the
+    # line endpoint follows them, and the body whips behind the head.
+    struggle_duration = durations("struggle")
+    author_creature_clip(
+        spec, "struggle", frame_rate=FRAME_RATE,
+        # Phase-shifted a quarter cycle from the old rigid clip so frame 0 is
+        # neutral; the amplitudes, two-beat period and lift are unchanged.
+        object_tracks=((motion_root, [
+            (0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            (struggle_duration * 0.125, (0.0, math.radians(18), math.radians(8)), (0.0, 0.0, girth * 0.08)),
+            (struggle_duration * 0.25, (0.0, 0.0, 0.0), (0.0, 0.0, girth * 0.03)),
+            (struggle_duration * 0.375, (0.0, math.radians(-18), math.radians(-8)), (0.0, 0.0, 0.0)),
+            (struggle_duration * 0.5, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            (struggle_duration * 0.625, (0.0, math.radians(16), math.radians(7)), (0.0, 0.0, girth * 0.05)),
+            (struggle_duration * 0.75, (0.0, 0.0, 0.0), (0.0, 0.0, girth * 0.02)),
+            (struggle_duration * 0.875, (0.0, math.radians(-16), math.radians(-7)), (0.0, 0.0, 0.0)),
+            (struggle_duration, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        ]),),
+        bone_tracks=wave("struggle", (("spine_1", 6), ("spine_2", 10), ("spine_3", 12), ("caudal", 14)), cycles=2.0, step=1),
+    )

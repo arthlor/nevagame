@@ -235,6 +235,23 @@ export const IconWaves: React.FC<IconProps> = (props) => (
   </Svg>
 );
 
+/** Hourglass, for work running on the game clock: turned caps, glass and settling sand. */
+export const IconHourglass: React.FC<IconProps> = (props) => (
+  <Svg {...props}>
+    <rect x="3" y="1.4" width="10" height="2" rx="0.7" fill="currentColor" />
+    <rect x="3" y="12.6" width="10" height="2" rx="0.7" fill="currentColor" />
+    <path
+      d="M4.6 3.4c0 2.4 1.4 3.6 2.7 4.6-1.3 1-2.7 2.2-2.7 4.6M11.4 3.4c0 2.4-1.4 3.6-2.7 4.6 1.3 1 2.7 2.2 2.7 4.6"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+    />
+    <path d="M5.5 5.2h5c-.4.9-1.3 1.6-2.5 2.5-1.2-.9-2.1-1.6-2.5-2.5Z" fill="currentColor" opacity="0.55" />
+    <path d="M5.4 12.6c.4-1.6 1.4-2.4 2.6-2.4s2.2.8 2.6 2.4Z" fill="currentColor" />
+    <path d="M8 8.3v1.8" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+  </Svg>
+);
+
 /**
  * Maps a simulation-supplied semantic icon id to its mark. DTOs name the
  * subject; choosing how it is drawn stays here in the presentation layer.
@@ -256,7 +273,9 @@ export const HUD_ICON_BY_ID = {
   energy: IconEnergy,
   satchel: IconSatchel,
   boat: IconBoat,
-  quest: IconQuest
+  quest: IconQuest,
+  rod: IconRod,
+  hourglass: IconHourglass
 } as const satisfies Record<string, React.FC<IconProps>>;
 
 export type HudIconName = keyof typeof HUD_ICON_BY_ID;

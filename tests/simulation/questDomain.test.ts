@@ -49,14 +49,17 @@ describe("QuestDomain & Storyline Progression", () => {
     const sim = new Simulation();
     const startXp = sim.state.player.proficiencies.farming;
 
-    // First talk is intro; second talk completes the welcome quest
-    const intro = sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" }) as { success: boolean; dialogue?: string[] };
-    expect(intro.success).toBe(true);
-    expect(intro.dialogue).toBeDefined();
-    expect(intro.dialogue!.length).toBeGreaterThan(0);
-    expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act1_welcome");
-    const talkResult = sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" }) as { success: boolean; dialogue?: string[] };
+    // Hearing her out is the whole errand: one conversation delivers the
+    // welcome, closes it with its reward, and passes on the planting ask.
+    const talkResult = sim.questDomain.talkToNpc("npc.elspeth");
     expect(talkResult.success).toBe(true);
+    expect(talkResult.segments.map((segment) => [segment.kind, segment.questId])).toEqual([
+      ["intro", "quest.act1_welcome"],
+      ["completion", "quest.act1_welcome"],
+      ["intro", "quest.act1_sow_wheat"]
+    ]);
+    expect(talkResult.segments[2].startsQuest).toBe(true);
+    expect(talkResult.dialogue[0]).toContain("Welcome to Neva Cove");
 
     // Welcome quest should now be completed and advanced to planting seeds
     const nextQuest = sim.query({ type: "quest.get-active" }) as ActiveQuestDto;

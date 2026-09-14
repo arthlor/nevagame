@@ -580,7 +580,11 @@ export const FISH_SPECIES: Record<string, FishSpeciesDefinition> = {
     baseMarketValue: 55,
     rarityWeight: 65,
     behaviorProfileId: "profile.trout",
-    minimumRodClass: "river",
+    // Act 7's "The Reef's Answer" asks for a bream, and the spine never asks for
+    // a rod before Act 9. On `river` the starter Willow rolled sardines forever
+    // and the quest could not be finished; the minigame difficulty and "dart"
+    // behaviour already make the bream the harder catch.
+    minimumRodClass: "willow",
     cargoClass: "small",
     baseDecayRatePerMinute: 0.18,
     isSportFish: false,

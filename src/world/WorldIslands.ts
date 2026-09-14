@@ -324,7 +324,13 @@ export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Read
     islandId: "island.sunreach",
     label: "Sunreach Waters",
     schoolSpawnPoints: Object.freeze([
-      { x: 344, z: 66, habitatId: "coast" as const, reviewSpeciesId: "fish.sea_bream" },
+      // The reef edge where the southern shelf drops away. Tomas's whole case
+      // for Sunreach is that "the cove is shelter, not a fishery. The shelf is
+      // the fishery", and Acts 7 and 8 send the player here; the school used to
+      // sit at the cove mouth beside the dock, so the reef the story is about
+      // held nothing. Every rotation offset stays in Sunreach coast water and
+      // the reef is sailable from the dock, about as far as the offshore point.
+      { x: 586, z: 184, habitatId: "coast" as const, reviewSpeciesId: "fish.amberjack" },
       { x: 620, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.amberjack" }
     ])
   })

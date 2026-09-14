@@ -91,6 +91,12 @@ export interface DomainEvents {
   NpcTalked: { npcId: string; minute: GameMinute };
   QuestStarted: { questId: string; actId: string; minute: GameMinute };
   QuestProgressed: { questId: string; stepId: string; current: number; total: number; minute: GameMinute };
+  /**
+   * An action matched a later step of a running errand but not the one it is
+   * on, so it counted for nothing. A signal for feedback only: steps stay
+   * sequential and nothing is banked outside the tutorial ledger.
+   */
+  QuestStepAhead: { questId: string; currentStepDescription: string; minute: GameMinute };
   QuestCompleted: { questId: string; actId: string; rewardMoney?: number; minute: GameMinute };
   ActCompleted: { actId: string; minute: GameMinute };
   Notification: { title: string; message: string; type: "info" | "success" | "warning" | "error" };

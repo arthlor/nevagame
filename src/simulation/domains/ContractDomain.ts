@@ -1,6 +1,7 @@
 import type { ContractTemplateDefinition } from "../../content/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { contractDeliveryMarketId } from "../../content/contracts";
+import { contractDeliveryMarketId, contractObjectiveTargets } from "../../content/contracts";
+import { activeQuestTrackIds } from "../core/QuestTypes";
 import type { FishCargoId, FishQuality, GameState, ItemId } from "../core/types";
 import type { SeededRng } from "../core/Rng";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -181,22 +182,63 @@ function asFishQuality(value: string | undefined): FishQuality | undefined {
 }
 
 function eligibleContractCandidates(
-  state: GameState
+  state: GameState,
+  excludedTemplateIds: ReadonlySet<string> = new Set()
 ): Array<{ template: ContractTemplateDefinition; targetIds: string[] }> {
   const activeTemplateIds = new Set(
     state.contracts.filter((contract) => contract.status === "active").map((contract) => contract.templateId)
   );
   return [...ContentRegistry.contractTemplates.values()].flatMap((template) => {
-    if (activeTemplateIds.has(template.id)) return [];
+    if (activeTemplateIds.has(template.id) || excludedTemplateIds.has(template.id)) return [];
     const targetIds = feasibleContractTargets(state, template);
     return targetIds.length > 0 ? [{ template, targetIds }] : [];
   });
 }
 
+/**
+ * The kinds of order the story is waiting on right now: the target of every
+ * track's current `complete-contract` step that is still open. A step with no
+ * target accepts any contract, so it asks the board for nothing in particular.
+ */
+export function requestedContractTargets(state: GameState): string[] {
+  const requested = new Set<string>();
+  for (const trackId of activeQuestTrackIds(state.quests)) {
+    const progress = state.quests.tracks[trackId];
+    const quest = progress?.activeQuestId ? ContentRegistry.quests.get(progress.activeQuestId) : undefined;
+    const objective = quest?.objectives[progress!.activeStepIndex];
+    if (objective?.type !== "complete-contract" || !objective.targetId) continue;
+    if ((progress!.stepProgress[objective.id] ?? 0) >= objective.targetQuantity) continue;
+    requested.add(objective.targetId);
+  }
+  return [...requested];
+}
+
+function templateSatisfies(template: ContractTemplateDefinition | undefined, target: string): boolean {
+  return Boolean(template && contractObjectiveTargets(template).includes(target));
+}
+
+/**
+ * Effort a listing asks for beyond its kind: a grade, a weight floor, a strict
+ * freshness mark. Only used to post the gentlest order a quest is waiting on,
+ * so a story step is never parked behind a trophy-weight long shot.
+ */
+function contractTemplateDifficulty(template: ContractTemplateDefinition): number {
+  return Math.max(0, qualityRank(template.minQuality))
+    + (template.minWeightKgRange ? 1 : 0)
+    + ((template.minFreshness ?? 0) >= 90 ? 1 : 0);
+}
+
+function gentlest<T extends { template: ContractTemplateDefinition }>(candidates: T[]): T[] {
+  if (candidates.length === 0) return candidates;
+  const floor = Math.min(...candidates.map(({ template }) => contractTemplateDifficulty(template)));
+  return candidates.filter(({ template }) => contractTemplateDifficulty(template) === floor);
+}
+
 export function refillContracts(
   state: GameState,
   rng: SeededRng,
-  nextEntityId: (prefix: string) => string
+  nextEntityId: (prefix: string) => string,
+  excludedTemplateIds: ReadonlySet<string> = new Set()
 ): void {
   const activeCount = () => state.contracts.filter((contract) => contract.status === "active").length;
   const slots = contractSlotsForRank(
@@ -204,17 +246,30 @@ export function refillContracts(
     state.quests.unlockedFeatureIds.includes("feature.maritime_guild_charter")
   );
   while (activeCount() < slots) {
-    const eligible = eligibleContractCandidates(state);
+    const eligible = eligibleContractCandidates(state, excludedTemplateIds);
     if (eligible.length === 0) return;
     const activeContracts = state.contracts.filter((contract) => contract.status === "active");
+    // A quest waiting on a kind of order the board is not showing comes first:
+    // Act 9 and the freight track name contract kinds, and a board that never
+    // rolled one parked the story behind dice for up to two real hours.
+    const unmet = requestedContractTargets(state).filter((target) =>
+      !activeContracts.some((contract) =>
+        templateSatisfies(ContentRegistry.contractTemplates.get(contract.templateId), target)
+      )
+    );
+    const requested = gentlest(
+      eligible.filter(({ template }) => unmet.some((target) => templateSatisfies(template, target)))
+    );
     const hasProduce = activeContracts.some((contract) => isProduceContractType(contract.type));
     const hasFishing = activeContracts.some((contract) => !isProduceContractType(contract.type));
     const hasRowboat = state.quests.unlockedFeatureIds.includes("boat.player_rowboat");
-    const preferred = !hasProduce
-      ? eligible.filter(({ template }) => isProduceContractType(template.type))
-      : hasRowboat && !hasFishing
-        ? eligible.filter(({ template }) => !isProduceContractType(template.type))
-        : [];
+    const preferred = requested.length > 0
+      ? requested
+      : !hasProduce
+        ? eligible.filter(({ template }) => isProduceContractType(template.type))
+        : hasRowboat && !hasFishing
+          ? eligible.filter(({ template }) => !isProduceContractType(template.type))
+          : [];
     const candidatePool = preferred.length > 0 ? preferred : eligible;
     const candidate = candidatePool[rng.intInclusive(0, candidatePool.length - 1)];
     const { template } = candidate;
@@ -336,6 +391,26 @@ export class ContractDomain {
     contract.quantityFulfilled += 1;
     const completion = this.completeIfFulfilled(contract);
     return { success: true, delivered: 1, completed: completion.completed, rewardMoney: completion.rewardMoney };
+  }
+
+  /**
+   * Strikes an untouched order off the board so its slot can post one the
+   * player can actually keep. An order with goods already delivered against it
+   * stays: those goods are part of the promise, and expiry is what refunds them.
+   * The replacement is posted at once and cannot be the order just passed.
+   */
+  public passContract(contractId: string): { success: boolean; reason?: string } {
+    const { state } = this.context;
+    const contract = this.getActive(contractId);
+    if (!contract) return { success: false, reason: "That order is no longer on the board" };
+    if (contract.quantityFulfilled > 0) {
+      return { success: false, reason: "Part of this order is already delivered; it stays until it is filled or runs out" };
+    }
+    contract.status = "expired";
+    refillContracts(state, this.context.rng, this.context.nextEntityId, new Set([contract.templateId]));
+    pruneSettledContracts(state);
+    this.context.persistRng();
+    return { success: true };
   }
 
   public tick(): void {

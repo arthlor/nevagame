@@ -1,4 +1,6 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { ROD_PROGRESSION } from "../../content/rods";
+import type { RodDefinition } from "../../content/types";
 import { WorldLayout } from "../../world/WorldLayout";
 import type {
   BasicFishingPhase,
@@ -202,6 +204,72 @@ export const SCHOOL_SPAWN_POINTS = Object.values(FISHING_ECOLOGY_DEFINITIONS).fl
   }))
 );
 const FISHING_HABITATS = new Set(["river", "lake", "coast", "offshore"]);
+
+/**
+ * The next step when the equipped rod is wrong for the water or the fish, as
+ * one sentence: switch to the lightest owned rod that would do, or else name
+ * the lightest rod that would and the stalls that stock it. "Your rod cannot
+ * fish this school" used to leave the player guessing which rod, and where.
+ */
+export function rodAdviceFor(
+  state: Readonly<GameState>,
+  fits: (rod: RodDefinition) => boolean
+): string {
+  const fitting = ROD_PROGRESSION
+    .map((rodId) => ContentRegistry.rods.get(rodId))
+    .filter((rod): rod is RodDefinition => Boolean(rod && fits(rod)));
+  const owned = fitting.find((rod) => state.player.ownedRodIds.includes(rod.id));
+  if (owned) return `Switch to your ${owned.name} in Character & Gear [C].`;
+  const lightest = fitting[0];
+  if (!lightest) return "No rod you can get will work here.";
+  const stalls = [...ContentRegistry.markets.values()]
+    .filter((market) => market.retail.rodIds?.includes(lightest.id))
+    .map((market) => market.name);
+  return stalls.length > 0
+    ? `A ${lightest.name} will do; ${stalls.join(" and ")} ${stalls.length === 1 ? "sells" : "sell"} one.`
+    : `A ${lightest.name} will do.`;
+}
+
+const HABITAT_WATER_LABEL: Readonly<Record<string, string>> = {
+  river: "river",
+  lake: "lake",
+  coast: "coastal",
+  offshore: "offshore"
+};
+
+/** Refusal for a rod that does not work this kind of water, with the way forward. */
+function wrongRodForWaterReason(
+  state: Readonly<GameState>,
+  rod: RodDefinition | undefined,
+  habitatId: string
+): string {
+  const water = HABITAT_WATER_LABEL[habitatId] ?? habitatId;
+  const advice = rodAdviceFor(state, (candidate) => candidate.allowedHabitats.includes(habitatId));
+  return `Your ${rod?.name ?? "rod"} isn't made for ${water} water. ${advice}`;
+}
+
+/**
+ * The authored spawn point a school belongs to: the nearest point of its own
+ * ecology and habitat. Rotation offsets are a few metres, so this is exact for
+ * every school the spawner places, and a school carried over in a save from a
+ * point that has since moved simply occupies its habitat's nearest point until
+ * it expires. Derived, never stored.
+ */
+export function schoolSpawnPointIndex(
+  school: Pick<FishSchoolState, "ecologyId" | "habitatId" | "x" | "z">
+): number {
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  SCHOOL_SPAWN_POINTS.forEach((point, index) => {
+    if (point.ecologyId !== school.ecologyId || point.habitatId !== school.habitatId) return;
+    const distance = Math.hypot(point.x - school.x, point.z - school.z);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
 
 export interface FishingControlInput {
   isReeling: boolean;
@@ -717,7 +785,7 @@ export class FishingDomain {
     const ecologyId = WorldLayout.fishingEcologyAt(access.target?.x ?? state.player.x, access.target?.z ?? state.player.z).id;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
     if (!rod || !rod.allowedHabitats.includes(habitatId)) {
-      return { success: false, reason: "Your equipped rod cannot fish this water" };
+      return { success: false, reason: wrongRodForWaterReason(state, rod, habitatId) };
     }
 
     const eligibleSpecies = this.listEligibleBasicSpecies(ecologyId, habitatId, rod.rodClass);
@@ -948,7 +1016,7 @@ export class FishingDomain {
     const ecologyId = WorldLayout.fishingEcologyAt(access.target?.x ?? state.player.x, access.target?.z ?? state.player.z).id;
     const rod = ContentRegistry.rods.get(state.player.equippedRodId);
     if (!rod || !rod.allowedHabitats.includes(habitatId)) {
-      return { success: false, reason: "Your equipped rod cannot fish this water" };
+      return { success: false, reason: wrongRodForWaterReason(state, rod, habitatId) };
     }
 
     const eligibleSpecies = this.listEligibleBasicSpecies(ecologyId, habitatId, rod.rodClass);
@@ -1127,7 +1195,16 @@ export class FishingDomain {
       );
     });
     if (eligibleSpeciesWeights.length === 0) {
-      return { success: false, reason: "Your equipped rod cannot fish this school" };
+      const advice = rodAdviceFor(state, (candidate) => school.speciesWeights.some((entry) => {
+        const species = ContentRegistry.fishSpecies.get(entry.speciesId);
+        return Boolean(
+          species &&
+          candidate.allowedHabitats.includes(school.habitatId) &&
+          rodMeetsMinimum(candidate.rodClass, species.minimumRodClass) &&
+          cargoClassFits(species.cargoClass, candidate.maximumCargoClass)
+        );
+      }));
+      return { success: false, reason: `Your ${rodDef.name} can't hold what is feeding here. ${advice}` };
     }
     const bearing = Math.atan2(school.x - state.player.x, school.z - state.player.z);
     const stowableSpeciesWeights = eligibleSpeciesWeights.filter((entry) => {
@@ -1289,23 +1366,25 @@ export class FishingDomain {
       return;
     }
 
-    const occupiedHabitats = new Set(
-      Object.values(state.world.activeSchools).map((school) => `${school.ecologyId}:${school.habitatId}`)
-    );
+    // Occupancy is per authored point, not per habitat. Keying it on
+    // `ecology:habitat` let the first offshore point shadow the second forever,
+    // so the deep trench Act 9 sends the player to never held a school.
+    // Pressure stays per habitat: one depleted school still rests that water.
+    const occupiedPoints = new Set(Object.values(state.world.activeSchools).map(schoolSpawnPointIndex));
 
     let spawned = false;
-    for (const point of SCHOOL_SPAWN_POINTS) {
+    SCHOOL_SPAWN_POINTS.forEach((point, pointIndex) => {
+      if (occupiedPoints.has(pointIndex)) return;
       const key = fishingPressureKey(point.ecologyId, point.habitatId);
-      if (occupiedHabitats.has(key)) continue;
       const pressure = state.world.fishingPressureByHabitat[key];
-      if (pressure && currentMinute < pressure.cooldownUntilMinute) continue;
+      if (pressure && currentMinute < pressure.cooldownUntilMinute) return;
       const speciesIds = this.listEligibleSportSpeciesIds(point.ecologyId, point.habitatId);
-      if (speciesIds.length === 0) continue;
+      if (speciesIds.length === 0) return;
       const rotatedPoint = rotatedSchoolPoint(state, point);
       this.spawnSchool(rotatedPoint.habitatId, rotatedPoint.x, rotatedPoint.z, speciesIds);
-      occupiedHabitats.add(key);
+      occupiedPoints.add(pointIndex);
       spawned = true;
-    }
+    });
     if (spawned) state.world.lastSchoolSpawnMinute = currentMinute;
   }
 
@@ -1523,7 +1602,14 @@ export class FishingDomain {
     // the fish while silently dropping or partially granting rolled loot.
     // A physical catch contributes no satchel stack, so an empty batch is a
     // legitimate "nothing to fit" and must not be rejected as invalid.
-    const catchAndTreasure = [...catchStack, ...treasureStack];
+    // Merge per item id first: `InventoryManager` rejects duplicate ids in one
+    // batch by contract, so a loot roll that repeats the caught item would
+    // otherwise read as "satchel full" instead of a valid two-unit stack.
+    const catchAndTreasureById = new Map<string, number>();
+    for (const stack of [...catchStack, ...treasureStack]) {
+      catchAndTreasureById.set(stack.itemId, (catchAndTreasureById.get(stack.itemId) ?? 0) + stack.quantity);
+    }
+    const catchAndTreasure = [...catchAndTreasureById].map(([itemId, quantity]) => ({ itemId, quantity }));
     if (catchAndTreasure.length > 0 && !InventoryManager.canAddItems(inventory, catchAndTreasure)) {
       attempt.phase = "caught";
       rng.setState(rngStateBefore);

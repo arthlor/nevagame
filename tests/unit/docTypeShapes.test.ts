@@ -21,13 +21,25 @@ const DOCS = [
   "LLM/02_GAMEPLAY_SYSTEMS_IMPLEMENTATION.md"
 ];
 
-/** Where the runtime declares its shapes. */
-const TYPE_SOURCES = [
-  "src/simulation/core/types.ts",
-  "src/simulation/core/QuestTypes.ts",
-  "src/simulation/core/contracts.ts",
-  "src/content/types.ts"
-];
+/**
+ * Every runtime source. Four hand-picked files used to be the whole search, so
+ * a documented `SaveEnvelope` (declared in persistence) was never compared.
+ */
+function typeSources(directory = "src"): string[] {
+  return fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true }).flatMap((entry) => {
+    const relative = path.join(directory, entry.name);
+    if (entry.isDirectory()) return typeSources(relative);
+    return /\.tsx?$/.test(entry.name) ? [relative] : [];
+  });
+}
+
+/**
+ * Doc-only shapes with no runtime counterpart, each with the reason it may
+ * stand alone. Anything else must name a real runtime type: an unknown name
+ * used to be skipped as "illustrative", which is how a `ContractTemplate` block
+ * kept six fields the runtime `ContractTemplateDefinition` never had.
+ */
+const ILLUSTRATIVE: Readonly<Record<string, string>> = {};
 
 /**
  * Field names of every `interface X { ... }` in a chunk of TypeScript. Nested
@@ -36,7 +48,9 @@ const TYPE_SOURCES = [
  */
 function interfaceFields(source: string): Map<string, Set<string>> {
   const found = new Map<string, Set<string>>();
-  const declaration = /(?:export\s+)?interface\s+(\w+)[^{]*\{/g;
+  // Classes count too: `01` documents `ContentRegistry`'s registries, which are
+  // static members of a class rather than an interface.
+  const declaration = /(?:export\s+)?(?:interface|(?:abstract\s+)?class)\s+(\w+)[^{]*\{/g;
   let match: RegExpExecArray | null;
 
   while ((match = declaration.exec(source)) !== null) {
@@ -63,7 +77,9 @@ function interfaceFields(source: string): Map<string, Set<string>> {
     const fields = new Set<string>();
     for (const entry of body) {
       // `name?: T` / `readonly name: T` at the interface's own depth.
-      const field = entry.trim().match(/^(?:readonly\s+)?([A-Za-z_]\w*)\s*\??\s*:/);
+      const field = entry.trim().match(
+        /^(?:(?:public|private|protected)\s+)?(?:static\s+)?(?:readonly\s+)?([A-Za-z_]\w*)\s*\??\s*:/
+      );
       if (field) fields.add(field[1]);
     }
     if (fields.size > 0) found.set(name, fields);
@@ -79,7 +95,7 @@ function docInterfaces(doc: string): Map<string, Set<string>> {
 
 describe("guidance documents do not misdescribe runtime types", () => {
   const runtime = new Map<string, Set<string>>();
-  for (const file of TYPE_SOURCES) {
+  for (const file of typeSources()) {
     for (const [name, fields] of interfaceFields(fs.readFileSync(path.join(ROOT, file), "utf8"))) {
       const merged = runtime.get(name) ?? new Set<string>();
       for (const field of fields) merged.add(field);
@@ -93,6 +109,20 @@ describe("guidance documents do not misdescribe runtime types", () => {
     expect(runtime.has("GameState")).toBe(true);
     expect(runtime.get("SoilState")).toEqual(new Set(["fertility", "moistureRetention"]));
     expect(runtime.get("GameState")?.has("markets")).toBe(true);
+    expect(runtime.get("SaveEnvelope")?.has("savedAtUtcMs")).toBe(true);
+    expect(runtime.get("ContentRegistry")?.has("fishSpecies")).toBe(true);
+  });
+
+  it("documents only shapes that exist at runtime, unless marked illustrative", () => {
+    const unknown: string[] = [];
+    for (const doc of DOCS) {
+      for (const name of docInterfaces(doc).keys()) {
+        if (!runtime.has(name) && !(name in ILLUSTRATIVE)) {
+          unknown.push(`${doc} interface ${name} — no runtime type by that name; rename it to the type it describes or list it in ILLUSTRATIVE with a reason`);
+        }
+      }
+    }
+    expect(unknown).toEqual([]);
   });
 
   it("names only fields the runtime still declares", () => {
@@ -100,7 +130,7 @@ describe("guidance documents do not misdescribe runtime types", () => {
     for (const doc of DOCS) {
       for (const [name, documented] of docInterfaces(doc)) {
         const actual = runtime.get(name);
-        if (!actual) continue; // A doc-only illustrative shape owns itself.
+        if (!actual) continue; // Reported by the test above unless listed in ILLUSTRATIVE.
         for (const field of documented) {
           if (!actual.has(field)) {
             wrong.push(`${doc} ${name}.${field} — not on the runtime ${name}`);

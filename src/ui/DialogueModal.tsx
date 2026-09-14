@@ -1,6 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ContentRegistry } from "../content/ContentRegistry";
-import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
+import type {
+  ConversationSegment,
+  QuestRewardDefinition,
+  QuestTurnInCost
+} from "../simulation/core/QuestTypes";
+import {
+  buildDialoguePages,
+  pageShowsRewards,
+  segmentHeading,
+  type DialoguePage,
+  type DialogueTalkResult
+} from "./dialogueConversation";
 import {
   IconCoin,
   IconSprout,
@@ -26,18 +37,12 @@ import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet, KeyHint } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 
+export type { DialogueTalkResult } from "./dialogueConversation";
+
 export interface DialogueModalProps {
   npcId: string;
   onClose: () => void;
-  onTalkNpc: (npcId: string) => {
-    success: boolean;
-    dialogue?: string[];
-    isCompletion?: boolean;
-    questCompleted?: boolean;
-    rewardsGiven?: boolean;
-    reason?: string;
-  };
-  activeQuest: ActiveQuestDto | null;
+  onTalkNpc: (npcId: string) => DialogueTalkResult;
   /**
    * Sound cue for the typewriter tick (played every 6th revealed character).
    * Defaults to "click"; pass a softer cue to quiet the chatter.
@@ -46,7 +51,7 @@ export interface DialogueModalProps {
 }
 
 /** Stable identity so an unresolved render never re-triggers page effects. */
-const EMPTY_PAGES: string[] = [];
+const EMPTY_PAGES: DialoguePage[] = [];
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
@@ -76,11 +81,88 @@ function featureUnlockLabel(featureId: string): string {
   return "New coastal opportunity";
 }
 
+/** What a completion beat granted, and what the player handed over to settle it. */
+export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; paid?: QuestTurnInCost }> = ({ rewards, paid }) => {
+  const paidItems = paid?.items ?? [];
+  return (
+    <div className="dialogue-rewards-panel" data-testid="dialogue-rewards">
+      <span className="dialogue-rewards-title">Rewards received</span>
+      <div className="dialogue-rewards-list">
+        {rewards?.money ? (
+          <span className="dialogue-reward-pill money dialogue-reward-pill-enter" style={{ animationDelay: "0ms" }}>
+            <IconCoin size={16} aria-hidden />
+            <span className="dialogue-reward-qty">+{rewards.money}</span>
+            <span className="dialogue-reward-label">Coins</span>
+          </span>
+        ) : null}
+        {rewards?.items?.map((item, idx) => {
+          const itemDef = ContentRegistry.items.get(item.itemId);
+          const sprite = atlasForItem(item.itemId);
+          return (
+            <span
+              key={item.itemId}
+              className="dialogue-reward-pill item dialogue-reward-pill-enter"
+              style={{ animationDelay: `${(idx + 1) * 60}ms` }}
+            >
+              {sprite ? (
+                <AtlasImage src={sprite} alt="" size={18} className="dialogue-reward-icon" />
+              ) : (
+                <IconBasket size={16} aria-hidden />
+              )}
+              <span className="dialogue-reward-qty">+{item.quantity}</span>
+              <span className="dialogue-reward-label">{itemDef?.name || item.itemId}</span>
+            </span>
+          );
+        })}
+        {rewards?.skillXp?.map((xp, idx) => (
+          <span
+            key={xp.skill}
+            className="dialogue-reward-pill xp dialogue-reward-pill-enter"
+            style={{ animationDelay: `${(idx + 2) * 60}ms` }}
+          >
+            {getSkillIcon(xp.skill)}
+            <span className="dialogue-reward-qty">+{xp.xp}</span>
+            <span className="dialogue-reward-label">{xp.skill.toUpperCase()} XP</span>
+          </span>
+        ))}
+        {rewards?.unlocksFeatureIds?.map((featureId) => (
+          <span key={featureId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "180ms" }}>
+            <IconCompass size={16} aria-hidden />
+            <span className="dialogue-reward-label">
+              Now available · {featureUnlockLabel(featureId)}
+            </span>
+          </span>
+        ))}
+        {rewards?.unlocksKnowledgeIds
+          ?.filter((knowledgeId) => !rewards.unlocksFeatureIds?.includes(knowledgeId))
+          .map((knowledgeId) => (
+            <span key={knowledgeId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "220ms" }}>
+              <IconCompass size={16} aria-hidden />
+              <span className="dialogue-reward-label">
+                Journal · {ContentRegistry.knowledge.get(knowledgeId)?.title ?? "New field note"}
+              </span>
+            </span>
+          ))}
+      </div>
+      {(paid?.money || paidItems.length > 0) ? (
+        <div className="dialogue-paid-row" data-testid="dialogue-paid">
+          <span className="dialogue-rewards-title">Handed over</span>
+          <span className="dialogue-paid-list">
+            {[
+              ...(paid?.money ? [`${paid.money} G`] : []),
+              ...paidItems.map((item) => `${item.quantity} ${ContentRegistry.items.get(item.itemId)?.name ?? item.itemId}`)
+            ].join(" · ")}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 export const DialogueModal: React.FC<DialogueModalProps> = ({
   npcId,
   onClose,
   onTalkNpc,
-  activeQuest,
   typewriterTickCue = "click"
 }) => {
   const npc = ContentRegistry.npcs.get(npcId);
@@ -88,15 +170,13 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   // Resolved once per NPC. Pre-seeding this with `npc.idleDialogue` used to
   // start the typewriter on text the modal was about to replace, which
   // restarted the reveal and bounced the footer label back to "Show all".
-  const [resolved, setResolved] = useState<{ npcId: string; generation: number; pages: string[] } | null>(null);
-  const [isCompletion, setIsCompletion] = useState(false);
-  const [talkFailed, setTalkFailed] = useState(false);
-  const [rewardsClaimed, setRewardsClaimed] = useState(false);
-  const [completionQuest, setCompletionQuest] = useState<ActiveQuestDto | null>(null);
+  const [resolved, setResolved] = useState<{ npcId: string; generation: number; pages: DialoguePage[]; failed: boolean } | null>(null);
   const [reveal, setReveal] = useState<DialogueReveal>(EMPTY_DIALOGUE_REVEAL);
   const initializedNpcRef = useRef<string | null>(null);
-  const chimePlayedRef = useRef(false);
+  const chimedSegmentsRef = useRef(new Set<ConversationSegment>());
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Focus the dialog itself, not the close button: with the button focused,
+  // Space closed the conversation instead of advancing it.
   useModalAccessibility(dialogRef, onClose, { initialFocus: "dialog" });
 
   useEffect(() => {
@@ -104,34 +184,24 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     initializedNpcRef.current = npcId;
     setDialogueIndex(0);
     setReveal(EMPTY_DIALOGUE_REVEAL);
-    setTalkFailed(false);
-    setIsCompletion(false);
-    setRewardsClaimed(false);
-    setCompletionQuest(null);
-    chimePlayedRef.current = false;
-    const questSnapshot = activeQuest;
-    const res = onTalkNpc(npcId);
-    const pages = !res.success
-      ? [res.reason ?? "Move closer to talk to this person."]
-      : res.dialogue && res.dialogue.length > 0
-        ? res.dialogue
-        : npc?.idleDialogue ?? [];
-    if (!res.success) setTalkFailed(true);
-    setResolved((prev) => ({ npcId, generation: (prev?.generation ?? 0) + 1, pages }));
-    if (res.isCompletion && res.questCompleted) {
-      setIsCompletion(true);
-      setCompletionQuest(questSnapshot);
-    }
-    if (res.rewardsGiven) {
-      setRewardsClaimed(true);
-    }
-  }, [activeQuest, npc, npcId, onTalkNpc]);
+    chimedSegmentsRef.current = new Set();
+    const result = onTalkNpc(npcId);
+    const pages = buildDialoguePages(result, npc?.idleDialogue ?? []);
+    setResolved((prev) => ({ npcId, generation: (prev?.generation ?? 0) + 1, pages, failed: !result.success }));
+  }, [npc, npcId, onTalkNpc]);
 
   const isResolved = resolved?.npcId === npcId;
-  const dialoguePages = isResolved ? resolved.pages : EMPTY_PAGES;
-  const totalPages = dialoguePages.length || 1;
-  const currentPageText = dialoguePages[dialogueIndex] || "Good tide to you.";
+  const pages = isResolved ? resolved.pages : EMPTY_PAGES;
+  const talkFailed = isResolved ? resolved.failed : false;
+  const totalPages = pages.length || 1;
+  const currentPage: DialoguePage | undefined = pages[dialogueIndex];
+  const currentPageText = currentPage?.text || "Good tide to you.";
   const isLastPage = dialogueIndex >= totalPages - 1;
+  const segment = currentPage?.segment;
+  const isCompletionSegment = segment?.kind === "completion";
+  const heading = segment ? segmentHeading(segment) : null;
+  const showRewards = pageShowsRewards(currentPage);
+  const note = currentPage?.closesSegment ? segment?.note : undefined;
   const pageKey = dialoguePageKey(npcId, resolved?.generation ?? 0, dialogueIndex);
   const revealedChars = revealedCharsFor(reveal, pageKey);
   const isTyping = revealedChars < currentPageText.length;
@@ -145,6 +215,12 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   tickCueRef.current = typewriterTickCue;
   /** Set by the page-dot rewind to show an already-read page in full. */
   const instantRevealKeyRef = useRef<string | null>(null);
+
+  // Page dots group by segment so a chained conversation shows its beats.
+  const segmentStarts = useMemo(
+    () => new Set(pages.flatMap((page, index) => (page.opensSegment && index > 0 ? [index] : []))),
+    [pages]
+  );
 
   useEffect(() => {
     if (typewriterTimerRef.current !== null) {
@@ -190,12 +266,12 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     };
   }, [isResolved, pageKey]);
 
+  // One chime per completed errand, when its first page comes up.
   useEffect(() => {
-    if (isCompletion && !chimePlayedRef.current) {
-      chimePlayedRef.current = true;
-      playUiSound("chime");
-    }
-  }, [isCompletion]);
+    if (!segment || segment.kind !== "completion" || chimedSegmentsRef.current.has(segment)) return;
+    chimedSegmentsRef.current.add(segment);
+    playUiSound("chime");
+  }, [segment]);
 
   const handleNext = useCallback((playCue = false) => {
     if (isTyping) {
@@ -287,124 +363,73 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         </header>
 
         <div className="dialogue-body" onClick={() => handleNext(true)}>
+          {heading && (
+            <span
+              className={`dialogue-thread-heading dialogue-thread-heading--${segment?.kind ?? "intro"}`}
+              data-testid="dialogue-thread-heading"
+            >
+              {heading}
+            </span>
+          )}
           <p className={`dialogue-text${isTyping ? " is-typing" : ""}`} data-testid="dialogue-text">
             {visibleText}
           </p>
-          {totalPages > 1 && (
-            <div className="dialogue-page-dots" aria-label={`Page ${dialogueIndex + 1} of ${totalPages}`}>
-              {dialoguePages.map((_, i) => i < dialogueIndex ? (
-                <button
-                  key={i}
-                  type="button"
-                  className="dialogue-dot is-past"
-                  aria-label={`Return to page ${i + 1}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (typewriterTimerRef.current !== null) {
-                      window.clearInterval(typewriterTimerRef.current);
-                      typewriterTimerRef.current = null;
-                    }
-                    // A page the player has already read is shown in full
-                    // rather than retyped. The old `setRevealedChars` here was
-                    // dead: the effect reset it to 0 on the very next commit.
-                    instantRevealKeyRef.current = dialoguePageKey(
-                      npcId,
-                      resolved?.generation ?? 0,
-                      i
-                    );
-                    setDialogueIndex(i);
-                  }}
-                />
-              ) : (
-                <span
-                  key={i}
-                  className={`dialogue-dot${i === dialogueIndex ? " active" : ""}`}
-                  aria-hidden="true"
-                />
-              ))}
-            </div>
+          {note && !isTyping && (
+            <p className="dialogue-note" data-testid="dialogue-note">{note}</p>
           )}
         </div>
 
-        {isCompletion && completionQuest?.rewards && (
-          <div className="dialogue-rewards-panel" data-testid="dialogue-rewards">
-            <span className="dialogue-rewards-title">
-              {rewardsClaimed ? "Rewards received" : "Quest rewards"}
-            </span>
-            <div className="dialogue-rewards-list">
-              {completionQuest.rewards.money && (
-                <span
-                  className="dialogue-reward-pill money dialogue-reward-pill-enter"
-                  style={{ animationDelay: "0ms" }}
-                >
-                  <IconCoin size={16} aria-hidden />
-                  <span className="dialogue-reward-qty">+{completionQuest.rewards.money}</span>
-                  <span className="dialogue-reward-label">Coins</span>
-                </span>
-              )}
-              {completionQuest.rewards.items?.map((item, idx) => {
-                const itemDef = ContentRegistry.items.get(item.itemId);
-                const sprite = atlasForItem(item.itemId);
-                return (
-                  <span
-                    key={item.itemId}
-                    className="dialogue-reward-pill item dialogue-reward-pill-enter"
-                    style={{ animationDelay: `${(idx + 1) * 60}ms` }}
-                  >
-                    {sprite ? (
-                      <AtlasImage src={sprite} alt="" size={18} className="dialogue-reward-icon" />
-                    ) : (
-                      <IconBasket size={16} aria-hidden />
-                    )}
-                    <span className="dialogue-reward-qty">+{item.quantity}</span>
-                    <span className="dialogue-reward-label">{itemDef?.name || item.itemId}</span>
-                  </span>
-                );
-              })}
-              {completionQuest.rewards.skillXp?.map((xp, idx) => (
-                <span
-                  key={xp.skill}
-                  className="dialogue-reward-pill xp dialogue-reward-pill-enter"
-                  style={{ animationDelay: `${(idx + 2) * 60}ms` }}
-                >
-                  {getSkillIcon(xp.skill)}
-                  <span className="dialogue-reward-qty">+{xp.xp}</span>
-                  <span className="dialogue-reward-label">{xp.skill.toUpperCase()} XP</span>
-                </span>
-              ))}
-              {completionQuest.rewards.unlocksFeatureIds?.map((featureId) => (
-                <span key={featureId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "180ms" }}>
-                  <IconCompass size={16} aria-hidden />
-                  <span className="dialogue-reward-label">
-                    Now available · {featureUnlockLabel(featureId)}
-                  </span>
-                </span>
-              ))}
-              {completionQuest.rewards.unlocksKnowledgeIds
-                ?.filter((knowledgeId) => !completionQuest.rewards?.unlocksFeatureIds?.includes(knowledgeId))
-                .map((knowledgeId) => (
-                <span key={knowledgeId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "220ms" }}>
-                  <IconCompass size={16} aria-hidden />
-                  <span className="dialogue-reward-label">
-                    Journal · {ContentRegistry.knowledge.get(knowledgeId)?.title ?? "New field note"}
-                  </span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        {showRewards && segment && <DialogueRewardsPanel rewards={segment.rewards} paid={segment.paid} />}
 
         <footer className="dialogue-footer">
+          {/* Page dots sit in the footer's empty left side so the words keep
+              the body's full height, reward plate or not. */}
+          {totalPages > 1 && (
+            <div className="dialogue-page-dots" aria-label={`Page ${dialogueIndex + 1} of ${totalPages}`}>
+              {pages.map((_, i) => {
+                const gap = segmentStarts.has(i) ? " starts-beat" : "";
+                return i < dialogueIndex ? (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`dialogue-dot is-past${gap}`}
+                    aria-label={`Return to page ${i + 1}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (typewriterTimerRef.current !== null) {
+                        window.clearInterval(typewriterTimerRef.current);
+                        typewriterTimerRef.current = null;
+                      }
+                      // A page the player has already read is shown in full
+                      // rather than retyped.
+                      instantRevealKeyRef.current = dialoguePageKey(
+                        npcId,
+                        resolved?.generation ?? 0,
+                        i
+                      );
+                      setDialogueIndex(i);
+                    }}
+                  />
+                ) : (
+                  <span
+                    key={i}
+                    className={`dialogue-dot${i === dialogueIndex ? " active" : ""}${gap}`}
+                    aria-hidden="true"
+                  />
+                );
+              })}
+            </div>
+          )}
           <div className="dialogue-footer-right">
             <ChromeButton
               variant="primary"
-              className={`dialogue-action-btn ${isCompletion && isLastPage && !isTyping ? "is-completion" : ""}`}
+              className={`dialogue-action-btn ${isCompletionSegment && isLastPage && !isTyping ? "is-completion" : ""}`}
               soundCue={isTyping ? "click" : isLastPage ? "confirm" : "page-turn"}
               onClick={() => handleNext(false)}
             >
               <KeyHint keyName="Space" glow={isTyping} />
               <span>
-                {dialogueFooterLabel({ isTyping, isLastPage, talkFailed, isCompletion })}
+                {dialogueFooterLabel({ isTyping, isLastPage, talkFailed, isCompletion: isCompletionSegment })}
               </span>
             </ChromeButton>
           </div>

@@ -41,7 +41,12 @@ import { CargoDomain } from "./domains/CargoDomain";
 import { FishingDomain } from "./domains/FishingDomain";
 import { MarketDomain } from "./domains/MarketDomain";
 import { ContractDomain } from "./domains/ContractDomain";
-import { QuestDomain, reconcileInactiveQuestChain, reconcileQuestCursors } from "./domains/QuestDomain";
+import {
+  QuestDomain,
+  reconcileCompletedQuestKnowledge,
+  reconcileInactiveQuestChain,
+  reconcileQuestCursors
+} from "./domains/QuestDomain";
 import { buildWorldHudDto } from "./presentation/WorldHudPresentation";
 import { freeHandsBlocker } from "./domains/domainRules";
 import { buildItemInspectionDto, buildSatchelDto } from "./presentation/SatchelPresentation";
@@ -112,6 +117,8 @@ export class Simulation {
     // Also redeems early-action credits, so a save taken mid-tutorial resolves
     // its banked work on load rather than waiting for the next world event.
     reconcileQuestCursors(this.state);
+    // Journal entries added to already-finished errands reach older saves too.
+    reconcileCompletedQuestKnowledge(this.state);
     this.events = new EventBus();
     this.domainContext = {
       state: this.state,
@@ -279,6 +286,8 @@ export class Simulation {
         return this.deliverItemsToContract(command.contractId, command.itemId, command.quantity);
       case "contract.deliver-fish":
         return this.deliverFishCargoToContract(command.contractId, command.cargoId);
+      case "contract.pass":
+        return this.contractDomain.passContract(command.contractId);
       case "quest.talk-npc":
         return this.questDomain.talkToNpc(command.npcId);
       case "quest.claim-reward":
@@ -383,7 +392,12 @@ export class Simulation {
 
     const minutesAdvanced = this.clock.tick(realDeltaSeconds);
     this.state.clock = { ...this.clock.getState() };
+    // Real, unpaused time at the controls; the pause menu reports it.
+    this.state.metadata.totalPlayMinutes += Math.max(0, realDeltaSeconds) / 60;
     this.fishingDomain.tick(realDeltaSeconds);
+    // School spawning/expiry is checked every frame so a freed habitat repopulates
+    // promptly; it is minute-granular internally, so the explicit catch-up path
+    // owns its own call rather than double-stepping here when minutes advance.
     this.fishingDomain.tickSchools();
 
     if (minutesAdvanced <= 0) {
@@ -399,6 +413,10 @@ export class Simulation {
     this.clock.advanceMinutes(minutes);
     this.state.clock = { ...this.clock.getState() };
     this.applyElapsedGameMinutes(minutes);
+    // `applyElapsedGameMinutes` no longer ticks schools; the rest/debug catch-up
+    // path must still expire and repopulate them for the elapsed span.
+    this.fishingDomain.tickSchools();
+    this.persistRng();
   }
 
   private restUntilDawn(): InteractionResult {
@@ -450,7 +468,6 @@ export class Simulation {
     this.contractDomain.tick();
     this.marketDomain.tick();
     this.navigationDomain.tickFuel(minutesAdvanced);
-    this.fishingDomain.tickSchools();
     this.progressionDomain.tickWorkCapacity(minutesAdvanced);
 
     this.persistRng();

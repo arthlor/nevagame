@@ -105,35 +105,4 @@ describe("ModeController", () => {
     expect(modes.allowsOverlayChange("inventory")).toBe(false);
     expect(modes.allowsOverlayChange("journal")).toBe(false);
   });
-
-  it("lets Escape dismiss new-game confirm without confirming a wipe", () => {
-    const modes = new ModeController();
-    modes.open("new-game-confirm");
-    expect(modes.activeModal).toBe("new-game-confirm");
-
-    modes.closeActive();
-    modes.open("pause");
-    expect(modes.activeModal).toBe("new-game-confirm");
-
-    modes.handleEscape();
-    expect(modes.activeModal).toBeNull();
-    expect(modes.pausesSimulation).toBe(false);
-  });
-
-  it("locks other overlays on new-game confirm until confirm or dismiss", () => {
-    const modes = new ModeController();
-    modes.open("new-game-confirm");
-
-    expect(modes.activeModal).toBe("new-game-confirm");
-    expect(modes.pausesSimulation).toBe(true);
-    expect(modes.blocksWorldInput).toBe(true);
-
-    modes.closeActive();
-    modes.open("pause");
-    expect(modes.activeModal).toBe("new-game-confirm");
-
-    modes.confirmNewGame();
-    expect(modes.activeModal).toBeNull();
-    expect(modes.pausesSimulation).toBe(false);
-  });
 });

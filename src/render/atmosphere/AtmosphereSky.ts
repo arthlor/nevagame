@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { WeatherState } from "../../simulation/core/types";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
-import { ATMOSPHERE_SKY_FRAGMENT, SKY_QUAD_VERTEX } from "./atmosphereSkyShader";
+import { ATMOSPHERE_SKY_FRAGMENT, SKY_DISPLAY_FRAGMENT, SKY_QUAD_VERTEX } from "./atmosphereSkyShader";
 import { CloudShadows } from "./CloudShadows";
 
 export interface AtmosphereSkyDiagnostics {
@@ -72,22 +72,20 @@ export class AtmosphereSky {
     this.cloudShadows = new CloudShadows(this.material.uniforms, tier);
     quad.frustumCulled = false;
     this.scene.add(quad);
+    const stars = CANONICAL_RENDER_CONFIG.stars;
     this.mesh = new THREE.Mesh(this.geometry, new THREE.ShaderMaterial({
       name: "NevaSkyDisplay", depthWrite: false, depthTest: false, fog: false,
-      uniforms: { uSky: { value: this.target.texture }, uSkyTexel: { value: new THREE.Vector2() } },
+      uniforms: {
+        uSky: { value: this.target.texture }, uSkyTexel: { value: new THREE.Vector2() },
+        uInverseProjection: this.material.uniforms.uInverseProjection,
+        uCameraRotation: this.material.uniforms.uCameraRotation,
+        uSkyState: this.material.uniforms.uSkyState,
+        uMoonColor: this.material.uniforms.uMoonColor,
+        uSeed: this.material.uniforms.uSeed,
+        uStars: { value: new THREE.Vector4(stars.gridResolution, stars.density, stars.radiusRadians, stars.intensity) }
+      },
       vertexShader: SKY_QUAD_VERTEX,
-      fragmentShader: `uniform sampler2D uSky; uniform vec2 uSkyTexel; varying vec2 vUv;
-        void main() {
-          // A compact spatial reconstruction removes integration noise without
-          // accumulating stale clouds across camera motion or quality changes.
-          gl_FragColor = texture2D(uSky, vUv) * 0.2941176471;
-          gl_FragColor += texture2D(uSky, vUv + uSkyTexel * vec2(1.333333, 1.333333)) * 0.1764705882;
-          gl_FragColor += texture2D(uSky, vUv + uSkyTexel * vec2(-1.333333, 1.333333)) * 0.1764705882;
-          gl_FragColor += texture2D(uSky, vUv + uSkyTexel * vec2(1.333333, -1.333333)) * 0.1764705882;
-          gl_FragColor += texture2D(uSky, vUv + uSkyTexel * vec2(-1.333333, -1.333333)) * 0.1764705882;
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-        }`
+      fragmentShader: SKY_DISPLAY_FRAGMENT
     }));
     this.mesh.name = "world_weather_sky";
     this.mesh.renderOrder = -10000;

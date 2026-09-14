@@ -177,7 +177,12 @@ describe("post-story quest expansion", () => {
     sim.state.player.z = maeve.anchor.z;
     const moneyBefore = sim.state.player.money;
 
-    expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.maeve" })).toMatchObject({ success: false });
+    // The conversation still happens, but it closes nothing: it repeats the ask
+    // and says plainly why the reward cannot be handed over.
+    const conversation = sim.questDomain.talkToNpc("npc.maeve");
+    expect(conversation).toMatchObject({ success: true, questCompleted: false });
+    expect(conversation.segments.find((segment) => segment.questId === "quest.act6_harbor_promise")?.note)
+      .toBe("The satchel has no room for this reward");
     expect(sim.state.player.money).toBe(moneyBefore);
     expect(InventoryManager.getItemCount(inventory, "item.fish_scraps")).toBe(0);
     expect(sim.state.quests.completedQuestIds).not.toContain("quest.act6_harbor_promise");

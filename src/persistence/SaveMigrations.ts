@@ -1445,6 +1445,13 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
   }
 
   const migrated = state as GameState;
+  // `validateSaveEnvelope` requires `state.schemaVersion === envelope.schemaVersion`.
+  // Enforce the agreement here rather than relying on every migration function
+  // to remember to bump it: a future migration that forgets would otherwise turn
+  // an otherwise-valid save into an unreadable slot after a successful upgrade.
+  if (currentVersion === CURRENT_SCHEMA_VERSION && migrated && typeof migrated === "object") {
+    migrated.schemaVersion = CURRENT_SCHEMA_VERSION;
+  }
   fillMissingMarketCommodities(migrated);
 
   return {

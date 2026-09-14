@@ -66,6 +66,29 @@ export function npcRecognitionLines(npc: NpcDefinition, state: GameState): strin
   return matchedNpcRecognition(npc, state)?.lines ?? npc.idleDialogue;
 }
 
+/**
+ * Whether this person has something for the player right now: an errand of
+ * theirs to close, or a talk step aimed at them. Both are short-lived — the
+ * tracker is already pointing the player there. A herald is deliberately not
+ * a reason: it can stand for hours (Silas through the whole skiff apprenticeship)
+ * and a call repeated that long is nagging, not a welcome. Reads quest state
+ * only, like `npcAnchorAt`.
+ */
+export function npcHasPendingConversation(npcId: string, quests: QuestState): boolean {
+  for (const trackId of activeQuestTrackIds(quests)) {
+    const progress = quests.tracks[trackId];
+    const quest = progress?.activeQuestId ? ContentRegistry.quests.get(progress.activeQuestId) : undefined;
+    if (!quest || !progress) continue;
+    const index = Math.min(progress.activeStepIndex, quest.objectives.length - 1);
+    const objective = quest.objectives[index];
+    if (!objective) continue;
+    const done = (progress.stepProgress[objective.id] ?? 0) >= objective.targetQuantity;
+    if (quest.speakerId === npcId && index === quest.objectives.length - 1 && done) return true;
+    if (!done && objective.type === "talk-npc" && objective.targetId === npcId) return true;
+  }
+  return false;
+}
+
 export interface NpcBarkDto {
   npcId: string;
   name: string;
@@ -79,7 +102,11 @@ export function buildNearbyNpcBarks(state: GameState): NpcBarkDto[] {
   return [...ContentRegistry.npcs.values()].flatMap((npc) => {
     const anchor = npcAnchorAt(npc.id, state.clock, state.quests);
     const distanceMeters = Math.hypot(anchor.x - state.player.x, anchor.z - state.player.z);
-    return distanceMeters <= 8 ? [{ npcId: npc.id, name: npc.name, x: anchor.x, z: anchor.z,
-      lines: npcRecognitionLines(npc, state), distanceMeters }] : [];
+    if (distanceMeters > 8) return [];
+    // Someone waiting on the player calls them over rather than remarking on
+    // the soil while their errand sits unclaimed.
+    const beckon = npc.beckonLines?.length && npcHasPendingConversation(npc.id, state.quests);
+    const lines = beckon ? npc.beckonLines! : npcRecognitionLines(npc, state);
+    return [{ npcId: npc.id, name: npc.name, x: anchor.x, z: anchor.z, lines, distanceMeters }];
   }).sort((a, b) => a.distanceMeters - b.distanceMeters);
 }

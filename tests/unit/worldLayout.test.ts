@@ -42,9 +42,7 @@ import {
   createWorldEnvironmentLayout,
   generateCausalCompositionPlacements,
   GROUND_COVER_DENSITY,
-  HOMESTEAD_MEADOW_GRASS_COUNT,
   GRASS_MAX_PATH_INFLUENCE,
-  hasGroundCoverClearance,
   isPlacementFootprintStable,
   type EnvironmentAssetPlacement
 } from "../../src/world/WorldEnvironmentLayout";
@@ -562,9 +560,10 @@ describe("WorldLayout", () => {
     // These remain ceilings, with most of the island's population preserved.
     for(const [category,budget] of Object.entries(GROUND_COVER_DENSITY.high)) {
       const count=firstNeva.filter((placement)=>placement.category===category).length;
-      const ceiling=budget+(category==="grass"?HOMESTEAD_MEADOW_GRASS_COUNT:0);
-      expect(count,category).toBeLessThanOrEqual(ceiling);
-      expect(count,category).toBeGreaterThan(ceiling*.75);
+      // Neva's short grass is the renderer-owned MeadowField carpet.
+      if (budget === 0) { expect(count,category).toBe(0); continue; }
+      expect(count,category).toBeLessThanOrEqual(budget);
+      expect(count,category).toBeGreaterThan(budget*.75);
     }
   }, 60_000);
 
@@ -726,15 +725,13 @@ describe("WorldLayout", () => {
         expect(WorldLayout.pathInfluence(placement.x, placement.z)).toBeLessThan(0.08);
       }
     }
-    const grassVariantCounts = ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"]
-      .map((assetId) => groundCoverAssetCounts.get(assetId) ?? 0);
-    const grassTotal = grassVariantCounts.reduce((sum, count) => sum + count, 0);
     const retainedCount = (category: string) => layout.groundCoverPlacements.filter(
       (placement) => placement.category === category && placement.compositionTag?.islandId !== "island.sunreach"
     ).length;
-    expect(grassTotal).toBe(retainedCount("grass"));
-    expect(grassVariantCounts.every((count) => count / grassTotal > 0.28)).toBe(true);
-    expect(grassVariantCounts.every((count) => count / grassTotal < 0.39)).toBe(true);
+    // The connected short-grass carpet is grown by the renderer's MeadowField.
+    expect(["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"]
+      .every((assetId) => !groundCoverAssetCounts.has(assetId))).toBe(true);
+    expect(retainedCount("grass")).toBe(0);
     const otherCover = Object.fromEntries(
       [...groundCoverAssetCounts].filter(([assetId]) => !assetId.startsWith("foliage_grass_"))
     );
@@ -763,22 +760,6 @@ describe("WorldLayout", () => {
       (placement) => placement.category === category
         && placement.compositionTag?.islandId !== "island.sunreach"
     );
-    const grass = nevaCover("grass");
-    expect(grass.filter((placement) => placement.id.includes("ground-cover.grass.homestead"))).toHaveLength(
-      HOMESTEAD_MEADOW_GRASS_COUNT
-    );
-    expect(grass.some((placement) => WorldLayout.pathInfluence(placement.x, placement.z) > 0.08)).toBe(true);
-    // Meadow blades keep their height; larger coverage must not flatten them into wedges.
-    expect(grass.every((placement) => placement.scale[1] >= 0.90 && placement.scale[1] <= 1.25)).toBe(true);
-    expect(grass.every((placement) => placement.scale[0] / placement.scale[1] >= 0.93
-      && placement.scale[0] / placement.scale[1] <= 1.16)).toBe(true);
-    expect(grass.every((placement) => placement.scale[2] / placement.scale[1] >= 0.93
-      && placement.scale[2] / placement.scale[1] <= 1.16)).toBe(true);
-    expect(grass.every((placement) => WorldLayout.terrainNormal(placement.x, placement.z).y > 0.66)).toBe(true);
-    expect(grass.every((placement) => WorldLayout.farmSoilInfluence(placement.x, placement.z) < 0.08)).toBe(true);
-    expect(grass.every((placement) => WorldLayout.shorelineWetness(placement.x, placement.z) < 0.62)).toBe(true);
-    expect(grass.every((placement) => hasGroundCoverClearance(placement.x, placement.z))).toBe(true);
-
     const flowers = nevaCover("flowers");
     expect(flowers.every((placement) => placement.scale[1] >= 1.59 && placement.scale[1] <= 2.33)).toBe(true);
     expect(flowers.every((placement) => placement.scale[0] / placement.scale[1] >= 1.65)).toBe(true);

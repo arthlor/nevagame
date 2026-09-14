@@ -80,8 +80,9 @@ mechanic must not silently advance because the player merely read text.
 The main story spine and independently advancing side tracks share the
 narrative-mechanical contract in `02` §0.1; their current membership, counts and
 chains remain owned by `src/content/quests.ts` and `src/content/questTracks.ts`.
-Contextual intro, completion, idle and milestone-recognition dialogue remain
-content. Parallel linear tracks do not introduce branching outcomes, romance,
+Contextual intro, completion, herald, talk-step, idle and milestone-recognition
+dialogue remain content; one talk assembles them into a transient, ordered
+conversation (`02` §0.1) and saves none of it. Parallel linear tracks do not introduce branching outcomes, romance,
 a dialogue transcript, relationship state or a separate
 lore-codex state. Those remain future content/system decisions, not permission
 to invent local flags or parallel narrative state. The current `QuestState`
@@ -274,7 +275,7 @@ interface SaveEnvelope {
   state: GameState;
 }
 ```
-Two keys only: `primary_save` and `backup_save`. Quick-save / autosave writes primary (copying the previous primary to backup first). There is **no third manual slot**. Load **migrates then validates**. An IndexedDB write/open failure returns `false`; never promote a RAM copy onto IndexedDB later. If both slots are corrupt, show the `new-game-confirm` overlay and **block autosave until the player confirms**. If IndexedDB is unavailable, continue without saving and keep writes blocked.
+Two keys only: `primary_save` and `backup_save`. Quick-save / autosave writes primary (copying the previous primary to backup first). There is **no third manual slot**. Load **migrates then validates**. An IndexedDB write/open failure returns `false`; never promote a RAM copy onto IndexedDB later. If neither slot can be opened (corrupt or incompatible), the title screen offers only New Game behind its confirmation dialog (`StartScreen`, `startup-new-game-confirm`); **nothing is written until the player confirms** and the new world is ready. If IndexedDB is unavailable, continue without saving and keep writes blocked.
 
 Save periodically and on purchase, sale, dock, harvest, unlock, contract completion, visibility loss—not every frame.
 
@@ -282,7 +283,7 @@ Collision-aware terrain recovery consumes `WorldEnvironmentLayout.createWorldSta
 
 Every persistent schema change requires deterministic migrations (`migrateV1ToV2`, etc.). Preserve old fixtures; keep IDs stable; failed migration MUST NOT destroy backup. Before persistent changes agents state: `Save-impact: yes/no`, `Migration required: yes/no`.
 
-Recovery: `primary → backup → new-game-confirm overlay`; never silently wipe.
+Recovery: `primary → backup → title-screen New Game confirmation`; never silently wipe.
 
 # 8. Content Registry
 
@@ -290,7 +291,7 @@ Definitions are data and validated at startup:
 ```ts
 interface ContentRegistry {
   crops: ReadonlyMap<CropId, CropDefinition>;
-  fish: ReadonlyMap<FishSpeciesId, FishSpeciesDefinition>;
+  fishSpecies: ReadonlyMap<FishSpeciesId, FishSpeciesDefinition>;
   items: ReadonlyMap<ItemId, ItemDefinition>;
   recipes: ReadonlyMap<RecipeId, RecipeDefinition>;
   boats: ReadonlyMap<BoatTypeId, BoatDefinition>;
@@ -421,7 +422,7 @@ Runtime asset contract: **GLB/glTF 2.0** for static 3D prefabs; never runtime `.
 - Source-derived humanoids use immutable, hash-pinned, repository-local originals and license evidence. Preparation permits uniform scale and coordinate conversion while retaining source anatomy, rest transforms, deforming bones, weights, topology, UVs, material boundaries and authored split normals. Suitable peaceful source clips retain their glTF timestamp durations; missing Neva actions are authored on that same source rig. Donor-body fitting, reduced substitute skeletons, blanket flat normals and copying unrelated donor pose arrays are not accepted restoration paths. Source authoring files remain offline; the registered `imported_blend` generator packages the validated derivatives with lossless Meshopt compression and atomic publication.
 - Static prefabs: catalog entry, with its optional closed `referenceAuthoring` evidence-to-generator brief when image/study guided → the brief binds identity-defining layout into catalog `parameters` → registered deterministic Blender Python family generator consumes those keys (optionally composed from shared `common/authored.py` construction helpers) → raw GLB → Khronos validation → glTF Transform dedupe/prune/weld + Meshopt → revalidation → atomic publish. A reconstruction study may inform the brief; it does not authorize a direct runtime TypeScript factory or second exporter.
 - Ground supporting maps: processed CC0 derivatives published under `public/assets/textures/terrain/`, provenance and URLs owned by `src/render/materials/ExternalSurfaceTextures.ts`, sampling/blend strengths owned by `VisualRenderConfig`. They occupy the Art Bible's low-frequency tiler slot and must remap into `PaletteTokens`; photographic RGB is not final albedo. See Art Pipeline section 6.2.
-- Dynamic systems: Three.js TS buffer/procedural builders (water, crop stages, seasonal tint, dynamic fish, debug proxies).
+- Dynamic systems: Three.js TS buffer/procedural builders (water, crop stages, seasonal tint, dynamic fish, debug proxies, and the `MeadowField` short-grass carpet derived from terrain presentation weights).
 - Conventions: `1 unit = 1 meter`, Y-up, consistent forward, applied transforms, stable names/pivots, material reuse.
 
 Machine ownership is explicit:
@@ -475,7 +476,7 @@ Baseline accessibility: keyboard support, readable contrast, UI scaling, audio s
 
 `src/audio/AudioManager.ts` and `assets/audio/audio-manifest.json` own implemented bus IDs, cue definitions and playback. `06` owns the intended mix and specified cue coverage; its semantic target graph is not the current runtime schema. Fishing feedback should make cast, bite, reel/strain, danger and terminal outcomes audible; dedicated cues remain design targets until manifest, trigger and listening evidence exist. Narrative feedback may respond to `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`, but audio must reinforce a real state transition rather than invent one.
 
-Use explicit domain events such as `CropPlanted`, `CropMatured`, `CropHarvested`, `FarmFertilized`, `IrrigationInstalled`, `FarmIrrigated`, `RecipeStarted/Completed`, `FishSchoolSpawned/Activated`, `FishHooked/Escaped/Caught/Stored`, `BoatDocked`, `ItemSold`, `MarketTicked`, `WeatherChanged`, `ProficiencyRankUnlocked`, `ContractCompleted`, `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`. Success events are emitted only after their atomic mutation succeeds. `QuestCompleted` is published only after the active pointer has advanced to the next quest or epilogue, so persistence and presentation listeners observe one coherent transition. Events may feed UI/audio/analytics/achievements/diagnostics; do not turn simulation into one opaque event bus. Narrative events are signals, not a replacement for `GameState.quests` or the content registry.
+Use explicit domain events such as `CropPlanted`, `CropMatured`, `CropHarvested`, `FarmFertilized`, `IrrigationInstalled`, `FarmIrrigated`, `RecipeStarted/Completed`, `FishSchoolSpawned/Activated`, `FishHooked/Escaped/Caught/Stored`, `BoatDocked`, `ItemSold`, `MarketTicked`, `WeatherChanged`, `ProficiencyRankUnlocked`, `ContractCompleted`, `NpcTalked`, `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted`. Success events are emitted only after their atomic mutation succeeds. `QuestCompleted` is published only after the active pointer has advanced to the next quest or epilogue, so persistence and presentation listeners observe one coherent transition. `NpcTalked` credits no objective: `QuestDomain.talkToNpc` credits a talk step itself, only for the thread whose lines it delivered. `QuestStepAhead` reports an action (or a talk) that matched a later step of a running errand and therefore counted for nothing; it is feedback only. Events may feed UI/audio/analytics/achievements/diagnostics; do not turn simulation into one opaque event bus. Narrative events are signals, not a replacement for `GameState.quests` or the content registry.
 
 World discovery commits follow an accepted physics frame in `Simulation.commitPhysicsFrame`. `DiscoveryPresentation` derives nearby undiscovered content; simulation stores its knowledge ID and emits `PlaceDiscovered`. The application consumes that event for a notice, Chronicle entry, autosave and optional camera framing. No camera timer enters canonical state.
 
@@ -485,7 +486,7 @@ Never soft-lock:
 - zero fuel → **Emergency Tow** according to `02` §11; preserve cargo and leave fuel empty;
 - lost boat → **Recall Boat** when not carrying valuable physical cargo;
 - full inventory at harvest → refuse atomically and keep the crop available with a clear capacity message; no silent harvest loss or invented ground-crate fallback;
-- corrupt save → primary → backup → `new-game-confirm` overlay (autosave blocked until confirm). Unavailable IndexedDB → continue without saving; writes stay blocked.
+- corrupt save → primary → backup → title-screen New Game confirmation (nothing written until confirm). Unavailable IndexedDB → continue without saving; writes stay blocked.
 
 Debug panel: FPS, frame time, draw calls, triangles, coordinates, region, mode, game time, weather, market tick, active schools, save state, world seed.
 

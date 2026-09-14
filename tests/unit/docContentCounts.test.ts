@@ -53,7 +53,10 @@ const COUNTED: Array<{ noun: string; live: () => number }> = [
   { noun: "markets?", live: () => ContentRegistry.markets.size },
   { noun: "rods?", live: () => ContentRegistry.rods.size },
   { noun: "NPCs?", live: () => ContentRegistry.npcs.size },
-  { noun: "contract templates?", live: () => ContentRegistry.contractTemplates.size }
+  { noun: "contract templates?", live: () => ContentRegistry.contractTemplates.size },
+  // The checklist's content line also states these; unchecked, they could drift.
+  { noun: "items?", live: () => ContentRegistry.items.size },
+  { noun: "boats?", live: () => ContentRegistry.boats.size }
 ];
 
 /**

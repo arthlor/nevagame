@@ -112,6 +112,58 @@ describe("cached conservative character culling bounds", () => {
     console.info(`[character bounds] ${poseCount} exported poses; max violation ${maximumViolation} m`);
   }, 120_000);
 
+  it("contains every vertex in every exported fauna and fish pose", async () => {
+    // Animals are skinned too, and their wings, tails and body waves sweep well
+    // outside the bind pose, so AssetLoader gives them the same envelope.
+    const creatureIds = [...ASSET_BY_ID.keys()].filter(
+      (id) => id.startsWith("fauna_") || id.startsWith("fish_"),
+    ) as AssetId[];
+    expect(creatureIds.length).toBeGreaterThan(10);
+    let poseCount = 0;
+    let maximumViolation = -Infinity;
+    for (const assetId of creatureIds) {
+      const root = await loadAsset(assetId);
+      const bounds = configureConservativeSkinnedBounds(root);
+      expect(bounds.meshes.length, `${assetId} ships a skinned surface`).toBeGreaterThan(0);
+      const mixer = new THREE.AnimationMixer(root);
+      const clips = root.userData.animationClips as THREE.AnimationClip[];
+      expect(clips.length, `${assetId} exported action count`).toBeGreaterThan(0);
+      for (const clip of clips) {
+        mixer.stopAllAction();
+        const action = mixer.clipAction(clip).reset().setLoop(THREE.LoopOnce, 1).play();
+        action.clampWhenFinished = true;
+        action.paused = true;
+        for (const time of exportedPoseTimes(clip)) {
+          action.time = time;
+          mixer.update(0);
+          root.updateMatrixWorld(true);
+          maximumViolation = Math.max(maximumViolation, expectContained(bounds, `${assetId}/${clip.name}/${time}`));
+          poseCount += 1;
+        }
+      }
+      mixer.stopAllAction();
+      mixer.uncacheRoot(root);
+    }
+
+    // WorldScene plays the gull's flap and glide together at full weight.
+    const gull = await loadAsset("fauna_gull_a");
+    const gullBounds = configureConservativeSkinnedBounds(gull);
+    const gullMixer = new THREE.AnimationMixer(gull);
+    const gullClips = gull.userData.animationClips as THREE.AnimationClip[];
+    const flap = gullMixer.clipAction(gullClips.find((clip) => clip.name === "flap")!).play();
+    const glide = gullMixer.clipAction(gullClips.find((clip) => clip.name === "glide")!).play();
+    flap.paused = glide.paused = true;
+    for (let step = 0; step <= 16; step += 1) {
+      flap.time = (step / 16) * flap.getClip().duration;
+      glide.time = (step / 16) * glide.getClip().duration;
+      gullMixer.update(0);
+      gull.updateMatrixWorld(true);
+      maximumViolation = Math.max(maximumViolation, expectContained(gullBounds, `fauna_gull_a/flap+glide/${step}`));
+      poseCount += 1;
+    }
+    console.info(`[creature bounds] ${poseCount} exported poses; max violation ${maximumViolation} m`);
+  }, 120_000);
+
   it("contains actual carry, tool, rowboat and mounted post-pose constraints", async () => {
     const root = await loadHumanoidAsset("char_player_a");
     const bounds = configureConservativeSkinnedBounds(root);

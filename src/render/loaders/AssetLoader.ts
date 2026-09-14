@@ -123,7 +123,9 @@ export class AssetLoader {
             root.userData.collisionNodes = collisionNodes;
             root.userData.assetId = assetId;
             root.userData.hasSkinnedMeshes = hasSkinnedMeshes;
-            if (spec.family === "character" && hasSkinnedMeshes) {
+            // Any skinned asset culls against its bind pose unless given an
+            // articulated envelope; fauna and fish deform as much as people do.
+            if (hasSkinnedMeshes) {
               configureConservativeSkinnedBounds(root);
             }
             const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];

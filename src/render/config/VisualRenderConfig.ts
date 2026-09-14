@@ -14,6 +14,22 @@ export interface WaterSurfaceTierQuality {
   readonly detailNormal: boolean;
 }
 
+/**
+ * Player-anchored meadow carpet per tier. Density is a stable prefix of one
+ * low-discrepancy blade sequence, so a lower tier keeps a subset of the same
+ * blades rather than a reshuffled field.
+ */
+export interface MeadowFieldTierQuality {
+  /** Tiles inside this radius draw the dense near patch. */
+  readonly nearRadiusMeters: number;
+  /** Blades have shrunk to nothing at this radius; terrain carries the carpet beyond. */
+  readonly radiusMeters: number;
+  readonly nearBladesPerSquareMeter: number;
+  readonly farBladesPerSquareMeter: number;
+  /** Discrete: staged at tier boundaries with the other shadow ownership. */
+  readonly receiveShadows: boolean;
+}
+
 const SHARED_GROUND_WETNESS = {
   riseSeconds: 3,
   fallSeconds: 8,
@@ -166,6 +182,7 @@ export interface VisualRenderConfig {
       rainSplashCount: number;
       fireflyCount: number;
       waterSurface: WaterSurfaceTierQuality;
+      meadowField: MeadowFieldTierQuality;
     }
   >;
   contact: {
@@ -182,6 +199,12 @@ export interface VisualRenderConfig {
   };
   groundSurface: {
     shortCoverRootShade: number;
+    /**
+     * Rooted cover bends its authored normals toward the instance's terrain
+     * normal by this share. Thin blades otherwise face sideways or down and
+     * are lit by the ground bounce alone, which reads as grey or black shards.
+     */
+    foliageNormalUp: number;
     polygonCellScaleMeters: number;
     edgeCellScaleMeters: number;
     wetness: {
@@ -373,8 +396,10 @@ export interface VisualRenderConfig {
     decay: number;
   };
   stars: {
-    count: number;
-    size: number;
+    gridResolution: number;
+    density: number;
+    radiusRadians: number;
+    intensity: number;
   };
   fireflies: {
     maxDistanceMeters: number;
@@ -469,6 +494,84 @@ export interface VisualRenderConfig {
     gustWavelengthMeters: number;
     gustTravelMetersPerSecond: number;
   };
+  /**
+   * Shared meadow colour field and the renderer-owned grass carpet. Terrain
+   * and blades evaluate the same palette field at the same world position, so
+   * the near carpet, the ground between its blades and the distant meadow the
+   * terrain carries alone cannot drift apart.
+   */
+  meadow: {
+    palette: {
+      /** Deep root shade, split into warm and cool macro regions. */
+      rootHex: string;
+      rootCoolHex: string;
+      /** Mid-blade body. */
+      bodyHex: string;
+      bodyCoolHex: string;
+      bodyWarmHex: string;
+      /** Sunlit tips. */
+      tipHex: string;
+      tipWarmHex: string;
+      /** Dry straw tips on dry meadow and Sunreach scrub. */
+      strawHex: string;
+    };
+    /** Macro palette regions (lush, warm, cool) in meters. */
+    macroScaleMeters: number;
+    /** Meso clump scale in meters; drives clump height and value. */
+    mesoScaleMeters: number;
+    /** Terrain adoption of the carpet colour across vegetated ground. */
+    terrainCarpetMix: number;
+    /** Share of tip colour in the carpet seen from a distance. */
+    carpetTipShare: number;
+    /**
+     * Value of the carpet seen from a distance relative to a sunlit blade:
+     * the dark gaps and self-shading between blades, so the terrain that
+     * carries the meadow past the blade radius matches the live carpet.
+     */
+    carpetValue: number;
+    /** Ground under the live blades takes the thatch colour by this share. */
+    underCarpetShade: number;
+    field: {
+      tileSizeMeters: number;
+      /** Blades built into the near patch; the densest tier draws all of them. */
+      maxBladesPerSquareMeter: number;
+      /** Width over which extra near blades shrink out past the near radius. */
+      nearFadeMeters: number;
+      /** Width over which every blade shrinks out before the outer radius. */
+      outerFadeMeters: number;
+      nearSegments: number;
+      farSegments: number;
+      shortHeightMeters: readonly [number, number];
+      meadowHeightMeters: readonly [number, number];
+      widthMeters: readonly [number, number];
+      /** Width growth toward the outer radius, keeping coverage as blades thin out. */
+      farWidthScale: number;
+      /** Static lean as a share of blade height. */
+      leanRange: readonly [number, number];
+      dryHeightScale: number;
+      /** Base value at the root; bases stay subdued without dark strokes. */
+      rootShade: number;
+      /** Blade normal share bent toward the terrain normal. */
+      normalUp: number;
+      /** Across-width normal curvature so a flat blade shades as a folded leaf. */
+      normalRoundness: number;
+      /** Per-blade value variation around the patch colour. */
+      valueJitter: number;
+      roughnessRoot: number;
+      roughnessTip: number;
+      /** Backlit sunlight carried through the upper blade. */
+      translucency: number;
+      translucencyPower: number;
+      /** Tip travel in meters at full wind for a 0.25 m blade. */
+      windAmplitudeMeters: number;
+      /** Tip travel away from the player at full presence for a 0.25 m blade. */
+      presencePushMeters: number;
+      /** Roots sink by this much so slopes never show a floating base. */
+      rootSinkMeters: number;
+      /** Exclusion raster resolution for roads, pads and collision footprints. */
+      exclusionTexelMeters: number;
+    };
+  };
   fishSchools: {
     memberCount: number;
     modelScale: number;
@@ -488,6 +591,10 @@ export interface VisualRenderConfig {
     groundingWalkFootIkScale: number;
     groundingRunFootIkScale: number;
     groundingResponse: number;
+    groundingContactBlendSeconds: number;
+    groundingFootLockDistanceMeters: number;
+    groundingFootUnlockDistanceMeters: number;
+    groundingFootReachSofteningMeters: number;
     cameraLookAheadSeconds: number;
     cameraLookAheadMaxMeters: number;
     cameraLookAheadResponse: number;
@@ -674,6 +781,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
         reflection: "flat",
         nearPatch: false,
         detailNormal: false
+      },
+      meadowField: {
+        nearRadiusMeters: 9,
+        radiusMeters: 24,
+        nearBladesPerSquareMeter: 36,
+        farBladesPerSquareMeter: 12,
+        receiveShadows: false
       }
     },
     medium: {
@@ -697,6 +811,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
         reflection: "skyGradient",
         nearPatch: false,
         detailNormal: false
+      },
+      meadowField: {
+        nearRadiusMeters: 11,
+        radiusMeters: 32,
+        nearBladesPerSquareMeter: 56,
+        farBladesPerSquareMeter: 18,
+        receiveShadows: true
       }
     },
     high: {
@@ -722,6 +843,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
         reflection: "skyGradient+sun",
         nearPatch: true,
         detailNormal: true
+      },
+      meadowField: {
+        nearRadiusMeters: 12,
+        radiusMeters: 40,
+        nearBladesPerSquareMeter: 80,
+        farBladesPerSquareMeter: 24,
+        receiveShadows: true
       }
     }
   },
@@ -738,7 +866,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     clodCount: 24
   },
   groundSurface: {
-    shortCoverRootShade: 0.86,
+    shortCoverRootShade: 0.7,
+    foliageNormalUp: 0.62,
     polygonCellScaleMeters: 1.2,
     edgeCellScaleMeters: 1.2,
     wetness: SHARED_GROUND_WETNESS,
@@ -932,8 +1061,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     decay: 2
   },
   stars: {
-    count: 180,
-    size: 0.72
+    gridResolution: 96,
+    density: 0.065,
+    radiusRadians: 0.0007,
+    intensity: 1.8
   },
   fireflies: {
     maxDistanceMeters: 160,
@@ -1017,6 +1148,52 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     gustWavelengthMeters: 45,
     gustTravelMetersPerSecond: 3.8
   },
+  meadow: {
+    // Olive/sage shadows under yellow-green highlights (Art Bible §9), with the
+    // fresher coastal greens carrying the lush cool regions of the meadow study.
+    palette: {
+      rootHex: PALETTE_HEX.foliage_shadow_01,
+      rootCoolHex: PALETTE_HEX.foliage_coastal_shade_01,
+      bodyHex: PALETTE_HEX.foliage_olive_01,
+      bodyCoolHex: PALETTE_HEX.foliage_coastal_01,
+      bodyWarmHex: PALETTE_HEX.foliage_leaf_01,
+      tipHex: PALETTE_HEX.foliage_coastal_sun_01,
+      tipWarmHex: PALETTE_HEX.foliage_highlight_01,
+      strawHex: PALETTE_HEX.grass_yellow_01
+    },
+    macroScaleMeters: 46,
+    mesoScaleMeters: 5.5,
+    terrainCarpetMix: 0.82,
+    carpetTipShare: 0.45,
+    carpetValue: 0.86,
+    underCarpetShade: 0.6,
+    field: {
+      tileSizeMeters: 4,
+      maxBladesPerSquareMeter: 80,
+      nearFadeMeters: 3,
+      outerFadeMeters: 7,
+      nearSegments: 3,
+      farSegments: 2,
+      shortHeightMeters: [0.15, 0.28],
+      meadowHeightMeters: [0.3, 0.5],
+      widthMeters: [0.03, 0.05],
+      farWidthScale: 2,
+      leanRange: [0.16, 0.5],
+      dryHeightScale: 0.62,
+      rootShade: 0.5,
+      normalUp: 0.62,
+      normalRoundness: 0.45,
+      valueJitter: 0.07,
+      roughnessRoot: 0.92,
+      roughnessTip: 0.84,
+      translucency: 0.5,
+      translucencyPower: 3,
+      windAmplitudeMeters: 0.15,
+      presencePushMeters: 0.2,
+      rootSinkMeters: 0.03,
+      exclusionTexelMeters: 0.5
+    }
+  },
   fishSchools: {
     memberCount: 5,
     modelScale: 0.55,
@@ -1036,6 +1213,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     groundingWalkFootIkScale: 0.65,
     groundingRunFootIkScale: 0.2,
     groundingResponse: 18,
+    groundingContactBlendSeconds: 0.08,
+    groundingFootLockDistanceMeters: 0.05,
+    groundingFootUnlockDistanceMeters: 0.18,
+    groundingFootReachSofteningMeters: 0.035,
     cameraLookAheadSeconds: 0.18,
     cameraLookAheadMaxMeters: 0.82,
     cameraLookAheadResponse: 8,

@@ -28,7 +28,7 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
   {
     id: "notice.market_days",
     category: "market",
-    source: "Barnaby, market steward",
+    source: "The market steward",
     title: "Market days stand",
     body: "The square opens with the morning and trades while the light lasts. Bring the produce the demand board is asking for, and bring it dry.",
     order: 10
@@ -61,8 +61,8 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
     id: "notice.tide_tables",
     category: "harbor",
     source: "Silas",
-    title: "Tide tables, this month",
-    body: "Low water runs early and the reef shows its teeth an hour before you expect. Read the water before you commit the skiff.",
+    title: "Read the sky first",
+    body: "A hard wind off the sea stacks the swell at the harbor mouth. Check the sky before you commit a boat, and keep the hold light on your first trips.",
     order: 14
   },
   {
@@ -70,7 +70,7 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
     category: "farm",
     source: "The miller",
     title: "Mill queue",
-    body: "Grain is ground to order, first come first served. If you are calling a sport school, grind your chum the night before — the mill keeps daylight hours.",
+    body: "Grain is ground to order, first come first served. If you are calling a sport school, grind your chum grain before you sail — nobody wants to row back for it.",
     order: 20,
     requiresKnowledgeIds: ["knowledge.wheat_milling"]
   },
@@ -86,7 +86,7 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
   {
     id: "notice.irrigation_zone",
     category: "farm",
-    source: "The miller",
+    source: "Barnaby",
     title: "Field pump parts arrived",
     body: "The pump fittings are in. Once the well is rigged, the whole field can be watered from one place instead of one watering can at a time.",
     order: 22,
@@ -95,7 +95,7 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
   {
     id: "notice.compost_starter",
     category: "farm",
-    source: "The miller",
+    source: "Barnaby",
     title: "Compost starter, by the bin",
     body: "Keep the heap fed and it will keep you in bait worms. A bin that is never turned is just a pile.",
     order: 23,
@@ -104,9 +104,9 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
   {
     id: "notice.expedition_indoor",
     category: "town",
-    source: "Barnaby, market steward",
-    title: "The board has moved indoors",
-    body: "Long-range planning now hangs inside the guild hall, out of the salt wind. Bring a route in mind and a full hold in practice.",
+    source: "Maeve",
+    title: "Captains carry the board",
+    body: "Anyone who has brought a catch home now carries a copy of the expedition board. Read it before you sail, not after. Bring a route in mind and a full hold in practice.",
     order: 24,
     requiresFeatureIds: ["feature.expedition_planner"]
   },
@@ -124,7 +124,7 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
     category: "harbor",
     source: "Silas",
     title: "Sunreach crossing times",
-    body: "The channel between the islands turns mean in an afternoon. Cross with the morning and the ice, or do not cross.",
+    body: "The channel between the islands turns mean when the wind gets up. Cross in settled weather, carry ice, and keep fuel for the way home.",
     order: 26,
     requiresKnowledgeIds: ["knowledge.discovery.reef"]
   },
@@ -133,14 +133,14 @@ const NOTICES: readonly VillageNoticeDefinition[] = [
     category: "harbor",
     source: "Silas",
     title: "Deep-water etiquette",
-    body: "An angler who has taken a billfish knows the run is not a tug-of-war. Give line, keep tension, and let the fish decide the road home.",
+    body: "An angler who has worked deep water knows the run is not a tug-of-war. Give line, keep tension, and let the fish decide the road home.",
     order: 27,
     requiresRankIndex: { skill: "fishing", rankIndex: 3 }
   },
   {
     id: "notice.open_horizons",
     category: "town",
-    source: "Barnaby, market steward",
+    source: "Barnaby",
     title: "A charter, kept",
     body: "Nothing on this board was finished by one person. Sign it the way the ledger is signed: with the intention to come back.",
     order: 28,

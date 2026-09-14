@@ -12,8 +12,7 @@ import {
   generateFarmPathPaverSamples,
   GROUND_COVER_DENSITY,
   GRASS_MAX_PATH_INFLUENCE,
-  hasGroundCoverClearance,
-  HOMESTEAD_MEADOW_GRASS_COUNT
+  hasGroundCoverClearance
 } from "../../src/world/WorldEnvironmentLayout";
 import { groundCoverActiveCount } from "../../src/render/config/VisualRenderConfig";
 import { sampleWorldComposition } from "../../src/world/WorldCompositionField";
@@ -36,8 +35,9 @@ describe("Organic road environment", () => {
     const generatedNevaCover = generateGroundCoverPlacements(42891);
     expect(generatedNevaCover).toHaveLength(
       Object.values(GROUND_COVER_DENSITY.high).reduce((total, count) => total + count, 0)
-        + HOMESTEAD_MEADOW_GRASS_COUNT
     );
+    // Neva's short-grass carpet is the renderer's MeadowField, not scattered tufts.
+    expect(generatedNevaCover.some((placement) => placement.assetId.startsWith("foliage_grass_"))).toBe(false);
     expect(first.groundCoverPlacements.filter((placement) => !isSunreach(placement)))
       .toEqual(generatedNevaCover.filter(retainHarborGroundCover));
     expect(first.groundCoverPlacements.filter(isSunreach)).toHaveLength(360 + 72 + 96);
@@ -64,16 +64,17 @@ describe("Organic road environment", () => {
     )).toBe(true);
   }, 60_000);
 
-  it("biases grass toward causal cover habitats and forms local flower clusters", () => {
+  it("biases flowers toward causal cover habitats and forms local flower clusters", () => {
     const worldSeed = 42891;
     const cover = generateGroundCoverPlacements(worldSeed);
-    const grass = cover.filter((placement) => placement.category === "grass" && !placement.id.includes("homestead"));
+    // Short grass is no longer scattered: the MeadowField grows it from the
+    // terrain's own weights. Flowers remain the causal-habitat scatter.
     const flowers = cover.filter((placement) => placement.category === "flowers");
 
     const averageCoverDensity = (points: readonly { x: number; z: number }[]) => points.reduce(
-      (total, point) => total + sampleWorldComposition(worldSeed, point.x, point.z).density["short-cover"], 0
+      (total, point) => total + sampleWorldComposition(worldSeed, point.x, point.z).density.flower, 0
     ) / points.length;
-    const grassDensity = averageCoverDensity(grass);
+    const flowerDensity = averageCoverDensity(flowers);
     for (const controlSeed of [17, 83, 271]) {
       const rng = new SeededRng(controlSeed);
       const uniform: { x: number; z: number }[] = [];
@@ -88,15 +89,15 @@ describe("Organic road environment", () => {
         uniform.push({ x, z });
       }
       expect(uniform).toHaveLength(4096);
-      expect(grassDensity, `uniform-ground control ${controlSeed}`).toBeGreaterThan(averageCoverDensity(uniform) * 1.1);
+      expect(flowerDensity, `uniform-ground control ${controlSeed}`).toBeGreaterThan(averageCoverDensity(uniform) * 1.1);
     }
 
     const nearbyFraction = (
-      placements: typeof grass,
+      placements: typeof flowers,
       radius: number
     ): number => {
       const cellSize = radius;
-      const buckets = new Map<string, typeof grass>();
+      const buckets = new Map<string, typeof flowers>();
       const keyAt = (x: number, z: number) => `${Math.floor(x / cellSize)}:${Math.floor(z / cellSize)}`;
       for (const placement of placements) {
         const key = keyAt(placement.x, placement.z);

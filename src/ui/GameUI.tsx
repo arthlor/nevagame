@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   BasicFishingState,
   EquipmentId,
@@ -36,7 +36,7 @@ import {
   type DebugCharacterDiagnostics,
   type RenderStats
 } from "./DebugOverlay";
-import { DialogueModal } from "./DialogueModal";
+import { DialogueModal, type DialogueTalkResult } from "./DialogueModal";
 import { ContextualHintCard } from "./ContextualHintCard";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import type { ExpeditionBoardDto } from "../simulation/expeditions/buildExpeditionOpportunities";
@@ -69,8 +69,6 @@ import type {
   AlmanacDto,
   PeoplePageDto} from "../simulation/core/contracts";
 import type { ChronicleEntry, ChronicleFilter, Notice } from "./notifications";
-import { ChromeButton, ChromeClose } from "./chrome/Chrome";
-import { GameSheet } from "./coastal/CoastalUI";
 import { StartScreen } from "./StartScreen";
 import type { VillageNoticeDto } from "../content/villageBulletin";
 import { PlacementEditorHud } from "./PlacementEditorHud";
@@ -81,7 +79,6 @@ import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter"
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
-import { useModalAccessibility } from "./useModalAccessibility";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -129,14 +126,7 @@ export interface GameUIProps {
   activeQuests?: readonly ActiveQuestDto[];
   onFocusTrack?: (trackId: string) => void;
   activeDialogueNpcId?: string | null;
-  onTalkNpc?: (npcId: string) => {
-    success: boolean;
-    dialogue?: string[];
-    isCompletion?: boolean;
-    questCompleted?: boolean;
-    rewardsGiven?: boolean;
-    reason?: string;
-  };
+  onTalkNpc?: (npcId: string) => DialogueTalkResult;
   activeHint?: { hintId: string; title: string; message: string; icon?: string } | null;
   onDismissHint?: (hintId: string) => void;
   onSelectPlantCrop: (cropId: string) => void;
@@ -209,11 +199,9 @@ export interface GameUIProps {
   onReleaseFishCargo: (marketId: MarketId, cargoId: string) => void;
   onDeliverContractItems: (contractId: string, itemId: string, quantity: number) => void;
   onDeliverFishCargo: (contractId: string, cargoId: string) => void;
+  onPassContract: (contractId: string) => void;
   onQuickSave: () => void;
   savingAvailable?: boolean;
-  saveRecoveryReason?: "corrupt" | "incompatible" | "unavailable" | null;
-  onConfirmNewGame?: () => void;
-  onDismissNewGameConfirm?: () => void;
   onResetPlayerToSafePlace: () => void;
   onEmergencyTow?: () => { success: boolean; reason?: string };
   chronicleEntries?: readonly ChronicleEntry[];
@@ -340,11 +328,9 @@ export const GameUI: React.FC<GameUIProps> = ({
   onReleaseFishCargo,
   onDeliverContractItems,
   onDeliverFishCargo,
+  onPassContract,
   onQuickSave,
   savingAvailable = true,
-  saveRecoveryReason = null,
-  onConfirmNewGame,
-  onDismissNewGameConfirm,
   onResetPlayerToSafePlace,
   onEmergencyTow,
   chronicleEntries,
@@ -584,7 +570,6 @@ export const GameUI: React.FC<GameUIProps> = ({
       {activeModal === "dialogue" && activeDialogueNpcId && onTalkNpc && (
         <DialogueModal
           npcId={activeDialogueNpcId}
-          activeQuest={activeQuest ?? null}
           onClose={() => onSetActiveModal(null)}
           onTalkNpc={onTalkNpc}
         />
@@ -642,6 +627,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onReleaseFishCargo={onReleaseFishCargo}
           onDeliverContractItems={onDeliverContractItems}
           onDeliverFishCargo={onDeliverFishCargo}
+          onPassContract={onPassContract}
           onClose={() => onSetActiveModal(null)}
         />
       )}
@@ -685,14 +671,6 @@ export const GameUI: React.FC<GameUIProps> = ({
             setJournalInitialFolio("story");
             onSetActiveModal(null);
           }}
-        />
-      )}
-
-      {activeModal === "new-game-confirm" && (
-        <SaveRecoverySheet
-          reason={saveRecoveryReason}
-          onCancel={() => onDismissNewGameConfirm?.()}
-          onConfirm={() => onConfirmNewGame?.()}
         />
       )}
 
@@ -750,60 +728,6 @@ export const GameUI: React.FC<GameUIProps> = ({
           bootReady={bootReady}
         />
       )}
-    </div>
-  );
-};
-
-const SaveRecoverySheet: React.FC<{
-  reason: "corrupt" | "incompatible" | "unavailable" | null;
-  onCancel: () => void;
-  onConfirm: () => void;
-}> = ({ reason, onCancel, onConfirm }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
-  useModalAccessibility(modalRef, onCancel);
-  const unavailable = reason === "unavailable";
-  const title = unavailable
-    ? "Continue without saving?"
-    : reason === "incompatible"
-      ? "Replace the older harbor log?"
-      : "Replace the unreadable harbor log?";
-  const consequence = unavailable
-    ? "Save storage is unavailable. This session will be lost when you leave or reload; the existing harbor log remains untouched."
-    : reason === "incompatible"
-      ? "This harbor log was written for an older coast. Starting fresh replaces it once the new world is ready."
-      : "Neither the harbor log nor its backup could be read. Starting fresh replaces both once the new world is ready.";
-
-  return (
-    <div className="modal-overlay interactive">
-      <GameSheet
-        ref={modalRef}
-        as="section"
-        className="critical-save-sheet"
-        family="physical"
-        tone="scroll"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="save-recovery-title"
-        aria-describedby="save-recovery-consequence"
-        tabIndex={-1}
-      >
-        <header className="modal-header">
-          <h2 id="save-recovery-title">{title}</h2>
-          <ChromeClose onClick={onCancel} label="Keep harbor log" />
-        </header>
-        <div className="modal-body">
-          <p id="save-recovery-consequence">{consequence}</p>
-          <strong className="critical-save-indicator">
-            {unavailable ? "Saving will remain off" : "Current save will be replaced"}
-          </strong>
-        </div>
-        <footer className="modal-footer">
-          <ChromeButton onClick={onCancel}>{unavailable ? "Return" : "Keep harbor log"}</ChromeButton>
-          <ChromeButton variant="danger" soundCue="confirm" onClick={onConfirm}>
-            {unavailable ? "Continue without saving" : "Start a new game"}
-          </ChromeButton>
-        </footer>
-      </GameSheet>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { IconAnchor, IconRod, IconSprout, IconWaves, IconSparkle} from "./HudIcons";
+import { HUD_ICON_BY_ID, IconSparkle, type HudIconName } from "./HudIcons";
 import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 
@@ -49,12 +49,10 @@ export function inferHintCategory(hintId: string): HintCategory {
 }
 
 /** Category insignia, drawn rather than glyphed. */
+/** Hints name a semantic icon id; anything unknown reads as a discovery. */
 const HintCategoryMark: React.FC<{ name: string }> = ({ name }) => {
-  if (name === "anchor") return <IconAnchor size={16} />;
-  if (name === "rod") return <IconRod size={16} />;
-  if (name === "sprout") return <IconSprout size={16} />;
-  if (name === "waves") return <IconWaves size={16} />;
-  return <IconSparkle size={16} />;
+  const Mark = HUD_ICON_BY_ID[name as HudIconName] ?? IconSparkle;
+  return <Mark size={16} />;
 };
 
 export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({

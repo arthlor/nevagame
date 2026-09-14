@@ -15,8 +15,9 @@ import {
   SURFACE_FIELD_VERTEX_ASSIGNMENTS,
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
+import { bindMeadowColorUniforms, MEADOW_COLOR_FIELD_GLSL } from "../vegetation/MeadowColorField";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v27-dry-climate";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v28-meadow-carpet";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -276,6 +277,7 @@ varying float vTerrainFaceting;
 varying float vTerrainDryClimate;
 varying vec3 vTerrainWorldPosition;
 ${SURFACE_FIELD_FRAGMENT_GLSL}
+${MEADOW_COLOR_FIELD_GLSL}
 vec3 nevaTerrainFaceNormal() {
   vec3 faceNormal = normalize(cross(
     dFdx(vTerrainWorldPosition),
@@ -581,6 +583,23 @@ float terrainShelteredGround = clamp(nevaSurfaceDampSoilWeight() + nevaSurfaceWe
 vec3 terrainMeadowRegion = mix(terrainPaletteOliveColor, terrainPaletteSageColor, terrainLargeSignals.g);
 terrainMeadowRegion = mix(terrainMeadowRegion, terrainPaletteGrassColor, terrainMeadowBlend * (1.0 - terrainShelteredGround) * 0.62);
 diffuseColor.rgb = mix(diffuseColor.rgb, terrainMeadowRegion, vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * terrainMeadowColorMix);
+// The shared meadow field: the same palette the grass carpet samples at its
+// roots. Distant meadow wears the carpet colour; ground between live blades
+// drops to the thatch beneath them, so the carpet reads as depth, not decals.
+NevaMeadowSample terrainMeadow = nevaMeadowSample(
+  vTerrainWorldPosition.xz,
+  terrainMeadowShare,
+  vTerrainDryClimate,
+  terrainShelteredGround
+);
+float terrainCarpetDensity = vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * (1.0 - pathUnderlayMix);
+vec3 terrainMeadowCarpet = mix(
+  nevaMeadowCarpetColor(terrainMeadow),
+  nevaMeadowThatchColor(terrainMeadow),
+  nevaMeadowLiveBlades(vTerrainWorldPosition.xz) * terrainCarpetDensity * nevaMeadowCarpet.z
+);
+terrainMeadowCarpet *= mix(0.94, 1.06, mix(terrainLeafyValue, terrainSparseValue, terrainMeadowBlend));
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainMeadowCarpet, vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * nevaMeadowCarpet.x);
 // Dry soil and olive scrub follow the island's existing drainage. The same
 // broad signal breaks up the palette without inventing another habitat field.
 vec3 terrainDrySoilColor = mix(terrainPathShoulderColor, terrainPathDustColor, terrainLargeSignals.g);
@@ -896,6 +915,7 @@ export class TerrainSurfaceMaterial {
       terrainRoughnessMin: { value: config.roughness.min },
       terrainRoughnessMax: { value: config.roughness.max }
     };
+    bindMeadowColorUniforms(this.shaderUniforms);
 
     const canonicalBase = PaletteMaterials.standard("foliage_sage_01", {
       vertexColors: true,

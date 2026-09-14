@@ -2,7 +2,7 @@ import type { GameMode, GameState } from "../simulation/core/types";
 import { ModalStack } from "./ModalStack";
 
 export type GameplayMode = Exclude<GameMode, "menu" | "paused">;
-export type GameOverlay = "inventory" | "character" | "crafting" | "market" | "journal" | "expedition" | "dialogue" | "catch" | "pause" | "map" | "ledger" | "new-game-confirm";
+export type GameOverlay = "inventory" | "character" | "crafting" | "market" | "journal" | "expedition" | "dialogue" | "catch" | "pause" | "map" | "ledger";
 export type ActiveModal = GameOverlay | null;
 
 
@@ -40,7 +40,7 @@ export class ModeController {
   }
 
   public get pausesSimulation(): boolean {
-    return this.overlays.includes("pause") || this.overlays.includes("new-game-confirm");
+    return this.overlays.includes("pause");
   }
 
   public get blocksWorldInput(): boolean {
@@ -67,7 +67,7 @@ export class ModeController {
    */
   public get blocksOverlayHotkeys(): boolean {
     const active = this.activeModal;
-    return active === "market" || active === "dialogue" || active === "crafting" || active === "catch" || active === "new-game-confirm";
+    return active === "market" || active === "dialogue" || active === "crafting" || active === "catch";
   }
 
   public restoreFromState(state: Readonly<GameState>): void {
@@ -80,13 +80,6 @@ export class ModeController {
   }
 
   public open(modal: GameOverlay): void {
-    if (this.activeModal === "new-game-confirm" && modal !== "new-game-confirm") {
-      return;
-    }
-    if (modal === "new-game-confirm") {
-      this.overlays.replace("new-game-confirm");
-      return;
-    }
     if (modal === "pause") {
       this.overlays.replace("pause");
       return;
@@ -99,7 +92,7 @@ export class ModeController {
     }
   }
 
-  public toggle(modal: Exclude<GameOverlay, "pause" | "new-game-confirm">): void {
+  public toggle(modal: Exclude<GameOverlay, "pause">): void {
     if (this.activeModal === modal) {
       this.closeActive();
     } else {
@@ -108,15 +101,10 @@ export class ModeController {
   }
 
   public closeActive(): void {
-    if (this.activeModal === "new-game-confirm") return;
     this.overlays.pop();
   }
 
   public handleEscape(): void {
-    if (this.activeModal === "new-game-confirm") {
-      this.overlays.clear();
-      return;
-    }
     if (this.hasOverlay) {
       this.closeActive();
     } else {
@@ -124,20 +112,7 @@ export class ModeController {
     }
   }
 
-  public dismissNewGameConfirm(): void {
-    if (this.activeModal === "new-game-confirm") {
-      this.overlays.clear();
-    }
-  }
-
-  public confirmNewGame(): void {
-    if (this.activeModal === "new-game-confirm") {
-      this.overlays.clear();
-    }
-  }
-
   public resume(): void {
-    if (this.activeModal === "new-game-confirm") return;
     this.overlays.clear();
   }
 }

@@ -86,16 +86,19 @@ export interface WorldEnvironmentLayout {
   groundCoverPlacements: readonly GroundCoverPlacement[];
 }
 
+/**
+ * Neva's instanced cover budgets. The connected short-grass carpet is no
+ * longer a catalog scatter: the renderer's `MeadowField` grows it from the
+ * terrain's own surface weights, so Neva places no `grass` tufts here.
+ * Sunreach keeps its separate beach-grass accent pass.
+ */
 export const GROUND_COVER_DENSITY: Readonly<
   Record<EnvironmentQualityTier, Readonly<Record<GroundCoverCategory, number>>>
 > = {
-  high: { grass: 66000, flowers: 2520, bushes: 180, meadowTall: 960, pebbles: 640, paving: 180, driftwood: 30 },
-  medium: { grass: 35400, flowers: 1340, bushes: 96, meadowTall: 520, pebbles: 340, paving: 96, driftwood: 18 },
-  low: { grass: 15600, flowers: 560, bushes: 42, meadowTall: 220, pebbles: 150, paving: 42, driftwood: 9 }
+  high: { grass: 0, flowers: 2520, bushes: 180, meadowTall: 960, pebbles: 640, paving: 180, driftwood: 30 },
+  medium: { grass: 0, flowers: 1340, bushes: 96, meadowTall: 520, pebbles: 340, paving: 96, driftwood: 18 },
+  low: { grass: 0, flowers: 560, bushes: 42, meadowTall: 220, pebbles: 150, paving: 42, driftwood: 9 }
 };
-
-/** Extra tufts around the starter farm meadow, outside plantable soil. */
-export const HOMESTEAD_MEADOW_GRASS_COUNT = 900;
 
 /** Grass and flowers may sit in the overlay feather, not the packed dirt core. */
 export const GRASS_MAX_PATH_INFLUENCE = 0.36;
@@ -141,13 +144,6 @@ function stablePlacementId(groupId: string, index: number): string {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
-}
-
-/** Fine blades retain their vertical gesture; coverage comes from distributed roots. */
-function grassClumpScale(variant: number): { horizontal: number; vertical: number } {
-  if (variant === 2) return { horizontal: 1.04, vertical: 1.02 };
-  if (variant === 1) return { horizontal: 1.02, vertical: 0.94 };
-  return { horizontal: 1, vertical: 1 };
 }
 
 export type FarmPathPaverToken = "stone_warm_01" | "stone_golden_01";
@@ -416,9 +412,9 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.arrival.bluff.bench", { assetId: "prop_bench_wood_a", x: -49, z: -220, rotationY: 3.1, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.sign", { assetId: "prop_signpost_trail_a", x: -49, z: -216, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 65, z: -56, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 66.5, z: -56.5, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.sacks", { assetId: "prop_cargo_sack_a", x: 64, z: -56.5, rotationY: -0.3, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 72, z: -56, rotationY: 1.6, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 65.8, z: -58.4, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  
+  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 66.4, z: -60.1, rotationY: 1.309, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 66, z: -41, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.village.crate-inn", { assetId: "prop_crate_wood_a", x: 65, z: -41.5, rotationY: -0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
 
@@ -580,7 +576,7 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.village.bench.copy.1", { assetId: "prop_bench_wood_a", x: 59.6, z: -69.6, rotationY: 0, scale: [1, 1, 1] }),
   authoredPlacement("authored.village.well", { assetId: "prop_water_well_a", x: 55.1, z: -69.6, rotationY: 0, scale: [1, 1, 1], grounding: [1.1, 0.95] }),
   authoredPlacement("authored.village.signpost", { assetId: "prop_signpost_trail_a", x: 50.3, z: -42.1, rotationY: -1.5708, scale: [1, 1, 1] }),
-  authoredPlacement("authored.village.clay-oven", { assetId: "prop_clay_oven_a", x: 43.6, z: -59.2, rotationY: 1.0472, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.clay-oven", { assetId: "prop_clay_oven_a", x: 43.1, z: -59.9, rotationY: 0.5236, scale: [1, 1, 1] }),
   authoredArchitecturePlacement("authored.village.tool-shed", "prop_tool_shed_b", "village.tool-shed"),
   authoredArchitecturePlacement("authored.village.outhouse", "building_outhouse_b", "village.outhouse"),
   authoredPlacement("authored.village.homestead-gate", { assetId: "prop_farm_gate_a", x: 47, z: -44.9, rotationY: -0.7854, scale: [1, 1, 1] }),
@@ -1395,22 +1391,15 @@ function* scatterGroundCover(
     const composition = sampleGroundCoverComposition(worldSeed, x, z);
     const selection = compositionPriority(worldSeed, compositionCategory, candidateAddress, seed, 2);
     const fieldDensity = composition.density[compositionCategory];
-    const maximumDensity = category === "grass"
-      ? clamp01(Math.pow(fieldDensity, 1.35) * 1.4)
-      : category === "flowers"
-        ? clamp01(0.025 + fieldDensity * fieldDensity * 1.5)
-        : clamp01(0.5 + fieldDensity * 0.5);
+    const maximumDensity = category === "flowers"
+      ? clamp01(0.025 + fieldDensity * fieldDensity * 1.5)
+      : clamp01(0.5 + fieldDensity * 0.5);
     if (selection > maximumDensity) continue;
     const surface = sampleGroundCoverSurface(x, z);
     if (!predicate(x, z, surface, composition) || !hasGroundCoverClearance(x, z)) continue;
     const weight = densityWeight(x, z, surface, composition);
-    const density = category === "grass"
-      ? clamp01(
-        (weight * 0.16 + Math.pow(fieldDensity, 1.35) * 1.4)
-          * (1 - composition.opening * 0.55)
-      )
-      : category === "flowers"
-        ? clamp01(0.02 + Math.pow(fieldDensity * (0.65 + weight * 0.35), 2) * 1.5)
+    const density = category === "flowers"
+      ? clamp01(0.02 + Math.pow(fieldDensity * (0.65 + weight * 0.35), 2) * 1.5)
       : clamp01(
         0.12
         + weight * 0.38
@@ -1420,7 +1409,7 @@ function* scatterGroundCover(
     const exactSurface = WorldLayout.terrainSurfaceSample(x, z);
     if (!predicate(x, z, exactSurface, composition)) continue;
     if (
-      (category === "grass" || category === "flowers" || category === "bushes" || category === "meadowTall")
+      (category === "flowers" || category === "bushes" || category === "meadowTall")
       && WorldLayout.terrainNormal(x, z).y <= 0.66
     ) continue;
     const scale = scaleRange[0]
@@ -1428,10 +1417,9 @@ function* scatterGroundCover(
         * compositionPriority(worldSeed, compositionCategory, attempt, seed, 3);
     const variantRoll = compositionPriority(worldSeed, compositionCategory, attempt, seed, 4);
     const selectedVariant = Math.min(assetIds.length - 1, Math.floor(variantRoll * assetIds.length));
-    const grassScale = grassClumpScale(selectedVariant);
     const categoryScale = GROUND_COVER_SCALE_PROFILE[category];
-    const horizontalScale = category === "grass" ? grassScale.horizontal : categoryScale.horizontal;
-    const verticalScale = category === "grass" ? grassScale.vertical : categoryScale.vertical;
+    const horizontalScale = categoryScale.horizontal;
+    const verticalScale = categoryScale.vertical;
     const tag = compositionPlacementTag(
       worldSeed,
       compositionCategory,
@@ -1533,39 +1521,8 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
     && sampleGroundCoverNormalY(x, z) > 0.66
     && surface.farmInfluence < 0.08;
 
-  const grass = yield* scatterGroundCover(
-    "grass",
-    ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"],
-    high.grass,
-    mixSeed(worldSeed, 0x1a31),
-    (x, z, surface) => {
-      return meadowCoverGround(x, z, surface)
-        && WorldLayout.pathInfluence(x, z) < GRASS_MAX_PATH_INFLUENCE
-        && surface.shorelineWetness < 0.62;
-    },
-    [0.96, 1.22],
-    "ground-cover.grass",
-    (_x, _z, _surface, composition) => composition.density["short-cover"],
-    worldSeed
-  );
-  const homesteadGrass = yield* scatterGroundCover(
-    "grass",
-    ["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"],
-    HOMESTEAD_MEADOW_GRASS_COUNT,
-    mixSeed(worldSeed, 0x1a42),
-    (x, z, surface) => {
-      const distance = distanceTo(x, z, STARTER_FARM_LAYOUT.origin);
-      return distance >= 8
-        && distance <= 43
-        && meadowCoverGround(x, z, surface)
-        && WorldLayout.pathInfluence(x, z) < GRASS_MAX_PATH_INFLUENCE
-        && surface.shorelineWetness < 0.62;
-    },
-    [0.96, 1.22],
-    "ground-cover.grass.homestead",
-    (_x, _z, _surface, composition) => composition.density["short-cover"],
-    worldSeed
-  );
+  // Short grass is the renderer's MeadowField carpet; every pass below keeps
+  // its own independent candidate stream, so its placements are unchanged.
   const flowers = yield* scatterGroundCover(
     "flowers",
     ["foliage_flower_drift_a", "foliage_flower_drift_b", "foliage_flower_drift_c"],
@@ -1678,8 +1635,6 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
   const paving = generateInstancedPathSlabs(high.paving, mixSeed(worldSeed, 0x3c71));
   const driftwood = yield* scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08], worldSeed);
   const placements = [
-    ...grass,
-    ...homesteadGrass,
     ...flowers,
     ...bushes,
     ...meadowTall,

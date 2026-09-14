@@ -23,6 +23,20 @@ export const CONTRACT_TYPES: ReadonlySet<string> = new Set([
   "bulk-order"
 ]);
 
+/** A quest targets a tagged kind of order as `tag:<tag>`. */
+export const CONTRACT_TAG_PREFIX = "tag:";
+
+/**
+ * Every quest target a completed contract of this template satisfies: its own
+ * id, its type, and each of its tags. `QuestDomain` dispatches these and the
+ * board matches quest requests against them, so the two cannot disagree.
+ */
+export function contractObjectiveTargets(
+  template: Pick<ContractTemplateDefinition, "id" | "type" | "tags">
+): string[] {
+  return [template.id, template.type, ...(template.tags ?? []).map((tag) => `${CONTRACT_TAG_PREFIX}${tag}`)];
+}
+
 export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
   {
     id: "contract.wheat_supply",
@@ -196,7 +210,9 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
     durationMinutes: 2880,
     rewardBaseMultiplier: 1.7,
     rewardSkill: "trading",
-    requiredXp: 3000
+    requiredXp: 3000,
+    // Neva's garden tomatoes carried to the terraces that cannot keep them.
+    tags: ["cross-channel"]
   },
 
   // --- Harbor sport-fish orders, laddered by rod and cargo class ---
@@ -320,7 +336,9 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
     durationMinutes: 1440,
     rewardBaseMultiplier: 1.75,
     rewardSkill: "trading",
-    requiredXp: 3000
+    requiredXp: 3000,
+    // Olive saplings are sold only at the cove; the fruit is wanted on Neva's side.
+    tags: ["cross-channel"]
   },
   {
     id: "contract.sunreach_reef_fish_order",

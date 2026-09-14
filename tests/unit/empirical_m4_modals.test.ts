@@ -46,11 +46,9 @@ describe("Milestone M4 ornate modal presentation", () => {
   });
 
   it("renders dialogue with a portrait plaque, speaker, and continue control", () => {
-    const sim = new Simulation();
     const html = renderToString(
       React.createElement(DialogueModal, {
         npcId: "npc.elspeth",
-        activeQuest: sim.questDomain.getActiveQuestDto(),
         onClose: () => {},
         onTalkNpc: () => ({
           success: true,

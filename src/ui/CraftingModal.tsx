@@ -6,6 +6,7 @@ import type {
 } from "../simulation/core/contracts";
 import type { RecipeId } from "../simulation/core/types";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
+import { IconHourglass } from "./components/HudIcons";
 import { GameSheet } from "./coastal/CoastalUI";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
@@ -94,7 +95,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
 
         {station.job ? (
           <div className="crafting-job-state" aria-live="polite">
-            <span className={`crafting-job-state__seal is-${station.job.status}`} aria-hidden="true">⌛</span>
+            <span className={`crafting-job-state__seal is-${station.job.status}`} aria-hidden="true"><IconHourglass size={34} /></span>
             <div>
               <small>{station.job.status === "complete" ? "Ready to collect" : "In progress"}</small>
               <h3>{station.job.recipeName}</h3>

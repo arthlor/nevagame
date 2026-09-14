@@ -46,6 +46,32 @@ describe("quest content validation", () => {
     expect(() => ContentRegistry.validateQuestDefinitions(quests)).toThrow(/unsupported habitat location/);
   });
 
+  it("rejects hook and landing targets the fishing events can never report", () => {
+    const withObjective = (type: "hook-sport-fish" | "land-sport-fish", targetId: string) => {
+      const quests = copyQuests();
+      const objective = quests.flatMap((quest) => quest.objectives).find((candidate) => candidate.type === type)!;
+      objective.targetId = targetId;
+      return quests;
+    };
+    // An item, or a basic species, never enters a sport fight.
+    expect(() => ContentRegistry.validateQuestDefinitions(withObjective("hook-sport-fish", "item.bait_worms"))).toThrow(/not a sport fish/);
+    expect(() => ContentRegistry.validateQuestDefinitions(withObjective("hook-sport-fish", "fish.perch"))).toThrow(/not a sport fish/);
+    expect(() => ContentRegistry.validateQuestDefinitions(withObjective("land-sport-fish", "fish.perch"))).toThrow(/never lands as physical cargo/);
+    // The sea bream is a basic catch that still lands as physical cargo.
+    expect(() => ContentRegistry.validateQuestDefinitions(withObjective("land-sport-fish", "fish.sea_bream"))).not.toThrow();
+  });
+
+  it.each(["talk-npc", "complete-contract", "purchase-upgrade"] as const)(
+    "rejects a %s objective with a location, which its location-less event can never match",
+    (type) => {
+      const quests = copyQuests();
+      const objective = quests.flatMap((quest) => quest.objectives).find((candidate) => candidate.type === type)!;
+      expect(objective).toBeDefined();
+      objective.location = { kind: "market", id: "market.village" };
+      expect(() => ContentRegistry.validateQuestDefinitions(quests)).toThrow(/unsupported market location/);
+    }
+  );
+
   it("rejects cycles and unreachable entries", () => {
     const cycle = copyQuests();
     cycle[cycle.length - 1].nextQuestId = cycle[0].id;

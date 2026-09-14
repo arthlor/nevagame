@@ -28,6 +28,7 @@ from common.geometry import (
     seeded_rng,
 )
 from common.authored import add_tree_buttresses, add_canopy_lobe, add_conifer_tier
+from .crops import _add_folded_leaf, _add_sunflower_head
 
 GOLDEN_ANGLE = 2.39996322972865332
 
@@ -355,58 +356,41 @@ def round_bush(spec: dict, root) -> None:
 
 
 def sunflower_stand(spec: dict, root) -> None:
-    """Three sunflowers of staggered height, heads nodding forward off thick stalks.
+    """Three sunflowers of staggered height, heads nodding off leafy stalks.
 
-    add_tri_prism extrudes along its local +Y, and a (droop, 0, yaw) euler sends
-    that axis to (-sin yaw, cos yaw, sin droop); every leaf and petal below is
-    placed with that same vector so it stays welded to the stalk or the disc.
+    The wild stand reuses the crop family's botanical builders -- the nodding
+    head with its petal ring, dark seed disc and receptacle, and the closed
+    folded leaf -- so it reads as the same plant as the planted sunflower:
+    warm petals round a dark disc, not a pale rosette of shards.
     """
-    yellow, ochre, leaf, shadow = spec["palette"]
+    receptacle, stem, _petal, _disc = spec["palette"]
     rng = seeded_rng(spec["seed"])
 
-    stalks = ((0.0, 0.0, 1.60), (-0.24, 0.02, 1.26), (0.21, -0.03, 1.02))
-    for index, (sx, sy, height) in enumerate(stalks):
+    stalks = ((0.0, 0.0, 1.60, 0.13, 2), (-0.24, 0.02, 1.26, 0.115, 1), (0.21, -0.03, 1.02, 0.1, 1))
+    for index, (sx, sy, height, head_radius, leaf_count) in enumerate(stalks):
         lean = math.radians(rng.uniform(-6, 6))
         head_x = sx + math.sin(lean) * height
-        add_tapered_beam(f"sun_stalk_{index}", (sx, sy, 0.02), (head_x, sy, height), 0.030, 0.019, leaf, root, vertices=6)
-
-        # Leaves clasp the stalk in an alternating spiral, inner end on the stem.
-        for leaf_index in range(3):
-            t = 0.28 + leaf_index * 0.21
-            yaw = leaf_index * 2.3 + index * 1.1
-            droop = math.radians(-26)
-            dx, dy = -math.sin(yaw), math.cos(yaw)
-            lz = height * t
-            lx = sx + math.sin(lean) * height * t
-            reach = 0.115
-            base=(lx,sy,lz)
-            tip=(lx+dx*.16,sy+dy*.10,lz+.035)
-            blade=add_leaf_blade(f"sun_leaf_{index}_{leaf_index}",base,tip,.10,
-                leaf,root,stations=3,thickness=.005,cup=.35,bend=(0,0,.05))
-            set_surface_normals(blade,"planar")
-
-        # Head nods forward: a ripe sunflower never stares straight up.
-        # A steep nod keeps the ring of petals inside the spec's shallow footprint.
-        nod = math.radians(43 + index * 7)
-        hx, hy, hz = head_x + 0.020, sy - 0.040, height + 0.020
-        add_cylinder(f"sun_head_disc_{index}", (hx, hy, hz), 0.092, 0.040, ochre, root, vertices=10,
-                     rotation=(nod, 0, 0), bevel=0.008)
-        add_cylinder(f"sun_head_back_{index}", (hx, hy + 0.020, hz - 0.014), 0.104, 0.018, leaf, root, vertices=10,
-                     rotation=(nod, 0, 0))
-        # Petals ring the disc inside its own tilted plane, so none land behind it.
-        petals = 10
-        radius = 0.128
-        for petal in range(petals):
-            theta = petal * math.tau / petals
-            add_tri_prism(
-                f"sun_petal_{index}_{petal:02d}",
-                (
-                    hx - math.sin(theta) * radius,
-                    hy + math.cos(theta) * radius * math.cos(nod),
-                    hz + math.cos(theta) * radius * math.sin(nod),
-                ),
-                (0.068, 0.125, 0.013), yellow, root, rotation=(nod, 0, theta),
+        add_limb_tube(f"sun_stalk_{index}", [
+            (sx, sy, 0.012),
+            (sx + math.sin(lean) * height * .55, sy, height * .55),
+            (head_x, sy, height)
+        ], [.026, .02, .015], stem, root, sides=6)
+        # Broad leaves spiral up the stalk, rooted on it and drooping at the tip.
+        for leaf_index in range(leaf_count):
+            t = .3 + leaf_index * .22
+            _add_folded_leaf(
+                f"sun_leaf_{index}_{leaf_index}",
+                (sx + math.sin(lean) * height * t, sy, height * t),
+                .2 * (1 - .2 * t), .13 * (1 - .15 * t),
+                leaf_index * GOLDEN_ANGLE + index * 1.9,
+                receptacle, root, pitch=.36, droop=.3, cup=.25
             )
+        # A ripe sunflower never stares straight up; the steep nod keeps the
+        # petal ring inside the stand's shallow footprint.
+        _add_sunflower_head(
+            f"sun_head_{index}", (head_x, sy, height + .02), head_radius,
+            spec["palette"], root, petals=10, nod=math.radians(52 + index * 8), dry=False
+        )
 
 
 def mushroom_cluster(spec: dict, root) -> None:

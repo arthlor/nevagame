@@ -667,6 +667,8 @@ export interface PauseSummaryDto {
   dateTimeLabel: string;
   work: { current: number; maximum: number };
   lastSavedUtcMs: number;
+  /** Real minutes spent playing this save, while the game was running and unpaused. */
+  totalPlayMinutes: number;
 }
 
 export interface SportFishingHudDto {
@@ -1047,6 +1049,7 @@ export type GameCommand =
   | { type: "market.sell-fish-bulk"; marketId: MarketId }
   | { type: "contract.deliver-items"; contractId: string; itemId: ItemId; quantity: number }
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }
+  | { type: "contract.pass"; contractId: string }
   | { type: "quest.talk-npc"; npcId: string }
   | { type: "quest.claim-reward"; questId: string; npcId: string }
   | { type: "quest.record-hint"; hintId: string }

@@ -166,6 +166,23 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
                   )}
                 </div>
               )}
+              {activeQuest.requirements && activeQuest.requirements.length > 0 && (
+                <ul className="quest-requirements" aria-label="What this step still needs" data-testid="quest-requirements">
+                  {activeQuest.requirements.map((requirement) => (
+                    <li
+                      key={requirement.label}
+                      className={`quest-requirement${requirement.met ? " is-met" : ""}`}
+                    >
+                      <span className="quest-requirement-label">{requirement.label}</span>
+                      <span className="quest-requirement-value">
+                        {requirement.kind === "check"
+                          ? (requirement.met ? "Held" : "Needed")
+                          : `${requirement.current.toLocaleString()} / ${requirement.required.toLocaleString()}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </HudCluster>

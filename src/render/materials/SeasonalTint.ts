@@ -32,11 +32,31 @@ export function updateSeasonalTint(clock: Pick<ClockState, "season" | "currentMi
   seasonAmbientTint.copy(prior).lerp(current, sample.blend);
 }
 
+/** The shared season uniforms, for materials that apply the season through `nevaApplySeason`. */
+export const seasonalTintUniforms: Readonly<typeof uniforms> = uniforms;
+
+/**
+ * The same season transform as `patchSeasonalTint`, as a callable GLSL helper.
+ * The meadow colour field applies it once to the palette it hands both the
+ * terrain and the grass, so a season cannot grey the blades but not the ground.
+ */
+export const SEASONAL_TINT_GLSL = /* glsl */ `
+#ifndef NEVA_SEASON_UNIFORMS
+#define NEVA_SEASON_UNIFORMS
+uniform vec3 nevaSeasonTint;
+uniform float nevaSeasonDesaturation;
+#endif
+vec3 nevaApplySeason(vec3 color) {
+  float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  return mix(color, vec3(luminance), nevaSeasonDesaturation) * nevaSeasonTint;
+}
+`;
+
 export function patchSeasonalTint(shader: { fragmentShader: string; uniforms: Record<string, unknown> }): void {
   const anchor = "#include <color_fragment>";
   if (shader.fragmentShader.split(anchor).length !== 2) throw new Error("SeasonalTint: color shader chunk drift");
   Object.assign(shader.uniforms, uniforms);
-  shader.fragmentShader = `uniform vec3 nevaSeasonTint;\nuniform float nevaSeasonDesaturation;\n${shader.fragmentShader}`;
+  shader.fragmentShader = `#ifndef NEVA_SEASON_UNIFORMS\n#define NEVA_SEASON_UNIFORMS\nuniform vec3 nevaSeasonTint;\nuniform float nevaSeasonDesaturation;\n#endif\n${shader.fragmentShader}`;
   shader.fragmentShader = shader.fragmentShader.replace(anchor, `${anchor}
   float nevaLeafLuminance = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(nevaLeafLuminance), nevaSeasonDesaturation) * nevaSeasonTint;`);

@@ -108,15 +108,20 @@ in exposition.
 
 ## Dialogue and presentation contract
 
-The live dialogue model has four contextual sources:
+The live dialogue model has six contextual sources:
 
-- `introDialogue`: returned when the active quest's speaker is contacted and
-  the quest is not ready for final turn-in; it frames the next action.
-- `completionDialogue`: returned when the active quest's final objective is
+- `introDialogue`: the speaker's ask; it frames the next action.
+- `completionDialogue`: delivered when the active quest's final objective is
   complete and the player talks to the correct speaker; the quest is completed
   atomically and rewards are granted by `QuestDomain`.
-- NPC `idleDialogue`: returned when the contacted NPC is not the active quest
-  speaker; it provides place/role texture without changing quest state.
+- `herald` (optional, `{ npcId, lines }`): someone other than the speaker who
+  sets the errand up while the speaker is out of reach. Act 7's speaker lives
+  across a channel the player has no boat for, so Silas explains the skiff and
+  Tomas greets the player on arrival. A herald may not be its quest's speaker.
+- objective `dialogue` (optional): what the target says when a `talk-npc` step
+  aimed at someone *other* than the speaker is fulfilled — the Act 10 round of
+  farewells. The registry rejects it on any other shape.
+- NPC `idleDialogue`: place/role texture when nothing in play involves them.
 - NPC `recognitionDialogue`: the latest content-authored entry whose completed
   quest, feature, knowledge and **proficiency-rank** predicates match; it
   recognizes milestones without relationship state, branches, or
@@ -125,14 +130,42 @@ The live dialogue model has four contextual sources:
   startup, so an entry cannot silently reference something nothing grants and
   quietly retire itself.
 
-Nearby world barks consume the same recognition selector in `NpcPresentation`; they reuse authored lines without changing quests. One projected bubble yields to panels and uses transient per-NPC cooldowns, with no saved dialogue history.
+**One conversation per talk.** `QuestDomain.talkToNpc` returns ordered
+`ConversationSegment`s assembled in one atomic command, never saved:
+
+1. every errand this person can close is closed (completion, rewards, any
+   turn-in cost handed over, the next errand begun);
+2. a `talk-npc` step aimed at this person is spoken and credited — on step 0
+   the speaker's ask *is* the step; a later talk step to the speaker is a report
+   back that the completion answers without replaying the ask; anyone else says
+   the step's own `dialogue`;
+3. an errand this conversation began is introduced by the same mouth (its
+   speaker's ask, or the herald's word of it);
+4. otherwise what they are waiting on or have heard of, main track first and at
+   most two, so a side thread's ask is heard alongside the spine;
+5. otherwise recognition or idle lines.
+
+A talk step is credited only for the thread whose words were delivered;
+`NpcTalked` is a signal for audio and telemetry and credits nothing. Crediting
+every track from it closed the Family Ledger's "hear me out" step while the
+player listened to a different errand, and let side-errand intros hijack the
+Act 10 round. An errand with a `turnInCost` is never paid in the breath that
+asked for it: the player leaves with the ask and chooses to come back. A
+refused close (no room for the reward) completes nothing and says why under the
+repeated ask. A talk to someone a running errand wants *later* emits
+`QuestStepAhead`, as any action that would count for a later step does.
+
+Nearby world barks consume the same recognition selector in `NpcPresentation`; they reuse authored lines without changing quests. An NPC with something pending for the player — an errand of theirs to close, or a talk step aimed at them — barks their authored `beckonLines` instead; a herald alone is not a reason, because it can stand for hours and a call repeated that long is nagging. The person just spoken to holds their barks for 30 seconds after a conversation. One projected bubble yields to panels and uses transient per-NPC cooldowns, with no saved dialogue history.
 
 The talk command requires the authoritative proximity check against `npcAnchorAt(npcId, clock, quests)` in `src/simulation/presentation/NpcPresentation.ts`. Content in `npcs.ts` schedules day-phase stations; omitted phases retain the home anchor. The renderer, nearby targeting and quest talk/turn-in destinations use the same station, so a quest giver cannot be visible at one place while the tracker points at another. **One quest-aware exception:** while the NPC speaks for an active quest whose final objective is complete and was earned away from them (any type except `talk-npc`, which completes inside the conversation itself), the function returns the NPC's role anchor instead of the schedule stop. That holds Barnaby at the farmhouse workbench for the Act 2 hand-in he names while leaving him a Village Market figure the rest of the day. This derives from the existing clock and quest cursor, adds no saved NPC state, and never advances a track. Elspeth retains her daytime garden welcome; the other stops populate the village and both islands at their authored phases. `NpcTalked`,
 `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted` are
 signals for UI/audio/diagnostics; they are not a second narrative database.
 The DOM dialogue overlay may show speaker name, role, district, line pages,
-and reward summary. The HUD shows only the current title/objective and the
-journal shows the current story entry plus completed quest titles. Keep the
+each segment's thread heading, what was handed over and the reward summary.
+The HUD shows only the current title/objective (plus, for an acquisition step,
+the requirement lines `ActiveQuestDto.requirements` publishes) and the journal
+shows the current story entry, the ask as it was put (`ActiveQuestDto.brief`,
+content-derived rather than a transcript) and completed quest titles. Keep the
 world primary and avoid a permanent text-heavy quest dashboard.
 
 The current representation uses content-owned string arrays and stable
@@ -171,6 +204,10 @@ Rules, owned by `QuestDomain`:
   `MAX_EARLY_ACTION_CREDIT_QUANTITY` (64) and `MAX_EARLY_ACTION_CREDIT_RECORDS`
   (16). `reconcileQuestCursors` prunes credits no remaining objective watches,
   so the ledger empties after the tutorial.
+- **Said, not banked, elsewhere.** Outside those opted-in steps nothing is
+  banked. An action that matches a *later* step of a running errand emits
+  `QuestStepAhead` (once per errand per world event) so presentation can say
+  what comes first instead of the work vanishing without a word.
 
 A new game no longer starts with `item.bait_worms`: Act 2's compost run is the
 player's first bait, and pre-granting a stack made that lesson skippable. The
@@ -642,7 +679,7 @@ interface FishingPressureState {
   recentCatchCount: number;
 }
 ```
-Spawn inputs: ecology, habitat, season, time, weather, world seed, recent pressure, cooldown. Cooldown begins when a school depletes or expires, not when it originally spawned; recent landed catches extend the bounded per-habitat cooldown and decay over time. Each new school deterministically rotates among small authored offsets that remain inside its registered ecology/habitat. Presentation binds weighted species models, a frenzy gull, surface splashes, and occasional jumps to the actual school; fish finders later improve detection.
+Spawn inputs: ecology, habitat, season, time, weather, world seed, recent pressure, cooldown. Cooldown begins when a school depletes or expires, not when it originally spawned; recent landed catches extend the bounded per-habitat cooldown and decay over time. Each new school deterministically rotates among small authored offsets that remain inside its registered ecology/habitat. Occupancy is **per authored spawn point** (`schoolSpawnPointIndex`, derived from position, never stored) while pressure stays per habitat: keying occupancy on ecology+habitat let Neva's first offshore point shadow the second forever, so the deep trench Act 9 sends the player to never held a school. Sunreach's coast point sits on the reef edge where the shelf drops away — the fishery Tomas describes and Acts 7–8 send the player to — rather than at the cove mouth. Quest anchors for fishing grounds are read from these points (`schoolGround` in `quests.ts`), and a fishing objective's tracker target is the nearest live school matching its water and species, falling back to that anchor. Presentation binds weighted species models, a frenzy gull, surface splashes, and occasional jumps to the actual school; fish finders later improve detection.
 
 Lifecycle: `Inactive → Spawned → Chummed → Feeding Frenzy → Depleted|Expired → Cooldown`. Schools never persist forever.
 
@@ -985,7 +1022,7 @@ described above is live, not deferred.
 # 12. Weather & Sea Risk
 
 ```ts
-interface WeatherSnapshot {
+interface WeatherState {
   type: "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm"; // no drought
   windDirectionDeg: number;
   windSpeed: number;
@@ -1140,22 +1177,26 @@ nowhere. Ownership is the gate, and because a rod cannot be bought twice, a
 Contracts replace repeatable arbitrary fetch quests. The authored story spine and parallel linear tracks remain separate; the Live story spine section and `src/content/{quests,questTracks}.ts` own their scope and content. They use named NPCs and locations and advance through explicit `nextQuestId` links. A story objective may require completion of any feasible contract, but contract generation remains repeatable economy content and does not carry lore or choose story branches.
 
 ```ts
-interface ContractTemplate {
+interface ContractTemplateDefinition {
   id: ContractTemplateId;
-  type: ContractType;
-  requesterId: string;
+  type: "produce" | "fresh-fish" | "quality-target" | "bulk-order";
+  requesterName: string;
   deliveryMarketId: MarketId;
   itemOrSpeciesPool: string[];
   quantityRange: [number, number];
-  qualityRequirement?: string;
-  freshnessRequirement?: number;
-  weightRequirementKg?: number;
+  minQuality?: string;
+  minFreshness?: number;
+  minWeightKgRange?: [number, number];
   durationMinutes: number;
-  rewardFormulaId: string;
-  progressionGate?: ProgressionRequirement;
+  rewardBaseMultiplier: number;
+  rewardSkill: SkillId;
+  requiredXp?: number;
+  tags?: readonly string[];
 }
 ```
-Generator MUST validate feasibility, use the template-owned delivery market for readiness and completion, and preserve the produce/fishing choice rule above. `src/content/contracts.ts` is the count authority; the board spans village produce laddered by each crop's own Farming XP gate, harbor sport-fish orders laddered by rod and cargo class, and Sunreach cove orders for the pelagics that range there.
+Generator MUST validate feasibility, use the template-owned delivery market for readiness and completion, and preserve the produce/fishing choice rule above.
+
+**The board serves the story.** A quest's `complete-contract` step may name one template, a contract type, or a tag (`tag:cross-channel` is carried by the orders whose goods must cross the channel); `contractObjectiveTargets` owns that mapping for both the quest dispatch and the board. When refill has a free slot and a running story step is waiting on a kind of order the board is not showing, it posts the gentlest feasible template of that kind (lowest grade, no weight floor, no strict freshness) before the produce/fishing preference. The player may also **pass on** an order with nothing yet delivered against it (`contract.pass`): the order is struck (`expired`, so no refund is due) and a replacement is posted at once, never the order just passed. An order with goods delivered against it stays until filled or expired. Act 9's grade-and-volume step, Act 6 and the Freight and Favour track used to wait on dice for up to two real hours of slot turnover. `src/content/contracts.ts` is the count authority; the board spans village produce laddered by each crop's own Farming XP gate, harbor sport-fish orders laddered by rod and cargo class, and Sunreach cove orders for the pelagics that range there.
 
 Feasibility includes reaching the delivery market. A market at the far end of a sailing route in `WORLD_SAILING_ROUTES` (Sunreach Cove) offers orders only once the player owns that route's vessel (the Coastal Fishing Skiff); the rowboat cannot make the crossing, so an earlier cove order could only expire. `canReachDeliveryMarket` in `ContractDomain` owns the rule, and the expedition board reports a contract it blocks.
 
@@ -1167,7 +1208,7 @@ Contract money is fixed at generation from a **rest-demand market reference**, t
 
 Trail and vista arrivals reuse journal `unlockedKnowledge` IDs from `src/content/discoveries.ts`, registered by `knowledge.ts`. An accepted simulation pose discovers each once; reloading cannot rediscover it. These are places and journal entries, not quests or progression gates.
 
-Journal tracks species discovery, largest weight, best quality, habitat, season, time, weather, personal record, current/completed authored quest titles, and stable unlocked practice entries. Its **Notices** folio is authored community flavour from `src/content/villageBulletin.ts`, selected from already-earned quest, feature, knowledge and rank state. The same folio opens from the village-square notice board (`VILLAGE_BULLETIN`); that prop is presentation-only and adds no collider, interaction cooldown or saved state. The board pins existing earned facts as town voice; it owns no persisted state, creates no quest or objective, and gates no reward. The **People** folio is the same kind of reading for the named cast: each person's authored title and station, the recognition line the world currently uses, and a standing derived from completed commissions and earned recognition. It introduces no relationship, affinity or schedule state; §22 still defers those systems. The **Records Board** reads that same journal as a ladder of standing goals and adds no state of its own: per-ecology discovery, a weight and a grade record for every sport species, mastery for every crop, and two sweeps. Milestones are *derived* from `src/content/` rather than authored row by row, so a new species or crop brings its own record with it; `src/content/records.ts` owns only the thresholds and tiers, and a species' tier is taken from the rod it needs so the board inherits the existing difficulty axis instead of inventing one. Weight records exist only for sport species, because a basic catch never records a weight. Once every authored track is exhausted, `WorldGuidancePresentation` also supplies the nearest unearned milestones to the HUD tracker, ordered by existing progress; no quest or objective is created. It surfaces in the journal's Records folio, showing each tier's completion count and the two goals nearest to falling rather than every milestone at once. `knowledge.land_sea_cycle` is live after Quest 13; mill and compost quests grant `knowledge.wheat_milling` and `knowledge.worm_composting`. Journal `unlockedKnowledge` only stores IDs that exist in `knowledge.ts` (boat/feature IDs are not knowledge). Do not reveal all ecology immediately; knowledge unlock is progression. The game does not persist a dialogue transcript or a separate lore codex.
+Journal tracks species discovery, largest weight, best quality, habitat, season, time, weather, personal record, current/completed authored quest titles, and stable unlocked practice entries. Its **Notices** folio is authored community flavour from `src/content/villageBulletin.ts`, selected from already-earned quest, feature, knowledge and rank state. The same folio opens from the village-square notice board (`VILLAGE_BULLETIN`); that prop is presentation-only and adds no collider, interaction cooldown or saved state. The board pins existing earned facts as town voice; it owns no persisted state, creates no quest or objective, and gates no reward. The **People** folio is the same kind of reading for the named cast: each person's authored title and station, the recognition line the world currently uses, and a standing derived from completed commissions and earned recognition. It introduces no relationship, affinity or schedule state; §22 still defers those systems. The **Records Board** reads that same journal as a ladder of standing goals and adds no state of its own: per-ecology discovery, a weight and a grade record for every sport species, mastery for every crop, and two sweeps. Milestones are *derived* from `src/content/` rather than authored row by row, so a new species or crop brings its own record with it; `src/content/records.ts` owns only the thresholds and tiers, and a species' tier is taken from the rod it needs so the board inherits the existing difficulty axis instead of inventing one. Weight records exist only for sport species, because a basic catch never records a weight. Once every authored track is exhausted, `WorldGuidancePresentation` also supplies the nearest unearned milestones to the HUD tracker, ordered by existing progress; no quest or objective is created. It surfaces in the journal's Records folio, showing each tier's completion count and the two goals nearest to falling rather than every milestone at once. `knowledge.land_sea_cycle` is live after Quest 13; mill and compost quests grant `knowledge.wheat_milling` and `knowledge.worm_composting`. The family throughline is written one witnessed object at a time — the seed pouch, the family slip and the worn mill handle (`knowledge.family_seed_pouch`, `knowledge.family_slip`, `knowledge.worn_handle`) — and `reconcileCompletedQuestKnowledge` writes a completed errand's knowledge IDs, and nothing else, into saves that finished it before the entry existed. Journal `unlockedKnowledge` only stores IDs that exist in `knowledge.ts` (boat/feature IDs are not knowledge). Do not reveal all ecology immediately; knowledge unlock is progression. The game does not persist a dialogue transcript or a separate lore codex.
 
 Legendary fish are later content requiring combinations of season/weather/time/special bait/minimum rod/rare school/habitat. Difficulty comes from behavior, not huge HP.
 
@@ -1207,7 +1248,9 @@ Vessel slot type comes from the boat definition. The HUD's ice indicator queries
 
 Forecast: anchored, non-modal Now / +2h / +5h conditions with qualitative rain, wind, and sea readings.
 
-Journal: Story uses `ActiveQuestDto` for the current objective and readiness, Records reveal only journal-owned discoveries, Skills render `ProgressionDomain.inspectSkills`, and Guide controls come from `src/ui/keybindings.ts`. React does not reconstruct quest readiness, rank thresholds, or unlock formulas.
+Journal: Story uses `ActiveQuestDto` for the current objective, readiness and the ask as it was put (`brief`: the herald's lines while the speaker is still out of reach, otherwise the speaker's intro), Records reveal only journal-owned discoveries, Skills render `ProgressionDomain.inspectSkills`, and Guide controls come from `src/ui/keybindings.ts`. React does not reconstruct quest readiness, rank thresholds, or unlock formulas.
+
+Quest tracker: an acquisition step (`purchase-upgrade`) publishes `ActiveQuestDto.requirements` — for the skiff its Fishing XP and gold, for a rod the prior rod, its rank threshold and price — measured against the player, so a gate reads as a path while the player can still act on it rather than only as a refusal at the counter. The tracker renders them; it does not derive them. Rod refusals at the water say which rod would do and which stalls stock it (`rodAdviceFor` in `FishingDomain`).
 
 `WorldGuidancePresentation` derives first market, contract, storm-at-sea, spoilage, nightfall, rank, channel and sprint hints from canonical state; the existing `hintsShown` map records display, and the application waits for the current hint or modal to clear.
 

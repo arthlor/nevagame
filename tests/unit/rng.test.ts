@@ -60,6 +60,14 @@ describe("SeededRng", () => {
     expect(() => rng.setState(rng.getState())).not.toThrow();
   });
 
+  it("rejects a corrupt constructor state the same way setState does", () => {
+    for (const invalid of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => new SeededRng(1, invalid)).toThrow(/RNG state/);
+    }
+    // A legacy >2^32 accumulator is a safe integer and must still be accepted.
+    expect(() => new SeededRng(1, 3 * 2 ** 32 + 123_456_789)).not.toThrow();
+  });
+
   it("draws the same sequence from an unmasked legacy state as from its 32-bit residue", () => {
     // Saves written before the mask may hold an accumulator above 2^32; the
     // mixing only reads the low 32 bits, so play continues identically.

@@ -18,7 +18,8 @@ import type {
 } from "../core/contracts";
 import type { FishCargoState, FishSchoolState, GameState } from "../core/types";
 import type { ActiveQuestDto } from "../core/QuestTypes";
-import { dayOfSeason } from "../core/GameClock";
+import { dayOfSeason, MINUTES_PER_DAY } from "../core/GameClock";
+import { PLAYER_SATCHEL_SLOT_COUNT } from "../inventory/InventoryLimits";
 import { WorldLayout } from "../../world/WorldLayout";
 import { findFarmIdAtWorld } from "../../world/FarmLayout";
 import { WORLD_CHART_NODES, WORLD_REGION_LABELS } from "../../world/WorldGameplayLocations";
@@ -434,7 +435,7 @@ export function buildWorldHudDto(
     !state.basicFishing &&
     !state.sportFishing;
   const workCurrent = Math.max(0, Math.floor(player.workCapacity.current));
-  const hour = Math.floor((clock.currentMinute % 1440) / 60);
+  const hour = Math.floor((clock.currentMinute % MINUTES_PER_DAY) / 60);
   const minute = clock.currentMinute % 60;
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
   const boatDefinition = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
@@ -468,7 +469,7 @@ export function buildWorldHudDto(
   const occupiedSatchelSlots = inventory
     ? inventory.slots.filter((s) => Boolean(s.itemId && (s.quantity ?? 0) > 0)).length
     : 0;
-  const totalSatchelSlots = inventory ? inventory.slotCount : 20;
+  const totalSatchelSlots = inventory ? inventory.slotCount : PLAYER_SATCHEL_SLOT_COUNT;
   const capacity = {
     satchelUsed: occupiedSatchelSlots,
     satchelMax: totalSatchelSlots,
@@ -534,7 +535,7 @@ export function buildWorldHudDto(
       dayInSeason: dayOfSeason(clock.dayCount),
       timeOfDayLabel: titleCase(clock.timeOfDay),
       timeOfDay: clock.timeOfDay,
-      dialRotation: ((clock.currentMinute - 720) / 1440) * 360,
+      dialRotation: ((clock.currentMinute - MINUTES_PER_DAY / 2) / MINUTES_PER_DAY) * 360,
       // Dusk reads as night for the weather medallion, but the canonical dawn
       // window must not be cut in half by an invented 06:00/20:00 boundary.
       isNight: clock.timeOfDay === "night" || clock.timeOfDay === "dusk"
